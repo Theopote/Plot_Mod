@@ -17,6 +17,7 @@ import imgui.ImGui;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -78,6 +79,10 @@ import org.slf4j.LoggerFactory;
  */
 public class CableShape extends Shape implements IExtendableShape {
     private static final Logger LOGGER = LoggerFactory.getLogger(CableShape.class);
+
+    // 诊断：限频日志，避免每帧刷屏（key = reason + ":" + shapeId）
+    private static final ConcurrentHashMap<String, Long> LAST_WARN_MS = new ConcurrentHashMap<>();
+    private static final long WARN_INTERVAL_MS = 2000L;
 
     //=============================== Constants ===============================
     /** 绘制模式常量 */
@@ -294,10 +299,35 @@ public class CableShape extends Shape implements IExtendableShape {
             activeStyle = (ShapeStyle) getStyle();
         }
 
-        if (!activeStyle.getLineStyle().isVisible()) return;
+        if (activeStyle.getLineStyle() == null || !activeStyle.getLineStyle().isVisible()) {
+            warnRateLimited("line_invisible", "CableShape线条不可见，跳过绘制: id={}, lineStyle={}, style={}",
+                getId(), activeStyle.getLineStyle(), activeStyle);
+            return;
+        }
 
-        boolean isVisible = isVisibleInContext(context);
-        if (!isVisible) return;
+        // 关键修复：
+        // CableShape 内部的 isVisibleInContext() 在当前 CanvasRenderer 渲染路径（全屏/BackgroundDrawList）
+        // 会发生“误裁剪”，导致图形虽然已提交但永远不会被绘制。
+        // 因为 CanvasRenderer 已经有统一的裁剪/批量渲染逻辑，这里不再做二次裁剪，避免消失问题。
+        //
+        // 如果未来需要性能优化，应统一在 CanvasRenderer 层做裁剪（并且保证坐标系一致）。
+        boolean isVisible = true;
+        try {
+            isVisible = isVisibleInContext(context);
+        } catch (Exception ignored) {
+            // 忽略内部裁剪异常，继续绘制
+        }
+        if (!isVisible) {
+            // 仍保留限频日志用于诊断，但不再跳过绘制
+            CanvasCamera cam = context.getCamera();
+            warnRateLimited("culled", "CableShape内部裁剪判定为不可见（已忽略该裁剪，仍会绘制）: id={}, bbox={}, zoom={}, offset={}, pos={}",
+                getId(),
+                safeGetBoundingBox(),
+                cam != null ? cam.getZoom() : null,
+                cam != null ? cam.getOffset() : null,
+                cam != null ? cam.getPosition() : null
+            );
+        }
 
         double scale = 1.0;
         try {
@@ -315,6 +345,25 @@ public class CableShape extends Shape implements IExtendableShape {
         } else {
             java.awt.Color color = activeStyle.getLineStyle().getColor();
             context.drawPath(points, color);
+        }
+    }
+
+    private void warnRateLimited(String reason, String message, Object... args) {
+        String key = reason + ":" + getId();
+        long now = System.currentTimeMillis();
+        Long last = LAST_WARN_MS.get(key);
+        if (last != null && now - last < WARN_INTERVAL_MS) {
+            return;
+        }
+        LAST_WARN_MS.put(key, now);
+        LOGGER.warn(message, args);
+    }
+
+    private BoundingBox safeGetBoundingBox() {
+        try {
+            return getBoundingBox();
+        } catch (Exception e) {
+            return new BoundingBox(0, 0, 0, 0);
         }
     }
 
@@ -350,8 +399,23 @@ public class CableShape extends Shape implements IExtendableShape {
         CanvasCamera camera = context.getCamera();
         Vec2d cameraOffset = camera.getOffset();
 
-        double viewportWidth = ImGui.getWindowWidth() / scale;
-        double viewportHeight = ImGui.getWindowHeight() / scale;
+        // 重要修复：
+        // 在 CanvasRenderer 的全屏/BackgroundDrawList 渲染路径下，可能不存在“当前 ImGui Window”，
+        // 此时 ImGui.getWindowWidth/Height() 很可能返回 0，导致所有图形被误裁剪为不可见。
+        // 因此当窗口尺寸无效时，回退到 DisplaySize，避免 false-negative 裁剪。
+        float viewportWidthPx = ImGui.getWindowWidth();
+        float viewportHeightPx = ImGui.getWindowHeight();
+        if (viewportWidthPx <= 0.0f || viewportHeightPx <= 0.0f) {
+            viewportWidthPx = ImGui.getIO().getDisplaySizeX();
+            viewportHeightPx = ImGui.getIO().getDisplaySizeY();
+        }
+        if (viewportWidthPx <= 0.0f || viewportHeightPx <= 0.0f) {
+            // 保险策略：无法获取任何有效视口尺寸时，默认可见，避免图形“保存但看不见”
+            return true;
+        }
+
+        double viewportWidth = viewportWidthPx / scale;
+        double viewportHeight = viewportHeightPx / scale;
 
         double viewportMinX = -cameraOffset.x;
         double viewportMinY = -cameraOffset.y;
@@ -1404,8 +1468,10 @@ public class CableShape extends Shape implements IExtendableShape {
                 Vec2d p2 = points.get(i + 1);
                 
                 // 应用变换
-                Vec2d transformedP1 = getTransform().transform(p1);
-                Vec2d transformedP2 = getTransform().transform(p2);
+                // 虽然 Shape 默认会初始化 transform，但这里仍做健壮性处理，避免 NPE 导致整条线不绘制。
+                com.masterplanner.api.geometry.Matrix3d t = getTransform();
+                Vec2d transformedP1 = (t != null) ? t.transform(p1) : p1;
+                Vec2d transformedP2 = (t != null) ? t.transform(p2) : p2;
                 
                 // 转换到屏幕坐标
                 Vec2d screenP1 = camera.worldToScreen(transformedP1);
@@ -1420,8 +1486,8 @@ public class CableShape extends Shape implements IExtendableShape {
             }
             
         } catch (Exception e) {
-            // 记录错误但不抛出异常
-            System.err.println("渲染悬链线ImGui时发生错误: " + e.getMessage());
+            // 记录错误但不抛出异常（避免污染 stderr，统一走日志系统）
+            LOGGER.warn("渲染悬链线ImGui时发生错误: {}", e.getMessage(), e);
         }
     }
     

@@ -274,13 +274,16 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
             case COMPLETE:
                 // 交互完成，获取最终图形并提交
                 try {
+                    LOGGER.info("工具 [{}] {} - 收到 COMPLETE，准备获取最终图形", toolId, eventType);
                     Shape finalShape = interactionStrategy.getFinalShape();
                     if (finalShape != null) {
+                        LOGGER.info("工具 [{}] {} - 成功获取最终图形 ID={}, 类型={}", 
+                            toolId, eventType, finalShape.getId(), finalShape.getClass().getSimpleName());
                         // commitShape现在是完整的原子操作，会自动处理提交和重置
                         commitShape(finalShape);
-                        LOGGER.debug("工具 [{}] {} - 交互完成，图形已提交", toolId, eventType);
+                        LOGGER.info("工具 [{}] {} - 交互完成，图形已提交", toolId, eventType);
                     } else {
-                        LOGGER.warn("工具 [{}] {} - 交互完成但无法获取最终图形", toolId, eventType);
+                        LOGGER.error("工具 [{}] {} - 交互完成但无法获取最终图形（getFinalShape返回null）", toolId, eventType);
                         resetDrawing("最终图形获取失败");
                     }
                 } catch (Exception e) {

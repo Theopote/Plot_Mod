@@ -259,7 +259,17 @@ public class CatenaryLineTool extends DrawingTool {
                         reset();
                         return InteractionResult.CANCEL;
                     }
+                    // 完成交互：创建最终图形并保存
                     finishInteraction(snappedPoint, context);
+                    
+                    // 验证图形是否已正确设置
+                    if (previewCatenary == null) {
+                        LOGGER.error("CatenaryLineTool finishInteraction 后 previewCatenary 仍为 null");
+                        reset();
+                        return InteractionResult.CANCEL;
+                    }
+                    
+                    LOGGER.info("CatenaryLineTool 准备返回 COMPLETE，图形ID={}", previewCatenary.getId());
                     return InteractionResult.COMPLETE;
                 } else {
                     LOGGER.warn("CatenaryLineTool 处于异常状态，进行重置");
@@ -333,11 +343,19 @@ public class CatenaryLineTool extends DrawingTool {
                 CableShape finalCatenary = createFinalCatenary(startPoint, endPoint, sagPoint);
 
                 if (finalCatenary != null) {
+                    // 应用最终样式
                     context.getStyleHandler().applyFinalStyle(finalCatenary);
-                    this.previewCatenary = finalCatenary; // 保存为最终图形
-                    LOGGER.debug("CatenaryLineTool 完成绘制: 起点={}, 终点={}, 控制点={}", startPoint, endPoint, sagPoint);
+                    
+                    // 保存为最终图形（供 getFinalShape() 返回）
+                    this.previewCatenary = finalCatenary;
+                    
+                    // 同时设置到 context 的 previewShape，确保 DrawingTool 能正确获取
+                    context.setPreviewShape(finalCatenary);
+                    
+                    LOGGER.info("CatenaryLineTool 完成绘制: 起点={}, 终点={}, 控制点={}, 图形ID={}", 
+                        startPoint, endPoint, sagPoint, finalCatenary.getId());
                 } else {
-                    LOGGER.warn("CatenaryLineTool 创建最终悬链线失败");
+                    LOGGER.error("CatenaryLineTool 创建最终悬链线失败");
                     reset();
                 }
             } catch (Exception e) {
@@ -463,7 +481,24 @@ public class CatenaryLineTool extends DrawingTool {
 
         @Override
         public Shape getFinalShape() {
-            return previewCatenary;
+            if (previewCatenary != null) {
+                // 使用 clone() 创建新实例，确保返回的图形独立于内部状态（参考 CircleTool 的实现）
+                // 这样即使 reset() 清空了 previewCatenary，已返回的图形也不会受影响
+                CableShape finalCatenary = (CableShape) previewCatenary.clone();
+                
+                // 应用最终样式（确保样式正确）
+                // 注意：clone() 已经复制了样式，但为了确保使用最新的最终样式，我们重新应用
+                // 由于 getFinalShape() 没有 context 参数，样式已经在 finishInteraction 中应用过了
+                // 所以这里直接使用 clone 的样式即可
+                
+                LOGGER.info("CatenaryLineTool.getFinalShape: 创建新图形实例 ID={}, 类型={}, 起点={}, 终点={}", 
+                    finalCatenary.getId(), finalCatenary.getClass().getSimpleName(),
+                    finalCatenary.getStart(), finalCatenary.getEnd());
+                return finalCatenary;
+            } else {
+                LOGGER.error("CatenaryLineTool.getFinalShape: previewCatenary 为 null！这会导致图形无法提交");
+                return null;
+            }
         }
 
         @Override
