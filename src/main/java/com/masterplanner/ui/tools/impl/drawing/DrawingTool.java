@@ -629,8 +629,10 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
                     return (Shape) DrawingTool.this.getClass()
                         .getMethod("createShapeFromPoints", List.class)
                         .invoke(DrawingTool.this, points);
+                } catch (NoSuchMethodException e) {
+                    // 方法不存在是正常情况，静默回退到默认实现
                 } catch (Exception e) {
-                    // 反射失败则回退到默认实现
+                    // 其他异常才记录为错误
                     LOGGER.error("反射调用 createShapeFromPoints 失败: 工具类={}, 错误={}", 
                                DrawingTool.this.getClass().getSimpleName(), e.getMessage(), e);
                 }

@@ -114,9 +114,14 @@ public class ControlPanelIcons {
             };
             
             for (String iconName : iconNames) {
-                // 资源路径在资源包中必须使用小写目录名（Minecraft Identifier 区分大小写）
-                String path = "assets/masterplanner/textures/gui/controlpanel/" + iconName;
-                com.masterplanner.utils.ImageUtils.checkImageInfo(path);
+                try {
+                    // 资源路径在资源包中必须使用小写目录名（Minecraft Identifier 区分大小写）
+                    String path = "assets/masterplanner/textures/gui/controlpanel/" + iconName;
+                    com.masterplanner.utils.ImageUtils.checkImageInfo(path);
+                } catch (Exception e) {
+                    // 文件不存在时跳过，不中断整个检查流程
+                    LOGGER.debug("图标文件不存在，跳过检查: {}", iconName);
+                }
             }
             
             LOGGER.info("图标尺寸检查完成");
@@ -137,8 +142,6 @@ public class ControlPanelIcons {
                 textureCache.put(iconName, textureId);
                 LOGGER.debug("成功加载纹理: {} (ID: {})", iconName, textureId);
             } else {
-                LOGGER.error("加载纹理失败: {} (返回ID为0)", iconName);
-                
                 // 检查文件是否存在
                 Identifier identifier = Identifier.of("masterplanner", path);
                 boolean exists = net.minecraft.client.MinecraftClient.getInstance()
@@ -147,11 +150,15 @@ public class ControlPanelIcons {
                     .isPresent();
                 
                 if (!exists) {
-                    LOGGER.error("纹理文件不存在: {}", identifier);
+                    // 文件不存在时记录警告，但不中断加载流程
+                    LOGGER.warn("纹理文件不存在，将跳过: {}", identifier);
+                } else {
+                    LOGGER.error("加载纹理失败: {} (返回ID为0)", iconName);
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("加载纹理时发生错误 {}: {}", iconName, e.getMessage(), e);
+            // 加载失败时记录警告，但不中断整个加载流程
+            LOGGER.warn("加载纹理时发生错误 {}: {}", iconName, e.getMessage());
         }
     }
 
@@ -172,5 +179,23 @@ public class ControlPanelIcons {
      */
     public static Identifier getIdentifier(String iconName) {
         return Identifier.of("masterplanner", "textures/gui/controlpanel/" + iconName);
+    }
+    
+    /**
+     * 安全获取图标纹理ID，如果图标不存在则返回0
+     * @param iconName 图标名称
+     * @return 纹理ID，如果不存在则返回0
+     */
+    public static int getTextureId(String iconName) {
+        return textureCache.getOrDefault(iconName, 0);
+    }
+    
+    /**
+     * 检查图标是否已加载
+     * @param iconName 图标名称
+     * @return 如果图标已加载则返回true
+     */
+    public static boolean isIconLoaded(String iconName) {
+        return textureCache.containsKey(iconName) && textureCache.get(iconName) > 0;
     }
 }

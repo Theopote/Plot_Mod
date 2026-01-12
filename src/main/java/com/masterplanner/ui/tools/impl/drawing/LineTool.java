@@ -161,6 +161,22 @@ public class LineTool extends DrawingTool {
             return null;
         }
     }
+    
+    /**
+     * 从点列表创建图形（用于多步骤交互策略）
+     * @param points 点列表
+     * @return 创建的图形
+     */
+    public Shape createShapeFromPoints(List<Vec2d> points) {
+        if (points == null || points.isEmpty()) {
+            return null;
+        }
+        if (points.size() == 1) {
+            return createShape(points.getFirst(), points.getFirst());
+        }
+        // 使用第一个和最后一个点创建直线
+        return createShape(points.getFirst(), points.getLast());
+    }
 
     /**
      * 创建多线图形

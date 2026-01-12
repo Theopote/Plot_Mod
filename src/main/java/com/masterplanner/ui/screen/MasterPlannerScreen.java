@@ -412,6 +412,7 @@ public class MasterPlannerScreen extends Screen {
 
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTop);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);
+        // 确保属性面板第一个 dock，这样它会成为默认激活的标签（ImGui 中第一个 dock 的窗口会默认激活）
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_PROPERTY, dockIdRight);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_GALLERY, dockIdRight);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_EXTENSION, dockIdRight);
@@ -468,13 +469,13 @@ public class MasterPlannerScreen extends Screen {
         float h = UILayout.getContentHeight(displayHeight);
 
         try {
-            // 属性
+            // 属性面板（第一个渲染，确保在最前面且默认打开）
             if (propertyPanel != null) {
                 ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
                 ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
                 ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS);
                 propertyPanel.render();
-        ImGui.end();
+                ImGui.end();
             }
 
             // 图库
