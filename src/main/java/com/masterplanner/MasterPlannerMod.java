@@ -83,7 +83,13 @@ public class MasterPlannerMod implements ModInitializer, ClientModInitializer {
             Class.forName("com.masterplanner.api.event.IEvent");
             Class.forName("com.masterplanner.api.event.IEventListener");
             
-            LOGGER.debug("关键API类预加载完成 (已加载 {} 个接口)", 18);
+            // 工具工厂类（防止运行时 NoClassDefFoundError）
+            Class.forName("com.masterplanner.ui.tools.ToolFactory");
+            
+            // 空间索引类（防止内部类 Entry/Node 加载失败）
+            Class.forName("com.masterplanner.core.snap.SpatialIndex");
+            
+            LOGGER.debug("关键API类预加载完成 (已加载 {} 个接口、工具工厂和空间索引)", 20);
             
         } catch (ClassNotFoundException e) {
             LOGGER.error("预加载API类失败: {}", e.getMessage(), e);

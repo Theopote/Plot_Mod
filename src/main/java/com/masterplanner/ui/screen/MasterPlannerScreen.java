@@ -80,6 +80,7 @@ public class MasterPlannerScreen extends Screen {
     private boolean dockLayoutBuilt;
     private int lastDockW;
     private int lastDockH;
+    private boolean firstRender = true; // 跟踪首次渲染，用于设置默认激活的标签
 
     /**
      * 构造函数
@@ -269,7 +270,18 @@ public class MasterPlannerScreen extends Screen {
     private static String safeMsg(Throwable t) {
         if (t == null) return "unknown";
         String m = t.getMessage();
-        if (m == null || m.isBlank()) m = t.getClass().getSimpleName();
+        if (m == null || m.isBlank()) {
+            // 对于 NoClassDefFoundError 和 ClassNotFoundException，显示完整的类名
+            if (t instanceof NoClassDefFoundError || t instanceof ClassNotFoundException) {
+                m = t.getClass().getSimpleName() + ": " + t.getClass().getName();
+            } else {
+                m = t.getClass().getSimpleName();
+            }
+        }
+        // 限制错误消息长度，避免显示过长
+        if (m.length() > 100) {
+            m = m.substring(0, 97) + "...";
+        }
         return m;
     }
 
@@ -321,6 +333,11 @@ public class MasterPlannerScreen extends Screen {
 
             // 再渲染 DockSpace 与面板窗口（位于画布之上）
             renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, toolPanel, propertyPanel, galleryPanel, extensionPanel);
+            
+            // 首次渲染完成后，标记为已完成
+            if (firstRender) {
+                firstRender = false;
+            }
         } finally {
             ImGui.popStyleColor(2);
         }
@@ -412,7 +429,8 @@ public class MasterPlannerScreen extends Screen {
 
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTop);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);
-        // 确保属性面板第一个 dock，这样它会成为默认激活的标签（ImGui 中第一个 dock 的窗口会默认激活）
+        // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
+        // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_PROPERTY, dockIdRight);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_GALLERY, dockIdRight);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_EXTENSION, dockIdRight);
@@ -473,6 +491,10 @@ public class MasterPlannerScreen extends Screen {
             if (propertyPanel != null) {
                 ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
                 ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
+                // 首次渲染时设置焦点，确保属性面板默认激活
+                if (firstRender) {
+                    ImGui.setNextWindowFocus();
+                }
                 ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS);
                 propertyPanel.render();
                 ImGui.end();
