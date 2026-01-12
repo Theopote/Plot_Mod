@@ -474,7 +474,7 @@ public class MasterPlannerScreen extends Screen {
                 ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
                 ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS);
                 propertyPanel.render();
-                ImGui.end();
+        ImGui.end();
             }
 
             // 图库
@@ -495,8 +495,8 @@ public class MasterPlannerScreen extends Screen {
                 ImGui.end();
             }
         } finally {
-            ImGui.popStyleColor(2);
-            ImGui.popStyleVar(2);
+        ImGui.popStyleColor(2);
+        ImGui.popStyleVar(2);
         }
     }
 

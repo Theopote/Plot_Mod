@@ -17,7 +17,6 @@ import imgui.ImGui;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -81,8 +80,6 @@ public class CableShape extends Shape implements IExtendableShape {
     private static final Logger LOGGER = LoggerFactory.getLogger(CableShape.class);
 
     // 诊断：限频日志，避免每帧刷屏（key = reason + ":" + shapeId）
-    private static final ConcurrentHashMap<String, Long> LAST_WARN_MS = new ConcurrentHashMap<>();
-    private static final long WARN_INTERVAL_MS = 2000L;
 
     //=============================== Constants ===============================
     /** 绘制模式常量 */
@@ -300,34 +297,14 @@ public class CableShape extends Shape implements IExtendableShape {
         }
 
         if (activeStyle.getLineStyle() == null || !activeStyle.getLineStyle().isVisible()) {
-            warnRateLimited("line_invisible", "CableShape线条不可见，跳过绘制: id={}, lineStyle={}, style={}",
-                getId(), activeStyle.getLineStyle(), activeStyle);
             return;
         }
 
         // 关键修复：
         // CableShape 内部的 isVisibleInContext() 在当前 CanvasRenderer 渲染路径（全屏/BackgroundDrawList）
-        // 会发生“误裁剪”，导致图形虽然已提交但永远不会被绘制。
+        // 会发生"误裁剪"，导致图形虽然已提交但永远不会被绘制。
         // 因为 CanvasRenderer 已经有统一的裁剪/批量渲染逻辑，这里不再做二次裁剪，避免消失问题。
-        //
         // 如果未来需要性能优化，应统一在 CanvasRenderer 层做裁剪（并且保证坐标系一致）。
-        boolean isVisible = true;
-        try {
-            isVisible = isVisibleInContext(context);
-        } catch (Exception ignored) {
-            // 忽略内部裁剪异常，继续绘制
-        }
-        if (!isVisible) {
-            // 仍保留限频日志用于诊断，但不再跳过绘制
-            CanvasCamera cam = context.getCamera();
-            warnRateLimited("culled", "CableShape内部裁剪判定为不可见（已忽略该裁剪，仍会绘制）: id={}, bbox={}, zoom={}, offset={}, pos={}",
-                getId(),
-                safeGetBoundingBox(),
-                cam != null ? cam.getZoom() : null,
-                cam != null ? cam.getOffset() : null,
-                cam != null ? cam.getPosition() : null
-            );
-        }
 
         double scale = 1.0;
         try {
@@ -345,25 +322,6 @@ public class CableShape extends Shape implements IExtendableShape {
         } else {
             java.awt.Color color = activeStyle.getLineStyle().getColor();
             context.drawPath(points, color);
-        }
-    }
-
-    private void warnRateLimited(String reason, String message, Object... args) {
-        String key = reason + ":" + getId();
-        long now = System.currentTimeMillis();
-        Long last = LAST_WARN_MS.get(key);
-        if (last != null && now - last < WARN_INTERVAL_MS) {
-            return;
-        }
-        LAST_WARN_MS.put(key, now);
-        LOGGER.warn(message, args);
-    }
-
-    private BoundingBox safeGetBoundingBox() {
-        try {
-            return getBoundingBox();
-        } catch (Exception e) {
-            return new BoundingBox(0, 0, 0, 0);
         }
     }
 

@@ -94,9 +94,6 @@ public class CanvasRenderer implements EventListener {
      */
     private static class RenderingOptimizer {
         private BoundingBox viewportBounds;
-        // 诊断：限频日志，避免每帧刷屏
-        private static final java.util.concurrent.ConcurrentHashMap<String, Long> LAST_WARN_MS = new java.util.concurrent.ConcurrentHashMap<>();
-        private static final long WARN_INTERVAL_MS = 2000L;
         private int frameCount = 0;
         private long lastFrameTime = 0;
         private long lastPerformanceCheck = 0;
@@ -132,32 +129,13 @@ public class CanvasRenderer implements EventListener {
                 }
                 
                 // 简单的边界框相交测试
-                boolean visible = viewportBounds.intersects(shapeBounds);
-                if (!visible && shape instanceof com.masterplanner.core.geometry.shapes.CableShape) {
-                    warnRateLimited("cull:" + shape.getId(),
-                        "CableShape在CanvasRenderer被裁剪: id={}, shapeBounds={}, viewportBounds={}, camZoom={}, camOffset={}, camPos={}",
-                        shape.getId(), shapeBounds, viewportBounds,
-                        camera != null ? camera.getZoom() : null,
-                        camera != null ? camera.getOffset() : null,
-                        camera != null ? camera.getPosition() : null
-                    );
-                }
-                return visible;
+                return viewportBounds.intersects(shapeBounds);
             } catch (Exception e) {
                 // 出错时保险起见返回可见
                 return true;
             }
         }
 
-        private void warnRateLimited(String key, String message, Object... args) {
-            long now = System.currentTimeMillis();
-            Long last = LAST_WARN_MS.get(key);
-            if (last != null && now - last < WARN_INTERVAL_MS) {
-                return;
-            }
-            LAST_WARN_MS.put(key, now);
-            LOGGER.warn(message, args);
-        }
         
         /**
          * 更新帧计数和性能统计
