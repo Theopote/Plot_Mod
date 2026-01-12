@@ -25,6 +25,14 @@ loom {
 			sourceSet sourceSets.main
 		}
 	}
+	
+	// 配置运行时的 JVM 参数，消除模块系统警告
+	runConfigs.configureEach {
+		// 允许未命名模块访问原生方法（JNA 需要）
+		vmArgs.add("--enable-native-access=ALL-UNNAMED")
+		// 允许访问内部 API（JOML 需要，但未来可能失效）
+		// 注意：sun.misc.Unsafe 的警告无法通过参数消除，需要等待 JOML 更新
+	}
 }
 
 fabricApi {

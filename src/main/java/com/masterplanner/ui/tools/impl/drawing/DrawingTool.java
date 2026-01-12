@@ -26,8 +26,6 @@ import java.util.List;
 
 // 导入策略模式相关类
 import com.masterplanner.ui.tools.impl.drawing.strategy.IInteractionStrategy;
-import com.masterplanner.ui.tools.impl.drawing.strategy.DragInteractionStrategy;
-import com.masterplanner.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
 import com.masterplanner.ui.tools.snap.SnapHandler;
 import com.masterplanner.ui.tools.impl.drawing.strategy.IShapeFactory;
 
