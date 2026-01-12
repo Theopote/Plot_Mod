@@ -1,0 +1,627 @@
+package com.masterplanner.ui.panel.tool.renderer;
+
+import com.masterplanner.MasterPlannerMod;
+import com.masterplanner.core.graphics.style.TextStyle;
+import com.masterplanner.core.graphics.style.TextAlignment;
+import com.masterplanner.ui.tools.impl.modify.TextTool;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
+import com.masterplanner.core.state.AppState;
+import imgui.ImGui;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
+import imgui.type.ImBoolean;
+
+import java.awt.Color;
+import com.masterplanner.core.log.LogManager;
+
+/**
+ * 增强文字工具选项渲染器 - 无状态架构，支持多行文字和高级配置
+ * 
+ * <p>优化版本 - 基于SpiralToolOptionRenderer的优秀设计模式</p>
+ * <ul>
+ *   <li>状态同步机制：确保UI与工具状态一致</li>
+ *   <li>主题集成：提供一致的用户体验</li>
+ *   <li>错误处理和回退机制：增强健壮性</li>
+ *   <li>参数验证：防止无效配置</li>
+ *   <li>改进的UI布局和样式</li>
+ * </ul>
+ */
+public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
+    
+    // 配置键常量
+    private static final String CONFIG_KEY_FONT_SIZE = "fontSize";
+    private static final String CONFIG_KEY_BOLD = "bold";
+    private static final String CONFIG_KEY_ITALIC = "italic";
+    private static final String CONFIG_KEY_USE_DIALOG = "useDialog";
+    private static final String CONFIG_KEY_H_ALIGN = "horizontalAlignment";
+    private static final String CONFIG_KEY_V_ALIGN = "verticalAlignment";
+    private static final String CONFIG_KEY_LINE_HEIGHT = "lineHeight";
+    
+    // 工具ID常量
+    private static final String TOOL_ID = "text";
+
+    // 工具引用 - 单一数据源
+    private final TextTool textTool; // 保留引用以兼容未来扩展（避免每次从AppState查找）
+
+    // 临时状态变量 - 仅在渲染期间使用
+    private float[] tempFontSize = new float[1];
+    private final ImBoolean tempBold = new ImBoolean(false);
+    private final ImBoolean tempItalic = new ImBoolean(false);
+    private final ImBoolean tempUseDialog = new ImBoolean(true);
+    private float[] tempLineHeight = new float[1];
+    private TextAlignment.Horizontal tempHorizontalAlign = TextAlignment.Horizontal.LEFT;
+    private TextAlignment.Vertical tempVerticalAlign = TextAlignment.Vertical.TOP;
+    
+    // 状态同步脏标记
+    private boolean needsSync = true;
+    
+    // 错误状态
+    private boolean hasError = false;
+    private String errorMessage = "";
+
+    public TextToolOptionRenderer(TextTool textTool) {
+        super(TOOL_ID);
+        this.textTool = textTool;
+
+        MasterPlannerMod.LOGGER.info("创建增强文字工具选项渲染器");
+    }
+    
+    @Override
+    public float render() {
+        float height = 0;
+        ImGui.pushID("text_options");
+        
+        try {
+            // 获取当前主题
+            UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
+            
+            // 仅在需要时同步工具状态到UI
+            if (needsSync) {
+                syncStateFromTool();
+                needsSync = false;
+            }
+            
+            // 显示错误信息（如果有）
+            if (hasError) {
+                height += renderErrorSection(currentTheme);
+            }
+            
+            // 根据“使用对话框”设置决定面板内容
+            if (tempUseDialog.get()) {
+                // 对话框已包含样式与多行输入，这里仅保留最小化选项
+                height += renderInputMethodSection(currentTheme);
+                height += renderDialogInfo(currentTheme);
+                height += renderActionSection(currentTheme);
+                height += renderShortcutSection(currentTheme);
+            } else {
+                // 未使用对话框时，保留完整的面板快速设置
+                height += renderFontSizeSection(currentTheme);
+                height += renderStyleSection(currentTheme);
+                height += renderAlignmentSection(currentTheme);
+                height += renderLineHeightSection(currentTheme);
+                height += renderInputMethodSection(currentTheme);
+                height += renderActionSection(currentTheme);
+                height += renderShortcutSection(currentTheme);
+            }
+            
+        } catch (Exception e) {
+            MasterPlannerMod.LOGGER.error("TextToolOptionRenderer 渲染失败: {}", e.getMessage(), e);
+            hasError = true;
+            errorMessage = "渲染失败: " + e.getMessage();
+        } finally {
+            ImGui.popID();
+        }
+        
+        return height;
+    }
+
+    /**
+     * 对话框模式下的说明信息
+     */
+    private float renderDialogInfo(UITheme.ThemeColors theme) {
+        float height = 0;
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("说明");
+
+        ImGui.tableNextColumn();
+        // 使用较淡的提示色
+        ImGui.textColored(0.75f, 0.75f, 0.75f, 1.0f,
+                "样式、字号、对齐已移动到文字输入对话框中设置");
+
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+
+    /**
+     * 从工具同步状态到UI
+     */
+    private void syncStateFromTool() {
+        try {
+            AppState appState = AppState.getInstance();
+            if (appState == null) {
+                return;
+            }
+            
+            var currentTool = appState.getCurrentTool();
+            if (!(currentTool instanceof TextTool actualTextTool)) {
+                return;
+            }
+            
+            // 使用实际的TextTool实例获取配置
+            ToolConfiguration config = new ActualToolConfiguration(actualTextTool);
+            
+            // 同步状态到UI变量
+            tempFontSize[0] = config.getFontSize();
+            tempBold.set(config.isBold());
+            tempItalic.set(config.isItalic());
+            tempUseDialog.set(config.isUseDialog());
+            tempLineHeight[0] = config.getLineHeight();
+            tempHorizontalAlign = config.getHorizontalAlignment();
+            tempVerticalAlign = config.getVerticalAlignment();
+            
+            // 颜色改为跟随当前图层，不在面板中配置
+            
+            hasError = false;
+            errorMessage = "";
+            
+            MasterPlannerMod.LOGGER.debug("TextToolOptionRenderer: 从实际TextTool同步配置 - useDialog: {}", config.isUseDialog());
+            
+        } catch (Exception e) {
+            MasterPlannerMod.LOGGER.error("同步文字工具状态失败: {}", e.getMessage());
+            hasError = true;
+            errorMessage = "状态同步失败: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * 渲染错误信息区域
+     */
+    private float renderErrorSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.tableNextColumn();
+        
+        // 设置错误文本颜色
+        ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.0f, 0.0f, 1.0f);
+        ImGui.textWrapped(errorMessage);
+        ImGui.popStyleColor();
+        
+        height += ImGui.getTextLineHeight() * 2 + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 渲染字体大小设置区域
+     */
+    private float renderFontSizeSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("字体大小");
+        
+        ImGui.tableNextColumn();
+        
+        // 使用通用浮点数步进器
+        renderFloatStepper("font_size", tempFontSize[0], 2.0f, 
+                          TextStyle.MIN_FONT_SIZE, TextStyle.MAX_FONT_SIZE,
+                CONFIG_KEY_FONT_SIZE, theme);
+        
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 渲染样式设置区域
+     */
+    private float renderStyleSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("样式");
+        
+        ImGui.tableNextColumn();
+        
+        // 设置复选框样式
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f); // 亮绿色
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        
+        // 粗体复选框
+        if (ImGui.checkbox("粗体##bold", tempBold)) {
+            updateToolConfig(CONFIG_KEY_BOLD, String.valueOf(tempBold.get()));
+        }
+        
+        ImGui.sameLine();
+        
+        // 斜体复选框
+        if (ImGui.checkbox("斜体##italic", tempItalic)) {
+            updateToolConfig(CONFIG_KEY_ITALIC, String.valueOf(tempItalic.get()));
+        }
+        
+        // 恢复样式
+        ImGui.popStyleVar();
+        ImGui.popStyleColor(5);
+        
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    // 颜色选择面板已移除，颜色跟随图层
+    
+    /**
+     * 渲染对齐设置区域
+     */
+    private float renderAlignmentSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("对齐");
+        
+        ImGui.tableNextColumn();
+        
+        // 水平对齐下拉菜单
+        renderEnumCombo("h_align", tempHorizontalAlign, 
+                       TextAlignment.Horizontal.values(), CONFIG_KEY_H_ALIGN, theme);
+        
+        ImGui.sameLine();
+        
+        // 垂直对齐下拉菜单
+        renderEnumCombo("v_align", tempVerticalAlign, 
+                       TextAlignment.Vertical.values(), CONFIG_KEY_V_ALIGN, theme);
+        
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 渲染行高设置区域
+     */
+    private float renderLineHeightSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("行高");
+        
+        ImGui.tableNextColumn();
+        
+        // 使用通用浮点数步进器
+        renderFloatStepper("line_height", tempLineHeight[0], 0.1f, 
+                          0.5f, 3.0f, CONFIG_KEY_LINE_HEIGHT, theme);
+        
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 渲染输入方式设置区域
+     */
+    private float renderInputMethodSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("输入方式");
+        
+        ImGui.tableNextColumn();
+        
+        // 设置复选框样式
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        
+        // 使用对话框选项
+        if (ImGui.checkbox("使用对话框##use_dialog", tempUseDialog)) {
+            LogManager.getInstance().debug("TextToolOptionRenderer: 用户切换对话框设置为 {}", tempUseDialog.get());
+            updateToolConfig(CONFIG_KEY_USE_DIALOG, String.valueOf(tempUseDialog.get()));
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("点击时弹出对话框输入文字");
+        }
+        
+        // 恢复样式
+        ImGui.popStyleVar();
+        ImGui.popStyleColor(5);
+        
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 渲染操作按钮区域
+     */
+    private float renderActionSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("操作");
+        
+        ImGui.tableNextColumn();
+        
+        // 设置按钮样式
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
+        
+        // 重置大小按钮
+        if (ImGui.button("重置大小", 80, 20)) {
+            updateToolConfig(CONFIG_KEY_FONT_SIZE, String.valueOf(TextStyle.DEFAULT_FONT_SIZE));
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("将字体大小重置为默认值");
+        }
+        
+        ImGui.sameLine();
+        
+        // 转换为图形按钮
+        if (ImGui.button("转换图形", 80, 20)) {
+            updateToolConfig("convertSelected", "true");
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("将选中的文字转换为图形");
+        }
+        
+        // 恢复样式
+        ImGui.popStyleVar(2);
+        ImGui.popStyleColor(4);
+        
+        height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 渲染快捷键提示区域
+     */
+    private float renderShortcutSection(UITheme.ThemeColors theme) {
+        float height = 0;
+        
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("快捷键");
+        
+        ImGui.tableNextColumn();
+        ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
+                """
+                        Shift + +/- : 调整字体大小
+                        双击文字 : 编辑文字
+                        Ctrl+Enter : 完成编辑
+                        Enter : 添加换行
+                        Esc : 取消编辑""");
+        
+        height += ImGui.getTextLineHeight() * 5 + ImGui.getStyle().getItemSpacing().y;
+        return height;
+    }
+    
+    /**
+     * 通用浮点数步进器 - 带滑块和+/-按钮
+     */
+    private void renderFloatStepper(String label, float currentValue, float step,
+                                    float min, float max, String configKey,
+                                    UITheme.ThemeColors theme) {
+        tempFontSize[0] = currentValue;
+        
+        // 设置滑块样式
+        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.buttonSelected);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        
+        // 滑块
+        if (ImGui.sliderFloat("##" + label, tempFontSize, min, max, "%.1f")) {
+            // 实时更新（仅在编辑完成后）
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                updateToolConfig(configKey, String.valueOf(tempFontSize[0]));
+            }
+        }
+        
+        // 恢复样式
+        ImGui.popStyleColor(5);
+        
+        // 快速调整按钮
+        ImGui.sameLine();
+        if (ImGui.button("-##" + label, 20, 20)) {
+            float newValue = Math.max(tempFontSize[0] - step, min);
+            updateToolConfig(configKey, String.valueOf(newValue));
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("快速减小值");
+        }
+        
+        ImGui.sameLine();
+        if (ImGui.button("+##" + label, 20, 20)) {
+            float newValue = Math.min(tempFontSize[0] + step, max);
+            updateToolConfig(configKey, String.valueOf(newValue));
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("快速增大值");
+        }
+    }
+    
+    /**
+     * 通用枚举下拉菜单
+     */
+    private <T extends Enum<T>> void renderEnumCombo(String label, T currentValue, 
+                                                     T[] allValues, String configKey, 
+                                                     UITheme.ThemeColors theme) {
+        // 设置下拉菜单样式
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        
+        if (ImGui.beginCombo("##" + label, currentValue.name())) {
+            for (T value : allValues) {
+                boolean isSelected = currentValue == value;
+                if (ImGui.selectable(value.name(), isSelected)) {
+                    updateToolConfig(configKey, value.name());
+                }
+                if (isSelected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        
+        // 恢复样式
+        ImGui.popStyleColor(6);
+    }
+    
+    /**
+     * 更新工具配置，并标记需要同步
+     */
+    @Override
+    protected void updateToolConfig(String key, String value) {
+        MasterPlannerMod.LOGGER.debug("TextToolOptionRenderer.updateToolConfig: key={}, value={}", key, value);
+        
+        try {
+            // 参数验证（颜色相关校验去除）
+            switch (key) {
+                case CONFIG_KEY_FONT_SIZE:
+                    float fontSize = Float.parseFloat(value);
+                    if (fontSize < TextStyle.MIN_FONT_SIZE || fontSize > TextStyle.MAX_FONT_SIZE) {
+                        throw new IllegalArgumentException("字体大小必须在" + TextStyle.MIN_FONT_SIZE + "到" + TextStyle.MAX_FONT_SIZE + "之间");
+                    }
+                    break;
+                case CONFIG_KEY_LINE_HEIGHT:
+                    float lineHeight = Float.parseFloat(value);
+                    if (lineHeight < 0.5f || lineHeight > 3.0f) {
+                        throw new IllegalArgumentException("行高必须在0.5到3.0之间");
+                    }
+                    break;
+            }
+        } catch (IllegalArgumentException e) {
+            MasterPlannerMod.LOGGER.error("无效配置: {} = {}, {}", key, value, e.getMessage());
+            return; // 验证失败时不更新配置
+        }
+        
+        // 验证通过后，调用基类方法发布事件
+        super.updateToolConfig(key, value);
+        needsSync = true; // 标记下次渲染需要同步
+    }
+    
+    @Override
+    public void initialize() {
+        MasterPlannerMod.LOGGER.debug("初始化增强文字工具选项渲染器");
+        
+        // 重置所有控件值为默认值
+        tempFontSize[0] = TextStyle.DEFAULT_FONT_SIZE;
+        tempBold.set(false);
+        tempItalic.set(false);
+        tempUseDialog.set(true);
+        tempLineHeight[0] = TextStyle.DEFAULT_LINE_HEIGHT;
+        tempHorizontalAlign = TextAlignment.Horizontal.LEFT;
+        tempVerticalAlign = TextAlignment.Vertical.TOP;
+        
+        // 颜色默认值已不需要，跟随图层
+        
+        // 状态同步现在每帧都会进行，无需特殊标记
+        needsSync = true;
+        
+        // 发送默认配置（颜色不下发，跟随图层样式）
+        updateToolConfig(CONFIG_KEY_FONT_SIZE, String.valueOf(tempFontSize[0]));
+        updateToolConfig(CONFIG_KEY_BOLD, String.valueOf(tempBold.get()));
+        updateToolConfig(CONFIG_KEY_ITALIC, String.valueOf(tempItalic.get()));
+        updateToolConfig(CONFIG_KEY_USE_DIALOG, String.valueOf(tempUseDialog.get()));
+        updateToolConfig(CONFIG_KEY_LINE_HEIGHT, String.valueOf(tempLineHeight[0]));
+        updateToolConfig(CONFIG_KEY_H_ALIGN, tempHorizontalAlign.name());
+        updateToolConfig(CONFIG_KEY_V_ALIGN, tempVerticalAlign.name());
+    }
+    
+    @Override
+    public void cleanup() {
+        MasterPlannerMod.LOGGER.debug("清理增强文字工具选项渲染器");
+    }
+    
+    /**
+     * 工具配置接口 - 定义从TextTool获取配置的契约
+     */
+    public interface ToolConfiguration {
+        float getFontSize();
+        boolean isBold();
+        boolean isItalic();
+        Color getColor();
+        boolean isUseDialog();
+        TextAlignment.Horizontal getHorizontalAlignment();
+        TextAlignment.Vertical getVerticalAlignment();
+        float getLineHeight();
+    }
+
+    /**
+     * 实际工具配置实现 - 从TextTool获取配置
+     */
+    private static class ActualToolConfiguration implements ToolConfiguration {
+        private final TextTool textTool;
+
+        public ActualToolConfiguration(TextTool textTool) {
+            this.textTool = textTool;
+        }
+
+        @Override
+        public float getFontSize() {
+            return textTool.getFontSize();
+        }
+
+        @Override
+        public boolean isBold() {
+            return textTool.isBold();
+        }
+
+        @Override
+        public boolean isItalic() {
+            return textTool.isItalic();
+        }
+
+        @Override
+        public Color getColor() {
+            return textTool.getColor();
+        }
+
+        @Override
+        public boolean isUseDialog() {
+            return textTool.isUseDialog();
+        }
+
+        @Override
+        public TextAlignment.Horizontal getHorizontalAlignment() {
+            return textTool.getHorizontalAlignment();
+        }
+
+        @Override
+        public TextAlignment.Vertical getVerticalAlignment() {
+            return textTool.getVerticalAlignment();
+        }
+
+        @Override
+        public float getLineHeight() {
+            return textTool.getLineHeight();
+        }
+    }
+} 

@@ -1,0 +1,350 @@
+package com.masterplanner.ui.tools.impl.modify.strategy;
+
+import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.graphics.DrawContext;
+import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.tools.impl.modify.ControlPointEditTool;
+import imgui.ImDrawList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.awt.Color;
+import java.util.List;
+
+/**
+ * 控制点编辑策略
+ * 
+ * <p>处理控制点编辑的交互逻辑：</p>
+ * <ul>
+ *   <li><strong>鼠标悬停检测</strong>：检测鼠标是否悬停在控制点上</li>
+ *   <li><strong>拖拽操作</strong>：处理控制点的拖拽编辑</li>
+ *   <li><strong>实时更新</strong>：拖拽过程中实时更新图形形状</li>
+ *   <li><strong>吸附支持</strong>：支持网格吸附和对象吸附</li>
+ *   <li><strong>状态管理</strong>：管理编辑状态和视觉反馈</li>
+ * </ul>
+ * 
+ * @author MasterPlanner Team
+ * @version 1.0
+ */
+public class ControlPointEditStrategy implements IModifyStrategy {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ControlPointEditStrategy.class);
+    
+    // 交互常量
+    private static final double CONTROL_POINT_HIT_TOLERANCE = 8.0; // 控制点命中容差
+    
+    // 颜色常量
+    private static final Color DRAG_PREVIEW_COLOR = new Color(255, 255, 0, 128); // 黄色拖拽预览
+    private static final Color HOVER_PREVIEW_COLOR = new Color(255, 255, 255, 64); // 白色悬停预览
+    
+    // 引用控制点编辑工具
+    private final ControlPointEditTool editTool;
+    
+    // 状态变量
+    private Vec2d lastMousePosition = null;
+    
+    /**
+     * 构造函数
+     * @param editTool 控制点编辑工具引用
+     */
+    public ControlPointEditStrategy(ControlPointEditTool editTool) {
+        this.editTool = editTool;
+    }
+
+    @Override
+    public ModifyResult onMouseDown(Vec2d pos, int button, ModifyToolContext context) {
+        if (button != 0) { // 只处理左键
+            return ModifyResult.IGNORED;
+        }
+        
+        if (!editTool.isActive() || editTool.getTargetShape() == null) {
+            return ModifyResult.IGNORED;
+        }
+        
+        // 检查是否点击在控制点上
+        int controlPointIndex = editTool.getControlPointAt(pos, CONTROL_POINT_HIT_TOLERANCE);
+        
+        if (controlPointIndex >= 0) {
+            // 开始拖拽控制点
+            Vec2d snappedPos = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
+            editTool.startDrag(controlPointIndex, snappedPos);
+            
+            LOGGER.debug("开始拖拽控制点 {}，位置: {}", controlPointIndex, snappedPos);
+            context.setStatusMessage("拖拽控制点调整图形形状");
+
+        } else {
+            // 点击在其他位置，退出编辑模式
+            editTool.deactivate();
+            context.setStatusMessage("已退出控制点编辑模式");
+        }
+        return ModifyResult.CONTINUE;
+    }
+
+    @Override
+    public ModifyResult onMouseMove(Vec2d pos, ModifyToolContext context) {
+        if (!editTool.isActive() || editTool.getTargetShape() == null) {
+            return ModifyResult.IGNORED;
+        }
+        
+        Vec2d snappedPos = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
+        lastMousePosition = snappedPos;
+        
+        if (editTool.isDragging()) {
+            // 正在拖拽控制点
+            editTool.updateDrag(snappedPos);
+        } else {
+            // 检查悬停状态
+            int hoveredIndex = editTool.getControlPointAt(snappedPos, CONTROL_POINT_HIT_TOLERANCE);
+            editTool.setHoveredControlPointIndex(hoveredIndex);
+            
+            if (hoveredIndex >= 0) {
+                context.setStatusMessage("点击并拖拽控制点来调整图形");
+            } else {
+                context.setStatusMessage("拖拽控制点来调整图形形状，点击空白处退出编辑");
+            }
+
+        }
+        return ModifyResult.CONTINUE;
+    }
+
+    @Override
+    public ModifyResult onMouseUp(Vec2d pos, int button, ModifyToolContext context) {
+        if (button != 0) { // 只处理左键
+            return ModifyResult.IGNORED;
+        }
+        
+        if (!editTool.isActive()) {
+            return ModifyResult.IGNORED;
+        }
+        
+        if (editTool.isDragging()) {
+            // 结束拖拽
+            editTool.endDrag();
+            
+            LOGGER.debug("结束控制点拖拽");
+            context.setStatusMessage("控制点编辑完成");
+            
+            return ModifyResult.CONTINUE;
+        }
+        
+        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
+        if (!editTool.isActive()) {
+            return ModifyResult.IGNORED;
+        }
+        
+        // ESC键退出编辑模式
+        if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
+            editTool.deactivate();
+            context.setStatusMessage("已退出控制点编辑模式");
+            return ModifyResult.CONTINUE;
+        }
+        
+        return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onKeyUp(int keyCode, ModifyToolContext context) {
+        return IModifyStrategy.super.onKeyUp(keyCode, context);
+    }
+
+    @Override
+    public void renderPreview(DrawContext context) {
+        if (!editTool.isActive() || editTool.getTargetShape() == null) {
+            return;
+        }
+        
+        // 渲染拖拽预览
+        if (editTool.isDragging() && lastMousePosition != null) {
+            renderDragPreview(context);
+        }
+        
+        // 渲染悬停预览
+        if (!editTool.isDragging() && editTool.getHoveredControlPointIndex() >= 0 && lastMousePosition != null) {
+            renderHoverPreview(context);
+        }
+    }
+
+    @Override
+    public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
+        if (!editTool.isActive() || editTool.getTargetShape() == null || camera == null) {
+            return;
+        }
+        
+        // 渲染拖拽预览
+        if (editTool.isDragging() && lastMousePosition != null) {
+            renderDragPreviewImGui(drawList, camera);
+        }
+        
+        // 渲染悬停预览
+        if (!editTool.isDragging() && editTool.getHoveredControlPointIndex() >= 0 && lastMousePosition != null) {
+            renderHoverPreviewImGui(drawList, camera);
+        }
+    }
+    
+    /**
+     * 渲染拖拽预览（DrawContext版本）
+     */
+    private void renderDragPreview(DrawContext context) {
+        if (editTool.getTargetShape() == null) {
+            return;
+        }
+        
+        List<Vec2d> controlPoints = editTool.getTargetShape().getControlPoints();
+        if (controlPoints == null || editTool.getActiveControlPointIndex() >= controlPoints.size()) {
+            return;
+        }
+        
+        // 绘制从原始位置到当前位置的连线
+        Vec2d originalPos = editTool.getOriginalControlPointPosition();
+        Vec2d currentPos = lastMousePosition;
+        
+        if (originalPos != null && currentPos != null) {
+            context.drawLine(originalPos, currentPos, DRAG_PREVIEW_COLOR);
+            
+            // 在当前位置绘制预览点
+            context.fillCircle(currentPos, 8, DRAG_PREVIEW_COLOR);
+            context.drawCircle(currentPos, 8, Color.WHITE);
+        }
+    }
+    
+    /**
+     * 渲染悬停预览（DrawContext版本）
+     */
+    private void renderHoverPreview(DrawContext context) {
+        if (editTool.getTargetShape() == null) {
+            return;
+        }
+        
+        List<Vec2d> controlPoints = editTool.getTargetShape().getControlPoints();
+        int hoveredIndex = editTool.getHoveredControlPointIndex();
+        
+        if (controlPoints != null && hoveredIndex >= 0 && hoveredIndex < controlPoints.size()) {
+            Vec2d hoveredPoint = controlPoints.get(hoveredIndex);
+            
+            // 在悬停的控制点周围绘制预览圈
+            context.drawCircle(hoveredPoint, 12, HOVER_PREVIEW_COLOR);
+            context.drawCircle(hoveredPoint, 12, Color.WHITE);
+        }
+    }
+    
+    /**
+     * 渲染拖拽预览（ImGui版本）
+     */
+    private void renderDragPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
+        if (editTool.getTargetShape() == null) {
+            return;
+        }
+        
+        List<Vec2d> controlPoints = editTool.getTargetShape().getControlPoints();
+        if (controlPoints == null || editTool.getActiveControlPointIndex() >= controlPoints.size()) {
+            return;
+        }
+        
+        // 绘制从原始位置到当前位置的连线
+        Vec2d originalPos = editTool.getOriginalControlPointPosition();
+        Vec2d currentPos = lastMousePosition;
+        
+        if (originalPos != null && currentPos != null) {
+            Vec2d screenOriginalPos = camera.worldToScreen(originalPos);
+            Vec2d screenCurrentPos = camera.worldToScreen(currentPos);
+            
+            int lineColor = imgui.ImColor.rgba(255, 255, 0, 128);
+            drawList.addLine(
+                (float)screenOriginalPos.x, (float)screenOriginalPos.y,
+                (float)screenCurrentPos.x, (float)screenCurrentPos.y,
+                lineColor, 2.0f
+            );
+            
+            // 在当前位置绘制预览点
+            int previewColor = imgui.ImColor.rgba(255, 255, 0, 200);
+            int borderColor = imgui.ImColor.rgba(255, 255, 255, 255);
+            
+            drawList.addCircleFilled(
+                (float)screenCurrentPos.x, (float)screenCurrentPos.y,
+                8, previewColor
+            );
+            drawList.addCircle(
+                (float)screenCurrentPos.x, (float)screenCurrentPos.y,
+                8, borderColor, 0, 2.0f
+            );
+        }
+    }
+    
+    /**
+     * 渲染悬停预览（ImGui版本）
+     */
+    private void renderHoverPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
+        if (editTool.getTargetShape() == null) {
+            return;
+        }
+        
+        List<Vec2d> controlPoints = editTool.getTargetShape().getControlPoints();
+        int hoveredIndex = editTool.getHoveredControlPointIndex();
+        
+        if (controlPoints != null && hoveredIndex >= 0 && hoveredIndex < controlPoints.size()) {
+            Vec2d hoveredPoint = controlPoints.get(hoveredIndex);
+            Vec2d screenPoint = camera.worldToScreen(hoveredPoint);
+            
+            // 在悬停的控制点周围绘制预览圈
+            int previewColor = imgui.ImColor.rgba(255, 255, 255, 64);
+            int borderColor = imgui.ImColor.rgba(255, 255, 255, 255);
+            
+            drawList.addCircle(
+                (float)screenPoint.x, (float)screenPoint.y,
+                12, previewColor, 0, 2.0f
+            );
+            drawList.addCircle(
+                (float)screenPoint.x, (float)screenPoint.y,
+                12, borderColor, 0, 1.0f
+            );
+        }
+    }
+
+    @Override
+    public void reset() {
+        // 重置策略状态
+        lastMousePosition = null;
+        
+        LOGGER.debug("ControlPointEditStrategy 已重置");
+    }
+
+    public boolean isActive() {
+        return editTool.isActive();
+    }
+
+    @Override
+    public String getStatusMessage() {
+        if (!editTool.isActive()) {
+            return "控制点编辑未激活";
+        }
+        
+        if (editTool.isDragging()) {
+            return "正在拖拽控制点";
+        }
+        
+        if (editTool.getHoveredControlPointIndex() >= 0) {
+            return "悬停在控制点上，点击拖拽进行编辑";
+        }
+        
+        return "选择一个控制点进行编辑";
+    }
+
+    @Override
+    public String getStrategyName() {
+        return "控制点编辑策略";
+    }
+    
+    @Override
+    public String getStrategyDescription() {
+        return "拖拽控制点来调整图形形状";
+    }
+    
+    @Override
+    public com.masterplanner.core.command.commands.ModifyCommand getModifyCommand() {
+        // 控制点编辑通常不产生修改命令，而是直接修改图形
+        return null;
+    }
+}

@@ -1,0 +1,1229 @@
+package com.masterplanner.ui.tools.impl.modify.helper;
+
+import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.geometry.shapes.*;
+import com.masterplanner.core.model.Shape;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 几何修剪工具类
+ * 提供通用的几何计算方法，供边界修剪和栅栏修剪使用
+ */
+public class GeometryTrimUtils {
+    
+    private static final double TRIM_TOLERANCE = 5.0;
+    private static final double INTERSECTION_TOLERANCE = 1e-6;
+    
+    // ====== 交点计算相关方法 ======
+    
+    /**
+     * 找到图形与边界图形的所有交点
+     */
+    public List<Vec2d> findIntersections(Shape shape, List<Shape> boundaryShapes) {
+        List<Vec2d> allIntersections = new ArrayList<>();
+        
+        if (boundaryShapes == null || boundaryShapes.isEmpty()) {
+            return allIntersections;
+        }
+        
+        for (Shape boundaryShape : boundaryShapes) {
+            List<Vec2d> intersections = calculateShapeIntersections(shape, boundaryShape);
+            allIntersections.addAll(intersections);
+        }
+        
+        // 移除重复的交点
+        return removeDuplicatePoints(allIntersections);
+    }
+    
+    /**
+     * 计算两个图形之间的交点
+     */
+    private List<Vec2d> calculateShapeIntersections(Shape shape1, Shape shape2) {
+        List<Vec2d> intersections = new ArrayList<>();
+        
+        // 获取两个图形的采样点
+        List<Vec2d> points1 = getShapePointsForIntersection(shape1);
+        List<Vec2d> points2 = getShapePointsForIntersection(shape2);
+        
+        // 计算线段之间的交点
+        for (int i = 0; i < points1.size() - 1; i++) {
+            Vec2d p1 = points1.get(i);
+            Vec2d p2 = points1.get(i + 1);
+            
+            for (int j = 0; j < points2.size() - 1; j++) {
+                Vec2d p3 = points2.get(j);
+                Vec2d p4 = points2.get(j + 1);
+                
+                Vec2d intersection = calculateLineLineIntersection(p1, p2, p3, p4);
+                if (intersection != null) {
+                    intersections.add(intersection);
+                }
+            }
+        }
+        
+        return intersections;
+    }
+    
+    /**
+     * 获取图形用于交点计算的采样点
+     */
+    private List<Vec2d> getShapePointsForIntersection(Shape shape) {
+        switch (shape) {
+            case LineShape line -> {
+                List<Vec2d> points = new ArrayList<>();
+                points.add(line.getStart());
+                points.add(line.getEnd());
+                return points;
+            }
+            case RectangleShape rectangle -> {
+                return createDenseRectanglePoints(rectangle);
+            }
+            case FreeDrawPath path -> {
+                return createDenseFreeDrawPathPoints(path);
+            }
+            case PolylineShape polyline -> {
+                return createDensePolylinePoints(polyline);
+            }
+            case CircleShape circle -> {
+                return createDenseCirclePoints(circle);
+            }
+            case ArcShape arc -> {
+                return createDenseArcPoints(arc);
+            }
+            case EllipseShape ellipse -> {
+                return createDenseEllipsePoints(ellipse);
+            }
+            case BezierCurveShape bezier -> {
+                return createDenseBezierPoints(bezier);
+            }
+            case SineCurveShape sine -> {
+                return createDenseSinePoints(sine);
+            }
+            case SpiralShape spiral -> {
+                return createDenseSpiralPoints(spiral);
+            }
+                case CableShape catenary -> {
+                return createDenseCatenaryPoints(catenary);
+            }
+            case Polygon polygon -> {
+                return createDensePolygonPoints(polygon);
+            }
+            case TextShape text -> {
+                return createDenseTextPoints(text);
+            }
+            default -> {
+                // 默认返回空列表
+                return new ArrayList<>();
+            }
+        }
+    }
+    
+    // ====== 密集采样方法 ======
+    
+    public List<Vec2d> createDenseRectanglePoints(RectangleShape rectangle) {
+        List<Vec2d> corners = rectangle.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < corners.size(); i++) {
+            Vec2d current = corners.get(i);
+            Vec2d next = corners.get((i + 1) % corners.size());
+            
+            densePoints.add(current);
+            
+            // 在每条边上添加9个中间点
+            for (int j = 1; j < 10; j++) {
+                double t = j / 10.0;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseFreeDrawPathPoints(FreeDrawPath path) {
+        List<Vec2d> curvePoints = path.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < curvePoints.size() - 1; i++) {
+            Vec2d current = curvePoints.get(i);
+            Vec2d next = curvePoints.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 5.0)); // 每5像素一个点
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(curvePoints.getLast());
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDensePolylinePoints(PolylineShape polyline) {
+        List<Vec2d> points = polyline.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 5.0));
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(points.getLast());
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseCirclePoints(CircleShape circle) {
+        List<Vec2d> densePoints = new ArrayList<>();
+        Vec2d center = circle.getCenter();
+        double radius = circle.getRadius();
+        
+        // 生成36个点（每10度一个点）
+        for (int i = 0; i < 36; i++) {
+            double angle = i * Math.PI / 18.0;
+            Vec2d point = new Vec2d(
+                center.x + radius * Math.cos(angle),
+                center.y + radius * Math.sin(angle)
+            );
+            densePoints.add(point);
+        }
+        
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseArcPoints(ArcShape arc) {
+        List<Vec2d> densePoints = new ArrayList<>();
+        Vec2d center = arc.getCenter();
+        double radius = arc.getRadius();
+        double startAngle = arc.getStartAngle();
+        double endAngle = arc.getEndAngle();
+        
+        // 确保角度范围正确
+        if (endAngle < startAngle) {
+            endAngle += 2 * Math.PI;
+        }
+        
+        // 计算需要多少个点
+        double angleRange = endAngle - startAngle;
+        int numPoints = Math.max(10, (int) (angleRange * 180 / Math.PI)); // 每度约3个点
+        
+        for (int i = 0; i <= numPoints; i++) {
+            double angle = startAngle + (i / (double) numPoints) * angleRange;
+            Vec2d point = new Vec2d(
+                center.x + radius * Math.cos(angle),
+                center.y + radius * Math.sin(angle)
+            );
+            densePoints.add(point);
+        }
+        
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseEllipsePoints(EllipseShape ellipse) {
+        List<Vec2d> densePoints = new ArrayList<>();
+        Vec2d center = ellipse.getCenter();
+        double radiusX = ellipse.getRadiusX();
+        double radiusY = ellipse.getRadiusY();
+        double rotation = ellipse.getRotation();
+        
+        // 生成72个点（每5度一个点）
+        for (int i = 0; i < 72; i++) {
+            double angle = i * Math.PI / 36.0;
+            
+            // 计算椭圆上的点
+            double x = radiusX * Math.cos(angle);
+            double y = radiusY * Math.sin(angle);
+            
+            // 应用旋转
+            double cosRot = Math.cos(rotation);
+            double sinRot = Math.sin(rotation);
+            double rotatedX = x * cosRot - y * sinRot;
+            double rotatedY = x * sinRot + y * cosRot;
+            
+            Vec2d point = new Vec2d(
+                center.x + rotatedX,
+                center.y + rotatedY
+            );
+            densePoints.add(point);
+        }
+        
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseBezierPoints(BezierCurveShape bezier) {
+        List<Vec2d> curvePoints = bezier.getCurvePoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < curvePoints.size() - 1; i++) {
+            Vec2d current = curvePoints.get(i);
+            Vec2d next = curvePoints.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 3.0)); // 每3像素一个点
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(curvePoints.getLast());
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseSinePoints(SineCurveShape sine) {
+        List<Vec2d> points = sine.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 3.0));
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(points.getLast());
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseSpiralPoints(SpiralShape spiral) {
+        List<Vec2d> points = spiral.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 3.0));
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(points.getLast());
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseCatenaryPoints(CableShape catenary) {
+        List<Vec2d> points = catenary.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 3.0));
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(points.getLast());
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDensePolygonPoints(Polygon polygon) {
+        List<Vec2d> points = polygon.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < points.size(); i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get((i + 1) % points.size());
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 5.0));
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        return densePoints;
+    }
+    
+    public List<Vec2d> createDenseTextPoints(TextShape text) {
+        List<Vec2d> points = text.getPoints();
+        List<Vec2d> densePoints = new ArrayList<>();
+        
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+            
+            densePoints.add(current);
+            
+            // 在每段之间添加中间点
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 5.0));
+            
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+        
+        densePoints.add(points.getLast());
+        return densePoints;
+    }
+    
+    // ====== 线段交点计算 ======
+    
+    /**
+     * 计算两条线段的交点
+     */
+    public Vec2d calculateLineLineIntersection(Vec2d p1, Vec2d p2, Vec2d p3, Vec2d p4) {
+        double x1 = p1.x, y1 = p1.y;
+        double x2 = p2.x, y2 = p2.y;
+        double x3 = p3.x, y3 = p3.y;
+        double x4 = p4.x, y4 = p4.y;
+        
+        double denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        
+        if (Math.abs(denominator) < INTERSECTION_TOLERANCE) {
+            return null; // 线段平行或重合
+        }
+        
+        double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denominator;
+        double u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denominator;
+        
+        // 检查参数是否在[0,1]范围内
+        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+            double x = x1 + t * (x2 - x1);
+            double y = y1 + t * (y2 - y1);
+            return new Vec2d(x, y);
+        }
+        
+        return null;
+    }
+    
+    // ====== 点在图形上的判断 ======
+    
+    /**
+     * 判断点是否在图形上
+     */
+    public boolean isPointOnShape(Shape shape, Vec2d point) {
+        double tolerance = calculateAdaptiveTolerance(shape);
+        
+        switch (shape) {
+            case LineShape line -> {
+                return isPointOnLine(line.getStart(), line.getEnd(), point, tolerance);
+            }
+            case CircleShape circle -> {
+                return isPointOnCircle(circle.getCenter(), circle.getRadius(), point, tolerance);
+            }
+            case ArcShape arc -> {
+                return isPointOnArc(arc, point);
+            }
+            case EllipseShape ellipse -> {
+                return isPointOnEllipse(ellipse, point);
+            }
+            case RectangleShape rectangle -> {
+                return isPointOnRectangleBoundary(rectangle, point);
+            }
+            case PolylineShape polyline -> {
+                return isPointOnPolyline(polyline, point, tolerance);
+            }
+            case FreeDrawPath path -> {
+                return isPointOnPolyline(path, point, tolerance);
+            }
+            case BezierCurveShape bezier -> {
+                return isPointOnPolyline(bezier, point, tolerance);
+            }
+            case SineCurveShape sine -> {
+                return isPointOnPolyline(sine, point, tolerance);
+            }
+            case SpiralShape spiral -> {
+                return isPointOnPolyline(spiral, point, tolerance);
+            }
+                case CableShape catenary -> {
+                return isPointOnPolyline(catenary, point, tolerance);
+            }
+            case Polygon polygon -> {
+                return isPointOnPolyline(polygon, point, tolerance);
+            }
+            case TextShape text -> {
+                return isPointOnPolyline(text, point, tolerance);
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+    
+    private boolean isPointOnLine(Vec2d start, Vec2d end, Vec2d point, double tolerance) {
+        double distance = pointToLineDistance(start, end, point);
+        return distance <= tolerance;
+    }
+    
+    private boolean isPointOnCircle(Vec2d center, double radius, Vec2d point, double tolerance) {
+        double distance = center.distance(point);
+        return Math.abs(distance - radius) <= tolerance;
+    }
+    
+    public boolean isPointOnArc(ArcShape arc, Vec2d point) {
+        Vec2d center = arc.getCenter();
+        double radius = arc.getRadius();
+        double startAngle = arc.getStartAngle();
+        double endAngle = arc.getEndAngle();
+        
+        // 检查点是否在圆上
+        if (!isPointOnCircle(center, radius, point, INTERSECTION_TOLERANCE)) {
+            return false;
+        }
+        
+        // 检查点是否在圆弧的角度范围内
+        double pointAngle = Math.atan2(point.y - center.y, point.x - center.x);
+        pointAngle = normalizeAngle(pointAngle);
+        
+        return isAngleInRange(pointAngle, startAngle, endAngle);
+    }
+    
+    public boolean isPointOnEllipse(EllipseShape ellipse, Vec2d point) {
+        Vec2d center = ellipse.getCenter();
+        double radiusX = ellipse.getRadiusX();
+        double radiusY = ellipse.getRadiusY();
+        double rotation = ellipse.getRotation();
+        
+        // 将点转换到椭圆的局部坐标系
+        Vec2d localPoint = transformPointToEllipseLocal(point, center, rotation);
+        
+        // 检查点是否在椭圆上
+        double normalizedX = localPoint.x / radiusX;
+        double normalizedY = localPoint.y / radiusY;
+        
+        return Math.abs(normalizedX * normalizedX + normalizedY * normalizedY - 1.0) <= INTERSECTION_TOLERANCE;
+    }
+    
+    public boolean isPointOnRectangleBoundary(RectangleShape rectangle, Vec2d point) {
+        List<Vec2d> corners = rectangle.getPoints();
+        double tolerance = calculateAdaptiveTolerance(rectangle);
+        
+        for (int i = 0; i < corners.size(); i++) {
+            Vec2d current = corners.get(i);
+            Vec2d next = corners.get((i + 1) % corners.size());
+            
+            if (isPointOnLine(current, next, point, tolerance)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    private boolean isPointOnPolyline(Shape polylineShape, Vec2d point, double tolerance) {
+        List<Vec2d> points = getShapePoints(polylineShape);
+        
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+            
+            if (isPointOnLine(current, next, point, tolerance)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    private List<Vec2d> getShapePoints(Shape shape) {
+        if (shape instanceof PolylineShape polyline) {
+            return polyline.getPoints();
+        } else if (shape instanceof FreeDrawPath path) {
+            return path.getPoints();
+        } else if (shape instanceof BezierCurveShape bezier) {
+            return bezier.getCurvePoints();
+        } else if (shape instanceof SineCurveShape sine) {
+            return sine.getPoints();
+        } else if (shape instanceof SpiralShape spiral) {
+            return spiral.getPoints();
+            } else if (shape instanceof CableShape catenary) {
+            return catenary.getPoints();
+        } else if (shape instanceof Polygon polygon) {
+            return polygon.getPoints();
+        } else if (shape instanceof TextShape text) {
+            return text.getPoints();
+        }
+        return new ArrayList<>();
+    }
+    
+    // ====== 辅助几何方法 ======
+    
+    private double pointToLineDistance(Vec2d start, Vec2d end, Vec2d point) {
+        double A = end.y - start.y;
+        double B = start.x - end.x;
+        double C = end.x * start.y - start.x * end.y;
+        
+        return Math.abs(A * point.x + B * point.y + C) / Math.sqrt(A * A + B * B);
+    }
+    
+    public Vec2d transformPointToEllipseLocal(Vec2d point, Vec2d center, double rotation) {
+        // 平移到原点
+        double x = point.x - center.x;
+        double y = point.y - center.y;
+        
+        // 旋转
+        double cosRot = Math.cos(-rotation);
+        double sinRot = Math.sin(-rotation);
+        double rotatedX = x * cosRot - y * sinRot;
+        double rotatedY = x * sinRot + y * cosRot;
+        
+        return new Vec2d(rotatedX, rotatedY);
+    }
+    
+    public double normalizeAngle(double angle) {
+        while (angle < 0) {
+            angle += 2 * Math.PI;
+        }
+        while (angle >= 2 * Math.PI) {
+            angle -= 2 * Math.PI;
+        }
+        return angle;
+    }
+    
+    public boolean isAngleInRange(double angle, double startAngle, double endAngle) {
+        angle = normalizeAngle(angle);
+        startAngle = normalizeAngle(startAngle);
+        endAngle = normalizeAngle(endAngle);
+        
+        if (endAngle < startAngle) {
+            endAngle += 2 * Math.PI;
+        }
+        
+        return angle >= startAngle && angle <= endAngle;
+    }
+    
+    public List<Double> removeDuplicateAngles(List<Double> angles) {
+        List<Double> result = new ArrayList<>();
+        double tolerance = 1e-6;
+        
+        for (Double angle : angles) {
+            boolean isDuplicate = false;
+            for (Double existingAngle : result) {
+                if (Math.abs(normalizeAngle(angle) - normalizeAngle(existingAngle)) < tolerance) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                result.add(angle);
+            }
+        }
+        
+        return result;
+    }
+    
+    public double getDistanceFromStart(Vec2d start, Vec2d end, Vec2d point) {
+        Vec2d direction = new Vec2d(end.x - start.x, end.y - start.y);
+        Vec2d toPoint = new Vec2d(point.x - start.x, point.y - start.y);
+        
+        double dotProduct = direction.x * toPoint.x + direction.y * toPoint.y;
+        double directionLength = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+        
+        if (directionLength == 0) {
+            return 0;
+        }
+        
+        return dotProduct / directionLength;
+    }
+    
+    public double calculateAdaptiveTolerance(Shape shape) {
+        // 根据图形大小动态调整容差
+        double baseTolerance = TRIM_TOLERANCE;
+        
+        // 获取图形的边界框
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+        double maxX = Double.MIN_VALUE, maxY = Double.MIN_VALUE;
+        
+        List<Vec2d> points = getShapePoints(shape);
+        for (Vec2d point : points) {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        }
+        
+        double size = Math.max(maxX - minX, maxY - minY);
+        
+        // 根据图形类型和大小调整容差
+        if (shape instanceof CircleShape || shape instanceof ArcShape) {
+            return baseTolerance * 0.5; // 圆形和圆弧使用更小的容差
+        } else if (shape instanceof EllipseShape) {
+            return baseTolerance * 0.7; // 椭圆使用中等容差
+        } else if (shape instanceof BezierCurveShape || shape instanceof SineCurveShape || 
+                   shape instanceof SpiralShape || shape instanceof CableShape) {
+            return baseTolerance * 0.8; // 复杂曲线使用较小容差
+        } else {
+            return baseTolerance; // 其他图形使用标准容差
+        }
+    }
+    
+    // ====== 路径构建方法 ======
+    
+    public List<Vec2d> sortIntersectionsAlongPath(List<Vec2d> pathPoints, List<Vec2d> intersections) {
+        List<Vec2d> sorted = new ArrayList<>(intersections);
+        sorted.sort((a, b) -> {
+            double distA = getDistanceAlongPath(pathPoints, a);
+            double distB = getDistanceAlongPath(pathPoints, b);
+            return Double.compare(distA, distB);
+        });
+        return sorted;
+    }
+    
+    private double getDistanceAlongPath(List<Vec2d> pathPoints, Vec2d point) {
+        double minDistance = Double.MAX_VALUE;
+        double cumulativeDistance = 0;
+        
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d current = pathPoints.get(i);
+            Vec2d next = pathPoints.get(i + 1);
+            
+            double segmentDistance = current.distance(next);
+            double pointDistance = pointToLineDistance(current, next, point);
+            
+            if (pointDistance < minDistance) {
+                minDistance = pointDistance;
+                return cumulativeDistance + getDistanceFromStart(current, next, point);
+            }
+            
+            cumulativeDistance += segmentDistance;
+        }
+        
+        return cumulativeDistance;
+    }
+    
+    public List<Vec2d> buildBoundaryTrimmedPath(List<Vec2d> pathPoints, List<Vec2d> sortedIntersections, Vec2d trimPoint) {
+        if (sortedIntersections.isEmpty()) {
+            return new ArrayList<>(pathPoints);
+        }
+        
+        List<Vec2d> result = new ArrayList<>();
+        
+        // 找到修剪点在路径上的位置
+        int trimIndex = findTrimPointIndex(pathPoints, sortedIntersections, trimPoint);
+        
+        if (trimIndex == 0) {
+            // 修剪点在开始，保留从第一个交点到末尾
+            if (!sortedIntersections.isEmpty()) {
+                addPointsAfterIntersection(result, pathPoints, sortedIntersections.getFirst());
+            }
+        } else if (trimIndex >= sortedIntersections.size()) {
+            // 修剪点在末尾，保留从开始到最后一个交点
+            if (!sortedIntersections.isEmpty()) {
+                addPointsBeforeIntersection(result, pathPoints, sortedIntersections.getLast());
+            }
+        } else {
+            // 修剪点在中间，保留不包含修剪点的段
+            Vec2d prevIntersection = sortedIntersections.get(trimIndex - 1);
+            Vec2d nextIntersection = sortedIntersections.get(trimIndex);
+            
+            addPointsBetweenIntersections(result, pathPoints, prevIntersection, nextIntersection);
+        }
+        
+        return removeDuplicatePoints(result);
+    }
+    
+    private int findTrimPointIndex(List<Vec2d> pathPoints, List<Vec2d> sortedIntersections, Vec2d trimPoint) {
+        double trimDistance = getDistanceAlongPath(pathPoints, trimPoint);
+        
+        for (int i = 0; i < sortedIntersections.size(); i++) {
+            double intersectionDistance = getDistanceAlongPath(pathPoints, sortedIntersections.get(i));
+            if (intersectionDistance > trimDistance) {
+                return i;
+            }
+        }
+        
+        return sortedIntersections.size();
+    }
+    
+    private void addPointsBeforeIntersection(List<Vec2d> result, List<Vec2d> pathPoints, Vec2d intersection) {
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d current = pathPoints.get(i);
+            Vec2d next = pathPoints.get(i + 1);
+            
+            result.add(current);
+            
+            // 检查是否到达交点
+            if (isPointOnLine(current, next, intersection, INTERSECTION_TOLERANCE)) {
+                result.add(intersection);
+                break;
+            }
+        }
+    }
+    
+    private void addPointsAfterIntersection(List<Vec2d> result, List<Vec2d> pathPoints, Vec2d intersection) {
+        boolean foundIntersection = false;
+        
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d current = pathPoints.get(i);
+            Vec2d next = pathPoints.get(i + 1);
+            
+            if (foundIntersection) {
+                result.add(current);
+            } else if (isPointOnLine(current, next, intersection, INTERSECTION_TOLERANCE)) {
+                result.add(intersection);
+                result.add(next);
+                foundIntersection = true;
+            }
+        }
+        
+        if (foundIntersection) {
+            result.add(pathPoints.getLast());
+        }
+    }
+    
+    private void addPointsBetweenIntersections(List<Vec2d> result, List<Vec2d> pathPoints, Vec2d startIntersection, Vec2d endIntersection) {
+        boolean inRange = false;
+        
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d current = pathPoints.get(i);
+            Vec2d next = pathPoints.get(i + 1);
+            
+            if (!inRange && isPointOnLine(current, next, startIntersection, INTERSECTION_TOLERANCE)) {
+                result.add(startIntersection);
+                inRange = true;
+            } else if (inRange && isPointOnLine(current, next, endIntersection, INTERSECTION_TOLERANCE)) {
+                result.add(endIntersection);
+                break;
+            } else if (inRange) {
+                result.add(current);
+            }
+        }
+    }
+    
+    public List<Vec2d> removeDuplicatePoints(List<Vec2d> points) {
+        List<Vec2d> result = new ArrayList<>();
+
+        for (Vec2d point : points) {
+            boolean isDuplicate = false;
+            for (Vec2d existingPoint : result) {
+                if (point.distance(existingPoint) < INTERSECTION_TOLERANCE) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                result.add(point);
+            }
+        }
+        
+        return result;
+    }
+    
+    // ====== 椭圆弧点生成 ======
+    
+    public List<Vec2d> createEllipseArcPoints(Vec2d center, double radiusX, double radiusY, double rotation, double startAngle, double endAngle) {
+        List<Vec2d> points = new ArrayList<>();
+        
+        // 确保角度范围正确
+        if (endAngle < startAngle) {
+            endAngle += 2 * Math.PI;
+        }
+        
+        // 计算需要多少个点
+        double angleRange = endAngle - startAngle;
+        int numPoints = Math.max(10, (int) (angleRange * 180 / Math.PI));
+        
+        for (int i = 0; i <= numPoints; i++) {
+            double angle = startAngle + (i / (double) numPoints) * angleRange;
+            
+            // 计算椭圆上的点
+            double x = radiusX * Math.cos(angle);
+            double y = radiusY * Math.sin(angle);
+            
+            // 应用旋转
+            double cosRot = Math.cos(rotation);
+            double sinRot = Math.sin(rotation);
+            double rotatedX = x * cosRot - y * sinRot;
+            double rotatedY = x * sinRot + y * cosRot;
+            
+            Vec2d point = new Vec2d(
+                center.x + rotatedX,
+                center.y + rotatedY
+            );
+            points.add(point);
+        }
+        
+        return points;
+    }
+    
+    // ====== 中心点和半径计算 ======
+    
+    public Vec2d calculateCenter(List<Vec2d> points) {
+        if (points.isEmpty()) {
+            return new Vec2d(0, 0);
+        }
+        
+        double sumX = 0, sumY = 0;
+        for (Vec2d point : points) {
+            sumX += point.x;
+            sumY += point.y;
+        }
+        
+        return new Vec2d(sumX / points.size(), sumY / points.size());
+    }
+    
+    public double calculateRadius(List<Vec2d> points, Vec2d center) {
+        if (points.isEmpty()) {
+            return 0;
+        }
+        
+        double sumSquaredDistances = 0;
+        for (Vec2d point : points) {
+            double distance = center.distance(point);
+            sumSquaredDistances += distance * distance;
+        }
+        
+        return Math.sqrt(sumSquaredDistances / points.size());
+    }
+    
+    // ====== 图形分割方法 ======
+    
+    /**
+     * 在交点处分割图形
+     */
+    public List<Shape> splitShapeAtIntersections(Shape shape, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        
+        if (intersections.isEmpty()) {
+            segments.add(shape);
+            return segments;
+        }
+        
+        switch (shape) {
+            case CircleShape circle -> {
+                return splitCircleAtIntersections(circle, intersections);
+            }
+            case EllipseShape ellipse -> {
+                return splitEllipseAtIntersections(ellipse, intersections);
+            }
+            case BezierCurveShape bezier -> {
+                return splitBezierCurveAtIntersections(bezier, intersections);
+            }
+            case SineCurveShape sine -> {
+                return splitSineCurveAtIntersections(sine, intersections);
+            }
+            case SpiralShape spiral -> {
+                return splitSpiralAtIntersections(spiral, intersections);
+            }
+            case FreeDrawPath path -> {
+                return splitFreeDrawPathAtIntersections(path, intersections);
+            }
+                case CableShape catenary -> {
+                return splitCatenaryLineAtIntersections(catenary, intersections);
+            }
+            default -> {
+                // 对于其他图形类型，返回原图形
+                segments.add(shape);
+                return segments;
+            }
+        }
+    }
+    
+    private List<Shape> splitCircleAtIntersections(CircleShape circle, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        Vec2d center = circle.getCenter();
+        double radius = circle.getRadius();
+        
+        // 过滤有效的交点
+        List<Vec2d> validIntersections = new ArrayList<>();
+        for (Vec2d intersection : intersections) {
+            if (Math.abs(center.distance(intersection) - radius) <= INTERSECTION_TOLERANCE) {
+                validIntersections.add(intersection);
+            }
+        }
+        
+        if (validIntersections.size() < 2) {
+            segments.add(circle);
+            return segments;
+        }
+        
+        // 计算交点的角度
+        List<Double> angles = new ArrayList<>();
+        for (Vec2d intersection : validIntersections) {
+            double angle = Math.atan2(intersection.y - center.y, intersection.x - center.x);
+            angles.add(normalizeAngle(angle));
+        }
+        angles = removeDuplicateAngles(angles);
+        angles.sort(Double::compare);
+        
+        // 创建圆弧段
+        for (int i = 0; i < angles.size() - 1; i++) {
+            double a1 = angles.get(i);
+            double a2 = angles.get(i + 1);
+            ArcShape arc = new ArcShape(center, radius, a1, a2);
+            segments.add(arc);
+        }
+        
+        return segments;
+    }
+    
+    private List<Shape> splitEllipseAtIntersections(EllipseShape ellipse, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        Vec2d center = ellipse.getCenter();
+        double radiusX = ellipse.getRadiusX();
+        double radiusY = ellipse.getRadiusY();
+        double rotation = ellipse.getRotation();
+        
+        // 过滤有效的交点
+        List<Vec2d> validIntersections = new ArrayList<>();
+        for (Vec2d intersection : intersections) {
+            if (isPointOnEllipse(ellipse, intersection)) {
+                validIntersections.add(intersection);
+            }
+        }
+        
+        if (validIntersections.size() < 2) {
+            segments.add(ellipse);
+            return segments;
+        }
+        
+        // 计算交点的角度
+        List<Double> angles = new ArrayList<>();
+        for (Vec2d intersection : validIntersections) {
+            Vec2d localPoint = transformPointToEllipseLocal(intersection, center, rotation);
+            double angle = Math.atan2(localPoint.y / radiusY, localPoint.x / radiusX);
+            angles.add(normalizeAngle(angle));
+        }
+        angles = removeDuplicateAngles(angles);
+        angles.sort(Double::compare);
+        
+        // 创建椭圆弧段
+        for (int i = 0; i < angles.size() - 1; i++) {
+            double a1 = angles.get(i);
+            double a2 = angles.get(i + 1);
+            List<Vec2d> arcPoints = createEllipseArcPoints(center, radiusX, radiusY, rotation, a1, a2);
+            if (arcPoints.size() >= 3) {
+                PolylineShape arc = new PolylineShape(arcPoints, false);
+                segments.add(arc);
+            }
+        }
+        
+        return segments;
+    }
+    
+    private List<Shape> splitBezierCurveAtIntersections(BezierCurveShape bezier, List<Vec2d> intersections) {
+        // 贝塞尔曲线的分割比较复杂，暂时返回null
+        // 可以后续实现基于控制点的分割
+        return null;
+    }
+    
+    private List<Shape> splitSineCurveAtIntersections(SineCurveShape sine, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> points = sine.getPoints();
+        
+        if (intersections.isEmpty() || points.size() < 2) {
+            segments.add(sine);
+            return segments;
+        }
+        
+        // 将交点按在曲线上的位置排序
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
+        
+        // 创建段
+        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
+            Vec2d start = sortedIntersections.get(i);
+            Vec2d end = sortedIntersections.get(i + 1);
+            
+            SineCurveShape segment = new SineCurveShape(start, end, 
+                sine.getAmplitude(), sine.getWavelength(), sine.getPhase());
+            segments.add(segment);
+        }
+        
+        return segments;
+    }
+    
+    private List<Shape> splitSpiralAtIntersections(SpiralShape spiral, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> points = spiral.getPoints();
+        
+        if (intersections.isEmpty() || points.size() < 2) {
+            segments.add(spiral);
+            return segments;
+        }
+        
+        // 将交点按在曲线上的位置排序
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
+        
+        // 创建段
+        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
+            Vec2d start = sortedIntersections.get(i);
+            Vec2d end = sortedIntersections.get(i + 1);
+            
+            Vec2d center = calculateCenter(points);
+            double radius = calculateRadius(points, center);
+            SpiralShape segment = new SpiralShape(center, radius, 3.0, spiral.getSpacing(), spiral.getType());
+            segments.add(segment);
+        }
+        
+        return segments;
+    }
+    
+    private List<Shape> splitFreeDrawPathAtIntersections(FreeDrawPath path, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> points = path.getPoints();
+        
+        if (intersections.isEmpty() || points.size() < 2) {
+            segments.add(path);
+            return segments;
+        }
+        
+        // 将交点按在曲线上的位置排序
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
+        
+        // 创建段
+        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
+            Vec2d start = sortedIntersections.get(i);
+            Vec2d end = sortedIntersections.get(i + 1);
+            
+            List<Vec2d> segmentPoints = new ArrayList<>();
+            segmentPoints.add(start);
+            segmentPoints.add(end);
+            
+            FreeDrawPath segment = new FreeDrawPath(segmentPoints);
+            segments.add(segment);
+        }
+        
+        return segments;
+    }
+    
+    private List<Shape> splitCatenaryLineAtIntersections(CableShape catenary, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> points = catenary.getPoints();
+        
+        if (intersections.isEmpty() || points.size() < 2) {
+            segments.add(catenary);
+            return segments;
+        }
+        
+        // 将交点按在曲线上的位置排序
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
+        
+        // 创建段
+        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
+            Vec2d start = sortedIntersections.get(i);
+            Vec2d end = sortedIntersections.get(i + 1);
+            
+                CableShape segment = new CableShape(start, end, 1.0, points.size());
+            segments.add(segment);
+        }
+        
+        return segments;
+    }
+    
+    // ====== 矩形交点排序 ======
+    
+    public List<Vec2d> sortIntersectionsAlongRectangle(RectangleShape rectangle, List<Vec2d> intersections) {
+        List<Vec2d> sorted = new ArrayList<>(intersections);
+        List<Vec2d> corners = rectangle.getPoints();
+        
+        sorted.sort((a, b) -> {
+            double distA = getDistanceAlongRectangle(corners, a);
+            double distB = getDistanceAlongRectangle(corners, b);
+            return Double.compare(distA, distB);
+        });
+        
+        return sorted;
+    }
+    
+    private double getDistanceAlongRectangle(List<Vec2d> corners, Vec2d point) {
+        double minDistance = Double.MAX_VALUE;
+        double cumulativeDistance = 0;
+        
+        for (int i = 0; i < corners.size(); i++) {
+            Vec2d current = corners.get(i);
+            Vec2d next = corners.get((i + 1) % corners.size());
+            
+            double segmentDistance = current.distance(next);
+            double pointDistance = pointToLineDistance(current, next, point);
+            
+            if (pointDistance < minDistance) {
+                minDistance = pointDistance;
+                return cumulativeDistance + getDistanceFromStart(current, next, point);
+            }
+            
+            cumulativeDistance += segmentDistance;
+        }
+        
+        return cumulativeDistance;
+    }
+}

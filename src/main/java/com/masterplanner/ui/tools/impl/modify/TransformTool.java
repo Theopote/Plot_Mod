@@ -1,0 +1,339 @@
+package com.masterplanner.ui.tools.impl.modify;
+
+import com.masterplanner.api.snap.ISnapManager;
+import com.masterplanner.core.state.AppState;
+import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
+import com.masterplanner.core.graphics.DrawContext;
+import com.masterplanner.infrastructure.event.EventBus;
+import com.masterplanner.infrastructure.event.EventListener;
+import com.masterplanner.infrastructure.event.base.Event;
+import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
+import java.util.Set;
+
+/**
+ * 变换工具 - 专业变换工具
+ * 
+ * <p>这是一个专业的图形变换工具，提供完整的缩放、旋转和变形功能。
+ * 采用策略模式架构，支持多种变换模式和精确的数值输入。</p>
+ * 
+ * <p><strong>主要特性：</strong></p>
+ * <ul>
+ *   <li><strong>缩放变换</strong>：支持自由缩放、等比缩放、单向缩放</li>
+ *   <li><strong>中心缩放</strong>：按住Alt键从中心点缩放</li>
+ *   <li><strong>旋转功能</strong>：角点外侧拖拽进行旋转</li>
+ *   <li><strong>数值输入</strong>：精确的缩放比例和尺寸输入</li>
+ *   <li><strong>多选支持</strong>：同时变换多个图形</li>
+ *   <li><strong>预览功能</strong>：实时预览变换效果</li>
+ * </ul>
+ * 
+ * <p><strong>使用方式：</strong></p>
+ * <ol>
+ *   <li>选择要变换的图形</li>
+ *   <li>右键进入变换模式</li>
+ *   <li>拖拽控制点进行缩放</li>
+ *   <li>按住Alt键从中心缩放</li>
+ *   <li>角点外侧拖拽进行旋转</li>
+ * </ol>
+ * 
+ * @author MasterPlanner Team
+ * @version 3.0 - 专业变换工具
+ */
+public class TransformTool extends ModifyTool implements EventListener {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransformTool.class);
+    
+    // 配置键常量
+    public static final String CONFIG_KEY_MODE = "mode";
+    public static final String CONFIG_KEY_CONSTRAINTS = "constraints";
+    public static final String CONFIG_KEY_CENTER_SCALE = "centerScale";
+    public static final String CONFIG_KEY_ROTATION = "rotation";
+    public static final String CONFIG_KEY_NUMERIC_INPUT = "numericInput";
+    
+    // 数值输入配置键
+    public static final String CONFIG_KEY_SCALE_X = "scale_x";
+    public static final String CONFIG_KEY_SCALE_Y = "scale_y";
+    public static final String CONFIG_KEY_ROTATION_ANGLE = "rotation";
+    public static final String CONFIG_KEY_MOVE_X = "move_x";
+    public static final String CONFIG_KEY_MOVE_Y = "move_y";
+    
+    // 精度设置配置键
+    public static final String CONFIG_KEY_STEP_SIZE = "step_size";
+    public static final String CONFIG_KEY_SNAP_TO_GRID = "snap_to_grid";
+    public static final String CONFIG_KEY_MAINTAIN_ASPECT_RATIO = "maintain_aspect_ratio";
+    
+    // 高级选项配置键
+    public static final String CONFIG_KEY_SHOW_TRANSFORM_CENTER = "show_transform_center";
+    public static final String CONFIG_KEY_SHOW_REFERENCE_POINTS = "show_reference_points";
+    
+    // 模式常量
+    public static final String MODE_FREE = "FREE";
+    public static final String MODE_HORIZONTAL = "HORIZONTAL";
+    public static final String MODE_VERTICAL = "VERTICAL";
+    
+    // 默认模式
+    public static final String DEFAULT_MODE = MODE_FREE;
+    
+    // 依赖注入的组件
+    private final AppState appState;
+    private final ISnapManager snapManager;
+    private final EventBus eventBus;
+    
+    // 策略实例引用（用于直接更新）
+    private com.masterplanner.ui.tools.impl.modify.strategy.TransformWithSelectionStrategy transformStrategy;
+    
+    // 工具配置
+    private String currentMode = DEFAULT_MODE;
+    private boolean centerScaleEnabled = false;
+    private boolean rotationEnabled = true;
+    private boolean numericInputEnabled = true;
+    
+    /**
+     * 依赖注入构造函数
+     * 
+     * @param appState 应用状态管理器
+     * @param snapManager 吸附管理器
+     * @param eventBus 事件总线
+     */
+    public TransformTool(AppState appState, ISnapManager snapManager, EventBus eventBus) {
+        super("transform", "变换工具", Icons.STRETCH_IDENTIFIER, "变换选中的图形", appState, snapManager);
+        this.appState = Objects.requireNonNull(appState, "AppState不能为空");
+        this.snapManager = Objects.requireNonNull(snapManager, "SnapManager不能为空");
+        this.eventBus = Objects.requireNonNull(eventBus, "EventBus不能为空");
+        
+        // 注册事件监听器
+        this.eventBus.subscribe(ToolConfigEvent.class, this);
+        
+        LOGGER.info("变换工具已初始化，支持中心缩放、旋转和数值输入");
+    }
+    
+    /**
+     * 创建变换策略
+     */
+    @Override
+    protected IModifyStrategy createStrategy() {
+        // 创建变换策略所需的依赖
+        com.masterplanner.ui.tools.impl.modify.helper.TransformHandler transformHandler = 
+            new com.masterplanner.ui.tools.impl.modify.helper.TransformHandler(appState);
+        com.masterplanner.ui.tools.impl.modify.helper.BoundingBoxControlManager controlManager = 
+            new com.masterplanner.ui.tools.impl.modify.helper.BoundingBoxControlManager();
+        
+        // 创建变换策略
+        transformStrategy = new com.masterplanner.ui.tools.impl.modify.strategy.TransformWithSelectionStrategy(
+            transformHandler, controlManager, eventBus);
+        return transformStrategy;
+    }
+    
+    /**
+     * 处理工具配置事件
+     */
+    @Override
+    public void onEvent(Event event) {
+        // 事件类型过滤：只处理ToolConfigEvent
+        if (!(event instanceof ToolConfigEvent configEvent)) {
+            return;
+        }
+        
+        // 工具ID过滤：只处理变换工具的事件
+        if (!"transform".equals(configEvent.getToolId())) {
+            return;
+        }
+        
+        String optionName = configEvent.getOptionName();
+        Object value = configEvent.getValue();
+        String stringValue = value != null ? value.toString() : "";
+        
+        LOGGER.debug("收到变换工具配置事件: {} = {}", optionName, stringValue);
+        
+        // 更新配置
+        updateConfig(optionName, stringValue);
+        
+        // 同步更新策略实例
+        syncStrategyInstance(optionName, stringValue);
+    }
+    
+    /**
+     * 更新工具配置
+     */
+    public void updateConfig(String optionName, String value) {
+        switch (optionName) {
+            case CONFIG_KEY_MODE -> {
+                if (Set.of(MODE_FREE, MODE_HORIZONTAL, MODE_VERTICAL).contains(value)) {
+                    currentMode = value;
+                    LOGGER.debug("变换模式已更新: {}", value);
+                } else {
+                    LOGGER.warn("无效的变换模式: {}", value);
+                }
+            }
+            case CONFIG_KEY_CONSTRAINTS -> // 约束配置处理
+                    LOGGER.debug("约束配置已更新: {}", value);
+            case CONFIG_KEY_CENTER_SCALE -> {
+                centerScaleEnabled = Boolean.parseBoolean(value);
+                LOGGER.debug("中心缩放已{}: {}", centerScaleEnabled ? "启用" : "禁用", value);
+            }
+            case CONFIG_KEY_ROTATION -> {
+                rotationEnabled = Boolean.parseBoolean(value);
+                LOGGER.debug("旋转功能已{}: {}", rotationEnabled ? "启用" : "禁用", value);
+            }
+            case CONFIG_KEY_NUMERIC_INPUT -> {
+                numericInputEnabled = Boolean.parseBoolean(value);
+                LOGGER.debug("数值输入已{}: {}", numericInputEnabled ? "启用" : "禁用", value);
+            }
+            // 数值输入配置
+            case CONFIG_KEY_SCALE_X, CONFIG_KEY_SCALE_Y, 
+                 CONFIG_KEY_MOVE_X, CONFIG_KEY_MOVE_Y, CONFIG_KEY_STEP_SIZE -> {
+                LOGGER.debug("数值输入配置已更新: {} = {}", optionName, value);
+            }
+            // 精度设置配置
+            case CONFIG_KEY_SNAP_TO_GRID, CONFIG_KEY_MAINTAIN_ASPECT_RATIO -> {
+                LOGGER.debug("精度设置配置已更新: {} = {}", optionName, value);
+            }
+            // 高级选项配置
+            case CONFIG_KEY_SHOW_TRANSFORM_CENTER, CONFIG_KEY_SHOW_REFERENCE_POINTS -> {
+                LOGGER.debug("高级选项配置已更新: {} = {}", optionName, value);
+            }
+            default -> LOGGER.debug("未知的配置选项: {}", optionName);
+        }
+    }
+    
+    /**
+     * 同步更新策略实例
+     */
+    private void syncStrategyInstance(String optionName, String value) {
+        if (transformStrategy == null) {
+            LOGGER.warn("策略实例为空，无法同步更新");
+            return;
+        }
+        
+        try {
+            switch (optionName) {
+                case CONFIG_KEY_MODE -> {
+                    // 更新变换模式
+                    com.masterplanner.ui.tools.impl.modify.enums.TransformMode mode = 
+                        com.masterplanner.ui.tools.impl.modify.enums.TransformMode.fromValue(value);
+                    transformStrategy.setTransformMode(mode);
+                    LOGGER.debug("已同步更新策略实例的变换模式: {}", value);
+                }
+                case CONFIG_KEY_CONSTRAINTS -> {
+                    boolean constraintsEnabled = Boolean.parseBoolean(value);
+                    // 注意：假设StretchWithSelectionStrategy有setConstraintsEnabled方法
+                    LOGGER.debug("约束配置已更新: {}", constraintsEnabled);
+                }
+                default -> LOGGER.debug("未知的配置选项: {}", optionName);
+            }
+        } catch (Exception e) {
+            LOGGER.error("同步策略实例失败: {} = {}", optionName, value, e);
+        }
+    }
+    
+    /**
+     * 获取当前变换模式
+     */
+    public String getMode() {
+        return currentMode;
+    }
+    
+    /**
+     * 获取工具描述
+     */
+    @Override
+    public String getDescription() {
+        return "专业的图形变换工具，支持缩放、旋转和精确数值输入";
+    }
+
+    /**
+     * 检查是否支持中心缩放
+     */
+    public boolean isCenterScaleEnabled() {
+        return centerScaleEnabled;
+    }
+    
+    /**
+     * 检查是否支持旋转
+     */
+    public boolean isRotationEnabled() {
+        return rotationEnabled;
+    }
+    
+    /**
+     * 检查是否支持数值输入
+     */
+    public boolean isNumericInputEnabled() {
+        return numericInputEnabled;
+    }
+    
+    /**
+     * 设置中心缩放
+     */
+    public void setCenterScaleEnabled(boolean enabled) {
+        this.centerScaleEnabled = enabled;
+        LOGGER.debug("中心缩放已{}", enabled ? "启用" : "禁用");
+    }
+    
+    /**
+     * 设置旋转功能
+     */
+    public void setRotationEnabled(boolean enabled) {
+        this.rotationEnabled = enabled;
+        LOGGER.debug("旋转功能已{}", enabled ? "启用" : "禁用");
+    }
+    
+    /**
+     * 设置数值输入
+     */
+    public void setNumericInputEnabled(boolean enabled) {
+        this.numericInputEnabled = enabled;
+        LOGGER.debug("数值输入已{}", enabled ? "启用" : "禁用");
+    }
+    
+    /**
+     * 工具激活时的处理
+     */
+    @Override
+    public void onActivate() {
+        super.onActivate();
+        LOGGER.info("变换工具已激活，支持专业变换功能");
+    }
+    
+    /**
+     * 工具停用时的处理
+     */
+    @Override
+    public void onDeactivate() {
+        super.onDeactivate();
+        LOGGER.info("变换工具已停用");
+    }
+    
+    /**
+     * 获取初始状态消息
+     */
+    @Override
+    public String getInitialStatusMessage() {
+        return "选择要变换的图形，右键开始变换";
+    }
+    
+    /**
+     * 渲染预览
+     */
+    @Override
+    public void renderPreview(DrawContext context) {
+        if (transformStrategy != null) {
+            transformStrategy.renderPreview(context);
+        }
+    }
+    
+    /**
+     * 清理资源
+     */
+    @Override
+    public void dispose() {
+        if (eventBus != null) {
+            eventBus.unsubscribe(ToolConfigEvent.class, this);
+        }
+        super.dispose();
+        LOGGER.debug("变换工具资源已清理");
+    }
+}

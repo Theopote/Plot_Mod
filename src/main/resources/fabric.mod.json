@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "masterplanner",
+	"version": "${version}",
+	"name": "Master Planner",
+	"description": "A powerful planning and building tool for Minecraft",
+	"authors": [
+		"Theopote"
+	],
+	"contact": {
+		"homepage": "https://github.com/yourusername/masterplanner",
+		"sources": "https://github.com/yourusername/masterplanner"
+	},
+	"license": "MIT",
+	"icon": "assets/masterplanner/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.masterplanner.MasterPlannerMod"
+		],
+		"client": [
+			"com.masterplanner.MasterPlannerMod"
+		],
+		"fabric-datagen": [
+			"com.masterplanner.MasterPlannerDataGenerator"
+		]
+	},
+	"mixins": [
+		"masterplanner.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
