@@ -93,35 +93,54 @@ public class CameraManager {
     }
 
     public void restoreState() {
-        if (savedState != null) {
-            PlayerEntity player = client.player;
-            if (player != null) {
-                // 如果当前是正交模式，先切换回透视模式
-                if (isOrthographic) {
-                    isOrthographic = false;
-                    orthographicCamera.setEnabled(false);
-                }
-
-                player.setPitch(savedState.pitch);
-                player.setYaw(savedState.yaw);
-                player.setPos(savedState.position.x, savedState.position.y, savedState.position.z);
-                client.options.hudHidden = savedState.hudHidden;
-
-                // 重置旋转角度
-                rotationAngle = 0.0f;
-
-                //重置平移
-                panX = 0.0f;
-                panY = 0.0f;
-                panBasePlayerPos = null;
-
-                LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={}",
-                        savedState.pitch, savedState.yaw, savedState.position);
-            }
-        } else {
-            LOGGER.warn("No saved camera state to restore.");
-            // 可以考虑使用默认状态
+        PlayerEntity player = client.player;
+        if (player == null) {
+            LOGGER.warn("No player found, cannot restore camera state.");
+            return;
         }
+        
+        // 如果当前是正交模式，先切换回透视模式
+        if (isOrthographic) {
+            isOrthographic = false;
+            orthographicCamera.setEnabled(false);
+        }
+
+        // 关键修改：使用当前玩家位置（因为拖动时已经更新了玩家位置）
+        // 而不是恢复保存的位置，这样玩家关闭窗口后会保持在拖动后的位置
+        Vec3d currentPosition = new Vec3d(player.getX(), player.getY(), player.getZ());
+        
+        // 恢复角度和 HUD 状态（如果保存了状态）
+        if (savedState != null) {
+            player.setPitch(savedState.pitch);
+            player.setYaw(savedState.yaw);
+            client.options.hudHidden = savedState.hudHidden;
+        } else {
+            // 如果没有保存的状态，使用默认值
+            player.setPitch(0.0f);
+            player.setYaw(0.0f);
+            client.options.hudHidden = false;
+        }
+        
+        // 确保玩家位置正确（使用当前位置，但可能需要调整Y坐标到地面）
+        // 注意：X和Z坐标保持拖动后的值，Y坐标可能需要调整到合理的高度
+        World world = player.getEntityWorld();
+        if (world != null) {
+            BlockPos pos = new BlockPos((int)currentPosition.x, (int)currentPosition.y, (int)currentPosition.z);
+            int terrainHeight = world.getTopY(Heightmap.Type.WORLD_SURFACE, pos.getX(), pos.getZ());
+            double safeY = Math.max(terrainHeight + 1.0, currentPosition.y);
+            player.setPos(currentPosition.x, safeY, currentPosition.z);
+        } else {
+            player.setPos(currentPosition.x, currentPosition.y, currentPosition.z);
+        }
+
+        // 重置旋转角度和平移值（因为已经反映在玩家位置上了）
+        rotationAngle = 0.0f;
+        panX = 0.0f;
+        panY = 0.0f;
+        panBasePlayerPos = null;
+
+        LOGGER.info("Restored camera state: pitch={}, yaw={}, pos={} (使用拖动后的位置)",
+                player.getPitch(), player.getYaw(), currentPosition);
     }
 
     public void toggleCamera() {
