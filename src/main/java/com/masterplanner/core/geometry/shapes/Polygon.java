@@ -43,6 +43,20 @@ public class Polygon extends Shape {
         this.closed = closed;
     }
 
+    @Override
+    public Polygon clone() {
+        // 关键修复：默认的 Shape.clone() 是浅拷贝，会导致 points 列表在“预览缩放/移动/旋转”时
+        // clone 与原对象共享同一 List，从而把原图形直接改坏（星形/三点矩形都用 Polygon）。
+        Polygon cloned = (Polygon) super.clone();
+        cloned.points = new ArrayList<>(this.points);
+        cloned.closed = this.closed;
+
+        // 缓存必须失效（points 重新拷贝/transform 可能不同）
+        cloned.cachedBoundingBox = null;
+        cloned.isBoundingBoxDirty = true;
+        return cloned;
+    }
+
     public void setPoints(List<Vec2d> points) {
         this.points = validateAndCleanPoints(points);
         invalidateBoundingBoxCache();

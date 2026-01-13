@@ -521,8 +521,29 @@ public class SpiralShape extends Shape implements IExtendableShape {
         Vec2d extent = new Vec2d(maxRadius, maxRadius);
         Vec2d minPoint = center.subtract(extent);
         Vec2d maxPoint = center.add(extent);
-        
-        return new BoundingBox(minPoint, maxPoint);
+
+        // 关键修复：
+        // SpiralShape 的缩放目前依赖 Shape.scale() 修改 transform 矩阵，
+        // 但旧 getBoundingBox() 完全忽略 transform，会导致：
+        // - 缩放后选框/命中检测错误
+        // - 如果渲染/裁剪依赖包围盒，可能出现“缩放后看起来不对/像没缩放”的问题
+        var t = getTransform();
+        if (t == null) {
+            return new BoundingBox(minPoint, maxPoint);
+        }
+
+        // 将轴对齐包围盒四角应用变换后再求新的AABB
+        Vec2d c1 = t.transform(minPoint);
+        Vec2d c2 = t.transform(new Vec2d(maxPoint.x, minPoint.y));
+        Vec2d c3 = t.transform(maxPoint);
+        Vec2d c4 = t.transform(new Vec2d(minPoint.x, maxPoint.y));
+
+        double minX = Math.min(Math.min(c1.x, c2.x), Math.min(c3.x, c4.x));
+        double minY = Math.min(Math.min(c1.y, c2.y), Math.min(c3.y, c4.y));
+        double maxX = Math.max(Math.max(c1.x, c2.x), Math.max(c3.x, c4.x));
+        double maxY = Math.max(Math.max(c1.y, c2.y), Math.max(c3.y, c4.y));
+
+        return new BoundingBox(new Vec2d(minX, minY), new Vec2d(maxX, maxY));
     }
 
     /**

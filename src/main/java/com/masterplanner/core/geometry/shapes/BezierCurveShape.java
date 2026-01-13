@@ -105,6 +105,17 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     private SplineMode splineMode = SplineMode.CONTROL_POLYGON; // 默认为控制模式
 
     /**
+     * 仅用于 clone() 的轻量构造：避免走 public 构造的参数校验/重建逻辑，
+     * 同时保证 segments 是“新的 List 实例”（不与原对象共享）。
+     */
+    private BezierCurveShape(Vec2d position) {
+        super(position != null ? position : new Vec2d(0, 0));
+        this.closed = false;
+        this.curvePoints = new ArrayList<>();
+        this.needsRecalculation = true;
+    }
+
+    /**
      * 构造函数：锚点+控制点结构，参数校验更健壮
      * 修复：对于闭合曲线，自动添加闭合段到segments中
      */
@@ -1467,27 +1478,31 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     
     @Override
     public Shape clone() {
-        BezierCurveShape cloned = (BezierCurveShape) super.clone();
-        
-        // 由于segments是final字段，我们需要清空并重新填充
-        cloned.segments.clear();
+        // 关键修复：
+        // 之前实现使用 super.clone()，会导致 final 的 segments List 在 clone 后仍与原对象共享同一引用；
+        // 随后的 cloned.segments.clear() 会把原曲线的段也清空，表现为“钢笔曲线缩放/预览直接消失或损坏”。
+        BezierCurveShape cloned = new BezierCurveShape(this.getPosition());
+        cloned.closed = this.closed;
+        cloned.splineMode = this.splineMode;
+        cloned.lastViewScale = this.lastViewScale;
+
         for (BezierSegment seg : this.segments) {
-            // Vec2d 是不可变的，可以直接赋值
-            cloned.segments.add(new BezierSegment(
-                seg.anchor1, seg.control1, seg.control2, seg.anchor2
-            ));
+            cloned.segments.add(new BezierSegment(seg.anchor1, seg.control1, seg.control2, seg.anchor2));
         }
-        
-        // 重置缓存和计算状态
-        cloned.curvePoints = null; // 强制重新计算
+
         cloned.needsRecalculation = true;
-        
-        // 深拷贝其他可变字段
-        cloned.setTransform(getTransform().clone());
-        cloned.setStyle(getStyle().clone());
+        cloned.curvePoints = null;
+
+        if (getTransform() != null) {
+            cloned.setTransform(getTransform().clone());
+        }
+        if (getStyle() != null) {
+            cloned.setStyle(getStyle().clone());
+        }
         cloned.setSelected(isSelected());
         cloned.setVisible(isVisible());
-        
+        cloned.setHighlighted(isHighlighted());
+
         return cloned;
     }
     

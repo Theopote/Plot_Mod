@@ -426,6 +426,36 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     public void rotate(double angle, Vec2d center) {
         rotate(center, angle);  // 调用已有的rotate方法
     }
+
+    @Override
+    public void scale(Vec2d scale, Vec2d center) {
+        // 关键修复：缩放工具最终调用的是 Shape.scale(Vec2d, center)。
+        // SineCurveShape 之前未重写该方法，同时其 draw() 也不应用 transform 矩阵，
+        // 导致“正弦曲线完全不能缩放”。
+        if (scale == null || center == null) return;
+
+        // 记录缩放前的基线方向（波长沿该方向，振幅沿法线方向）
+        Vec2d baseline = endPoint.subtract(startPoint);
+        double len = baseline.length();
+        Vec2d u = len > 1e-9 ? baseline.multiply(1.0 / len) : new Vec2d(1, 0);
+        Vec2d n = new Vec2d(-u.y, u.x);
+
+        // 非均匀缩放下，不同方向长度缩放系数不同：k = |S*v| / |v|
+        double kAlong = Math.sqrt(Math.pow(scale.x * u.x, 2) + Math.pow(scale.y * u.y, 2));
+        double kPerp = Math.sqrt(Math.pow(scale.x * n.x, 2) + Math.pow(scale.y * n.y, 2));
+
+        // 缩放端点
+        startPoint = center.add(startPoint.subtract(center).multiply(scale));
+        endPoint = center.add(endPoint.subtract(center).multiply(scale));
+
+        // 缩放参数（长度量）
+        amplitude *= kPerp;
+        wavelength *= kAlong;
+
+        // 标记缓存失效
+        dirty = true;
+        cachedPoints = null;
+    }
     
     @Override
     public Shape transform(AffineTransform transformMatrix) {

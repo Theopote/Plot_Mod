@@ -778,6 +778,20 @@ public class CableShape extends Shape implements IExtendableShape {
 
     @Override
     public void scale(Vec2d scale, Vec2d center) {
+        // 关键修复：
+        // 原实现只缩放了端点/控制点坐标，没有同步缩放 sagDepth（显式设置的弧垂深度），
+        // 会表现为“只能缩放两端点距离，弧垂形状不跟着变大/变小”。
+        if (scale != null) {
+            Vec2d baseline = end.subtract(start);
+            double len = baseline.length();
+            Vec2d u = len > 1e-9 ? baseline.multiply(1.0 / len) : new Vec2d(1, 0);
+            Vec2d n = new Vec2d(-u.y, u.x);
+            double kPerp = Math.sqrt(Math.pow(scale.x * n.x, 2) + Math.pow(scale.y * n.y, 2));
+            if (sagDepth > 0) {
+                sagDepth *= kPerp;
+            }
+        }
+
         start = center.add(start.subtract(center).multiply(scale));
         end = center.add(end.subtract(center).multiply(scale));
         if (sagPoint != null) {
