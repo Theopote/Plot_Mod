@@ -471,6 +471,31 @@ public class SpiralShape extends Shape implements IExtendableShape {
         this.rotation += angle;
         markParameterDirty(SpiralParameter.ROTATION);
     }
+
+    @Override
+    public void scale(Vec2d scale, Vec2d centerPoint) {
+        // 关键检查/修复点：
+        // 1) 缩放工具最终会调用 Shape.scale(Vec2d, center)，如果不重写则会只改 Shape.transform 矩阵；
+        //    SpiralShape 的序列化不包含 transform，这会导致“缩放后保存/刷新就丢失”，也容易出现后续交互锚点不一致。
+        // 2) SpiralShape 的几何由 center/radius/spacing/... 参数决定，因此应当直接缩放这些参数。
+        if (scale == null || centerPoint == null) return;
+
+        // 非均匀缩放对螺旋的严格结果是“椭圆螺旋”，当前实现仍是圆形螺旋参数模型；
+        // 因此这里采用“平均缩放因子”保持形态一致（与 transform(AffineTransform) 的思路一致）。
+        double avgScale = Math.sqrt(Math.abs(scale.x * scale.y));
+        if (!Double.isFinite(avgScale) || avgScale <= 0) return;
+
+        // 缩放中心点位置（允许非均匀缩放影响位置）
+        this.center = centerPoint.add(this.center.subtract(centerPoint).multiply(scale));
+
+        // 缩放尺寸相关参数（长度量）
+        this.radius *= avgScale;
+        this.spacing *= avgScale;
+        this.startRadius *= avgScale;
+
+        // 标记重新生成点
+        markDirty();
+    }
     
     @Override
     public Shape transform(AffineTransform transformMatrix) {
