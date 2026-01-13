@@ -4,6 +4,11 @@ pluginManagement {
 			name = 'Fabric'
 			url = 'https://maven.fabricmc.net/'
 		}
+		// 添加 Fabric 快照仓库
+		maven {
+			name = 'Fabric Snapshots'
+			url = 'https://maven.fabricmc.net/snapshots/'
+		}
 		mavenCentral()
 		gradlePluginPortal()
 	}

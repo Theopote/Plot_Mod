@@ -89,7 +89,8 @@ public class LineShape extends Shape implements IExtendableShape {
     public void translate(Vec2d offset) {
         start = start.add(offset);
         end = end.add(offset);
-        // 平移不改变方向向量和长度，无需更新缓存
+        // 修复：虽然平移不改变方向向量和长度，但需要更新控制点列表的位置
+        updateCachedValues();
     }
     
     /**
