@@ -419,8 +419,7 @@ public class LineShape extends Shape implements IExtendableShape {
         Vec2d transformedEnd = getTransform().transform(end);
         
         // 使用DrawContext的drawLine方法，传递LineStyle
-        if (activeStyle.getLineStyle() instanceof LineStyle) {
-            LineStyle lineStyle = (LineStyle) activeStyle.getLineStyle();
+        if (activeStyle.getLineStyle() instanceof LineStyle lineStyle) {
             context.drawLine(transformedStart, transformedEnd, lineStyle);
         } else {
             // 如果没有LineStyle，使用默认颜色绘制
@@ -452,6 +451,7 @@ public class LineShape extends Shape implements IExtendableShape {
     
     @Override
     public Shape clone() {
+        Shape shape = super.clone();
         LineShape clone = new LineShape(
             new Vec2d(start.x, start.y),
             new Vec2d(end.x, end.y)
