@@ -10,6 +10,12 @@ import com.masterplanner.core.geometry.shapes.CircleShape;
 import com.masterplanner.core.geometry.shapes.EllipseShape;
 import com.masterplanner.core.geometry.shapes.LineShape;
 import com.masterplanner.core.geometry.shapes.ArcShape;
+import com.masterplanner.core.geometry.shapes.SpiralShape;
+import com.masterplanner.core.geometry.shapes.SineCurveShape;
+import com.masterplanner.core.geometry.shapes.CableShape;
+import com.masterplanner.core.geometry.shapes.PolylineShape;
+import com.masterplanner.core.geometry.shapes.BezierCurveShape;
+import com.masterplanner.core.geometry.AffineTransform;
 import com.masterplanner.ui.tools.impl.modify.strategy.MirrorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -285,12 +291,94 @@ public class MirrorHandler implements IModifyHandler {
             case EllipseShape ellipseShape -> mirrorEllipseShape(ellipseShape, axisStart, axisEnd);
             case LineShape lineShape -> mirrorLineShape(lineShape, axisStart, axisEnd);
             case ArcShape arcShape -> mirrorArcShape(arcShape, axisStart, axisEnd);
+            case SpiralShape spiralShape -> mirrorSpiralShape(spiralShape, axisStart, axisEnd);
+            case SineCurveShape sineCurveShape -> mirrorSineCurveShape(sineCurveShape, axisStart, axisEnd);
+            case CableShape cableShape -> mirrorCableShape(cableShape, axisStart, axisEnd);
+            case PolylineShape polylineShape -> mirrorByAffineTransform(polylineShape, axisStart, axisEnd);
+            case BezierCurveShape bezierCurveShape -> mirrorByAffineTransform(bezierCurveShape, axisStart, axisEnd);
             case null, default ->
-                // 通用镜像处理：镜像所有控制点
-                    mirrorShapeByControlPoints(shape, axisStart, axisEnd);
+                // 关键修复：
+                // 很多曲线类（如正弦/悬链线）在 getControlPoints() 内部已经应用了 getTransform()，
+                // 而 setControlPoint() 期望的是“定义点”坐标。用“控制点写回”的方式会导致重复变换，
+                // 从而出现“远离轴/看起来像旋转”的错误。
+                // 因此默认改为：对定义数据应用一次严格的反射仿射变换。
+                    mirrorByAffineTransform(shape, axisStart, axisEnd);
         }
         
         LOGGER.debug("图形 {} 镜像完成", shape.getId());
+    }
+    
+    /**
+     * 轴对称：对定义数据应用一次严格的反射变换。
+     * <p>使用和 Shape.mirror(...) 相同的数学构造，但作用于 Shape.transform(AffineTransform)，避免控制点坐标系错配。</p>
+     */
+    private void mirrorByAffineTransform(Shape shape, Vec2d axisStart, Vec2d axisEnd) {
+        if (shape == null || axisStart == null || axisEnd == null) return;
+        Vec2d v = axisEnd.subtract(axisStart);
+        double angle = Math.atan2(v.y, v.x);
+        
+        // T = Translate(-axisStart) * Rotate(-angle) * Scale(1,-1) * Rotate(angle) * Translate(axisStart)
+        AffineTransform t = new AffineTransform();
+        t.translate(-axisStart.x, -axisStart.y)
+         .rotate(-angle)
+         .scale(1.0, -1.0)
+         .rotate(angle)
+         .translate(axisStart.x, axisStart.y);
+        
+        shape.transform(t);
+    }
+    
+    /**
+     * 镜像螺旋（SpiralShape）
+     *
+     * <p>螺旋由 center/rotation/clockwise 等参数生成。反射会翻转手性，因此除了中心点镜像外：</p>
+     * <ul>
+     *   <li>rotation 应满足：newRotation = 2*axisAngle - oldRotation</li>
+     *   <li>clockwise 应翻转</li>
+     * </ul>
+     */
+    private void mirrorSpiralShape(SpiralShape spiral, Vec2d axisStart, Vec2d axisEnd) {
+        // 镜像中心点
+        spiral.setCenter(mirrorPoint(spiral.getCenter(), axisStart, axisEnd));
+        
+        // 镜像旋转角：围绕轴角度反射
+        Vec2d axisVector = axisEnd.subtract(axisStart);
+        double axisAngle = Math.atan2(axisVector.y, axisVector.x);
+        double newRotation = 2 * axisAngle - spiral.getRotation();
+        while (newRotation < 0) newRotation += 2 * Math.PI;
+        while (newRotation >= 2 * Math.PI) newRotation -= 2 * Math.PI;
+        spiral.setRotation(newRotation);
+        
+        // 反射会翻转方向（手性）
+        spiral.setClockwise(!spiral.isClockwise());
+    }
+    
+    /**
+     * 镜像正弦曲线（SineCurveShape）
+     *
+     * <p>正弦曲线的法线方向由基线方向的“逆时针垂直向量”定义。反射会翻转平面手性，
+     * 因此仅镜像端点会导致法线方向不一致（曲线会跑到错误一侧）。
+     * 解决：镜像端点 + 相位加 π（等价于 y 取反）。</p>
+     */
+    private void mirrorSineCurveShape(SineCurveShape sine, Vec2d axisStart, Vec2d axisEnd) {
+        Vec2d newStart = mirrorPoint(sine.getStartPoint(), axisStart, axisEnd);
+        Vec2d newEnd = mirrorPoint(sine.getEndPoint(), axisStart, axisEnd);
+        sine.setStartPoint(newStart);
+        sine.setEndPoint(newEnd);
+        sine.setPhase(sine.getPhase() + Math.PI);
+    }
+    
+    /**
+     * 镜像悬链线/电缆线（CableShape）
+     *
+     * <p>CableShape 内部以基线的“逆时针法线”计算弧垂方向，反射会翻转手性。
+     * 因此：镜像点数据 + 翻转 sagDirection，才能保证严格轴对称。</p>
+     */
+    private void mirrorCableShape(CableShape cable, Vec2d axisStart, Vec2d axisEnd) {
+        // 先使用其自身的点镜像（包含 start/end/sagPoint/pathPoints 等）
+        cable.mirror(axisStart, axisEnd);
+        // 再翻转弧垂方向，补齐手性翻转
+        cable.setSagDirection(-cable.getSagDirection());
     }
     
     /**

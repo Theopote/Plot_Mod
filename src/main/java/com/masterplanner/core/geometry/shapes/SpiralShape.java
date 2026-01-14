@@ -1268,6 +1268,14 @@ public class SpiralShape extends Shape implements IExtendableShape {
             }
         }
     }
+
+    /**
+     * 获取螺旋方向
+     * @return true=顺时针，false=逆时针
+     */
+    public boolean isClockwise() {
+        return clockwise;
+    }
     
     /**
      * 设置螺旋线的圈数

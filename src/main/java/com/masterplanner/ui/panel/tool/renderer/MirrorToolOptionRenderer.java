@@ -54,9 +54,9 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
         super("mirror");
         // 加载图标
         this.mirrorIconId = ImGuiUtils.getTextureId(
-            Identifier.of("masterplanner", "textures/gui/tooloptionspanel/mirror.png"));
+            Identifier.of("masterplanner", "textures/gui/tooloptionspanel/axis_mirror.png"));
         this.copyMirrorIconId = ImGuiUtils.getTextureId(
-            Identifier.of("masterplanner", "textures/gui/tooloptionspanel/copy_mirror.png"));
+            Identifier.of("masterplanner", "textures/gui/tooloptionspanel/center_mirror.png"));
         this.resourcesInitialized = true;
     }
     
