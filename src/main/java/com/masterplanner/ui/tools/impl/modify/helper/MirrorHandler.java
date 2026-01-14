@@ -304,8 +304,10 @@ public class MirrorHandler implements IModifyHandler {
                 // 因此默认改为：对定义数据应用一次严格的反射仿射变换。
                     mirrorByAffineTransform(shape, axisStart, axisEnd);
         }
-        
-        LOGGER.debug("图形 {} 镜像完成", shape.getId());
+
+        if (shape != null) {
+            LOGGER.debug("图形 {} 镜像完成", shape.getId());
+        }
     }
     
     /**
@@ -522,45 +524,7 @@ public class MirrorHandler implements IModifyHandler {
         arc.setStartAngle(newStartAngle);
         arc.setEndAngle(newEndAngle);
     }
-    
-    /**
-     * 通用镜像处理：通过控制点镜像
-     */
-    private void mirrorShapeByControlPoints(Shape shape, Vec2d axisStart, Vec2d axisEnd) {
-        // 获取图形的所有控制点（顶点）
-        List<Vec2d> controlPoints = shape.getControlPoints();
-        if (controlPoints.isEmpty()) {
-            LOGGER.warn("图形没有控制点，无法进行镜像变换");
-            return;
-        }
-        
-        // 对每个控制点进行镜像变换
-        for (int i = 0; i < controlPoints.size(); i++) {
-            Vec2d originalPoint = controlPoints.get(i);
-            Vec2d mirroredPoint = mirrorPoint(originalPoint, axisStart, axisEnd);
-            shape.setControlPoint(i, mirroredPoint);
-        }
-        
-        // 计算镜像轴的角度
-        Vec2d axisVector = axisEnd.subtract(axisStart);
-        double axisAngle = Math.atan2(axisVector.y, axisVector.x);
-        
-        // 镜像旋转角度
-        double currentRotation = shape.getRotation();
-        double newRotation = 2 * axisAngle - currentRotation;
-        
-        // 规范化角度到 [0, 2π) 范围
-        while (newRotation < 0) {
-            newRotation += 2 * Math.PI;
-        }
-        while (newRotation >= 2 * Math.PI) {
-            newRotation -= 2 * Math.PI;
-        }
-        
-        // 设置新的旋转角度
-        shape.setRotation(newRotation);
-    }
-    
+
     /**
      * 计算点关于直线的镜像点
      * @param point 原始点

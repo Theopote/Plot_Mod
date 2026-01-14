@@ -244,23 +244,6 @@ public class MirrorTool extends ModifyTool {
     }
 
     /**
-     * 设置镜像模式
-     * @param mode 镜像模式
-     */
-    public void setMirrorMode(MirrorMode mode) {
-        if (mode == null) return;
-        MirrorWithSelectionStrategy withSelection = getMirrorWithSelectionStrategy();
-        if (withSelection != null) {
-            withSelection.setMirrorMode(mode);
-            return;
-        }
-        MirrorStrategy mirrorStrategy = getMirrorStrategy();
-        if (mirrorStrategy != null) {
-            mirrorStrategy.setMirrorMode(mode);
-        }
-    }
-
-    /**
      * 获取当前镜像模式
      * @return 当前镜像模式
      */
