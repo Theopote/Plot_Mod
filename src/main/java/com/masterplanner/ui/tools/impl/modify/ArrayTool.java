@@ -151,9 +151,10 @@ public class ArrayTool extends ModifyTool {
             }
             case "confirm" -> {
                 if (canConfirmArray()) {
-                    var cmd = arrayStrategy.getModifyCommand();
+                    var cmd = arrayStrategy.buildArrayCommand();
                     if (cmd != null) {
                         executeModifyCommand(cmd);
+                        arrayStrategy.reset();
                         LOGGER.debug("阵列操作已确认");
                     } else {
                         LOGGER.warn("阵列确认失败：命令为空");
@@ -209,6 +210,7 @@ public class ArrayTool extends ModifyTool {
      * @return 当前行数
      */
     public int getRowCount() {
+        if (modifyStrategy instanceof ArrayWithSelectionStrategy s) return s.getRowCount();
         ArrayStrategy strategy = getArrayStrategyInternal();
         return strategy != null ? strategy.getRowCount() : 2;
     }
@@ -218,6 +220,7 @@ public class ArrayTool extends ModifyTool {
      * @return 当前列数
      */
     public int getColumnCount() {
+        if (modifyStrategy instanceof ArrayWithSelectionStrategy s) return s.getColumnCount();
         ArrayStrategy strategy = getArrayStrategyInternal();
         return strategy != null ? strategy.getColumnCount() : 2;
     }
@@ -233,12 +236,14 @@ public class ArrayTool extends ModifyTool {
     
     /** 获取行间距（矩形阵列） */
     public double getRowSpacing() {
+        if (modifyStrategy instanceof ArrayWithSelectionStrategy s) return s.getRowSpacing();
         ArrayStrategy strategy = getArrayStrategyInternal();
         return strategy != null ? strategy.getRowSpacing() : getSpacing();
     }
     
     /** 获取列间距（矩形阵列） */
     public double getColumnSpacing() {
+        if (modifyStrategy instanceof ArrayWithSelectionStrategy s) return s.getColumnSpacing();
         ArrayStrategy strategy = getArrayStrategyInternal();
         return strategy != null ? strategy.getSpacing() : 50.0;
     }
@@ -248,6 +253,7 @@ public class ArrayTool extends ModifyTool {
      * @return 当前半径
      */
     public double getRadius() {
+        if (modifyStrategy instanceof ArrayWithSelectionStrategy s) return s.getRadius();
         ArrayStrategy strategy = getArrayStrategyInternal();
         return strategy != null ? strategy.getRadius() : 100.0;
     }

@@ -395,6 +395,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             
             // 从新策略获取参数值
             int[] count = { getRowCountFromStrategy(currentTool) };
+            float[] radius = { (float) getRadiusFromStrategy(currentTool) };
             
             // 应用控件样式
             ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
@@ -422,7 +423,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popItemWidth();
             height += ImGui.getFrameHeightWithSpacing();
             
-            // 显示当前半径（只读）
+            // 半径（可调）
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
@@ -430,7 +431,10 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
-            ImGui.text(String.format("%.1f", currentTool.getRadius()));
+            if (ImGui.sliderFloat("##radius", radius, 10.0f, 1000.0f, "%.1f")) {
+                updateRadiusInStrategy(currentTool, radius[0]);
+                LOGGER.debug("半径已更新为: {}", radius[0]);
+            }
             ImGui.popItemWidth();
             height += ImGui.getFrameHeightWithSpacing();
             
@@ -494,22 +498,16 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private float renderPathArrayOptions(ArrayTool currentTool) {
         float height = 0;
-        // 不使用折叠：直接三行布局
+        // 不使用折叠：直接两行布局（路径由画布左键选择）
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
 
-        // 行1：拾取路径 / 拾取物件
+        // 行1：提示
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
         ImGui.text("");
         ImGui.tableNextColumn();
-        if (ImGui.button("拾取路径", 90, 26)) {
-            updateToolConfig("beginPickPath", "true");
-        }
-        ImGui.sameLine();
-        if (ImGui.button("拾取物件", 90, 26)) {
-            updateToolConfig("beginPickObjects", "true");
-        }
+        ImGui.textWrapped("操作：右键确认选中后，在画布左键点击一条路径");
         height += ImGui.getFrameHeightWithSpacing();
 
         // 行2：数量滑动条
@@ -571,6 +569,30 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         height += ImGui.getFrameHeightWithSpacing();
 
         return height;
+    }
+
+    private double getRadiusFromStrategy(ArrayTool currentTool) {
+        try {
+            if (currentTool.getModifyStrategy() instanceof ArrayWithSelectionStrategy arrayStrategy) {
+                return arrayStrategy.getRadius();
+            }
+            return currentTool.getRadius();
+        } catch (Exception e) {
+            LOGGER.warn("获取半径失败: {}", e.getMessage());
+            return 100.0;
+        }
+    }
+
+    private void updateRadiusInStrategy(ArrayTool currentTool, double radius) {
+        try {
+            if (currentTool.getModifyStrategy() instanceof ArrayWithSelectionStrategy arrayStrategy) {
+                arrayStrategy.setRadius(radius);
+            } else {
+                updateToolConfig("radius", String.valueOf(radius));
+            }
+        } catch (Exception e) {
+            LOGGER.warn("更新半径失败: {}", e.getMessage());
+        }
     }
     
     /**

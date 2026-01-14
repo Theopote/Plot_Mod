@@ -72,7 +72,6 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     public enum ArrayState {
         IDLE("空闲", "等待开始阵列"),
         AWAIT_BASE_POINT("等待基准点", "点击设置阵列基准点"),
-        AWAIT_SECOND_POINT("等待第二点", "点击设置阵列方向或半径"),
         AWAIT_PATH("等待路径", "选择路径对象"),
         PREVIEWING("预览中", "调整参数并预览阵列效果");
 
@@ -109,21 +108,24 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     private int columnCount = 2;
     private double spacing = 50.0; // 列间距（矩形阵列）
     private double rowSpacing = 50.0; // 行间距（矩形阵列）
-    private double angle = 45.0; // 环形阵列角度间隔
     private double radius = 100.0; // 环形阵列半径
     private int pathCount = 10; // 路径阵列数量
 
     // 阵列交互状态
     private Vec2d basePoint;
-    private Vec2d secondPoint;
     private Vec2d currentPoint;
     private final List<Vec2d> pathPoints = new ArrayList<>(); // 路径阵列的路径点
-    private Shape pathShape; // 路径对象
 
     // 阵列处理器和参数
     private ArrayHandler arrayHandler;
     private List<Shape> previewShapes;
     private ModifyCommand pendingCommand;
+
+    // ====== 画布拖拽锚点（矩形间距 / 环形半径） ======
+    private enum DragHandle { NONE, COLUMN_SPACING, ROW_SPACING, CIRCULAR_RADIUS }
+    private DragHandle dragHandle = DragHandle.NONE;
+    private boolean isDraggingSpacing = false;
+    private static final double HANDLE_RADIUS_PX = 6.0;
 
     // 预览数据
     private final List<Vec2d> previewPositions = new ArrayList<>();
@@ -133,9 +135,8 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      * 默认构造函数
      */
     public ArrayWithSelectionStrategy() {
-        ModifyParameters arrayParameters = new ModifyParameters();
-        // 需要传入AppState，这里暂时使用null，实际使用时需要从上下文获取
-        this.arrayHandler = new ArrayHandler(null);
+        // 延迟初始化：需要在首次进入阵列模式时拿到 AppState
+        this.arrayHandler = null;
     }
 
     @Override
@@ -158,8 +159,40 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             if (!selectedShapeIds.isEmpty()) {
                 currentMode = StrategyMode.ARRAY;
                 selectedShapes = getSelectedShapesFromIds(context);
-                arrayState = ArrayState.AWAIT_BASE_POINT;
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置阵列基准点");
+
+                // 初始化处理器（需要 AppState）
+                if (arrayHandler == null) {
+                    try {
+                        arrayHandler = new ArrayHandler((com.masterplanner.core.state.AppState) context.getAppState());
+                    } catch (Exception e) {
+                        arrayHandler = new ArrayHandler(com.masterplanner.core.state.AppState.getInstance());
+                    }
+                }
+
+                // 按类型进入交互：
+                // - 矩形：自动 3×3 预览（无需再点基点）
+                // - 环形：点中心后默认 6 个
+                // - 路径：左键选择路径
+                if (arrayType == ArrayType.RECTANGULAR) {
+                    rowCount = 3;
+                    columnCount = 3;
+                    basePoint = selectedShapes.getFirst().getPosition();
+                    arrayState = ArrayState.PREVIEWING;
+                    updateArrayPreview();
+                    context.setPreviewEnabled(true);
+                    context.setStatusMessage("矩形阵列预览：已自动生成 3×3，可拖拽间距锚点或在面板调整，点击“完成”确认");
+                } else if (arrayType == ArrayType.CIRCULAR) {
+                    rowCount = 6; // 作为“数量（含原图）”
+                    arrayState = ArrayState.AWAIT_BASE_POINT;
+                    context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置环形阵列中心（默认 6 个）");
+                } else {
+                    // PATH
+                    pathCount = Math.max(pathCount, 2);
+                    basePoint = selectedShapes.getFirst().getPosition(); // 满足 handler 校验需要
+                    arrayState = ArrayState.AWAIT_PATH;
+                    context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，左键点击选择路径");
+                }
+
                 LOGGER.info("切换到阵列模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
@@ -168,17 +201,12 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             }
         } else {
             // 在阵列模式下右键
-            if (arrayState == ArrayState.PREVIEWING) {
-                // 在预览模式下右键：完成阵列
-                return performArray(selectedShapes, context);
-            } else {
-                // 在其他阵列状态下右键：取消阵列，返回选择模式
-                resetArrayState();
-                currentMode = StrategyMode.SELECTION;
-                context.setStatusMessage("阵列已取消");
-                LOGGER.info("从阵列模式返回选择模式");
-                return ModifyResult.CANCEL;
-            }
+            // 右键统一作为“取消”，完成请使用面板按钮
+            resetArrayState();
+            currentMode = StrategyMode.SELECTION;
+            context.setStatusMessage("阵列已取消");
+            LOGGER.info("从阵列模式返回选择模式");
+            return ModifyResult.CANCEL;
         }
     }
 
@@ -207,6 +235,58 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             // 吸附点
             Vec2d snapped = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
 
+            // 初始化处理器（需要 AppState）
+            if (arrayHandler == null) {
+                try {
+                    arrayHandler = new ArrayHandler((com.masterplanner.core.state.AppState) context.getAppState());
+                } catch (Exception e) {
+                    arrayHandler = new ArrayHandler(com.masterplanner.core.state.AppState.getInstance());
+                }
+            }
+
+            // 画布锚点交互：点击开始拖拽，再次点击确认结束
+            if (arrayState == ArrayState.PREVIEWING && basePoint != null) {
+                if (isDraggingSpacing) {
+                    isDraggingSpacing = false;
+                    dragHandle = DragHandle.NONE;
+                    context.setStatusMessage("参数已确认：可继续拖拽其他锚点，或点击“完成”确认阵列");
+                    return ModifyResult.CONTINUE;
+                }
+
+                double tol = HANDLE_RADIUS_PX / Math.max(0.1, context.getCamera().getZoom());
+
+                // 矩形阵列：行/列间距锚点
+                if (arrayType == ArrayType.RECTANGULAR) {
+                    Vec2d colHandle = basePoint.add(new Vec2d(spacing, 0));
+                    Vec2d rowHandle = basePoint.add(new Vec2d(0, rowSpacing));
+                    if (snapped.distance(colHandle) <= tol) {
+                        dragHandle = DragHandle.COLUMN_SPACING;
+                        isDraggingSpacing = true;
+                        context.setStatusMessage("正在拖拽列间距：移动鼠标调整，单击确认");
+                        return ModifyResult.CONTINUE;
+                    }
+                    if (snapped.distance(rowHandle) <= tol) {
+                        dragHandle = DragHandle.ROW_SPACING;
+                        isDraggingSpacing = true;
+                        context.setStatusMessage("正在拖拽行间距：移动鼠标调整，单击确认");
+                        return ModifyResult.CONTINUE;
+                    }
+                }
+
+                // 环形阵列：半径锚点（沿“源图形方向”的半径线上）
+                if (arrayType == ArrayType.CIRCULAR && selectedShapes != null && !selectedShapes.isEmpty()) {
+                    Vec2d sourcePos = selectedShapes.getFirst().getPosition();
+                    double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+                    Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
+                    if (snapped.distance(radiusHandle) <= tol) {
+                        dragHandle = DragHandle.CIRCULAR_RADIUS;
+                        isDraggingSpacing = true;
+                        context.setStatusMessage("正在拖拽半径：移动鼠标调整，单击确认");
+                        return ModifyResult.CONTINUE;
+                    }
+                }
+            }
+
             switch (arrayState) {
                 case AWAIT_BASE_POINT -> {
                     // 第一步：设置阵列基准点，立即进入预览模式
@@ -216,27 +296,18 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         arrayState = ArrayState.PREVIEWING;
                         updateArrayPreview();
                         context.setPreviewEnabled(true);
-                        context.setStatusMessage("矩形阵列预览中，调整参数后右键完成");
+                        context.setStatusMessage("矩形阵列预览中：可拖拽间距锚点或在面板调整，点击“完成”确认");
                     } else if (arrayType == ArrayType.CIRCULAR) {
-                        // 环形阵列：需要第二点设置半径
-                        arrayState = ArrayState.AWAIT_SECOND_POINT;
-                        context.setStatusMessage("已设置基准点，点击设置半径点");
+                        // 环形阵列：点中心后立即预览（默认半径=中心到源图形距离）
+                        radius = basePoint.distance(selectedShapes.getFirst().getPosition());
+                        arrayState = ArrayState.PREVIEWING;
+                        updateArrayPreview();
+                        context.setPreviewEnabled(true);
+                        context.setStatusMessage("环形阵列预览中：默认 6 个，可在面板调整数量/半径，点击“完成”确认");
                     } else if (arrayType == ArrayType.PATH) {
                         // 路径阵列：需要选择路径对象
                         arrayState = ArrayState.AWAIT_PATH;
                         context.setStatusMessage("点击选择路径对象");
-                    }
-                    return ModifyResult.CONTINUE;
-                }
-                case AWAIT_SECOND_POINT -> {
-                    // 第二步：根据阵列类型设置第二点
-                    secondPoint = snapped;
-                    if (arrayType == ArrayType.CIRCULAR) {
-                        // 环形阵列进入预览
-                        arrayState = ArrayState.PREVIEWING;
-                        updateArrayPreview();
-                        context.setPreviewEnabled(true);
-                        context.setStatusMessage("环形阵列预览中，调整参数后右键完成");
                     }
                     return ModifyResult.CONTINUE;
                 }
@@ -249,11 +320,10 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                             if (pts != null && pts.size() >= 2) {
                                 pathPoints.clear();
                                 pathPoints.addAll(pts);
-                                pathShape = pathObj;
                                 arrayState = ArrayState.PREVIEWING;
                                 updateArrayPreview();
                                 context.setPreviewEnabled(true);
-                                context.setStatusMessage("已选择路径，调整数量后点击完成");
+                                context.setStatusMessage("已选择路径：可在面板调整数量，点击“完成”确认");
                             } else {
                                 context.setStatusMessage("所选对象无法作为路径（点数不足）");
                             }
@@ -266,7 +336,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     return ModifyResult.CONTINUE;
                 }
                 case PREVIEWING -> {
-                    // 预览模式下左键不执行任何操作，只通过右键完成
+                    // 预览模式下左键不执行任何操作（完成用面板按钮/右键取消）
                     return ModifyResult.IGNORED;
                 }
                 default -> {
@@ -296,10 +366,29 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         try {
             currentPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
 
-            // 在等待第二点时，显示预览线
-            if (arrayState == ArrayState.AWAIT_SECOND_POINT && basePoint != null) {
-                context.setPreviewEnabled(true);
-                return ModifyResult.CONTINUE;
+            // 拖拽更新（矩形间距 / 环形半径）
+            if (arrayState == ArrayState.PREVIEWING && isDraggingSpacing && basePoint != null) {
+                if (dragHandle == DragHandle.COLUMN_SPACING) {
+                    spacing = Math.max(1.0, Math.abs(currentPoint.x - basePoint.x));
+                    updateArrayPreview();
+                    context.setPreviewEnabled(true);
+                    context.setStatusMessage(String.format("列间距: %.1f（拖拽调整，单击确认）", spacing));
+                    return ModifyResult.CONTINUE;
+                }
+                if (dragHandle == DragHandle.ROW_SPACING) {
+                    rowSpacing = Math.max(1.0, Math.abs(currentPoint.y - basePoint.y));
+                    updateArrayPreview();
+                    context.setPreviewEnabled(true);
+                    context.setStatusMessage(String.format("行间距: %.1f（拖拽调整，单击确认）", rowSpacing));
+                    return ModifyResult.CONTINUE;
+                }
+                if (dragHandle == DragHandle.CIRCULAR_RADIUS) {
+                    radius = Math.max(1.0, basePoint.distance(currentPoint));
+                    updateArrayPreview();
+                    context.setPreviewEnabled(true);
+                    context.setStatusMessage(String.format("半径: %.1f（拖拽调整，单击确认）", radius));
+                    return ModifyResult.CONTINUE;
+                }
             }
 
             // 在预览模式下，实时更新预览
@@ -316,17 +405,14 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
     @Override
     public ModifyResult onMouseUp(Vec2d pos, int button, ModifyToolContext context) {
-        // 参考SelectionStrategy的条件检查
-        if (button != MOUSE_LEFT || !isSelecting) {
-            return ModifyResult.IGNORED;
+        // 选择模式：沿用框选释放逻辑
+        if (currentMode == StrategyMode.SELECTION) {
+            if (button != MOUSE_LEFT || !isSelecting) return ModifyResult.IGNORED;
+            return handleSelectionMouseUp(pos, context);
         }
 
-        if (currentMode == StrategyMode.SELECTION) {
-            return handleSelectionMouseUp(pos, context);
-        } else {
-            // 阵列模式下不处理鼠标释放
-            return ModifyResult.IGNORED;
-        }
+        // 阵列模式：间距拖拽用“点击开始/点击结束”，不依赖 mouseUp
+        return ModifyResult.IGNORED;
     }
 
     @Override
@@ -445,53 +531,34 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     /**
      * 执行阵列操作
      */
-    private ModifyResult performArray(List<Shape> shapes, ModifyToolContext context) {
-        try {
-            // 创建阵列参数
-            ModifyParameters parameters = new ModifyParameters();
-            parameters.setString("arrayType", arrayType.name());
-            parameters.setVec2d("basePoint", basePoint);
-            
-            if (arrayType == ArrayType.RECTANGULAR) {
-                parameters.setInt("rowCount", rowCount);
-                parameters.setInt("columnCount", columnCount);
-                parameters.setDouble("rowSpacing", rowSpacing);
-                parameters.setDouble("columnSpacing", spacing);
-            } else if (arrayType == ArrayType.CIRCULAR) {
-                parameters.setDouble("radius", radius);
-                parameters.setDouble("angle", angle);
-            } else if (arrayType == ArrayType.PATH) {
-                parameters.setInt("pathCount", pathCount);
-                // 使用setParameter存储路径点列表
-                parameters.setParameter("pathPoints", pathPoints);
-            }
+    /**
+     * 供面板“完成”按钮调用：构建阵列命令（不在这里执行）
+     */
+    public ModifyCommand buildArrayCommand() {
+        if (arrayHandler == null) return null;
+        if (selectedShapes == null || selectedShapes.isEmpty()) return null;
+        if (currentMode != StrategyMode.ARRAY || arrayState != ArrayState.PREVIEWING) return null;
 
-            // 生成阵列图形
-            List<Shape> arrayedShapes = arrayHandler.calculateModifiedShapes(shapes, parameters);
-            if (arrayedShapes.isEmpty()) {
-                context.setStatusMessage("阵列失败：无法生成阵列图形");
-                return ModifyResult.CANCEL;
-            }
+        ModifyParameters parameters = new ModifyParameters();
+        parameters.setString("arrayType", arrayType.name());
+        parameters.setVec2d("basePoint", basePoint != null ? basePoint : selectedShapes.getFirst().getPosition());
 
-            // 创建命令
-            pendingCommand = arrayHandler.createModifyCommand(shapes, arrayedShapes, parameters);
-            if (pendingCommand != null) {
-                // 执行命令
-                context.executeModifyCommand(pendingCommand);
-                context.setStatusMessage("阵列完成");
-                resetArrayState();
-                // 返回选择模式
-                currentMode = StrategyMode.SELECTION;
-                return ModifyResult.COMPLETE;
-            }
-
-            context.setStatusMessage("创建阵列命令失败");
-            return ModifyResult.CANCEL;
-        } catch (Exception e) {
-            LOGGER.error("阵列操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("阵列失败: " + e.getMessage());
-            return ModifyResult.CANCEL;
+        if (arrayType == ArrayType.RECTANGULAR) {
+            parameters.setInt("rowCount", rowCount);
+            parameters.setInt("columnCount", columnCount);
+            parameters.setDouble("rowSpacing", rowSpacing);
+            parameters.setDouble("columnSpacing", spacing);
+        } else if (arrayType == ArrayType.CIRCULAR) {
+            parameters.setInt("rowCount", rowCount); // 作为数量（总数）
+            parameters.setDouble("radius", radius);
+            parameters.setDouble("angleStep", 360.0 / Math.max(1, rowCount));
+        } else if (arrayType == ArrayType.PATH) {
+            parameters.setInt("rowCount", pathCount);
+            parameters.setParameter("pathPoints", new ArrayList<>(pathPoints));
         }
+
+        List<Shape> arrayedShapes = arrayHandler.calculateModifiedShapes(selectedShapes, parameters);
+        return arrayHandler.createModifyCommand(selectedShapes, arrayedShapes, parameters);
     }
 
     /**
@@ -513,14 +580,11 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 parameters.setDouble("rowSpacing", rowSpacing);
                 parameters.setDouble("columnSpacing", spacing);
             } else if (arrayType == ArrayType.CIRCULAR) {
-                double currentRadius = radius;
-                if (secondPoint != null) {
-                    currentRadius = basePoint.distance(secondPoint);
-                }
-                parameters.setDouble("radius", currentRadius);
-                parameters.setDouble("angle", angle);
+                parameters.setInt("rowCount", rowCount); // 作为数量（总数）
+                parameters.setDouble("radius", radius);
+                parameters.setDouble("angleStep", 360.0 / Math.max(1, rowCount));
             } else if (arrayType == ArrayType.PATH) {
-                parameters.setInt("pathCount", pathCount);
+                parameters.setInt("rowCount", pathCount);
                 // 使用setParameter存储路径点列表
                 parameters.setParameter("pathPoints", pathPoints);
             }
@@ -557,24 +621,26 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             }
         } else if (arrayType == ArrayType.CIRCULAR) {
             // 环形阵列位置计算
-            double currentRadius = radius;
-            if (secondPoint != null) {
-                currentRadius = basePoint.distance(secondPoint);
-            }
-            double angleStep = Math.toRadians(angle);
-            for (int i = 1; i < 10; i++) { // 预览10个位置
-                double angle = i * angleStep;
-                double x = basePoint.x + currentRadius * Math.cos(angle);
-                double y = basePoint.y + currentRadius * Math.sin(angle);
+            int count = Math.max(1, rowCount);
+            double angleStep = (2 * Math.PI) / count;
+            Vec2d sourcePos = (selectedShapes != null && !selectedShapes.isEmpty())
+                ? selectedShapes.getFirst().getPosition()
+                : basePoint;
+            double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+            for (int i = 1; i < count; i++) {
+                double a = startAngle + i * angleStep;
+                double x = basePoint.x + radius * Math.cos(a);
+                double y = basePoint.y + radius * Math.sin(a);
                 previewPositions.add(new Vec2d(x, y));
-                previewAngles.add(angle);
+                previewAngles.add(a);
             }
         } else if (arrayType == ArrayType.PATH) {
             // 路径阵列位置计算
             if (pathPoints.size() >= 2) {
                 double totalLength = PathUtils.calculatePathLength(pathPoints);
-                double step = totalLength / (pathCount + 1);
-                for (int i = 1; i <= pathCount; i++) {
+                int count = Math.max(2, pathCount);
+                double step = totalLength / (count - 1);
+                for (int i = 1; i < count; i++) {
                     double distance = i * step;
                     Vec2d pos = PathUtils.getPositionAtLength(pathPoints, distance);
                     if (pos != null) {
@@ -623,10 +689,8 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     private void resetArrayState() {
         arrayState = ArrayState.IDLE;
         basePoint = null;
-        secondPoint = null;
         currentPoint = null;
         pathPoints.clear();
-        pathShape = null;
         previewShapes = null;
         pendingCommand = null;
         previewPositions.clear();
@@ -701,7 +765,23 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         // 重置阵列状态，因为切换类型需要重新开始
         if (currentMode == StrategyMode.ARRAY) {
             resetArrayState();
-            arrayState = ArrayState.AWAIT_BASE_POINT;
+            if (selectedShapes != null && !selectedShapes.isEmpty()) {
+                if (arrayType == ArrayType.RECTANGULAR) {
+                    rowCount = 3;
+                    columnCount = 3;
+                    basePoint = selectedShapes.getFirst().getPosition();
+                    arrayState = ArrayState.PREVIEWING;
+                    updateArrayPreview();
+                } else if (arrayType == ArrayType.CIRCULAR) {
+                    rowCount = 6;
+                    arrayState = ArrayState.AWAIT_BASE_POINT;
+                } else {
+                    basePoint = selectedShapes.getFirst().getPosition();
+                    arrayState = ArrayState.AWAIT_PATH;
+                }
+            } else {
+                arrayState = ArrayState.IDLE;
+            }
         }
     }
 
@@ -777,19 +857,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         }
     }
 
-    /**
-     * 获取角度
-     */
-    public double getAngle() {
-        return angle;
-    }
-
-    /**
-     * 设置角度
-     */
-    public void setAngle(double angle) {
-        this.angle = Math.max(1.0, Math.min(angle, 360.0));
-    }
+    // 角度步长已改为由“数量”推导（360/数量），不再提供手动角度参数
 
     /**
      * 获取半径
@@ -803,6 +871,9 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     public void setRadius(double radius) {
         this.radius = Math.max(1.0, radius);
+        if (currentMode == StrategyMode.ARRAY && arrayState == ArrayState.PREVIEWING && arrayType == ArrayType.CIRCULAR) {
+            updateArrayPreview();
+        }
     }
 
     /**
@@ -817,6 +888,9 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     public void setPathCount(int pathCount) {
         this.pathCount = Math.max(1, Math.min(pathCount, 100));
+        if (currentMode == StrategyMode.ARRAY && arrayState == ArrayState.PREVIEWING && arrayType == ArrayType.PATH) {
+            updateArrayPreview();
+        }
     }
 
     /**
@@ -891,9 +965,29 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             context.drawCircle(pos, 3.0, new Color(0, 255, 0, 180)); // 绿色圆点
         }
 
-        // 渲染辅助线
-        if (arrayState == ArrayState.AWAIT_SECOND_POINT && basePoint != null && currentPoint != null) {
-            context.drawDashedLine(basePoint, currentPoint, new Color(0, 255, 0, 180)); // 绿色虚线
+        // 矩形阵列：绘制间距锚点（可拖拽）
+        if (arrayType == ArrayType.RECTANGULAR && arrayState == ArrayState.PREVIEWING && basePoint != null) {
+            Color handleColor = new Color(255, 200, 0, 220);
+            Vec2d colHandle = basePoint.add(new Vec2d(spacing, 0));
+            Vec2d rowHandle = basePoint.add(new Vec2d(0, rowSpacing));
+            context.drawDashedLine(basePoint, colHandle, handleColor);
+            context.drawDashedLine(basePoint, rowHandle, handleColor);
+            context.drawCircleFilled(colHandle, 4.0f, handleColor);
+            context.drawCircleFilled(rowHandle, 4.0f, handleColor);
+            context.drawCircleOutline(colHandle, 6.0f, Color.WHITE);
+            context.drawCircleOutline(rowHandle, 6.0f, Color.WHITE);
+        }
+
+        // 环形阵列：绘制半径锚点（可拖拽）
+        if (arrayType == ArrayType.CIRCULAR && arrayState == ArrayState.PREVIEWING && basePoint != null
+            && selectedShapes != null && !selectedShapes.isEmpty()) {
+            Vec2d sourcePos = selectedShapes.getFirst().getPosition();
+            double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+            Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
+            Color handleColor = new Color(255, 200, 0, 220);
+            context.drawDashedLine(basePoint, radiusHandle, handleColor);
+            context.drawCircleFilled(radiusHandle, 4.0f, handleColor);
+            context.drawCircleOutline(radiusHandle, 6.0f, Color.WHITE);
         }
     }
 
@@ -911,15 +1005,31 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 );
             }
 
-            // 渲染辅助线
-            if (arrayState == ArrayState.AWAIT_SECOND_POINT && basePoint != null && currentPoint != null) {
-                Vec2d screenStart = camera.worldToScreen(basePoint);
-                Vec2d screenEnd = camera.worldToScreen(currentPoint);
-                drawList.addLine(
-                    (float) screenStart.x, (float) screenStart.y,
-                    (float) screenEnd.x, (float) screenEnd.y,
-                    0xFF00FF00, 2.0f // 绿色线
-                );
+            // 矩形阵列：绘制间距锚点（可拖拽）
+            if (arrayType == ArrayType.RECTANGULAR && arrayState == ArrayState.PREVIEWING && basePoint != null) {
+                Vec2d colHandle = basePoint.add(new Vec2d(spacing, 0));
+                Vec2d rowHandle = basePoint.add(new Vec2d(0, rowSpacing));
+                Vec2d sBase = camera.worldToScreen(basePoint);
+                Vec2d sCol = camera.worldToScreen(colHandle);
+                Vec2d sRow = camera.worldToScreen(rowHandle);
+                int color = 0xFF00C8FF; // 偏亮的黄蓝（ARGB）
+                drawList.addLine((float) sBase.x, (float) sBase.y, (float) sCol.x, (float) sCol.y, color, 1.5f);
+                drawList.addLine((float) sBase.x, (float) sBase.y, (float) sRow.x, (float) sRow.y, color, 1.5f);
+                drawList.addCircleFilled((float) sCol.x, (float) sCol.y, 4.0f, color);
+                drawList.addCircleFilled((float) sRow.x, (float) sRow.y, 4.0f, color);
+            }
+
+            // 环形阵列：绘制半径锚点（可拖拽）
+            if (arrayType == ArrayType.CIRCULAR && arrayState == ArrayState.PREVIEWING && basePoint != null
+                && selectedShapes != null && !selectedShapes.isEmpty()) {
+                Vec2d sourcePos = selectedShapes.getFirst().getPosition();
+                double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+                Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
+                Vec2d sBase = camera.worldToScreen(basePoint);
+                Vec2d sRad = camera.worldToScreen(radiusHandle);
+                int color = 0xFF00C8FF;
+                drawList.addLine((float) sBase.x, (float) sBase.y, (float) sRad.x, (float) sRad.y, color, 1.5f);
+                drawList.addCircleFilled((float) sRad.x, (float) sRad.y, 4.0f, color);
             }
         } catch (Exception e) {
             LOGGER.warn("渲染阵列预览时出错: {}", e.getMessage());
