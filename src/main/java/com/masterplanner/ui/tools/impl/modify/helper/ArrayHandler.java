@@ -194,40 +194,37 @@ public class ArrayHandler implements IModifyHandler {
                 try {
                     Shape arrayedShape = shape.clone();
                     if (arrayedShape != null) {
-                        // 关键：先完全重置图形状态，然后构建正确的变换矩阵
+                        // 关键：构建围绕目标位置旋转的正确变换矩阵
                         // 旋转增量 = 当前角度 - 起始角度
                         double delta = currentAngle - startAngle;
                         
-                        // 步骤1：完全重置 transform 和 position（避免原图形的变换影响）
-                        // 先保存原位置，用于 setPosition 计算 offset
-                        Vec2d oldPos = arrayedShape.getPosition();
-                        arrayedShape.setTransform(new com.masterplanner.api.geometry.Matrix3d());
-                        
-                        // 步骤2：设置 position（这会基于 oldPos 计算 offset 并叠加到 transform）
-                        // 但因为我们刚重置了 transform，所以 offset 会正确叠加
-                        arrayedShape.setPosition(arrayPos);
-                        
-                        // 步骤3：构建围绕目标位置旋转的变换矩阵
+                        // 构建变换矩阵：围绕目标位置 arrayPos 旋转角度 delta
                         // 正确的顺序：T(arrayPos) * R(delta) * T(-arrayPos)
                         // 即：先平移到目标位置，围绕目标位置旋转，再平移回原点，最后平移到目标位置
                         
-                        // 平移到原点（相对于目标位置）
+                        // 步骤1：平移到原点（相对于目标位置）
                         com.masterplanner.api.geometry.Matrix3d toOrigin = new com.masterplanner.api.geometry.Matrix3d();
                         toOrigin.setTranslation(-arrayPos.x, -arrayPos.y);
                         
-                        // 围绕原点旋转
+                        // 步骤2：围绕原点旋转
                         com.masterplanner.api.geometry.Matrix3d rotation = new com.masterplanner.api.geometry.Matrix3d();
                         rotation.setRotation(delta);
                         
-                        // 平移回目标位置
+                        // 步骤3：平移回目标位置
                         com.masterplanner.api.geometry.Matrix3d fromOrigin = new com.masterplanner.api.geometry.Matrix3d();
                         fromOrigin.setTranslation(arrayPos.x, arrayPos.y);
                         
                         // 组合：T(arrayPos) * R(delta) * T(-arrayPos)
-                        // Matrix3d.multiply 是左乘：result = this * other
-                        // 所以：fromOrigin.multiply(rotation).multiply(toOrigin) = T(arrayPos) * R(delta) * T(-arrayPos)
+                        // 注意：矩阵乘法是从右到左执行的
+                        // 所以：fromOrigin * rotation * toOrigin = T(arrayPos) * R(delta) * T(-arrayPos)
                         com.masterplanner.api.geometry.Matrix3d temp = rotation.multiply(toOrigin);
                         com.masterplanner.api.geometry.Matrix3d finalTransform = fromOrigin.multiply(temp);
+                        
+                        // 重置 transform 并设置新的变换矩阵
+                        arrayedShape.setTransform(new com.masterplanner.api.geometry.Matrix3d());
+                        
+                        // 设置 position 字段（这会修改 transform，但我们会在之后覆盖）
+                        arrayedShape.setPosition(arrayPos);
                         
                         // 重新设置正确的 transform（覆盖 setPosition 对 transform 的修改）
                         arrayedShape.setTransform(finalTransform);
