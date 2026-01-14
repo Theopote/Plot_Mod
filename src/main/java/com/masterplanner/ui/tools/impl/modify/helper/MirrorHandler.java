@@ -317,13 +317,22 @@ public class MirrorHandler implements IModifyHandler {
         Vec2d v = axisEnd.subtract(axisStart);
         double angle = Math.atan2(v.y, v.x);
         
-        // T = Translate(-axisStart) * Rotate(-angle) * Scale(1,-1) * Rotate(angle) * Translate(axisStart)
+        // 关键：AffineTransform 的链式调用是“后置乘法”（this = this * other）。
+        // 若希望点按顺序执行：
+        //   1) Translate(-axisStart)
+        //   2) Rotate(-angle)
+        //   3) Scale(1, -1)
+        //   4) Rotate(angle)
+        //   5) Translate(axisStart)
+        // 则最终矩阵应为：
+        //   M = T(axisStart) * R(angle) * S(1,-1) * R(-angle) * T(-axisStart)
+        // 因为矩阵作用在列向量上时，运算顺序是从右到左。
         AffineTransform t = new AffineTransform();
-        t.translate(-axisStart.x, -axisStart.y)
-         .rotate(-angle)
-         .scale(1.0, -1.0)
+        t.translate(axisStart.x, axisStart.y)
          .rotate(angle)
-         .translate(axisStart.x, axisStart.y);
+         .scale(1.0, -1.0)
+         .rotate(-angle)
+         .translate(-axisStart.x, -axisStart.y);
         
         shape.transform(t);
     }
