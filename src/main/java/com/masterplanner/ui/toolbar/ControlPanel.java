@@ -13,14 +13,12 @@ import com.masterplanner.ui.dialog.LineToBlockSettingsDialog;
 import com.masterplanner.ui.dialog.ProjectionSettingsDialog;
 import com.masterplanner.ui.layout.UILayout;
 import com.masterplanner.ui.theme.ThemeManager;
-import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.ui.toolbar.group.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
-import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,7 +170,7 @@ public class ControlPanel implements UIComponent {
      */
     private void setupControlPanelWindow() {
         // 设置控制面板样式
-        ImGui.pushStyleColor(ImGuiCol.ChildBg, 
+        ImGui.pushStyleColor(ImGuiCol.ChildBg,
             ThemeManager.getInstance().getCurrentTheme().panelBackground);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 
             UILayout.Toolbar.BUTTON_PADDING, 
@@ -236,31 +234,10 @@ public class ControlPanel implements UIComponent {
     }
     
     /**
-     * 渲染固定组件（主题选择器和关闭按钮）
+     * 渲染固定组件（已移除，SystemPanel 现在是独立面板）
      */
     private void renderFixedComponents() {
-        // 主题选择器放在工具组后面，但在关闭按钮前面
-        renderThemeSelectorAtPosition();
-        renderCloseButton();
-    }
-    
-    /**
-     * 在指定位置渲染主题选择器
-     */
-    private void renderThemeSelectorAtPosition() {
-        // 计算主题选择器的位置（关闭按钮左侧）
-        float windowWidth = ImGui.getWindowWidth();
-        float windowHeight = ImGui.getWindowHeight();
-        float themeWidth = 120;
-        float closeButtonWidth = UILayout.Toolbar.BUTTON_SIZE;
-        float padding = UILayout.Toolbar.BUTTON_PADDING;
-        
-        // 主题选择器在关闭按钮左侧，留出间距
-        float themeX = windowWidth - closeButtonWidth - themeWidth - padding * 2 - UILayout.Toolbar.ITEM_SPACING;
-        float themeY = (windowHeight - UILayout.Toolbar.THEME_SELECTOR_HEIGHT) / 2.0f;
-        
-        ImGui.setCursorPos(themeX, themeY);
-        renderThemeSelector();
+        // SystemPanel 现在是独立的面板，不再在这里渲染
     }
     
     /**
@@ -284,76 +261,6 @@ public class ControlPanel implements UIComponent {
         ImGui.popStyleColor(); // 弹出1个颜色
     }
 
-    /**
-     * 渲染主题选择器
-     */
-    private void renderThemeSelector() {
-        var currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        
-        // 设置主题选择器样式，与控制面板保持一致
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 
-            (UILayout.Toolbar.THEME_SELECTOR_HEIGHT - ImGui.getTextLineHeight()) / 2.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
-        
-        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.buttonActive);
-        
-        try {
-            ImGui.setNextItemWidth(120);
-            String[] themes = {"深色主题", "浅色主题"};
-            int currentThemeIndex = getCurrentThemeIndex();
-            
-            if (ImGui.beginCombo("##theme_selector", themes[currentThemeIndex])) {
-                for (int i = 0; i < themes.length; i++) {
-                    if (ImGui.selectable(themes[i], i == currentThemeIndex)) {
-                        switch (i) {
-                            case 0 -> ThemeManager.getInstance().setTheme(ThemeManager.Theme.DARK);
-                            case 1 -> ThemeManager.getInstance().setTheme(ThemeManager.Theme.LIGHT);
-                        }
-                    }
-                }
-                ImGui.endCombo();
-            }
-        } finally {
-            ImGui.popStyleColor(8);
-            ImGui.popStyleVar(3);
-        }
-    }
-    
-    private int getCurrentThemeIndex() {
-        return ThemeManager.getInstance().getCurrentTheme() == UITheme.DARK_THEME ? 0 : 1;
-    }
-    
-    /**
-     * 渲染关闭按钮
-     */
-    private void renderCloseButton() {
-        float windowWidth = ImGui.getWindowWidth();
-        float windowHeight = ImGui.getWindowHeight();
-        float buttonX = windowWidth - UILayout.Toolbar.BUTTON_SIZE - UILayout.Toolbar.BUTTON_PADDING;
-        float buttonY = (windowHeight - UILayout.Toolbar.BUTTON_SIZE) / 2.0f;
-        
-        ImGui.setCursorPos(buttonX, buttonY);
-        
-        if (ToolbarUIUtils.renderToolbarButton(
-                ControlPanelIcons.getIdentifier(ControlPanelIcons.CLOSE), "关闭")) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.currentScreen instanceof net.minecraft.client.gui.screen.Screen) {
-                client.currentScreen.close();
-            }
-        }
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("关闭MasterPlanner");
-        }
-    }
 
     /**
      * 处理工具事件

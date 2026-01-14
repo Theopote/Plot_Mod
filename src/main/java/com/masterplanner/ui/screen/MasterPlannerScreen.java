@@ -3,6 +3,7 @@ package com.masterplanner.ui.screen;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.imgui.ImGuiRenderer;
 import com.masterplanner.ui.toolbar.ControlPanel;
+import com.masterplanner.ui.toolbar.SystemPanel;
 import com.masterplanner.ui.toolbar.ToolPanel;
 import com.masterplanner.ui.canvas.Canvas;
 import com.masterplanner.ui.layout.UILayout;
@@ -67,6 +68,7 @@ public class MasterPlannerScreen extends Screen {
     private static final String DOCKSPACE_ID_STR = "MasterPlannerDockSpace";
 
     private static final String WIN_TOP = "ControlPanel##ControlPanel";
+    private static final String WIN_TOP_SYSTEM = "SystemPanel##SystemPanel";
     private static final String WIN_LEFT = "ToolPanel##ToolPanel";
     // 右侧拆分为三个独立窗口，Dock 到同一个 right dock node 后会自动以 Tab 形式组合展示
     private static final String WIN_RIGHT_PROPERTY = "属性##PropertyPanel";
@@ -74,7 +76,8 @@ public class MasterPlannerScreen extends Screen {
     private static final String WIN_RIGHT_EXTENSION = "扩展##ExtensionPanel";
 
     private int dockspaceId;
-    private int dockIdTop;
+    private int dockIdTopLeft;  // 顶部左侧（ControlPanel）
+    private int dockIdTopRight; // 顶部右侧（SystemPanel）
     private int dockIdLeft;
     private int dockIdRight;
     private boolean dockLayoutBuilt;
@@ -130,6 +133,7 @@ public class MasterPlannerScreen extends Screen {
         
         // 其他UI组件
         uiContainer.register(ControlPanel.class, new ControlPanel());
+        uiContainer.register(SystemPanel.class, new SystemPanel());
         uiContainer.register(ToolPanel.class, new ToolPanel());
         uiContainer.register(PropertyPanel.class, new PropertyPanel());
         uiContainer.register(GalleryPanel.class, new GalleryPanel());
@@ -149,6 +153,7 @@ public class MasterPlannerScreen extends Screen {
 
         // 初始化所有UI组件
         ControlPanel controlPanel = uiContainer.get(ControlPanel.class);
+        SystemPanel systemPanel = uiContainer.get(SystemPanel.class);
         ToolPanel toolPanel = uiContainer.get(ToolPanel.class);
         PropertyPanel propertyPanel = uiContainer.get(PropertyPanel.class);
         GalleryPanel galleryPanel = uiContainer.get(GalleryPanel.class);
@@ -157,6 +162,9 @@ public class MasterPlannerScreen extends Screen {
 
         if (controlPanel != null) {
             controlPanel.init();
+        }
+        if (systemPanel != null) {
+            systemPanel.init();
         }
         if (toolPanel != null) {
             toolPanel.init();
@@ -306,6 +314,7 @@ public class MasterPlannerScreen extends Screen {
     private void renderUI() {
         // 渲染各个组件
         ControlPanel controlPanel = uiContainer.get(ControlPanel.class);
+        SystemPanel systemPanel = uiContainer.get(SystemPanel.class);
         ToolPanel toolPanel = uiContainer.get(ToolPanel.class);
         PropertyPanel propertyPanel = uiContainer.get(PropertyPanel.class);
         GalleryPanel galleryPanel = uiContainer.get(GalleryPanel.class);
@@ -332,7 +341,7 @@ public class MasterPlannerScreen extends Screen {
             }
 
             // 再渲染 DockSpace 与面板窗口（位于画布之上）
-            renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, toolPanel, propertyPanel, galleryPanel, extensionPanel);
+            renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, systemPanel, toolPanel, propertyPanel, galleryPanel, extensionPanel);
             
             // 首次渲染完成后，标记为已完成
             if (firstRender) {
@@ -348,6 +357,7 @@ public class MasterPlannerScreen extends Screen {
      */
     private void renderDockSpaceLayout(float displayWidth, float displayHeight,
                                        ControlPanel controlPanel,
+                                       SystemPanel systemPanel,
                                        ToolPanel toolPanel,
                                        PropertyPanel propertyPanel,
                                        GalleryPanel galleryPanel,
@@ -384,6 +394,7 @@ public class MasterPlannerScreen extends Screen {
 
         // 2) 渲染可停靠面板窗口（不再 setNextWindowPos/Size）
         renderDockedControlPanel(controlPanel);
+        renderDockedSystemPanel(systemPanel);
         renderDockedToolPanel(toolPanel);
         renderDockedRightPanels(propertyPanel, galleryPanel, extensionPanel);
     }
@@ -411,6 +422,8 @@ public class MasterPlannerScreen extends Screen {
 
         ImInt dockMain = new ImInt(dockspaceId);
         ImInt dockTop = new ImInt();
+        ImInt dockTopLeft = new ImInt();
+        ImInt dockTopRight = new ImInt();
         ImInt dockLeft = new ImInt();
         ImInt dockRight = new ImInt();
 
@@ -420,14 +433,18 @@ public class MasterPlannerScreen extends Screen {
 
         // 依次 split：上/左/右，剩余作为 central
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Up, topRatio, dockTop, dockMain);
+        // 将顶部区域分割为左右两部分：左侧是 ControlPanel，右侧是 SystemPanel
+        imgui.internal.ImGui.dockBuilderSplitNode(dockTop.get(), ImGuiDir.Right, 0.15f, dockTopRight, dockTopLeft);
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockLeft, dockMain);
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Right, rightRatio, dockRight, dockMain);
 
-        dockIdTop = dockTop.get();
+        dockIdTopLeft = dockTopLeft.get();
+        dockIdTopRight = dockTopRight.get();
         dockIdLeft = dockLeft.get();
         dockIdRight = dockRight.get();
 
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTop);
+        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTopLeft);
+        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP_SYSTEM, dockIdTopRight);
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);
         // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
         // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
@@ -451,6 +468,22 @@ public class MasterPlannerScreen extends Screen {
         ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS);
         controlPanel.renderInCurrentWindow();
+        ImGui.end();
+        ImGui.popStyleColor(2);
+        ImGui.popStyleVar(2);
+    }
+
+    private void renderDockedSystemPanel(SystemPanel systemPanel) {
+        if (systemPanel == null) return;
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, UILayout.Toolbar.BUTTON_PADDING, UILayout.Toolbar.BUTTON_PADDING);
+        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
+        ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(200, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
+        ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS);
+        systemPanel.render();
         ImGui.end();
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);

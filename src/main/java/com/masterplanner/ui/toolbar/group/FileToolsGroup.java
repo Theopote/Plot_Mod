@@ -12,11 +12,7 @@ import com.masterplanner.ui.toolbar.ToolbarUIUtils;
  * 包含撤销、重做等文件操作工具
  */
 public class FileToolsGroup extends AbstractToolbarGroup {
-    
-    public FileToolsGroup() {
-        super("文件工具");
-    }
-    
+
     public FileToolsGroup(AppState appState, EventBus eventBus) {
         super("文件工具", appState, eventBus);
     }

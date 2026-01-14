@@ -167,7 +167,7 @@ public class ControlPanelIcons {
      */
     public static void dispose() {
         LOGGER.debug("Disposing control panel icon textures...");
-        textureCache.values().forEach(id -> GL11.glDeleteTextures(id.intValue()));
+        textureCache.values().forEach(GL11::glDeleteTextures);
         textureCache.clear();
     }
 
