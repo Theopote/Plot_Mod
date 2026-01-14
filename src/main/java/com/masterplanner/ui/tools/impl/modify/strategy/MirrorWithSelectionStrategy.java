@@ -66,22 +66,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         public String getDescription() { return description; }
     }
 
-    // 镜像模式枚举
-    public enum MirrorMode {
-        MIRROR("镜像", "将图形镜像到轴的另一侧，删除原图形"),
-        COPY_MIRROR("复制镜像", "将图形镜像到轴的另一侧，保留原图形");
-
-        private final String displayName;
-        private final String description;
-
-        MirrorMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
-        }
-
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
-    }
+    // 注意：镜像“模式”已改为几何对称类型（轴对称/中心对称），详见 {@link MirrorMode}
 
     // 常量
     private static final int ESC_KEY = 27;
@@ -95,7 +80,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
     // 策略状态
     private StrategyMode currentMode = StrategyMode.SELECTION;
     private MirrorState currentState = MirrorState.IDLE;
-    private MirrorMode mirrorMode = MirrorMode.MIRROR;
+    private MirrorMode mirrorMode = MirrorMode.AXIS_SYMMETRY;
     private boolean isShiftPressed = false;
     private boolean isCtrlPressed = false;
 
@@ -110,6 +95,20 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
     private ModifyConstraints mirrorConstraints;
     private List<Shape> previewShapes;
     private ModifyCommand pendingCommand;
+
+    /**
+     * 设置镜像模式（几何对称类型）
+     */
+    public void setMirrorMode(MirrorMode mode) {
+        if (mode != null && this.mirrorMode != mode) {
+            this.mirrorMode = mode;
+            LOGGER.debug("MirrorWithSelectionStrategy 镜像模式已设置为: {}", mode.getDisplayName());
+        }
+    }
+
+    public MirrorMode getMirrorMode() {
+        return mirrorMode;
+    }
 
     /**
      * 默认构造函数
@@ -141,7 +140,8 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             if (!selectedShapeIds.isEmpty()) {
                 currentMode = StrategyMode.MIRROR;
                 selectedShapes = getSelectedShapesFromIds(context);
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置镜像轴起点");
+                String hint = (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) ? "点击设置对称中心" : "点击设置镜像轴起点";
+                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，" + hint);
                 LOGGER.info("切换到镜像模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
@@ -230,6 +230,8 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_START, axisStartPoint);
             mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_END, currentPoint);
             mirrorParameters.setString("mirrorMode", mirrorMode.name());
+            // Ctrl：临时复制（保留原图形）
+            mirrorParameters.setBoolean(ModifyParameters.COPY_MODE, isCtrlPressed);
 
             // 应用约束
             updateConstraints();
@@ -239,14 +241,19 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             previewShapes = mirrorHandler.createPreviewShapes(selectedShapes, constrainedParameters);
 
             // 更新状态消息
-            String statusMessage = String.format("镜像轴长度: %.2f", axisStartPoint.distance(currentPoint));
-            if (isShiftPressed) {
-                statusMessage += " (正交约束)";
+            String statusMessage;
+            if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
+                statusMessage = String.format("中心对称：中心=(%.2f, %.2f)", axisStartPoint.x, axisStartPoint.y);
+            } else {
+                statusMessage = String.format("轴对称：轴长=%.2f", axisStartPoint.distance(currentPoint));
+                if (isShiftPressed) {
+                    statusMessage += " (正交约束)";
+                }
             }
-            if (mirrorMode == MirrorMode.COPY_MIRROR) {
-                statusMessage += " (复制模式)";
+            if (isCtrlPressed) {
+                statusMessage += " (复制)";
             }
-            context.setStatusMessage(statusMessage + " - 点击完成镜像");
+            context.setStatusMessage(statusMessage + " - 点击完成");
 
             // 启用预览
             context.setPreviewEnabled(true);
@@ -294,8 +301,6 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             }
             case CTRL_KEY -> {
                 isCtrlPressed = true;
-                // Ctrl键切换镜像模式
-                toggleMirrorMode();
                 if (currentState == MirrorState.SETTING_AXIS_END) {
                     return onMouseMove(currentPoint, context);
                 }
@@ -322,6 +327,9 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         }
         if (keyCode == CTRL_KEY) {
             isCtrlPressed = false;
+            if (currentState == MirrorState.SETTING_AXIS_END) {
+                return onMouseMove(currentPoint, context);
+            }
         }
         return ModifyResult.IGNORED;
     }
@@ -332,7 +340,11 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
     private ModifyResult setAxisStartPoint(Vec2d point, ModifyToolContext context) {
         axisStartPoint = point;
         currentState = MirrorState.SETTING_AXIS_END;
-        context.setStatusMessage("移动鼠标设置镜像轴终点，点击完成");
+        if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
+            context.setStatusMessage("已设置对称中心，点击确认完成 (按住Ctrl可复制)");
+        } else {
+            context.setStatusMessage("移动鼠标设置镜像轴终点，点击完成 (按住Shift正交，按住Ctrl复制)");
+        }
         LOGGER.debug("设置镜像轴起点: {}", axisStartPoint);
         return ModifyResult.CONTINUE;
     }
@@ -348,6 +360,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_START, axisStartPoint);
         mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_END, axisEndPoint);
         mirrorParameters.setString("mirrorMode", mirrorMode.name());
+        mirrorParameters.setBoolean(ModifyParameters.COPY_MODE, isCtrlPressed);
 
         // 应用约束
         updateConstraints();
@@ -380,14 +393,6 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
     private void updateConstraints() {
         // Shift键启用正交约束
         mirrorConstraints.setOrthogonalConstraintEnabled(isShiftPressed);
-    }
-
-    /**
-     * 切换镜像模式
-     */
-    private void toggleMirrorMode() {
-        mirrorMode = (mirrorMode == MirrorMode.MIRROR) ? MirrorMode.COPY_MIRROR : MirrorMode.MIRROR;
-        LOGGER.debug("切换到镜像模式: {}", mirrorMode.getDisplayName());
     }
 
     /**
@@ -509,16 +514,27 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             }
         }
 
-        // 渲染镜像轴
-        if (axisStartPoint != null && axisEndPoint != null) {
-            context.drawLine(axisStartPoint, axisEndPoint, AXIS_COLOR);
-            context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
-            context.drawCircle(axisEndPoint, 3.0f, AXIS_COLOR);
-        } else if (axisStartPoint != null && currentPoint != null) {
-            // 绘制临时镜像轴
-            context.drawDashedLine(axisStartPoint, currentPoint, AXIS_COLOR);
-            context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
-            context.drawCircle(currentPoint, 3.0f, MIRROR_PREVIEW_COLOR);
+        // 辅助提示：轴对称显示轴线；中心对称显示中心点
+        if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
+            if (axisStartPoint != null) {
+                context.drawCircle(axisStartPoint, 4.0f, AXIS_COLOR);
+                // 给用户一个“确认”的视觉反馈：从中心到鼠标画虚线（不参与计算）
+                if (currentPoint != null && currentState == MirrorState.SETTING_AXIS_END) {
+                    context.drawDashedLine(axisStartPoint, currentPoint, AXIS_COLOR);
+                }
+            }
+        } else {
+            // 轴对称：渲染镜像轴
+            if (axisStartPoint != null && axisEndPoint != null) {
+                context.drawLine(axisStartPoint, axisEndPoint, AXIS_COLOR);
+                context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
+                context.drawCircle(axisEndPoint, 3.0f, AXIS_COLOR);
+            } else if (axisStartPoint != null && currentPoint != null) {
+                // 绘制临时镜像轴
+                context.drawDashedLine(axisStartPoint, currentPoint, AXIS_COLOR);
+                context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
+                context.drawCircle(currentPoint, 3.0f, MIRROR_PREVIEW_COLOR);
+            }
         }
     }
 
@@ -527,32 +543,47 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     private void renderMirrorPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
-            // 渲染镜像轴
-            if (axisStartPoint != null && axisEndPoint != null) {
-                Vec2d screenStart = camera.worldToScreen(axisStartPoint);
-                Vec2d screenEnd = camera.worldToScreen(axisEndPoint);
+            if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
+                if (axisStartPoint != null) {
+                    Vec2d screenCenter = camera.worldToScreen(axisStartPoint);
+                    drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 5.0f, 0xFFFFFF00);
+                    if (currentPoint != null && currentState == MirrorState.SETTING_AXIS_END) {
+                        Vec2d screenCurrent = camera.worldToScreen(currentPoint);
+                        drawList.addLine(
+                            (float) screenCenter.x, (float) screenCenter.y,
+                            (float) screenCurrent.x, (float) screenCurrent.y,
+                            0xFFFFFF00, 2.0f
+                        );
+                    }
+                }
+            } else {
+                // 渲染镜像轴
+                if (axisStartPoint != null && axisEndPoint != null) {
+                    Vec2d screenStart = camera.worldToScreen(axisStartPoint);
+                    Vec2d screenEnd = camera.worldToScreen(axisEndPoint);
 
-                drawList.addLine(
-                    (float) screenStart.x, (float) screenStart.y,
-                    (float) screenEnd.x, (float) screenEnd.y,
-                    0xFFFFFF00, 3.0f // 黄色轴
-                );
+                    drawList.addLine(
+                        (float) screenStart.x, (float) screenStart.y,
+                        (float) screenEnd.x, (float) screenEnd.y,
+                        0xFFFFFF00, 3.0f // 黄色轴
+                    );
 
-                drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
-                drawList.addCircleFilled((float) screenEnd.x, (float) screenEnd.y, 4.0f, 0xFFFFFF00);
-            } else if (axisStartPoint != null && currentPoint != null) {
-                // 绘制临时镜像轴
-                Vec2d screenStart = camera.worldToScreen(axisStartPoint);
-                Vec2d screenCurrent = camera.worldToScreen(currentPoint);
+                    drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
+                    drawList.addCircleFilled((float) screenEnd.x, (float) screenEnd.y, 4.0f, 0xFFFFFF00);
+                } else if (axisStartPoint != null && currentPoint != null) {
+                    // 绘制临时镜像轴
+                    Vec2d screenStart = camera.worldToScreen(axisStartPoint);
+                    Vec2d screenCurrent = camera.worldToScreen(currentPoint);
 
-                drawList.addLine(
-                    (float) screenStart.x, (float) screenStart.y,
-                    (float) screenCurrent.x, (float) screenCurrent.y,
-                    0xFFFFFF00, 2.0f // 黄色轴（虚线效果）
-                );
+                    drawList.addLine(
+                        (float) screenStart.x, (float) screenStart.y,
+                        (float) screenCurrent.x, (float) screenCurrent.y,
+                        0xFFFFFF00, 2.0f // 黄色轴（虚线效果）
+                    );
 
-                drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
-                drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, 0xFF800080); // 紫色
+                    drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
+                    drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, 0xFF800080); // 紫色
+                }
             }
         } catch (Exception e) {
             LOGGER.warn("渲染镜像预览时出错: {}", e.getMessage());

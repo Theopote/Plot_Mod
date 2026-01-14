@@ -38,23 +38,7 @@ import java.util.ArrayList;
  */
 public class MirrorStrategy implements IModifyStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(MirrorStrategy.class);
-    
-    // 镜像模式枚举
-    public enum MirrorMode {
-        MIRROR("镜像", "将图形镜像到轴的另一侧，删除原图形"),
-        COPY_MIRROR("复制镜像", "将图形镜像到轴的另一侧，保留原图形");
-        
-        private final String displayName;
-        private final String description;
-        
-        MirrorMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
-        }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
-    }
+    // 注意：镜像“模式”已改为几何对称类型（轴对称/中心对称），详见 {@link MirrorMode}
     
     // 镜像状态枚举 - 简化状态机
     public enum MirrorState {
@@ -85,7 +69,7 @@ public class MirrorStrategy implements IModifyStrategy {
     private static final double SHAPE_SNAP_PRIORITY = 0.8; // 图形吸附优先级（0.8表示图形吸附距离是标准吸附的80%）
     
     // 策略状态
-    private MirrorMode currentMode = MirrorMode.MIRROR;
+    private MirrorMode currentMode = MirrorMode.AXIS_SYMMETRY;
     private MirrorState currentState = MirrorState.IDLE;
     private boolean isShiftPressed = false;
     private boolean isCtrlPressed = false;
@@ -200,10 +184,10 @@ public class MirrorStrategy implements IModifyStrategy {
             // 更新镜像参数用于预览
             mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_START, axisStartPoint);
             mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_END, currentPoint);
+            mirrorParameters.setString("mirrorMode", currentMode.name());
             
-            // 设置复制模式
-            boolean copyMode = (currentMode == MirrorMode.COPY_MIRROR) || isCtrlPressed;
-            mirrorParameters.setBoolean("copyMode", copyMode);
+            // Ctrl 作为临时复制（保留原图形）覆盖
+            mirrorParameters.setBoolean(ModifyParameters.COPY_MODE, isCtrlPressed);
             
             // 应用约束
             mirrorConstraints.setOrthogonalConstraintEnabled(isShiftPressed);
@@ -326,10 +310,10 @@ public class MirrorStrategy implements IModifyStrategy {
         // 修复：直接使用精确的终点坐标，而不是可能过时的currentPoint
         mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_START, axisStartPoint);
         mirrorParameters.setVec2d(ModifyParameters.MIRROR_AXIS_END, axisEndPoint);
+        mirrorParameters.setString("mirrorMode", currentMode.name());
         
-        // 设置复制模式
-        boolean copyMode = (currentMode == MirrorMode.COPY_MIRROR) || isCtrlPressed;
-        mirrorParameters.setBoolean("copyMode", copyMode);
+        // Ctrl 作为临时复制（保留原图形）覆盖
+        mirrorParameters.setBoolean(ModifyParameters.COPY_MODE, isCtrlPressed);
         
         // 应用约束
         IModifyHandler.ModifyParameters constrainedParameters = mirrorHandler.applyConstraints(mirrorParameters, mirrorConstraints);

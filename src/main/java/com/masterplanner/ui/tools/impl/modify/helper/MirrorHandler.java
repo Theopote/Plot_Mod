@@ -10,6 +10,7 @@ import com.masterplanner.core.geometry.shapes.CircleShape;
 import com.masterplanner.core.geometry.shapes.EllipseShape;
 import com.masterplanner.core.geometry.shapes.LineShape;
 import com.masterplanner.core.geometry.shapes.ArcShape;
+import com.masterplanner.ui.tools.impl.modify.strategy.MirrorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,18 +62,25 @@ public class MirrorHandler implements IModifyHandler {
             return ValidationResult.invalid("没有选择要镜像的图形");
         }
         
+        MirrorMode mode = getMirrorMode(parameters);
+        
         // 检查必需参数
         if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
-            ValidationResult paramValidation = concreteParams.validateRequired(
-                com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_START,
-                com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_END
-            );
+            ValidationResult paramValidation;
+            if (mode == MirrorMode.CENTRAL_SYMMETRY) {
+                paramValidation = concreteParams.validateRequired(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_START);
+            } else {
+                paramValidation = concreteParams.validateRequired(
+                    com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_START,
+                    com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_END
+                );
+            }
             if (!paramValidation.isValid()) {
                 return paramValidation;
             }
         }
         
-        // 检查镜像轴
+        // 检查镜像轴/中心
         Vec2d axisStart = null;
         Vec2d axisEnd = null;
         if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
@@ -80,16 +88,33 @@ public class MirrorHandler implements IModifyHandler {
             axisEnd = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_END);
         }
         
-        if (axisStart == null || axisEnd == null) {
-            return ValidationResult.invalid("镜像轴起点或终点无效");
+        if (axisStart == null) {
+            return ValidationResult.invalid("镜像参数无效：缺少轴起点/中心点");
         }
         
-        // 检查镜像轴长度
-        if (axisStart.distance(axisEnd) < MIN_AXIS_LENGTH) {
-            return ValidationResult.invalid("镜像轴长度太短");
+        if (mode != MirrorMode.CENTRAL_SYMMETRY) {
+            if (axisEnd == null) {
+                return ValidationResult.invalid("镜像轴终点无效");
+            }
+            // 检查镜像轴长度
+            if (axisStart.distance(axisEnd) < MIN_AXIS_LENGTH) {
+                return ValidationResult.invalid("镜像轴长度太短");
+            }
         }
         
         return ValidationResult.valid();
+    }
+    
+    private MirrorMode getMirrorMode(IModifyHandler.ModifyParameters parameters) {
+        String mirrorMode = MirrorMode.AXIS_SYMMETRY.name(); // 默认：轴对称
+        if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
+            mirrorMode = concreteParams.getString("mirrorMode", mirrorMode);
+        }
+        try {
+            return MirrorMode.valueOf(mirrorMode);
+        } catch (Exception e) {
+            return MirrorMode.AXIS_SYMMETRY;
+        }
     }
     
     @Override
@@ -103,35 +128,25 @@ public class MirrorHandler implements IModifyHandler {
         
         Vec2d axisStart = null;
         Vec2d axisEnd = null;
-        boolean copyMode = false;
+        MirrorMode mode = getMirrorMode(parameters);
         
         if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
             axisStart = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_START);
             axisEnd = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_END);
-            copyMode = concreteParams.getBoolean("copyMode", false);
         }
         
         List<Shape> modifiedShapes = new ArrayList<>();
         List<String> errors = new ArrayList<>();
-        
-        // 修复：如果是复制模式，添加原始图形的克隆而不是引用
-        if (copyMode) {
-            for (Shape shape : shapes) {
-                try {
-                    Shape clonedShape = shape.clone();
-                    modifiedShapes.add(clonedShape);
-                } catch (Exception e) {
-                    LOGGER.error("克隆图形失败: {}", e.getMessage(), e);
-                    errors.add("图形 " + shape.getId() + " 克隆失败: " + e.getMessage());
-                }
-            }
-        }
-        
-        // 添加镜像图形
+
+        // 计算镜像后的新图形（无论是否复制，modifiedShapes 都只包含“镜像结果”）
         for (Shape shape : shapes) {
             try {
                 Shape mirroredShape = shape.clone();
-                mirrorShape(mirroredShape, axisStart, axisEnd);
+                if (mode == MirrorMode.CENTRAL_SYMMETRY) {
+                    centralSymmetryShape(mirroredShape, axisStart);
+                } else {
+                    mirrorShape(mirroredShape, axisStart, axisEnd);
+                }
                 modifiedShapes.add(mirroredShape);
             } catch (IllegalArgumentException e) {
                 LOGGER.error("镜像参数无效: {}", e.getMessage(), e);
@@ -182,22 +197,13 @@ public class MirrorHandler implements IModifyHandler {
     public ModifyCommand createModifyCommand(List<Shape> originalShapes, 
                                            List<Shape> modifiedShapes, 
                                            IModifyHandler.ModifyParameters parameters) {
-        // 检查镜像模式
-        String mirrorMode = "MIRROR"; // 默认模式
+        boolean copyMode = false;
         if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
-            String mode = concreteParams.getString("mirrorMode", "MIRROR");
-            if (mode != null) {
-                mirrorMode = mode;
-            }
+            copyMode = concreteParams.getBoolean(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.COPY_MODE, false);
         }
-        
-        if ("COPY_MIRROR".equals(mirrorMode)) {
-            // 复制镜像模式：只添加新图形，不删除原图形
-            return new CopyMirrorCommand(originalShapes, modifiedShapes, appState);
-        } else {
-            // 正常镜像模式：替换原图形
-            return new ModifyCommand(originalShapes, modifiedShapes, appState);
-        }
+        return copyMode
+            ? new CopyMirrorCommand(originalShapes, modifiedShapes, appState)
+            : new ModifyCommand(originalShapes, modifiedShapes, appState);
     }
     
     @Override
@@ -207,6 +213,12 @@ public class MirrorHandler implements IModifyHandler {
             return parameters;
         }
 
+        MirrorMode mode = getMirrorMode(parameters);
+        if (mode == MirrorMode.CENTRAL_SYMMETRY) {
+            // 中心对称不需要正交约束
+            return parameters;
+        }
+        
         Vec2d axisStart = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_START);
         Vec2d axisEnd = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_END);
         
@@ -282,56 +294,58 @@ public class MirrorHandler implements IModifyHandler {
     }
     
     /**
+     * 中心对称：等价于绕中心点旋转180°
+     */
+    private void centralSymmetryShape(Shape shape, Vec2d center) {
+        if (center == null) {
+            LOGGER.warn("中心点为空，跳过中心对称");
+            return;
+        }
+        // 形状类普遍实现了 rotate(angle, center)
+        shape.rotate(Math.PI, center);
+    }
+    
+    /**
      * 镜像矩形
      */
     private void mirrorRectangleShape(RectangleShape rectangle, Vec2d axisStart, Vec2d axisEnd) {
-        // 获取矩形的原始属性
+        // 矩形的几何定义：corner 为局部原点，width/height 为局部轴长度，rotation 表示局部轴旋转
         Vec2d originalCorner = rectangle.getCorner();
-        double originalWidth = rectangle.getWidth();
-        double originalHeight = rectangle.getHeight();
-        double originalRotation = rectangle.getRotation();
-        
-        // 计算矩形的中心点
-        Vec2d center = new Vec2d(
-            originalCorner.x + originalWidth / 2,
-            originalCorner.y + originalHeight / 2
-        );
-        
-        // 镜像中心点
-        Vec2d mirroredCenter = mirrorPoint(center, axisStart, axisEnd);
-        
-        // 计算镜像轴的角度
-        Vec2d axisVector = axisEnd.subtract(axisStart);
-        double axisAngle = Math.atan2(axisVector.y, axisVector.x);
-        
-        // 镜像矩形的旋转角度
-        double newRotation = 2 * axisAngle - originalRotation;
-        
+        double width = rectangle.getWidth();
+        double height = rectangle.getHeight();
+        double rotation = rectangle.getRotation();
+
+        // 计算局部轴向量（世界坐标）
+        Vec2d u = new Vec2d(width, 0).rotate(rotation);   // 宽方向
+        Vec2d v = new Vec2d(0, height).rotate(rotation);  // 高方向
+
+        // 镜像 corner 与两条局部轴的端点，以得到镜像后的轴向量
+        Vec2d p0 = mirrorPoint(originalCorner, axisStart, axisEnd);
+        Vec2d p1 = mirrorPoint(originalCorner.add(u), axisStart, axisEnd);
+        Vec2d p3 = mirrorPoint(originalCorner.add(v), axisStart, axisEnd);
+
+        Vec2d u2 = p1.subtract(p0);
+        Vec2d v2 = p3.subtract(p0);
+
+        // 新旋转取 u2 的方向
+        double newRotation = Math.atan2(u2.y, u2.x);
+        Vec2d vExpected = new Vec2d(0, height).rotate(newRotation);
+
+        // 如果 v2 与预期的“+y”方向相反，说明发生了手性翻转：换用相邻角点作为 corner，并旋转+π
+        Vec2d newCorner = p0;
+        if (v2.dot(vExpected) < 0) {
+            newCorner = p1; // 以宽方向相邻点作为新的 corner
+            newRotation += Math.PI;
+        }
+
         // 规范化角度到 [0, 2π) 范围
-        while (newRotation < 0) {
-            newRotation += 2 * Math.PI;
-        }
-        while (newRotation >= 2 * Math.PI) {
-            newRotation -= 2 * Math.PI;
-        }
-        
-        // 计算新的左下角位置
-        Vec2d newCorner = new Vec2d(
-            mirroredCenter.x - originalWidth / 2,
-            mirroredCenter.y - originalHeight / 2
-        );
-        
-        // 更新矩形属性，保持原有的宽度和高度
+        while (newRotation < 0) newRotation += 2 * Math.PI;
+        while (newRotation >= 2 * Math.PI) newRotation -= 2 * Math.PI;
+
         rectangle.setCorner(newCorner);
-        rectangle.setWidth(originalWidth);
-        rectangle.setHeight(originalHeight);
+        rectangle.setWidth(width);
+        rectangle.setHeight(height);
         rectangle.setRotation(newRotation);
-        
-        LOGGER.debug("矩形镜像: 中心点({}, {}) -> ({}, {}), 角点({}, {}) -> ({}, {}), 尺寸保持不变 {:.2f}x{:.2f}, 旋转角度 {:.2f} -> {:.2f}", 
-                    center.x, center.y, mirroredCenter.x, mirroredCenter.y,
-                    originalCorner.x, originalCorner.y, newCorner.x, newCorner.y,
-                    originalWidth, originalHeight,
-                    Math.toDegrees(originalRotation), Math.toDegrees(newRotation));
     }
     
     /**
@@ -508,33 +522,39 @@ public class MirrorHandler implements IModifyHandler {
         Vec2d axisStart = null;
         Vec2d axisEnd = null;
         boolean copyMode = false;
-        
+        MirrorMode mode = getMirrorMode(parameters);
+
         if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
             axisStart = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_START);
             axisEnd = concreteParams.getVec2d(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.MIRROR_AXIS_END);
-            copyMode = concreteParams.getBoolean("copyMode", false);
+            copyMode = concreteParams.getBoolean(com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters.COPY_MODE, false);
         }
-        
+
+        String copyText = copyMode ? " (复制)" : "";
+        if (mode == MirrorMode.CENTRAL_SYMMETRY) {
+            if (axisStart != null) {
+                return String.format("中心对称%s: 中心=(%.1f, %.1f)", copyText, axisStart.x, axisStart.y);
+            }
+            return "中心对称" + copyText;
+        }
+
+        // 轴对称
         if (axisStart != null && axisEnd != null) {
             double length = axisStart.distance(axisEnd);
             double angle = Math.toDegrees(Math.atan2(axisEnd.y - axisStart.y, axisEnd.x - axisStart.x));
-            
-            String modeText = copyMode ? "复制镜像" : "镜像";
+
             String constraintText = "";
-            
-            // 检查是否为正交约束（水平或垂直）
             if (isOrthogonalAxis(axisStart, axisEnd)) {
                 if (Math.abs(angle) < 45 || Math.abs(angle - 180) < 45) {
-                    constraintText = " (水平镜像)";
+                    constraintText = " (水平)";
                 } else {
-                    constraintText = " (垂直镜像)";
+                    constraintText = " (垂直)";
                 }
             }
-            
-            return String.format("%s: 轴长=%.1f, 角度=%.1f°%s", modeText, length, angle, constraintText);
-        } else {
-            return copyMode ? "复制镜像模式" : "镜像模式";
+
+            return String.format("轴对称%s: 轴长=%.1f, 角度=%.1f°%s", copyText, length, angle, constraintText);
         }
+        return "轴对称" + copyText;
     }
 
 }

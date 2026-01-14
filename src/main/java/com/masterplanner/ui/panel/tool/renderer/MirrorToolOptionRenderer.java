@@ -4,7 +4,7 @@ import com.masterplanner.utils.ImGuiUtils;
 import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.ui.tools.impl.modify.MirrorTool;
-import com.masterplanner.ui.tools.impl.modify.strategy.MirrorStrategy;
+import com.masterplanner.ui.tools.impl.modify.strategy.MirrorMode;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -35,11 +35,11 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
     // private static final String CONFIG_KEY_SNAP_DISTANCE = "snapDistance"; // 移除使用
     
     // 模式常量
-    private static final String MODE_MIRROR = "MIRROR";
-    private static final String MODE_COPY_MIRROR = "COPY_MIRROR";
+    private static final String MODE_AXIS_SYMMETRY = "AXIS_SYMMETRY";
+    private static final String MODE_CENTRAL_SYMMETRY = "CENTRAL_SYMMETRY";
     
     // 当前配置状态
-    private String currentMode = MODE_MIRROR;
+    private String currentMode = MODE_AXIS_SYMMETRY;
     // 删除对应复选框状态
     // private float snapDistance = 20.0f; // 移除使用
     
@@ -73,7 +73,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("镜像模式");
+            ImGui.text("对称模式");
             
             ImGui.getStyle().setFrameRounding(currentTheme.toolbarControlRounding);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -81,38 +81,38 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();
             
-            // 镜像模式按钮
-            boolean isMirrorSelected = MODE_MIRROR.equals(currentMode);
+            // 轴对称按钮
+            boolean isMirrorSelected = MODE_AXIS_SYMMETRY.equals(currentMode);
             pushButtonStyle(currentTheme, isMirrorSelected);
             ImGui.pushID("mirror_mode");
             if (ImGui.imageButton(mirrorIconId, BUTTON_SIZE, BUTTON_SIZE)) {
                 if (!isMirrorSelected) {
-                    currentMode = MODE_MIRROR;
+                    currentMode = MODE_AXIS_SYMMETRY;
                     updateToolConfig(CONFIG_KEY_MODE, currentMode);
                 }
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("镜像：将图形镜像到轴的另一侧，删除原图形");
+                ImGui.setTooltip("轴对称：关于一条轴线做对称（两点定义轴）");
             }
             ImGui.popStyleColor(4);
             
             ImGui.sameLine();
             ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING * 2));
             
-            // 复制镜像模式按钮
-            boolean isCopyMirrorSelected = MODE_COPY_MIRROR.equals(currentMode);
+            // 中心对称按钮
+            boolean isCopyMirrorSelected = MODE_CENTRAL_SYMMETRY.equals(currentMode);
             pushButtonStyle(currentTheme, isCopyMirrorSelected);
             ImGui.pushID("copy_mirror_mode");
             if (ImGui.imageButton(copyMirrorIconId, BUTTON_SIZE, BUTTON_SIZE)) {
                 if (!isCopyMirrorSelected) {
-                    currentMode = MODE_COPY_MIRROR;
+                    currentMode = MODE_CENTRAL_SYMMETRY;
                     updateToolConfig(CONFIG_KEY_MODE, currentMode);
                 }
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("复制镜像：将图形镜像到轴的另一侧，保留原图形");
+                ImGui.setTooltip("中心对称：关于一个中心点做对称（等价于绕该点旋转180°）");
             }
             ImGui.popStyleColor(4);
             ImGui.popStyleVar();
@@ -160,8 +160,8 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             
             if (currentTool instanceof MirrorTool mirrorTool) {
                 // 同步镜像模式
-                MirrorStrategy.MirrorMode mode = mirrorTool.getMirrorMode();
-                currentMode = mode.name();
+                MirrorMode mode = mirrorTool.getMirrorMode();
+                currentMode = mode != null ? mode.name() : MODE_AXIS_SYMMETRY;
                 
                 // 简化同步：仅保留模式
                 LOGGER.debug("镜像工具配置已同步: mode={}", currentMode);

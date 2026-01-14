@@ -7,6 +7,7 @@ import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
+import com.masterplanner.ui.tools.impl.modify.strategy.MirrorMode;
 import com.masterplanner.ui.tools.impl.modify.strategy.MirrorStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.MirrorWithSelectionStrategy;
 import com.masterplanner.infrastructure.event.EventBus;
@@ -75,7 +76,8 @@ public class MirrorTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         if (hasSelection()) {
-            return "点击设置镜像轴起点";
+            MirrorMode mode = getMirrorMode();
+            return (mode == MirrorMode.CENTRAL_SYMMETRY) ? "点击设置对称中心" : "点击设置镜像轴起点";
         } else {
             return "请先选择要镜像的图形";
         }
@@ -169,14 +171,16 @@ public class MirrorTool extends ModifyTool {
     public void updateConfig(String key, String value) {
         switch (key) {
             case "mode" -> {
-                if (modifyStrategy instanceof MirrorStrategy mirrorStrategy) {
-                    try {
-                        MirrorStrategy.MirrorMode mode = MirrorStrategy.MirrorMode.valueOf(value.toUpperCase());
+                try {
+                    MirrorMode mode = MirrorMode.valueOf(value.toUpperCase());
+                    if (modifyStrategy instanceof MirrorWithSelectionStrategy mirrorStrategy) {
                         mirrorStrategy.setMirrorMode(mode);
-                        LOGGER.debug("镜像模式已设置为: {}", mode.getDisplayName());
-                    } catch (IllegalArgumentException e) {
-                        LOGGER.warn("无效的镜像模式: {}", value);
+                    } else if (modifyStrategy instanceof MirrorStrategy mirrorStrategy) {
+                        mirrorStrategy.setMirrorMode(mode);
                     }
+                    LOGGER.debug("镜像模式已设置为: {}", mode.getDisplayName());
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("无效的镜像模式: {}", value);
                 }
             }
             case "orthogonal" -> {
@@ -228,12 +232,28 @@ public class MirrorTool extends ModifyTool {
         }
         return null;
     }
+    
+    /**
+     * 获取镜像（含选择）策略
+     */
+    public MirrorWithSelectionStrategy getMirrorWithSelectionStrategy() {
+        if (modifyStrategy instanceof MirrorWithSelectionStrategy) {
+            return (MirrorWithSelectionStrategy) modifyStrategy;
+        }
+        return null;
+    }
 
     /**
      * 设置镜像模式
      * @param mode 镜像模式
      */
-    public void setMirrorMode(MirrorStrategy.MirrorMode mode) {
+    public void setMirrorMode(MirrorMode mode) {
+        if (mode == null) return;
+        MirrorWithSelectionStrategy withSelection = getMirrorWithSelectionStrategy();
+        if (withSelection != null) {
+            withSelection.setMirrorMode(mode);
+            return;
+        }
         MirrorStrategy mirrorStrategy = getMirrorStrategy();
         if (mirrorStrategy != null) {
             mirrorStrategy.setMirrorMode(mode);
@@ -244,9 +264,13 @@ public class MirrorTool extends ModifyTool {
      * 获取当前镜像模式
      * @return 当前镜像模式
      */
-    public MirrorStrategy.MirrorMode getMirrorMode() {
+    public MirrorMode getMirrorMode() {
+        MirrorWithSelectionStrategy withSelection = getMirrorWithSelectionStrategy();
+        if (withSelection != null) {
+            return withSelection.getMirrorMode();
+        }
         MirrorStrategy mirrorStrategy = getMirrorStrategy();
-        return mirrorStrategy != null ? mirrorStrategy.getCurrentMode() : MirrorStrategy.MirrorMode.MIRROR;
+        return mirrorStrategy != null ? mirrorStrategy.getCurrentMode() : MirrorMode.AXIS_SYMMETRY;
     }
 
     /**
