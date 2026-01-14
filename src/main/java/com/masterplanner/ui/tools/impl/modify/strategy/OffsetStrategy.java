@@ -306,6 +306,17 @@ public class OffsetStrategy implements IModifyStrategy {
                 return ModifyResult.CANCEL;
             }
             
+            // 获取警告消息并显示
+            List<String> warnings = offsetHandler.getWarningMessages();
+            String statusMessage;
+            if (!warnings.isEmpty()) {
+                String warningText = String.join("; ", warnings);
+                statusMessage = String.format("偏移完成（警告: %s）", warningText);
+                LOGGER.warn("偏移操作警告: {}", warningText);
+            } else {
+                statusMessage = "偏移完成";
+            }
+            
             // 创建偏移命令
             pendingCommand = offsetHandler.createModifyCommand(List.of(selectedShape), modifiedShapes, constrainedParameters);
             if (pendingCommand != null) {
@@ -315,17 +326,20 @@ public class OffsetStrategy implements IModifyStrategy {
                 if (!isMultipleMode) {
                     // 单次模式：重置状态
                     reset();
-                    context.setStatusMessage(String.format(
-                        "点击要偏移的对象，按D设置偏移距离(%.2f)，按T切换穿点模式，按M切换多重模式，或按ESC取消",
-                        distance
-                    ));
+                    String finalMessage = warnings.isEmpty() ? 
+                        String.format("点击要偏移的对象，按D设置偏移距离(%.2f)，按T切换穿点模式，按M切换多重模式，或按ESC取消", distance) :
+                        String.format("%s - 点击要偏移的对象，按D设置偏移距离(%.2f)，按T切换穿点模式，按M切换多重模式，或按ESC取消", 
+                                     statusMessage, distance);
+                    context.setStatusMessage(finalMessage);
                     return ModifyResult.COMPLETE;
                 } else {
                     // 多重模式：继续选择对象
                     selectedShape = null;
                     startPoint = null;
                     currentState = OffsetState.IDLE;
-                    context.setStatusMessage("点击下一个要偏移的对象，或按ESC取消");
+                    context.setStatusMessage(warnings.isEmpty() ? 
+                        "点击下一个要偏移的对象，或按ESC取消" :
+                        String.format("%s - 点击下一个要偏移的对象，或按ESC取消", statusMessage));
                     return ModifyResult.CONTINUE;
                 }
             } else {

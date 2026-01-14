@@ -10,6 +10,8 @@ import com.masterplanner.core.geometry.shapes.Polygon;
 import com.masterplanner.core.geometry.shapes.PolylineShape;
 import com.masterplanner.core.geometry.shapes.TextShape;
 import com.masterplanner.core.geometry.shapes.FreeDrawPath;
+import com.masterplanner.core.geometry.shapes.BezierCurveShape;
+import com.masterplanner.core.geometry.shapes.CableShape;
 
 /**
  * 形状访问者接口
@@ -93,6 +95,20 @@ public interface IShapeVisitor {
      * @return 处理后的形状
      */
     Shape visit(FreeDrawPath path);
+    
+    /**
+     * 访问贝塞尔曲线形状（样条曲线）
+     * @param bezier 贝塞尔曲线形状
+     * @return 处理后的形状
+     */
+    Shape visit(BezierCurveShape bezier);
+    
+    /**
+     * 访问悬链线形状
+     * @param cable 悬链线形状
+     * @return 处理后的形状
+     */
+    Shape visit(CableShape cable);
     
     /**
      * 访问通用形状（默认处理）
