@@ -280,14 +280,9 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
             // 回退到控制点法线方式
         }
 
-        // 对于多段线和多边形，使用改进的偏移算法确保线段平行
+        // 对于多段线，使用改进的偏移算法确保线段平行
         if (shape instanceof PolylineShape polyline) {
             offsetPolylineParallel(polyline, distance);
-            return;
-        }
-        
-        if (shape instanceof Polygon polygon) {
-            offsetPolygonParallel(polygon, distance);
             return;
         }
 
