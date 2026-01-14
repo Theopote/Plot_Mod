@@ -9,9 +9,6 @@ import com.masterplanner.infrastructure.event.command.RedoEvent;
 import com.masterplanner.ui.component.UIComponent;
 import com.masterplanner.ui.component.ControlPanelIcons;
 import com.masterplanner.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
-import com.masterplanner.ui.dialog.ImportFileDialog;
-import com.masterplanner.ui.dialog.NewFileDialog;
-import com.masterplanner.ui.dialog.SaveFileDialog;
 import com.masterplanner.ui.dialog.LineToBlockSettingsDialog;
 import com.masterplanner.ui.dialog.ProjectionSettingsDialog;
 import com.masterplanner.ui.layout.UILayout;
@@ -53,9 +50,6 @@ public class ControlPanel implements UIComponent {
     private final List<ToolbarGroup> toolGroups;
     
     // 对话框组件（保持原有功能）
-    private final NewFileDialog newFileDialog;
-    private final SaveFileDialog saveFileDialog;
-    private final ImportFileDialog importFileDialog;
     private final CompactBlockConfigDialog blockConfigDialog;
     private final ProjectionSettingsDialog projectionSettingsDialog;
     private final LineToBlockSettingsDialog lineToBlockSettingsDialog;
@@ -77,9 +71,6 @@ public class ControlPanel implements UIComponent {
             ControlPanelIcons.loadTextures();
             
             // 先初始化对话框组件
-            this.newFileDialog = new NewFileDialog(appState, eventBus, this::showWarningDialog);
-            this.saveFileDialog = new SaveFileDialog(appState, eventBus, this::showWarningDialog);
-            this.importFileDialog = new ImportFileDialog(appState, eventBus, this::showWarningDialog);
             this.blockConfigDialog = CompactBlockConfigDialog.createSafely(
                 appState, eventBus, this::showWarningDialog);
             this.projectionSettingsDialog = ProjectionSettingsDialog.getInstance();
@@ -276,9 +267,6 @@ public class ControlPanel implements UIComponent {
      * 渲染所有对话框
      */
     private void renderDialogs() {
-        if (newFileDialog != null) newFileDialog.render();
-        if (saveFileDialog != null) saveFileDialog.render();
-        if (importFileDialog != null) importFileDialog.render();
         if (blockConfigDialog != null) blockConfigDialog.render();
         if (projectionSettingsDialog != null) projectionSettingsDialog.render();
         if (lineToBlockSettingsDialog != null) lineToBlockSettingsDialog.render();
@@ -397,21 +385,6 @@ public class ControlPanel implements UIComponent {
         LOGGER.debug("处理文件事件: {}", toolId);
         
         switch (toolId) {
-            case "new_file" -> {
-                if (newFileDialog != null) {
-                    newFileDialog.show();
-                }
-            }
-            case "save" -> {
-                if (saveFileDialog != null) {
-                    saveFileDialog.show();
-                }
-            }
-            case "import" -> {
-                if (importFileDialog != null) {
-                    importFileDialog.show();
-                }
-            }
             case "undo" -> eventBus.publish(new UndoEvent());
             case "redo" -> eventBus.publish(new RedoEvent());
             default -> LOGGER.warn("未知的文件工具ID: {}", toolId);

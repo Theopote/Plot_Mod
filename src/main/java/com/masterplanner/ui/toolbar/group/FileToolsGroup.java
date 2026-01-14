@@ -9,7 +9,7 @@ import com.masterplanner.ui.toolbar.ToolbarUIUtils;
 
 /**
  * 文件工具组
- * 包含新建、保存、导入、撤销、重做等文件操作工具
+ * 包含撤销、重做等文件操作工具
  */
 public class FileToolsGroup extends AbstractToolbarGroup {
     
@@ -26,30 +26,6 @@ public class FileToolsGroup extends AbstractToolbarGroup {
         pushButtonStyles();
         
         try {
-            // 新建文件
-            if (ToolbarUIUtils.renderToolbarButton(
-                    ControlPanelIcons.getIdentifier(ControlPanelIcons.NEW_FILE),
-                    "新建")) {
-                handleToolEvent("new_file");
-            }
-            addButtonSpacing();
-
-            // 保存文件
-            if (ToolbarUIUtils.renderToolbarButton(
-                    ControlPanelIcons.getIdentifier(ControlPanelIcons.SAVE),
-                    "保存")) {
-                handleToolEvent("save");
-            }
-            addButtonSpacing();
-
-            // 导入文件
-            if (ToolbarUIUtils.renderToolbarButton(
-                    ControlPanelIcons.getIdentifier(ControlPanelIcons.IMPORT),
-                    "导入")) {
-                handleToolEvent("import");
-            }
-            addButtonSpacing();
-
             // 撤销 - 检查是否可以撤销
             boolean canUndo = appState.getCommandHistory().canUndo();
             if (ToolbarUIUtils.renderToolbarButton(
@@ -74,7 +50,7 @@ public class FileToolsGroup extends AbstractToolbarGroup {
     
     @Override
     public float getGroupWidth() {
-        return calculateButtonGroupWidth(5); // 5个按钮
+        return calculateButtonGroupWidth(2); // 2个按钮（撤销、重做）
     }
     
     /**
