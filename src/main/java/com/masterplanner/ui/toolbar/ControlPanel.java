@@ -189,48 +189,116 @@ public class ControlPanel implements UIComponent {
     }
     
     /**
-     * 渲染所有工具组 - 组件化设计的核心
+     * 渲染所有工具组 - 响应式自动换行布局
      */
     private void renderToolGroups() {
-        // 计算按钮的垂直居中位置
+        // 获取窗口宽度和高度
+        float windowWidth = ImGui.getWindowWidth();
         float windowHeight = ImGui.getWindowHeight();
         float buttonHeight = UILayout.Toolbar.BUTTON_SIZE;
-        float startY = (windowHeight - buttonHeight) / 2.0f;
         
-        // 设置初始光标位置（垂直居中，水平从内容区域开始）
-        ImGui.setCursorPos(0, startY);
-        
-        LOGGER.debug("Rendering {} tool groups at Y position: {}", toolGroups.size(), startY);
-        
-        for (int i = 0; i < toolGroups.size(); i++) {
-            ToolbarGroup group = toolGroups.get(i);
-            
-            if (!group.isEnabled()) {
-                LOGGER.debug("Skipping disabled tool group: {}", group.getGroupName());
-                continue;
-            }
-            
-            try {
-                LOGGER.debug("Rendering tool group {}/{}: {}", i + 1, toolGroups.size(), group.getGroupName());
-                
-                // 渲染工具组
-                group.render();
-                
-                // 在组件之间添加间距和分隔线（除了最后一个）
-                if (i < toolGroups.size() - 1) {
-                    if (group.needsSeparator()) {
-                        // 添加组间距
-                        ImGui.sameLine(0, UILayout.Toolbar.GROUP_SPACING);
-                    } else {
-                        // 无分隔线的组，仍然需要间距
-                        ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
-                    }
-                }
-                
-            } catch (Exception e) {
-                LOGGER.error("Error rendering tool group: {}", group.getGroupName(), e);
+        // 计算可用的工具组（过滤掉禁用的）
+        List<ToolbarGroup> enabledGroups = new ArrayList<>();
+        for (ToolbarGroup group : toolGroups) {
+            if (group.isEnabled()) {
+                enabledGroups.add(group);
             }
         }
+        
+        if (enabledGroups.isEmpty()) {
+            return;
+        }
+        
+        // 计算每个组的实际宽度（不包括间距）
+        List<Float> groupWidths = new ArrayList<>();
+        List<Float> groupSpacings = new ArrayList<>(); // 存储每个组后面的间距
+        for (int i = 0; i < enabledGroups.size(); i++) {
+            ToolbarGroup group = enabledGroups.get(i);
+            groupWidths.add(group.getGroupWidth());
+            // 计算这个组后面的间距（如果不是最后一个）
+            if (i < enabledGroups.size() - 1) {
+                float spacing = group.needsSeparator() ? 
+                    UILayout.Toolbar.GROUP_SPACING : UILayout.Toolbar.ITEM_SPACING;
+                groupSpacings.add(spacing);
+            } else {
+                groupSpacings.add(0.0f); // 最后一个组没有后续间距
+            }
+        }
+        
+        // 计算每行可以放置的组（响应式布局）
+        List<List<Integer>> rows = calculateRows(groupWidths, groupSpacings, windowWidth);
+        
+        // 计算行数，用于垂直居中
+        int totalRows = rows.size();
+        float totalHeight = totalRows * buttonHeight + (totalRows - 1) * UILayout.Toolbar.ITEM_SPACING;
+        float startY = (windowHeight - totalHeight) / 2.0f;
+        
+        // 渲染每一行
+        float currentY = startY;
+        for (List<Integer> row : rows) {
+            ImGui.setCursorPos(0, currentY);
+            
+            // 渲染这一行的所有组
+            for (int i = 0; i < row.size(); i++) {
+                int groupIndex = row.get(i);
+                ToolbarGroup group = enabledGroups.get(groupIndex);
+                
+                try {
+                    // 渲染工具组
+                    group.render();
+                    
+                    // 如果不是这一行的最后一个，添加间距
+                    if (i < row.size() - 1) {
+                        float spacing = group.needsSeparator() ? 
+                            UILayout.Toolbar.GROUP_SPACING : UILayout.Toolbar.ITEM_SPACING;
+                        ImGui.sameLine(0, spacing);
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Error rendering tool group: {}", group.getGroupName(), e);
+                }
+            }
+            
+            // 移动到下一行
+            currentY += buttonHeight + UILayout.Toolbar.ITEM_SPACING;
+        }
+    }
+    
+    /**
+     * 计算响应式行布局
+     * @param groupWidths 每个组的实际宽度
+     * @param groupSpacings 每个组后面的间距
+     * @param availableWidth 可用宽度
+     * @return 每行包含的组索引列表
+     */
+    private List<List<Integer>> calculateRows(List<Float> groupWidths, List<Float> groupSpacings, float availableWidth) {
+        List<List<Integer>> rows = new ArrayList<>();
+        List<Integer> currentRow = new ArrayList<>();
+        float currentRowWidth = 0;
+        
+        for (int i = 0; i < groupWidths.size(); i++) {
+            float groupWidth = groupWidths.get(i);
+            float spacing = groupSpacings.get(i);
+            float totalWidth = groupWidth + spacing;
+            
+            // 如果当前行加上这个组会超出宽度，开始新行
+            // 但至少要放一个组，即使它稍微超出
+            if (!currentRow.isEmpty() && currentRowWidth + totalWidth > availableWidth) {
+                rows.add(new ArrayList<>(currentRow));
+                currentRow.clear();
+                currentRowWidth = 0;
+            }
+            
+            // 添加当前组到行
+            currentRow.add(i);
+            currentRowWidth += totalWidth;
+        }
+        
+        // 添加最后一行
+        if (!currentRow.isEmpty()) {
+            rows.add(currentRow);
+        }
+        
+        return rows;
     }
     
     /**

@@ -265,6 +265,7 @@ public class ToolPanel implements UIComponent {
     
     /**
      * 根据可用宽度计算最优的每行按钮数量（响应式设计）
+     * 完全根据可用宽度自动计算，不限制最大列数
      * @param contentWidth 内容区域宽度
      * @return 最优的每行按钮数量
      */
@@ -273,6 +274,8 @@ public class ToolPanel implements UIComponent {
         float buttonSpacing = UILayout.Toolbar.LEFT_BUTTON_SPACING;
         
         // 基础计算：能容纳多少个按钮
+        // 公式：contentWidth = n * buttonSize + (n-1) * buttonSpacing
+        // 解：n = (contentWidth + buttonSpacing) / (buttonSize + buttonSpacing)
         int maxPossible = Math.max(1, (int) ((contentWidth + buttonSpacing) / (buttonSize + buttonSpacing)));
         
         // 响应式调整：根据宽度阈值和配置优化布局
@@ -280,13 +283,18 @@ public class ToolPanel implements UIComponent {
             return 2; // 禁用响应式时固定双列
         }
         
-        if (contentWidth <= UILayout.Toolbar.SINGLE_COLUMN_THRESHOLD) {
-            return 1; // 超窄屏：强制单列
-        } else if (contentWidth >= UILayout.Toolbar.TRIPLE_COLUMN_THRESHOLD) {
-            return Math.min(maxPossible, ToolPanelConfig.MAX_COLUMNS); // 宽屏：使用配置的最大列数
-        } else {
-            return Math.min(maxPossible, 2); // 标准屏：最多双列
+        // 如果配置了最大列数限制，则应用限制
+        if (ToolPanelConfig.MAX_COLUMNS > 0) {
+            maxPossible = Math.min(maxPossible, ToolPanelConfig.MAX_COLUMNS);
         }
+        
+        // 超窄屏：至少保证单列
+        if (contentWidth <= UILayout.Toolbar.SINGLE_COLUMN_THRESHOLD) {
+            return 1;
+        }
+        
+        // 其他情况：根据实际可用宽度计算，不限制最大列数
+        return maxPossible;
     }
     
     private void renderToolButton(Tool tool) {

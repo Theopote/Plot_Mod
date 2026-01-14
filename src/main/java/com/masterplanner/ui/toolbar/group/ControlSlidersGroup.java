@@ -48,7 +48,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
      */
     private void syncValuesFromManagers() {
         viewDistanceValue[0] = CameraManager.getInstance().getViewDistance();
-        opacityValue[0] = appState != null ? appState.getOpacity() * 100.0f : 100.0f;
+        opacityValue[0] = appState != null ? appState.getOpacity() * 100.0f : 0.0f;
         lastSyncTime = System.currentTimeMillis();
     }
     
@@ -67,10 +67,28 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         // 找出最宽的标签宽度
         float maxLabelWidth = Math.max(zoomLabelWidth, opacityLabelWidth);
         
+        // 计算单个滑动条的宽度
+        float singleSliderWidth = UILayout.Toolbar.SLIDER_WIDTH + maxLabelWidth;
+        // 两个滑动条在一行需要的总宽度（包括间距）
+        float twoSlidersWidth = singleSliderWidth * 2 + UILayout.Toolbar.ITEM_SPACING;
+        
+        // 获取可用宽度（从当前光标位置到窗口右边缘）
+        float currentX = ImGui.getCursorPosX();
+        float windowWidth = ImGui.getWindowWidth();
+        float windowPadding = ImGui.getStyle().getWindowPaddingX();
+        float actualAvailableWidth = windowWidth - currentX - windowPadding * 2;
+        
         try {
             setupSliderStyles();
-            renderFirstRow(maxLabelWidth, zoomLabelWidth);
-            renderSecondRow(maxLabelWidth, opacityLabelWidth);
+            
+            // 根据可用宽度决定布局方式
+            if (actualAvailableWidth >= twoSlidersWidth) {
+                // 宽度足够，两个滑动条在同一行显示
+                renderSlidersInOneRow(maxLabelWidth, zoomLabelWidth, opacityLabelWidth);
+            } else {
+                // 宽度不够，两个滑动条分两行显示
+                renderSlidersInTwoRows(maxLabelWidth, zoomLabelWidth, opacityLabelWidth);
+            }
         } catch (Exception e) {
             LOGGER.error("Error rendering control sliders group", e);
         } finally {
@@ -121,28 +139,21 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
     }
     
     /**
-     * 渲染第一行：视图范围
+     * 在同一行渲染两个滑动条
      */
-    private void renderFirstRow(float maxLabelWidth, float zoomLabelWidth) {
+    private void renderSlidersInOneRow(float maxLabelWidth, float zoomLabelWidth, float opacityLabelWidth) {
         boolean isLocked = CameraManager.getInstance().getOrthographicCamera().isLocked();
         
         // 视图范围滑动条 - 使用本地状态避免值冲突
         ToolbarUIUtils.renderSliderWithInput(
             "视图范围:", maxLabelWidth, UILayout.Toolbar.SLIDER_WIDTH,
-            viewDistanceValue, 40.0f, 480.0f, "%.0f", isLocked,
+            viewDistanceValue, 40.0f, 320.0f, "%.0f", isLocked,
             () -> CameraManager.getInstance().setViewDistance(viewDistanceValue[0]),
-            "视图范围输入", "输入视图范围 (40-480)"
+            "视图范围输入", "输入视图范围 (40-320)"
         );
-    }
-    
-    /**
-     * 渲染第二行：透明度
-     */
-    private void renderSecondRow(float maxLabelWidth, float opacityLabelWidth) {
-        // 使用精确的行距
-        float lineSpacing = UILayout.Toolbar.ITEM_SPACING;
-        float framePaddingY = Math.max(0, (UILayout.Toolbar.SLIDER_HEIGHT - ImGui.getTextLineHeight()) / 2.0f);
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + lineSpacing - framePaddingY);
+        
+        // 添加间距
+        ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
         
         // 透明度滑动条 - 使用本地状态避免值冲突
         ToolbarUIUtils.renderSliderWithInput(
@@ -154,16 +165,51 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
                     appState.setOpacity(normalizedOpacity);
                 },
                 "透明度输入", "输入透明度 (0-100)"
-        );// 透明度值已在回调中处理
+        );
+    }
+    
+    /**
+     * 分两行渲染两个滑动条
+     */
+    private void renderSlidersInTwoRows(float maxLabelWidth, float zoomLabelWidth, float opacityLabelWidth) {
+        boolean isLocked = CameraManager.getInstance().getOrthographicCamera().isLocked();
+        
+        // 第一行：视图范围滑动条
+        ToolbarUIUtils.renderSliderWithInput(
+            "视图范围:", maxLabelWidth, UILayout.Toolbar.SLIDER_WIDTH,
+            viewDistanceValue, 40.0f, 320.0f, "%.0f", isLocked,
+            () -> CameraManager.getInstance().setViewDistance(viewDistanceValue[0]),
+            "视图范围输入", "输入视图范围 (40-320)"
+        );
+        
+        // 换行：移动到下一行
+        float lineSpacing = UILayout.Toolbar.ITEM_SPACING;
+        float framePaddingY = Math.max(0, (UILayout.Toolbar.SLIDER_HEIGHT - ImGui.getTextLineHeight()) / 2.0f);
+        ImGui.setCursorPosY(ImGui.getCursorPosY() + lineSpacing - framePaddingY);
+        
+        // 第二行：透明度滑动条
+        ToolbarUIUtils.renderSliderWithInput(
+                "透明度:", maxLabelWidth, UILayout.Toolbar.SLIDER_WIDTH,
+                opacityValue, 0.0f, 100.0f, "%.0f%%", false,
+                () -> {
+                    float normalizedOpacity = opacityValue[0] / 100.0f;
+                    eventBus.publish(new OpacityChangeEvent(normalizedOpacity));
+                    appState.setOpacity(normalizedOpacity);
+                },
+                "透明度输入", "输入透明度 (0-100)"
+        );
     }
     
     @Override
     public float getGroupWidth() {
-        // 计算滑动条组的宽度
-        // 第一行：视图范围滑动条
-        // 第二行：透明度滑动条
-        float labelWidth = ImGui.calcTextSize("视图范围:").x;
-        return UILayout.Toolbar.SLIDER_WIDTH + labelWidth;
+        // 返回单个滑动条的宽度（用于布局计算）
+        // 这样 ControlPanel 会根据可用宽度决定是否换行
+        // 如果组内空间不够，会在 renderGroupContent 中自动分两行显示
+        float maxLabelWidth = Math.max(
+            ImGui.calcTextSize("视图范围:").x,
+            ImGui.calcTextSize("透明度:").x
+        );
+        return UILayout.Toolbar.SLIDER_WIDTH + maxLabelWidth;
     }
     
     @Override

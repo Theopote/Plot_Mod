@@ -12,8 +12,8 @@ public class UILayout {
         public static final float GROUP_SPACING = 14.0f;         // 组之间的间距
         public static final float ITEM_SPACING = 2.0f;          // 组内项目间距
         public static final float SEPARATOR_WIDTH = 1;          // 分隔符宽度
-        public static final float SLIDER_WIDTH = 230.0f;        // 滑动条宽度
-        public static final float SLIDER_HEIGHT = 19.0f;        // 滑动条高度  直接设置为19.0f
+        public static final float SLIDER_WIDTH = 200.0f;        // 滑动条宽度
+        public static final float SLIDER_HEIGHT = 26.0f;        // 滑动条高度
         public static final float THEME_SELECTOR_HEIGHT = 40.0f; // 主题选择器高度
         public static final float CONTROL_PANEL_HEIGHT = BUTTON_SIZE + (BUTTON_PADDING * 2); // 控制面板高度
         

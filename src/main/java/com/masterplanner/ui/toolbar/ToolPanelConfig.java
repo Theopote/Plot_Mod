@@ -23,7 +23,7 @@ public class ToolPanelConfig {
      * 最大列数限�?
      * 在宽屏设备上最多显示的列数
      */
-    public static final int MAX_COLUMNS = 3;
+    public static final int MAX_COLUMNS = 0; // 0 表示不限制，自动根据宽度计算
 
     /**
      * 是否显示工具提示

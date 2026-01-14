@@ -188,7 +188,7 @@ public class AppState implements IAppState {
         this.commandHistory = CommandHistory.getInstance();
         // 初始化基础状态
         this.zoom = DEFAULT_ZOOM;
-        this.opacity = 0.8f;
+        this.opacity = 0.0f;
         this.gridSize = DEFAULT_GRID_SIZE;
         this.isGridEnabled = true;
         this.isSnappingEnabled = true;

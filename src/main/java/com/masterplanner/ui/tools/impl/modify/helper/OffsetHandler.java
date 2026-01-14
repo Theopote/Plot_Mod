@@ -369,7 +369,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
             // 计算两条线段的交点
             List<Vec2d> intersections = seg1.getIntersectionPoints(seg2);
             if (!intersections.isEmpty()) {
-                offsetPoints.add(intersections.get(0));
+                offsetPoints.add(intersections.getFirst());
             } else {
                 // 如果没有交点（平行线段），使用第一条线段的终点
                 offsetPoints.add(seg1.getEnd());
@@ -378,8 +378,8 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         
         // 对于非封闭多段线，添加第一条线段的起点和最后一条线段的终点
         if (!closed && !offsetSegments.isEmpty()) {
-            offsetPoints.add(0, offsetSegments.get(0).getStart());
-            offsetPoints.add(offsetSegments.get(offsetSegments.size() - 1).getEnd());
+            offsetPoints.addFirst(offsetSegments.getFirst().getStart());
+            offsetPoints.add(offsetSegments.getLast().getEnd());
         }
         
         if (!offsetPoints.isEmpty()) {
