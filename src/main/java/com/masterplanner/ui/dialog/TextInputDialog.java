@@ -94,17 +94,18 @@ public class TextInputDialog {
         // 居中并设置窗口属性
         float width = 400.0f;
         // 计算窗口高度：标题 + 输入框 + 样式标题 + 表格(4行) + 按钮 + 间距
-        // 使用估算值，因为FramePadding会在窗口内设置
+        // 使用更准确的估算值，确保所有内容都能显示
         float textLineHeight = ImGui.getTextLineHeight();
         float framePadding = 4.0f; // 与工具属性面板一致
         float estimatedFrameHeight = textLineHeight + framePadding * 2; // 估算控件高度
         
         float titleHeight = textLineHeight;
-        float inputHeight = 80.0f; // 输入框高度（约为原来的1/3：260/3 ≈ 87）
+        float inputHeight = 80.0f; // 输入框高度
         float styleTitleHeight = textLineHeight;
         float tableRowHeight = estimatedFrameHeight; // 每行高度
         float tableHeight = tableRowHeight * 4; // 4行：字体大小、行高、字形、对齐
         float buttonHeight = estimatedFrameHeight;
+        // 计算总内容高度，增加一些缓冲空间以确保所有内容都能显示
         float totalContentHeight = titleHeight + VERTICAL_SPACING + inputHeight + VERTICAL_SPACING 
                 + styleTitleHeight + VERTICAL_SPACING + tableHeight + VERTICAL_SPACING + buttonHeight;
         float height = totalContentHeight + WINDOW_PADDING * 2; // 加上上下边距，不需要滚动条
