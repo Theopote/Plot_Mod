@@ -183,16 +183,24 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         AnnotationShape annotationShape = AnnotationShape.createDistanceAnnotation(
             firstPoint, secondPoint, distance);
         
-        // 添加到画布
+        // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
         try {
             com.masterplanner.api.state.IAppState appState = context.getAppState();
             if (appState != null) {
-                com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                if (activeLayer != null) {
-                    activeLayer.addShape(annotationShape);
+                // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
+                // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
+                if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
+                    appStateImpl.addShape(annotationShape);
                     LOGGER.debug("距离标注图形已添加到画布");
                 } else {
-                    LOGGER.error("无法添加标注图形：没有活动图层");
+                    // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
+                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+                    if (activeLayer != null) {
+                        activeLayer.addShape(annotationShape);
+                        LOGGER.debug("距离标注图形已添加到画布（回退方式）");
+                    } else {
+                        LOGGER.error("无法添加标注图形：没有活动图层");
+                    }
                 }
             } else {
                 LOGGER.error("无法添加标注图形：AppState为null");
@@ -234,16 +242,24 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         AnnotationShape annotationShape = AnnotationShape.createAngleAnnotation(
             vertex, point1, point2, angle);
         
-        // 添加到画布
+        // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
         try {
             com.masterplanner.api.state.IAppState appState = context.getAppState();
             if (appState != null) {
-                com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                if (activeLayer != null) {
-                    activeLayer.addShape(annotationShape);
+                // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
+                // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
+                if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
+                    appStateImpl.addShape(annotationShape);
                     LOGGER.debug("角度标注图形已添加到画布");
                 } else {
-                    LOGGER.error("无法添加标注图形：没有活动图层");
+                    // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
+                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+                    if (activeLayer != null) {
+                        activeLayer.addShape(annotationShape);
+                        LOGGER.debug("角度标注图形已添加到画布（回退方式）");
+                    } else {
+                        LOGGER.error("无法添加标注图形：没有活动图层");
+                    }
                 }
             } else {
                 LOGGER.error("无法添加标注图形：AppState为null");
@@ -303,16 +319,24 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 continue;
             }
             
-            // 添加到画布
+            // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
             try {
                 com.masterplanner.api.state.IAppState appState = context.getAppState();
                 if (appState != null) {
-                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                    if (activeLayer != null) {
-                        activeLayer.addShape(annotationShape);
+                    // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
+                    // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
+                    if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
+                        appStateImpl.addShape(annotationShape);
                         LOGGER.debug("半径标注图形已添加到画布");
                     } else {
-                        LOGGER.error("无法添加标注图形：没有活动图层");
+                        // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
+                        com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+                        if (activeLayer != null) {
+                            activeLayer.addShape(annotationShape);
+                            LOGGER.debug("半径标注图形已添加到画布（回退方式）");
+                        } else {
+                            LOGGER.error("无法添加标注图形：没有活动图层");
+                        }
                     }
                 } else {
                     LOGGER.error("无法添加标注图形：AppState为null");
@@ -360,16 +384,24 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             // 创建面积标注图形
             AnnotationShape annotationShape = AnnotationShape.createAreaAnnotation(center, areaText);
             
-            // 添加到画布
+            // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
             try {
                 com.masterplanner.api.state.IAppState appState = context.getAppState();
                 if (appState != null) {
-                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                    if (activeLayer != null) {
-                        activeLayer.addShape(annotationShape);
+                    // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
+                    // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
+                    if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
+                        appStateImpl.addShape(annotationShape);
                         LOGGER.debug("面积标注图形已添加到画布");
                     } else {
-                        LOGGER.error("无法添加标注图形：没有活动图层");
+                        // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
+                        com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+                        if (activeLayer != null) {
+                            activeLayer.addShape(annotationShape);
+                            LOGGER.debug("面积标注图形已添加到画布（回退方式）");
+                        } else {
+                            LOGGER.error("无法添加标注图形：没有活动图层");
+                        }
                     }
                 } else {
                     LOGGER.error("无法添加标注图形：AppState为null");
@@ -425,6 +457,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     /**
      * 计算闭合图形轮廓内的方块面积（平面投影，一层）
      * 使用几何面积公式计算实际覆盖的面积（以方块为单位），支持小数
+     * 注意：需要将画布坐标转换为Minecraft世界坐标后再计算面积
      */
     private double calculateAreaBlockCount(Shape shape) {
         try {
@@ -442,12 +475,26 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 if (vertices.size() < 3) {
                     return -1;
                 }
-                // 使用 Shoelace formula 计算多边形面积
+                // 将画布坐标转换为Minecraft世界坐标
+                List<Vec2d> worldVertices = new java.util.ArrayList<>();
+                for (Vec2d canvasPoint : vertices) {
+                    Vec2d worldPoint = coordinateTransformer.canvasToMinecraftWorld(canvasPoint);
+                    if (worldPoint != null) {
+                        worldVertices.add(worldPoint);
+                    } else {
+                        // 如果转换失败，使用原始坐标（可能不准确）
+                        worldVertices.add(canvasPoint);
+                    }
+                }
+                if (worldVertices.size() < 3) {
+                    return -1;
+                }
+                // 使用 Shoelace formula 计算多边形面积（在Minecraft世界坐标中）
                 double area = 0.0;
-                int n = vertices.size();
+                int n = worldVertices.size();
                 for (int i = 0; i < n; i++) {
-                    Vec2d current = vertices.get(i);
-                    Vec2d next = vertices.get((i + 1) % n);
+                    Vec2d current = worldVertices.get(i);
+                    Vec2d next = worldVertices.get((i + 1) % n);
                     area += (next.x - current.x) * (next.y + current.y);
                 }
                 return Math.abs(area / 2.0);
@@ -467,31 +514,69 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 if (vertices.size() < 3) {
                     return -1;
                 }
-                // 使用 Shoelace formula 计算矩形面积（考虑旋转）
+                // 将画布坐标转换为Minecraft世界坐标
+                List<Vec2d> worldVertices = new java.util.ArrayList<>();
+                for (Vec2d canvasPoint : vertices) {
+                    Vec2d worldPoint = coordinateTransformer.canvasToMinecraftWorld(canvasPoint);
+                    if (worldPoint != null) {
+                        worldVertices.add(worldPoint);
+                    } else {
+                        worldVertices.add(canvasPoint);
+                    }
+                }
+                if (worldVertices.size() < 3) {
+                    return -1;
+                }
+                // 使用 Shoelace formula 计算矩形面积（在Minecraft世界坐标中）
                 double area = 0.0;
-                int n = vertices.size();
+                int n = worldVertices.size();
                 for (int i = 0; i < n; i++) {
-                    Vec2d current = vertices.get(i);
-                    Vec2d next = vertices.get((i + 1) % n);
+                    Vec2d current = worldVertices.get(i);
+                    Vec2d next = worldVertices.get((i + 1) % n);
                     area += (next.x - current.x) * (next.y + current.y);
                 }
                 return Math.abs(area / 2.0);
                 
             } else if (shape instanceof CircleShape circle) {
                 // 圆形：计算面积 = π * r²
+                // 需要将半径从画布坐标转换为Minecraft世界坐标
+                Vec2d center = circle.getCenter();
                 double radius = circle.getRadius();
                 // 应用变换
+                Vec2d transformedCenter = circle.getTransform().transform(center);
                 double transformedRadius = radius * circle.getTransform().getScale().x;
-                return Math.PI * transformedRadius * transformedRadius;
+                // 将圆心和半径端点转换为Minecraft世界坐标来计算实际半径
+                Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+                Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(transformedCenter);
+                Vec2d worldRadiusEnd = coordinateTransformer.canvasToMinecraftWorld(radiusEnd);
+                if (worldCenter != null && worldRadiusEnd != null) {
+                    double worldRadius = worldCenter.distance(worldRadiusEnd);
+                    return Math.PI * worldRadius * worldRadius;
+                } else {
+                    // 如果转换失败，使用变换后的半径（可能不准确）
+                    return Math.PI * transformedRadius * transformedRadius;
+                }
                 
             } else if (shape instanceof EllipseShape ellipse) {
                 // 椭圆：计算面积 = π * a * b
-                // 获取椭圆的长轴和短轴半径
+                // 需要将椭圆的长轴和短轴从画布坐标转换为Minecraft世界坐标
                 BoundingBox bbox = ellipse.getBoundingBox();
                 if (bbox != null) {
-                    double a = bbox.getWidth() / 2.0;  // 半长轴
-                    double b = bbox.getHeight() / 2.0; // 半短轴
-                    return Math.PI * a * b;
+                    // 获取椭圆的四个角点并转换为Minecraft世界坐标
+                    Vec2d min = new Vec2d(bbox.getMinX(), bbox.getMinY());
+                    Vec2d max = new Vec2d(bbox.getMaxX(), bbox.getMaxY());
+                    Vec2d worldMin = coordinateTransformer.canvasToMinecraftWorld(min);
+                    Vec2d worldMax = coordinateTransformer.canvasToMinecraftWorld(max);
+                    if (worldMin != null && worldMax != null) {
+                        double a = Math.abs(worldMax.x - worldMin.x) / 2.0;  // 半长轴（Minecraft世界坐标）
+                        double b = Math.abs(worldMax.y - worldMin.y) / 2.0; // 半短轴（Minecraft世界坐标）
+                        return Math.PI * a * b;
+                    } else {
+                        // 如果转换失败，使用包围盒尺寸（可能不准确）
+                        double a = bbox.getWidth() / 2.0;
+                        double b = bbox.getHeight() / 2.0;
+                        return Math.PI * a * b;
+                    }
                 }
                 return -1;
             } else if (shape instanceof PolylineShape polyline) {
@@ -511,12 +596,25 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 if (vertices.size() < 3) {
                     return -1;
                 }
-                // 使用 Shoelace formula 计算多边形面积
+                // 将画布坐标转换为Minecraft世界坐标
+                List<Vec2d> worldVertices = new java.util.ArrayList<>();
+                for (Vec2d canvasPoint : vertices) {
+                    Vec2d worldPoint = coordinateTransformer.canvasToMinecraftWorld(canvasPoint);
+                    if (worldPoint != null) {
+                        worldVertices.add(worldPoint);
+                    } else {
+                        worldVertices.add(canvasPoint);
+                    }
+                }
+                if (worldVertices.size() < 3) {
+                    return -1;
+                }
+                // 使用 Shoelace formula 计算多边形面积（在Minecraft世界坐标中）
                 double area = 0.0;
-                int n = vertices.size();
+                int n = worldVertices.size();
                 for (int i = 0; i < n; i++) {
-                    Vec2d current = vertices.get(i);
-                    Vec2d next = vertices.get((i + 1) % n);
+                    Vec2d current = worldVertices.get(i);
+                    Vec2d next = worldVertices.get((i + 1) % n);
                     area += (next.x - current.x) * (next.y + current.y);
                 }
                 return Math.abs(area / 2.0);
