@@ -82,7 +82,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean distanceClicked = ImGui.imageButton(distanceIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("标注两点之间的距离（以方块为单位）");
+                    ImGui.setTooltip("距离标注：以方块为单位");
                 }
                 ImGui.popStyleColor(4);
                 
@@ -101,7 +101,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean angleClicked = ImGui.imageButton(angleIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("选中两条有夹角的直线，右键完成选中时自动标注角度");
+                    ImGui.setTooltip("角度标注：两条线段之间的家教");
                 }
                 ImGui.popStyleColor(4);
                 
@@ -120,7 +120,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean radiusClicked = ImGui.imageButton(radiusIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("点选或框选圆形、半圆、圆弧图形，右键完成选中时自动标注半径");
+                    ImGui.setTooltip("半径标注：标注圆形、半圆、圆弧的半径");
                 }
                 ImGui.popStyleColor(4);
                 
@@ -139,7 +139,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean areaClicked = ImGui.imageButton(areaIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("标注区域内的方块数量");
+                    ImGui.setTooltip("区域标注：区域内的方块数量");
                 }
                 ImGui.popStyleColor(4);
                 

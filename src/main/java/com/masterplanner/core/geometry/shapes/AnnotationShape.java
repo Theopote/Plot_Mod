@@ -88,6 +88,14 @@ public class AnnotationShape extends Shape {
     }
     
     /**
+     * 创建面积标注
+     */
+    public static AnnotationShape createAreaAnnotation(Vec2d center, String areaText) {
+        // 文本位置在区域中心
+        return new AnnotationShape(AnnotationType.AREA, areaText, null, null, null, null, null, center, 0, center);
+    }
+    
+    /**
      * 私有构造函数
      */
     private AnnotationShape(AnnotationType type, String text, Vec2d p1, Vec2d p2, 
@@ -135,7 +143,7 @@ public class AnnotationShape extends Shape {
                 drawRadiusAnnotation(context);
                 break;
             case AREA:
-                // TODO: 实现面积标注绘制
+                // 面积标注只显示文本，不绘制线条
                 break;
             default:
                 // 未知类型，不绘制
@@ -292,29 +300,51 @@ public class AnnotationShape extends Shape {
     public boolean contains(Vec2d point) {
         if (point == null) return false;
         
-        // 简化实现：检查点是否在标注线附近
+        // 使用包围盒进行快速检测
+        BoundingBox bbox = getBoundingBox();
+        if (!bbox.contains(point)) {
+            return false;
+        }
+        
+        // 详细检测：检查点是否在标注线或文本附近
         double tolerance = 5.0;
         
         switch (annotationType) {
             case DISTANCE:
                 if (point1 != null && point2 != null) {
-                    return GeometryUtils.pointToSegmentDistance(point, point1, point2) <= tolerance;
+                    // 检查是否在标注线附近
+                    if (GeometryUtils.pointToSegmentDistance(point, point1, point2) <= tolerance) {
+                        return true;
+                    }
                 }
                 break;
             case ANGLE:
-                // TODO: 实现角度标注的contains检查
+                if (angleVertex != null && anglePoint1 != null && anglePoint2 != null) {
+                    // 检查是否在角度线附近
+                    double dist1 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint1);
+                    double dist2 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint2);
+                    if (dist1 <= tolerance || dist2 <= tolerance) {
+                        return true;
+                    }
+                }
                 break;
             case RADIUS:
-                // TODO: 实现半径标注的contains检查
+                if (center != null && radius > 0) {
+                    // 检查是否在半径线附近
+                    Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
+                    if (GeometryUtils.pointToSegmentDistance(point, center, radiusEnd) <= tolerance) {
+                        return true;
+                    }
+                }
                 break;
             case AREA:
-                // TODO: 实现面积标注的contains检查
+                // 面积标注：检查是否在文本位置附近
                 break;
             default:
                 break;
         }
         
-        // 检查是否在文本位置附近
+        // 检查是否在文本位置附近（所有类型的标注都显示文本）
         if (textPosition != null) {
             double dist = point.distance(textPosition);
             return dist <= tolerance * 2;
@@ -389,19 +419,58 @@ public class AnnotationShape extends Shape {
     public Vec2d getClosestPoint(Vec2d point) {
         if (point == null) return textPosition != null ? textPosition : new Vec2d(0, 0);
         
+        Vec2d closest = null;
+        double minDistance = Double.MAX_VALUE;
+        
         switch (annotationType) {
             case DISTANCE:
                 if (point1 != null && point2 != null) {
-                    return GeometryUtils.projectPointOnLine(point, point1, point2);
+                    Vec2d proj = GeometryUtils.projectPointOnLine(point, point1, point2);
+                    double dist = point.distance(proj);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closest = proj;
+                    }
                 }
                 break;
             case ANGLE:
+                if (angleVertex != null && anglePoint1 != null && anglePoint2 != null) {
+                    // 检查到两条角度线的最近点
+                    Vec2d proj1 = GeometryUtils.projectPointOnLine(point, angleVertex, anglePoint1);
+                    Vec2d proj2 = GeometryUtils.projectPointOnLine(point, angleVertex, anglePoint2);
+                    double dist1 = point.distance(proj1);
+                    double dist2 = point.distance(proj2);
+                    if (dist1 < minDistance) {
+                        minDistance = dist1;
+                        closest = proj1;
+                    }
+                    if (dist2 < minDistance) {
+                        minDistance = dist2;
+                        closest = proj2;
+                    }
+                }
+                break;
             case RADIUS:
+                if (center != null && radius > 0) {
+                    Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
+                    Vec2d proj = GeometryUtils.projectPointOnLine(point, center, radiusEnd);
+                    double dist = point.distance(proj);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closest = proj;
+                    }
+                }
+                break;
             case AREA:
-                // TODO: 实现其他类型的最近点计算
+                // 面积标注：返回文本位置
                 break;
             default:
                 break;
+        }
+        
+        // 如果找到了最近点，返回它；否则返回文本位置
+        if (closest != null) {
+            return closest;
         }
         
         return textPosition != null ? textPosition : new Vec2d(0, 0);

@@ -2,6 +2,8 @@ package com.masterplanner.ui.tools.impl.modify.strategy;
 
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.command.commands.ModifyCommand;
+import com.masterplanner.core.geometry.BoundingBox;
+import com.masterplanner.core.geometry.RasterizationUtils;
 import com.masterplanner.core.geometry.shapes.*;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
@@ -121,9 +123,14 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                     return ModifyResult.IGNORED;
                 }
             case AREA:
-                // TODO: 实现面积标注
-                context.setStatusMessage("面积标注功能待实现");
-                return ModifyResult.IGNORED;
+                if (selected.size() >= 1) {
+                    createAreaAnnotation(selected, context);
+                    context.setStatusMessage("面积标注已创建");
+                    return ModifyResult.COMPLETE;
+                } else {
+                    context.setStatusMessage("请选择闭合图形（多边形、矩形等）");
+                    return ModifyResult.IGNORED;
+                }
             default:
                 return ModifyResult.IGNORED;
         }
@@ -137,7 +144,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             context.setPreviewEnabled(true);
             return ModifyResult.CONTINUE;
         } else if (isSelecting) {
-            // 选择模式：使用基类逻辑
+            // 选择模式：使用基类逻辑（支持点选和框选）
+            context.setPreviewEnabled(true);  // 启用预览以显示框选框
             return handleSelectionMouseMove(pos, context);
         }
         return ModifyResult.IGNORED;
@@ -158,6 +166,9 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             && firstPoint != null && secondPoint != null) {
             // 渲染距离标注预览
             renderDistancePreview(context, firstPoint, secondPoint);
+        } else if (currentMode != AnnotationTool.AnnotationMode.DISTANCE && isSelecting) {
+            // 渲染框选预览（角度、半径、面积模式）
+            renderSelectionPreview(context);
         }
     }
     
@@ -227,9 +238,11 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             vertex = line1.getStart();
         }
         
-        // 获取两条直线上的点（用于绘制角度线）
-        Vec2d point1 = line1.getEnd();
-        Vec2d point2 = line2.getEnd();
+        // 确定每条直线上离顶点较远的点（用于绘制角度线）
+        Vec2d point1 = line1.getStart().distance(vertex) > line1.getEnd().distance(vertex) 
+            ? line1.getStart() : line1.getEnd();
+        Vec2d point2 = line2.getStart().distance(vertex) > line2.getEnd().distance(vertex) 
+            ? line2.getStart() : line2.getEnd();
         
         // 创建标注图形
         AnnotationShape annotationShape = AnnotationShape.createAngleAnnotation(
@@ -329,6 +342,136 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         }
     }
     
+    private void createAreaAnnotation(List<Shape> selected, ModifyToolContext context) {
+        for (Shape shape : selected) {
+            // 计算区域内的方块数量（使用填充光栅化算法）
+            int blockCount = calculateAreaBlockCount(shape);
+            
+            if (blockCount < 0) {
+                LOGGER.warn("面积标注需要闭合图形，当前选中: {}", shape.getClass().getSimpleName());
+                continue;
+            }
+            
+            String areaText = String.format("%d 方块", blockCount);
+            LOGGER.info("创建面积标注: {}", areaText);
+            
+            // 获取图形的中心点作为标注文本位置
+            BoundingBox bbox = shape.getBoundingBox();
+            Vec2d center = new Vec2d(
+                (bbox.getMinX() + bbox.getMaxX()) / 2,
+                (bbox.getMinY() + bbox.getMaxY()) / 2
+            );
+            
+            // 创建面积标注图形
+            AnnotationShape annotationShape = AnnotationShape.createAreaAnnotation(center, areaText);
+            
+            // 添加到画布
+            try {
+                com.masterplanner.api.state.IAppState appState = context.getAppState();
+                if (appState != null) {
+                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+                    if (activeLayer != null) {
+                        activeLayer.addShape(annotationShape);
+                        LOGGER.debug("面积标注图形已添加到画布");
+                    } else {
+                        LOGGER.error("无法添加标注图形：没有活动图层");
+                    }
+                } else {
+                    LOGGER.error("无法添加标注图形：AppState为null");
+                }
+            } catch (Exception e) {
+                LOGGER.error("添加面积标注图形失败: {}", e.getMessage(), e);
+            }
+        }
+    }
+    
+    /**
+     * 计算闭合图形轮廓内的方块数量（平面投影，一层）
+     * 使用填充光栅化算法计算实际在轮廓内的方块数量
+     */
+    private int calculateAreaBlockCount(Shape shape) {
+        try {
+            if (shape instanceof Polygon polygon) {
+                // 多边形：使用填充光栅化算法
+                List<Vec2d> points = polygon.getPoints();
+                if (points.size() < 3) {
+                    return -1;
+                }
+                // 移除最后一个点（如果是闭合的，最后一个点与第一个点相同）
+                List<Vec2d> vertices = new java.util.ArrayList<>(points);
+                if (vertices.size() > 0 && vertices.get(0).equals(vertices.get(vertices.size() - 1))) {
+                    vertices.remove(vertices.size() - 1);
+                }
+                if (vertices.size() < 3) {
+                    return -1;
+                }
+                List<Vec2d> blockPositions = RasterizationUtils.rasterizeFilledPolygon(vertices);
+                return blockPositions.size();
+                
+            } else if (shape instanceof RectangleShape rectangle) {
+                // 矩形：获取点列表并使用填充光栅化算法
+                List<Vec2d> points = rectangle.getPoints();
+                if (points.size() < 3) {
+                    return -1;
+                }
+                // 移除最后一个点（如果是闭合的，最后一个点与第一个点相同）
+                List<Vec2d> vertices = new java.util.ArrayList<>(points);
+                if (vertices.size() > 0 && vertices.get(0).equals(vertices.get(vertices.size() - 1))) {
+                    vertices.remove(vertices.size() - 1);
+                }
+                if (vertices.size() < 3) {
+                    return -1;
+                }
+                List<Vec2d> blockPositions = RasterizationUtils.rasterizeFilledPolygon(vertices);
+                return blockPositions.size();
+                
+            } else if (shape instanceof CircleShape circle) {
+                // 圆形：使用填充圆形光栅化算法
+                Vec2d center = circle.getCenter();
+                double radius = circle.getRadius();
+                // 应用变换
+                Vec2d transformedCenter = circle.getTransform().transform(center);
+                double transformedRadius = radius * circle.getTransform().getScale().x;
+                List<Vec2d> blockPositions = RasterizationUtils.rasterizeFilledCircle(transformedCenter, transformedRadius);
+                return blockPositions.size();
+                
+            } else if (shape instanceof EllipseShape ellipse) {
+                // 椭圆：使用填充椭圆光栅化算法（如果存在）
+                // 暂时使用 getBlockPositions() 方法
+                List<Vec2d> blockPositions = ellipse.getBlockPositions();
+                // 如果返回的是轮廓方块，需要计算填充区域
+                // 暂时使用包围盒估算（后续可以改进）
+                BoundingBox bbox = ellipse.getBoundingBox();
+                if (bbox != null) {
+                    // 使用包围盒内的方块数量作为估算
+                    int minX = (int) Math.floor(bbox.getMinX());
+                    int minY = (int) Math.floor(bbox.getMinY());
+                    int maxX = (int) Math.ceil(bbox.getMaxX());
+                    int maxY = (int) Math.ceil(bbox.getMaxY());
+                    int count = 0;
+                    for (int x = minX; x < maxX; x++) {
+                        for (int y = minY; y < maxY; y++) {
+                            Vec2d blockPos = new Vec2d(x, y);
+                            if (ellipse.contains(blockPos)) {
+                                count++;
+                            }
+                        }
+                    }
+                    return count;
+                }
+                return blockPositions.size();
+            }
+            
+            // 其他类型的图形：使用默认的 getBlockPositions() 方法
+            List<Vec2d> blockPositions = shape.getBlockPositions();
+            return blockPositions.size();
+            
+        } catch (Exception e) {
+            LOGGER.error("计算区域方块数量失败: {}", e.getMessage(), e);
+            return -1;
+        }
+    }
+    
     private String calculateDistance(Vec2d p1, Vec2d p2) {
         Vec2d world1 = coordinateTransformer.canvasToMinecraftWorld(p1);
         Vec2d world2 = coordinateTransformer.canvasToMinecraftWorld(p2);
@@ -347,29 +490,45 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     }
     
     private String calculateAngle(LineShape line1, LineShape line2) {
-        // 计算两条直线的方向向量
-        Vec2d start1 = line1.getStart();
-        Vec2d end1 = line1.getEnd();
-        Vec2d start2 = line2.getStart();
-        Vec2d end2 = line2.getEnd();
+        // 先找到两条直线的交点（作为角度顶点）
+        Vec2d vertex = calculateLineIntersection(line1, line2);
+        if (vertex == null) {
+            // 如果两条直线不相交，使用第一条直线的起点作为顶点
+            vertex = line1.getStart();
+        }
         
-        Vec2d dir1 = new Vec2d(end1.x - start1.x, end1.y - start1.y);
-        Vec2d dir2 = new Vec2d(end2.x - start2.x, end2.y - start2.y);
+        // 确定每条直线上离顶点较远的点
+        Vec2d point1 = line1.getStart().distance(vertex) > line1.getEnd().distance(vertex) 
+            ? line1.getStart() : line1.getEnd();
+        Vec2d point2 = line2.getStart().distance(vertex) > line2.getEnd().distance(vertex) 
+            ? line2.getStart() : line2.getEnd();
         
-        // 计算角度
-        double dot = dir1.x * dir2.x + dir1.y * dir2.y;
+        // 计算从顶点到两个端点的方向向量
+        Vec2d dir1 = point1.subtract(vertex);
+        Vec2d dir2 = point2.subtract(vertex);
+        
+        // 归一化方向向量
         double mag1 = Math.sqrt(dir1.x * dir1.x + dir1.y * dir1.y);
         double mag2 = Math.sqrt(dir2.x * dir2.x + dir2.y * dir2.y);
         
-        if (mag1 == 0 || mag2 == 0) {
+        if (mag1 < 1e-10 || mag2 < 1e-10) {
             return "0°";
         }
         
-        double cosAngle = dot / (mag1 * mag2);
-        cosAngle = Math.max(-1.0, Math.min(1.0, cosAngle));
-        double angleRad = Math.acos(cosAngle);
-        double angleDeg = Math.toDegrees(angleRad);
+        dir1 = new Vec2d(dir1.x / mag1, dir1.y / mag1);
+        dir2 = new Vec2d(dir2.x / mag2, dir2.y / mag2);
         
+        // 计算角度（使用atan2确保角度范围正确）
+        double angle1 = Math.atan2(dir1.y, dir1.x);
+        double angle2 = Math.atan2(dir2.y, dir2.x);
+        
+        // 计算角度差
+        double angleDiff = Math.abs(angle2 - angle1);
+        if (angleDiff > Math.PI) {
+            angleDiff = 2 * Math.PI - angleDiff;
+        }
+        
+        double angleDeg = Math.toDegrees(angleDiff);
         return String.format("%.2f°", angleDeg);
     }
     
@@ -377,25 +536,45 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         Vec2d center = circle.getCenter();
         double radius = circle.getRadius();
         
+        // 计算半径在Minecraft世界坐标中的值
+        // 取圆心和圆周上一点，计算它们在Minecraft世界中的距离
+        Vec2d circlePoint = new Vec2d(center.x + radius, center.y);
         Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(center);
-        if (worldCenter == null) {
+        Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
+        
+        if (worldCenter == null || worldCirclePoint == null) {
+            // 如果转换失败，使用原始半径值
             return String.format("%.2f 方块", radius);
         }
         
-        // 半径在Minecraft世界坐标中也是相同的值
-        return String.format("%.2f 方块", radius);
+        // 计算Minecraft世界中的半径
+        double dx = worldCirclePoint.x - worldCenter.x;
+        double dz = worldCirclePoint.y - worldCenter.y;
+        double worldRadius = Math.sqrt(dx * dx + dz * dz);
+        
+        return String.format("%.2f 方块", worldRadius);
     }
     
     private String calculateRadius(ArcShape arc) {
         Vec2d center = arc.getCenter();
         double radius = arc.getRadius();
         
+        // 计算半径在Minecraft世界坐标中的值
+        Vec2d circlePoint = new Vec2d(center.x + radius, center.y);
         Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(center);
-        if (worldCenter == null) {
+        Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
+        
+        if (worldCenter == null || worldCirclePoint == null) {
+            // 如果转换失败，使用原始半径值
             return String.format("%.2f 方块", radius);
         }
         
-        return String.format("%.2f 方块", radius);
+        // 计算Minecraft世界中的半径
+        double dx = worldCirclePoint.x - worldCenter.x;
+        double dz = worldCirclePoint.y - worldCenter.y;
+        double worldRadius = Math.sqrt(dx * dx + dz * dz);
+        
+        return String.format("%.2f 方块", worldRadius);
     }
     
     @Override
