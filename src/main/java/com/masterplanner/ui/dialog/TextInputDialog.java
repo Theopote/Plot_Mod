@@ -4,6 +4,7 @@ import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.graphics.style.TextAlignment;
 import com.masterplanner.core.graphics.style.TextStyle;
 import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
@@ -170,7 +171,7 @@ public class TextInputDialog {
 
 
                 // 样式区域（使用统一的内容宽度，确保右边界对齐）
-                renderStyleSection(contentWidth);
+                renderStyleSection(contentWidth, theme);
 
 
                 // 按钮区域（右边界与内容区域对齐）
@@ -197,7 +198,7 @@ public class TextInputDialog {
         ImGui.popStyleVar(1);
     }
 
-    private void renderStyleSection(float contentWidth) {
+    private void renderStyleSection(float contentWidth, UITheme.ThemeColors theme) {
         // 使用统一的布局常量
         // contentWidth 已经是减去左右边距后的宽度
         float labelColWidth = LABEL_COLUMN_WIDTH;
@@ -243,6 +244,14 @@ public class TextInputDialog {
             ImGui.alignTextToFramePadding();
             ImGui.text("字形");
             ImGui.tableNextColumn();
+            // 设置复选框样式，确保勾选状态可见（参考工具属性面板的实现）
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f); // 亮绿色，确保勾选状态可见
+            ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+            
             // 修复：直接使用bold和italic变量，而不是创建新变量
             if (ImGui.checkbox("粗体##bold", bold)) {
                 bold = !bold;
@@ -251,6 +260,10 @@ public class TextInputDialog {
             if (ImGui.checkbox("斜体##italic", italic)) {
                 italic = !italic;
             }
+            
+            // 恢复样式
+            ImGui.popStyleVar();
+            ImGui.popStyleColor(5);
 
             // 对齐方式（水平 + 垂直）
             ImGui.tableNextRow();
