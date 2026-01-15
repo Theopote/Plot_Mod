@@ -326,15 +326,21 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     
     private void createAreaAnnotation(List<Shape> selected, ModifyToolContext context) {
         for (Shape shape : selected) {
-            // 计算区域内的方块数量（使用填充光栅化算法）
-            int blockCount = calculateAreaBlockCount(shape);
+            // 计算区域内的方块数量（使用面积计算，支持小数）
+            double blockArea = calculateAreaBlockCount(shape);
             
-            if (blockCount < 0) {
+            if (blockArea < 0) {
                 LOGGER.warn("面积标注需要闭合图形，当前选中: {}", shape.getClass().getSimpleName());
                 continue;
             }
             
-            String areaText = String.format("%d 方块", blockCount);
+            // 格式化面积文本，如果面积是整数则显示整数，否则显示小数
+            String areaText;
+            if (Math.abs(blockArea - Math.round(blockArea)) < 0.001) {
+                areaText = String.format("%d 方块", Math.round(blockArea));
+            } else {
+                areaText = String.format("%.2f 方块", blockArea);
+            }
             LOGGER.info("创建面积标注: {}", areaText);
             
             // 获取图形的中心点作为标注文本位置
@@ -368,13 +374,13 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     }
     
     /**
-     * 计算闭合图形轮廓内的方块数量（平面投影，一层）
-     * 使用填充光栅化算法计算实际在轮廓内的方块数量
+     * 计算闭合图形轮廓内的方块面积（平面投影，一层）
+     * 使用几何面积公式计算实际覆盖的面积（以方块为单位），支持小数
      */
-    private int calculateAreaBlockCount(Shape shape) {
+    private double calculateAreaBlockCount(Shape shape) {
         try {
             if (shape instanceof Polygon polygon) {
-                // 多边形：使用填充光栅化算法
+                // 多边形：使用 Shoelace formula 计算面积
                 List<Vec2d> points = polygon.getPoints();
                 if (points.size() < 3) {
                     return -1;
@@ -387,11 +393,19 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 if (vertices.size() < 3) {
                     return -1;
                 }
-                List<Vec2d> blockPositions = RasterizationUtils.rasterizeFilledPolygon(vertices);
-                return blockPositions.size();
+                // 使用 Shoelace formula 计算多边形面积
+                double area = 0.0;
+                int n = vertices.size();
+                for (int i = 0; i < n; i++) {
+                    Vec2d current = vertices.get(i);
+                    Vec2d next = vertices.get((i + 1) % n);
+                    area += (next.x - current.x) * (next.y + current.y);
+                }
+                return Math.abs(area / 2.0);
                 
             } else if (shape instanceof RectangleShape rectangle) {
-                // 矩形：获取点列表并使用填充光栅化算法
+                // 矩形：计算面积 = width * height
+                // 需要考虑旋转，使用变换后的角点计算
                 List<Vec2d> points = rectangle.getPoints();
                 if (points.size() < 3) {
                     return -1;
@@ -404,52 +418,45 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 if (vertices.size() < 3) {
                     return -1;
                 }
-                List<Vec2d> blockPositions = RasterizationUtils.rasterizeFilledPolygon(vertices);
-                return blockPositions.size();
+                // 使用 Shoelace formula 计算矩形面积（考虑旋转）
+                double area = 0.0;
+                int n = vertices.size();
+                for (int i = 0; i < n; i++) {
+                    Vec2d current = vertices.get(i);
+                    Vec2d next = vertices.get((i + 1) % n);
+                    area += (next.x - current.x) * (next.y + current.y);
+                }
+                return Math.abs(area / 2.0);
                 
             } else if (shape instanceof CircleShape circle) {
-                // 圆形：使用填充圆形光栅化算法
-                Vec2d center = circle.getCenter();
+                // 圆形：计算面积 = π * r²
                 double radius = circle.getRadius();
                 // 应用变换
-                Vec2d transformedCenter = circle.getTransform().transform(center);
                 double transformedRadius = radius * circle.getTransform().getScale().x;
-                List<Vec2d> blockPositions = RasterizationUtils.rasterizeFilledCircle(transformedCenter, transformedRadius);
-                return blockPositions.size();
+                return Math.PI * transformedRadius * transformedRadius;
                 
             } else if (shape instanceof EllipseShape ellipse) {
-                // 椭圆：使用填充椭圆光栅化算法（如果存在）
-                // 暂时使用 getBlockPositions() 方法
-                List<Vec2d> blockPositions = ellipse.getBlockPositions();
-                // 如果返回的是轮廓方块，需要计算填充区域
-                // 暂时使用包围盒估算（后续可以改进）
+                // 椭圆：计算面积 = π * a * b
+                // 获取椭圆的长轴和短轴半径
                 BoundingBox bbox = ellipse.getBoundingBox();
                 if (bbox != null) {
-                    // 使用包围盒内的方块数量作为估算
-                    int minX = (int) Math.floor(bbox.getMinX());
-                    int minY = (int) Math.floor(bbox.getMinY());
-                    int maxX = (int) Math.ceil(bbox.getMaxX());
-                    int maxY = (int) Math.ceil(bbox.getMaxY());
-                    int count = 0;
-                    for (int x = minX; x < maxX; x++) {
-                        for (int y = minY; y < maxY; y++) {
-                            Vec2d blockPos = new Vec2d(x, y);
-                            if (ellipse.contains(blockPos)) {
-                                count++;
-                            }
-                        }
-                    }
-                    return count;
+                    double a = bbox.getWidth() / 2.0;  // 半长轴
+                    double b = bbox.getHeight() / 2.0; // 半短轴
+                    return Math.PI * a * b;
                 }
-                return blockPositions.size();
+                return -1;
             }
             
-            // 其他类型的图形：使用默认的 getBlockPositions() 方法
-            List<Vec2d> blockPositions = shape.getBlockPositions();
-            return blockPositions.size();
+            // 其他类型的图形：使用包围盒估算
+            BoundingBox bbox = shape.getBoundingBox();
+            if (bbox != null) {
+                return bbox.getWidth() * bbox.getHeight();
+            }
+            
+            return -1;
             
         } catch (Exception e) {
-            LOGGER.error("计算区域方块数量失败: {}", e.getMessage(), e);
+            LOGGER.error("计算区域方块面积失败: {}", e.getMessage(), e);
             return -1;
         }
     }

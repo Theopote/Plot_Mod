@@ -371,6 +371,49 @@ public class AnnotationShape extends Shape {
                     if (dist1 <= tolerance || dist2 <= tolerance) {
                         return true;
                     }
+                    // 检查是否在角度弧线附近
+                    Vec2d dir1 = anglePoint1.subtract(angleVertex);
+                    Vec2d dir2 = anglePoint2.subtract(angleVertex);
+                    double angle1 = Math.atan2(dir1.y, dir1.x);
+                    double angle2 = Math.atan2(dir2.y, dir2.x);
+                    double dist1Len = angleVertex.distance(anglePoint1);
+                    double dist2Len = angleVertex.distance(anglePoint2);
+                    double minDist = Math.min(dist1Len, dist2Len);
+                    double arcRadius = minDist * 0.3;
+                    arcRadius = Math.max(arcRadius, 10.0);
+                    arcRadius = Math.min(arcRadius, minDist * 0.5);
+                    // 计算点到弧线的距离
+                    Vec2d toPoint = point.subtract(angleVertex);
+                    double pointAngle = Math.atan2(toPoint.y, toPoint.x);
+                    double pointDist = toPoint.length();
+                    // 规范化角度差
+                    double angleDiff = angle2 - angle1;
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    if (angleDiff < 0) {
+                        double temp = angle1;
+                        angle1 = angle2;
+                        angle2 = temp;
+                        angleDiff = -angleDiff;
+                    }
+                    if (angleDiff > Math.PI) {
+                        double temp = angle1;
+                        angle1 = angle2;
+                        angle2 = temp;
+                        angleDiff = angle2 - angle1;
+                        while (angleDiff < 0) angleDiff += 2 * Math.PI;
+                    }
+                    // 检查点是否在角度范围内
+                    double pointAngleNorm = pointAngle;
+                    while (pointAngleNorm < angle1) pointAngleNorm += 2 * Math.PI;
+                    while (pointAngleNorm > angle2 + 2 * Math.PI) pointAngleNorm -= 2 * Math.PI;
+                    if (pointAngleNorm >= angle1 && pointAngleNorm <= angle2) {
+                        // 点在角度范围内，检查到弧线的距离
+                        double distToArc = Math.abs(pointDist - arcRadius);
+                        if (distToArc <= tolerance) {
+                            return true;
+                        }
+                    }
                 }
                 break;
             case RADIUS:
@@ -492,6 +535,53 @@ public class AnnotationShape extends Shape {
                     if (dist2 < minDistance) {
                         minDistance = dist2;
                         closest = proj2;
+                    }
+                    // 检查到角度弧线的最近点
+                    Vec2d dir1 = anglePoint1.subtract(angleVertex);
+                    Vec2d dir2 = anglePoint2.subtract(angleVertex);
+                    double angle1 = Math.atan2(dir1.y, dir1.x);
+                    double angle2 = Math.atan2(dir2.y, dir2.x);
+                    double dist1Len = angleVertex.distance(anglePoint1);
+                    double dist2Len = angleVertex.distance(anglePoint2);
+                    double minDist = Math.min(dist1Len, dist2Len);
+                    double arcRadius = minDist * 0.3;
+                    arcRadius = Math.max(arcRadius, 10.0);
+                    arcRadius = Math.min(arcRadius, minDist * 0.5);
+                    Vec2d toPoint = point.subtract(angleVertex);
+                    double pointAngle = Math.atan2(toPoint.y, toPoint.x);
+                    double pointDist = toPoint.length();
+                    // 规范化角度差
+                    double angleDiff = angle2 - angle1;
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    if (angleDiff < 0) {
+                        double temp = angle1;
+                        angle1 = angle2;
+                        angle2 = temp;
+                        angleDiff = -angleDiff;
+                    }
+                    if (angleDiff > Math.PI) {
+                        double temp = angle1;
+                        angle1 = angle2;
+                        angle2 = temp;
+                        angleDiff = angle2 - angle1;
+                        while (angleDiff < 0) angleDiff += 2 * Math.PI;
+                    }
+                    // 检查点是否在角度范围内
+                    double pointAngleNorm = pointAngle;
+                    while (pointAngleNorm < angle1) pointAngleNorm += 2 * Math.PI;
+                    while (pointAngleNorm > angle2 + 2 * Math.PI) pointAngleNorm -= 2 * Math.PI;
+                    if (pointAngleNorm >= angle1 && pointAngleNorm <= angle2) {
+                        // 点在角度范围内，计算到弧线的最近点
+                        Vec2d arcPoint = new Vec2d(
+                            angleVertex.x + arcRadius * Math.cos(pointAngle),
+                            angleVertex.y + arcRadius * Math.sin(pointAngle)
+                        );
+                        double distToArc = point.distance(arcPoint);
+                        if (distToArc < minDistance) {
+                            minDistance = distToArc;
+                            closest = arcPoint;
+                        }
                     }
                 }
                 break;
@@ -657,13 +747,69 @@ public class AnnotationShape extends Shape {
                 }
                 break;
             case ANGLE:
-                // TODO: 实现角度标注的距离计算
+                if (angleVertex != null && anglePoint1 != null && anglePoint2 != null) {
+                    // 计算到两条角度线的距离
+                    double dist1 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint1);
+                    double dist2 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint2);
+                    distance = Math.min(dist1, dist2);
+                    
+                    // 计算到角度弧线的距离
+                    Vec2d dir1 = anglePoint1.subtract(angleVertex);
+                    Vec2d dir2 = anglePoint2.subtract(angleVertex);
+                    double angle1 = Math.atan2(dir1.y, dir1.x);
+                    double angle2 = Math.atan2(dir2.y, dir2.x);
+                    double dist1Len = angleVertex.distance(anglePoint1);
+                    double dist2Len = angleVertex.distance(anglePoint2);
+                    double minDist = Math.min(dist1Len, dist2Len);
+                    double arcRadius = minDist * 0.3;
+                    arcRadius = Math.max(arcRadius, 10.0);
+                    arcRadius = Math.min(arcRadius, minDist * 0.5);
+                    
+                    Vec2d toPoint = point.subtract(angleVertex);
+                    double pointAngle = Math.atan2(toPoint.y, toPoint.x);
+                    double pointDist = toPoint.length();
+                    
+                    // 规范化角度差
+                    double angleDiff = angle2 - angle1;
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    if (angleDiff < 0) {
+                        double temp = angle1;
+                        angle1 = angle2;
+                        angle2 = temp;
+                        angleDiff = -angleDiff;
+                    }
+                    if (angleDiff > Math.PI) {
+                        double temp = angle1;
+                        angle1 = angle2;
+                        angle2 = temp;
+                        angleDiff = angle2 - angle1;
+                        while (angleDiff < 0) angleDiff += 2 * Math.PI;
+                    }
+                    
+                    // 检查点是否在角度范围内
+                    double pointAngleNorm = pointAngle;
+                    while (pointAngleNorm < angle1) pointAngleNorm += 2 * Math.PI;
+                    while (pointAngleNorm > angle2 + 2 * Math.PI) pointAngleNorm -= 2 * Math.PI;
+                    if (pointAngleNorm >= angle1 && pointAngleNorm <= angle2) {
+                        // 点在角度范围内，计算到弧线的距离
+                        double distToArc = Math.abs(pointDist - arcRadius);
+                        distance = Math.min(distance, distToArc);
+                    }
+                }
                 break;
             case RADIUS:
-                // TODO: 实现半径标注的距离计算
+                if (center != null && radius > 0) {
+                    // 计算到半径线的距离
+                    Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
+                    distance = GeometryUtils.pointToSegmentDistance(point, center, radiusEnd);
+                }
                 break;
             case AREA:
-                // TODO: 实现面积标注的距离计算
+                // 面积标注：使用文本位置的距离
+                if (textPosition != null) {
+                    distance = point.distance(textPosition);
+                }
                 break;
             default:
                 break;
