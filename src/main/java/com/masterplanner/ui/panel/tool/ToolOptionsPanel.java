@@ -66,7 +66,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         TRIM("trim", "修剪"),
         EXTEND("extend", "延伸"),
         BREAK("break", "打断"),
-        TEXT("text", "文本");
+        TEXT("text", "文本"),
+        ANNOTATION("annotation", "标注");
 
         private final String displayName;
 
@@ -121,6 +122,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 case "extend", "延伸", "extendtool" -> EXTEND;
                 case "break", "打断", "breaktool" -> BREAK;
                 case "text", "文本", "texttool" -> TEXT;
+                case "annotation", "标注", "annotationtool" -> ANNOTATION;
     
                 default -> {
                     MasterPlannerMod.LOGGER.warn("未知工具类型: '{}'", name);
@@ -299,6 +301,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case EXTEND -> "延伸工具用于延伸图形。点击并拖动图形可以延伸它。";
             case BREAK -> "打断工具用于打断图形。支持单点打断和两点打断两种模式，可以连续操作多个图形。";
             case TEXT -> "文本工具用于在图纸上添加文本。点击并拖动可以放置文本框，双击可以编辑文本。";
+            case ANNOTATION -> "标注工具用于在图纸上添加标注信息。支持距离标注、角度标注、半径标注和面积标注四种模式。";
 
             case UNKNOWN -> "未知工具类型，请检查工具配置。";
         };
@@ -449,6 +452,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case EXTEND -> baseHeight * 1.1f;  // 延伸工具
             case BREAK -> baseHeight * 1.2f;  // 打断工具
             case TEXT -> baseHeight;  // 文本工具
+            case ANNOTATION -> baseHeight * 0.8f;  // 标注工具
 
             case UNKNOWN -> baseHeight * 0.5f;  // 未知工具
         };
@@ -462,7 +466,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         
         // 根据工具类型返回不同的基础高度
         return switch (toolType) {
-            case SELECT, UNKNOWN -> lineHeight * 10 + framePadding * 2 + itemSpacing;
+            case SELECT -> lineHeight * 10 + framePadding * 2 + itemSpacing;
             case LINE, CIRCLE, RECTANGLE -> lineHeight * 10 + framePadding * 4 + itemSpacing * 3;
             case ELLIPSE, ARC, POLYGON -> lineHeight * 10 + framePadding * 6 + itemSpacing * 5;
             case POLYLINE -> lineHeight * 10 + framePadding * 7 + itemSpacing * 6;
@@ -486,6 +490,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case EXTEND -> lineHeight * 10 + framePadding * 5 + itemSpacing * 4;  // 延伸工具
             case BREAK -> lineHeight * 8 + framePadding * 6 + itemSpacing * 5;  // 打断工具
             case TEXT -> lineHeight * 20 + framePadding * 3 + itemSpacing * 2;  // 文本工具
+            case ANNOTATION -> lineHeight * 8 + framePadding * 4 + itemSpacing * 3;  // 标注工具
+            case UNKNOWN -> lineHeight * 5 + framePadding * 2 + itemSpacing;  // 未知工具
 
         };
     }
@@ -508,6 +514,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case TRIM -> lineHeight * 1 + itemSpacing;  // 修剪工具
             case BREAK -> lineHeight * 2 + itemSpacing;  // 打断工具
             case TEXT -> lineHeight * 2 + itemSpacing;  // 文本工具
+            case ANNOTATION -> lineHeight * 1 + itemSpacing;  // 标注工具
 
             default -> 0;  // 其他工具不需要额外高度
         };
