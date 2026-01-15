@@ -3,7 +3,6 @@ package com.masterplanner.ui.tools.impl.modify.strategy;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.geometry.BoundingBox;
-import com.masterplanner.core.geometry.RasterizationUtils;
 import com.masterplanner.core.geometry.shapes.*;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
@@ -326,11 +325,19 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     
     private void createAreaAnnotation(List<Shape> selected, ModifyToolContext context) {
         for (Shape shape : selected) {
+            // 首先检查是否为闭合图形，只有闭合图形才能标注区域
+            if (!isClosedShape(shape)) {
+                LOGGER.warn("面积标注需要闭合图形（多边形、矩形、圆形、椭圆或闭合折线），当前选中: {}", 
+                    shape.getClass().getSimpleName());
+                context.setStatusMessage("面积标注需要闭合图形（多边形、矩形、圆形、椭圆或闭合折线）");
+                continue;
+            }
+            
             // 计算区域内的方块数量（使用面积计算，支持小数）
             double blockArea = calculateAreaBlockCount(shape);
             
             if (blockArea < 0) {
-                LOGGER.warn("面积标注需要闭合图形，当前选中: {}", shape.getClass().getSimpleName());
+                LOGGER.warn("计算区域面积失败，当前选中: {}", shape.getClass().getSimpleName());
                 continue;
             }
             
@@ -371,6 +378,48 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 LOGGER.error("添加面积标注图形失败: {}", e.getMessage(), e);
             }
         }
+    }
+    
+    /**
+     * 检查图形是否为闭合图形
+     * 只有闭合图形才能进行面积标注
+     */
+    private boolean isClosedShape(Shape shape) {
+        if (shape == null) {
+            return false;
+        }
+        
+        // 明确允许的闭合图形类型
+        if (shape instanceof RectangleShape) {
+            return true; // 矩形总是闭合的
+        }
+        if (shape instanceof CircleShape) {
+            return true; // 圆形总是闭合的
+        }
+        if (shape instanceof EllipseShape) {
+            return true; // 椭圆总是闭合的
+        }
+        if (shape instanceof Polygon) {
+            return true; // 多边形总是闭合的（Polygon 默认是闭合的）
+        }
+        if (shape instanceof PolylineShape polyline) {
+            // 折线需要检查是否闭合
+            return polyline.isClosed();
+        }
+        
+        // 明确不允许的类型
+        if (shape instanceof LineShape) {
+            return false; // 直线不是闭合图形
+        }
+        if (shape instanceof ArcShape) {
+            return false; // 圆弧不是闭合图形
+        }
+        if (shape instanceof AnnotationShape) {
+            return false; // 标注本身不能标注
+        }
+        
+        // 其他类型默认不允许
+        return false;
     }
     
     /**
@@ -445,14 +494,36 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                     return Math.PI * a * b;
                 }
                 return -1;
+            } else if (shape instanceof PolylineShape polyline) {
+                // 闭合折线：使用 Shoelace formula 计算面积
+                if (!polyline.isClosed()) {
+                    return -1; // 非闭合折线不应该到达这里（已在 isClosedShape 中检查）
+                }
+                List<Vec2d> points = polyline.getPoints();
+                if (points.size() < 3) {
+                    return -1;
+                }
+                // 移除最后一个点（如果是闭合的，最后一个点与第一个点相同）
+                List<Vec2d> vertices = new java.util.ArrayList<>(points);
+                if (!vertices.isEmpty() && vertices.getFirst().equals(vertices.getLast())) {
+                    vertices.removeLast();
+                }
+                if (vertices.size() < 3) {
+                    return -1;
+                }
+                // 使用 Shoelace formula 计算多边形面积
+                double area = 0.0;
+                int n = vertices.size();
+                for (int i = 0; i < n; i++) {
+                    Vec2d current = vertices.get(i);
+                    Vec2d next = vertices.get((i + 1) % n);
+                    area += (next.x - current.x) * (next.y + current.y);
+                }
+                return Math.abs(area / 2.0);
             }
             
-            // 其他类型的图形：使用包围盒估算
-            BoundingBox bbox = shape.getBoundingBox();
-            if (bbox != null) {
-                return bbox.getWidth() * bbox.getHeight();
-            }
-            
+            // 不应该到达这里，因为 isClosedShape 已经过滤了不支持的图形类型
+            LOGGER.warn("calculateAreaBlockCount: 不支持的图形类型: {}", shape.getClass().getSimpleName());
             return -1;
             
         } catch (Exception e) {

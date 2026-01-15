@@ -357,33 +357,40 @@ public class AnnotationShape extends Shape {
         switch (annotationType) {
             case DISTANCE:
                 if (point1 != null && point2 != null) {
+                    // 应用变换
+                    Vec2d transformedP1 = transform.transform(point1);
+                    Vec2d transformedP2 = transform.transform(point2);
                     // 检查是否在标注线附近
-                    if (GeometryUtils.pointToSegmentDistance(point, point1, point2) <= tolerance) {
+                    if (GeometryUtils.pointToSegmentDistance(point, transformedP1, transformedP2) <= tolerance) {
                         return true;
                     }
                 }
                 break;
             case ANGLE:
                 if (angleVertex != null && anglePoint1 != null && anglePoint2 != null) {
+                    // 应用变换
+                    Vec2d transformedVertex = transform.transform(angleVertex);
+                    Vec2d transformedP1 = transform.transform(anglePoint1);
+                    Vec2d transformedP2 = transform.transform(anglePoint2);
                     // 检查是否在角度线附近
-                    double dist1 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint1);
-                    double dist2 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint2);
+                    double dist1 = GeometryUtils.pointToSegmentDistance(point, transformedVertex, transformedP1);
+                    double dist2 = GeometryUtils.pointToSegmentDistance(point, transformedVertex, transformedP2);
                     if (dist1 <= tolerance || dist2 <= tolerance) {
                         return true;
                     }
-                    // 检查是否在角度弧线附近
-                    Vec2d dir1 = anglePoint1.subtract(angleVertex);
-                    Vec2d dir2 = anglePoint2.subtract(angleVertex);
+                    // 检查是否在角度弧线附近（使用变换后的坐标）
+                    Vec2d dir1 = transformedP1.subtract(transformedVertex);
+                    Vec2d dir2 = transformedP2.subtract(transformedVertex);
                     double angle1 = Math.atan2(dir1.y, dir1.x);
                     double angle2 = Math.atan2(dir2.y, dir2.x);
-                    double dist1Len = angleVertex.distance(anglePoint1);
-                    double dist2Len = angleVertex.distance(anglePoint2);
+                    double dist1Len = transformedVertex.distance(transformedP1);
+                    double dist2Len = transformedVertex.distance(transformedP2);
                     double minDist = Math.min(dist1Len, dist2Len);
                     double arcRadius = minDist * 0.3;
                     arcRadius = Math.max(arcRadius, 10.0);
                     arcRadius = Math.min(arcRadius, minDist * 0.5);
                     // 计算点到弧线的距离
-                    Vec2d toPoint = point.subtract(angleVertex);
+                    Vec2d toPoint = point.subtract(transformedVertex);
                     double pointAngle = Math.atan2(toPoint.y, toPoint.x);
                     double pointDist = toPoint.length();
                     // 规范化角度差
@@ -418,9 +425,11 @@ public class AnnotationShape extends Shape {
                 break;
             case RADIUS:
                 if (center != null && radius > 0) {
-                    // 检查是否在半径线附近
-                    Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
-                    if (GeometryUtils.pointToSegmentDistance(point, center, radiusEnd) <= tolerance) {
+                    // 应用变换
+                    Vec2d transformedCenter = transform.transform(center);
+                    double transformedRadius = radius * transform.getScale().x;
+                    Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+                    if (GeometryUtils.pointToSegmentDistance(point, transformedCenter, radiusEnd) <= tolerance) {
                         return true;
                     }
                 }
@@ -435,7 +444,8 @@ public class AnnotationShape extends Shape {
         
         // 检查是否在文本位置附近（所有类型的标注都显示文本）
         if (textPosition != null) {
-            double dist = point.distance(textPosition);
+            Vec2d transformedTextPos = transform.transform(textPosition);
+            double dist = point.distance(transformedTextPos);
             return dist <= tolerance * 2;
         }
         
@@ -505,6 +515,44 @@ public class AnnotationShape extends Shape {
     }
     
     @Override
+    public boolean containsPoint(Vec2d point, double tolerance) {
+        if (point == null) return false;
+        
+        // 使用包围盒进行快速检测
+        BoundingBox bbox = getBoundingBox();
+        if (!bbox.contains(point)) {
+            return false;
+        }
+        
+        // 使用 getSignedDistance 计算距离
+        try {
+            double distance = getSignedDistance(point);
+            
+            // 检查距离是否为有效值
+            if (Double.isNaN(distance) || Double.isInfinite(distance) || distance > 1000.0) {
+                // 如果距离无效，使用点到最近点的距离
+                Vec2d closestPoint = getClosestPoint(point);
+                if (closestPoint != null) {
+                    distance = point.distance(closestPoint);
+                    return distance <= tolerance;
+                }
+                return false;
+            }
+            
+            // 如果距离小于容差值，则认为点在形状内
+            return Math.abs(distance) <= tolerance;
+        } catch (Exception e) {
+            // 如果计算过程中出现异常，使用备用方法
+            try {
+                Vec2d closestPoint = getClosestPoint(point);
+                return closestPoint != null && point.distance(closestPoint) <= tolerance;
+            } catch (Exception ex) {
+                return false;
+            }
+        }
+    }
+    
+    @Override
     public Vec2d getClosestPoint(Vec2d point) {
         if (point == null) return textPosition != null ? textPosition : new Vec2d(0, 0);
         
@@ -514,7 +562,10 @@ public class AnnotationShape extends Shape {
         switch (annotationType) {
             case DISTANCE:
                 if (point1 != null && point2 != null) {
-                    Vec2d proj = GeometryUtils.projectPointOnLine(point, point1, point2);
+                    // 应用变换
+                    Vec2d transformedP1 = transform.transform(point1);
+                    Vec2d transformedP2 = transform.transform(point2);
+                    Vec2d proj = GeometryUtils.projectPointOnLine(point, transformedP1, transformedP2);
                     double dist = point.distance(proj);
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -524,9 +575,13 @@ public class AnnotationShape extends Shape {
                 break;
             case ANGLE:
                 if (angleVertex != null && anglePoint1 != null && anglePoint2 != null) {
+                    // 应用变换
+                    Vec2d transformedVertex = transform.transform(angleVertex);
+                    Vec2d transformedP1 = transform.transform(anglePoint1);
+                    Vec2d transformedP2 = transform.transform(anglePoint2);
                     // 检查到两条角度线的最近点
-                    Vec2d proj1 = GeometryUtils.projectPointOnLine(point, angleVertex, anglePoint1);
-                    Vec2d proj2 = GeometryUtils.projectPointOnLine(point, angleVertex, anglePoint2);
+                    Vec2d proj1 = GeometryUtils.projectPointOnLine(point, transformedVertex, transformedP1);
+                    Vec2d proj2 = GeometryUtils.projectPointOnLine(point, transformedVertex, transformedP2);
                     double dist1 = point.distance(proj1);
                     double dist2 = point.distance(proj2);
                     if (dist1 < minDistance) {
@@ -538,17 +593,17 @@ public class AnnotationShape extends Shape {
                         closest = proj2;
                     }
                     // 检查到角度弧线的最近点
-                    Vec2d dir1 = anglePoint1.subtract(angleVertex);
-                    Vec2d dir2 = anglePoint2.subtract(angleVertex);
+                    Vec2d dir1 = transformedP1.subtract(transformedVertex);
+                    Vec2d dir2 = transformedP2.subtract(transformedVertex);
                     double angle1 = Math.atan2(dir1.y, dir1.x);
                     double angle2 = Math.atan2(dir2.y, dir2.x);
-                    double dist1Len = angleVertex.distance(anglePoint1);
-                    double dist2Len = angleVertex.distance(anglePoint2);
+                    double dist1Len = transformedVertex.distance(transformedP1);
+                    double dist2Len = transformedVertex.distance(transformedP2);
                     double minDist = Math.min(dist1Len, dist2Len);
                     double arcRadius = minDist * 0.3;
                     arcRadius = Math.max(arcRadius, 10.0);
                     arcRadius = Math.min(arcRadius, minDist * 0.5);
-                    Vec2d toPoint = point.subtract(angleVertex);
+                    Vec2d toPoint = point.subtract(transformedVertex);
                     double pointAngle = Math.atan2(toPoint.y, toPoint.x);
                     double pointDist = toPoint.length();
                     // 规范化角度差
@@ -575,8 +630,8 @@ public class AnnotationShape extends Shape {
                     if (pointAngleNorm >= angle1 && pointAngleNorm <= angle2) {
                         // 点在角度范围内，计算到弧线的最近点
                         Vec2d arcPoint = new Vec2d(
-                            angleVertex.x + arcRadius * Math.cos(pointAngle),
-                            angleVertex.y + arcRadius * Math.sin(pointAngle)
+                            transformedVertex.x + arcRadius * Math.cos(pointAngle),
+                            transformedVertex.y + arcRadius * Math.sin(pointAngle)
                         );
                         double distToArc = point.distance(arcPoint);
                         if (distToArc < minDistance) {
@@ -584,12 +639,28 @@ public class AnnotationShape extends Shape {
                             closest = arcPoint;
                         }
                     }
+                    // 也考虑文本位置
+                    if (textPosition != null) {
+                        Vec2d transformedTextPos = transform.transform(textPosition);
+                        double textDist = point.distance(transformedTextPos);
+                        if (textDist < minDistance) {
+                            minDistance = textDist;
+                            closest = transformedTextPos;
+                        }
+                    }
+                } else if (textPosition != null) {
+                    // 如果角度信息无效，至少使用文本位置
+                    Vec2d transformedTextPos = transform.transform(textPosition);
+                    closest = transformedTextPos;
                 }
                 break;
             case RADIUS:
                 if (center != null && radius > 0) {
-                    Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
-                    Vec2d proj = GeometryUtils.projectPointOnLine(point, center, radiusEnd);
+                    // 应用变换
+                    Vec2d transformedCenter = transform.transform(center);
+                    double transformedRadius = radius * transform.getScale().x;
+                    Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+                    Vec2d proj = GeometryUtils.projectPointOnLine(point, transformedCenter, radiusEnd);
                     double dist = point.distance(proj);
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -598,17 +669,19 @@ public class AnnotationShape extends Shape {
                 }
                 // 也考虑文本位置
                 if (textPosition != null) {
-                    double textDist = point.distance(textPosition);
+                    Vec2d transformedTextPos = transform.transform(textPosition);
+                    double textDist = point.distance(transformedTextPos);
                     if (textDist < minDistance) {
                         minDistance = textDist;
-                        closest = textPosition;
+                        closest = transformedTextPos;
                     }
                 }
                 break;
             case AREA:
                 // 面积标注：返回文本位置
                 if (textPosition != null) {
-                    closest = textPosition;
+                    Vec2d transformedTextPos = transform.transform(textPosition);
+                    closest = transformedTextPos;
                 }
                 break;
             default:
@@ -620,7 +693,10 @@ public class AnnotationShape extends Shape {
             return closest;
         }
         
-        return textPosition != null ? textPosition : new Vec2d(0, 0);
+        if (textPosition != null) {
+            return transform.transform(textPosition);
+        }
+        return new Vec2d(0, 0);
     }
     
     @Override
@@ -755,29 +831,36 @@ public class AnnotationShape extends Shape {
         switch (annotationType) {
             case DISTANCE:
                 if (point1 != null && point2 != null) {
-                    distance = GeometryUtils.pointToSegmentDistance(point, point1, point2);
+                    // 应用变换
+                    Vec2d transformedP1 = transform.transform(point1);
+                    Vec2d transformedP2 = transform.transform(point2);
+                    distance = GeometryUtils.pointToSegmentDistance(point, transformedP1, transformedP2);
                 }
                 break;
             case ANGLE:
                 if (angleVertex != null && anglePoint1 != null && anglePoint2 != null) {
+                    // 应用变换
+                    Vec2d transformedVertex = transform.transform(angleVertex);
+                    Vec2d transformedP1 = transform.transform(anglePoint1);
+                    Vec2d transformedP2 = transform.transform(anglePoint2);
                     // 计算到两条角度线的距离
-                    double dist1 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint1);
-                    double dist2 = GeometryUtils.pointToSegmentDistance(point, angleVertex, anglePoint2);
+                    double dist1 = GeometryUtils.pointToSegmentDistance(point, transformedVertex, transformedP1);
+                    double dist2 = GeometryUtils.pointToSegmentDistance(point, transformedVertex, transformedP2);
                     distance = Math.min(dist1, dist2);
                     
                     // 计算到角度弧线的距离
-                    Vec2d dir1 = anglePoint1.subtract(angleVertex);
-                    Vec2d dir2 = anglePoint2.subtract(angleVertex);
+                    Vec2d dir1 = transformedP1.subtract(transformedVertex);
+                    Vec2d dir2 = transformedP2.subtract(transformedVertex);
                     double angle1 = Math.atan2(dir1.y, dir1.x);
                     double angle2 = Math.atan2(dir2.y, dir2.x);
-                    double dist1Len = angleVertex.distance(anglePoint1);
-                    double dist2Len = angleVertex.distance(anglePoint2);
+                    double dist1Len = transformedVertex.distance(transformedP1);
+                    double dist2Len = transformedVertex.distance(transformedP2);
                     double minDist = Math.min(dist1Len, dist2Len);
                     double arcRadius = minDist * 0.3;
                     arcRadius = Math.max(arcRadius, 10.0);
                     arcRadius = Math.min(arcRadius, minDist * 0.5);
                     
-                    Vec2d toPoint = point.subtract(angleVertex);
+                    Vec2d toPoint = point.subtract(transformedVertex);
                     double pointAngle = Math.atan2(toPoint.y, toPoint.x);
                     double pointDist = toPoint.length();
                     
@@ -810,33 +893,41 @@ public class AnnotationShape extends Shape {
                     }
                     // 也考虑文本位置的距离
                     if (textPosition != null) {
-                        double textDist = point.distance(textPosition);
+                        Vec2d transformedTextPos = transform.transform(textPosition);
+                        double textDist = point.distance(transformedTextPos);
                         distance = Math.min(distance, textDist);
                     }
                 } else if (textPosition != null) {
                     // 如果角度信息无效，至少使用文本位置
-                    distance = point.distance(textPosition);
+                    Vec2d transformedTextPos = transform.transform(textPosition);
+                    distance = point.distance(transformedTextPos);
                 }
                 break;
             case RADIUS:
                 if (center != null && radius > 0) {
+                    // 应用变换
+                    Vec2d transformedCenter = transform.transform(center);
+                    double transformedRadius = radius * transform.getScale().x;
+                    Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
                     // 计算到半径线的距离
-                    Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
-                    distance = GeometryUtils.pointToSegmentDistance(point, center, radiusEnd);
+                    distance = GeometryUtils.pointToSegmentDistance(point, transformedCenter, radiusEnd);
                     // 也考虑文本位置的距离
                     if (textPosition != null) {
-                        double textDist = point.distance(textPosition);
+                        Vec2d transformedTextPos = transform.transform(textPosition);
+                        double textDist = point.distance(transformedTextPos);
                         distance = Math.min(distance, textDist);
                     }
                 } else if (textPosition != null) {
                     // 如果半径信息无效，至少使用文本位置
-                    distance = point.distance(textPosition);
+                    Vec2d transformedTextPos = transform.transform(textPosition);
+                    distance = point.distance(transformedTextPos);
                 }
                 break;
             case AREA:
                 // 面积标注：使用文本位置的距离
                 if (textPosition != null) {
-                    distance = point.distance(textPosition);
+                    Vec2d transformedTextPos = transform.transform(textPosition);
+                    distance = point.distance(transformedTextPos);
                 }
                 break;
             default:
