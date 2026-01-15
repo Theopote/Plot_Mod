@@ -424,9 +424,10 @@ public class AnnotationShape extends Shape {
                         return true;
                     }
                 }
+                // 半径标注也检查文本位置
                 break;
             case AREA:
-                // 面积标注：检查是否在文本位置附近
+                // 面积标注：主要检查文本位置（已在最后统一检查）
                 break;
             default:
                 break;
@@ -595,9 +596,20 @@ public class AnnotationShape extends Shape {
                         closest = proj;
                     }
                 }
+                // 也考虑文本位置
+                if (textPosition != null) {
+                    double textDist = point.distance(textPosition);
+                    if (textDist < minDistance) {
+                        minDistance = textDist;
+                        closest = textPosition;
+                    }
+                }
                 break;
             case AREA:
                 // 面积标注：返回文本位置
+                if (textPosition != null) {
+                    closest = textPosition;
+                }
                 break;
             default:
                 break;
@@ -796,6 +808,14 @@ public class AnnotationShape extends Shape {
                         double distToArc = Math.abs(pointDist - arcRadius);
                         distance = Math.min(distance, distToArc);
                     }
+                    // 也考虑文本位置的距离
+                    if (textPosition != null) {
+                        double textDist = point.distance(textPosition);
+                        distance = Math.min(distance, textDist);
+                    }
+                } else if (textPosition != null) {
+                    // 如果角度信息无效，至少使用文本位置
+                    distance = point.distance(textPosition);
                 }
                 break;
             case RADIUS:
@@ -803,6 +823,14 @@ public class AnnotationShape extends Shape {
                     // 计算到半径线的距离
                     Vec2d radiusEnd = new Vec2d(center.x + radius, center.y);
                     distance = GeometryUtils.pointToSegmentDistance(point, center, radiusEnd);
+                    // 也考虑文本位置的距离
+                    if (textPosition != null) {
+                        double textDist = point.distance(textPosition);
+                        distance = Math.min(distance, textDist);
+                    }
+                } else if (textPosition != null) {
+                    // 如果半径信息无效，至少使用文本位置
+                    distance = point.distance(textPosition);
                 }
                 break;
             case AREA:
@@ -815,9 +843,21 @@ public class AnnotationShape extends Shape {
                 break;
         }
         
-        // 如果计算失败，使用文本位置的距离
-        if (distance == Double.MAX_VALUE && textPosition != null) {
-            distance = point.distance(textPosition);
+        // 如果计算失败或距离过大，使用文本位置的距离作为备选
+        if (distance == Double.MAX_VALUE || distance > 1000.0) {
+            if (textPosition != null) {
+                distance = point.distance(textPosition);
+            } else {
+                // 如果连文本位置都没有，返回到包围盒中心的距离
+                BoundingBox bbox = getBoundingBox();
+                if (bbox != null) {
+                    Vec2d center = new Vec2d(
+                        (bbox.getMinX() + bbox.getMaxX()) / 2,
+                        (bbox.getMinY() + bbox.getMaxY()) / 2
+                    );
+                    distance = point.distance(center);
+                }
+            }
         }
         
         return distance;
