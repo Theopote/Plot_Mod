@@ -654,7 +654,7 @@ public class CompactBlockConfigDialog {
         ImGui.pushID("display_" + index);
 
         try {
-            // 获取槽位位置
+            // 获取槽位位置（在创建invisibleButton之前，这是正确的坐标）
             float slotX = ImGui.getCursorScreenPos().x;
             float slotY = ImGui.getCursorScreenPos().y;
 
@@ -662,6 +662,7 @@ public class CompactBlockConfigDialog {
             handleDisplaySlotInteraction(block);
 
             // 渲染方块图标（ImGui背景 + 覆盖MC物品）
+            // 使用之前获取的坐标，因为invisibleButton不会改变光标位置
             renderBlockIcon(block, slotX, slotY, ImGui.isItemHovered(), false);
 
             // [NEW] 添加鼠标悬停提示
@@ -730,7 +731,7 @@ public class CompactBlockConfigDialog {
         try {
             Block blockInSlot = (slotIndex < paletteBlocks.size()) ? paletteBlocks.get(slotIndex) : null;
 
-            // 获取槽位位置
+            // 获取槽位位置（在创建invisibleButton之前，这是正确的坐标）
             float slotX = ImGui.getCursorScreenPos().x;
             float slotY = ImGui.getCursorScreenPos().y;
 
@@ -738,6 +739,7 @@ public class CompactBlockConfigDialog {
             handlePaletteSlotInteraction(slotIndex, blockInSlot);
 
             // 渲染槽位
+            // 使用之前获取的坐标，因为invisibleButton不会改变光标位置
             boolean isPlaceholder = (isDragging && dragSource == DragSource.PALETTE_AREA && dragOriginIndex == slotIndex);
             renderBlockIcon(blockInSlot, slotX, slotY, ImGui.isItemHovered(), isPlaceholder);
 
@@ -844,8 +846,9 @@ public class CompactBlockConfigDialog {
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
             } else if (block != null) {
                 // 检查方块是否有有效图标
-                if (!BlockIconRenderer.hasValidIcon(block)) {
-                    LOGGER.debug("方块 {} 无有效图标，显示占位符", Registries.BLOCK.getId(block));
+                boolean hasValidIcon = BlockIconRenderer.hasValidIcon(block);
+                if (!hasValidIcon) {
+                    LOGGER.warn("方块 {} 无有效图标，显示占位符", Registries.BLOCK.getId(block));
                     drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, DRAG_PLACEHOLDER_COLOR);
                     drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
                     return;
@@ -858,6 +861,8 @@ public class CompactBlockConfigDialog {
 
                 // 使用全局覆盖渲染：队列GUI物品绘制（物品贴图16x16，居中到32x32槽位）
                 float centerOffset = (BLOCK_ICON_SIZE - 16.0f) * 0.5f;
+                LOGGER.info("renderBlockIcon: 准备渲染方块 {} 在坐标 ({}, {})", 
+                           Registries.BLOCK.getId(block), x + centerOffset, y + centerOffset);
                 com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x + centerOffset, y + centerOffset);
                 
             } else {

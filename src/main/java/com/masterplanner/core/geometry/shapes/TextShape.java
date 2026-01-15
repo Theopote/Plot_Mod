@@ -260,8 +260,32 @@ public class TextShape extends Shape {
         if (textStyle.isBold()) fontStyle |= Font.BOLD;
         if (textStyle.isItalic()) fontStyle |= Font.ITALIC;
 
-        Font font = new Font(textStyle.getFontFamily(), fontStyle, (int)textStyle.getFontSize());
+        String fontFamily = textStyle.getFontFamily();
+        if (fontFamily == null || fontFamily.isEmpty()) {
+            fontFamily = TextStyle.DEFAULT_FONT_FAMILY;
+        }
+        
+        float fontSize = textStyle.getFontSize();
+        if (fontSize <= 0) {
+            fontSize = TextStyle.DEFAULT_FONT_SIZE;
+        }
+        
+        // 确保字体大小至少为1，避免无效字体
+        int fontSizeInt = Math.max(1, Math.round(fontSize));
+        
+        Font font = new Font(fontFamily, fontStyle, fontSizeInt);
+        
+        // 验证字体是否可用，如果不可用则使用默认字体
+        if (!font.getFamily().equals(fontFamily) && !font.canDisplay('A')) {
+            LOGGER.warn("字体 '{}' 不可用，使用默认字体", fontFamily);
+            font = new Font(Font.SANS_SERIF, fontStyle, fontSizeInt);
+        }
+        
         g2d.setFont(font);
+        
+        // 启用抗锯齿以获得更好的渲染质量
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         
         // 注意：不再调用 g2d.dispose()，因为我们要复用它
         return g2d;
@@ -892,44 +916,103 @@ public class TextShape extends Shape {
             return null;
         }
         
-        PathIterator pathIterator = awtShape.getPathIterator(null); // 使用默认平坦度
+        // 使用平坦化的PathIterator，将贝塞尔曲线转换为直线段
+        // 平坦度越小，精度越高，但点越多
+        // 对于文字轮廓，使用非常小的平坦度以获得更好的精度
+        // 注意：平坦度太小可能导致点过多，影响性能，但太小又会导致精度不够
+        double flatness = 0.01; // 进一步减小平坦度以提高精度（从0.1降到0.01）
+        // 使用null作为变换参数，表示使用单位变换（不进行任何变换）
+        PathIterator pathIterator = awtShape.getPathIterator(null, flatness);
         List<Vec2d> points = new ArrayList<>();
         double[] coords = new double[6];
+        Vec2d currentPoint = null;
+        int pointCount = 0;
 
         while (!pathIterator.isDone()) {
             int segmentType = pathIterator.currentSegment(coords);
             switch (segmentType) {
                 case PathIterator.SEG_MOVETO:
+                    currentPoint = new Vec2d(coords[0], coords[1]);
+                    points.add(currentPoint);
+                    pointCount++;
+                    break;
                 case PathIterator.SEG_LINETO:
-                    points.add(new Vec2d(coords[0], coords[1]));
+                    currentPoint = new Vec2d(coords[0], coords[1]);
+                    points.add(currentPoint);
+                    pointCount++;
                     break;
                 case PathIterator.SEG_CLOSE:
+                    // 对于字符路径，SEG_CLOSE表示应该闭合，但通常字符路径不应该完全闭合
+                    // 这里我们检查是否需要闭合，如果当前点已经接近第一个点，就不需要添加
                     if (!points.isEmpty()) {
-                        points.add(points.getFirst()); // 闭合路径
+                        Vec2d firstPoint = points.getFirst();
+                        // 只有当当前点与第一个点距离较远时才添加闭合点
+                        if (currentPoint != null) {
+                            double distance = currentPoint.distance(firstPoint);
+                            if (distance > 0.1) { // 如果距离大于0.1，添加闭合点
+                                points.add(new Vec2d(firstPoint.x, firstPoint.y));
+                                pointCount++;
+                            }
+                        }
                     }
                     break;
                 case PathIterator.SEG_QUADTO:
-                    // 二次贝塞尔曲线，需要平坦化
-                    // 这里简化处理，只取控制点和终点
+                    // 如果平坦化后还有二次贝塞尔曲线，说明平坦度设置有问题
+                    // 手动添加控制点和终点（简化处理）
+                    LOGGER.debug("遇到未平坦化的二次贝塞尔曲线，添加控制点和终点");
                     points.add(new Vec2d(coords[0], coords[1])); // 控制点
-                    points.add(new Vec2d(coords[2], coords[3])); // 终点
+                    currentPoint = new Vec2d(coords[2], coords[3]); // 终点
+                    points.add(currentPoint);
+                    pointCount += 2;
                     break;
                 case PathIterator.SEG_CUBICTO:
-                    // 三次贝塞尔曲线，需要平坦化
-                    // 这里简化处理，只取两个控制点和终点
+                    // 如果平坦化后还有三次贝塞尔曲线，说明平坦度设置有问题
+                    // 手动添加控制点和终点（简化处理）
+                    LOGGER.debug("遇到未平坦化的三次贝塞尔曲线，添加控制点和终点");
                     points.add(new Vec2d(coords[0], coords[1])); // 第一个控制点
                     points.add(new Vec2d(coords[2], coords[3])); // 第二个控制点
-                    points.add(new Vec2d(coords[4], coords[5])); // 终点
+                    currentPoint = new Vec2d(coords[4], coords[5]); // 终点
+                    points.add(currentPoint);
+                    pointCount += 3;
                     break;
             }
             pathIterator.next();
         }
         
         if (points.isEmpty()) {
+            LOGGER.warn("转换AWT Shape时未生成任何点");
             return null;
         }
         
-        return new PolylineShape(points, false); // 字符路径通常不闭合
+        // 计算路径点的坐标范围
+        if (!points.isEmpty()) {
+            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+            double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+            for (Vec2d p : points) {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            }
+            double width = maxX - minX;
+            double height = maxY - minY;
+            
+            if (pointCount < 3) {
+                LOGGER.warn("转换后的路径点太少 ({} 个点)，可能导致显示不正确。尺寸=({} x {})", 
+                    pointCount, String.format("%.2f", width), String.format("%.2f", height));
+            } else if (width < 0.1 || height < 0.1) {
+                LOGGER.warn("转换后的路径尺寸异常: 点数={}, 尺寸=({} x {}), 范围=({},{}) 到 ({},{})", 
+                    pointCount, String.format("%.2f", width), String.format("%.2f", height), 
+                    String.format("%.2f", minX), String.format("%.2f", minY), 
+                    String.format("%.2f", maxX), String.format("%.2f", maxY));
+            } else {
+                LOGGER.debug("成功转换AWT Shape，生成 {} 个路径点，尺寸=({} x {})", 
+                    pointCount, String.format("%.2f", width), String.format("%.2f", height));
+            }
+        }
+        
+        // 字符路径通常不闭合，除非是特殊字符
+        return new PolylineShape(points, false);
     }
 
     /**
@@ -941,6 +1024,7 @@ public class TextShape extends Shape {
         List<com.masterplanner.core.model.Shape> graphics = new ArrayList<>();
         
         if (text == null || text.isEmpty() || textStyle == null) {
+            LOGGER.warn("TextShape.convertToGraphics: 文字或样式为空");
             return graphics;
         }
         
@@ -948,38 +1032,105 @@ public class TextShape extends Shape {
             // 使用缓存的Graphics2D
             Graphics2D g2d = getGraphics2D();
             
-            // 使用GlyphVector获取精确的字符路径
-            GlyphVector glyphVector = g2d.getFont().createGlyphVector(g2d.getFontRenderContext(), text);
-            double currentX = position.x;
-            double currentY = position.y;
-            
-            for (int i = 0; i < glyphVector.getNumGlyphs(); i++) {
-                java.awt.Shape glyphShape = glyphVector.getGlyphOutline(i, (float) currentX, (float) currentY);
-                
-                if (glyphShape != null && !glyphShape.getBounds().isEmpty()) {
-                    // 将AWT Shape转换为我们的PathShape
-                    PolylineShape path = convertAwtShapeToPathShape(glyphShape);
-                    if (path != null) {
-                        // 应用文字样式
-                        ShapeStyle charStyle = new ShapeStyle();
-                        charStyle.setLineStyle((ILineStyle) new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(textStyle.getColor()));
-                        charStyle.setFillStyle((IFillStyle) new FillStyle(textStyle.getColor(), 1.0f));
-                        path.setStyle(charStyle);
-                        
-                        graphics.add(path);
-                    }
-                }
-                
-                currentX += glyphVector.getGlyphMetrics(i).getAdvanceX();
+            // 确保字体已正确设置
+            Font currentFont = g2d.getFont();
+            if (currentFont == null) {
+                LOGGER.error("Graphics2D的字体为null，无法转换文字");
+                return graphics;
             }
             
+            LOGGER.debug("TextShape.convertToGraphics: 字体={}, 大小={}, 文字={}", 
+                currentFont.getFamily(), currentFont.getSize(), text);
+            
+            // 使用GlyphVector获取精确的字符路径
+            GlyphVector glyphVector = currentFont.createGlyphVector(g2d.getFontRenderContext(), text);
+            
+            if (glyphVector == null) {
+                LOGGER.error("无法创建GlyphVector");
+                return graphics;
+            }
+            
+            double currentX = position.x;
+            double currentY = position.y;
+            int glyphCount = glyphVector.getNumGlyphs();
+            
+            LOGGER.debug("TextShape.convertToGraphics: 字符数={}, 位置=({}, {})", 
+                glyphCount, currentX, currentY);
+            
+            for (int i = 0; i < glyphCount; i++) {
+                try {
+                    java.awt.Shape glyphShape = glyphVector.getGlyphOutline(i, (float) currentX, (float) currentY);
+                    
+                    if (glyphShape != null && !glyphShape.getBounds().isEmpty()) {
+                        // 将AWT Shape转换为我们的PathShape
+                        PolylineShape path = convertAwtShapeToPathShape(glyphShape);
+                        if (path != null && !path.getPoints().isEmpty()) {
+                            List<Vec2d> pathPoints = path.getPoints();
+                            int pathPointCount = pathPoints.size();
+                            
+                            // 计算路径点的坐标范围
+                            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+                            double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+                            for (Vec2d p : pathPoints) {
+                                minX = Math.min(minX, p.x);
+                                minY = Math.min(minY, p.y);
+                                maxX = Math.max(maxX, p.x);
+                                maxY = Math.max(maxY, p.y);
+                            }
+                            double width = maxX - minX;
+                            double height = maxY - minY;
+                            
+                            // 应用文字样式
+                            ShapeStyle charStyle = new ShapeStyle();
+                            Color textColor = textStyle.getColor();
+                            if (textColor == null) {
+                                textColor = Color.BLACK;
+                            }
+                            charStyle.setLineStyle((ILineStyle) new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(textColor));
+                            charStyle.setFillStyle((IFillStyle) new FillStyle(textColor, 1.0f));
+                            path.setStyle(charStyle);
+                            
+                            graphics.add(path);
+                            
+                            // 详细日志：显示字符和路径点信息
+                            char ch = text.length() > i ? text.charAt(i) : '?';
+                            if (pathPointCount < 10) {
+                                LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 路径点过少: {} 个点，可能显示不正确", 
+                                    ch, i, pathPointCount);
+                            } else if (width < 0.1 || height < 0.1) {
+                                LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 路径尺寸异常: 点数={}, 尺寸=({} x {}), 范围=({},{}) 到 ({},{})", 
+                                    ch, i, pathPointCount, String.format("%.2f", width), String.format("%.2f", height), 
+                                    String.format("%.2f", minX), String.format("%.2f", minY), 
+                                    String.format("%.2f", maxX), String.format("%.2f", maxY));
+                            } else {
+                                LOGGER.info("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 转换成功: 点数={}, 尺寸=({} x {}), 位置=({},{})", 
+                                    ch, i, pathPointCount, String.format("%.2f", width), String.format("%.2f", height), 
+                                    String.format("%.2f", minX), String.format("%.2f", minY));
+                            }
+                        } else {
+                            LOGGER.warn("TextShape.convertToGraphics: 字符 '{}' (索引 {}) 转换后路径为空", 
+                                text.length() > i ? text.charAt(i) : '?', i);
+                        }
+                    } else {
+                        LOGGER.debug("TextShape.convertToGraphics: 字符 {} 的轮廓为空或边界为空", i);
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("TextShape.convertToGraphics: 转换字符 {} 时出错: {}", i, e.getMessage());
+                }
+                
+                // 移动到下一个字符位置
+                if (i < glyphCount - 1) {
+                    currentX += glyphVector.getGlyphMetrics(i).getAdvanceX();
+                }
+            }
+            
+            LOGGER.info("TextShape.convertToGraphics: 成功转换 {} 个字符为 {} 个图形路径", 
+                glyphCount, graphics.size());
+            
         } catch (Exception e) {
-            // 如果GlyphVector转换失败，创建简单的矩形作为回退
-            RectangleShape textRect = new RectangleShape(position, width, height, 0.0);
-            ShapeStyle rectStyle = new ShapeStyle();
-            rectStyle.setLineStyle((ILineStyle) new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(textStyle.getColor()));
-            textRect.setStyle(rectStyle);
-            graphics.add(textRect);
+            LOGGER.error("TextShape.convertToGraphics: 转换失败，文字='{}', 错误: {}", text, e.getMessage(), e);
+            // 不再创建矩形作为回退，返回空列表让调用者知道转换失败
+            // 这样可以避免显示错误的方框
         }
         
         return graphics;

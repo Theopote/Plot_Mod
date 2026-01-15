@@ -312,4 +312,55 @@ public class TextDialog extends JDialog {
         }
         return textStyle;
     }
+
+    /**
+     * 设置初始字体大小
+     * @param fontSize 初始字体大小
+     */
+    public void setInitialFontSize(float fontSize) {
+        if (fontSizeSpinner != null) {
+            fontSizeSpinner.setValue(Math.max(TextStyle.MIN_FONT_SIZE, 
+                Math.min(TextStyle.MAX_FONT_SIZE, fontSize)));
+        }
+    }
+
+    /**
+     * 设置初始粗体状态
+     * @param bold 是否粗体
+     */
+    public void setInitialBold(boolean bold) {
+        if (boldButton != null) {
+            boldButton.setSelected(bold);
+        }
+    }
+
+    /**
+     * 设置初始斜体状态
+     * @param italic 是否斜体
+     */
+    public void setInitialItalic(boolean italic) {
+        if (italicButton != null) {
+            italicButton.setSelected(italic);
+        }
+    }
+
+    /**
+     * 设置初始水平对齐
+     * @param hAlign 水平对齐方式
+     */
+    public void setInitialHorizontalAlignment(TextAlignment.Horizontal hAlign) {
+        if (hAlignCombo != null && hAlign != null) {
+            hAlignCombo.setSelectedItem(hAlign);
+        }
+    }
+
+    /**
+     * 设置初始垂直对齐
+     * @param vAlign 垂直对齐方式
+     */
+    public void setInitialVerticalAlignment(TextAlignment.Vertical vAlign) {
+        if (vAlignCombo != null && vAlign != null) {
+            vAlignCombo.setSelectedItem(vAlign);
+        }
+    }
 } 

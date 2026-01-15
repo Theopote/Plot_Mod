@@ -3,6 +3,7 @@ package com.masterplanner.ui.tools.impl.modify;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.api.model.ICanvas;
 import com.masterplanner.api.model.ILayer;
+import com.masterplanner.api.graphics.IShapeStyle;
 import com.masterplanner.core.geometry.shapes.TextShape;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.log.LogManager;
@@ -500,6 +501,12 @@ public class TextTool extends BaseTool {
                 if (!GraphicsEnvironment.isHeadless()) {
                     Frame owner = getParentFrame();
                     TextDialog dialog = new TextDialog(owner);
+                    // 设置对话框的初始值为当前配置
+                    dialog.setInitialFontSize(configFontSize);
+                    dialog.setInitialBold(configBold);
+                    dialog.setInitialItalic(configItalic);
+                    dialog.setInitialHorizontalAlignment(configHorizontalAlignment);
+                    dialog.setInitialVerticalAlignment(configVerticalAlignment);
                     dialog.setVisible(true);
 
                     if (dialog.isConfirmed()) {
@@ -542,7 +549,11 @@ public class TextTool extends BaseTool {
                         point,
                         "",
                         result -> {
-                            String text = result != null ? result.text : null;
+                            if (result == null) {
+                                resetToIdle();
+                                return;
+                            }
+                            String text = result.text;
                             if (text == null || text.isEmpty()) {
                                 resetToIdle();
                                 return;
@@ -631,6 +642,7 @@ public class TextTool extends BaseTool {
 
     /**
      * 完成放置并将文字作为图形提交到当前图层
+     * 注意：文字会自动转换为线图形
      */
     private void finalizePlacement(Vec2d point) {
         if (previewText == null) {
@@ -907,6 +919,79 @@ public class TextTool extends BaseTool {
                 LogManager.getInstance().info("TextTool: 文字已转换为 {} 个图形", graphics.size());
                 canvas.refresh();
             }
+        }
+    }
+
+    /**
+     * 重写commit方法，使文字在提交到画布时自动转换为线图形
+     */
+    @Override
+    public void commit() {
+        // 检查预览图形是否是TextShape
+        if (previewShape instanceof TextShape textShape) {
+            // 将文字转换为图形路径
+            List<com.masterplanner.core.model.Shape> graphics = textShape.convertToGraphics();
+            
+            if (!graphics.isEmpty()) {
+                ILayer activeLayer = appState.getActiveLayer();
+                
+                if (activeLayer == null) {
+                    LogManager.getInstance().error("没有活动图层，无法提交图形");
+                    return;
+                }
+                
+                if (activeLayer.isLocked()) {
+                    LogManager.getInstance().warn("活动图层 '{}' 已锁定，无法提交图形", activeLayer.getName());
+                    return;
+                }
+                
+                try {
+                    LogManager.getInstance().debug("TextTool: 将文字转换为 {} 个图形并提交到活动图层 '{}'", 
+                        graphics.size(), activeLayer.getName());
+                    
+                    // 为每个转换后的图形设置样式
+                    IShapeStyle defaultStyle = appState.getCurrentShapeStyle();
+                    
+                    // 添加转换后的图形到图层
+                    for (com.masterplanner.core.model.Shape graphic : graphics) {
+                        // 确保图形有样式
+                        if (graphic.getStyle() == null) {
+                            if (defaultStyle != null) {
+                                graphic.setStyle(defaultStyle.clone());
+                            } else {
+                                // 使用文字的颜色创建默认样式
+                                com.masterplanner.core.graphics.style.ShapeStyle shapeStyle = 
+                                    new com.masterplanner.core.graphics.style.ShapeStyle();
+                                if (textShape.getTextStyle() != null && textShape.getTextStyle().getColor() != null) {
+                                    shapeStyle.setStrokeColor(textShape.getTextStyle().getColor());
+                                } else {
+                                    shapeStyle.setStrokeColor(java.awt.Color.BLACK);
+                                }
+                                shapeStyle.setStrokeWidth(1.0f);
+                                graphic.setStyle(shapeStyle);
+                            }
+                        }
+                        
+                        // 通过AppState添加图形，确保完整的业务逻辑
+                        appState.addShape(graphic);
+                    }
+                    
+                    LogManager.getInstance().info("TextTool: 文字已转换为 {} 个图形并添加到画布", graphics.size());
+                    
+                    // 清理预览状态
+                    clearPreview();
+                    markDirty();
+                    
+                } catch (Exception e) {
+                    LogManager.getInstance().error("TextTool: 提交转换后的图形失败", e);
+                }
+            } else {
+                LogManager.getInstance().warn("TextTool: 文字转换后没有生成图形");
+                clearPreview();
+            }
+        } else {
+            // 如果不是TextShape，使用父类的默认行为
+            super.commit();
         }
     }
 

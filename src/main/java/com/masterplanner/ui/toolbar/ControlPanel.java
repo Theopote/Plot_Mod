@@ -231,10 +231,9 @@ public class ControlPanel implements UIComponent {
         // 计算行数，用于垂直居中
         int totalRows = rows.size();
         float totalHeight = totalRows * buttonHeight + (totalRows - 1) * UILayout.Toolbar.ITEM_SPACING;
-        float startY = (windowHeight - totalHeight) / 2.0f;
-        
+
         // 渲染每一行
-        float currentY = startY;
+        float currentY = (windowHeight - totalHeight) / 2.0f;
         for (List<Integer> row : rows) {
             ImGui.setCursorPos(0, currentY);
             
