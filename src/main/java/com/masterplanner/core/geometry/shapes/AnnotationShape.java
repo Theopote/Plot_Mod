@@ -195,8 +195,53 @@ public class AnnotationShape extends Shape {
         context.drawLine(transformedVertex, transformedP1, lineColor);
         context.drawLine(transformedVertex, transformedP2, lineColor);
         
-        // 绘制角度弧线（简化版：绘制一条短弧）
-        // TODO: 实现角度弧线绘制
+        // 计算从顶点到两个点的角度（弧度）
+        double angle1 = Math.atan2(transformedP1.y - transformedVertex.y, transformedP1.x - transformedVertex.x);
+        double angle2 = Math.atan2(transformedP2.y - transformedVertex.y, transformedP2.x - transformedVertex.x);
+        
+        // 计算角度差，确保绘制较小的角度
+        double angleDiff = angle2 - angle1;
+        // 规范化角度差到 [-π, π] 范围
+        while (angleDiff > Math.PI) {
+            angleDiff -= 2 * Math.PI;
+        }
+        while (angleDiff < -Math.PI) {
+            angleDiff += 2 * Math.PI;
+        }
+        
+        // 如果角度差为负，交换角度顺序以确保从angle1到angle2是逆时针方向
+        if (angleDiff < 0) {
+            double temp = angle1;
+            angle1 = angle2;
+            angle2 = temp;
+            angleDiff = -angleDiff;
+        }
+        
+        // 如果角度差大于π，绘制补角（较小的角度）
+        if (angleDiff > Math.PI) {
+            // 交换角度顺序以绘制补角
+            double temp = angle1;
+            angle1 = angle2;
+            angle2 = temp;
+            // 重新规范化角度差
+            angleDiff = angle2 - angle1;
+            while (angleDiff < 0) {
+                angleDiff += 2 * Math.PI;
+            }
+        }
+        
+        // 计算合适的弧线半径（取两条线段长度的较小值的30%）
+        double dist1 = transformedVertex.distance(transformedP1);
+        double dist2 = transformedVertex.distance(transformedP2);
+        double minDist = Math.min(dist1, dist2);
+        double arcRadius = minDist * 0.3; // 使用30%作为弧线半径
+        
+        // 确保弧线半径不会太小或太大
+        arcRadius = Math.max(arcRadius, 10.0); // 最小半径10像素
+        arcRadius = Math.min(arcRadius, minDist * 0.5); // 最大半径不超过较短线段的一半
+        
+        // 绘制角度弧线（从angle1到angle2）
+        context.drawArc(transformedVertex, arcRadius, angle1, angle2, lineColor, 16);
     }
     
     /**

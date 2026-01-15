@@ -21,7 +21,7 @@ import java.util.List;
 public class AnnotationStrategy extends BaseSelectionStrategy implements IModifyStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnnotationStrategy.class);
     
-    private AnnotationTool.AnnotationMode currentMode = AnnotationTool.AnnotationMode.DISTANCE;
+    private AnnotationTool.AnnotationMode currentMode;
     
     // 距离标注状态
     private Vec2d firstPoint = null;
@@ -114,23 +114,13 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                     return ModifyResult.IGNORED;
                 }
             case RADIUS:
-                if (selected.size() >= 1) {
-                    createRadiusAnnotation(selected, context);
-                    context.setStatusMessage("半径标注已创建");
-                    return ModifyResult.COMPLETE;
-                } else {
-                    context.setStatusMessage("请选择圆形、半圆或圆弧图形");
-                    return ModifyResult.IGNORED;
-                }
+                createRadiusAnnotation(selected, context);
+                context.setStatusMessage("半径标注已创建");
+                return ModifyResult.COMPLETE;
             case AREA:
-                if (selected.size() >= 1) {
-                    createAreaAnnotation(selected, context);
-                    context.setStatusMessage("面积标注已创建");
-                    return ModifyResult.COMPLETE;
-                } else {
-                    context.setStatusMessage("请选择闭合图形（多边形、矩形等）");
-                    return ModifyResult.IGNORED;
-                }
+                createAreaAnnotation(selected, context);
+                context.setStatusMessage("面积标注已创建");
+                return ModifyResult.COMPLETE;
             default:
                 return ModifyResult.IGNORED;
         }
@@ -218,15 +208,12 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         Shape shape1 = selected.get(0);
         Shape shape2 = selected.get(1);
         
-        if (!(shape1 instanceof LineShape) || !(shape2 instanceof LineShape)) {
+        if (!(shape1 instanceof LineShape line1) || !(shape2 instanceof LineShape line2)) {
             LOGGER.warn("角度标注需要两条直线，当前选中: {}, {}", 
                 shape1.getClass().getSimpleName(), shape2.getClass().getSimpleName());
             return;
         }
-        
-        LineShape line1 = (LineShape) shape1;
-        LineShape line2 = (LineShape) shape2;
-        
+
         // 计算两条直线的夹角
         String angle = calculateAngle(line1, line2);
         LOGGER.info("创建角度标注: {}", angle);
@@ -292,17 +279,14 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         double u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
         
         // 检查交点是否在两条线段上
-        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-            return new Vec2d(x1 + t * (x2 - x1), y1 + t * (y2 - y1));
-        }
-        
+
         // 交点不在线段上，返回延长线的交点
         return new Vec2d(x1 + t * (x2 - x1), y1 + t * (y2 - y1));
     }
     
     private void createRadiusAnnotation(List<Shape> selected, ModifyToolContext context) {
         for (Shape shape : selected) {
-            AnnotationShape annotationShape = null;
+            AnnotationShape annotationShape;
             
             if (shape instanceof CircleShape circle) {
                 String radius = calculateRadius(circle);
@@ -321,23 +305,21 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             }
             
             // 添加到画布
-            if (annotationShape != null) {
-                try {
-                    com.masterplanner.api.state.IAppState appState = context.getAppState();
-                    if (appState != null) {
-                        com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                        if (activeLayer != null) {
-                            activeLayer.addShape(annotationShape);
-                            LOGGER.debug("半径标注图形已添加到画布");
-                        } else {
-                            LOGGER.error("无法添加标注图形：没有活动图层");
-                        }
+            try {
+                com.masterplanner.api.state.IAppState appState = context.getAppState();
+                if (appState != null) {
+                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+                    if (activeLayer != null) {
+                        activeLayer.addShape(annotationShape);
+                        LOGGER.debug("半径标注图形已添加到画布");
                     } else {
-                        LOGGER.error("无法添加标注图形：AppState为null");
+                        LOGGER.error("无法添加标注图形：没有活动图层");
                     }
-                } catch (Exception e) {
-                    LOGGER.error("添加半径标注图形失败: {}", e.getMessage(), e);
+                } else {
+                    LOGGER.error("无法添加标注图形：AppState为null");
                 }
+            } catch (Exception e) {
+                LOGGER.error("添加半径标注图形失败: {}", e.getMessage(), e);
             }
         }
     }
@@ -399,8 +381,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 }
                 // 移除最后一个点（如果是闭合的，最后一个点与第一个点相同）
                 List<Vec2d> vertices = new java.util.ArrayList<>(points);
-                if (vertices.size() > 0 && vertices.get(0).equals(vertices.get(vertices.size() - 1))) {
-                    vertices.remove(vertices.size() - 1);
+                if (!vertices.isEmpty() && vertices.getFirst().equals(vertices.getLast())) {
+                    vertices.removeLast();
                 }
                 if (vertices.size() < 3) {
                     return -1;
@@ -416,8 +398,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 }
                 // 移除最后一个点（如果是闭合的，最后一个点与第一个点相同）
                 List<Vec2d> vertices = new java.util.ArrayList<>(points);
-                if (vertices.size() > 0 && vertices.get(0).equals(vertices.get(vertices.size() - 1))) {
-                    vertices.remove(vertices.size() - 1);
+                if (!vertices.isEmpty() && vertices.getFirst().equals(vertices.getLast())) {
+                    vertices.removeLast();
                 }
                 if (vertices.size() < 3) {
                     return -1;
@@ -579,22 +561,21 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     
     @Override
     public int getMinimumSelectionCount() {
-        switch (currentMode) {
-            case ANGLE: return 2;
-            case RADIUS: return 1;
-            case AREA: return 1;
-            default: return 0;
-        }
+        return switch (currentMode) {
+            case ANGLE -> 2;
+            case RADIUS, AREA -> 1;
+            default -> 0;
+        };
     }
     
     @Override
     public int getMaximumSelectionCount() {
-        switch (currentMode) {
-            case ANGLE: return 2;
-            case RADIUS: return -1; // 不限制
-            case AREA: return -1;
-            default: return 0;
-        }
+        return switch (currentMode) {
+            case ANGLE -> 2;
+            case RADIUS -> -1; // 不限制
+            case AREA -> -1;
+            default -> 0;
+        };
     }
     
     @Override
