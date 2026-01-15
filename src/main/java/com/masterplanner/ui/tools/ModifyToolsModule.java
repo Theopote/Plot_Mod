@@ -170,9 +170,8 @@ public final class ModifyToolsModule {
             tools.add(new FillTool((AppState) appState, snapManager)); // 填充工具（依赖注入）
             tools.add(new TransformTool((AppState) appState, snapManager, eventBus)); // 变换工具（依赖注入）
             
-            // 组操作工具
-            tools.add(new GroupTool(appState, snapManager)); // 成组工具（依赖注入）
-            tools.add(new UngroupTool(appState, snapManager)); // 解组工具（依赖注入）
+            // 标注工具
+            tools.add(new AnnotationTool(appState, snapManager)); // 标注工具（依赖注入）
             
             LOGGER.debug("成功创建 {} 个修改工具", tools.size());
             

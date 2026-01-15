@@ -526,8 +526,7 @@ public class ToolPanel implements UIComponent {
         // 第五组：标注工具
         List<Tool> annotationTools = Arrays.asList(
                 new Tool(ToolPanelIcons.TEXT, "tool.masterplanner.text", "text"),
-                new Tool(ToolPanelIcons.GROUP, "tool.masterplanner.group", "group"),
-                new Tool(ToolPanelIcons.UNGROUP, "tool.masterplanner.ungroup", "ungroup")
+                new Tool(ToolPanelIcons.ANNOTATION, "tool.masterplanner.annotation", "annotation")
         );
         groups.add(new ToolGroup("group.masterplanner.annotation_tools", annotationTools, true));
         
