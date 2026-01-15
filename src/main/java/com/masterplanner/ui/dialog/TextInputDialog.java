@@ -47,7 +47,8 @@ public class TextInputDialog {
     private Runnable pendingOnCancel;
 
     // 样式参数（跟随 TextStyle 的默认值与范围）
-    private float fontSize = TextStyle.DEFAULT_FONT_SIZE;
+    // 注意：字体大小滑动条范围为 100~200，所以初始值设为 100.0f
+    private float fontSize = 100.0f;
     private boolean bold = false;
     private boolean italic = false;
     private TextAlignment.Horizontal hAlign = TextAlignment.Horizontal.LEFT;
