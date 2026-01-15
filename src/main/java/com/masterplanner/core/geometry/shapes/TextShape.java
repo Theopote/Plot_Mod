@@ -275,10 +275,33 @@ public class TextShape extends Shape {
         
         Font font = new Font(fontFamily, fontStyle, fontSizeInt);
         
-        // 验证字体是否可用，如果不可用则使用默认字体
-        if (!font.getFamily().equals(fontFamily) && !font.canDisplay('A')) {
-            LOGGER.warn("字体 '{}' 不可用，使用默认字体", fontFamily);
-            font = new Font(Font.SANS_SERIF, fontStyle, fontSizeInt);
+        // 验证字体是否可用，并检查是否支持中文字符
+        // 如果字体不可用或不支持中文，使用系统默认字体
+        boolean fontValid = font.getFamily().equals(fontFamily) || font.canDisplay('A');
+        boolean supportsChinese = font.canDisplay('中'); // 检查是否支持中文字符
+        
+        if (!fontValid || !supportsChinese) {
+            // 尝试使用系统默认字体（通常支持中文）
+            Font systemFont = new Font(Font.SANS_SERIF, fontStyle, fontSizeInt);
+            if (systemFont.canDisplay('中')) {
+                font = systemFont;
+                if (!fontValid) {
+                    LOGGER.warn("字体 '{}' 不可用，使用系统默认字体", fontFamily);
+                } else {
+                    LOGGER.debug("字体 '{}' 不支持中文，使用系统默认字体", fontFamily);
+                }
+            } else {
+                // 如果SANS_SERIF也不支持，尝试DIALOG
+                Font dialogFont = new Font(Font.DIALOG, fontStyle, fontSizeInt);
+                if (dialogFont.canDisplay('中')) {
+                    font = dialogFont;
+                    LOGGER.debug("使用DIALOG字体以支持中文");
+                } else {
+                    // 最后回退到SANS_SERIF
+                    font = systemFont;
+                    LOGGER.warn("无法找到支持中文的字体，使用SANS_SERIF");
+                }
+            }
         }
         
         g2d.setFont(font);

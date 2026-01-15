@@ -85,11 +85,14 @@ public class TextInputDialog {
 
         // 居中并设置窗口属性
         float width = 600.0f;
-        ImGui.setNextWindowSize(width, 0, ImGuiCond.Appearing);
+        float height = 0.0f; // 0表示自动计算高度
+        ImGui.setNextWindowSize(width, height, ImGuiCond.Appearing);
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
 
-        int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize;
+        // 移除AlwaysAutoResize标志，避免窗口自动变宽
+        // 使用固定宽度，高度自动计算
+        int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings;
 
         if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
             // 主题样式
@@ -114,14 +117,18 @@ public class TextInputDialog {
                 ImGui.separator();
 
                 // 文本输入区域（带边框的子区域）
+                // 使用固定宽度，避免子窗口导致父窗口变宽
                 float inputHeight = 260.0f;
-                ImGui.beginChild("##text_input_child", width - 20, inputHeight, true, ImGuiWindowFlags.NoScrollbar);
+                float childWidth = width - 20.0f; // 固定宽度，减去左右padding
+                ImGui.beginChild("##text_input_child", childWidth, inputHeight, true, ImGuiWindowFlags.NoScrollbar);
                 if (ImGui.isWindowAppearing()) {
                     ImGui.setKeyboardFocusHere();
                 }
                 boolean multilineOk = true;
                 try {
-                    ImGui.inputTextMultiline("##text_input", textBuffer, width - 40, inputHeight - 20,
+                    // 使用固定宽度，避免输入框导致窗口变宽
+                    float inputWidth = childWidth - 20.0f; // 减去子窗口的左右padding
+                    ImGui.inputTextMultiline("##text_input", textBuffer, inputWidth, inputHeight - 20,
                             ImGuiInputTextFlags.AllowTabInput);
                 } catch (Throwable t) {
                     multilineOk = false;
@@ -166,12 +173,14 @@ public class TextInputDialog {
 
     private void renderStyleSection(float totalWidth) {
         float labelColWidth = 90.0f;
-        float valueColWidth = totalWidth - labelColWidth - 40.0f;
+        // 确保value列宽度不会导致表格变宽
+        float valueColWidth = Math.max(100.0f, totalWidth - labelColWidth - 40.0f);
 
-        int tableFlags = imgui.flag.ImGuiTableFlags.BordersInnerV | imgui.flag.ImGuiTableFlags.SizingStretchProp;
+        // 使用固定列宽，避免表格自动扩展
+        int tableFlags = imgui.flag.ImGuiTableFlags.BordersInnerV | imgui.flag.ImGuiTableFlags.SizingFixedFit;
         if (ImGui.beginTable("##text_style_table", 2, tableFlags)) {
             ImGui.tableSetupColumn("label", imgui.flag.ImGuiTableColumnFlags.WidthFixed, labelColWidth);
-            ImGui.tableSetupColumn("value", imgui.flag.ImGuiTableColumnFlags.WidthStretch, valueColWidth);
+            ImGui.tableSetupColumn("value", imgui.flag.ImGuiTableColumnFlags.WidthFixed, valueColWidth);
 
             // 字体大小
             ImGui.tableNextRow();
