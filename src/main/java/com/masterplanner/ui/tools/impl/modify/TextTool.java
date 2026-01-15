@@ -547,19 +547,19 @@ public class TextTool extends BaseTool {
                                 resetToIdle();
                                 return;
                             }
-                            String text = result.text;
+                            String text = result.text();
                             if (text == null || text.isEmpty()) {
                                 resetToIdle();
                                 return;
                             }
                             pendingText = text;
                             TextStyle finalStyle = new TextStyle.Builder()
-                                    .fontSize(result.fontSize)
-                                    .bold(result.bold)
-                                    .italic(result.italic)
-                                    .horizontalAlignment(result.hAlign)
-                                    .verticalAlignment(result.vAlign)
-                                    .lineHeight(result.lineHeight)
+                                    .fontSize(result.fontSize())
+                                    .bold(result.bold())
+                                    .italic(result.italic())
+                                    .horizontalAlignment(result.hAlign())
+                                    .verticalAlignment(result.vAlign())
+                                    .lineHeight(result.lineHeight())
                                     .color(getCurrentLayerColor())
                                     .build();
                             TextShape newText = new TextShape(point, pendingText);
