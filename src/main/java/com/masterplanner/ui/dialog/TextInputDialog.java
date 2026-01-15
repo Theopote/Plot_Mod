@@ -1,6 +1,5 @@
 package com.masterplanner.ui.dialog;
 
-import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.graphics.style.TextAlignment;
 import com.masterplanner.core.graphics.style.TextStyle;
 import com.masterplanner.ui.theme.ThemeManager;
@@ -57,7 +56,7 @@ public class TextInputDialog {
 
     private TextInputDialog() {}
 
-    public void open(Vec2d point, String presetText, Consumer<TextInputResult> onConfirm, Runnable onCancel) {
+    public void open(String presetText, Consumer<TextInputResult> onConfirm, Runnable onCancel) {
         // 渲染线程可直接打开
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
@@ -69,7 +68,7 @@ public class TextInputDialog {
     /**
      * 在任意线程请求打开（将在下一帧渲染时真正打开）
      */
-    public void scheduleOpen(Vec2d point, String presetText, Consumer<TextInputResult> onConfirm, Runnable onCancel) {
+    public void scheduleOpen(String presetText, Consumer<TextInputResult> onConfirm, Runnable onCancel) {
         this.pendingPreset = presetText != null ? presetText : "";
         this.pendingOnConfirm = onConfirm;
         this.pendingOnCancel = onCancel;
@@ -97,18 +96,15 @@ public class TextInputDialog {
         float width = 400.0f;
         // 计算窗口高度：标题 + 输入框 + 样式标题 + 表格(4行) + 按钮 + 间距
         // 使用更准确的估算值，确保所有内容都能显示
-        float textLineHeight = ImGui.getTextLineHeight();
+        float styleTitleHeight = ImGui.getTextLineHeight();
         float framePadding = 4.0f; // 与工具属性面板一致
-        float estimatedFrameHeight = textLineHeight + framePadding * 2; // 估算控件高度
-        
-        float titleHeight = textLineHeight;
+        float buttonHeight = styleTitleHeight + framePadding * 2; // 估算控件高度
+
         float inputHeight = 80.0f; // 输入框高度
-        float styleTitleHeight = textLineHeight;
-        float tableRowHeight = estimatedFrameHeight; // 每行高度
-        float tableHeight = tableRowHeight * 4; // 4行：字体大小、行高、字形、对齐
-        float buttonHeight = estimatedFrameHeight;
+        // 每行高度
+        float tableHeight = buttonHeight * 4; // 4行：字体大小、行高、字形、对齐
         // 计算总内容高度，增加一些缓冲空间以确保所有内容都能显示
-        float totalContentHeight = titleHeight + VERTICAL_SPACING + inputHeight + VERTICAL_SPACING 
+        float totalContentHeight = styleTitleHeight + VERTICAL_SPACING + inputHeight + VERTICAL_SPACING
                 + styleTitleHeight + VERTICAL_SPACING + tableHeight + VERTICAL_SPACING + buttonHeight;
         float height = totalContentHeight + WINDOW_PADDING * 2; // 加上上下边距，不需要滚动条
         
@@ -142,13 +138,13 @@ public class TextInputDialog {
 
             try {
                 // 计算内容区域宽度（统一右边界）
-                float contentWidth = width - WINDOW_PADDING * 2;
+                float inputWidth = width - WINDOW_PADDING * 2;
                 
                 // 标题说明（统一左对齐，使用统一的左边距）
                 ImGui.text("请输入文字内容（可多行）");
 
                 // 文本输入区域（宽度为内容宽度的一半）
-                float inputWidth = contentWidth; // 输入框宽度为内容宽度的一半
+                // 输入框宽度为内容宽度的一半
                 // inputHeight 已在上面定义（87.0f，约为原来的1/3）
                 
                 if (ImGui.isWindowAppearing()) {
@@ -172,14 +168,14 @@ public class TextInputDialog {
 
 
                 // 样式区域（使用统一的内容宽度，确保右边界对齐）
-                renderStyleSection(contentWidth, theme);
+                renderStyleSection(inputWidth, theme);
 
 
                 // 按钮区域（右边界与内容区域对齐）
                 // 按钮应该从内容区域的右边界开始向左排列
                 float totalButtonsWidth = BUTTON_WIDTH * 2 + BUTTON_SPACING;
                 // 计算按钮起始X位置：窗口左边界 + 内容宽度 - 按钮总宽度
-                float buttonStartX = WINDOW_PADDING + contentWidth - totalButtonsWidth;
+                float buttonStartX = WINDOW_PADDING + inputWidth - totalButtonsWidth;
                 float currentY = ImGui.getCursorPosY();
                 ImGui.setCursorPos(buttonStartX, currentY);
                 if (ImGui.button("取消", BUTTON_WIDTH, 0)) {

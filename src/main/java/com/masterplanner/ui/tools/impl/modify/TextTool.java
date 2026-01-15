@@ -540,7 +540,6 @@ public class TextTool extends BaseTool {
             // 回退：使用 ImGui 对话框（无 Swing 依赖）
             try {
                 com.masterplanner.ui.dialog.TextInputDialog.getInstance().scheduleOpen(
-                        point,
                         "",
                         result -> {
                             if (result == null) {
