@@ -954,12 +954,7 @@ public class TextShape extends Shape {
         while (!pathIterator.isDone()) {
             int segmentType = pathIterator.currentSegment(coords);
             switch (segmentType) {
-                case PathIterator.SEG_MOVETO:
-                    currentPoint = new Vec2d(coords[0], coords[1]);
-                    points.add(currentPoint);
-                    pointCount++;
-                    break;
-                case PathIterator.SEG_LINETO:
+                case PathIterator.SEG_MOVETO, PathIterator.SEG_LINETO:
                     currentPoint = new Vec2d(coords[0], coords[1]);
                     points.add(currentPoint);
                     pointCount++;
@@ -970,12 +965,10 @@ public class TextShape extends Shape {
                     if (!points.isEmpty()) {
                         Vec2d firstPoint = points.getFirst();
                         // 只有当当前点与第一个点距离较远时才添加闭合点
-                        if (currentPoint != null) {
-                            double distance = currentPoint.distance(firstPoint);
-                            if (distance > 0.1) { // 如果距离大于0.1，添加闭合点
-                                points.add(new Vec2d(firstPoint.x, firstPoint.y));
-                                pointCount++;
-                            }
+                        double distance = currentPoint.distance(firstPoint);
+                        if (distance > 0.1) { // 如果距离大于0.1，添加闭合点
+                            points.add(new Vec2d(firstPoint.x, firstPoint.y));
+                            pointCount++;
                         }
                     }
                     break;
@@ -1008,32 +1001,30 @@ public class TextShape extends Shape {
         }
         
         // 计算路径点的坐标范围
-        if (!points.isEmpty()) {
-            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
-            double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-            for (Vec2d p : points) {
-                minX = Math.min(minX, p.x);
-                minY = Math.min(minY, p.y);
-                maxX = Math.max(maxX, p.x);
-                maxY = Math.max(maxY, p.y);
-            }
-            double width = maxX - minX;
-            double height = maxY - minY;
-            
-            if (pointCount < 3) {
-                LOGGER.warn("转换后的路径点太少 ({} 个点)，可能导致显示不正确。尺寸=({} x {})", 
-                    pointCount, String.format("%.2f", width), String.format("%.2f", height));
-            } else if (width < 0.1 || height < 0.1) {
-                LOGGER.warn("转换后的路径尺寸异常: 点数={}, 尺寸=({} x {}), 范围=({},{}) 到 ({},{})", 
-                    pointCount, String.format("%.2f", width), String.format("%.2f", height), 
-                    String.format("%.2f", minX), String.format("%.2f", minY), 
-                    String.format("%.2f", maxX), String.format("%.2f", maxY));
-            } else {
-                LOGGER.debug("成功转换AWT Shape，生成 {} 个路径点，尺寸=({} x {})", 
-                    pointCount, String.format("%.2f", width), String.format("%.2f", height));
-            }
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+        for (Vec2d p : points) {
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x);
+            maxY = Math.max(maxY, p.y);
         }
-        
+        double width = maxX - minX;
+        double height = maxY - minY;
+
+        if (pointCount < 3) {
+            LOGGER.warn("转换后的路径点太少 ({} 个点)，可能导致显示不正确。尺寸=({} x {})",
+                pointCount, String.format("%.2f", width), String.format("%.2f", height));
+        } else if (width < 0.1 || height < 0.1) {
+            LOGGER.warn("转换后的路径尺寸异常: 点数={}, 尺寸=({} x {}), 范围=({},{}) 到 ({},{})",
+                pointCount, String.format("%.2f", width), String.format("%.2f", height),
+                String.format("%.2f", minX), String.format("%.2f", minY),
+                String.format("%.2f", maxX), String.format("%.2f", maxY));
+        } else {
+            LOGGER.debug("成功转换AWT Shape，生成 {} 个路径点，尺寸=({} x {})",
+                pointCount, String.format("%.2f", width), String.format("%.2f", height));
+        }
+
         // 字符路径通常不闭合，除非是特殊字符
         return new PolylineShape(points, false);
     }

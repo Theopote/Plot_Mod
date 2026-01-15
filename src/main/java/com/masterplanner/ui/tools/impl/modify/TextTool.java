@@ -6,6 +6,7 @@ import com.masterplanner.api.model.ILayer;
 import com.masterplanner.api.graphics.IShapeStyle;
 import com.masterplanner.core.geometry.shapes.TextShape;
 import com.masterplanner.core.graphics.DrawContext;
+import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.log.LogManager;
 import com.masterplanner.core.tool.BaseTool;
 import com.masterplanner.ui.component.Icons;
@@ -15,6 +16,7 @@ import com.masterplanner.ui.dialog.TextDialog;
 import com.masterplanner.infrastructure.event.EventListener;
 import com.masterplanner.infrastructure.event.base.Event;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -499,15 +501,7 @@ public class TextTool extends BaseTool {
             try {
                 // 优先尝试 Swing 对话框
                 if (!GraphicsEnvironment.isHeadless()) {
-                    Frame owner = getParentFrame();
-                    TextDialog dialog = new TextDialog(owner);
-                    // 设置对话框的初始值为当前配置
-                    dialog.setInitialFontSize(configFontSize);
-                    dialog.setInitialBold(configBold);
-                    dialog.setInitialItalic(configItalic);
-                    dialog.setInitialHorizontalAlignment(configHorizontalAlignment);
-                    dialog.setInitialVerticalAlignment(configVerticalAlignment);
-                    dialog.setVisible(true);
+                    TextDialog dialog = getTextDialog();
 
                     if (dialog.isConfirmed()) {
                         pendingText = dialog.getInputText();
@@ -583,6 +577,19 @@ public class TextTool extends BaseTool {
                 useDefaultText(point);
             }
         });
+    }
+
+    private @NotNull TextDialog getTextDialog() {
+        Frame owner = getParentFrame();
+        TextDialog dialog = new TextDialog(owner);
+        // 设置对话框的初始值为当前配置
+        dialog.setInitialFontSize(configFontSize);
+        dialog.setInitialBold(configBold);
+        dialog.setInitialItalic(configItalic);
+        dialog.setInitialHorizontalAlignment(configHorizontalAlignment);
+        dialog.setInitialVerticalAlignment(configVerticalAlignment);
+        dialog.setVisible(true);
+        return dialog;
     }
 
     /**
@@ -960,14 +967,7 @@ public class TextTool extends BaseTool {
                                 graphic.setStyle(defaultStyle.clone());
                             } else {
                                 // 使用文字的颜色创建默认样式
-                                com.masterplanner.core.graphics.style.ShapeStyle shapeStyle = 
-                                    new com.masterplanner.core.graphics.style.ShapeStyle();
-                                if (textShape.getTextStyle() != null && textShape.getTextStyle().getColor() != null) {
-                                    shapeStyle.setStrokeColor(textShape.getTextStyle().getColor());
-                                } else {
-                                    shapeStyle.setStrokeColor(java.awt.Color.BLACK);
-                                }
-                                shapeStyle.setStrokeWidth(1.0f);
+                                ShapeStyle shapeStyle = getShapeStyle(textShape);
                                 graphic.setStyle(shapeStyle);
                             }
                         }
@@ -993,6 +993,18 @@ public class TextTool extends BaseTool {
             // 如果不是TextShape，使用父类的默认行为
             super.commit();
         }
+    }
+
+    private static @NotNull ShapeStyle getShapeStyle(TextShape textShape) {
+        ShapeStyle shapeStyle =
+            new ShapeStyle();
+        if (textShape.getTextStyle() != null && textShape.getTextStyle().getColor() != null) {
+            shapeStyle.setStrokeColor(textShape.getTextStyle().getColor());
+        } else {
+            shapeStyle.setStrokeColor(Color.BLACK);
+        }
+        shapeStyle.setStrokeWidth(1.0f);
+        return shapeStyle;
     }
 
     @Override
