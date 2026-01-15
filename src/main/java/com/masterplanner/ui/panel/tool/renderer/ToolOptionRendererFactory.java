@@ -76,6 +76,7 @@ public class ToolOptionRendererFactory {
                 case "extend" -> new ExtendToolOptionRenderer();
                 case "break" -> new BreakToolOptionRenderer();
                 case "text" -> createTextToolOptionRenderer(tool);
+                case "annotation" -> new AnnotationToolOptionRenderer();
     
                 default -> null;
             };

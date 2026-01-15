@@ -42,6 +42,7 @@
     "tool.masterplanner.chamfer": "Chamfer",
     "tool.masterplanner.stretch": "Stretch",
     "tool.masterplanner.text": "Text",
+    "tool.masterplanner.annotation": "Annotation",
     "tool.masterplanner.semicircle": "Semicircle",
     "tool.masterplanner.arc": "Arc",
     "tool.masterplanner.freedraw": "Free Draw",

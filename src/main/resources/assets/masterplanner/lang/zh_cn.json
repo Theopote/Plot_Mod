@@ -40,6 +40,7 @@
   "tool.masterplanner.chamfer": "倒角",
   "tool.masterplanner.stretch": "拉伸",
   "tool.masterplanner.text": "文字",
+  "tool.masterplanner.annotation": "标注",
   "tool.masterplanner.semicircle": "半圆",
   "tool.masterplanner.arc": "圆弧",
   "tool.masterplanner.freedraw": "自由绘制",
