@@ -548,16 +548,17 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         
         return switch (controlPointType) {
             // 角点的锚点是对角顶点
-            case TOP_LEFT -> new Vec2d(maxX, maxY);     // 拖拽左上角，锚点在右下角
-            case TOP_RIGHT -> new Vec2d(minX, maxY);    // 拖拽右上角，锚点在左下角
-            case BOTTOM_LEFT -> new Vec2d(maxX, minY);  // 拖拽左下角，锚点在右上角
-            case BOTTOM_RIGHT -> new Vec2d(minX, minY); // 拖拽右下角，锚点在左上角
+            // 控制点位置：TOP_LEFT=(minX,maxY), TOP_RIGHT=(maxX,maxY), BOTTOM_RIGHT=(maxX,minY), BOTTOM_LEFT=(minX,minY)
+            case TOP_LEFT -> new Vec2d(maxX, minY);     // 拖拽左上角，锚点在右下角
+            case TOP_RIGHT -> new Vec2d(minX, minY);    // 拖拽右上角，锚点在左下角
+            case BOTTOM_LEFT -> new Vec2d(maxX, maxY);  // 拖拽左下角，锚点在右上角
+            case BOTTOM_RIGHT -> new Vec2d(minX, maxY); // 拖拽右下角，锚点在左上角
 
             // 边中点的锚点是相对的另一条边中点
             case TOP_CENTER -> new Vec2d(center.x, minY);      // 拖拽顶部中点，锚点在底部中点
             case BOTTOM_CENTER -> new Vec2d(center.x, maxY);   // 拖拽底部中点，锚点在顶部中点
-            case CENTER_LEFT -> new Vec2d(maxX, center.y);      // 【修正】拖拽左侧中点，锚点在右侧中点
-            case CENTER_RIGHT -> new Vec2d(minX, center.y);     // 【修正】拖拽右侧中点，锚点在左侧中点
+            case CENTER_LEFT -> new Vec2d(maxX, center.y);      // 拖拽左侧中点，锚点在右侧中点
+            case CENTER_RIGHT -> new Vec2d(minX, center.y);     // 拖拽右侧中点，锚点在左侧中点
         };
     }
     

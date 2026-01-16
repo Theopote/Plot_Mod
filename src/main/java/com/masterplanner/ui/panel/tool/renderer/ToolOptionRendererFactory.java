@@ -3,7 +3,6 @@ package com.masterplanner.ui.panel.tool.renderer;
 import com.masterplanner.MasterPlannerMod;
 import com.masterplanner.core.tool.BaseTool;
 import com.masterplanner.ui.tools.impl.modify.TextTool;
-import com.masterplanner.ui.tools.impl.modify.TransformTool;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -70,7 +69,7 @@ public class ToolOptionRendererFactory {
                 case "fillet" -> new FilletToolOptionRenderer();
                 case "chamfer" -> new ChamferToolOptionRenderer();
                 case "fill" -> new FillToolOptionRenderer();
-                case "transform" -> createTransformToolOptionRenderer(tool);
+                case "transform" -> createTransformToolOptionRenderer();
     
                 case "trim" -> new TrimToolOptionRenderer();
                 case "extend" -> new ExtendToolOptionRenderer();
@@ -88,17 +87,11 @@ public class ToolOptionRendererFactory {
     
     /**
      * 创建变换工具选项渲染器
-     * @param tool 工具实例
      * @return 变换工具选项渲染器
      */
-    private static ToolOptionRenderer createTransformToolOptionRenderer(BaseTool tool) {
-        if (tool instanceof TransformTool) {
-            return new TransformToolOptionRenderer((TransformTool) tool);
-        } else {
-            // 如果不是TransformTool实例，创建无参数的渲染器（向后兼容）
-            MasterPlannerMod.LOGGER.warn("工具不是TransformTool实例，使用默认配置");
-            return new TransformToolOptionRenderer(null);
-        }
+    private static ToolOptionRenderer createTransformToolOptionRenderer() {
+        // 现在使用无参构造函数，工具从AppState获取（与其他渲染器保持一致）
+        return new TransformToolOptionRenderer();
     }
     
     /**

@@ -56,7 +56,6 @@ public class TransformTool extends ModifyTool implements EventListener {
     // 数值输入配置键
     public static final String CONFIG_KEY_SCALE_X = "scale_x";
     public static final String CONFIG_KEY_SCALE_Y = "scale_y";
-    public static final String CONFIG_KEY_ROTATION_ANGLE = "rotation";
     public static final String CONFIG_KEY_MOVE_X = "move_x";
     public static final String CONFIG_KEY_MOVE_Y = "move_y";
     
@@ -79,8 +78,6 @@ public class TransformTool extends ModifyTool implements EventListener {
     
     // 依赖注入的组件
     private final AppState appState;
-    @SuppressWarnings("unused") // 从父类继承，可能在其他地方使用
-    private final ISnapManager snapManager;
     private final EventBus eventBus;
     
     // 策略实例引用（用于直接更新）
@@ -102,7 +99,8 @@ public class TransformTool extends ModifyTool implements EventListener {
     public TransformTool(AppState appState, ISnapManager snapManager, EventBus eventBus) {
         super("transform", "变换工具", Icons.STRETCH_IDENTIFIER, "变换选中的图形", appState, snapManager);
         this.appState = Objects.requireNonNull(appState, "AppState不能为空");
-        this.snapManager = Objects.requireNonNull(snapManager, "SnapManager不能为空");
+        // 从父类继承，可能在其他地方使用
+        ISnapManager snapManager1 = Objects.requireNonNull(snapManager, "SnapManager不能为空");
         this.eventBus = Objects.requireNonNull(eventBus, "EventBus不能为空");
         
         // 注册事件监听器
@@ -185,17 +183,11 @@ public class TransformTool extends ModifyTool implements EventListener {
             }
             // 数值输入配置
             case CONFIG_KEY_SCALE_X, CONFIG_KEY_SCALE_Y, 
-                 CONFIG_KEY_MOVE_X, CONFIG_KEY_MOVE_Y, CONFIG_KEY_STEP_SIZE -> {
-                LOGGER.debug("数值输入配置已更新: {} = {}", optionName, value);
-            }
+                 CONFIG_KEY_MOVE_X, CONFIG_KEY_MOVE_Y, CONFIG_KEY_STEP_SIZE -> LOGGER.debug("数值输入配置已更新: {} = {}", optionName, value);
             // 精度设置配置
-            case CONFIG_KEY_SNAP_TO_GRID, CONFIG_KEY_MAINTAIN_ASPECT_RATIO -> {
-                LOGGER.debug("精度设置配置已更新: {} = {}", optionName, value);
-            }
+            case CONFIG_KEY_SNAP_TO_GRID, CONFIG_KEY_MAINTAIN_ASPECT_RATIO -> LOGGER.debug("精度设置配置已更新: {} = {}", optionName, value);
             // 高级选项配置
-            case CONFIG_KEY_SHOW_TRANSFORM_CENTER, CONFIG_KEY_SHOW_REFERENCE_POINTS -> {
-                LOGGER.debug("高级选项配置已更新: {} = {}", optionName, value);
-            }
+            case CONFIG_KEY_SHOW_TRANSFORM_CENTER, CONFIG_KEY_SHOW_REFERENCE_POINTS -> LOGGER.debug("高级选项配置已更新: {} = {}", optionName, value);
             default -> LOGGER.debug("未知的配置选项: {}", optionName);
         }
     }

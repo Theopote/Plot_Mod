@@ -358,15 +358,34 @@ public class TransformCommand extends ModifyCommand {
         }
         
         // 计算垂直缩放因子
+        // 注意：世界坐标系Y轴向上，屏幕坐标系Y轴向下
+        // TOP_CENTER 在 maxY（顶部），锚点在 minY（底部中点）
+        // BOTTOM_CENTER 在 minY（底部），锚点在 maxY（顶部中点）
         double originalHeight = bounds.getHeight();
-        double scaleY = originalHeight > 0 ? (originalHeight + dragVector.y) / originalHeight : 1.0;
+        ControlPointType controlPointType = params.getControlPointType();
+        double scaleY;
+        if (originalHeight > 0) {
+            if (controlPointType == ControlPointType.TOP_CENTER) {
+                // 拖拽顶部中点，锚点在底部中点
+                // 向上拖动（dragVector.y > 0，世界坐标Y轴向上）增加高度
+                // 向下拖动（dragVector.y < 0）减少高度
+                scaleY = (originalHeight + dragVector.y) / originalHeight;
+            } else { // BOTTOM_CENTER
+                // 拖拽底部中点，锚点在顶部中点
+                // 向下拖动（dragVector.y < 0，世界坐标Y轴向上）增加高度
+                // 向上拖动（dragVector.y > 0）减少高度
+                scaleY = (originalHeight - dragVector.y) / originalHeight;
+            }
+        } else {
+            scaleY = 1.0;
+        }
         
         // 确定缩放中心
         Vec2d scaleCenter = getVec2d(params, bounds);
 
         shape.scale(new Vec2d(1.0, scaleY), scaleCenter);
         
-        LOGGER.debug("垂直缩放: 缩放因子={}, 中心={}", scaleY, scaleCenter);
+        LOGGER.debug("垂直缩放: 控制点={}, 缩放因子={}, 中心={}", controlPointType, scaleY, scaleCenter);
     }
 
     private static Vec2d getVec2d(TransformParams params, BoundingBox bounds) {
@@ -379,10 +398,10 @@ public class TransformCommand extends ModifyCommand {
             Vec2d center = bounds.getCenter();
             if (controlPointType == ControlPointType.TOP_CENTER) {
                 // 拖拽顶部中点时，锚点应该在底部中点
-                scaleCenter = new Vec2d(center.x, bounds.getMaxY());
+                scaleCenter = new Vec2d(center.x, bounds.getMinY());
             } else { // BOTTOM_CENTER
                 // 拖拽底部中点时，锚点应该在顶部中点
-                scaleCenter = new Vec2d(center.x, bounds.getMinY());
+                scaleCenter = new Vec2d(center.x, bounds.getMaxY());
             }
         }
         return scaleCenter;
@@ -401,15 +420,34 @@ public class TransformCommand extends ModifyCommand {
         }
         
         // 计算水平缩放因子
+        // CENTER_LEFT 在 minX（左侧），锚点在 maxX（右侧中点）
+        // CENTER_RIGHT 在 maxX（右侧），锚点在 minX（左侧中点）
+        // 参考角点的计算：左侧角点用减法，右侧角点用加法
         double originalWidth = bounds.getWidth();
-        double scaleX = originalWidth > 0 ? (originalWidth + dragVector.x) / originalWidth : 1.0;
+        ControlPointType controlPointType = params.getControlPointType();
+        double scaleX;
+        if (originalWidth > 0) {
+            if (controlPointType == ControlPointType.CENTER_LEFT) {
+                // 拖拽左侧中点，锚点在右侧中点
+                // 向右拖动（dragVector.x > 0）增加宽度，向左拖动（dragVector.x < 0）减少宽度
+                // 参考左侧角点的计算方式，使用减法
+                scaleX = (originalWidth - dragVector.x) / originalWidth;
+            } else { // CENTER_RIGHT
+                // 拖拽右侧中点，锚点在左侧中点
+                // 向右拖动（dragVector.x > 0）增加宽度，向左拖动（dragVector.x < 0）减少宽度
+                // 参考右侧角点的计算方式，使用加法
+                scaleX = (originalWidth + dragVector.x) / originalWidth;
+            }
+        } else {
+            scaleX = 1.0;
+        }
         
         // 确定缩放中心
         Vec2d scaleCenter = getD(params, bounds);
 
         shape.scale(new Vec2d(scaleX, 1.0), scaleCenter);
         
-        LOGGER.debug("水平缩放: 缩放因子={}, 中心={}", scaleX, scaleCenter);
+        LOGGER.debug("水平缩放: 控制点={}, 缩放因子={}, 中心={}", controlPointType, scaleX, scaleCenter);
     }
 
     private static Vec2d getD(TransformParams params, BoundingBox bounds) {
@@ -436,12 +474,27 @@ public class TransformCommand extends ModifyCommand {
      */
     private Vec2d calculateAnchorPoint(ControlPointType controlPointType, 
                                      com.masterplanner.core.geometry.BoundingBox bounds) {
+        double minX = bounds.getMinX();
+        double minY = bounds.getMinY();
+        double maxX = bounds.getMaxX();
+        double maxY = bounds.getMaxY();
+        Vec2d center = bounds.getCenter();
+        double centerX = center.x;
+        double centerY = center.y;
+        
         return switch (controlPointType) {
-            case TOP_LEFT -> new Vec2d(bounds.getMaxX(), bounds.getMaxY()); // 右下角
-            case TOP_RIGHT -> new Vec2d(bounds.getMinX(), bounds.getMaxY()); // 左下角
-            case BOTTOM_LEFT -> new Vec2d(bounds.getMaxX(), bounds.getMinY()); // 右上角
-            case BOTTOM_RIGHT -> new Vec2d(bounds.getMinX(), bounds.getMinY()); // 左上角
-            default -> bounds.getCenter();
+            // 角点的锚点是对角顶点
+            // 控制点位置：TOP_LEFT=(minX,maxY), TOP_RIGHT=(maxX,maxY), BOTTOM_RIGHT=(maxX,minY), BOTTOM_LEFT=(minX,minY)
+            case TOP_LEFT -> new Vec2d(maxX, minY);     // 拖拽左上角，锚点在右下角
+            case TOP_RIGHT -> new Vec2d(minX, minY);    // 拖拽右上角，锚点在左下角
+            case BOTTOM_LEFT -> new Vec2d(maxX, maxY);  // 拖拽左下角，锚点在右上角
+            case BOTTOM_RIGHT -> new Vec2d(minX, maxY); // 拖拽右下角，锚点在左上角
+            
+            // 边中点的锚点是相对的另一条边中点
+            case TOP_CENTER -> new Vec2d(centerX, minY);      // 拖拽顶部中点，锚点在底部中点
+            case BOTTOM_CENTER -> new Vec2d(centerX, maxY);   // 拖拽底部中点，锚点在顶部中点
+            case CENTER_LEFT -> new Vec2d(maxX, centerY);      // 拖拽左侧中点，锚点在右侧中点
+            case CENTER_RIGHT -> new Vec2d(minX, centerY);     // 拖拽右侧中点，锚点在左侧中点
         };
     }
     
@@ -459,7 +512,9 @@ public class TransformCommand extends ModifyCommand {
         
         if (originalWidth > 0) {
             scaleX = switch (controlPointType) {
+                // 左侧角点：TOP_LEFT 和 BOTTOM_LEFT 在 minX，锚点在 maxX，向右拖动（dragVector.x > 0）增加宽度
                 case TOP_LEFT, BOTTOM_LEFT -> (originalWidth - dragVector.x) / originalWidth;
+                // 右侧角点：TOP_RIGHT 和 BOTTOM_RIGHT 在 maxX，锚点在 minX，向右拖动（dragVector.x > 0）增加宽度
                 case TOP_RIGHT, BOTTOM_RIGHT -> (originalWidth + dragVector.x) / originalWidth;
                 default -> 1.0;
             };
@@ -467,8 +522,11 @@ public class TransformCommand extends ModifyCommand {
         
         if (originalHeight > 0) {
             scaleY = switch (controlPointType) {
-                case TOP_LEFT, TOP_RIGHT -> (originalHeight - dragVector.y) / originalHeight;
-                case BOTTOM_LEFT, BOTTOM_RIGHT -> (originalHeight + dragVector.y) / originalHeight;
+                // 世界坐标系Y轴向上
+                // TOP_LEFT 和 TOP_RIGHT 在 maxY（顶部），向上拖动（dragVector.y > 0）增加高度
+                case TOP_LEFT, TOP_RIGHT -> (originalHeight + dragVector.y) / originalHeight;
+                // BOTTOM_LEFT 和 BOTTOM_RIGHT 在 minY（底部），向下拖动（dragVector.y < 0）增加高度
+                case BOTTOM_LEFT, BOTTOM_RIGHT -> (originalHeight - dragVector.y) / originalHeight;
                 default -> 1.0;
             };
         }
