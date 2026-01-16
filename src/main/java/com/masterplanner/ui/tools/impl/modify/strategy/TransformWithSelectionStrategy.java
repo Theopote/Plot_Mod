@@ -59,6 +59,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     // 核心组件
     private final TransformHandler transformHandler;
     private final BoundingBoxControlManager controlManager;
+    @SuppressWarnings("unused") // 预留字段，用于未来扩展（如事件发布）
     private final EventBus eventBus;
     
     // 双模式状态管理

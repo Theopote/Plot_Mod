@@ -79,6 +79,7 @@ public class TransformTool extends ModifyTool implements EventListener {
     
     // 依赖注入的组件
     private final AppState appState;
+    @SuppressWarnings("unused") // 从父类继承，可能在其他地方使用
     private final ISnapManager snapManager;
     private final EventBus eventBus;
     
@@ -219,7 +220,8 @@ public class TransformTool extends ModifyTool implements EventListener {
                 }
                 case CONFIG_KEY_CONSTRAINTS -> {
                     boolean constraintsEnabled = Boolean.parseBoolean(value);
-                    // 注意：假设StretchWithSelectionStrategy有setConstraintsEnabled方法
+                    // 注意：TransformWithSelectionStrategy 目前没有 setConstraintsEnabled 方法
+                    // 如果需要实现约束功能，可以在 TransformWithSelectionStrategy 中添加相应方法
                     LOGGER.debug("约束配置已更新: {}", constraintsEnabled);
                 }
                 default -> LOGGER.debug("未知的配置选项: {}", optionName);
