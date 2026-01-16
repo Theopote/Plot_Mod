@@ -335,8 +335,18 @@ public class TransformCommand extends ModifyCommand {
         // 计算锚点（对角点）
         Vec2d anchorPoint = calculateAnchorPoint(controlPointType, originalBounds);
         
-        // 计算缩放因子
-        Vec2d scaleFactors = calculateScaleFactors(controlPointType, dragVector, originalBounds);
+        // 检查是否按住Shift键（等比缩放）
+        Vec2d scaleFactors;
+        if (params.isMaintainAspectRatio()) {
+            // 按住Shift键：等比缩放
+            double uniformScale = calculateUniformScaleFactor(controlPointType, dragVector, originalBounds);
+            scaleFactors = new Vec2d(uniformScale, uniformScale);
+            LOGGER.debug("角点变换（等比缩放）: 控制点={}, 缩放因子={}", controlPointType, uniformScale);
+        } else {
+            // 自由缩放
+            scaleFactors = calculateScaleFactors(controlPointType, dragVector, originalBounds);
+            LOGGER.debug("角点变换（自由缩放）: 控制点={}, 缩放因子={}", controlPointType, scaleFactors);
+        }
         
         // 应用缩放变换
         shape.scale(scaleFactors, anchorPoint);

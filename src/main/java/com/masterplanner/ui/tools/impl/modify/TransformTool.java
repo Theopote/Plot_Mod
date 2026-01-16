@@ -1,6 +1,7 @@
 package com.masterplanner.ui.tools.impl.modify;
 
 import com.masterplanner.api.snap.ISnapManager;
+import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
@@ -12,6 +13,7 @@ import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -298,7 +300,117 @@ public class TransformTool extends ModifyTool implements EventListener {
     @Override
     public void onDeactivate() {
         super.onDeactivate();
-        LOGGER.info("变换工具已停用");
+        // 切换工具时，清除变换框和预览状态
+        if (transformStrategy != null) {
+            transformStrategy.reset();
+        }
+        LOGGER.info("变换工具已停用，已清除变换框");
+    }
+    
+    /**
+     * 重写执行修改命令方法，对于变换工具，如果当前在变换模式，不清除选择
+     */
+    @Override
+    public void executeModifyCommand(com.masterplanner.core.command.commands.ModifyCommand command) {
+        if (command != null && commandHistory != null) {
+            try {
+                commandHistory.execute(command);
+                LOGGER.debug("TransformTool 执行修改命令: {}", command.getClass().getSimpleName());
+                
+                // 强制同步清理新旧图形的视觉状态：不选中、不高亮
+                try {
+                    List<com.masterplanner.core.model.Shape> oldShapes = command.getOldShapes();
+                    if (oldShapes != null) {
+                        for (com.masterplanner.core.model.Shape s : oldShapes) {
+                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception ignored) {}
+                        }
+                    }
+                    List<com.masterplanner.core.model.Shape> newShapes = command.getNewShapes();
+                    if (newShapes != null) {
+                        for (com.masterplanner.core.model.Shape s : newShapes) {
+                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception ignored) {}
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("清理图形视觉状态时发生异常: {}", e.getMessage());
+                }
+
+                // 检查当前是否在变换模式
+                // 通过检查策略是否有选中的图形来判断是否在变换模式
+                boolean isInTransformMode = false;
+                if (transformStrategy != null) {
+                    try {
+                        Object currentMode = transformStrategy.getCurrentMode();
+                        // 使用字符串比较来检查模式
+                        if (currentMode != null && currentMode.toString().contains("TRANSFORMING")) {
+                            isInTransformMode = true;
+                            
+                            // 在变换模式下，更新选中图形ID列表，将旧图形ID替换为新图形ID
+                            // 这样变换框才能正确更新到新图形的位置
+                            List<com.masterplanner.core.model.Shape> oldShapes = command.getOldShapes();
+                            List<com.masterplanner.core.model.Shape> newShapes = command.getNewShapes();
+                            
+                            if (oldShapes != null && newShapes != null && oldShapes.size() == newShapes.size()) {
+                                // 更新策略中的选中图形ID列表
+                                transformStrategy.updateSelectedShapeIdsAfterTransform(oldShapes, newShapes);
+                                LOGGER.debug("变换工具：已更新选中图形ID列表，旧图形数量: {}, 新图形数量: {}", 
+                                    oldShapes.size(), newShapes.size());
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOGGER.debug("检查变换模式时发生异常: {}", e.getMessage());
+                    }
+                }
+
+                // 如果不在变换模式，清除选择（保持原有行为）
+                if (!isInTransformMode) {
+                    try {
+                        clearSelection();
+                    } catch (Exception e) {
+                        LOGGER.debug("清空选择时发生异常: {}", e.getMessage());
+                    }
+                } else {
+                    LOGGER.debug("变换工具在变换模式，保持选择状态以显示变换框");
+                }
+
+                // 命令执行后重置状态（但不清除变换框）
+                resetModification("命令执行完成");
+                
+            } catch (Exception e) {
+                LOGGER.error("TransformTool 执行修改命令失败: {}", e.getMessage(), e);
+                resetModification("命令执行失败");
+            }
+        }
+    }
+    
+    /**
+     * 重写重置修改状态方法，对于变换工具，如果当前在变换模式，不清除变换框
+     */
+    @Override
+    public void resetModification(String reason) {
+        LOGGER.debug("TransformTool 重置修改状态: {}", reason);
+        
+        // 检查当前是否在变换模式
+        // 通过检查策略是否有选中的图形来判断是否在变换模式
+        if (transformStrategy != null) {
+            List<com.masterplanner.core.model.Shape> selectedShapes = transformStrategy.getSelectedShapes();
+            // 如果有选中的图形，说明可能在变换模式（变换模式需要选中图形）
+            // 更准确的方法是检查策略内部状态，但由于InteractionMode是私有的，我们使用间接方法
+            // 如果策略有选中的图形且不在选择模式，则可能在变换模式
+            if (selectedShapes != null && !selectedShapes.isEmpty()) {
+                // 检查策略是否处于变换状态（通过检查是否有变换框）
+                // 这里我们假设如果有选中的图形，且策略没有被重置，则可能在变换模式
+                // 为了更准确，我们添加一个标志来跟踪是否在变换模式
+                LOGGER.debug("变换工具有选中的图形，可能处于变换模式，保持变换框显示");
+                setModifyToolState(ToolState.IDLE);
+                setPreviewEnabled(false);
+                // 不清除策略状态，保持变换框显示
+                return;
+            }
+        }
+        
+        // 如果不在变换模式，使用父类的默认行为
+        super.resetModification(reason);
     }
     
     /**

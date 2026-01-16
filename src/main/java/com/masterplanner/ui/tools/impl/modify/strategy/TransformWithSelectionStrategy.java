@@ -378,26 +378,42 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
             // 如果变换成功，更新选中图形列表并重新计算边界框
             if (result == ModifyResult.COMPLETE) {
                 // 更新选中图形列表，确保指向变换后的图形
+                // 注意：此时selectedShapeIds应该已经在executeModifyCommand中更新为新图形的ID了
                 updateSelectedShapesFromIds(context);
+                
+                // 重新计算边界框和控制点，使用变换后的新图形
                 recalculateBoundingBoxAndControls();
+                
+                LOGGER.debug("变换完成，已更新选中图形列表和变换框，图形数量: {}", selectedShapes.size());
             }
             
+            // 重置拖拽状态，但保持变换框显示
+            isDragging = false;
+            transformState = TransformState.SHOWING_BOUNDING_BOX;
+            currentDragSession = null;
+            primaryControlPoint = null;
+            
+            // 清除预览图形，但保持变换框显示
+            previewShapes.clear();
+            previewEnabled = false;
+            controlManager.clearPreviewState();
+            
+            context.setStatusMessage("变换完成，变换框继续显示");
             return result;
         }
         
-        // 重置拖拽状态
+        // 重置拖拽状态，但保持变换框显示
         isDragging = false;
         transformState = TransformState.SHOWING_BOUNDING_BOX;
         currentDragSession = null;
         primaryControlPoint = null;
         
-        // 保持变换框显示，不清除预览状态
-        // 变换完成后，变换框应该继续显示，让用户可以继续进行操作
-        // previewEnabled = false;  // 注释掉，保持变换框显示
-        // previewShapes.clear();   // 注释掉，保持变换框显示
-        // controlManager.clearPreviewState();  // 注释掉，保持变换框显示
+        // 清除预览图形，但保持变换框显示
+        previewShapes.clear();
+        previewEnabled = false;
+        controlManager.clearPreviewState();
         
-        context.setStatusMessage("变换完成");
+        context.setStatusMessage("变换完成，变换框继续显示");
         return ModifyResult.CONTINUE;
     }
     
@@ -713,6 +729,46 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
      */
     public List<Shape> getSelectedShapes() {
         return selectedShapes != null ? new ArrayList<>(selectedShapes) : new ArrayList<>();
+    }
+    
+    /**
+     * 变换完成后更新选中图形ID列表
+     * 将旧图形的ID替换为新图形的ID，确保变换框能正确更新到新图形的位置
+     */
+    public void updateSelectedShapeIdsAfterTransform(List<Shape> oldShapes, List<Shape> newShapes) {
+        if (oldShapes == null || newShapes == null || oldShapes.size() != newShapes.size()) {
+            LOGGER.warn("更新选中图形ID列表失败：旧图形和新图形数量不匹配");
+            return;
+        }
+        
+        // 创建旧图形ID到新图形ID的映射
+        java.util.Map<String, String> idMapping = new java.util.HashMap<>();
+        for (int i = 0; i < oldShapes.size(); i++) {
+            Shape oldShape = oldShapes.get(i);
+            Shape newShape = newShapes.get(i);
+            if (oldShape != null && newShape != null) {
+                idMapping.put(oldShape.getId(), newShape.getId());
+            }
+        }
+        
+        // 更新selectedShapeIds，将旧ID替换为新ID
+        java.util.List<String> updatedIds = new java.util.ArrayList<>();
+        for (String oldId : selectedShapeIds) {
+            String newId = idMapping.get(oldId);
+            if (newId != null) {
+                updatedIds.add(newId);
+                LOGGER.debug("更新图形ID: {} -> {}", oldId, newId);
+            } else {
+                // 如果找不到映射，保留原ID（可能这个图形没有被变换）
+                updatedIds.add(oldId);
+                LOGGER.debug("保留图形ID: {} (未找到映射)", oldId);
+            }
+        }
+        
+        selectedShapeIds.clear();
+        selectedShapeIds.addAll(updatedIds);
+        
+        LOGGER.info("已更新选中图形ID列表，更新了 {} 个ID", updatedIds.size());
     }
     
     /**

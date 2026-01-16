@@ -45,6 +45,7 @@ public final class TransformParams {
     // Getters
     public Vec2d getDragVector() { return dragVector; }
     public TransformMode getMode() { return mode; }
+    public boolean isMaintainAspectRatio() { return maintainAspectRatio; }
     public boolean isCenterScale() { return centerScale; }
     public boolean isRotationMode() { return rotationMode; }
     public ControlPointType getControlPointType() { return controlPointType; }
