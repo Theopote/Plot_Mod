@@ -1,7 +1,6 @@
 package com.masterplanner.ui.tools.impl.modify;
 
 import com.masterplanner.api.snap.ISnapManager;
-import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;

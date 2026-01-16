@@ -181,11 +181,25 @@ public class ArcShape extends Shape implements IExtendableShape {
     
     @Override
     public void scale(Vec2d scale, Vec2d scaleCenter) {
-        center = new Vec2d(
-            scaleCenter.x + (center.x - scaleCenter.x) * scale.x,
-            scaleCenter.y + (center.y - scaleCenter.y) * scale.y
-        );
-        radius *= Math.sqrt((scale.x * scale.x + scale.y * scale.y) / 2);
+        // 支持非等比缩放
+        if (Math.abs(scale.x - scale.y) < 1e-10) {
+            // 等比缩放：保持为圆弧
+            center = new Vec2d(
+                scaleCenter.x + (center.x - scaleCenter.x) * scale.x,
+                scaleCenter.y + (center.y - scaleCenter.y) * scale.y
+            );
+            radius *= scale.x;
+        } else {
+            // 非等比缩放：将圆弧转换为椭圆弧
+            // 计算X和Y方向的半径
+            center = new Vec2d(
+                scaleCenter.x + (center.x - scaleCenter.x) * scale.x,
+                scaleCenter.y + (center.y - scaleCenter.y) * scale.y
+            );
+            // 对于非等比缩放，使用平均缩放作为临时方案
+            // 真正的转换应该在TransformCommand中通过transform()方法处理
+            radius *= Math.sqrt((scale.x * scale.x + scale.y * scale.y) / 2);
+        }
         invalidateCache();
     }
     

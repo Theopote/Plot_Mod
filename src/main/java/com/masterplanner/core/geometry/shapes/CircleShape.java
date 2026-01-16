@@ -76,8 +76,21 @@ public class CircleShape extends Shape {
     
     @Override
     public void scale(Vec2d scale, Vec2d scaleCenter) {
-        this.center = scaleCenter.add(this.center.subtract(scaleCenter).multiply(scale));
-        this.radius *= Math.sqrt((scale.x * scale.x + scale.y * scale.y) / 2); // 使用平均缩放比例
+        // 支持非等比缩放
+        // 如果缩放是等比的，保持为圆形；否则使用非等比缩放
+        if (Math.abs(scale.x - scale.y) < 1e-10) {
+            // 等比缩放：保持为圆形
+            this.center = scaleCenter.add(this.center.subtract(scaleCenter).multiply(scale));
+            this.radius *= scale.x;
+        } else {
+            // 非等比缩放：将圆形转换为椭圆
+            // 计算X和Y方向的半径
+            this.center = scaleCenter.add(this.center.subtract(scaleCenter).multiply(scale));
+            // 对于非等比缩放，我们需要将圆形转换为椭圆
+            // 但由于scale()方法不能改变图形类型，这里先使用平均缩放
+            // 真正的转换应该在TransformCommand中通过transform()方法处理
+            this.radius *= Math.sqrt((scale.x * scale.x + scale.y * scale.y) / 2);
+        }
     }
     
     @Override

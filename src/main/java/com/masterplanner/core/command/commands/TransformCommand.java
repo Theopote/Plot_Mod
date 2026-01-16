@@ -355,6 +355,7 @@ public class TransformCommand extends ModifyCommand {
             controlPointType, anchorPoint, scaleFactors);
     }
     
+    
     /**
      * 应用垂直缩放
      */
@@ -453,14 +454,17 @@ public class TransformCommand extends ModifyCommand {
         }
         
         // 确定缩放中心
-        Vec2d scaleCenter = getD(params, bounds);
+        Vec2d scaleCenter = getHorizontalScaleCenter(params, bounds);
 
         shape.scale(new Vec2d(scaleX, 1.0), scaleCenter);
         
         LOGGER.debug("水平缩放: 控制点={}, 缩放因子={}, 中心={}", controlPointType, scaleX, scaleCenter);
     }
 
-    private static Vec2d getD(TransformParams params, BoundingBox bounds) {
+    /**
+     * 获取水平缩放的缩放中心点
+     */
+    private static Vec2d getHorizontalScaleCenter(TransformParams params, BoundingBox bounds) {
         Vec2d scaleCenter;
         if (params.isCenterScale()) {
             scaleCenter = bounds.getCenter();
