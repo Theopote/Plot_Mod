@@ -261,6 +261,12 @@ public class LayerItemRenderer {
             float leftGroupWidth = buttonSize * 3; // 锁定、可见性和颜色按钮的总宽度
             float nameWidth = rightGroupStartX - leftGroupWidth; // 确保紧密连接
             
+            // 确保名称宽度至少为最小值，防止窗口过小时出现无效尺寸
+            float minNameWidth = 20.0f; // 最小宽度
+            if (nameWidth < minNameWidth) {
+                nameWidth = minNameWidth;
+            }
+            
             // 检查是否为当前活动图层
             boolean isActive = layer.equals(layerManager.getActiveLayer());
             // 检查是否被选中

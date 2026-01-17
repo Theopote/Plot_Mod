@@ -64,6 +64,12 @@ public class LayerNameRenderer {
             return;
         }
         
+        // 验证尺寸参数，防止ImGui断言失败
+        if (width <= 0.0f || height <= 0.0f) {
+            LOGGER.warn("图层名称渲染尺寸无效: width={}, height={}, 图层: {}", width, height, layer.getName());
+            return;
+        }
+        
         // 保存原始光标位置，以便在渲染完成后恢复
         float originalX = ImGui.getCursorPosX();
         float originalY = ImGui.getCursorPosY();
@@ -242,7 +248,7 @@ public class LayerNameRenderer {
         
         // 创建一个不可见的按钮来占据原始空间，保持布局一致性
         ImGui.setCursorPos(originalX, originalY);
-        if (layer != null) {
+        if (layer != null && width > 0.0f && height > 0.0f) {
             ImGui.invisibleButton("##layout_keeper_" + layer.getId(), width, height);
         }
 
