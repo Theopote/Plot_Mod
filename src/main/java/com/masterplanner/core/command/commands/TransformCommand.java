@@ -1,7 +1,11 @@
 package com.masterplanner.core.command.commands;
 
 import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.geometry.AffineTransform;
 import com.masterplanner.core.geometry.BoundingBox;
+import com.masterplanner.core.geometry.shapes.ArcShape;
+import com.masterplanner.core.geometry.shapes.CircleShape;
+import com.masterplanner.core.geometry.shapes.SpiralShape;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.tools.impl.modify.dto.TransformParams;
@@ -124,6 +128,115 @@ public class TransformCommand extends ModifyCommand {
      * 变换单个图形
      */
     private Shape transformShape(Shape shape, TransformParams params) {
+        // 检查是否为圆形或圆弧，且需要进行非等比缩放
+        // 如果是，使用transform()方法转换为椭圆/椭圆弧
+        ControlPointType controlPointType = params.getControlPointType();
+        boolean isNonUniformScale = false;
+        Vec2d scaleFactors = null;
+        
+        if (controlPointType != null) {
+            if (controlPointType == ControlPointType.TOP_CENTER || 
+                controlPointType == ControlPointType.BOTTOM_CENTER) {
+                // 垂直缩放：检查是否为非等比
+                com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                if (bounds != null) {
+                    Vec2d dragVector = params.getDragVector();
+                    double originalHeight = bounds.getHeight();
+                    double scaleY = 1.0;
+                    if (originalHeight > 0) {
+                        if (controlPointType == ControlPointType.TOP_CENTER) {
+                            scaleY = (originalHeight + dragVector.y) / originalHeight;
+                        } else {
+                            scaleY = (originalHeight - dragVector.y) / originalHeight;
+                        }
+                    }
+                    scaleFactors = new Vec2d(1.0, scaleY);
+                    isNonUniformScale = Math.abs(scaleY - 1.0) > 1e-10;
+                }
+            } else if (controlPointType == ControlPointType.CENTER_LEFT || 
+                       controlPointType == ControlPointType.CENTER_RIGHT) {
+                // 水平缩放：检查是否为非等比
+                com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                if (bounds != null) {
+                    Vec2d dragVector = params.getDragVector();
+                    double originalWidth = bounds.getWidth();
+                    double scaleX = 1.0;
+                    if (originalWidth > 0) {
+                        if (controlPointType == ControlPointType.CENTER_LEFT) {
+                            scaleX = (originalWidth - dragVector.x) / originalWidth;
+                        } else {
+                            scaleX = (originalWidth + dragVector.x) / originalWidth;
+                        }
+                    }
+                    scaleFactors = new Vec2d(scaleX, 1.0);
+                    isNonUniformScale = Math.abs(scaleX - 1.0) > 1e-10;
+                }
+            } else if (controlPointType == ControlPointType.TOP_LEFT || 
+                       controlPointType == ControlPointType.TOP_RIGHT ||
+                       controlPointType == ControlPointType.BOTTOM_LEFT || 
+                       controlPointType == ControlPointType.BOTTOM_RIGHT) {
+                // 角点缩放：检查是否为非等比（且未按住Shift）
+                if (!params.isMaintainAspectRatio()) {
+                    com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                    if (bounds != null) {
+                        scaleFactors = calculateScaleFactors(controlPointType, params.getDragVector(), bounds);
+                        isNonUniformScale = Math.abs(scaleFactors.x - scaleFactors.y) > 1e-10;
+                    }
+                }
+            }
+        }
+        
+        // 对于圆形、圆弧和螺旋形的非等比缩放，使用transform()方法进行变换
+        // 注意：EllipseShape和EllipticalArcShape已经支持非等比缩放，不需要特殊处理
+        // 对于SpiralShape，使用transform()方法可以支持单轴缩放（通过AffineTransform变换点）
+        if (isNonUniformScale && scaleFactors != null && 
+            (shape instanceof CircleShape || shape instanceof ArcShape || shape instanceof SpiralShape)) {
+            Vec2d scaleCenter;
+            com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+            if (bounds == null) {
+                // 如果无法获取边界框，回退到普通变换
+            } else {
+                if (controlPointType == ControlPointType.TOP_CENTER || 
+                    controlPointType == ControlPointType.BOTTOM_CENTER) {
+                    scaleCenter = getVec2d(params, bounds);
+                } else if (controlPointType == ControlPointType.CENTER_LEFT || 
+                           controlPointType == ControlPointType.CENTER_RIGHT) {
+                    scaleCenter = getHorizontalScaleCenter(params, bounds);
+                } else {
+                    scaleCenter = calculateAnchorPoint(controlPointType, bounds);
+                }
+                
+                // 创建以指定中心点进行缩放的变换矩阵
+                // 变换顺序：1. 平移到原点 2. 缩放 3. 平移回去
+                // 注意：AffineTransform的translate()直接修改矩阵（不是矩阵乘法），
+                // 而scale()使用postMultiply（后置乘法：this = this * scale）
+                // 所以我们需要使用multiply()方法手动组合变换矩阵
+                // 最终效果：T(scaleCenter) * S(scaleFactors) * T(-scaleCenter)
+                AffineTransform translate1 = AffineTransform.createTranslation(-scaleCenter.x, -scaleCenter.y);
+                AffineTransform scaleTransform = AffineTransform.createScale(scaleFactors.x, scaleFactors.y);
+                AffineTransform translate2 = AffineTransform.createTranslation(scaleCenter.x, scaleCenter.y);
+                
+                // 组合变换：translate2 * scaleTransform * translate1
+                AffineTransform transform = translate2.multiply(scaleTransform).multiply(translate1);
+                
+                // 使用transform()方法进行变换
+                // 对于CircleShape和ArcShape，transform()可能返回新类型（EllipseShape/EllipticalArcShape）
+                // 对于SpiralShape，transform()返回this，但会正确应用非等比缩放（包括单轴缩放）
+                Shape transformed = shape.transform(transform);
+                if (transformed != shape) {
+                    // 如果返回了新图形类型，复制样式
+                    if (shape.getStyle() != null) {
+                        transformed.setStyle(shape.getStyle().clone());
+                    }
+                    return transformed;
+                } else if (shape instanceof SpiralShape) {
+                    // SpiralShape.transform()返回this，但已经应用了变换，直接返回
+                    return transformed;
+                }
+            }
+        }
+        
+        // 其他情况，使用原来的逻辑
         Shape result = shape.clone();
         
         // 根据变换模式应用不同的变换
@@ -394,6 +507,7 @@ public class TransformCommand extends ModifyCommand {
         // 确定缩放中心
         Vec2d scaleCenter = getVec2d(params, bounds);
 
+        // 直接使用scale方法（圆形和圆弧的非等比缩放转换已在transformShape中处理）
         shape.scale(new Vec2d(1.0, scaleY), scaleCenter);
         
         LOGGER.debug("垂直缩放: 控制点={}, 缩放因子={}, 中心={}", controlPointType, scaleY, scaleCenter);
@@ -456,6 +570,7 @@ public class TransformCommand extends ModifyCommand {
         // 确定缩放中心
         Vec2d scaleCenter = getHorizontalScaleCenter(params, bounds);
 
+        // 直接使用scale方法（圆形和圆弧的非等比缩放转换已在transformShape中处理）
         shape.scale(new Vec2d(scaleX, 1.0), scaleCenter);
         
         LOGGER.debug("水平缩放: 控制点={}, 缩放因子={}, 中心={}", controlPointType, scaleX, scaleCenter);
@@ -483,6 +598,7 @@ public class TransformCommand extends ModifyCommand {
         return scaleCenter;
     }
 
+    
     /**
      * 计算锚点（对角点）
      */
