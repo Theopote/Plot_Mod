@@ -1,9 +1,10 @@
 package com.masterplanner.ui.toolbar.group;
 
+import com.masterplanner.core.command.CommandHistory;
+import com.masterplanner.core.command.commands.ClearCanvasCommand;
 import com.masterplanner.core.snap.SnapManager;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
-import com.masterplanner.infrastructure.event.canvas.ClearCanvasEvent;
 import com.masterplanner.ui.component.ControlPanelIcons;
 import com.masterplanner.ui.grid.GridManager;
 import com.masterplanner.ui.toolbar.ToolbarUIUtils;
@@ -104,7 +105,9 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.CLEAR),
                 "清除绘图面板")) {
-            eventBus.publish(new ClearCanvasEvent());
+            // 使用命令系统，支持撤销和重做
+            ClearCanvasCommand command = new ClearCanvasCommand(appState);
+            CommandHistory.getInstance().execute(command);
         }
     }
     

@@ -54,7 +54,6 @@ public class UILayout {
 
     // 状态栏
     public static final float STATUS_BAR_HEIGHT = 24.0f;
-    public static final float STATUS_BAR_PADDING = 8.0f;
 
     // 内容区域边距
     public static final float CONTENT_PADDING = 8;
