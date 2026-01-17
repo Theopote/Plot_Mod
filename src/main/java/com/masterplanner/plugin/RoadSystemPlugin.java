@@ -15,7 +15,13 @@ import com.masterplanner.core.geometry.shapes.FreeDrawPath;
 import com.masterplanner.core.geometry.shapes.BezierCurveShape;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.tool.ToolManager;
-import com.masterplanner.ui.tools.impl.drawing.PolylineTool;
+import com.masterplanner.core.tool.BaseTool;
+import com.masterplanner.plugin.road.RoadGenerator;
+import com.masterplanner.infrastructure.coordinate.CoordinateTransformer;
+import com.masterplanner.infrastructure.event.block.GhostBlockManager;
+import com.masterplanner.infrastructure.event.block.BlockProjectionEvent;
+import com.masterplanner.infrastructure.event.EventBus;
+import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +39,17 @@ public class RoadSystemPlugin extends Plugin {
     // 当前选择的路径
     private Shape selectedPath = null;
     
-    // 临时统计结果（实际应从RoadGenerator获取）
+    // 道路生成器
+    private RoadGenerator roadGenerator = null;
+    
+    // 统计结果（从RoadGenerator获取）
     private int cutVolume = 0;
     private int fillVolume = 0;
     private int bridgeCount = 0;
     private int tunnelCount = 0;
+    
+    // 道路生成结果（用于预览）
+    private RoadGenerator.RoadGenerationResult lastGenerationResult = null;
     
     public RoadSystemPlugin() {
         super(
@@ -56,6 +68,16 @@ public class RoadSystemPlugin extends Plugin {
             config = new RoadSystemConfig(getId());
         }
         includeSidewalkRef.set(config.isIncludeSidewalk());
+        includeShoulderRef.set(config.isIncludeShoulder());
+        includeDrainageRef.set(config.isIncludeDrainage());
+        
+        // 初始化道路生成器
+        try {
+            CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+            roadGenerator = new RoadGenerator(config, transformer);
+        } catch (Exception e) {
+            LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
+        }
     }
     
     @Override
@@ -103,7 +125,7 @@ public class RoadSystemPlugin extends Plugin {
             double pathLength = calculatePathLength(selectedPath);
             config.setPathLength(pathLength);
             ImGui.text(String.format("已选择路径: %.1f 米", pathLength));
-            ImGui.textColored(0xFF4080FFFF, "路径类型: " + getPathTypeName(selectedPath));
+            ImGui.textColored((int) 0xFF4080FFFFL, "路径类型: " + getPathTypeName(selectedPath));
             
             if (ImGui.button("编辑路径", ImGui.getContentRegionAvailX(), 0)) {
                 // 选中路径并激活修改工具
@@ -113,7 +135,7 @@ public class RoadSystemPlugin extends Plugin {
             // 检查是否有路径可用
             List<Shape> availablePaths = findAvailablePaths();
             if (!availablePaths.isEmpty()) {
-                ImGui.textColored(0xFFFFAA00FF, String.format("找到 %d 个可用路径", availablePaths.size()));
+                ImGui.textColored((int) 0xFFFFAA00FFL, String.format("找到 %d 个可用路径", availablePaths.size()));
                 ImGui.text("请选择一个路径图形以用于道路生成");
                 
                 if (ImGui.beginCombo("##select_path", "选择路径...")) {
@@ -127,7 +149,7 @@ public class RoadSystemPlugin extends Plugin {
                     ImGui.endCombo();
                 }
             } else {
-                ImGui.textColored(0xFF808080FF, "未找到路径");
+                ImGui.textColored((int) 0xFF808080FFL, "未找到路径");
                 ImGui.text("请使用绘图工具绘制路径（折线、自由绘制或贝塞尔曲线）");
             }
         }
@@ -248,27 +270,33 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.sameLine();
         boolean canPreview = selectedPath != null;
         if (!canPreview) {
-            ImGui.pushItemFlag(ImGuiItemFlags.Disabled, true);
-            ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
+            ImGui.beginDisabled();
         }
         if (ImGui.button("计算预览", buttonWidth, 0)) {
             calculatePreview();
         }
         if (!canPreview) {
-            ImGui.popStyleVar();
-            ImGui.popItemFlag();
+            ImGui.endDisabled();
         }
         
         ImGui.endGroup();
         
         ImGui.beginGroup();
+        boolean canProject = lastGenerationResult != null && !lastGenerationResult.roadBlocks.isEmpty();
+        if (!canProject) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button("投影参考", buttonWidth, 0)) {
-            // TODO: 在画布上显示道路预览投影（半透明）
+            projectRoadPreview();
         }
         
         ImGui.sameLine();
         if (ImGui.button("实际构建", buttonWidth, 0)) {
-            // TODO: 生成实际的道路方块（可撤销的命令）
+            buildRoadInWorld();
+        }
+        
+        if (!canProject) {
+            ImGui.endDisabled();
         }
         
         ImGui.endGroup();
@@ -312,7 +340,7 @@ public class RoadSystemPlugin extends Plugin {
                 ImGui.text(String.format("平衡度: %.1f%%", balancePercent));
             }
         } else {
-            ImGui.textColored(0xFF808080FF, "请先绘制路径并计算预览");
+            ImGui.textColored((int) 0xFF808080FFL, "请先绘制路径并计算预览");
         }
     }
     
@@ -416,9 +444,9 @@ public class RoadSystemPlugin extends Plugin {
      */
     private List<Vec2d> getPathPoints(Shape path) {
         if (path instanceof PolylineShape) {
-            return ((PolylineShape) path).getPoints();
+            return path.getPoints();
         } else if (path instanceof FreeDrawPath) {
-            return ((FreeDrawPath) path).getPoints();
+            return path.getPoints();
         } else if (path instanceof BezierCurveShape) {
             // 贝塞尔曲线需要采样点（简化实现）
             return sampleBezierCurve((BezierCurveShape) path, 20);
@@ -463,11 +491,11 @@ public class RoadSystemPlugin extends Plugin {
             if (toolManager != null) {
                 // 查找PolylineTool
                 var polylineTool = toolManager.getTool("polyline");
-                if (polylineTool != null) {
-                    AppState.getInstance().setCurrentTool(polylineTool);
+                if (polylineTool instanceof BaseTool) {
+                    AppState.getInstance().setCurrentTool((BaseTool) polylineTool);
                     LOGGER.info("已激活折线工具用于绘制路径");
                 } else {
-                    LOGGER.warn("未找到折线工具");
+                    LOGGER.warn("未找到折线工具或工具类型不兼容");
                 }
             }
         } catch (Exception e) {
@@ -484,21 +512,171 @@ public class RoadSystemPlugin extends Plugin {
             return;
         }
         
+        if (roadGenerator == null) {
+            LOGGER.warn("道路生成器未初始化");
+            return;
+        }
+        
         try {
-            // TODO: 实现道路生成器计算
-            // 目前使用临时数据
-            double pathLength = calculatePathLength(selectedPath);
+            // 使用RoadGenerator计算道路预览
+            lastGenerationResult = roadGenerator.generateRoad(selectedPath);
             
-            // 简单的估算（实际应该使用RoadGenerator）
-            int roadWidth = config.getRoadWidth();
-            cutVolume = (int) (pathLength * roadWidth * 0.5); // 简化的挖方估算
-            fillVolume = (int) (pathLength * roadWidth * 0.3); // 简化的填方估算
-            bridgeCount = 0; // TODO: 检测桥需求
-            tunnelCount = 0; // TODO: 检测隧道需求
-            
-            LOGGER.info("道路预览计算完成: 挖{} 填{}", cutVolume, fillVolume);
+            if (lastGenerationResult != null) {
+                cutVolume = lastGenerationResult.cutVolume;
+                fillVolume = lastGenerationResult.fillVolume;
+                bridgeCount = lastGenerationResult.bridgeCount;
+                tunnelCount = lastGenerationResult.tunnelCount;
+                
+                // 更新路径长度
+                config.setPathLength(lastGenerationResult.pathLength);
+                
+                LOGGER.info("道路预览计算完成: 挖{} 填{} 桥{}座 隧道{}段 长度{}米", 
+                    cutVolume, fillVolume, bridgeCount, tunnelCount, lastGenerationResult.pathLength);
+            } else {
+                LOGGER.warn("道路生成结果为空");
+                cutVolume = 0;
+                fillVolume = 0;
+                bridgeCount = 0;
+                tunnelCount = 0;
+            }
         } catch (Exception e) {
             LOGGER.error("计算道路预览失败: {}", e.getMessage(), e);
+            cutVolume = 0;
+            fillVolume = 0;
+            bridgeCount = 0;
+            tunnelCount = 0;
         }
+    }
+    
+    /**
+     * 投影道路预览（幽灵方块）
+     * 在画布上显示道路的半透明预览
+     */
+    private void projectRoadPreview() {
+        if (lastGenerationResult == null || lastGenerationResult.roadBlocks.isEmpty()) {
+            LOGGER.warn("没有生成结果，无法投影预览");
+            return;
+        }
+        
+        try {
+            GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+            if (ghostBlockManager == null) {
+                LOGGER.error("幽灵方块管理器未初始化");
+                return;
+            }
+            
+            // 获取道路材质对应的方块ID
+            String blockId = getBlockIdFromMaterial(config.getSelectedMaterial());
+            
+            // 添加道路方块为幽灵方块
+            int previewCount = 0;
+            for (BlockPos pos : lastGenerationResult.roadBlocks) {
+                ghostBlockManager.addGhostBlock(pos, blockId);
+                previewCount++;
+            }
+            
+            // 添加桥方块（使用不同材质）
+            for (BlockPos pos : lastGenerationResult.bridgeBlocks) {
+                ghostBlockManager.addGhostBlock(pos, "minecraft:stone_bricks");
+                previewCount++;
+            }
+            
+            // 添加隧道方块（使用不同材质）
+            for (BlockPos pos : lastGenerationResult.tunnelBlocks) {
+                ghostBlockManager.addGhostBlock(pos, "minecraft:deepslate");
+                previewCount++;
+            }
+            
+            LOGGER.info("已投影 {} 个道路预览方块", previewCount);
+            
+        } catch (Exception e) {
+            LOGGER.error("投影道路预览失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 实际构建道路到Minecraft世界
+     * 将道路方块真实放置到世界中（可撤销的命令）
+     */
+    private void buildRoadInWorld() {
+        if (lastGenerationResult == null || lastGenerationResult.roadBlocks.isEmpty()) {
+            LOGGER.warn("没有生成结果，无法构建道路");
+            return;
+        }
+        
+        try {
+            EventBus eventBus = EventBus.getInstance();
+            if (eventBus == null) {
+                LOGGER.error("事件总线未初始化");
+                return;
+            }
+            
+            // 获取道路材质对应的方块ID
+            String blockId = getBlockIdFromMaterial(config.getSelectedMaterial());
+            
+            // 发布方块投影事件（实际模式）
+            int buildCount = 0;
+            for (BlockPos pos : lastGenerationResult.roadBlocks) {
+                eventBus.publish(new BlockProjectionEvent(
+                    blockId,
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    0.0f,
+                    false // 非预览模式，实际放置方块
+                ));
+                buildCount++;
+            }
+            
+            // 构建桥梁（使用石头砖）
+            for (BlockPos pos : lastGenerationResult.bridgeBlocks) {
+                eventBus.publish(new BlockProjectionEvent(
+                    "minecraft:stone_bricks",
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    0.0f,
+                    false
+                ));
+                buildCount++;
+            }
+            
+            // 构建隧道（使用深板岩）
+            for (BlockPos pos : lastGenerationResult.tunnelBlocks) {
+                eventBus.publish(new BlockProjectionEvent(
+                    "minecraft:deepslate",
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    0.0f,
+                    false
+                ));
+                buildCount++;
+            }
+            
+            LOGGER.info("已构建 {} 个道路方块到Minecraft世界", buildCount);
+            
+            // 清空生成结果（避免重复构建）
+            lastGenerationResult = null;
+            cutVolume = 0;
+            fillVolume = 0;
+            bridgeCount = 0;
+            tunnelCount = 0;
+            
+        } catch (Exception e) {
+            LOGGER.error("构建道路失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 从材质名称获取方块ID
+     */
+    private String getBlockIdFromMaterial(String material) {
+        return switch (material) {
+            case "混凝土" -> "minecraft:white_concrete";
+            case "砂砾" -> "minecraft:gravel";
+            case "木板" -> "minecraft:oak_planks";
+            default -> "minecraft:stone";
+        };
     }
 }

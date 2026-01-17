@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.masterplanner.core.log.LogManager;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +13,6 @@ import java.util.List;
  */
 public class RoadSystemConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private final String pluginId;
     private final Path configPath;
 
     private int roadWidth = 5;
@@ -34,7 +32,6 @@ public class RoadSystemConfig {
     private double pathLength = 0.0; // 当前路径长度（米）
 
     public RoadSystemConfig(String pluginId) {
-        this.pluginId = pluginId;
         this.configPath = getConfigDirectory().resolve(pluginId + ".json");
         initDefaultPresets();
     }
@@ -56,7 +53,7 @@ public class RoadSystemConfig {
         Path configPath = getConfigDirectory().resolve(pluginId + ".json");
         if (Files.exists(configPath)) {
             try {
-                String json = new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8);
+                String json = Files.readString(configPath);
                 return GSON.fromJson(json, configClass);
             } catch (IOException e) {
                 LogManager.getInstance().error("Failed to load config: " + configPath, e);
@@ -72,7 +69,7 @@ public class RoadSystemConfig {
         try {
             Files.createDirectories(configPath.getParent());
             String json = GSON.toJson(this);
-            Files.write(configPath, json.getBytes(StandardCharsets.UTF_8));
+            Files.writeString(configPath, json);
         } catch (IOException e) {
             LogManager.getInstance().error("Failed to save config: " + configPath, e);
         }
