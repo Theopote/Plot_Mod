@@ -167,7 +167,6 @@ public final class ModifyToolsModule {
             tools.add(new ChamferTool((AppState) appState, snapManager)); // 倒角工具（依赖注入）
             tools.add(new ExtendTool((AppState) appState, snapManager)); // 延伸工具（依赖注入）
             tools.add(new TrimTool(appState, snapManager)); // 修剪工具（依赖注入）
-            tools.add(new FillTool((AppState) appState, snapManager)); // 填充工具（依赖注入）
             tools.add(new TransformTool((AppState) appState, snapManager, eventBus)); // 变换工具（依赖注入）
             
             // 标注工具

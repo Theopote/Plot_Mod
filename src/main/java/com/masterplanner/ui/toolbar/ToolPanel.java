@@ -518,7 +518,6 @@ public class ToolPanel implements UIComponent {
             new Tool(ToolPanelIcons.CHAMFER, "tool.masterplanner.chamfer", "chamfer"),
             new Tool(ToolPanelIcons.EXTEND, "tool.masterplanner.extend", "extend"),
             new Tool(ToolPanelIcons.TRIM, "tool.masterplanner.trim", "trim"),
-            new Tool(ToolPanelIcons.FILL, "tool.masterplanner.fill", "fill"),
             new Tool(ToolPanelIcons.TRANSFORM, "tool.masterplanner.transform", "transform")
         );
         groups.add(new ToolGroup("group.masterplanner.edit_tools", editTools, true));

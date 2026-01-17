@@ -32,7 +32,6 @@ public class ToolPanelIcons {
     public static final Identifier TEXT = createIdentifier("text.png");
     public static final Identifier ANNOTATION = createIdentifier("annotation.png");
     public static final Identifier BREAK = createIdentifier("break.png");
-    public static final Identifier FILL = createIdentifier("fill.png");
     public static final Identifier ALIGN = createIdentifier("align.png");
     
     // ??????

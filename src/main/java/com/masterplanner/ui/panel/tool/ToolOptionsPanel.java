@@ -60,7 +60,6 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         OFFSET("offset", "偏移"),
         FILLET("fillet", "倒角"),
         CHAMFER("chamfer", "倒角"),
-        FILL("fill", "填充"),
         TRANSFORM("transform", "变换"),
 
         TRIM("trim", "修剪"),
@@ -115,7 +114,6 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 case "offset", "偏移", "offsettool" -> OFFSET;
                 case "fillet", "圆角", "fillettool" -> FILLET;
                 case "chamfer", "倒角", "chamfertool" -> CHAMFER;
-                case "fill", "填充", "filltool" -> FILL;
                 case "transform", "变换", "transformtool" -> TRANSFORM;
     
                 case "trim", "修剪", "trimtool" -> TRIM;
@@ -294,7 +292,6 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case OFFSET -> "偏移工具用于偏移图形。点击并拖动图形可以偏移它。";
             case FILLET -> "倒角工具用于在两条直线之间创建圆角倒角。支持半径设置和实时预览。";
             case CHAMFER -> "倒角工具用于在两条直线之间创建斜面倒角。支持距离设置和实时预览。";
-            case FILL -> "填充工具用于对闭合区域进行填充。支持点击填充和边界填充两种模式，使用默认实体填充样式。";
             case TRANSFORM -> "变换工具用于对选中的图形进行专业的变换操作。支持缩放、旋转、中心缩放和数值输入等功能。";
 
             case TRIM -> "修剪工具用于修剪图形。点击并拖动图形可以修剪它。";
@@ -445,7 +442,6 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case OFFSET -> baseHeight * 1.1f;  // 偏移工具
             case FILLET -> baseHeight * 1.2f;  // 倒角工具（有模式选择和距离设置）
             case CHAMFER -> baseHeight * 1.2f;  // 倒角工具（有距离设置和预览选项）
-            case FILL -> baseHeight * 1.3f;  // 填充工具（有模式选择、样式选择和透明度设置）
             case TRANSFORM -> baseHeight * 1.6f;  // 变换工具（有模式选择、功能开关和状态显示）
 
             case TRIM -> baseHeight;  // 修剪工具
@@ -483,7 +479,6 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case OFFSET -> lineHeight * 10 + framePadding * 5 + itemSpacing * 4;  // 偏移工具
             case FILLET -> lineHeight * 10 + framePadding * 6 + itemSpacing * 5;  // 倒角工具有模式选择和距离设置
             case CHAMFER -> lineHeight * 10 + framePadding * 6 + itemSpacing * 5;  // 倒角工具有距离设置和预览选项
-            case FILL -> lineHeight * 12 + framePadding * 8 + itemSpacing * 7;  // 填充工具有模式选择、样式选择和透明度设置
             case TRANSFORM -> lineHeight * 15 + framePadding * 10 + itemSpacing * 9;  // 变换工具有模式选择、功能开关和状态显示
 
             case TRIM -> lineHeight * 10 + framePadding * 4 + itemSpacing * 3;  // 修剪工具

@@ -68,7 +68,6 @@ public class ToolOptionRendererFactory {
                 case "offset" -> new OffsetToolOptionRenderer();
                 case "fillet" -> new FilletToolOptionRenderer();
                 case "chamfer" -> new ChamferToolOptionRenderer();
-                case "fill" -> new FillToolOptionRenderer();
                 case "transform" -> createTransformToolOptionRenderer();
     
                 case "trim" -> new TrimToolOptionRenderer();

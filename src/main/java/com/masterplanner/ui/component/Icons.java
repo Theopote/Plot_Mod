@@ -83,7 +83,6 @@ public class Icons {
     public static final Identifier TRIM_IDENTIFIER = Identifier.of("masterplanner", "textures/gui/tools/trim.png");
     public static final Identifier BREAK_IDENTIFIER = Identifier.of("masterplanner", "textures/gui/tools/break.png");
     public static final Identifier EXTEND_IDENTIFIER = Identifier.of("masterplanner", "textures/gui/tools/extend.png");
-    public static final Identifier FILL_IDENTIFIER = Identifier.of("masterplanner", "textures/gui/tools/fill.png");
     public static final Identifier CATENARY_IDENTIFIER = Identifier.of("masterplanner", "textures/gui/tools/catenary.png");
 
     private static final Map<String, IconData> iconCache = new HashMap<>();

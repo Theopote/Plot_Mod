@@ -843,7 +843,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec2d p1 = points.get(i);
                 Vec2d p2 = points.get(i + 1);
-                if (hasTransform && transform != null) {
+                if (hasTransform) {
                     // 关键修复：先将点转换为相对于center的坐标，应用transform，再加回center
                     Vec2d relativeP1 = p1.subtract(center);
                     Vec2d relativeP2 = p2.subtract(center);
@@ -858,7 +858,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec2d p1 = points.get(i);
                 Vec2d p2 = points.get(i + 1);
-                if (hasTransform && transform != null) {
+                if (hasTransform) {
                     // 关键修复：先将点转换为相对于center的坐标，应用transform，再加回center
                     Vec2d relativeP1 = p1.subtract(center);
                     Vec2d relativeP2 = p2.subtract(center);
@@ -2227,7 +2227,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
             
             List<Vec2d> transformedPoints = new ArrayList<>();
             for (Vec2d point : spiralPoints) {
-                if (hasTransform && transform != null) {
+                if (hasTransform) {
                     // 关键修复：先将点转换为相对于center的坐标，应用transform，再加回center
                     Vec2d relativePoint = point.subtract(center);
                     transformedPoints.add(center.add(transform.transform(relativePoint)));
