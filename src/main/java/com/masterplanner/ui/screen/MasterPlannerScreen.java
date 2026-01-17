@@ -170,8 +170,9 @@ public class MasterPlannerScreen extends Screen {
             toolPanel.init();
         }
         if (propertyPanel != null) propertyPanel.init();
-        if (galleryPanel != null) galleryPanel.init();
-        if (extensionPanel != null) extensionPanel.init();
+        // 暂时隐藏图库面板和扩展面板的初始化（保留代码供后续开发）
+        // if (galleryPanel != null) galleryPanel.init();
+        // if (extensionPanel != null) extensionPanel.init();
         if (canvas != null) {
             // 修复：确保Canvas被正确初始化，包括CanvasCore的camera
             canvas.init();
@@ -449,8 +450,9 @@ public class MasterPlannerScreen extends Screen {
         // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
         // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_PROPERTY, dockIdRight);
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_GALLERY, dockIdRight);
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_EXTENSION, dockIdRight);
+        // 暂时隐藏图库面板和扩展面板的UI（保留代码供后续开发）
+        // imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_GALLERY, dockIdRight);
+        // imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_EXTENSION, dockIdRight);
         // 关键：中央节点不 dock 任何窗口，配合 PassthruCentralNode 让中央区域天然留空且透明（参考 ChronoBlocks）
 
         imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
@@ -533,23 +535,24 @@ public class MasterPlannerScreen extends Screen {
                 ImGui.end();
             }
 
+            // 暂时隐藏图库面板和扩展面板的UI渲染（保留代码供后续开发）
             // 图库
-            if (galleryPanel != null) {
-                ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
-                ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
-                ImGui.begin(WIN_RIGHT_GALLERY, DOCKABLE_WINDOW_FLAGS);
-                galleryPanel.render();
-                ImGui.end();
-            }
+            // if (galleryPanel != null) {
+            //     ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
+            //     ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
+            //     ImGui.begin(WIN_RIGHT_GALLERY, DOCKABLE_WINDOW_FLAGS);
+            //     galleryPanel.render();
+            //     ImGui.end();
+            // }
 
             // 扩展
-            if (extensionPanel != null) {
-                ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
-                ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
-                ImGui.begin(WIN_RIGHT_EXTENSION, DOCKABLE_WINDOW_FLAGS);
-                extensionPanel.render();
-                ImGui.end();
-            }
+            // if (extensionPanel != null) {
+            //     ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
+            //     ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
+            //     ImGui.begin(WIN_RIGHT_EXTENSION, DOCKABLE_WINDOW_FLAGS);
+            //     extensionPanel.render();
+            //     ImGui.end();
+            // }
         } finally {
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);
