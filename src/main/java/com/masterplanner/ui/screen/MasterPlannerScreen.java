@@ -12,6 +12,7 @@ import com.masterplanner.ui.panel.PropertyPanel;
 import com.masterplanner.ui.panel.extension.ExtensionPanel;
 import com.masterplanner.ui.panel.gallery.GalleryPanel;
 import imgui.ImGui;
+import imgui.ImGuiStyle;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiDir;
@@ -442,8 +443,12 @@ public class MasterPlannerScreen extends Screen {
         // 确保最小比例足够（至少能显示内容），如果计算出的比例太小，使用至少20%
         controlPanelHeightRatio = Math.max(controlPanelHeightRatio, 0.25f);
         
-        // 系统面板高度（约两倍按钮高度）
-        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE * 2.0f;
+        // 系统面板高度：按钮高度 + 2*边距 + 标题栏高度
+        // 标题栏高度通常等于文本行高 + 框架内边距 * 2（上下各一个）
+        // 或者使用 ImGui 样式中的 TitleBarHeight（如果有的话）
+        ImGuiStyle style = ImGui.getStyle();
+        float titleBarHeight = ImGui.getTextLineHeight() + style.getFramePadding().y * 2.0f;
+        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE + 2.0f * UILayout.Toolbar.BUTTON_PADDING + titleBarHeight;
         float systemPanelHeightRatio = Math.min(0.15f, systemPanelHeight / Math.max(1.0f, displayHeight));
 
         // 先分割左右
@@ -507,8 +512,11 @@ public class MasterPlannerScreen extends Screen {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
-        // 系统面板在右侧顶部，宽度和属性面板一样，高度约两倍按钮高度
-        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE * 2.0f;
+        // 系统面板在右侧顶部，宽度和属性面板一样，高度 = 按钮高度 + 2*边距 + 标题栏高度
+        // 标题栏高度通常等于文本行高 + 框架内边距 * 2（上下各一个）
+        ImGuiStyle style = ImGui.getStyle();
+        float titleBarHeight = ImGui.getTextLineHeight() + style.getFramePadding().y * 2.0f;
+        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE + 2.0f * UILayout.Toolbar.BUTTON_PADDING + titleBarHeight;
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float x = UILayout.getRightPanelX(displayWidth);
         ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.FirstUseEver);

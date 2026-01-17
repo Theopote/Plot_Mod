@@ -45,20 +45,22 @@ public class SystemPanel implements UIComponent {
     /**
      * 渲染系统面板
      * 作为独立面板使用，包含主题选择器和关闭按钮
+     * 间距和边距与控制面板一致
      */
     public void render() {
         try {
-            float windowHeight = ImGui.getWindowHeight();
-            float buttonHeight = UILayout.Toolbar.BUTTON_SIZE;
+            // 获取内容区域的起始位置（WindowPadding已经设置了BUTTON_PADDING，所以contentMinX/Y已经包含了padding）
+            float contentMinX = ImGui.getWindowContentRegionMinX();
+            float contentMinY = ImGui.getWindowContentRegionMinY();
             
-            // 垂直居中
-            float startY = (windowHeight - buttonHeight) / 2.0f;
-            ImGui.setCursorPosY(startY);
+            // 设置起始位置，与控制面板一致
+            // WindowPadding已经设置了BUTTON_PADDING，所以直接使用contentMinX和contentMinY即可
+            ImGui.setCursorPos(contentMinX, contentMinY);
             
             // 渲染主题选择器
             renderThemeSelector();
             
-            // 添加间距
+            // 添加间距（与控制面板一致）
             ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
             
             // 渲染关闭按钮
