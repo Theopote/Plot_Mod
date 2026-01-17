@@ -115,12 +115,25 @@ public class ToolPanel implements UIComponent {
      * DockSpace/外部布局模式：由外部 begin()/end() 管理窗口，这里只渲染内容。
      */
     public void renderInCurrentWindow() {
-        // 渲染工具按钮
-        renderToolGroups();
+        // 显式设置ItemSpacing，避免窗口缩放时被重置
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing,
+            UILayout.Toolbar.LEFT_BUTTON_SPACING,
+            UILayout.Toolbar.LEFT_BUTTON_SPACING);
+        try {
+            // 渲染工具按钮
+            renderToolGroups();
+        } finally {
+            ImGui.popStyleVar();
+        }
     }
     
     private void renderToolGroups() {
         float contentWidth = ImGui.getWindowContentRegionMaxX() - ImGui.getWindowContentRegionMinX();
+        float contentMinX = ImGui.getWindowContentRegionMinX();
+        float contentMinY = ImGui.getWindowContentRegionMinY();
+        
+        // 设置起始位置，与控制面板一致：距离顶部边界的距离和左边距一样（都是BUTTON_PADDING）
+        ImGui.setCursorPos(contentMinX, contentMinY + UILayout.Toolbar.BUTTON_PADDING);
         
         for (int i = 0; i < toolGroups.size(); i++) {
             ToolGroup group = toolGroups.get(i);
@@ -140,7 +153,10 @@ public class ToolPanel implements UIComponent {
      * @param contentWidth 内容区域宽度
      */
     private void renderGroupSeparator(float contentWidth) {
-        ImGui.dummy(0, UILayout.Toolbar.LEFT_GROUP_SPACING * 0.6f);
+        // 分隔符前后的间距各为 ITEM_SPACING / 2，总距离等于按钮之间的间距（ITEM_SPACING）
+        // 这样按钮距离分割线的距离就等于按钮之间的间距
+        float spacing = UILayout.Toolbar.ITEM_SPACING * 0.5f;
+        ImGui.dummy(0, spacing);
         
         // 使用主题颜色绘制分隔线
         ImGui.pushStyleColor(ImGuiCol.Separator, 
@@ -152,7 +168,7 @@ public class ToolPanel implements UIComponent {
         ImGui.separator();
         
         ImGui.popStyleColor();
-        ImGui.dummy(0, UILayout.Toolbar.LEFT_GROUP_SPACING * 0.4f);
+        ImGui.dummy(0, spacing);
     }
     
     /**
@@ -254,13 +270,15 @@ public class ToolPanel implements UIComponent {
             renderToolButton(group.tools.get(i));
             
             // 如果不是行末且不是最后一个按钮，继续在同一行
+            // 显式指定间距，不依赖全局ItemSpacing，避免窗口缩放时间距变化
             if ((i + 1) % buttonsPerRow != 0 && i < group.tools.size() - 1) {
-                ImGui.sameLine();
+                ImGui.sameLine(0, UILayout.Toolbar.LEFT_BUTTON_SPACING);
             }
         }
         
-        // 添加组间距
-        ImGui.dummy(0, UILayout.Toolbar.LEFT_GROUP_SPACING * 0.5f);
+        // 注意：组间距由分隔符处理，这里不添加额外间距
+        // 如果下一个组有分隔符，分隔符会添加间距；如果没有分隔符，也不添加间距
+        // 这样可以确保按钮距离分割线的距离等于按钮之间的间距（ITEM_SPACING）
     }
     
     /**

@@ -9,7 +9,7 @@ public class UILayout {
     public static class Toolbar {
         public static final float BUTTON_SIZE = 40.0f;          // 按钮大小
         public static final float BUTTON_PADDING = 4.0f;        // 按钮内边距
-        public static final float GROUP_SPACING = 14.0f;         // 组之间的间距
+        public static final float GROUP_SPACING = 10.0f;         // 组之间的间距
         public static final float ITEM_SPACING = 4.0f;          // 组内项目间距
         public static final float SEPARATOR_WIDTH = 1;          // 分隔符宽度
         public static final float SLIDER_WIDTH = 200.0f;        // 滑动条宽度
@@ -17,11 +17,10 @@ public class UILayout {
         public static final float THEME_SELECTOR_HEIGHT = 40.0f; // 主题选择器高度
         public static final float CONTROL_PANEL_HEIGHT = BUTTON_SIZE + (BUTTON_PADDING * 2); // 控制面板高度
         
-        // 左侧工具栏流式布局常量
+        // 左侧工具栏流式布局常量（与控制面板间距保持一致）
         public static final float LEFT_BUTTON_SIZE = 40.0f;      // 左侧工具栏按钮大小
-        public static final float LEFT_BUTTON_SPACING = 2.0f;    // 左侧工具栏按钮间距
-        public static final float LEFT_GROUP_SPACING = 10.0f;    // 左侧工具栏组间距（增加以适应新布局）
-        public static final float TOOL_PANEL_PADDING = 6.0f;   // 工具面板内边距（增加以适应流式布局）
+        public static final float LEFT_BUTTON_SPACING = ITEM_SPACING;    // 左侧工具栏按钮间距（与控制面板一致）
+        public static final float TOOL_PANEL_PADDING = BUTTON_PADDING;   // 工具面板内边距（与控制面板一致）
         
         // 动态布局参数
         public static final float LEFT_MIN_WIDTH = 60.0f;        // 最小宽度（单列布局）

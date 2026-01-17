@@ -183,7 +183,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         
         // 换行：移动到下一行（上下间距与按钮间距统一）
         float lineSpacing = UILayout.Toolbar.ITEM_SPACING; // 使用统一的间距常量（4.0f）
-        float framePaddingY = Math.max(0, (UILayout.Toolbar.SLIDER_HEIGHT - ImGui.getTextLineHeight()) / 2.0f);
+        float framePaddingY = Math.max(0, (UILayout.Toolbar.SLIDER_HEIGHT - ImGui.getTextLineHeight()) / 3.0f);
         ImGui.setCursorPosY(ImGui.getCursorPosY() + lineSpacing - framePaddingY);
         
         // 第二行：透明度滑动条

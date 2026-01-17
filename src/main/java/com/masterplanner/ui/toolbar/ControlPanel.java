@@ -201,7 +201,12 @@ public class ControlPanel implements UIComponent {
         // 获取内容区域的边界（考虑窗口内边距）
         float contentMinX = ImGui.getWindowContentRegionMinX();
         float contentMaxX = ImGui.getWindowContentRegionMaxX();
+        float contentMinY = ImGui.getWindowContentRegionMinY();
         float contentWidth = contentMaxX - contentMinX;
+        
+        // 计算标签高度（如果有标签展开，这里可以动态计算）
+        // 目前没有标签功能，所以为0，将来可以扩展
+        float labelHeight = 0.0f;
         
         // 计算可用的工具组（过滤掉禁用的）
         List<ToolbarGroup> enabledGroups = new ArrayList<>();
@@ -232,12 +237,13 @@ public class ControlPanel implements UIComponent {
         // 计算每行可以放置的组（响应式布局，使用内容区域宽度）
         List<List<Integer>> rows = calculateRows(groupWidths, groupSpacings, contentWidth);
         
-        // 计算行数，用于垂直居中
+        // 计算行数
         int totalRows = rows.size();
-        float totalHeight = totalRows * buttonHeight + (totalRows - 1) * UILayout.Toolbar.ITEM_SPACING;
 
-        // 渲染每一行，从内容区域左边界开始
-        float currentY = (windowHeight - totalHeight) / 2.0f;
+        // 渲染每一行，从内容区域左边界和顶部边界开始
+        // 按钮距离上边界的距离和左边距一样（都是BUTTON_PADDING）
+        // 如果有标签展开，按钮会自动下移，保持和边界的固定间距
+        float currentY = contentMinY + UILayout.Toolbar.BUTTON_PADDING + labelHeight;
         for (List<Integer> row : rows) {
             ImGui.setCursorPos(contentMinX, currentY);
             
