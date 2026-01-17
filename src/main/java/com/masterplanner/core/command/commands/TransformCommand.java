@@ -304,9 +304,17 @@ public class TransformCommand extends ModifyCommand {
         double scaleFactor = calculateUniformScaleFactor(controlPointType, dragVector, bounds);
         
         // 确定缩放中心
+        // 关键修复：对于SpiralShape，应该使用getPosition()而不是bounds.getCenter()
+        // 因为SpiralShape的transform矩阵可能包含旋转/非等比缩放，导致bounds.getCenter()与center不一致
         Vec2d scaleCenter;
         if (params.isCenterScale()) {
-            scaleCenter = bounds.getCenter();
+            // 对于SpiralShape，使用getPosition()返回center，而不是bounds.getCenter()
+            // 这样可以避免位置漂移问题
+            if (shape instanceof SpiralShape) {
+                scaleCenter = shape.getPosition();
+            } else {
+                scaleCenter = bounds.getCenter();
+            }
         } else {
             scaleCenter = calculateAnchorPoint(controlPointType, bounds);
         }
@@ -393,12 +401,18 @@ public class TransformCommand extends ModifyCommand {
         
         if (rotationCenter == null) {
             // 如果没有指定旋转中心，使用图形中心
-            com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
-            if (bounds != null) {
-                rotationCenter = bounds.getCenter();
+            // 关键修复：对于SpiralShape，使用getPosition()返回center，而不是bounds.getCenter()
+            // 因为SpiralShape的transform矩阵可能包含旋转/非等比缩放，导致bounds.getCenter()与center不一致
+            if (shape instanceof SpiralShape) {
+                rotationCenter = shape.getPosition();
             } else {
-                LOGGER.warn("无法获取旋转中心，跳过旋转变换");
-                return;
+                com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                if (bounds != null) {
+                    rotationCenter = bounds.getCenter();
+                } else {
+                    LOGGER.warn("无法获取旋转中心，跳过旋转变换");
+                    return;
+                }
             }
         }
         

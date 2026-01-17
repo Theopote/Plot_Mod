@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.api.geometry.Matrix3d;
 import com.masterplanner.api.render.IRenderVisitor;
 import com.masterplanner.api.shape.IExtendableShape;
 import com.masterplanner.core.geometry.BoundingBox;
@@ -272,6 +273,14 @@ public class SpiralShape extends Shape implements IExtendableShape {
     }
 
     // Getter和Setter方法
+    @Override
+    public Vec2d getPosition() {
+        // 关键修复：返回center字段，确保getPosition()返回正确的值
+        // 这避免了position和center不同步导致的位置漂移问题
+        // 参考其他图形（CircleShape、ArcShape）使用center作为位置源
+        return center;
+    }
+    
     public Vec2d getCenter() { return center; }
     /**
      * 设置螺旋线的中心点
@@ -482,39 +491,126 @@ public class SpiralShape extends Shape implements IExtendableShape {
 
         // 非均匀缩放对螺旋的严格结果是“椭圆螺旋”，当前实现仍是圆形螺旋参数模型；
         // 因此这里采用“平均缩放因子”保持形态一致（与 transform(AffineTransform) 的思路一致）。
-        double avgScale = Math.sqrt(Math.abs(scale.x * scale.y));
-        if (!Double.isFinite(avgScale) || avgScale <= 0) return;
-
         // 缩放中心点位置（允许非均匀缩放影响位置）
         this.center = centerPoint.add(this.center.subtract(centerPoint).multiply(scale));
 
+        // 对于单轴缩放，使用对应的缩放因子；对于非等比缩放，使用平均缩放因子
+        // 这样可以支持单轴缩放，同时对于角点拖拽的非等比缩放保持形状一致
+        double scaleFactor = getScaleFactor(scale);
+
+        if (!Double.isFinite(scaleFactor) || scaleFactor <= 0) return;
+
         // 缩放尺寸相关参数（长度量）
-        this.radius *= avgScale;
-        this.spacing *= avgScale;
-        this.startRadius *= avgScale;
+        this.radius *= scaleFactor;
+        this.spacing *= scaleFactor;
+        this.startRadius *= scaleFactor;
+
+        // 关键修复：对于等比缩放，清除transform矩阵，因为参数已经更新
+        // 如果之前有transform矩阵（非等比缩放状态），现在进行等比缩放，需要清除它
+        // 否则transform矩阵会和新的center不匹配，导致位置漂移
+        if (Math.abs(scale.x - scale.y) < 1e-10) {
+            // 等比缩放：清除transform矩阵，因为参数已经更新
+            setTransform(null);
+        }
+        // 对于非等比缩放，scale()方法不应该被调用，应该使用transform()方法
+        // 但为了安全，这里不设置transform矩阵，让transform()方法来处理
 
         // 标记重新生成点
         markDirty();
     }
-    
+
+    private static double getScaleFactor(Vec2d scale) {
+        double scaleFactor;
+        if (Math.abs(scale.x - 1.0) < 1e-10) {
+            // 只在Y方向缩放（单轴垂直缩放）
+            scaleFactor = scale.y;
+        } else if (Math.abs(scale.y - 1.0) < 1e-10) {
+            // 只在X方向缩放（单轴水平缩放）
+            scaleFactor = scale.x;
+        } else {
+            // 非等比缩放（角点拖拽），使用平均缩放因子保持形状一致
+            // 非均匀缩放对螺旋的严格结果是"椭圆螺旋"，当前实现仍是圆形螺旋参数模型；
+            // 因此这里采用"平均缩放因子"保持形态一致（与 transform(AffineTransform) 的思路一致）。
+            scaleFactor = Math.sqrt(Math.abs(scale.x * scale.y));
+        }
+        return scaleFactor;
+    }
+
     @Override
     public Shape transform(AffineTransform transformMatrix) {
-        // 变换中心点
-        this.center = transformMatrix.transform(this.center);
+        // 参考圆形和椭圆的实现：直接变换中心点和参数
+        // 但是，对于非等比缩放，我们需要使用Shape.transform矩阵来实现单轴缩放效果
         
-        // 更新旋转角度
-        this.rotation += transformMatrix.getRotation();
-        
-        // 从矩阵行列式获取平均缩放因子
-        double avgScale = Math.sqrt(Math.abs(transformMatrix.getDeterminant()));
-        
-        // 缩放螺旋参数
-        this.radius *= avgScale;
-        this.growthFactor *= avgScale;
+        // 对于非等比缩放，需要将变换应用到Shape.transform矩阵
+        // 这样在绘制时，点会被正确变换，实现单轴缩放效果
+        if (!transformMatrix.isUniform()) {
+            // 关键理解：
+            // 1. getPoints()返回的点是绝对坐标（center.x + currentRadius * cos, center.y + currentRadius * sin）
+            // 2. AffineTransform矩阵 T(scaleCenter) * S(scaleFactors) * T(-scaleCenter) 已经包含了完整变换
+            // 3. 参考CircleShape的实现：直接变换center和向量，而不是使用decompose()
+            
+            // 先变换center
+            this.center = transformMatrix.transform(this.center);
+            
+            // 注意：不需要同步更新Shape.position，因为getPosition()已重写为返回center
+            // 这样可以避免setPosition()调用move()导致的transform矩阵冲突
+            
+            // 参考CircleShape：通过变换单位向量来计算缩放和旋转
+            // 变换x轴单位向量 (1, 0) 和 y轴单位向量 (0, 1)
+            Vec2d transformedX = transformMatrix.transformVector(new Vec2d(1, 0));
+            Vec2d transformedY = transformMatrix.transformVector(new Vec2d(0, 1));
+            
+            // 从变换后的向量构建Matrix3d（相对于center）
+            // Matrix3d应该表示：相对于center的缩放和旋转
+            // 不包含平移，因为center已经被变换了
+            
+            // 构建Matrix3d：使用变换后的单位向量作为列向量
+            // [transformedX.x, transformedY.x, 0]
+            // [transformedX.y, transformedY.y, 0]
+            // [0, 0, 1]
+            Matrix3d matrix3d = new Matrix3d();
+            matrix3d.set(0, 0, transformedX.x);
+            matrix3d.set(0, 1, transformedY.x);
+            matrix3d.set(0, 2, 0);
+            matrix3d.set(1, 0, transformedX.y);
+            matrix3d.set(1, 1, transformedY.y);
+            matrix3d.set(1, 2, 0);
+            matrix3d.set(2, 0, 0);
+            matrix3d.set(2, 1, 0);
+            matrix3d.set(2, 2, 1);
+            
+            // 直接设置新的transform矩阵（不组合已有的，避免双重变换）
+            setTransform(matrix3d);
+            
+            // 修复旋转角度计算：使用AffineTransform的旋转增量，而不是从变换后的向量计算绝对角度
+            // 关键修复：使用相对旋转增量，而不是绝对角度累加
+            // 由于AffineTransform已经包含了所有变换，这里的rotation应该表示相对于初始状态的累积旋转
+            // 对于非等比缩放，旋转信息由Matrix3d管理，这里的rotation主要用于参数化表示
+            double rotationDelta = transformMatrix.getRotation();
+            this.rotation += rotationDelta;
+            
+            // 对于非等比缩放，仍然使用平均缩放因子来缩放参数
+            // 这样可以保持螺旋的基本形状，而实际的拉伸效果通过transform矩阵实现
+            double avgScale = Math.sqrt(Math.abs(transformMatrix.getDeterminant()));
+            this.radius *= avgScale;
+            this.growthFactor *= avgScale;
+        } else {
+            // 等比缩放：直接修改参数，不使用transform矩阵
+            this.center = transformMatrix.transform(this.center);
+            
+            // 注意：不需要同步更新Shape.position，因为getPosition()已重写为返回center
+            
+            this.rotation += transformMatrix.getRotation();
+            double scale = transformMatrix.getScaleX();
+            this.radius *= scale;
+            this.growthFactor *= scale;
+            // 清除transform矩阵，因为参数已经更新
+            setTransform(null);
+        }
         
         markParameterDirty(SpiralParameter.RADIUS);
         markParameterDirty(SpiralParameter.GROWTH_FACTOR);
-        return this; // 螺旋变换后仍然是螺旋
+        return this;
     }
 
     @Override
@@ -551,17 +647,25 @@ public class SpiralShape extends Shape implements IExtendableShape {
         // SpiralShape 的缩放目前依赖 Shape.scale() 修改 transform 矩阵，
         // 但旧 getBoundingBox() 完全忽略 transform，会导致：
         // - 缩放后选框/命中检测错误
-        // - 如果渲染/裁剪依赖包围盒，可能出现“缩放后看起来不对/像没缩放”的问题
+        // - 如果渲染/裁剪依赖包围盒，可能出现"缩放后看起来不对/像没缩放"的问题
         var t = getTransform();
         if (t == null) {
             return new BoundingBox(minPoint, maxPoint);
         }
 
+        // 关键修复：transform矩阵是"相对于center的缩放和旋转"，不包含平移
+        // minPoint和maxPoint是基于center的绝对坐标，需要先转换为相对坐标，应用transform，再加回center
         // 将轴对齐包围盒四角应用变换后再求新的AABB
-        Vec2d c1 = t.transform(minPoint);
-        Vec2d c2 = t.transform(new Vec2d(maxPoint.x, minPoint.y));
-        Vec2d c3 = t.transform(maxPoint);
-        Vec2d c4 = t.transform(new Vec2d(minPoint.x, maxPoint.y));
+        Vec2d corner1 = new Vec2d(minPoint.x, minPoint.y);
+        Vec2d corner2 = new Vec2d(maxPoint.x, minPoint.y);
+        Vec2d corner3 = new Vec2d(maxPoint.x, maxPoint.y);
+        Vec2d corner4 = new Vec2d(minPoint.x, maxPoint.y);
+        
+        // 先将角点转换为相对于center的坐标，应用transform，再加回center
+        Vec2d c1 = center.add(t.transform(corner1.subtract(center)));
+        Vec2d c2 = center.add(t.transform(corner2.subtract(center)));
+        Vec2d c3 = center.add(t.transform(corner3.subtract(center)));
+        Vec2d c4 = center.add(t.transform(corner4.subtract(center)));
 
         double minX = Math.min(Math.min(c1.x, c2.x), Math.min(c3.x, c4.x));
         double minY = Math.min(Math.min(c1.y, c2.y), Math.min(c3.y, c4.y));
@@ -718,19 +822,49 @@ public class SpiralShape extends Shape implements IExtendableShape {
         
         if (!activeStyle.getLineStyle().isVisible()) return;
 
-        // 使用LineStyle绘制线段
+        // 关键修复：transform矩阵是"相对于center的缩放和旋转"，不包含平移
+        // getPoints()返回的点是绝对坐标（center.x + radius * cos, center.y + radius * sin）
+        // 因此需要先将点转换为相对于center的坐标，应用transform，再加回center
+        Matrix3d transform = getTransform();
+        boolean hasTransform = false;
+        if (transform != null) {
+            hasTransform = !(Math.abs(transform.get(0, 0) - 1.0) < 1e-10 && 
+                             Math.abs(transform.get(0, 1)) < 1e-10 && 
+                             Math.abs(transform.get(0, 2)) < 1e-10 &&
+                             Math.abs(transform.get(1, 0)) < 1e-10 && 
+                             Math.abs(transform.get(1, 1) - 1.0) < 1e-10 && 
+                             Math.abs(transform.get(1, 2)) < 1e-10 &&
+                             Math.abs(transform.get(2, 0)) < 1e-10 && 
+                             Math.abs(transform.get(2, 1)) < 1e-10 && 
+                             Math.abs(transform.get(2, 2) - 1.0) < 1e-10);
+        }
+        
         if (activeStyle.getLineStyle() instanceof LineStyle lineStyle) {
             for (int i = 0; i < points.size() - 1; i++) {
-                Vec2d p1 = getTransform().transform(points.get(i));
-                Vec2d p2 = getTransform().transform(points.get(i + 1));
+                Vec2d p1 = points.get(i);
+                Vec2d p2 = points.get(i + 1);
+                if (hasTransform && transform != null) {
+                    // 关键修复：先将点转换为相对于center的坐标，应用transform，再加回center
+                    Vec2d relativeP1 = p1.subtract(center);
+                    Vec2d relativeP2 = p2.subtract(center);
+                    p1 = center.add(transform.transform(relativeP1));
+                    p2 = center.add(transform.transform(relativeP2));
+                }
                 context.drawLine(p1, p2, lineStyle);
             }
         } else {
             // 如果没有LineStyle，使用默认颜色绘制
             Color color = new Color(activeStyle.getLineStyle().getColor().getRGB());
             for (int i = 0; i < points.size() - 1; i++) {
-                Vec2d p1 = getTransform().transform(points.get(i));
-                Vec2d p2 = getTransform().transform(points.get(i + 1));
+                Vec2d p1 = points.get(i);
+                Vec2d p2 = points.get(i + 1);
+                if (hasTransform && transform != null) {
+                    // 关键修复：先将点转换为相对于center的坐标，应用transform，再加回center
+                    Vec2d relativeP1 = p1.subtract(center);
+                    Vec2d relativeP2 = p2.subtract(center);
+                    p1 = center.add(transform.transform(relativeP1));
+                    p2 = center.add(transform.transform(relativeP2));
+                }
                 context.drawLine(p1, p2, color);
             }
         }
@@ -1766,8 +1900,6 @@ public class SpiralShape extends Shape implements IExtendableShape {
         return points;
     }
 
-
-
     /**
      * 优化的点旋转方法，直接使用Math三角函数
      * @param point 要旋转的点
@@ -2076,10 +2208,32 @@ public class SpiralShape extends Shape implements IExtendableShape {
             List<Vec2d> spiralPoints = getPoints();
             if (spiralPoints.size() < 2) return;
             
-            // 获取变换后的点
+            // 关键修复：transform矩阵是"相对于center的缩放和旋转"，不包含平移
+            // getPoints()返回的点是绝对坐标（center.x + radius * cos, center.y + radius * sin）
+            // 因此需要先将点转换为相对于center的坐标，应用transform，再加回center
+            Matrix3d transform = getTransform();
+            boolean hasTransform = false;
+            if (transform != null) {
+                hasTransform = !(Math.abs(transform.get(0, 0) - 1.0) < 1e-10 && 
+                                 Math.abs(transform.get(0, 1)) < 1e-10 && 
+                                 Math.abs(transform.get(0, 2)) < 1e-10 &&
+                                 Math.abs(transform.get(1, 0)) < 1e-10 && 
+                                 Math.abs(transform.get(1, 1) - 1.0) < 1e-10 && 
+                                 Math.abs(transform.get(1, 2)) < 1e-10 &&
+                                 Math.abs(transform.get(2, 0)) < 1e-10 && 
+                                 Math.abs(transform.get(2, 1)) < 1e-10 && 
+                                 Math.abs(transform.get(2, 2) - 1.0) < 1e-10);
+            }
+            
             List<Vec2d> transformedPoints = new ArrayList<>();
             for (Vec2d point : spiralPoints) {
-                transformedPoints.add(getTransform().transform(point));
+                if (hasTransform && transform != null) {
+                    // 关键修复：先将点转换为相对于center的坐标，应用transform，再加回center
+                    Vec2d relativePoint = point.subtract(center);
+                    transformedPoints.add(center.add(transform.transform(relativePoint)));
+                } else {
+                    transformedPoints.add(point);
+                }
             }
             
             // 转换到屏幕坐标
