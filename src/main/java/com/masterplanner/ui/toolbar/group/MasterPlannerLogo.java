@@ -1,16 +1,13 @@
 package com.masterplanner.ui.toolbar.group;
 
 import com.masterplanner.ui.component.ControlPanelIcons;
-import com.masterplanner.ui.component.UIUtils;
+import com.masterplanner.ui.toolbar.ToolbarUIUtils;
 import com.masterplanner.ui.layout.UILayout;
-import com.masterplanner.ui.theme.ThemeManager;
-import com.masterplanner.ui.theme.UITheme;
-import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 /**
  * MasterPlanner Logo组件
  * 渲染工具栏左侧的Logo
+ * 现在使用标准按钮大小和样式，与其他按钮一致
  */
 public class MasterPlannerLogo extends AbstractToolbarGroup {
     
@@ -20,40 +17,32 @@ public class MasterPlannerLogo extends AbstractToolbarGroup {
     
     @Override
     protected void renderGroupContent() {
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-
-        // logo 宽度应该是两倍按钮高度加按钮之间的间隙
-        float logoWidth = UILayout.Toolbar.BUTTON_SIZE * 2 + UILayout.Toolbar.ITEM_SPACING;
-        // 高度应该和工具按钮一致
-        float logoHeight = UILayout.Toolbar.BUTTON_SIZE;
-
-        // 设置提示文字背景颜色
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.panelBackground);
-
+        // 使用标准按钮样式和大小
+        pushButtonStyles();
+        
         try {
-            // logo 不需要边框
-            boolean clicked = UIUtils.imageButton(ControlPanelIcons.getIdentifier(ControlPanelIcons.LOGO),
-                    "MasterPlanner", logoWidth, logoHeight, false, false);
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("MasterPlanner 设置与帮助");
-            }
-            if (clicked) {
+            // 使用标准的工具栏按钮渲染方法，大小和样式与其他按钮一致
+            if (ToolbarUIUtils.renderToolbarButton(
+                    ControlPanelIcons.getIdentifier(ControlPanelIcons.LOGO),
+                    "MasterPlanner 设置与帮助")) {
                 com.masterplanner.ui.dialog.SettingsAndHelpDialog.getInstance().open();
             }
         } catch (Exception e) {
             LOGGER.error("Error rendering MasterPlanner logo", e);
         } finally {
-            ImGui.popStyleColor();
+            popButtonStyles();
         }
     }
     
     @Override
     public float getGroupWidth() {
-        return UILayout.Toolbar.BUTTON_SIZE * 2 + UILayout.Toolbar.ITEM_SPACING;
+        // 返回标准按钮宽度，与其他按钮一致
+        return UILayout.Toolbar.BUTTON_SIZE;
     }
     
     @Override
     public boolean needsSeparator() {
-        return super.needsSeparator();
+        // 不再需要分隔符，按钮按顺序排列
+        return false;
     }
 }

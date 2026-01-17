@@ -97,7 +97,8 @@ public class ControlPanel implements UIComponent {
         // 按顺序添加各个工具组
         groups.add(new MasterPlannerLogo());
         groups.add(new FileToolsGroup(appState, eventBus));
-        groups.add(new ToolSettingsGroup(appState, eventBus, blockConfigDialog, lineToBlockSettingsDialog, projectionSettingsDialog));
+        groups.add(new ToolSettingsGroup(appState, eventBus));
+        groups.add(new BlockOperationGroup(appState, eventBus, blockConfigDialog, lineToBlockSettingsDialog, projectionSettingsDialog));
         groups.add(new ViewToolsGroup(eventBus));
         groups.add(new ControlSlidersGroup(appState, eventBus));
         
@@ -189,13 +190,18 @@ public class ControlPanel implements UIComponent {
     }
     
     /**
-     * 渲染所有工具组 - 响应式自动换行布局
+     * 渲染所有工具组 - 不再分组，按顺序排列在同一行（自动换行）
      */
     private void renderToolGroups() {
         // 获取窗口宽度和高度
         float windowWidth = ImGui.getWindowWidth();
         float windowHeight = ImGui.getWindowHeight();
         float buttonHeight = UILayout.Toolbar.BUTTON_SIZE;
+        
+        // 获取内容区域的边界（考虑窗口内边距）
+        float contentMinX = ImGui.getWindowContentRegionMinX();
+        float contentMaxX = ImGui.getWindowContentRegionMaxX();
+        float contentWidth = contentMaxX - contentMinX;
         
         // 计算可用的工具组（过滤掉禁用的）
         List<ToolbarGroup> enabledGroups = new ArrayList<>();
@@ -210,32 +216,30 @@ public class ControlPanel implements UIComponent {
         }
         
         // 计算每个组的实际宽度（不包括间距）
+        // 所有组之间使用统一的ITEM_SPACING间距，不再考虑分组和分隔符
         List<Float> groupWidths = new ArrayList<>();
-        List<Float> groupSpacings = new ArrayList<>(); // 存储每个组后面的间距
-        for (int i = 0; i < enabledGroups.size(); i++) {
-            ToolbarGroup group = enabledGroups.get(i);
+        for (ToolbarGroup group : enabledGroups) {
             groupWidths.add(group.getGroupWidth());
-            // 计算这个组后面的间距（如果不是最后一个）
-            if (i < enabledGroups.size() - 1) {
-                float spacing = group.needsSeparator() ? 
-                    UILayout.Toolbar.GROUP_SPACING : UILayout.Toolbar.ITEM_SPACING;
-                groupSpacings.add(spacing);
-            } else {
-                groupSpacings.add(0.0f); // 最后一个组没有后续间距
-            }
         }
         
-        // 计算每行可以放置的组（响应式布局）
-        List<List<Integer>> rows = calculateRows(groupWidths, groupSpacings, windowWidth);
+        // 统一使用ITEM_SPACING作为所有组之间的间距
+        List<Float> groupSpacings = new ArrayList<>();
+        for (int i = 0; i < enabledGroups.size() - 1; i++) {
+            groupSpacings.add(UILayout.Toolbar.ITEM_SPACING);
+        }
+        groupSpacings.add(0.0f); // 最后一个组没有后续间距
+        
+        // 计算每行可以放置的组（响应式布局，使用内容区域宽度）
+        List<List<Integer>> rows = calculateRows(groupWidths, groupSpacings, contentWidth);
         
         // 计算行数，用于垂直居中
         int totalRows = rows.size();
         float totalHeight = totalRows * buttonHeight + (totalRows - 1) * UILayout.Toolbar.ITEM_SPACING;
 
-        // 渲染每一行
+        // 渲染每一行，从内容区域左边界开始
         float currentY = (windowHeight - totalHeight) / 2.0f;
         for (List<Integer> row : rows) {
-            ImGui.setCursorPos(0, currentY);
+            ImGui.setCursorPos(contentMinX, currentY);
             
             // 渲染这一行的所有组
             for (int i = 0; i < row.size(); i++) {
@@ -246,11 +250,9 @@ public class ControlPanel implements UIComponent {
                     // 渲染工具组
                     group.render();
                     
-                    // 如果不是这一行的最后一个，添加间距
+                    // 如果不是这一行的最后一个，添加统一间距（不再考虑分组和分隔符）
                     if (i < row.size() - 1) {
-                        float spacing = group.needsSeparator() ? 
-                            UILayout.Toolbar.GROUP_SPACING : UILayout.Toolbar.ITEM_SPACING;
-                        ImGui.sameLine(0, spacing);
+                        ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
                     }
                 } catch (Exception e) {
                     LOGGER.error("Error rendering tool group: {}", group.getGroupName(), e);

@@ -10,7 +10,7 @@ public class UILayout {
         public static final float BUTTON_SIZE = 40.0f;          // 按钮大小
         public static final float BUTTON_PADDING = 4.0f;        // 按钮内边距
         public static final float GROUP_SPACING = 14.0f;         // 组之间的间距
-        public static final float ITEM_SPACING = 2.0f;          // 组内项目间距
+        public static final float ITEM_SPACING = 4.0f;          // 组内项目间距
         public static final float SEPARATOR_WIDTH = 1;          // 分隔符宽度
         public static final float SLIDER_WIDTH = 200.0f;        // 滑动条宽度
         public static final float SLIDER_HEIGHT = 26.0f;        // 滑动条高度
@@ -58,11 +58,6 @@ public class UILayout {
 
     // 内容区域边距
     public static final float CONTENT_PADDING = 8;
-
-    // 获取画布宽度
-    public static float getCanvasWidth(float windowWidth) {
-        return windowWidth - Toolbar.TOOL_PANEL_WIDTH - RIGHT_PANEL_DEFAULT_WIDTH;
-    }
 
     // 获取内容区域高度
     public static float getContentHeight(float windowHeight) {

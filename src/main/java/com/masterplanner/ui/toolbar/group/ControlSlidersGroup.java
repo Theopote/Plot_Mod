@@ -72,11 +72,10 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         // 两个滑动条在一行需要的总宽度（包括间距）
         float twoSlidersWidth = singleSliderWidth * 2 + UILayout.Toolbar.ITEM_SPACING;
         
-        // 获取可用宽度（从当前光标位置到窗口右边缘）
+        // 获取可用宽度（从当前光标位置到内容区域右边缘）
         float currentX = ImGui.getCursorPosX();
-        float windowWidth = ImGui.getWindowWidth();
-        float windowPadding = ImGui.getStyle().getWindowPaddingX();
-        float actualAvailableWidth = windowWidth - currentX - windowPadding * 2;
+        float contentMaxX = ImGui.getWindowContentRegionMaxX();
+        float actualAvailableWidth = contentMaxX - currentX;
         
         try {
             setupSliderStyles();

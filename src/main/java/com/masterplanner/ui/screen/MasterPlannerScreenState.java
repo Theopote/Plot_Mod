@@ -11,8 +11,7 @@ public class MasterPlannerScreenState {
     private static final Logger LOGGER = LoggerFactory.getLogger(MasterPlannerScreenState.class);
     
     private static boolean isMasterPlannerScreenOpen = false;
-    private static boolean savedCloudRenderState = true; // 默认云渲染开启
-    
+
     /**
      * 检查 MasterPlanner 屏幕是否打开
      */
@@ -27,19 +26,5 @@ public class MasterPlannerScreenState {
         isMasterPlannerScreenOpen = open;
         LOGGER.debug("MasterPlanner 屏幕状态: {}", open ? "打开" : "关闭");
     }
-    
-    /**
-     * 保存云渲染状态
-     */
-    public static void saveCloudRenderState(boolean enabled) {
-        savedCloudRenderState = enabled;
-        LOGGER.debug("保存云渲染状态: {}", enabled);
-    }
-    
-    /**
-     * 获取保存的云渲染状态
-     */
-    public static boolean getSavedCloudRenderState() {
-        return savedCloudRenderState;
-    }
+
 }
