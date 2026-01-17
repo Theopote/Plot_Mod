@@ -241,14 +241,14 @@ public class LayerNameRenderer {
         );
         
         // 确保编辑缓冲区包含当前图层名称
-        if (layer != null && !nameBuffer.get().equals(layer.getName())) {
+        if (!nameBuffer.get().equals(layer.getName())) {
             nameBuffer.set(layer.getName());
             LOGGER.debug("同步编辑缓冲区内容为: '{}'", layer.getName());
         }
         
         // 创建一个不可见的按钮来占据原始空间，保持布局一致性
         ImGui.setCursorPos(originalX, originalY);
-        if (layer != null && width > 0.0f && height > 0.0f) {
+        if (width > 0.0f && height > 0.0f) {
             ImGui.invisibleButton("##layout_keeper_" + layer.getId(), width, height);
         }
 
@@ -279,10 +279,8 @@ public class LayerNameRenderer {
         ImGui.setNextWindowBgAlpha(0.0f); // 完全透明背景
         
         // 使用子窗口确保输入框位置正确
-        if (layer != null && ImGui.beginChild("##edit_child_" + layer.getId(), width, height, false,
-                ImGuiWindowFlags.NoMove |
-                        ImGuiWindowFlags.NoBackground |
-                        ImGuiWindowFlags.NoScrollbar)) {
+        if (ImGui.beginChild("##edit_child_" + layer.getId(), width, height, false,
+                ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoScrollbar)) {
 
             // 设置输入框宽度
             ImGui.setNextItemWidth(width - 4); // 留出一些边距
