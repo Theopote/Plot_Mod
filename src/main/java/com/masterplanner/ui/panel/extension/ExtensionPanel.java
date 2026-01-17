@@ -5,6 +5,7 @@ import com.masterplanner.api.plugin.IPlugin;
 import com.masterplanner.ui.component.UIComponent;
 import imgui.ImGui;
 import imgui.flag.*;
+import imgui.type.ImBoolean;
 
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.component.UIUtils;
@@ -39,7 +40,7 @@ public class ExtensionPanel implements UIComponent {
             initialized = true;
             MasterPlannerMod.LOGGER.info("ExtensionPanel初始化完成");
         } catch (Exception e) {
-            MasterPlannerMod.LOGGER.error("ExtensionPanel初始化失败: " + e.getMessage(), e);
+            MasterPlannerMod.LOGGER.error("ExtensionPanel初始化失败: {}", e.getMessage(), e);
         }
     }
     
@@ -57,30 +58,56 @@ public class ExtensionPanel implements UIComponent {
             
             // 插件列表
             ImGui.text("已安装插件");
-            ImGui.beginChild("##plugins_list", ImGui.getContentRegionAvailX(), 100, true);
+            float listHeight = Math.max(100.0f, Math.min(200.0f, pluginManager.getPlugins().size() * 35.0f));
+            ImGui.beginChild("##plugins_list", ImGui.getContentRegionAvailX(), listHeight, true);
+            
+            IPlugin activePlugin = pluginManager.getActivePlugin();
             
             for (IPlugin plugin : pluginManager.getPlugins()) {
-                boolean isActive = plugin.getId().equals(pluginManager.getActivePlugin().getId());
+                boolean isActive = activePlugin != null && plugin.getId().equals(activePlugin.getId());
                 
                 ImGui.pushID(plugin.getId());
                 
-                // 插件选择按钮
-                if (UIUtils.iconButton(Icons.PLUGIN, plugin.getName(), isActive)) {
+                // 插件选择按钮（支持单选模式）
+                String buttonText = plugin.getName();
+                // 获取插件图标（如果Plugin子类实现了getIcon方法）
+                String icon = Icons.PLUGIN;
+                if (plugin instanceof com.masterplanner.plugin.Plugin pluginImpl) {
+                    String pluginIcon = pluginImpl.getIcon();
+                    if (pluginIcon != null && !pluginIcon.isEmpty()) {
+                        icon = pluginIcon;
+                    }
+                }
+                if (UIUtils.iconButton(icon, buttonText, isActive)) {
+                    // 如果当前插件已激活，则取消激活；否则激活该插件
                     pluginManager.setActivePlugin(isActive ? null : plugin);
                 }
                 
                 // 启用/禁用开关
-                ImGui.sameLine(ImGui.getWindowWidth() - 50);
+                ImGui.sameLine(ImGui.getWindowWidth() - 60);
                 boolean enabled = plugin.isEnabled();
-                if (ImGui.checkbox("##enabled", enabled)) {
-                    if (enabled) {
-                        pluginManager.disablePlugin(plugin);
-                    } else {
+                ImGui.pushStyleColor(ImGuiCol.Text, enabled ? 0xFF40FF40 : 0xFF808080);
+                ImBoolean enabledRef = new ImBoolean(enabled);
+                if (ImGui.checkbox("##enabled", enabledRef)) {
+                    // enabledRef.get() 是点击后的新状态
+                    if (enabledRef.get()) {
+                        // 复选框被勾选，启用插件
                         pluginManager.enablePlugin(plugin);
+                    } else {
+                        // 复选框被取消勾选，禁用插件
+                        pluginManager.disablePlugin(plugin);
+                        // 如果禁用的是当前激活的插件，取消激活
+                        if (isActive) {
+                            pluginManager.setActivePlugin(null);
+                        }
                     }
                 }
+                ImGui.popStyleColor();
                 
                 ImGui.popID();
+                
+                // 添加一些间距
+                ImGui.spacing();
             }
             
             ImGui.endChild();
@@ -89,27 +116,56 @@ public class ExtensionPanel implements UIComponent {
             ImGui.separator();
             ImGui.spacing();
             
-            // 显示当前激活的插件界面
-            IPlugin activePlugin = pluginManager.getActivePlugin();
-            if (activePlugin != null && activePlugin.isEnabled()) {
-                ImGui.text(activePlugin.getName());
-                ImGui.separator();
-                ImGui.spacing();
-                
-                // 创建滚动区域来显示插件内容
-                ImGui.beginChild("##plugin_content", 
-                    ImGui.getContentRegionAvailX(), 
-                    ImGui.getContentRegionAvailY(), 
-                    false);
-                activePlugin.render();
-                ImGui.endChild();
+            // 显示当前激活的插件参数面板
+            IPlugin currentActivePlugin = pluginManager.getActivePlugin();
+            if (currentActivePlugin != null) {
+                // 如果插件未启用，显示提示信息
+                if (!currentActivePlugin.isEnabled()) {
+                    ImGui.textColored((int) 0xFFFF4040FFL, "插件未启用");
+                    ImGui.text("请先启用插件 '" + currentActivePlugin.getName() + "' 以使用其功能");
+                } else {
+                    // 显示插件名称和描述
+                    ImGui.pushStyleColor(ImGuiCol.Text, (int) 0xFF4080FFFFL);
+                    ImGui.text(currentActivePlugin.getName());
+                    ImGui.popStyleColor();
+                    
+                    if (currentActivePlugin.getDescription() != null && !currentActivePlugin.getDescription().isEmpty()) {
+                        ImGui.textWrapped(currentActivePlugin.getDescription());
+                    }
+                    
+                    ImGui.separator();
+                    ImGui.spacing();
+                    
+                    // 创建滚动区域来显示插件参数面板
+                    float contentHeight = ImGui.getContentRegionAvailY();
+                    if (contentHeight > 0) {
+                        ImGui.beginChild("##plugin_content", 
+                            ImGui.getContentRegionAvailX(), 
+                            contentHeight, 
+                            false,
+                            ImGuiWindowFlags.HorizontalScrollbar);
+                        
+                        try {
+                            currentActivePlugin.render();
+                        } catch (Exception e) {
+                            MasterPlannerMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
+                            ImGui.textColored((int) 0xFFFF4040FFL, "渲染错误: " + e.getMessage());
+                        }
+                        
+                        ImGui.endChild();
+                    }
+                }
+            } else {
+                // 没有激活的插件，显示提示信息
+                ImGui.textColored((int) 0xFF808080FFL, "请选择一个插件");
+                ImGui.textWrapped("从上方列表中选择一个插件以查看和配置其参数");
             }
             
             // 恢复样式
             ImGui.popStyleVar(2);
             
         } catch (Exception e) {
-            MasterPlannerMod.LOGGER.error("ExtensionPanel渲染失败: " + e.getMessage(), e);
+            MasterPlannerMod.LOGGER.error("ExtensionPanel渲染失败: {}", e.getMessage(), e);
         }
     }
     

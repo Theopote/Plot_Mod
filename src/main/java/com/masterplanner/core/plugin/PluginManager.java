@@ -43,10 +43,75 @@ public class PluginManager implements IPluginManager {
             
             this.pluginLoader = new PluginLoader(pluginsPath);
             
-            // 加载插件
+            // 注册内置插件
+            registerBuiltinPlugins();
+            
+            // 加载外部插件
             loadPlugins();
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to initialize plugin manager", e);
+        }
+    }
+    
+    /**
+     * 注册内置插件
+     */
+    private void registerBuiltinPlugins() {
+        try {
+            // 注册土方平衡插件
+            com.masterplanner.plugin.EarthworkPlugin earthworkPlugin = new com.masterplanner.plugin.EarthworkPlugin();
+            registerBuiltinPlugin(earthworkPlugin);
+            
+            // 注册图片工具插件
+            com.masterplanner.plugin.ImageToolsPlugin imageToolsPlugin = new com.masterplanner.plugin.ImageToolsPlugin();
+            registerBuiltinPlugin(imageToolsPlugin);
+            
+            // 注册道路系统插件
+            com.masterplanner.plugin.RoadSystemPlugin roadSystemPlugin = new com.masterplanner.plugin.RoadSystemPlugin();
+            registerBuiltinPlugin(roadSystemPlugin);
+            
+            LogManager.getInstance().info("Registered {} builtin plugins", plugins.size());
+        } catch (Exception e) {
+            LogManager.getInstance().error("Failed to register builtin plugins", e);
+        }
+    }
+    
+    /**
+     * 注册单个内置插件
+     */
+    private void registerBuiltinPlugin(IPlugin plugin) {
+        try {
+            if (plugin == null) {
+                LogManager.getInstance().warn("Cannot register null plugin");
+                return;
+            }
+            
+            // 检查是否已加载
+            if (plugins.containsKey(plugin.getId())) {
+                LogManager.getInstance().warn("Plugin already registered: " + plugin.getId());
+                return;
+            }
+            
+            // 初始化插件
+            plugin.initialize();
+            
+            // 添加到依赖图
+            dependencyGraph.addPlugin(plugin);
+            
+            // 添加到插件列表
+            plugins.put(plugin.getId(), plugin);
+            
+            // 默认启用插件
+            try {
+                plugin.enable();
+            } catch (Exception e) {
+                LogManager.getInstance().warn("Failed to enable plugin " + plugin.getId() + " on registration", e);
+            }
+            
+            notifyListeners(plugin, PluginState.LOADED);
+            LogManager.getInstance().info("Registered builtin plugin: " + plugin.getId());
+        } catch (Exception e) {
+            LogManager.getInstance().error("Failed to register builtin plugin: " + (plugin != null ? plugin.getId() : "null"), e);
         }
     }
 
