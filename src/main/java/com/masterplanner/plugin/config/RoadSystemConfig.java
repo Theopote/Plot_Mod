@@ -23,6 +23,15 @@ public class RoadSystemConfig {
     private String selectedMaterial = "混凝土";
     private String selectedPreset = "";
     private List<RoadPreset> presets;
+    
+    // 新增参数
+    private float maxSlope = 10.0f; // 最大坡度（百分比）
+    private int bridgeThreshold = 5; // 桥阈值（方块高度差）
+    private int tunnelThreshold = 8; // 隧道阈值（方块高度差）
+    private boolean includeShoulder = false; // 是否包含路肩
+    private int shoulderWidth = 1; // 路肩宽度
+    private boolean includeDrainage = false; // 是否包含排水沟
+    private double pathLength = 0.0; // 当前路径长度（米）
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -119,6 +128,73 @@ public class RoadSystemConfig {
 
     public List<RoadPreset> getPresets() {
         return presets;
+    }
+    
+    public float getMaxSlope() {
+        return maxSlope;
+    }
+    
+    public void setMaxSlope(float maxSlope) {
+        this.maxSlope = Math.max(0.0f, Math.min(45.0f, maxSlope));
+    }
+    
+    public int getBridgeThreshold() {
+        return bridgeThreshold;
+    }
+    
+    public void setBridgeThreshold(int bridgeThreshold) {
+        this.bridgeThreshold = Math.max(1, Math.min(20, bridgeThreshold));
+    }
+    
+    public int getTunnelThreshold() {
+        return tunnelThreshold;
+    }
+    
+    public void setTunnelThreshold(int tunnelThreshold) {
+        this.tunnelThreshold = Math.max(1, Math.min(30, tunnelThreshold));
+    }
+    
+    public boolean isIncludeShoulder() {
+        return includeShoulder;
+    }
+    
+    public void setIncludeShoulder(boolean includeShoulder) {
+        this.includeShoulder = includeShoulder;
+    }
+    
+    public int getShoulderWidth() {
+        return shoulderWidth;
+    }
+    
+    public void setShoulderWidth(int shoulderWidth) {
+        this.shoulderWidth = Math.max(0, Math.min(3, shoulderWidth));
+    }
+    
+    public boolean isIncludeDrainage() {
+        return includeDrainage;
+    }
+    
+    public void setIncludeDrainage(boolean includeDrainage) {
+        this.includeDrainage = includeDrainage;
+    }
+    
+    public double getPathLength() {
+        return pathLength;
+    }
+    
+    public void setPathLength(double pathLength) {
+        this.pathLength = Math.max(0.0, pathLength);
+    }
+    
+    /**
+     * 应用预设配置
+     */
+    public void applyPreset(RoadPreset preset) {
+        if (preset == null) return;
+        this.roadWidth = preset.width;
+        this.includeSidewalk = preset.hasSidewalk;
+        this.sidewalkWidth = preset.sidewalkWidth;
+        this.selectedPreset = preset.id;
     }
 
     /**

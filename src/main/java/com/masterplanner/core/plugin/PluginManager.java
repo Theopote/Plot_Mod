@@ -137,7 +137,7 @@ public class PluginManager implements IPluginManager {
             return;
         }
 
-        for (File file : pluginsDir.listFiles()) {
+        for (File file : Objects.requireNonNull(pluginsDir.listFiles())) {
             if (pluginLoader.isPluginFile(file.getPath())) {
                 try {
                     IPlugin plugin = pluginLoader.loadPlugin(file.getPath());

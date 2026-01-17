@@ -8,10 +8,36 @@ import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.component.UIUtils;
 import com.masterplanner.plugin.config.RoadSystemConfig;
 import com.masterplanner.plugin.config.RoadSystemConfig.RoadPreset;
+import com.masterplanner.core.state.AppState;
+import com.masterplanner.core.model.Shape;
+import com.masterplanner.core.geometry.shapes.PolylineShape;
+import com.masterplanner.core.geometry.shapes.FreeDrawPath;
+import com.masterplanner.core.geometry.shapes.BezierCurveShape;
+import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.tool.ToolManager;
+import com.masterplanner.ui.tools.impl.drawing.PolylineTool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.ArrayList;
 
 public class RoadSystemPlugin extends Plugin {
+    private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/RoadSystemPlugin");
+    
     private RoadSystemConfig config;
     private final ImBoolean includeSidewalkRef = new ImBoolean(false);
+    private final ImBoolean includeShoulderRef = new ImBoolean(false);
+    private final ImBoolean includeDrainageRef = new ImBoolean(false);
+    
+    // 当前选择的路径
+    private Shape selectedPath = null;
+    
+    // 临时统计结果（实际应从RoadGenerator获取）
+    private int cutVolume = 0;
+    private int fillVolume = 0;
+    private int bridgeCount = 0;
+    private int tunnelCount = 0;
     
     public RoadSystemPlugin() {
         super(
@@ -44,77 +70,435 @@ public class RoadSystemPlugin extends Plugin {
     public void render() {
         if (config == null) return;
         
-        // 道路类型选择
-        ImGui.text("道路类型");
-        ImGui.beginChild("road_types", 0, 80, true);
-        String[] roadTypes = {"城市道路", "高架路", "铁路", "桥梁", "乡间小道", "隧道", "运河", "索道"};
-        int columns = 4;
-        ImGui.columns(columns, "road_types_columns", false);
-        for (String type : roadTypes) {
-            if (UIUtils.iconButton(Icons.ROAD, type, false)) {
-                // 选择道路类型
+        // ========== 预设选择 ==========
+        ImGui.text("道路预设");
+        ImGui.beginChild("road_presets", 0, 100, true);
+        ImGui.columns(2, "presets_columns", false);
+        for (RoadPreset preset : config.getPresets()) {
+            boolean isSelected = preset.id.equals(config.getSelectedPreset());
+            if (UIUtils.selectableCard(preset.name, isSelected, 150, 40)) {
+                if (isSelected) {
+                    config.setSelectedPreset("");
+                } else {
+                    config.setSelectedPreset(preset.id);
+                    config.applyPreset(preset);
+                }
             }
             ImGui.nextColumn();
         }
         ImGui.columns(1);
         ImGui.endChild();
         
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+        
+        // ========== 路径信息 ==========
+        ImGui.text("路径信息");
+        
+        // 尝试从选中的图形中获取路径
+        updateSelectedPath();
+        
+        if (selectedPath != null) {
+            double pathLength = calculatePathLength(selectedPath);
+            config.setPathLength(pathLength);
+            ImGui.text(String.format("已选择路径: %.1f 米", pathLength));
+            ImGui.textColored(0xFF4080FFFF, "路径类型: " + getPathTypeName(selectedPath));
+            
+            if (ImGui.button("编辑路径", ImGui.getContentRegionAvailX(), 0)) {
+                // 选中路径并激活修改工具
+                selectPathForEditing();
+            }
+        } else {
+            // 检查是否有路径可用
+            List<Shape> availablePaths = findAvailablePaths();
+            if (!availablePaths.isEmpty()) {
+                ImGui.textColored(0xFFFFAA00FF, String.format("找到 %d 个可用路径", availablePaths.size()));
+                ImGui.text("请选择一个路径图形以用于道路生成");
+                
+                if (ImGui.beginCombo("##select_path", "选择路径...")) {
+                    for (Shape path : availablePaths) {
+                        String label = String.format("%s (%.1f米)", getPathTypeName(path), calculatePathLength(path));
+                        if (ImGui.selectable(label, path == selectedPath)) {
+                            selectedPath = path;
+                            AppState.getInstance().setSelectedShapes(List.of(path));
+                        }
+                    }
+                    ImGui.endCombo();
+                }
+            } else {
+                ImGui.textColored(0xFF808080FF, "未找到路径");
+                ImGui.text("请使用绘图工具绘制路径（折线、自由绘制或贝塞尔曲线）");
+            }
+        }
+        
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+        
+        // ========== 基本参数 ==========
+        ImGui.text("基本参数");
+        
         // 道路宽度
-        ImGui.text("道路宽度: " + config.getRoadWidth() + "格");
+        ImGui.text("道路宽度: " + config.getRoadWidth() + " 方块");
         int[] roadWidth = {config.getRoadWidth()};
-        if (ImGui.sliderInt("##road_width", roadWidth, 3, 11, "")) {
+        if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, "")) {
             config.setRoadWidth(roadWidth[0]);
         }
         
-        // 人行道设置
+        // 道路材质
+        ImGui.text("道路材质");
+        if (ImGui.beginCombo("##road_material", config.getSelectedMaterial())) {
+            String[] materials = {"混凝土", "石头", "砂砾", "木板"};
+            for (String material : materials) {
+                boolean isSelected = material.equals(config.getSelectedMaterial());
+                if (ImGui.selectable(material, isSelected)) {
+                    config.setSelectedMaterial(material);
+                }
+                if (isSelected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        
+        ImGui.spacing();
+        
+        // ========== 坡度与地形适应 ==========
+        ImGui.text("坡度与地形适应");
+        
+        // 最大坡度
+        ImGui.text(String.format("最大坡度: %.1f%%", config.getMaxSlope()));
+        float[] maxSlope = {config.getMaxSlope()};
+        if (ImGui.sliderFloat("##max_slope", maxSlope, 0.0f, 45.0f, "%.1f%%")) {
+            config.setMaxSlope(maxSlope[0]);
+        }
+        
+        // 桥阈值
+        ImGui.text("桥阈值: " + config.getBridgeThreshold() + " 方块");
+        int[] bridgeThresh = {config.getBridgeThreshold()};
+        if (ImGui.sliderInt("##bridge_thresh", bridgeThresh, 1, 20, "")) {
+            config.setBridgeThreshold(bridgeThresh[0]);
+        }
+        
+        // 隧道阈值
+        ImGui.text("隧道阈值: " + config.getTunnelThreshold() + " 方块");
+        int[] tunnelThresh = {config.getTunnelThreshold()};
+        if (ImGui.sliderInt("##tunnel_thresh", tunnelThresh, 1, 30, "")) {
+            config.setTunnelThreshold(tunnelThresh[0]);
+        }
+        
+        ImGui.spacing();
+        
+        // ========== 附加设施 ==========
+        ImGui.text("附加设施");
+        
+        // 人行道
         includeSidewalkRef.set(config.isIncludeSidewalk());
         if (ImGui.checkbox("包含人行道", includeSidewalkRef)) {
             config.setIncludeSidewalk(includeSidewalkRef.get());
         }
         
         if (config.isIncludeSidewalk()) {
-            ImGui.text("人行道宽度: " + config.getSidewalkWidth() + "格");
+            ImGui.indent(20);
+            ImGui.text("人行道宽度: " + config.getSidewalkWidth() + " 方块");
             int[] sidewalkWidth = {config.getSidewalkWidth()};
             if (ImGui.sliderInt("##sidewalk_width", sidewalkWidth, 1, 3, "")) {
                 config.setSidewalkWidth(sidewalkWidth[0]);
             }
+            ImGui.unindent(20);
         }
         
-        // 道路材质选择
-        ImGui.text("道路材质");
-        if (ImGui.beginCombo("##road_material", config.getSelectedMaterial())) {
-            String[] materials = {"混凝土", "石头", "砂砾", "木板"};
-            for (String material : materials) {
-                if (ImGui.selectable(material, material.equals(config.getSelectedMaterial()))) {
-                    config.setSelectedMaterial(material);
+        // 路肩
+        includeShoulderRef.set(config.isIncludeShoulder());
+        if (ImGui.checkbox("包含路肩", includeShoulderRef)) {
+            config.setIncludeShoulder(includeShoulderRef.get());
+        }
+        
+        if (config.isIncludeShoulder()) {
+            ImGui.indent(20);
+            ImGui.text("路肩宽度: " + config.getShoulderWidth() + " 方块");
+            int[] shoulderWidth = {config.getShoulderWidth()};
+            if (ImGui.sliderInt("##shoulder_width", shoulderWidth, 1, 3, "")) {
+                config.setShoulderWidth(shoulderWidth[0]);
+            }
+            ImGui.unindent(20);
+        }
+        
+        // 排水沟
+        includeDrainageRef.set(config.isIncludeDrainage());
+        if (ImGui.checkbox("包含排水沟", includeDrainageRef)) {
+            config.setIncludeDrainage(includeDrainageRef.get());
+        }
+        
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+        
+        // ========== 操作按钮 ==========
+        ImGui.text("操作");
+        ImGui.beginGroup();
+        
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        
+        if (ImGui.button("绘制路径", buttonWidth, 0)) {
+            activatePathDrawingTool();
+        }
+        
+        ImGui.sameLine();
+        boolean canPreview = selectedPath != null;
+        if (!canPreview) {
+            ImGui.pushItemFlag(ImGuiItemFlags.Disabled, true);
+            ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
+        }
+        if (ImGui.button("计算预览", buttonWidth, 0)) {
+            calculatePreview();
+        }
+        if (!canPreview) {
+            ImGui.popStyleVar();
+            ImGui.popItemFlag();
+        }
+        
+        ImGui.endGroup();
+        
+        ImGui.beginGroup();
+        if (ImGui.button("投影参考", buttonWidth, 0)) {
+            // TODO: 在画布上显示道路预览投影（半透明）
+        }
+        
+        ImGui.sameLine();
+        if (ImGui.button("实际构建", buttonWidth, 0)) {
+            // TODO: 生成实际的道路方块（可撤销的命令）
+        }
+        
+        ImGui.endGroup();
+        
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+        
+        // ========== 计算结果 ==========
+        ImGui.text("计算结果");
+        if (cutVolume > 0 || fillVolume > 0 || bridgeCount > 0 || tunnelCount > 0) {
+            ImGui.columns(2, "results_columns", false);
+            
+            ImGui.text("挖方量:");
+            ImGui.nextColumn();
+            ImGui.text(String.format("%d 方块", cutVolume));
+            ImGui.nextColumn();
+            
+            ImGui.text("填方量:");
+            ImGui.nextColumn();
+            ImGui.text(String.format("%d 方块", fillVolume));
+            ImGui.nextColumn();
+            
+            ImGui.text("桥梁数量:");
+            ImGui.nextColumn();
+            ImGui.text(String.format("%d 座", bridgeCount));
+            ImGui.nextColumn();
+            
+            ImGui.text("隧道数量:");
+            ImGui.nextColumn();
+            ImGui.text(String.format("%d 段", tunnelCount));
+            ImGui.nextColumn();
+            
+            ImGui.columns(1);
+            
+            // 平衡度计算
+            int totalVolume = cutVolume + fillVolume;
+            if (totalVolume > 0) {
+                int imbalance = Math.abs(cutVolume - fillVolume);
+                float balancePercent = (1.0f - (float) imbalance / totalVolume) * 100.0f;
+                ImGui.text(String.format("平衡度: %.1f%%", balancePercent));
+            }
+        } else {
+            ImGui.textColored(0xFF808080FF, "请先绘制路径并计算预览");
+        }
+    }
+    
+    /**
+     * 更新选中的路径（从AppState的选中图形中获取）
+     */
+    private void updateSelectedPath() {
+        try {
+            AppState appState = AppState.getInstance();
+            List<Shape> selectedShapes = appState.getSelectedShapes();
+            
+            if (!selectedShapes.isEmpty()) {
+                // 优先使用第一个选中的路径类型图形
+                for (Shape shape : selectedShapes) {
+                    if (isPathShape(shape)) {
+                        selectedPath = shape;
+                        return;
+                    }
                 }
             }
-            ImGui.endCombo();
-        }
-        
-        // 道路预设
-        ImGui.text("道路预设");
-        ImGui.beginChild("road_presets", 0, 140, true);
-        ImGui.columns(2, "presets_columns", false);
-        for (RoadPreset preset : config.getPresets()) {
-            if (UIUtils.selectableCard(preset.name, preset.id.equals(config.getSelectedPreset()), 180, 60)) {
-                config.setSelectedPreset(preset.id.equals(config.getSelectedPreset()) ? "" : preset.id);
+            
+            // 如果没有选中路径类型图形，清空选择
+            if (selectedPath != null && !appState.getSelectedShapes().contains(selectedPath)) {
+                selectedPath = null;
             }
-            ImGui.nextColumn();
+        } catch (Exception e) {
+            LOGGER.error("更新选中路径失败: {}", e.getMessage(), e);
         }
-        ImGui.columns(1);
-        ImGui.endChild();
+    }
+    
+    /**
+     * 查找可用的路径图形
+     */
+    private List<Shape> findAvailablePaths() {
+        List<Shape> paths = new ArrayList<>();
+        try {
+            AppState appState = AppState.getInstance();
+            List<Shape> allShapes = appState.getShapes();
+            
+            for (Shape shape : allShapes) {
+                if (isPathShape(shape)) {
+                    paths.add(shape);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("查找可用路径失败: {}", e.getMessage(), e);
+        }
+        return paths;
+    }
+    
+    /**
+     * 判断图形是否为路径类型
+     */
+    private boolean isPathShape(Shape shape) {
+        return shape instanceof PolylineShape || 
+               shape instanceof FreeDrawPath || 
+               shape instanceof BezierCurveShape;
+    }
+    
+    /**
+     * 获取路径类型名称
+     */
+    private String getPathTypeName(Shape shape) {
+        if (shape instanceof PolylineShape) {
+            return "折线";
+        } else if (shape instanceof FreeDrawPath) {
+            return "自由绘制";
+        } else if (shape instanceof BezierCurveShape) {
+            return "贝塞尔曲线";
+        }
+        return "未知";
+    }
+    
+    /**
+     * 计算路径长度（米）
+     */
+    private double calculatePathLength(Shape path) {
+        try {
+            List<Vec2d> points = getPathPoints(path);
+            if (points == null || points.size() < 2) {
+                return 0.0;
+            }
+            
+            double totalLength = 0.0;
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec2d p1 = points.get(i);
+                Vec2d p2 = points.get(i + 1);
+                totalLength += p1.distance(p2);
+            }
+            
+            // 转换为米（假设1世界单位 = 1米）
+            return totalLength;
+        } catch (Exception e) {
+            LOGGER.error("计算路径长度失败: {}", e.getMessage(), e);
+            return 0.0;
+        }
+    }
+    
+    /**
+     * 获取路径的点列表
+     */
+    private List<Vec2d> getPathPoints(Shape path) {
+        if (path instanceof PolylineShape) {
+            return ((PolylineShape) path).getPoints();
+        } else if (path instanceof FreeDrawPath) {
+            return ((FreeDrawPath) path).getPoints();
+        } else if (path instanceof BezierCurveShape) {
+            // 贝塞尔曲线需要采样点（简化实现）
+            return sampleBezierCurve((BezierCurveShape) path, 20);
+        }
+        return null;
+    }
+    
+    /**
+     * 采样贝塞尔曲线的点
+     */
+    private List<Vec2d> sampleBezierCurve(BezierCurveShape curve, int samples) {
+        List<Vec2d> points = new ArrayList<>();
+        // 简化实现：从控制点计算（实际应该使用贝塞尔曲线公式）
+        List<Vec2d> controlPoints = curve.getControlPoints();
+        if (controlPoints != null && !controlPoints.isEmpty()) {
+            points.addAll(controlPoints);
+        }
+        return points;
+    }
+    
+    /**
+     * 选择路径用于编辑
+     */
+    private void selectPathForEditing() {
+        if (selectedPath != null) {
+            try {
+                AppState appState = AppState.getInstance();
+                appState.setSelectedShapes(List.of(selectedPath));
+                // TODO: 激活修改工具
+            } catch (Exception e) {
+                LOGGER.error("选择路径用于编辑失败: {}", e.getMessage(), e);
+            }
+        }
+    }
+    
+    /**
+     * 激活路径绘制工具
+     */
+    private void activatePathDrawingTool() {
+        try {
+            ToolManager toolManager = ToolManager.getInstance();
+            if (toolManager != null) {
+                // 查找PolylineTool
+                var polylineTool = toolManager.getTool("polyline");
+                if (polylineTool != null) {
+                    AppState.getInstance().setCurrentTool(polylineTool);
+                    LOGGER.info("已激活折线工具用于绘制路径");
+                } else {
+                    LOGGER.warn("未找到折线工具");
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("激活路径绘制工具失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 计算道路预览
+     */
+    private void calculatePreview() {
+        if (selectedPath == null) {
+            LOGGER.warn("未选择路径，无法计算预览");
+            return;
+        }
         
-        // 工具按钮
-        ImGui.text("工具");
-        ImGui.beginGroup();
-        if (UIUtils.iconButton(Icons.SCISSORS, "分割道路", false)) {
-            // 分割道路
+        try {
+            // TODO: 实现道路生成器计算
+            // 目前使用临时数据
+            double pathLength = calculatePathLength(selectedPath);
+            
+            // 简单的估算（实际应该使用RoadGenerator）
+            int roadWidth = config.getRoadWidth();
+            cutVolume = (int) (pathLength * roadWidth * 0.5); // 简化的挖方估算
+            fillVolume = (int) (pathLength * roadWidth * 0.3); // 简化的填方估算
+            bridgeCount = 0; // TODO: 检测桥需求
+            tunnelCount = 0; // TODO: 检测隧道需求
+            
+            LOGGER.info("道路预览计算完成: 挖{} 填{}", cutVolume, fillVolume);
+        } catch (Exception e) {
+            LOGGER.error("计算道路预览失败: {}", e.getMessage(), e);
         }
-        ImGui.sameLine();
-        if (UIUtils.iconButton(Icons.RULER, "测量距离", false)) {
-            // 测量距离
-        }
-        ImGui.endGroup();
     }
 }

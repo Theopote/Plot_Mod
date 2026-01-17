@@ -17,7 +17,7 @@ public abstract class Plugin implements IPlugin {
     private final String icon;
     private boolean enabled;
     private IPluginConfig config;
-    private PluginState state = PluginState.DISABLED;
+    private PluginState state;
     
     public Plugin(String id, String name, String description, String icon) {
         this.id = id;
