@@ -313,7 +313,7 @@ public class EllipticalArcShape extends Shape {
             return center;
         }
         
-        Vec2d closest = points.get(0);
+        Vec2d closest = points.getFirst();
         double minDistance = point.distance(closest);
         
         for (Vec2d arcPoint : points) {
@@ -387,8 +387,8 @@ public class EllipticalArcShape extends Shape {
         List<Vec2d> endpoints = new ArrayList<>();
         List<Vec2d> points = getPoints();
         if (!points.isEmpty()) {
-            endpoints.add(points.get(0));
-            endpoints.add(points.get(points.size() - 1));
+            endpoints.add(points.getFirst());
+            endpoints.add(points.getLast());
         }
         return endpoints;
     }
@@ -525,6 +525,7 @@ public class EllipticalArcShape extends Shape {
     
     @Override
     public Shape clone() {
+        Shape shape = super.clone();
         EllipticalArcShape clone = new EllipticalArcShape(center, radiusX, radiusY, rotation, startAngle, endAngle);
         clone.setStyle(this.getStyle());
         clone.setSelected(this.isSelected());

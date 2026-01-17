@@ -189,8 +189,7 @@ public class TransformCommand extends ModifyCommand {
         // 对于圆形、圆弧和螺旋形的非等比缩放，使用transform()方法进行变换
         // 注意：EllipseShape和EllipticalArcShape已经支持非等比缩放，不需要特殊处理
         // 对于SpiralShape，使用transform()方法可以支持单轴缩放（通过AffineTransform变换点）
-        if (isNonUniformScale && scaleFactors != null && 
-            (shape instanceof CircleShape || shape instanceof ArcShape || shape instanceof SpiralShape)) {
+        if (isNonUniformScale && (shape instanceof CircleShape || shape instanceof ArcShape || shape instanceof SpiralShape)) {
             Vec2d scaleCenter;
             com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
             if (bounds == null) {
