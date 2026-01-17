@@ -294,7 +294,9 @@ public class ToolPanel implements UIComponent {
         // 基础计算：能容纳多少个按钮
         // 公式：contentWidth = n * buttonSize + (n-1) * buttonSpacing
         // 解：n = (contentWidth + buttonSpacing) / (buttonSize + buttonSpacing)
-        int maxPossible = Math.max(1, (int) ((contentWidth + buttonSpacing) / (buttonSize + buttonSpacing)));
+        // 使用 Math.floor 向下取整，确保不会超出可用宽度
+        float calculated = (contentWidth + buttonSpacing) / (buttonSize + buttonSpacing);
+        int maxPossible = Math.max(1, (int) Math.floor(calculated));
         
         // 响应式调整：根据宽度阈值和配置优化布局
         if (!ToolPanelConfig.ENABLE_RESPONSIVE_LAYOUT) {
@@ -309,6 +311,15 @@ public class ToolPanel implements UIComponent {
         // 超窄屏：至少保证单列
         if (contentWidth <= UILayout.Toolbar.SINGLE_COLUMN_THRESHOLD) {
             return 1;
+        }
+        
+        // 验证计算：确保4个按钮能放下
+        // 4个按钮需要：4 * 40 + 3 * 4 = 160 + 12 = 172
+        // 面板宽度182，减去边框和内边距后，可用宽度应该 >= 172
+        // 使用稍微宽松的阈值（171.5）来避免浮点精度问题
+        float requiredWidthFor4 = 4 * buttonSize + 3 * buttonSpacing;
+        if (contentWidth >= (requiredWidthFor4 - 0.5f) && maxPossible < 4) {
+            return 4; // 强制返回4，因为面板宽度设计为能容纳4个按钮
         }
         
         // 其他情况：根据实际可用宽度计算，不限制最大列数

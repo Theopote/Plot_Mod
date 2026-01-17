@@ -156,6 +156,92 @@ public class ToolbarUIUtils {
     }
     
     /**
+     * 渲染分两行的滑动条（标题在上，滑动条在下）
+     * @param label 标签文本
+     * @param sliderWidth 滑动条宽度
+     * @param value 滑动条值
+     * @param min 最小值
+     * @param max 最大值
+     * @param format 格式化字符串
+     * @param isDisabled 是否禁用
+     * @param onChange 值改变回调
+     * @param onRightClick 右键点击回调
+     * @return 值是否改变
+     */
+    public static boolean renderSliderTwoRows(String label, float sliderWidth, 
+                                             float[] value, float min, float max, String format, 
+                                             boolean isDisabled, Runnable onChange, Runnable onRightClick) {
+        // 第一行：显示标签
+        ImGui.text(label);
+        
+        // 换行：移动到下一行
+        // ImGui.text() 已经将光标移动到文本底部，加上间距即可
+        // 但为了确保标题和滑动条之间的间距更紧凑，使用 ITEM_SPACING 的一半
+        float lineSpacing = UILayout.Toolbar.ITEM_SPACING * 0.5f;
+        ImGui.setCursorPosY(ImGui.getCursorPosY() + lineSpacing);
+        
+        // 第二行：显示滑动条
+        // 注意：滑动条的样式应该在调用此方法之前通过 setupSliderStyles() 设置
+        ImGui.pushItemWidth(sliderWidth);
+        
+        boolean changed = false;
+        try {
+            if (isDisabled) {
+                ImGui.beginDisabled();
+            }
+            
+            // 生成唯一的滑动条ID
+            String sanitizedLabel = label.replaceAll("[^a-zA-Z0-9]", "_");
+            String sliderID = "##slider_" + sanitizedLabel + "_" + System.identityHashCode(value);
+            
+            if (ImGui.sliderFloat(sliderID, value, min, max, format)) {
+                changed = true;
+                if (onChange != null) {
+                    onChange.run();
+                }
+            }
+            
+            if (isDisabled) {
+                ImGui.endDisabled();
+            }
+            
+            // 处理右键点击
+            if (ImGui.isItemHovered() && ImGui.isMouseClicked(1) && onRightClick != null) {
+                onRightClick.run();
+            }
+            
+        } finally {
+            ImGui.popItemWidth();
+        }
+        
+        return changed;
+    }
+    
+    /**
+     * 渲染分两行的滑动条（带输入弹窗）
+     */
+    public static boolean renderSliderTwoRowsWithInput(String label, float sliderWidth, 
+                                                      float[] value, float min, float max, String format, 
+                                                      boolean isDisabled, Runnable onChange, 
+                                                      String popupTitle, String inputLabel) {
+        // 为弹窗生成唯一ID，避免冲突
+        String uniquePopupTitle = popupTitle + "_" + System.identityHashCode(value);
+        
+        boolean changed = renderSliderTwoRows(label, sliderWidth, value, min, max, format, 
+                                            isDisabled, onChange, () -> ImGui.openPopup(uniquePopupTitle));
+        
+        // 渲染输入弹窗
+        renderInputPopup(uniquePopupTitle, inputLabel, value[0], min, max, newValue -> {
+            value[0] = newValue;
+            if (onChange != null) {
+                onChange.run();
+            }
+        });
+        
+        return changed;
+    }
+    
+    /**
      * 渲染数值输入弹窗
      */
     public static void renderInputPopup(String popupName, String label, float currentValue, 

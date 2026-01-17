@@ -429,14 +429,18 @@ public class MasterPlannerScreen extends Screen {
         ImInt dockRightTop = new ImInt();   // 右侧顶部（系统面板）
         ImInt dockRightBottom = new ImInt(); // 右侧底部（属性面板）
 
-        // 工具面板宽度变为原来的两倍
-        float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
+        // 工具面板宽度（使用固定宽度，与控制面板一致）
+        float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         float leftRatio = Math.min(0.45f, toolPanelWidth / Math.max(1.0f, displayWidth));
         float rightRatio = Math.min(0.45f, UILayout.RIGHT_PANEL_DEFAULT_WIDTH / Math.max(1.0f, displayWidth));
         
-        // 控制面板高度比例（约1/5~1/4，取0.22作为中间值）
-        float controlPanelHeightRatio = Math.min(0.25f, Math.max(0.20f, 
-            UILayout.Toolbar.CONTROL_PANEL_HEIGHT / Math.max(1.0f, displayHeight)));
+        // 控制面板高度比例：使用实际高度计算，确保能完全显示内容
+        // 根据实际需要的像素高度计算比例
+        float controlPanelHeightRatio = UILayout.Toolbar.CONTROL_PANEL_HEIGHT / Math.max(1.0f, displayHeight);
+        // 设置最大比例为屏幕高度的40%，避免控制面板过大，但确保足够显示内容
+        controlPanelHeightRatio = Math.min(controlPanelHeightRatio, 0.40f);
+        // 确保最小比例足够（至少能显示内容），如果计算出的比例太小，使用至少20%
+        controlPanelHeightRatio = Math.max(controlPanelHeightRatio, 0.25f);
         
         // 系统面板高度（约两倍按钮高度）
         float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE * 2.0f;
@@ -448,6 +452,11 @@ public class MasterPlannerScreen extends Screen {
         
         // 左侧分割为上下：上部分控制面板，下部分工具面板
         imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, controlPanelHeightRatio, dockLeftTop, dockLeftBottom);
+        
+        // 设置控制面板dock节点的最小大小，确保内容不被裁剪
+        // 使用工具面板宽度作为最小宽度，控制面板高度作为最小高度
+        float minControlPanelHeight = UILayout.Toolbar.CONTROL_PANEL_HEIGHT;
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockLeftTop.get(), toolPanelWidth, minControlPanelHeight);
         
         // 右侧分割为上下：上部分系统面板，下部分属性面板
         imgui.internal.ImGui.dockBuilderSplitNode(dockRight.get(), ImGuiDir.Up, systemPanelHeightRatio, dockRightTop, dockRightBottom);
@@ -518,8 +527,8 @@ public class MasterPlannerScreen extends Screen {
         ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().toolbarBackground);
         float displayHeight = ImGui.getIO().getDisplaySizeY();
-        // 工具面板宽度变为原来的两倍
-        float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
+        // 工具面板宽度（使用固定宽度，与控制面板一致）
+        float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.getContentHeight(displayHeight), ImGuiCond.FirstUseEver);
         ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS);
