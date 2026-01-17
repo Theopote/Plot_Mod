@@ -164,6 +164,50 @@ public class EllipticalArcShape extends Shape {
     }
     
     @Override
+    public void scale(Vec2d scale, Vec2d scaleCenter) {
+        // 椭圆弧的缩放：参考EllipseShape的实现
+        // 1. 缩放中心点
+        if (!center.equals(scaleCenter)) {
+            Vec2d centerOffset = center.subtract(scaleCenter);
+            centerOffset = new Vec2d(
+                centerOffset.x * scale.x,
+                centerOffset.y * scale.y
+            );
+            center = scaleCenter.add(centerOffset);
+        }
+        
+        // 2. 检查是否为均匀缩放
+        if (Math.abs(scale.x - scale.y) < 1e-6) {
+            // 均匀缩放：直接缩放半径
+            radiusX *= scale.x;
+            radiusY *= scale.y;
+            invalidateCache();
+            return;
+        }
+        
+        // 3. 检查椭圆是否未旋转
+        if (Math.abs(rotation % Math.PI) < 1e-6) {
+            // 未旋转椭圆：直接缩放对应轴的半径
+            radiusX *= scale.x;
+            radiusY *= scale.y;
+            invalidateCache();
+            return;
+        }
+        
+        // 4. 旋转椭圆的非均匀缩放：使用transform方法
+        // 创建以指定中心点进行缩放的变换矩阵
+        AffineTransform translate1 = AffineTransform.createTranslation(-scaleCenter.x, -scaleCenter.y);
+        AffineTransform scaleTransform = AffineTransform.createScale(scale.x, scale.y);
+        AffineTransform translate2 = AffineTransform.createTranslation(scaleCenter.x, scaleCenter.y);
+        
+        // 组合变换：translate2 * scaleTransform * translate1
+        AffineTransform transform = translate2.multiply(scaleTransform).multiply(translate1);
+        
+        // 使用transform方法进行变换
+        transform(transform);
+    }
+    
+    @Override
     public BoundingBox getBoundingBox() {
         if (!cacheValid || cachedBoundingBox == null) {
             calculateBoundingBox();
