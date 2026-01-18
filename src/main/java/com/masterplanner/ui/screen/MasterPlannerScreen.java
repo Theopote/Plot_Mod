@@ -882,14 +882,22 @@ public class MasterPlannerScreen extends Screen {
         
         // 如果是ESC/Shift键，先尝试让当前活动工具处理
         if (keyCode == 256) { // ESC键
+            LOGGER.debug("MasterPlannerScreen: ESC键按下，尝试让工具处理");
             // 获取当前活动工具
             BaseTool activeTool = appState.getCurrentTool();
             if (activeTool != null) {
+                LOGGER.debug("MasterPlannerScreen: 当前工具: {}", activeTool.getClass().getSimpleName());
                 // 尝试让工具处理ESC键
-                if (activeTool.onKeyDown(keyCode)) {
+                boolean handled = activeTool.onKeyDown(keyCode);
+                LOGGER.debug("MasterPlannerScreen: 工具处理ESC键结果: {}", handled);
+                if (handled) {
                     LOGGER.debug("工具 {} 处理了ESC键", activeTool.getName());
                     return true;
+                } else {
+                    LOGGER.debug("工具 {} 未处理ESC键", activeTool.getName());
                 }
+            } else {
+                LOGGER.debug("MasterPlannerScreen: 当前没有活动工具");
             }
             
             // 如果工具没有处理ESC键，则消费这个事件，不让它关闭界面

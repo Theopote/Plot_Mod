@@ -73,8 +73,17 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
     }
 
     // 常量 - 使用KeyEvent常量替代硬编码值
-    private static final int ESC_KEY = KeyEvent.VK_ESCAPE;
+    // 注意：ESC键需要支持两种键码格式：AWT (27) 和 GLFW (256)
+    private static final int ESC_KEY_AWT = KeyEvent.VK_ESCAPE; // 27
+    private static final int ESC_KEY_GLFW = 256; // GLFW格式的ESC键码
     private static final int SHIFT_KEY = KeyEvent.VK_SHIFT; // Shift键 - 多选模式
+    
+    /**
+     * 检查是否为ESC键（支持AWT和GLFW两种键码格式）
+     */
+    private static boolean isEscapeKey(int keyCode) {
+        return keyCode == ESC_KEY_AWT || keyCode == ESC_KEY_GLFW;
+    }
 
     // 策略状态
     private ExtendState extendState = ExtendState.SELECTING_BOUNDARY; // 初始状态为选择边界
@@ -473,7 +482,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     public ModifyResult handleKeyDown(int keyCode, int modifiers, ModifyToolContext context) {
         // 处理Esc键
-        if (keyCode == ESC_KEY) { // 使用常量替代硬编码值
+        if (isEscapeKey(keyCode)) { // 使用方法检查ESC键（支持AWT和GLFW两种格式）
             if (extendState == ExtendState.EXTENDING) {
                 // 重置边界选择，回到边界选择状态
                 LOGGER.info("Esc键按下，重置边界选择");
@@ -953,27 +962,27 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
     @Override
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
-        if (keyCode == ESC_KEY) {
-            if (extendState == ExtendState.EXTENDING) {
-                // 重置边界选择，回到边界选择状态
-                LOGGER.info("Esc键按下，取消延伸操作，重置边界选择");
-                // 清除预览状态
-                clearPreview();
-                context.setPreviewEnabled(false);
-                // 重置延伸状态
-                resetExtendState();
-                extendState = ExtendState.SELECTING_BOUNDARY;
-                context.setStatusMessage("延伸操作已取消，请重新选择边界图形");
-                return ModifyResult.CANCEL;
-            } else {
-                // 其他状态下的重置
-                LOGGER.debug("Esc键按下，重置延伸工具");
-                clearPreview();
-                context.setPreviewEnabled(false);
-                reset();
-                context.setStatusMessage("延伸工具已重置，请选择边界图形");
-                return ModifyResult.CANCEL;
-            }
+        LOGGER.debug("ExtendWithSelectionStrategy.onKeyDown 被调用: keyCode={}, 当前状态={}", keyCode, extendState);
+        
+        if (isEscapeKey(keyCode)) {
+            // 无论当前处于什么状态，按Esc键都完全重置工具，回到初始状态
+            // 相当于重新激活延伸工具，需要重新选择边界图形
+            LOGGER.info("Esc键按下（keyCode={}），完全重置延伸工具到初始状态", keyCode);
+            
+            // 清除预览状态
+            clearPreview();
+            context.setPreviewEnabled(false);
+            
+            // 清空全局选择状态（清空AppState中的选择）
+            context.clearSelection();
+            
+            // 完全重置工具状态（就像刚激活工具一样）
+            reset();
+            
+            // 设置初始状态消息（与工具激活时的消息一致）
+            context.setStatusMessage("请左键选择边界图形，右键确认选择，然后左键点击要延伸的图形端点");
+            
+            return ModifyResult.CANCEL;
         }
 
         // 处理Shift键按下

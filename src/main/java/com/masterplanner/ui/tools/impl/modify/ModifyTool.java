@@ -229,8 +229,10 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
 
     @Override
     public boolean onKeyDown(int keyCode) {
+        LOGGER.debug("ModifyTool [{}] onKeyDown 被调用: keyCode={}", toolId, keyCode);
         IModifyStrategy strategy = getStrategy();
         if (strategy == null) {
+            LOGGER.debug("ModifyTool [{}] 策略为空，使用父类处理", toolId);
             return super.onKeyDown(keyCode);
         }
         
@@ -238,7 +240,9 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
             IModifyStrategy.ModifyResult result = 
                 strategy.onKeyDown(keyCode, this);
             
+            LOGGER.debug("ModifyTool [{}] 策略返回结果: {}", toolId, result);
             boolean handled = handleModifyResult(result, "键盘按下");
+            LOGGER.debug("ModifyTool [{}] 处理结果: handled={}", toolId, handled);
             return handled || super.onKeyDown(keyCode);
             
         } catch (Exception e) {
@@ -379,6 +383,31 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         if (strategy != null) {
             strategy.reset();
         }
+    }
+    
+    @Override
+    public void cancel() {
+        LOGGER.debug("ModifyTool [{}] cancel() 被调用，尝试通过策略的onKeyDown处理ESC键", toolId);
+        
+        // 尝试通过策略的onKeyDown方法处理ESC键，这样可以触发策略内的重置逻辑
+        IModifyStrategy strategy = getStrategy();
+        if (strategy != null) {
+            // 传递ESC键码（GLFW格式：256），让策略处理
+            try {
+                IModifyStrategy.ModifyResult result = strategy.onKeyDown(256, this);
+                if (result == IModifyStrategy.ModifyResult.CANCEL || result == IModifyStrategy.ModifyResult.COMPLETE) {
+                    LOGGER.debug("ModifyTool [{}] 策略通过onKeyDown处理了ESC键", toolId);
+                    return;
+                }
+            } catch (Exception e) {
+                LOGGER.warn("ModifyTool [{}] 策略处理ESC键时出错: {}", toolId, e.getMessage());
+            }
+        }
+        
+        // 如果策略没有处理，使用默认的cancel逻辑
+        LOGGER.debug("ModifyTool [{}] 使用默认cancel逻辑", toolId);
+        resetModification("用户取消");
+        super.cancel(); // 调用父类的cancel确保状态正确
     }
 
     @Override
