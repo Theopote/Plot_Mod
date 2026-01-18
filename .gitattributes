@@ -7,3 +7,6 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+# Java source files should use LF for cross-platform compatibility
+*.java          text eol=lf
+
