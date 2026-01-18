@@ -277,10 +277,12 @@ public class LayerPanel implements UIComponent {
                                   windowPaddingY * 2 +  // 面板上下内边距
                                   itemSpacingY* 5;  // 按钮栏和图层列表之间的间距
                 
-                // 创建固定高度的面板边框，不带滚动条
-                ImGui.beginChild("##layers_panel", ImGui.getContentRegionAvailX(), panelHeight, true, ImGuiWindowFlags.NoScrollbar);
+                // 创建固定高度的面板边框，不带滚动条和鼠标滚动（避免工具栏区域滚动）
+                ImGui.beginChild("##layers_panel", ImGui.getContentRegionAvailX(), panelHeight, true, 
+                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
                 
-                // 渲染工具栏（固定在顶部）
+                // 渲染工具栏（固定在顶部，不受滚动影响）
+                // 工具栏在固定容器中，不会受到滚轮操作的影响
                 toolbarRenderer.render(ImGui.getContentRegionAvailX());
                 
                 // 计算图层列表区域的高度
@@ -290,14 +292,15 @@ public class LayerPanel implements UIComponent {
                 int layerCount = layerManager.getLayers().size();
                 
                 // 设置图层列表区域的窗口标志
-                int windowFlags = ImGuiWindowFlags.None;
+                // 图层列表区域允许鼠标滚轮滚动，但不显示滚动条
+                int windowFlags = ImGuiWindowFlags.NoScrollbar;
                 
-                // 如果图层数量不超过可显示范围，则禁用滚动条
+                // 如果图层数量不超过可显示范围，也禁用鼠标滚动
                 if (layerCount <= 5) { // 5是我们设计的可见图层数量
-                    windowFlags |= ImGuiWindowFlags.NoScrollbar;
+                    windowFlags |= ImGuiWindowFlags.NoScrollWithMouse;
                 }
                 
-                // 创建图层列表子窗口，根据需要控制滚动条
+                // 创建图层列表子窗口，只允许图层列表区域滚动
                 ImGui.beginChild("##layer_list_container", ImGui.getContentRegionAvailX(), listHeight, false, windowFlags);
                 
                 // 使用LayerListRenderer渲染图层列表
