@@ -476,25 +476,6 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         return ModifyResult.IGNORED;
     }
 
-    /**
-     * 处理键盘事件 - 用于Esc键重置边界选择
-     * 注意：这个方法不在IModifyStrategy接口中，但可以在ExtendTool中调用
-     */
-    public ModifyResult handleKeyDown(int keyCode, int modifiers, ModifyToolContext context) {
-        // 处理Esc键
-        if (isEscapeKey(keyCode)) { // 使用方法检查ESC键（支持AWT和GLFW两种格式）
-            if (extendState == ExtendState.EXTENDING) {
-                // 重置边界选择，回到边界选择状态
-                LOGGER.info("Esc键按下，重置边界选择");
-                resetExtendState();
-                extendState = ExtendState.SELECTING_BOUNDARY;
-                context.setStatusMessage("边界选择已重置，请重新选择边界图形");
-                return ModifyResult.CANCEL;
-            }
-        }
-        return ModifyResult.IGNORED;
-    }
-
     @Override
     public ModifyResult onMouseMove(Vec2d pos, ModifyToolContext context) {
         if (isBoxSelecting) {
@@ -719,8 +700,10 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             }
 
             // 对每个框选的图形执行延伸
+            // 创建副本以避免在遍历时修改列表导致的ConcurrentModificationException
+            List<Shape> shapesToExtend = new ArrayList<>(boxSelectedShapes);
             int successCount = 0;
-            for (Shape shape : boxSelectedShapes) {
+            for (Shape shape : shapesToExtend) {
                 try {
                     // 查找图形的延伸点
                     ExtendTargetInfo targetInfo = findExtendTargetForShape(shape, context);
@@ -1168,24 +1151,36 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             boolean nearStart = distanceToStart <= dynamicTolerance;
             boolean nearEnd = distanceToEnd <= dynamicTolerance;
 
-            LOGGER.debug("findExtendEndpoint: 端点检测结果 - 靠近起点: {}, 靠近终点: {}", nearStart, nearEnd);
+            LOGGER.info("findExtendEndpoint: 端点检测结果 - 靠近起点: {}, 靠近终点: {} (距离起点: {}, 距离终点: {}, 动态容差: {})", 
+                    nearStart, nearEnd, 
+                    String.format("%.2f", distanceToStart), 
+                    String.format("%.2f", distanceToEnd), 
+                    String.format("%.2f", dynamicTolerance));
 
             if (!nearStart && !nearEnd) {
+                LOGGER.info("findExtendEndpoint: ❌ 点击位置不在任何端点附近 (距离起点: {}, 距离终点: {}, 动态容差: {})",
+                        String.format("%.2f", distanceToStart), 
+                        String.format("%.2f", distanceToEnd), 
+                        String.format("%.2f", dynamicTolerance));
                 return null; // 点击位置不在任何端点附近
             }
 
             // 如果只在一个端点附近，选择该端点
             if (nearStart && !nearEnd) {
+                LOGGER.info("findExtendEndpoint: ✅ 选择起点 (只靠近起点)");
                 return new ExtendEndpointInfo(startEndpoint, true);
             }
             if (!nearStart) {
+                LOGGER.info("findExtendEndpoint: ✅ 选择终点 (只靠近终点)");
                 return new ExtendEndpointInfo(endEndpoint, false);
             }
 
             // 如果同时在两个端点附近，选择距离更近的端点
             if (distanceToStart <= distanceToEnd) {
+                LOGGER.info("findExtendEndpoint: ✅ 选择起点 (两个端点都靠近，但起点更近)");
                 return new ExtendEndpointInfo(startEndpoint, true);
             } else {
+                LOGGER.info("findExtendEndpoint: ✅ 选择终点 (两个端点都靠近，但终点更近)");
                 return new ExtendEndpointInfo(endEndpoint, false);
             }
 
@@ -1302,6 +1297,46 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 }
             }
 
+            // 对于圆弧，需要特殊处理，考虑圆弧的方向（顺时针/逆时针）
+            if (shape instanceof com.masterplanner.core.geometry.shapes.ArcShape arc) {
+                Vec2d center = arc.getCenter();
+                double radius = arc.getRadius();
+                
+                // 验证点是否在圆弧上
+                double distanceToCenter = extendPoint.distance(center);
+                if (Math.abs(distanceToCenter - radius) > 0.001) {
+                    LOGGER.debug("圆弧延伸方向计算 - 点不在圆弧上，距离圆心: {:.2f}, 半径: {:.2f}", 
+                        distanceToCenter, radius);
+                    // 如果点不在圆弧上，尝试使用端点位置
+                    List<Vec2d> endpoints = arc.getEndpoints();
+                    if (endpoints != null && endpoints.size() >= 2) {
+                        Vec2d targetPoint = isStartEndpoint ? endpoints.get(0) : endpoints.get(1);
+                        extendPoint = targetPoint;
+                    }
+                }
+                
+                // 计算径向向量（从圆心指向端点）
+                Vec2d radial = extendPoint.subtract(center).normalize();
+                
+                // 计算圆弧的方向（顺时针或逆时针）
+                boolean isClockwise = isArcClockwise(arc);
+                
+                // 计算切线方向
+                // 顺时针圆弧：切线方向为径向向量逆时针旋转90度
+                // 逆时针圆弧：切线方向为径向向量顺时针旋转90度
+                Vec2d tangent = isClockwise ? 
+                    new Vec2d(radial.y, -radial.x) :  // 顺时针：逆时针旋转90度
+                    new Vec2d(-radial.y, radial.x);   // 逆时针：顺时针旋转90度
+                
+                LOGGER.debug("圆弧延伸方向计算 - 端点: {}, 是起点: {}, 径向: ({}, {}), 顺时针: {}, 切线: ({}, {})", 
+                    extendPoint, isStartEndpoint,
+                    String.format("%.2f", radial.x), String.format("%.2f", radial.y),
+                    isClockwise,
+                    String.format("%.2f", tangent.x), String.format("%.2f", tangent.y));
+                
+                return tangent.normalize();
+            }
+
             // 对于其他图形，尝试使用切线方向
             Vec2d tangent = shape.getTangentAt(extendPoint);
             if (tangent != null) {
@@ -1318,6 +1353,82 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         } catch (Exception e) {
             LOGGER.warn("计算延伸方向失败: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * 判断圆弧是否为顺时针方向
+     */
+    private boolean isArcClockwise(com.masterplanner.core.geometry.shapes.ArcShape arc) {
+        try {
+            List<Vec2d> endPoints = arc.getEndpoints();
+            if (endPoints == null || endPoints.size() < 2) {
+                return false; // 默认逆时针
+            }
+            
+            Vec2d startPoint = endPoints.get(0);
+            Vec2d endPoint = endPoints.get(1);
+            Vec2d center = arc.getCenter();
+            
+            // 计算起始角度和结束角度
+            double startAngle = Math.atan2(startPoint.y - center.y, startPoint.x - center.x);
+            double endAngle = Math.atan2(endPoint.y - center.y, endPoint.x - center.x);
+            
+            // 规范化角度
+            startAngle = normalizeAngle(startAngle);
+            endAngle = normalizeAngle(endAngle);
+            
+            // 获取圆弧的实际角度（考虑ArcShape的normalizeAngles处理）
+            // 由于ArcShape的endAngle可能在[startAngle, startAngle+2π)范围内
+            // 我们需要考虑这种情况
+            double actualEndAngle = arc.getEndAngle();
+            double actualStartAngle = arc.getStartAngle();
+            
+            // 计算角度差
+            double angleDiff = actualEndAngle - actualStartAngle;
+            
+            // 如果角度差大于π，说明圆弧跨越了半圆
+            // 对于跨越半圆的情况，我们需要判断实际的方向
+            // 但通常如果角度差在(0, π)范围内是逆时针，在(π, 2π)范围内需要判断
+            if (angleDiff > Math.PI) {
+                // 如果角度差大于π，可能是长弧，需要判断实际方向
+                // 通过比较端点与圆心的角度来判断
+                double computedAngleDiff = endAngle - startAngle;
+                if (computedAngleDiff > Math.PI) computedAngleDiff -= 2 * Math.PI;
+                if (computedAngleDiff < -Math.PI) computedAngleDiff += 2 * Math.PI;
+                
+                // 正角度差表示逆时针，负角度差表示顺时针
+                boolean isClockwise = computedAngleDiff < 0;
+                
+                LOGGER.debug("圆弧方向判断（长弧）- 起始角度: {:.2f}, 结束角度: {:.2f}, 角度差: {:.2f}, 顺时针: {}", 
+                    Math.toDegrees(startAngle), Math.toDegrees(endAngle), 
+                    Math.toDegrees(computedAngleDiff), isClockwise);
+                
+                return isClockwise;
+            }
+            
+            // 对于短弧（角度差小于π），使用实际的角度差判断
+            // 但ArcShape的normalizeAngles确保endAngle >= startAngle
+            // 所以如果角度差在[0, π)范围内，通常是逆时针
+            // 但我们需要检查实际的端点位置来判断真正的方向
+            
+            // 通过计算叉积来判断方向
+            Vec2d vec1 = startPoint.subtract(center);
+            Vec2d vec2 = endPoint.subtract(center);
+            double crossProduct = vec1.x * vec2.y - vec1.y * vec2.x;
+            
+            // 叉积的符号表示方向：正为逆时针，负为顺时针
+            boolean isClockwise = crossProduct < 0;
+            
+            LOGGER.debug("圆弧方向判断 - 起始角度: {:.2f}, 结束角度: {:.2f}, 角度差: {:.2f}, 叉积: {:.2f}, 顺时针: {}", 
+                Math.toDegrees(startAngle), Math.toDegrees(endAngle), 
+                Math.toDegrees(angleDiff), crossProduct, isClockwise);
+            
+            return isClockwise;
+            
+        } catch (Exception e) {
+            LOGGER.warn("判断圆弧方向失败: {}", e.getMessage());
+            return false; // 默认逆时针
         }
     }
 

@@ -15,7 +15,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 

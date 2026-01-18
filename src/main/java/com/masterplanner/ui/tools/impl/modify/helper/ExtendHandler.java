@@ -981,9 +981,47 @@ public class ExtendHandler implements IModifyHandler {
     
     /**
      * 标准延伸：查找实际交点 - 使用动态容差
+     * 对于圆弧等曲线，优先使用getExtensionIntersectionsWith方法获得更准确的交点
      */
     private Vec2d findStandardIntersection(Shape shape, Shape boundary, Vec2d startPoint, Vec2d direction) {
         try {
+            // 对于支持扩展交点计算的图形（如圆弧），使用更准确的方法
+            if (shape instanceof com.masterplanner.core.geometry.shapes.ArcShape) {
+                // 对于圆弧，使用getExtensionIntersectionsWith方法计算延伸圆弧与边界的交点
+                List<Vec2d> extensionIntersections = shape.getExtensionIntersectionsWith(
+                    boundary, startPoint, ExtendConfig.MAX_EXTEND_DISTANCE);
+                
+                if (extensionIntersections != null && !extensionIntersections.isEmpty()) {
+                    // 找到在延伸方向上最近的交点
+                    Vec2d nearestIntersection = null;
+                    double minDistance = Double.MAX_VALUE;
+                    
+                    for (Vec2d intersection : extensionIntersections) {
+                        Vec2d toIntersection = intersection.subtract(startPoint);
+                        double dotProduct = toIntersection.dot(direction);
+                        
+                        if (dotProduct > ExtendConfig.GEOMETRY_EPSILON) {
+                            double distance = startPoint.distance(intersection);
+                            double dynamicTolerance = calculateDynamicTolerance(java.util.List.of(shape, boundary));
+                            
+                            if (distance > dynamicTolerance && distance < minDistance) {
+                                minDistance = distance;
+                                nearestIntersection = intersection;
+                            }
+                        }
+                    }
+                    
+                    if (nearestIntersection != null) {
+                        LOGGER.debug("圆弧延伸找到交点: ({}, {}), 距离: {:.2f}", 
+                            String.format("%.2f", nearestIntersection.x), 
+                            String.format("%.2f", nearestIntersection.y), 
+                            minDistance);
+                        return nearestIntersection;
+                    }
+                }
+            }
+            
+            // 对于其他图形类型，使用直线射线方法
             // 创建从起点沿方向延伸的射线
             Vec2d rayEnd = startPoint.add(direction.multiply(ExtendConfig.MAX_EXTEND_DISTANCE));
             LineShape ray = new LineShape(startPoint, rayEnd);

@@ -709,41 +709,98 @@ public class ArcShape extends Shape implements IExtendableShape {
         targetAngle = normalizeAngle(targetAngle);
 
         // 2. 确定是延伸起点还是终点
-        boolean fromStart = extendPoint.distance(getPointAtAngle(startAngle)) < 
-                          extendPoint.distance(getPointAtAngle(endAngle));
+        Vec2d startPt = getPointAtAngle(startAngle);
+        Vec2d endPt = getPointAtAngle(endAngle);
+        boolean fromStart = extendPoint.distance(startPt) < extendPoint.distance(endPt);
 
-        LOGGER.debug("ArcShape.extend - 延伸参数: 延伸点={}, 目标点={}, 目标角度={}, 从起点延伸={}",
-                extendPoint, targetPoint, Math.toDegrees(targetAngle), fromStart);
-        LOGGER.debug("ArcShape.extend - 原圆弧: startAngle={}, endAngle={}",
-                Math.toDegrees(startAngle), Math.toDegrees(endAngle));
+        LOGGER.info("ArcShape.extend - 延伸参数: 延伸点={}, 目标点={}, 目标角度={}°, 从起点延伸={}",
+                extendPoint, targetPoint, String.format("%.2f", Math.toDegrees(targetAngle)), fromStart);
+        LOGGER.info("ArcShape.extend - 原圆弧: startAngle={}°, endAngle={}°, 角度差={}°",
+                String.format("%.2f", Math.toDegrees(startAngle)), 
+                String.format("%.2f", Math.toDegrees(endAngle)), 
+                String.format("%.2f", Math.toDegrees(endAngle - startAngle)));
 
         ArcShape extended;
+        
+        // 注意：由于normalizeAngles()的规范，endAngle已经在[startAngle, startAngle+2π)范围内
         if (fromStart) {
-            // 延伸起点
-            // 为了正确比较，将 endAngle 和 targetAngle 都转换到以 startAngle 为基准的坐标系
-            double relativeEndAngle = normalizeAngle(endAngle - startAngle);
-            double relativeTargetAngle = normalizeAngle(targetAngle - startAngle);
-
-            // 如果目标角度在 "回缩" 的方向（即在原有弧段内），则不改变终点
-            // 否则，新的终点就是原来的终点，起点变为目标点
-            if (relativeTargetAngle > relativeEndAngle) {
-                // 这是回缩操作，我们应该创建一个从 targetAngle 到 endAngle 的新弧
-                extended = new ArcShape(center, radius, targetAngle, endAngle);
-            } else {
-                // 这是延伸操作，起点变为 targetAngle，终点不变
-                extended = new ArcShape(center, radius, targetAngle, endAngle);
+            // 延伸起点：将起点移动到目标角度
+            // 延伸起点的原则：新的圆弧应该从targetAngle开始，结束于endAngle
+            // 需要确保新圆弧包含原圆弧（即延伸而不是回缩）
+            
+            // 如果targetAngle在(startAngle, endAngle)范围内，这是回缩操作，应该拒绝
+            if (targetAngle > startAngle && targetAngle < endAngle) {
+                LOGGER.warn("ArcShape.extend - 延伸起点：目标角度在圆弧内部，拒绝回缩操作，返回原始圆弧");
+                // 返回原始圆弧，避免圆弧缩短
+                extended = new ArcShape(center, radius, startAngle, endAngle);
+                if (getStyle() != null) {
+                    extended.setStyle(getStyle().clone());
+                }
+                return extended;
             }
+            
+            double newStartAngle = targetAngle;
+            double newEndAngle = endAngle;
+            
+            // 如果targetAngle < startAngle，说明新的起点在原始起点之前（逆时针方向）
+            // 为了保持角度差的相对关系，我们需要将endAngle也减去2π
+            // 但是，我们需要确保这样做不会导致圆弧缩短
+            if (targetAngle < startAngle) {
+                // 将endAngle也转换到同一坐标系
+                double tentativeEndAngle = endAngle - TWO_PI;
+                double tentativeAngleDiff = tentativeEndAngle - targetAngle;
+                double originalAngleDiff = endAngle - startAngle;
+                
+                // 如果新的角度差小于原始角度差，说明这会缩短圆弧，应该拒绝
+                if (tentativeAngleDiff < originalAngleDiff - 0.01) { // 使用小的容差避免浮点误差
+                    LOGGER.warn("ArcShape.extend - 延伸起点：目标角度会导致圆弧缩短（角度差从{}°变为{}°），拒绝操作，返回原始圆弧",
+                        String.format("%.2f", Math.toDegrees(originalAngleDiff)),
+                        String.format("%.2f", Math.toDegrees(tentativeAngleDiff)));
+                    // 返回原始圆弧，避免圆弧缩短
+                    extended = new ArcShape(center, radius, startAngle, endAngle);
+                    if (getStyle() != null) {
+                        extended.setStyle(getStyle().clone());
+                    }
+                    return extended;
+                }
+                
+                newEndAngle = tentativeEndAngle;
+            }
+            
+            // 创建新的圆弧，让normalizeAngles()自动处理角度规范化
+            extended = new ArcShape(center, radius, newStartAngle, newEndAngle);
 
         } else {
-            // 延伸终点
-            // 为了正确比较，将 targetAngle 转换到以 startAngle 为基准的坐标系
-            double relativeTargetAngle = targetAngle;
-            if (relativeTargetAngle < startAngle) {
-                relativeTargetAngle += TWO_PI;
+            // 延伸终点：将终点移动到目标角度
+            // 延伸终点的原则：新的圆弧应该从startAngle开始，结束于targetAngle
+            // 需要确保新圆弧包含原圆弧（即延伸而不是回缩）
+            
+            double newEndAngle = targetAngle;
+            
+            // 将targetAngle转换到与endAngle相同的坐标系
+            // 如果targetAngle < startAngle，说明它绕了一圈，需要加2π
+            if (targetAngle < startAngle) {
+                newEndAngle = targetAngle + TWO_PI;
             }
-
-            // 新的终点就是目标点，起点不变
-            extended = new ArcShape(center, radius, startAngle, relativeTargetAngle);
+            
+            // 检查规范化后的newEndAngle是否在(startAngle, endAngle)范围内
+            // 如果newEndAngle < startAngle，normalizeAngles()会自动加上2π，所以需要检查两种可能
+            double normalizedNewEndAngle = newEndAngle < startAngle ? newEndAngle + TWO_PI : newEndAngle;
+            
+            // 如果normalizedNewEndAngle在(startAngle, endAngle)范围内，这是回缩操作，应该拒绝
+            if (normalizedNewEndAngle > startAngle && normalizedNewEndAngle < endAngle) {
+                LOGGER.warn("ArcShape.extend - 延伸终点：目标角度在圆弧内部，拒绝回缩操作，返回原始圆弧");
+                // 返回原始圆弧，避免圆弧缩短
+                extended = new ArcShape(center, radius, startAngle, endAngle);
+                if (getStyle() != null) {
+                    extended.setStyle(getStyle().clone());
+                }
+                return extended;
+            }
+            
+            // 创建新的圆弧，让normalizeAngles()自动处理角度规范化
+            // 注意：如果newEndAngle < startAngle，normalizeAngles()会自动加上2π
+            extended = new ArcShape(center, radius, startAngle, newEndAngle);
         }
         
         // 继承样式
@@ -751,8 +808,20 @@ public class ArcShape extends Shape implements IExtendableShape {
             extended.setStyle(getStyle().clone());
         }
 
-        LOGGER.debug("ArcShape.extend - 新圆弧: startAngle={}, endAngle={}",
-                Math.toDegrees(extended.getStartAngle()), Math.toDegrees(extended.getEndAngle()));
+        double originalAngleDiff = endAngle - startAngle;
+        double newAngleDiff = extended.getEndAngle() - extended.getStartAngle();
+        LOGGER.info("ArcShape.extend - 新圆弧: startAngle={}°, endAngle={}°, 角度差={}° (原角度差={}°)",
+                String.format("%.2f", Math.toDegrees(extended.getStartAngle())), 
+                String.format("%.2f", Math.toDegrees(extended.getEndAngle())),
+                String.format("%.2f", Math.toDegrees(newAngleDiff)), 
+                String.format("%.2f", Math.toDegrees(originalAngleDiff)));
+        
+        // 检查是否变短了
+        if (newAngleDiff < originalAngleDiff - 0.01) { // 使用小的容差来避免浮点误差
+            LOGGER.warn("ArcShape.extend - ⚠️ 警告：延伸后圆弧变短了！原角度差={}°, 新角度差={}°",
+                    String.format("%.2f", Math.toDegrees(originalAngleDiff)), 
+                    String.format("%.2f", Math.toDegrees(newAngleDiff)));
+        }
         
         return extended;
     }
