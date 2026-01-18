@@ -120,20 +120,8 @@ public class ExtendTool extends ModifyTool {
         );
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode) {
-        // 处理Esc键重置边界选择 - 使用KeyEvent常量替代硬编码值
-        if (keyCode == KeyEvent.VK_ESCAPE) {
-            IModifyStrategy strategy = getStrategy();
-            if (strategy instanceof ExtendWithSelectionStrategy extendStrategy) {
-                LOGGER.debug("ExtendTool: Esc键按下，调用策略的handleKeyDown方法");
-                // 直接传递this作为ModifyToolContext
-                extendStrategy.handleKeyDown(keyCode, 0, this);
-                return true; // 表示已处理
-            }
-        }
-        return super.onKeyDown(keyCode);
-    }
+    // onKeyDown方法已移除，使用父类ModifyTool的实现
+    // 父类会正确调用策略的onKeyDown方法，策略中已经完整实现了Esc键的处理逻辑
     
     /**
      * 处理工具配置事件

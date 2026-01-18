@@ -509,26 +509,52 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         try {
             currentPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
 
-            // 在延伸模式下，更新预览
+            // 在延伸模式下，只有当鼠标在可延伸的图形上或附近时才更新预览
             if (!boundaryShapes.isEmpty()) {
-                ExtendTargetInfo targetInfo = findExtendTarget(currentPoint, context);
-                if (targetInfo != null) {
-                    updateExtendPreview(currentPoint, context);
-                    context.setPreviewEnabled(true);
+                // 先查找鼠标位置下的图形
+                Shape shapeAtPoint = context.findShapeAt(currentPoint, extendTolerance);
+                
+                if (shapeAtPoint != null && !boundaryShapes.contains(shapeAtPoint)) {
+                    // 找到了非边界图形，尝试查找延伸目标
+                    ExtendTargetInfo targetInfo = findExtendTarget(currentPoint, context);
+                    if (targetInfo != null) {
+                        updateExtendPreview(currentPoint, context);
+                        context.setPreviewEnabled(true);
+                    } else {
+                        // 鼠标在图形上但无法延伸（例如不在端点附近），清除预览
+                        clearPreview();
+                        context.setPreviewEnabled(false);
+                    }
                 } else {
-                    // 没有找到有效目标，禁用预览
+                    // 鼠标不在可延伸图形上，清除预览
+                    clearPreview();
                     context.setPreviewEnabled(false);
                 }
             } else {
-                // 没有边界图形，禁用预览
+                // 没有边界图形，清除预览
+                clearPreview();
                 context.setPreviewEnabled(false);
             }
-            return ModifyResult.CONTINUE; // 找到有效目标，继续预览
+            return ModifyResult.CONTINUE;
         } catch (Exception e) {
             LOGGER.debug("延伸预览失败: {}", e.getMessage());
+            clearPreview();
             context.setPreviewEnabled(false);
             return ModifyResult.CONTINUE;
         }
+    }
+    
+    /**
+     * 清除预览状态
+     */
+    private void clearPreview() {
+        if (highlightedShape != null) {
+            highlightedShape.setHighlighted(false);
+            highlightedShape = null;
+        }
+        extendPoint = null;
+        targetPoint = null;
+        previewShapes = null;
     }
 
     // 常量定义
@@ -639,6 +665,13 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             LOGGER.debug("===== handleExtendPointSelection 开始 =====");
             LOGGER.debug("点击位置: {}, 边界图形数量: {}", pos, boundaryShapes.size());
 
+            // 只有当存在预览时才允许执行延伸操作
+            if (previewShapes == null || previewShapes.isEmpty() || extendPoint == null) {
+                LOGGER.debug("没有预览图形，不允许执行延伸操作");
+                context.setStatusMessage("请将鼠标移动到要延伸的图形上");
+                return ModifyResult.CONTINUE;
+            }
+
             // 获取吸附后的点
             Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
             LOGGER.debug("延伸点选，吸附后的点: {}", snappedPoint);
@@ -654,7 +687,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 return result;
             } else {
                 LOGGER.debug("未找到可延伸的目标，点击位置: {}", snappedPoint);
-                context.setStatusMessage("请点击要延伸的图形端点");
+                context.setStatusMessage("请将鼠标移动到要延伸的图形上并点击");
                 return ModifyResult.CONTINUE;
             }
         } catch (Exception e) {
@@ -923,17 +956,24 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         if (keyCode == ESC_KEY) {
             if (extendState == ExtendState.EXTENDING) {
                 // 重置边界选择，回到边界选择状态
-                LOGGER.info("Esc键按下，重置边界选择");
+                LOGGER.info("Esc键按下，取消延伸操作，重置边界选择");
+                // 清除预览状态
+                clearPreview();
+                context.setPreviewEnabled(false);
+                // 重置延伸状态
                 resetExtendState();
                 extendState = ExtendState.SELECTING_BOUNDARY;
-                context.setStatusMessage("边界选择已重置，请重新选择边界图形");
+                context.setStatusMessage("延伸操作已取消，请重新选择边界图形");
+                return ModifyResult.CANCEL;
             } else {
                 // 其他状态下的重置
                 LOGGER.debug("Esc键按下，重置延伸工具");
+                clearPreview();
+                context.setPreviewEnabled(false);
                 reset();
                 context.setStatusMessage("延伸工具已重置，请选择边界图形");
+                return ModifyResult.CANCEL;
             }
-            return ModifyResult.CANCEL;
         }
 
         // 处理Shift键按下
@@ -1336,21 +1376,20 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
     private void resetExtendState() {
         LOGGER.debug("重置延伸状态，当前状态: {}", extendState);
 
-        // 先重置选择状态，清空图形选择和高亮
+        // 先清除预览状态
+        clearPreview();
+
+        // 先重置选择状态，清空图形选择和高亮（这会清空boundaryShapes）
         resetSelectionState();
 
-        // 清空边界图形和缓存，确保状态重置时正确清理
-        boundaryShapes.clear();
+        // 清空缓存，确保状态重置时正确清理
         cachedBoundaryShapes = null;
         boundarySpatialIndex = null;
-        LOGGER.debug("清空边界图形和缓存");
+        LOGGER.debug("清空边界图形缓存");
 
         // 重置延伸状态
         extendState = ExtendState.SELECTING_BOUNDARY;
-        extendPoint = null;
-        targetPoint = null;
         currentPoint = null;
-        previewShapes = null;
         pendingCommand = null;
         pendingOriginalShapes.clear();
         pendingModifiedShapes.clear();

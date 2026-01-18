@@ -1414,14 +1414,12 @@ public class ExtendHandler implements IModifyHandler {
         if (circleIntersection != null) {
             // 在投影模式下，如果交点不在圆弧范围内，仍然返回交点
             // 这样可以将图形延伸到完整圆的位置
-            if (isPointInArcRange(circleIntersection, arcBoundary)) {
-                return circleIntersection;
-            } else {
+            if (!isPointInArcRange(circleIntersection, arcBoundary)) {
                 // 交点不在圆弧范围内，但在完整圆上，仍然返回（延长线交点）
-                LOGGER.debug("找到圆弧延长线交点（不在圆弧范围内但在完整圆上）: {}", 
-                    formatVec2d(circleIntersection));
-                return circleIntersection;
+                LOGGER.debug("找到圆弧延长线交点（不在圆弧范围内但在完整圆上）: {}",
+                        formatVec2d(circleIntersection));
             }
+            return circleIntersection;
         }
         
         return null;
