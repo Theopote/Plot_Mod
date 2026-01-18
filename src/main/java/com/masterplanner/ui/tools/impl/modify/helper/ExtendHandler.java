@@ -1088,7 +1088,7 @@ public class ExtendHandler implements IModifyHandler {
     }
     
     /**
-     * 查找与多段线的投影交点
+     * 查找与多段线的投影交点（延伸到延长线位置）
      */
     private Vec2d findPolylineProjectionIntersection(Vec2d rayStart, Vec2d rayEnd, com.masterplanner.core.geometry.shapes.PolylineShape polyline) {
         try {
@@ -1099,27 +1099,44 @@ public class ExtendHandler implements IModifyHandler {
             
             Vec2d nearestIntersection = null;
             double minDistance = Double.MAX_VALUE;
+            Vec2d rayDirection = rayEnd.subtract(rayStart).normalize();
             
             // 遍历多段线的每个线段
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec2d lineStart = points.get(i);
                 Vec2d lineEnd = points.get(i + 1);
                 
-                // 计算射线与线段的交点
-                List<Vec2d> intersections = GeometryUtils.segmentIntersection(
+                // 首先尝试计算射线与线段的交点
+                List<Vec2d> segmentIntersections = GeometryUtils.segmentIntersection(
                     rayStart, rayEnd, lineStart, lineEnd);
                 
-                if (!intersections.isEmpty()) {
-                    // 找到在射线方向上最近的交点
-                    Vec2d rayDirection = rayEnd.subtract(rayStart).normalize();
-                    
-                    for (Vec2d intersection : intersections) {
+                if (!segmentIntersections.isEmpty()) {
+                    for (Vec2d intersection : segmentIntersections) {
                         Vec2d toIntersection = intersection.subtract(rayStart);
                         if (toIntersection.dot(rayDirection) > ExtendConfig.GEOMETRY_EPSILON) {
                             double distance = rayStart.distance(intersection);
                             if (distance > ExtendConfig.INTERSECTION_TOLERANCE && distance < minDistance) {
                                 minDistance = distance;
                                 nearestIntersection = intersection;
+                            }
+                        }
+                    }
+                } else {
+                    // 如果没有找到线段交点，计算射线与无限长直线的交点
+                    Vec2d lineDir = lineEnd.subtract(lineStart);
+                    if (lineDir.length() >= ExtendConfig.GEOMETRY_EPSILON) {
+                        lineDir = lineDir.normalize();
+                        Vec2d intersection = calculateLineLineIntersection(rayStart, rayDirection, lineStart, lineDir);
+                        if (intersection != null) {
+                            Vec2d toIntersection = intersection.subtract(rayStart);
+                            if (toIntersection.dot(rayDirection) > ExtendConfig.GEOMETRY_EPSILON) {
+                                double distance = rayStart.distance(intersection);
+                                if (distance > ExtendConfig.INTERSECTION_TOLERANCE && distance < minDistance) {
+                                    minDistance = distance;
+                                    nearestIntersection = intersection;
+                                    LOGGER.debug("找到多段线线段延长线交点: {}, 距离: {:.2f}", 
+                                        formatVec2d(intersection), distance);
+                                }
                             }
                         }
                     }
@@ -1258,23 +1275,23 @@ public class ExtendHandler implements IModifyHandler {
     }
     
     /**
-     * 查找与直线的投影交点
+     * 查找与直线的投影交点（延伸到延长线位置）
      */
     private Vec2d findLineProjectionIntersection(Vec2d rayStart, Vec2d rayEnd, com.masterplanner.core.geometry.shapes.LineShape lineBoundary) {
         Vec2d lineStart = lineBoundary.getStart();
         Vec2d lineEnd = lineBoundary.getEnd();
         
-        // 计算射线与直线的交点
-        List<Vec2d> intersections = GeometryUtils.segmentIntersection(
+        // 首先尝试计算射线与线段的交点
+        List<Vec2d> segmentIntersections = GeometryUtils.segmentIntersection(
             rayStart, rayEnd, lineStart, lineEnd);
         
-        if (!intersections.isEmpty()) {
-            // 找到在射线方向上最近的交点
-            Vec2d rayDirection = rayEnd.subtract(rayStart).normalize();
-            Vec2d nearestIntersection = null;
-            double minDistance = Double.MAX_VALUE;
-            
-            for (Vec2d intersection : intersections) {
+        Vec2d rayDirection = rayEnd.subtract(rayStart).normalize();
+        Vec2d nearestIntersection = null;
+        double minDistance = Double.MAX_VALUE;
+        
+        // 检查线段交点
+        if (!segmentIntersections.isEmpty()) {
+            for (Vec2d intersection : segmentIntersections) {
                 Vec2d toIntersection = intersection.subtract(rayStart);
                 if (toIntersection.dot(rayDirection) > ExtendConfig.GEOMETRY_EPSILON) {
                     double distance = rayStart.distance(intersection);
@@ -1284,11 +1301,65 @@ public class ExtendHandler implements IModifyHandler {
                     }
                 }
             }
-            
-            return nearestIntersection;
         }
         
-        return null;
+        // 如果没有找到线段交点，计算射线与无限长直线的交点
+        if (nearestIntersection == null) {
+            Vec2d lineDir = lineEnd.subtract(lineStart);
+            if (lineDir.length() < ExtendConfig.GEOMETRY_EPSILON) {
+                // 线段退化为点，无法延长
+                return null;
+            }
+            
+            lineDir = lineDir.normalize();
+            
+            // 计算两条无限长直线的交点
+            Vec2d intersection = calculateLineLineIntersection(rayStart, rayDirection, lineStart, lineDir);
+            if (intersection != null) {
+                // 检查交点是否在射线方向上
+                Vec2d toIntersection = intersection.subtract(rayStart);
+                if (toIntersection.dot(rayDirection) > ExtendConfig.GEOMETRY_EPSILON) {
+                    double distance = rayStart.distance(intersection);
+                    if (distance > ExtendConfig.INTERSECTION_TOLERANCE) {
+                        nearestIntersection = intersection;
+                        LOGGER.debug("找到直线延长线交点: {}, 距离: {:.2f}", 
+                            formatVec2d(intersection), distance);
+                    }
+                }
+            }
+        }
+        
+        return nearestIntersection;
+    }
+    
+    /**
+     * 计算两条无限长直线的交点
+     * 
+     * @param p1 第一条直线上的一点
+     * @param dir1 第一条直线的方向向量（已归一化）
+     * @param p2 第二条直线上的一点
+     * @param dir2 第二条直线的方向向量（已归一化）
+     * @return 交点坐标，如果直线平行则返回null
+     */
+    private Vec2d calculateLineLineIntersection(Vec2d p1, Vec2d dir1, Vec2d p2, Vec2d dir2) {
+        // 使用参数方程求解两条直线的交点
+        // 直线1: p1 + t * dir1
+        // 直线2: p2 + s * dir2
+        // 求解 p1 + t * dir1 = p2 + s * dir2
+        
+        Vec2d dp = p2.subtract(p1);
+        double cross = dir1.cross(dir2);
+        
+        // 如果两条直线平行，叉积接近0
+        if (Math.abs(cross) < ExtendConfig.GEOMETRY_EPSILON) {
+            return null; // 平行或共线
+        }
+        
+        // 计算参数 t
+        double t = dp.cross(dir2) / cross;
+        
+        // 返回交点
+        return p1.add(dir1.multiply(t));
     }
     
     /**
@@ -1330,21 +1401,27 @@ public class ExtendHandler implements IModifyHandler {
     }
     
     /**
-     * 查找与圆弧的投影交点
+     * 查找与圆弧的投影交点（延伸到完整圆位置）
      */
     private Vec2d findArcProjectionIntersection(Vec2d rayStart, Vec2d rayEnd, com.masterplanner.core.geometry.shapes.ArcShape arcBoundary) {
-        // 首先计算与圆的交点
+        // 在投影模式下，计算与完整圆的交点，即使不在圆弧范围内也返回
+        // 这样可以延伸到边界图形的延长线位置（虽然看不见，但默认边界图形长度无限）
         com.masterplanner.core.geometry.shapes.CircleShape circle = new com.masterplanner.core.geometry.shapes.CircleShape(
             arcBoundary.getCenter(), arcBoundary.getRadius());
         
         Vec2d circleIntersection = findCircleProjectionIntersection(rayStart, rayEnd, circle);
-        if (circleIntersection == null) {
-            return null;
-        }
         
-        // 使用更精确的方法检查交点是否在圆弧范围内
-        if (isPointInArcRange(circleIntersection, arcBoundary)) {
-            return circleIntersection;
+        if (circleIntersection != null) {
+            // 在投影模式下，如果交点不在圆弧范围内，仍然返回交点
+            // 这样可以将图形延伸到完整圆的位置
+            if (isPointInArcRange(circleIntersection, arcBoundary)) {
+                return circleIntersection;
+            } else {
+                // 交点不在圆弧范围内，但在完整圆上，仍然返回（延长线交点）
+                LOGGER.debug("找到圆弧延长线交点（不在圆弧范围内但在完整圆上）: {}", 
+                    formatVec2d(circleIntersection));
+                return circleIntersection;
+            }
         }
         
         return null;
