@@ -37,7 +37,6 @@ public class StatusPanel implements UIComponent {
     // 状态信息
     private String currentToolName = "选择";
     private float opacity = 100.0f;
-    private int selectedCount = 0;
     private String activeLayer;
     private String status = "就绪";
     
@@ -236,7 +235,7 @@ public class StatusPanel implements UIComponent {
     private void updateStatus() {
         try {
             // 从AppState更新状态信息
-            selectedCount = appState.getSelectedShapes().size();
+            int selectedCount = appState.getSelectedShapes().size();
             activeLayer = appState.getActiveLayerName();
             
             // 使用已初始化的 ToolManager
