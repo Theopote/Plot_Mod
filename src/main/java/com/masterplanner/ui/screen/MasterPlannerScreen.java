@@ -60,6 +60,7 @@ public class MasterPlannerScreen extends Screen {
     private static final long MOUSE_MOVE_LOG_INTERVAL = 1000; // 1秒间隔
 
     // Dockable 窗口标志：允许用户拖动/缩放/停靠
+    // NoScrollbar: 隐藏滚动条，但仍允许鼠标滚轮滚动
     private static final int DOCKABLE_WINDOW_FLAGS =
         ImGuiWindowFlags.NoCollapse |
         ImGuiWindowFlags.NoScrollbar;
