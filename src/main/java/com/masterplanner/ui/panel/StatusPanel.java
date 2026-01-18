@@ -106,16 +106,13 @@ public class StatusPanel implements UIComponent {
         if (ImGui.collapsingHeader("状态属性", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.popStyleColor(4);
             
-            // 设置边框样式
-            // 注意：beginChild(..., true) 会隐式应用 WindowPadding，所以先设置为0避免双重边距
-            // collapsingHeader 已经提供了外层边距，这里只需要控制内层子窗口的边距
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);  // 避免beginChild的隐式边距
+            // 设置边框样式 - 与HistoryPanel保持一致，使用统一的边距设置
+            // 注意：beginChild 的边框应紧贴窗口边缘，内容边距由窗口级 WindowPadding 控制
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);  // 边框无内边距，与标题边距一致
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
             ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4, 4);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.panelControlRounding);
-            // 在beginChild之前设置实际的WindowPadding，用于子窗口内容
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8);
             
             // 设置颜色
             ImGui.pushStyleColor(ImGuiCol.ChildBg, currentTheme.panelBackground);
@@ -124,11 +121,9 @@ public class StatusPanel implements UIComponent {
             
             try {
                 // 创建带边框的子窗口来显示状态信息 - 禁用滚动条但允许鼠标滚动
-                // 注意：需要先pop一次WindowPadding，让beginChild使用0边距，然后再push 8,8用于内容
-                ImGui.popStyleVar(1);  // 弹出WindowPadding (8,8)，让beginChild使用之前的WindowPadding (0,0)
+                // 在 beginChild 内部设置内容边距，保持与标题边距一致
+                ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4, 4);
                 if (ImGui.beginChild("##status_content", 0, 0, true, ImGuiWindowFlags.NoScrollbar)) {
-                    // 现在在beginChild内部设置内容的内边距
-                    ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8);
                     // 使用表格形式显示状态信息 - 添加边框和行背景
                     if (ImGui.beginTable("##status_table", 2, 
                             ImGuiTableFlags.SizingStretchProp | 
@@ -226,13 +221,12 @@ public class StatusPanel implements UIComponent {
                         
                         ImGui.endTable();
                     }
-                    // 在 endChild 之前 pop 在 beginChild 内部 push 的 WindowPadding
-                    ImGui.popStyleVar(1);  // 弹出 WindowPadding (8, 8)
                 }
                 ImGui.endChild();
+                ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding
             } finally {
                 ImGui.popStyleColor(3);
-                ImGui.popStyleVar(5);  // 弹出剩余的5个样式：WindowPadding(0,0), FramePadding, ItemSpacing, FrameBorderSize, FrameRounding
+                ImGui.popStyleVar(5);  // 弹出剩余的5个样式：WindowPadding, FramePadding, ItemSpacing, FrameBorderSize, FrameRounding
             }
         } else {
             ImGui.popStyleColor(4);

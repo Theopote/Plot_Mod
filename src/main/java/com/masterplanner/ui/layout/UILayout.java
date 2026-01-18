@@ -73,8 +73,8 @@ public class UILayout {
     // 状态栏
     public static final float STATUS_BAR_HEIGHT = 24.0f;
 
-    // 内容区域边距
-    public static final float CONTENT_PADDING = 8;
+    // 内容区域边距（与 collapsingHeader 默认边距一致）
+    public static final float CONTENT_PADDING = 4;
 
     // 获取内容区域高度
     public static float getContentHeight(float windowHeight) {

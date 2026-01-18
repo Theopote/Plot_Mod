@@ -23,7 +23,8 @@ public class HistoryPanel implements UIComponent {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         
         // 设置历史记录区域的样式
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8);
+        // 注意：beginChild 的边框应紧贴窗口边缘，内容边距由窗口级 WindowPadding 控制
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);  // 边框无内边距，与标题边距一致
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -42,6 +43,8 @@ public class HistoryPanel implements UIComponent {
         
         try {
             // 创建一个固定高度的子窗口来显示历史记录
+            // 在 beginChild 内部设置内容边距，保持与标题边距一致
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4, 4);
             if (ImGui.beginChild("##history_list", 0, 200, true)) {
                 List<Command> history = commandHistory.getHistory();
                 int currentIndex = commandHistory.getCurrentIndex();
@@ -91,6 +94,7 @@ public class HistoryPanel implements UIComponent {
                 }
             }
             ImGui.endChild();
+            ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding
             
         } finally {
             ImGui.popStyleColor(9); // 恢复所有颜色设置

@@ -21,7 +21,7 @@ import imgui.flag.*;
 public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListener {
     // 界面布局常量
     private static final float LABEL_WIDTH = 60.0f;         // 标签文本宽度
-    private static final float PANEL_PADDING = 8.0f;        // 面板内边距
+    private static final float PANEL_PADDING = 4.0f;        // 面板内边距
 
     // 核心组件引用
     private final AppState appState;    // 应用状态管理器
@@ -167,7 +167,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             currentTool.getName(), currentTool.getId());
 
         // 设置面板样式
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PANEL_PADDING, PANEL_PADDING);
+        // 注意：beginChild 的边框应紧贴窗口边缘，内容边距由窗口级 WindowPadding 控制
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);  // 边框无内边距，与标题边距一致
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
 
         // 使用正确的 ImGuiWindowFlags 枚举值
@@ -184,12 +185,15 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         // 为修改工具添加额外的高度缓冲
         ToolType toolType = ToolType.fromString(currentTool.getId());
         float extraHeight = getExtraHeightForTool(toolType);
-        float totalHeight = infoHeight + separatorHeight + optionsHeight + extraHeight + ImGui.getStyle().getWindowPadding().y * 2;
+        // 使用固定的边距值计算高度，因为边框无内边距
+        float totalHeight = infoHeight + separatorHeight + optionsHeight + extraHeight + PANEL_PADDING * 2;
         
         MasterPlannerMod.LOGGER.debug("工具面板高度计算 - 信息: {}, 分隔线: {}, 选项: {}, 额外: {}, 总计: {}", 
             infoHeight, separatorHeight, optionsHeight, extraHeight, totalHeight);
         
         // 使用计算出的精确高度
+        // 在 beginChild 内部设置内容边距，保持与标题边距一致
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PANEL_PADDING, PANEL_PADDING);
         if (ImGui.beginChild("##tool_panel", availableWidth, totalHeight, true, flags)) {
             // 工具信息部分
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
@@ -211,8 +215,9 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             }
         }
         ImGui.endChild();
+        ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding(4,4)
 
-        ImGui.popStyleVar(2);
+        ImGui.popStyleVar(2);  // 弹出外部的 WindowPadding(0,0) 和 FramePadding(4,4)
     }
 
     @Override
