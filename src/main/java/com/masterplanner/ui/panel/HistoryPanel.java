@@ -92,25 +92,6 @@ public class HistoryPanel implements UIComponent {
             }
             ImGui.endChild();
             
-            // 添加撤销/重做按钮
-            float buttonWidth = 80;
-            float spacing = 8;
-            
-            if (ImGui.button("撤销", buttonWidth, 0) && commandHistory.canUndo()) {
-                commandHistory.undo();
-            }
-            ImGui.sameLine(0, spacing);
-            
-            if (ImGui.button("重做", buttonWidth, 0) && commandHistory.canRedo()) {
-                commandHistory.redo();
-            }
-            
-            // 显示当前位置信息
-            ImGui.sameLine(0, spacing);
-            ImGui.text(String.format("位置: %d/%d", 
-                commandHistory.getCurrentIndex() + 1, 
-                commandHistory.getHistory().size()));
-            
         } finally {
             ImGui.popStyleColor(9); // 恢复所有颜色设置
             ImGui.popStyleVar(5);   // 恢复所有样式设置
