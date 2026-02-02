@@ -421,9 +421,10 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     @Override
     public void setToolState(com.masterplanner.api.tool.ToolState state) {
         // 转换为内部状态枚举
-        switch (state) {
-            case ACTIVE -> this.currentState = ToolState.MODIFYING;
-            default -> this.currentState = ToolState.IDLE;
+        if (Objects.requireNonNull(state) == com.masterplanner.api.tool.ToolState.ACTIVE) {
+            this.currentState = ToolState.MODIFYING;
+        } else {
+            this.currentState = ToolState.IDLE;
         }
         LOGGER.trace("ModifyTool [{}] 状态变更: {}", toolId, currentState.getDisplayName());
     }

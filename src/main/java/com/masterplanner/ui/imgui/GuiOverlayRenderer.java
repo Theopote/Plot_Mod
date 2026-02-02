@@ -22,18 +22,24 @@ public final class GuiOverlayRenderer {
 
     private static final class PendingItem {
         final ItemStack stack;
-        final int x;
-        final int y;
-        PendingItem(ItemStack stack, int x, int y) {
+        final float x;
+        final float y;
+        final float scale;  // 缩放因子，用于放大小图标
+        PendingItem(ItemStack stack, float x, float y, float scale) {
             this.stack = stack;
             this.x = x;
             this.y = y;
+            this.scale = scale;
         }
     }
 
     private static final List<PendingItem> PENDING_ITEMS = new ArrayList<>();
 
     public static void queueBlockItem(Block block, float x, float y) {
+        queueBlockItem(block, x, y, 2.0f);  // 默认2倍缩放（16x16 -> 32x32）
+    }
+
+    public static void queueBlockItem(Block block, float x, float y, float scale) {
         if (block == null) {
             LOGGER.warn("queueBlockItem: block为null，跳过");
             return;
@@ -44,9 +50,9 @@ public final class GuiOverlayRenderer {
                 LOGGER.warn("queueBlockItem: 方块 {} 的物品堆栈为空，跳过", net.minecraft.registry.Registries.BLOCK.getId(block));
                 return;
             }
-            PENDING_ITEMS.add(new PendingItem(stack, (int) x, (int) y));
-            LOGGER.info("queueBlockItem: 已添加方块 {} 到渲染队列，坐标: ({}, {})", 
-                        net.minecraft.registry.Registries.BLOCK.getId(block), (int)x, (int)y);
+            PENDING_ITEMS.add(new PendingItem(stack, x, y, scale));
+            LOGGER.info("queueBlockItem: 已添加方块 {} 到渲染队列，坐标: ({}, {}), 缩放: {}", 
+                        net.minecraft.registry.Registries.BLOCK.getId(block), (int)x, (int)y, scale);
         } catch (Exception e) {
             LOGGER.warn("queueBlockItem 异常: {}", e.getMessage(), e);
         }
@@ -54,6 +60,7 @@ public final class GuiOverlayRenderer {
 
     /**
      * 在一帧ImGui渲染完成之后调用，覆盖绘制所有排队的物品。
+     * 支持坐标浮点精度和缩放渲染。
      */
     public static void flush(DrawContext context) {
         if (PENDING_ITEMS.isEmpty()) {
@@ -65,43 +72,53 @@ public final class GuiOverlayRenderer {
             return;
         }
         try {
-            LOGGER.info("GuiOverlayRenderer.flush: 开始渲染 {} 个物品", PENDING_ITEMS.size());
-            // 获取窗口尺寸用于验证坐标
-            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-            int windowWidth = client != null && client.getWindow() != null ? client.getWindow().getScaledWidth() : 0;
-            int windowHeight = client != null && client.getWindow() != null ? client.getWindow().getScaledHeight() : 0;
+            int itemCount = PENDING_ITEMS.size();
+            LOGGER.info("GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
             
-            if (windowWidth > 0 && windowHeight > 0) {
-                LOGGER.info("GuiOverlayRenderer.flush: 窗口尺寸: {}x{}", windowWidth, windowHeight);
+            if (itemCount == 0) {
+                LOGGER.warn("GuiOverlayRenderer.flush: 列表大小为0，结束");
+                return;
             }
             
-            // 使用 drawItemWithoutEntity 直接渲染，避免实体相关的渲染问题
-            for (PendingItem pi : PENDING_ITEMS) {
-                // 检查坐标是否在合理范围内
-                if (pi.x < 0 || pi.y < 0 || (windowWidth > 0 && pi.x > windowWidth) || (windowHeight > 0 && pi.y > windowHeight)) {
-                    LOGGER.warn("GuiOverlayRenderer.flush: 坐标超出范围: ({}, {}), 窗口尺寸: {}x{}", 
-                               pi.x, pi.y, windowWidth, windowHeight);
-                }
-                
+            // 使用 drawItem 直接渲染
+            int successCount = 0;
+            int failCount = 0;
+            
+            for (int i = 0; i < itemCount; i++) {
                 try {
-                    // 直接使用 drawItemWithoutEntity，这个方法更适合 GUI 渲染
-                    context.drawItemWithoutEntity(pi.stack, pi.x, pi.y);
-                    LOGGER.debug("GuiOverlayRenderer.flush: 已渲染物品 {} 在坐标 ({}, {})", 
-                                pi.stack.getItem().getTranslationKey(), pi.x, pi.y);
-                } catch (Throwable t) {
-                    // 如果 drawItemWithoutEntity 失败，尝试使用 drawItem
-                    try {
-                        context.drawItem(pi.stack, pi.x, pi.y);
-                        LOGGER.debug("GuiOverlayRenderer.flush: 已使用drawItem渲染物品 {} 在坐标 ({}, {})", 
-                                    pi.stack.getItem().getTranslationKey(), pi.x, pi.y);
-                    } catch (Throwable ignore) {
-                        LOGGER.warn("GuiOverlayRenderer.flush: 渲染物品 {} 在坐标 ({}, {}) 失败: {}", 
-                                   pi.stack.getItem().getTranslationKey(), pi.x, pi.y, ignore.getMessage());
+                    PendingItem pi = PENDING_ITEMS.get(i);
+                    if (pi == null) {
+                        LOGGER.warn("GuiOverlayRenderer.flush: 第 {} 个PendingItem为null", i);
+                        failCount++;
+                        continue;
                     }
+                    
+                    if (pi.stack == null || pi.stack.isEmpty()) {
+                        LOGGER.warn("GuiOverlayRenderer.flush: [{}] 物品堆栈无效", i);
+                        failCount++;
+                        continue;
+                    }
+                    
+                    int intX = Math.round(pi.x);
+                    int intY = Math.round(pi.y);
+                    
+                    LOGGER.info("GuiOverlayRenderer.flush: [{}] 渲染物品 {} 在 ({},{})", 
+                                i, pi.stack.getItem().getTranslationKey(), intX, intY);
+                    
+                    // 渲染物品
+                    context.drawItem(pi.stack, intX, intY);
+                    successCount++;
+                    
+                } catch (Throwable t) {
+                    LOGGER.warn("GuiOverlayRenderer.flush: 第 {} 个物品渲染失败", i, t);
+                    failCount++;
                 }
             }
+            
+            LOGGER.info("GuiOverlayRenderer.flush: 完成 - 成功: {}, 失败: {}", successCount, failCount);
+            
         } catch (Exception e) {
-            LOGGER.error("GuiOverlayRenderer.flush 失败", e);
+            LOGGER.error("GuiOverlayRenderer.flush 异常", e);
         } finally {
             PENDING_ITEMS.clear();
         }

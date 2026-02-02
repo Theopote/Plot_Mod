@@ -44,7 +44,7 @@ public class CompactBlockConfigDialog {
     private static final int DISPLAY_ROWS = 8; // [CORRECTED] 展示区显示8行
     private static final int DISPLAY_BLOCKS_PER_PAGE = BLOCKS_PER_ROW * DISPLAY_ROWS; // 96个方块/页
     private static final int MAX_PALETTE_SLOTS = 12; // [CORRECTED] 调色盘12个槽位，一行
-    private static final float BLOCK_ICON_SIZE = 32.0f;
+    private static final float BLOCK_ICON_SIZE = 48.0f;  // [ENHANCED] 增大到48x48便于点击和显示
     private static final float BLOCK_SPACING = 4.0f;
     private static final float PADDING = 4.0f;
 
@@ -859,11 +859,13 @@ public class CompactBlockConfigDialog {
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
 
-                // 使用全局覆盖渲染：队列GUI物品绘制（物品贴图16x16，居中到32x32槽位）
+                // [ENHANCED] 使用全局覆盖渲染：队列GUI物品绘制
+                // 计算缩放系数：物品16x16 -> 槽位BLOCK_ICON_SIZE（48x48），缩放系数3.0
+                float scale = BLOCK_ICON_SIZE / 16.0f;  // 48/16 = 3.0
                 float centerOffset = (BLOCK_ICON_SIZE - 16.0f) * 0.5f;
-                LOGGER.info("renderBlockIcon: 准备渲染方块 {} 在坐标 ({}, {})", 
-                           Registries.BLOCK.getId(block), x + centerOffset, y + centerOffset);
-                com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x + centerOffset, y + centerOffset);
+                LOGGER.info("renderBlockIcon: 准备渲染方块 {} 在坐标 ({}, {}), 缩放: {}", 
+                           Registries.BLOCK.getId(block), x + centerOffset, y + centerOffset, scale);
+                com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x + centerOffset, y + centerOffset, scale);
                 
             } else {
                 // 只有在调试模式下才记录这个警告，避免日志污染
@@ -947,8 +949,9 @@ public class CompactBlockConfigDialog {
         try {
             // 1.21.11：BlockIconRenderer 的离屏纹理渲染暂时禁用，拖拽预览改用覆盖绘制真实物品图标
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
+            float scale = BLOCK_ICON_SIZE / 16.0f;  // [ENHANCED] 使用正确的缩放系数
             float centerOffset = (BLOCK_ICON_SIZE - 16.0f) * 0.5f;
-            com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x + centerOffset, y + centerOffset);
+            com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x + centerOffset, y + centerOffset, scale);
         } catch (Exception e) {
             LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
                         block != null ? Registries.BLOCK.getId(block) : "null", e.getMessage(), e);
