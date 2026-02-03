@@ -37,38 +37,6 @@ public final class BlockIconRenderer {
     private static final Map<Block, ItemStack> itemStackCache = new ConcurrentHashMap<>();
     private static final Map<Block, String> blockNameCache = new ConcurrentHashMap<>();
 
-    /* ===========================
-     *  Public API
-     * =========================== */
-
-    /**
-     * 绘制方块图标（最常用的方法）
-     * 
-     * @param block 要绘制的方块
-     * @param x 屏幕 X 坐标
-     * @param y 屏幕 Y 坐标
-     */
-        public static void drawBlock(
-            DrawContext context,
-            Block block,
-            int x,
-            int y
-        ) {
-        if (block == null) {
-            drawFallback(context, x, y);
-            return;
-        }
-
-        Item item = block.asItem();
-        if (item == Items.AIR) {
-            LOGGER.debug("方块 {} 没有 Item 形式，使用 Barrier fallback", Registries.BLOCK.getId(block));
-            drawFallback(context, x, y);
-            return;
-        }
-
-        drawItem(context, new ItemStack(item), x, y);
-    }
-
     /**
      * 绘制物品图标（直接使用 ItemStack）
      * 
@@ -134,23 +102,6 @@ public final class BlockIconRenderer {
     }
 
     /**
-     * 获取方块的显示名称（缓存版本）
-     */
-    public static String getBlockDisplayName(Block block) {
-        if (block == null) return "Unknown";
-
-        return blockNameCache.computeIfAbsent(block, b -> {
-            try {
-                String name = b.getName().getString();
-                return name != null && !name.isEmpty() ? name : Registries.BLOCK.getId(b).toString();
-            } catch (Exception e) {
-                LOGGER.debug("获取方块 {} 名称失败: {}", Registries.BLOCK.getId(b), e.getMessage());
-                return Registries.BLOCK.getId(b).toString();
-            }
-        });
-    }
-
-    /**
      * 检查方块是否有有效图标
      */
     public static boolean hasValidIcon(Block block) {
@@ -200,19 +151,6 @@ public final class BlockIconRenderer {
         }
     }
 
-    /* ===========================
-     *  Utilities
-     * =========================== */
-
-    /**
-     * 清理缓存
-     */
-    public static synchronized void clearCache() {
-        LOGGER.info("清理 BlockIconRenderer 缓存");
-        itemStackCache.clear();
-        blockNameCache.clear();
-    }
-
     /**
      * 获取缓存统计
      */
@@ -242,13 +180,6 @@ public final class BlockIconRenderer {
     }
 
     /**
-     * 运行简单的自检/测试（向后兼容）
-     */
-    public static void testBlockIconRendering() {
-        LOGGER.info("BlockIconRenderer.testBlockIconRendering() invoked -- {}", getCacheStats());
-    }
-
-    /**
      * 预加载常用方块（向后兼容）
      */
     public static void preloadCommonBlocks() {
@@ -262,11 +193,4 @@ public final class BlockIconRenderer {
         LOGGER.debug("preloadCommonBlocks executed, filled cache entries: {}", itemStackCache.size());
     }
 
-    /**
-     * 兼容旧接口：触发对方块纹理/ItemStack 的缓存并返回占位纹理 id
-     */
-    public static int getBlockTextureId(Block block) {
-        getItemStackForBlock(block);
-        return 0; // legacy callers only cared about triggering preload
-    }
 }

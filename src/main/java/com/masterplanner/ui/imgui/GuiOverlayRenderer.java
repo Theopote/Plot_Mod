@@ -40,13 +40,6 @@ public final class GuiOverlayRenderer {
     private static final List<PendingItem> PENDING_ITEMS = new ArrayList<>();
 
     /**
-     * 队列一个方块（自动转换为 ItemStack）
-     */
-    public static void queueBlockItem(Block block, float x, float y) {
-        queueBlockItem(block, x, y, 1.0f);
-    }
-
-    /**
      * 队列一个方块（带缩放）
      * 注意：缩放在 BlockIconRenderer 的 pose translate 中处理，这里只用于后续计算
      */
@@ -66,9 +59,32 @@ public final class GuiOverlayRenderer {
                 return;
             }
 
-            // 整数坐标（DrawContext 需要 int）
-            int intX = Math.round(x);
-            int intY = Math.round(y);
+            // 将 ImGui 的屏幕坐标转换为 Minecraft framebuffer/GUI 坐标
+            // 原因：ImGui 使用 display coordinates（window size），而 DrawContext.drawItem
+            // 期望 framebuffer (或经过缩放的 GUI) 坐标。这里使用 Minecraft 的 window
+            // 信息计算缩放因子进行转换，避免坐标/速度不一致导致图标漂移或被遮挡。
+            int intX;
+            int intY;
+            try {
+                var mc = net.minecraft.client.MinecraftClient.getInstance();
+                if (mc != null && mc.getWindow() != null) {
+                    float fbW = Math.max(1, mc.getWindow().getFramebufferWidth());
+                    float fbH = Math.max(1, mc.getWindow().getFramebufferHeight());
+                    float winW = Math.max(1, mc.getWindow().getWidth());
+                    float winH = Math.max(1, mc.getWindow().getHeight());
+                    float sx = fbW / winW;
+                    float sy = fbH / winH;
+                    intX = Math.round(x * sx);
+                    intY = Math.round(y * sy);
+                } else {
+                    intX = Math.round(x);
+                    intY = Math.round(y);
+                }
+            } catch (Throwable t) {
+                LOGGER.warn("queueBlockItem: 计算坐标缩放时出错，回退到原始坐标: {}", t.getMessage());
+                intX = Math.round(x);
+                intY = Math.round(y);
+            }
 
             PENDING_ITEMS.add(new PendingItem(stack, intX, intY));
             LOGGER.debug("✓ 已队列方块: {} @ ({}, {})", 

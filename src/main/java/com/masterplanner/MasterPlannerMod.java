@@ -15,7 +15,6 @@ import com.masterplanner.core.shortcut.ShortcutManager;
 import com.masterplanner.ui.shortcut.EditShortcutListener;
 import com.masterplanner.ui.shortcut.DeleteShortcutListener;
 import com.masterplanner.ui.shortcut.EscapeShortcutListener;
-import com.masterplanner.ui.component.BlockIconRenderer;
 import com.masterplanner.ui.imgui.ImGuiWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;

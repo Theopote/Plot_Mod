@@ -145,15 +145,7 @@ public class BlockSearchManager {
         ImGui.popStyleVar(); // FrameRounding
         ImGui.popStyleVar(); // FramePadding
     }
-    
-    /**
-     * 渲染模糊搜索开关
-     * 复选框，用于启用/禁用模糊搜索
-     */
-    private void renderFuzzySearchToggle(float height) {
-        // 此方法已移除，不再需要
-    }
-    
+
     /**
      * 渲染搜索提示
      * 当搜索文本太短时显示提示信息

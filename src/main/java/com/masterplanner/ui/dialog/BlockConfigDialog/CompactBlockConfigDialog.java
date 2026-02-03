@@ -61,8 +61,8 @@ public class CompactBlockConfigDialog {
                                                      (BLOCK_SPACING * (DISPLAY_ROWS)) +
                                                      (PADDING * 2) + 50; // 预留翻页信息空间
     private static final float TITLE_BAR_HEIGHT = 20.0f;        // 自定义标题栏高度
-    private static final float TOP_PANEL_HEIGHT = 84.0f;        // 顶部面板
-    private static final float BOTTOM_PANEL_HEIGHT = 90.0f;     // 调色盘(一行) + 按钮 
+    private static final float TOP_PANEL_HEIGHT = 88.0f;        // 顶部面板
+    private static final float BOTTOM_PANEL_HEIGHT = 134.0f;     // 调色盘(一行) + 按钮 + 说明文字 (增高以容纳所有元素)
     private static final float COMPACT_DIALOG_HEIGHT = TITLE_BAR_HEIGHT + TOP_PANEL_HEIGHT + DISPLAY_AREA_HEIGHT +
                                                       BOTTOM_PANEL_HEIGHT + (PADDING * 3);// 面板间间距也改为4
 
@@ -156,10 +156,6 @@ public class CompactBlockConfigDialog {
 
         public boolean hasSelectedBlocks() {
             return dialogInstance != null && dialogInstance.hasSelectedBlocks();
-        }
-
-        public String getPrimarySelectedBlockId() {
-            return dialogInstance != null ? dialogInstance.getPrimarySelectedBlockId() : null;
         }
 
         public int getSelectedBlockCount() {
@@ -664,6 +660,8 @@ public class CompactBlockConfigDialog {
         handlePaletteDrop();
 
         // [CORRECTED] 渲染调色盘槽位 - 单行12个槽位
+        // 记录起始Y用于在槽位行下方精确放置按钮/说明，避免受同一行布局影响产生额外间距
+        float paletteStartY = ImGui.getCursorPosY();
         for (int i = 0; i < MAX_PALETTE_SLOTS; i++) {
             if (i > 0) {
                 ImGui.sameLine(0, BLOCK_SPACING);
@@ -674,6 +672,11 @@ public class CompactBlockConfigDialog {
 
         // 渲染拖放指示器
         renderDropIndicator();
+
+        // 将光标移到槽位下方，以便按钮和说明文本能够正确布局
+        // 缩小此处间距以避免与按钮产生过大空隙（使用 PADDING 的一半，但保证最小为2px）
+        float paletteGap = Math.max(2.0f, PADDING / 2.0f);
+        ImGui.setCursorPosY(paletteStartY + BLOCK_ICON_SIZE + paletteGap);
     }
 
     /**
@@ -1451,13 +1454,6 @@ public class CompactBlockConfigDialog {
      */
     public boolean hasSelectedBlocks() {
         return !paletteBlocks.isEmpty();
-    }
-
-    /**
-     * 获取主要选中方块ID
-     */
-    public String getPrimarySelectedBlockId() {
-        return paletteBlocks.isEmpty() ? null : Registries.BLOCK.getId(paletteBlocks.getFirst()).toString();
     }
 
     /**
