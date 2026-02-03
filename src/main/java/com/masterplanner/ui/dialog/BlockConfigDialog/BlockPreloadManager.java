@@ -115,9 +115,8 @@ public class BlockPreloadManager {
             category.getDisplayName(), blocksToPreload.size());
 
         for (Block block : blocksToPreload) {
-            // 使用普通优先级（false）将方块加入渲染队列
-            // getBlockTextureId 现在会自动处理队列逻辑
-            BlockIconRenderer.getBlockTextureId(block); 
+            // 触发 ItemStack 缓存以完成预加载
+            BlockIconRenderer.getItemStackForBlock(block);
         }
 
         // 由于 BlockIconRenderer 自己管理队列，PreloadManager 不再需要复杂的 CompletableFuture 和状态跟踪

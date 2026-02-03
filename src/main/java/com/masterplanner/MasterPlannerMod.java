@@ -269,49 +269,25 @@ public class MasterPlannerMod implements ModInitializer, ClientModInitializer {
      * 等待客户端完全启动后再初始化，避免线程检查失败
      */
     private void registerDelayedBlockIconRendererInitialization() {
-        // 使用一个标志位来确保只初始化一次
-        final boolean[] initialized = {false};
-        
-        LOGGER.info("注册BlockIconRenderer延迟初始化事件监听器");
-        
-        // 使用 ClientTickEvents.END_CLIENT_TICK 确保在主渲染线程上执行
+        // 渲染器现在为无状态安全实现；保留一个轻量的预加载触发器以填充缓存
+        final boolean[] preloaded = {false};
+        LOGGER.info("注册BlockIconRenderer预加载事件监听器 (轻量)");
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            // 添加调试信息
-            if (!initialized[0]) {
-                LOGGER.debug("BlockIconRenderer延迟初始化检查: player={}, isInitialized={}", 
-                    client.player != null, BlockIconRenderer.isInitialized());
-            }
-            
-            // 只在第一次tick时执行初始化，且确保只执行一次
-            if (!initialized[0] && client.player != null && !BlockIconRenderer.isInitialized()) {
+            if (!preloaded[0] && client.player != null) {
                 try {
-                    LOGGER.info("开始延迟初始化BlockIconRenderer...");
-                    
-                    // 初始化渲染器
-                    BlockIconRenderer.initialize();
-                    
-                    // 运行测试验证渲染功能
-                    LOGGER.info("运行BlockIconRenderer测试...");
-                    BlockIconRenderer.testBlockIconRendering();
-                    
-                    // 输出缓存统计
-                    String stats = BlockIconRenderer.getCacheStats();
-                    LOGGER.info("BlockIconRenderer 缓存统计: {}", stats);
-                    
-                    LOGGER.info("BlockIconRenderer 延迟初始化完成");
-                    
-                    // 标记为已初始化
-                    initialized[0] = true;
-                    
+                    LOGGER.info("触发 BlockIconRenderer 预加载常用方块缓存");
+                    com.masterplanner.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog tmp = null; // placeholder
+                    // Use the compat preload method to warm caches
+                    com.masterplanner.ui.component.BlockIconRenderer.preloadCommonBlocks();
+                    LOGGER.info("BlockIconRenderer 预加载完成: {}", com.masterplanner.ui.component.BlockIconRenderer.getCacheStats());
                 } catch (Exception e) {
-                    LOGGER.error("BlockIconRenderer 延迟初始化失败: {}", e.getMessage(), e);
-                    // 即使失败也标记为已初始化，避免重复尝试
-                    initialized[0] = true;
+                    LOGGER.warn("BlockIconRenderer 预加载失败: {}", e.getMessage());
+                } finally {
+                    preloaded[0] = true;
                 }
             }
         });
-        
-        LOGGER.info("BlockIconRenderer延迟初始化事件监听器注册完成");
+        LOGGER.info("BlockIconRenderer 预加载事件监听器已注册");
     }
 
     /**

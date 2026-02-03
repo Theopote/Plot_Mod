@@ -766,6 +766,7 @@ public class BlockCategoryManager {
         
         int totalBlocks = 0;
         int categorizedBlocks = 0;
+        int airLikeBlocks = 0;  // 🔥 统计类似AIR的块
         
         // 遍历所有方块
         for (Block block : Registries.BLOCK) {
@@ -774,7 +775,22 @@ public class BlockCategoryManager {
             
             // 跳过minecraft:air方块
             if (blockId.toString().equals("minecraft:air")) {
+                LOGGER.debug("🔥 跳过AIR块");
+                airLikeBlocks++;
                 continue;
+            }
+            
+            // 🔥 关键检查：block是否有有效的Item形式
+            // 这是方块图标不显示的常见原因
+            try {
+                net.minecraft.item.Item item = block.asItem();
+                if (item == net.minecraft.item.Items.AIR) {
+                    LOGGER.warn("⚠️  方块 {} 没有有效的Item形式（asItem返回Items.AIR），不应该添加到分类中", blockId);
+                    airLikeBlocks++;
+                    continue;
+                }
+            } catch (Exception e) {
+                LOGGER.debug("检查方块 {} 的Item形式时失败: {}", blockId, e.getMessage());
             }
             
             totalBlocks++;
@@ -789,7 +805,7 @@ public class BlockCategoryManager {
                     
                     // 详细日志记录前几个方块的分类结果
                     if (categorizedBlocks <= 20) {
-                        LOGGER.info("方块 {} 分类到: {}", blockId, rule.getCategory().getDisplayName());
+                        LOGGER.info("✓ 方块 {} 分类到: {}", blockId, rule.getCategory().getDisplayName());
                     }
                     break;
                 }
@@ -802,7 +818,7 @@ public class BlockCategoryManager {
                 
                 // 记录前几个未分类的方块
                 if (this.categorizedBlocks.get(defaultRule.getCategory()).size() <= 10) {
-                    LOGGER.info("方块 {} 使用默认分类: {}", blockId, defaultRule.getCategory().getDisplayName());
+                    LOGGER.info("→ 方块 {} 使用默认分类: {}", blockId, defaultRule.getCategory().getDisplayName());
                 }
             }
         }
@@ -813,7 +829,8 @@ public class BlockCategoryManager {
         }
         
         // 记录每个分类的方块数量
-        LOGGER.info("方块分类统计（总计 {} 个方块，已分类 {} 个）：", totalBlocks, categorizedBlocks);
+        LOGGER.info("🔍 方块分类统计（总计 {} 个方块，已分类 {} 个，AIR/无Item {} 个）：", 
+                   totalBlocks, categorizedBlocks, airLikeBlocks);
         for (BlockCategory category : BlockCategory.values()) {
             int count = this.categorizedBlocks.get(category).size();
             LOGGER.info("  {} : {} 个方块", category.getDisplayName(), count);
@@ -830,7 +847,7 @@ public class BlockCategoryManager {
             }
         }
         
-        LOGGER.info("方块分类初始化完成");
+        LOGGER.info("✓ 方块分类初始化完成");
     }
     
     /**

@@ -160,7 +160,7 @@ public class BlockSearchManager {
      */
     private void renderSearchHint() {
         // 如果搜索文本不为空但太短，显示提示
-        if (!searchBuffer.get().isEmpty() && searchBuffer.get().length() < MIN_SEARCH_CHARS) {
+        if (!searchBuffer.get().isEmpty() && searchBuffer.get().isEmpty()) {
             ImGui.sameLine();
             ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, 
                 String.format("请输入至少 %d 个字符", MIN_SEARCH_CHARS));
@@ -179,7 +179,7 @@ public class BlockSearchManager {
         String searchText = searchBuffer.get().trim();
         
         // 如果搜索文本发生变化，触发新的搜索
-        if (!searchText.equals(lastSearchText) && searchText.length() >= MIN_SEARCH_CHARS) {
+        if (!searchText.equals(lastSearchText) && !searchText.isEmpty()) {
             lastSearchText = searchText;
             
             // 取消之前的搜索
@@ -205,7 +205,7 @@ public class BlockSearchManager {
         }
         
         // 如果搜索文本为空或太短，显示所有方块
-        if (searchText.length() < MIN_SEARCH_CHARS) {
+        if (searchText.isEmpty()) {
             displayBlocks = categoryManager.getCategorizedBlocks().get(currentCategory);
             
             // 如果之前有搜索结果，清空

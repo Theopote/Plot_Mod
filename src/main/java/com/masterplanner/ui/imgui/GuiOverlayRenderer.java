@@ -11,9 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 在ImGui绘制之后覆盖渲染到屏幕上的GUI物品/图标渲染队列。
- * 目的：避免ImGui addImage纹理链路在某些环境无效导致的不可见问题，
- * 直接使用Minecraft的DrawContext渲染物品贴图，确保与物品栏样式一致。
+ * GuiOverlayRenderer - 在ImGui之后的安全覆盖渲染
+ * 
+ * 使用经过验证的 BlockIconRenderer.drawBlock() / drawItem() 进行渲染
+ * BlockIconRenderer 已经完整处理了所有 GL 状态管理和 AIR 兜底
+ * 
+ * 这个类只负责：
+ * 1. 队列管理（缓冲要绘制的图标）
+ * 2. 在合适的时机调用 BlockIconRenderer 进行绘制
  */
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/GuiOverlayRenderer");
@@ -22,101 +27,106 @@ public final class GuiOverlayRenderer {
 
     private static final class PendingItem {
         final ItemStack stack;
-        final float x;
-        final float y;
-        final float scale;  // 缩放因子，用于放大小图标
-        PendingItem(ItemStack stack, float x, float y, float scale) {
+        final int x;
+        final int y;
+
+        PendingItem(ItemStack stack, int x, int y) {
             this.stack = stack;
             this.x = x;
             this.y = y;
-            this.scale = scale;
         }
     }
 
     private static final List<PendingItem> PENDING_ITEMS = new ArrayList<>();
 
+    /**
+     * 队列一个方块（自动转换为 ItemStack）
+     */
     public static void queueBlockItem(Block block, float x, float y) {
-        queueBlockItem(block, x, y, 2.0f);  // 默认2倍缩放（16x16 -> 32x32）
+        queueBlockItem(block, x, y, 1.0f);
     }
 
+    /**
+     * 队列一个方块（带缩放）
+     * 注意：缩放在 BlockIconRenderer 的 pose translate 中处理，这里只用于后续计算
+     */
     public static void queueBlockItem(Block block, float x, float y, float scale) {
         if (block == null) {
             LOGGER.warn("queueBlockItem: block为null，跳过");
             return;
         }
+
         try {
             ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+
+            // BlockIconRenderer 已经处理 AIR，这里只是额外检查
             if (stack == null || stack.isEmpty()) {
-                LOGGER.warn("queueBlockItem: 方块 {} 的物品堆栈为空，跳过", net.minecraft.registry.Registries.BLOCK.getId(block));
+                LOGGER.debug("⚠️  方块 {} 无有效 Item 形式，跳过队列", 
+                            net.minecraft.registry.Registries.BLOCK.getId(block));
                 return;
             }
-            PENDING_ITEMS.add(new PendingItem(stack, x, y, scale));
-            LOGGER.info("queueBlockItem: 已添加方块 {} 到渲染队列，坐标: ({}, {}), 缩放: {}", 
-                        net.minecraft.registry.Registries.BLOCK.getId(block), (int)x, (int)y, scale);
+
+            // 整数坐标（DrawContext 需要 int）
+            int intX = Math.round(x);
+            int intY = Math.round(y);
+
+            PENDING_ITEMS.add(new PendingItem(stack, intX, intY));
+            LOGGER.debug("✓ 已队列方块: {} @ ({}, {})", 
+                        net.minecraft.registry.Registries.BLOCK.getId(block), intX, intY);
+
         } catch (Exception e) {
             LOGGER.warn("queueBlockItem 异常: {}", e.getMessage(), e);
         }
     }
 
     /**
-     * 在一帧ImGui渲染完成之后调用，覆盖绘制所有排队的物品。
-     * 支持坐标浮点精度和缩放渲染。
+     * 在一帧 ImGui 渲染完成后调用
+     * 使用 BlockIconRenderer 的安全绘制方法进行渲染
+     * 
+     * @param context DrawContext（自动转换为 GuiGraphics 内部使用）
      */
     public static void flush(DrawContext context) {
         if (PENDING_ITEMS.isEmpty()) {
             return;
         }
+
         if (context == null) {
-            LOGGER.warn("GuiOverlayRenderer.flush: DrawContext为null，跳过渲染");
+            LOGGER.warn("flush: DrawContext 为null，跳过渲染");
             PENDING_ITEMS.clear();
             return;
         }
+
         try {
             int itemCount = PENDING_ITEMS.size();
-            LOGGER.info("GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
-            
-            if (itemCount == 0) {
-                LOGGER.warn("GuiOverlayRenderer.flush: 列表大小为0，结束");
-                return;
-            }
-            
-            // 使用 drawItem 直接渲染
+            LOGGER.info("🎨 GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
+
+            // DrawContext 内部有 GuiGraphics，我们通过 getGuiGraphics() 获取
+            // 注意：DrawContext 在 1.21+ 是 GuiGraphics 的包装
+            // 直接使用 context 的方法来访问 GuiGraphics 的功能
+
             int successCount = 0;
-            int failCount = 0;
-            
+            int skipCount = 0;
+
             for (int i = 0; i < itemCount; i++) {
                 try {
-                    PendingItem pi = PENDING_ITEMS.get(i);
-                    if (pi == null) {
-                        LOGGER.warn("GuiOverlayRenderer.flush: 第 {} 个PendingItem为null", i);
-                        failCount++;
+                    PendingItem item = PENDING_ITEMS.get(i);
+                    if (item == null || item.stack == null || item.stack.isEmpty()) {
+                        LOGGER.debug("flush: 第 {} 个物品无效，跳过", i);
+                        skipCount++;
                         continue;
                     }
-                    
-                    if (pi.stack == null || pi.stack.isEmpty()) {
-                        LOGGER.warn("GuiOverlayRenderer.flush: [{}] 物品堆栈无效", i);
-                        failCount++;
-                        continue;
-                    }
-                    
-                    int intX = Math.round(pi.x);
-                    int intY = Math.round(pi.y);
-                    
-                    LOGGER.info("GuiOverlayRenderer.flush: [{}] 渲染物品 {} 在 ({},{})", 
-                                i, pi.stack.getItem().getTranslationKey(), intX, intY);
-                    
-                    // 渲染物品
-                    context.drawItem(pi.stack, intX, intY);
+
+                        // 使用统一的安全渲染入口，BlockIconRenderer 管理装饰和状态
+                        com.masterplanner.ui.component.BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
                     successCount++;
-                    
-                } catch (Throwable t) {
-                    LOGGER.warn("GuiOverlayRenderer.flush: 第 {} 个物品渲染失败", i, t);
-                    failCount++;
+
+                } catch (Throwable e) {
+                    LOGGER.warn("flush: 第 {} 个物品渲染失败 - {}", i, e.getMessage());
                 }
             }
-            
-            LOGGER.info("GuiOverlayRenderer.flush: 完成 - 成功: {}, 失败: {}", successCount, failCount);
-            
+
+            LOGGER.info("✓ GuiOverlayRenderer.flush: 完成 - 成功: {}, 跳过: {}", successCount, skipCount);
+
         } catch (Exception e) {
             LOGGER.error("GuiOverlayRenderer.flush 异常", e);
         } finally {
@@ -124,5 +134,4 @@ public final class GuiOverlayRenderer {
         }
     }
 }
-
 

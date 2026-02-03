@@ -281,59 +281,13 @@ public class CompactBlockConfigDialog {
                 throw new RuntimeException("窗口尺寸设置错误: " + e.getMessage(), e);
             }
 
-            // 初始化方块图标渲染器
-            LOGGER.debug("开始初始化方块图标渲染器...");
+            // 预加载常用方块（高优先级） — 新渲染器为无状态，直接请求预加载缓存
             try {
-                if (!BlockIconRenderer.isInitialized()) {
-                    LOGGER.debug("BlockIconRenderer 未初始化，开始初始化...");
-                    BlockIconRenderer.initialize();
-                    LOGGER.info("BlockIconRenderer 初始化成功");
-                } else {
-                    LOGGER.debug("BlockIconRenderer 已经初始化，跳过重复初始化");
-                }
-
-                // 预加载常用方块（高优先级）
-                try {
-                    LOGGER.debug("开始预加载常用方块...");
-                    preloadCommonBlocks();
-                    LOGGER.debug("常用方块预加载请求已提交");
-                } catch (Exception e) {
-                    LOGGER.error("常用方块预加载失败: {}", e.getMessage(), e);
-                    // 不是致命错误，继续执行
-                }
-
-                LOGGER.debug("方块图标渲染器初始化阶段完成");
+                LOGGER.debug("请求预加载常用方块缓存 (无状态渲染器)");
+                preloadCommonBlocks();
+                LOGGER.debug("常用方块预加载请求已提交");
             } catch (Exception e) {
-                LOGGER.error("BlockIconRenderer 初始化失败: {}", e.getMessage(), e);
-                // 这不是致命错误，允许对话框继续打开，只是图标可能显示不正确
-                LOGGER.warn("将在无图标渲染器的情况下继续打开对话框");
-            }
-
-            // [NEW] 测试方块图标渲染功能
-            try {
-                if (BlockIconRenderer.isInitialized()) {
-                    LOGGER.debug("开始测试方块图标渲染功能...");
-                    BlockIconRenderer.testBlockIconRendering();
-                } else {
-                    LOGGER.warn("BlockIconRenderer 未初始化，跳过测试");
-                }
-            } catch (Exception e) {
-                LOGGER.error("方块图标渲染测试失败: {}", e.getMessage(), e);
-                // 不是致命错误，继续执行
-            }
-
-            // 尝试预渲染基础方块
-            try {
-                if (BlockIconRenderer.isInitialized()) {
-                    LOGGER.debug("开始预渲染基础方块...");
-                    BlockIconRenderer.preloadCommonBlocks();
-                    LOGGER.info("基础方块预渲染完成");
-                } else {
-                    LOGGER.warn("BlockIconRenderer 未初始化，跳过基础方块预渲染");
-                }
-            } catch (Exception e) {
-                LOGGER.error("基础方块预渲染失败: {}", e.getMessage(), e);
-                // 不是致命错误，允许对话框继续打开
+                LOGGER.error("常用方块预加载失败: {}", e.getMessage(), e);
             }
 
             // 设置当前分类并预加载
@@ -1538,12 +1492,12 @@ public class CompactBlockConfigDialog {
             Blocks.REDSTONE_BLOCK, Blocks.EMERALD_BLOCK, Blocks.NETHERITE_BLOCK
         );
 
-        // 高优先级预加载
+        // 高优先级预加载：触发 ItemStack 缓存
         for (Block block : commonBlocks) {
-            BlockIconRenderer.getBlockTextureId(block);
+            BlockIconRenderer.getItemStackForBlock(block);
         }
 
-        LOGGER.debug("预加载了 {} 个常用方块图标", commonBlocks.size());
+        LOGGER.debug("预加载了 {} 个常用方块图标 (缓存项)", commonBlocks.size());
     }
 
     /**
@@ -1551,41 +1505,8 @@ public class CompactBlockConfigDialog {
      * [CRITICAL FIX] 添加延迟初始化逻辑，解决OpenGL上下文无效时的崩溃问题
      */
     private void processBlockIconRendering() {
-        // [CRITICAL FIX] 延迟初始化 BlockIconRenderer
-        // 确保在正确的时机（渲染线程且OpenGL上下文有效）进行初始化
-        if (!BlockIconRenderer.isInitialized()) {
-            try {
-                LOGGER.info("检测到 BlockIconRenderer 未初始化，将在渲染前执行延迟初始化...");
-                BlockIconRenderer.initialize();
-                if (!BlockIconRenderer.isInitialized()) {
-                    LOGGER.error("BlockIconRenderer 延迟初始化失败！对话框将关闭以防止崩溃。");
-                    // 初始化失败，关闭对话框并显示错误，防止后续持续崩溃
-                    isOpen = false;
-                    showWarningDialog.accept("""
-                            严重错误：方块图标渲染器初始化失败！
-                            可能的原因：OpenGL上下文未准备好或图形驱动问题。
-                            请检查日志并尝试重新启动游戏。""");
-                    return;
-                }
-                LOGGER.info("BlockIconRenderer 延迟初始化成功。");
-            } catch (Exception e) {
-                LOGGER.error("在渲染对话框时初始化 BlockIconRenderer 失败！", e);
-                // 初始化失败，关闭对话框并显示错误，防止后续持续崩溃
-                isOpen = false;
-                showWarningDialog.accept("严重错误：方块图标渲染器初始化失败！\n" +
-                    "错误信息：" + e.getMessage() + "\n" +
-                    "请检查日志并尝试重新启动游戏。");
-                return;
-            }
-        }
-        
-        // 处理渲染队列中的方块图标 - 新版本不再需要 renderTick
-        try {
-            // BlockIconRenderer.renderTick(); // 已移除，新版本不需要
-        } catch (Exception e) {
-            LOGGER.error("处理方块图标渲染队列时发生错误: {}", e.getMessage(), e);
-            // 渲染队列处理失败不是致命错误，只记录日志
-        }
+        // 新版 BlockIconRenderer 为无状态安全渲染器，不再需要延迟初始化或 renderTick
+        // 保持此处为无操作占位，以便日后扩展队列处理逻辑
     }
 
         /**

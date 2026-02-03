@@ -93,10 +93,7 @@ public class Canvas implements ICanvas, UIComponent {
                 gridInitialized = true;
             }
             
-            // 处理方块图标渲染队列 - 新版本不再需要 renderTick
-            if (com.masterplanner.ui.component.BlockIconRenderer.isInitialized()) {
-                // com.masterplanner.ui.component.BlockIconRenderer.renderTick(); // 已移除，新版本不需要
-            }
+            // 新版 BlockIconRenderer 为无状态实现，renderTick 不再需要
             
             renderer.render();
             inputHandler.handleInput();
