@@ -4,6 +4,7 @@ import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.block.GhostBlockManager;
+import com.masterplanner.infrastructure.event.block.BlockProjectionEvent;
 import com.masterplanner.infrastructure.event.block.LineToBlockEvent;
 import com.masterplanner.ui.component.ControlPanelIcons;
 import com.masterplanner.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
@@ -152,7 +153,12 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
             Math.floor(client.player.getY()) : 64.0;
         
         // 发布线转方块事件（默认预览模式）
-        eventBus.publish(new LineToBlockEvent(shapes, canvasHeight, true));
+        LineToBlockSettingsDialog.ConversionMode conversionMode =
+                lineToBlockSettingsDialog != null ? lineToBlockSettingsDialog.getConversionMode() : LineToBlockSettingsDialog.ConversionMode.FULL;
+        float simplificationRatio =
+                lineToBlockSettingsDialog != null ? lineToBlockSettingsDialog.getSimplificationRatio() : 0.5f;
+
+        eventBus.publish(new LineToBlockEvent(shapes, conversionMode, simplificationRatio, canvasHeight, true));
         LOGGER.debug("发布线转方块预览事件: 图形数量={}, 高度={}", shapes.size(), canvasHeight);
     }
     
@@ -171,7 +177,14 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         }
         
         LOGGER.info("发现 {} 个幽灵方块需要投影", ghostBlockCount);
-        int projectedCount = ghostBlockManager.projectAllGhostBlocks();
+        BlockProjectionEvent.ProjectionMode projectionMode = BlockProjectionEvent.ProjectionMode.GROUND;
+        Integer elevation = null;
+        if (projectionSettingsDialog != null && projectionSettingsDialog.getProjectionMode() == ProjectionSettingsDialog.ProjectionMode.ELEVATION) {
+            projectionMode = BlockProjectionEvent.ProjectionMode.ELEVATION;
+            elevation = projectionSettingsDialog.getElevation();
+        }
+
+        int projectedCount = ghostBlockManager.projectAllGhostBlocks(projectionMode, elevation);
         
         if (projectedCount > 0) {
             LOGGER.info("投影操作完成，共投影 {} 个方块", projectedCount);

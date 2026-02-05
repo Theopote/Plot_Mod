@@ -623,7 +623,9 @@ public class RoadSystemPlugin extends Plugin {
                     pos.getY(),
                     pos.getZ(),
                     0.0f,
-                    false // 非预览模式，实际放置方块
+                    false, // 非预览模式，实际放置方块
+                    BlockProjectionEvent.ProjectionMode.ELEVATION,
+                    pos.getY()
                 ));
                 buildCount++;
             }
@@ -636,7 +638,9 @@ public class RoadSystemPlugin extends Plugin {
                     pos.getY(),
                     pos.getZ(),
                     0.0f,
-                    false
+                    false,
+                    BlockProjectionEvent.ProjectionMode.ELEVATION,
+                    pos.getY()
                 ));
                 buildCount++;
             }
@@ -649,7 +653,9 @@ public class RoadSystemPlugin extends Plugin {
                     pos.getY(),
                     pos.getZ(),
                     0.0f,
-                    false
+                    false,
+                    BlockProjectionEvent.ProjectionMode.ELEVATION,
+                    pos.getY()
                 ));
                 buildCount++;
             }

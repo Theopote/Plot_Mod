@@ -274,6 +274,33 @@ public class GhostBlockManager {
         
         return projectedCount;
     }
+
+    public int projectAllGhostBlocks(BlockProjectionEvent.ProjectionMode projectionMode, Integer elevation) {
+        List<GhostBlock> visibleBlocks = getVisibleGhostBlocks();
+        int projectedCount = 0;
+
+        for (GhostBlock ghostBlock : visibleBlocks) {
+            eventBus.publish(new BlockProjectionEvent(
+                    ghostBlock.getBlockType(),
+                    ghostBlock.getPosition().x,
+                    ghostBlock.getHeight(),
+                    ghostBlock.getPosition().y,
+                    0.0f,
+                    false,
+                    projectionMode,
+                    elevation
+            ));
+            projectedCount++;
+        }
+
+        clearAllGhostBlocks();
+
+        LOGGER.info("宸叉姇褰?{} 涓菇鐏垫柟鍧楀埌minecraft涓栫晫", projectedCount);
+        eventBus.publish(new Events.WarningEvent("GhostBlockManager",
+                String.format("宸叉垚鍔熸姇褰?%d 涓柟鍧楀埌minecraft涓栫晫", projectedCount)));
+
+        return projectedCount;
+    }
     
     /**
      * 获取渲染相关设置

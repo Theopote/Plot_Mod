@@ -24,7 +24,7 @@ public class LineToBlockEvent extends Event {
      */
     public LineToBlockEvent(List<Shape> shapes) {
         super(EventType.BLOCK_CONVERSION);
-        this.shapes = null;
+        this.shapes = shapes;
         this.conversionMode = ConversionMode.FULL;
         this.simplificationRatio = 0.5f;
         this.canvasHeight = 0;

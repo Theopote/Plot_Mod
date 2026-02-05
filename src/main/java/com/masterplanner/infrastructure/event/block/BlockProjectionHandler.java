@@ -119,7 +119,13 @@ public class BlockProjectionHandler {
         }
         
         // 非预览模式：垂直向下扫描找到地面
-        BlockPos finalPos = findGroundPosition(world, x, y, z);
+        BlockPos finalPos;
+        if (blockEvent.getProjectionMode() == BlockProjectionEvent.ProjectionMode.ELEVATION) {
+            int targetY = blockEvent.getElevation() != null ? blockEvent.getElevation() : y;
+            finalPos = new BlockPos(x, targetY, z);
+        } else {
+            finalPos = findGroundPosition(world, x, y, z);
+        }
 
         LOGGER.debug("最终方块位置: {} (原始: {}, {}, {})", finalPos, x, y, z);
 
@@ -197,7 +203,7 @@ public class BlockProjectionHandler {
                 var blockState = world.getBlockState(checkPos);
                 
                 // 检查方块是否可以被替换
-                if (canReplaceBlock(blockState)) {
+                if (!canReplaceBlock(world, checkPos, blockState)) {
                     // 找到可替换的位置，返回上方一格作为放置位置
                     BlockPos placePos = new BlockPos(x, currentY + 1, z);
                     LOGGER.debug("找到地面位置: {} (原位置: {})", placePos, checkPos);
@@ -220,18 +226,18 @@ public class BlockProjectionHandler {
      * @param blockState 方块状态
      * @return 是否可以被替换
      */
-    private boolean canReplaceBlock(net.minecraft.block.BlockState blockState) {
+    private boolean canReplaceBlock(World world, BlockPos pos, net.minecraft.block.BlockState blockState) {
         if (blockState == null) {
-            return false;
+            return true;
         }
         
         // 检查是否为空气
         if (blockState.isAir()) {
-            return false;
+            return true;
         }
         
         // 检查是否为液体
-        if (blockState.getFluidState().isStill()) {
+        if (!blockState.getFluidState().isEmpty()) {
             return false;
         }
         
@@ -251,6 +257,6 @@ public class BlockProjectionHandler {
         }
         
         // 检查是否为固体方块（使用新的API）
-        return blockState.isSolidBlock(null, null);
+        return !blockState.isSolidBlock(world, pos);
     }
 } 

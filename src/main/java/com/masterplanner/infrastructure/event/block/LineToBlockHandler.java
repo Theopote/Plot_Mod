@@ -8,6 +8,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.Events;
 import com.masterplanner.infrastructure.event.base.Event;
 import com.masterplanner.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
+import com.masterplanner.ui.dialog.LineToBlockSettingsDialog.ConversionMode;
 import com.masterplanner.ui.canvas.Canvas;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import net.minecraft.util.math.BlockPos;
@@ -107,6 +108,7 @@ public class LineToBlockHandler {
         }
 
         // 获取转换参数
+        ConversionMode conversionMode = lineToBlockEvent.getConversionMode();
         float simplificationRatio = lineToBlockEvent.getSimplificationRatio();
         double userSpecifiedYLevel = lineToBlockEvent.getCanvasHeight();
         boolean isPreview = lineToBlockEvent.isPreview();
@@ -124,7 +126,7 @@ public class LineToBlockHandler {
         BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview);
 
         // 【优化】执行核心处理流程，带进度反馈
-        int totalBlocks = processShapesToBlocksWithProgress(shapes, targetYLevel, paletteBlocks, blockAction);
+        int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, paletteBlocks, blockAction);
 
         LOGGER.info("处理完成，共生成 {} 个方块", totalBlocks);
 
@@ -169,7 +171,7 @@ public class LineToBlockHandler {
      * @param blockAction 对每个生成的方块坐标和类型执行的操作
      * @return 生成的方块总数
      */
-    private int processShapesToBlocksWithProgress(List<Shape> shapes, double targetYLevel, List<String> paletteBlocks, BiConsumer<BlockPos, String> blockAction) {
+    private int processShapesToBlocksWithProgress(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double targetYLevel, List<String> paletteBlocks, BiConsumer<BlockPos, String> blockAction) {
         int totalBlocks = 0;
         int paletteIndex = 0;
         int processedShapes = 0;
@@ -183,7 +185,7 @@ public class LineToBlockHandler {
             LOGGER.debug("处理图形: {} ({}/{})", shape.getClass().getSimpleName(), processedShapes + 1, totalShapes);
 
             // 新逻辑：直接在世界坐标系下光栅化
-            List<BlockPos> blockPositions = rasterizeShape(shape, targetYLevel);
+            List<BlockPos> blockPositions = rasterizeShape(shape, conversionMode, simplificationRatio, targetYLevel);
 
             if (blockPositions.isEmpty()) {
                 LOGGER.warn("图形 {} 光栅化后没有有效的方块位置，跳过", shape.getClass().getSimpleName());
@@ -228,7 +230,7 @@ public class LineToBlockHandler {
      * @param yLevel 方块的目标Y坐标（标高）
      * @return 代表该图形的BlockPos列表
      */
-    private List<BlockPos> rasterizeShape(Shape shape, double yLevel) {
+    private List<BlockPos> rasterizeShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
 
         LOGGER.debug("开始光栅化图形: {} (类型: {})", shape.getId(), shape.getClass().getSimpleName());
@@ -236,11 +238,11 @@ public class LineToBlockHandler {
         // 处理线段
         switch (shape) {
             case com.masterplanner.core.geometry.shapes.LineShape line ->
-                    result.addAll(rasterizeLineShape(line, yLevel));
+                    result.addAll(rasterizeLineShape(line, conversionMode, simplificationRatio, yLevel));
 
             // 处理折线
             case com.masterplanner.core.geometry.shapes.PolylineShape polyline ->
-                    result.addAll(rasterizePolylineShape(polyline, yLevel));
+                    result.addAll(rasterizePolylineShape(polyline, conversionMode, simplificationRatio, yLevel));
 
             // 处理圆形
             case com.masterplanner.core.geometry.shapes.CircleShape circle ->
@@ -259,7 +261,7 @@ public class LineToBlockHandler {
 
             // 处理自由绘制路径
             case com.masterplanner.core.geometry.shapes.FreeDrawPath freeDraw ->
-                    result.addAll(rasterizeFreeDrawPath(freeDraw, yLevel));
+                    result.addAll(rasterizeFreeDrawPath(freeDraw, conversionMode, simplificationRatio, yLevel));
 
             // 处理多边形
             case com.masterplanner.core.geometry.shapes.Polygon polygon ->
@@ -268,7 +270,7 @@ public class LineToBlockHandler {
             // 处理其他复杂图形（如螺旋、星形等）
             default ->
                 // 对于复杂图形，尝试获取其边界或轮廓点进行光栅化
-                    result.addAll(rasterizeComplexShape(shape, yLevel));
+                    result.addAll(rasterizeComplexShape(shape, conversionMode, simplificationRatio, yLevel));
         }
 
         LOGGER.info("【调试】光栅化完成，生成 {} 个方块位置", result.size());
@@ -278,7 +280,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化线段
      */
-    private List<BlockPos> rasterizeLineShape(com.masterplanner.core.geometry.shapes.LineShape line, double yLevel) {
+    private List<BlockPos> rasterizeLineShape(com.masterplanner.core.geometry.shapes.LineShape line, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         Vec2d canvasStart = line.getStart();
         Vec2d canvasEnd = line.getEnd();
         
@@ -305,8 +307,8 @@ public class LineToBlockHandler {
                         windowStart.x, windowStart.y, windowEnd.x, windowEnd.y,
                         minecraftStart.x, minecraftStart.y, minecraftEnd.x, minecraftEnd.y, yLevel);
                 
-                return rasterizeLine(minecraftStart.x, minecraftStart.y, 
-                                   minecraftEnd.x, minecraftEnd.y, yLevel);
+                return rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
+                        minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio);
             } else {
                 LOGGER.error("【调试】窗口坐标到Minecraft坐标转换失败，跳过线条: 起点={}, 终点={}", windowStart, windowEnd);
             }
@@ -320,7 +322,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化折线
      */
-    private List<BlockPos> rasterizePolylineShape(com.masterplanner.core.geometry.shapes.PolylineShape polyline, double yLevel) {
+    private List<BlockPos> rasterizePolylineShape(com.masterplanner.core.geometry.shapes.PolylineShape polyline, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = polyline.getPoints();
         
@@ -363,7 +365,7 @@ public class LineToBlockHandler {
             Vec2d end = minecraftPoints.get(i + 1);
             LOGGER.debug("处理折线段{}: ({}, {}) -> ({}, {})", 
                     i + 1, start.x, start.y, end.x, end.y);
-            result.addAll(rasterizeLine(start.x, start.y, end.x, end.y, yLevel));
+            result.addAll(rasterizeLineSegment(start.x, start.y, end.x, end.y, yLevel, conversionMode, simplificationRatio));
         }
 
         // 处理闭合折线
@@ -372,7 +374,7 @@ public class LineToBlockHandler {
             Vec2d end = minecraftPoints.getFirst();
             LOGGER.debug("处理闭合折线段: ({}, {}) -> ({}, {})", 
                     start.x, start.y, end.x, end.y);
-            result.addAll(rasterizeLine(start.x, start.y, end.x, end.y, yLevel));
+            result.addAll(rasterizeLineSegment(start.x, start.y, end.x, end.y, yLevel, conversionMode, simplificationRatio));
         }
 
         return result;
@@ -531,7 +533,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化自由绘制路径
      */
-    private List<BlockPos> rasterizeFreeDrawPath(com.masterplanner.core.geometry.shapes.FreeDrawPath freeDraw, double yLevel) {
+    private List<BlockPos> rasterizeFreeDrawPath(com.masterplanner.core.geometry.shapes.FreeDrawPath freeDraw, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = freeDraw.getPoints();
         
@@ -564,7 +566,7 @@ public class LineToBlockHandler {
         for (int i = 0; i < minecraftPoints.size() - 1; i++) {
             Vec2d start = minecraftPoints.get(i);
             Vec2d end = minecraftPoints.get(i + 1);
-            result.addAll(rasterizeLine(start.x, start.y, end.x, end.y, yLevel));
+            result.addAll(rasterizeLineSegment(start.x, start.y, end.x, end.y, yLevel, conversionMode, simplificationRatio));
         }
 
         return result;
@@ -609,7 +611,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化复杂图形（如螺旋、星形等）
      */
-    private List<BlockPos> rasterizeComplexShape(Shape shape, double yLevel) {
+    private List<BlockPos> rasterizeComplexShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         
         LOGGER.debug("处理复杂图形: {}", shape.getClass().getSimpleName());
@@ -630,8 +632,8 @@ public class LineToBlockHandler {
                     Vec2d minecraftEnd = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowEnd);
                     
                     if (minecraftStart != null && minecraftEnd != null) {
-                        result.addAll(rasterizeLine(minecraftStart.x, minecraftStart.y, 
-                                                   minecraftEnd.x, minecraftEnd.y, yLevel));
+                        result.addAll(rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
+                                minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio));
                     }
                 }
             }
@@ -810,6 +812,102 @@ public class LineToBlockHandler {
      * @param yLevel 方块的Y坐标（标高）
      * @return 构成线段的BlockPos列表
      */
+    private List<BlockPos> rasterizeLineSegment(
+            double x0,
+            double z0,
+            double x1,
+            double z1,
+            double yLevel,
+            ConversionMode conversionMode,
+            float simplificationRatio
+    ) {
+        List<BlockPos> candidates = rasterizeLine(x0, z0, x1, z1, yLevel);
+        if (conversionMode == null || conversionMode == ConversionMode.FULL) {
+            return candidates;
+        }
+
+        if (candidates.isEmpty()) {
+            return candidates;
+        }
+
+        // Keep legacy center-alignment behavior consistent with rasterizeLine().
+        double ax0 = x0 + 0.5;
+        double az0 = z0 + 0.5;
+        double ax1 = x1 + 0.5;
+        double az1 = z1 + 0.5;
+
+        double dx = ax1 - ax0;
+        double dz = az1 - az0;
+        double segmentLength = Math.hypot(dx, dz);
+        if (segmentLength < 1e-9) {
+            return candidates;
+        }
+
+        double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
+        List<BlockPos> filtered = new ArrayList<>(candidates.size());
+        for (BlockPos pos : candidates) {
+            double insideLength = segmentLengthInsideUnitCell(ax0, az0, ax1, az1, pos.getX(), pos.getZ(), segmentLength);
+            if (insideLength >= threshold) {
+                filtered.add(pos);
+            }
+        }
+
+        return filtered;
+    }
+
+    private double segmentLengthInsideUnitCell(double x0, double z0, double x1, double z1, int cellX, int cellZ, double segmentLength) {
+        double dx = x1 - x0;
+        double dz = z1 - z0;
+
+        double xmin = cellX;
+        double xmax = cellX + 1.0;
+        double zmin = cellZ;
+        double zmax = cellZ + 1.0;
+
+        double tMin = 0.0;
+        double tMax = 1.0;
+
+        if (Math.abs(dx) < 1e-12) {
+            if (x0 < xmin || x0 > xmax) {
+                return 0.0;
+            }
+        } else {
+            double tx1 = (xmin - x0) / dx;
+            double tx2 = (xmax - x0) / dx;
+            double enter = Math.min(tx1, tx2);
+            double exit = Math.max(tx1, tx2);
+            tMin = Math.max(tMin, enter);
+            tMax = Math.min(tMax, exit);
+            if (tMin > tMax) {
+                return 0.0;
+            }
+        }
+
+        if (Math.abs(dz) < 1e-12) {
+            if (z0 < zmin || z0 > zmax) {
+                return 0.0;
+            }
+        } else {
+            double tz1 = (zmin - z0) / dz;
+            double tz2 = (zmax - z0) / dz;
+            double enter = Math.min(tz1, tz2);
+            double exit = Math.max(tz1, tz2);
+            tMin = Math.max(tMin, enter);
+            tMax = Math.min(tMax, exit);
+            if (tMin > tMax) {
+                return 0.0;
+            }
+        }
+
+        double clampedEnter = Math.max(0.0, Math.min(1.0, tMin));
+        double clampedExit = Math.max(0.0, Math.min(1.0, tMax));
+        if (clampedExit <= clampedEnter) {
+            return 0.0;
+        }
+
+        return (clampedExit - clampedEnter) * segmentLength;
+    }
+
     private List<BlockPos> rasterizeLine(double x0, double z0, double x1, double z1, double yLevel) {
         // 【修复】调整坐标偏移，确保线条穿过方块中心
         // 方块的中心坐标 = 方块坐标 + 0.5

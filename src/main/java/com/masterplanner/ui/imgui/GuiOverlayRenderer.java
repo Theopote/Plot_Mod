@@ -264,7 +264,6 @@ public final class GuiOverlayRenderer {
                 if (vc != null) {
                     var draw = vc.getClass().getMethod("draw");
                     draw.invoke(vc);
-                    return;
                 }
             } catch (NoSuchFieldException ignored) {
             }
