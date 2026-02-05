@@ -16,14 +16,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 🔥 绝对安全的方块/物品图标渲染器 - Minecraft 1.21+ 最佳实践
- * 
+ * <p>
  * 设计目标：
  * ✔ 不依赖外部 RenderSystem 状态
  * ✔ 自动修复 GL / Shader / Atlas
  * ✔ 对 AIR / 无 Item 的 Block 有兜底
  * ✔ 可在 Screen / Overlay / 自定义面板中安全使用
  * ✔ 不会污染后续 UI 渲染
- * 
+ * <p>
  * 使用示例：
  * BlockIconRenderer.drawBlock(guiGraphics, Blocks.STONE, x, y);
  * BlockIconRenderer.drawItem(guiGraphics, new ItemStack(Items.DIAMOND), x, y);

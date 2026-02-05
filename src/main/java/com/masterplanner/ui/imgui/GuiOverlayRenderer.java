@@ -1,11 +1,19 @@
 package com.masterplanner.ui.imgui;
 
 import com.masterplanner.ui.component.BlockIconRenderer;
+import com.masterplanner.ui.imgui.gl.ImGuiGLStateGuard;
+import com.mojang.blaze3d.systems.RenderSystem;
+import imgui.ImGui;
+import imgui.ImGuiIO;
 import net.minecraft.block.Block;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.Window;
 import net.minecraft.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +30,7 @@ import java.util.List;
  */
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/GuiOverlayRenderer");
+    private static volatile long lastCoordScaleLogMs;
 
     private GuiOverlayRenderer() {}
 
@@ -29,15 +38,64 @@ public final class GuiOverlayRenderer {
         final ItemStack stack;
         final int x;
         final int y;
+        final float scale;
 
-        PendingItem(ItemStack stack, int x, int y) {
+        PendingItem(ItemStack stack, int x, int y, float scale) {
             this.stack = stack;
             this.x = x;
             this.y = y;
+            this.scale = scale;
         }
     }
 
     private static final List<PendingItem> PENDING_ITEMS = new ArrayList<>();
+    private static volatile DrawContext pendingDrawContext;
+
+    /**
+     * Inject a DrawContext to be used later when flushing queued overlay items.
+     * This is set from MasterPlannerScreen.render(...) and consumed from RenderSystemMixin
+     * just before swapBuffers (after ImGui has rendered its OpenGL draw data).
+     */
+    public static void setPendingDrawContext(DrawContext context) {
+        pendingDrawContext = context;
+    }
+
+    /**
+     * Flush queued items using the pending DrawContext (if present).
+     * If no context is available, clear the queue to avoid cross-frame accumulation.
+     */
+    public static void flushPending() {
+        DrawContext context = pendingDrawContext;
+        pendingDrawContext = null;
+
+        if (context == null) {
+            if (!PENDING_ITEMS.isEmpty()) {
+                LOGGER.warn("flushPending: DrawContext is null, clearing pending queue ({} items)", PENDING_ITEMS.size());
+                PENDING_ITEMS.clear();
+            }
+            return;
+        }
+
+        // Ensure we're drawing to the default framebuffer, with a correct viewport.
+        // flipFrame() is late in the frame; prior passes may leave a non-default FBO bound.
+        try {
+            RenderSystem.assertOnRenderThread();
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+            MinecraftClient mc = MinecraftClient.getInstance();
+            Window window = mc != null ? mc.getWindow() : null;
+            if (window != null) {
+                int fbW = Math.max(1, window.getFramebufferWidth());
+                int fbH = Math.max(1, window.getFramebufferHeight());
+                GL11.glViewport(0, 0, fbW, fbH);
+            }
+        } catch (Throwable t) {
+            // Don't break swapBuffers on viewport/FBO issues; just continue.
+        }
+
+        try (ImGuiGLStateGuard ignored = ImGuiGLStateGuard.enter()) {
+            flush(context);
+        }
+    }
 
     /**
      * 队列一个方块（带缩放）
@@ -65,28 +123,40 @@ public final class GuiOverlayRenderer {
             // 信息计算缩放因子进行转换，避免坐标/速度不一致导致图标漂移或被遮挡。
             int intX;
             int intY;
+            float usedScale = scale;
             try {
-                var mc = net.minecraft.client.MinecraftClient.getInstance();
-                if (mc != null && mc.getWindow() != null) {
-                    float fbW = Math.max(1, mc.getWindow().getFramebufferWidth());
-                    float fbH = Math.max(1, mc.getWindow().getFramebufferHeight());
-                    float winW = Math.max(1, mc.getWindow().getWidth());
-                    float winH = Math.max(1, mc.getWindow().getHeight());
-                    float sx = fbW / winW;
-                    float sy = fbH / winH;
-                    intX = Math.round(x * sx);
-                    intY = Math.round(y * sy);
-                } else {
-                    intX = Math.round(x);
-                    intY = Math.round(y);
+                MinecraftClient mc = MinecraftClient.getInstance();
+                Window window = mc != null ? mc.getWindow() : null;
+
+                float guiScaleX = 1.0f;
+                float guiScaleY = 1.0f;
+
+                if (window != null) {
+                    int scaledW = Math.max(1, window.getScaledWidth());
+                    int scaledH = Math.max(1, window.getScaledHeight());
+                    ImGuiIO io = ImGui.getIO();
+                    float imW = Math.max(1.0f, io.getDisplaySizeX());
+                    float imH = Math.max(1.0f, io.getDisplaySizeY());
+                    guiScaleX = scaledW / imW;
+                    guiScaleY = scaledH / imH;
+
+                    long now = System.currentTimeMillis();
+                    if (now - lastCoordScaleLogMs > 3000L) {
+                        lastCoordScaleLogMs = now;
+                        LOGGER.info("GuiOverlayRenderer: 坐标缩放因子 x={}, y={} (scaled={}x{}, imgui={}x{})",
+                                guiScaleX, guiScaleY, scaledW, scaledH, imW, imH);
+                    }
                 }
+
+                intX = Math.round(x * guiScaleX);
+                intY = Math.round(y * guiScaleY);
             } catch (Throwable t) {
                 LOGGER.warn("queueBlockItem: 计算坐标缩放时出错，回退到原始坐标: {}", t.getMessage());
                 intX = Math.round(x);
                 intY = Math.round(y);
             }
 
-            PENDING_ITEMS.add(new PendingItem(stack, intX, intY));
+            PENDING_ITEMS.add(new PendingItem(stack, intX, intY, usedScale));
             LOGGER.debug("✓ 已队列方块: {} @ ({}, {})", 
                         net.minecraft.registry.Registries.BLOCK.getId(block), intX, intY);
 
@@ -132,14 +202,20 @@ public final class GuiOverlayRenderer {
                         continue;
                     }
 
-                        // 使用统一的安全渲染入口，BlockIconRenderer 管理装饰和状态
-                        com.masterplanner.ui.component.BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+                    // 先保证“可见性”：使用 GUI 缩放坐标直接绘制（16x16）。
+                    // 之前的矩阵缩放在不同 MC 版本/矩阵栈实现下可能会把平移也一起缩放，导致整体跑到屏幕外。
+                    // 等确认图标可见后，再逐步恢复“放大到 slot”的矩阵缩放逻辑。
+                    BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
                     successCount++;
 
                 } catch (Throwable e) {
                     LOGGER.warn("flush: 第 {} 个物品渲染失败 - {}", i, e.getMessage());
                 }
             }
+
+            // Some MC versions require an explicit flush on DrawContext's internal buffers.
+            // We call it reflectively to avoid hard-coding a specific signature across mappings/versions.
+            tryFlushDrawContext(context);
 
             LOGGER.info("✓ GuiOverlayRenderer.flush: 完成 - 成功: {}, 跳过: {}", successCount, skipCount);
 
@@ -149,5 +225,15 @@ public final class GuiOverlayRenderer {
             PENDING_ITEMS.clear();
         }
     }
-}
 
+    private static void tryFlushDrawContext(DrawContext context) {
+        try {
+            var m = context.getClass().getMethod("draw");
+            m.invoke(context);
+        } catch (NoSuchMethodException ignored) {
+            // Not available in this MC version/mapping.
+        } catch (Throwable t) {
+            // Avoid noisy logs; flushing is best-effort.
+        }
+    }
+}

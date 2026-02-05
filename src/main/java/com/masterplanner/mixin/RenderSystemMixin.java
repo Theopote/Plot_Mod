@@ -35,6 +35,12 @@ public class RenderSystemMixin {
         ImGuiRenderer renderer = ImGuiRenderer.getInstance();
         if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
             renderer.renderPendingDrawData();
+            // 在 ImGui GL 绘制之后，flush 我们排队的覆盖图标（使用 MasterPlannerScreen 注入的 DrawContext）
+            try {
+                com.masterplanner.ui.imgui.GuiOverlayRenderer.flushPending();
+            } catch (Throwable t) {
+                // 不要抛出异常以免影响 swapBuffers
+            }
         }
     }
 }

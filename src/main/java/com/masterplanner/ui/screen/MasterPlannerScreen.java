@@ -252,14 +252,14 @@ public class MasterPlannerScreen extends Screen {
                 com.masterplanner.ui.dialog.TextInputDialog.getInstance().render();
             } catch (Throwable ignored) {}
             
-            // 结束 ImGui 帧并立即渲染
+            // 结束 ImGui 帧并在后续的 swapBuffers 前由 mixin 渲染 ImGui draw data，
+            // 本方法负责在 ImGui frame 结束后使用 DrawContext 绘制覆盖图标。
             imGuiRenderer.endFrame();
-            
-            // 在ImGui渲染后，执行覆盖层渲染（用于物品/方块图标）
             try {
-                com.masterplanner.ui.imgui.GuiOverlayRenderer.flush(context);
+                // 将 DrawContext 注入到 GuiOverlayRenderer，让 mixin 在 ImGui GL 渲染后调用 flushPending()
+                com.masterplanner.ui.imgui.GuiOverlayRenderer.setPendingDrawContext(context);
             } catch (Exception overlayErr) {
-                LOGGER.error("GuiOverlayRenderer 覆盖渲染失败", overlayErr);
+                LOGGER.error("GuiOverlayRenderer 注入 DrawContext 失败", overlayErr);
             }
             
         } catch (Exception e) {

@@ -332,10 +332,13 @@ public class ImGuiRenderer {
             int winH = Math.max(1, window.getHeight());
             int fbW = Math.max(1, window.getFramebufferWidth());
             int fbH = Math.max(1, window.getFramebufferHeight());
-            
+            double sfD = Math.max(1.0, window.getScaleFactor());
+            float displayW = (float) (winW / sfD);
+            float displayH = (float) (winH / sfD);
+             
             ImGuiIO io = ImGui.getIO();
-            io.setDisplaySize(winW, winH);
-            io.setDisplayFramebufferScale((float) fbW / winW, (float) fbH / winH);
+            io.setDisplaySize(displayW, displayH);
+            io.setDisplayFramebufferScale(fbW / displayW, fbH / displayH);
         } catch (Exception e) {
             LOGGER.error("Error updating display size", e);
         }
