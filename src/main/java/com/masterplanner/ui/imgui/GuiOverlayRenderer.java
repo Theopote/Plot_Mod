@@ -31,6 +31,7 @@ import java.util.List;
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/GuiOverlayRenderer");
     private static volatile long lastCoordScaleLogMs;
+    private static volatile long lastDrawContextFlushWarnMs;
 
     private GuiOverlayRenderer() {}
 
@@ -186,6 +187,13 @@ public final class GuiOverlayRenderer {
             int itemCount = PENDING_ITEMS.size();
             LOGGER.info("🎨 GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
 
+            // 可见性探针：如果连 fill 都看不到，说明 DrawContext 在 flipFrame 阶段根本不可用
+            // 或者顶层渲染状态/缓冲提交有问题。
+            try {
+                context.fill(2, 2, 2 + 48, 2 + 16, 0xA000FFFF);
+            } catch (Throwable ignored) {
+            }
+
             // DrawContext 内部有 GuiGraphics，我们通过 getGuiGraphics() 获取
             // 注意：DrawContext 在 1.21+ 是 GuiGraphics 的包装
             // 直接使用 context 的方法来访问 GuiGraphics 的功能
@@ -228,12 +236,47 @@ public final class GuiOverlayRenderer {
 
     private static void tryFlushDrawContext(DrawContext context) {
         try {
-            var m = context.getClass().getMethod("draw");
-            m.invoke(context);
+            // 1) DrawContext#draw()
+            try {
+                var m = context.getClass().getMethod("draw");
+                m.invoke(context);
+                return;
+            } catch (NoSuchMethodException ignored) {
+            }
+
+            // 2) DrawContext#getVertexConsumers().draw()
+            try {
+                var getVc = context.getClass().getMethod("getVertexConsumers");
+                Object vc = getVc.invoke(context);
+                if (vc != null) {
+                    var draw = vc.getClass().getMethod("draw");
+                    draw.invoke(vc);
+                    return;
+                }
+            } catch (NoSuchMethodException ignored) {
+            }
+
+            // 3) DrawContext#vertexConsumers field -> draw()
+            try {
+                var f = context.getClass().getDeclaredField("vertexConsumers");
+                f.setAccessible(true);
+                Object vc = f.get(context);
+                if (vc != null) {
+                    var draw = vc.getClass().getMethod("draw");
+                    draw.invoke(vc);
+                    return;
+                }
+            } catch (NoSuchFieldException ignored) {
+            }
         } catch (NoSuchMethodException ignored) {
             // Not available in this MC version/mapping.
         } catch (Throwable t) {
             // Avoid noisy logs; flushing is best-effort.
+            long now = System.currentTimeMillis();
+            if (now - lastDrawContextFlushWarnMs > 3000L) {
+                lastDrawContextFlushWarnMs = now;
+                LOGGER.warn("tryFlushDrawContext: best-effort flush failed: {}", t.getMessage());
+            }
         }
     }
 }
