@@ -20,13 +20,7 @@ public class ControlPanelIcons {
     public static final String IMPORT = "import.png";
     public static final String UNDO = "undo.png";
     public static final String REDO = "redo.png";
-    
-    // 绘图操作工具组
-    public static final String COPY = "copy.png";
-    public static final String PASTE = "paste.png";
-    public static final String GROUP = "group.png";
-    public static final String UNGROUP = "ungroup.png";
-    
+
     // 视图控制工具组
     public static final String CAMERA = "camera.png";
     public static final String CAMERA_ORTHO = "camera_ortho.png";
@@ -70,12 +64,6 @@ public class ControlPanelIcons {
             loadTexture(UNDO);
             loadTexture(REDO);
             
-            // 绘图操作工具组
-            loadTexture(COPY);
-            loadTexture(PASTE);
-            loadTexture(GROUP);
-            loadTexture(UNGROUP);
-            
             // 视图控制工具组
             loadTexture(CAMERA);
             loadTexture(LOCK_CLOSED);
@@ -107,7 +95,6 @@ public class ControlPanelIcons {
             // 获取所有图标文件的路径
             String[] iconNames = {
                 LOGO, NEW_FILE, SAVE, IMPORT, UNDO, REDO,
-                COPY, PASTE, GROUP, UNGROUP,
                 CAMERA, CAMERA_ORTHO, LOCK_CLOSED, LOCK_OPEN,
                 MAGNET, GRID, CLEAR, BLOCK_CONFIG, LINE_TO_BLOCK, PROJECTION,
                 CLOSE
@@ -189,13 +176,5 @@ public class ControlPanelIcons {
     public static int getTextureId(String iconName) {
         return textureCache.getOrDefault(iconName, 0);
     }
-    
-    /**
-     * 检查图标是否已加载
-     * @param iconName 图标名称
-     * @return 如果图标已加载则返回true
-     */
-    public static boolean isIconLoaded(String iconName) {
-        return textureCache.containsKey(iconName) && textureCache.get(iconName) > 0;
-    }
+
 }
