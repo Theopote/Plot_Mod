@@ -16,6 +16,7 @@ import com.masterplanner.ui.shortcut.EditShortcutListener;
 import com.masterplanner.ui.shortcut.DeleteShortcutListener;
 import com.masterplanner.ui.shortcut.EscapeShortcutListener;
 import com.masterplanner.ui.imgui.ImGuiWorldRenderer;
+import com.masterplanner.infrastructure.event.block.GhostBlockWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -145,8 +146,11 @@ public class MasterPlannerMod implements ModInitializer, ClientModInitializer {
             LOGGER.debug("步骤2: 初始化MasterPlannerInitializer");
             MasterPlannerInitializer.initialize();
 
-            // 3. 注册 1.21.11 稳定的 ImGui 贴屏绘制入口（WorldRenderEvents.END）
+             // 3. 注册 1.21.11 稳定的 ImGui 贴屏绘制入口（WorldRenderEvents.END）
             ImGuiWorldRenderer.init();
+
+            // 3.1 注册幽灵方块世界渲染（线转方块预览）
+            GhostBlockWorldRenderer.init();
 
             // 4. 创建 Canvas 实例，并将 AppState 注入
             LOGGER.debug("步骤4: 创建Canvas实例");
