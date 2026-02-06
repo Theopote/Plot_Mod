@@ -383,7 +383,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化圆形
      */
-    private List<BlockPos> rasterizeCircleShape(com.masterplanner.core.geometry.shapes.CircleShape circle, double yLevel) {
+    private List<BlockPos> rasterizeCircleShape(com.masterplanner.core.geometry.shapes.CircleShape circle, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         
         Vec2d canvasCenter = circle.getCenter();
@@ -412,13 +412,13 @@ public class LineToBlockHandler {
                 canvasRadius, minecraftRadius, minecraftCenter.x, minecraftCenter.y);
         
         // 使用圆形光栅化算法
-        return rasterizeCircle(minecraftCenter.x, minecraftCenter.y, minecraftRadius, yLevel);
+        return rasterizeCircleCurve(minecraftCenter.x, minecraftCenter.y, minecraftRadius, yLevel, conversionMode, simplificationRatio);
     }
 
     /**
      * 光栅化矩形
      */
-    private List<BlockPos> rasterizeRectangleShape(com.masterplanner.core.geometry.shapes.RectangleShape rectangle, double yLevel) {
+    private List<BlockPos> rasterizeRectangleShape(com.masterplanner.core.geometry.shapes.RectangleShape rectangle, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         
         Vec2d canvasCorner = rectangle.getCorner();
@@ -446,7 +446,8 @@ public class LineToBlockHandler {
         
         if (minecraftCorners.size() == 4) {
             // 使用矩形光栅化算法
-            return rasterizeRectangle(minecraftCorners, yLevel);
+            List<BlockPos> candidates = rasterizePolygon(minecraftCorners, yLevel);
+            return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftCorners, conversionMode, simplificationRatio);
         } else {
             LOGGER.error("矩形角点转换失败，只有{}个有效点", minecraftCorners.size());
         }
@@ -457,7 +458,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化椭圆
      */
-    private List<BlockPos> rasterizeEllipseShape(com.masterplanner.core.geometry.shapes.EllipseShape ellipse, double yLevel) {
+    private List<BlockPos> rasterizeEllipseShape(com.masterplanner.core.geometry.shapes.EllipseShape ellipse, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         
         Vec2d canvasCenter = ellipse.getCenter();
@@ -490,13 +491,13 @@ public class LineToBlockHandler {
                 minecraftCenter.x, minecraftCenter.y);
         
         // 使用椭圆光栅化算法
-        return rasterizeEllipse(minecraftCenter.x, minecraftCenter.y, minecraftRadiusX, minecraftRadiusY, canvasRotation, yLevel);
+        return rasterizeEllipseCurve(minecraftCenter.x, minecraftCenter.y, minecraftRadiusX, minecraftRadiusY, canvasRotation, yLevel, conversionMode, simplificationRatio);
     }
 
     /**
      * 光栅化圆弧
      */
-    private List<BlockPos> rasterizeArcShape(com.masterplanner.core.geometry.shapes.ArcShape arc, double yLevel) {
+    private List<BlockPos> rasterizeArcShape(com.masterplanner.core.geometry.shapes.ArcShape arc, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         
         Vec2d canvasCenter = arc.getCenter();
@@ -527,7 +528,7 @@ public class LineToBlockHandler {
                 canvasRadius, minecraftRadius, minecraftCenter.x, minecraftCenter.y);
         
         // 使用圆弧光栅化算法
-        return rasterizeArc(minecraftCenter.x, minecraftCenter.y, minecraftRadius, canvasStartAngle, canvasEndAngle, yLevel);
+        return rasterizeArcCurve(minecraftCenter.x, minecraftCenter.y, minecraftRadius, canvasStartAngle, canvasEndAngle, yLevel, conversionMode, simplificationRatio);
     }
 
     /**
@@ -575,7 +576,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化多边形
      */
-    private List<BlockPos> rasterizePolygonShape(com.masterplanner.core.geometry.shapes.Polygon polygon, double yLevel) {
+    private List<BlockPos> rasterizePolygonShape(com.masterplanner.core.geometry.shapes.Polygon polygon, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = polygon.getPoints();
         
@@ -605,7 +606,134 @@ public class LineToBlockHandler {
         }
 
         // 使用多边形光栅化算法
-        return rasterizePolygon(minecraftPoints, yLevel);
+        List<BlockPos> candidates = rasterizePolygon(minecraftPoints, yLevel);
+        return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftPoints, conversionMode, simplificationRatio);
+    }
+
+    private List<BlockPos> rasterizeCircleCurve(double centerX, double centerZ, double radius, double yLevel, ConversionMode conversionMode, float simplificationRatio) {
+        int segments = Math.max(64, (int) Math.ceil(Math.max(8.0, radius * 8.0)));
+        double step = 2.0 * Math.PI / segments;
+
+        List<Vec2d> points = new ArrayList<>(segments + 1);
+        for (int i = 0; i <= segments; i++) {
+            double angle = i * step;
+            points.add(new Vec2d(centerX + radius * Math.cos(angle), centerZ + radius * Math.sin(angle)));
+        }
+
+        return rasterizeCurvePolyline(points, yLevel, conversionMode, simplificationRatio, true);
+    }
+
+    private List<BlockPos> rasterizeEllipseCurve(double centerX, double centerZ, double radiusX, double radiusZ, double rotation, double yLevel, ConversionMode conversionMode, float simplificationRatio) {
+        int segments = Math.max(64, (int) Math.ceil(Math.max(radiusX, radiusZ) * 8.0));
+        double step = 2.0 * Math.PI / segments;
+
+        double cosR = Math.cos(rotation);
+        double sinR = Math.sin(rotation);
+
+        List<Vec2d> points = new ArrayList<>(segments + 1);
+        for (int i = 0; i <= segments; i++) {
+            double angle = i * step;
+            double x = radiusX * Math.cos(angle);
+            double z = radiusZ * Math.sin(angle);
+            double rx = x * cosR - z * sinR;
+            double rz = x * sinR + z * cosR;
+            points.add(new Vec2d(centerX + rx, centerZ + rz));
+        }
+
+        return rasterizeCurvePolyline(points, yLevel, conversionMode, simplificationRatio, true);
+    }
+
+    private List<BlockPos> rasterizeArcCurve(double centerX, double centerZ, double radius, double startAngle, double endAngle, double yLevel, ConversionMode conversionMode, float simplificationRatio) {
+        double angleRange = Math.abs(endAngle - startAngle);
+        int segments = Math.max(16, (int) Math.ceil(Math.max(8.0, radius * angleRange * 4.0)));
+        double step = angleRange / segments;
+        double direction = endAngle >= startAngle ? 1.0 : -1.0;
+
+        List<Vec2d> points = new ArrayList<>(segments + 1);
+        for (int i = 0; i <= segments; i++) {
+            double angle = startAngle + direction * i * step;
+            points.add(new Vec2d(centerX + radius * Math.cos(angle), centerZ + radius * Math.sin(angle)));
+        }
+
+        return rasterizeCurvePolyline(points, yLevel, conversionMode, simplificationRatio, false);
+    }
+
+    private List<BlockPos> rasterizeCurvePolyline(List<Vec2d> points, double yLevel, ConversionMode conversionMode, float simplificationRatio, boolean closeLoop) {
+        if (points == null || points.size() < 2) {
+            return List.of();
+        }
+
+        java.util.LinkedHashSet<BlockPos> result = new java.util.LinkedHashSet<>();
+
+        int last = points.size() - 1;
+        for (int i = 0; i < last; i++) {
+            Vec2d a = points.get(i);
+            Vec2d b = points.get(i + 1);
+            result.addAll(rasterizeLineSegment(a.x, a.y, b.x, b.y, yLevel, conversionMode, simplificationRatio));
+        }
+
+        if (closeLoop) {
+            Vec2d a = points.get(last);
+            Vec2d b = points.getFirst();
+            result.addAll(rasterizeLineSegment(a.x, a.y, b.x, b.y, yLevel, conversionMode, simplificationRatio));
+        }
+
+        return new ArrayList<>(result);
+    }
+
+    private List<BlockPos> filterBlocksByPolygonCoverageIfSimplified(List<BlockPos> candidates, List<Vec2d> polygonPoints, ConversionMode conversionMode, float simplificationRatio) {
+        if (conversionMode == null || conversionMode == ConversionMode.FULL) {
+            return candidates;
+        }
+
+        if (candidates == null || candidates.isEmpty()) {
+            return candidates == null ? List.of() : candidates;
+        }
+
+        double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
+        int samples = 4;
+        int totalSamples = samples * samples;
+
+        List<BlockPos> filtered = new ArrayList<>(candidates.size());
+        for (BlockPos pos : candidates) {
+            int inside = 0;
+            for (int ix = 0; ix < samples; ix++) {
+                for (int iz = 0; iz < samples; iz++) {
+                    double sx = pos.getX() + (ix + 0.5) / samples;
+                    double sz = pos.getZ() + (iz + 0.5) / samples;
+                    if (isPointInsidePolygon(new Vec2d(sx, sz), polygonPoints)) {
+                        inside++;
+                    }
+                }
+            }
+
+            double coverage = (double) inside / totalSamples;
+            if (coverage >= threshold) {
+                filtered.add(pos);
+            }
+        }
+
+        return filtered;
+    }
+
+    private boolean isPointInsidePolygon(Vec2d point, List<Vec2d> polygon) {
+        if (polygon == null || polygon.size() < 3) {
+            return false;
+        }
+
+        boolean inside = false;
+        int n = polygon.size();
+        for (int i = 0, j = n - 1; i < n; j = i++) {
+            Vec2d pi = polygon.get(i);
+            Vec2d pj = polygon.get(j);
+
+            boolean intersect = ((pi.y > point.y) != (pj.y > point.y)) &&
+                    (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y + 1e-12) + pi.x);
+            if (intersect) {
+                inside = !inside;
+            }
+        }
+        return inside;
     }
 
     /**

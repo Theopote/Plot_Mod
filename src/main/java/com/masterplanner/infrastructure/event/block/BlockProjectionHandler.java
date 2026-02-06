@@ -124,7 +124,7 @@ public class BlockProjectionHandler {
             int targetY = blockEvent.getElevation() != null ? blockEvent.getElevation() : y;
             finalPos = new BlockPos(x, targetY, z);
         } else {
-            finalPos = findGroundPosition(world, x, y, z);
+            finalPos = findPlacementPosition(world, x, y, z);
         }
 
         LOGGER.debug("最终方块位置: {} (原始: {}, {}, {})", finalPos, x, y, z);
@@ -258,5 +258,71 @@ public class BlockProjectionHandler {
         
         // 检查是否为固体方块（使用新的API）
         return !blockState.isSolidBlock(world, pos);
+    }
+
+    /**
+     * 按规则寻找投影放置位置：
+     * - 水面：放在流体方块上方（表面）
+     * - 植物/装饰/积雪层：直接替换当前位置
+     * - 雪块：放在雪块上方
+     * - 其他实心方块：放在方块上方
+     */
+    private BlockPos findPlacementPosition(World world, int x, int y, int z) {
+        for (int currentY = y; currentY >= world.getBottomY(); currentY--) {
+            BlockPos checkPos = new BlockPos(x, currentY, z);
+
+            try {
+                var blockState = world.getBlockState(checkPos);
+                if (blockState == null || blockState.isAir()) {
+                    continue;
+                }
+
+                if (!blockState.getFluidState().isEmpty()) {
+                    return checkPos.up();
+                }
+
+                if (shouldReplaceAtSamePosition(world, checkPos, blockState)) {
+                    return checkPos;
+                }
+
+                if (blockState.isSolidBlock(world, checkPos)) {
+                    return checkPos.up();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("检查位置 {} 时发生错误: {}", checkPos, e.getMessage());
+            }
+        }
+
+        BlockPos bottomPos = new BlockPos(x, world.getBottomY() + 1, z);
+        LOGGER.warn("未找到合适放置点，使用底部位置: {}", bottomPos);
+        return bottomPos;
+    }
+
+    private boolean shouldReplaceAtSamePosition(World world, BlockPos pos, net.minecraft.block.BlockState blockState) {
+        if (blockState == null) {
+            return false;
+        }
+
+        // 积雪层：忽略并直接替换。
+        if (blockState.getBlock() == Blocks.SNOW) {
+            return true;
+        }
+
+        // 雪块：不替换，视作地面。
+        if (blockState.getBlock() == Blocks.SNOW_BLOCK) {
+            return false;
+        }
+
+        // 植物：直接替换。
+        if (blockState.getBlock() instanceof net.minecraft.block.PlantBlock) {
+            return true;
+        }
+
+        // 其他装饰：非实心则直接替换。
+        try {
+            return !blockState.isSolidBlock(world, pos);
+        } catch (Exception e) {
+            return false;
+        }
     }
 } 
