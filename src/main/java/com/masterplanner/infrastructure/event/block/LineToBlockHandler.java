@@ -246,18 +246,18 @@ public class LineToBlockHandler {
 
             // 处理圆形
             case com.masterplanner.core.geometry.shapes.CircleShape circle ->
-                    result.addAll(rasterizeCircleShape(circle, yLevel));
+                    result.addAll(rasterizeCircleShape(circle, conversionMode, simplificationRatio, yLevel));
 
             // 处理矩形
             case com.masterplanner.core.geometry.shapes.RectangleShape rectangle ->
-                    result.addAll(rasterizeRectangleShape(rectangle, yLevel));
+                    result.addAll(rasterizeRectangleShape(rectangle, conversionMode, simplificationRatio, yLevel));
 
             // 处理椭圆
             case com.masterplanner.core.geometry.shapes.EllipseShape ellipse ->
-                    result.addAll(rasterizeEllipseShape(ellipse, yLevel));
+                    result.addAll(rasterizeEllipseShape(ellipse, conversionMode, simplificationRatio, yLevel));
 
             // 处理圆弧
-            case com.masterplanner.core.geometry.shapes.ArcShape arc -> result.addAll(rasterizeArcShape(arc, yLevel));
+            case com.masterplanner.core.geometry.shapes.ArcShape arc -> result.addAll(rasterizeArcShape(arc, conversionMode, simplificationRatio, yLevel));
 
             // 处理自由绘制路径
             case com.masterplanner.core.geometry.shapes.FreeDrawPath freeDraw ->
@@ -265,7 +265,7 @@ public class LineToBlockHandler {
 
             // 处理多边形
             case com.masterplanner.core.geometry.shapes.Polygon polygon ->
-                    result.addAll(rasterizePolygonShape(polygon, yLevel));
+                    result.addAll(rasterizePolygonShape(polygon, conversionMode, simplificationRatio, yLevel));
 
             // 处理其他复杂图形（如螺旋、星形等）
             default ->
@@ -859,20 +859,18 @@ public class LineToBlockHandler {
         double dx = x1 - x0;
         double dz = z1 - z0;
 
-        double xmin = cellX;
         double xmax = cellX + 1.0;
-        double zmin = cellZ;
         double zmax = cellZ + 1.0;
 
         double tMin = 0.0;
         double tMax = 1.0;
 
         if (Math.abs(dx) < 1e-12) {
-            if (x0 < xmin || x0 > xmax) {
+            if (x0 < (double) cellX || x0 > xmax) {
                 return 0.0;
             }
         } else {
-            double tx1 = (xmin - x0) / dx;
+            double tx1 = ((double) cellX - x0) / dx;
             double tx2 = (xmax - x0) / dx;
             double enter = Math.min(tx1, tx2);
             double exit = Math.max(tx1, tx2);
@@ -884,11 +882,11 @@ public class LineToBlockHandler {
         }
 
         if (Math.abs(dz) < 1e-12) {
-            if (z0 < zmin || z0 > zmax) {
+            if (z0 < (double) cellZ || z0 > zmax) {
                 return 0.0;
             }
         } else {
-            double tz1 = (zmin - z0) / dz;
+            double tz1 = ((double) cellZ - z0) / dz;
             double tz2 = (zmax - z0) / dz;
             double enter = Math.min(tz1, tz2);
             double exit = Math.max(tz1, tz2);
