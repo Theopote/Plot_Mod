@@ -240,8 +240,23 @@ public class CatenaryLineTool extends DrawingTool {
 
             try {
                 // 使用增强吸附，确保吸附指示器与类型信息完整
-                SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
-                Vec2d snappedPoint = snapResult.point;
+                // 对于第一、第二点使用吸附；第三点（弧垂）不吸附以保留侧向信息
+                Vec2d snappedPoint;
+                if (!isActive) {
+                    SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
+                    snappedPoint = snapResult.point;
+                } else if (controlPoints.size() == 1) {
+                    SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
+                    snappedPoint = snapResult.point;
+                } else {
+                    // 第三点：使用原始屏幕坐标转换为世界坐标，避免吸附覆盖侧向选择
+                    try {
+                        CanvasCamera cam = context.getCamera();
+                        snappedPoint = cam != null ? cam.screenToWorld(pos) : pos;
+                    } catch (Exception e) {
+                        snappedPoint = pos;
+                    }
+                }
                 if (snappedPoint == null) {
                     LOGGER.warn("CatenaryLineTool 获取吸附点失败");
                     return InteractionResult.IGNORED;
@@ -259,7 +274,7 @@ public class CatenaryLineTool extends DrawingTool {
                         reset();
                         return InteractionResult.CANCEL;
                     }
-                    // 完成交互：创建最终图形并保存
+                    // 完成交互：创建最终图形并保存（第三点为非吸附点）
                     finishInteraction(snappedPoint, context);
                     
                     // 验证图形是否已正确设置
@@ -286,9 +301,21 @@ public class CatenaryLineTool extends DrawingTool {
         @Override
         public InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
             try {
-                // 始终执行增强吸附：即使在尚未开始绘制前，也要更新捕捉状态用于指示器渲染
-                SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
-                currentMousePoint = snapResult.point;
+                // 鼠标移动：第一/第二点使用吸附以显示指示器，第三点（预览弧垂）使用原始世界点以保留侧向信息
+                if (!isActive) {
+                    SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
+                    currentMousePoint = snapResult.point;
+                } else if (controlPoints.size() == 1) {
+                    SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
+                    currentMousePoint = snapResult.point;
+                } else {
+                    try {
+                        CanvasCamera cam = context.getCamera();
+                        currentMousePoint = cam != null ? cam.screenToWorld(pos) : pos;
+                    } catch (Exception e) {
+                        currentMousePoint = pos;
+                    }
+                }
 
                 if (!isActive) {
                     // 未开始绘制：仅显示捕捉指示器，不更新预览
@@ -340,7 +367,7 @@ public class CatenaryLineTool extends DrawingTool {
             try {
                 Vec2d startPoint = controlPoints.get(0);
                 Vec2d endPoint = controlPoints.get(1);
-                CableShape finalCatenary = createFinalCatenary(startPoint, endPoint, sagPoint);
+                CableShape finalCatenary = createFinalCatenary(startPoint, endPoint, sagPoint, context);
 
                 if (finalCatenary != null) {
                     // 应用最终样式
@@ -372,7 +399,6 @@ public class CatenaryLineTool extends DrawingTool {
 
             try {
                 if (controlPoints.size() == 1) {
-                    // 第二步：显示从起点到鼠标的直线预览
                     List<Vec2d> linePoints = List.of(controlPoints.getFirst(), currentMousePoint);
                     com.masterplanner.core.geometry.shapes.PolylineShape previewLine =
                             new com.masterplanner.core.geometry.shapes.PolylineShape(linePoints, false);
@@ -380,7 +406,7 @@ public class CatenaryLineTool extends DrawingTool {
                     context.setPreviewShape(previewLine);
                 } else if (controlPoints.size() == 2) {
                     // 第三步：显示带控制点的悬链线预览
-                    CableShape tempPreview = createFinalCatenary(controlPoints.get(0), controlPoints.get(1), currentMousePoint);
+                    CableShape tempPreview = createFinalCatenary(controlPoints.get(0), controlPoints.get(1), currentMousePoint, context);
                     if (tempPreview != null) {
                         context.getStyleHandler().applyPreviewStyle(tempPreview);
                         context.setPreviewShape(tempPreview);
@@ -399,7 +425,7 @@ public class CatenaryLineTool extends DrawingTool {
         /**
          * [修正] 根据当前模式创建最终的悬链线对象
          */
-        private CableShape createFinalCatenary(Vec2d start, Vec2d end, Vec2d sagPoint) {
+        private CableShape createFinalCatenary(Vec2d start, Vec2d end, Vec2d sagPoint, DrawingToolContext context) {
             try {
                 CableShape catenary = new CableShape(start, end, sagParameter, segments);
 
@@ -407,12 +433,40 @@ public class CatenaryLineTool extends DrawingTool {
                 if (MODE_STANDARD.equals(currentMode)) {
                     // 标准模式：计算并设置弧垂深度和方向
                     catenary.setDrawMode(MODE_STANDARD);
-                    double sagDepth = calculatePerpendicularSag(start, end, sagPoint);
-                    catenary.setSagDepth(Math.abs(sagDepth));
-                    
-                    // 根据弧垂点的位置确定弧垂方向
-                    double sagDirection = sagDepth >= 0 ? 1.0 : -1.0;
-                    catenary.setSagDirection(sagDirection);
+                    // 先计算世界空间的垂直距离作为深度参考
+                    double sagDepthWorld = calculatePerpendicularSag(start, end, sagPoint);
+                    catenary.setSagDepth(Math.abs(sagDepthWorld));
+
+                    // 优先在屏幕空间判定侧向（更符合用户视觉交互）
+                    double sagSign = 1.0;
+                    try {
+                        if (context != null && context.getCamera() != null) {
+                            CanvasCamera cam = context.getCamera();
+                            Vec2d sScreen = cam.worldToScreen(start);
+                            Vec2d eScreen = cam.worldToScreen(end);
+                            Vec2d sagScreen = cam.worldToScreen(sagPoint);
+
+                            Vec2d lineVec = eScreen.subtract(sScreen);
+                            double len = lineVec.length();
+                            if (len > 1e-6) {
+                                Vec2d unitLine = lineVec.multiply(1.0 / len);
+                                Vec2d unitNormal = new Vec2d(-unitLine.y, unitLine.x);
+                                Vec2d toSag = sagScreen.subtract(sScreen);
+                                double proj = toSag.dot(unitLine);
+                                Vec2d projPoint = sScreen.add(unitLine.multiply(proj));
+                                Vec2d offset = sagScreen.subtract(projPoint);
+                                double signedPerpScreen = offset.dot(unitNormal);
+                                sagSign = signedPerpScreen >= 0 ? 1.0 : -1.0;
+                            }
+                        } else {
+                            // 回退到世界空间符号判定
+                            sagSign = sagDepthWorld >= 0 ? 1.0 : -1.0;
+                        }
+                    } catch (Exception e) {
+                        sagSign = sagDepthWorld >= 0 ? 1.0 : -1.0;
+                    }
+
+                    catenary.setSagDirection(sagSign);
                 } else { // MODE_UNEVEN (样条插值模式)
                     // 样条插值模式：直接设置贝塞尔曲线的控制点
                     // setSagPoint 会自动将 drawMode 设置为 MODE_UNEVEN
@@ -438,10 +492,11 @@ public class CatenaryLineTool extends DrawingTool {
             Vec2d toSag = sagPoint.subtract(start);
             double projDist = toSag.dot(unitLineVec);
             Vec2d projPoint = start.add(unitLineVec.multiply(projDist));
-            double perpendicularDist = sagPoint.distance(projPoint);
-            double crossProduct = lineVec.x * toSag.y - lineVec.y * toSag.x;
-
-            return (crossProduct < 0) ? -perpendicularDist : perpendicularDist;
+            // 使用法向量与 sag 点到投影点向量的点积来获取带符号的垂直距离。
+            // 这种方式不依赖于外部坐标系的 y 方向约定，比直接使用叉积对屏幕/世界坐标系更稳健。
+            Vec2d unitNormal = new Vec2d(-unitLineVec.y, unitLineVec.x);
+            Vec2d offsetVec = sagPoint.subtract(projPoint);
+            return offsetVec.dot(unitNormal);
         }
 
         public void renderImGuiPreview(ImDrawList drawList, CanvasCamera camera) {

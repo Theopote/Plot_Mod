@@ -931,6 +931,7 @@ public class CableShape extends Shape implements IExtendableShape {
         clone.setDrawMode(drawMode);
         clone.setTensionFactor(tensionFactor);
         clone.setSagDepth(sagDepth);
+        clone.setSagDirection(sagDirection);
         clone.setBendIntensity(bendIntensity);
         if (sagPoint != null) {
             clone.setSagPoint(new Vec2d(sagPoint.x, sagPoint.y));
