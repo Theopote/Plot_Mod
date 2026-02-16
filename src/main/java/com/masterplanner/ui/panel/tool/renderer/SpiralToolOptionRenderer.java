@@ -500,7 +500,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderPolygonSpiralOptions(SpiralTool spiralTool, float[] height) {
         renderIntSlider(tempSidesArray, height);
-        renderFloatSlider("起始半径", CONFIG_KEY_START_RADIUS, tempStartRadiusArray, 0.0f, 100.0f, "%.1f", height);
+        // 多边形螺旋的起始半径由用户第二次点击定义，工具面板不显示起始半径滑动条
         renderCheckbox(tempClockwise, height);
     }
     

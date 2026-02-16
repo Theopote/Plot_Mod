@@ -91,7 +91,8 @@ public class SpiralTool extends DrawingTool {
         ),
         SpiralType.POLYGON, java.util.List.of(
             "点击确定螺旋中心",
-            "滚轮调整螺距，点击确定半径完成绘制"
+            "点击确定起始半径（中心到第二点的距离）",
+            "点击确定最外圈，完成绘制"
         )
     );
     
@@ -248,6 +249,7 @@ public class SpiralTool extends DrawingTool {
             case LINEAR -> maxPoints = 4;
             case FIBONACCI, LOGARITHMIC, SEMICIRCLE -> maxPoints = 3; // 斐波那契、对数螺旋和半圆螺旋都使用3个点
             case FERMAT -> maxPoints = 2; // 费马螺旋使用2个点：中心点和最外圈点
+            case POLYGON -> maxPoints = 3; // 多边形螺旋使用3个点：中心、起始半径点、最大半径点
             default -> maxPoints = 2;
         }
         return controlPoints.size() >= maxPoints;

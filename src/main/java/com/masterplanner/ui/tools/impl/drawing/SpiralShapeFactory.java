@@ -51,7 +51,7 @@ public class SpiralShapeFactory {
             return createSemicircleSpiralShape(controlPoints, style);
         } else if (type == SpiralType.FERMAT && controlPoints.size() >= 2) {
             return createFermatSpiralShape(controlPoints, style);
-        } else if (type == SpiralType.POLYGON && controlPoints.size() >= 2) {
+        } else if (type == SpiralType.POLYGON && controlPoints.size() >= 3) {
             return createPolygonSpiralShape(controlPoints, style);
         } else if (controlPoints.size() >= 2) {
             return createNonLinearSpiralShape(controlPoints, style);
@@ -320,16 +320,17 @@ public class SpiralShapeFactory {
 
     /**
      * 创建多边形螺旋图形
-     * 参数：中心点、半径点
+     * 参数：中心点、起始半径点、最外圈点
      */
     private SpiralShape createPolygonSpiralShape(List<Vec2d> controlPoints, ShapeStyle style) {
         Vec2d center = controlPoints.get(0);
-        Vec2d radiusPoint = controlPoints.get(1);
+        Vec2d startRadiusPoint = controlPoints.get(1);
+        Vec2d maxRadiusPoint = controlPoints.get(2);
 
-        // 多边形螺旋使用配置的起始半径和spacing
-        double startRadius = Math.max(0.01, configManager.getStartRadius());
-        double maxRadius = Math.max(startRadius + 0.01, center.distance(radiusPoint));
-        
+        // 多边形螺旋：起始半径由第一与第二点的距离决定，最大半径由第三点决定
+        double startRadius = Math.max(0.01, center.distance(startRadiusPoint));
+        double maxRadius = Math.max(startRadius + 0.01, center.distance(maxRadiusPoint));
+
         // 计算圈数：基于最大半径和起始半径的差值除以spacing
         double calculatedTurns = Math.max(0.1, (maxRadius - startRadius) / configManager.getSpacing());
 
@@ -667,35 +668,38 @@ public class SpiralShapeFactory {
      */
     private void updatePolygonSpiralPreview(SpiralShape preview, List<Vec2d> controlPoints, Vec2d mousePoint) {
         Vec2d center = controlPoints.getFirst();
-        double startRadius = Math.max(0.01, configManager.getStartRadius());
+        double startRadius;
         double maxRadius;
         double turns;
 
         switch (controlPoints.size()) {
             case 1 -> {
-                // 步骤1：已定义中心，鼠标位置定义最外圈半径
+                // 步骤1：已定义中心，鼠标位置定义起始半径
+                startRadius = Math.max(0.01, center.distance(mousePoint));
+                // 默认最大半径给一个可视化值（例如起始半径的2倍）以便预览
+                maxRadius = Math.max(startRadius + 0.01, startRadius * 2.0);
+                turns = Math.max(0.1, (maxRadius - startRadius) / configManager.getSpacing());
+
+                LOGGER.debug("updatePolygonSpiralPreview: 步骤1 - 起始半径={}, 预览最大半径={}, 螺距={}, 圈数={}",
+                    startRadius, maxRadius, configManager.getSpacing(), turns);
+            }
+
+            case 2 -> {
+                // 步骤2：已定义起始半径点，鼠标位置定义最外圈半径
+                startRadius = Math.max(0.01, center.distance(controlPoints.get(1)));
                 maxRadius = Math.max(startRadius + 0.01, center.distance(mousePoint));
                 turns = Math.max(0.1, (maxRadius - startRadius) / configManager.getSpacing());
-                
-                LOGGER.debug("updatePolygonSpiralPreview: 步骤1 - 起始半径={}, 最大半径={}, 螺距={}, 圈数={}",
+
+                LOGGER.debug("updatePolygonSpiralPreview: 步骤2 - 起始半径={}, 最大半径(由鼠标定义)={}, 螺距={}, 圈数={}",
                     startRadius, maxRadius, configManager.getSpacing(), turns);
             }
-            
-            case 2 -> {
-                // 步骤2：已定义半径点，使用固定半径
-                maxRadius = Math.max(startRadius + 0.01, center.distance(controlPoints.get(1)));
-                turns = Math.max(0.1, (maxRadius - startRadius) / configManager.getSpacing());
-                
-                LOGGER.debug("updatePolygonSpiralPreview: 步骤2 - 起始半径={}, 最大半径={}, 螺距={}, 圈数={}",
-                    startRadius, maxRadius, configManager.getSpacing(), turns);
-            }
-            
+
             default -> {
                 LOGGER.debug("updatePolygonSpiralPreview: 未知步骤，不更新预览");
                 return;
             }
         }
-        
+
         // 使用通用参数更新方法来设置预览对象
         updateSpiralParameters(preview, center, maxRadius, turns, configManager.getSpacing(), SpiralType.POLYGON, startRadius);
     }
