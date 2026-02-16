@@ -19,7 +19,7 @@ public final class SplineConfig {
     
     // 配置字段
     private SplineTool.SplineMode currentMode = SplineTool.SplineMode.THROUGH_POINTS;
-    private double tension = 0.5;
+    private double tension = 0.8;
     private double smoothness = 0.5;
     private int segments = 50;
     

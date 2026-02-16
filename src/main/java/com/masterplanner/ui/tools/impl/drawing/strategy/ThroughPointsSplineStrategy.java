@@ -79,10 +79,10 @@ public class ThroughPointsSplineStrategy implements ISplineGenerationStrategy {
                 // 使用 Catmull-Rom 算法计算切线
                 Vec2d t0 = after.subtract(prev).multiply(0.5);
                 Vec2d t1 = anchorPoints.get((i + 2) % anchorPoints.size()).subtract(current).multiply(0.5);
-                
-                // 生成控制点
-                Vec2d c1 = current.add(t0.multiply(config.getTension() / 3.0));
-                Vec2d c2 = next.subtract(t1.multiply(config.getTension() / 3.0));
+
+                // 生成控制点（增大系数以获得更长的控制柄，使曲线更平滑）
+                Vec2d c1 = current.add(t0.multiply(config.getTension() * 0.5));
+                Vec2d c2 = next.subtract(t1.multiply(config.getTension() * 0.5));
                 
                 controlPointPairs.add(new Vec2d[]{c1, c2});
             }
@@ -132,8 +132,8 @@ public class ThroughPointsSplineStrategy implements ISplineGenerationStrategy {
             Vec2d t1 = calculateTangent(anchorPoints, i + 1, tension);
             
             // 生成控制点
-            Vec2d c1 = p0.add(t0.multiply(tension / 3.0));
-            Vec2d c2 = p1.subtract(t1.multiply(tension / 3.0));
+            Vec2d c1 = p0.add(t0.multiply(tension * 0.5));
+            Vec2d c2 = p1.subtract(t1.multiply(tension * 0.5));
             
             controlPointPairs.add(new Vec2d[]{c1, c2});
         }
