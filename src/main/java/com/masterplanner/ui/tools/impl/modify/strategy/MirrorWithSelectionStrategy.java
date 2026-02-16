@@ -88,6 +88,8 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
     private Vec2d axisStartPoint;
     private Vec2d axisEndPoint;
     private Vec2d currentPoint;
+    // 预览时受约束后的终点（用于按Shift显示正交辅助线）
+    private Vec2d previewAxisEndPoint;
 
     // 镜像处理器和参数
     private MirrorHandler mirrorHandler;
@@ -223,6 +225,11 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         }
 
         try {
+            // 同步修饰键状态，确保在移动时能立即响应 Shift/Ctrl
+            try {
+                isShiftPressed = imgui.ImGui.getIO().getKeyShift();
+                isCtrlPressed = imgui.ImGui.getIO().getKeyCtrl();
+            } catch (Throwable ignore) {}
             // 获取吸附后的点
             currentPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
 
@@ -239,6 +246,13 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
 
             // 创建预览图形
             previewShapes = mirrorHandler.createPreviewShapes(selectedShapes, constrainedParameters);
+
+            // 更新预览终点（用于渲染受约束的辅助线）
+            if (constrainedParameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters cp) {
+                previewAxisEndPoint = cp.getVec2d(ModifyParameters.MIRROR_AXIS_END);
+            } else {
+                previewAxisEndPoint = currentPoint;
+            }
 
             // 更新状态消息
             String statusMessage;
@@ -403,6 +417,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         axisStartPoint = null;
         axisEndPoint = null;
         currentPoint = null;
+        previewAxisEndPoint = null;
         previewShapes = null;
         pendingCommand = null;
 
@@ -520,7 +535,8 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
                 context.drawCircle(axisStartPoint, 4.0f, AXIS_COLOR);
                 // 给用户一个“确认”的视觉反馈：从中心到鼠标画虚线（不参与计算）
                 if (currentPoint != null && currentState == MirrorState.SETTING_AXIS_END) {
-                    context.drawDashedLine(axisStartPoint, currentPoint, AXIS_COLOR);
+                    Vec2d endToDraw = previewAxisEndPoint != null ? previewAxisEndPoint : currentPoint;
+                    context.drawDashedLine(axisStartPoint, endToDraw, AXIS_COLOR);
                 }
             }
         } else {
@@ -529,12 +545,13 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
                 context.drawLine(axisStartPoint, axisEndPoint, AXIS_COLOR);
                 context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
                 context.drawCircle(axisEndPoint, 3.0f, AXIS_COLOR);
-            } else if (axisStartPoint != null && currentPoint != null) {
-                // 绘制临时镜像轴
-                context.drawDashedLine(axisStartPoint, currentPoint, AXIS_COLOR);
-                context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
-                context.drawCircle(currentPoint, 3.0f, MIRROR_PREVIEW_COLOR);
-            }
+                } else if (axisStartPoint != null && currentPoint != null) {
+                    // 绘制临时镜像轴，优先使用受约束的预览终点
+                    Vec2d endToDraw = previewAxisEndPoint != null ? previewAxisEndPoint : currentPoint;
+                    context.drawDashedLine(axisStartPoint, endToDraw, AXIS_COLOR);
+                    context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
+                    context.drawCircle(endToDraw, 3.0f, MIRROR_PREVIEW_COLOR);
+                }
         }
     }
 
@@ -571,9 +588,10 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
                     drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
                     drawList.addCircleFilled((float) screenEnd.x, (float) screenEnd.y, 4.0f, 0xFFFFFF00);
                 } else if (axisStartPoint != null && currentPoint != null) {
-                    // 绘制临时镜像轴
+                    // 绘制临时镜像轴（优先使用受约束的预览终点）
+                    Vec2d endToDraw = previewAxisEndPoint != null ? previewAxisEndPoint : currentPoint;
                     Vec2d screenStart = camera.worldToScreen(axisStartPoint);
-                    Vec2d screenCurrent = camera.worldToScreen(currentPoint);
+                    Vec2d screenCurrent = camera.worldToScreen(endToDraw);
 
                     drawList.addLine(
                         (float) screenStart.x, (float) screenStart.y,
