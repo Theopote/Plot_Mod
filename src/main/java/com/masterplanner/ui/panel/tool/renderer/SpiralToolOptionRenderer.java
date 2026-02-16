@@ -34,7 +34,6 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
     private static final String CONFIG_KEY_GROWTH_FACTOR = "growthFactor";
     private static final String CONFIG_KEY_SIDES = "sides";
     private static final String CONFIG_KEY_SHARP_EDGED = "sharpEdged";
-    private static final String CONFIG_KEY_START_RADIUS = "startRadius";
     private static final String CONFIG_KEY_EXPANSION_RATE = "expansionRate";
     private static final String CONFIG_KEY_SPIRAL_COEFFICIENT = "spiralCoefficient";
     private static final String CONFIG_KEY_CLOCKWISE = "clockwise";
