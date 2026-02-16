@@ -423,6 +423,10 @@ public class SplineTool extends DrawingTool {
         // 使用生成策略创建曲线
         try {
             this.previewShape = currentGenerationStrategy.generateCurve(previewPoints, config);
+            // 如果预览是贝塞尔曲线，应用首选采样段数以响应 UI 的 "段数" 设置
+            if (this.previewShape instanceof BezierCurveShape previewBezier) {
+                previewBezier.setPreferredSamplingSteps(config.getSegments());
+            }
             
             // 应用预览样式
             if (this.previewShape != null && getStyleHandler() != null && getStyleHandler().getPreviewStyle() != null) {

@@ -96,6 +96,8 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     private boolean needsRecalculation;
     private List<Vec2d> curvePoints;
     private double lastViewScale = DEFAULT_VIEW_SCALE;
+    // 用户可选的首选采样步数（如果>0，则覆盖自适应采样策略）
+    private int preferredSamplingSteps = -1;
 
     // 样条曲线模式标识：用于控制点编辑时的显示逻辑
     public enum SplineMode {
@@ -266,11 +268,16 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         for (BezierSegment seg : segments) {
             // 计算曲线的复杂度（控制点偏离直线的程度）
             double complexity = calculateSegmentComplexity(seg);
-            
-            // 使用指数函数优化steps计算，更好地匹配曲线弯曲度
-            // 同时考虑视图缩放因子，避免在高缩放时过度采样
-            int baseSteps = (int)(MIN_SAMPLING_STEPS * Math.pow(2, complexity));
-            int steps = Math.max(MIN_SAMPLING_STEPS, Math.min(MAX_SAMPLING_STEPS, baseSteps));
+
+            int steps;
+            if (preferredSamplingSteps > 0) {
+                // 如果用户指定了采样步数，使用该值（均分到每段）
+                steps = Math.max(1, preferredSamplingSteps);
+            } else {
+                // 使用自适应采样（原有逻辑）
+                int baseSteps = (int)(MIN_SAMPLING_STEPS * Math.pow(2, complexity));
+                steps = Math.max(MIN_SAMPLING_STEPS, Math.min(MAX_SAMPLING_STEPS, baseSteps));
+            }
             
             // 根据视图缩放调整采样精度
             if (viewScale > 2.0) {
@@ -285,6 +292,14 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             }
         }
         return result;
+    }
+
+    /**
+     * 设置首选采样步数（如果设置为正值，将覆盖自适应采样）。
+     */
+    public void setPreferredSamplingSteps(int steps) {
+        this.preferredSamplingSteps = steps;
+        this.needsRecalculation = true;
     }
     
     /**
