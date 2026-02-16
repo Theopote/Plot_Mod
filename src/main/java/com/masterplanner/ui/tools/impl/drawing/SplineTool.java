@@ -423,9 +423,9 @@ public class SplineTool extends DrawingTool {
         // 使用生成策略创建曲线
         try {
             this.previewShape = currentGenerationStrategy.generateCurve(previewPoints, config);
-            // 如果预览是贝塞尔曲线，应用首选采样段数以响应 UI 的 "段数" 设置
+            // 如果预览是贝塞尔曲线，应用首选采样段数以响应 UI 的 "采样段数" 设置
             if (this.previewShape instanceof BezierCurveShape previewBezier) {
-                // 将 UI 中的 "段数" 视作希望的总采样点数，按曲线段分配到每段
+                // 将 UI 中的 "采样段数" 视作希望的总采样点数，按曲线段分配到每段
                 int totalDesired = Math.max(10, config.getSegments());
                 int segCount = Math.max(1, previewBezier.getSegmentCount());
                 int perSegment = Math.max(4, totalDesired / segCount);
@@ -456,7 +456,7 @@ public class SplineTool extends DrawingTool {
                 "\n控制点数: " + controlPoints.size() +
                 "\n类型: " + currentMode.getDescription() +
                 "\n张力: " + String.format("%.2f", config.getTension()) +
-                "\n分段数: " + config.getSegments();
+                "\n采样段数: " + config.getSegments();
     }
     
     // ====== 预览渲染方法 ======

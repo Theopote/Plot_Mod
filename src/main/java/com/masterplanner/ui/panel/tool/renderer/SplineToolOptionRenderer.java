@@ -209,8 +209,8 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                 ImGui.text("使用默认平滑度");
             }
             height += ImGui.getFrameHeightWithSpacing();
-            // "段数"始终显示
-            SliderRenderHelper.renderIntSlider("段数", SplineTool.CONFIG_KEY_SEGMENTS, 
+            // "采样段数"始终显示
+            SliderRenderHelper.renderIntSlider("采样段数", SplineTool.CONFIG_KEY_SEGMENTS, 
                 segmentsArray, 10, 200, "%d", currentTheme, 
                 key -> updateToolConfig(key, String.valueOf(segmentsArray[0])));
             height += ImGui.getFrameHeightWithSpacing();
