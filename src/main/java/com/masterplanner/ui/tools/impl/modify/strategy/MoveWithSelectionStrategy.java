@@ -68,6 +68,8 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
     // 移动坐标状态
     private Vec2d moveStartPoint;
     private Vec2d moveCurrentPoint;
+    // 约束后用于渲染的终点（例如正交约束时）
+    private Vec2d constrainedEndPoint;
 
     // 移动处理器和参数
     private MoveHandler moveHandler;
@@ -218,6 +220,13 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             updateConstraints();
             IModifyHandler.ModifyParameters constrainedParameters = moveHandler.applyConstraints(moveParameters, moveConstraints);
 
+            // 保存约束后的终点用于渲染参考线（确保虚线与预览图形一致）
+            if (constrainedParameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters cp) {
+                constrainedEndPoint = cp.getEndPoint();
+            } else {
+                constrainedEndPoint = moveCurrentPoint;
+            }
+
             // 创建预览图形
             previewShapes = moveHandler.createPreviewShapes(selectedShapes, constrainedParameters);
 
@@ -367,6 +376,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         moveCurrentPoint = null;
         previewShapes = null;
         pendingCommand = null;
+        constrainedEndPoint = null;
 
         if (moveParameters != null) {
             moveParameters.clear();
@@ -491,13 +501,14 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
         // 渲染移动参考线
         if (moveStartPoint != null && moveCurrentPoint != null) {
-            Vec2d moveVector = moveCurrentPoint.subtract(moveStartPoint);
+            Vec2d effectiveEnd = constrainedEndPoint != null ? constrainedEndPoint : moveCurrentPoint;
+            Vec2d moveVector = effectiveEnd.subtract(moveStartPoint);
             double moveDistance = moveVector.length();
 
             if (moveDistance > MIN_MOVE_DISTANCE) {
-                context.drawDashedLine(moveStartPoint, moveCurrentPoint, MOVE_PREVIEW_COLOR);
+                context.drawDashedLine(moveStartPoint, effectiveEnd, MOVE_PREVIEW_COLOR);
                 context.drawCircle(moveStartPoint, 3.0f, MOVE_PREVIEW_COLOR);
-                context.drawCircle(moveCurrentPoint, 3.0f, MOVE_PREVIEW_COLOR);
+                context.drawCircle(effectiveEnd, 3.0f, MOVE_PREVIEW_COLOR);
             }
         }
     }
@@ -513,8 +524,9 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
                 double moveDistance = moveVector.length();
 
                 if (moveDistance > MIN_MOVE_DISTANCE) {
+                    Vec2d effectiveEnd = constrainedEndPoint != null ? constrainedEndPoint : moveCurrentPoint;
                     Vec2d screenStart = camera.worldToScreen(moveStartPoint);
-                    Vec2d screenEnd = camera.worldToScreen(moveCurrentPoint);
+                    Vec2d screenEnd = camera.worldToScreen(effectiveEnd);
 
                     int lineColor = 0xFFFFFF00; // 黄色
                     float lineWidth = 2.0f;
