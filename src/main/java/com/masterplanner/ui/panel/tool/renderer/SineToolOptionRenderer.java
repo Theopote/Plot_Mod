@@ -34,6 +34,38 @@ public class SineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popItemWidth();
             height += ImGui.getFrameHeightWithSpacing();
+
+            // 相位预设按钮
+            ImGui.tableNextRow();
+            ImGui.tableNextColumn();
+            ImGui.alignTextToFramePadding();
+            ImGui.text("");
+
+            ImGui.tableNextColumn();
+            ImGui.pushItemWidth(-1);
+            ImGui.pushID("phase_presets");
+            if (ImGui.button("0°")) {
+                phaseArray[0] = 0.0f;
+                updateToolConfig(CONFIG_KEY_PHASE, String.valueOf(phaseArray[0]));
+            }
+            ImGui.sameLine();
+            if (ImGui.button("90°")) {
+                phaseArray[0] = 90.0f;
+                updateToolConfig(CONFIG_KEY_PHASE, String.valueOf(phaseArray[0]));
+            }
+            ImGui.sameLine();
+            if (ImGui.button("180°")) {
+                phaseArray[0] = 180.0f;
+                updateToolConfig(CONFIG_KEY_PHASE, String.valueOf(phaseArray[0]));
+            }
+            ImGui.sameLine();
+            if (ImGui.button("360°")) {
+                phaseArray[0] = 360.0f;
+                updateToolConfig(CONFIG_KEY_PHASE, String.valueOf(phaseArray[0]));
+            }
+            ImGui.popID();
+            ImGui.popItemWidth();
+            height += ImGui.getFrameHeightWithSpacing();
             
         } finally {
             ImGui.popID();
