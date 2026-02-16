@@ -161,22 +161,6 @@ public class LineTool extends DrawingTool {
             return null;
         }
     }
-    
-    /**
-     * 从点列表创建图形（用于多步骤交互策略）
-     * @param points 点列表
-     * @return 创建的图形
-     */
-    public Shape createShapeFromPoints(List<Vec2d> points) {
-        if (points == null || points.isEmpty()) {
-            return null;
-        }
-        if (points.size() == 1) {
-            return createShape(points.getFirst(), points.getFirst());
-        }
-        // 使用第一个和最后一个点创建直线
-        return createShape(points.getFirst(), points.getLast());
-    }
 
     /**
      * 创建多线图形
@@ -626,7 +610,7 @@ public class LineTool extends DrawingTool {
             }
 
             // 计算调整量并应用（向上滚轮为正）
-            float adjustment = (float) (delta * 1.0); // 每个滚动单位调整1.0个世界单位间距
+            float adjustment = (float) (delta); // 每个滚动单位调整1.0个世界单位间距
             float newSpacing = Math.max(0.1f, Math.min(1000f, lineSpacing + adjustment));
             boolean changed = setLineSpacing(newSpacing);
             if (changed) {
@@ -651,7 +635,7 @@ public class LineTool extends DrawingTool {
         if (shape instanceof MultiLineShape multi) {
             try {
                 List<LineShape> lines = multi.getLines();
-                if (lines == null || lines.isEmpty()) {
+                if (lines.isEmpty()) {
                     resetDrawing("提交的多线为空");
                     return;
                 }
