@@ -510,9 +510,9 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
     private void renderCommonOptions(SpiralTool spiralTool, float[] height) {
         renderSharpEdgedCheckbox(ThemeManager.getInstance().getCurrentTheme(), height);
         
-        // 半圆螺旋不需要传统意义上的螺距参数，它使用扩张率来控制螺旋的展开
+        // 仅在需要螺距参数的类型下显示滑块：线性与多边形
         SpiralType currentType = spiralTool.getCurrentType();
-        if (currentType != SpiralType.SEMICIRCLE) {
+        if (currentType == SpiralType.LINEAR || currentType == SpiralType.POLYGON) {
             renderFloatSlider("螺距", CONFIG_KEY_SPACING, tempSpacingArray, 10.0f, 200.0f, "%.1f", height);
         }
     }
