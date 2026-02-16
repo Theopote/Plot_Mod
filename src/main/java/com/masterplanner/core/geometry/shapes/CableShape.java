@@ -12,8 +12,6 @@ import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.tools.impl.modify.helper.IShapeVisitor;
 
 import com.masterplanner.core.graphics.DrawContext;
-import com.masterplanner.ui.canvas.CanvasCamera;
-import imgui.ImGui;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -116,7 +114,6 @@ public class CableShape extends Shape implements IExtendableShape {
     private List<Vec2d> cachedPoints = null; // 缓存的悬链线点，用于避免重复计算
     private boolean cacheValid = false;      // 缓存是否有效的标志
     private int lastStateHash = 0;           // 上次计算时的状态哈希值
-    private double lastSagDirection = Double.NaN; // 缓存计算时的弧垂方向
 
     /**
      * 创建具有指定参数的电缆形状
@@ -323,85 +320,6 @@ public class CableShape extends Shape implements IExtendableShape {
             java.awt.Color color = activeStyle.getLineStyle().getColor();
             context.drawPath(points, color);
         }
-    }
-
-    private boolean isVisibleInContext(DrawContext context) {
-        BoundingBox bbox;
-        if (cacheValid && cachedPoints != null) {
-            bbox = calculateBoundingBoxFromPoints(cachedPoints);
-        } else {
-            double minX = Math.min(start.x, end.x);
-            double minY = Math.min(start.y, end.y);
-            double maxX = Math.max(start.x, end.x);
-            double maxY = Math.max(start.y, end.y);
-
-            double length = start.distance(end);
-            double maxSag = length / (2 * sagParameter);
-            minY -= maxSag;
-
-            if (sagPoint != null && MODE_UNEVEN.equals(drawMode)) {
-                minX = Math.min(minX, sagPoint.x);
-                minY = Math.min(minY, sagPoint.y);
-                maxX = Math.max(maxX, sagPoint.x);
-                maxY = Math.max(maxY, sagPoint.y);
-            }
-
-            bbox = new BoundingBox(minX, minY, maxX, maxY);
-        }
-
-        if (context.getCamera() == null) {
-            return true;
-        }
-
-        double scale = context.getCamera().getZoom();
-        CanvasCamera camera = context.getCamera();
-        Vec2d cameraOffset = camera.getOffset();
-
-        // 重要修复：
-        // 在 CanvasRenderer 的全屏/BackgroundDrawList 渲染路径下，可能不存在“当前 ImGui Window”，
-        // 此时 ImGui.getWindowWidth/Height() 很可能返回 0，导致所有图形被误裁剪为不可见。
-        // 因此当窗口尺寸无效时，回退到 DisplaySize，避免 false-negative 裁剪。
-        float viewportWidthPx = ImGui.getWindowWidth();
-        float viewportHeightPx = ImGui.getWindowHeight();
-        if (viewportWidthPx <= 0.0f || viewportHeightPx <= 0.0f) {
-            viewportWidthPx = ImGui.getIO().getDisplaySizeX();
-            viewportHeightPx = ImGui.getIO().getDisplaySizeY();
-        }
-        if (viewportWidthPx <= 0.0f || viewportHeightPx <= 0.0f) {
-            // 保险策略：无法获取任何有效视口尺寸时，默认可见，避免图形“保存但看不见”
-            return true;
-        }
-
-        double viewportWidth = viewportWidthPx / scale;
-        double viewportHeight = viewportHeightPx / scale;
-
-        double viewportMinX = -cameraOffset.x;
-        double viewportMinY = -cameraOffset.y;
-
-        return !(bbox.getMaxX() < viewportMinX ||
-                bbox.getMinX() > viewportMinX + viewportWidth ||
-                bbox.getMaxY() < viewportMinY ||
-                bbox.getMinY() > viewportMinY + viewportHeight);
-    }
-
-    private BoundingBox calculateBoundingBoxFromPoints(List<Vec2d> points) {
-        if (points == null || points.isEmpty()) {
-            return new BoundingBox(0, 0, 0, 0);
-        }
-
-        double minX = Double.MAX_VALUE;
-        double minY = Double.MAX_VALUE;
-        double maxX = Double.MIN_VALUE;
-        double maxY = Double.MIN_VALUE;
-
-        for (Vec2d point : points) {
-            minX = Math.min(minX, point.x);
-            minY = Math.min(minY, point.y);
-            maxX = Math.max(maxX, point.x);
-            maxY = Math.max(maxY, point.y);
-        }
-
-        return new BoundingBox(minX, minY, maxX, maxY);
     }
 
     private List<Vec2d> generateCatenaryPoints(double scale) {
@@ -1462,20 +1380,6 @@ public class CableShape extends Shape implements IExtendableShape {
             // 记录错误但不抛出异常（避免污染 stderr，统一走日志系统）
             LOGGER.warn("渲染悬链线ImGui时发生错误: {}", e.getMessage(), e);
         }
-    }
-    
-    /**
-     * 将点精确投影到多段线上的正确线段
-     */
-    private Vec2d projectPointToPolyline(List<Vec2d> polylinePoints, Vec2d point) {
-        int segmentIndex = GeometryUtils.findSegmentContainingPoint(polylinePoints, point);
-        if (segmentIndex >= 0) {
-            Vec2d segStart = polylinePoints.get(segmentIndex);
-            Vec2d segEnd = polylinePoints.get(segmentIndex + 1);
-            return projectPointOnSegment(point, segStart, segEnd);
-        }
-        // 如果没有找到包含点的线段，返回原点（容错处理）
-        return point;
     }
     
     /**
