@@ -607,6 +607,41 @@ public class LineTool extends DrawingTool {
         LOGGER.debug("LineTool: 资源清理完成");
     }
 
+    /**
+     * 处理鼠标滚轮：在多线模式且已开始绘制（已点击起点）时，调整线条间距并更新预览
+     */
+    @Override
+    public boolean onMouseWheel(com.masterplanner.api.geometry.Vec2d pos, double delta) {
+        try {
+            // 只在多线模式处理滚轮
+            if (!MODE_MULTI.equals(currentDrawingType)) {
+                return false;
+            }
+
+            // 只在已经开始绘制（至少有一个控制点）时响应滚轮
+            if (interactionStrategy == null) return false;
+            java.util.List<com.masterplanner.api.geometry.Vec2d> controlPoints = interactionStrategy.getControlPoints();
+            if (controlPoints == null || controlPoints.isEmpty()) {
+                return false;
+            }
+
+            // 计算调整量并应用（向上滚轮为正）
+            float adjustment = (float) (delta * 1.0); // 每个滚动单位调整1.0个世界单位间距
+            float newSpacing = Math.max(0.1f, Math.min(1000f, lineSpacing + adjustment));
+            boolean changed = setLineSpacing(newSpacing);
+            if (changed) {
+                setStatusMessage(String.format("线条间距: %.1f (滚轮调整)", newSpacing));
+                // 立即更新预览以反映变化
+                updatePreviewImmediately();
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            LOGGER.error("LineTool.onMouseWheel 处理失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
     @Override
     protected IInteractionStrategy createStrategy(InteractionType type) {
         // 使用通用线条策略，并在本地增强捕捉可视化
