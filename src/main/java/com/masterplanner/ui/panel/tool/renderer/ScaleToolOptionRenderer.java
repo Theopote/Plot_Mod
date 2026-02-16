@@ -1,10 +1,7 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
-import com.masterplanner.ui.tools.impl.modify.strategy.ScaleStrategy;
-import com.masterplanner.ui.theme.ThemeManager;
-import com.masterplanner.ui.theme.UITheme;
+// imports simplified: ScaleStrategy and theme utilities not required by simplified renderer
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +22,6 @@ import org.slf4j.LoggerFactory;
 public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScaleToolOptionRenderer.class);
 
-    // 配置键常量
-    private static final String CONFIG_KEY_MODE = "mode";
-    
-    // UI状态变量
-    private ScaleStrategy.ScaleMode currentMode;
-    
     // 按钮/图标相关已经移除：缩放中心由交互时确定，简化面板
 
     public ScaleToolOptionRenderer() {
@@ -40,10 +31,6 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
 
     @Override
     public void initialize() {
-        // 初始化默认值
-        this.currentMode = ScaleStrategy.ScaleMode.UNIFORM;
-        // 仅初始化模式，中心由交互决定
-        
         LOGGER.debug("缩放工具选项渲染器已初始化");
     }
 
@@ -51,104 +38,19 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
     public float render() {
         float height = 0;
         ImGui.pushID("scale_options");
-        
-        // 样式栈计数器，用于确保正确清理
-        int styleColorCount = 0;
-        int styleVarCount = 0;
-        
         try {
-            // 缩放中心由交互决定，面板仅显示提示
-            
-            UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            float originalRounding = ImGui.getStyle().getFrameRounding();
-            
-            // 简化：缩放中心由交互时确定（点击/选择），不在工具选项中提供按钮
-            ImGui.tableNextRow();
-            ImGui.tableNextColumn();
-            ImGui.alignTextToFramePadding();
-            ImGui.text("缩放中心");
-            ImGui.tableNextColumn();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "由交互自动确定（点击或以选择框中心）");
-            height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
-            
-            // 缩放方式：仅保留模式切换（等比/非等比）通过下拉快速切换
-            ImGui.tableNextRow();
-            ImGui.tableNextColumn();
-            ImGui.alignTextToFramePadding();
-            ImGui.text("缩放方式");
-            ImGui.tableNextColumn();
-            ImGui.pushItemWidth(-1);
-            String currentLabel = currentMode == ScaleStrategy.ScaleMode.NON_UNIFORM ? "非统一缩放" : "等比缩放";
-            if (ImGui.beginCombo("##scale_mode_combo", currentLabel)) {
-                if (ImGui.selectable("等比缩放", currentMode == ScaleStrategy.ScaleMode.UNIFORM)) {
-                    currentMode = ScaleStrategy.ScaleMode.UNIFORM;
-                    updateToolConfig(CONFIG_KEY_MODE, currentMode.name());
-                }
-                if (ImGui.selectable("非统一缩放", currentMode == ScaleStrategy.ScaleMode.NON_UNIFORM)) {
-                    currentMode = ScaleStrategy.ScaleMode.NON_UNIFORM;
-                    updateToolConfig(CONFIG_KEY_MODE, currentMode.name());
-                }
-                ImGui.endCombo();
-            }
-            ImGui.popItemWidth();
-            height += ImGui.getFrameHeightWithSpacing();
-            
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
-            
-            // === 使用说明 ===
+            // 缩放面板已简化：不显示“缩放中心”和“缩放方式”控件，仅显示使用说明与快捷键
             renderUsageInstructions();
-            
-            // === 快捷键提示 ===
             renderShortcutTips();
-            
         } catch (Exception e) {
             LOGGER.error("缩放工具选项渲染器渲染失败: {}", e.getMessage(), e);
-            
-            // 紧急清理样式栈
-            while (styleColorCount > 0) {
-                try {
-                    ImGui.popStyleColor();
-                    styleColorCount--;
-                } catch (Exception ex) {
-                    LOGGER.warn("清理样式颜色栈失败: {}", ex.getMessage());
-                    break;
-                }
-            }
-            
-            while (styleVarCount > 0) {
-                try {
-                    ImGui.popStyleVar();
-                    styleVarCount--;
-                } catch (Exception ex) {
-                    LOGGER.warn("清理样式变量栈失败: {}", ex.getMessage());
-                    break;
-                }
-            }
         } finally {
             ImGui.popID();
         }
         
         return height;
     }
-    
-    /**
-     * 设置按钮的样式
-     */
-    private void pushButtonStyle(UITheme.ThemeColors theme, boolean isSelected) {
-        if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
-            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonActiveBorder);
-        } else {
-            ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
-            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
-        }
-    }
-    
+
     /**
      * 渲染使用说明
      */
