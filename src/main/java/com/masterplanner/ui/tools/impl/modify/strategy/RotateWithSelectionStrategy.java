@@ -522,6 +522,13 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     }
 
     /**
+     * 获取旋转约束配置（用于外部设置角度步长等）
+     */
+    public com.masterplanner.ui.tools.impl.modify.constants.ModifyConstraints getRotateConstraints() {
+        return rotateConstraints;
+    }
+
+    /**
      * 渲染预览
      */
     public void renderPreview(DrawContext context) {

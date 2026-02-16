@@ -292,7 +292,10 @@ public class RotateTool extends ModifyTool {
                     }
                     if (modifyStrategy instanceof RotateStrategy rotateStrategy) {
                         rotateStrategy.getRotateConstraints().setAngleStep(angleStep);
-                        LOGGER.debug("角度步长已设置为: {}°", value);
+                        LOGGER.debug("角度步长已设置为: {}", value);
+                    } else if (modifyStrategy instanceof RotateWithSelectionStrategy rotateWithSelection) {
+                        rotateWithSelection.getRotateConstraints().setAngleStep(angleStep);
+                        LOGGER.debug("角度步长已设置为: {} (RotateWithSelectionStrategy)", value);
                     }
                 } catch (NumberFormatException e) {
                     LOGGER.warn("无效的角度步长格式: {}", value);
