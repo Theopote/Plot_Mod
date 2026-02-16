@@ -20,7 +20,6 @@ public final class SplineConfig {
     // 配置字段
     private SplineTool.SplineMode currentMode = SplineTool.SplineMode.THROUGH_POINTS;
     private double tension = 0.8;
-    private double smoothness = 0.5;
     private int segments = 50;
     
     /**
@@ -36,7 +35,6 @@ public final class SplineConfig {
     public SplineConfig(SplineConfig other) {
         this.currentMode = other.currentMode;
         this.tension = other.tension;
-        this.smoothness = other.smoothness;
         this.segments = other.segments;
     }
     
@@ -50,9 +48,6 @@ public final class SplineConfig {
         return tension;
     }
     
-    public double getSmoothness() {
-        return smoothness;
-    }
     
     public int getSegments() {
         return segments;
@@ -88,19 +83,6 @@ public final class SplineConfig {
         return false;
     }
     
-    /**
-     * 设置平滑度值
-     * @param smoothness 平滑度值 (0.0 - 1.0)
-     * @return 是否发生了变更
-     */
-    public boolean setSmoothness(double smoothness) {
-        if (smoothness >= 0.0 && smoothness <= 1.0 && Math.abs(this.smoothness - smoothness) >= 0.001) {
-            this.smoothness = smoothness;
-            LOGGER.debug("平滑度值已更新为: {}", smoothness);
-            return true;
-        }
-        return false;
-    }
     
     /**
      * 设置分段数
@@ -129,8 +111,7 @@ public final class SplineConfig {
                     setCurrentMode(SplineTool.SplineMode.fromId(value));
                 case SplineTool.CONFIG_KEY_TENSION -> 
                     setTension(Double.parseDouble(value));
-                case SplineTool.CONFIG_KEY_SMOOTHNESS -> 
-                    setSmoothness(Double.parseDouble(value));
+                
                 case SplineTool.CONFIG_KEY_SEGMENTS -> 
                     setSegments(Integer.parseInt(value));
                 default -> {
@@ -151,7 +132,6 @@ public final class SplineConfig {
         return switch (key) {
             case SplineTool.CONFIG_KEY_MODE -> currentMode.getId();
             case SplineTool.CONFIG_KEY_TENSION -> tension;
-            case SplineTool.CONFIG_KEY_SMOOTHNESS -> smoothness;
             case SplineTool.CONFIG_KEY_SEGMENTS -> segments;
             default -> null;
         };
@@ -164,21 +144,20 @@ public final class SplineConfig {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         SplineConfig that = (SplineConfig) obj;
-        return Double.compare(that.tension, tension) == 0 &&
-               Double.compare(that.smoothness, smoothness) == 0 &&
-               segments == that.segments &&
-               currentMode == that.currentMode;
+         return Double.compare(that.tension, tension) == 0 &&
+             segments == that.segments &&
+             currentMode == that.currentMode;
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(currentMode, tension, smoothness, segments);
+        return Objects.hash(currentMode, tension, segments);
     }
-    
+
     @Override
     public String toString() {
-        return String.format("SplineConfig{mode=%s, tension=%.3f, smoothness=%.3f, segments=%d}", 
-                currentMode.getDisplayName(), tension, smoothness, segments);
+        return String.format("SplineConfig{mode=%s, tension=%.3f, segments=%d}", 
+                currentMode.getDisplayName(), tension, segments);
     }
     
     /**
@@ -186,8 +165,7 @@ public final class SplineConfig {
      */
     public void reset() {
         this.currentMode = SplineTool.SplineMode.THROUGH_POINTS;
-        this.tension = 0.5;
-        this.smoothness = 0.5;
+        this.tension = 0.8;
         this.segments = 50;
         LOGGER.debug("样条配置已重置为默认值");
     }

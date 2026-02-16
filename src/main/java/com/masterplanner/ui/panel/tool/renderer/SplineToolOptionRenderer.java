@@ -35,7 +35,6 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
     
     // UI 数组引用（用于 ImGui 控件）
     private final float[] tensionArray = {0.5f};
-    private final float[] smoothnessArray = {0.5f};
     private final int[] segmentsArray = {50};
     
     // 同步控制 - 已改为纯事件驱动，不再需要此字段
@@ -84,7 +83,6 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
             SplineConfig newConfig = event.getCurrentConfig();
             localConfig.setCurrentMode(newConfig.getCurrentMode());
             localConfig.setTension(newConfig.getTension());
-            localConfig.setSmoothness(newConfig.getSmoothness());
             localConfig.setSegments(newConfig.getSegments());
             
             // 同步到 UI 数组
@@ -101,7 +99,6 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
      */
     private void syncConfigToArrays() {
         tensionArray[0] = (float) localConfig.getTension();
-        smoothnessArray[0] = (float) localConfig.getSmoothness();
         segmentsArray[0] = localConfig.getSegments();
     }
     
@@ -115,7 +112,6 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                 SplineConfig toolConfig = splineTool.getSplineConfig();
                 localConfig.setCurrentMode(toolConfig.getCurrentMode());
                 localConfig.setTension(toolConfig.getTension());
-                localConfig.setSmoothness(toolConfig.getSmoothness());
                 localConfig.setSegments(toolConfig.getSegments());
                 syncConfigToArrays();
                 LOGGER.debug("样条工具激活，已同步配置: {}", localConfig);
@@ -208,10 +204,9 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                     tensionArray, 0.0f, 1.0f, "%.2f", currentTheme, 
                     key -> updateToolConfig(key, String.valueOf(tensionArray[0])));
             } else {
-                // 只显示"平滑度"
-                SliderRenderHelper.renderFloatSlider("平滑度", SplineTool.CONFIG_KEY_SMOOTHNESS, 
-                    smoothnessArray, 0.0f, 1.0f, "%.2f", currentTheme, 
-                    key -> updateToolConfig(key, String.valueOf(smoothnessArray[0])));
+                // 控制多边形模式使用内置默认平滑度，无独立参数
+                ImGui.alignTextToFramePadding();
+                ImGui.text("使用默认平滑度");
             }
             height += ImGui.getFrameHeightWithSpacing();
             // "段数"始终显示

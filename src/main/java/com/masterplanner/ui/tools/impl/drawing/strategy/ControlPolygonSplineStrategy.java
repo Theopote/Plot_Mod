@@ -2,6 +2,7 @@ package com.masterplanner.ui.tools.impl.drawing.strategy;
 
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.geometry.shapes.BezierCurveShape;
+import com.masterplanner.ui.tools.impl.drawing.SplineTool;
 import com.masterplanner.ui.tools.impl.drawing.config.SplineConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,25 +88,23 @@ public class ControlPolygonSplineStrategy implements ISplineGenerationStrategy {
             }
             // 应用平滑度（使锚点向相邻控制点的平均位置内缩），
             // 使得 "平滑度" 参数对开放曲线也产生可感知的影响。
-            double smooth = config.getSmoothness();
-            if (smooth > 0.0) {
-                int n = Math.min(anchorPoints.size(), inputPoints.size());
-                // 使用更温和的收缩和混合，避免过度内缩导致的云状曲线
-                double baseShrink = 0.08; // 默认更小的内缩比例
-                double blendAlpha = Math.min(1.0, 0.5 * smooth); // 平滑度影响混合比例，较小且安全
-                for (int i = 0; i < n; i++) {
-                    Vec2d controlPoint = inputPoints.get(i);
-                    Vec2d prev = (i == 0) ? inputPoints.get(0) : inputPoints.get(i - 1);
-                    Vec2d next = (i == inputPoints.size() - 1) ? inputPoints.get(inputPoints.size() - 1) : inputPoints.get(i + 1);
-                    Vec2d adjacentAverage = prev.add(next).multiply(0.5);
-                    Vec2d direction = adjacentAverage.subtract(controlPoint);
-                    double shrinkFactor = baseShrink * smooth;
-                    Vec2d adjustedAnchor = anchorPoints.get(i).add(direction.multiply(shrinkFactor));
-                    // 混合原始锚点与调整后锚点，避免一次性大幅移动
-                    Vec2d originalAnchor = anchorPoints.get(i);
-                    Vec2d blended = originalAnchor.multiply(1.0 - blendAlpha).add(adjustedAnchor.multiply(blendAlpha));
-                    anchorPoints.set(i, blended);
-                }
+            double smooth = SplineTool.DEFAULT_SMOOTHNESS;
+            int n = Math.min(anchorPoints.size(), inputPoints.size());
+            // 使用更温和的收缩和混合，避免过度内缩导致的云状曲线
+            double baseShrink = 0.08; // 默认更小的内缩比例
+            double blendAlpha = Math.min(1.0, 0.5 * smooth); // 平滑度影响混合比例，较小且安全
+            for (int i = 0; i < n; i++) {
+                Vec2d controlPoint = inputPoints.get(i);
+                Vec2d prev = (i == 0) ? inputPoints.getFirst() : inputPoints.get(i - 1);
+                Vec2d next = (i == inputPoints.size() - 1) ? inputPoints.getLast() : inputPoints.get(i + 1);
+                Vec2d adjacentAverage = prev.add(next).multiply(0.5);
+                Vec2d direction = adjacentAverage.subtract(controlPoint);
+                double shrinkFactor = baseShrink * smooth;
+                Vec2d adjustedAnchor = anchorPoints.get(i).add(direction.multiply(shrinkFactor));
+                // 混合原始锚点与调整后锚点，避免一次性大幅移动
+                Vec2d originalAnchor = anchorPoints.get(i);
+                Vec2d blended = originalAnchor.multiply(1.0 - blendAlpha).add(adjustedAnchor.multiply(blendAlpha));
+                anchorPoints.set(i, blended);
             }
 
             BezierCurveShape curve = new BezierCurveShape(anchorPoints, controlPointPairs, false);
@@ -165,7 +164,7 @@ public class ControlPolygonSplineStrategy implements ISplineGenerationStrategy {
                     // 锚点位置 = 当前控制点 + 相邻控制点平均位置的内缩
                     Vec2d adjacentAverage = prevControl.add(nextControl).multiply(0.5);
                     Vec2d direction = adjacentAverage.subtract(controlPoint);
-                    double shrinkFactor = 0.3 * config.getSmoothness(); // 内缩因子
+                    double shrinkFactor = 0.3 * SplineTool.DEFAULT_SMOOTHNESS; // 内缩因子（使用默认值）
                     Vec2d anchorPoint = controlPoint.add(direction.multiply(shrinkFactor));
                     
                     anchorPoints.add(anchorPoint);
@@ -181,8 +180,8 @@ public class ControlPolygonSplineStrategy implements ISplineGenerationStrategy {
                     Vec2d nextControl = inputPoints.get((i + 1) % inputPoints.size());
                     
                     // 根据平滑度调整控制点
-                    Vec2d adjustedC1 = currentAnchor.add(currentControl.subtract(currentAnchor).multiply(config.getSmoothness()));
-                    Vec2d adjustedC2 = nextAnchor.add(nextControl.subtract(nextAnchor).multiply(config.getSmoothness()));
+                    Vec2d adjustedC1 = currentAnchor.add(currentControl.subtract(currentAnchor).multiply(SplineTool.DEFAULT_SMOOTHNESS));
+                    Vec2d adjustedC2 = nextAnchor.add(nextControl.subtract(nextAnchor).multiply(SplineTool.DEFAULT_SMOOTHNESS));
                     
                     controlPointPairs.add(new Vec2d[]{adjustedC1, adjustedC2});
                 }

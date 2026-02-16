@@ -60,8 +60,8 @@ public class SplineTool extends DrawingTool {
     // 1. 统一配置键
     public static final String CONFIG_KEY_MODE = "spline_mode";
     public static final String CONFIG_KEY_TENSION = "spline_tension";
-    public static final String CONFIG_KEY_SMOOTHNESS = "spline_smoothness";
     public static final String CONFIG_KEY_SEGMENTS = "spline_segments";
+    public static final double DEFAULT_SMOOTHNESS = 0.5;
     
     // 2. 统一模式枚举
     public enum SplineMode {
@@ -425,7 +425,11 @@ public class SplineTool extends DrawingTool {
             this.previewShape = currentGenerationStrategy.generateCurve(previewPoints, config);
             // 如果预览是贝塞尔曲线，应用首选采样段数以响应 UI 的 "段数" 设置
             if (this.previewShape instanceof BezierCurveShape previewBezier) {
-                previewBezier.setPreferredSamplingSteps(config.getSegments());
+                // 将 UI 中的 "段数" 视作希望的总采样点数，按曲线段分配到每段
+                int totalDesired = Math.max(10, config.getSegments());
+                int segCount = Math.max(1, previewBezier.getSegmentCount());
+                int perSegment = Math.max(4, totalDesired / segCount);
+                previewBezier.setPreferredSamplingSteps(perSegment);
             }
             
             // 应用预览样式
@@ -447,20 +451,12 @@ public class SplineTool extends DrawingTool {
      */
     private String buildTooltipMessage() {
         SplineMode currentMode = config.getCurrentMode();
-        StringBuilder message = new StringBuilder();
-        message.append(currentMode.getDisplayName())
-               .append("\n控制点数: ").append(controlPoints.size())
-               .append("\n类型: ").append(currentMode.getDescription());
-        
-        if (currentMode == SplineMode.THROUGH_POINTS) {
-            message.append("\n张力: ").append(String.format("%.2f", config.getTension()));
-        } else { // CONTROL_POLYGON
-            message.append("\n平滑度: ").append(String.format("%.2f", config.getSmoothness()));
-        }
-        
-        message.append("\n分段数: ").append(config.getSegments());
-        
-        return message.toString();
+
+        return currentMode.getDisplayName() +
+                "\n控制点数: " + controlPoints.size() +
+                "\n类型: " + currentMode.getDescription() +
+                "\n张力: " + String.format("%.2f", config.getTension()) +
+                "\n分段数: " + config.getSegments();
     }
     
     // ====== 预览渲染方法 ======

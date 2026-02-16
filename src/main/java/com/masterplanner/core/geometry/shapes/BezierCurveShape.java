@@ -195,14 +195,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     }
     
     public boolean isClosed() { return closed; }
-    
-    /**
-     * 获取样条曲线模式
-     */
-    public SplineMode getSplineMode() { 
-        return splineMode; 
-    }
-    
+
     /**
      * 设置样条曲线模式
      */
