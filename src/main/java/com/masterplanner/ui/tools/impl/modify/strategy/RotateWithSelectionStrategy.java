@@ -91,6 +91,8 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     private Vec2d referencePoint;
     private Vec2d currentPoint;
     private double baseAngle = 0.0; // 参考角度
+    // 约束后用于渲染的当前点（当启用角度约束时使用）
+    private Vec2d constrainedCurrentPoint;
 
     // 旋转处理器和参数
     private RotateHandler rotateHandler;
@@ -241,6 +243,24 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
             // 创建预览图形
             previewShapes = rotateHandler.createPreviewShapes(selectedShapes, constrainedParameters);
+
+            // 计算并保存约束后的当前点，用于渲染辅助线与角度弧线
+            try {
+                if (constrainedParameters instanceof ModifyParameters mp) {
+                    double constrainedAngle = mp.getDouble("rotationAngle", 0.0);
+                    // 当前角度 = baseAngle + constrainedAngle
+                    double effectiveAngle = baseAngle + constrainedAngle;
+                    double radius = centerPoint.distance(currentPoint);
+                    constrainedCurrentPoint = new Vec2d(
+                        centerPoint.x + radius * Math.cos(effectiveAngle),
+                        centerPoint.y + radius * Math.sin(effectiveAngle)
+                    );
+                } else {
+                    constrainedCurrentPoint = currentPoint;
+                }
+            } catch (Exception ignored) {
+                constrainedCurrentPoint = currentPoint;
+            }
 
             // 更新状态消息
             String statusMessage;
@@ -422,6 +442,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         baseAngle = 0.0;
         previewShapes = null;
         pendingCommand = null;
+        constrainedCurrentPoint = null;
 
         if (rotateParameters != null) {
             rotateParameters.clear();
@@ -554,7 +575,33 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
         // 渲染从中心点到当前点的虚线（在设置参考点和旋转时都显示）
         if (centerPoint != null && currentPoint != null && (currentState == RotateState.ROTATING || currentState == RotateState.SETTING_REFERENCE)) {
-            context.drawDashedLine(centerPoint, currentPoint, ROTATE_PREVIEW_COLOR);
+            Vec2d effectiveCurrent = constrainedCurrentPoint != null ? constrainedCurrentPoint : currentPoint;
+            context.drawDashedLine(centerPoint, effectiveCurrent, ROTATE_PREVIEW_COLOR);
+
+            // 绘制角度弧线与角度文本（使用参考点与有效当前点）
+            if (referencePoint != null) {
+                // 计算角度
+                double referenceAngle = Math.atan2(referencePoint.y - centerPoint.y, referencePoint.x - centerPoint.x);
+                double effectiveAngle = Math.atan2(effectiveCurrent.y - centerPoint.y, effectiveCurrent.x - centerPoint.x);
+
+                double refRadius = centerPoint.distance(referencePoint);
+                double curRadius = centerPoint.distance(effectiveCurrent);
+                double radius = Math.min(refRadius, curRadius) * 0.3;
+
+                context.drawArc(centerPoint, radius, referenceAngle, effectiveAngle, java.awt.Color.ORANGE);
+
+                double midAngle = referenceAngle + (effectiveAngle - referenceAngle) / 2.0;
+                double angleDiff = Math.toDegrees(effectiveAngle - referenceAngle);
+                while (angleDiff > 180) angleDiff -= 360;
+                while (angleDiff < -180) angleDiff += 360;
+
+                double textRadius = radius * 1.2;
+                Vec2d textPos = new Vec2d(
+                    centerPoint.x + textRadius * Math.cos(midAngle),
+                    centerPoint.y + textRadius * Math.sin(midAngle)
+                );
+                context.drawText(String.format("%.1f°", angleDiff), textPos, java.awt.Color.ORANGE);
+            }
         }
     }
 
