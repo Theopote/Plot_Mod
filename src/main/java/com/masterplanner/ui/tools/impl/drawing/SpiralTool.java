@@ -427,7 +427,7 @@ public class SpiralTool extends DrawingTool {
                     // 多边形螺旋：调整spacing（螺距）
                     float currentSpacing = configManager.getSpacing();
                     float adjustment = (float) (delta * 2.0); // 每次调整2个单位
-                    float newSpacing = Math.max(10.0f, Math.min(200.0f, currentSpacing + adjustment));
+                    float newSpacing = Math.max(10.0f, Math.min(400.0f, currentSpacing + adjustment));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 调整螺距 {} -> {}, 调整量={}", 
                         currentSpacing, newSpacing, adjustment);
