@@ -41,7 +41,6 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
         try {
             // 缩放面板已简化：不显示“缩放中心”和“缩放方式”控件，仅显示使用说明与快捷键
             renderUsageInstructions();
-            renderShortcutTips();
         } catch (Exception e) {
             LOGGER.error("缩放工具选项渲染器渲染失败: {}", e.getMessage(), e);
         } finally {
@@ -67,34 +66,7 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.bulletText("1. 使用选择工具选择图形");
             ImGui.bulletText("2. 切换到缩放工具，第一次点击或以选择框中心确定中心点");
             ImGui.bulletText("3. 第二次点击或拖动设置参考点并缩放，点击完成");
-            
-            ImGui.spacing();
-            ImGui.textWrapped("缩放方式说明：");
-            ImGui.bulletText("等比缩放：X和Y方向使用相同的缩放因子");
-            ImGui.bulletText("仅X轴：仅沿X方向缩放");
-            ImGui.bulletText("仅Y轴：仅沿Y方向缩放");
-            
-            ImGui.spacing();
-            ImGui.textWrapped("缩放中心说明：缩放中心在交互时确定（点击或以选择框中心）");
-        }
-    }
-    
-    /**
-     * 渲染快捷键提示
-     */
-    private void renderShortcutTips() {
-        if (ImGui.collapsingHeader("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "快捷键提示：");
-            ImGui.spacing();
-            ImGui.bulletText("Shift：临时启用统一缩放模式");
-            ImGui.bulletText("右键 / Esc：取消当前缩放操作");
-            
-            ImGui.spacing();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示：");
-            ImGui.textWrapped("""
-                    • 等比缩放适合等比例调整图形大小
-                    • 仅X轴/仅Y轴适合沿单一方向调整尺寸
-                    • 缩放时会显示实时预览效果""");
+
         }
     }
 
