@@ -604,6 +604,29 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         if (style != null && closed && style.getFillStyle() != null && style.getFillStyle().isVisible() && transformed.size() > 2) {
             fillClosedCurve(context, transformed, (FillStyle) style.getFillStyle());
         }
+        // 当被选中时，绘制控制点和辅助虚线
+        if (isSelected()) {
+            try {
+                Color anchorColor = new Color(0xFFFFFF00); // 黄色
+                Color controlColor = new Color(0xFF00FFFF); // 青色
+                Color helperColor = Color.LIGHT_GRAY;
+
+                // 绘制每段的控制点与辅助线
+                for (BezierSegment seg : segments) {
+                    // 辅助虚线：锚点 -> 控制点
+                    context.drawDashedLine(seg.anchor1, seg.control1, helperColor);
+                    context.drawDashedLine(seg.anchor2, seg.control2, helperColor);
+
+                    // 控制点与锚点的可视化
+                    context.drawCircleFilled(seg.anchor1, 4.0f, anchorColor);
+                    context.drawCircleFilled(seg.anchor2, 4.0f, anchorColor);
+                    context.drawCircleFilled(seg.control1, 3.0f, controlColor);
+                    context.drawCircleFilled(seg.control2, 3.0f, controlColor);
+                }
+            } catch (Exception e) {
+                LOGGER.error("绘制控制点/辅助线时出错", e);
+            }
+        }
     }
     
     @Override
@@ -1696,18 +1719,20 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
      */
     @Override
     public List<Vec2d> getControlPoints() {
+        // 统一暴露：对于所有模式，返回按段组织的点序列：
+        // [anchor0, control1_seg0, control2_seg0, anchor1, control1_seg1, control2_seg1, anchor2, ...]
         List<Vec2d> points = new ArrayList<>();
-        
-        if (splineMode == SplineMode.FIT_THROUGH_POINTS) {
-            // 拟合模式：返回锚点（用户交互的关键点）
-            points = getAnchorPoints();
-        } else {
-            // 控制模式：返回贝塞尔控制点（算法生成的控制点）
-            for (BezierSegment seg : segments) {
-                points.add(seg.control1);
-                points.add(seg.control2);
-            }
+        if (segments.isEmpty()) return points;
+
+        for (int i = 0; i < segments.size(); i++) {
+            BezierSegment seg = segments.get(i);
+            // 每个段输出：anchor1, control1, control2
+            points.add(seg.anchor1);
+            points.add(seg.control1);
+            points.add(seg.control2);
         }
+        // 添加最后一个锚点
+        points.add(segments.getLast().anchor2);
         
         // 应用变换 - 使用传统for循环替代流API以提高性能
         if (getTransform() != null) {
@@ -1717,7 +1742,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             }
             return transformedPoints;
         }
-        
+
         return points;
     }
     
@@ -1730,12 +1755,31 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
      */
     @Override
     public void setControlPoint(int index, Vec2d point) {
-        if (splineMode == SplineMode.FIT_THROUGH_POINTS) {
-            // 拟合模式：设置锚点并重新计算控制点以保持平滑
-            setAnchorPointWithSmoothRecalculation(index, point);
+        // 统一的索引映射：每段占3个位置 -> [anchor, control1, control2], 最后追加最后一个anchor
+        // totalSize = segments.size()*3 + 1
+        int segCount = segments.size();
+        int total = segCount * 3 + 1;
+        if (index < 0 || index >= total) return;
+
+        if (index == total - 1) {
+            // 最后一个锚点
+            setAnchorPoint(index / 3, point); // anchorIndex == segCount
+            return;
+        }
+
+        int segIndex = index / 3;
+        int pos = index % 3; // 0: anchor1, 1: control1, 2: control2
+
+        if (pos == 0) {
+            setAnchorPoint(segIndex, point);
+        } else if (pos == 1) {
+            // control1 of segment segIndex -> controlIndex = segIndex*2 + 0
+            int controlIdx = segIndex * 2;
+            setBezierControlPointWithC1Continuity(controlIdx, point);
         } else {
-            // 控制模式：设置贝塞尔控制点并调整相邻控制点以保持连续性
-            setBezierControlPointWithC1Continuity(index, point);
+            // control2 -> controlIdx = segIndex*2 + 1
+            int controlIdx = segIndex * 2 + 1;
+            setBezierControlPointWithC1Continuity(controlIdx, point);
         }
     }
     
@@ -1748,16 +1792,40 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         if (anchorIndex < 0 || anchorIndex > segments.size()) {
             throw new IndexOutOfBoundsException("Anchor index " + anchorIndex + " is out of bounds.");
         }
+        // 记录旧位置以便平移相邻控制点，保持控制柄长度
+        Vec2d oldAnchor;
+        if (anchorIndex == 0) {
+            if (segments.isEmpty()) return;
+            oldAnchor = segments.getFirst().anchor1;
+        } else {
+            oldAnchor = segments.get(anchorIndex - 1).anchor2;
+        }
+
+        Vec2d delta = point.subtract(oldAnchor);
+
+        // 设置锚点
         if (anchorIndex == 0) {
             if (!segments.isEmpty()) {
-                segments.getFirst().anchor1 = point;
+                BezierSegment first = segments.getFirst();
+                first.anchor1 = point;
+                // 平移第一个段的control1以保持柄长度
+                if (first.control1 != null) first.control1 = first.control1.add(delta);
             }
         } else {
-            segments.get(anchorIndex - 1).anchor2 = point;
+            BezierSegment prev = segments.get(anchorIndex - 1);
+            prev.anchor2 = point;
             if (anchorIndex < segments.size()) {
-                segments.get(anchorIndex).anchor1 = point;
+                BezierSegment next = segments.get(anchorIndex);
+                next.anchor1 = point;
+                // 平移受影响的控制点
+                if (prev.control2 != null) prev.control2 = prev.control2.add(delta);
+                if (next.control1 != null) next.control1 = next.control1.add(delta);
+            } else {
+                // 移动的是最后一个锚点，平移最后段的control2
+                if (prev.control2 != null) prev.control2 = prev.control2.add(delta);
             }
         }
+
         needsRecalculation = true;
     }
     
@@ -2336,9 +2404,73 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                     0x80FFFFFF, lineWidth // 白色，半透明，动态线宽
                 );
             }
+
+            // 如果被选中，绘制控制点和辅助虚线（在ImGui层）
+            if (isSelected()) {
+                try {
+                    int anchorColor = 0xFFFFFF00; // 黄色
+                    int controlColor = 0xFF00FFFF; // 青色
+                    int helperColor = 0xFFAAAAAA; // 灰色
+
+                    for (BezierSegment seg : segments) {
+                        Vec2d ta = getTransform().transform(seg.anchor1);
+                        Vec2d tb = getTransform().transform(seg.control1);
+                        Vec2d tc = getTransform().transform(seg.control2);
+                        Vec2d td = getTransform().transform(seg.anchor2);
+
+                        Vec2d sa = camera.worldToScreen(ta);
+                        Vec2d sb = camera.worldToScreen(tb);
+                        Vec2d sc = camera.worldToScreen(tc);
+                        Vec2d sd = camera.worldToScreen(td);
+
+                        // 辅助虚线
+                        drawDashedLineImGui(drawList, (float) sa.x, (float) sa.y, (float) sb.x, (float) sb.y, helperColor, 6.0f, 4.0f);
+                        drawDashedLineImGui(drawList, (float) sd.x, (float) sd.y, (float) sc.x, (float) sc.y, helperColor, 6.0f, 4.0f);
+
+                        // 控制点与锚点
+                        drawList.addCircleFilled((float) sa.x, (float) sa.y, 4.0f, anchorColor);
+                        drawList.addCircleFilled((float) sd.x, (float) sd.y, 4.0f, anchorColor);
+                        drawList.addCircleFilled((float) sb.x, (float) sb.y, 3.0f, controlColor);
+                        drawList.addCircleFilled((float) sc.x, (float) sc.y, 3.0f, controlColor);
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("渲染ImGui控制点/辅助线时发生错误", e);
+                }
+            }
             
         } catch (Exception e) {
             LOGGER.error("渲染贝塞尔曲线ImGui时发生错误", e);
+        }
+    }
+
+    /**
+     * 在ImGui的drawList上绘制虚线
+     */
+    private void drawDashedLineImGui(imgui.ImDrawList drawList, float x1, float y1, float x2, float y2, int color, float dashLength, float gapLength) {
+        float totalLength = (float) Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+        if (totalLength < 0.1f) return;
+
+        float dx = (x2 - x1) / totalLength;
+        float dy = (y2 - y1) / totalLength;
+        float lineWidth = 1.0f;
+
+        float currentPos = 0;
+        boolean drawing = true;
+
+        while (currentPos < totalLength) {
+            float segmentLength = drawing ? dashLength : gapLength;
+            float nextPos = Math.min(currentPos + segmentLength, totalLength);
+
+            if (drawing) {
+                float startX = x1 + dx * currentPos;
+                float startY = y1 + dy * currentPos;
+                float endX = x1 + dx * nextPos;
+                float endY = y1 + dy * nextPos;
+                drawList.addLine(startX, startY, endX, endY, color, lineWidth);
+            }
+
+            currentPos = nextPos;
+            drawing = !drawing;
         }
     }
     

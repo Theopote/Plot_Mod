@@ -53,10 +53,14 @@ public class ControlPointEditTool extends ModifyTool {
     private static final Color CONTROL_POINT_HOVER_COLOR = new Color(255, 165, 0);  // 橙色悬停
     private static final Color CONTROL_POINT_ACTIVE_COLOR = new Color(255, 0, 0);   // 红色激活
     private static final Color CONTROL_POINT_BORDER_COLOR = new Color(255, 255, 255); // 白色边框
+    private static final Color ANCHOR_POINT_COLOR = new Color(0, 180, 0); // 绿色锚点
     
     private static final float CONTROL_POINT_SIZE = 6.0f;
     private static final float CONTROL_POINT_HOVER_SIZE = 8.0f;
     private static final float CONTROL_POINT_ACTIVE_SIZE = 10.0f;
+    private static final float ANCHOR_POINT_SIZE = 8.0f;
+    private static final float ANCHOR_POINT_HOVER_SIZE = 10.0f;
+    private static final float ANCHOR_POINT_ACTIVE_SIZE = 12.0f;
     private static final float CONTROL_POINT_BORDER_WIDTH = 2.0f;
     
     // 控制点编辑状态
@@ -153,16 +157,34 @@ public class ControlPointEditTool extends ModifyTool {
             // 确定控制点的颜色和大小
             Color pointColor;
             float pointSize;
+
+            boolean isAnchor = false;
+            if (controlPoints.size() >= 4) {
+                if (i % 3 == 0 || i == controlPoints.size() - 1) isAnchor = true;
+            }
             
-            if (i == activeControlPointIndex) {
-                pointColor = CONTROL_POINT_ACTIVE_COLOR;
-                pointSize = CONTROL_POINT_ACTIVE_SIZE;
-            } else if (i == hoveredControlPointIndex) {
-                pointColor = CONTROL_POINT_HOVER_COLOR;
-                pointSize = CONTROL_POINT_HOVER_SIZE;
+            if (isAnchor) {
+                if (i == activeControlPointIndex) {
+                    pointColor = CONTROL_POINT_ACTIVE_COLOR;
+                    pointSize = ANCHOR_POINT_ACTIVE_SIZE;
+                } else if (i == hoveredControlPointIndex) {
+                    pointColor = CONTROL_POINT_HOVER_COLOR;
+                    pointSize = ANCHOR_POINT_HOVER_SIZE;
+                } else {
+                    pointColor = ANCHOR_POINT_COLOR;
+                    pointSize = ANCHOR_POINT_SIZE;
+                }
             } else {
-                pointColor = CONTROL_POINT_COLOR;
-                pointSize = CONTROL_POINT_SIZE;
+                if (i == activeControlPointIndex) {
+                    pointColor = CONTROL_POINT_ACTIVE_COLOR;
+                    pointSize = CONTROL_POINT_ACTIVE_SIZE;
+                } else if (i == hoveredControlPointIndex) {
+                    pointColor = CONTROL_POINT_HOVER_COLOR;
+                    pointSize = CONTROL_POINT_HOVER_SIZE;
+                } else {
+                    pointColor = CONTROL_POINT_COLOR;
+                    pointSize = CONTROL_POINT_SIZE;
+                }
             }
             
             // 绘制控制点
@@ -194,22 +216,34 @@ public class ControlPointEditTool extends ModifyTool {
             // 确定控制点的颜色和大小
             int pointColor;
             float pointSize;
-            
-            if (i == activeControlPointIndex) {
-                pointColor = imgui.ImColor.rgba(CONTROL_POINT_ACTIVE_COLOR.getRed(), 
-                    CONTROL_POINT_ACTIVE_COLOR.getGreen(), 
-                    CONTROL_POINT_ACTIVE_COLOR.getBlue(), 255);
-                pointSize = CONTROL_POINT_ACTIVE_SIZE;
-            } else if (i == hoveredControlPointIndex) {
-                pointColor = imgui.ImColor.rgba(CONTROL_POINT_HOVER_COLOR.getRed(), 
-                    CONTROL_POINT_HOVER_COLOR.getGreen(), 
-                    CONTROL_POINT_HOVER_COLOR.getBlue(), 255);
-                pointSize = CONTROL_POINT_HOVER_SIZE;
+
+            boolean isAnchor = false;
+            if (controlPoints.size() >= 4) {
+                if (i % 3 == 0 || i == controlPoints.size() - 1) isAnchor = true;
+            }
+
+            if (isAnchor) {
+                if (i == activeControlPointIndex) {
+                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_ACTIVE_COLOR.getRed(), CONTROL_POINT_ACTIVE_COLOR.getGreen(), CONTROL_POINT_ACTIVE_COLOR.getBlue(), 255);
+                    pointSize = ANCHOR_POINT_ACTIVE_SIZE;
+                } else if (i == hoveredControlPointIndex) {
+                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_HOVER_COLOR.getRed(), CONTROL_POINT_HOVER_COLOR.getGreen(), CONTROL_POINT_HOVER_COLOR.getBlue(), 255);
+                    pointSize = ANCHOR_POINT_HOVER_SIZE;
+                } else {
+                    pointColor = imgui.ImColor.rgba(ANCHOR_POINT_COLOR.getRed(), ANCHOR_POINT_COLOR.getGreen(), ANCHOR_POINT_COLOR.getBlue(), 255);
+                    pointSize = ANCHOR_POINT_SIZE;
+                }
             } else {
-                pointColor = imgui.ImColor.rgba(CONTROL_POINT_COLOR.getRed(), 
-                    CONTROL_POINT_COLOR.getGreen(), 
-                    CONTROL_POINT_COLOR.getBlue(), 255);
-                pointSize = CONTROL_POINT_SIZE;
+                if (i == activeControlPointIndex) {
+                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_ACTIVE_COLOR.getRed(), CONTROL_POINT_ACTIVE_COLOR.getGreen(), CONTROL_POINT_ACTIVE_COLOR.getBlue(), 255);
+                    pointSize = CONTROL_POINT_ACTIVE_SIZE;
+                } else if (i == hoveredControlPointIndex) {
+                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_HOVER_COLOR.getRed(), CONTROL_POINT_HOVER_COLOR.getGreen(), CONTROL_POINT_HOVER_COLOR.getBlue(), 255);
+                    pointSize = CONTROL_POINT_HOVER_SIZE;
+                } else {
+                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), CONTROL_POINT_COLOR.getBlue(), 255);
+                    pointSize = CONTROL_POINT_SIZE;
+                }
             }
             
             // 绘制控制点
@@ -373,8 +407,20 @@ public class ControlPointEditTool extends ModifyTool {
         Vec2d offset = newPosition.subtract(dragStartPosition);
         Vec2d newControlPointPosition = originalControlPointPosition.add(offset);
         
-        // 更新控制点位置
-        targetShape.setControlPoint(activeControlPointIndex, newControlPointPosition);
+        // 更新控制点位置：将世界坐标转换为图形本地坐标（如果有变换）
+        if (targetShape.getTransform() != null) {
+            // 使用 Matrix3d 提供的逆变换接口将世界坐标转换为图形本地坐标
+            try {
+                Vec2d local = targetShape.getTransform().inverseTransform(newControlPointPosition);
+                targetShape.setControlPoint(activeControlPointIndex, local);
+            } catch (Exception ex) {
+                // 如果逆变换失败，退回到直接写入
+                LOGGER.warn("逆变换失败，使用世界坐标直接写回控制点", ex);
+                targetShape.setControlPoint(activeControlPointIndex, newControlPointPosition);
+            }
+        } else {
+            targetShape.setControlPoint(activeControlPointIndex, newControlPointPosition);
+        }
         
         LOGGER.debug("更新控制点 {} 位置: {}", activeControlPointIndex, newControlPointPosition);
     }
