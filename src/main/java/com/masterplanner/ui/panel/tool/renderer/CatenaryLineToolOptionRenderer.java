@@ -136,21 +136,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popStyleVar();
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
 
-            // === 悬垂参数滑块 (根据模式禁用) ===
-            boolean isSagParamDisabled = MODE_UNEVEN.equals(catenaryMode);
-            if (isSagParamDisabled) {
-                ImGui.beginDisabled();
-            }
-            String sagTooltip = isSagParamDisabled ? "此参数在样条插值模式下无效" : "控制悬链线下垂程度：值越小，下垂越明显";
-            renderSlider("悬垂参数", sagParameter, 0.05f, 5.0f, "%.2f", CONFIG_KEY_SAG, sagTooltip, currentTheme);
-            if (isSagParamDisabled) {
-                ImGui.endDisabled();
-            }
-            height += ImGui.getFrameHeightWithSpacing();
-
-            // === 分段数滑块 ===
-            renderSlider("分段数", segmentCount, 10, 60, "%d", CONFIG_KEY_SEGMENTS, "控制悬链线的平滑度：值越大，曲线越平滑", currentTheme);
-            height += ImGui.getFrameHeightWithSpacing();
+            // 悬垂与分段数为固定参数，不在工具选项面板中显示
 
             ImGui.getStyle().setFrameRounding(originalRounding);
 

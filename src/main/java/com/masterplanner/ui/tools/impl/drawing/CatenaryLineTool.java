@@ -69,8 +69,9 @@ public class CatenaryLineTool extends DrawingTool {
 
     // 配置参数
     private String currentMode = MODE_STANDARD;
-    private double sagParameter = DEFAULT_SAG;
-    private int segments = DEFAULT_SEGMENTS;
+    // 固定悬垂参数与分段数（不从 UI 修改）
+    private final double sagParameter = 1.0; // 固定为1
+    private final int segments = DEFAULT_SEGMENTS; // 固定为默认分段数
 
     public CatenaryLineTool(IAppState appState, ISnapManager snapManager) {
         super("catenary", "悬链线", Icons.CATENARY_IDENTIFIER, "绘制悬链线",
@@ -106,11 +107,14 @@ public class CatenaryLineTool extends DrawingTool {
         // 默认创建基础悬链线（用于两点拖拽模式）
         CableShape catenary = new CableShape(startPoint, endPoint, sagParameter, segments);
         catenary.setDrawMode(currentMode);
+        // 明确设置分段数（构造器已设置，但显式赋值可避免歧义）
+        catenary.setSegments(segments);
 
-        // 设置合理的默认弧垂
+        // 设置合理的默认弧垂，并让 UI 的 sagParameter 按语义影响默认弧垂
         double distance = startPoint.distance(endPoint);
-        double defaultSag = distance * 0.15; // 使用15%的距离作为默认弧垂
-        catenary.setSagDepth(defaultSag);
+        double defaultSag = distance * 0.15; // 使用15%的距离作为默认弧垂基准
+        double effectiveDefaultSag = defaultSag * (1.0 / Math.max(0.0001, sagParameter));
+        catenary.setSagDepth(effectiveDefaultSag);
 
         // 应用样式
         ShapeStyle style = getStyleHandler().getFinalStyle();
@@ -191,32 +195,12 @@ public class CatenaryLineTool extends DrawingTool {
                     }
                 }
                 case CONFIG_KEY_SAG -> {
-                    try {
-                        double newSag = Double.parseDouble(value);
-                        sagParameter = Math.max(0.05, Math.min(5.0, newSag));
-                        LOGGER.debug("CatenaryLineTool 更新悬垂参数: {}", sagParameter);
-
-                        // 如果正在交互中，重新计算预览
-                        if (interactionStrategy instanceof CatenaryInteractionStrategy catenaryStrategy) {
-                            catenaryStrategy.onParameterChanged();
-                        }
-                    } catch (NumberFormatException e) {
-                        LOGGER.warn("CatenaryLineTool 解析悬垂参数失败: {}", value);
-                    }
+                    // 已固定悬垂参数，忽略来自 UI 的修改
+                    LOGGER.debug("CatenaryLineTool: 忽略来自 UI 的悬垂参数修改 (固定值)");
                 }
                 case CONFIG_KEY_SEGMENTS -> {
-                    try {
-                        int newSegments = Integer.parseInt(value);
-                        segments = Math.max(MIN_SEGMENTS, Math.min(MAX_SEGMENTS, newSegments));
-                        LOGGER.debug("CatenaryLineTool 更新分段数: {}", segments);
-
-                        // 如果正在交互中，重新计算预览
-                        if (interactionStrategy instanceof CatenaryInteractionStrategy catenaryStrategy) {
-                            catenaryStrategy.onParameterChanged();
-                        }
-                    } catch (NumberFormatException e) {
-                        LOGGER.warn("CatenaryLineTool 解析分段数失败: {}", value);
-                    }
+                    // 已固定分段数，忽略来自 UI 的修改
+                    LOGGER.debug("CatenaryLineTool: 忽略来自 UI 的分段数修改 (固定值)");
                 }
                 default -> LOGGER.debug("CatenaryLineTool: 未知配置键: {}", key);
             }
@@ -428,6 +412,8 @@ public class CatenaryLineTool extends DrawingTool {
         private CableShape createFinalCatenary(Vec2d start, Vec2d end, Vec2d sagPoint, DrawingToolContext context) {
             try {
                 CableShape catenary = new CableShape(start, end, sagParameter, segments);
+                // 确保分段数与工具配置一致
+                catenary.setSegments(segments);
 
                 // 根据当前模式设置悬链线的属性
                 if (MODE_STANDARD.equals(currentMode)) {
@@ -435,7 +421,9 @@ public class CatenaryLineTool extends DrawingTool {
                     catenary.setDrawMode(MODE_STANDARD);
                     // 先计算世界空间的垂直距离作为深度参考
                     double sagDepthWorld = calculatePerpendicularSag(start, end, sagPoint);
-                    catenary.setSagDepth(Math.abs(sagDepthWorld));
+                    // 让 sagParameter 按 UI 语义影响最终弧垂：sagParameter 越小，下垂越明显
+                    double effectiveSagDepth = Math.abs(sagDepthWorld) * (1.0 / Math.max(0.0001, sagParameter));
+                    catenary.setSagDepth(effectiveSagDepth);
 
                     // 优先在屏幕空间判定侧向（更符合用户视觉交互）
                     double sagSign = 1.0;
