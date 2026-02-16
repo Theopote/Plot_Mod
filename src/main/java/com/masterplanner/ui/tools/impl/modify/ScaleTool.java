@@ -281,6 +281,7 @@ public class ScaleTool extends ModifyTool {
         try {
             switch (key) {
                 case "mode" -> {
+                    // 仅保留模式切换（等比/非等比）
                     ScaleStrategy.ScaleMode mode = ScaleStrategy.ScaleMode.valueOf(value.toUpperCase());
                     scaleStrategy.setScaleMode(mode);
                     LOGGER.debug("缩放模式已设置为: {}", mode.getDisplayName());
@@ -300,11 +301,7 @@ public class ScaleTool extends ModifyTool {
                     scaleStrategy.getScaleConstraints().setAspectRatio(aspectRatio);
                     LOGGER.debug("宽高比值已设置为: {}", value);
                 }
-                case "center" -> {
-                    ScaleHandler.ScaleCenterMode centerMode = ScaleHandler.ScaleCenterMode.fromString(value);
-                    scaleStrategy.setScaleCenterMode(centerMode);
-                    LOGGER.debug("缩放中心模式已设置为: {}", centerMode.getDisplayName());
-                }
+                // 已移除在工具选项中选择缩放中心（由交互确定），因此不再处理"center"配置
                 default -> LOGGER.debug("未知的配置项: {} = {}", key, value);
             }
         } catch (Exception e) {
