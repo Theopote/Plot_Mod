@@ -642,6 +642,66 @@ public class LineTool extends DrawingTool {
         }
     }
 
+    /**
+     * 重写提交流程：如果是 MultiLineShape，则拆分为若干独立的 LineShape 并逐个提交。
+     * 这样最终在 AppState 中存储的是普通的单线对象，而不是组合对象。
+     */
+    @Override
+    public void commitShape(com.masterplanner.core.model.Shape shape) {
+        if (shape instanceof MultiLineShape multi) {
+            try {
+                List<LineShape> lines = multi.getLines();
+                if (lines == null || lines.isEmpty()) {
+                    resetDrawing("提交的多线为空");
+                    return;
+                }
+
+                // 对每条子线应用样式并提交到 AppState
+                for (LineShape line : lines) {
+                    if (line == null) continue;
+
+                    // 应用最终样式
+                    try {
+                        getStyleHandler().applyFinalStyle(line);
+                    } catch (Exception e) {
+                        LOGGER.warn("LineTool: 为子线应用样式失败，继续提交其他线: {}", e.getMessage());
+                    }
+
+                    // 提交到 AppState（与 DrawingTool.commitShapeToAppState 保持一致的兼容行为）
+                    if (appState instanceof com.masterplanner.core.state.AppState) {
+                        ((com.masterplanner.core.state.AppState) appState).addShape(line);
+                    } else if (appState != null) {
+                        try {
+                            java.lang.reflect.Method addShapeMethod = appState.getClass()
+                                .getMethod("addShape", com.masterplanner.core.model.Shape.class);
+                            addShapeMethod.invoke(appState, line);
+                        } catch (Exception reflectionEx) {
+                            LOGGER.error("LineTool: 通过反射提交子线失败: {}", reflectionEx.getMessage(), reflectionEx);
+                            throw new RuntimeException("无法提交子线到AppState", reflectionEx);
+                        }
+                    } else {
+                        LOGGER.error("LineTool: 提交子线失败，appState 为 null");
+                        throw new IllegalStateException("AppState 不可用");
+                    }
+                }
+
+                // 所有子线提交完成后统一重置状态
+                resetDrawing("多线提交完成，已拆分为单线");
+                LOGGER.info("LineTool: 多线已拆分并提交为 {} 条独立线", lines.size());
+            } catch (RuntimeException e) {
+                LOGGER.error("LineTool: 提交多线时出错: {}", e.getMessage(), e);
+                resetDrawing("多线提交异常");
+                throw e;
+            } catch (Exception e) {
+                LOGGER.error("LineTool: 提交多线时发生未知错误: {}", e.getMessage(), e);
+                resetDrawing("多线提交异常");
+                throw new RuntimeException("提交多线失败", e);
+            }
+        } else {
+            super.commitShape(shape);
+        }
+    }
+
     @Override
     protected IInteractionStrategy createStrategy(InteractionType type) {
         // 使用通用线条策略，并在本地增强捕捉可视化
