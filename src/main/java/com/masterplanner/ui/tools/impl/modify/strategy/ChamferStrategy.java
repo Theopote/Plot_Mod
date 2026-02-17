@@ -358,6 +358,30 @@ public class ChamferStrategy implements IModifyStrategy {
                         (float)screenEnd.x, (float)screenEnd.y,
                         0xFFFFFFFF // 白色
                     );
+                } else if (shape instanceof PolylineShape polylineShape) {
+                    List<Vec2d> points = polylineShape.getPoints();
+                    for (int i = 0; i < points.size() - 1; i++) {
+                        Vec2d p1 = camera.worldToScreen(points.get(i));
+                        Vec2d p2 = camera.worldToScreen(points.get(i + 1));
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                    }
+                    if (polylineShape.isClosed() && points.size() > 2) {
+                        Vec2d p1 = camera.worldToScreen(points.getLast());
+                        Vec2d p2 = camera.worldToScreen(points.getFirst());
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                    }
+                } else if (shape instanceof Polygon polygon) {
+                    List<Vec2d> points = polygon.getPoints();
+                    for (int i = 0; i < points.size() - 1; i++) {
+                        Vec2d p1 = camera.worldToScreen(points.get(i));
+                        Vec2d p2 = camera.worldToScreen(points.get(i + 1));
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                    }
+                    if (polygon.isClosed() && points.size() > 2) {
+                        Vec2d p1 = camera.worldToScreen(points.getLast());
+                        Vec2d p2 = camera.worldToScreen(points.getFirst());
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                    }
                 }
                 // 可以添加其他Shape类型的绘制逻辑
             }

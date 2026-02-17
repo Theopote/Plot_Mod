@@ -107,13 +107,17 @@ public class ChamferHandler implements IModifyHandler {
         // 检查倒角距离是否超出选定保留端可用长度
         Vec2d intersection = calculateIntersection(line1, line2);
         if (intersection != null) {
-            Vec2d selectedEnd1 = chooseEndpointForTrim(line1, intersection, clickPoint1);
-            Vec2d selectedEnd2 = chooseEndpointForTrim(line2, intersection, clickPoint2);
+            Vec2d selectedEnd1 = chooseEndpointForTrim(line1, intersection, clickPoint1, distance);
+            Vec2d selectedEnd2 = chooseEndpointForTrim(line2, intersection, clickPoint2, distance);
+
+            if (selectedEnd1 == null || selectedEnd2 == null) {
+                return ValidationResult.invalid(String.format("倒角距离 %.1f 过大，超出线段范围", distance));
+            }
 
             double available1 = distance(intersection, selectedEnd1);
             double available2 = distance(intersection, selectedEnd2);
 
-            if (distance >= available1 || distance >= available2) {
+            if (distance > available1 || distance > available2) {
                 return ValidationResult.invalid(String.format("倒角距离 %.1f 过大，超出线段范围", distance));
             }
         }
@@ -366,6 +370,10 @@ public class ChamferHandler implements IModifyHandler {
             Vec2d trimPoint1 = calculateTrimPoint(line1, intersection, distance, clickPoint1);
             Vec2d trimPoint2 = calculateTrimPoint(line2, intersection, distance, clickPoint2);
 
+            if (trimPoint1 == null || trimPoint2 == null) {
+                return null;
+            }
+
             return new ChamferParameters(trimPoint1, trimPoint2);
             
         } catch (Exception e) {
@@ -379,26 +387,47 @@ public class ChamferHandler implements IModifyHandler {
      * 优化：正确计算从交点沿直线方向的修剪点
      */
     private Vec2d calculateTrimPoint(LineShape line, Vec2d intersection, double distance, Vec2d clickPoint) {
-        Vec2d selectedEndpoint = chooseEndpointForTrim(line, intersection, clickPoint);
+        Vec2d selectedEndpoint = chooseEndpointForTrim(line, intersection, clickPoint, distance);
+        if (selectedEndpoint == null) {
+            return null;
+        }
         Vec2d toEndpoint = new Vec2d(selectedEndpoint.x - intersection.x, selectedEndpoint.y - intersection.y);
         Vec2d normalizedDirection = normalize(toEndpoint);
         return new Vec2d(intersection.x + normalizedDirection.x * distance, 
                         intersection.y + normalizedDirection.y * distance);
     }
 
-    private Vec2d chooseEndpointForTrim(LineShape line, Vec2d intersection, Vec2d clickPoint) {
+    private Vec2d chooseEndpointForTrim(LineShape line, Vec2d intersection, Vec2d clickPoint, double chamferDistance) {
         Vec2d start = line.getStart();
         Vec2d end = line.getEnd();
+
+        double availableStart = distance(intersection, start);
+        double availableEnd = distance(intersection, end);
+
+        Vec2d preferred;
+        Vec2d alternate;
 
         if (clickPoint != null) {
             double distClickToStart = distance(clickPoint, start);
             double distClickToEnd = distance(clickPoint, end);
-            return distClickToStart <= distClickToEnd ? start : end;
+            preferred = distClickToStart <= distClickToEnd ? start : end;
+            alternate = preferred == start ? end : start;
+        } else {
+            preferred = availableStart < availableEnd ? start : end;
+            alternate = preferred == start ? end : start;
         }
 
-        double distToStart = distance(intersection, start);
-        double distToEnd = distance(intersection, end);
-        return distToStart < distToEnd ? start : end;
+        double preferredAvailable = preferred == start ? availableStart : availableEnd;
+        if (chamferDistance <= preferredAvailable) {
+            return preferred;
+        }
+
+        double alternateAvailable = alternate == start ? availableStart : availableEnd;
+        if (chamferDistance <= alternateAvailable) {
+            return alternate;
+        }
+
+        return null;
     }
     
     /**
