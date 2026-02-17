@@ -150,6 +150,11 @@ public class FilletStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onMouseUp(Vec2d point, int button, ModifyToolContext context) {
+        // 右键确认应用圆角
+        if (button == 1 && isReadyToApply()) {
+            return applyFillet(context);
+        }
+        
         if (isBoxSelecting) {
             // 检查是否为点选（拖动距离小于阈值）
             double dragDistance = boxStartPoint.distance(point);

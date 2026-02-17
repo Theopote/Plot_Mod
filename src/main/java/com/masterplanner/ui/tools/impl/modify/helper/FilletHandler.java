@@ -859,20 +859,35 @@ public class FilletHandler implements IModifyHandler {
     }
 
     /**
-     * 确定从交点指向直线远端的方向
+     * 确定从交点指向线段所在侧的方向（确保圆角在原始线段内侧）
+     * 
+     * 关键逻辑：检查交点是否在线段上
+     * - 如果交点在线段内（两个端点都在交点同侧之外），选择任一端点方向
+     * - 如果交点在线段外（延长线上），选择线段所在的方向（两个端点的平均方向）
      */
     private Vec2d determineFarDirection(LineShape line, Vec2d intersection) {
         Vec2d start = line.getStart();
         Vec2d end = line.getEnd();
         
-        // 计算交点到两个端点的距离
-        double distToStart = distance(intersection, start);
-        double distToEnd = distance(intersection, end);
+        // 计算线段的向量
+        Vec2d lineVec = new Vec2d(end.x - start.x, end.y - start.y);
+        double lineLength = Math.sqrt(lineVec.x * lineVec.x + lineVec.y * lineVec.y);
         
-        // 选择距离更远的端点作为方向
-        Vec2d farPoint = distToStart > distToEnd ? start : end;
+        // 计算交点在线段上的参数t: intersection = start + t * lineVec
+        // t = dot(intersection - start, lineVec) / ||lineVec||^2
+        Vec2d toIntersection = new Vec2d(intersection.x - start.x, intersection.y - start.y);
+        double t = (toIntersection.x * lineVec.x + toIntersection.y * lineVec.y) / (lineLength * lineLength);
         
-        return new Vec2d(farPoint.x - intersection.x, farPoint.y - intersection.y);
+        // 如果t在[0,1]之间，交点在线段上；否则在延长线上
+        if (t >= 0 && t <= 1) {
+            // 交点在线段上，选择任一端点（选择起点）
+            return new Vec2d(start.x - intersection.x, start.y - intersection.y);
+        } else {
+            // 交点在延长线上，应该指向线段所在的一侧
+            // 计算线段中点方向（指向线段中心）
+            Vec2d midPoint = new Vec2d((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
+            return new Vec2d(midPoint.x - intersection.x, midPoint.y - intersection.y);
+        }
     }
     
     /**
