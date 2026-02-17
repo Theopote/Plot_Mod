@@ -198,6 +198,31 @@ public class ChamferHandler implements IModifyHandler {
     
     @Override
     public List<Shape> createPreviewShapes(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
+        if (shapes != null && shapes.size() == 2 && shapes.get(0) == shapes.get(1)) {
+            Shape baseShape = shapes.get(0);
+            double chamferDistance = getDistanceFromParameters(parameters);
+            Vec2d clickPoint1 = getClickPoint1FromParameters(parameters);
+            Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
+
+            List<Shape> overlayPreview = null;
+            if (baseShape instanceof PolylineShape polyline) {
+                overlayPreview = createSinglePolylinePreview(polyline, chamferDistance, clickPoint1, clickPoint2);
+            } else if (baseShape instanceof Polygon polygon) {
+                overlayPreview = createSinglePolygonPreview(polygon, chamferDistance, clickPoint1, clickPoint2);
+            }
+
+            if (overlayPreview != null && !overlayPreview.isEmpty()) {
+                for (Shape preview : overlayPreview) {
+                    if (baseShape.getStyle() != null) {
+                        try { preview.setStyle(baseShape.getStyle().clone()); } catch (Exception ignore) {}
+                    }
+                    preview.setSelected(false);
+                    preview.setHighlighted(false);
+                }
+                return overlayPreview;
+            }
+        }
+
         List<Shape> modifiedShapes = calculateModifiedShapes(shapes, parameters);
         
         // 预览样式应与原图形一致
@@ -583,6 +608,13 @@ public class ChamferHandler implements IModifyHandler {
         int seg1 = nearestSegmentIndex(points, closed, c1);
         int seg2 = nearestSegmentIndex(points, closed, c2);
 
+        if (seg1 == seg2) {
+            Integer sameEdgeCorner = chooseCornerFromSingleSegment(seg1, points.size(), closed, c2);
+            if (sameEdgeCorner != null) {
+                return new CornerSelection(sameEdgeCorner);
+            }
+        }
+
         Integer adjacentCorner = getAdjacentCornerIndex(seg1, seg2, points.size(), closed);
         if (adjacentCorner != null) {
             return new CornerSelection(adjacentCorner);
@@ -660,6 +692,82 @@ public class ChamferHandler implements IModifyHandler {
         }
 
         return bestIndex;
+    }
+
+    private Integer chooseCornerFromSingleSegment(int segmentIndex, int pointCount, boolean closed, Vec2d anchorPoint) {
+        if (segmentIndex < 0 || pointCount < 2) {
+            return null;
+        }
+
+        int cornerA = segmentIndex;
+        int cornerB = (segmentIndex + 1) % pointCount;
+
+        if (!closed) {
+            if (cornerA <= 0) {
+                return cornerB;
+            }
+            if (cornerB >= pointCount - 1) {
+                return cornerA;
+            }
+        }
+
+        if (anchorPoint == null) {
+            return cornerB;
+        }
+
+        return cornerB;
+    }
+
+    private List<Shape> createSinglePolylinePreview(PolylineShape polyline, double chamferDistance,
+                                                    Vec2d clickPoint1, Vec2d clickPoint2) {
+        return createSingleShapePreviewLines(polyline.getPoints(), polyline.isClosed(),
+                chamferDistance, clickPoint1, clickPoint2);
+    }
+
+    private List<Shape> createSinglePolygonPreview(Polygon polygon, double chamferDistance,
+                                                   Vec2d clickPoint1, Vec2d clickPoint2) {
+        return createSingleShapePreviewLines(polygon.getPoints(), true,
+                chamferDistance, clickPoint1, clickPoint2);
+    }
+
+    private List<Shape> createSingleShapePreviewLines(List<Vec2d> points, boolean closed,
+                                                      double chamferDistance, Vec2d clickPoint1, Vec2d clickPoint2) {
+        if (points == null || points.size() < 3) {
+            return List.of();
+        }
+
+        CornerSelection cornerSelection = selectCorner(points, closed, clickPoint1, clickPoint2);
+        if (cornerSelection == null) {
+            return List.of();
+        }
+
+        int cornerIndex = cornerSelection.cornerIndex;
+        int n = points.size();
+        if (!closed && (cornerIndex <= 0 || cornerIndex >= n - 1)) {
+            return List.of();
+        }
+
+        int prevIndex = (cornerIndex - 1 + n) % n;
+        int nextIndex = (cornerIndex + 1) % n;
+
+        Vec2d prev = points.get(prevIndex);
+        Vec2d corner = points.get(cornerIndex);
+        Vec2d next = points.get(nextIndex);
+
+        double len1 = distance(corner, prev);
+        double len2 = distance(corner, next);
+        if (chamferDistance >= len1 || chamferDistance >= len2) {
+            return List.of();
+        }
+
+        Vec2d trim1 = corner.add(normalize(prev.subtract(corner)).multiply(chamferDistance));
+        Vec2d trim2 = corner.add(normalize(next.subtract(corner)).multiply(chamferDistance));
+
+        List<Shape> preview = new ArrayList<>();
+        preview.add(new LineShape(prev, trim1));
+        preview.add(new LineShape(trim1, trim2));
+        preview.add(new LineShape(trim2, next));
+        return preview;
     }
 
     private double distancePointToSegment(Vec2d p, Vec2d a, Vec2d b) {

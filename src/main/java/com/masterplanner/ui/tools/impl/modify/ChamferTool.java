@@ -6,10 +6,12 @@ import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.tools.impl.modify.strategy.ChamferStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.masterplanner.core.graphics.DrawContext;
+import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.EventListener;
 import com.masterplanner.infrastructure.event.base.Event;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
+import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,6 +174,19 @@ public class ChamferTool extends ModifyTool implements EventListener {
                 LOGGER.error("预览渲染失败", e);
             }
         }
+    }
+
+    @Override
+    public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
+        IModifyStrategy strategy = getStrategy();
+        if (strategy != null) {
+            try {
+                strategy.renderPreview(drawList, camera);
+            } catch (Exception e) {
+                LOGGER.error("ImGui 预览渲染失败", e);
+            }
+        }
+        super.renderPreview(drawList, camera);
     }
     
     @Override

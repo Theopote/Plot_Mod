@@ -15,6 +15,7 @@ import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
 import imgui.ImDrawList;
 
 import java.awt.event.KeyEvent;
+import java.awt.Color;
 import java.util.List;
 
 /**
@@ -335,10 +336,40 @@ public class ChamferStrategy implements IModifyStrategy {
         // 渲染倒角预览
         if (previewEnabled && previewShapes != null) {
             for (Shape shape : previewShapes) {
-                // 修复：使用render方法而不是draw方法，确保应用正确的样式
-                shape.render(context);
+                renderDashedPreviewShape(context, shape);
             }
         }
+    }
+
+    private void renderDashedPreviewShape(DrawContext context, Shape shape) {
+        if (shape instanceof LineShape line) {
+            context.drawDashedLine(line.getStart(), line.getEnd(), Color.WHITE);
+            return;
+        }
+
+        if (shape instanceof PolylineShape polyline) {
+            List<Vec2d> points = polyline.getPoints();
+            for (int i = 0; i < points.size() - 1; i++) {
+                context.drawDashedLine(points.get(i), points.get(i + 1), Color.WHITE);
+            }
+            if (polyline.isClosed() && points.size() > 2) {
+                context.drawDashedLine(points.getLast(), points.getFirst(), Color.WHITE);
+            }
+            return;
+        }
+
+        if (shape instanceof Polygon polygon) {
+            List<Vec2d> points = polygon.getPoints();
+            for (int i = 0; i < points.size() - 1; i++) {
+                context.drawDashedLine(points.get(i), points.get(i + 1), Color.WHITE);
+            }
+            if (polygon.isClosed() && points.size() > 2) {
+                context.drawDashedLine(points.getLast(), points.getFirst(), Color.WHITE);
+            }
+            return;
+        }
+
+        shape.render(context);
     }
     
     @Override
