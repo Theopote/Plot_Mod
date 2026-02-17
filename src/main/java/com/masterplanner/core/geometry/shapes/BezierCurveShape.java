@@ -2119,19 +2119,27 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                 BreakInfo breakInfo = findBreakInfo(localFirstPoint);
                 if (breakInfo != null) {
                     List<BezierCurveShape> brokenCurves = breakAtParameter(breakInfo.segmentIndex, breakInfo.parameter);
-                    
+
                     // 应用样式和变换
                     for (BezierCurveShape curve : brokenCurves) {
                         if (getStyle() != null) curve.setStyle(getStyle().clone());
                         if (getTransform() != null) curve.setTransform(getTransform().clone());
                         newShapes.add(curve);
                     }
+                } else {
+                    // 未能找到精确断点，回退到基于采样的多段线打断以保证可用性
+                    return fallbackBreakShape(localFirstPoint, null, breakMode);
                 }
             } else if ("TWO_POINT".equals(breakMode) && localSecondPoint != null) {
                 // 两点打断：使用De Casteljau算法精确分割
                 BreakInfo firstBreak = findBreakInfo(localFirstPoint);
                 BreakInfo secondBreak = findBreakInfo(localSecondPoint);
-                
+
+                if (firstBreak == null || secondBreak == null) {
+                    // 无法找到两个断点之一，回退到采样多段线的实现
+                    return fallbackBreakShape(localFirstPoint, localSecondPoint, breakMode);
+                }
+
                 if (firstBreak != null && secondBreak != null) {
                     // 确保第一个断点在第二个断点之前
                     if (firstBreak.segmentIndex > secondBreak.segmentIndex || 
@@ -2191,16 +2199,36 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                 double t = j / 100.0;
                 Vec2d curvePoint = seg.getPointAt(t);
                 double distance = curvePoint.distance(point);
-                
+
                 if (distance < minDistance) {
                     minDistance = distance;
                     bestT = t;
                 }
             }
-            
-            // 如果找到足够接近的点
+
+            // 如果找到极其接近的点，直接返回
             if (minDistance < 1e-6) {
                 return new BreakInfo(i, bestT);
+            }
+
+            // 如果距离略大但仍可能为用户意图（考虑屏幕/世界坐标转换误差），
+            // 在最优 t 附近做局部细化搜索以提高命中率并允许更宽松的阈值。
+            if (minDistance < 1e-2) {
+                double startT = Math.max(0.0, bestT - 1.0 / 100.0);
+                double endT = Math.min(1.0, bestT + 1.0 / 100.0);
+                for (int k = 0; k <= 200; k++) {
+                    double t2 = startT + (endT - startT) * k / 200.0;
+                    Vec2d p2 = seg.getPointAt(t2);
+                    double d2 = p2.distance(point);
+                    if (d2 < minDistance) {
+                        minDistance = d2;
+                        bestT = t2;
+                    }
+                }
+
+                if (minDistance < 1e-2) {
+                    return new BreakInfo(i, bestT);
+                }
             }
         }
         
