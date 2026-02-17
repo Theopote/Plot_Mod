@@ -78,7 +78,7 @@ public class ChamferStrategy implements IModifyStrategy {
     private boolean isBoxSelecting = false;
     private Vec2d boxStartPoint;
     private Vec2d boxCurrentPoint;
-    private List<Shape> boxSelectedShapes = new ArrayList<>();
+    private final java.util.LinkedList<Shape> boxSelectedShapes = new java.util.LinkedList<>();
     
     // 从 Tool 传入的配置
     private boolean previewEnabled = true;
@@ -221,14 +221,16 @@ public class ChamferStrategy implements IModifyStrategy {
             if (!boxSelectedShapes.isEmpty()) {
                 Shape selectedShape = boxSelectedShapes.getFirst();
                 if (selectedShape instanceof LineShape line) {
-                    return switch (currentState) {
+                    ModifyResult res = switch (currentState) {
                         case SELECT_FIRST_LINE -> handleMouseDown_SelectFirst(line, context);
                         case SELECT_SECOND_LINE -> handleMouseDown_SelectSecond(line, context);
                         case READY_TO_APPLY -> ModifyResult.IGNORED;
                     };
+                    // 不在此处结束工具；保持 CONTINUE 让用户确认（例如按Enter）或继续交互
+                    return res == ModifyResult.IGNORED ? ModifyResult.CONTINUE : res;
                 }
             }
-            return ModifyResult.COMPLETE;
+            return ModifyResult.CONTINUE;
         }
         return ModifyResult.IGNORED;
     }
@@ -349,7 +351,8 @@ public class ChamferStrategy implements IModifyStrategy {
      * 优化：简化状态机，将isReadyToApply()与currentState绑定
      */
     public boolean isReadyToApply() {
-        return currentState == ChamferState.READY_TO_APPLY && line1 != null && line2 != null;
+        // 更直观的可用性判定：只要有两条线就认为可以准备应用（状态由调用方维护）
+        return line1 != null && line2 != null;
     }
 
     public void updateConfig(String key, Object value) {
