@@ -841,36 +841,33 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
                         // 第一个点和鼠标之间显示线段预览
                         updateThreePointsAxisPreview();
                         return InteractionResult.CONTINUE;
-                    } else if (controlPoints.size() >= 2) {
+                    } else {
                         // 有足够的点来生成椭圆预览
                         updateThreePointsAxisPreview();
                         return InteractionResult.CONTINUE;
                     }
-                    break;
-                    
+
                 case THREE_POINTS_CENTER:
                     if (controlPoints.size() == 1) {
                         // 显示以中心点为圆心的预览圆
                         updateThreePointsCenterPreview();
                         return InteractionResult.CONTINUE;
-                    } else if (controlPoints.size() >= 2) {
+                    } else {
                         // 有足够的点来生成椭圆预览
                         updateThreePointsCenterPreview();
                         return InteractionResult.CONTINUE;
                     }
-                    break;
-                    
+
                 case TWO_POINTS:
                     if (controlPoints.size() == 1) {
                         // 显示矩形预览
                         updateTwoPointsEllipsePreview();
                         return InteractionResult.CONTINUE;
-                    } else if (controlPoints.size() >= 2) {
+                    } else {
                         // 有足够的点来生成椭圆预览
                         updateTwoPointsEllipsePreview();
                         return InteractionResult.CONTINUE;
                     }
-                    break;
             }
             
             // 强制更新预览
