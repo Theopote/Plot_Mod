@@ -41,18 +41,25 @@ public class FilletStrategy implements IModifyStrategy {
     private static final int KEY_PLUS = KeyEvent.VK_EQUALS; // + 键
     private static final int KEY_MINUS = KeyEvent.VK_MINUS; // - 键
     
-    // 参数记录类 - 简化版本，只保留半径
-    public record FilletParameters(double radius) 
+    // 参数记录类 - 包含半径和点击位置
+    public record FilletParameters(double radius, Vec2d clickPoint1, Vec2d clickPoint2) 
             implements IModifyHandler.ModifyParameters {
         
         @Override
         public boolean hasParameter(String name) {
-            return FilletConstants.CONFIG_KEY_RADIUS.equals(name);
+            return FilletConstants.CONFIG_KEY_RADIUS.equals(name) 
+                || "clickPoint1".equals(name) 
+                || "clickPoint2".equals(name);
         }
         
         @Override
         public Object getParameter(String name) {
-            return FilletConstants.CONFIG_KEY_RADIUS.equals(name) ? radius : null;
+            return switch (name) {
+                case "radius" -> radius;
+                case "clickPoint1" -> clickPoint1;
+                case "clickPoint2" -> clickPoint2;
+                default -> null;
+            };
         }
         
         @Override
@@ -73,6 +80,8 @@ public class FilletStrategy implements IModifyStrategy {
     private LineShape line2;
     private Shape shape1; // 添加第一个图形引用
     private Shape shape2; // 添加第二个图形引用
+    private Vec2d clickPoint1; // 第一条线的点击位置
+    private Vec2d clickPoint2; // 第二条线的点击位置
     private double radius;
     private List<Shape> previewShapes; // 使用 Shape 列表存储预览图形
     
@@ -106,6 +115,8 @@ public class FilletStrategy implements IModifyStrategy {
         line2 = null;
         shape1 = null; // 重置第一个图形
         shape2 = null; // 重置第二个图形
+        clickPoint1 = null; // 重置第一个点击位置
+        clickPoint2 = null; // 重置第二个点击位置
         previewShapes = null;
         clearHighlight();
     }
@@ -166,6 +177,19 @@ public class FilletStrategy implements IModifyStrategy {
                     boxSelectedShapes.clear();
                     boxSelectedShapes.add(clickedShape);
                     LOGGER.debug("点选模式：选中图形 {}", clickedShape.getId());
+                    
+                    // 保存点击位置并调用对应的处理方法
+                    ModifyResult result = switch (currentState) {
+                        case SELECT_FIRST_LINE -> handleMouseDown_SelectFirst(clickedShape, snappedPoint, context);
+                        case SELECT_SECOND_LINE -> handleMouseDown_SelectSecond(clickedShape, snappedPoint, context);
+                        case READY_TO_APPLY -> ModifyResult.IGNORED;
+                    };
+                    
+                    // 重置框选状态
+                    isBoxSelecting = false;
+                    boxStartPoint = null;
+                    boxCurrentPoint = null;
+                    return result;
                 }
             } else {
                 // 框选模式：应用最终选择
@@ -177,18 +201,6 @@ public class FilletStrategy implements IModifyStrategy {
             isBoxSelecting = false;
             boxStartPoint = null;
             boxCurrentPoint = null;
-            
-            // 如果有选中的图形，选择第一个作为目标
-            if (!boxSelectedShapes.isEmpty()) {
-                Shape selectedShape = boxSelectedShapes.getFirst();
-                if (isFilletableShape(selectedShape)) {
-                    return switch (currentState) {
-                        case SELECT_FIRST_LINE -> handleMouseDown_SelectFirst(selectedShape, context);
-                        case SELECT_SECOND_LINE -> handleMouseDown_SelectSecond(selectedShape, context);
-                        case READY_TO_APPLY -> ModifyResult.IGNORED;
-                    };
-                }
-            }
             
             return ModifyResult.COMPLETE;
         }
@@ -352,21 +364,25 @@ public class FilletStrategy implements IModifyStrategy {
     /**
      * 处理选择第一个图形时的鼠标按下
      */
-    private ModifyResult handleMouseDown_SelectFirst(Shape shape, ModifyToolContext context) {
+    private ModifyResult handleMouseDown_SelectFirst(Shape shape, Vec2d clickPoint, ModifyToolContext context) {
         line1 = null; // 重置为null，因为现在可能是其他类型的图形
         shape1 = shape; // 保存第一个图形
+        clickPoint1 = clickPoint; // 保存点击位置
         currentState = FilletState.SELECT_SECOND_LINE;
         context.setStatusMessage(FilletConstants.STATUS_SELECT_SECOND_LINE);
+        LOGGER.debug("选中第一个图形，点击位置: {}", clickPoint);
         return ModifyResult.CONTINUE;
     }
     
     /**
      * 处理选择第二个图形时的鼠标按下
      */
-    private ModifyResult handleMouseDown_SelectSecond(Shape shape, ModifyToolContext context) {
+    private ModifyResult handleMouseDown_SelectSecond(Shape shape, Vec2d clickPoint, ModifyToolContext context) {
         if (shape != shape1) {
             line2 = null; // 重置为null，因为现在可能是其他类型的图形
             shape2 = shape; // 保存第二个图形
+            clickPoint2 = clickPoint; // 保存点击位置
+            LOGGER.debug("选中第二个图形，点击位置: {}", clickPoint);
             // 验证并生成预览
             updatePreviewWithContext(context);
             if (isReadyToApply()) {
@@ -538,7 +554,7 @@ public class FilletStrategy implements IModifyStrategy {
      * 创建参数对象 - 简化版本
      */
     private FilletParameters createModifyParameters() {
-        return new FilletParameters(radius); // 只需传递半径
+        return new FilletParameters(radius, clickPoint1, clickPoint2); // 传递半径和点击位置
     }
     
     // ====== 辅助方法 ======

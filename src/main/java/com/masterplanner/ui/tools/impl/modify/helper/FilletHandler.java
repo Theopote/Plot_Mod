@@ -184,12 +184,15 @@ public class FilletHandler implements IModifyHandler {
         Shape shape1 = shapes.get(0);
         Shape shape2 = shapes.get(1);
         double radius = getRadiusFromParameters(parameters);
+        Vec2d clickPoint1 = getClickPoint1FromParameters(parameters);
+        Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
         
         List<Shape> result = new ArrayList<>();
         
         try {
             // 找到最佳的边对进行圆角
-            FilletOperation filletOp = findBestFilletOperation(shape1, shape2, radius);
+            FilletOperation filletOp = findBestFilletOperation(shape1, shape2, radius, 
+                                                              clickPoint1, clickPoint2);
             
             if (filletOp == null) {
                 LOGGER.warn("无法找到合适的圆角操作");
@@ -234,26 +237,67 @@ public class FilletHandler implements IModifyHandler {
     }
     
     /**
-     * 找到最佳的圆角操作
+     * 找到最佳的圆角操作 - 使用点击位置选择最接近的边
      */
-    private FilletOperation findBestFilletOperation(Shape shape1, Shape shape2, double radius) {
+    private FilletOperation findBestFilletOperation(Shape shape1, Shape shape2, double radius, 
+                                                   Vec2d clickPoint1, Vec2d clickPoint2) {
         List<LineShape> edges1 = getFilletableEdges(shape1);
         List<LineShape> edges2 = getFilletableEdges(shape2);
         
+        // 如果有点击位置，使用点击位置选择最接近的边
+        LineShape edge1 = null;
+        LineShape edge2 = null;
+        
+        if (clickPoint1 != null && clickPoint2 != null) {
+            // 找到最接近点击位置1的边
+            double minDist1 = Double.MAX_VALUE;
+            for (LineShape e : edges1) {
+                double dist = distanceToLine(clickPoint1, e);
+                if (dist < minDist1) {
+                    minDist1 = dist;
+                    edge1 = e;
+                }
+            }
+            
+            // 找到最接近点击位置2的边
+            double minDist2 = Double.MAX_VALUE;
+            for (LineShape e : edges2) {
+                double dist = distanceToLine(clickPoint2, e);
+                if (dist < minDist2) {
+                    minDist2 = dist;
+                    edge2 = e;
+                }
+            }
+            
+            // 验证选中的边对
+            if (edge1 != null && edge2 != null && edge1 != edge2) {
+                ValidationResult validation = validateEdgePair(edge1, edge2, radius);
+                if (validation.isValid()) {
+                    FilletParameters filletParams = calculateFilletParameters(edge1, edge2, radius, 
+                                                                            clickPoint1, clickPoint2);
+                    if (filletParams != null) {
+                        return new FilletOperation(shape1, shape2, edge1, edge2, radius, filletParams);
+                    }
+                }
+            }
+        }
+        
+        // 如果没有点击位置或使用点击位置失败，则选择评分最高的边对
         FilletOperation bestOperation = null;
         double bestScore = -1;
         
-        for (LineShape edge1 : edges1) {
-            for (LineShape edge2 : edges2) {
-                if (edge1 != edge2) {
-                    ValidationResult validation = validateEdgePair(edge1, edge2, radius);
+        for (LineShape e1 : edges1) {
+            for (LineShape e2 : edges2) {
+                if (e1 != e2) {
+                    ValidationResult validation = validateEdgePair(e1, e2, radius);
                     if (validation.isValid()) {
-                        FilletParameters filletParams = calculateFilletParameters(edge1, edge2, radius);
+                        FilletParameters filletParams = calculateFilletParameters(e1, e2, radius,
+                                                                                clickPoint1, clickPoint2);
                         if (filletParams != null) {
-                            double score = calculateFilletScore(edge1, edge2, filletParams);
+                            double score = calculateFilletScore(e1, e2, filletParams);
                             if (score > bestScore) {
                                 bestScore = score;
-                                bestOperation = new FilletOperation(shape1, shape2, edge1, edge2, radius, filletParams);
+                                bestOperation = new FilletOperation(shape1, shape2, e1, e2, radius, filletParams);
                             }
                         }
                     }
@@ -261,7 +305,7 @@ public class FilletHandler implements IModifyHandler {
             }
         }
         
-        return bestOperation;
+       return bestOperation;
     }
     
     /**
@@ -487,10 +531,13 @@ public class FilletHandler implements IModifyHandler {
         Shape shape1 = originalShapes.get(0);
         Shape shape2 = originalShapes.get(1);
         double radius = getRadiusFromParameters(parameters);
+        Vec2d clickPoint1 = getClickPoint1FromParameters(parameters);
+        Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
         
         try {
             // 找到最佳的圆角操作
-            FilletOperation filletOp = findBestFilletOperation(shape1, shape2, radius);
+            FilletOperation filletOp = findBestFilletOperation(shape1, shape2, radius, 
+                                                              clickPoint1, clickPoint2);
             
             if (filletOp == null) {
                 LOGGER.warn("无法找到合适的圆角操作");
@@ -530,6 +577,32 @@ public class FilletHandler implements IModifyHandler {
         }
         
         return FilletConstants.DEFAULT_RADIUS; // 默认半径
+    }
+    
+    /**
+     * 从参数中提取点击位置1
+     */
+    private Vec2d getClickPoint1FromParameters(IModifyHandler.ModifyParameters parameters) {
+        if (parameters.hasParameter("clickPoint1")) {
+            Object clickPointObj = parameters.getParameter("clickPoint1");
+            if (clickPointObj instanceof Vec2d) {
+                return (Vec2d) clickPointObj;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 从参数中提取点击位置2
+     */
+    private Vec2d getClickPoint2FromParameters(IModifyHandler.ModifyParameters parameters) {
+        if (parameters.hasParameter("clickPoint2")) {
+            Object clickPointObj = parameters.getParameter("clickPoint2");
+            if (clickPointObj instanceof Vec2d) {
+                return (Vec2d) clickPointObj;
+            }
+        }
+        return null;
     }
     
     /**
@@ -673,123 +746,91 @@ public class FilletHandler implements IModifyHandler {
     }
     
     /**
-     * 计算圆角参数 - 修复相切关系版本
+     * 计算圆角参数（CAD式逻辑）：
+     * 1) 先根据点击位置确定两条线的“保留方向”
+     * 2) 再由夹角与半径计算切点/圆心
+     * 3) 最后构造小于180°的正确圆弧方向
      */
-    private FilletParameters calculateFilletParameters(LineShape line1, LineShape line2, double radius) {
+    private FilletParameters calculateFilletParameters(LineShape line1, LineShape line2, double radius,
+                                                      Vec2d clickPoint1, Vec2d clickPoint2) {
         try {
-            // 计算交点
             IntersectionResult intersectionResult = calculateIntersection(line1, line2);
             if (intersectionResult == null) {
                 LOGGER.warn("两条直线不相交，无法进行圆角操作");
                 return null;
             }
-            
+
             Vec2d intersection = intersectionResult.intersection;
-            
-            // 计算两条直线的方向向量
-            Vec2d dir1 = normalize(new Vec2d(line1.getEnd().x - line1.getStart().x, 
-                                            line1.getEnd().y - line1.getStart().y));
-            Vec2d dir2 = normalize(new Vec2d(line2.getEnd().x - line2.getStart().x, 
-                                            line2.getEnd().y - line2.getStart().y));
-            
-            // 计算两条直线的角度
-            double angle1 = Math.atan2(dir1.y, dir1.x);
-            double angle2 = Math.atan2(dir2.y, dir2.x);
-            
-            // 计算角度差
-            double angleDiff = Math.abs(angle2 - angle1);
-            if (angleDiff > Math.PI) {
-                angleDiff = 2 * Math.PI - angleDiff;
+            Vec2d dir1 = normalize(determineFarDirection(line1, intersection, clickPoint1));
+            Vec2d dir2 = normalize(determineFarDirection(line2, intersection, clickPoint2));
+
+            if (distance(new Vec2d(0, 0), dir1) < FilletConstants.FILLET_TOLERANCE
+                || distance(new Vec2d(0, 0), dir2) < FilletConstants.FILLET_TOLERANCE) {
+                return null;
             }
-            
-            // 检查角度是否合适
-            if (angleDiff < FilletConstants.MIN_ANGLE_DIFF || angleDiff > FilletConstants.MAX_ANGLE_DIFF) {
+
+            double dot = Math.max(-1.0, Math.min(1.0, dir1.x * dir2.x + dir1.y * dir2.y));
+            double angle = Math.acos(dot);
+            if (angle < FilletConstants.MIN_ANGLE_DIFF || angle > FilletConstants.MAX_ANGLE_DIFF) {
                 LOGGER.warn("直线角度不合适，无法进行圆角操作");
                 return null;
             }
-            
-            // 计算圆心 - 使用平行线交点方法确保相切
-            Vec2d center = calculateFilletCenter(line1, line2, radius, intersection);
-            if (center == null) {
-                LOGGER.warn("无法计算圆角圆心");
+
+            double halfAngle = angle / 2.0;
+            double tangentOffset = radius / Math.tan(halfAngle);
+            double centerOffset = radius / Math.sin(halfAngle);
+
+            Vec2d trimPoint1 = new Vec2d(
+                intersection.x + dir1.x * tangentOffset,
+                intersection.y + dir1.y * tangentOffset
+            );
+            Vec2d trimPoint2 = new Vec2d(
+                intersection.x + dir2.x * tangentOffset,
+                intersection.y + dir2.y * tangentOffset
+            );
+
+            Vec2d bisector = normalize(new Vec2d(dir1.x + dir2.x, dir1.y + dir2.y));
+            if (distance(new Vec2d(0, 0), bisector) < FilletConstants.FILLET_TOLERANCE) {
                 return null;
             }
-            
-            // 计算修剪点 - 使用相切点计算
-            Vec2d[] trimPoints = calculateTangentPoints(center, radius, line1, line2, intersection);
-            if (trimPoints == null) {
-                LOGGER.warn("无法计算相切点");
-                return null;
-            }
-            
-            Vec2d trimPoint1 = trimPoints[0];
-            Vec2d trimPoint2 = trimPoints[1];
-            
-            // 确定要保留的端点（距离交点更远的端点）
-            Vec2d preservedEndPoint1 = distance(line1.getStart(), intersection) > distance(line1.getEnd(), intersection) 
-                                    ? line1.getStart() : line1.getEnd();
-            Vec2d preservedEndPoint2 = distance(line2.getStart(), intersection) > distance(line2.getEnd(), intersection)
-                                    ? line2.getStart() : line2.getEnd();
-            
-            // 调试日志：记录保留端点的选择
-            LOGGER.debug("圆角修剪逻辑 - 交点: {}, 第一条线保留端点: {}, 第二条线保留端点: {}", 
-                        intersection, preservedEndPoint1, preservedEndPoint2);
-            
-            // 计算圆弧角度 - 修复版本，确保正确的圆弧方向
+            Vec2d center = new Vec2d(
+                intersection.x + bisector.x * centerOffset,
+                intersection.y + bisector.y * centerOffset
+            );
+
+            Vec2d preservedEndPoint1 = selectPreservedEndpoint(line1, intersection, dir1);
+            Vec2d preservedEndPoint2 = selectPreservedEndpoint(line2, intersection, dir2);
+
             double startAngle = Math.atan2(trimPoint1.y - center.y, trimPoint1.x - center.x);
             double endAngle = Math.atan2(trimPoint2.y - center.y, trimPoint2.x - center.x);
-            
-            // 计算从交点指向两个端点的方向，确定圆弧应该在哪一侧
-            dir1 = determineFarDirection(line1, intersection);
-            dir2 = determineFarDirection(line2, intersection);
-            
-            // 计算叉积判断旋转方向（正值表示逆时针，负值表示顺时针）
+
             double cross = dir1.x * dir2.y - dir1.y * dir2.x;
-            
-            // 根据叉积确定正确的角度顺序
-            if (cross > 0) {
-                // 逆时针旋转，确保 endAngle > startAngle
+            if (cross >= 0) {
+                while (endAngle <= startAngle) {
+                    endAngle += 2 * Math.PI;
+                }
             } else {
-                // 顺时针旋转，交换起始和结束角度
                 double temp = startAngle;
                 startAngle = endAngle;
                 endAngle = temp;
-            }
-            while (endAngle <= startAngle) {
-                endAngle += 2 * Math.PI;
-            }
-
-            // 验证圆弧角度是否合理（应该小于180度）
-            double arcAngle = endAngle - startAngle;
-            if (arcAngle > Math.PI) {
-                // 如果圆弧角度大于180度，说明圆心位置错误，调整到另一侧
-                LOGGER.debug("圆弧角度过大({}度)，尝试使用相反侧的圆心", Math.toDegrees(arcAngle));
-                center = calculateFilletCenter(line1, line2, radius, intersection, true);
-                if (center != null) {
-                    trimPoints = calculateTangentPoints(center, radius, line1, line2, intersection);
-                    if (trimPoints != null) {
-                        trimPoint1 = trimPoints[0];
-                        trimPoint2 = trimPoints[1];
-                        startAngle = Math.atan2(trimPoint1.y - center.y, trimPoint1.x - center.x);
-                        endAngle = Math.atan2(trimPoint2.y - center.y, trimPoint2.x - center.x);
-                        
-                        // 重新应用方向规则
-                        if (!(cross > 0)) {
-                            double temp = startAngle;
-                            startAngle = endAngle;
-                            endAngle = temp;
-                        }
-                        while (endAngle <= startAngle) {
-                            endAngle += 2 * Math.PI;
-                        }
-                    }
+                while (endAngle <= startAngle) {
+                    endAngle += 2 * Math.PI;
                 }
             }
-            
-            return new FilletParameters(center, trimPoint1, trimPoint2, 
-                                      preservedEndPoint1, preservedEndPoint2,
-                                      startAngle, endAngle);
-            
+
+            if (endAngle - startAngle > Math.PI) {
+                double temp = startAngle;
+                startAngle = endAngle;
+                endAngle = temp;
+                while (endAngle <= startAngle) {
+                    endAngle += 2 * Math.PI;
+                }
+            }
+
+            return new FilletParameters(center, trimPoint1, trimPoint2,
+                preservedEndPoint1, preservedEndPoint2,
+                startAngle, endAngle);
+
         } catch (Exception e) {
             LOGGER.error("计算圆角参数失败", e);
             return null;
@@ -803,15 +844,18 @@ public class FilletHandler implements IModifyHandler {
      * @param line2 第二条直线
      * @param radius 圆角半径
      * @param intersection 交点
+     * @param clickPoint1 第一条线的点击位置
+     * @param clickPoint2 第二条线的点击位置
      * @param opposite 是否使用相反方向（用于处理钝角）
      * @return 圆心坐标
      */
     private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius, 
-                                      Vec2d intersection, boolean opposite) {
+                                      Vec2d intersection, Vec2d clickPoint1, Vec2d clickPoint2,
+                                      boolean opposite) {
         try {
             // 计算两条直线的方向向量（从交点指向远端）
-            Vec2d dir1 = determineFarDirection(line1, intersection);
-            Vec2d dir2 = determineFarDirection(line2, intersection);
+            Vec2d dir1 = determineFarDirection(line1, intersection, clickPoint1);
+            Vec2d dir2 = determineFarDirection(line2, intersection, clickPoint2);
             
             // 归一化方向向量
             dir1 = normalize(dir1);
@@ -854,71 +898,58 @@ public class FilletHandler implements IModifyHandler {
         double halfAngle = Math.abs(angleDiff) / 2.0;
 
         // 计算从交点到圆心的距离：d = r / sin(halfAngle)
-        double distToCenter = radius / Math.sin(halfAngle);
-        return distToCenter;
+        return radius / Math.sin(halfAngle);
     }
 
     /**
-     * 确定从交点指向线段所在侧的方向（确保圆角在原始线段内侧）
+     * 确定从交点指向线段所在侧的方向（确保圆角在用户点击位置对应的一侧）
      * 
-     * 关键逻辑：检查交点是否在线段上
-     * - 如果交点在线段内（两个端点都在交点同侧之外），选择任一端点方向
-     * - 如果交点在线段外（延长线上），选择线段所在的方向（两个端点的平均方向）
+     * CAD标准行为：圆角应该在用户点击的两条线之间的夹角内
+     * 实现方式：使用点击位置来判断用户想要保留的线段部分
+     * 
+     * @param line 线段
+     * @param intersection 交点
+     * @param clickPoint 用户点击位置（如果为null，则使用默认逻辑）
+     * @return 从交点指向线段应该保留的方向
      */
-    private Vec2d determineFarDirection(LineShape line, Vec2d intersection) {
+    private Vec2d determineFarDirection(LineShape line, Vec2d intersection, Vec2d clickPoint) {
         Vec2d start = line.getStart();
         Vec2d end = line.getEnd();
-        
-        // 计算线段的向量
-        Vec2d lineVec = new Vec2d(end.x - start.x, end.y - start.y);
-        double lineLength = Math.sqrt(lineVec.x * lineVec.x + lineVec.y * lineVec.y);
-        
-        // 计算交点在线段上的参数t: intersection = start + t * lineVec
-        // t = dot(intersection - start, lineVec) / ||lineVec||^2
-        Vec2d toIntersection = new Vec2d(intersection.x - start.x, intersection.y - start.y);
-        double t = (toIntersection.x * lineVec.x + toIntersection.y * lineVec.y) / (lineLength * lineLength);
-        
-        // 如果t在[0,1]之间，交点在线段上；否则在延长线上
-        if (t >= 0 && t <= 1) {
-            // 交点在线段上，选择任一端点（选择起点）
-            return new Vec2d(start.x - intersection.x, start.y - intersection.y);
-        } else {
-            // 交点在延长线上，应该指向线段所在的一侧
-            // 计算线段中点方向（指向线段中心）
-            Vec2d midPoint = new Vec2d((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
-            return new Vec2d(midPoint.x - intersection.x, midPoint.y - intersection.y);
+ 
+        Vec2d toStart = new Vec2d(start.x - intersection.x, start.y - intersection.y);
+        Vec2d toEnd = new Vec2d(end.x - intersection.x, end.y - intersection.y);
+
+        if (clickPoint != null) {
+            Vec2d toClick = new Vec2d(clickPoint.x - intersection.x, clickPoint.y - intersection.y);
+            double scoreStart = toStart.x * toClick.x + toStart.y * toClick.y;
+            double scoreEnd = toEnd.x * toClick.x + toEnd.y * toClick.y;
+            return scoreStart >= scoreEnd ? toStart : toEnd;
         }
+
+        // 无点击信息时，优先取更接近交点的一端，避免跑到延长线外侧
+        double dStart = distance(intersection, start);
+        double dEnd = distance(intersection, end);
+        return dStart <= dEnd ? toStart : toEnd;
+    }
+
+    private Vec2d selectPreservedEndpoint(LineShape line, Vec2d intersection, Vec2d direction) {
+        Vec2d start = line.getStart();
+        Vec2d end = line.getEnd();
+        Vec2d toStart = new Vec2d(start.x - intersection.x, start.y - intersection.y);
+        Vec2d toEnd = new Vec2d(end.x - intersection.x, end.y - intersection.y);
+
+        double scoreStart = toStart.x * direction.x + toStart.y * direction.y;
+        double scoreEnd = toEnd.x * direction.x + toEnd.y * direction.y;
+        return scoreStart >= scoreEnd ? start : end;
     }
     
     /**
      * 计算圆角圆心 - 重载方法，默认不使用相反方向
      */
-    private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius, Vec2d intersection) {
-        return calculateFilletCenter(line1, line2, radius, intersection, false);
-    }
-
-    /**
-     * 计算两条直线的交点（参数化形式）
-     *
-     * @param p1 第一条直线的起点
-     * @param dir1 第一条直线的方向向量
-     * @param p2 第二条直线的起点
-     * @param dir2 第二条直线的方向向量
-     * @return 交点坐标
-     */
-    private Vec2d calculateLineIntersection(Vec2d p1, Vec2d dir1, Vec2d p2, Vec2d dir2) {
-        // 计算行列式
-        double det = dir1.x * dir2.y - dir1.y * dir2.x;
-
-        if (Math.abs(det) < FilletConstants.PARALLEL_TOLERANCE) {
-            return null; // 直线平行
-        }
-
-        // 计算参数
-        double t1 = ((p2.x - p1.x) * dir2.y - (p2.y - p1.y) * dir2.x) / det;
-
-        // 计算交点
-        return new Vec2d(p1.x + t1 * dir1.x, p1.y + t1 * dir1.y);
+    private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius, 
+                                      Vec2d intersection, Vec2d clickPoint1, Vec2d clickPoint2) {
+        return calculateFilletCenter(line1, line2, radius, intersection, 
+                                   clickPoint1, clickPoint2, false);
     }
 
     /**
@@ -1014,5 +1045,31 @@ public class FilletHandler implements IModifyHandler {
         double dx = p1.x - p2.x;
         double dy = p1.y - p2.y;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    /**
+     * 计算点到线段的距离
+     */
+    private double distanceToLine(Vec2d point, LineShape line) {
+        Vec2d start = line.getStart();
+        Vec2d end = line.getEnd();
+        
+        // 线段向量
+        double dx = end.x - start.x;
+        double dy = end.y - start.y;
+        double length = Math.sqrt(dx * dx + dy * dy);
+        
+        if (length < 1e-10) {
+            // 退化为点
+            return distance(point, start);
+        }
+        
+        // 计算投影参数t
+        double t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / (length * length);
+        t = Math.max(0, Math.min(1, t)); // 限制在[0,1]范围内
+        
+        // 投影点
+        Vec2d projection = new Vec2d(start.x + t * dx, start.y + t * dy);
+        return distance(point, projection);
     }
 } 
