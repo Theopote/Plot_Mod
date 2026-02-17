@@ -222,12 +222,6 @@ public class FilletStrategy implements IModifyStrategy {
             case KEY_PLUS:
             case KEY_MINUS:
                 return handleKeyAdjustment(keyCode, context);
-
-            case KEY_ENTER:
-                if (isReadyToApply()) {
-                    return applyFillet(context);
-                }
-                break;
         }
         return ModifyResult.IGNORED;
     }
@@ -262,7 +256,7 @@ public class FilletStrategy implements IModifyStrategy {
         return switch (currentState) {
             case SELECT_FIRST_LINE -> String.format("选择第一条直线，按+/-调整半径(%.1f)，或按ESC取消", radius);
             case SELECT_SECOND_LINE -> FilletConstants.STATUS_SELECT_SECOND_LINE;
-            case READY_TO_APPLY -> String.format("按Enter或右键确认圆角(半径%.1f)，+/-调整半径，或ESC取消", radius);
+            case READY_TO_APPLY -> String.format("按鼠标右键确认圆角(半径%.1f)，+/-调整半径，或ESC取消", radius);
         };
     }
     
@@ -446,7 +440,7 @@ public class FilletStrategy implements IModifyStrategy {
         // 在准备应用阶段，更新预览
         if (shape1 != null && shape2 != null) {
             updatePreviewWithShapes(shape1, shape2, context);
-            context.setStatusMessage(String.format("按Enter确认圆角(半径:%.1f)，滚轮调整半径，或按ESC取消", radius));
+            context.setStatusMessage(String.format("按鼠标右键确认圆角(半径:%.1f)，滚轮调整半径，或按ESC取消", radius));
             return ModifyResult.CONTINUE;
         }
         return ModifyResult.IGNORED;
@@ -543,6 +537,7 @@ public class FilletStrategy implements IModifyStrategy {
         // 创建命令
         ModifyCommand command = handler.createModifyCommand(originalShapes, null, params);
         if (command != null) {
+            context.executeModifyCommand(command);
             context.setStatusMessage(String.format(FilletConstants.STATUS_COMPLETE_TEMPLATE, radius));
             reset();
             return ModifyResult.COMPLETE;
