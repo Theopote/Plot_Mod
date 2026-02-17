@@ -735,19 +735,35 @@ public class FilletHandler implements IModifyHandler {
             LOGGER.debug("圆角修剪逻辑 - 交点: {}, 第一条线保留端点: {}, 第二条线保留端点: {}", 
                         intersection, preservedEndPoint1, preservedEndPoint2);
             
-            // 计算圆弧角度
+            // 计算圆弧角度 - 修复版本，确保正确的圆弧方向
             double startAngle = Math.atan2(trimPoint1.y - center.y, trimPoint1.x - center.x);
             double endAngle = Math.atan2(trimPoint2.y - center.y, trimPoint2.x - center.x);
             
-            // 确保角度范围正确（逆时针方向）
-            if (endAngle < startAngle) {
+            // 计算从交点指向两个端点的方向，确定圆弧应该在哪一侧
+            dir1 = determineFarDirection(line1, intersection);
+            dir2 = determineFarDirection(line2, intersection);
+            
+            // 计算叉积判断旋转方向（正值表示逆时针，负值表示顺时针）
+            double cross = dir1.x * dir2.y - dir1.y * dir2.x;
+            
+            // 根据叉积确定正确的角度顺序
+            if (cross > 0) {
+                // 逆时针旋转，确保 endAngle > startAngle
+            } else {
+                // 顺时针旋转，交换起始和结束角度
+                double temp = startAngle;
+                startAngle = endAngle;
+                endAngle = temp;
+            }
+            while (endAngle <= startAngle) {
                 endAngle += 2 * Math.PI;
             }
-            
-            // 验证圆弧角度是否合理
+
+            // 验证圆弧角度是否合理（应该小于180度）
             double arcAngle = endAngle - startAngle;
             if (arcAngle > Math.PI) {
                 // 如果圆弧角度大于180度，说明圆心位置错误，调整到另一侧
+                LOGGER.debug("圆弧角度过大({}度)，尝试使用相反侧的圆心", Math.toDegrees(arcAngle));
                 center = calculateFilletCenter(line1, line2, radius, intersection, true);
                 if (center != null) {
                     trimPoints = calculateTangentPoints(center, radius, line1, line2, intersection);
@@ -756,7 +772,14 @@ public class FilletHandler implements IModifyHandler {
                         trimPoint2 = trimPoints[1];
                         startAngle = Math.atan2(trimPoint1.y - center.y, trimPoint1.x - center.x);
                         endAngle = Math.atan2(trimPoint2.y - center.y, trimPoint2.x - center.x);
-                        if (endAngle < startAngle) {
+                        
+                        // 重新应用方向规则
+                        if (!(cross > 0)) {
+                            double temp = startAngle;
+                            startAngle = endAngle;
+                            endAngle = temp;
+                        }
+                        while (endAngle <= startAngle) {
                             endAngle += 2 * Math.PI;
                         }
                     }
@@ -774,7 +797,7 @@ public class FilletHandler implements IModifyHandler {
     }
     
     /**
-     * 计算圆角圆心 - 使用平行线交点方法确保相切
+     * 计算圆角圆心 - 修复版本，确保正确的相切关系
      * 
      * @param line1 第一条直线
      * @param line2 第二条直线
@@ -786,48 +809,70 @@ public class FilletHandler implements IModifyHandler {
     private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius, 
                                       Vec2d intersection, boolean opposite) {
         try {
-            // 计算两条直线的方向向量
-            Vec2d dir1 = normalize(new Vec2d(line1.getEnd().x - line1.getStart().x, 
-                                            line1.getEnd().y - line1.getStart().y));
-            Vec2d dir2 = normalize(new Vec2d(line2.getEnd().x - line2.getStart().x, 
-                                            line2.getEnd().y - line2.getStart().y));
+            // 计算两条直线的方向向量（从交点指向远端）
+            Vec2d dir1 = determineFarDirection(line1, intersection);
+            Vec2d dir2 = determineFarDirection(line2, intersection);
             
-            // 计算法向量（垂直于直线方向）
-            Vec2d normal1 = new Vec2d(-dir1.y, dir1.x);
-            Vec2d normal2 = new Vec2d(-dir2.y, dir2.x);
+            // 归一化方向向量
+            dir1 = normalize(dir1);
+            dir2 = normalize(dir2);
             
-            // 根据角度判断法向量方向
-            double angle1 = Math.atan2(dir1.y, dir1.x);
-            double angle2 = Math.atan2(dir2.y, dir2.x);
-            double angleDiff = Math.abs(angle2 - angle1);
-            if (angleDiff > Math.PI) {
-                angleDiff = 2 * Math.PI - angleDiff;
-            }
+            // 计算角平分线方向（sum of normalized directions）
+            Vec2d bisector = new Vec2d(dir1.x + dir2.x, dir1.y + dir2.y);
+            bisector = normalize(bisector);
             
-            // 对于钝角，需要调整法向量方向
+            // 计算两条直线的夹角的一半
+            double distToCenter = getDistToCenter(radius, dir1, dir2);
+
+            // 如果是opposite模式（处理外侧圆角），反转角平分线方向
             if (opposite) {
-                normal1 = new Vec2d(dir1.y, -dir1.x);
-                normal2 = new Vec2d(dir2.y, -dir2.x);
+                bisector = new Vec2d(-bisector.x, -bisector.y);
             }
             
-            // 计算平行线（距离为半径）
-            Vec2d offset1 = new Vec2d(normal1.x * radius, normal1.y * radius);
-            Vec2d offset2 = new Vec2d(normal2.x * radius, normal2.y * radius);
-            
-            // 计算平行线上的点
-            Vec2d p1 = new Vec2d(intersection.x + offset1.x, intersection.y + offset1.y);
-            Vec2d p2 = new Vec2d(intersection.x + offset2.x, intersection.y + offset2.y);
-            
-            // 计算平行线的方向向量
+            // 圆心位置 = 交点 + 角平分线方向 × 距离
 
-            // 计算平行线交点（圆心）
-
-            return calculateLineIntersection(p1, dir1, p2, dir2);
+            return new Vec2d(
+                intersection.x + bisector.x * distToCenter,
+                intersection.y + bisector.y * distToCenter
+            );
             
         } catch (Exception e) {
             LOGGER.error("计算圆角圆心失败", e);
             return null;
         }
+    }
+
+    private static double getDistToCenter(double radius, Vec2d dir1, Vec2d dir2) {
+        double angle1 = Math.atan2(dir1.y, dir1.x);
+        double angle2 = Math.atan2(dir2.y, dir2.x);
+        double angleDiff = angle2 - angle1;
+
+        // 规范化角度差到 [-π, π]
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+        double halfAngle = Math.abs(angleDiff) / 2.0;
+
+        // 计算从交点到圆心的距离：d = r / sin(halfAngle)
+        double distToCenter = radius / Math.sin(halfAngle);
+        return distToCenter;
+    }
+
+    /**
+     * 确定从交点指向直线远端的方向
+     */
+    private Vec2d determineFarDirection(LineShape line, Vec2d intersection) {
+        Vec2d start = line.getStart();
+        Vec2d end = line.getEnd();
+        
+        // 计算交点到两个端点的距离
+        double distToStart = distance(intersection, start);
+        double distToEnd = distance(intersection, end);
+        
+        // 选择距离更远的端点作为方向
+        Vec2d farPoint = distToStart > distToEnd ? start : end;
+        
+        return new Vec2d(farPoint.x - intersection.x, farPoint.y - intersection.y);
     }
     
     /**
@@ -836,10 +881,10 @@ public class FilletHandler implements IModifyHandler {
     private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius, Vec2d intersection) {
         return calculateFilletCenter(line1, line2, radius, intersection, false);
     }
-    
+
     /**
      * 计算两条直线的交点（参数化形式）
-     * 
+     *
      * @param p1 第一条直线的起点
      * @param dir1 第一条直线的方向向量
      * @param p2 第二条直线的起点
@@ -849,20 +894,21 @@ public class FilletHandler implements IModifyHandler {
     private Vec2d calculateLineIntersection(Vec2d p1, Vec2d dir1, Vec2d p2, Vec2d dir2) {
         // 计算行列式
         double det = dir1.x * dir2.y - dir1.y * dir2.x;
-        
+
         if (Math.abs(det) < FilletConstants.PARALLEL_TOLERANCE) {
             return null; // 直线平行
         }
-        
+
         // 计算参数
         double t1 = ((p2.x - p1.x) * dir2.y - (p2.y - p1.y) * dir2.x) / det;
-        
+
         // 计算交点
         return new Vec2d(p1.x + t1 * dir1.x, p1.y + t1 * dir1.y);
     }
-    
+
     /**
-     * 计算圆弧与直线的相切点
+     * 计算圆弧与直线的相切点 - 修复版本
+     * 相切点是从圆心垂直投影到直线的点
      * 
      * @param center 圆心
      * @param radius 半径
@@ -876,23 +922,26 @@ public class FilletHandler implements IModifyHandler {
         try {
             Vec2d[] result = new Vec2d[2];
             
-            // 计算两条直线的方向向量
-            Vec2d dir1 = normalize(new Vec2d(line1.getEnd().x - line1.getStart().x, 
-                                            line1.getEnd().y - line1.getStart().y));
-            Vec2d dir2 = normalize(new Vec2d(line2.getEnd().x - line2.getStart().x, 
-                                            line2.getEnd().y - line2.getStart().y));
+            // 相切点是从圆心垂直投影到直线的点
+            // 对于直线 L: 通过 p1, p2 两点，从点 C 到直线的垂足 T 满足：
+            // T = p1 + t * (p2 - p1)，其中 t = dot(C - p1, p2 - p1) / ||p2 - p1||^2
             
-            // 计算法向量
-            Vec2d normal1 = new Vec2d(-dir1.y, dir1.x);
-            Vec2d normal2 = new Vec2d(-dir2.y, dir2.x);
+            // 计算第一条线的相切点
+            Vec2d trimPoint1 = projectPointToLine(center, line1.getStart(), line1.getEnd());
             
-            // 计算相切点（圆心沿法向量偏移半径距离）
-            Vec2d tangent1 = new Vec2d(center.x + normal1.x * radius, center.y + normal1.y * radius);
-            Vec2d tangent2 = new Vec2d(center.x + normal2.x * radius, center.y + normal2.y * radius);
+            // 计算第二条线的相切点
+            Vec2d trimPoint2 = projectPointToLine(center, line2.getStart(), line2.getEnd());
             
-            // 将相切点投影到直线上
-            Vec2d trimPoint1 = projectPointToLine(tangent1, line1.getStart(), line1.getEnd());
-            Vec2d trimPoint2 = projectPointToLine(tangent2, line2.getStart(), line2.getEnd());
+            // 验证相切点到圆心的距离是否等于半径（允许小误差）
+            double dist1 = distance(center, trimPoint1);
+            double dist2 = distance(center, trimPoint2);
+            
+            if (Math.abs(dist1 - radius) > FilletConstants.FILLET_TOLERANCE) {
+                LOGGER.warn("第一条线的相切点距离不正确: 期望={}, 实际={}", radius, dist1);
+            }
+            if (Math.abs(dist2 - radius) > FilletConstants.FILLET_TOLERANCE) {
+                LOGGER.warn("第二条线的相切点距离不正确: 期望={}, 实际={}", radius, dist2);
+            }
             
             result[0] = trimPoint1;
             result[1] = trimPoint2;
