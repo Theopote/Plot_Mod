@@ -897,31 +897,19 @@ public class PolylineShape extends Shape implements IExtendableShape {
                             path2.add(p1OnSeg);
                         }
                         
-                        // 移除较短的路径，保留较长的路径作为两个独立段
-                        List<Vec2d> keepSegment = path1.size() <= path2.size() ? path2 : path1;
-                        
-                        // 将保留的段分解为两个独立的开口段
-                        if (keepSegment.size() >= 3) {
-                            // 找到keepSegment的中点，分为两段
-                            int midIndex = keepSegment.size() / 2;
-                            
-                            // 第一段：从起点到中点
-                            List<Vec2d> segment1 = new ArrayList<>(keepSegment.subList(0, midIndex + 1));
-                            if (segment1.size() >= 2) {
-                                PolylineShape poly1 = new PolylineShape(segment1, false);
-                                poly1.setStyle(getStyle().clone());
-                                if (getTransform() != null) poly1.setTransform(getTransform().clone());
-                                newShapes.add(poly1);
-                            }
-                            
-                            // 第二段：从中点到终点
-                            List<Vec2d> segment2 = new ArrayList<>(keepSegment.subList(midIndex, keepSegment.size()));
-                            if (segment2.size() >= 2) {
-                                PolylineShape poly2 = new PolylineShape(segment2, false);
-                                poly2.setStyle(getStyle().clone());
-                                if (getTransform() != null) poly2.setTransform(getTransform().clone());
-                                newShapes.add(poly2);
-                            }
+                        // 对于闭合多段线，两点打断应当产生两条开口段（path1 和 path2），
+                        // 分别表示绕行两种路径的两段，直接将这两条路径作为结果返回。
+                        if (path1.size() >= 2) {
+                            PolylineShape poly1 = new PolylineShape(new ArrayList<>(path1), false);
+                            poly1.setStyle(getStyle().clone());
+                            if (getTransform() != null) poly1.setTransform(getTransform().clone());
+                            newShapes.add(poly1);
+                        }
+                        if (path2.size() >= 2) {
+                            PolylineShape poly2 = new PolylineShape(new ArrayList<>(path2), false);
+                            poly2.setStyle(getStyle().clone());
+                            if (getTransform() != null) poly2.setTransform(getTransform().clone());
+                            newShapes.add(poly2);
                         }
                     } else {
                         // 对于非闭合多段线，需要确保第一个点在第二个点之前
