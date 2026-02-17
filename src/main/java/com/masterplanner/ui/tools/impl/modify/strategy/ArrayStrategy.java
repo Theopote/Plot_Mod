@@ -561,11 +561,21 @@ public class ArrayStrategy implements IModifyStrategy {
      * 计算环形阵列位置
      */
     private void calculateCircularArray() {
-        // 等角分布，基于数量，角度为弧度
+        // 与 ArrayHandler 保持一致：以源图形当前位置为起始角度，可选地使用面板传入的角度步长（度）
         int count = Math.max(1, rowCount);
-        double anglePer = (2 * Math.PI) / count;
+        Vec2d sourcePos = sourceShape.getPosition();
+        double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+
+        // 面板中的 angle 字段以度为单位，优先使用它作为步长；否则按数量等分 2π
+        double angleStepRad;
+        if (Double.isFinite(angle) && angle > 0.0) {
+            angleStepRad = Math.toRadians(angle);
+        } else {
+            angleStepRad = (2 * Math.PI) / Math.max(1, count);
+        }
+
         for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置
-            double currentAngle = i * anglePer;
+            double currentAngle = startAngle + i * angleStepRad;
             Vec2d arrayPos = basePoint.add(new Vec2d(
                 radius * Math.cos(currentAngle),
                 radius * Math.sin(currentAngle)

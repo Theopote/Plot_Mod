@@ -384,6 +384,20 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 }
                 if (dragHandle == DragHandle.CIRCULAR_RADIUS) {
                     radius = Math.max(1.0, basePoint.distance(currentPoint));
+
+                    // 同步移动原始图形：保持原始图形相对于中心的角度不变，仅改变半径
+                    if (selectedShapes != null && !selectedShapes.isEmpty()) {
+                        try {
+                            Shape original = selectedShapes.getFirst();
+                            Vec2d sourcePos = original.getPosition();
+                            double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+                            Vec2d newPos = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
+                            original.setPosition(newPos);
+                        } catch (Exception e) {
+                            LOGGER.debug("移动原始图形失败: {}", e.getMessage());
+                        }
+                    }
+
                     updateArrayPreview();
                     context.setPreviewEnabled(true);
                     context.setStatusMessage(String.format("半径: %.1f（拖拽调整，单击确认）", radius));

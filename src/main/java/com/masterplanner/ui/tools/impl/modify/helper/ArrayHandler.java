@@ -177,37 +177,41 @@ public class ArrayHandler implements IModifyHandler {
         int count = params.getInt("rowCount", 8);
         double radius = params.getDouble("radius", 100.0);
         Vec2d basePoint = params.getVec2d("basePoint");
+        double angleStepDeg = params.getDouble("angleStep", Double.NaN);
         
         for (Shape shape : shapes) {
             // 以“源图形”作为起始等分点（源图形也参与等分）
             // 新图形只生成剩余 (count - 1) 个，原图保留不动
             Vec2d sourcePos = shape.getPosition();
             double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
-            double angleStepRad = (2 * Math.PI) / Math.max(1, count);
-            
+
+            // 如果面板传入了 angleStep（度），优先使用它；否则按数量等分 2π
+            double angleStepRad;
+            if (!Double.isNaN(angleStepDeg) && angleStepDeg > 0.0) {
+                angleStepRad = Math.toRadians(angleStepDeg);
+            } else {
+                angleStepRad = (2 * Math.PI) / Math.max(1, count);
+            }
+
             for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置（原图作为 i=0）
                 double currentAngle = startAngle + i * angleStepRad;
                 Vec2d arrayPos = basePoint.add(new Vec2d(
                     radius * Math.cos(currentAngle),
                     radius * Math.sin(currentAngle)
                 ));
-                
+
                 try {
                     Shape arrayedShape = shape.clone();
                     if (arrayedShape != null) {
-                        // 关键：构建围绕目标位置旋转的正确变换矩阵
-                        // 旋转增量 = 当前角度 - 起始角度
-                        Matrix3d finalTransform = getMatrix3d(currentAngle, startAngle, arrayPos);
-
-                        // 重置 transform 并设置新的变换矩阵
-                        arrayedShape.setTransform(new com.masterplanner.api.geometry.Matrix3d());
-                        
-                        // 设置 position 字段（这会修改 transform，但我们会在之后覆盖）
+                        // 设置位置
                         arrayedShape.setPosition(arrayPos);
-                        
-                        // 重新设置正确的 transform（覆盖 setPosition 对 transform 的修改）
-                        arrayedShape.setTransform(finalTransform);
-                        
+
+                        // 保持与源图形相对于中心的朝向一致：
+                        // 目标旋转 = 源图形旋转 + (currentAngle - startAngle)
+                        double sourceRotation = shape.getRotation();
+                        double delta = currentAngle - startAngle;
+                        arrayedShape.setRotation(sourceRotation + delta);
+
                         arrayedShapes.add(arrayedShape);
                     }
                 } catch (Exception e) {
