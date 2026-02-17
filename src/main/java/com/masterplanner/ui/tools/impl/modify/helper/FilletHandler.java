@@ -76,9 +76,9 @@ public class FilletHandler implements IModifyHandler {
                                                         FilletConstants.MIN_RADIUS, FilletConstants.MAX_RADIUS));
         }
         
-        // 同图形模式：仅允许单根折线拐角圆角
-        if (shape1 == shape2 && !(shape1 instanceof PolylineShape)) {
-            return ValidationResult.invalid("同一图形仅支持折线拐角圆角");
+        // 同图形模式：允许折线与多边形拐角圆角
+        if (shape1 == shape2 && !(shape1 instanceof PolylineShape) && !(shape1 instanceof Polygon)) {
+            return ValidationResult.invalid("同一图形仅支持折线或多边形拐角圆角");
         }
 
         if (shape1 == shape2) {
