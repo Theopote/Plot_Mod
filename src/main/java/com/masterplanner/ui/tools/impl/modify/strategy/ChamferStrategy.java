@@ -3,6 +3,8 @@ package com.masterplanner.ui.tools.impl.modify.strategy;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.geometry.shapes.LineShape;
+import com.masterplanner.core.geometry.shapes.Polygon;
+import com.masterplanner.core.geometry.shapes.PolylineShape;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
@@ -38,17 +40,24 @@ public class ChamferStrategy implements IModifyStrategy {
     private static final int KEY_MINUS = KeyEvent.VK_MINUS; // - 键
     
     // 参数记录类 - 优化参数封装
-    public record ChamferParameters(double distance) 
+    public record ChamferParameters(double distance, Vec2d clickPoint1, Vec2d clickPoint2) 
             implements IModifyHandler.ModifyParameters {
         
         @Override
         public boolean hasParameter(String name) {
-            return CONFIG_KEY_DISTANCE.equals(name);
+            return CONFIG_KEY_DISTANCE.equals(name)
+                    || "clickPoint1".equals(name)
+                    || "clickPoint2".equals(name);
         }
         
         @Override
         public Object getParameter(String name) {
-            return CONFIG_KEY_DISTANCE.equals(name) ? distance : null;
+            return switch (name) {
+                case "distance" -> distance;
+                case "clickPoint1" -> clickPoint1;
+                case "clickPoint2" -> clickPoint2;
+                default -> null;
+            };
         }
         
         @Override
@@ -59,14 +68,16 @@ public class ChamferStrategy implements IModifyStrategy {
     }
     
     public enum ChamferState {
-        SELECT_FIRST_LINE,
-        SELECT_SECOND_LINE,
+        SELECT_FIRST_SHAPE,
+        SELECT_SECOND_SHAPE,
         READY_TO_APPLY
     }
     
     private ChamferState currentState;
-    private LineShape line1;
-    private LineShape line2;
+    private Shape shape1;
+    private Shape shape2;
+    private Vec2d clickPoint1;
+    private Vec2d clickPoint2;
     private double distance;
     private List<Shape> previewShapes; // 使用 Shape 列表存储预览图形
     
@@ -84,7 +95,6 @@ public class ChamferStrategy implements IModifyStrategy {
     
     // 优化：使用ChamferTool的常量
     private static final double MIN_DISTANCE = ChamferTool.MIN_DISTANCE;
-    private static final double MAX_DISTANCE = ChamferTool.MAX_DISTANCE;
     private static final double DEFAULT_DISTANCE = ChamferTool.DEFAULT_DISTANCE;
     
     // ====== 框选相关方法 ======
@@ -101,7 +111,7 @@ public class ChamferStrategy implements IModifyStrategy {
         List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
         
         for (Shape shape : allShapes) {
-            if (shape != null && shape.isVisible() && !shape.isDeleted() && shape instanceof LineShape) {
+            if (shape != null && shape.isVisible() && !shape.isDeleted() && isChamferableShape(shape)) {
                 // 使用虚线框选择逻辑（总是相交选择）
                 if (com.masterplanner.ui.tools.impl.modify.helper.GeometricSelectionHelper.isShapeInRectangleSelection(shape, boxStartPoint, boxCurrentPoint, false)) {
                     boxSelectedShapes.add(shape);
@@ -131,28 +141,36 @@ public class ChamferStrategy implements IModifyStrategy {
     /**
      * 处理选择第一个图形时的鼠标按下
      */
-    private ModifyResult handleMouseDown_SelectFirst(LineShape line, ModifyToolContext context) {
-        line1 = line;
-        currentState = ChamferState.SELECT_SECOND_LINE;
-        context.setStatusMessage("选择第二条直线");
+    private ModifyResult handleMouseDown_SelectFirst(Shape shape, Vec2d clickPoint, ModifyToolContext context) {
+        shape1 = shape;
+        clickPoint1 = clickPoint;
+        currentState = ChamferState.SELECT_SECOND_SHAPE;
+        context.setStatusMessage("选择第二个图形");
         return ModifyResult.CONTINUE;
     }
     
     /**
      * 处理选择第二个图形时的鼠标按下
      */
-    private ModifyResult handleMouseDown_SelectSecond(LineShape line, ModifyToolContext context) {
-        if (line != line1) {
-            line2 = line;
-            // 验证并生成预览
-            updatePreviewWithContext(context);
-            if (isReadyToApply()) {
-               currentState = ChamferState.READY_TO_APPLY;
-               context.setStatusMessage(getStatusMessage());
-            }
-            return ModifyResult.CONTINUE;
+    private ModifyResult handleMouseDown_SelectSecond(Shape shape, Vec2d clickPoint, ModifyToolContext context) {
+        if (shape1 == null) {
+            return ModifyResult.IGNORED;
         }
-        return ModifyResult.IGNORED;
+
+        if (shape != shape1 && !isChamferableShape(shape)) {
+            return ModifyResult.IGNORED;
+        }
+
+        shape2 = shape;
+        clickPoint2 = clickPoint;
+
+        // 验证并生成预览
+        updatePreviewWithContext(context);
+        if (isReadyToApply()) {
+           currentState = ChamferState.READY_TO_APPLY;
+           context.setStatusMessage(getStatusMessage());
+        }
+        return ModifyResult.CONTINUE;
     }
 
     public ChamferStrategy(AppState appState) {
@@ -164,9 +182,11 @@ public class ChamferStrategy implements IModifyStrategy {
     
     @Override
     public void reset() {
-        currentState = ChamferState.SELECT_FIRST_LINE;
-        line1 = null;
-        line2 = null;
+        currentState = ChamferState.SELECT_FIRST_SHAPE;
+        shape1 = null;
+        shape2 = null;
+        clickPoint1 = null;
+        clickPoint2 = null;
         previewShapes = null;
     }
     
@@ -208,7 +228,7 @@ public class ChamferStrategy implements IModifyStrategy {
                 // 点选模式：选择单个图形
                 Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(point, context.getCamera());
                 Shape clickedShape = context.findShapeAt(snappedPoint, 10.0);
-                if (clickedShape instanceof LineShape) {
+                if (isChamferableShape(clickedShape)) {
                     boxSelectedShapes.clear();
                     boxSelectedShapes.add(clickedShape);
                 }
@@ -225,15 +245,14 @@ public class ChamferStrategy implements IModifyStrategy {
             // 如果有选中的图形，选择第一个作为目标
             if (!boxSelectedShapes.isEmpty()) {
                 Shape selectedShape = boxSelectedShapes.getFirst();
-                if (selectedShape instanceof LineShape line) {
-                    ModifyResult res = switch (currentState) {
-                        case SELECT_FIRST_LINE -> handleMouseDown_SelectFirst(line, context);
-                        case SELECT_SECOND_LINE -> handleMouseDown_SelectSecond(line, context);
-                        case READY_TO_APPLY -> ModifyResult.IGNORED;
-                    };
-                    // 不在此处结束工具；保持 CONTINUE 让用户确认（例如按Enter）或继续交互
-                    return res == ModifyResult.IGNORED ? ModifyResult.CONTINUE : res;
-                }
+                Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(point, context.getCamera());
+                ModifyResult res = switch (currentState) {
+                    case SELECT_FIRST_SHAPE -> handleMouseDown_SelectFirst(selectedShape, snappedPoint, context);
+                    case SELECT_SECOND_SHAPE -> handleMouseDown_SelectSecond(selectedShape, snappedPoint, context);
+                    case READY_TO_APPLY -> ModifyResult.IGNORED;
+                };
+                // 不在此处结束工具；保持 CONTINUE 让用户确认（例如按Enter）或继续交互
+                return res == ModifyResult.IGNORED ? ModifyResult.CONTINUE : res;
             }
             return ModifyResult.CONTINUE;
         }
@@ -251,7 +270,7 @@ public class ChamferStrategy implements IModifyStrategy {
             case KEY_PLUS:
             case KEY_MINUS:
                 distance += (keyCode == KEY_PLUS ? 0.5 : -0.5);
-                distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, distance));
+                distance = Math.max(MIN_DISTANCE, distance);
                 if (isReadyToApply()) {
                     updatePreviewWithContext(context); // 更新预览
                 }
@@ -264,7 +283,7 @@ public class ChamferStrategy implements IModifyStrategy {
     @Override
     public ModifyResult onMouseWheel(Vec2d pos, double delta, ModifyToolContext context) {
         distance += delta * 0.5;
-        distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, distance));
+        distance = Math.max(MIN_DISTANCE, distance);
         if (isReadyToApply()) {
             updatePreviewWithContext(context);
         }
@@ -287,13 +306,13 @@ public class ChamferStrategy implements IModifyStrategy {
      */
     public String getStatusMessage() {
         return switch (currentState) {
-            case SELECT_FIRST_LINE -> String.format("选择第一条直线，按+/-调整距离(%.1f)，或按ESC取消", distance);
-            case SELECT_SECOND_LINE -> "选择第二条直线";
+            case SELECT_FIRST_SHAPE -> String.format("选择第一个图形（线/折线/多边形），按+/-调整距离(%.1f)，或按ESC取消", distance);
+            case SELECT_SECOND_SHAPE -> "选择第二个图形（可再次点同一折线/多边形以倒角拐角）";
             case READY_TO_APPLY -> {
                 // 检查验证结果，提供更准确的状态信息
-                if (line1 != null && line2 != null) {
+                if (shape1 != null && shape2 != null) {
                     ChamferParameters params = createModifyParameters();
-                    IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(line1, line2), params);
+                    IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(shape1, shape2), params);
                     if (validation.isValid()) {
                         yield String.format("按鼠标右键确认倒角(距离%.1f)，滚轮/+/-调整距离，或ESC取消", distance);
                     } else {
@@ -352,7 +371,7 @@ public class ChamferStrategy implements IModifyStrategy {
         }
         
         ChamferParameters params = createModifyParameters();
-        List<Shape> originalShapes = List.of(line1, line2);
+        List<Shape> originalShapes = List.of(shape1, shape2);
         
         return chamferHandler.createModifyCommand(originalShapes, null, params);
     }
@@ -362,14 +381,14 @@ public class ChamferStrategy implements IModifyStrategy {
      */
     public boolean isReadyToApply() {
         // 更直观的可用性判定：只要有两条线就认为可以准备应用（状态由调用方维护）
-        return line1 != null && line2 != null;
+        return shape1 != null && shape2 != null;
     }
 
     public void updateConfig(String key, Object value) {
         boolean needsPreviewUpdate = false;
         
         if (CONFIG_KEY_DISTANCE.equals(key) && value instanceof Number num) {
-            this.distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, num.doubleValue()));
+            this.distance = Math.max(MIN_DISTANCE, num.doubleValue());
             needsPreviewUpdate = true;
         } else if (CONFIG_KEY_PREVIEW.equals(key) && value instanceof Boolean val) {
             this.previewEnabled = val;
@@ -394,16 +413,16 @@ public class ChamferStrategy implements IModifyStrategy {
      * 内部预览更新 - 不依赖context
      */
     private void updatePreviewInternal() {
-        if (!previewEnabled || line1 == null || line2 == null) {
+        if (!previewEnabled || shape1 == null || shape2 == null) {
             previewShapes = null;
             return;
         }
 
         ChamferParameters params = createModifyParameters();
-        IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(line1, line2), params);
+        IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(shape1, shape2), params);
 
         if (validation.isValid()) {
-            this.previewShapes = chamferHandler.createPreviewShapes(List.of(line1, line2), params);
+            this.previewShapes = chamferHandler.createPreviewShapes(List.of(shape1, shape2), params);
         } else {
             this.previewShapes = null;
         }
@@ -413,16 +432,16 @@ public class ChamferStrategy implements IModifyStrategy {
      * 带context的预览更新 - 用于交互过程中的状态消息更新
      */
     private void updatePreviewWithContext(ModifyToolContext context) {
-        if (!previewEnabled || line1 == null || line2 == null) {
+        if (!previewEnabled || shape1 == null || shape2 == null) {
             previewShapes = null;
             return;
         }
 
         ChamferParameters params = createModifyParameters();
-        IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(line1, line2), params);
+        IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(shape1, shape2), params);
 
         if (validation.isValid()) {
-            this.previewShapes = chamferHandler.createPreviewShapes(List.of(line1, line2), params);
+            this.previewShapes = chamferHandler.createPreviewShapes(List.of(shape1, shape2), params);
         } else {
             this.previewShapes = null;
             if (context != null) {
@@ -435,7 +454,7 @@ public class ChamferStrategy implements IModifyStrategy {
         if (!isReadyToApply()) return ModifyResult.IGNORED;
 
         ChamferParameters params = createModifyParameters();
-        List<Shape> originalShapes = List.of(line1, line2);
+        List<Shape> originalShapes = List.of(shape1, shape2);
         
         // 最终应用时再次验证
         IModifyHandler.ValidationResult validation = chamferHandler.validateModification(originalShapes, params);
@@ -461,6 +480,12 @@ public class ChamferStrategy implements IModifyStrategy {
      * 创建参数对象 - 使用record类优化
      */
     private ChamferParameters createModifyParameters() {
-        return new ChamferParameters(distance);
+        return new ChamferParameters(distance, clickPoint1, clickPoint2);
+    }
+
+    private boolean isChamferableShape(Shape shape) {
+        return shape instanceof LineShape
+                || shape instanceof PolylineShape
+                || shape instanceof Polygon;
     }
 }

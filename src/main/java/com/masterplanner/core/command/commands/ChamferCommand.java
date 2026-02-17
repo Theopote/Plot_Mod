@@ -63,26 +63,20 @@ public class ChamferCommand extends ModifyCommand {
     public void execute() {
         try {
             LOGGER.debug("执行倒角命令: 距离={}", distance);
-            
-            // 优化：简化execute逻辑，只需删除旧图形和添加新图形
+
             if (newGeneratedShapes.isEmpty()) {
                 LOGGER.warn("没有新生成的图形，跳过执行");
                 return;
             }
-            
-            // 保存原始状态用于撤销
+
+            // 保存原始状态用于撤销（保留旧行为）
             originalLine1 = (LineShape) line1.clone();
             originalLine2 = (LineShape) line2.clone();
-            
-            // 删除原始直线
-            line1.delete();
-            line2.delete();
-            
-            // 添加新生成的图形
-            newShapes.addAll(newGeneratedShapes);
-            
+
+            // 使用基类执行：统一从AppState移除旧图形并添加新图形
+            super.execute();
+
             LOGGER.debug("倒角命令执行完成: 创建了 {} 个新图形", newShapes.size());
-            
         } catch (Exception e) {
             LOGGER.error("执行倒角命令失败", e);
             throw new RuntimeException("倒角操作失败: " + e.getMessage(), e);
@@ -93,21 +87,7 @@ public class ChamferCommand extends ModifyCommand {
     public void undo() {
         try {
             LOGGER.debug("撤销倒角命令");
-            
-            // 优化：修复undo逻辑，避免直接访问AppState
-            // 删除新创建的图形
-            for (Shape shape : newShapes) {
-                shape.delete();
-            }
-            newShapes.clear();
-            
-            // 恢复原始直线 - 使用基类提供的方法
-            if (originalLine1 != null && originalLine2 != null) {
-                // 通过基类的addShape方法恢复原始图形
-                addShape(originalLine1);
-                addShape(originalLine2);
-            }
-            
+            super.undo();
         } catch (Exception e) {
             LOGGER.error("撤销倒角命令失败", e);
         }
@@ -118,16 +98,4 @@ public class ChamferCommand extends ModifyCommand {
         return String.format("倒角 (距离: %.2f)", distance);
     }
     
-    /**
-     * 添加图形到模型 - 受保护方法，供undo使用
-     */
-    protected void addShape(Shape shape) {
-        try {
-            // 通过AppState添加图形，确保正确的生命周期管理
-            AppState appState = AppState.getInstance();
-            appState.getActiveLayer().addShape(shape);
-        } catch (Exception e) {
-            LOGGER.error("恢复图形失败", e);
-        }
-    }
 } 
