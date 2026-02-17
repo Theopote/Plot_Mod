@@ -899,18 +899,14 @@ public class PolylineShape extends Shape implements IExtendableShape {
                         
                         // 对于闭合多段线，两点打断应当产生两条开口段（path1 和 path2），
                         // 分别表示绕行两种路径的两段，直接将这两条路径作为结果返回。
-                        if (path1.size() >= 2) {
-                            PolylineShape poly1 = new PolylineShape(new ArrayList<>(path1), false);
-                            poly1.setStyle(getStyle().clone());
-                            if (getTransform() != null) poly1.setTransform(getTransform().clone());
-                            newShapes.add(poly1);
-                        }
-                        if (path2.size() >= 2) {
-                            PolylineShape poly2 = new PolylineShape(new ArrayList<>(path2), false);
-                            poly2.setStyle(getStyle().clone());
-                            if (getTransform() != null) poly2.setTransform(getTransform().clone());
-                            newShapes.add(poly2);
-                        }
+                        PolylineShape poly1 = new PolylineShape(new ArrayList<>(path1), false);
+                        poly1.setStyle(getStyle().clone());
+                        if (getTransform() != null) poly1.setTransform(getTransform().clone());
+                        newShapes.add(poly1);
+                        PolylineShape poly2 = new PolylineShape(new ArrayList<>(path2), false);
+                        poly2.setStyle(getStyle().clone());
+                        if (getTransform() != null) poly2.setTransform(getTransform().clone());
+                        newShapes.add(poly2);
                     } else {
                         // 对于非闭合多段线，需要确保第一个点在第二个点之前
                         if (firstSegmentIndex > secondSegmentIndex || 
