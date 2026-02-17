@@ -172,6 +172,9 @@ public class ChamferStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onMouseDown(Vec2d point, int button, ModifyToolContext context) {
+        if (button == 1 && isReadyToApply()) {
+            return applyChamfer(context);
+        }
         if (button != 0) return ModifyResult.IGNORED;
 
         // 开始框选
@@ -195,6 +198,9 @@ public class ChamferStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onMouseUp(Vec2d point, int button, ModifyToolContext context) {
+        if (button == 1 && isReadyToApply()) {
+            return applyChamfer(context);
+        }
         if (isBoxSelecting) {
             // 检查是否为点选（拖动距离小于阈值）
             double dragDistance = boxStartPoint.distance(point);
@@ -251,14 +257,19 @@ public class ChamferStrategy implements IModifyStrategy {
                 }
                 context.setStatusMessage(getStatusMessage());
                 return ModifyResult.CONTINUE;
-
-            case KEY_ENTER:
-                if (isReadyToApply()) {
-                    return applyChamfer(context);
-                }
-                break;
         }
         return ModifyResult.IGNORED;
+    }
+
+    @Override
+    public ModifyResult onMouseWheel(Vec2d pos, double delta, ModifyToolContext context) {
+        distance += delta * 0.5;
+        distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, distance));
+        if (isReadyToApply()) {
+            updatePreviewWithContext(context);
+        }
+        context.setStatusMessage(getStatusMessage());
+        return ModifyResult.CONTINUE;
     }
     
     @Override
@@ -284,7 +295,7 @@ public class ChamferStrategy implements IModifyStrategy {
                     ChamferParameters params = createModifyParameters();
                     IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(line1, line2), params);
                     if (validation.isValid()) {
-                        yield String.format("按Enter确认倒角(距离%.1f)，+/-调整距离，或ESC取消", distance);
+                        yield String.format("按鼠标右键确认倒角(距离%.1f)，滚轮/+/-调整距离，或ESC取消", distance);
                     } else {
                         yield validation.getErrorMessage();
                     }
@@ -436,8 +447,7 @@ public class ChamferStrategy implements IModifyStrategy {
         // 创建命令
         ModifyCommand command = chamferHandler.createModifyCommand(originalShapes, null, params);
         if (command != null) {
-            // 将命令提交到命令栈...
-            // context.getCommandManager().executeCommand(command);
+            context.executeModifyCommand(command);
             context.setStatusMessage(String.format("倒角完成 (距离: %.1f)", distance));
             reset();
             return ModifyResult.COMPLETE;
