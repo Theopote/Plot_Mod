@@ -417,10 +417,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 previewGuides.add(new com.masterplanner.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint1, targetPoint1, "PAIR_1"));
             }
-            if (dynamicSource2 != null && targetPoint1 != null) {
-                previewGuides.add(new com.masterplanner.ui.tools.impl.modify.helper.AlignmentGuide(
-                        dynamicSource2, targetPoint1, "PAIR_2_PREVIEW"));
-            }
+            // 在等待选择源点2时，不显示从动态源点到目标点1的辅助线（用户希望该阶段无辅助线）
         } catch (Exception ignored) {}
     }
 
