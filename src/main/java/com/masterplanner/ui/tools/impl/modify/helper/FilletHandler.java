@@ -1,7 +1,6 @@
 package com.masterplanner.ui.tools.impl.modify.helper;
 
 import com.masterplanner.api.geometry.Vec2d;
-import com.masterplanner.core.command.commands.FilletCommand;
 import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.geometry.shapes.ArcShape;
 import com.masterplanner.core.geometry.shapes.LineShape;
@@ -67,6 +66,8 @@ public class FilletHandler implements IModifyHandler {
         
         Shape shape1 = shapes.get(0);
         Shape shape2 = shapes.get(1);
+        Vec2d clickPoint1 = getClickPoint1FromParameters(parameters);
+        Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
         
         // 检查半径参数
         double radius = getRadiusFromParameters(parameters);
@@ -75,9 +76,16 @@ public class FilletHandler implements IModifyHandler {
                                                         FilletConstants.MIN_RADIUS, FilletConstants.MAX_RADIUS));
         }
         
-        // 检查图形是否相同
-        if (shape1 == shape2) {
-            return ValidationResult.invalid("不能对同一个图形进行圆角操作");
+        // 同图形模式：仅允许单根折线拐角圆角
+        if (shape1 == shape2 && !(shape1 instanceof PolylineShape)) {
+            return ValidationResult.invalid("同一图形仅支持折线拐角圆角");
+        }
+
+        if (shape1 == shape2 && shape1 instanceof PolylineShape polyline) {
+            List<Shape> singlePolylineResult = calculateSinglePolylineFillet(polyline, radius, clickPoint1, clickPoint2);
+            return singlePolylineResult == null || singlePolylineResult.isEmpty()
+                    ? ValidationResult.invalid("无法在该折线拐角创建圆角")
+                    : ValidationResult.valid();
         }
         
         // 根据图形类型进行验证
@@ -188,6 +196,15 @@ public class FilletHandler implements IModifyHandler {
         Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
         
         List<Shape> result = new ArrayList<>();
+
+        if (shape1 == shape2 && shape1 instanceof PolylineShape polyline) {
+            List<Shape> singlePolylineResult = calculateSinglePolylineFillet(polyline, radius, clickPoint1, clickPoint2);
+            if (singlePolylineResult != null && !singlePolylineResult.isEmpty()) {
+                return singlePolylineResult;
+            }
+            result.add(shape1);
+            return result;
+        }
         
         try {
             // 找到最佳的边对进行圆角
@@ -535,21 +552,15 @@ public class FilletHandler implements IModifyHandler {
         Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
         
         try {
-            // 找到最佳的圆角操作
-            FilletOperation filletOp = findBestFilletOperation(shape1, shape2, radius, 
-                                                              clickPoint1, clickPoint2);
-            
-            if (filletOp == null) {
-                LOGGER.warn("无法找到合适的圆角操作");
+            List<Shape> effectiveModifiedShapes = modifiedShapes;
+            if (effectiveModifiedShapes == null || effectiveModifiedShapes.isEmpty()) {
+                effectiveModifiedShapes = calculateModifiedShapes(originalShapes, parameters);
+            }
+            if (effectiveModifiedShapes == null || effectiveModifiedShapes.isEmpty()) {
+                LOGGER.warn("无法生成圆角结果图形");
                 return null;
             }
-            
-            // 创建圆角命令，传递所有计算结果
-            return new FilletCommand(filletOp.edge1, filletOp.edge2, radius, 
-                                   filletOp.filletParams.center, filletOp.filletParams.startAngle, filletOp.filletParams.endAngle,
-                                   filletOp.filletParams.trimPoint1, filletOp.filletParams.trimPoint2,
-                                   filletOp.filletParams.preservedEndPoint1, filletOp.filletParams.preservedEndPoint2, appState);
-            
+            return new ModifyCommand(originalShapes, effectiveModifiedShapes, appState);
         } catch (Exception e) {
             LOGGER.error("创建圆角命令失败", e);
             return null;
@@ -719,25 +730,20 @@ public class FilletHandler implements IModifyHandler {
      * 检查半径是否适合给定的直线
      */
     private boolean isRadiusValidForLines(LineShape line1, LineShape line2, double radius, double angleDiff) {
-        // 对于相切圆角，半径限制更宽松
-        // 主要检查直线长度是否足够容纳圆角
-        
-        // 计算最小直线长度要求（基于相切几何）
-        double minLength = radius * 2.0; // 保守估计，至少需要2倍半径的长度
-        
-        // 检查每条直线是否足够长
         double length1 = distance(line1.getStart(), line1.getEnd());
         double length2 = distance(line2.getStart(), line2.getEnd());
-        
-        // 检查半径是否合理（不能超过直线长度的一半）
-        double maxRadius = Math.min(length1, length2) * 0.4; // 保守估计，最大半径不超过较短直线的40%
-        
-        boolean lengthValid = length1 >= minLength && length2 >= minLength;
-        boolean radiusValid = radius <= maxRadius;
-        
-        if (!lengthValid) {
-            LOGGER.debug("直线长度不足: 长度1={}, 长度2={}, 需要最小长度={}", length1, length2, minLength);
+
+        boolean lengthValid = length1 > FilletConstants.FILLET_TOLERANCE && length2 > FilletConstants.FILLET_TOLERANCE;
+
+        double halfAngle = angleDiff / 2.0;
+        if (halfAngle < FilletConstants.FILLET_TOLERANCE) {
+            return false;
         }
+
+        // 几何极限：t = r / tan(theta/2)，允许到 t == min(length1,length2)（短边可完全消失）
+        double maxRadius = Math.min(length1, length2) * Math.tan(halfAngle);
+        boolean radiusValid = radius <= maxRadius + FilletConstants.FILLET_TOLERANCE;
+
         if (!radiusValid) {
             LOGGER.debug("半径过大: 半径={}, 最大允许半径={}", radius, maxRadius);
         }
@@ -1071,5 +1077,176 @@ public class FilletHandler implements IModifyHandler {
         // 投影点
         Vec2d projection = new Vec2d(start.x + t * dx, start.y + t * dy);
         return distance(point, projection);
+    }
+
+    private List<Shape> calculateSinglePolylineFillet(PolylineShape polyline, double radius, Vec2d clickPoint1, Vec2d clickPoint2) {
+        if (clickPoint1 == null || clickPoint2 == null) {
+            return null;
+        }
+
+        List<Vec2d> points = polyline.getPoints();
+        boolean closed = polyline.isClosed();
+        int n = points.size();
+        if ((!closed && n < 3) || (closed && n < 3)) {
+            return null;
+        }
+
+        int segmentCount = closed ? n : n - 1;
+        int segA = findNearestSegmentIndex(points, closed, clickPoint1);
+        int segB = findNearestSegmentIndex(points, closed, clickPoint2);
+        if (segA < 0 || segB < 0 || segA == segB) {
+            return null;
+        }
+
+        int vertexIndex = resolveSharedVertexIndex(segA, segB, segmentCount, closed);
+        if (vertexIndex < 0) {
+            return null;
+        }
+        if (!closed && (vertexIndex <= 0 || vertexIndex >= n - 1)) {
+            return null;
+        }
+
+        int prevIndex = (vertexIndex - 1 + n) % n;
+        int nextIndex = (vertexIndex + 1) % n;
+        Vec2d prev = points.get(prevIndex);
+        Vec2d corner = points.get(vertexIndex);
+        Vec2d next = points.get(nextIndex);
+
+        Vec2d dir1 = normalize(prev.subtract(corner));
+        Vec2d dir2 = normalize(next.subtract(corner));
+        if (dir1.length() < FilletConstants.FILLET_TOLERANCE || dir2.length() < FilletConstants.FILLET_TOLERANCE) {
+            return null;
+        }
+
+        double dot = Math.max(-1.0, Math.min(1.0, dir1.x * dir2.x + dir1.y * dir2.y));
+        double angle = Math.acos(dot);
+        if (angle < FilletConstants.MIN_ANGLE_DIFF || angle > FilletConstants.MAX_ANGLE_DIFF) {
+            return null;
+        }
+
+        double len1 = distance(prev, corner);
+        double len2 = distance(next, corner);
+        double halfAngle = angle / 2.0;
+        double maxRadius = Math.min(len1, len2) * Math.tan(halfAngle);
+        if (radius > maxRadius + FilletConstants.FILLET_TOLERANCE) {
+            return null;
+        }
+
+        double tangentOffset = Math.min(radius / Math.tan(halfAngle), Math.min(len1, len2));
+        double centerOffset = radius / Math.sin(halfAngle);
+
+        Vec2d trim1 = new Vec2d(corner.x + dir1.x * tangentOffset, corner.y + dir1.y * tangentOffset);
+        Vec2d trim2 = new Vec2d(corner.x + dir2.x * tangentOffset, corner.y + dir2.y * tangentOffset);
+        Vec2d bisector = normalize(new Vec2d(dir1.x + dir2.x, dir1.y + dir2.y));
+        if (bisector.length() < FilletConstants.FILLET_TOLERANCE) {
+            return null;
+        }
+        Vec2d center = new Vec2d(corner.x + bisector.x * centerOffset, corner.y + bisector.y * centerOffset);
+
+        double startAngle = Math.atan2(trim1.y - center.y, trim1.x - center.x);
+        double endAngle = Math.atan2(trim2.y - center.y, trim2.x - center.x);
+        double cross = dir1.x * dir2.y - dir1.y * dir2.x;
+        if (cross >= 0) {
+            while (endAngle <= startAngle) {
+                endAngle += 2 * Math.PI;
+            }
+        } else {
+            double temp = startAngle;
+            startAngle = endAngle;
+            endAngle = temp;
+            while (endAngle <= startAngle) {
+                endAngle += 2 * Math.PI;
+            }
+        }
+        if (endAngle - startAngle > Math.PI) {
+            double temp = startAngle;
+            startAngle = endAngle;
+            endAngle = temp;
+            while (endAngle <= startAngle) {
+                endAngle += 2 * Math.PI;
+            }
+        }
+
+        List<Vec2d> newPoints = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            if (i == vertexIndex) {
+                appendUniquePoint(newPoints, trim1);
+                appendUniquePoint(newPoints, trim2);
+            } else {
+                appendUniquePoint(newPoints, points.get(i));
+            }
+        }
+
+        PolylineShape newPolyline = new PolylineShape(newPoints, closed);
+        if (polyline.getStyle() != null) {
+            newPolyline.setStyle(polyline.getStyle().clone());
+        }
+
+        ArcShape arc = new ArcShape(center, radius, startAngle, endAngle);
+        if (polyline.getStyle() != null) {
+            arc.setStyle(polyline.getStyle().clone());
+        }
+
+        List<Shape> result = new ArrayList<>();
+        result.add(newPolyline);
+        result.add(arc);
+        return result;
+    }
+
+    private int findNearestSegmentIndex(List<Vec2d> points, boolean closed, Vec2d clickPoint) {
+        int segmentCount = closed ? points.size() : points.size() - 1;
+        double minDistance = Double.MAX_VALUE;
+        int nearest = -1;
+        for (int i = 0; i < segmentCount; i++) {
+            Vec2d a = points.get(i);
+            Vec2d b = points.get((i + 1) % points.size());
+            double d = distanceToSegment(clickPoint, a, b);
+            if (d < minDistance) {
+                minDistance = d;
+                nearest = i;
+            }
+        }
+        return nearest;
+    }
+
+    private int resolveSharedVertexIndex(int segA, int segB, int segmentCount, boolean closed) {
+        if (segA + 1 == segB) {
+            return segB;
+        }
+        if (segB + 1 == segA) {
+            return segA;
+        }
+        if (closed) {
+            if (segA == 0 && segB == segmentCount - 1) {
+                return 0;
+            }
+            if (segB == 0 && segA == segmentCount - 1) {
+                return 0;
+            }
+        }
+        return -1;
+    }
+
+    private double distanceToSegment(Vec2d point, Vec2d a, Vec2d b) {
+        double dx = b.x - a.x;
+        double dy = b.y - a.y;
+        double denom = dx * dx + dy * dy;
+        if (denom < FilletConstants.FILLET_TOLERANCE) {
+            return distance(point, a);
+        }
+        double t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / denom;
+        t = Math.max(0.0, Math.min(1.0, t));
+        Vec2d p = new Vec2d(a.x + t * dx, a.y + t * dy);
+        return distance(point, p);
+    }
+
+    private void appendUniquePoint(List<Vec2d> points, Vec2d candidate) {
+        if (points.isEmpty()) {
+            points.add(candidate);
+            return;
+        }
+        if (distance(points.getLast(), candidate) > FilletConstants.FILLET_TOLERANCE) {
+            points.add(candidate);
+        }
     }
 } 

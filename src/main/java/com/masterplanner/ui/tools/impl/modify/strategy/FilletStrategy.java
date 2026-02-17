@@ -123,6 +123,9 @@ public class FilletStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onMouseDown(Vec2d point, int button, ModifyToolContext context) {
+        if (button == 1 && isReadyToApply()) {
+            return applyFillet(context);
+        }
         if (button != 0) return ModifyResult.IGNORED;
 
         // 开始框选
@@ -259,7 +262,7 @@ public class FilletStrategy implements IModifyStrategy {
         return switch (currentState) {
             case SELECT_FIRST_LINE -> String.format("选择第一条直线，按+/-调整半径(%.1f)，或按ESC取消", radius);
             case SELECT_SECOND_LINE -> FilletConstants.STATUS_SELECT_SECOND_LINE;
-            case READY_TO_APPLY -> String.format("按Enter确认圆角(半径%.1f)，+/-调整半径，或ESC取消", radius);
+            case READY_TO_APPLY -> String.format("按Enter或右键确认圆角(半径%.1f)，+/-调整半径，或ESC取消", radius);
         };
     }
     
@@ -314,7 +317,7 @@ public class FilletStrategy implements IModifyStrategy {
         }
         
         FilletParameters params = createModifyParameters();
-        List<Shape> originalShapes = List.of(line1, line2);
+        List<Shape> originalShapes = List.of(shape1, shape2);
         
         return handler.createModifyCommand(originalShapes, null, params);
     }
@@ -378,7 +381,8 @@ public class FilletStrategy implements IModifyStrategy {
      * 处理选择第二个图形时的鼠标按下
      */
     private ModifyResult handleMouseDown_SelectSecond(Shape shape, Vec2d clickPoint, ModifyToolContext context) {
-        if (shape != shape1) {
+        boolean samePolylineCornerMode = shape == shape1 && shape instanceof PolylineShape;
+        if (shape != shape1 || samePolylineCornerMode) {
             line2 = null; // 重置为null，因为现在可能是其他类型的图形
             shape2 = shape; // 保存第二个图形
             clickPoint2 = clickPoint; // 保存点击位置
@@ -527,7 +531,7 @@ public class FilletStrategy implements IModifyStrategy {
         }
 
         FilletParameters params = createModifyParameters();
-        List<Shape> originalShapes = List.of(line1, line2);
+        List<Shape> originalShapes = List.of(shape1, shape2);
         
         // 最终应用时再次验证
         IModifyHandler.ValidationResult validation = handler.validateModification(originalShapes, params);
@@ -539,8 +543,6 @@ public class FilletStrategy implements IModifyStrategy {
         // 创建命令
         ModifyCommand command = handler.createModifyCommand(originalShapes, null, params);
         if (command != null) {
-            // 将命令提交到命令栈...
-            // context.getCommandManager().executeCommand(command);
             context.setStatusMessage(String.format(FilletConstants.STATUS_COMPLETE_TEMPLATE, radius));
             reset();
             return ModifyResult.COMPLETE;
