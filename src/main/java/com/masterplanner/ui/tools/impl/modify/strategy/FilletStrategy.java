@@ -375,8 +375,8 @@ public class FilletStrategy implements IModifyStrategy {
      * 处理选择第二个图形时的鼠标按下
      */
     private ModifyResult handleMouseDown_SelectSecond(Shape shape, Vec2d clickPoint, ModifyToolContext context) {
-        boolean samePolylineCornerMode = shape == shape1 && shape instanceof PolylineShape;
-        if (shape != shape1 || samePolylineCornerMode) {
+        boolean sameShapeCornerMode = shape == shape1 && (shape instanceof PolylineShape || shape instanceof Polygon);
+        if (shape != shape1 || sameShapeCornerMode) {
             line2 = null; // 重置为null，因为现在可能是其他类型的图形
             shape2 = shape; // 保存第二个图形
             clickPoint2 = clickPoint; // 保存点击位置

@@ -81,10 +81,15 @@ public class FilletHandler implements IModifyHandler {
             return ValidationResult.invalid("同一图形仅支持折线拐角圆角");
         }
 
-        if (shape1 == shape2 && shape1 instanceof PolylineShape polyline) {
-            List<Shape> singlePolylineResult = calculateSinglePolylineFillet(polyline, radius, clickPoint1, clickPoint2);
-            return singlePolylineResult == null || singlePolylineResult.isEmpty()
-                    ? ValidationResult.invalid("无法在该折线拐角创建圆角")
+        if (shape1 == shape2) {
+            List<Shape> singleShapeResult = null;
+            if (shape1 instanceof PolylineShape polyline) {
+                singleShapeResult = calculateSinglePolylineFillet(polyline, radius, clickPoint1, clickPoint2);
+            } else if (shape1 instanceof Polygon polygon) {
+                singleShapeResult = calculateSinglePolygonFillet(polygon, radius, clickPoint1, clickPoint2);
+            }
+            return singleShapeResult == null || singleShapeResult.isEmpty()
+                    ? ValidationResult.invalid("无法在该图形拐角创建圆角")
                     : ValidationResult.valid();
         }
         
@@ -197,10 +202,15 @@ public class FilletHandler implements IModifyHandler {
         
         List<Shape> result = new ArrayList<>();
 
-        if (shape1 == shape2 && shape1 instanceof PolylineShape polyline) {
-            List<Shape> singlePolylineResult = calculateSinglePolylineFillet(polyline, radius, clickPoint1, clickPoint2);
-            if (singlePolylineResult != null && !singlePolylineResult.isEmpty()) {
-                return singlePolylineResult;
+        if (shape1 == shape2) {
+            List<Shape> singleShapeResult = null;
+            if (shape1 instanceof PolylineShape polyline) {
+                singleShapeResult = calculateSinglePolylineFillet(polyline, radius, clickPoint1, clickPoint2);
+            } else if (shape1 instanceof Polygon polygon) {
+                singleShapeResult = calculateSinglePolygonFillet(polygon, radius, clickPoint1, clickPoint2);
+            }
+            if (singleShapeResult != null && !singleShapeResult.isEmpty()) {
+                return singleShapeResult;
             }
             result.add(shape1);
             return result;
@@ -811,17 +821,13 @@ public class FilletHandler implements IModifyHandler {
             double endAngle = Math.atan2(trimPoint2.y - center.y, trimPoint2.x - center.x);
 
             double cross = dir1.x * dir2.y - dir1.y * dir2.x;
-            if (cross >= 0) {
-                while (endAngle <= startAngle) {
-                    endAngle += 2 * Math.PI;
-                }
-            } else {
+            if (!(cross >= 0)) {
                 double temp = startAngle;
                 startAngle = endAngle;
                 endAngle = temp;
-                while (endAngle <= startAngle) {
-                    endAngle += 2 * Math.PI;
-                }
+            }
+            while (endAngle <= startAngle) {
+                endAngle += 2 * Math.PI;
             }
 
             if (endAngle - startAngle > Math.PI) {
@@ -948,13 +954,13 @@ public class FilletHandler implements IModifyHandler {
         double scoreEnd = toEnd.x * direction.x + toEnd.y * direction.y;
         return scoreStart >= scoreEnd ? start : end;
     }
-    
+
     /**
      * 计算圆角圆心 - 重载方法，默认不使用相反方向
      */
-    private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius, 
+    private Vec2d calculateFilletCenter(LineShape line1, LineShape line2, double radius,
                                       Vec2d intersection, Vec2d clickPoint1, Vec2d clickPoint2) {
-        return calculateFilletCenter(line1, line2, radius, intersection, 
+        return calculateFilletCenter(line1, line2, radius, intersection,
                                    clickPoint1, clickPoint2, false);
     }
 
@@ -1080,12 +1086,19 @@ public class FilletHandler implements IModifyHandler {
     }
 
     private List<Shape> calculateSinglePolylineFillet(PolylineShape polyline, double radius, Vec2d clickPoint1, Vec2d clickPoint2) {
+        return calculateSingleCornerFillet(polyline.getPoints(), polyline.isClosed(), radius, clickPoint1, clickPoint2, polyline);
+    }
+
+    private List<Shape> calculateSinglePolygonFillet(Polygon polygon, double radius, Vec2d clickPoint1, Vec2d clickPoint2) {
+        return calculateSingleCornerFillet(polygon.getPoints(), true, radius, clickPoint1, clickPoint2, polygon);
+    }
+
+    private List<Shape> calculateSingleCornerFillet(List<Vec2d> points, boolean closed, double radius,
+                                                    Vec2d clickPoint1, Vec2d clickPoint2, Shape sourceShape) {
         if (clickPoint1 == null || clickPoint2 == null) {
             return null;
         }
 
-        List<Vec2d> points = polyline.getPoints();
-        boolean closed = polyline.isClosed();
         int n = points.size();
         if ((!closed && n < 3) || (closed && n < 3)) {
             return null;
@@ -1102,7 +1115,7 @@ public class FilletHandler implements IModifyHandler {
         if (vertexIndex < 0) {
             return null;
         }
-        if (!closed && (vertexIndex <= 0 || vertexIndex >= n - 1)) {
+        if (!closed && (vertexIndex == 0 || vertexIndex >= n - 1)) {
             return null;
         }
 
@@ -1146,17 +1159,13 @@ public class FilletHandler implements IModifyHandler {
         double startAngle = Math.atan2(trim1.y - center.y, trim1.x - center.x);
         double endAngle = Math.atan2(trim2.y - center.y, trim2.x - center.x);
         double cross = dir1.x * dir2.y - dir1.y * dir2.x;
-        if (cross >= 0) {
-            while (endAngle <= startAngle) {
-                endAngle += 2 * Math.PI;
-            }
-        } else {
+        if (!(cross >= 0)) {
             double temp = startAngle;
             startAngle = endAngle;
             endAngle = temp;
-            while (endAngle <= startAngle) {
-                endAngle += 2 * Math.PI;
-            }
+        }
+        while (endAngle <= startAngle) {
+            endAngle += 2 * Math.PI;
         }
         if (endAngle - startAngle > Math.PI) {
             double temp = startAngle;
@@ -1167,28 +1176,59 @@ public class FilletHandler implements IModifyHandler {
             }
         }
 
-        List<Vec2d> newPoints = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            if (i == vertexIndex) {
-                appendUniquePoint(newPoints, trim1);
-                appendUniquePoint(newPoints, trim2);
-            } else {
-                appendUniquePoint(newPoints, points.get(i));
-            }
-        }
-
-        PolylineShape newPolyline = new PolylineShape(newPoints, closed);
-        if (polyline.getStyle() != null) {
-            newPolyline.setStyle(polyline.getStyle().clone());
-        }
-
         ArcShape arc = new ArcShape(center, radius, startAngle, endAngle);
-        if (polyline.getStyle() != null) {
-            arc.setStyle(polyline.getStyle().clone());
+        if (sourceShape.getStyle() != null) {
+            arc.setStyle(sourceShape.getStyle().clone());
         }
 
         List<Shape> result = new ArrayList<>();
-        result.add(newPolyline);
+
+        if (closed) {
+            List<Vec2d> pathPoints = new ArrayList<>();
+            appendUniquePoint(pathPoints, trim2);
+            int idx = nextIndex;
+            while (idx != prevIndex) {
+                appendUniquePoint(pathPoints, points.get(idx));
+                idx = (idx + 1) % n;
+            }
+            appendUniquePoint(pathPoints, points.get(prevIndex));
+            appendUniquePoint(pathPoints, trim1);
+
+            if (pathPoints.size() >= 2) {
+                PolylineShape openPath = new PolylineShape(pathPoints, false);
+                if (sourceShape.getStyle() != null) {
+                    openPath.setStyle(sourceShape.getStyle().clone());
+                }
+                result.add(openPath);
+            }
+        } else {
+            List<Vec2d> before = new ArrayList<>();
+            for (int i = 0; i <= prevIndex; i++) {
+                appendUniquePoint(before, points.get(i));
+            }
+            appendUniquePoint(before, trim1);
+            if (before.size() >= 2) {
+                PolylineShape pBefore = new PolylineShape(before, false);
+                if (sourceShape.getStyle() != null) {
+                    pBefore.setStyle(sourceShape.getStyle().clone());
+                }
+                result.add(pBefore);
+            }
+
+            List<Vec2d> after = new ArrayList<>();
+            appendUniquePoint(after, trim2);
+            for (int i = nextIndex; i < n; i++) {
+                appendUniquePoint(after, points.get(i));
+            }
+            if (after.size() >= 2) {
+                PolylineShape pAfter = new PolylineShape(after, false);
+                if (sourceShape.getStyle() != null) {
+                    pAfter.setStyle(sourceShape.getStyle().clone());
+                }
+                result.add(pAfter);
+            }
+        }
+
         result.add(arc);
         return result;
     }
