@@ -13,6 +13,8 @@ import com.masterplanner.ui.tools.impl.modify.ChamferTool;
 import com.masterplanner.ui.tools.impl.modify.helper.ChamferHandler;
 import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
 import imgui.ImDrawList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.event.KeyEvent;
 import java.awt.Color;
@@ -28,6 +30,7 @@ import java.util.List;
  * @version 1.1 - 优化状态管理和参数传递
  */
 public class ChamferStrategy implements IModifyStrategy {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChamferStrategy.class);
 
     // 优化：使用ChamferTool的常量，确保一致性
     public static final String CONFIG_KEY_DISTANCE = ChamferTool.CONFIG_KEY_DISTANCE;
@@ -81,6 +84,7 @@ public class ChamferStrategy implements IModifyStrategy {
     private Vec2d clickPoint2;
     private double distance;
     private List<Shape> previewShapes; // 使用 Shape 列表存储预览图形
+    private Shape highlightedShape;
     
     // 引入 ChamferHandler
     private final ChamferHandler chamferHandler;
@@ -93,6 +97,7 @@ public class ChamferStrategy implements IModifyStrategy {
     
     // 从 Tool 传入的配置
     private boolean previewEnabled = true;
+    private boolean highlightEnabled = true;
     
     // 优化：使用ChamferTool的常量
     private static final double MIN_DISTANCE = ChamferTool.MIN_DISTANCE;
@@ -189,6 +194,7 @@ public class ChamferStrategy implements IModifyStrategy {
         clickPoint1 = null;
         clickPoint2 = null;
         previewShapes = null;
+        clearHighlight();
     }
     
     @Override
@@ -214,7 +220,18 @@ public class ChamferStrategy implements IModifyStrategy {
             updateBoxSelection(context);
             return ModifyResult.CONTINUE;
         }
-        return ModifyResult.IGNORED;
+
+        try {
+            Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(point, context.getCamera());
+            return switch (currentState) {
+                case SELECT_FIRST_SHAPE -> handleMouseMove_SelectFirst(snappedPoint, context);
+                case SELECT_SECOND_SHAPE -> handleMouseMove_SelectSecond(snappedPoint, context);
+                case READY_TO_APPLY -> handleMouseMove_Ready(snappedPoint, context);
+            };
+        } catch (Exception e) {
+            LOGGER.error("ChamferStrategy 鼠标移动处理失败: {}", e.getMessage(), e);
+            return ModifyResult.IGNORED;
+        }
     }
     
     @Override
@@ -448,7 +465,7 @@ public class ChamferStrategy implements IModifyStrategy {
         } else if (CONFIG_KEY_PREVIEW.equals(key) && value instanceof Boolean val) {
             this.previewEnabled = val;
         } else if (CONFIG_KEY_HIGHLIGHT.equals(key) && value instanceof Boolean val) {
-            boolean highlightEnabled = val;
+            this.highlightEnabled = val;
         }
         
         // 安全地更新预览，不依赖context
@@ -536,6 +553,108 @@ public class ChamferStrategy implements IModifyStrategy {
      */
     private ChamferParameters createModifyParameters() {
         return new ChamferParameters(distance, clickPoint1, clickPoint2);
+    }
+
+    private ModifyResult handleMouseMove_SelectFirst(Vec2d snappedPoint, ModifyToolContext context) {
+        Shape shape = findShapeAtPoint(snappedPoint, context);
+        if (isChamferableShape(shape)) {
+            updateHighlight(shape);
+            context.setStatusMessage("点击选择第一个图形，或按ESC取消");
+            return ModifyResult.CONTINUE;
+        } else {
+            clearHighlight();
+            context.setStatusMessage("请选择一个可倒角的图形");
+            return ModifyResult.IGNORED;
+        }
+    }
+
+    private ModifyResult handleMouseMove_SelectSecond(Vec2d snappedPoint, ModifyToolContext context) {
+        Shape shape = findShapeAtPoint(snappedPoint, context);
+        boolean sameShapeCornerMode = shape == shape1 && (shape instanceof PolylineShape || shape instanceof Polygon);
+
+        if (isChamferableShape(shape) && (shape != shape1 || sameShapeCornerMode)) {
+            updateHighlight(shape);
+            updatePreviewWithShapes(shape1, shape, snappedPoint, context);
+            context.setStatusMessage("点击选择第二个图形，滚轮调整距离，或按ESC取消");
+            return ModifyResult.CONTINUE;
+        } else if (shape == shape1) {
+            clearHighlight();
+            clearPreview();
+            context.setStatusMessage("请选择不同图形（折线/多边形可点同一对象不同邻边）");
+            return ModifyResult.IGNORED;
+        } else {
+            clearHighlight();
+            clearPreview();
+            context.setStatusMessage("请选择第二个可倒角图形");
+            return ModifyResult.IGNORED;
+        }
+    }
+
+    private ModifyResult handleMouseMove_Ready(Vec2d snappedPoint, ModifyToolContext context) {
+        if (shape1 != null && shape2 != null) {
+            updatePreviewWithShapes(shape1, shape2, snappedPoint, context);
+            context.setStatusMessage(String.format("按鼠标右键确认倒角(距离:%.1f)，滚轮调整距离，或ESC取消", distance));
+            return ModifyResult.CONTINUE;
+        }
+        return ModifyResult.IGNORED;
+    }
+
+    private void updatePreviewWithShapes(Shape firstShape, Shape secondShape, Vec2d hoverPoint, ModifyToolContext context) {
+        if (!previewEnabled || firstShape == null || secondShape == null) {
+            previewShapes = null;
+            return;
+        }
+
+        Vec2d originalClickPoint2 = clickPoint2;
+        clickPoint2 = hoverPoint;
+        try {
+            ChamferParameters params = createModifyParameters();
+            IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(firstShape, secondShape), params);
+            if (validation.isValid()) {
+                previewShapes = chamferHandler.createPreviewShapes(List.of(firstShape, secondShape), params);
+            } else {
+                previewShapes = null;
+            }
+        } finally {
+            clickPoint2 = originalClickPoint2;
+        }
+    }
+
+    private Shape findShapeAtPoint(Vec2d point, ModifyToolContext context) {
+        try {
+            return context.findShapeAt(point, 10.0);
+        } catch (Exception e) {
+            LOGGER.error("查找图形时发生错误: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private void updateHighlight(Shape shape) {
+        if (!highlightEnabled) {
+            return;
+        }
+
+        if (highlightedShape != null && highlightedShape != shape1 && highlightedShape != shape2) {
+            highlightedShape.setHighlighted(false);
+        }
+
+        if (shape != null && shape != shape1 && shape != shape2) {
+            highlightedShape = shape;
+            shape.setHighlighted(true);
+        } else {
+            highlightedShape = null;
+        }
+    }
+
+    private void clearHighlight() {
+        if (highlightedShape != null && highlightedShape != shape1 && highlightedShape != shape2) {
+            highlightedShape.setHighlighted(false);
+        }
+        highlightedShape = null;
+    }
+
+    private void clearPreview() {
+        previewShapes = null;
     }
 
     private boolean isChamferableShape(Shape shape) {
