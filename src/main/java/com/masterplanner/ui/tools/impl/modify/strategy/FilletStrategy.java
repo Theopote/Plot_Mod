@@ -23,6 +23,11 @@ import com.masterplanner.core.geometry.shapes.ArcShape;
 import com.masterplanner.core.geometry.shapes.CircleShape;
 import com.masterplanner.core.geometry.shapes.EllipseShape;
 import com.masterplanner.core.geometry.shapes.BezierCurveShape;
+import com.masterplanner.core.geometry.shapes.EllipticalArcShape;
+import com.masterplanner.core.geometry.shapes.FreeDrawPath;
+import com.masterplanner.core.geometry.shapes.SineCurveShape;
+import com.masterplanner.core.geometry.shapes.SpiralShape;
+import com.masterplanner.core.geometry.shapes.CableShape;
 
 /**
  * 圆角策略 - 控制器版本
@@ -567,7 +572,12 @@ public class FilletStrategy implements IModifyStrategy {
                shape instanceof ArcShape ||
                shape instanceof CircleShape ||
                shape instanceof EllipseShape ||
-               shape instanceof BezierCurveShape;
+               shape instanceof BezierCurveShape ||
+               shape instanceof EllipticalArcShape ||
+               shape instanceof FreeDrawPath ||
+               shape instanceof SineCurveShape ||
+               shape instanceof SpiralShape ||
+               shape instanceof CableShape;
     }
     
     /**

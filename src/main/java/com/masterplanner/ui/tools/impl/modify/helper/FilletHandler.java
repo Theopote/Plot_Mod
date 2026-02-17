@@ -10,6 +10,11 @@ import com.masterplanner.core.geometry.shapes.BezierCurveShape;
 import com.masterplanner.core.geometry.shapes.CircleShape;
 import com.masterplanner.core.geometry.shapes.EllipseShape;
 import com.masterplanner.core.geometry.shapes.Polygon;
+import com.masterplanner.core.geometry.shapes.EllipticalArcShape;
+import com.masterplanner.core.geometry.shapes.FreeDrawPath;
+import com.masterplanner.core.geometry.shapes.SineCurveShape;
+import com.masterplanner.core.geometry.shapes.SpiralShape;
+import com.masterplanner.core.geometry.shapes.CableShape;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.tools.impl.modify.constants.FilletConstants;
@@ -150,6 +155,21 @@ public class FilletHandler implements IModifyHandler {
         } else if (shape instanceof BezierCurveShape) {
             // 贝塞尔曲线可以转换为直线段进行圆角
             edges.addAll(getBezierCurveEdges((BezierCurveShape) shape));
+        } else if (shape instanceof EllipticalArcShape) {
+            // 椭圆弧转换为折线段进行圆角
+            edges.addAll(getEllipticalArcEdges((EllipticalArcShape) shape));
+        } else if (shape instanceof FreeDrawPath) {
+            // 自由路径按路径点转换为折线段
+            edges.addAll(getFreeDrawPathEdges((FreeDrawPath) shape));
+        } else if (shape instanceof SineCurveShape) {
+            // 正弦曲线按采样点转换为折线段
+            edges.addAll(getSineCurveEdges((SineCurveShape) shape));
+        } else if (shape instanceof SpiralShape) {
+            // 螺旋线按采样点转换为折线段
+            edges.addAll(getSpiralEdges((SpiralShape) shape));
+        } else if (shape instanceof CableShape) {
+            // 悬链线按采样点转换为折线段
+            edges.addAll(getCableEdges((CableShape) shape));
         }
         
         return edges;
@@ -459,60 +479,83 @@ public class FilletHandler implements IModifyHandler {
      * 获取圆弧的边（转换为直线段）
      */
     private List<LineShape> getArcEdges(ArcShape arc) {
-        List<LineShape> edges = new ArrayList<>();
-        List<Vec2d> points = arc.getPoints();
-        
-        for (int i = 0; i < points.size() - 1; i++) {
-            edges.add(new LineShape(points.get(i), points.get(i + 1)));
-        }
-        
-        return edges;
+        return createEdgesFromPoints(arc.getPoints(), false);
     }
     
     /**
      * 获取圆形的边（转换为圆弧段）
      */
     private List<LineShape> getCircleEdges(CircleShape circle) {
-        List<LineShape> edges = new ArrayList<>();
-        List<Vec2d> points = circle.getPoints();
-        
-        for (int i = 0; i < points.size(); i++) {
-            Vec2d start = points.get(i);
-            Vec2d end = points.get((i + 1) % points.size());
-            edges.add(new LineShape(start, end));
-        }
-        
-        return edges;
+        return createEdgesFromPoints(circle.getPoints(), true);
     }
     
     /**
      * 获取椭圆的边（转换为圆弧段）
      */
     private List<LineShape> getEllipseEdges(EllipseShape ellipse) {
-        List<LineShape> edges = new ArrayList<>();
-        List<Vec2d> points = ellipse.getPoints();
-        
-        for (int i = 0; i < points.size(); i++) {
-            Vec2d start = points.get(i);
-            Vec2d end = points.get((i + 1) % points.size());
-            edges.add(new LineShape(start, end));
-        }
-        
-        return edges;
+        return createEdgesFromPoints(ellipse.getPoints(), true);
     }
     
     /**
      * 获取贝塞尔曲线的边（转换为直线段）
      */
     private List<LineShape> getBezierCurveEdges(BezierCurveShape bezierCurve) {
-        List<LineShape> edges = new ArrayList<>();
         // 使用 getCurvePoints() 替代已弃用的 getPoints()
-        List<Vec2d> points = bezierCurve.getCurvePoints();
-        
+        return createEdgesFromPoints(bezierCurve.getCurvePoints(), false);
+    }
+
+    /**
+     * 获取椭圆弧的边（转换为直线段）
+     */
+    private List<LineShape> getEllipticalArcEdges(EllipticalArcShape ellipticalArc) {
+        return createEdgesFromPoints(ellipticalArc.getPoints(), false);
+    }
+
+    /**
+     * 获取自由路径的边（转换为直线段）
+     */
+    private List<LineShape> getFreeDrawPathEdges(FreeDrawPath freeDrawPath) {
+        return createEdgesFromPoints(freeDrawPath.getPoints(), false);
+    }
+
+    /**
+     * 获取正弦曲线的边（转换为直线段）
+     */
+    private List<LineShape> getSineCurveEdges(SineCurveShape sineCurve) {
+        return createEdgesFromPoints(sineCurve.getPoints(), false);
+    }
+
+    /**
+     * 获取螺旋线的边（转换为直线段）
+     */
+    private List<LineShape> getSpiralEdges(SpiralShape spiral) {
+        return createEdgesFromPoints(spiral.getPoints(), false);
+    }
+
+    /**
+     * 获取悬链线的边（转换为直线段）
+     */
+    private List<LineShape> getCableEdges(CableShape cable) {
+        return createEdgesFromPoints(cable.getPoints(), false);
+    }
+
+    /**
+     * 将点列转换为折线边段
+     */
+    private List<LineShape> createEdgesFromPoints(List<Vec2d> points, boolean closed) {
+        List<LineShape> edges = new ArrayList<>();
+        if (points == null || points.size() < 2) {
+            return edges;
+        }
+
         for (int i = 0; i < points.size() - 1; i++) {
             edges.add(new LineShape(points.get(i), points.get(i + 1)));
         }
-        
+
+        if (closed && points.size() > 2) {
+            edges.add(new LineShape(points.getLast(), points.getFirst()));
+        }
+
         return edges;
     }
     
