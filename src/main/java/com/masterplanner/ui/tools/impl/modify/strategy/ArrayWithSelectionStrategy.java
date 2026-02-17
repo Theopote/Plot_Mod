@@ -299,7 +299,9 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         context.setStatusMessage("矩形阵列预览中：可拖拽间距锚点或在面板调整，点击“完成”确认");
                     } else if (arrayType == ArrayType.CIRCULAR) {
                         // 环形阵列：点中心后立即预览（默认半径=中心到源图形距离）
-                        radius = basePoint.distance(selectedShapes.getFirst().getPosition());
+                        if (selectedShapes != null) {
+                            radius = basePoint.distance(selectedShapes.getFirst().getPosition());
+                        }
                         arrayState = ArrayState.PREVIEWING;
                         updateArrayPreview();
                         context.setPreviewEnabled(true);
@@ -542,9 +544,6 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         return IModifyStrategy.super.onKeyUp(keyCode, context);
     }
 
-    /**
-     * 执行阵列操作
-     */
     /**
      * 供面板“完成”按钮调用：构建阵列命令（不在这里执行）
      */

@@ -571,7 +571,7 @@ public class ArrayStrategy implements IModifyStrategy {
         if (Double.isFinite(angle) && angle > 0.0) {
             angleStepRad = Math.toRadians(angle);
         } else {
-            angleStepRad = (2 * Math.PI) / Math.max(1, count);
+            angleStepRad = (2 * Math.PI) / count;
         }
 
         for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置
@@ -945,8 +945,14 @@ public class ArrayStrategy implements IModifyStrategy {
             try {
                 Shape clone = sourceShape.clone();
                 if (currentType == ArrayType.CIRCULAR) {
-                    // 旋转围绕中心点，使图形绕中心复制并随角度旋转
-                    clone.rotate(ang, basePoint);
+                    // 使用与 ArrayHandler 相同的逻辑：设置位置并按角度增量旋转
+                    Vec2d sourcePos = sourceShape.getPosition();
+                    double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
+                    double delta = ang - startAngle; // ang 在 previewAngles 中为绝对角度
+
+                    // 设置位置与旋转（弧度）
+                    clone.setPosition(pos);
+                    clone.setRotation(sourceShape.getRotation() + delta);
                 } else {
                     // 其他阵列类型仅平移
                     clone.setPosition(pos);

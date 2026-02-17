@@ -1,6 +1,5 @@
 package com.masterplanner.ui.tools.impl.modify.helper;
 
-import com.masterplanner.api.geometry.Matrix3d;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.api.geometry.util.PathUtils;
 import com.masterplanner.core.command.commands.ArrayCommand;
@@ -221,32 +220,6 @@ public class ArrayHandler implements IModifyHandler {
         }
         
         return arrayedShapes;
-    }
-
-    private static Matrix3d getMatrix3d(double currentAngle, double startAngle, Vec2d arrayPos) {
-        double delta = currentAngle - startAngle;
-
-        // 构建变换矩阵：围绕目标位置 arrayPos 旋转角度 delta
-        // 正确的顺序：T(arrayPos) * R(delta) * T(-arrayPos)
-        // 即：先平移到目标位置，围绕目标位置旋转，再平移回原点，最后平移到目标位置
-
-        // 步骤1：平移到原点（相对于目标位置）
-        Matrix3d toOrigin = new Matrix3d();
-        toOrigin.setTranslation(-arrayPos.x, -arrayPos.y);
-
-        // 步骤2：围绕原点旋转
-        Matrix3d rotation = new Matrix3d();
-        rotation.setRotation(delta);
-
-        // 步骤3：平移回目标位置
-        Matrix3d fromOrigin = new Matrix3d();
-        fromOrigin.setTranslation(arrayPos.x, arrayPos.y);
-
-        // 组合：T(arrayPos) * R(delta) * T(-arrayPos)
-        // 注意：矩阵乘法是从右到左执行的
-        // 所以：fromOrigin * rotation * toOrigin = T(arrayPos) * R(delta) * T(-arrayPos)
-        Matrix3d temp = rotation.multiply(toOrigin);
-        return fromOrigin.multiply(temp);
     }
 
     /**
