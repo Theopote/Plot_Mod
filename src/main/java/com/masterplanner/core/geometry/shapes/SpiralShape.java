@@ -505,13 +505,9 @@ public class SpiralShape extends Shape implements IExtendableShape {
         this.spacing *= scaleFactor;
         this.startRadius *= scaleFactor;
 
-        // 关键修复：对于等比缩放，清除transform矩阵，因为参数已经更新
-        // 如果之前有transform矩阵（非等比缩放状态），现在进行等比缩放，需要清除它
-        // 否则transform矩阵会和新的center不匹配，导致位置漂移
-        if (Math.abs(scale.x - scale.y) < 1e-10) {
-            // 等比缩放：清除transform矩阵，因为参数已经更新
-            setTransform(null);
-        }
+        // 关键修复：不要在等比缩放时清除已有 transform。
+        // 如果此前存在非等比变换（椭圆化）信息，清除会导致再次变换时“回退到原始形状”。
+        // 等比缩放仅更新参数，保留已有 transform 以支持连续变换累积。
         // 对于非等比缩放，scale()方法不应该被调用，应该使用transform()方法
         // 但为了安全，这里不设置transform矩阵，让transform()方法来处理
 
@@ -579,7 +575,11 @@ public class SpiralShape extends Shape implements IExtendableShape {
             matrix3d.set(2, 1, 0);
             matrix3d.set(2, 2, 1);
             
-            // 直接设置新的transform矩阵（不组合已有的，避免双重变换）
+            // 与已有transform组合（新变换在线性空间左乘），确保连续变换可累积
+            Matrix3d existingTransform = getTransform();
+            if (existingTransform != null) {
+                matrix3d = matrix3d.multiply(existingTransform);
+            }
             setTransform(matrix3d);
             
             // 修复旋转角度计算：使用AffineTransform的旋转增量，而不是从变换后的向量计算绝对角度
@@ -604,8 +604,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
             double scale = transformMatrix.getScaleX();
             this.radius *= scale;
             this.growthFactor *= scale;
-            // 清除transform矩阵，因为参数已经更新
-            setTransform(null);
+            // 保留已有transform，避免丢失先前非等比变换导致的形状信息
         }
         
         markParameterDirty(SpiralParameter.RADIUS);
