@@ -1393,8 +1393,8 @@ public class ArcShape extends Shape implements IExtendableShape {
                 // 从样式获取线条颜色
                 int lineColor = getStyle() != null && getStyle().getLineStyle() != null ? 
                     getStyle().getLineStyle().getColor().getRGB() : 0x80FFFFFF;
-                float lineWidth = getStyle() != null && getStyle().getLineStyle() != null ? 
-                    (float) getStyle().getLineStyle().getWidth() : 1.0f;
+                float lineWidth = getStyle() != null && getStyle().getLineStyle() != null ?
+                        getStyle().getLineStyle().getWidth() : 1.0f;
                 drawList.addLine(
                     (float) p1.x, (float) p1.y,
                     (float) p2.x, (float) p2.y,
