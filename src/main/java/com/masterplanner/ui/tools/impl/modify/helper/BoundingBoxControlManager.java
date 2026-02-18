@@ -127,6 +127,7 @@ public class BoundingBoxControlManager {
     private List<ControlPointType> selectedControlPoints = new ArrayList<>(); // 当前选中的控制点列表
     private ControlPointType primaryControlPoint; // 主要控制点（用于拖拽）
     private ControlPointType hoveredControlPoint; // 悬停的控制点
+    private boolean rotationIconsEnabled = true; // 是否启用旋转图示
     
     // 框选状态
     private Vec2d selectionStartPoint; // 框选开始点
@@ -479,6 +480,20 @@ public class BoundingBoxControlManager {
      */
     public void updateHoveredControlPoint(Vec2d point) {
         hoveredControlPoint = findClickedControlPoint(point);
+    }
+
+    /**
+     * 设置旋转图示是否启用
+     */
+    public void setRotationIconsEnabled(boolean enabled) {
+        this.rotationIconsEnabled = enabled;
+    }
+
+    /**
+     * 获取旋转图示是否启用
+     */
+    public boolean isRotationIconsEnabled() {
+        return rotationIconsEnabled;
     }
     
     /**
@@ -1204,10 +1219,25 @@ public class BoundingBoxControlManager {
     }
 
     /**
+     * 是否应当渲染指定角点的旋转图示：
+     * - 旋转图示开关开启，且
+     * - 正在该角点旋转，或鼠标悬停在该角点附近
+     */
+    private boolean shouldRenderRotationIcon(ControlPointType cornerPoint) {
+        if (!rotationIconsEnabled || cornerPoint == null || !cornerPoint.supportsRotation()) {
+            return false;
+        }
+        if (isRotating && rotatingControlPoint == cornerPoint) {
+            return true;
+        }
+        return hoveredControlPoint == cornerPoint;
+    }
+
+    /**
      * 渲染旋转图标
      */
     private void renderRotationIcons(ImDrawList drawList, CanvasCamera camera) {
-        if (boundingBoxMin == null || boundingBoxMax == null) {
+        if (boundingBoxMin == null || boundingBoxMax == null || !rotationIconsEnabled) {
             return;
         }
         
@@ -1220,6 +1250,9 @@ public class BoundingBoxControlManager {
         };
         
         for (ControlPointType cornerPoint : cornerPoints) {
+            if (!shouldRenderRotationIcon(cornerPoint)) {
+                continue;
+            }
             Vec2d controlPoint = controlPoints[cornerPoint.getIndex()];
             if (controlPoint == null) continue;
             

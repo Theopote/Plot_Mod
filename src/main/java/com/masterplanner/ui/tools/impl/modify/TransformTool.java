@@ -217,6 +217,11 @@ public class TransformTool extends ModifyTool implements EventListener {
                     // 如果需要实现约束功能，可以在 TransformWithSelectionStrategy 中添加相应方法
                     LOGGER.debug("约束配置已更新: {}", constraintsEnabled);
                 }
+                case CONFIG_KEY_ROTATION -> {
+                    boolean enabled = Boolean.parseBoolean(value);
+                    transformStrategy.setRotationEnabled(enabled);
+                    LOGGER.debug("已同步更新策略实例的旋转图示开关: {}", enabled);
+                }
                 default -> LOGGER.debug("未知的配置选项: {}", optionName);
             }
         } catch (Exception e) {

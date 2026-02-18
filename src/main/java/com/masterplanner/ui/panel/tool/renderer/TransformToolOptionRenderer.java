@@ -29,13 +29,10 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
     
     // 配置键常量
     private static final String CONFIG_KEY_ROTATION = "rotation";
-    private static final String CONFIG_KEY_MAINTAIN_ASPECT_RATIO = "maintain_aspect_ratio";
     
     // 状态缓存
     private boolean rotationEnabled = true;
-    private boolean maintainAspectRatio = true;
     private final ImBoolean rotationEnabledUi = new ImBoolean(true);
-    private final ImBoolean maintainAspectRatioUi = new ImBoolean(true);
     
     /**
      * 构造函数（兼容工厂方法）
@@ -132,40 +129,6 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         
         height += ImGui.getFrameHeightWithSpacing();
         
-        // 保持比例开关
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("保持比例");
-        
-        ImGui.tableNextColumn();
-        ImGui.pushItemWidth(-1);
-        
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
-
-        maintainAspectRatioUi.set(maintainAspectRatio);
-        if (ImGui.checkbox("##transform_maintain_aspect", maintainAspectRatioUi)) {
-            maintainAspectRatio = maintainAspectRatioUi.get();
-            updateToolConfig(CONFIG_KEY_MAINTAIN_ASPECT_RATIO, String.valueOf(maintainAspectRatio));
-            LOGGER.debug("保持比例已{}", maintainAspectRatio ? "启用" : "禁用");
-        }
-        
-        ImGui.popStyleVar(2);
-        ImGui.popStyleColor(5);
-        ImGui.popItemWidth();
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("启用后，按住Shift键时保持宽高比例");
-        }
-        
-        height += ImGui.getFrameHeightWithSpacing();
-        
         return height;
     }
     
@@ -187,7 +150,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.spacing();
             ImGui.textWrapped("变换控制点说明：");
             ImGui.bulletText("变换框上有八个控制点：四个角点，四个边上的中点");
-            ImGui.bulletText("拖拽角点：自由变换（按住Shift键等比变换）");
+            ImGui.bulletText("拖拽角点：自由变换（按住Shift键保持比例）");
             ImGui.bulletText("拖拽边中点：单轴缩放（沿该轴向变换）");
             ImGui.bulletText("鼠标往哪里拖动，变换框就沿着这个方向放大缩小");
             
@@ -198,7 +161,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "快捷键提示：");
             ImGui.spacing();
             
-            ImGui.bulletText("Shift: 拖拽角点时保持比例缩放（等比变换）");
+            ImGui.bulletText("Shift: 拖拽角点时保持比例缩放");
             ImGui.bulletText("右键: 切换模式 / 完成操作");
             ImGui.bulletText("Esc: 取消操作 / 返回选择");
             
@@ -241,7 +204,6 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         try {
             rotationEnabled = tool.isRotationEnabled();
             rotationEnabledUi.set(rotationEnabled);
-            maintainAspectRatioUi.set(maintainAspectRatio);
         } catch (Exception e) {
             LOGGER.warn("同步工具状态失败: {}", e.getMessage());
         }

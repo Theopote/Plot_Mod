@@ -71,6 +71,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     private boolean isDragging = false;
     private ControlPointType primaryControlPoint;
     private DragSession currentDragSession;
+    private boolean rotationEnabled = true;
     
     // 预览状态
     private List<Shape> previewShapes = new ArrayList<>();
@@ -272,6 +273,9 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         if (isDragging) {
             return updateTransformDrag(pos, context);
         }
+
+        // 非拖拽时更新控制点悬停状态，用于角点附近显示旋转图示
+        controlManager.updateHoveredControlPoint(pos);
         
         return ModifyResult.IGNORED;
     }
@@ -715,6 +719,15 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     public void setTransformMode(TransformMode mode) {
         this.transformMode = Objects.requireNonNull(mode, "变换模式不能为null");
         LOGGER.debug("变换模式设置为: {}", mode);
+    }
+
+    /**
+     * 设置是否启用旋转图示
+     */
+    public void setRotationEnabled(boolean enabled) {
+        this.rotationEnabled = enabled;
+        controlManager.setRotationIconsEnabled(enabled);
+        LOGGER.debug("旋转图示已{}", enabled ? "启用" : "禁用");
     }
     
     /**
