@@ -13,6 +13,10 @@ import java.util.List;
  * 负责处理栅栏修剪模式下的所有修剪逻辑
  */
 public class FenceTrimHelper {
+
+    private static final double SEGMENT_EPSILON = 1e-6;
+
+    private record SegmentIntersection(double t, Vec2d point) {}
     
     private final GeometryTrimUtils geometryUtils;
     
@@ -62,6 +66,12 @@ public class FenceTrimHelper {
         
         // 根据图形类型进行专门的修剪处理
         switch (shape) {
+            case LineShape lineShape -> {
+                return fenceTrimLineShape(lineShape, fencePoints);
+            }
+            case ArcShape arcShape -> {
+                return fenceTrimArcShape(arcShape, fencePoints);
+            }
             case FreeDrawPath freeDrawPath -> {
                 return fenceTrimFreeDrawPath(freeDrawPath, fencePoints);
             }
@@ -85,6 +95,122 @@ public class FenceTrimHelper {
                 return createFenceTrimmedSegments(shape, fencePoints);
             }
         }
+    }
+
+    private List<Shape> fenceTrimLineShape(LineShape line, List<Vec2d> fencePoints) {
+        List<Shape> result = new ArrayList<>();
+
+        List<LineShape> outsideSegments = clipSegmentOutsideFence(line.getStart(), line.getEnd(), fencePoints);
+        if (outsideSegments.isEmpty()) {
+            return result; // 整段在线内，删除
+        }
+
+        if (outsideSegments.size() == 1) {
+            LineShape only = outsideSegments.getFirst();
+            if ((arePointsClose(only.getStart(), line.getStart()) && arePointsClose(only.getEnd(), line.getEnd())) ||
+                (arePointsClose(only.getStart(), line.getEnd()) && arePointsClose(only.getEnd(), line.getStart()))) {
+                result.add(line); // 无变化，保留原图形
+                return result;
+            }
+        }
+
+        for (LineShape segment : outsideSegments) {
+            if (line.getStyle() != null) {
+                segment.setStyle(line.getStyle().clone());
+            }
+            if (line.getTransform() != null) {
+                segment.setTransform(line.getTransform().clone());
+            }
+            result.add(segment);
+        }
+
+        return result;
+    }
+
+    private List<Shape> fenceTrimPolylineShape(PolylineShape polyline, List<Vec2d> fencePoints) {
+        List<Shape> result = new ArrayList<>();
+        List<Vec2d> polylinePoints = polyline.getPoints();
+
+        System.out.println("[DEBUG] fenceTrimPolylineShape - 开始栅栏修剪PolylineShape");
+        System.out.println("[DEBUG] fenceTrimPolylineShape - 原始点数: " + polylinePoints.size());
+
+        if (polylinePoints.size() < 2) {
+            return result;
+        }
+
+        List<List<Vec2d>> chains = new ArrayList<>();
+        List<Vec2d> currentChain = null;
+
+        for (int i = 0; i < polylinePoints.size() - 1; i++) {
+            Vec2d start = polylinePoints.get(i);
+            Vec2d end = polylinePoints.get(i + 1);
+            List<LineShape> outsideSegments = clipSegmentOutsideFence(start, end, fencePoints);
+
+            for (LineShape segment : outsideSegments) {
+                Vec2d segStart = segment.getStart();
+                Vec2d segEnd = segment.getEnd();
+
+                if (currentChain == null) {
+                    currentChain = new ArrayList<>();
+                    currentChain.add(segStart);
+                    currentChain.add(segEnd);
+                } else if (arePointsClose(currentChain.getLast(), segStart)) {
+                    currentChain.add(segEnd);
+                } else {
+                    if (currentChain.size() >= 2) {
+                        chains.add(currentChain);
+                    }
+                    currentChain = new ArrayList<>();
+                    currentChain.add(segStart);
+                    currentChain.add(segEnd);
+                }
+            }
+        }
+
+        if (currentChain != null && currentChain.size() >= 2) {
+            chains.add(currentChain);
+        }
+
+        if (chains.isEmpty()) {
+            return result; // 全部在栅栏内，删除
+        }
+
+        // 若未发生修剪，保留原图形
+        if (chains.size() == 1) {
+            List<Vec2d> chain = chains.getFirst();
+            if (chain.size() == polylinePoints.size() &&
+                arePointsClose(chain.getFirst(), polylinePoints.getFirst()) &&
+                arePointsClose(chain.getLast(), polylinePoints.getLast())) {
+                result.add(polyline);
+                return result;
+            }
+        }
+
+        for (List<Vec2d> chain : chains) {
+            List<Vec2d> deduplicated = geometryUtils.removeDuplicatePoints(chain);
+            if (deduplicated.size() < 2) {
+                continue;
+            }
+
+            PolylineShape trimmedPolyline = new PolylineShape(deduplicated, false);
+            if (polyline.getStyle() != null) {
+                trimmedPolyline.setStyle(polyline.getStyle().clone());
+            }
+            if (polyline.getTransform() != null) {
+                trimmedPolyline.setTransform(polyline.getTransform().clone());
+            }
+            result.add(trimmedPolyline);
+        }
+
+        return result;
+    }
+
+    private List<Shape> fenceTrimArcShape(ArcShape arc, List<Vec2d> fencePoints) {
+        List<Shape> result = new ArrayList<>();
+
+        List<Shape> segments = createFenceTrimmedSegments(arc, fencePoints);
+        result.addAll(segments);
+        return result;
     }
     
     // ====== 特定形状的栅栏修剪方法 ======
@@ -283,44 +409,6 @@ public class FenceTrimHelper {
         return result;
     }
     
-    private List<Shape> fenceTrimPolylineShape(PolylineShape polyline, List<Vec2d> fencePoints) {
-        List<Shape> result = new ArrayList<>();
-        List<Vec2d> polylinePoints = polyline.getPoints();
-        
-        System.out.println("[DEBUG] fenceTrimPolylineShape - 开始栅栏修剪PolylineShape");
-        System.out.println("[DEBUG] fenceTrimPolylineShape - 原始点数: " + polylinePoints.size());
-        
-        if (polylinePoints.size() < 2) {
-            return result;
-        }
-        
-        // 检查图形是否完全在栅栏内部
-        if (isShapeCompletelyInsideFence(polyline, fencePoints)) {
-            System.out.println("[DEBUG] fenceTrimPolylineShape - 图形完全在栅栏内部，删除整个图形");
-            return result;
-        }
-        
-        // 找到图形与栅栏的交点
-        List<Vec2d> intersections = findIntersectionsWithFence(polyline, fencePoints);
-        System.out.println("[DEBUG] fenceTrimPolylineShape - 找到交点数量: " + intersections.size());
-        
-        if (intersections.isEmpty()) {
-            // 没有交点，检查是否部分在内部
-            if (hasInternalSegments(polyline, fencePoints)) {
-                System.out.println("[DEBUG] fenceTrimPolylineShape - 图形部分在栅栏内部，删除整个图形");
-            } else {
-                result.add(polyline); // 保留原图形
-            }
-            return result;
-        }
-        
-        // 有交点，分割图形并删除内部部分
-        List<Shape> segments = createFenceTrimmedSegments(polyline, fencePoints);
-        result.addAll(segments);
-        
-        return result;
-    }
-    
     // ====== 辅助方法 ======
     
     /**
@@ -328,6 +416,11 @@ public class FenceTrimHelper {
      */
     private List<Vec2d> findIntersectionsWithFence(Shape shape, List<Vec2d> fencePoints) {
         List<Vec2d> allIntersections = new ArrayList<>();
+
+        List<Vec2d> closedFence = createClosedFence(fencePoints);
+        if (closedFence.size() < 4) {
+            return allIntersections;
+        }
         
         // 获取图形的采样点
         List<Vec2d> shapePoints = getShapePointsForIntersection(shape);
@@ -337,9 +430,9 @@ public class FenceTrimHelper {
             Vec2d p1 = shapePoints.get(i);
             Vec2d p2 = shapePoints.get(i + 1);
             
-            for (int j = 0; j < fencePoints.size() - 1; j++) {
-                Vec2d p3 = fencePoints.get(j);
-                Vec2d p4 = fencePoints.get(j + 1);
+            for (int j = 0; j < closedFence.size() - 1; j++) {
+                Vec2d p3 = closedFence.get(j);
+                Vec2d p4 = closedFence.get(j + 1);
                 
                 Vec2d intersection = geometryUtils.calculateLineLineIntersection(p1, p2, p3, p4);
                 if (intersection != null) {
@@ -350,6 +443,85 @@ public class FenceTrimHelper {
         
         // 移除重复的交点
         return geometryUtils.removeDuplicatePoints(allIntersections);
+    }
+
+    private List<Vec2d> createClosedFence(List<Vec2d> fencePoints) {
+        List<Vec2d> closedFence = new ArrayList<>();
+        if (fencePoints == null || fencePoints.size() < 3) {
+            return closedFence;
+        }
+
+        closedFence.addAll(fencePoints);
+        if (!arePointsClose(closedFence.getFirst(), closedFence.getLast())) {
+            closedFence.add(closedFence.getFirst());
+        }
+
+        return closedFence;
+    }
+
+    private List<LineShape> clipSegmentOutsideFence(Vec2d start, Vec2d end, List<Vec2d> fencePoints) {
+        List<LineShape> result = new ArrayList<>();
+        List<Vec2d> closedFence = createClosedFence(fencePoints);
+        if (closedFence.size() < 4) {
+            result.add(new LineShape(start, end));
+            return result;
+        }
+
+        List<SegmentIntersection> splitPoints = new ArrayList<>();
+        splitPoints.add(new SegmentIntersection(0.0, start));
+        splitPoints.add(new SegmentIntersection(1.0, end));
+
+        for (int i = 0; i < closedFence.size() - 1; i++) {
+            Vec2d p3 = closedFence.get(i);
+            Vec2d p4 = closedFence.get(i + 1);
+            Vec2d intersection = geometryUtils.calculateLineLineIntersection(start, end, p3, p4);
+            if (intersection == null) {
+                continue;
+            }
+
+            double t = getSegmentParam(start, end, intersection);
+            if (t > SEGMENT_EPSILON && t < 1.0 - SEGMENT_EPSILON) {
+                splitPoints.add(new SegmentIntersection(t, intersection));
+            }
+        }
+
+        splitPoints.sort((a, b) -> Double.compare(a.t(), b.t()));
+
+        List<SegmentIntersection> deduplicated = new ArrayList<>();
+        for (SegmentIntersection point : splitPoints) {
+            if (deduplicated.isEmpty() || !arePointsClose(deduplicated.getLast().point(), point.point())) {
+                deduplicated.add(point);
+            }
+        }
+
+        for (int i = 0; i < deduplicated.size() - 1; i++) {
+            Vec2d segStart = deduplicated.get(i).point();
+            Vec2d segEnd = deduplicated.get(i + 1).point();
+            if (segStart.distance(segEnd) <= SEGMENT_EPSILON) {
+                continue;
+            }
+
+            Vec2d mid = segStart.add(segEnd).multiply(0.5);
+            if (!isPointInsideFence(mid, fencePoints)) {
+                result.add(new LineShape(segStart, segEnd));
+            }
+        }
+
+        return result;
+    }
+
+    private double getSegmentParam(Vec2d start, Vec2d end, Vec2d point) {
+        Vec2d direction = end.subtract(start);
+        double lengthSquared = direction.lengthSquared();
+        if (lengthSquared < SEGMENT_EPSILON) {
+            return 0.0;
+        }
+
+        return point.subtract(start).dot(direction) / lengthSquared;
+    }
+
+    private boolean arePointsClose(Vec2d a, Vec2d b) {
+        return a.distance(b) <= SEGMENT_EPSILON;
     }
     
     /**
