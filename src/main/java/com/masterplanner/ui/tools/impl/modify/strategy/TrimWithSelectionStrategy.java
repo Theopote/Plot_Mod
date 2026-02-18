@@ -256,12 +256,18 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     context.setStatusMessage("请先选择边界图形");
                     return ModifyResult.CONTINUE;
                 }
-                
-                // 记住边界状态，进入持续模式
-                rememberState();
-                trimState = TrimState.BOUNDARY_READY;
-                context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧（持续模式）");
-                LOGGER.info("完成边界选择，进入持续模式");
+
+                if (continuousMode) {
+                    // 记住边界状态，进入持续模式
+                    rememberState();
+                    trimState = TrimState.BOUNDARY_READY;
+                    context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧（持续模式）");
+                    LOGGER.info("完成边界选择，进入持续模式");
+                } else {
+                    trimState = TrimState.WAITING_TRIM_CLICK;
+                    context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧");
+                    LOGGER.info("完成边界选择，进入单次修剪模式");
+                }
                 return ModifyResult.CONTINUE;
             }
             
@@ -271,12 +277,19 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     context.setStatusMessage("请先选择要修剪的图形");
                     return ModifyResult.CONTINUE;
                 }
-                
-                // 记住目标状态，进入持续模式
-                rememberState();
-                trimState = TrimState.FENCE_READY;
-                context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，可以继续使用栅栏修剪（持续模式）");
-                LOGGER.info("完成目标图形选择，进入持续模式");
+
+                if (continuousMode) {
+                    // 记住目标状态，进入持续模式
+                    rememberState();
+                    trimState = TrimState.FENCE_READY;
+                    context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，可以继续使用栅栏修剪（持续模式）");
+                    LOGGER.info("完成目标图形选择，进入持续模式");
+                } else {
+                    fencePoints.clear();
+                    trimState = TrimState.DRAWING_FENCE;
+                    context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，开始绘制栅栏");
+                    LOGGER.info("完成目标图形选择，进入单次栅栏绘制模式");
+                }
                 return ModifyResult.CONTINUE;
             }
             
@@ -399,7 +412,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         for (Shape shape : shapes) {
             try {
                 double distance = shape.distanceTo(pos);
-                if (distance <= SELECTION_TOLERANCE && distance < minDistance) {
+                if (distance <= trimTolerance && distance < minDistance) {
                     minDistance = distance;
                     nearestShape = shape;
                 }
@@ -515,6 +528,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (highlightedShape != null) {
                 highlightedShape.setHighlighted(false);
                 highlightedShape = null;
+            }
+
+            if (!highlightEnabled) {
+                return;
             }
             
             // 根据当前状态高亮不同的图形
@@ -1132,6 +1149,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     public void renderPreview(DrawContext context) {
         try {
+            if (!previewEnabled) {
+                return;
+            }
+
             // 首先渲染框选预览
             renderBoxSelectionPreview(context);
             
@@ -1150,6 +1171,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
         try {
+            if (!previewEnabled) {
+                return;
+            }
+
             // 首先渲染框选预览
             renderBoxSelectionPreviewImGui(drawList, camera);
             
