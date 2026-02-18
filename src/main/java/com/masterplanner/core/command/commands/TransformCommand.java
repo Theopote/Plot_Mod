@@ -131,6 +131,17 @@ public class TransformCommand extends ModifyCommand {
         // 在任何变换前先克隆，避免预览阶段修改原始对象导致累积漂移
         Shape workingShape = shape.clone();
 
+        // 统一继承原图样式/变换，并保证预览副本可见。
+        // 原因：预览阶段原图会被临时隐藏，部分图形clone会继承visible=false或丢失样式/transform，
+        // 导致“无预览”或“预览线变黑”。
+        if (shape.getTransform() != null) {
+            workingShape.setTransform(shape.getTransform().clone());
+        }
+        if (shape.getStyle() != null) {
+            workingShape.setStyle(shape.getStyle().clone());
+        }
+        workingShape.setVisible(true);
+
         // 检查是否为圆形或圆弧，且需要进行非等比缩放
         // 如果是，使用transform()方法转换为椭圆/椭圆弧
         ControlPointType controlPointType = params.getControlPointType();
