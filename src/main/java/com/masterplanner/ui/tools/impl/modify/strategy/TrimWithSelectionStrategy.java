@@ -1313,25 +1313,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     }
 
     /**
-     * 获取预览开关状态
-     */
-    public boolean isPreviewEnabled() {
-        return previewEnabled;
-    }
-
-    /**
      * 设置高亮开关
      */
     public void setHighlightEnabled(boolean enabled) {
         this.highlightEnabled = enabled;
         LOGGER.debug("高亮开关已设置为: {}", enabled);
-    }
-
-    /**
-     * 获取高亮开关状态
-     */
-    public boolean isHighlightEnabled() {
-        return highlightEnabled;
     }
 
     /**
@@ -1342,10 +1328,4 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         LOGGER.debug("连续模式已设置为: {}", enabled);
     }
 
-    /**
-     * 获取连续模式状态
-     */
-    public boolean isContinuousMode() {
-        return continuousMode;
-    }
 }

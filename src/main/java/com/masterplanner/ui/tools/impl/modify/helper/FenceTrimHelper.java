@@ -6,6 +6,7 @@ import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -485,7 +486,7 @@ public class FenceTrimHelper {
             }
         }
 
-        splitPoints.sort((a, b) -> Double.compare(a.t(), b.t()));
+        splitPoints.sort(Comparator.comparingDouble(SegmentIntersection::t));
 
         List<SegmentIntersection> deduplicated = new ArrayList<>();
         for (SegmentIntersection point : splitPoints) {

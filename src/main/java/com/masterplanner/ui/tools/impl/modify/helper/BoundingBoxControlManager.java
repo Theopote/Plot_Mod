@@ -39,6 +39,8 @@ public class BoundingBoxControlManager {
     // 控制点常量
     private static final double CONTROL_POINT_SIZE = 8.0; // 控制点大小
     private static final double CONTROL_POINT_HIT_DISTANCE = 12.0; // 控制点点击检测距离
+    private static final double CONTROL_POINT_HOVER_DISTANCE = 24.0; // 控制点悬停检测距离
+    private static final double ROTATION_ICON_HOVER_DISTANCE = 14.0; // 旋转图标悬停检测距离
     
          // 渲染常量
      private static final float DASH_LENGTH = 8.0f;
@@ -479,7 +481,33 @@ public class BoundingBoxControlManager {
      * 更新悬停的控制点
      */
     public void updateHoveredControlPoint(Vec2d point) {
-        hoveredControlPoint = findClickedControlPoint(point);
+        hoveredControlPoint = findHoveredControlPoint(point);
+    }
+
+    private ControlPointType findHoveredControlPoint(Vec2d point) {
+        if (point == null) {
+            return null;
+        }
+
+        for (ControlPointType controlPointType : ControlPointType.values()) {
+            Vec2d controlPoint = controlPoints[controlPointType.getIndex()];
+            if (controlPoint == null) {
+                continue;
+            }
+
+            if (point.distance(controlPoint) <= CONTROL_POINT_HOVER_DISTANCE) {
+                return controlPointType;
+            }
+
+            if (rotationIconsEnabled && controlPointType.supportsRotation()) {
+                Vec2d iconPosition = calculateRotationIconPosition(controlPointType, controlPoint);
+                if (iconPosition != null && point.distance(iconPosition) <= ROTATION_ICON_HOVER_DISTANCE) {
+                    return controlPointType;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

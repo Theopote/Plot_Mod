@@ -124,6 +124,7 @@ public class TransformTool extends ModifyTool implements EventListener {
         // 创建变换策略
         transformStrategy = new com.masterplanner.ui.tools.impl.modify.strategy.TransformWithSelectionStrategy(
             transformHandler, controlManager, eventBus);
+        transformStrategy.setRotationEnabled(rotationEnabled);
         return transformStrategy;
     }
     
@@ -278,6 +279,9 @@ public class TransformTool extends ModifyTool implements EventListener {
      */
     public void setRotationEnabled(boolean enabled) {
         this.rotationEnabled = enabled;
+        if (transformStrategy != null) {
+            transformStrategy.setRotationEnabled(enabled);
+        }
         LOGGER.debug("旋转功能已{}", enabled ? "启用" : "禁用");
     }
     

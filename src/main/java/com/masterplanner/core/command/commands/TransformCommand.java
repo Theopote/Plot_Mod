@@ -239,20 +239,19 @@ public class TransformCommand extends ModifyCommand {
         }
         
         // 其他情况，使用原来的逻辑
-        Shape result = workingShape;
-        
+
         // 根据变换模式应用不同的变换
         TransformMode mode = params.getMode();
         
         switch (mode) {
-            case FREE -> applyFreeTransform(result, params);
-            case HORIZONTAL -> applyHorizontalTransform(result, params);
-            case VERTICAL -> applyVerticalTransform(result, params);
-            case UNIFORM -> applyUniformTransform(result, params);
-            case ROTATION -> applyRotationTransform(result, params);
+            case FREE -> applyFreeTransform(workingShape, params);
+            case HORIZONTAL -> applyHorizontalTransform(workingShape, params);
+            case VERTICAL -> applyVerticalTransform(workingShape, params);
+            case UNIFORM -> applyUniformTransform(workingShape, params);
+            case ROTATION -> applyRotationTransform(workingShape, params);
         }
         
-        return result;
+        return workingShape;
     }
     
     /**
