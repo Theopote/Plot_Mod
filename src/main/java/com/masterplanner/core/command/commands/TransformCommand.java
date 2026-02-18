@@ -128,6 +128,9 @@ public class TransformCommand extends ModifyCommand {
      * 变换单个图形
      */
     private Shape transformShape(Shape shape, TransformParams params) {
+        // 在任何变换前先克隆，避免预览阶段修改原始对象导致累积漂移
+        Shape workingShape = shape.clone();
+
         // 检查是否为圆形或圆弧，且需要进行非等比缩放
         // 如果是，使用transform()方法转换为椭圆/椭圆弧
         ControlPointType controlPointType = params.getControlPointType();
@@ -138,7 +141,7 @@ public class TransformCommand extends ModifyCommand {
             if (controlPointType == ControlPointType.TOP_CENTER || 
                 controlPointType == ControlPointType.BOTTOM_CENTER) {
                 // 垂直缩放：检查是否为非等比
-                com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                com.masterplanner.core.geometry.BoundingBox bounds = workingShape.getBoundingBox();
                 if (bounds != null) {
                     Vec2d dragVector = params.getDragVector();
                     double originalHeight = bounds.getHeight();
@@ -156,7 +159,7 @@ public class TransformCommand extends ModifyCommand {
             } else if (controlPointType == ControlPointType.CENTER_LEFT || 
                        controlPointType == ControlPointType.CENTER_RIGHT) {
                 // 水平缩放：检查是否为非等比
-                com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                com.masterplanner.core.geometry.BoundingBox bounds = workingShape.getBoundingBox();
                 if (bounds != null) {
                     Vec2d dragVector = params.getDragVector();
                     double originalWidth = bounds.getWidth();
@@ -177,7 +180,7 @@ public class TransformCommand extends ModifyCommand {
                        controlPointType == ControlPointType.BOTTOM_RIGHT) {
                 // 角点缩放：检查是否为非等比（且未按住Shift）
                 if (!params.isMaintainAspectRatio()) {
-                    com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+                    com.masterplanner.core.geometry.BoundingBox bounds = workingShape.getBoundingBox();
                     if (bounds != null) {
                         scaleFactors = calculateScaleFactors(controlPointType, params.getDragVector(), bounds);
                         isNonUniformScale = Math.abs(scaleFactors.x - scaleFactors.y) > 1e-10;
@@ -189,9 +192,9 @@ public class TransformCommand extends ModifyCommand {
         // 对于圆形、圆弧和螺旋形的非等比缩放，使用transform()方法进行变换
         // 注意：EllipseShape和EllipticalArcShape已经支持非等比缩放，不需要特殊处理
         // 对于SpiralShape，使用transform()方法可以支持单轴缩放（通过AffineTransform变换点）
-        if (isNonUniformScale && (shape instanceof CircleShape || shape instanceof ArcShape || shape instanceof SpiralShape)) {
+        if (isNonUniformScale && (workingShape instanceof CircleShape || workingShape instanceof ArcShape || workingShape instanceof SpiralShape)) {
             Vec2d scaleCenter;
-            com.masterplanner.core.geometry.BoundingBox bounds = shape.getBoundingBox();
+            com.masterplanner.core.geometry.BoundingBox bounds = workingShape.getBoundingBox();
             if (bounds == null) {
                 // 如果无法获取边界框，回退到普通变换
             } else {
@@ -221,14 +224,14 @@ public class TransformCommand extends ModifyCommand {
                 // 使用transform()方法进行变换
                 // 对于CircleShape和ArcShape，transform()可能返回新类型（EllipseShape/EllipticalArcShape）
                 // 对于SpiralShape，transform()返回this，但会正确应用非等比缩放（包括单轴缩放）
-                Shape transformed = shape.transform(transform);
-                if (transformed != shape) {
+                Shape transformed = workingShape.transform(transform);
+                if (transformed != workingShape) {
                     // 如果返回了新图形类型，复制样式
-                    if (shape.getStyle() != null) {
-                        transformed.setStyle(shape.getStyle().clone());
+                    if (workingShape.getStyle() != null) {
+                        transformed.setStyle(workingShape.getStyle().clone());
                     }
                     return transformed;
-                } else if (shape instanceof SpiralShape) {
+                } else if (workingShape instanceof SpiralShape) {
                     // SpiralShape.transform()返回this，但已经应用了变换，直接返回
                     return transformed;
                 }
@@ -236,7 +239,7 @@ public class TransformCommand extends ModifyCommand {
         }
         
         // 其他情况，使用原来的逻辑
-        Shape result = shape.clone();
+        Shape result = workingShape;
         
         // 根据变换模式应用不同的变换
         TransformMode mode = params.getMode();
