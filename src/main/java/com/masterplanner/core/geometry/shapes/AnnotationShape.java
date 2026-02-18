@@ -308,7 +308,8 @@ public class AnnotationShape extends Shape {
                 }
                 break;
             case AREA:
-                // TODO: 实现面积标注的点收集
+                // 面积标注以文本锚点作为几何参考点
+                if (textPosition != null) points.add(textPosition);
                 break;
             default:
                 break;
@@ -745,7 +746,8 @@ public class AnnotationShape extends Shape {
                 if (center != null) points.add(center);
                 break;
             case AREA:
-                // TODO: 实现面积标注的控制点
+                // 面积标注仅支持移动文本锚点
+                if (textPosition != null) points.add(textPosition);
                 break;
             default:
                 break;
@@ -777,7 +779,7 @@ public class AnnotationShape extends Shape {
                     else if (index == 1) textPosition = point;
                     break;
                 case AREA:
-                    // TODO: 实现面积标注的控制点设置
+                    if (index == 0) textPosition = point;
                     break;
                 default:
                     break;
@@ -835,7 +837,7 @@ public class AnnotationShape extends Shape {
                 }
                 break;
             case AREA:
-                // TODO: 实现面积标注的端点
+                if (textPosition != null) endpoints.add(textPosition);
                 break;
             default:
                 break;
