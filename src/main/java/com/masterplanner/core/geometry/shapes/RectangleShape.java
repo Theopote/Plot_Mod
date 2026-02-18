@@ -42,6 +42,7 @@ public class RectangleShape extends Shape {
         this.height = Math.max(0, height);
         this.rotation = 0;
         this.cornerRadius = Math.max(0, cornerRadius);
+        clampCornerRadiusToSize();
         
         // 验证参数
         if (this.width <= 0 || this.height <= 0) {
@@ -56,6 +57,7 @@ public class RectangleShape extends Shape {
         this.height = Math.max(0, height);
         this.rotation = rotation;
         this.cornerRadius = Math.max(0, cornerRadius);
+        clampCornerRadiusToSize();
         
         // 验证参数
         if (this.width <= 0 || this.height <= 0) {
@@ -74,6 +76,7 @@ public class RectangleShape extends Shape {
             LOGGER.warn("设置矩形宽度为负值: {}", width);
         }
         this.width = Math.max(0, width); 
+        clampCornerRadiusToSize();
         invalidateCache();
     }
     public double getHeight() { return height; }
@@ -82,6 +85,7 @@ public class RectangleShape extends Shape {
             LOGGER.warn("设置矩形高度为负值: {}", height);
         }
         this.height = Math.max(0, height); 
+        clampCornerRadiusToSize();
         invalidateCache();
     }
     public double getRotation() { return rotation; }
@@ -94,7 +98,13 @@ public class RectangleShape extends Shape {
     public double getCornerRadius() { return cornerRadius; }
     public void setCornerRadius(double cornerRadius) {
         this.cornerRadius = Math.max(0, cornerRadius);
+        clampCornerRadiusToSize();
         invalidateCache();
+    }
+
+    private void clampCornerRadiusToSize() {
+        double maxRadius = Math.max(0.0, Math.min(width, height) / 2.0);
+        cornerRadius = Math.min(cornerRadius, maxRadius);
     }
     
     /**
@@ -159,7 +169,8 @@ public class RectangleShape extends Shape {
             this.width *= scaleFactor;
             this.height *= scaleFactor;
             this.rotation = newRotation;
-            this.cornerRadius *= scaleFactor;
+            this.cornerRadius *= Math.abs(scaleFactor);
+            clampCornerRadiusToSize();
             
             invalidateCache();
             return this; // 返回自身
@@ -184,8 +195,10 @@ public class RectangleShape extends Shape {
     @Override
     public void scale(Vec2d scale, Vec2d center) {
         corner = center.add(corner.subtract(center).multiply(scale));
-        width *= scale.x;
-        height *= scale.y;
+        width *= Math.abs(scale.x);
+        height *= Math.abs(scale.y);
+        cornerRadius *= Math.min(Math.abs(scale.x), Math.abs(scale.y));
+        clampCornerRadiusToSize();
         invalidateCache();
     }
     

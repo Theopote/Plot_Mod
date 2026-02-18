@@ -112,18 +112,14 @@ public class TransformCommand extends ModifyCommand {
         transformedShapes.clear();
 
         BoundingBox selectionBounds = calculateCombinedBounds(originalShapes);
-        AffineTransform groupTransform = null;
-        if (originalShapes.size() > 1) {
-            groupTransform = buildSelectionTransform(transformParams, selectionBounds);
-        }
 
         for (Shape originalShape : originalShapes) {
             if (originalShape == null) {
                 continue;
             }
 
-            Shape transformedShape = groupTransform != null
-                    ? transformShapeWithAffine(originalShape, groupTransform)
+            Shape transformedShape = (originalShapes.size() > 1)
+                    ? transformShapeAsGroup(originalShape, transformParams, selectionBounds)
                     : transformShape(originalShape, transformParams);
             transformedShapes.add(transformedShape);
         }
@@ -133,9 +129,13 @@ public class TransformCommand extends ModifyCommand {
     }
 
     /**
-     * 多选时使用统一仿射矩阵进行整体变换，避免每个图形按自身边界单独缩放。
+     * 多选时按统一组参数变换（共享同一锚点/中心与缩放系数），确保被选图形作为整体变换。
      */
-    private Shape transformShapeWithAffine(Shape shape, AffineTransform transform) {
+    private Shape transformShapeAsGroup(Shape shape, TransformParams params, BoundingBox selectionBounds) {
+        if (params == null || selectionBounds == null) {
+            return transformShape(shape, params);
+        }
+
         Shape workingShape = shape.clone();
 
         if (shape.getTransform() != null) {
@@ -146,43 +146,30 @@ public class TransformCommand extends ModifyCommand {
         }
         workingShape.setVisible(true);
 
-        Shape transformed = workingShape.transform(transform);
-        if (transformed != workingShape && workingShape.getStyle() != null) {
-            transformed.setStyle(workingShape.getStyle().clone());
-        }
-        return transformed;
-    }
-
-    private AffineTransform buildSelectionTransform(TransformParams params, BoundingBox selectionBounds) {
-        if (params == null || selectionBounds == null) {
-            return null;
-        }
-
         Vec2d dragVector = params.getDragVector();
         if (dragVector == null) {
-            return null;
+            return workingShape;
         }
 
         ControlPointType controlPointType = params.getControlPointType();
         TransformMode mode = params.getMode();
 
-        if (mode == TransformMode.HORIZONTAL) {
-            return AffineTransform.createTranslation(dragVector.x, 0.0);
-        }
-        if (mode == TransformMode.VERTICAL) {
-            return AffineTransform.createTranslation(0.0, dragVector.y);
-        }
         if (mode == TransformMode.ROTATION) {
             double angle = params.getRotationAngle();
             Vec2d center = params.getAnchorPoint() != null ? params.getAnchorPoint() : selectionBounds.getCenter();
-            AffineTransform toOrigin = AffineTransform.createTranslation(-center.x, -center.y);
-            AffineTransform rotation = AffineTransform.createRotation(angle);
-            AffineTransform fromOrigin = AffineTransform.createTranslation(center.x, center.y);
-            return fromOrigin.multiply(rotation).multiply(toOrigin);
+            workingShape.rotate(angle, center);
+            return workingShape;
         }
 
         if (controlPointType == null) {
-            return AffineTransform.createTranslation(dragVector.x, dragVector.y);
+            if (mode == TransformMode.HORIZONTAL) {
+                workingShape.translate(new Vec2d(dragVector.x, 0.0));
+            } else if (mode == TransformMode.VERTICAL) {
+                workingShape.translate(new Vec2d(0.0, dragVector.y));
+            } else {
+                workingShape.translate(dragVector);
+            }
+            return workingShape;
         }
 
         Vec2d scaleFactors;
@@ -221,10 +208,25 @@ public class TransformCommand extends ModifyCommand {
                 ? selectionBounds.getCenter()
                 : calculateAnchorPoint(controlPointType, selectionBounds);
 
-        AffineTransform toOrigin = AffineTransform.createTranslation(-scaleCenter.x, -scaleCenter.y);
-        AffineTransform scale = AffineTransform.createScale(scaleFactors.x, scaleFactors.y);
-        AffineTransform fromOrigin = AffineTransform.createTranslation(scaleCenter.x, scaleCenter.y);
-        return fromOrigin.multiply(scale).multiply(toOrigin);
+        boolean nonUniformScale = Math.abs(scaleFactors.x - scaleFactors.y) > 1e-10;
+        boolean useAffineForTypeConversion = nonUniformScale
+                && (workingShape instanceof CircleShape || workingShape instanceof ArcShape || workingShape instanceof SpiralShape);
+
+        if (useAffineForTypeConversion) {
+            AffineTransform toOrigin = AffineTransform.createTranslation(-scaleCenter.x, -scaleCenter.y);
+            AffineTransform scale = AffineTransform.createScale(scaleFactors.x, scaleFactors.y);
+            AffineTransform fromOrigin = AffineTransform.createTranslation(scaleCenter.x, scaleCenter.y);
+            AffineTransform transform = fromOrigin.multiply(scale).multiply(toOrigin);
+
+            Shape transformed = workingShape.transform(transform);
+            if (transformed != workingShape && workingShape.getStyle() != null) {
+                transformed.setStyle(workingShape.getStyle().clone());
+            }
+            return transformed;
+        }
+
+        workingShape.scale(scaleFactors, scaleCenter);
+        return workingShape;
     }
 
     private BoundingBox calculateCombinedBounds(List<Shape> shapes) {
