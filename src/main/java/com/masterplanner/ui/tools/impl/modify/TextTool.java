@@ -48,6 +48,9 @@ public class TextTool extends BaseTool {
     private static final String CURSOR_TEXT = "text";
     private static final String CURSOR_CROSSHAIR = "crosshair";
     private static final String CURSOR_DEFAULT = "default";
+    private static final String TOOL_MARKER_TEXT = "T";
+    private static final double TOOL_MARKER_OFFSET_X_PX = 12.0;
+    private static final double TOOL_MARKER_OFFSET_Y_PX = -14.0;
     
     // ---- 键盘快捷键 ----
     private static final int KEY_ENTER = KeyEvent.VK_ENTER;
@@ -392,11 +395,19 @@ public class TextTool extends BaseTool {
 
     @Override
     public boolean onMouseMove(Vec2d pos) {
+        super.onMouseMove(pos);
+
         if (currentState == ToolState.PLACING && previewText != null) {
             previewText.setPosition(pos);
             canvas.refresh(); // 立即刷新，提供更好的用户体验
             return true;
         }
+
+        if (isActive()) {
+            canvas.refresh();
+            return true;
+        }
+
         return false;
     }
 
@@ -1025,6 +1036,27 @@ public class TextTool extends BaseTool {
         if (currentState == ToolState.PLACING && previewText != null) {
             previewText.draw(context);
         }
+
+        // 在鼠标附近显示文字工具标识，便于用户识别当前工具
+        drawToolMarker(context);
+    }
+
+    private void drawToolMarker(DrawContext context) {
+        if (!isActive() || currentPoint == null || context == null) {
+            return;
+        }
+
+        double offsetX = TOOL_MARKER_OFFSET_X_PX;
+        double offsetY = TOOL_MARKER_OFFSET_Y_PX;
+
+        var camera = context.getCamera();
+        if (camera != null) {
+            offsetX = camera.screenToWorldDistance(TOOL_MARKER_OFFSET_X_PX);
+            offsetY = camera.screenToWorldDistance(TOOL_MARKER_OFFSET_Y_PX);
+        }
+
+        Vec2d markerPos = new Vec2d(currentPoint.x + offsetX, currentPoint.y + offsetY);
+        context.drawText(TOOL_MARKER_TEXT, markerPos, getCurrentLayerColor());
     }
 
     @Override
