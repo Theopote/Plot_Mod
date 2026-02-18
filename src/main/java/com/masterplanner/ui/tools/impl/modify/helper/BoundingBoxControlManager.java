@@ -339,6 +339,24 @@ public class BoundingBoxControlManager {
                 skippedShapes++;
                 continue;
             }
+
+            // 优先使用图形自身包围盒：可正确反映 transform 矩阵后的几何范围
+            // 这对 SpiralShape 等“点集不直接包含 transform 效果”的图形尤为关键。
+            try {
+                com.masterplanner.core.geometry.BoundingBox shapeBounds = shape.getBoundingBox();
+                if (shapeBounds != null) {
+                    minX = Math.min(minX, shapeBounds.getMinX());
+                    minY = Math.min(minY, shapeBounds.getMinY());
+                    maxX = Math.max(maxX, shapeBounds.getMaxX());
+                    maxY = Math.max(maxY, shapeBounds.getMaxY());
+                    hasValidPoints = true;
+                    processedShapes++;
+                    continue;
+                }
+            } catch (Exception e) {
+                LOGGER.debug("图形 {} 的包围盒计算失败，回退到点集计算: {}",
+                        shape.getClass().getSimpleName(), e.getMessage());
+            }
             
             List<Vec2d> points = shape.getPoints();
             if (points == null || points.isEmpty()) {
