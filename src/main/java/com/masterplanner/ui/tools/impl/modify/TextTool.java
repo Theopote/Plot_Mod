@@ -514,7 +514,7 @@ public class TextTool extends BaseTool {
                                     .italic(dlgStyle.isItalic())
                                     .horizontalAlignment(getHorizontalAlignment())
                                     .verticalAlignment(getVerticalAlignment())
-                                    .lineHeight(getLineHeight())
+                                    .lineHeight(dlgStyle.getLineHeight())
                                     .color(getCurrentLayerColor())
                                     .build();
 
@@ -587,6 +587,7 @@ public class TextTool extends BaseTool {
         dialog.setInitialItalic(configItalic);
         dialog.setInitialHorizontalAlignment(configHorizontalAlignment);
         dialog.setInitialVerticalAlignment(configVerticalAlignment);
+        dialog.setInitialLineHeight(configLineHeight);
         dialog.setVisible(true);
         return dialog;
     }
