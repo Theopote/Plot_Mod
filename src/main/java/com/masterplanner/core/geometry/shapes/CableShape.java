@@ -844,7 +844,6 @@ public class CableShape extends Shape implements IExtendableShape {
 
     @Override
     public Shape clone() {
-        Shape shape = super.clone();
         CableShape clone = new CableShape(start, end, sagParameter, segments);
         clone.setDrawMode(drawMode);
         clone.setTensionFactor(tensionFactor);
@@ -866,7 +865,12 @@ public class CableShape extends Shape implements IExtendableShape {
             }
         }
 
-        clone.setStyle(getStyle());
+        if (getTransform() != null) {
+            clone.setTransform(getTransform().clone());
+        }
+        if (getStyle() != null) {
+            clone.setStyle(getStyle().clone());
+        }
         return clone;
     }
 
