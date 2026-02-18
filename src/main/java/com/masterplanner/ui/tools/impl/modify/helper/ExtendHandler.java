@@ -549,29 +549,30 @@ public class ExtendHandler implements IModifyHandler {
             
             Vec2d startPoint = endPoints.get(0);
             Vec2d endPoint = endPoints.get(1);
-            
-            // 确定延伸哪个端点
-            double distanceToStart = extendPoint.distance(startPoint);
-            double distanceToEnd = extendPoint.distance(endPoint);
-            
-            LOGGER.debug("圆弧延伸方向计算 - 起始点: {}, 结束点: {}, 延伸点: {}, 到起始点距离: {:.2f}, 到结束点距离: {:.2f}", 
-                formatVec2d(startPoint), formatVec2d(endPoint), formatVec2d(extendPoint), 
-                distanceToStart, distanceToEnd);
-            
-            // 使用更简单可靠的方法：基于圆弧的几何特性计算切线方向
-            Vec2d targetPoint = distanceToStart < distanceToEnd ? startPoint : endPoint;
-            Vec2d direction = calculateArcTangentDirection(arc, targetPoint);
-            
-            if (direction != null) {
-                LOGGER.debug("圆弧延伸方向计算成功: ({}, {})", 
-                    String.format("%.2f", direction.x), String.format("%.2f", direction.y));
-            } else {
-                LOGGER.warn("圆弧延伸方向计算失败，使用备用方法");
-                // 备用方法：基于圆弧方向计算
-                direction = calculateArcFallbackDirection(arc, targetPoint);
+
+            // 选中被延伸端点
+            boolean fromStart = extendPoint.distance(startPoint) <= extendPoint.distance(endPoint);
+            Vec2d endpoint = fromStart ? startPoint : endPoint;
+
+            // ArcShape 内部角度规范为 start->end 逆时针，因此：
+            // - 延伸终点：沿逆时针切线方向
+            // - 延伸起点：沿顺时针（逆时针切线反向）
+            Vec2d radial = endpoint.subtract(arc.getCenter()).normalize();
+            if (radial.length() < ExtendConfig.GEOMETRY_EPSILON) {
+                LOGGER.warn("圆弧延伸方向计算失败：端点与圆心重合，无法计算切线");
+                return null;
             }
-            
-            return direction;
+
+            Vec2d ccwTangent = new Vec2d(-radial.y, radial.x);
+            Vec2d direction = fromStart ? ccwTangent.multiply(-1) : ccwTangent;
+
+            LOGGER.debug("圆弧延伸方向计算 - 从起点延伸: {}, 端点: {}, 方向: ({}, {})",
+                fromStart,
+                formatVec2d(endpoint),
+                String.format("%.2f", direction.x),
+                String.format("%.2f", direction.y));
+
+            return direction.normalize();
             
         } catch (Exception e) {
             LOGGER.warn("计算圆弧延伸方向失败: {}", e.getMessage(), e);
@@ -741,6 +742,12 @@ public class ExtendHandler implements IModifyHandler {
                     // 这里仍然使用List版本，因为这是内部调用
                     nearestIntersection = processSpatialIndexCandidates(shape, startPoint, direction, 
                         boundaryShapes, candidates, projectMode);
+
+                    // 射线候选已命中但未找到有效交点时，回退到全量边界搜索，避免方向/索引误差导致漏检
+                    if (nearestIntersection == null && boundaryShapes != null && !boundaryShapes.isEmpty()) {
+                        LOGGER.debug("候选边界未命中有效交点，回退到全量边界搜索");
+                        nearestIntersection = findExtendTargetFallback(shape, startPoint, direction, boundaryShapes, projectMode);
+                    }
                 }
                 
             } else {
