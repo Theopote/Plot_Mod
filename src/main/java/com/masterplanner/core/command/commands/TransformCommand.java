@@ -111,17 +111,155 @@ public class TransformCommand extends ModifyCommand {
     private void applyTransform() {
         transformedShapes.clear();
 
+        BoundingBox selectionBounds = calculateCombinedBounds(originalShapes);
+        AffineTransform groupTransform = null;
+        if (originalShapes.size() > 1) {
+            groupTransform = buildSelectionTransform(transformParams, selectionBounds);
+        }
+
         for (Shape originalShape : originalShapes) {
             if (originalShape == null) {
                 continue;
             }
 
-            Shape transformedShape = transformShape(originalShape, transformParams);
+            Shape transformedShape = groupTransform != null
+                    ? transformShapeWithAffine(originalShape, groupTransform)
+                    : transformShape(originalShape, transformParams);
             transformedShapes.add(transformedShape);
         }
         
         // 设置变换后的图形为新的图形列表
         setTargetShapes(transformedShapes);
+    }
+
+    /**
+     * 多选时使用统一仿射矩阵进行整体变换，避免每个图形按自身边界单独缩放。
+     */
+    private Shape transformShapeWithAffine(Shape shape, AffineTransform transform) {
+        Shape workingShape = shape.clone();
+
+        if (shape.getTransform() != null) {
+            workingShape.setTransform(shape.getTransform().clone());
+        }
+        if (shape.getStyle() != null) {
+            workingShape.setStyle(shape.getStyle().clone());
+        }
+        workingShape.setVisible(true);
+
+        Shape transformed = workingShape.transform(transform);
+        if (transformed != workingShape && workingShape.getStyle() != null) {
+            transformed.setStyle(workingShape.getStyle().clone());
+        }
+        return transformed;
+    }
+
+    private AffineTransform buildSelectionTransform(TransformParams params, BoundingBox selectionBounds) {
+        if (params == null || selectionBounds == null) {
+            return null;
+        }
+
+        Vec2d dragVector = params.getDragVector();
+        if (dragVector == null) {
+            return null;
+        }
+
+        ControlPointType controlPointType = params.getControlPointType();
+        TransformMode mode = params.getMode();
+
+        if (mode == TransformMode.HORIZONTAL) {
+            return AffineTransform.createTranslation(dragVector.x, 0.0);
+        }
+        if (mode == TransformMode.VERTICAL) {
+            return AffineTransform.createTranslation(0.0, dragVector.y);
+        }
+        if (mode == TransformMode.ROTATION) {
+            double angle = params.getRotationAngle();
+            Vec2d center = params.getAnchorPoint() != null ? params.getAnchorPoint() : selectionBounds.getCenter();
+            AffineTransform toOrigin = AffineTransform.createTranslation(-center.x, -center.y);
+            AffineTransform rotation = AffineTransform.createRotation(angle);
+            AffineTransform fromOrigin = AffineTransform.createTranslation(center.x, center.y);
+            return fromOrigin.multiply(rotation).multiply(toOrigin);
+        }
+
+        if (controlPointType == null) {
+            return AffineTransform.createTranslation(dragVector.x, dragVector.y);
+        }
+
+        Vec2d scaleFactors;
+        if (controlPointType == ControlPointType.TOP_CENTER || controlPointType == ControlPointType.BOTTOM_CENTER) {
+            double originalHeight = selectionBounds.getHeight();
+            double scaleY = 1.0;
+            if (originalHeight > 0) {
+                if (controlPointType == ControlPointType.TOP_CENTER) {
+                    scaleY = (originalHeight + dragVector.y) / originalHeight;
+                } else {
+                    scaleY = (originalHeight - dragVector.y) / originalHeight;
+                }
+            }
+            scaleFactors = new Vec2d(1.0, Math.max(0.01, scaleY));
+        } else if (controlPointType == ControlPointType.CENTER_LEFT || controlPointType == ControlPointType.CENTER_RIGHT) {
+            double originalWidth = selectionBounds.getWidth();
+            double scaleX = 1.0;
+            if (originalWidth > 0) {
+                if (controlPointType == ControlPointType.CENTER_LEFT) {
+                    scaleX = (originalWidth - dragVector.x) / originalWidth;
+                } else {
+                    scaleX = (originalWidth + dragVector.x) / originalWidth;
+                }
+            }
+            scaleFactors = new Vec2d(Math.max(0.01, scaleX), 1.0);
+        } else {
+            if (params.isMaintainAspectRatio() || mode == TransformMode.UNIFORM) {
+                double uniformScale = Math.max(0.01, calculateUniformScaleFactor(controlPointType, dragVector, selectionBounds));
+                scaleFactors = new Vec2d(uniformScale, uniformScale);
+            } else {
+                scaleFactors = calculateScaleFactors(controlPointType, dragVector, selectionBounds);
+            }
+        }
+
+        Vec2d scaleCenter = params.isCenterScale()
+                ? selectionBounds.getCenter()
+                : calculateAnchorPoint(controlPointType, selectionBounds);
+
+        AffineTransform toOrigin = AffineTransform.createTranslation(-scaleCenter.x, -scaleCenter.y);
+        AffineTransform scale = AffineTransform.createScale(scaleFactors.x, scaleFactors.y);
+        AffineTransform fromOrigin = AffineTransform.createTranslation(scaleCenter.x, scaleCenter.y);
+        return fromOrigin.multiply(scale).multiply(toOrigin);
+    }
+
+    private BoundingBox calculateCombinedBounds(List<Shape> shapes) {
+        if (shapes == null || shapes.isEmpty()) {
+            return null;
+        }
+
+        double minX = Double.MAX_VALUE;
+        double minY = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE;
+        double maxY = -Double.MAX_VALUE;
+        boolean hasValid = false;
+
+        for (Shape shape : shapes) {
+            if (shape == null) {
+                continue;
+            }
+
+            BoundingBox bounds = shape.getBoundingBox();
+            if (bounds == null) {
+                continue;
+            }
+
+            minX = Math.min(minX, bounds.getMinX());
+            minY = Math.min(minY, bounds.getMinY());
+            maxX = Math.max(maxX, bounds.getMaxX());
+            maxY = Math.max(maxY, bounds.getMaxY());
+            hasValid = true;
+        }
+
+        if (!hasValid) {
+            return null;
+        }
+
+        return new BoundingBox(minX, minY, maxX, maxY);
     }
     
     /**
@@ -725,18 +863,25 @@ public class TransformCommand extends ModifyCommand {
      * 生成预览图形
      */
     public static List<Shape> generatePreviewShapes(List<Shape> shapes, TransformParams params) {
-        List<Shape> previewShapes = new ArrayList<>();
-        
+        if (shapes == null || shapes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Shape> validShapes = new ArrayList<>();
         for (Shape shape : shapes) {
             if (shape != null) {
-                // 创建变换命令的临时实例来生成预览
-                TransformCommand tempCommand = new TransformCommand(List.of(shape), params, null);
-                tempCommand.applyTransform();
-                previewShapes.addAll(tempCommand.transformedShapes);
+                validShapes.add(shape);
             }
         }
-        
-        return previewShapes;
+
+        if (validShapes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 关键：多选预览必须整组计算，不能逐图形单独计算
+        TransformCommand tempCommand = new TransformCommand(validShapes, params, null);
+        tempCommand.applyTransform();
+        return new ArrayList<>(tempCommand.transformedShapes);
     }
     
     @Override
