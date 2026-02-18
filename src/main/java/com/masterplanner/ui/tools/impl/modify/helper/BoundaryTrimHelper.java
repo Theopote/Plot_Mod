@@ -192,14 +192,22 @@ public class BoundaryTrimHelper {
         }
         angles = geometryUtils.removeDuplicateAngles(angles);
         angles.sort(Double::compare);
+
+        if (angles.size() < 2) {
+            result.add(circle);
+            return result;
+        }
+
+        List<Double> cyclicAngles = new ArrayList<>(angles);
+        cyclicAngles.add(angles.getFirst() + 2 * Math.PI);
         
         // 找到包含修剪点的弧段并删除
         double trimAngle = Math.atan2(trimPoint.y - center.y, trimPoint.x - center.x);
         trimAngle = geometryUtils.normalizeAngle(trimAngle);
         
-        for (int i = 0; i < angles.size() - 1; i++) {
-            double a1 = angles.get(i);
-            double a2 = angles.get(i + 1);
+        for (int i = 0; i < cyclicAngles.size() - 1; i++) {
+            double a1 = cyclicAngles.get(i);
+            double a2 = cyclicAngles.get(i + 1);
             
             // 检查修剪点是否在这个弧段内
             if (geometryUtils.isAngleInRange(trimAngle, a1, a2)) {
@@ -255,15 +263,23 @@ public class BoundaryTrimHelper {
         }
         angles = geometryUtils.removeDuplicateAngles(angles);
         angles.sort(Double::compare);
+
+        if (angles.size() < 2) {
+            result.add(ellipse);
+            return result;
+        }
+
+        List<Double> cyclicAngles = new ArrayList<>(angles);
+        cyclicAngles.add(angles.getFirst() + 2 * Math.PI);
         
         // 找到包含修剪点的弧段并删除
         Vec2d localTrimPoint = geometryUtils.transformPointToEllipseLocal(trimPoint, center, rotation);
         double trimAngle = Math.atan2(localTrimPoint.y / radiusY, localTrimPoint.x / radiusX);
         trimAngle = geometryUtils.normalizeAngle(trimAngle);
         
-        for (int i = 0; i < angles.size() - 1; i++) {
-            double a1 = angles.get(i);
-            double a2 = angles.get(i + 1);
+        for (int i = 0; i < cyclicAngles.size() - 1; i++) {
+            double a1 = cyclicAngles.get(i);
+            double a2 = cyclicAngles.get(i + 1);
             
             // 检查修剪点是否在这个弧段内
             if (geometryUtils.isAngleInRange(trimAngle, a1, a2)) {
@@ -496,14 +512,22 @@ public class BoundaryTrimHelper {
         }
         angles = geometryUtils.removeDuplicateAngles(angles);
         angles.sort(Double::compare);
+
+        if (angles.size() < 2) {
+            result.add(arc);
+            return result;
+        }
+
+        List<Double> cyclicAngles = new ArrayList<>(angles);
+        cyclicAngles.add(angles.getFirst() + 2 * Math.PI);
         
         // 找到包含修剪点的弧段并删除
         double trimAngle = Math.atan2(trimPoint.y - center.y, trimPoint.x - center.x);
         trimAngle = geometryUtils.normalizeAngle(trimAngle);
         
-        for (int i = 0; i < angles.size() - 1; i++) {
-            double a1 = angles.get(i);
-            double a2 = angles.get(i + 1);
+        for (int i = 0; i < cyclicAngles.size() - 1; i++) {
+            double a1 = cyclicAngles.get(i);
+            double a2 = cyclicAngles.get(i + 1);
             
             // 检查修剪点是否在这个弧段内
             if (geometryUtils.isAngleInRange(trimAngle, a1, a2)) {

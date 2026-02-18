@@ -531,7 +531,7 @@ public class GeometryTrimUtils {
     }
     
     private boolean isPointOnLine(Vec2d start, Vec2d end, Vec2d point, double tolerance) {
-        double distance = pointToLineDistance(start, end, point);
+        double distance = pointToSegmentDistance(start, end, point);
         return distance <= tolerance;
     }
     
@@ -635,6 +635,21 @@ public class GeometryTrimUtils {
         
         return Math.abs(A * point.x + B * point.y + C) / Math.sqrt(A * A + B * B);
     }
+
+    private double pointToSegmentDistance(Vec2d start, Vec2d end, Vec2d point) {
+        Vec2d segment = end.subtract(start);
+        double segmentLengthSquared = segment.lengthSquared();
+
+        if (segmentLengthSquared < INTERSECTION_TOLERANCE) {
+            return point.distance(start);
+        }
+
+        double t = point.subtract(start).dot(segment) / segmentLengthSquared;
+        t = Math.max(0.0, Math.min(1.0, t));
+
+        Vec2d projection = start.add(segment.multiply(t));
+        return point.distance(projection);
+    }
     
     public Vec2d transformPointToEllipseLocal(Vec2d point, Vec2d center, double rotation) {
         // 平移到原点
@@ -664,12 +679,13 @@ public class GeometryTrimUtils {
         angle = normalizeAngle(angle);
         startAngle = normalizeAngle(startAngle);
         endAngle = normalizeAngle(endAngle);
-        
-        if (endAngle < startAngle) {
-            endAngle += 2 * Math.PI;
+
+        if (startAngle <= endAngle) {
+            return angle >= startAngle && angle <= endAngle;
         }
-        
-        return angle >= startAngle && angle <= endAngle;
+
+        // 跨 0° 的角区间
+        return angle >= startAngle || angle <= endAngle;
     }
     
     public List<Double> removeDuplicateAngles(List<Double> angles) {
@@ -712,9 +728,13 @@ public class GeometryTrimUtils {
         
         // 获取图形的边界框
         double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
-        double maxX = Double.MIN_VALUE, maxY = Double.MIN_VALUE;
+        double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
         
         List<Vec2d> points = getShapePoints(shape);
+        if (points == null || points.isEmpty()) {
+            return baseTolerance;
+        }
+
         for (Vec2d point : points) {
             minX = Math.min(minX, point.x);
             minY = Math.min(minY, point.y);
@@ -758,7 +778,7 @@ public class GeometryTrimUtils {
             Vec2d next = pathPoints.get(i + 1);
             
             double segmentDistance = current.distance(next);
-            double pointDistance = pointToLineDistance(current, next, point);
+            double pointDistance = pointToSegmentDistance(current, next, point);
             
             if (pointDistance < minDistance) {
                 minDistance = pointDistance;
@@ -970,6 +990,15 @@ public class GeometryTrimUtils {
         }
         
         switch (shape) {
+            case LineShape line -> {
+                return splitLineAtIntersections(line, intersections);
+            }
+            case PolylineShape polyline -> {
+                return splitPolylineAtIntersections(polyline, intersections);
+            }
+            case ArcShape arc -> {
+                return splitArcAtIntersections(arc, intersections);
+            }
             case CircleShape circle -> {
                 return splitCircleAtIntersections(circle, intersections);
             }
@@ -1025,11 +1054,19 @@ public class GeometryTrimUtils {
         }
         angles = removeDuplicateAngles(angles);
         angles.sort(Double::compare);
+
+        if (angles.size() < 2) {
+            segments.add(circle);
+            return segments;
+        }
+
+        List<Double> cyclicAngles = new ArrayList<>(angles);
+        cyclicAngles.add(angles.getFirst() + 2 * Math.PI);
         
         // 创建圆弧段
-        for (int i = 0; i < angles.size() - 1; i++) {
-            double a1 = angles.get(i);
-            double a2 = angles.get(i + 1);
+        for (int i = 0; i < cyclicAngles.size() - 1; i++) {
+            double a1 = cyclicAngles.get(i);
+            double a2 = cyclicAngles.get(i + 1);
             ArcShape arc = new ArcShape(center, radius, a1, a2);
             segments.add(arc);
         }
@@ -1066,11 +1103,19 @@ public class GeometryTrimUtils {
         }
         angles = removeDuplicateAngles(angles);
         angles.sort(Double::compare);
+
+        if (angles.size() < 2) {
+            segments.add(ellipse);
+            return segments;
+        }
+
+        List<Double> cyclicAngles = new ArrayList<>(angles);
+        cyclicAngles.add(angles.getFirst() + 2 * Math.PI);
         
         // 创建椭圆弧段
-        for (int i = 0; i < angles.size() - 1; i++) {
-            double a1 = angles.get(i);
-            double a2 = angles.get(i + 1);
+        for (int i = 0; i < cyclicAngles.size() - 1; i++) {
+            double a1 = cyclicAngles.get(i);
+            double a2 = cyclicAngles.get(i + 1);
             List<Vec2d> arcPoints = createEllipseArcPoints(center, radiusX, radiusY, rotation, a1, a2);
             if (arcPoints.size() >= 3) {
                 PolylineShape arc = new PolylineShape(arcPoints, false);
@@ -1084,7 +1129,129 @@ public class GeometryTrimUtils {
     private List<Shape> splitBezierCurveAtIntersections(BezierCurveShape bezier, List<Vec2d> intersections) {
         // 贝塞尔曲线的分割比较复杂，暂时返回null
         // 可以后续实现基于控制点的分割
-        return null;
+        List<Shape> segments = new ArrayList<>();
+        segments.add(bezier);
+        return segments;
+    }
+
+    private List<Shape> splitLineAtIntersections(LineShape line, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(line.getStart());
+        for (Vec2d intersection : intersections) {
+            if (isPointOnLine(line.getStart(), line.getEnd(), intersection, INTERSECTION_TOLERANCE)) {
+                splitPoints.add(intersection);
+            }
+        }
+        splitPoints.add(line.getEnd());
+
+        splitPoints = removeDuplicatePoints(splitPoints);
+        splitPoints.sort((a, b) -> Double.compare(
+            getDistanceFromStart(line.getStart(), line.getEnd(), a),
+            getDistanceFromStart(line.getStart(), line.getEnd(), b)
+        ));
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) > INTERSECTION_TOLERANCE) {
+                LineShape segment = new LineShape(start, end);
+                if (line.getStyle() != null) {
+                    segment.setStyle(line.getStyle().clone());
+                }
+                if (line.getTransform() != null) {
+                    segment.setTransform(line.getTransform().clone());
+                }
+                segments.add(segment);
+            }
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(line);
+        }
+
+        return segments;
+    }
+
+    private List<Shape> splitPolylineAtIntersections(PolylineShape polyline, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> points = polyline.getPoints();
+
+        if (points == null || points.size() < 2) {
+            segments.add(polyline);
+            return segments;
+        }
+
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(points.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(points.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) > INTERSECTION_TOLERANCE) {
+                LineShape segment = new LineShape(start, end);
+                if (polyline.getStyle() != null) {
+                    segment.setStyle(polyline.getStyle().clone());
+                }
+                if (polyline.getTransform() != null) {
+                    segment.setTransform(polyline.getTransform().clone());
+                }
+                segments.add(segment);
+            }
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(polyline);
+        }
+
+        return segments;
+    }
+
+    private List<Shape> splitArcAtIntersections(ArcShape arc, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        Vec2d center = arc.getCenter();
+        double radius = arc.getRadius();
+
+        List<Double> validAngles = new ArrayList<>();
+        validAngles.add(normalizeAngle(arc.getStartAngle()));
+        for (Vec2d intersection : intersections) {
+            if (isPointOnArc(arc, intersection)) {
+                double angle = Math.atan2(intersection.y - center.y, intersection.x - center.x);
+                validAngles.add(normalizeAngle(angle));
+            }
+        }
+        validAngles.add(normalizeAngle(arc.getEndAngle()));
+
+        validAngles = removeDuplicateAngles(validAngles);
+        validAngles.sort(Double::compare);
+
+        for (int i = 0; i < validAngles.size() - 1; i++) {
+            double a1 = validAngles.get(i);
+            double a2 = validAngles.get(i + 1);
+            if (!isAngleInRange(normalizeAngle((a1 + a2) * 0.5), arc.getStartAngle(), arc.getEndAngle())) {
+                continue;
+            }
+
+            ArcShape segment = new ArcShape(center, radius, a1, a2);
+            if (arc.getStyle() != null) {
+                segment.setStyle(arc.getStyle().clone());
+            }
+            if (arc.getTransform() != null) {
+                segment.setTransform(arc.getTransform().clone());
+            }
+            segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(arc);
+        }
+
+        return segments;
     }
     
     private List<Shape> splitSineCurveAtIntersections(SineCurveShape sine, List<Vec2d> intersections) {

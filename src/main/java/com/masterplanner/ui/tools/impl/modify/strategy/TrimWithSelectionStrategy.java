@@ -644,6 +644,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 context.setStatusMessage("未找到要修剪的图形");
                 return ModifyResult.CONTINUE;
             }
+
+            if (boundaryShapes.contains(targetShape)) {
+                LOGGER.info("点击的是边界图形，忽略修剪");
+                context.setStatusMessage("请选择非边界图形进行修剪");
+                return ModifyResult.CONTINUE;
+            }
             
             LOGGER.info("找到目标图形: 类型={}", targetShape.getClass().getSimpleName());
             
@@ -668,6 +674,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (trimmedShapes.isEmpty()) {
                 LOGGER.info("修剪失败：无法生成修剪图形");
                 context.setStatusMessage("修剪失败：无法生成修剪图形");
+                return ModifyResult.CONTINUE;
+            }
+
+            if (trimmedShapes.size() == 1 && trimmedShapes.getFirst() == targetShape) {
+                LOGGER.info("修剪结果未发生变化，取消提交命令");
+                context.setStatusMessage("修剪结果无变化，请点击要删除的一侧");
                 return ModifyResult.CONTINUE;
             }
             
