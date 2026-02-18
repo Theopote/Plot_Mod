@@ -402,6 +402,9 @@ public class SineCurveShape extends Shape implements IExtendableShape {
         if (getStyle() != null) {
             clone.setStyle(getStyle().clone());
         }
+        if (getTransform() != null) {
+            clone.setTransform(getTransform().clone());
+        }
         
         return clone;
     }

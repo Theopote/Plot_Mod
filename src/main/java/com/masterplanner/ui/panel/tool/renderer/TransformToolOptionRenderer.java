@@ -7,6 +7,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,8 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
     // 状态缓存
     private boolean rotationEnabled = true;
     private boolean maintainAspectRatio = true;
+    private final ImBoolean rotationEnabledUi = new ImBoolean(true);
+    private final ImBoolean maintainAspectRatioUi = new ImBoolean(true);
     
     /**
      * 构造函数（兼容工厂方法）
@@ -101,6 +104,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.text("旋转功能");
         
         ImGui.tableNextColumn();
+        ImGui.pushItemWidth(-1);
         
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
@@ -109,10 +113,10 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
-        
-        boolean newRotation = ImGui.checkbox("启用", rotationEnabled);
-        if (newRotation != rotationEnabled) {
-            rotationEnabled = newRotation;
+
+        rotationEnabledUi.set(rotationEnabled);
+        if (ImGui.checkbox("##transform_rotation_enabled", rotationEnabledUi)) {
+            rotationEnabled = rotationEnabledUi.get();
             tool.setRotationEnabled(rotationEnabled);
             updateToolConfig(CONFIG_KEY_ROTATION, String.valueOf(rotationEnabled));
             LOGGER.debug("旋转功能已{}", rotationEnabled ? "启用" : "禁用");
@@ -120,6 +124,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         
         ImGui.popStyleVar(2);
         ImGui.popStyleColor(5);
+        ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("启用后，可以在角点外侧拖拽进行旋转");
@@ -134,6 +139,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.text("保持比例");
         
         ImGui.tableNextColumn();
+        ImGui.pushItemWidth(-1);
         
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
@@ -142,16 +148,17 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
-        
-        boolean newMaintainAspectRatio = ImGui.checkbox("启用 (Shift键)", maintainAspectRatio);
-        if (newMaintainAspectRatio != maintainAspectRatio) {
-            maintainAspectRatio = newMaintainAspectRatio;
+
+        maintainAspectRatioUi.set(maintainAspectRatio);
+        if (ImGui.checkbox("##transform_maintain_aspect", maintainAspectRatioUi)) {
+            maintainAspectRatio = maintainAspectRatioUi.get();
             updateToolConfig(CONFIG_KEY_MAINTAIN_ASPECT_RATIO, String.valueOf(maintainAspectRatio));
             LOGGER.debug("保持比例已{}", maintainAspectRatio ? "启用" : "禁用");
         }
         
         ImGui.popStyleVar(2);
         ImGui.popStyleColor(5);
+        ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("启用后，按住Shift键时保持宽高比例");
@@ -233,6 +240,8 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
     private void syncToolState(TransformTool tool) {
         try {
             rotationEnabled = tool.isRotationEnabled();
+            rotationEnabledUi.set(rotationEnabled);
+            maintainAspectRatioUi.set(maintainAspectRatio);
         } catch (Exception e) {
             LOGGER.warn("同步工具状态失败: {}", e.getMessage());
         }
