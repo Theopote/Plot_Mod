@@ -29,6 +29,8 @@ public class TextInputDialog {
     private static final float LABEL_COLUMN_WIDTH = 80.0f; // 标签列宽度
     private static final float BUTTON_WIDTH = 100.0f; // 按钮宽度
     private static final float BUTTON_SPACING = 8.0f; // 按钮之间的间距
+    private static final float INPUT_AREA_HEIGHT = 120.0f; // 输入框高度
+    private static final float BUTTON_AREA_EXTRA_HEIGHT = 40.0f; // 按钮高度+上下间距补偿
 
     public static TextInputDialog getInstance() {
         return INSTANCE;
@@ -93,24 +95,23 @@ public class TextInputDialog {
         if (!visible) return;
 
         // 居中并设置窗口属性
-        float width = 400.0f;
+        float width = 420.0f;
         // 计算窗口高度：标题 + 输入框 + 样式标题 + 表格(4行) + 按钮 + 间距
-        // 使用更准确的估算值，确保所有内容都能显示
         float styleTitleHeight = ImGui.getTextLineHeight();
         float framePadding = 4.0f; // 与工具属性面板一致
         float buttonHeight = styleTitleHeight + framePadding * 2; // 估算控件高度
 
-        float inputHeight = 80.0f; // 输入框高度
+        float inputHeight = INPUT_AREA_HEIGHT;
         // 每行高度
         float tableHeight = buttonHeight * 4; // 4行：字体大小、行高、字形、对齐
-        // 计算总内容高度，增加一些缓冲空间以确保所有内容都能显示
+        // 计算总内容高度，增加按钮区补偿，确保“取消/确定”始终可见
         float totalContentHeight = styleTitleHeight + VERTICAL_SPACING + inputHeight + VERTICAL_SPACING
                 + styleTitleHeight + VERTICAL_SPACING + tableHeight + VERTICAL_SPACING + buttonHeight;
-        float height = totalContentHeight + WINDOW_PADDING * 2; // 加上上下边距，不需要滚动条
+        float height = totalContentHeight + WINDOW_PADDING * 2 + BUTTON_AREA_EXTRA_HEIGHT;
         
         // 在窗口开始之前设置WindowPadding，确保边距正确应用
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, WINDOW_PADDING, WINDOW_PADDING);
-        ImGui.setNextWindowSize(width, height, ImGuiCond.Appearing);
+        ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
 

@@ -23,9 +23,9 @@ public class TextDialog extends JDialog {
     private static final Dimension BUTTON_SIZE_MEDIUM = new Dimension(60, 25);
     private static final Dimension COMBO_BOX_SIZE = new Dimension(120, 25);
     private static final Dimension SPINNER_SIZE = new Dimension(90, 25);
-    private static final Dimension TEXT_AREA_SIZE = new Dimension(380, 140);
+    private static final Dimension TEXT_AREA_SIZE = new Dimension(380, 180);
     private static final int DIALOG_MIN_WIDTH = 500;
-    private static final int DIALOG_EXTRA_VERTICAL_PADDING = 16;
+    private static final int DIALOG_EXTRA_VERTICAL_PADDING = 40;
     private static final int BUTTON_AREA_EXTRA_HEIGHT = BUTTON_SIZE_MEDIUM.height + 20;
     
     // UI组件
