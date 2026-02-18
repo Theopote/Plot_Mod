@@ -11,6 +11,7 @@ import com.masterplanner.ui.tools.impl.modify.AnnotationTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -104,12 +105,19 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         
         switch (currentMode) {
             case ANGLE:
-                if (selected.size() == 2) {
+                if (selected.size() == 2
+                        && selected.get(0) instanceof LineShape
+                        && selected.get(1) instanceof LineShape) {
                     createAngleAnnotation(selected, context);
                     context.setStatusMessage("角度标注已创建");
                     return ModifyResult.COMPLETE;
+                } else if (selected.size() == 1
+                        && (selected.get(0) instanceof PolylineShape || selected.get(0) instanceof Polygon)) {
+                    createShapeInteriorAngleAnnotations(selected.get(0), context);
+                    context.setStatusMessage("内角标注已创建");
+                    return ModifyResult.COMPLETE;
                 } else {
-                    context.setStatusMessage("角度标注需要选择两条直线");
+                    context.setStatusMessage("角度标注：可选两条直线，或单条折线/多边形");
                     return ModifyResult.IGNORED;
                 }
             case RADIUS:
@@ -247,6 +255,48 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         // 返回两条直线（含延长线）的交点，用于角度标注顶点
         return new Vec2d(x1 + t * (x2 - x1), y1 + t * (y2 - y1));
     }
+
+    private void createShapeInteriorAngleAnnotations(Shape shape, ModifyToolContext context) {
+        List<Vec2d> points = new ArrayList<>();
+        boolean closed = false;
+
+        if (shape instanceof PolylineShape polyline) {
+            points = polyline.getPoints();
+            closed = polyline.isClosed();
+        } else if (shape instanceof Polygon polygon) {
+            points = polygon.getPoints();
+            closed = true;
+        }
+
+        if (points.size() < 3) {
+            LOGGER.warn("内角标注失败：点数量不足，shape={}", shape.getClass().getSimpleName());
+            return;
+        }
+
+        List<Vec2d> vertices = new ArrayList<>(points);
+        if (!vertices.isEmpty() && vertices.getFirst().equals(vertices.getLast())) {
+            vertices.removeLast();
+        }
+        if (vertices.size() < 3) {
+            return;
+        }
+
+        int start = closed ? 0 : 1;
+        int endExclusive = closed ? vertices.size() : vertices.size() - 1;
+
+        for (int i = start; i < endExclusive; i++) {
+            int prevIndex = (i - 1 + vertices.size()) % vertices.size();
+            int nextIndex = (i + 1) % vertices.size();
+
+            Vec2d prev = vertices.get(prevIndex);
+            Vec2d vertex = vertices.get(i);
+            Vec2d next = vertices.get(nextIndex);
+
+            String angleText = calculateAngleFromThreePoints(prev, vertex, next);
+            AnnotationShape annotationShape = AnnotationShape.createAngleAnnotation(vertex, prev, next, angleText);
+            addAnnotationShapeToCanvas(annotationShape, context, "角度标注");
+        }
+    }
     
     private void createRadiusAnnotation(List<Shape> selected, ModifyToolContext context) {
         for (Shape shape : selected) {
@@ -263,6 +313,9 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 LOGGER.info("创建半径标注（圆弧/半圆）: {}", radius);
                 annotationShape = AnnotationShape.createRadiusAnnotation(
                     arc.getCenter(), arc.getRadius(), radius);
+            } else if (shape instanceof RectangleShape rectangle && rectangle.getCornerRadius() > 0) {
+                createRoundedRectangleRadiusAnnotations(rectangle, context);
+                continue;
             } else {
                 LOGGER.warn("半径标注需要圆形、半圆或圆弧，当前选中: {}", shape.getClass().getSimpleName());
                 continue;
@@ -270,6 +323,42 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             
             addAnnotationShapeToCanvas(annotationShape, context, "半径标注");
         }
+    }
+
+    private void createRoundedRectangleRadiusAnnotations(RectangleShape rectangle, ModifyToolContext context) {
+        double radius = rectangle.getCornerRadius();
+        if (radius <= 0) {
+            return;
+        }
+
+        Vec2d corner = rectangle.getCorner();
+        double width = rectangle.getWidth();
+        double height = rectangle.getHeight();
+        double rotation = rectangle.getRotation();
+
+        List<Vec2d> localCenters = List.of(
+            new Vec2d(radius, radius),
+            new Vec2d(width - radius, radius),
+            new Vec2d(width - radius, height - radius),
+            new Vec2d(radius, height - radius)
+        );
+
+        for (Vec2d localCenter : localCenters) {
+            Vec2d rotatedOffset = rotateOffset(localCenter, rotation);
+            Vec2d worldCenter = corner.add(rotatedOffset);
+            String radiusText = calculateRadius(worldCenter, radius);
+            AnnotationShape annotationShape = AnnotationShape.createRadiusAnnotation(worldCenter, radius, radiusText);
+            addAnnotationShapeToCanvas(annotationShape, context, "半径标注");
+        }
+    }
+
+    private Vec2d rotateOffset(Vec2d offset, double angle) {
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        return new Vec2d(
+            offset.x * cos - offset.y * sin,
+            offset.x * sin + offset.y * cos
+        );
     }
     
     private void createAreaAnnotation(List<Shape> selected, ModifyToolContext context) {
@@ -666,11 +755,42 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         
         return String.format("%.2f 方块", worldRadius);
     }
+
+    private String calculateRadius(Vec2d center, double radius) {
+        Vec2d circlePoint = new Vec2d(center.x + radius, center.y);
+        Vec2d worldCenter = coordinateTransformer.canvasToMinecraftWorld(center);
+        Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
+
+        if (worldCenter == null || worldCirclePoint == null) {
+            return String.format("%.2f 方块", radius);
+        }
+
+        double dx = worldCirclePoint.x - worldCenter.x;
+        double dz = worldCirclePoint.y - worldCenter.y;
+        double worldRadius = Math.sqrt(dx * dx + dz * dz);
+        return String.format("%.2f 方块", worldRadius);
+    }
+
+    private String calculateAngleFromThreePoints(Vec2d prev, Vec2d vertex, Vec2d next) {
+        Vec2d v1 = prev.subtract(vertex);
+        Vec2d v2 = next.subtract(vertex);
+
+        double mag1 = v1.length();
+        double mag2 = v2.length();
+        if (mag1 < 1e-10 || mag2 < 1e-10) {
+            return "0°";
+        }
+
+        double dot = (v1.x * v2.x + v1.y * v2.y) / (mag1 * mag2);
+        dot = Math.max(-1.0, Math.min(1.0, dot));
+        double angleDeg = Math.toDegrees(Math.acos(dot));
+        return String.format("%.2f°", angleDeg);
+    }
     
     @Override
     public int getMinimumSelectionCount() {
         return switch (currentMode) {
-            case ANGLE -> 2;
+            case ANGLE -> 1;
             case RADIUS, AREA -> 1;
             default -> 0;
         };
@@ -679,7 +799,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     @Override
     public int getMaximumSelectionCount() {
         return switch (currentMode) {
-            case ANGLE -> 2;
+            case ANGLE -> -1;
             case RADIUS -> -1; // 不限制
             case AREA -> -1;
             default -> 0;

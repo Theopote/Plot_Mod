@@ -22,7 +22,6 @@ public class TextDialog extends JDialog {
     private static final Dimension BUTTON_SIZE_MEDIUM = new Dimension(60, 25);
     private static final Dimension COMBO_BOX_SIZE = new Dimension(80, 25);
     private static final Dimension SPINNER_SIZE = new Dimension(60, 25);
-    private static final Dimension SCROLL_PANE_SIZE = new Dimension(300, 100);
     
     // UI组件
     private JTextArea textArea;
@@ -130,11 +129,9 @@ public class TextDialog extends JDialog {
         JPanel northPanel = new JPanel(new BorderLayout(5, 0));
         northPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
         northPanel.add(new JLabel("文字内容:"), BorderLayout.WEST);
-        
-        // 添加滚动面板支持多行文本
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(SCROLL_PANE_SIZE);
-        northPanel.add(scrollPane, BorderLayout.CENTER);
+
+        // 直接使用文本区域，让对话框高度按内容自适应，避免固定滚动区域导致高度不匹配
+        northPanel.add(textArea, BorderLayout.CENTER);
         
         // 中部面板：样式设置
         JPanel stylePanel = new JPanel(new GridBagLayout());

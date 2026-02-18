@@ -794,9 +794,9 @@ public class TextTool extends BaseTool {
             String text = activeText.getText().trim();
             if (text.isEmpty()) {
                 // 如果文字为空，删除形状
-                ILayer currentLayer = canvas.getCurrentLayer();
-                if (currentLayer != null) {
-                    currentLayer.removeShape(activeText);
+                ILayer owningLayer = findOwningLayer(activeText);
+                if (owningLayer != null) {
+                    owningLayer.removeShape(activeText);
                     removeFromSpatialIndex(activeText);
                     LogManager.getInstance().info("TextTool: 删除空文字");
                 }
@@ -815,9 +815,9 @@ public class TextTool extends BaseTool {
             
             // 如果恢复后文字为空，删除形状
             if (activeText.getText().isEmpty()) {
-                ILayer currentLayer = canvas.getCurrentLayer();
-                if (currentLayer != null) {
-                    currentLayer.removeShape(activeText);
+                ILayer owningLayer = findOwningLayer(activeText);
+                if (owningLayer != null) {
+                    owningLayer.removeShape(activeText);
                     removeFromSpatialIndex(activeText);
                     LogManager.getInstance().info("TextTool: 取消编辑，删除空文字");
                 }
@@ -911,21 +911,33 @@ public class TextTool extends BaseTool {
         
         List<com.masterplanner.core.model.Shape> graphics = activeText.convertToGraphics();
         if (!graphics.isEmpty()) {
-            ILayer currentLayer = canvas.getCurrentLayer();
-            if (currentLayer != null) {
+            ILayer owningLayer = findOwningLayer(activeText);
+            if (owningLayer != null) {
                 // 移除原文字
-                currentLayer.removeShape(activeText);
+                owningLayer.removeShape(activeText);
                 removeFromSpatialIndex(activeText);
                 
                 // 添加转换后的图形
                 for (com.masterplanner.core.model.Shape graphic : graphics) {
-                    currentLayer.addShape(graphic);
+                    owningLayer.addShape(graphic);
                 }
                 
                 LogManager.getInstance().info("TextTool: 文字已转换为 {} 个图形", graphics.size());
                 canvas.refresh();
             }
         }
+    }
+
+    private ILayer findOwningLayer(TextShape textShape) {
+        if (textShape == null) {
+            return null;
+        }
+        for (ILayer layer : canvas.getLayers()) {
+            if (layer.hasShape(textShape.getId())) {
+                return layer;
+            }
+        }
+        return null;
     }
 
     /**
