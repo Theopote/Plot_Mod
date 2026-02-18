@@ -49,6 +49,7 @@ public class TextTool extends BaseTool {
     private static final String CURSOR_CROSSHAIR = "crosshair";
     private static final String CURSOR_DEFAULT = "default";
     private static final String TOOL_MARKER_TEXT = "T";
+    private static final Color TOOL_MARKER_COLOR = Color.YELLOW;
     private static final double TOOL_MARKER_OFFSET_X_PX = 12.0;
     private static final double TOOL_MARKER_OFFSET_Y_PX = -14.0;
     
@@ -1056,7 +1057,7 @@ public class TextTool extends BaseTool {
         }
 
         Vec2d markerPos = new Vec2d(currentPoint.x + offsetX, currentPoint.y + offsetY);
-        context.drawText(TOOL_MARKER_TEXT, markerPos, getCurrentLayerColor());
+        context.drawText(TOOL_MARKER_TEXT, markerPos, TOOL_MARKER_COLOR);
     }
 
     @Override
