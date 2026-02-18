@@ -250,15 +250,15 @@ public class AnnotationShape extends Shape {
     private void drawRadiusAnnotation(DrawContext context) {
         if (center == null || radius <= 0) return;
         
-        // 应用变换
+        // 应用变换（使用参考半径点保证非等比/旋转下的一致性）
         Vec2d transformedCenter = transform.transform(center);
-        double transformedRadius = radius * transform.getScale().x;
+        Vec2d transformedRadiusPoint = transform.transform(new Vec2d(center.x + radius, center.y));
         
         // 获取线条颜色
         Color lineColor = getLineColor();
         
         // 绘制从圆心到圆周的标注线
-        Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+        Vec2d radiusEnd = transformedRadiusPoint;
         context.drawLine(transformedCenter, radiusEnd, lineColor);
         
         // 在半径端点绘制箭头标记
@@ -437,8 +437,7 @@ public class AnnotationShape extends Shape {
                 if (center != null && radius > 0) {
                     // 应用变换
                     Vec2d transformedCenter = transform.transform(center);
-                    double transformedRadius = radius * transform.getScale().x;
-                    Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+                    Vec2d radiusEnd = transform.transform(new Vec2d(center.x + radius, center.y));
                     if (GeometryUtils.pointToSegmentDistance(point, transformedCenter, radiusEnd) <= tolerance) {
                         return true;
                     }
@@ -688,8 +687,7 @@ public class AnnotationShape extends Shape {
                 if (center != null && radius > 0) {
                     // 应用变换
                     Vec2d transformedCenter = transform.transform(center);
-                    double transformedRadius = radius * transform.getScale().x;
-                    Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+                    Vec2d radiusEnd = transform.transform(new Vec2d(center.x + radius, center.y));
                     Vec2d proj = GeometryUtils.projectPointOnLine(point, transformedCenter, radiusEnd);
                     double dist = point.distance(proj);
                     if (dist < minDistance) {
@@ -950,8 +948,7 @@ public class AnnotationShape extends Shape {
                 if (center != null && radius > 0) {
                     // 应用变换
                     Vec2d transformedCenter = transform.transform(center);
-                    double transformedRadius = radius * transform.getScale().x;
-                    Vec2d radiusEnd = new Vec2d(transformedCenter.x + transformedRadius, transformedCenter.y);
+                    Vec2d radiusEnd = transform.transform(new Vec2d(center.x + radius, center.y));
                     // 计算到半径线的距离
                     distance = GeometryUtils.pointToSegmentDistance(point, transformedCenter, radiusEnd);
                     // 也考虑文本位置的距离

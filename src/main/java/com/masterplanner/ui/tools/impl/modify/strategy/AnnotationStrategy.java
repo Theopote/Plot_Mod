@@ -182,32 +182,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         // 创建标注图形
         AnnotationShape annotationShape = AnnotationShape.createDistanceAnnotation(
             firstPoint, secondPoint, distance);
-        
-        // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
-        try {
-            com.masterplanner.api.state.IAppState appState = context.getAppState();
-            if (appState != null) {
-                // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
-                // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
-                if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
-                    appStateImpl.addShape(annotationShape);
-                    LOGGER.debug("距离标注图形已添加到画布");
-                } else {
-                    // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
-                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                    if (activeLayer != null) {
-                        activeLayer.addShape(annotationShape);
-                        LOGGER.debug("距离标注图形已添加到画布（回退方式）");
-                    } else {
-                        LOGGER.error("无法添加标注图形：没有活动图层");
-                    }
-                }
-            } else {
-                LOGGER.error("无法添加标注图形：AppState为null");
-            }
-        } catch (Exception e) {
-            LOGGER.error("添加距离标注图形失败: {}", e.getMessage(), e);
-        }
+
+        addAnnotationShapeToCanvas(annotationShape, context, "距离标注");
     }
     
     private void createAngleAnnotation(List<Shape> selected, ModifyToolContext context) {
@@ -241,32 +217,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         // 创建标注图形
         AnnotationShape annotationShape = AnnotationShape.createAngleAnnotation(
             vertex, point1, point2, angle);
-        
-        // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
-        try {
-            com.masterplanner.api.state.IAppState appState = context.getAppState();
-            if (appState != null) {
-                // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
-                // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
-                if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
-                    appStateImpl.addShape(annotationShape);
-                    LOGGER.debug("角度标注图形已添加到画布");
-                } else {
-                    // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
-                    com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                    if (activeLayer != null) {
-                        activeLayer.addShape(annotationShape);
-                        LOGGER.debug("角度标注图形已添加到画布（回退方式）");
-                    } else {
-                        LOGGER.error("无法添加标注图形：没有活动图层");
-                    }
-                }
-            } else {
-                LOGGER.error("无法添加标注图形：AppState为null");
-            }
-        } catch (Exception e) {
-            LOGGER.error("添加角度标注图形失败: {}", e.getMessage(), e);
-        }
+
+        addAnnotationShapeToCanvas(annotationShape, context, "角度标注");
     }
     
     /**
@@ -291,11 +243,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         }
         
         double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-        double u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
         
-        // 检查交点是否在两条线段上
-
-        // 交点不在线段上，返回延长线的交点
+        // 返回两条直线（含延长线）的交点，用于角度标注顶点
         return new Vec2d(x1 + t * (x2 - x1), y1 + t * (y2 - y1));
     }
     
@@ -319,31 +268,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                 continue;
             }
             
-            // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
-            try {
-                com.masterplanner.api.state.IAppState appState = context.getAppState();
-                if (appState != null) {
-                    // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
-                    // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
-                    if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
-                        appStateImpl.addShape(annotationShape);
-                        LOGGER.debug("半径标注图形已添加到画布");
-                    } else {
-                        // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
-                        com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                        if (activeLayer != null) {
-                            activeLayer.addShape(annotationShape);
-                            LOGGER.debug("半径标注图形已添加到画布（回退方式）");
-                        } else {
-                            LOGGER.error("无法添加标注图形：没有活动图层");
-                        }
-                    }
-                } else {
-                    LOGGER.error("无法添加标注图形：AppState为null");
-                }
-            } catch (Exception e) {
-                LOGGER.error("添加半径标注图形失败: {}", e.getMessage(), e);
-            }
+            addAnnotationShapeToCanvas(annotationShape, context, "半径标注");
         }
     }
     
@@ -384,31 +309,38 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             // 创建面积标注图形
             AnnotationShape annotationShape = AnnotationShape.createAreaAnnotation(center, areaText);
             
-            // 添加到画布 - 使用 AppState.addShape() 确保注册到 shapeToLayerMap
-            try {
-                com.masterplanner.api.state.IAppState appState = context.getAppState();
-                if (appState != null) {
-                    // 使用 AppState.addShape() 而不是直接使用 activeLayer.addShape()
-                    // 这样可以确保图形被正确注册到 shapeToLayerMap，从而可以被删除
-                    if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
-                        appStateImpl.addShape(annotationShape);
-                        LOGGER.debug("面积标注图形已添加到画布");
-                    } else {
-                        // 回退：如果无法转换为 AppState，使用 activeLayer.addShape()
-                        com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
-                        if (activeLayer != null) {
-                            activeLayer.addShape(annotationShape);
-                            LOGGER.debug("面积标注图形已添加到画布（回退方式）");
-                        } else {
-                            LOGGER.error("无法添加标注图形：没有活动图层");
-                        }
-                    }
-                } else {
-                    LOGGER.error("无法添加标注图形：AppState为null");
-                }
-            } catch (Exception e) {
-                LOGGER.error("添加面积标注图形失败: {}", e.getMessage(), e);
+            addAnnotationShapeToCanvas(annotationShape, context, "面积标注");
+        }
+    }
+
+    private void addAnnotationShapeToCanvas(AnnotationShape annotationShape, ModifyToolContext context, String annotationTypeName) {
+        if (annotationShape == null) {
+            LOGGER.warn("{}创建失败：图形为空", annotationTypeName);
+            return;
+        }
+
+        try {
+            com.masterplanner.api.state.IAppState appState = context.getAppState();
+            if (appState == null) {
+                LOGGER.error("无法添加{}图形：AppState为null", annotationTypeName);
+                return;
             }
+
+            if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
+                appStateImpl.addShape(annotationShape);
+                LOGGER.debug("{}图形已添加到画布", annotationTypeName);
+                return;
+            }
+
+            com.masterplanner.api.model.ILayer activeLayer = appState.getActiveLayer();
+            if (activeLayer != null) {
+                activeLayer.addShape(annotationShape);
+                LOGGER.debug("{}图形已添加到画布（回退方式）", annotationTypeName);
+            } else {
+                LOGGER.error("无法添加{}图形：没有活动图层", annotationTypeName);
+            }
+        } catch (Exception e) {
+            LOGGER.error("添加{}图形失败: {}", annotationTypeName, e.getMessage(), e);
         }
     }
     
