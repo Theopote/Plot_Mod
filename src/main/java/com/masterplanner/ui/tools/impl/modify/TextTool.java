@@ -869,7 +869,7 @@ public class TextTool extends BaseTool {
         previewText = null;
         pendingText = null;
         pendingTextStyle = null;
-        canvas.setCursor(CURSOR_DEFAULT);
+        canvas.setCursor(isActive() ? CURSOR_TEXT : CURSOR_DEFAULT);
         canvas.refresh();
     }
 
