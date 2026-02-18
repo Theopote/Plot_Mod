@@ -16,7 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -76,6 +78,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     // 预览状态
     private List<Shape> previewShapes = new ArrayList<>();
     private boolean previewEnabled = false;
+    private final Map<String, Boolean> hiddenShapeVisibility = new HashMap<>();
     
     // 常量 - 使用基类的常量，这里只定义变换特有的常量
     
@@ -311,6 +314,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         
         // 启用预览状态，确保变换框在拖拽时正确显示
         previewEnabled = true;
+        hideSelectedShapesForPreview();
         
         // 立即计算一次预览包围盒，确保变换框在拖拽开始时就能正确显示
         if (!selectedShapes.isEmpty()) {
@@ -338,6 +342,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         
         // 启用预览状态，确保变换框在拖拽时正确显示
         previewEnabled = true;
+        hideSelectedShapesForPreview();
         
         context.setStatusMessage("拖拽移动选择集");
         return ModifyResult.CONTINUE;
@@ -373,6 +378,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
      */
     private ModifyResult finishTransformDrag(Vec2d pos, ModifyToolContext context) {
         LOGGER.debug("完成变换拖拽: 位置=({}, {})", pos.x, pos.y);
+        restoreHiddenShapesAfterPreview();
         
         if (currentDragSession != null && currentDragSession.shouldStartDrag()) {
             // 执行变换
@@ -664,6 +670,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         // 清空预览
         previewShapes.clear();
         previewEnabled = false;
+        restoreHiddenShapesAfterPreview();
         
         // TODO: 清空控制管理器
         // controlManager.clear();
@@ -693,6 +700,42 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         clearControlsAndPreview();
         
         LOGGER.debug("变换策略状态重置完成，模式: {}", currentMode.getDisplayName());
+    }
+
+    private void hideSelectedShapesForPreview() {
+        if (selectedShapes == null || selectedShapes.isEmpty()) {
+            return;
+        }
+
+        for (Shape shape : selectedShapes) {
+            if (shape == null || shape.isDeleted()) {
+                continue;
+            }
+
+            hiddenShapeVisibility.putIfAbsent(shape.getId(), shape.isVisible());
+            shape.setVisible(false);
+        }
+    }
+
+    private void restoreHiddenShapesAfterPreview() {
+        if (hiddenShapeVisibility.isEmpty()) {
+            return;
+        }
+
+        if (selectedShapes != null) {
+            for (Shape shape : selectedShapes) {
+                if (shape == null) {
+                    continue;
+                }
+
+                Boolean originalVisible = hiddenShapeVisibility.get(shape.getId());
+                if (originalVisible != null) {
+                    shape.setVisible(originalVisible);
+                }
+            }
+        }
+
+        hiddenShapeVisibility.clear();
     }
     
     @Override

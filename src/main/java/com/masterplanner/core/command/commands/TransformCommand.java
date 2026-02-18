@@ -205,7 +205,7 @@ public class TransformCommand extends ModifyCommand {
                            controlPointType == ControlPointType.CENTER_RIGHT) {
                     scaleCenter = getHorizontalScaleCenter(params, bounds);
                 } else {
-                    scaleCenter = calculateAnchorPoint(controlPointType, bounds);
+                    scaleCenter = params.isCenterScale() ? bounds.getCenter() : calculateAnchorPoint(controlPointType, bounds);
                 }
                 
                 // 创建以指定中心点进行缩放的变换矩阵
@@ -461,8 +461,10 @@ public class TransformCommand extends ModifyCommand {
             return;
         }
         
-        // 计算锚点（对角点）
-        Vec2d anchorPoint = calculateAnchorPoint(controlPointType, originalBounds);
+        // 计算缩放中心：Alt(中心缩放)时使用边界框中心，否则使用对角锚点
+        Vec2d anchorPoint = params.isCenterScale()
+            ? originalBounds.getCenter()
+            : calculateAnchorPoint(controlPointType, originalBounds);
         
         // 检查是否按住Shift键（等比缩放）
         Vec2d scaleFactors;

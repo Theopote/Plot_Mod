@@ -90,6 +90,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     protected static final int MOUSE_LEFT = 0;
     protected static final int MOUSE_RIGHT = 1;
     protected static final int MOUSE_MIDDLE = 2;
+    protected static final int ALT_KEY_CODE = 18;
     
     // 核心组件引用
     protected final String toolId;
@@ -838,7 +839,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     @Override
     public boolean isAltKeyDown() {
         try {
-            return imgui.ImGui.getIO().getKeyAlt();
+            return imgui.ImGui.getIO().getKeyAlt() || imgui.ImGui.isKeyDown(ALT_KEY_CODE);
         } catch (Exception e) {
             LOGGER.debug("无法获取Alt键状态: {}", e.getMessage());
             return false;
