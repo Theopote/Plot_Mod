@@ -18,6 +18,7 @@ public class LineToBlockEvent extends Event {
     private final float simplificationRatio;
     private final double canvasHeight;  // 绘制面板高度
     private final boolean isPreview;    // 是否为预览模式
+    private final boolean fillClosedShapes; // 封闭图形是否填充
     
     /**
      * 创建一个线转方块事件
@@ -29,6 +30,7 @@ public class LineToBlockEvent extends Event {
         this.simplificationRatio = 0.5f;
         this.canvasHeight = 0;
         this.isPreview = false;
+        this.fillClosedShapes = true;
     }
     
     /**
@@ -38,7 +40,7 @@ public class LineToBlockEvent extends Event {
      * @param isPreview 是否为预览模式
      */
     public LineToBlockEvent(List<Shape> shapes, double canvasHeight, boolean isPreview) {
-        this(shapes, ConversionMode.FULL, 0.5f, canvasHeight, isPreview);
+        this(shapes, ConversionMode.FULL, 0.5f, canvasHeight, isPreview, true);
     }
     
     /**
@@ -50,12 +52,17 @@ public class LineToBlockEvent extends Event {
      * @param isPreview 是否为预览模式
      */
     public LineToBlockEvent(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double canvasHeight, boolean isPreview) {
+        this(shapes, conversionMode, simplificationRatio, canvasHeight, isPreview, true);
+    }
+
+    public LineToBlockEvent(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double canvasHeight, boolean isPreview, boolean fillClosedShapes) {
         super(EventType.BLOCK_CONVERSION);
         this.shapes = shapes;
         this.conversionMode = conversionMode;
         this.simplificationRatio = simplificationRatio;
         this.canvasHeight = canvasHeight;
         this.isPreview = isPreview;
+        this.fillClosedShapes = fillClosedShapes;
     }
     
     @Override
@@ -87,9 +94,13 @@ public class LineToBlockEvent extends Event {
         return isPreview;
     }
 
+    public boolean isFillClosedShapes() {
+        return fillClosedShapes;
+    }
+
     @Override
     public String toString() {
-        return String.format("LineToBlockEvent[shapes=%d, mode=%s, ratio=%.2f, height=%.2f, preview=%b]", 
-            shapes != null ? shapes.size() : 0, conversionMode, simplificationRatio, canvasHeight, isPreview);
+        return String.format("LineToBlockEvent[shapes=%d, mode=%s, ratio=%.2f, height=%.2f, preview=%b, fillClosed=%b]", 
+            shapes != null ? shapes.size() : 0, conversionMode, simplificationRatio, canvasHeight, isPreview, fillClosedShapes);
     }
 } 

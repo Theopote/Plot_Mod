@@ -155,8 +155,10 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                 lineToBlockSettingsDialog != null ? lineToBlockSettingsDialog.getConversionMode() : LineToBlockSettingsDialog.ConversionMode.FULL;
         float simplificationRatio =
                 lineToBlockSettingsDialog != null ? lineToBlockSettingsDialog.getSimplificationRatio() : 0.5f;
+        boolean fillClosedShapes =
+            lineToBlockSettingsDialog == null || lineToBlockSettingsDialog.isFillClosedShapes();
 
-        eventBus.publish(new LineToBlockEvent(shapes, conversionMode, simplificationRatio, canvasHeight, true));
+        eventBus.publish(new LineToBlockEvent(shapes, conversionMode, simplificationRatio, canvasHeight, true, fillClosedShapes));
         LOGGER.debug("发布线转方块预览事件: 图形数量={}, 高度={}", shapes.size(), canvasHeight);
     }
     

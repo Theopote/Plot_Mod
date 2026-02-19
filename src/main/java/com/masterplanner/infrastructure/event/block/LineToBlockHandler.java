@@ -115,12 +115,13 @@ public class LineToBlockHandler {
         float simplificationRatio = lineToBlockEvent.getSimplificationRatio();
         double userSpecifiedYLevel = lineToBlockEvent.getCanvasHeight();
         boolean isPreview = lineToBlockEvent.isPreview();
+        boolean fillClosedShapes = lineToBlockEvent.isFillClosedShapes();
 
         // 【优化】获取目标标高（优先使用用户指定，否则使用玩家位置）
         double targetYLevel = getTargetYLevel(userSpecifiedYLevel);
 
-        LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}",
-                shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview);
+        LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}, 封闭填充={}",
+            shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
 
         // 清理之前的幽灵方块
         ghostBlockManager.clearAllGhostBlocks();
@@ -129,7 +130,7 @@ public class LineToBlockHandler {
         BiConsumer<BlockPos, String> blockAction = getBlockPosStringBiConsumer(isPreview);
 
         // 【优化】执行核心处理流程，带进度反馈
-        int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, paletteBlocks, blockAction);
+        int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, fillClosedShapes, paletteBlocks, blockAction);
 
         LOGGER.info("处理完成，共生成 {} 个方块", totalBlocks);
 
@@ -174,7 +175,7 @@ public class LineToBlockHandler {
      * @param blockAction 对每个生成的方块坐标和类型执行的操作
      * @return 生成的方块总数
      */
-    private int processShapesToBlocksWithProgress(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double targetYLevel, List<String> paletteBlocks, BiConsumer<BlockPos, String> blockAction) {
+    private int processShapesToBlocksWithProgress(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double targetYLevel, boolean fillClosedShapes, List<String> paletteBlocks, BiConsumer<BlockPos, String> blockAction) {
         int totalBlocks = 0;
         int paletteIndex = 0;
         int processedShapes = 0;
@@ -188,7 +189,7 @@ public class LineToBlockHandler {
             LOGGER.debug("处理图形: {} ({}/{})", shape.getClass().getSimpleName(), processedShapes + 1, totalShapes);
 
             // 新逻辑：直接在世界坐标系下光栅化
-            List<BlockPos> blockPositions = rasterizeShape(shape, conversionMode, simplificationRatio, targetYLevel);
+            List<BlockPos> blockPositions = rasterizeShape(shape, conversionMode, simplificationRatio, targetYLevel, fillClosedShapes);
 
             if (blockPositions.isEmpty()) {
                 LOGGER.warn("图形 {} 光栅化后没有有效的方块位置，跳过", shape.getClass().getSimpleName());
@@ -233,7 +234,7 @@ public class LineToBlockHandler {
      * @param yLevel 方块的目标Y坐标（标高）
      * @return 代表该图形的BlockPos列表
      */
-    private List<BlockPos> rasterizeShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizeShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
 
         LOGGER.debug("开始光栅化图形: {} (类型: {})", shape.getId(), shape.getClass().getSimpleName());
@@ -249,15 +250,15 @@ public class LineToBlockHandler {
 
             // 处理圆形
             case com.masterplanner.core.geometry.shapes.CircleShape circle ->
-                    result.addAll(rasterizeCircleShape(circle, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizeCircleShape(circle, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
             // 处理矩形
             case com.masterplanner.core.geometry.shapes.RectangleShape rectangle ->
-                    result.addAll(rasterizeRectangleShape(rectangle, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizeRectangleShape(rectangle, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
             // 处理椭圆
             case com.masterplanner.core.geometry.shapes.EllipseShape ellipse ->
-                    result.addAll(rasterizeEllipseShape(ellipse, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizeEllipseShape(ellipse, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
             // 处理圆弧
             case com.masterplanner.core.geometry.shapes.ArcShape arc -> result.addAll(rasterizeArcShape(arc, conversionMode, simplificationRatio, yLevel));
@@ -280,7 +281,7 @@ public class LineToBlockHandler {
 
             // 处理多边形
             case com.masterplanner.core.geometry.shapes.Polygon polygon ->
-                    result.addAll(rasterizePolygonShape(polygon, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizePolygonShape(polygon, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
             // 处理其他复杂图形（如螺旋、星形等）
             default ->
@@ -398,14 +399,14 @@ public class LineToBlockHandler {
     /**
      * 光栅化圆形
      */
-    private List<BlockPos> rasterizeCircleShape(com.masterplanner.core.geometry.shapes.CircleShape circle, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        return rasterizeShapePathByPoints(circle.getPoints(), conversionMode, simplificationRatio, yLevel, true);
+    private List<BlockPos> rasterizeCircleShape(com.masterplanner.core.geometry.shapes.CircleShape circle, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
+        return rasterizeClosedShapeByPoints(circle.getPoints(), conversionMode, simplificationRatio, yLevel, fillClosedShapes);
     }
 
     /**
      * 光栅化矩形
      */
-    private List<BlockPos> rasterizeRectangleShape(com.masterplanner.core.geometry.shapes.RectangleShape rectangle, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizeRectangleShape(com.masterplanner.core.geometry.shapes.RectangleShape rectangle, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
         
         Vec2d canvasCorner = rectangle.getCorner();
@@ -432,7 +433,11 @@ public class LineToBlockHandler {
         }
         
         if (minecraftCorners.size() == 4) {
-            // 使用矩形光栅化算法
+            if (!fillClosedShapes) {
+                return rasterizeCurvePolyline(minecraftCorners, yLevel, conversionMode, simplificationRatio, true);
+            }
+
+            // 使用矩形填充光栅化算法
             List<BlockPos> candidates = rasterizePolygon(minecraftCorners, yLevel);
             return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftCorners, conversionMode, simplificationRatio);
         } else {
@@ -445,8 +450,8 @@ public class LineToBlockHandler {
     /**
      * 光栅化椭圆
      */
-    private List<BlockPos> rasterizeEllipseShape(com.masterplanner.core.geometry.shapes.EllipseShape ellipse, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        return rasterizeShapePathByPoints(ellipse.getPoints(), conversionMode, simplificationRatio, yLevel, true);
+    private List<BlockPos> rasterizeEllipseShape(com.masterplanner.core.geometry.shapes.EllipseShape ellipse, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
+        return rasterizeClosedShapeByPoints(ellipse.getPoints(), conversionMode, simplificationRatio, yLevel, fillClosedShapes);
     }
 
     /**
@@ -469,7 +474,21 @@ public class LineToBlockHandler {
         return rasterizeShapePathByPoints(sine.getPoints(), conversionMode, simplificationRatio, yLevel, false);
     }
 
-    private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean closeLoop) {
+    private List<BlockPos> rasterizeClosedShapeByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
+        List<Vec2d> minecraftPoints = convertCanvasPointsToMinecraftPoints(canvasPoints);
+        if (minecraftPoints.size() < 3) {
+            return List.of();
+        }
+
+        if (!fillClosedShapes) {
+            return rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, true);
+        }
+
+        List<BlockPos> candidates = rasterizePolygon(minecraftPoints, yLevel);
+        return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftPoints, conversionMode, simplificationRatio);
+    }
+
+    private List<Vec2d> convertCanvasPointsToMinecraftPoints(List<Vec2d> canvasPoints) {
         if (canvasPoints == null || canvasPoints.size() < 2) {
             return List.of();
         }
@@ -496,6 +515,12 @@ public class LineToBlockHandler {
 
             minecraftPoints.add(minecraftPoint);
         }
+
+        return minecraftPoints;
+    }
+
+    private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean closeLoop) {
+        List<Vec2d> minecraftPoints = convertCanvasPointsToMinecraftPoints(canvasPoints);
 
         if (minecraftPoints.size() < 2) {
             return List.of();
@@ -549,7 +574,7 @@ public class LineToBlockHandler {
     /**
      * 光栅化多边形
      */
-    private List<BlockPos> rasterizePolygonShape(com.masterplanner.core.geometry.shapes.Polygon polygon, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizePolygonShape(com.masterplanner.core.geometry.shapes.Polygon polygon, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = polygon.getPoints();
         
@@ -578,7 +603,11 @@ public class LineToBlockHandler {
             return result;
         }
 
-        // 使用多边形光栅化算法
+        if (!fillClosedShapes) {
+            return rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, true);
+        }
+
+        // 使用多边形填充光栅化算法
         List<BlockPos> candidates = rasterizePolygon(minecraftPoints, yLevel);
         return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftPoints, conversionMode, simplificationRatio);
     }

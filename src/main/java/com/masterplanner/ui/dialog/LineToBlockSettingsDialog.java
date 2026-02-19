@@ -2,6 +2,7 @@ package com.masterplanner.ui.dialog;
 
 import imgui.ImGui;
 import imgui.type.ImInt;
+import imgui.type.ImBoolean;
 import imgui.flag.ImGuiWindowFlags;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
@@ -17,6 +18,7 @@ public class LineToBlockSettingsDialog {
     private boolean isOpen = false;
     private ConversionMode conversionMode = ConversionMode.FULL;
     private float simplificationRatio = 0.5f;
+    private boolean fillClosedShapes = true;
 
     public enum ConversionMode {
         FULL("完整转换"),
@@ -76,6 +78,15 @@ public class LineToBlockSettingsDialog {
                     "完整转换：线条经过方块投影方格的区域全部转换为方块" :
                     "精简转换：经过投影方格的线条的长度超过方块边长的指定比例时才转换");
 
+                ImGui.separator();
+                ImBoolean fillOption = new ImBoolean(fillClosedShapes);
+                if (ImGui.checkbox("封闭图形填充##fill_closed_shapes", fillOption)) {
+                    fillClosedShapes = fillOption.get();
+                }
+                ImGui.textWrapped(fillClosedShapes
+                        ? "启用：封闭图形会填充内部区域。"
+                        : "关闭：封闭图形只转换边缘轮廓。");
+
                 // 精简比率滑动条（仅在精简转换模式下显示）
                 if (conversionMode == ConversionMode.SIMPLIFIED) {
                     ImGui.separator();
@@ -116,5 +127,9 @@ public class LineToBlockSettingsDialog {
 
     public float getSimplificationRatio() {
         return simplificationRatio;
+    }
+
+    public boolean isFillClosedShapes() {
+        return fillClosedShapes;
     }
 } 
