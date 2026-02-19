@@ -407,44 +407,13 @@ public class LineToBlockHandler {
      * 光栅化矩形
      */
     private List<BlockPos> rasterizeRectangleShape(com.masterplanner.core.geometry.shapes.RectangleShape rectangle, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        Vec2d canvasCorner = rectangle.getCorner();
-        double canvasWidth = rectangle.getWidth();
-        double canvasHeight = rectangle.getHeight();
-        double canvasRotation = rectangle.getRotation();
-        
-        LOGGER.debug("处理矩形图形: 画布角点({}, {}), 尺寸={}x{}, 旋转={}", 
-                canvasCorner.x, canvasCorner.y, canvasWidth, canvasHeight, canvasRotation);
-        
-        // 获取矩形的四个角点
-        List<Vec2d> canvasCorners = getRectangleCorners(canvasCorner, canvasWidth, canvasHeight, canvasRotation);
-        
-        // 转换所有角点到Minecraft坐标
-        List<Vec2d> minecraftCorners = new ArrayList<>();
-        for (Vec2d canvasCornerPoint : canvasCorners) {
-            Vec2d windowCorner = canvasToWindowCoordinates(canvasCornerPoint);
-            if (windowCorner != null) {
-                Vec2d minecraftCorner = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowCorner);
-                if (minecraftCorner != null) {
-                    minecraftCorners.add(minecraftCorner);
-                }
-            }
+        List<Vec2d> rectangleOutline = rectangle.getPoints();
+        if (rectangleOutline == null || rectangleOutline.size() < 4) {
+            LOGGER.warn("矩形轮廓点不足，无法光栅化: {}", rectangle.getId());
+            return List.of();
         }
-        
-        if (minecraftCorners.size() == 4) {
-            if (!fillClosedShapes) {
-                return rasterizeCurvePolyline(minecraftCorners, yLevel, conversionMode, simplificationRatio, true);
-            }
 
-            // 使用矩形填充光栅化算法
-            List<BlockPos> candidates = rasterizePolygon(minecraftCorners, yLevel);
-            return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftCorners, conversionMode, simplificationRatio);
-        } else {
-            LOGGER.error("矩形角点转换失败，只有{}个有效点", minecraftCorners.size());
-        }
-        
-        return result;
+        return rasterizeClosedShapeByPoints(rectangleOutline, conversionMode, simplificationRatio, yLevel, fillClosedShapes);
     }
 
     /**

@@ -741,17 +741,58 @@ public class RectangleShape extends Shape {
     
     @Override
     public List<Vec2d> getPoints() {
+        List<Vec2d> localPoints = new ArrayList<>();
 
-        // 获取变换后的角点
-        List<Vec2d> transformedCorners = getCorners().stream()
-            .map(p -> getTransform().transform(p))
-            .toList();
-        
-        // 添加所有角点，并闭合矩形
-        List<Vec2d> points = new ArrayList<>(transformedCorners);
-        points.add(transformedCorners.getFirst()); // 添加第一个点以闭合矩形
-        
+        double radius = Math.min(cornerRadius, Math.min(width, height) / 2.0);
+        if (radius <= 1e-9) {
+            localPoints.add(new Vec2d(0, 0));
+            localPoints.add(new Vec2d(width, 0));
+            localPoints.add(new Vec2d(width, height));
+            localPoints.add(new Vec2d(0, height));
+            localPoints.add(new Vec2d(0, 0));
+        } else {
+            int arcSegments = Math.max(8, (int) Math.ceil(radius * 6.0));
+
+            localPoints.add(new Vec2d(radius, 0));
+            localPoints.add(new Vec2d(width - radius, 0));
+            addArcPoints(localPoints, new Vec2d(width - radius, radius), radius, -Math.PI / 2.0, 0.0, arcSegments);
+
+            localPoints.add(new Vec2d(width, height - radius));
+            addArcPoints(localPoints, new Vec2d(width - radius, height - radius), radius, 0.0, Math.PI / 2.0, arcSegments);
+
+            localPoints.add(new Vec2d(radius, height));
+            addArcPoints(localPoints, new Vec2d(radius, height - radius), radius, Math.PI / 2.0, Math.PI, arcSegments);
+
+            localPoints.add(new Vec2d(0, radius));
+            addArcPoints(localPoints, new Vec2d(radius, radius), radius, Math.PI, Math.PI * 1.5, arcSegments);
+
+            localPoints.add(new Vec2d(radius, 0));
+        }
+
+        List<Vec2d> points = new ArrayList<>(localPoints.size());
+        for (Vec2d local : localPoints) {
+            Vec2d world = rotation != 0
+                    ? local.rotate(rotation).add(corner)
+                    : new Vec2d(corner.x + local.x, corner.y + local.y);
+            points.add(getTransform().transform(world));
+        }
+
         return points;
+    }
+
+    private void addArcPoints(List<Vec2d> points, Vec2d center, double radius, double startAngle, double endAngle, int segments) {
+        if (segments <= 0) {
+            return;
+        }
+
+        for (int i = 1; i <= segments; i++) {
+            double t = (double) i / segments;
+            double angle = startAngle + (endAngle - startAngle) * t;
+            points.add(new Vec2d(
+                    center.x + radius * Math.cos(angle),
+                    center.y + radius * Math.sin(angle)
+            ));
+        }
     }
     
     /**
