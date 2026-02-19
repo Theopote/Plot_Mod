@@ -1,11 +1,15 @@
 package com.masterplanner.ui.dialog;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.type.ImInt;
 import imgui.type.ImBoolean;
 import imgui.flag.ImGuiWindowFlags;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,10 +83,19 @@ public class LineToBlockSettingsDialog {
                     "精简转换：经过投影方格的线条的长度超过方块边长的指定比例时才转换");
 
                 ImGui.separator();
+                UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
+                ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
+                ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
+                ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+                ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+                ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
+                ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
                 ImBoolean fillOption = new ImBoolean(fillClosedShapes);
                 if (ImGui.checkbox("封闭图形填充##fill_closed_shapes", fillOption)) {
                     fillClosedShapes = fillOption.get();
                 }
+                ImGui.popStyleVar();
+                ImGui.popStyleColor(5);
                 ImGui.textWrapped(fillClosedShapes
                         ? "启用：封闭图形会填充内部区域。"
                         : "关闭：封闭图形只转换边缘轮廓。");
