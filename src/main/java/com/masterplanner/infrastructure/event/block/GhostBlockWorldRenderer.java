@@ -1,6 +1,5 @@
 package com.masterplanner.infrastructure.event.block;
 
-import com.masterplanner.ui.screen.MasterPlannerScreenState;
 import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
@@ -38,10 +37,6 @@ public final class GhostBlockWorldRenderer {
     }
 
     private static void render(WorldRenderContext context) {
-        if (!MasterPlannerScreenState.isMasterPlannerScreenOpen()) {
-            return;
-        }
-
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) {
             return;
@@ -83,7 +78,7 @@ public final class GhostBlockWorldRenderer {
             }
 
             BlockPos pos = BlockPos.ofFloored(block.getPosition().x, block.getHeight(), block.getPosition().y);
-            Box box = new Box(pos);
+            Box box = new Box(pos).expand(0.0025);
             drawLineBox(lines, entry, box, r, g, b, alpha);
 
             rendered++;

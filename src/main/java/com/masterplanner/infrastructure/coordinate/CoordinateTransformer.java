@@ -288,10 +288,8 @@ public class CoordinateTransformer {
                 return canvasToMinecraftWorldSimple(canvasPos, playerX, playerZ);
             }
 
-            // 【核心修复】将画布坐标映射到相机视野范围，然后加上玩家位置偏移
+            // 先映射到相机局部视野坐标，再叠加玩家世界坐标作为原点
             Vec2d relativePos = mapCanvasToCameraView(canvasPos, canvasRegion, cameraBounds);
-            
-            // 【新增】加上玩家位置作为原点偏移
             Vec2d minecraftPos = new Vec2d(relativePos.x + playerX, relativePos.y + playerZ);
 
             // 【新增】坐标验证：检查是否在Minecraft合理范围内
@@ -300,8 +298,8 @@ public class CoordinateTransformer {
                 return null;
             }
 
-            LOGGER.debug("坐标转换: 画布({}, {}) → 相对位置({}, {}) → Minecraft({}, {}), 玩家位置=({}, {})", 
-                    canvasPos.x, canvasPos.y, relativePos.x, relativePos.y, minecraftPos.x, minecraftPos.y, playerX, playerZ);
+                    LOGGER.debug("坐标转换: 画布({}, {}) → 相对位置({}, {}) → Minecraft({}, {}), 玩家位置=({}, {})", 
+                        canvasPos.x, canvasPos.y, relativePos.x, relativePos.y, minecraftPos.x, minecraftPos.y, playerX, playerZ);
 
             return minecraftPos;
 
