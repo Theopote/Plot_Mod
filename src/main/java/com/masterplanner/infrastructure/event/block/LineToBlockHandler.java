@@ -970,11 +970,11 @@ public class LineToBlockHandler {
             return candidates;
         }
 
-        // Keep legacy center-alignment behavior consistent with rasterizeLine().
-        double ax0 = x0 + 0.5;
-        double az0 = z0 + 0.5;
-        double ax1 = x1 + 0.5;
-        double az1 = z1 + 0.5;
+        // 使用世界坐标原值，避免整体向正X/正Z（右下）出现0.5格系统偏移
+        double ax0 = x0;
+        double az0 = z0;
+        double ax1 = x1;
+        double az1 = z1;
 
         double dx = ax1 - ax0;
         double dz = az1 - az0;
@@ -1047,24 +1047,15 @@ public class LineToBlockHandler {
     }
 
     private List<BlockPos> rasterizeLine(double x0, double z0, double x1, double z1, double yLevel) {
-        // 【修复】调整坐标偏移，确保线条穿过方块中心
-        // 方块的中心坐标 = 方块坐标 + 0.5
-        double adjustedX0 = x0 + 0.5;
-        double adjustedZ0 = z0 + 0.5;
-        double adjustedX1 = x1 + 0.5;
-        double adjustedZ1 = z1 + 0.5;
-        
-        // 转换为整数方块坐标
-        int ix0 = (int) Math.floor(adjustedX0);
-        int iz0 = (int) Math.floor(adjustedZ0);
-        int ix1 = (int) Math.floor(adjustedX1);
-        int iz1 = (int) Math.floor(adjustedZ1);
+        // 直接按世界坐标落格，避免引入统一方向偏移
+        int ix0 = (int) Math.floor(x0);
+        int iz0 = (int) Math.floor(z0);
+        int ix1 = (int) Math.floor(x1);
+        int iz1 = (int) Math.floor(z1);
         int y = (int) Math.floor(yLevel);
 
-        LOGGER.debug("中心对齐光栅化: 原始坐标({}, {}) -> ({}, {}), 调整后({}, {}) -> ({}, {}), 方块坐标({}, {}) -> ({}, {}), 标高={}",
-                x0, z0, x1, z1, 
-                adjustedX0, adjustedZ0, adjustedX1, adjustedZ1,
-                ix0, iz0, ix1, iz1, y);
+        LOGGER.debug("线段光栅化: 世界坐标({}, {}) -> ({}, {}), 方块坐标({}, {}) -> ({}, {}), 标高={}",
+            x0, z0, x1, z1, ix0, iz0, ix1, iz1, y);
 
         // 使用Bresenham算法计算线条经过的所有方块
         return rasterizeLineBresenham(ix0, iz0, ix1, iz1, y);
