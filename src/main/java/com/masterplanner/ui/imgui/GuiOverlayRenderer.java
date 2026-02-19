@@ -3,8 +3,6 @@ package com.masterplanner.ui.imgui;
 import com.masterplanner.ui.component.BlockIconRenderer;
 import com.masterplanner.ui.imgui.gl.ImGuiGLStateGuard;
 import com.mojang.blaze3d.systems.RenderSystem;
-import imgui.ImGui;
-import imgui.ImGuiIO;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -30,7 +28,6 @@ import java.util.List;
  */
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/GuiOverlayRenderer");
-    private static volatile long lastCoordScaleLogMs;
     private static volatile long lastDrawContextFlushWarnMs;
 
     private GuiOverlayRenderer() {}
@@ -100,7 +97,6 @@ public final class GuiOverlayRenderer {
 
     /**
      * 队列一个方块（带缩放）
-     * 注意：缩放在 BlockIconRenderer 的 pose translate 中处理，这里只用于后续计算
      */
     public static void queueBlockItem(Block block, float x, float y, float scale) {
         if (block == null) {
@@ -118,46 +114,10 @@ public final class GuiOverlayRenderer {
                 return;
             }
 
-            // 将 ImGui 的屏幕坐标转换为 Minecraft framebuffer/GUI 坐标
-            // 原因：ImGui 使用 display coordinates（window size），而 DrawContext.drawItem
-            // 期望 framebuffer (或经过缩放的 GUI) 坐标。这里使用 Minecraft 的 window
-            // 信息计算缩放因子进行转换，避免坐标/速度不一致导致图标漂移或被遮挡。
-            int intX;
-            int intY;
-            float usedScale = scale;
-            try {
-                MinecraftClient mc = MinecraftClient.getInstance();
-                Window window = mc != null ? mc.getWindow() : null;
+            int intX = Math.round(x);
+            int intY = Math.round(y);
 
-                float guiScaleX = 1.0f;
-                float guiScaleY = 1.0f;
-
-                if (window != null) {
-                    int scaledW = Math.max(1, window.getScaledWidth());
-                    int scaledH = Math.max(1, window.getScaledHeight());
-                    ImGuiIO io = ImGui.getIO();
-                    float imW = Math.max(1.0f, io.getDisplaySizeX());
-                    float imH = Math.max(1.0f, io.getDisplaySizeY());
-                    guiScaleX = scaledW / imW;
-                    guiScaleY = scaledH / imH;
-
-                    long now = System.currentTimeMillis();
-                    if (now - lastCoordScaleLogMs > 3000L) {
-                        lastCoordScaleLogMs = now;
-                        LOGGER.info("GuiOverlayRenderer: 坐标缩放因子 x={}, y={} (scaled={}x{}, imgui={}x{})",
-                                guiScaleX, guiScaleY, scaledW, scaledH, imW, imH);
-                    }
-                }
-
-                intX = Math.round(x * guiScaleX);
-                intY = Math.round(y * guiScaleY);
-            } catch (Throwable t) {
-                LOGGER.warn("queueBlockItem: 计算坐标缩放时出错，回退到原始坐标: {}", t.getMessage());
-                intX = Math.round(x);
-                intY = Math.round(y);
-            }
-
-            PENDING_ITEMS.add(new PendingItem(stack, intX, intY, usedScale));
+            PENDING_ITEMS.add(new PendingItem(stack, intX, intY, scale));
             LOGGER.debug("✓ 已队列方块: {} @ ({}, {})", 
                         net.minecraft.registry.Registries.BLOCK.getId(block), intX, intY);
 
@@ -210,10 +170,7 @@ public final class GuiOverlayRenderer {
                         continue;
                     }
 
-                    // 先保证“可见性”：使用 GUI 缩放坐标直接绘制（16x16）。
-                    // 之前的矩阵缩放在不同 MC 版本/矩阵栈实现下可能会把平移也一起缩放，导致整体跑到屏幕外。
-                    // 等确认图标可见后，再逐步恢复“放大到 slot”的矩阵缩放逻辑。
-                    BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+                    drawScaledItem(context, item);
                     successCount++;
 
                 } catch (Throwable e) {
@@ -231,6 +188,39 @@ public final class GuiOverlayRenderer {
             LOGGER.error("GuiOverlayRenderer.flush 异常", e);
         } finally {
             PENDING_ITEMS.clear();
+        }
+    }
+
+    private static void drawScaledItem(DrawContext context, PendingItem item) {
+        float scale = item.scale <= 0.0f ? 1.0f : item.scale;
+        if (Math.abs(scale - 1.0f) < 0.0001f) {
+            BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+            return;
+        }
+
+        try {
+            var getMatrices = context.getClass().getMethod("getMatrices");
+            Object matrices = getMatrices.invoke(context);
+            if (matrices == null) {
+                BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+                return;
+            }
+
+            var push = matrices.getClass().getMethod("push");
+            var pop = matrices.getClass().getMethod("pop");
+            var translate = matrices.getClass().getMethod("translate", float.class, float.class, float.class);
+            var scaleMethod = matrices.getClass().getMethod("scale", float.class, float.class, float.class);
+
+            push.invoke(matrices);
+            try {
+                translate.invoke(matrices, (float) item.x, (float) item.y, 0.0f);
+                scaleMethod.invoke(matrices, scale, scale, 1.0f);
+                BlockIconRenderer.drawItem(context, item.stack, 0, 0);
+            } finally {
+                pop.invoke(matrices);
+            }
+        } catch (Throwable t) {
+            BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
         }
     }
 

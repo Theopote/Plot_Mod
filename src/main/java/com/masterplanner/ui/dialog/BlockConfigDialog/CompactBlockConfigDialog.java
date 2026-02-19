@@ -10,13 +10,17 @@ import imgui.ImGui;
 import imgui.flag.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import net.minecraft.item.ItemStack;
@@ -125,6 +129,25 @@ public class CompactBlockConfigDialog {
 
     // ============ 逐帧MC物品渲染队列（覆盖在ImGui之上） ============
     // 移除本地PendingItemDraw与队列，改为全局覆盖渲染器
+
+    // ImGui 直绘方块图标缓存（textureId + uv）
+    private final Map<Block, SpriteRenderData> spriteRenderCache = new HashMap<>();
+
+    private static final class SpriteRenderData {
+        final int textureId;
+        final float u0;
+        final float v0;
+        final float u1;
+        final float v1;
+
+        SpriteRenderData(int textureId, float u0, float v0, float u1, float v1) {
+            this.textureId = textureId;
+            this.u0 = u0;
+            this.v0 = v0;
+            this.u1 = u1;
+            this.v1 = v1;
+        }
+    }
 
     /**
      * [NEW] 全局访问管理器 - 用于向后兼容
@@ -819,9 +842,10 @@ public class CompactBlockConfigDialog {
                 // [ENHANCED] 使用全局覆盖渲染：队列GUI物品绘制
                 // 计算缩放系数：物品16x16 -> 槽位BLOCK_ICON_SIZE（48x48），缩放系数3.0
                 float scale = BLOCK_ICON_SIZE / 16.0f;  // 48/16 = 3.0
-                LOGGER.info("renderBlockIcon: 准备渲染方块 {} 在坐标 ({}, {}), 缩放: {}", 
-                            Registries.BLOCK.getId(block), x, y, scale);
-                com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+                boolean drawnByImGui = tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE);
+                if (!drawnByImGui) {
+                    com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+                }
                 
             } else {
                 // 只有在调试模式下才记录这个警告，避免日志污染
@@ -906,8 +930,10 @@ public class CompactBlockConfigDialog {
             // 1.21.11：BlockIconRenderer 的离屏纹理渲染暂时禁用，拖拽预览改用覆盖绘制真实物品图标
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
             float scale = BLOCK_ICON_SIZE / 16.0f;  // [ENHANCED] 使用正确的缩放系数
-            float centerOffset = (BLOCK_ICON_SIZE - 16.0f) * 0.5f;
-            com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+            boolean drawnByImGui = tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE);
+            if (!drawnByImGui) {
+                com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+            }
         } catch (Exception e) {
             LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
                         block != null ? Registries.BLOCK.getId(block) : "null", e.getMessage(), e);
@@ -915,6 +941,175 @@ public class CompactBlockConfigDialog {
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.5f, 0.2f, 0.2f, 0.6f));
         }
         drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(1.0f, 1.0f, 1.0f, 0.9f), 0.0f, 0, 2.0f);
+    }
+
+    private boolean tryRenderBlockIconDirect(imgui.ImDrawList drawList, Block block, float x, float y, float size) {
+        if (drawList == null || block == null) {
+            return false;
+        }
+
+        try {
+            SpriteRenderData data = getOrBuildSpriteRenderData(block);
+            if (data == null || data.textureId <= 0) {
+                return false;
+            }
+
+            float inset = Math.max(2.0f, size * 0.0833f);
+            drawList.addImage(
+                data.textureId,
+                x + inset,
+                y + inset,
+                x + size - inset,
+                y + size - inset,
+                data.u0,
+                data.v0,
+                data.u1,
+                data.v1
+            );
+            return true;
+        } catch (Throwable t) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("ImGui直绘方块图标失败: {} - {}", Registries.BLOCK.getId(block), t.getMessage());
+            }
+            return false;
+        }
+    }
+
+    private SpriteRenderData getOrBuildSpriteRenderData(Block block) {
+        SpriteRenderData cached = spriteRenderCache.get(block);
+        if (cached != null) {
+            return cached;
+        }
+
+        try {
+            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+            if (stack == null || stack.isEmpty()) {
+                return null;
+            }
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null) {
+                return null;
+            }
+
+            Object itemRenderer = invokeNoArgs(client, "getItemRenderer");
+            if (itemRenderer == null) {
+                return null;
+            }
+
+            Object models = invokeNoArgs(itemRenderer, "getModels");
+            if (models == null) {
+                return null;
+            }
+
+            Object bakedModel = invokeGetModel(models, stack);
+            if (bakedModel == null) {
+                return null;
+            }
+
+            Object sprite = invokeNoArgs(bakedModel, "getParticleSprite");
+            if (sprite == null) {
+                return null;
+            }
+
+            float u0 = asFloat(invokeNoArgs(sprite, "getMinU"), 0.0f);
+            float v0 = asFloat(invokeNoArgs(sprite, "getMinV"), 0.0f);
+            float u1 = asFloat(invokeNoArgs(sprite, "getMaxU"), 1.0f);
+            float v1 = asFloat(invokeNoArgs(sprite, "getMaxV"), 1.0f);
+
+            Object atlasIdObject = invokeNoArgs(sprite, "getAtlasId");
+            Identifier atlasId = atlasIdObject instanceof Identifier id
+                    ? id
+                    : Identifier.of("minecraft", "textures/atlas/blocks.png");
+
+            Object textureManager = invokeNoArgs(client, "getTextureManager");
+            if (textureManager == null) {
+                return null;
+            }
+
+            Object atlasTexture = invokeOneArg(textureManager, "getTexture", atlasId);
+            if (atlasTexture == null) {
+                return null;
+            }
+
+            Object glId = invokeNoArgs(atlasTexture, "getGlId");
+            if (!(glId instanceof Number idValue)) {
+                return null;
+            }
+
+            SpriteRenderData built = new SpriteRenderData(idValue.intValue(), u0, v0, u1, v1);
+            spriteRenderCache.put(block, built);
+            return built;
+        } catch (Throwable t) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("构建方块Sprite渲染数据失败: {} - {}", Registries.BLOCK.getId(block), t.getMessage());
+            }
+            return null;
+        }
+    }
+
+    private static Object invokeNoArgs(Object target, String methodName) {
+        if (target == null) {
+            return null;
+        }
+
+        try {
+            var method = target.getClass().getMethod(methodName);
+            return method.invoke(target);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Object invokeOneArg(Object target, String methodName, Object arg) {
+        if (target == null || arg == null) {
+            return null;
+        }
+
+        try {
+            for (var method : target.getClass().getMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                    continue;
+                }
+
+                Class<?> paramType = method.getParameterTypes()[0];
+                if (paramType.isAssignableFrom(arg.getClass())) {
+                    return method.invoke(target, arg);
+                }
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static Object invokeGetModel(Object models, ItemStack stack) {
+        if (models == null || stack == null) {
+            return null;
+        }
+
+        try {
+            for (var method : models.getClass().getMethods()) {
+                if (!method.getName().equals("getModel") || method.getParameterCount() != 4) {
+                    continue;
+                }
+
+                Object[] args = new Object[] { stack, null, null, 0 };
+                return method.invoke(models, args);
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static float asFloat(Object value, float fallback) {
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        return fallback;
     }
 
     /**

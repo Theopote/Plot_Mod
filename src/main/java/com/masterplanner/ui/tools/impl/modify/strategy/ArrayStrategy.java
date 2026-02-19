@@ -945,17 +945,20 @@ public class ArrayStrategy implements IModifyStrategy {
             try {
                 Shape clone = sourceShape.clone();
                 if (currentType == ArrayType.CIRCULAR) {
-                    // 使用与 ArrayHandler 相同的逻辑：设置位置并按角度增量旋转
-                    Vec2d sourcePos = sourceShape.getPosition();
+                    // 使用与 ArrayHandler 相同的逻辑：平移并按角度增量旋转（调用子类实现）
+                    Vec2d sourcePos = (sourceShape.getBoundingBox() != null)
+                        ? sourceShape.getBoundingBox().getCenter()
+                        : sourceShape.getPosition();
                     double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
                     double delta = ang - startAngle; // ang 在 previewAngles 中为绝对角度
 
-                    // 设置位置与旋转（弧度）
-                    clone.setPosition(pos);
-                    clone.setRotation(sourceShape.getRotation() + delta);
+                    Vec2d offset = pos.subtract(clone.getPosition());
+                    if (offset.length() > 1e-6) clone.translate(offset);
+                    if (Math.abs(delta) > 1e-9) clone.rotate(delta, basePoint);
                 } else {
                     // 其他阵列类型仅平移
-                    clone.setPosition(pos);
+                    Vec2d offset = pos.subtract(clone.getPosition());
+                    if (offset.length() > 1e-6) clone.translate(offset);
                 }
                 clone.setStyle(ShapeStyle.PREVIEW);
                 // 修复：使用render方法而不是draw方法，确保应用正确的样式

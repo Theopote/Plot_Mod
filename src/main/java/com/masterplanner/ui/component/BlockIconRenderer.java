@@ -10,6 +10,7 @@ import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -119,8 +120,14 @@ public final class BlockIconRenderer {
      * 🔥 这是 ItemRenderer 正确工作的关键
      */
     private static void prepareRenderState() {
-        // Intentionally lightweight: prefer DrawContext to manage shaders/atlas.
-        // Keep this method for future adjustments; avoid direct RenderSystem calls here.
+        try {
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glColorMask(true, true, true, true);
+        } catch (Throwable ignored) {
+            // best-effort: avoid breaking icon rendering when state APIs differ by mapping/version
+        }
     }
 
     /**
@@ -128,7 +135,11 @@ public final class BlockIconRenderer {
      * 不彻底 reset，只恢复必要项以避免污染后续渲染
      */
     private static void restoreRenderState() {
-        // No-op: DrawContext manages the necessary state in this MC version.
+        try {
+            GL11.glColorMask(true, true, true, true);
+        } catch (Throwable ignored) {
+            // best-effort
+        }
     }
 
     /* ===========================
