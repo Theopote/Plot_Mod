@@ -581,54 +581,6 @@ public class LineToBlockHandler {
         return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftPoints, conversionMode, simplificationRatio);
     }
 
-    private List<BlockPos> rasterizeCircleCurve(double centerX, double centerZ, double radius, double yLevel, ConversionMode conversionMode, float simplificationRatio) {
-        int segments = Math.max(64, (int) Math.ceil(Math.max(8.0, radius * 8.0)));
-        double step = 2.0 * Math.PI / segments;
-
-        List<Vec2d> points = new ArrayList<>(segments + 1);
-        for (int i = 0; i <= segments; i++) {
-            double angle = i * step;
-            points.add(new Vec2d(centerX + radius * Math.cos(angle), centerZ + radius * Math.sin(angle)));
-        }
-
-        return rasterizeCurvePolyline(points, yLevel, conversionMode, simplificationRatio, true);
-    }
-
-    private List<BlockPos> rasterizeEllipseCurve(double centerX, double centerZ, double radiusX, double radiusZ, double rotation, double yLevel, ConversionMode conversionMode, float simplificationRatio) {
-        int segments = Math.max(64, (int) Math.ceil(Math.max(radiusX, radiusZ) * 8.0));
-        double step = 2.0 * Math.PI / segments;
-
-        double cosR = Math.cos(rotation);
-        double sinR = Math.sin(rotation);
-
-        List<Vec2d> points = new ArrayList<>(segments + 1);
-        for (int i = 0; i <= segments; i++) {
-            double angle = i * step;
-            double x = radiusX * Math.cos(angle);
-            double z = radiusZ * Math.sin(angle);
-            double rx = x * cosR - z * sinR;
-            double rz = x * sinR + z * cosR;
-            points.add(new Vec2d(centerX + rx, centerZ + rz));
-        }
-
-        return rasterizeCurvePolyline(points, yLevel, conversionMode, simplificationRatio, true);
-    }
-
-    private List<BlockPos> rasterizeArcCurve(double centerX, double centerZ, double radius, double startAngle, double endAngle, double yLevel, ConversionMode conversionMode, float simplificationRatio) {
-        double angleRange = Math.abs(endAngle - startAngle);
-        int segments = Math.max(16, (int) Math.ceil(Math.max(8.0, radius * angleRange * 4.0)));
-        double step = angleRange / segments;
-        double direction = endAngle >= startAngle ? 1.0 : -1.0;
-
-        List<Vec2d> points = new ArrayList<>(segments + 1);
-        for (int i = 0; i <= segments; i++) {
-            double angle = startAngle + direction * i * step;
-            points.add(new Vec2d(centerX + radius * Math.cos(angle), centerZ + radius * Math.sin(angle)));
-        }
-
-        return rasterizeCurvePolyline(points, yLevel, conversionMode, simplificationRatio, false);
-    }
-
     private List<BlockPos> rasterizeCurvePolyline(List<Vec2d> points, double yLevel, ConversionMode conversionMode, float simplificationRatio, boolean closeLoop) {
         if (points == null || points.size() < 2) {
             return List.of();
@@ -940,13 +892,9 @@ public class LineToBlockHandler {
         }
 
         // 使用世界坐标原值，避免整体向正X/正Z（右下）出现0.5格系统偏移
-        double ax0 = x0;
-        double az0 = z0;
-        double ax1 = x1;
-        double az1 = z1;
 
-        double dx = ax1 - ax0;
-        double dz = az1 - az0;
+        double dx = x1 - x0;
+        double dz = z1 - z0;
         double segmentLength = Math.hypot(dx, dz);
         if (segmentLength < 1e-9) {
             return candidates;
@@ -955,7 +903,7 @@ public class LineToBlockHandler {
         double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
         List<BlockPos> filtered = new ArrayList<>(candidates.size());
         for (BlockPos pos : candidates) {
-            double insideLength = segmentLengthInsideUnitCell(ax0, az0, ax1, az1, pos.getX(), pos.getZ(), segmentLength);
+            double insideLength = segmentLengthInsideUnitCell(x0, z0, x1, z1, pos.getX(), pos.getZ(), segmentLength);
             if (insideLength >= threshold) {
                 filtered.add(pos);
             }
@@ -1189,227 +1137,6 @@ public class LineToBlockHandler {
             LOGGER.error("获取调色盘方块类型时发生错误", e);
             return Collections.emptyList();
         }
-    }
-
-    /**
-     * 【新增】估算Minecraft世界中的半径
-     * 根据画布坐标和Minecraft坐标的转换比例来估算半径
-     */
-    private double estimateMinecraftRadius(double canvasRadius, Vec2d canvasCenter, Vec2d windowCenter, Vec2d minecraftCenter) {
-        try {
-            // 计算画布到窗口的缩放比例
-            double canvasToWindowScale = 1.0;
-            if (canvasCenter.x != 0) {
-                canvasToWindowScale = windowCenter.x / canvasCenter.x;
-            }
-            
-            // 计算窗口到Minecraft的缩放比例
-            double windowToMinecraftScale = 1.0;
-            if (windowCenter.x != 0) {
-                windowToMinecraftScale = minecraftCenter.x / windowCenter.x;
-            }
-            
-            // 总缩放比例
-            double totalScale = canvasToWindowScale * windowToMinecraftScale;
-            
-            // 估算Minecraft世界中的半径
-            double minecraftRadius = canvasRadius * totalScale;
-            
-            LOGGER.debug("半径估算: 画布半径={}, 缩放比例={}, Minecraft半径={}", 
-                    canvasRadius, totalScale, minecraftRadius);
-            
-            return minecraftRadius;
-        } catch (Exception e) {
-            LOGGER.warn("半径估算失败，使用原始半径: {}", e.getMessage());
-            return canvasRadius;
-        }
-    }
-
-    /**
-     * 【新增】获取矩形的四个角点
-     */
-    private List<Vec2d> getRectangleCorners(Vec2d corner, double width, double height, double rotation) {
-        List<Vec2d> corners = new ArrayList<>();
-        
-        // 计算矩形的四个角点（未旋转）
-        Vec2d topLeft = corner;
-        Vec2d topRight = new Vec2d(corner.x + width, corner.y);
-        Vec2d bottomRight = new Vec2d(corner.x + width, corner.y + height);
-        Vec2d bottomLeft = new Vec2d(corner.x, corner.y + height);
-        
-        // 计算旋转中心（矩形中心）
-        Vec2d center = new Vec2d(corner.x + width / 2, corner.y + height / 2);
-        
-        // 应用旋转
-        if (rotation != 0) {
-            topLeft = rotatePoint(topLeft, center, rotation);
-            topRight = rotatePoint(topRight, center, rotation);
-            bottomRight = rotatePoint(bottomRight, center, rotation);
-            bottomLeft = rotatePoint(bottomLeft, center, rotation);
-        }
-        
-        corners.add(topLeft);
-        corners.add(topRight);
-        corners.add(bottomRight);
-        corners.add(bottomLeft);
-        
-        return corners;
-    }
-
-    /**
-     * 【新增】旋转点
-     */
-    private Vec2d rotatePoint(Vec2d point, Vec2d center, double angle) {
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        
-        double dx = point.x - center.x;
-        double dy = point.y - center.y;
-        
-        double newX = center.x + dx * cos - dy * sin;
-        double newY = center.y + dx * sin + dy * cos;
-        
-        return new Vec2d(newX, newY);
-    }
-
-    /**
-     * 【新增】光栅化圆形
-     * 使用中点圆算法
-     */
-    private List<BlockPos> rasterizeCircle(double centerX, double centerY, double radius, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        int centerBlockX = (int) Math.floor(centerX + 0.5);
-        int centerBlockY = (int) Math.floor(centerY + 0.5);
-        int blockRadius = (int) Math.floor(radius + 0.5);
-        int y = (int) Math.floor(yLevel);
-        
-        // 使用中点圆算法
-        int x = blockRadius;
-        int err = 0;
-        
-        while (x >= 0) {
-            // 添加八个象限的点
-            result.add(new BlockPos(centerBlockX + x, y, centerBlockY + blockRadius));
-            result.add(new BlockPos(centerBlockX - x, y, centerBlockY + blockRadius));
-            result.add(new BlockPos(centerBlockX + x, y, centerBlockY - blockRadius));
-            result.add(new BlockPos(centerBlockX - x, y, centerBlockY - blockRadius));
-            result.add(new BlockPos(centerBlockX + blockRadius, y, centerBlockY + x));
-            result.add(new BlockPos(centerBlockX - blockRadius, y, centerBlockY + x));
-            result.add(new BlockPos(centerBlockX + blockRadius, y, centerBlockY - x));
-            result.add(new BlockPos(centerBlockX - blockRadius, y, centerBlockY - x));
-            
-            if (err <= 0) {
-                err += 2 * x + 1;
-            }
-            if (err > 0) {
-                err -= 2 * blockRadius + 1;
-                blockRadius--;
-            }
-            x--;
-        }
-        
-        return result;
-    }
-
-    /**
-     * 【新增】光栅化矩形
-     * 使用边界框填充
-     */
-    private List<BlockPos> rasterizeRectangle(List<Vec2d> corners, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        if (corners.size() != 4) {
-            LOGGER.warn("矩形角点数量不正确: {}", corners.size());
-            return result;
-        }
-        
-        // 计算边界框
-        double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
-        double maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
-        
-        for (Vec2d corner : corners) {
-            minX = Math.min(minX, corner.x);
-            maxX = Math.max(maxX, corner.x);
-            minZ = Math.min(minZ, corner.y);
-            maxZ = Math.max(maxZ, corner.y);
-        }
-        
-        int startX = (int) Math.floor(minX + 0.5);
-        int endX = (int) Math.floor(maxX + 0.5);
-        int startZ = (int) Math.floor(minZ + 0.5);
-        int endZ = (int) Math.floor(maxZ + 0.5);
-        int y = (int) Math.floor(yLevel);
-        
-        // 填充矩形区域
-        for (int x = startX; x <= endX; x++) {
-            for (int z = startZ; z <= endZ; z++) {
-                result.add(new BlockPos(x, y, z));
-            }
-        }
-        
-        return result;
-    }
-
-    /**
-     * 【新增】光栅化椭圆
-     * 使用椭圆参数方程
-     */
-    private List<BlockPos> rasterizeEllipse(double centerX, double centerY, double radiusX, double radiusY, double rotation, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        int centerBlockX = (int) Math.floor(centerX + 0.5);
-        int centerBlockY = (int) Math.floor(centerY + 0.5);
-        int blockRadiusX = (int) Math.floor(radiusX + 0.5);
-        int blockRadiusY = (int) Math.floor(radiusY + 0.5);
-        int y = (int) Math.floor(yLevel);
-        
-        // 使用椭圆参数方程生成点
-        int segments = Math.max(32, Math.max(blockRadiusX, blockRadiusY) * 2);
-        double angleStep = 2 * Math.PI / segments;
-        
-        for (int i = 0; i < segments; i++) {
-            double angle = i * angleStep;
-            
-            // 椭圆参数方程
-            double x = centerBlockX + blockRadiusX * Math.cos(angle) * Math.cos(rotation) - 
-                      blockRadiusY * Math.sin(angle) * Math.sin(rotation);
-            double z = centerBlockY + blockRadiusX * Math.cos(angle) * Math.sin(rotation) + 
-                      blockRadiusY * Math.sin(angle) * Math.cos(rotation);
-            
-            result.add(new BlockPos((int) Math.floor(x + 0.5), y, (int) Math.floor(z + 0.5)));
-        }
-        
-        return result;
-    }
-
-    /**
-     * 【新增】光栅化圆弧
-     * 使用圆弧参数方程
-     */
-    private List<BlockPos> rasterizeArc(double centerX, double centerY, double radius, double startAngle, double endAngle, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        int centerBlockX = (int) Math.floor(centerX + 0.5);
-        int centerBlockY = (int) Math.floor(centerY + 0.5);
-        int blockRadius = (int) Math.floor(radius + 0.5);
-        int y = (int) Math.floor(yLevel);
-        
-        // 计算圆弧的段数
-        double angleRange = Math.abs(endAngle - startAngle);
-        int segments = Math.max(16, (int)(blockRadius * angleRange / Math.PI));
-        double angleStep = angleRange / segments;
-        
-        for (int i = 0; i <= segments; i++) {
-            double angle = startAngle + i * angleStep;
-            
-            double x = centerBlockX + blockRadius * Math.cos(angle);
-            double z = centerBlockY + blockRadius * Math.sin(angle);
-            
-            result.add(new BlockPos((int) Math.floor(x + 0.5), y, (int) Math.floor(z + 0.5)));
-        }
-        
-        return result;
     }
 
     /**
