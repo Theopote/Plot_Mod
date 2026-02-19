@@ -6,12 +6,17 @@ import com.masterplanner.infrastructure.event.block.BlockConfigEvent;
 import com.masterplanner.ui.component.BlockIconRenderer;
 import com.masterplanner.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import com.masterplanner.utils.ImGuiUtils;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import imgui.ImGui;
 import imgui.flag.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -20,10 +25,14 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import net.minecraft.item.ItemStack;
 // removed unused direct MC rendering imports; we now use GuiOverlayRenderer
 
@@ -830,9 +839,12 @@ public class CompactBlockConfigDialog {
                 // 检查方块是否有有效图标
                 boolean hasValidIcon = BlockIconRenderer.hasValidIcon(block);
                 if (!hasValidIcon) {
-                    LOGGER.warn("方块 {} 无有效图标，显示占位符", Registries.BLOCK.getId(block));
-                    drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, DRAG_PLACEHOLDER_COLOR);
-                    drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
+                    // 无 Item 形态时再回退 2D 资源纹理；再失败则占位
+                    if (!tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE)) {
+                        LOGGER.warn("方块 {} 无有效图标，显示占位符", Registries.BLOCK.getId(block));
+                        drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, DRAG_PLACEHOLDER_COLOR);
+                        drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
+                    }
                     return;
                 }
 
@@ -841,16 +853,13 @@ public class CompactBlockConfigDialog {
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
 
-                if (tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE)) {
-                    return;
-                }
-
-                // [ENHANCED] 使用全局覆盖渲染：队列GUI物品绘制
-                // 计算缩放系数：物品16x16 -> 槽位BLOCK_ICON_SIZE（48x48），缩放系数3.0
+                // 优先 3D 物品渲染（与物品栏一致），2D 仅作为失败兜底
                 float scale = BLOCK_ICON_SIZE / 16.0f;  // 48/16 = 3.0
-                boolean drawnByImGui = tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE);
-                if (!drawnByImGui) {
-                    com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+                com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+
+                // 作为兜底（理论上不应频繁触发）
+                if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE)) {
+                    tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE);
                 }
                 
             } else {
@@ -935,14 +944,11 @@ public class CompactBlockConfigDialog {
         try {
             // 1.21.11：BlockIconRenderer 的离屏纹理渲染暂时禁用，拖拽预览改用覆盖绘制真实物品图标
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
-            if (tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE)) {
-                return;
-            }
-
             float scale = BLOCK_ICON_SIZE / 16.0f;  // [ENHANCED] 使用正确的缩放系数
-            boolean drawnByImGui = tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE);
-            if (!drawnByImGui) {
-                com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+            com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
+
+            if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE)) {
+                tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE);
             }
         } catch (Exception e) {
             LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
@@ -975,10 +981,46 @@ public class CompactBlockConfigDialog {
         }
 
         Identifier blockId = Registries.BLOCK.getId(block);
+        String namespace = blockId.getNamespace();
         String path = blockId.getPath();
 
-        Identifier textureIdentifier = findFirstExistingTexture(blockId.getNamespace(), path);
-        int textureId = textureIdentifier != null ? ImGuiUtils.getTextureId(textureIdentifier) : 0;
+        Identifier textureIdentifier = null;
+
+        // 1) 优先用对应 Item 的贴图（和物品栏最一致）
+        if (block.asItem() != Items.AIR) {
+            Identifier itemId = Registries.ITEM.getId(block.asItem());
+            if (itemId != null) {
+                textureIdentifier = findFirstExistingTexture(itemId.getNamespace(), itemId.getPath());
+            }
+        }
+
+        // 2) 方块ID直查
+        if (textureIdentifier == null) {
+            textureIdentifier = findFirstExistingTexture(namespace, path);
+        }
+
+        // 3) 解析 item model textures
+        if (textureIdentifier == null && block.asItem() != Items.AIR) {
+            Identifier itemId = Registries.ITEM.getId(block.asItem());
+            textureIdentifier = findTextureFromModel(itemId, true);
+        }
+
+        // 4) 解析 block model textures
+        if (textureIdentifier == null) {
+            textureIdentifier = findTextureFromModel(blockId, false);
+        }
+
+        // 5) 从 blockstate -> model 递归解析贴图
+        if (textureIdentifier == null) {
+            textureIdentifier = findTextureFromBlockState(blockId);
+        }
+
+        // 6) 最终兜底，保证永远有图标可见
+        if (textureIdentifier == null) {
+            textureIdentifier = Identifier.of("minecraft", "textures/item/barrier.png");
+        }
+
+        int textureId = ImGuiUtils.getTextureId(textureIdentifier);
 
         blockTextureCache.put(block, textureId);
         return textureId;
@@ -990,21 +1032,248 @@ public class CompactBlockConfigDialog {
             "textures/block/" + blockPath + ".png",
             "textures/block/" + blockPath + "_top.png",
             "textures/block/" + blockPath + "_side.png",
-            "textures/block/" + blockPath + "_front.png"
+            "textures/block/" + blockPath + "_front.png",
+            "textures/block/" + blockPath + "_0.png",
+            "textures/block/" + blockPath + "_1.png",
+            "textures/block/" + blockPath + "_stage0.png",
+            "textures/block/" + blockPath + "_stage1.png"
         };
 
-        ClassLoader classLoader = getClass().getClassLoader();
         for (String candidate : candidates) {
-            String fullPath = "assets/" + namespace + "/" + candidate;
-            try (var stream = classLoader.getResourceAsStream(fullPath)) {
-                if (stream != null) {
-                    return Identifier.of(namespace, candidate);
-                }
-            } catch (Exception ignored) {
+            Identifier textureId = Identifier.of(namespace, candidate);
+            if (resourceExists(textureId)) {
+                return textureId;
             }
         }
 
         return null;
+    }
+
+    private Identifier findTextureFromModel(Identifier id, boolean itemModel) {
+        if (id == null) {
+            return null;
+        }
+
+        String modelPath = (itemModel ? "item/" : "block/") + id.getPath();
+        Identifier modelId = toModelFileIdentifier(modelPath, id.getNamespace());
+        return resolveTextureFromModelFile(modelId, 0, new HashMap<>());
+    }
+
+    private Identifier findTextureFromBlockState(Identifier blockId) {
+        if (blockId == null) {
+            return null;
+        }
+
+        Identifier blockStateId = Identifier.of(blockId.getNamespace(), "blockstates/" + blockId.getPath() + ".json");
+        JsonObject root = readJsonObject(blockStateId);
+        if (root == null) {
+            return null;
+        }
+
+        if (root.has("variants") && root.get("variants").isJsonObject()) {
+            JsonObject variants = root.getAsJsonObject("variants");
+            for (Map.Entry<String, JsonElement> entry : variants.entrySet()) {
+                Identifier textureId = extractTextureFromModelElement(entry.getValue(), blockId.getNamespace());
+                if (textureId != null) {
+                    return textureId;
+                }
+            }
+        }
+
+        if (root.has("multipart") && root.get("multipart").isJsonArray()) {
+            JsonArray multipart = root.getAsJsonArray("multipart");
+            for (JsonElement partElement : multipart) {
+                if (!partElement.isJsonObject()) {
+                    continue;
+                }
+                JsonObject part = partElement.getAsJsonObject();
+                if (!part.has("apply")) {
+                    continue;
+                }
+
+                Identifier textureId = extractTextureFromModelElement(part.get("apply"), blockId.getNamespace());
+                if (textureId != null) {
+                    return textureId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private Identifier extractTextureFromModelElement(JsonElement element, String defaultNamespace) {
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+
+        if (element.isJsonObject()) {
+            JsonObject modelObj = element.getAsJsonObject();
+            if (modelObj.has("model") && modelObj.get("model").isJsonPrimitive()) {
+                String modelRef = modelObj.get("model").getAsString();
+                Identifier modelId = toModelFileIdentifier(modelRef, defaultNamespace);
+                return resolveTextureFromModelFile(modelId, 0, new HashMap<>());
+            }
+            return null;
+        }
+
+        if (element.isJsonArray()) {
+            JsonArray array = element.getAsJsonArray();
+            for (JsonElement sub : array) {
+                Identifier texture = extractTextureFromModelElement(sub, defaultNamespace);
+                if (texture != null) {
+                    return texture;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private Identifier resolveTextureFromModelFile(Identifier modelFileId, int depth, Map<String, String> childTextureOverrides) {
+        if (modelFileId == null || depth > 12) {
+            return null;
+        }
+
+        JsonObject root = readJsonObject(modelFileId);
+        if (root == null) {
+            return null;
+        }
+
+        Map<String, String> merged = new HashMap<>(childTextureOverrides);
+
+        if (root.has("textures") && root.get("textures").isJsonObject()) {
+            JsonObject textures = root.getAsJsonObject("textures");
+            for (Map.Entry<String, JsonElement> entry : textures.entrySet()) {
+                if (!entry.getValue().isJsonPrimitive()) {
+                    continue;
+                }
+                merged.putIfAbsent(entry.getKey(), entry.getValue().getAsString());
+            }
+        }
+
+        String[] preferredKeys = new String[] { "layer0", "all", "side", "top", "front", "particle", "texture" };
+        for (String key : preferredKeys) {
+            String value = resolveTextureReference(merged.get(key), merged, new HashSet<>());
+            Identifier textureId = toTextureIdentifier(value, modelFileId.getNamespace());
+            if (textureId != null && resourceExists(textureId)) {
+                return textureId;
+            }
+        }
+
+        for (String valueRaw : merged.values()) {
+            String value = resolveTextureReference(valueRaw, merged, new HashSet<>());
+            Identifier textureId = toTextureIdentifier(value, modelFileId.getNamespace());
+            if (textureId != null && resourceExists(textureId)) {
+                return textureId;
+            }
+        }
+
+        if (root.has("parent") && root.get("parent").isJsonPrimitive()) {
+            String parentRef = root.get("parent").getAsString();
+            Identifier parentModel = toModelFileIdentifier(parentRef, modelFileId.getNamespace());
+            return resolveTextureFromModelFile(parentModel, depth + 1, merged);
+        }
+
+        return null;
+    }
+
+    private String resolveTextureReference(String value, Map<String, String> textures, Set<String> visited) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        if (!value.startsWith("#")) {
+            return value;
+        }
+
+        String key = value.substring(1);
+        if (!visited.add(key)) {
+            return null;
+        }
+
+        String next = textures.get(key);
+        if (next == null || next.isBlank()) {
+            return null;
+        }
+
+        return resolveTextureReference(next, textures, visited);
+    }
+
+    private Identifier toModelFileIdentifier(String modelRef, String defaultNamespace) {
+        if (modelRef == null || modelRef.isBlank()) {
+            return null;
+        }
+
+        String namespace = defaultNamespace;
+        String path = modelRef;
+
+        int sep = modelRef.indexOf(':');
+        if (sep > 0 && sep < modelRef.length() - 1) {
+            namespace = modelRef.substring(0, sep);
+            path = modelRef.substring(sep + 1);
+        }
+
+        if (path.startsWith("models/")) {
+            path = path.substring("models/".length());
+        }
+        if (!path.endsWith(".json")) {
+            path = path + ".json";
+        }
+
+        return Identifier.of(namespace, "models/" + path);
+    }
+
+    private JsonObject readJsonObject(Identifier resourceId) {
+        if (resourceId == null) {
+            return null;
+        }
+
+        ClassLoader classLoader = getClass().getClassLoader();
+        String fullPath = "assets/" + resourceId.getNamespace() + "/" + resourceId.getPath();
+
+        try (var stream = classLoader.getResourceAsStream(fullPath)) {
+            if (stream == null) {
+                return null;
+            }
+
+            JsonElement rootElement = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+            return rootElement.isJsonObject() ? rootElement.getAsJsonObject() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Identifier toTextureIdentifier(String textureRef, String defaultNamespace) {
+        if (textureRef == null || textureRef.isBlank() || textureRef.startsWith("#")) {
+            return null;
+        }
+
+        String namespace = defaultNamespace;
+        String path = textureRef;
+
+        int sep = textureRef.indexOf(':');
+        if (sep > 0 && sep < textureRef.length() - 1) {
+            namespace = textureRef.substring(0, sep);
+            path = textureRef.substring(sep + 1);
+        }
+
+        if (!path.startsWith("textures/")) {
+            path = "textures/" + path;
+        }
+        if (!path.endsWith(".png")) {
+            path = path + ".png";
+        }
+
+        return Identifier.of(namespace, path);
+    }
+
+    private boolean resourceExists(Identifier id) {
+        String fullPath = "assets/" + id.getNamespace() + "/" + id.getPath();
+        try (var stream = getClass().getClassLoader().getResourceAsStream(fullPath)) {
+            return stream != null;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private boolean tryRenderBlockIconDirect(imgui.ImDrawList drawList, Block block, float x, float y, float size) {
