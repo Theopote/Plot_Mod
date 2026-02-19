@@ -35,12 +35,15 @@ public class RenderSystemMixin {
         ImGuiRenderer renderer = ImGuiRenderer.getInstance();
         if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
             renderer.renderPendingDrawData();
-            // 在 ImGui GL 绘制之后，flush 我们排队的覆盖图标（使用 MasterPlannerScreen 注入的 DrawContext）
-            try {
-                com.masterplanner.ui.imgui.GuiOverlayRenderer.flushPending();
-            } catch (Throwable t) {
-                // 不要抛出异常以免影响 swapBuffers
-            }
+        }
+
+        // 无论当前帧是否有 ImGui draw data，都尝试 flush 图标队列。
+        // 原因：某些帧 drawDataReady 可能为 false，但业务侧仍已 queueBlockItem，
+        // 如果这里不 flush，会表现为“图标一直不显示”。
+        try {
+            com.masterplanner.ui.imgui.GuiOverlayRenderer.flushPending();
+        } catch (Throwable t) {
+            // 不要抛出异常以免影响 swapBuffers
         }
     }
 }

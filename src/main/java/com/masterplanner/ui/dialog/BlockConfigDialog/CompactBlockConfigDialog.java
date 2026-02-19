@@ -5,6 +5,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.block.BlockConfigEvent;
 import com.masterplanner.ui.component.BlockIconRenderer;
 import com.masterplanner.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
+import com.masterplanner.utils.ImGuiUtils;
 
 import imgui.ImGui;
 import imgui.flag.*;
@@ -132,6 +133,7 @@ public class CompactBlockConfigDialog {
 
     // ImGui 直绘方块图标缓存（textureId + uv）
     private final Map<Block, SpriteRenderData> spriteRenderCache = new HashMap<>();
+    private final Map<Block, Integer> blockTextureCache = new HashMap<>();
 
     private static final class SpriteRenderData {
         final int textureId;
@@ -839,6 +841,10 @@ public class CompactBlockConfigDialog {
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
 
+                if (tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE)) {
+                    return;
+                }
+
                 // [ENHANCED] 使用全局覆盖渲染：队列GUI物品绘制
                 // 计算缩放系数：物品16x16 -> 槽位BLOCK_ICON_SIZE（48x48），缩放系数3.0
                 float scale = BLOCK_ICON_SIZE / 16.0f;  // 48/16 = 3.0
@@ -929,6 +935,10 @@ public class CompactBlockConfigDialog {
         try {
             // 1.21.11：BlockIconRenderer 的离屏纹理渲染暂时禁用，拖拽预览改用覆盖绘制真实物品图标
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
+            if (tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE)) {
+                return;
+            }
+
             float scale = BLOCK_ICON_SIZE / 16.0f;  // [ENHANCED] 使用正确的缩放系数
             boolean drawnByImGui = tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE);
             if (!drawnByImGui) {
@@ -941,6 +951,60 @@ public class CompactBlockConfigDialog {
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.5f, 0.2f, 0.2f, 0.6f));
         }
         drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(1.0f, 1.0f, 1.0f, 0.9f), 0.0f, 0, 2.0f);
+    }
+
+    private boolean tryRenderBlockTextureFromResources(imgui.ImDrawList drawList, Block block, float x, float y, float size) {
+        if (drawList == null || block == null) {
+            return false;
+        }
+
+        int textureId = getBlockTextureId(block);
+        if (textureId <= 0) {
+            return false;
+        }
+
+        float inset = Math.max(2.0f, size * 0.0833f);
+        drawList.addImage(textureId, x + inset, y + inset, x + size - inset, y + size - inset);
+        return true;
+    }
+
+    private int getBlockTextureId(Block block) {
+        Integer cached = blockTextureCache.get(block);
+        if (cached != null) {
+            return cached;
+        }
+
+        Identifier blockId = Registries.BLOCK.getId(block);
+        String path = blockId.getPath();
+
+        Identifier textureIdentifier = findFirstExistingTexture(blockId.getNamespace(), path);
+        int textureId = textureIdentifier != null ? ImGuiUtils.getTextureId(textureIdentifier) : 0;
+
+        blockTextureCache.put(block, textureId);
+        return textureId;
+    }
+
+    private Identifier findFirstExistingTexture(String namespace, String blockPath) {
+        String[] candidates = new String[] {
+            "textures/item/" + blockPath + ".png",
+            "textures/block/" + blockPath + ".png",
+            "textures/block/" + blockPath + "_top.png",
+            "textures/block/" + blockPath + "_side.png",
+            "textures/block/" + blockPath + "_front.png"
+        };
+
+        ClassLoader classLoader = getClass().getClassLoader();
+        for (String candidate : candidates) {
+            String fullPath = "assets/" + namespace + "/" + candidate;
+            try (var stream = classLoader.getResourceAsStream(fullPath)) {
+                if (stream != null) {
+                    return Identifier.of(namespace, candidate);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return null;
     }
 
     private boolean tryRenderBlockIconDirect(imgui.ImDrawList drawList, Block block, float x, float y, float size) {

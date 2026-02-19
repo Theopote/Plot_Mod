@@ -18,10 +18,10 @@ import java.util.List;
 
 /**
  * GuiOverlayRenderer - 在ImGui之后的安全覆盖渲染
- * 
+ * <p>
  * 使用经过验证的 BlockIconRenderer.drawBlock() / drawItem() 进行渲染
  * BlockIconRenderer 已经完整处理了所有 GL 状态管理和 AIR 兜底
- * 
+ * <p>
  * 这个类只负责：
  * 1. 队列管理（缓冲要绘制的图标）
  * 2. 在合适的时机调用 BlockIconRenderer 进行绘制
