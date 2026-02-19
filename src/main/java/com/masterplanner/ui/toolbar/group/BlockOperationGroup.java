@@ -13,7 +13,6 @@ import com.masterplanner.ui.dialog.ProjectionSettingsDialog;
 import com.masterplanner.ui.toolbar.ToolbarUIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import net.minecraft.client.MinecraftClient;
 
 import java.util.List;
 
@@ -147,10 +146,9 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         if (shapes.isEmpty()) {
             return;
         }
-        
-        MinecraftClient client = MinecraftClient.getInstance();
-        double canvasHeight = client != null && client.player != null ? 
-            Math.floor(client.player.getY()) : 64.0;
+
+        // 由处理器决定默认标高（优先玩家脚下），这里传入 NaN 表示“未显式指定标高”
+        double canvasHeight = Double.NaN;
         
         // 发布线转方块事件（默认预览模式）
         LineToBlockSettingsDialog.ConversionMode conversionMode =

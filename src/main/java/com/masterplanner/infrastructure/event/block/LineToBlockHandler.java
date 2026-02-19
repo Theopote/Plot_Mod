@@ -87,6 +87,9 @@ public class LineToBlockHandler {
 
         LOGGER.info("收到线转方块事件");
 
+        // 每次转换前清理坐标缓存，避免相机平移/缩放后复用旧结果导致坐标偏移
+        clearCoordinateCache();
+
         // 获取要转换的图形
         List<Shape> shapes = lineToBlockEvent.getShapes();
         if (shapes == null || shapes.isEmpty()) {
@@ -259,6 +262,18 @@ public class LineToBlockHandler {
             // 处理圆弧
             case com.masterplanner.core.geometry.shapes.ArcShape arc -> result.addAll(rasterizeArcShape(arc, conversionMode, simplificationRatio, yLevel));
 
+                // 处理椭圆弧
+                case com.masterplanner.core.geometry.shapes.EllipticalArcShape ellipticalArc ->
+                    result.addAll(rasterizeEllipticalArcShape(ellipticalArc, conversionMode, simplificationRatio, yLevel));
+
+                // 处理贝塞尔/样条曲线
+                case com.masterplanner.core.geometry.shapes.BezierCurveShape bezier ->
+                    result.addAll(rasterizeBezierCurveShape(bezier, conversionMode, simplificationRatio, yLevel));
+
+                // 处理正弦曲线
+                case com.masterplanner.core.geometry.shapes.SineCurveShape sine ->
+                    result.addAll(rasterizeSineCurveShape(sine, conversionMode, simplificationRatio, yLevel));
+
             // 处理自由绘制路径
             case com.masterplanner.core.geometry.shapes.FreeDrawPath freeDraw ->
                     result.addAll(rasterizeFreeDrawPath(freeDraw, conversionMode, simplificationRatio, yLevel));
@@ -384,35 +399,7 @@ public class LineToBlockHandler {
      * 光栅化圆形
      */
     private List<BlockPos> rasterizeCircleShape(com.masterplanner.core.geometry.shapes.CircleShape circle, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        Vec2d canvasCenter = circle.getCenter();
-        double canvasRadius = circle.getRadius();
-        
-        LOGGER.debug("处理圆形图形: 画布中心({}, {}), 半径={}", 
-                canvasCenter.x, canvasCenter.y, canvasRadius);
-        
-        // 转换圆心到Minecraft坐标
-        Vec2d windowCenter = canvasToWindowCoordinates(canvasCenter);
-        if (windowCenter == null) {
-            LOGGER.error("圆形中心坐标转换失败");
-            return result;
-        }
-        
-        Vec2d minecraftCenter = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowCenter);
-        if (minecraftCenter == null) {
-            LOGGER.error("圆形中心窗口到Minecraft坐标转换失败");
-            return result;
-        }
-        
-        // 计算Minecraft世界中的半径（需要根据坐标转换比例调整）
-        double minecraftRadius = estimateMinecraftRadius(canvasRadius, canvasCenter, windowCenter, minecraftCenter);
-        
-        LOGGER.debug("圆形转换: 画布半径={} → Minecraft半径={}, 中心=({}, {})", 
-                canvasRadius, minecraftRadius, minecraftCenter.x, minecraftCenter.y);
-        
-        // 使用圆形光栅化算法
-        return rasterizeCircleCurve(minecraftCenter.x, minecraftCenter.y, minecraftRadius, yLevel, conversionMode, simplificationRatio);
+        return rasterizeShapePathByPoints(circle.getPoints(), conversionMode, simplificationRatio, yLevel, true);
     }
 
     /**
@@ -459,76 +446,62 @@ public class LineToBlockHandler {
      * 光栅化椭圆
      */
     private List<BlockPos> rasterizeEllipseShape(com.masterplanner.core.geometry.shapes.EllipseShape ellipse, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        Vec2d canvasCenter = ellipse.getCenter();
-        double canvasRadiusX = ellipse.getRadiusX();
-        double canvasRadiusY = ellipse.getRadiusY();
-        double canvasRotation = ellipse.getRotation();
-        
-        LOGGER.debug("处理椭圆图形: 画布中心({}, {}), 半径={}x{}, 旋转={}", 
-                canvasCenter.x, canvasCenter.y, canvasRadiusX, canvasRadiusY, canvasRotation);
-        
-        // 转换中心到Minecraft坐标
-        Vec2d windowCenter = canvasToWindowCoordinates(canvasCenter);
-        if (windowCenter == null) {
-            LOGGER.error("椭圆中心坐标转换失败");
-            return result;
-        }
-        
-        Vec2d minecraftCenter = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowCenter);
-        if (minecraftCenter == null) {
-            LOGGER.error("椭圆中心窗口到Minecraft坐标转换失败");
-            return result;
-        }
-        
-        // 计算Minecraft世界中的半径
-        double minecraftRadiusX = estimateMinecraftRadius(canvasRadiusX, canvasCenter, windowCenter, minecraftCenter);
-        double minecraftRadiusY = estimateMinecraftRadius(canvasRadiusY, canvasCenter, windowCenter, minecraftCenter);
-        
-        LOGGER.debug("椭圆转换: 画布半径={}x{} → Minecraft半径={}x{}, 中心=({}, {})", 
-                canvasRadiusX, canvasRadiusY, minecraftRadiusX, minecraftRadiusY, 
-                minecraftCenter.x, minecraftCenter.y);
-        
-        // 使用椭圆光栅化算法
-        return rasterizeEllipseCurve(minecraftCenter.x, minecraftCenter.y, minecraftRadiusX, minecraftRadiusY, canvasRotation, yLevel, conversionMode, simplificationRatio);
+        return rasterizeShapePathByPoints(ellipse.getPoints(), conversionMode, simplificationRatio, yLevel, true);
     }
 
     /**
      * 光栅化圆弧
      */
     private List<BlockPos> rasterizeArcShape(com.masterplanner.core.geometry.shapes.ArcShape arc, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        List<BlockPos> result = new ArrayList<>();
-        
-        Vec2d canvasCenter = arc.getCenter();
-        double canvasRadius = arc.getRadius();
-        double canvasStartAngle = arc.getStartAngle();
-        double canvasEndAngle = arc.getEndAngle();
-        
-        LOGGER.debug("处理圆弧图形: 画布中心({}, {}), 半径={}, 角度={}~{}", 
-                canvasCenter.x, canvasCenter.y, canvasRadius, canvasStartAngle, canvasEndAngle);
-        
-        // 转换中心到Minecraft坐标
-        Vec2d windowCenter = canvasToWindowCoordinates(canvasCenter);
-        if (windowCenter == null) {
-            LOGGER.error("圆弧中心坐标转换失败");
-            return result;
+        return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel, false);
+    }
+
+    private List<BlockPos> rasterizeEllipticalArcShape(com.masterplanner.core.geometry.shapes.EllipticalArcShape arc, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+        return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel, false);
+    }
+
+    private List<BlockPos> rasterizeBezierCurveShape(com.masterplanner.core.geometry.shapes.BezierCurveShape bezier, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+        // 使用曲线采样点（而不是控制点），避免样条曲线被折线化导致失真
+        return rasterizeShapePathByPoints(bezier.getCurvePoints(), conversionMode, simplificationRatio, yLevel, false);
+    }
+
+    private List<BlockPos> rasterizeSineCurveShape(com.masterplanner.core.geometry.shapes.SineCurveShape sine, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+        return rasterizeShapePathByPoints(sine.getPoints(), conversionMode, simplificationRatio, yLevel, false);
+    }
+
+    private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean closeLoop) {
+        if (canvasPoints == null || canvasPoints.size() < 2) {
+            return List.of();
         }
-        
-        Vec2d minecraftCenter = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowCenter);
-        if (minecraftCenter == null) {
-            LOGGER.error("圆弧中心窗口到Minecraft坐标转换失败");
-            return result;
+
+        List<Vec2d> minecraftPoints = new ArrayList<>(canvasPoints.size());
+        for (Vec2d canvasPoint : canvasPoints) {
+            Vec2d windowPoint = canvasToWindowCoordinates(canvasPoint);
+            if (windowPoint == null) {
+                continue;
+            }
+
+            Vec2d minecraftPoint = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowPoint);
+            if (minecraftPoint == null) {
+                continue;
+            }
+
+            int size = minecraftPoints.size();
+            if (size > 0) {
+                Vec2d prev = minecraftPoints.get(size - 1);
+                if (Math.abs(prev.x - minecraftPoint.x) < 1e-9 && Math.abs(prev.y - minecraftPoint.y) < 1e-9) {
+                    continue;
+                }
+            }
+
+            minecraftPoints.add(minecraftPoint);
         }
-        
-        // 计算Minecraft世界中的半径
-        double minecraftRadius = estimateMinecraftRadius(canvasRadius, canvasCenter, windowCenter, minecraftCenter);
-        
-        LOGGER.debug("圆弧转换: 画布半径={} → Minecraft半径={}, 中心=({}, {})", 
-                canvasRadius, minecraftRadius, minecraftCenter.x, minecraftCenter.y);
-        
-        // 使用圆弧光栅化算法
-        return rasterizeArcCurve(minecraftCenter.x, minecraftCenter.y, minecraftRadius, canvasStartAngle, canvasEndAngle, yLevel, conversionMode, simplificationRatio);
+
+        if (minecraftPoints.size() < 2) {
+            return List.of();
+        }
+
+        return rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, closeLoop);
     }
 
     /**
@@ -743,6 +716,16 @@ public class LineToBlockHandler {
         List<BlockPos> result = new ArrayList<>();
         
         LOGGER.debug("处理复杂图形: {}", shape.getClass().getSimpleName());
+
+        // 优先使用图形采样点，尽量与画布显示保持一致
+        try {
+            List<Vec2d> shapePoints = shape.getPoints();
+            if (shapePoints != null && shapePoints.size() >= 2) {
+                return rasterizeShapePathByPoints(shapePoints, conversionMode, simplificationRatio, yLevel, false);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("复杂图形采样点获取失败，回退控制点连接: {}", e.getMessage());
+        }
         
         // 尝试获取图形的控制点或边界点
         List<Vec2d> controlPoints = shape.getControlPoints();
@@ -1119,7 +1102,7 @@ public class LineToBlockHandler {
     private double getTargetYLevel(double userSpecifiedYLevel) {
         try {
             // 【优化】优先使用用户指定的标高
-            if (userSpecifiedYLevel > 0) {
+            if (Double.isFinite(userSpecifiedYLevel)) {
                 double alignedY = Math.floor(userSpecifiedYLevel);
                 LOGGER.debug("使用用户指定标高: 原始Y={}, 网格对齐Y={}", userSpecifiedYLevel, alignedY);
                 return alignedY;
@@ -1354,7 +1337,7 @@ public class LineToBlockHandler {
         
         // 计算边界框
         double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
-        double maxX = Double.MIN_VALUE, maxZ = Double.MIN_VALUE;
+        double maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
         
         for (Vec2d corner : corners) {
             minX = Math.min(minX, corner.x);
@@ -1454,7 +1437,7 @@ public class LineToBlockHandler {
         
         // 计算边界框
         double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
-        double maxX = Double.MIN_VALUE, maxZ = Double.MIN_VALUE;
+        double maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
         
         for (Vec2d point : points) {
             minX = Math.min(minX, point.x);
