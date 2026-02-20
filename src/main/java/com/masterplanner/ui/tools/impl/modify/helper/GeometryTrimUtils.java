@@ -711,13 +711,18 @@ public class GeometryTrimUtils {
     }
     
     public boolean isPointOnArc(ArcShape arc, Vec2d point) {
+        double arcTolerance = Math.max(INTERSECTION_TOLERANCE, calculateAdaptiveTolerance(arc));
+        return isPointOnArc(arc, point, arcTolerance);
+    }
+
+    private boolean isPointOnArc(ArcShape arc, Vec2d point, double distanceTolerance) {
         Vec2d center = arc.getCenter();
         double radius = arc.getRadius();
         double startAngle = arc.getStartAngle();
         double endAngle = arc.getEndAngle();
         
         // 检查点是否在圆上
-        if (!isPointOnCircle(center, radius, point, INTERSECTION_TOLERANCE)) {
+        if (!isPointOnCircle(center, radius, point, distanceTolerance)) {
             return false;
         }
         
@@ -1171,6 +1176,9 @@ public class GeometryTrimUtils {
             case RectangleShape rectangle -> {
                 return splitRectangleAtIntersections(rectangle, intersections);
             }
+            case Polygon polygon -> {
+                return splitPolygonAtIntersections(polygon, intersections);
+            }
             case PolylineShape polyline -> {
                 return splitPolylineAtIntersections(polyline, intersections);
             }
@@ -1494,6 +1502,56 @@ public class GeometryTrimUtils {
         return filterSegmentQuality(segments, rectangle);
     }
 
+    private List<Shape> splitPolygonAtIntersections(Polygon polygon, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> polygonPoints = polygon.getPoints();
+
+        if (polygonPoints == null || polygonPoints.size() < 3 || intersections == null || intersections.isEmpty()) {
+            segments.add(polygon);
+            return segments;
+        }
+
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(polygonPoints, intersections);
+        sortedIntersections = removeDuplicatePoints(sortedIntersections);
+        if (sortedIntersections.size() < 2) {
+            segments.add(polygon);
+            return segments;
+        }
+
+        List<Vec2d> closedPolygonPoints = new ArrayList<>(polygonPoints);
+        if (closedPolygonPoints.getFirst().distance(closedPolygonPoints.getLast()) > INTERSECTION_TOLERANCE) {
+            closedPolygonPoints.add(closedPolygonPoints.getFirst());
+        }
+
+        for (int i = 0; i < sortedIntersections.size(); i++) {
+            Vec2d start = sortedIntersections.get(i);
+            Vec2d end = sortedIntersections.get((i + 1) % sortedIntersections.size());
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            List<Vec2d> section = extractClosedPathSection(closedPolygonPoints, start, end);
+            if (section.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(section, false);
+            if (polygon.getStyle() != null) {
+                segment.setStyle(polygon.getStyle().clone());
+            }
+            if (polygon.getTransform() != null) {
+                segment.setTransform(polygon.getTransform().clone());
+            }
+            segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(polygon);
+        }
+
+        return filterSegmentQuality(segments, polygon);
+    }
+
     private List<Vec2d> extractClosedPathSection(List<Vec2d> closedPathPoints, Vec2d start, Vec2d end) {
         List<Vec2d> section = new ArrayList<>();
         if (closedPathPoints == null || closedPathPoints.size() < 2) {
@@ -1593,11 +1651,12 @@ public class GeometryTrimUtils {
         List<Shape> segments = new ArrayList<>();
         Vec2d center = arc.getCenter();
         double radius = arc.getRadius();
+        double arcIntersectionTolerance = Math.max(INTERSECTION_TOLERANCE, radius * 1e-4);
 
         List<Double> validAngles = new ArrayList<>();
         validAngles.add(normalizeAngle(arc.getStartAngle()));
         for (Vec2d intersection : intersections) {
-            if (isPointOnArc(arc, intersection)) {
+            if (isPointOnArc(arc, intersection, arcIntersectionTolerance)) {
                 double angle = Math.atan2(intersection.y - center.y, intersection.x - center.x);
                 validAngles.add(normalizeAngle(angle));
             }
