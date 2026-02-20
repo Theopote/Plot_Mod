@@ -733,6 +733,10 @@ public class GeometryTrimUtils {
         double radiusX = ellipse.getRadiusX();
         double radiusY = ellipse.getRadiusY();
         double rotation = ellipse.getRotation();
+
+        if (radiusX <= INTERSECTION_TOLERANCE || radiusY <= INTERSECTION_TOLERANCE) {
+            return false;
+        }
         
         // 将点转换到椭圆的局部坐标系
         Vec2d localPoint = transformPointToEllipseLocal(point, center, rotation);
@@ -740,8 +744,10 @@ public class GeometryTrimUtils {
         // 检查点是否在椭圆上
         double normalizedX = localPoint.x / radiusX;
         double normalizedY = localPoint.y / radiusY;
+        double equationResidual = Math.abs(normalizedX * normalizedX + normalizedY * normalizedY - 1.0);
+        double ellipseTolerance = Math.max(INTERSECTION_TOLERANCE, Math.max(radiusX, radiusY) * 1e-4);
         
-        return Math.abs(normalizedX * normalizedX + normalizedY * normalizedY - 1.0) <= INTERSECTION_TOLERANCE;
+        return equationResidual <= ellipseTolerance;
     }
     
     public boolean isPointOnRectangleBoundary(RectangleShape rectangle, Vec2d point) {
