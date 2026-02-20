@@ -86,7 +86,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         SELECTING_TARGETS("选择目标", "左键选择要修剪的图形，右键完成选择"),
         DRAWING_FENCE("绘制栅栏", "左键绘制栅栏区域，右键完成并执行修剪"),
         FENCE_READY("栅栏就绪", "目标已选择，可以继续使用栅栏修剪"),
-        FENCE_DRAWING_READY("栅栏绘制就绪", "目标已选择，左键开始绘制栅栏，右键取消持续模式"),
         
         // 通用状态
         PROCESSING("处理中", "正在执行修剪操作");
@@ -177,6 +176,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     private static final int C_KEY = 67; // C键 - 点击修剪
     private static final int F_KEY = 70; // F键 - 栅栏修剪
     private static final double SELECTION_TOLERANCE = 5.0;
+    private static final double FENCE_POINT_EPSILON = 1e-6;
 
     // 配置参数
     private double trimTolerance = 5.0;
@@ -303,6 +303,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     context.setStatusMessage("栅栏至少需要3个点");
                     return ModifyResult.CONTINUE;
                 }
+
+                normalizeFencePoints();
+                if (fencePoints.size() < 4) {
+                    context.setStatusMessage("栅栏点无效，请重新绘制");
+                    return ModifyResult.CONTINUE;
+                }
                 
                 return performFenceTrim(context);
             }
@@ -377,7 +383,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 return addFencePoint(snappedPos, context);
             }
             
-            case FENCE_READY, FENCE_DRAWING_READY -> {
+            case FENCE_READY -> {
                 // 栅栏修剪持续模式：开始绘制栅栏
                 fencePoints.clear();
                 trimState = TrimState.DRAWING_FENCE;
@@ -397,6 +403,9 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private ModifyResult addFencePoint(Vec2d pos, ModifyToolContext context) {
         try {
+            if (!fencePoints.isEmpty() && arePointsNear(fencePoints.getLast(), pos)) {
+                return ModifyResult.CONTINUE;
+            }
             fencePoints.add(pos);
             context.setStatusMessage("栅栏点 " + fencePoints.size() + " 个，右键完成栅栏绘制");
             LOGGER.debug("添加栅栏点: {}", pos);
@@ -427,33 +436,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         }
         
         return nearestShape;
-    }
-    
-    /**
-     * 检查目标图形是否与边界图形相交
-     */
-    private boolean hasIntersectionWithBoundaries(Shape targetShape, List<Shape> boundaryShapes) {
-        LOGGER.debug("检查目标图形与边界图形相交: 目标类型={}, 边界数量={}", 
-            targetShape.getClass().getSimpleName(), boundaryShapes.size());
-        
-        for (int i = 0; i < boundaryShapes.size(); i++) {
-            Shape boundary = boundaryShapes.get(i);
-            try {
-                LOGGER.debug("检查与边界图形 {}: 类型={}", i, boundary.getClass().getSimpleName());
-                List<Vec2d> intersections = targetShape.getIntersectionsWith(boundary);
-                if (intersections != null && !intersections.isEmpty()) {
-                    LOGGER.debug("找到交点: 数量={}", intersections.size());
-                    return true;
-                } else {
-                    LOGGER.debug("未找到交点");
-                }
-            } catch (Exception e) {
-                LOGGER.error("检查交点失败: {}", e.getMessage(), e);
-            }
-        }
-        
-        LOGGER.debug("目标图形与所有边界图形都不相交");
-        return false;
     }
     
         /**
@@ -539,18 +521,20 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 return;
             }
 
-            Vec2d worldPos = toWorldPoint(pos, context);
+            Vec2d highlightPos = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
             
             // 根据当前状态高亮不同的图形
             List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
-            Shape nearestShape = findShapeAtPoint(worldPos, allShapes);
+            Shape nearestShape = findShapeAtPoint(highlightPos, allShapes);
             
             if (nearestShape != null) {
                 // 避免高亮已选择的图形
                 boolean shouldHighlight;
                 switch (trimState) {
-                    case SELECTING_BOUNDARIES, WAITING_TRIM_CLICK -> shouldHighlight = !boundaryShapes.contains(nearestShape);
-                    case SELECTING_TARGETS -> shouldHighlight = !targetShapes.contains(nearestShape);
+                    case SELECTING_BOUNDARIES, WAITING_TRIM_CLICK, BOUNDARY_READY ->
+                        shouldHighlight = !boundaryShapes.contains(nearestShape);
+                    case SELECTING_TARGETS, FENCE_READY ->
+                        shouldHighlight = !targetShapes.contains(nearestShape);
                     default -> shouldHighlight = false;
                 }
                 
@@ -582,7 +566,27 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 Shape clickedShape = findShapeAtPoint(snappedPoint, allShapes);
                 if (clickedShape != null) {
                     boxSelectedShapes.clear();
-                    boxSelectedShapes.add(clickedShape);
+                    switch (trimState) {
+                        case SELECTING_BOUNDARIES -> {
+                            if (boundaryShapes.contains(clickedShape)) {
+                                boundaryShapes.remove(clickedShape);
+                                clickedShape.setSelected(false);
+                                context.setStatusMessage(String.format("已取消 1 个边界图形，当前 %d 个", boundaryShapes.size()));
+                                return ModifyResult.CONTINUE;
+                            }
+                            boxSelectedShapes.add(clickedShape);
+                        }
+                        case SELECTING_TARGETS -> {
+                            if (targetShapes.contains(clickedShape)) {
+                                targetShapes.remove(clickedShape);
+                                clickedShape.setSelected(false);
+                                context.setStatusMessage(String.format("已取消 1 个目标图形，当前 %d 个", targetShapes.size()));
+                                return ModifyResult.CONTINUE;
+                            }
+                            boxSelectedShapes.add(clickedShape);
+                        }
+                        default -> boxSelectedShapes.add(clickedShape);
+                    }
                 }
             } else {
                 // 框选模式：应用最终选择
@@ -681,15 +685,8 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             
             LOGGER.debug("找到目标图形: 类型={}", targetShape.getClass().getSimpleName());
             
-            // 检查目标图形是否与边界图形相交
-            LOGGER.debug("检查目标图形与边界图形是否相交，边界图形数量: {}", boundaryShapes.size());
-            if (!hasIntersectionWithBoundaries(targetShape, boundaryShapes)) {
-                LOGGER.debug("目标图形与边界图形不相交，无法修剪");
-                context.setStatusMessage("目标图形与边界图形不相交，无法修剪");
-                return ModifyResult.CONTINUE;
-            }
-            
-            LOGGER.debug("目标图形与边界图形相交，可以修剪");
+            // 直接进入修剪计算：由修剪引擎决定是否可修剪，避免前置相交判断误拒绝
+            LOGGER.debug("开始基于修剪引擎计算可修剪结果，边界图形数量: {}", boundaryShapes.size());
             
             // 记录修剪点击位置
             trimClickPoint = clickPos;
@@ -791,7 +788,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     context.setStatusMessage("栅栏修剪完成，可以继续使用栅栏修剪（持续模式）");
                     LOGGER.debug("栅栏修剪完成，回到持续模式");
                 } else {
-                    resetFenceTrimState();
                     initializeState();
                 }
                 return ModifyResult.CONTINUE;
@@ -847,15 +843,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         trimState = TrimState.WAITING_TRIM_CLICK;
     }
     
-    /**
-     * 重置栅栏修剪状态（保持目标选择）
-     */
-    private void resetFenceTrimState() {
-        fencePoints.clear();
-        currentMousePoint = null;
-        trimState = TrimState.DRAWING_FENCE;
-    }
-
     private Vec2d toWorldPoint(Vec2d pos, ModifyToolContext context) {
         if (context != null && context.getCamera() != null && pos != null) {
             try {
@@ -900,6 +887,40 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             return false;
         }
     }
+
+    private void normalizeFencePoints() {
+        if (fencePoints.size() < 3) {
+            return;
+        }
+
+        List<Vec2d> normalized = new ArrayList<>();
+        for (Vec2d point : fencePoints) {
+            if (point == null) {
+                continue;
+            }
+            if (normalized.isEmpty() || !arePointsNear(normalized.getLast(), point)) {
+                normalized.add(point);
+            }
+        }
+
+        if (normalized.size() >= 2 && arePointsNear(normalized.getFirst(), normalized.getLast())) {
+            normalized.remove(normalized.size() - 1);
+        }
+
+        fencePoints.clear();
+        fencePoints.addAll(normalized);
+
+        if (fencePoints.size() >= 3 && !arePointsNear(fencePoints.getFirst(), fencePoints.getLast())) {
+            fencePoints.add(fencePoints.getFirst());
+        }
+    }
+
+    private boolean arePointsNear(Vec2d a, Vec2d b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        return a.distance(b) <= FENCE_POINT_EPSILON;
+    }
     
     // ====== 框选相关方法 ======
     
@@ -919,8 +940,8 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         
         for (Shape shape : allShapes) {
             if (shape != null && shape.isVisible() && !shape.isDeleted()) {
-                // 使用虚线框选择逻辑（总是相交选择）
-                if (com.masterplanner.ui.tools.impl.modify.helper.GeometricSelectionHelper.isShapeInRectangleSelection(shape, boxStartPoint, boxCurrentPoint, false)) {
+                // CAD风格：左到右窗口选择，右到左穿越选择
+                if (com.masterplanner.ui.tools.impl.modify.helper.GeometricSelectionHelper.isShapeInRectangleSelection(shape, boxStartPoint, boxCurrentPoint, isLeftToRight)) {
                     boxSelectedShapes.add(shape);
                 }
             }
@@ -931,6 +952,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      * 完成框选选择
      */
     private void completeTrimBoxSelection(ModifyToolContext context) {
+        updateBoxSelection(context);
         context.setStatusMessage(String.format("框选完成，已选择 %d 个图形", boxSelectedShapes.size()));
     }
     

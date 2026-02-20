@@ -137,7 +137,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                     ImGui.pushStyleColor(ImGuiCol.Text, 0xFF4CAF50); // 绿色 - 选择模式
                     ImGui.text("● 选择模式");
                 }
-                case WAITING_TRIM_CLICK, DRAWING_FENCE -> {
+                case WAITING_TRIM_CLICK, DRAWING_FENCE, BOUNDARY_READY, FENCE_READY -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, 0xFFFF9800); // 橙色 - 修剪模式
                     ImGui.text("● 修剪模式");
                 }
@@ -166,8 +166,8 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.tableNextColumn();
                 
                 String itemType = switch (trimState) {
-                    case SELECTING_BOUNDARIES, WAITING_TRIM_CLICK -> "边界图形";
-                    case SELECTING_TARGETS, DRAWING_FENCE -> "目标图形";
+                    case SELECTING_BOUNDARIES, WAITING_TRIM_CLICK, BOUNDARY_READY -> "边界图形";
+                    case SELECTING_TARGETS, DRAWING_FENCE, FENCE_READY -> "目标图形";
                     default -> "图形";
                 };
                 
