@@ -10,9 +10,7 @@ import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.graphics.style.LineStyle;
 import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.ui.tools.impl.modify.helper.IShapeVisitor;
-import org.jetbrains.annotations.NotNull;
 
-import java.awt.Color;
 import java.util.List;
 import java.util.ArrayList;
 import com.masterplanner.core.geometry.RasterizationUtils;
@@ -622,70 +620,6 @@ public class RectangleShape extends Shape {
             context.drawLine(last, first, lineStyle);
         }
     }
-    
-    /**
-     * 填充圆角矩形
-     */
-    private void fillRoundedRectangle(DrawContext context, int color) {
-        // 获取变换后的矩形属性
-        Vec2d transformedCorner = getTransform().transform(corner);
-        double transformedWidth = width;
-        double transformedHeight = height;
-        double transformedRadius = Math.min(cornerRadius, Math.min(width/2, height/2));
-        
-        // 如果圆角半径过大，调整为矩形短边的一半
-        transformedRadius = Math.min(transformedRadius, Math.min(transformedWidth/2, transformedHeight/2));
-        
-        // 填充矩形主体部分（不包括圆角）
-        context.fill(
-            (int)(transformedCorner.x + transformedRadius), 
-            (int)transformedCorner.y, 
-            (int)(transformedCorner.x + transformedWidth - transformedRadius), 
-            (int)(transformedCorner.y + transformedHeight), 
-            color
-        );
-        
-        context.fill(
-            (int)transformedCorner.x, 
-            (int)(transformedCorner.y + transformedRadius), 
-            (int)(transformedCorner.x + transformedWidth), 
-            (int)(transformedCorner.y + transformedHeight - transformedRadius), 
-            color
-        );
-        
-        // 填充四个圆角
-        Color fillColor = new Color(color);
-        
-        // 计算四个角的圆心
-        Vec2d bottomLeft = transformedCorner.add(new Vec2d(transformedRadius, transformedRadius));
-        Vec2d bottomRight = transformedCorner.add(new Vec2d(transformedWidth - transformedRadius, transformedRadius));
-        Vec2d topRight = transformedCorner.add(new Vec2d(transformedWidth - transformedRadius, transformedHeight - transformedRadius));
-        Vec2d topLeft = transformedCorner.add(new Vec2d(transformedRadius, transformedHeight - transformedRadius));
-        
-        // 填充四个圆角
-        context.fillCircle(bottomLeft, transformedRadius, color);
-        context.fillCircle(bottomRight, transformedRadius, color);
-        context.fillCircle(topRight, transformedRadius, color);
-        context.fillCircle(topLeft, transformedRadius, color);
-    }
-
-    private static @NotNull List<Integer> getIntegers(List<Vec2d> points, int y) {
-        List<Integer> intersections = new ArrayList<>();
-
-        // 计算扫描线与矩形四条边的交点
-        for (int i = 0; i < points.size(); i++) {
-            Vec2d vertex1 = points.get(i);
-            Vec2d vertex2 = points.get((i + 1) % points.size());
-            
-            // 检查扫描线是否与当前边相交
-            if ((vertex1.y > y && vertex2.y <= y) || (vertex2.y > y && vertex1.y <= y)) {
-                // 计算交点的x坐标
-                double x = vertex1.x + (y - vertex1.y) * (vertex2.x - vertex1.x) / (vertex2.y - vertex1.y);
-                intersections.add((int)x);
-            }
-        }
-        return intersections;
-    }
 
     @Override
     public boolean contains(Vec2d point) {
@@ -817,88 +751,6 @@ public class RectangleShape extends Shape {
             cachedCorners.add(point);
         }
         cacheValid = true;
-    }
-
-    /**
-     * 填充多边形
-     * 针对矩形的优化版本，避免逐行扫描
-     */
-    private void fillPolygon(DrawContext context, List<Vec2d> points, int color) {
-        if (points.size() < 3) return;
-        
-        // 由于矩形是凸多边形，我们可以直接使用三角形填充
-        // 对于矩形，我们可以将其分解为两个三角形
-        
-        // 获取矩形的四个顶点
-        Vec2d p0 = points.get(0);
-        Vec2d corner1 = points.get(1);
-        Vec2d corner2 = points.get(2);
-        Vec2d corner3 = points.get(3);
-        
-        // 使用Color对象，因为context.fill方法需要Color对象
-        Color fillColor = new Color(color);
-        
-        // 计算矩形的边界框
-        double minX = Double.POSITIVE_INFINITY;
-        double minY = Double.POSITIVE_INFINITY;
-        double maxX = Double.NEGATIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
-        
-        for (Vec2d p : points) {
-            minX = Math.min(minX, p.x);
-            minY = Math.min(minY, p.y);
-            maxX = Math.max(maxX, p.x);
-            maxY = Math.max(maxY, p.y);
-        }
-        
-        // 使用边界框进行填充
-        // 如果矩形没有旋转，这将是最高效的方法
-        if (rotation == 0 || Math.abs(rotation) % (Math.PI/2) < 0.001) {
-            // 矩形没有旋转或旋转了90度的倍数，可以直接使用fillRect
-            context.fill((int)minX, (int)minY, (int)maxX, (int)maxY, color);
-            return;
-        }
-        
-        // 对于旋转的矩形，我们使用扫描线算法
-        // 但我们可以优化扫描范围，只扫描边界框内的区域
-        int scanMinY = (int)minY;
-        int scanMaxY = (int)maxY;
-        
-        // 对每一行进行扫描
-        for (int y = scanMinY; y <= scanMaxY; y++) {
-            List<Integer> intersections = getIntersections(points, y);
-            
-            // 对交点进行排序
-            intersections.sort(Integer::compareTo);
-            
-            // 在交点之间填充
-            for (int i = 0; i < intersections.size() - 1; i += 2) {
-                int x1 = intersections.get(i);
-                int x2 = intersections.get(i + 1);
-                context.fill(x1, y, x2, y, color);
-            }
-        }
-    }
-    
-    /**
-     * 获取多边形与水平线的交点
-     */
-    private List<Integer> getIntersections(List<Vec2d> points, int y) {
-        List<Integer> intersections = new ArrayList<>();
-        
-        for (int i = 0; i < points.size(); i++) {
-            Vec2d p1 = points.get(i);
-            Vec2d p2 = points.get((i + 1) % points.size());
-            
-            // 检查线段是否与水平线相交
-            if ((p1.y <= y && p2.y > y) || (p1.y > y && p2.y <= y)) {
-                // 计算交点的x坐标
-                int x = (int)(p1.x + (y - p1.y) * (p2.x - p1.x) / (p2.y - p1.y));
-                intersections.add(x);
-            }
-        }
-        
-        return intersections;
     }
     
     @Override
