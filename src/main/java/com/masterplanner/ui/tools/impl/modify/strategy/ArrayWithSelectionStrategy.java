@@ -978,8 +978,15 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         }
 
         // 渲染预览位置点
-        for (Vec2d pos : previewPositions) {
+        for (int i = 0; i < previewPositions.size(); i++) {
+            Vec2d pos = previewPositions.get(i);
             context.drawCircle(pos, 3.0, new Color(0, 255, 0, 180)); // 绿色圆点
+
+            if (arrayType == ArrayType.PATH && i < previewAngles.size()) {
+                double angle = previewAngles.get(i);
+                Vec2d tip = pos.add(new Vec2d(12.0 * Math.cos(angle), 12.0 * Math.sin(angle)));
+                context.drawLine(pos, tip, new Color(0, 255, 255, 220));
+            }
         }
 
         // 矩形阵列：绘制间距锚点（可拖拽）
@@ -1014,12 +1021,24 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     private void renderArrayPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
             // 渲染预览位置点
-            for (Vec2d pos : previewPositions) {
+            for (int i = 0; i < previewPositions.size(); i++) {
+                Vec2d pos = previewPositions.get(i);
                 Vec2d screenPos = camera.worldToScreen(pos);
                 drawList.addCircleFilled(
                     (float) screenPos.x, (float) screenPos.y, 3.0f,
                     0xFF00FF00 // 绿色
                 );
+
+                if (arrayType == ArrayType.PATH && i < previewAngles.size()) {
+                    double angle = previewAngles.get(i);
+                    Vec2d worldTip = pos.add(new Vec2d(12.0 * Math.cos(angle), 12.0 * Math.sin(angle)));
+                    Vec2d screenTip = camera.worldToScreen(worldTip);
+                    drawList.addLine(
+                        (float) screenPos.x, (float) screenPos.y,
+                        (float) screenTip.x, (float) screenTip.y,
+                        0xFF00FFFF, 1.5f
+                    );
+                }
             }
 
             // 矩形阵列：绘制间距锚点（可拖拽）

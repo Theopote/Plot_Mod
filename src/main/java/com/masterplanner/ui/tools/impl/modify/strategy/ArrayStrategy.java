@@ -974,6 +974,12 @@ public class ArrayStrategy implements IModifyStrategy {
             } catch (Exception e) {
                 context.drawCircleOutline(pos, 8.0f, new Color(0, 0, 255, 100));
             }
+
+            if (currentType == ArrayType.PATH && i < previewAngles.size()) {
+                double tangentAngle = previewAngles.get(i);
+                Vec2d tip = pos.add(new Vec2d(12.0 * Math.cos(tangentAngle), 12.0 * Math.sin(tangentAngle)));
+                context.drawLine(pos, tip, new Color(0, 255, 255, 220));
+            }
         }
     }
     

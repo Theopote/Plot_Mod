@@ -602,48 +602,21 @@ public class RectangleShape extends Shape {
      * 绘制圆角矩形边框
      */
     private void drawRoundedRectangle(DrawContext context, LineStyle lineStyle) {
-        // 获取变换后的矩形属性
-        Vec2d transformedCorner = getTransform().transform(corner);
-        double transformedWidth = width;
-        double transformedHeight = height;
-        double transformedRadius = Math.min(cornerRadius, Math.min(width/2, height/2));
-        
-        // 如果圆角半径过大，调整为矩形短边的一半
-        transformedRadius = Math.min(transformedRadius, Math.min(transformedWidth/2, transformedHeight/2));
-        
-        // 绘制四个圆角
-        Color lineColor = lineStyle.getColor();
-        float lineWidth = lineStyle.getWidth();
-        
-        // 计算四个角的圆心
-        Vec2d bottomLeft = transformedCorner.add(new Vec2d(transformedRadius, transformedRadius));
-        Vec2d bottomRight = transformedCorner.add(new Vec2d(transformedWidth - transformedRadius, transformedRadius));
-        Vec2d topRight = transformedCorner.add(new Vec2d(transformedWidth - transformedRadius, transformedHeight - transformedRadius));
-        Vec2d topLeft = transformedCorner.add(new Vec2d(transformedRadius, transformedHeight - transformedRadius));
-        
-        // 绘制四个圆弧 - 使用LineStyle确保选中样式正确应用
-        context.drawArc(bottomLeft, transformedRadius, Math.PI, Math.PI * 1.5, lineStyle);
-        context.drawArc(bottomRight, transformedRadius, Math.PI * 1.5, Math.PI * 2, lineStyle);
-        context.drawArc(topRight, transformedRadius, 0, Math.PI * 0.5, lineStyle);
-        context.drawArc(topLeft, transformedRadius, Math.PI * 0.5, Math.PI, lineStyle);
-        
-        // 绘制四条直线连接圆弧 - 使用LineStyle确保选中样式正确应用
-        Vec2d left1 = transformedCorner.add(new Vec2d(0, transformedRadius));
-        Vec2d left2 = transformedCorner.add(new Vec2d(0, transformedHeight - transformedRadius));
-        
-        Vec2d bottom1 = transformedCorner.add(new Vec2d(transformedRadius, 0));
-        Vec2d bottom2 = transformedCorner.add(new Vec2d(transformedWidth - transformedRadius, 0));
-        
-        Vec2d right1 = transformedCorner.add(new Vec2d(transformedWidth, transformedRadius));
-        Vec2d right2 = transformedCorner.add(new Vec2d(transformedWidth, transformedHeight - transformedRadius));
-        
-        Vec2d top1 = transformedCorner.add(new Vec2d(transformedRadius, transformedHeight));
-        Vec2d top2 = transformedCorner.add(new Vec2d(transformedWidth - transformedRadius, transformedHeight));
-        
-        context.drawLine(left1, left2, lineStyle);
-        context.drawLine(bottom1, bottom2, lineStyle);
-        context.drawLine(right1, right2, lineStyle);
-        context.drawLine(top1, top2, lineStyle);
+        // 关键修复：使用 getPoints() 的真实轮廓（已包含 rotation + transform）绘制圆角边界
+        List<Vec2d> points = getPoints();
+        if (points == null || points.size() < 2) {
+            return;
+        }
+
+        for (int i = 1; i < points.size(); i++) {
+            context.drawLine(points.get(i - 1), points.get(i), lineStyle);
+        }
+
+        Vec2d first = points.getFirst();
+        Vec2d last = points.getLast();
+        if (first != null && last != null && first.distance(last) > 1e-6) {
+            context.drawLine(last, first, lineStyle);
+        }
     }
     
     /**
