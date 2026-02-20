@@ -45,14 +45,14 @@ public class GeometryTrimUtils {
             return calculateCircleCircleIntersections(circle1, circle2);
         }
 
-        if (shape1 instanceof CircleShape circle && !(shape2 instanceof CircleShape)) {
+        if (shape1 instanceof CircleShape circle) {
             List<Vec2d> shape2Points = getShapePointsForIntersection(shape2);
             if (shape2Points.size() >= 2) {
                 return calculateCircleWithSampledCurveIntersections(circle, shape2Points);
             }
         }
 
-        if (shape2 instanceof CircleShape circle && !(shape1 instanceof CircleShape)) {
+        if (shape2 instanceof CircleShape circle) {
             List<Vec2d> shape1Points = getShapePointsForIntersection(shape1);
             if (shape1Points.size() >= 2) {
                 return calculateCircleWithSampledCurveIntersections(circle, shape1Points);
