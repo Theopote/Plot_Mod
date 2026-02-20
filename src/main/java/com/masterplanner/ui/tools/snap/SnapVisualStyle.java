@@ -13,9 +13,9 @@ public final class SnapVisualStyle {
     private SnapVisualStyle() {}
 
     // 基础尺寸（像素）
-    public static final float DEFAULT_RING_SIZE = 8.0f;
-    public static final float ENHANCED_RING_SIZE = 10.0f;
-    public static final float MARKER_SIZE = 4.0f;
+    public static final float DEFAULT_RING_SIZE = 4.0f;
+    public static final float ENHANCED_RING_SIZE = 5.0f;
+    public static final float MARKER_SIZE = 2.0f;
 
     // 默认高亮颜色（例如通用预览环）
     public static final Color DEFAULT_HIGHLIGHT = new Color(255, 230, 50);

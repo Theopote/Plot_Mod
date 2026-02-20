@@ -55,13 +55,16 @@ public class ControlPointEditTool extends ModifyTool {
     private static final Color CONTROL_POINT_BORDER_COLOR = new Color(255, 255, 255); // 白色边框
     private static final Color ANCHOR_POINT_COLOR = new Color(0, 180, 0); // 绿色锚点
     
-    private static final float CONTROL_POINT_SIZE = 6.0f;
-    private static final float CONTROL_POINT_HOVER_SIZE = 8.0f;
-    private static final float CONTROL_POINT_ACTIVE_SIZE = 10.0f;
-    private static final float ANCHOR_POINT_SIZE = 8.0f;
-    private static final float ANCHOR_POINT_HOVER_SIZE = 10.0f;
-    private static final float ANCHOR_POINT_ACTIVE_SIZE = 12.0f;
+    private static final float CONTROL_POINT_SIZE = 3.0f;
+    private static final float CONTROL_POINT_HOVER_SIZE = 4.0f;
+    private static final float CONTROL_POINT_ACTIVE_SIZE = 5.0f;
+    private static final float ANCHOR_POINT_SIZE = 4.0f;
+    private static final float ANCHOR_POINT_HOVER_SIZE = 5.0f;
+    private static final float ANCHOR_POINT_ACTIVE_SIZE = 6.0f;
     private static final float CONTROL_POINT_BORDER_WIDTH = 2.0f;
+
+    private static boolean displayEnabled = true;
+    private static boolean showPointIndex = true;
     
     // 控制点编辑状态
     private boolean isActive = false;
@@ -146,6 +149,10 @@ public class ControlPointEditTool extends ModifyTool {
      * 渲染控制点（DrawContext版本）
      */
     private void renderControlPoints(DrawContext context) {
+        if (!displayEnabled) {
+            return;
+        }
+
         List<Vec2d> controlPoints = targetShape.getControlPoints();
         if (controlPoints == null || controlPoints.isEmpty()) {
             return;
@@ -192,7 +199,7 @@ public class ControlPointEditTool extends ModifyTool {
             context.drawCircle(point, pointSize + CONTROL_POINT_BORDER_WIDTH, CONTROL_POINT_BORDER_COLOR);
             
             // 绘制控制点索引（可选）
-            if (controlPoints.size() > 1) {
+            if (showPointIndex && controlPoints.size() > 1) {
                 context.drawText(String.valueOf(i), 
                     new Vec2d(point.x + pointSize + 2, point.y - pointSize - 2), 
                     Color.WHITE);
@@ -204,6 +211,10 @@ public class ControlPointEditTool extends ModifyTool {
      * 渲染控制点（ImGui版本）
      */
     private void renderControlPointsImGui(ImDrawList drawList, CanvasCamera camera) {
+        if (!displayEnabled) {
+            return;
+        }
+
         List<Vec2d> controlPoints = targetShape.getControlPoints();
         if (controlPoints == null || controlPoints.isEmpty()) {
             return;
@@ -254,7 +265,7 @@ public class ControlPointEditTool extends ModifyTool {
             drawList.addCircle((float)screenPoint.x, (float)screenPoint.y, pointSize + CONTROL_POINT_BORDER_WIDTH, borderColor, 0, CONTROL_POINT_BORDER_WIDTH);
             
             // 绘制控制点索引（可选）
-            if (controlPoints.size() > 1) {
+            if (showPointIndex && controlPoints.size() > 1) {
                 int textColor = imgui.ImColor.rgba(255, 255, 255, 255);
                 drawList.addText((float)(screenPoint.x + pointSize + 2), 
                     (float)(screenPoint.y - pointSize - 2), 
@@ -495,5 +506,21 @@ public class ControlPointEditTool extends ModifyTool {
     public void updateConfig(String key, String value) {
         LOGGER.debug("ControlPointEditTool.updateConfig: key={}, value={}", key, value);
         // 控制点编辑工具目前不需要特殊配置
+    }
+
+    public static boolean isDisplayEnabled() {
+        return displayEnabled;
+    }
+
+    public static void setDisplayEnabled(boolean enabled) {
+        displayEnabled = enabled;
+    }
+
+    public static boolean isShowPointIndex() {
+        return showPointIndex;
+    }
+
+    public static void setShowPointIndex(boolean enabled) {
+        showPointIndex = enabled;
     }
 }

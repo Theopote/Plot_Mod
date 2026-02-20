@@ -165,7 +165,7 @@ public class SnapManager implements ISnapManager {
                     ImGui.sameLine();
                     ImGui.pushItemWidth(100);
                     float[] markerSize = new float[] { settings.getMarkerSize() };
-                    if (ImGui.sliderFloat("##marker_size", markerSize, 3.0f, 10.0f, "%.1f px")) {
+                    if (ImGui.sliderFloat("##marker_size", markerSize, 1.5f, 5.0f, "%.1f px")) {
                         settings.setMarkerSize(markerSize[0]);
                         settingsChanged = true;
                     }
@@ -433,6 +433,60 @@ public class SnapManager implements ISnapManager {
 
     public boolean isEnabled() {
         return isEnabled;
+    }
+
+    public boolean isEndPointSnapEnabled() {
+        return settings.endPointSnap.get();
+    }
+
+    public void setEndPointSnapEnabled(boolean enabled) {
+        settings.endPointSnap.set(enabled);
+        applySettings();
+    }
+
+    public boolean isMidPointSnapEnabled() {
+        return settings.midPointSnap.get();
+    }
+
+    public void setMidPointSnapEnabled(boolean enabled) {
+        settings.midPointSnap.set(enabled);
+        applySettings();
+    }
+
+    public boolean isCenterPointSnapEnabled() {
+        return settings.centerPointSnap.get();
+    }
+
+    public void setCenterPointSnapEnabled(boolean enabled) {
+        settings.centerPointSnap.set(enabled);
+        applySettings();
+    }
+
+    public boolean isCentroidSnapEnabled() {
+        return settings.centroidSnap.get();
+    }
+
+    public void setCentroidSnapEnabled(boolean enabled) {
+        settings.centroidSnap.set(enabled);
+        applySettings();
+    }
+
+    public boolean isShowSnapMarkersEnabled() {
+        return settings.showSnapMarkers.get();
+    }
+
+    public void setShowSnapMarkersEnabled(boolean enabled) {
+        settings.showSnapMarkers.set(enabled);
+        applySettings();
+    }
+
+    public float getMarkerSize() {
+        return settings.getMarkerSize();
+    }
+
+    public void setMarkerSize(float markerSize) {
+        settings.setMarkerSize(markerSize);
+        applySettings();
     }
 
     private void applySettings() {

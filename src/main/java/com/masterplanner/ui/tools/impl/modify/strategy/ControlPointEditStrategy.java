@@ -205,8 +205,8 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             context.drawLine(originalPos, currentPos, DRAG_PREVIEW_COLOR);
             
             // 在当前位置绘制预览点
-            context.fillCircle(currentPos, 8, DRAG_PREVIEW_COLOR);
-            context.drawCircle(currentPos, 8, Color.WHITE);
+            context.fillCircle(currentPos, 4, DRAG_PREVIEW_COLOR);
+            context.drawCircle(currentPos, 4, Color.WHITE);
         }
     }
     
@@ -225,8 +225,8 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             Vec2d hoveredPoint = controlPoints.get(hoveredIndex);
             
             // 在悬停的控制点周围绘制预览圈
-            context.drawCircle(hoveredPoint, 12, HOVER_PREVIEW_COLOR);
-            context.drawCircle(hoveredPoint, 12, Color.WHITE);
+            context.drawCircle(hoveredPoint, 6, HOVER_PREVIEW_COLOR);
+            context.drawCircle(hoveredPoint, 6, Color.WHITE);
         }
     }
     
@@ -264,11 +264,11 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             
             drawList.addCircleFilled(
                 (float)screenCurrentPos.x, (float)screenCurrentPos.y,
-                8, previewColor
+                4, previewColor
             );
             drawList.addCircle(
                 (float)screenCurrentPos.x, (float)screenCurrentPos.y,
-                8, borderColor, 0, 2.0f
+                4, borderColor, 0, 2.0f
             );
         }
     }
@@ -294,11 +294,11 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             
             drawList.addCircle(
                 (float)screenPoint.x, (float)screenPoint.y,
-                12, previewColor, 0, 2.0f
+                6, previewColor, 0, 2.0f
             );
             drawList.addCircle(
                 (float)screenPoint.x, (float)screenPoint.y,
-                12, borderColor, 0, 1.0f
+                6, borderColor, 0, 1.0f
             );
         }
     }

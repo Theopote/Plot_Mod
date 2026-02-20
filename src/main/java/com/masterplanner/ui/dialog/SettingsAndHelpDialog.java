@@ -1,4 +1,6 @@
 package com.masterplanner.ui.dialog;
+import com.masterplanner.core.snap.SnapManager;
+import com.masterplanner.ui.tools.impl.modify.ControlPointEditTool;
 import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
@@ -6,6 +8,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
+import imgui.type.ImBoolean;
 import imgui.flag.ImGuiKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +65,10 @@ public class SettingsAndHelpDialog {
             if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
                 if (ImGui.beginTabItem("快捷键")) {
                     renderShortcutsPage();
+                    ImGui.endTabItem();
+                }
+                if (ImGui.beginTabItem("显示反馈")) {
+                    renderDisplayPage();
                     ImGui.endTabItem();
                 }
                 if (ImGui.beginTabItem("帮助与教程")) {
@@ -177,6 +184,67 @@ public class SettingsAndHelpDialog {
         ImGui.bulletText("按住 Shift：绘制/修改时正交或角度约束");
         ImGui.separator();
         ImGui.textWrapped("如果快捷键不生效，请检查是否有文本框获得输入焦点，或是否与其他模组快捷键冲突。");
+    }
+
+    private void renderDisplayPage() {
+        SnapManager snapManager = SnapManager.getInstance();
+
+        ImGui.textWrapped("线图形选择与吸附时的视觉反馈设置（端点/中点/中心点等）。");
+        ImGui.separator();
+
+        ImGui.text("吸附点显示");
+        ImGui.indent(10);
+
+        ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
+        if (ImGui.checkbox("显示吸附标记", showMarkers)) {
+            snapManager.setShowSnapMarkersEnabled(showMarkers.get());
+        }
+
+        ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
+        if (ImGui.checkbox("显示端点反馈", endPoint)) {
+            snapManager.setEndPointSnapEnabled(endPoint.get());
+        }
+
+        ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
+        if (ImGui.checkbox("显示中点反馈", midPoint)) {
+            snapManager.setMidPointSnapEnabled(midPoint.get());
+        }
+
+        ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
+        if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
+            snapManager.setCenterPointSnapEnabled(centerPoint.get());
+        }
+
+        ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
+        if (ImGui.checkbox("显示中心点反馈", centroid)) {
+            snapManager.setCentroidSnapEnabled(centroid.get());
+        }
+
+        float[] markerSize = new float[] { snapManager.getMarkerSize() };
+        ImGui.setNextItemWidth(180);
+        if (ImGui.sliderFloat("标记大小", markerSize, 1.5f, 5.0f, "%.1f px")) {
+            snapManager.setMarkerSize(markerSize[0]);
+        }
+
+        ImGui.unindent(10);
+        ImGui.separator();
+
+        ImGui.text("控制点显示");
+        ImGui.indent(10);
+
+        ImBoolean showControlPoints = new ImBoolean(ControlPointEditTool.isDisplayEnabled());
+        if (ImGui.checkbox("显示控制点", showControlPoints)) {
+            ControlPointEditTool.setDisplayEnabled(showControlPoints.get());
+        }
+
+        ImBoolean showPointIndex = new ImBoolean(ControlPointEditTool.isShowPointIndex());
+        if (ImGui.checkbox("显示控制点编号", showPointIndex)) {
+            ControlPointEditTool.setShowPointIndex(showPointIndex.get());
+        }
+
+        ImGui.unindent(10);
+        ImGui.separator();
+        ImGui.textDisabled("提示：本次已将端点/中点/中心点等反馈尺寸调整为原来的 50%。");
     }
 
     private String tryCaptureShortcutString() {
