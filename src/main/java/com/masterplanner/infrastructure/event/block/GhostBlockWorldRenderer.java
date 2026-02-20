@@ -3,6 +3,7 @@ package com.masterplanner.infrastructure.event.block;
 import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -26,8 +27,7 @@ public final class GhostBlockWorldRenderer {
     private static volatile boolean initialized;
     private static final int MAX_RENDER_PER_FRAME = 20_000;
     private static final boolean X_RAY_PREVIEW = true;
-    private static final boolean DUAL_SPACE_RENDER = true;
-    private static final boolean PARTICLE_FALLBACK = true;
+    private static final boolean PARTICLE_FALLBACK = false;
     private static final int MAX_PARTICLE_BLOCKS = 64;
     private static long lastMissingContextWarnMs = 0L;
     private static long lastRenderDiagLogMs = 0L;
@@ -63,19 +63,19 @@ public final class GhostBlockWorldRenderer {
 
         VertexConsumerProvider consumers = context.consumers();
         MatrixStack matrices = context.matrices();
-        if (client.player == null) {
+        if (client.player == null || consumers == null || matrices == null) {
             long now = System.currentTimeMillis();
             if (now - lastMissingContextWarnMs > 3000L) {
                 LOGGER.warn("Ghost rendering skipped: consumers={}, matrices={}, player={}",
-                        true, true, client.player != null);
+                        consumers != null, matrices != null, client.player != null);
                 lastMissingContextWarnMs = now;
             }
             return;
         }
 
-        float alpha = 1.0f;
-        float r = 0.25f;
-        float g = 0.9f;
+        float alpha = 0.95f;
+        float r = 0.2f;
+        float g = 1.0f;
         float b = 1.0f;
         Vec3d cameraPos = context.worldState().cameraRenderState.pos;
 
@@ -96,15 +96,6 @@ public final class GhostBlockWorldRenderer {
         matrices.push();
 
         VertexConsumer lines = consumers.getBuffer(RenderLayers.linesTranslucent());
-        MatrixStack.Entry worldSpaceEntry = matrices.peek();
-
-        MatrixStack.Entry cameraSpaceEntry = null;
-        if (DUAL_SPACE_RENDER) {
-            matrices.push();
-            matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-            cameraSpaceEntry = matrices.peek();
-            matrices.pop();
-        }
 
         int rendered = 0;
         GhostBlockManager.GhostBlock firstRendered = null;
@@ -117,11 +108,20 @@ public final class GhostBlockWorldRenderer {
             }
 
             BlockPos pos = BlockPos.ofFloored(block.getPosition().x, block.getHeight(), block.getPosition().y);
-            Box box = new Box(pos).expand(0.0025);
-            drawLineBox(lines, worldSpaceEntry, box, r, g, b, alpha);
-            if (cameraSpaceEntry != null) {
-                drawLineBox(lines, cameraSpaceEntry, box, 1.0f, 0.2f, 0.9f, 0.95f);
-            }
+            matrices.push();
+            matrices.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
+
+            client.getBlockRenderManager().renderBlockAsEntity(
+                    block.getBlock().getDefaultState(),
+                    matrices,
+                    consumers,
+                    0x00F000F0,
+                    OverlayTexture.DEFAULT_UV
+            );
+
+            Box localBox = new Box(0.0, 0.0, 0.0, 1.0, 1.0, 1.0).expand(0.0025);
+            drawLineBox(lines, matrices.peek(), localBox, r, g, b, alpha);
+            matrices.pop();
 
             if (firstRendered == null) {
                 firstRendered = block;

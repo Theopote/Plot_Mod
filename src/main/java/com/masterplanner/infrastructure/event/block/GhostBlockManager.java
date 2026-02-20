@@ -29,7 +29,7 @@ public class GhostBlockManager {
     // 幽灵方块存储 - 使用线程安全的集合
     private final Map<String, GhostBlock> ghostBlocks = new ConcurrentHashMap<>();
     private final List<String> blockIds = new CopyOnWriteArrayList<>();
-    
+
     // 渲染相关
     private boolean renderingEnabled = true;
     private float opacity = 0.6f; // 幽灵方块透明度
@@ -42,7 +42,6 @@ public class GhostBlockManager {
         private final Vec2d position;
         private final double height;
         private final String blockType;
-        private final long createdTime;
         private boolean visible;
         
         public GhostBlock(String id, Vec2d position, double height, String blockType) {
@@ -50,7 +49,6 @@ public class GhostBlockManager {
             this.position = position;
             this.height = height;
             this.blockType = blockType;
-            this.createdTime = System.currentTimeMillis();
             this.visible = true;
         }
         
@@ -113,12 +111,12 @@ public class GhostBlockManager {
     
     /**
      * 添加幽灵方块（使用Vec2d和高度）
-     * @param position 方块位置 (画布坐标)
-     * @param height 方块高度 (Y坐标)
+     *
+     * @param position  方块位置 (画布坐标)
+     * @param height    方块高度 (Y坐标)
      * @param blockType 方块类型ID
-     * @return 生成的幽灵方块ID
      */
-    public String addGhostBlock(Vec2d position, double height, String blockType) {
+    public void addGhostBlock(Vec2d position, double height, String blockType) {
         String id = generateGhostBlockId();
         GhostBlock ghostBlock = new GhostBlock(id, position, height, blockType);
         
@@ -131,36 +129,33 @@ public class GhostBlockManager {
         eventBus.publish(new Events.WarningEvent("GhostBlockManager", 
             String.format("已添加幽灵方块: %s 在位置 (%.2f, %.2f, %.2f)", 
             blockType, position.x, height, position.y)));
-        
-        return id;
+
     }
     
     /**
      * 添加幽灵方块（使用BlockPos）
-     * @param position 方块位置 (BlockPos)
+     *
+     * @param position  方块位置 (BlockPos)
      * @param blockType 方块类型ID
-     * @return 生成的幽灵方块ID
      */
-    public String addGhostBlock(BlockPos position, String blockType) {
+    public void addGhostBlock(BlockPos position, String blockType) {
         // 将BlockPos转换为Vec2d和高度
         Vec2d pos2d = new Vec2d(position.getX(), position.getZ());
         double height = position.getY();
-        return addGhostBlock(pos2d, height, blockType);
+        addGhostBlock(pos2d, height, blockType);
     }
 
     /**
      * 移除指定的幽灵方块
+     *
      * @param id 幽灵方块ID
-     * @return 是否成功移除
      */
-    public boolean removeGhostBlock(String id) {
+    public void removeGhostBlock(String id) {
         GhostBlock removed = ghostBlocks.remove(id);
         if (removed != null) {
             blockIds.remove(id);
             LOGGER.debug("移除幽灵方块: {}", removed);
-            return true;
         }
-        return false;
     }
     
     /**
