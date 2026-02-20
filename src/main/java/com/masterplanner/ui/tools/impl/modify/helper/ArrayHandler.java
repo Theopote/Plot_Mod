@@ -33,10 +33,6 @@ public class ArrayHandler implements IModifyHandler {
     
     private final AppState appState;
     
-    // 缓存相关（预留扩展，当前未使用）
-    // private Vec2d cachedBasePoint;
-    // private List<Shape> cachedShapes;
-    
     /**
      * 构造函数
      * @param appState 应用状态管理器
@@ -344,7 +340,7 @@ public class ArrayHandler implements IModifyHandler {
             accumulatedLength += segmentLength;
         }
 
-        Vec2d last = pathPoints.get(pathPoints.size() - 1);
+        Vec2d last = pathPoints.getLast();
         Vec2d secondLast = pathPoints.get(pathPoints.size() - 2);
         Vec2d direction = last.subtract(secondLast);
         if (direction.length() > 1e-9) {
