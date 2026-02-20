@@ -3,6 +3,7 @@ package com.masterplanner.infrastructure.event.block;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.Events;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
@@ -58,7 +59,6 @@ public class GhostBlockManager {
         public Vec2d getPosition() { return position; }
         public double getHeight() { return height; }
         public String getBlockType() { return blockType; }
-        public long getCreatedTime() { return createdTime; }
         public boolean isVisible() { return visible; }
         
         public void setVisible(boolean visible) { this.visible = visible; }
@@ -147,25 +147,7 @@ public class GhostBlockManager {
         double height = position.getY();
         return addGhostBlock(pos2d, height, blockType);
     }
-    
-    /**
-     * 批量添加幽灵方块
-     * @param positions 方块位置列表
-     * @param height 统一高度
-     * @param blockType 方块类型
-     * @return 添加的幽灵方块数量
-     */
-    public int addGhostBlocks(List<Vec2d> positions, double height, String blockType) {
-        int count = 0;
-        for (Vec2d position : positions) {
-            addGhostBlock(position, height, blockType);
-            count++;
-        }
-        
-        LOGGER.info("批量添加了 {} 个幽灵方块", count);
-        return count;
-    }
-    
+
     /**
      * 移除指定的幽灵方块
      * @param id 幽灵方块ID
@@ -195,15 +177,7 @@ public class GhostBlockManager {
         eventBus.publish(new Events.WarningEvent("GhostBlockManager", 
             String.format("已清理 %d 个幽灵方块", count)));
     }
-    
-    /**
-     * 获取所有幽灵方块
-     * @return 幽灵方块映射的副本
-     */
-    public Map<String, GhostBlock> getAllGhostBlocks() {
-        return new HashMap<>(ghostBlocks);
-    }
-    
+
     /**
      * 获取可见的幽灵方块列表
      * @return 可见的幽灵方块列表
@@ -213,15 +187,7 @@ public class GhostBlockManager {
                 .filter(GhostBlock::isVisible)
                 .toList();
     }
-    
-    /**
-     * 获取幽灵方块数量
-     * @return 幽灵方块总数
-     */
-    public int getGhostBlockCount() {
-        return ghostBlocks.size();
-    }
-    
+
     /**
      * 获取可见幽灵方块数量
      * @return 可见的幽灵方块数量
@@ -231,55 +197,18 @@ public class GhostBlockManager {
                 .filter(GhostBlock::isVisible)
                 .count();
     }
-    
-    /**
-     * 设置所有幽灵方块的可见性
-     * @param visible 是否可见
-     */
-    public void setAllGhostBlocksVisible(boolean visible) {
-        ghostBlocks.values().forEach(block -> block.setVisible(visible));
-        LOGGER.info("设置所有幽灵方块可见性: {}", visible);
-    }
-    
-    /**
-     * 投影所有幽灵方块到minecraft世界
-     * 将幽灵方块转换为真实方块并清理幽灵方块
-     * @return 投影的方块数量
-     */
-    public int projectAllGhostBlocks() {
-        List<GhostBlock> visibleBlocks = getVisibleGhostBlocks();
-        int projectedCount = 0;
-        
-        for (GhostBlock ghostBlock : visibleBlocks) {
-            // 发布方块投影事件，设置为非预览模式（真实投影）
-            eventBus.publish(new BlockProjectionEvent(
-                ghostBlock.getBlockType(),
-                ghostBlock.getPosition().x,
-                ghostBlock.getHeight(),
-                ghostBlock.getPosition().y,
-                0.0f,
-                false  // 非预览模式，实际投影
-            ));
-            projectedCount++;
-        }
-        
-        // 投影完成后清理幽灵方块
-        clearAllGhostBlocks();
-        
-        LOGGER.info("已投影 {} 个幽灵方块到minecraft世界", projectedCount);
-        
-        // 发布投影完成事件
-        eventBus.publish(new Events.WarningEvent("GhostBlockManager", 
-            String.format("已成功投影 %d 个方块到minecraft世界", projectedCount)));
-        
-        return projectedCount;
-    }
 
     public int projectAllGhostBlocks(BlockProjectionEvent.ProjectionMode projectionMode, Integer elevation) {
         List<GhostBlock> visibleBlocks = getVisibleGhostBlocks();
         int projectedCount = 0;
+        int skippedCount = 0;
 
         for (GhostBlock ghostBlock : visibleBlocks) {
+            if (!canProjectAt(ghostBlock)) {
+                skippedCount++;
+                continue;
+            }
+
             eventBus.publish(new BlockProjectionEvent(
                     ghostBlock.getBlockType(),
                     ghostBlock.getPosition().x,
@@ -290,16 +219,45 @@ public class GhostBlockManager {
                     projectionMode,
                     elevation
             ));
+            removeGhostBlock(ghostBlock.getId());
             projectedCount++;
         }
 
-        clearAllGhostBlocks();
-
-        LOGGER.info("宸叉姇褰?{} 涓菇鐏垫柟鍧楀埌minecraft涓栫晫", projectedCount);
+        LOGGER.info("已投影 {} 个幽灵方块到minecraft世界，跳过 {} 个", projectedCount, skippedCount);
         eventBus.publish(new Events.WarningEvent("GhostBlockManager",
-                String.format("宸叉垚鍔熸姇褰?%d 涓柟鍧楀埌minecraft涓栫晫", projectedCount)));
+                String.format("已成功投影 %d 个方块到minecraft世界，保留 %d 个未投影幽灵方块", projectedCount, skippedCount)));
 
         return projectedCount;
+    }
+
+    private boolean canProjectAt(GhostBlock ghostBlock) {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || client.player == null || client.world == null) {
+                return false;
+            }
+
+            if (!client.player.getAbilities().creativeMode) {
+                return false;
+            }
+
+            int x = (int) Math.round(ghostBlock.getPosition().x);
+            int z = (int) Math.round(ghostBlock.getPosition().y);
+
+            double dx = x - client.player.getX();
+            double dz = z - client.player.getZ();
+            double distanceToPlayer = Math.sqrt(dx * dx + dz * dz);
+            if (distanceToPlayer > 256.0) {
+                return false;
+            }
+
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            return client.world.isChunkLoaded(chunkX, chunkZ);
+        } catch (Exception e) {
+            LOGGER.warn("投影预检查失败: {}", e.getMessage());
+            return false;
+        }
     }
     
     /**
@@ -307,11 +265,6 @@ public class GhostBlockManager {
      */
     public boolean isRenderingEnabled() {
         return renderingEnabled;
-    }
-    
-    public void setRenderingEnabled(boolean enabled) {
-        this.renderingEnabled = enabled;
-        LOGGER.debug("幽灵方块渲染设置: {}", enabled);
     }
     
     public float getOpacity() {
@@ -329,51 +282,5 @@ public class GhostBlockManager {
     private String generateGhostBlockId() {
         return "ghost_" + System.currentTimeMillis() + "_" + 
                Integer.toHexString(new Random().nextInt());
-    }
-    
-    /**
-     * 获取幽灵方块统计信息
-     * @return 统计信息字符串
-     */
-    public String getStatistics() {
-        int total = getGhostBlockCount();
-        int visible = getVisibleGhostBlockCount();
-        return String.format("幽灵方块统计: 总数=%d, 可见=%d, 渲染=%s", 
-            total, visible, renderingEnabled ? "开启" : "关闭");
-    }
-    
-    /**
-     * 检查指定位置是否有幽灵方块
-     * @param position 位置
-     * @param tolerance 容差范围
-     * @return 是否存在幽灵方块
-     */
-    public boolean hasGhostBlockAt(Vec2d position, double tolerance) {
-        return ghostBlocks.values().stream()
-                .anyMatch(block -> {
-                    double distance = Math.sqrt(
-                        Math.pow(block.getPosition().x - position.x, 2) +
-                        Math.pow(block.getPosition().y - position.y, 2)
-                    );
-                    return distance <= tolerance;
-                });
-    }
-    
-    /**
-     * 获取指定位置附近的幽灵方块
-     * @param position 位置
-     * @param radius 搜索半径
-     * @return 附近的幽灵方块列表
-     */
-    public List<GhostBlock> getGhostBlocksNear(Vec2d position, double radius) {
-        return ghostBlocks.values().stream()
-                .filter(block -> {
-                    double distance = Math.sqrt(
-                        Math.pow(block.getPosition().x - position.x, 2) +
-                        Math.pow(block.getPosition().y - position.y, 2)
-                    );
-                    return distance <= radius;
-                })
-                .toList();
     }
 } 

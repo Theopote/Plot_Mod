@@ -7,11 +7,13 @@ import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 
@@ -23,6 +25,13 @@ public final class GhostBlockWorldRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/GhostBlockWorldRenderer");
     private static volatile boolean initialized;
     private static final int MAX_RENDER_PER_FRAME = 20_000;
+    private static final boolean X_RAY_PREVIEW = true;
+    private static final boolean DUAL_SPACE_RENDER = true;
+    private static final boolean PARTICLE_FALLBACK = true;
+    private static final int MAX_PARTICLE_BLOCKS = 64;
+    private static long lastMissingContextWarnMs = 0L;
+    private static long lastRenderDiagLogMs = 0L;
+    private static long lastParticleEmitMs = 0L;
 
     private GhostBlockWorldRenderer() {}
 
@@ -53,25 +62,55 @@ public final class GhostBlockWorldRenderer {
         }
 
         VertexConsumerProvider consumers = context.consumers();
-        if (consumers == null) {
+        MatrixStack matrices = context.matrices();
+        if (client.player == null) {
+            long now = System.currentTimeMillis();
+            if (now - lastMissingContextWarnMs > 3000L) {
+                LOGGER.warn("Ghost rendering skipped: consumers={}, matrices={}, player={}",
+                        true, true, client.player != null);
+                lastMissingContextWarnMs = now;
+            }
             return;
         }
 
-        MatrixStack matrices = context.matrices();
-        Vec3d cameraPos = context.worldState().cameraRenderState.pos;
-
-        float alpha = Math.max(0.05f, Math.min(1.0f, ghostBlockManager.getOpacity()));
+        float alpha = 1.0f;
         float r = 0.25f;
         float g = 0.9f;
         float b = 1.0f;
+        Vec3d cameraPos = context.worldState().cameraRenderState.pos;
+
+        boolean prevBlend = false;
+        boolean prevCull = false;
+        boolean prevDepth = false;
+        if (X_RAY_PREVIEW) {
+            prevBlend = GL11.glIsEnabled(GL11.GL_BLEND);
+            prevCull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+            prevDepth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+        }
 
         matrices.push();
-        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
         VertexConsumer lines = consumers.getBuffer(RenderLayers.linesTranslucent());
-        MatrixStack.Entry entry = matrices.peek();
+        MatrixStack.Entry worldSpaceEntry = matrices.peek();
+
+        MatrixStack.Entry cameraSpaceEntry = null;
+        if (DUAL_SPACE_RENDER) {
+            matrices.push();
+            matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+            cameraSpaceEntry = matrices.peek();
+            matrices.pop();
+        }
 
         int rendered = 0;
+        GhostBlockManager.GhostBlock firstRendered = null;
+        int particleCount = 0;
+        long nowForParticles = System.currentTimeMillis();
+        boolean emitParticlesThisFrame = PARTICLE_FALLBACK && (nowForParticles - lastParticleEmitMs >= 120L);
         for (GhostBlockManager.GhostBlock block : blocks) {
             if (block == null || !block.isVisible() || block.getPosition() == null) {
                 continue;
@@ -79,7 +118,27 @@ public final class GhostBlockWorldRenderer {
 
             BlockPos pos = BlockPos.ofFloored(block.getPosition().x, block.getHeight(), block.getPosition().y);
             Box box = new Box(pos).expand(0.0025);
-            drawLineBox(lines, entry, box, r, g, b, alpha);
+            drawLineBox(lines, worldSpaceEntry, box, r, g, b, alpha);
+            if (cameraSpaceEntry != null) {
+                drawLineBox(lines, cameraSpaceEntry, box, 1.0f, 0.2f, 0.9f, 0.95f);
+            }
+
+            if (firstRendered == null) {
+                firstRendered = block;
+            }
+
+            if (emitParticlesThisFrame && particleCount < MAX_PARTICLE_BLOCKS && client.particleManager != null) {
+                client.particleManager.addParticle(
+                        ParticleTypes.END_ROD,
+                        pos.getX() + 0.5,
+                        pos.getY() + 1.05,
+                        pos.getZ() + 0.5,
+                        0.0,
+                        0.01,
+                        0.0
+                );
+                particleCount++;
+            }
 
             rendered++;
             if (rendered >= MAX_RENDER_PER_FRAME) {
@@ -87,7 +146,30 @@ public final class GhostBlockWorldRenderer {
             }
         }
 
+        if (emitParticlesThisFrame && particleCount > 0) {
+            lastParticleEmitMs = nowForParticles;
+        }
+
+        long now = System.currentTimeMillis();
+        if (firstRendered != null && now - lastRenderDiagLogMs > 3000L) {
+            double dx = firstRendered.getPosition().x - client.player.getX();
+            double dz = firstRendered.getPosition().y - client.player.getZ();
+            double dist = Math.sqrt(dx * dx + dz * dz);
+            LOGGER.info("Ghost renderer active: visible={}, rendered={}, first=({},{},{}), player=({},{},{}), distance={}",
+                    blocks.size(), rendered,
+                    firstRendered.getPosition().x, firstRendered.getHeight(), firstRendered.getPosition().y,
+                    client.player.getX(), client.player.getY(), client.player.getZ(),
+                    String.format("%.2f", dist));
+            lastRenderDiagLogMs = now;
+        }
+
         matrices.pop();
+
+        if (X_RAY_PREVIEW) {
+            if (prevDepth) GL11.glEnable(GL11.GL_DEPTH_TEST); else GL11.glDisable(GL11.GL_DEPTH_TEST);
+            if (prevCull) GL11.glEnable(GL11.GL_CULL_FACE); else GL11.glDisable(GL11.GL_CULL_FACE);
+            if (prevBlend) GL11.glEnable(GL11.GL_BLEND); else GL11.glDisable(GL11.GL_BLEND);
+        }
     }
 
     private static void drawLineBox(VertexConsumer consumer, MatrixStack.Entry entry, Box box, float r, float g, float b, float a) {
@@ -103,19 +185,16 @@ public final class GhostBlockWorldRenderer {
         double y2 = box.maxY;
         double z2 = box.maxZ;
 
-        // Bottom rectangle
         line(consumer, entry, x1, y1, z1, x2, y1, z1, ri, gi, bi, ai);
         line(consumer, entry, x2, y1, z1, x2, y1, z2, ri, gi, bi, ai);
         line(consumer, entry, x2, y1, z2, x1, y1, z2, ri, gi, bi, ai);
         line(consumer, entry, x1, y1, z2, x1, y1, z1, ri, gi, bi, ai);
 
-        // Top rectangle
         line(consumer, entry, x1, y2, z1, x2, y2, z1, ri, gi, bi, ai);
         line(consumer, entry, x2, y2, z1, x2, y2, z2, ri, gi, bi, ai);
         line(consumer, entry, x2, y2, z2, x1, y2, z2, ri, gi, bi, ai);
         line(consumer, entry, x1, y2, z2, x1, y2, z1, ri, gi, bi, ai);
 
-        // Vertical edges
         line(consumer, entry, x1, y1, z1, x1, y2, z1, ri, gi, bi, ai);
         line(consumer, entry, x2, y1, z1, x2, y2, z1, ri, gi, bi, ai);
         line(consumer, entry, x2, y1, z2, x2, y2, z2, ri, gi, bi, ai);
@@ -146,4 +225,5 @@ public final class GhostBlockWorldRenderer {
                 .normal(entry, 0.0f, 1.0f, 0.0f)
                 .lineWidth(width);
     }
+
 }

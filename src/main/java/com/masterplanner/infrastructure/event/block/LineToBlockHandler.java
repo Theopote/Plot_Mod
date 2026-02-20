@@ -118,7 +118,7 @@ public class LineToBlockHandler {
         boolean fillClosedShapes = lineToBlockEvent.isFillClosedShapes();
 
         // 【优化】获取目标标高（优先使用用户指定，否则使用玩家位置）
-        double targetYLevel = getTargetYLevel(userSpecifiedYLevel);
+        double targetYLevel = getTargetYLevel(userSpecifiedYLevel, isPreview);
 
         LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}, 封闭填充={}",
             shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
@@ -133,6 +133,30 @@ public class LineToBlockHandler {
         int totalBlocks = processShapesToBlocksWithProgress(shapes, conversionMode, simplificationRatio, targetYLevel, fillClosedShapes, paletteBlocks, blockAction);
 
         LOGGER.info("处理完成，共生成 {} 个方块", totalBlocks);
+
+        if (isPreview && totalBlocks > 0) {
+            try {
+                var previewBlocks = ghostBlockManager.getVisibleGhostBlocks();
+                if (!previewBlocks.isEmpty()) {
+                    var first = previewBlocks.getFirst();
+                    var player = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().player : null;
+                    if (player != null && first.getPosition() != null) {
+                        double dx = first.getPosition().x - player.getX();
+                        double dz = first.getPosition().y - player.getZ();
+                        double dist = Math.sqrt(dx * dx + dz * dz);
+                        LOGGER.info("幽灵方块诊断: count={}, first=({},{},{}), player=({},{},{}), horizontalDistance={}",
+                                previewBlocks.size(),
+                                first.getPosition().x, first.getHeight(), first.getPosition().y,
+                                player.getX(), player.getY(), player.getZ(),
+                                String.format("%.2f", dist));
+                    } else {
+                        LOGGER.info("幽灵方块诊断: count={}, first={}", previewBlocks.size(), first);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("幽灵方块诊断日志输出失败", e);
+            }
+        }
 
         // 发布成功事件
         String message = String.format("已生成 %d 个%s，使用 %d 种方块，标高=%.0f",
@@ -427,20 +451,20 @@ public class LineToBlockHandler {
      * 光栅化圆弧
      */
     private List<BlockPos> rasterizeArcShape(com.masterplanner.core.geometry.shapes.ArcShape arc, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel, false);
+        return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel);
     }
 
     private List<BlockPos> rasterizeEllipticalArcShape(com.masterplanner.core.geometry.shapes.EllipticalArcShape arc, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel, false);
+        return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel);
     }
 
     private List<BlockPos> rasterizeBezierCurveShape(com.masterplanner.core.geometry.shapes.BezierCurveShape bezier, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         // 使用曲线采样点（而不是控制点），避免样条曲线被折线化导致失真
-        return rasterizeShapePathByPoints(bezier.getCurvePoints(), conversionMode, simplificationRatio, yLevel, false);
+        return rasterizeShapePathByPoints(bezier.getCurvePoints(), conversionMode, simplificationRatio, yLevel);
     }
 
     private List<BlockPos> rasterizeSineCurveShape(com.masterplanner.core.geometry.shapes.SineCurveShape sine, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
-        return rasterizeShapePathByPoints(sine.getPoints(), conversionMode, simplificationRatio, yLevel, false);
+        return rasterizeShapePathByPoints(sine.getPoints(), conversionMode, simplificationRatio, yLevel);
     }
 
     private List<BlockPos> rasterizeClosedShapeByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
@@ -488,14 +512,14 @@ public class LineToBlockHandler {
         return minecraftPoints;
     }
 
-    private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean closeLoop) {
+    private List<BlockPos> rasterizeShapePathByPoints(List<Vec2d> canvasPoints, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         List<Vec2d> minecraftPoints = convertCanvasPointsToMinecraftPoints(canvasPoints);
 
         if (minecraftPoints.size() < 2) {
             return List.of();
         }
 
-        return rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, closeLoop);
+        return rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, false);
     }
 
     /**
@@ -671,7 +695,7 @@ public class LineToBlockHandler {
         try {
             List<Vec2d> shapePoints = shape.getPoints();
             if (shapePoints != null && shapePoints.size() >= 2) {
-                return rasterizeShapePathByPoints(shapePoints, conversionMode, simplificationRatio, yLevel, false);
+                return rasterizeShapePathByPoints(shapePoints, conversionMode, simplificationRatio, yLevel);
             }
         } catch (Exception e) {
             LOGGER.debug("复杂图形采样点获取失败，回退控制点连接: {}", e.getMessage());
@@ -1032,11 +1056,10 @@ public class LineToBlockHandler {
      * 【优化】获取目标标高，用于方块转换
      * 优先使用用户指定的标高，否则使用玩家位置
      * 【新增】支持从UI获取用户指定标高
-     * 【修复】幽灵方块应该永远都在玩家高度的下一格，也就是玩家的Y值减去1
      * @param userSpecifiedYLevel 用户指定的标高
      * @return 目标Y坐标（网格对齐）
      */
-    private double getTargetYLevel(double userSpecifiedYLevel) {
+    private double getTargetYLevel(double userSpecifiedYLevel, boolean isPreview) {
         try {
             // 【优化】优先使用用户指定的标高
             if (Double.isFinite(userSpecifiedYLevel)) {
@@ -1053,14 +1076,19 @@ public class LineToBlockHandler {
                 return alignedY;
             }
 
-            // 【修复】使用玩家当前位置作为标高，幽灵方块显示在玩家脚下
+            // 使用玩家当前位置作为默认标高
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null && client.player != null) {
                 double playerY = client.player.getY();
-                // 幽灵方块应该永远都在玩家高度的下一格，也就是玩家的Y值减去1
-                double ghostY = Math.floor(playerY - 1.0);
-                LOGGER.debug("使用玩家标高: 原始Y={}, 幽灵方块Y={} (玩家脚下)", playerY, ghostY);
-                return ghostY;
+                if (isPreview) {
+                    double previewY = Math.floor(playerY - 5.0);
+                    LOGGER.debug("预览模式使用玩家下方5格标高: 原始Y={}, 预览Y={}", playerY, previewY);
+                    return previewY;
+                }
+
+                double alignedY = Math.floor(playerY);
+                LOGGER.debug("投影模式使用玩家标高: 原始Y={}, Y={}", playerY, alignedY);
+                return alignedY;
             }
 
             LOGGER.debug("使用默认标高: {}", DEFAULT_Y_LEVEL);
