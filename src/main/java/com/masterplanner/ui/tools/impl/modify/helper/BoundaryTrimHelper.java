@@ -53,7 +53,9 @@ public class BoundaryTrimHelper {
         }
         
         LOGGER.debug("calculateBoundaryTrimmedShapes - 修改后图形数量: {}", modifiedShapes.size());
-        return modifiedShapes;
+        List<Shape> deduplicatedShapes = geometryUtils.removeDuplicateShapes(modifiedShapes);
+        LOGGER.debug("calculateBoundaryTrimmedShapes - 去重后图形数量: {}", deduplicatedShapes.size());
+        return deduplicatedShapes;
     }
     
     /**

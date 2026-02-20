@@ -17,7 +17,7 @@ public class GeometryTrimUtils {
     private static final double TRIM_TOLERANCE = 5.0;
     private static final double INTERSECTION_TOLERANCE = 1e-6;
     private static final double SEGMENT_RELATIVE_MIN_RATIO = 1e-4;
-    private static final double SEGMENT_DUPLICATE_RATIO = 1e-3;
+    private static final double SEGMENT_DUPLICATE_RATIO = 5e-3;
     
     // ====== 交点计算相关方法 ======
     
@@ -1741,6 +1741,68 @@ public class GeometryTrimUtils {
         double referenceSize = Math.max(
             Math.max(leftBox.getWidth(), leftBox.getHeight()),
             Math.max(originalShape.getBoundingBox().getWidth(), originalShape.getBoundingBox().getHeight())
+        );
+        double positionTolerance = Math.max(INTERSECTION_TOLERANCE * 10.0, referenceSize * SEGMENT_DUPLICATE_RATIO);
+
+        boolean minClose = leftBox.getMin().distance(rightBox.getMin()) <= positionTolerance;
+        boolean maxClose = leftBox.getMax().distance(rightBox.getMax()) <= positionTolerance;
+        if (!minClose || !maxClose) {
+            return false;
+        }
+
+        double leftLength = estimateShapeLength(left);
+        double rightLength = estimateShapeLength(right);
+        double lengthTolerance = Math.max(INTERSECTION_TOLERANCE * 10.0, Math.max(leftLength, rightLength) * SEGMENT_DUPLICATE_RATIO);
+        return Math.abs(leftLength - rightLength) <= lengthTolerance;
+    }
+
+    public List<Shape> removeDuplicateShapes(List<Shape> shapes) {
+        List<Shape> uniqueShapes = new ArrayList<>();
+        if (shapes == null || shapes.isEmpty()) {
+            return uniqueShapes;
+        }
+
+        for (Shape candidate : shapes) {
+            if (candidate == null) {
+                continue;
+            }
+
+            boolean duplicate = false;
+            for (Shape existing : uniqueShapes) {
+                if (areShapesEquivalentForDedup(existing, candidate)) {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (!duplicate) {
+                uniqueShapes.add(candidate);
+            }
+        }
+
+        return uniqueShapes;
+    }
+
+    private boolean areShapesEquivalentForDedup(Shape left, Shape right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        if (!left.getClass().equals(right.getClass())) {
+            return false;
+        }
+
+        BoundingBox leftBox = left.getBoundingBox();
+        BoundingBox rightBox = right.getBoundingBox();
+        if (leftBox == null || rightBox == null) {
+            return false;
+        }
+
+        double referenceSize = Math.max(
+            Math.max(leftBox.getWidth(), leftBox.getHeight()),
+            Math.max(rightBox.getWidth(), rightBox.getHeight())
         );
         double positionTolerance = Math.max(INTERSECTION_TOLERANCE * 10.0, referenceSize * SEGMENT_DUPLICATE_RATIO);
 

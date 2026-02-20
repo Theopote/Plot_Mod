@@ -57,7 +57,9 @@ public class FenceTrimHelper {
         }
  
         LOGGER.debug("calculateFenceTrimmedShapes - 修改后图形数量: {}", modifiedShapes.size());
-        return modifiedShapes;
+        List<Shape> deduplicatedShapes = geometryUtils.removeDuplicateShapes(modifiedShapes);
+        LOGGER.debug("calculateFenceTrimmedShapes - 去重后图形数量: {}", deduplicatedShapes.size());
+        return deduplicatedShapes;
     }
     
     /**
