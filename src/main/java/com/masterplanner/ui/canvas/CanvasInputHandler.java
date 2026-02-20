@@ -448,7 +448,11 @@ public class CanvasInputHandler {
             core.markDirty(CanvasCore.DirtyType.CONTENT);
             LOGGER.debug("已通过Escape取消选择");
         } else {
-            currentTool.cancel();
+            try {
+                currentTool.cancel();
+            } catch (Throwable t) {
+                LOGGER.error("Escape取消当前工具时发生异常", t);
+            }
             core.markDirty(CanvasCore.DirtyType.CONTENT);
         }
     }

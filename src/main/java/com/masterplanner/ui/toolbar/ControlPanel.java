@@ -54,6 +54,7 @@ public class ControlPanel implements UIComponent {
     
     // 警告对话框状态
     private String warningMessage = "";
+    private volatile boolean warningPopupPending = false;
 
     /**
      * 构造函数 - 组件化初始化
@@ -401,14 +402,19 @@ public class ControlPanel implements UIComponent {
      * 显示警告对话框
      */
     private void showWarningDialog(String message) {
-        ImGui.openPopup("##warning_dialog");
-        warningMessage = message;
+        warningMessage = message == null ? "" : message;
+        warningPopupPending = true;
     }
     
     /**
      * 渲染警告对话框
      */
     private void renderWarningDialog() {
+        if (warningPopupPending) {
+            ImGui.openPopup("##warning_dialog");
+            warningPopupPending = false;
+        }
+
         if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text(warningMessage);
             ImGui.separator();

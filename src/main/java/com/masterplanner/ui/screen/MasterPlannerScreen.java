@@ -3,6 +3,7 @@ package com.masterplanner.ui.screen;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.imgui.ImGuiRenderer;
 import com.masterplanner.ui.toolbar.ControlPanel;
+import com.masterplanner.infrastructure.event.block.GhostBlockManager;
 import com.masterplanner.ui.toolbar.SystemPanel;
 import com.masterplanner.ui.toolbar.ToolPanel;
 import com.masterplanner.ui.canvas.Canvas;
@@ -690,6 +691,9 @@ public class MasterPlannerScreen extends Screen {
     public void removed() {
         LOGGER.debug("MasterPlannerScreen 已关闭。");
         
+        // 关闭 MasterPlanner 时清理幽灵方块，避免未投影预览残留
+        GhostBlockManager.getInstance().clearAllGhostBlocks();
+
         // 恢复 MasterPlanner 屏幕状态（恢复云渲染和雾渲染）
         MasterPlannerScreenState.setMasterPlannerScreenOpen(false);
         
@@ -888,13 +892,17 @@ public class MasterPlannerScreen extends Screen {
             if (activeTool != null) {
                 LOGGER.debug("MasterPlannerScreen: 当前工具: {}", activeTool.getClass().getSimpleName());
                 // 尝试让工具处理ESC键
-                boolean handled = activeTool.onKeyDown(keyCode);
-                LOGGER.debug("MasterPlannerScreen: 工具处理ESC键结果: {}", handled);
-                if (handled) {
-                    LOGGER.debug("工具 {} 处理了ESC键", activeTool.getName());
-                    return true;
-                } else {
-                    LOGGER.debug("工具 {} 未处理ESC键", activeTool.getName());
+                try {
+                    boolean handled = activeTool.onKeyDown(keyCode);
+                    LOGGER.debug("MasterPlannerScreen: 工具处理ESC键结果: {}", handled);
+                    if (handled) {
+                        LOGGER.debug("工具 {} 处理了ESC键", activeTool.getName());
+                        return true;
+                    } else {
+                        LOGGER.debug("工具 {} 未处理ESC键", activeTool.getName());
+                    }
+                } catch (Throwable t) {
+                    LOGGER.error("工具 {} 处理ESC键时发生异常", activeTool.getClass().getSimpleName(), t);
                 }
             } else {
                 LOGGER.debug("MasterPlannerScreen: 当前没有活动工具");
@@ -907,8 +915,14 @@ public class MasterPlannerScreen extends Screen {
         // 左/右 Shift 转发给工具，便于工具内部切换正交/角度约束
         if (keyCode == 340 || keyCode == 344) { // GLFW_KEY_LEFT_SHIFT / GLFW_KEY_RIGHT_SHIFT
             BaseTool activeTool = appState.getCurrentTool();
-            if (activeTool != null && activeTool.onKeyDown(keyCode)) {
-                return true;
+            if (activeTool != null) {
+                try {
+                    if (activeTool.onKeyDown(keyCode)) {
+                        return true;
+                    }
+                } catch (Throwable t) {
+                    LOGGER.error("工具 {} 处理Shift键时发生异常", activeTool.getClass().getSimpleName(), t);
+                }
             }
         }
         

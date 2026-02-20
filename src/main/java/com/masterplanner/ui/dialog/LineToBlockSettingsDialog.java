@@ -8,6 +8,7 @@ import imgui.type.ImBoolean;
 import imgui.flag.ImGuiWindowFlags;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
+import com.masterplanner.infrastructure.event.block.GhostBlockManager;
 import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ public class LineToBlockSettingsDialog {
     private ConversionMode conversionMode = ConversionMode.FULL;
     private float simplificationRatio = 0.5f;
     private boolean fillClosedShapes = true;
+    private float ghostOpacity = 0.45f;
 
     public enum ConversionMode {
         FULL("完整转换"),
@@ -42,6 +44,7 @@ public class LineToBlockSettingsDialog {
     private LineToBlockSettingsDialog() {
         this.appState = AppState.getInstance();
         this.eventBus = EventBus.getInstance();
+        this.ghostOpacity = GhostBlockManager.getInstance().getOpacity();
     }
 
     public static LineToBlockSettingsDialog getInstance() {
@@ -100,6 +103,14 @@ public class LineToBlockSettingsDialog {
                         ? "启用：封闭图形会填充内部区域。"
                         : "关闭：封闭图形只转换边缘轮廓。");
 
+                ImGui.separator();
+                ImGui.text("幽灵方块透明度");
+                float[] opacityValue = new float[]{ghostOpacity};
+                if (ImGui.sliderFloat("##ghost_opacity", opacityValue, 0.15f, 0.95f, "%.2f")) {
+                    ghostOpacity = opacityValue[0];
+                }
+                ImGui.textWrapped(String.format("当前透明度: %.2f（数值越低越透明）", ghostOpacity));
+
                 // 精简比率滑动条（仅在精简转换模式下显示）
                 if (conversionMode == ConversionMode.SIMPLIFIED) {
                     ImGui.separator();
@@ -144,5 +155,9 @@ public class LineToBlockSettingsDialog {
 
     public boolean isFillClosedShapes() {
         return fillClosedShapes;
+    }
+
+    public float getGhostOpacity() {
+        return ghostOpacity;
     }
 } 

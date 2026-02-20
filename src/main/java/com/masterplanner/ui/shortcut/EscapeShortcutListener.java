@@ -3,6 +3,8 @@ package com.masterplanner.ui.shortcut;
 import com.masterplanner.api.shortcut.IShortcutListener;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.core.tool.BaseTool;
+import com.masterplanner.infrastructure.event.block.GhostBlockManager;
+import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,8 +51,8 @@ public class EscapeShortcutListener implements IShortcutListener {
                 currentTool.cancel();
                 LOGGER.debug("取消了当前工具的操作: {}", currentTool.getClass().getSimpleName());
                 handled = true;
-            } catch (Exception e) {
-                LOGGER.error("取消当前工具操作时出错: {}", e.getMessage(), e);
+            } catch (Throwable t) {
+                LOGGER.error("取消当前工具操作时出错", t);
             }
         }
         
@@ -62,6 +64,29 @@ public class EscapeShortcutListener implements IShortcutListener {
         }
         
         // 3. 如果有其他需要取消的状态，可以在这里添加
+        try {
+            GhostBlockManager ghostManager = GhostBlockManager.getInstance();
+            int ghostCount = ghostManager.getVisibleGhostBlockCount();
+            if (ghostCount > 0) {
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null) {
+                    client.execute(() -> {
+                        try {
+                            ghostManager.clearAllGhostBlocks();
+                            LOGGER.info("Escape 清理了 {} 个幽灵方块", ghostCount);
+                        } catch (Throwable t) {
+                            LOGGER.error("Escape 清理幽灵方块失败", t);
+                        }
+                    });
+                } else {
+                    ghostManager.clearAllGhostBlocks();
+                    LOGGER.info("Escape 清理了 {} 个幽灵方块", ghostCount);
+                }
+                handled = true;
+            }
+        } catch (Throwable t) {
+            LOGGER.error("Escape 处理幽灵方块时发生异常", t);
+        }
         
         return handled;
     }

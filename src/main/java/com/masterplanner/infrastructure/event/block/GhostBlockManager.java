@@ -32,7 +32,7 @@ public class GhostBlockManager {
 
     // 渲染相关
     private boolean renderingEnabled = true;
-    private float opacity = 0.6f; // 幽灵方块透明度
+    private float opacity = 0.45f; // 幽灵方块透明度
     
     /**
      * 幽灵方块数据类
@@ -162,15 +162,23 @@ public class GhostBlockManager {
      * 清空所有幽灵方块
      */
     public void clearAllGhostBlocks() {
-        int count = ghostBlocks.size();
-        ghostBlocks.clear();
-        blockIds.clear();
-        
-        LOGGER.info("已清空所有幽灵方块，共清理 {} 个", count);
-        
-        // 发布清理事件
-        eventBus.publish(new Events.WarningEvent("GhostBlockManager", 
-            String.format("已清理 %d 个幽灵方块", count)));
+        int count = 0;
+        try {
+            count = ghostBlocks.size();
+            ghostBlocks.clear();
+            blockIds.clear();
+            LOGGER.info("已清空所有幽灵方块，共清理 {} 个", count);
+        } catch (Throwable t) {
+            LOGGER.error("清空幽灵方块集合时发生异常", t);
+        }
+
+        // 发布清理事件（best-effort，绝不向外抛异常）
+        try {
+            eventBus.publish(new Events.WarningEvent("GhostBlockManager",
+                    String.format("已清理 %d 个幽灵方块", count)));
+        } catch (Throwable t) {
+            LOGGER.error("发布幽灵方块清理事件失败", t);
+        }
     }
 
     /**

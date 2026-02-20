@@ -26,12 +26,13 @@ public final class GhostBlockWorldRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/GhostBlockWorldRenderer");
     private static volatile boolean initialized;
     private static final int MAX_RENDER_PER_FRAME = 20_000;
-    private static final boolean X_RAY_PREVIEW = true;
+    private static final boolean X_RAY_PREVIEW = false;
     private static final boolean PARTICLE_FALLBACK = false;
     private static final int MAX_PARTICLE_BLOCKS = 64;
     private static long lastMissingContextWarnMs = 0L;
     private static long lastRenderDiagLogMs = 0L;
     private static long lastParticleEmitMs = 0L;
+    private static long lastRenderErrorLogMs = 0L;
 
     private GhostBlockWorldRenderer() {}
 
@@ -46,6 +47,7 @@ public final class GhostBlockWorldRenderer {
     }
 
     private static void render(WorldRenderContext context) {
+        try {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) {
             return;
@@ -63,17 +65,17 @@ public final class GhostBlockWorldRenderer {
 
         VertexConsumerProvider consumers = context.consumers();
         MatrixStack matrices = context.matrices();
-        if (client.player == null || consumers == null || matrices == null) {
+        if (client.player == null) {
             long now = System.currentTimeMillis();
             if (now - lastMissingContextWarnMs > 3000L) {
                 LOGGER.warn("Ghost rendering skipped: consumers={}, matrices={}, player={}",
-                        consumers != null, matrices != null, client.player != null);
+                        true, true, client.player != null);
                 lastMissingContextWarnMs = now;
             }
             return;
         }
 
-        float alpha = 0.95f;
+        float alpha = Math.max(0.15f, Math.min(0.95f, ghostBlockManager.getOpacity()));
         float r = 0.2f;
         float g = 1.0f;
         float b = 1.0f;
@@ -110,14 +112,17 @@ public final class GhostBlockWorldRenderer {
             BlockPos pos = BlockPos.ofFloored(block.getPosition().x, block.getHeight(), block.getPosition().y);
             matrices.push();
             matrices.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
-
-            client.getBlockRenderManager().renderBlockAsEntity(
-                    block.getBlock().getDefaultState(),
-                    matrices,
-                    consumers,
-                    0x00F000F0,
-                    OverlayTexture.DEFAULT_UV
-            );
+            try {
+                client.getBlockRenderManager().renderBlockAsEntity(
+                        block.getBlock().getDefaultState(),
+                        matrices,
+                        consumers,
+                        0x00F000F0,
+                        OverlayTexture.DEFAULT_UV
+                );
+            } catch (Exception renderEx) {
+                LOGGER.warn("渲染幽灵方块模型失败: pos={}, type={}, err={}", pos.toShortString(), block.getBlockType(), renderEx.toString());
+            }
 
             Box localBox = new Box(0.0, 0.0, 0.0, 1.0, 1.0, 1.0).expand(0.0025);
             drawLineBox(lines, matrices.peek(), localBox, r, g, b, alpha);
@@ -169,6 +174,13 @@ public final class GhostBlockWorldRenderer {
             if (prevDepth) GL11.glEnable(GL11.GL_DEPTH_TEST); else GL11.glDisable(GL11.GL_DEPTH_TEST);
             if (prevCull) GL11.glEnable(GL11.GL_CULL_FACE); else GL11.glDisable(GL11.GL_CULL_FACE);
             if (prevBlend) GL11.glEnable(GL11.GL_BLEND); else GL11.glDisable(GL11.GL_BLEND);
+        }
+        } catch (Throwable t) {
+            long now = System.currentTimeMillis();
+            if (now - lastRenderErrorLogMs > 1500L) {
+                LOGGER.error("GhostBlockWorldRenderer 渲染异常（已拦截，避免崩溃）: {}", t, t);
+                lastRenderErrorLogMs = now;
+            }
         }
     }
 

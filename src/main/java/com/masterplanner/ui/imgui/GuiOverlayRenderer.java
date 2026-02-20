@@ -145,7 +145,7 @@ public final class GuiOverlayRenderer {
 
         try {
             int itemCount = PENDING_ITEMS.size();
-            LOGGER.info("🎨 GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
+            LOGGER.debug("GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
 
             // 可见性探针：如果连 fill 都看不到，说明 DrawContext 在 flipFrame 阶段根本不可用
             // 或者顶层渲染状态/缓冲提交有问题。
@@ -182,7 +182,7 @@ public final class GuiOverlayRenderer {
             // We call it reflectively to avoid hard-coding a specific signature across mappings/versions.
             tryFlushDrawContext(context);
 
-            LOGGER.info("✓ GuiOverlayRenderer.flush: 完成 - 成功: {}, 跳过: {}", successCount, skipCount);
+            LOGGER.debug("GuiOverlayRenderer.flush: 完成 - 成功: {}, 跳过: {}", successCount, skipCount);
 
         } catch (Exception e) {
             LOGGER.error("GuiOverlayRenderer.flush 异常", e);

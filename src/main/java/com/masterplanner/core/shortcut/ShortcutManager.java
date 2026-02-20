@@ -97,20 +97,36 @@ public class ShortcutManager {
         Set<IShortcutListener> specificListeners = shortcutMap.get(shortcut);
         if (specificListeners != null) {
             for (IShortcutListener listener : specificListeners) {
-                if (listener.isEnabled() && listener.onShortcutTriggered(shortcut)) {
-                    LogManager.getInstance().debug(String.format("Shortcut '%s' handled by %s",
-                        shortcut, listener.getClass().getSimpleName()));
-                    return true;
+                try {
+                    if (listener.isEnabled() && listener.onShortcutTriggered(shortcut)) {
+                        LogManager.getInstance().debug(String.format("Shortcut '%s' handled by %s",
+                            shortcut, listener.getClass().getSimpleName()));
+                        return true;
+                    }
+                } catch (Throwable t) {
+                    LogManager.getInstance().error(String.format(
+                            "Shortcut '%s' listener '%s' threw exception",
+                            shortcut,
+                            listener.getClass().getSimpleName()
+                    ), t);
                 }
             }
         }
 
         // 然后检查全局监听器
         for (IShortcutListener listener : listeners) {
-            if (listener.isEnabled() && listener.onShortcutTriggered(shortcut)) {
-                LogManager.getInstance().debug(String.format("Shortcut '%s' handled by %s",
-                    shortcut, listener.getClass().getSimpleName()));
-                return true;
+            try {
+                if (listener.isEnabled() && listener.onShortcutTriggered(shortcut)) {
+                    LogManager.getInstance().debug(String.format("Shortcut '%s' handled by %s",
+                        shortcut, listener.getClass().getSimpleName()));
+                    return true;
+                }
+            } catch (Throwable t) {
+                LogManager.getInstance().error(String.format(
+                        "Shortcut '%s' global listener '%s' threw exception",
+                        shortcut,
+                        listener.getClass().getSimpleName()
+                ), t);
             }
         }
 

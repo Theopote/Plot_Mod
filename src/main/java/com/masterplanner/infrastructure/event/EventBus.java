@@ -45,7 +45,7 @@ public class EventBus {
                     listener.onEvent(event);
                     LOGGER.debug("EventBus: 监听器 {} 已处理事件 {}",
                         listener.getClass().getName(), event.getClass().getSimpleName());
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     // 记录错误但不中断其他监听器
                     LOGGER.error("EventBus: 监听器处理事件时出错: {}", e.getMessage(), e);
                 }
