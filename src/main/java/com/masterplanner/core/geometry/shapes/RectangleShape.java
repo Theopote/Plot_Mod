@@ -416,23 +416,27 @@ public class RectangleShape extends Shape {
     public double getSignedDistance(Vec2d point) {
         // 将点转换到矩形的局部坐标系
         Vec2d localPoint = GeometryUtils.rotate(point.subtract(corner), -rotation);
-        
-        // 检查点是否在矩形内部
-        boolean isInside = localPoint.x >= 0 && localPoint.x <= width &&
-                          localPoint.y >= 0 && localPoint.y <= height;
-        
-        // 计算到矩形边界的最短距离
-        double minDistance = Double.POSITIVE_INFINITY;
-        
-        for (LineShape edge : getEdges()) {
-            double distance = Math.abs(edge.getSignedDistance(point));
-            if (distance < minDistance) {
-                minDistance = distance;
-            }
-        }
-        
-        // 如果点在内部，返回负值；如果点在外部，返回正值
-        return isInside ? -minDistance : minDistance;
+
+        double halfW = width * 0.5;
+        double halfH = height * 0.5;
+        double radius = Math.min(cornerRadius, Math.min(halfW, halfH));
+
+        // 以中心为原点，使用圆角矩形解析有符号距离（SDF）
+        double px = localPoint.x - halfW;
+        double py = localPoint.y - halfH;
+
+        double bx = Math.max(halfW - radius, 0.0);
+        double by = Math.max(halfH - radius, 0.0);
+
+        double qx = Math.abs(px) - bx;
+        double qy = Math.abs(py) - by;
+
+        double ox = Math.max(qx, 0.0);
+        double oy = Math.max(qy, 0.0);
+        double outside = Math.hypot(ox, oy);
+        double inside = Math.min(Math.max(qx, qy), 0.0);
+
+        return outside + inside - radius;
     }
     
     @Override

@@ -470,19 +470,13 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         // 计算偏移距离：使用点击点到原图形的实际距离
         double distance;
         if (currentOffsetPoint != null) {
-            Vec2d closestPoint = rect.getClosestPoint(currentOffsetPoint);
-            double actualDistance = currentOffsetPoint.distance(closestPoint);
-
-            // 使用几何有符号距离判断内外，避免受填充样式影响
-            double signed = rect.getSignedDistance(currentOffsetPoint);
-            double sign = Math.signum(signed);
-            if (sign == 0.0) {
-                sign = 1.0;
-            }
-            distance = sign * actualDistance;
+            // 使用矩形有符号距离（圆角/旋转均可）直接得到方向与距离，避免轮廓采样带来的卡顿
+            distance = rect.getSignedDistance(currentOffsetPoint);
+            double actualDistance = Math.abs(distance);
+            boolean inside = distance < 0;
             
             LOGGER.debug("矩形偏移: 点击点={}, 最近点={}, 实际距离={}, 内部={}, 最终距离={}", 
-                        currentOffsetPoint, closestPoint, actualDistance, sign < 0, distance);
+                        currentOffsetPoint, rect.getClosestPoint(currentOffsetPoint), actualDistance, inside, distance);
         } else {
             distance = currentOffsetDistance;
         }
@@ -531,8 +525,10 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         Vec2d globalOffset = localOffset.rotate(rotation);
         Vec2d newCorner = originalCorner.add(globalOffset);
         
-        // 调整圆角半径
-        double newCornerRadius = Math.max(0, rect.getCornerRadius() + distance);
+        // 调整圆角半径（保持与 RectangleShape.createOffset 一致）
+        double newCornerRadius = rect.getCornerRadius() > 0
+            ? Math.max(0, rect.getCornerRadius() + distance)
+            : 0.0;
         
         rect.setCorner(newCorner);
         rect.setWidth(newWidth);
