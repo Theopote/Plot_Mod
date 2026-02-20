@@ -182,6 +182,7 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         Vec2d center = circle.getCenter();
         double radius = circle.getRadius();
+        double circleTolerance = Math.max(INTERSECTION_TOLERANCE, radius * 1e-5);
         
         LOGGER.debug("boundaryTrimCircle - 开始边界修剪圆形");
         LOGGER.debug("boundaryTrimCircle - 圆心: {}, 半径: {}", center, radius);
@@ -190,7 +191,7 @@ public class BoundaryTrimHelper {
         // 过滤有效的交点（在圆上的点）
         List<Vec2d> validIntersections = new ArrayList<>();
         for (Vec2d intersection : intersections) {
-            if (Math.abs(center.distance(intersection) - radius) <= INTERSECTION_TOLERANCE) {
+            if (Math.abs(center.distance(intersection) - radius) <= circleTolerance) {
                 validIntersections.add(intersection);
             }
         }

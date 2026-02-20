@@ -41,6 +41,24 @@ public class GeometryTrimUtils {
      * 计算两个图形之间的交点
      */
     private List<Vec2d> calculateShapeIntersections(Shape shape1, Shape shape2) {
+        if (shape1 instanceof CircleShape circle1 && shape2 instanceof CircleShape circle2) {
+            return calculateCircleCircleIntersections(circle1, circle2);
+        }
+
+        if (shape1 instanceof CircleShape circle && !(shape2 instanceof CircleShape)) {
+            List<Vec2d> shape2Points = getShapePointsForIntersection(shape2);
+            if (shape2Points.size() >= 2) {
+                return calculateCircleWithSampledCurveIntersections(circle, shape2Points);
+            }
+        }
+
+        if (shape2 instanceof CircleShape circle && !(shape1 instanceof CircleShape)) {
+            List<Vec2d> shape1Points = getShapePointsForIntersection(shape1);
+            if (shape1Points.size() >= 2) {
+                return calculateCircleWithSampledCurveIntersections(circle, shape1Points);
+            }
+        }
+
         List<Vec2d> intersections = new ArrayList<>();
         
         // 获取两个图形的采样点
@@ -63,6 +81,116 @@ public class GeometryTrimUtils {
             }
         }
         
+        return intersections;
+    }
+
+    private List<Vec2d> calculateCircleCircleIntersections(CircleShape c1, CircleShape c2) {
+        List<Vec2d> intersections = new ArrayList<>();
+
+        Vec2d p0 = c1.getCenter();
+        Vec2d p1 = c2.getCenter();
+        double r0 = c1.getRadius();
+        double r1 = c2.getRadius();
+
+        double d = p0.distance(p1);
+        double epsilon = Math.max(INTERSECTION_TOLERANCE, Math.max(r0, r1) * 1e-9);
+
+        if (d < epsilon && Math.abs(r0 - r1) < epsilon) {
+            return intersections;
+        }
+
+        if (d > r0 + r1 + epsilon) {
+            return intersections;
+        }
+
+        if (d < Math.abs(r0 - r1) - epsilon) {
+            return intersections;
+        }
+
+        if (d < epsilon) {
+            return intersections;
+        }
+
+        double a = (r0 * r0 - r1 * r1 + d * d) / (2.0 * d);
+        double hSquared = r0 * r0 - a * a;
+        if (hSquared < -epsilon) {
+            return intersections;
+        }
+
+        double h = Math.sqrt(Math.max(0.0, hSquared));
+
+        double x2 = p0.x + a * (p1.x - p0.x) / d;
+        double y2 = p0.y + a * (p1.y - p0.y) / d;
+
+        double rx = -(p1.y - p0.y) * (h / d);
+        double ry = (p1.x - p0.x) * (h / d);
+
+        Vec2d i1 = new Vec2d(x2 + rx, y2 + ry);
+        Vec2d i2 = new Vec2d(x2 - rx, y2 - ry);
+
+        intersections.add(i1);
+        if (i1.distance(i2) > epsilon) {
+            intersections.add(i2);
+        }
+
+        return intersections;
+    }
+
+    private List<Vec2d> calculateCircleWithSampledCurveIntersections(CircleShape circle, List<Vec2d> curvePoints) {
+        List<Vec2d> intersections = new ArrayList<>();
+        if (curvePoints == null || curvePoints.size() < 2) {
+            return intersections;
+        }
+
+        for (int i = 0; i < curvePoints.size() - 1; i++) {
+            Vec2d p1 = curvePoints.get(i);
+            Vec2d p2 = curvePoints.get(i + 1);
+            intersections.addAll(calculateCircleSegmentIntersections(circle, p1, p2));
+        }
+
+        return removeDuplicatePoints(intersections);
+    }
+
+    private List<Vec2d> calculateCircleSegmentIntersections(CircleShape circle, Vec2d p1, Vec2d p2) {
+        List<Vec2d> intersections = new ArrayList<>();
+
+        Vec2d center = circle.getCenter();
+        double radius = circle.getRadius();
+        Vec2d d = p2.subtract(p1);
+        Vec2d f = p1.subtract(center);
+
+        double a = d.dot(d);
+        if (a < INTERSECTION_TOLERANCE) {
+            return intersections;
+        }
+
+        double b = 2.0 * f.dot(d);
+        double c = f.dot(f) - radius * radius;
+
+        double discriminant = b * b - 4.0 * a * c;
+        if (discriminant < -INTERSECTION_TOLERANCE) {
+            return intersections;
+        }
+
+        if (Math.abs(discriminant) <= INTERSECTION_TOLERANCE) {
+            double t = -b / (2.0 * a);
+            if (t >= 0.0 && t <= 1.0) {
+                intersections.add(p1.add(d.multiply(t)));
+            }
+            return intersections;
+        }
+
+        double sqrtDisc = Math.sqrt(discriminant);
+        double t1 = (-b - sqrtDisc) / (2.0 * a);
+        double t2 = (-b + sqrtDisc) / (2.0 * a);
+
+        if (t1 >= 0.0 && t1 <= 1.0) {
+            intersections.add(p1.add(d.multiply(t1)));
+        }
+        if (t2 >= 0.0 && t2 <= 1.0) {
+            intersections.add(p1.add(d.multiply(t2)));
+        }
+
         return intersections;
     }
     
@@ -1118,11 +1246,12 @@ public class GeometryTrimUtils {
         List<Shape> segments = new ArrayList<>();
         Vec2d center = circle.getCenter();
         double radius = circle.getRadius();
+        double circleTolerance = Math.max(INTERSECTION_TOLERANCE, radius * 1e-5);
         
         // 过滤有效的交点
         List<Vec2d> validIntersections = new ArrayList<>();
         for (Vec2d intersection : intersections) {
-            if (Math.abs(center.distance(intersection) - radius) <= INTERSECTION_TOLERANCE) {
+            if (Math.abs(center.distance(intersection) - radius) <= circleTolerance) {
                 validIntersections.add(intersection);
             }
         }
@@ -1213,10 +1342,47 @@ public class GeometryTrimUtils {
     }
     
     private List<Shape> splitBezierCurveAtIntersections(BezierCurveShape bezier, List<Vec2d> intersections) {
-        // 贝塞尔曲线的分割比较复杂，暂时返回null
-        // 可以后续实现基于控制点的分割
         List<Shape> segments = new ArrayList<>();
-        segments.add(bezier);
+        List<Vec2d> sampledPoints = createDenseBezierPoints(bezier);
+
+        if (intersections.isEmpty() || sampledPoints.size() < 2) {
+            segments.add(bezier);
+            return segments;
+        }
+
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(sampledPoints, intersections);
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(sampledPoints.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(sampledPoints.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            List<Vec2d> segmentPoints = extractPathSection(sampledPoints, start, end);
+            if (segmentPoints.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(segmentPoints, false);
+            if (bezier.getStyle() != null) {
+                segment.setStyle(bezier.getStyle().clone());
+            }
+            if (bezier.getTransform() != null) {
+                segment.setTransform(bezier.getTransform().clone());
+            }
+            segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(bezier);
+        }
+
         return segments;
     }
 
@@ -1415,7 +1581,12 @@ public class GeometryTrimUtils {
                 continue;
             }
 
-            LineShape segment = new LineShape(start, end);
+            List<Vec2d> segmentPoints = extractPathSection(points, start, end);
+            if (segmentPoints.size() < 2) {
+                continue;
+            }
+
+            FreeDrawPath segment = new FreeDrawPath(segmentPoints);
             if (path.getStyle() != null) {
                 segment.setStyle(path.getStyle().clone());
             }
@@ -1430,6 +1601,51 @@ public class GeometryTrimUtils {
         }
         
         return segments;
+    }
+
+    private List<Vec2d> extractPathSection(List<Vec2d> pathPoints, Vec2d start, Vec2d end) {
+        List<Vec2d> section = new ArrayList<>();
+        if (pathPoints == null || pathPoints.size() < 2) {
+            return section;
+        }
+
+        boolean started = false;
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d current = pathPoints.get(i);
+            Vec2d next = pathPoints.get(i + 1);
+
+            if (!started) {
+                if (isPointOnLine(current, next, start, INTERSECTION_TOLERANCE)) {
+                    section.add(start);
+                    started = true;
+
+                    if (isPointOnLine(current, next, end, INTERSECTION_TOLERANCE)) {
+                        if (section.getLast().distance(end) > INTERSECTION_TOLERANCE) {
+                            section.add(end);
+                        }
+                        break;
+                    }
+
+                    if (section.getLast().distance(next) > INTERSECTION_TOLERANCE) {
+                        section.add(next);
+                    }
+                }
+                continue;
+            }
+
+            if (isPointOnLine(current, next, end, INTERSECTION_TOLERANCE)) {
+                if (section.getLast().distance(end) > INTERSECTION_TOLERANCE) {
+                    section.add(end);
+                }
+                break;
+            }
+
+            if (section.getLast().distance(next) > INTERSECTION_TOLERANCE) {
+                section.add(next);
+            }
+        }
+
+        return removeDuplicatePoints(section);
     }
     
     private List<Shape> splitCatenaryLineAtIntersections(CableShape catenary, List<Vec2d> intersections) {
