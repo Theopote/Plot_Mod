@@ -32,6 +32,15 @@ import java.util.List;
  */
 public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements IModifyStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArrayWithSelectionStrategy.class);
+    private static final double GEOMETRY_EPS = 1e-9;
+
+    private static class PathOffsetRelation {
+        final double signedDistance;
+
+        PathOffsetRelation(double signedDistance) {
+            this.signedDistance = signedDistance;
+        }
+    }
 
     // 策略模式枚举
     public enum StrategyMode {
@@ -508,7 +517,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         updateArrayPreview();
                         context.setStatusMessage("行间距: " + String.format("%.1f", rowSpacing));
                     } else if (arrayType == ArrayType.PATH) {
-                        pathCount = Math.max(pathCount - 1, 1);
+                        pathCount = Math.max(pathCount - 1, 2);
                         updateArrayPreview();
                         context.setStatusMessage("数量: " + pathCount);
                     }
@@ -656,15 +665,27 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             if (pathPoints.size() >= 2) {
                 double totalLength = PathUtils.calculatePathLength(pathPoints);
                 int count = Math.max(2, pathCount);
+                if (totalLength <= GEOMETRY_EPS) {
+                    return;
+                }
+
+                Vec2d sourceCenter = (selectedShapes != null && !selectedShapes.isEmpty())
+                    ? getShapeCenter(selectedShapes.getFirst())
+                    : null;
+                PathOffsetRelation relation = calculatePathOffsetRelation(sourceCenter);
+
                 double step = totalLength / (count - 1);
-                double startTangentAngle = calculatePathTangentAngle(0.0);
                 for (int i = 1; i < count; i++) {
                     double distance = i * step;
-                    Vec2d pos = PathUtils.getPositionAtLength(pathPoints, distance);
-                    if (pos != null) {
+                    double clampedLength = Math.max(0.0, Math.min(distance, totalLength));
+                    Vec2d pathPos = PathUtils.getPositionAtLength(pathPoints, clampedLength);
+                    if (pathPos != null) {
+                        double tangentAngle = calculatePathTangentAngle(clampedLength);
+                        Vec2d normal = new Vec2d(-Math.sin(tangentAngle), Math.cos(tangentAngle));
+                        Vec2d pos = pathPos.add(normal.multiply(relation.signedDistance));
+
                         previewPositions.add(pos);
-                        double tangentAngle = calculatePathTangentAngle(distance);
-                        previewAngles.add(tangentAngle - startTangentAngle);
+                        previewAngles.add(tangentAngle);
                     }
                 }
             }
@@ -904,7 +925,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      * 设置路径数量
      */
     public void setPathCount(int pathCount) {
-        this.pathCount = Math.max(1, Math.min(pathCount, 100));
+        this.pathCount = Math.max(2, Math.min(pathCount, 100));
         if (currentMode == StrategyMode.ARRAY && arrayState == ArrayState.PREVIEWING && arrayType == ArrayType.PATH) {
             updateArrayPreview();
         }
@@ -1094,29 +1115,94 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             return 0.0;
         }
 
+        double totalLength = PathUtils.calculatePathLength(pathPoints);
+        if (totalLength <= GEOMETRY_EPS) {
+            return 0.0;
+        }
+
+        double clampedLength = Math.max(0.0, Math.min(targetLength, totalLength));
+
         double accumulatedLength = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
             Vec2d prev = pathPoints.get(i - 1);
             Vec2d curr = pathPoints.get(i);
+            Vec2d direction = curr.subtract(prev);
             double segmentLength = prev.distance(curr);
 
-            if (accumulatedLength + segmentLength >= targetLength) {
-                Vec2d direction = curr.subtract(prev);
-                if (direction.length() > 1e-9) {
-                    return Math.atan2(direction.y, direction.x);
-                }
-                return 0.0;
+            if (segmentLength <= GEOMETRY_EPS || direction.length() <= GEOMETRY_EPS) {
+                continue;
             }
 
-            accumulatedLength += segmentLength;
+            double segmentEnd = accumulatedLength + segmentLength;
+            if (clampedLength < segmentEnd - GEOMETRY_EPS) {
+                return Math.atan2(direction.y, direction.x);
+            }
+
+            if (Math.abs(clampedLength - segmentEnd) <= GEOMETRY_EPS) {
+                for (int j = i + 1; j < pathPoints.size(); j++) {
+                    Vec2d nextPrev = pathPoints.get(j - 1);
+                    Vec2d nextCurr = pathPoints.get(j);
+                    Vec2d nextDir = nextCurr.subtract(nextPrev);
+                    if (nextDir.length() > GEOMETRY_EPS) {
+                        return Math.atan2(nextDir.y, nextDir.x);
+                    }
+                }
+                if (direction.length() > GEOMETRY_EPS) {
+                    return Math.atan2(direction.y, direction.x);
+                }
+            }
+
+            accumulatedLength = segmentEnd;
         }
 
-        Vec2d last = pathPoints.get(pathPoints.size() - 1);
-        Vec2d secondLast = pathPoints.get(pathPoints.size() - 2);
-        Vec2d direction = last.subtract(secondLast);
-        if (direction.length() > 1e-9) {
-            return Math.atan2(direction.y, direction.x);
+        for (int i = pathPoints.size() - 1; i >= 1; i--) {
+            Vec2d last = pathPoints.get(i);
+            Vec2d secondLast = pathPoints.get(i - 1);
+            Vec2d direction = last.subtract(secondLast);
+            if (direction.length() > GEOMETRY_EPS) {
+                return Math.atan2(direction.y, direction.x);
+            }
         }
         return 0.0;
+    }
+
+    private PathOffsetRelation calculatePathOffsetRelation(Vec2d sourceCenter) {
+        if (sourceCenter == null || pathPoints.size() < 2) {
+            return new PathOffsetRelation(0.0);
+        }
+
+        double minDistance = Double.POSITIVE_INFINITY;
+        double bestSignedDistance = 0.0;
+
+        for (int i = 1; i < pathPoints.size(); i++) {
+            Vec2d prev = pathPoints.get(i - 1);
+            Vec2d curr = pathPoints.get(i);
+            Vec2d segment = curr.subtract(prev);
+            double segmentLength = segment.length();
+
+            if (segmentLength <= GEOMETRY_EPS) {
+                continue;
+            }
+
+            double invLenSq = 1.0 / (segmentLength * segmentLength);
+            double t = sourceCenter.subtract(prev).dot(segment) * invLenSq;
+            t = Math.max(0.0, Math.min(1.0, t));
+
+            Vec2d projection = prev.add(segment.multiply(t));
+            Vec2d toSource = sourceCenter.subtract(projection);
+            double distance = toSource.length();
+
+            if (distance < minDistance) {
+                Vec2d tangent = segment.multiply(1.0 / segmentLength);
+                bestSignedDistance = tangent.x * toSource.y - tangent.y * toSource.x;
+                minDistance = distance;
+            }
+        }
+
+        if (!Double.isFinite(minDistance)) {
+            return new PathOffsetRelation(0.0);
+        }
+
+        return new PathOffsetRelation(bestSignedDistance);
     }
 }

@@ -30,6 +30,17 @@ import java.util.List;
  */
 public class ArrayHandler implements IModifyHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArrayHandler.class);
+    private static final double GEOMETRY_EPS = 1e-9;
+
+    private static class PathOffsetRelation {
+        final double baseTangentAngle;
+        final double signedDistance;
+
+        PathOffsetRelation(double baseTangentAngle, double signedDistance) {
+            this.baseTangentAngle = baseTangentAngle;
+            this.signedDistance = signedDistance;
+        }
+    }
     
     private final AppState appState;
     
@@ -250,7 +261,7 @@ public class ArrayHandler implements IModifyHandler {
                                          com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters params) {
         List<Shape> arrayedShapes = new ArrayList<>();
         
-        int count = params.getInt("rowCount", 5);
+        int count = Math.max(2, params.getInt("rowCount", 5));
         @SuppressWarnings("unchecked")
         List<Vec2d> pathPoints = (List<Vec2d>) params.getParameter("pathPoints");
         
@@ -261,13 +272,24 @@ public class ArrayHandler implements IModifyHandler {
         
         // 计算路径总长度
         double totalLength = calculatePathLength(pathPoints);
+        if (totalLength <= GEOMETRY_EPS) {
+            throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_ARRAY_PARAMETERS,
+                "路径长度为0，无法阵列");
+        }
+
         double stepLength = totalLength / (count - 1);
-        double startTangentAngle = calculatePathTangentAngle(pathPoints, 0.0);
         
         for (Shape shape : shapes) {
+            Vec2d sourceCenter = getShapeCenter(shape);
+            PathOffsetRelation relation = calculatePathOffsetRelation(pathPoints, sourceCenter);
+
             for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置
                 double targetLength = i * stepLength;
-                Vec2d arrayCenter = getPositionAtLength(pathPoints, targetLength);
+                double clampedLength = Math.max(0.0, Math.min(targetLength, totalLength));
+                Vec2d pathPos = getPositionAtLength(pathPoints, clampedLength);
+                double tangentAngle = calculatePathTangentAngle(pathPoints, clampedLength);
+                Vec2d normal = new Vec2d(-Math.sin(tangentAngle), Math.cos(tangentAngle));
+                Vec2d arrayCenter = pathPos != null ? pathPos.add(normal.multiply(relation.signedDistance)) : null;
                 
                 if (arrayCenter != null) {
                     try {
@@ -275,13 +297,12 @@ public class ArrayHandler implements IModifyHandler {
                         if (arrayedShape != null) {
                             Vec2d cloneCenter = getShapeCenter(arrayedShape);
                             Vec2d centerOffset = arrayCenter.subtract(cloneCenter);
-                            if (centerOffset.length() > 1e-9) {
+                            if (centerOffset.length() > GEOMETRY_EPS) {
                                 arrayedShape.translate(centerOffset);
                             }
 
-                            double tangentAngle = calculatePathTangentAngle(pathPoints, targetLength);
-                            double delta = tangentAngle - startTangentAngle;
-                            if (Math.abs(delta) > 1e-9) {
+                            double delta = tangentAngle - relation.baseTangentAngle;
+                            if (Math.abs(delta) > GEOMETRY_EPS) {
                                 arrayedShape.rotate(delta, arrayCenter);
                             }
 
@@ -318,34 +339,104 @@ public class ArrayHandler implements IModifyHandler {
         return PathUtils.getPositionAtLength(pathPoints, targetLength);
     }
 
+    private PathOffsetRelation calculatePathOffsetRelation(List<Vec2d> pathPoints, Vec2d sourceCenter) {
+        if (pathPoints == null || pathPoints.size() < 2 || sourceCenter == null) {
+            return new PathOffsetRelation(0.0, 0.0);
+        }
+
+        double minDistance = Double.POSITIVE_INFINITY;
+        double bestAngle = 0.0;
+        double bestSignedDistance = 0.0;
+
+        for (int i = 1; i < pathPoints.size(); i++) {
+            Vec2d prev = pathPoints.get(i - 1);
+            Vec2d curr = pathPoints.get(i);
+            Vec2d segment = curr.subtract(prev);
+            double segmentLength = segment.length();
+
+            if (segmentLength <= GEOMETRY_EPS) {
+                continue;
+            }
+
+            double invLenSq = 1.0 / (segmentLength * segmentLength);
+            double t = sourceCenter.subtract(prev).dot(segment) * invLenSq;
+            t = Math.max(0.0, Math.min(1.0, t));
+
+            Vec2d projection = prev.add(segment.multiply(t));
+            Vec2d toSource = sourceCenter.subtract(projection);
+            double distance = toSource.length();
+
+            if (distance < minDistance) {
+                Vec2d tangent = segment.multiply(1.0 / segmentLength);
+                double signed = tangent.x * toSource.y - tangent.y * toSource.x;
+
+                minDistance = distance;
+                bestSignedDistance = signed;
+                bestAngle = Math.atan2(tangent.y, tangent.x);
+            }
+        }
+
+        if (!Double.isFinite(minDistance)) {
+            return new PathOffsetRelation(calculatePathTangentAngle(pathPoints, 0.0), 0.0);
+        }
+
+        return new PathOffsetRelation(bestAngle, bestSignedDistance);
+    }
+
     private double calculatePathTangentAngle(List<Vec2d> pathPoints, double targetLength) {
         if (pathPoints == null || pathPoints.size() < 2) {
             return 0.0;
         }
 
+        double totalLength = calculatePathLength(pathPoints);
+        if (totalLength <= GEOMETRY_EPS) {
+            return 0.0;
+        }
+
+        double clampedLength = Math.max(0.0, Math.min(targetLength, totalLength));
+
         double accumulatedLength = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
             Vec2d prev = pathPoints.get(i - 1);
             Vec2d curr = pathPoints.get(i);
+            Vec2d direction = curr.subtract(prev);
             double segmentLength = prev.distance(curr);
 
-            if (accumulatedLength + segmentLength >= targetLength) {
-                Vec2d direction = curr.subtract(prev);
-                if (direction.length() > 1e-9) {
-                    return Math.atan2(direction.y, direction.x);
-                }
-                return 0.0;
+            if (segmentLength <= GEOMETRY_EPS || direction.length() <= GEOMETRY_EPS) {
+                continue;
             }
 
-            accumulatedLength += segmentLength;
+            double segmentEnd = accumulatedLength + segmentLength;
+            if (clampedLength < segmentEnd - GEOMETRY_EPS) {
+                return Math.atan2(direction.y, direction.x);
+            }
+
+            if (Math.abs(clampedLength - segmentEnd) <= GEOMETRY_EPS) {
+                for (int j = i + 1; j < pathPoints.size(); j++) {
+                    Vec2d nextPrev = pathPoints.get(j - 1);
+                    Vec2d nextCurr = pathPoints.get(j);
+                    Vec2d nextDir = nextCurr.subtract(nextPrev);
+                    if (nextDir.length() > GEOMETRY_EPS) {
+                        return Math.atan2(nextDir.y, nextDir.x);
+                    }
+                }
+                if (direction.length() > GEOMETRY_EPS) {
+                    return Math.atan2(direction.y, direction.x);
+                }
+            }
+
+            accumulatedLength = segmentEnd;
         }
 
-        Vec2d last = pathPoints.getLast();
-        Vec2d secondLast = pathPoints.get(pathPoints.size() - 2);
-        Vec2d direction = last.subtract(secondLast);
-        if (direction.length() > 1e-9) {
-            return Math.atan2(direction.y, direction.x);
+        for (int i = pathPoints.size() - 1; i >= 1; i--) {
+            Vec2d last = pathPoints.get(i);
+            Vec2d secondLast = pathPoints.get(i - 1);
+            Vec2d direction = last.subtract(secondLast);
+            if (direction.length() > GEOMETRY_EPS) {
+                return Math.atan2(direction.y, direction.x);
+            }
         }
+
         return 0.0;
     }
     
