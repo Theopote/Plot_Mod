@@ -1168,6 +1168,9 @@ public class GeometryTrimUtils {
             case LineShape line -> {
                 return splitLineAtIntersections(line, intersections);
             }
+            case RectangleShape rectangle -> {
+                return splitRectangleAtIntersections(rectangle, intersections);
+            }
             case PolylineShape polyline -> {
                 return splitPolylineAtIntersections(polyline, intersections);
             }
@@ -1432,6 +1435,113 @@ public class GeometryTrimUtils {
         }
 
         return filterSegmentQuality(segments, line);
+    }
+
+    private List<Shape> splitRectangleAtIntersections(RectangleShape rectangle, List<Vec2d> intersections) {
+        List<Shape> segments = new ArrayList<>();
+        List<Vec2d> corners = rectangle.getPoints();
+
+        if (corners == null || corners.size() < 4 || intersections == null || intersections.isEmpty()) {
+            segments.add(rectangle);
+            return segments;
+        }
+
+        List<Vec2d> validIntersections = new ArrayList<>();
+        for (Vec2d intersection : intersections) {
+            if (isPointOnRectangleBoundary(rectangle, intersection)) {
+                validIntersections.add(intersection);
+            }
+        }
+        validIntersections = removeDuplicatePoints(validIntersections);
+
+        if (validIntersections.size() < 2) {
+            segments.add(rectangle);
+            return segments;
+        }
+
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongRectangle(rectangle, validIntersections);
+        List<Vec2d> closedCorners = new ArrayList<>(corners);
+        if (closedCorners.getFirst().distance(closedCorners.getLast()) > INTERSECTION_TOLERANCE) {
+            closedCorners.add(closedCorners.getFirst());
+        }
+
+        for (int i = 0; i < sortedIntersections.size(); i++) {
+            Vec2d start = sortedIntersections.get(i);
+            Vec2d end = sortedIntersections.get((i + 1) % sortedIntersections.size());
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            List<Vec2d> section = extractClosedPathSection(closedCorners, start, end);
+            if (section.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(section, false);
+            if (rectangle.getStyle() != null) {
+                segment.setStyle(rectangle.getStyle().clone());
+            }
+            if (rectangle.getTransform() != null) {
+                segment.setTransform(rectangle.getTransform().clone());
+            }
+            segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(rectangle);
+        }
+
+        return filterSegmentQuality(segments, rectangle);
+    }
+
+    private List<Vec2d> extractClosedPathSection(List<Vec2d> closedPathPoints, Vec2d start, Vec2d end) {
+        List<Vec2d> section = new ArrayList<>();
+        if (closedPathPoints == null || closedPathPoints.size() < 2) {
+            return section;
+        }
+
+        int edgeCount = closedPathPoints.size() - 1;
+        int startEdge = -1;
+        for (int i = 0; i < edgeCount; i++) {
+            Vec2d a = closedPathPoints.get(i);
+            Vec2d b = closedPathPoints.get(i + 1);
+            if (isPointOnLine(a, b, start, INTERSECTION_TOLERANCE)) {
+                startEdge = i;
+                break;
+            }
+        }
+
+        if (startEdge < 0) {
+            return section;
+        }
+
+        section.add(start);
+        int currentEdge = startEdge;
+        int guard = 0;
+        while (guard <= edgeCount) {
+            Vec2d current = closedPathPoints.get(currentEdge);
+            Vec2d next = closedPathPoints.get(currentEdge + 1);
+
+            if (isPointOnLine(current, next, end, INTERSECTION_TOLERANCE)) {
+                if (section.getLast().distance(end) > INTERSECTION_TOLERANCE) {
+                    section.add(end);
+                }
+                break;
+            }
+
+            if (section.getLast().distance(next) > INTERSECTION_TOLERANCE) {
+                section.add(next);
+            }
+
+            currentEdge = (currentEdge + 1) % edgeCount;
+            guard++;
+
+            if (currentEdge == startEdge) {
+                break;
+            }
+        }
+
+        return removeDuplicatePoints(section);
     }
 
     private List<Shape> splitPolylineAtIntersections(PolylineShape polyline, List<Vec2d> intersections) {
