@@ -472,13 +472,17 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         if (currentOffsetPoint != null) {
             Vec2d closestPoint = rect.getClosestPoint(currentOffsetPoint);
             double actualDistance = currentOffsetPoint.distance(closestPoint);
-            
-            // 判断点击点在矩形内部还是外部
-            boolean inside = rect.contains(currentOffsetPoint);
-            distance = inside ? -actualDistance : actualDistance;
+
+            // 使用几何有符号距离判断内外，避免受填充样式影响
+            double signed = rect.getSignedDistance(currentOffsetPoint);
+            double sign = Math.signum(signed);
+            if (sign == 0.0) {
+                sign = 1.0;
+            }
+            distance = sign * actualDistance;
             
             LOGGER.debug("矩形偏移: 点击点={}, 最近点={}, 实际距离={}, 内部={}, 最终距离={}", 
-                        currentOffsetPoint, closestPoint, actualDistance, inside, distance);
+                        currentOffsetPoint, closestPoint, actualDistance, sign < 0, distance);
         } else {
             distance = currentOffsetDistance;
         }
@@ -754,13 +758,17 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
             // 计算点击点到多边形的实际距离
             Vec2d closestPoint = polygon.getClosestPoint(currentOffsetPoint);
             double actualDistance = currentOffsetPoint.distance(closestPoint);
-            
-            // 判断点击点在多边形内部还是外部
-            boolean inside = polygon.contains(currentOffsetPoint);
-            distance = inside ? -actualDistance : actualDistance;
+
+            // 使用几何有符号距离判断内外
+            double signed = polygon.getSignedDistance(currentOffsetPoint);
+            double sign = Math.signum(signed);
+            if (sign == 0.0) {
+                sign = 1.0;
+            }
+            distance = sign * actualDistance;
             
             LOGGER.debug("多边形偏移: 点击点={}, 最近点={}, 实际距离={}, 内部={}, 最终距离={}", 
-                        currentOffsetPoint, closestPoint, actualDistance, inside, distance);
+                        currentOffsetPoint, closestPoint, actualDistance, sign < 0, distance);
         } else {
             distance = currentOffsetDistance;
         }
@@ -768,6 +776,14 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         if (Math.abs(distance) < ZERO_TOLERANCE) {
             LOGGER.warn("偏移距离太小 ({}), 跳过偏移", distance);
             return polygon;
+        }
+
+        // 三点矩形模式通常是 Polygon，若是“矩形样”多边形，使用专用偏移确保仍为矩形
+        if (isRectangleLikePolygon(polygon)) {
+            if (offsetRectangleLikePolygon(polygon, distance)) {
+                LOGGER.debug("矩形样多边形 {} 偏移完成（专用算法），距离: {}", polygon.getId(), distance);
+                return polygon;
+            }
         }
         
         // 优先使用多边形的 createOffset 方法，它使用更精确的等距偏移算法
@@ -1046,6 +1062,76 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         
         LOGGER.debug("通用形状 {} 偏移完成，距离: {}", shape.getId(), distance);
         return shape;
+    }
+
+    private boolean isRectangleLikePolygon(Polygon polygon) {
+        try {
+            List<Vec2d> pts = polygon.getPoints();
+            if (pts == null || pts.size() != 4) {
+                return false;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                Vec2d a = pts.get(i);
+                Vec2d b = pts.get((i + 1) % 4);
+                Vec2d c = pts.get((i + 2) % 4);
+
+                Vec2d e1 = b.subtract(a);
+                Vec2d e2 = c.subtract(b);
+                if (e1.length() < ZERO_TOLERANCE || e2.length() < ZERO_TOLERANCE) {
+                    return false;
+                }
+
+                double dot = Math.abs(e1.normalize().dot(e2.normalize()));
+                if (dot > 0.02) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean offsetRectangleLikePolygon(Polygon polygon, double distance) {
+        try {
+            List<Vec2d> pts = polygon.getPoints();
+            if (pts == null || pts.size() != 4) {
+                return false;
+            }
+
+            Vec2d p0 = pts.get(0);
+            Vec2d p1 = pts.get(1);
+            Vec2d p3 = pts.get(3);
+
+            Vec2d axisU = p1.subtract(p0);
+            Vec2d axisV = p3.subtract(p0);
+            double lenU = axisU.length();
+            double lenV = axisV.length();
+            if (lenU < ZERO_TOLERANCE || lenV < ZERO_TOLERANCE) {
+                return false;
+            }
+
+            axisU = axisU.divide(lenU);
+            axisV = axisV.divide(lenV);
+
+            double newLenU = lenU + 2.0 * distance;
+            double newLenV = lenV + 2.0 * distance;
+            if (newLenU <= ZERO_TOLERANCE || newLenV <= ZERO_TOLERANCE) {
+                return false;
+            }
+
+            Vec2d newP0 = p0.subtract(axisU.multiply(distance)).subtract(axisV.multiply(distance));
+            Vec2d newP1 = newP0.add(axisU.multiply(newLenU));
+            Vec2d newP2 = newP1.add(axisV.multiply(newLenV));
+            Vec2d newP3 = newP0.add(axisV.multiply(newLenV));
+
+            polygon.setPoints(List.of(newP0, newP1, newP2, newP3));
+            polygon.setClosed(true);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**

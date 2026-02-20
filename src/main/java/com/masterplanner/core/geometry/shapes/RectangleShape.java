@@ -483,8 +483,8 @@ public class RectangleShape extends Shape {
         Vec2d globalOffset = localOffset.rotate(rotation);
         Vec2d newCorner = corner.add(globalOffset);
         
-        // 调整圆角半径以适应新的尺寸
-        double newCornerRadius = Math.max(0, cornerRadius + distance);
+        // 调整圆角半径：仅在原本就有圆角时随偏移变化，直角矩形保持直角
+        double newCornerRadius = cornerRadius > 0 ? Math.max(0, cornerRadius + distance) : 0.0;
         
         return new RectangleShape(
             newCorner,
