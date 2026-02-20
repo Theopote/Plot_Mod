@@ -892,15 +892,15 @@ public class GeometryTrimUtils {
     public double getDistanceFromStart(Vec2d start, Vec2d end, Vec2d point) {
         Vec2d direction = new Vec2d(end.x - start.x, end.y - start.y);
         Vec2d toPoint = new Vec2d(point.x - start.x, point.y - start.y);
-        
-        double dotProduct = direction.x * toPoint.x + direction.y * toPoint.y;
-        double directionLength = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
-        
-        if (directionLength == 0) {
+
+        double directionLengthSquared = direction.x * direction.x + direction.y * direction.y;
+        if (directionLengthSquared <= INTERSECTION_TOLERANCE) {
             return 0;
         }
-        
-        return dotProduct / directionLength;
+
+        double dotProduct = direction.x * toPoint.x + direction.y * toPoint.y;
+        double t = Math.max(0.0, Math.min(1.0, dotProduct / directionLengthSquared));
+        return Math.sqrt(directionLengthSquared) * t;
     }
     
     public double calculateAdaptiveTolerance(Shape shape) {
@@ -951,7 +951,12 @@ public class GeometryTrimUtils {
     }
     
     private double getDistanceAlongPath(List<Vec2d> pathPoints, Vec2d point) {
+        if (pathPoints == null || pathPoints.size() < 2) {
+            return 0.0;
+        }
+
         double minDistance = Double.MAX_VALUE;
+        double bestDistanceAlongPath = 0.0;
         double cumulativeDistance = 0;
         
         for (int i = 0; i < pathPoints.size() - 1; i++) {
@@ -962,13 +967,14 @@ public class GeometryTrimUtils {
             double pointDistance = pointToSegmentDistance(current, next, point);
             
             if (pointDistance < minDistance) {
-                return cumulativeDistance + getDistanceFromStart(current, next, point);
+                minDistance = pointDistance;
+                bestDistanceAlongPath = cumulativeDistance + getDistanceFromStart(current, next, point);
             }
             
             cumulativeDistance += segmentDistance;
         }
         
-        return cumulativeDistance;
+        return bestDistanceAlongPath;
     }
     
     public List<Vec2d> buildBoundaryTrimmedPath(List<Vec2d> pathPoints, List<Vec2d> sortedIntersections, Vec2d trimPoint) {
@@ -2081,7 +2087,12 @@ public class GeometryTrimUtils {
     }
     
     private double getDistanceAlongRectangle(List<Vec2d> corners, Vec2d point) {
+        if (corners == null || corners.size() < 2) {
+            return 0.0;
+        }
+
         double minDistance = Double.MAX_VALUE;
+        double bestDistanceAlongRectangle = 0.0;
         double cumulativeDistance = 0;
         
         for (int i = 0; i < corners.size(); i++) {
@@ -2092,12 +2103,13 @@ public class GeometryTrimUtils {
             double pointDistance = pointToLineDistance(current, next, point);
             
             if (pointDistance < minDistance) {
-                return cumulativeDistance + getDistanceFromStart(current, next, point);
+                minDistance = pointDistance;
+                bestDistanceAlongRectangle = cumulativeDistance + getDistanceFromStart(current, next, point);
             }
             
             cumulativeDistance += segmentDistance;
         }
         
-        return cumulativeDistance;
+        return bestDistanceAlongRectangle;
     }
 }
