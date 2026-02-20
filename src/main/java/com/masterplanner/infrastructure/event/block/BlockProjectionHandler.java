@@ -25,6 +25,42 @@ public class BlockProjectionHandler {
     private static BlockProjectionHandler INSTANCE;
     private final EventBus eventBus;
 
+    public static class ProjectionResult {
+        private final boolean success;
+        private final String message;
+        private final BlockPos finalPos;
+        private final String normalizedBlockId;
+        private final String previousBlockId;
+
+        public ProjectionResult(boolean success, String message, BlockPos finalPos, String normalizedBlockId, String previousBlockId) {
+            this.success = success;
+            this.message = message;
+            this.finalPos = finalPos;
+            this.normalizedBlockId = normalizedBlockId;
+            this.previousBlockId = previousBlockId;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public BlockPos getFinalPos() {
+            return finalPos;
+        }
+
+        public String getNormalizedBlockId() {
+            return normalizedBlockId;
+        }
+
+        public String getPreviousBlockId() {
+            return previousBlockId;
+        }
+    }
+
     /**
      * 获取单例实例
      */
@@ -62,124 +98,184 @@ public class BlockProjectionHandler {
                 blockEvent.getBlockId(), blockEvent.getX(), blockEvent.getY(), blockEvent.getZ(),
                 blockEvent.getRotation(), blockEvent.isPreview());
 
-        // 获取Minecraft客户端实例
+        ProjectionResult result = projectBlockWithResult(
+                blockEvent.getBlockId(),
+                blockEvent.getX(),
+                blockEvent.getY(),
+                blockEvent.getZ(),
+                blockEvent.getProjectionMode(),
+                blockEvent.getElevation(),
+                blockEvent.isPreview()
+        );
+
+        if (!result.isSuccess()) {
+            LOGGER.warn("方块投影失败: {}", result.getMessage());
+            eventBus.publish(new Events.WarningEvent("BlockProjectionHandler", result.getMessage()));
+        }
+    }
+
+    public ProjectionResult projectBlockWithResult(
+            String blockId,
+            double xInput,
+            double yInput,
+            double zInput,
+            BlockProjectionEvent.ProjectionMode projectionMode,
+            Integer elevation,
+            boolean preview
+    ) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.world == null) {
-            LOGGER.error("无法处理方块投影事件：Minecraft客户端、玩家或世界为null");
-            return;
+            return new ProjectionResult(false, "Minecraft客户端未就绪", null, null, null);
         }
 
-        // 获取玩家和世界
         PlayerEntity player = client.player;
         World world = client.world;
 
-        // 获取方块ID
-        String blockId = blockEvent.getBlockId();
-        if (blockId == null || blockId.isEmpty()) {
-            LOGGER.warn("方块ID为空，使用默认方块(白色羊毛)");
-            blockId = "minecraft:white_wool";
+        String normalizedBlockId = normalizeBlockId(blockId, false);
+        int x = (int) Math.round(xInput);
+        int y = (int) Math.round(yInput);
+        int z = (int) Math.round(zInput);
+
+        if (preview) {
+            BlockPos previewPos = new BlockPos(x, y, z);
+            LOGGER.info("预览方块: {} 在位置 {}", normalizedBlockId, previewPos);
+            return new ProjectionResult(true, "预览成功", previewPos, normalizedBlockId, null);
         }
 
-        // 解析方块ID
-        Block blockType;
-        try {
-            // 解析命名空间和路径
-            String namespace = "minecraft";
-            String path = blockId;
-            
-            if (blockId.contains(":")) {
-                String[] parts = blockId.split(":", 2);
-                namespace = parts[0];
-                path = parts[1];
-            }
-            
-            Identifier blockIdentifier = Identifier.of(namespace, path);
-            blockType = Registries.BLOCK.get(blockIdentifier);
-            if (blockType == Blocks.AIR) {
-                LOGGER.warn("无法找到方块: {}，使用默认方块(白色羊毛)", blockId);
-                blockType = Blocks.WHITE_WOOL;
-                blockId = "minecraft:white_wool";
-            }
-        } catch (Exception e) {
-            LOGGER.error("解析方块ID失败: {}", blockId, e);
-            blockType = Blocks.WHITE_WOOL;
-            blockId = "minecraft:white_wool";
-        }
+        BlockProjectionEvent.ProjectionMode mode = projectionMode == null
+                ? BlockProjectionEvent.ProjectionMode.GROUND
+                : projectionMode;
 
-        // 计算方块位置
-        int x = (int) Math.round(blockEvent.getX());
-        int y = (int) Math.round(blockEvent.getY());
-        int z = (int) Math.round(blockEvent.getZ());
-        
-        // 如果是预览模式，使用指定的Y坐标
-        if (blockEvent.isPreview()) {
-            BlockPos blockPos = new BlockPos(x, y, z);
-            LOGGER.info("预览方块: {} 在位置 {}", blockType.getName().getString(), blockPos);
-            return;
-        }
-        
-        // 非预览模式：垂直向下扫描找到地面
         BlockPos finalPos;
-        if (blockEvent.getProjectionMode() == BlockProjectionEvent.ProjectionMode.ELEVATION) {
-            int targetY = blockEvent.getElevation() != null ? blockEvent.getElevation() : y;
+        if (mode == BlockProjectionEvent.ProjectionMode.ELEVATION) {
+            int targetY = elevation != null ? elevation : y;
             finalPos = new BlockPos(x, targetY, z);
         } else {
             finalPos = findPlacementPosition(world, x, y, z);
         }
 
-        LOGGER.debug("最终方块位置: {} (原始: {}, {}, {})", finalPos, x, y, z);
+        String validationError = validatePlacementContext(player, world, finalPos);
+        if (validationError != null) {
+            return new ProjectionResult(false, validationError, finalPos, normalizedBlockId, null);
+        }
 
-        // 检查区块是否已加载
+        String previousBlockId = getBlockIdAt(finalPos);
+        boolean placed = sendSetBlockCommand(client, finalPos, normalizedBlockId);
+        if (!placed) {
+            return new ProjectionResult(false,
+                    String.format("在位置 (%d, %d, %d) 放置方块失败", finalPos.getX(), finalPos.getY(), finalPos.getZ()),
+                    finalPos,
+                    normalizedBlockId,
+                    previousBlockId);
+        }
+
+        return new ProjectionResult(true, "投影成功", finalPos, normalizedBlockId, previousBlockId);
+    }
+
+    public boolean setBlockAt(BlockPos pos, String blockId) {
+        if (pos == null) {
+            return false;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) {
+            return false;
+        }
+
+        String normalizedBlockId = normalizeBlockId(blockId, true);
+        String validationError = validatePlacementContext(client.player, client.world, pos);
+        if (validationError != null) {
+            LOGGER.warn("setBlockAt失败: {}", validationError);
+            return false;
+        }
+
+        return sendSetBlockCommand(client, pos, normalizedBlockId);
+    }
+
+    public String getBlockIdAt(BlockPos pos) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null || pos == null) {
+            return "minecraft:air";
+        }
+
+        try {
+            Block block = client.world.getBlockState(pos).getBlock();
+            Identifier id = Registries.BLOCK.getId(block);
+            if (id == null) {
+                return "minecraft:air";
+            }
+            return id.toString();
+        } catch (Exception e) {
+            LOGGER.warn("读取方块ID失败: {}", pos, e);
+            return "minecraft:air";
+        }
+    }
+
+    private String normalizeBlockId(String blockId, boolean allowAir) {
+        String candidate = (blockId == null || blockId.isEmpty()) ? "minecraft:white_wool" : blockId;
+        try {
+            String namespace = "minecraft";
+            String path = candidate;
+            if (candidate.contains(":")) {
+                String[] parts = candidate.split(":", 2);
+                namespace = parts[0];
+                path = parts[1];
+            }
+
+            Identifier blockIdentifier = Identifier.of(namespace, path);
+            Block blockType = Registries.BLOCK.get(blockIdentifier);
+            if (blockType == Blocks.AIR) {
+                return allowAir ? "minecraft:air" : "minecraft:white_wool";
+            }
+            return blockIdentifier.toString();
+        } catch (Exception e) {
+            if (allowAir) {
+                LOGGER.warn("解析方块ID失败: {}，恢复路径回退空气", candidate, e);
+                return "minecraft:air";
+            }
+            LOGGER.warn("解析方块ID失败: {}，回退白色羊毛", candidate, e);
+            return "minecraft:white_wool";
+        }
+    }
+
+    private String validatePlacementContext(PlayerEntity player, World world, BlockPos finalPos) {
+        if (player == null || world == null || finalPos == null) {
+            return "Minecraft客户端未就绪";
+        }
+
+        double distanceToPlayer = Math.sqrt(
+                Math.pow(finalPos.getX() - player.getX(), 2) +
+                        Math.pow(finalPos.getZ() - player.getZ(), 2)
+        );
+
+        if (distanceToPlayer > 256) {
+            return String.format("目标位置 (%d, %d, %d) 距离太远，请靠近后重试 (%.1f方块)",
+                    finalPos.getX(), finalPos.getY(), finalPos.getZ(), distanceToPlayer);
+        }
+
         int chunkX = finalPos.getX() >> 4;
         int chunkZ = finalPos.getZ() >> 4;
-        
-        // 获取玩家位置
-        double playerX = player.getX();
-        double playerZ = player.getZ();
-        
-        // 计算方块位置到玩家的直接距离（而不是区块中心距离）
-        double distanceToPlayer = Math.sqrt(
-            Math.pow(finalPos.getX() - playerX, 2) + 
-            Math.pow(finalPos.getZ() - playerZ, 2)
-        );
-        
-        // 如果方块距离玩家太远，发出警告并返回
-        // 增加到256个方块的距离限制（16个区块）
-        if (distanceToPlayer > 256) {
-            LOGGER.warn("该位置距离玩家太远，无法放置方块: {} (距离: {:.1f}方块)", finalPos, distanceToPlayer);
-            eventBus.publish(new Events.WarningEvent("BlockProjectionHandler", 
-                String.format("目标位置 (%d, %d, %d) 距离太远，请靠近后重试 (%.1f方块)", 
-                finalPos.getX(), finalPos.getY(), finalPos.getZ(), distanceToPlayer)));
-            return;
-        }
-
-        // 检查区块是否已加载
         if (!world.isChunkLoaded(chunkX, chunkZ)) {
-            LOGGER.warn("该位置尚未被加载，无法放置方块: {}", finalPos);
-            eventBus.publish(new Events.WarningEvent("BlockProjectionHandler", 
-                String.format("目标位置 (%d, %d, %d) 尚未加载，请靠近后重试", 
-                finalPos.getX(), finalPos.getY(), finalPos.getZ())));
-            return;
+            return String.format("目标位置 (%d, %d, %d) 尚未加载，请靠近后重试",
+                    finalPos.getX(), finalPos.getY(), finalPos.getZ());
         }
 
-        // 在创造模式下放置方块
-        if (player.getAbilities().creativeMode) {
-            try {
-                // 在服务端执行放置方块的命令
-                String command = String.format("setblock %d %d %d %s", 
-                    finalPos.getX(), finalPos.getY(), finalPos.getZ(), blockId);
-                LOGGER.info("执行命令: {}", command);
-                Objects.requireNonNull(client.getNetworkHandler()).sendChatCommand(command);
-                LOGGER.info("方块放置命令已发送");
-            } catch (Exception e) {
-                LOGGER.error("放置方块失败", e);
-                eventBus.publish(new Events.WarningEvent("BlockProjectionHandler", 
-                    String.format("在位置 (%d, %d, %d) 放置方块失败", 
-                    finalPos.getX(), finalPos.getY(), finalPos.getZ())));
-            }
-        } else {
-            LOGGER.warn("玩家不在创造模式，无法放置方块");
-            eventBus.publish(new Events.WarningEvent("BlockProjectionHandler", "请切换到创造模式后再试"));
+        if (!player.getAbilities().creativeMode) {
+            return "请切换到创造模式后再试";
+        }
+
+        return null;
+    }
+
+    private boolean sendSetBlockCommand(MinecraftClient client, BlockPos pos, String blockId) {
+        try {
+            String command = String.format("setblock %d %d %d %s", pos.getX(), pos.getY(), pos.getZ(), blockId);
+            LOGGER.info("执行命令: {}", command);
+            Objects.requireNonNull(client.getNetworkHandler()).sendChatCommand(command);
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("发送setblock命令失败", e);
+            return false;
         }
     }
     

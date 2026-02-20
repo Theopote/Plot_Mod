@@ -1,5 +1,6 @@
 package com.masterplanner.ui.toolbar.group;
 
+import com.masterplanner.core.command.commands.ProjectGhostBlocksCommand;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
@@ -169,7 +170,8 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         LOGGER.debug("执行投影操作...");
         
         var ghostBlockManager = GhostBlockManager.getInstance();
-        int ghostBlockCount = ghostBlockManager.getVisibleGhostBlockCount();
+        List<GhostBlockManager.GhostBlock> visibleGhostBlocks = ghostBlockManager.getVisibleGhostBlocks();
+        int ghostBlockCount = visibleGhostBlocks.size();
         
         if (ghostBlockCount == 0) {
             LOGGER.warn("没有幽灵方块需要投影");
@@ -184,7 +186,14 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
             elevation = projectionSettingsDialog.getElevation();
         }
 
-        int projectedCount = ghostBlockManager.projectAllGhostBlocks(projectionMode, elevation);
+        ProjectGhostBlocksCommand projectionCommand = new ProjectGhostBlocksCommand(
+                visibleGhostBlocks,
+                projectionMode,
+                elevation
+        );
+        appState.getCommandHistory().execute(projectionCommand);
+
+        int projectedCount = projectionCommand.getProjectedCount();
         
         if (projectedCount > 0) {
             LOGGER.info("投影操作完成，共投影 {} 个方块", projectedCount);
