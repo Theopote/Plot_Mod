@@ -1,6 +1,7 @@
 package com.masterplanner.ui.tools.impl.modify.helper;
 
 import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.geometry.BoundingBox;
 import com.masterplanner.core.geometry.shapes.*;
 import com.masterplanner.core.model.Shape;
 
@@ -15,6 +16,8 @@ public class GeometryTrimUtils {
     
     private static final double TRIM_TOLERANCE = 5.0;
     private static final double INTERSECTION_TOLERANCE = 1e-6;
+    private static final double SEGMENT_RELATIVE_MIN_RATIO = 1e-4;
+    private static final double SEGMENT_DUPLICATE_RATIO = 1e-3;
     
     // ====== 交点计算相关方法 ======
     
@@ -1286,7 +1289,7 @@ public class GeometryTrimUtils {
             segments.add(arc);
         }
         
-        return segments;
+        return filterSegmentQuality(segments, circle);
     }
     
     private List<Shape> splitEllipseAtIntersections(EllipseShape ellipse, List<Vec2d> intersections) {
@@ -1338,7 +1341,7 @@ public class GeometryTrimUtils {
             }
         }
         
-        return segments;
+        return filterSegmentQuality(segments, ellipse);
     }
     
     private List<Shape> splitBezierCurveAtIntersections(BezierCurveShape bezier, List<Vec2d> intersections) {
@@ -1510,7 +1513,91 @@ public class GeometryTrimUtils {
             segments.add(arc);
         }
 
-        return segments;
+        return filterSegmentQuality(segments, arc);
+    }
+
+    private List<Shape> filterSegmentQuality(List<Shape> segments, Shape originalShape) {
+        if (segments == null || segments.isEmpty()) {
+            return segments;
+        }
+
+        List<Shape> filtered = new ArrayList<>();
+        for (Shape segment : segments) {
+            if (segment == null || isSegmentTooShort(segment, originalShape)) {
+                continue;
+            }
+
+            boolean duplicate = false;
+            for (Shape existing : filtered) {
+                if (areSegmentsSimilar(existing, segment, originalShape)) {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (!duplicate) {
+                filtered.add(segment);
+            }
+        }
+
+        return filtered.isEmpty() ? segments : filtered;
+    }
+
+    private boolean isSegmentTooShort(Shape segment, Shape originalShape) {
+        double segmentLength = estimateShapeLength(segment);
+        double referenceLength = Math.max(estimateShapeLength(originalShape), 1.0);
+        double minLength = Math.max(INTERSECTION_TOLERANCE * 10.0, referenceLength * SEGMENT_RELATIVE_MIN_RATIO);
+        return segmentLength < minLength;
+    }
+
+    private boolean areSegmentsSimilar(Shape left, Shape right, Shape originalShape) {
+        if (left == right || left == null || right == null) {
+            return true;
+        }
+        if (!left.getClass().equals(right.getClass())) {
+            return false;
+        }
+
+        BoundingBox leftBox = left.getBoundingBox();
+        BoundingBox rightBox = right.getBoundingBox();
+        if (leftBox == null || rightBox == null) {
+            return false;
+        }
+
+        double referenceSize = Math.max(
+            Math.max(leftBox.getWidth(), leftBox.getHeight()),
+            Math.max(originalShape.getBoundingBox().getWidth(), originalShape.getBoundingBox().getHeight())
+        );
+        double positionTolerance = Math.max(INTERSECTION_TOLERANCE * 10.0, referenceSize * SEGMENT_DUPLICATE_RATIO);
+
+        boolean minClose = leftBox.getMin().distance(rightBox.getMin()) <= positionTolerance;
+        boolean maxClose = leftBox.getMax().distance(rightBox.getMax()) <= positionTolerance;
+        if (!minClose || !maxClose) {
+            return false;
+        }
+
+        double leftLength = estimateShapeLength(left);
+        double rightLength = estimateShapeLength(right);
+        double lengthTolerance = Math.max(INTERSECTION_TOLERANCE * 10.0, Math.max(leftLength, rightLength) * SEGMENT_DUPLICATE_RATIO);
+        return Math.abs(leftLength - rightLength) <= lengthTolerance;
+    }
+
+    private double estimateShapeLength(Shape shape) {
+        if (shape == null) {
+            return 0.0;
+        }
+
+        List<Vec2d> points = shape.getPoints();
+        if (points == null || points.size() < 2) {
+            return 0.0;
+        }
+
+        double length = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            length += points.get(i).distance(points.get(i + 1));
+        }
+
+        return length;
     }
     
     private List<Shape> splitSineCurveAtIntersections(SineCurveShape sine, List<Vec2d> intersections) {

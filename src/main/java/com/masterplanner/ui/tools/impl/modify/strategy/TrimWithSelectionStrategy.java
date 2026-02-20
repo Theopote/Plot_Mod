@@ -175,7 +175,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     private static final int ESC_KEY = 27;
     private static final int C_KEY = 67; // C键 - 点击修剪
     private static final int F_KEY = 70; // F键 - 栅栏修剪
-    private static final double SELECTION_TOLERANCE = 5.0;
     private static final double FENCE_POINT_EPSILON = 1e-6;
 
     // 配置参数
@@ -923,7 +922,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         }
 
         if (normalized.size() >= 2 && arePointsNear(normalized.getFirst(), normalized.getLast())) {
-            normalized.remove(normalized.size() - 1);
+            normalized.removeLast();
         }
 
         fencePoints.clear();
