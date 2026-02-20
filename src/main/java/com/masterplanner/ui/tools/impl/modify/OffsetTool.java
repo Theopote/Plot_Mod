@@ -6,6 +6,7 @@ import com.masterplanner.api.snap.ISnapManager;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.tools.impl.modify.strategy.OffsetStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
+import com.masterplanner.ui.tools.impl.modify.strategy.SimpleOffsetStrategy;
 // import com.masterplanner.ui.tools.impl.modify.helper.OffsetHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,36 +75,46 @@ public class OffsetTool extends ModifyTool {
 
     @Override
     public void updateConfig(String key, String value) {
-        // 处理偏移工具的配置更新
-        if (modifyStrategy instanceof OffsetStrategy offsetStrategy) {
-            try {
+        try {
+            IModifyStrategy strategy = getStrategy();
+
+            if (strategy instanceof OffsetStrategy offsetStrategy) {
                 switch (key) {
                     case CONFIG_KEY_DISTANCE -> {
                         double newDistance = Double.parseDouble(value);
                         offsetStrategy.setDistance(newDistance);
-                        // 注意：setDistance方法内部已经会发出PropertyChangeEvent，这里不需要重复发出
                     }
                     case CONFIG_KEY_MULTIPLE_MODE -> {
                         boolean multipleMode = Boolean.parseBoolean(value);
                         offsetStrategy.setMultipleMode(multipleMode);
-                        // 注意：setMultipleMode方法内部已经会发出PropertyChangeEvent，这里不需要重复发出
                     }
                     case CONFIG_KEY_MODE -> {
-                        // 处理模式切换
                         if ("DISTANCE".equals(value)) {
                             offsetStrategy.setCurrentMode(OffsetStrategy.OffsetMode.DISTANCE);
                         } else if ("THROUGH_POINT".equals(value)) {
                             offsetStrategy.setCurrentMode(OffsetStrategy.OffsetMode.THROUGH_POINT);
                         }
-                        // 注意：setCurrentMode方法内部已经会发出PropertyChangeEvent，这里不需要重复发出
                     }
                     default -> LOGGER.debug("未知的配置键: {}", key);
                 }
-            } catch (NumberFormatException e) {
-                LOGGER.warn("无效的配置值: {} = {}", key, value);
-            } catch (Exception e) {
-                LOGGER.error("更新配置失败: {} = {}", key, value, e);
+                return;
             }
+
+            if (strategy instanceof SimpleOffsetStrategy simpleOffsetStrategy) {
+                if (CONFIG_KEY_MULTIPLE_MODE.equals(key)) {
+                    boolean multipleMode = Boolean.parseBoolean(value);
+                    simpleOffsetStrategy.setMultipleMode(multipleMode);
+                } else {
+                    LOGGER.debug("SimpleOffsetStrategy 暂不支持配置项: {} = {}", key, value);
+                }
+                return;
+            }
+
+            LOGGER.debug("当前偏移策略不支持配置更新: {}", strategy != null ? strategy.getClass().getSimpleName() : "null");
+        } catch (NumberFormatException e) {
+            LOGGER.warn("无效的配置值: {} = {}", key, value);
+        } catch (Exception e) {
+            LOGGER.error("更新配置失败: {} = {}", key, value, e);
         }
     }
 
@@ -111,5 +122,11 @@ public class OffsetTool extends ModifyTool {
      * 获取当前偏移模式
      * @return 当前偏移模式
      */
-    public OffsetStrategy.OffsetMode getCurrentMode() { return null; }
+    public OffsetStrategy.OffsetMode getCurrentMode() {
+        IModifyStrategy strategy = getStrategy();
+        if (strategy instanceof OffsetStrategy offsetStrategy) {
+            return offsetStrategy.getCurrentMode();
+        }
+        return OffsetStrategy.OffsetMode.DISTANCE;
     }
+}

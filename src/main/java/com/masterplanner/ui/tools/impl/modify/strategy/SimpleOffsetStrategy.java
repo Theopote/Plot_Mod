@@ -40,6 +40,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
     private ModifyCommand pendingCommand;
     private static final double HIT_TOLERANCE = 10.0;
     private static final double OUTLINE_PICK_TOLERANCE = 8.0;
+    private boolean multipleMode = false;
 
     @Override
     public ModifyResult onMouseDown(Vec2d pos, int button, ModifyToolContext context) {
@@ -101,7 +102,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
 
             List<Shape> originals = List.of(targetShape);
             List<Shape> modified = handler.calculateModifiedShapes(originals, params);
-            if (modified == null || modified.isEmpty()) {
+            if (modified == null || modified.isEmpty() || containsOriginalReference(originals, modified)) {
                 context.setStatusMessage("偏移失败：无法生成偏移图形");
                 reset();
                 return ModifyResult.CANCEL;
@@ -122,6 +123,12 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             }
 
             context.setStatusMessage(String.format("偏移完成（距离 %.2f）", Math.abs(signedDistance)));
+            if (multipleMode) {
+                reset();
+                context.setStatusMessage(String.format("偏移完成（距离 %.2f），请继续选择下一条线", Math.abs(signedDistance)));
+                return ModifyResult.CONTINUE;
+            }
+
             reset();
             return ModifyResult.COMPLETE;
         }
@@ -373,5 +380,21 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public void setMultipleMode(boolean multipleMode) {
+        this.multipleMode = multipleMode;
+    }
+
+    private boolean containsOriginalReference(List<Shape> originals, List<Shape> modified) {
+        if (originals == null || modified == null) return false;
+        for (Shape m : modified) {
+            for (Shape o : originals) {
+                if (m == o) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

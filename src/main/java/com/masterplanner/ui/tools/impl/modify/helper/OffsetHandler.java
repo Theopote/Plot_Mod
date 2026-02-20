@@ -118,7 +118,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         ValidationResult validation = validateModification(shapes, parameters);
         if (!validation.isValid()) {
             LOGGER.warn("偏移参数无效: {}", validation.getErrorMessage());
-            return new ArrayList<>(shapes);
+            return new ArrayList<>();
         }
         
         double offsetDistance = 0.0;
