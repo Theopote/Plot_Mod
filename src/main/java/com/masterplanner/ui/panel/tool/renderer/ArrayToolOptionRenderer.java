@@ -189,7 +189,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean pathClicked = ImGui.imageButton(pathArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("路径阵列：沿指定路径排列图形");
+                ImGui.setTooltip("路径阵列：沿路径等距分配（数量=点位数，含起点与终点）");
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("路径阵列按钮渲染完成，选中: {}, 点击: {}", isPathSelected, pathClicked);
@@ -507,7 +507,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.alignTextToFramePadding();
         ImGui.text("");
         ImGui.tableNextColumn();
-        ImGui.textWrapped("操作：右键确认选中后，在画布左键点击一条路径");
+        ImGui.textWrapped("操作：右键确认选中后，在画布左键点击一条路径；数量表示路径上的等距点位数（含起点与终点）");
         height += ImGui.getFrameHeightWithSpacing();
 
         // 行2：数量滑动条
@@ -515,7 +515,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("数量");
+        ImGui.text("点位数");
         ImGui.tableNextColumn();
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
@@ -535,7 +535,35 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popStyleColor(6);
         height += ImGui.getFrameHeightWithSpacing();
 
-        // 行3：完成按钮（状态感知）
+        // 行3：路径长度（只读）
+        double pathLength = getPathLengthFromStrategy(currentTool);
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("路径长度");
+        ImGui.tableNextColumn();
+        if (pathLength > 0.0) {
+            ImGui.text(String.format("%.2f", pathLength));
+        } else {
+            ImGui.textDisabled("未拾取路径");
+        }
+        height += ImGui.getFrameHeightWithSpacing();
+
+        // 行4：等距步长（只读）
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("等距步长");
+        ImGui.tableNextColumn();
+        if (pathLength > 0.0 && count[0] >= 2) {
+            double step = pathLength / (count[0] - 1);
+            ImGui.text(String.format("%.2f", step));
+        } else {
+            ImGui.textDisabled("--");
+        }
+        height += ImGui.getFrameHeightWithSpacing();
+
+        // 行5：完成按钮（状态感知）
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
@@ -613,10 +641,13 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.textWrapped("3. 设置阵列参数");
             height += 20;
             
-            ImGui.textWrapped("4. 点击设置基准点");
+            ImGui.textWrapped("4. 矩形/环形需要设置基准点；路径模式直接拾取路径");
             height += 20;
             
-            ImGui.textWrapped("5. 完成阵列操作");
+            ImGui.textWrapped("5. 路径模式中，数量=沿路径等距分配的点位数（含起点与终点）");
+            height += 20;
+
+            ImGui.textWrapped("6. 点击完成阵列操作");
             height += 20;
             
             ImGui.treePop();
@@ -715,6 +746,17 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             LOGGER.warn("获取路径数量失败: {}", e.getMessage());
             return 10;
         }
+    }
+
+    private double getPathLengthFromStrategy(ArrayTool currentTool) {
+        try {
+            if (currentTool.getModifyStrategy() instanceof ArrayWithSelectionStrategy arrayStrategy) {
+                return arrayStrategy.getCurrentPathLength();
+            }
+        } catch (Exception e) {
+            LOGGER.warn("获取路径长度失败: {}", e.getMessage());
+        }
+        return 0.0;
     }
 
     /**

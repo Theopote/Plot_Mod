@@ -184,7 +184,7 @@ public class ArrayStrategy implements IModifyStrategy {
                                 currentState = ArrayState.PREVIEWING;
                                 updateArrayPreview();
                                 context.setPreviewEnabled(true);
-                                context.setStatusMessage("已拾取路径，调整数量后点击完成");
+                                context.setStatusMessage("已拾取路径，调整点位数（含起终点，沿路径等距）后点击完成");
                             } else {
                                 context.setStatusMessage("所选对象无法作为路径（点数不足）");
                             }
@@ -208,7 +208,7 @@ public class ArrayStrategy implements IModifyStrategy {
                             updateArrayPreview();
                         }
                         context.setPreviewEnabled(true);
-                        context.setStatusMessage("已拾取物件，调整数量后点击完成");
+                        context.setStatusMessage("已拾取物件，调整点位数（含起终点，沿路径等距）后点击完成");
                     }
                     return ModifyResult.CONTINUE;
                 }
@@ -411,7 +411,7 @@ public class ArrayStrategy implements IModifyStrategy {
             }
             case PATH -> {
                 // 路径阵列由“拾取路径/拾取物件”按钮驱动，此处不再通过点击加点
-                context.setStatusMessage("请使用面板按钮拾取路径与物件，然后点击完成");
+                context.setStatusMessage("请使用面板按钮拾取路径与物件，然后按路径等距点位数量点击完成");
                 return ModifyResult.CONTINUE;
             }
             default -> {
@@ -617,7 +617,7 @@ public class ArrayStrategy implements IModifyStrategy {
         PathOffsetRelation relation = calculatePathOffsetRelation(sourceCenter);
         pathBaseTangentAngle = relation.baseTangentAngle;
         
-        for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置
+        for (int i = 0; i < count; i++) { // 全路径均分：包含起点与终点
             double targetLength = i * stepLength;
             double clampedLength = Math.max(0.0, Math.min(targetLength, totalLength));
             Vec2d pathPos = getPositionAtLength(clampedLength);
@@ -1063,7 +1063,7 @@ public class ArrayStrategy implements IModifyStrategy {
             return;
         }
         
-        if (basePoint == null) {
+        if (currentType != ArrayType.PATH && basePoint == null) {
             context.setStatusMessage("点击设置阵列基准点");
             return;
         }
@@ -1077,7 +1077,7 @@ public class ArrayStrategy implements IModifyStrategy {
                 if (pathPoints.size() < 2) {
                     context.setStatusMessage("请使用面板拾取路径对象");
                 } else {
-                    context.setStatusMessage(String.format("路径阵列预览中：%d个，路径长度%.1f", 
+                    context.setStatusMessage(String.format("路径阵列预览中：点位数%d（含起终点，沿路径等距），路径长度%.1f", 
                         getRowCount(), calculatePathLength()));
                 }
             }
@@ -1156,7 +1156,7 @@ public class ArrayStrategy implements IModifyStrategy {
                 return basePoint != null;
             }
             case PATH -> {
-                return basePoint != null && pathPoints.size() >= 2;
+                return pathPoints.size() >= 2 && Math.max(2, rowCount) >= 2;
             }
             default -> {
                 return false;

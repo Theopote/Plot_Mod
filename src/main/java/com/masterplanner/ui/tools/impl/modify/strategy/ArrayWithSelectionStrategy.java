@@ -199,7 +199,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     pathCount = Math.max(pathCount, 2);
                     basePoint = getShapeCenter(selectedShapes.getFirst()); // 满足 handler 校验需要
                     arrayState = ArrayState.AWAIT_PATH;
-                    context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，左键点击选择路径");
+                    context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，左键点击选择路径（数量=路径等距点位数，含起终点）");
                 }
 
                 LOGGER.info("切换到阵列模式，已选择 {} 个图形", selectedShapeIds.size());
@@ -334,7 +334,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                                 arrayState = ArrayState.PREVIEWING;
                                 updateArrayPreview();
                                 context.setPreviewEnabled(true);
-                                context.setStatusMessage("已选择路径：可在面板调整数量，点击“完成”确认");
+                                context.setStatusMessage("已选择路径：可在面板调整点位数（含起终点，沿路径等距），点击“完成”确认");
                             } else {
                                 context.setStatusMessage("所选对象无法作为路径（点数不足）");
                             }
@@ -675,7 +675,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 PathOffsetRelation relation = calculatePathOffsetRelation(sourceCenter);
 
                 double step = totalLength / (count - 1);
-                for (int i = 1; i < count; i++) {
+                for (int i = 0; i < count; i++) {
                     double distance = i * step;
                     double clampedLength = Math.max(0.0, Math.min(distance, totalLength));
                     Vec2d pathPos = PathUtils.getPositionAtLength(pathPoints, clampedLength);
@@ -919,6 +919,13 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     public int getPathCount() {
         return pathCount;
+    }
+
+    public double getCurrentPathLength() {
+        if (pathPoints.size() < 2) {
+            return 0.0;
+        }
+        return PathUtils.calculatePathLength(pathPoints);
     }
 
     /**

@@ -69,7 +69,7 @@ public class ArrayHandler implements IModifyHandler {
             // 使用模式匹配安全处理类型转换
             if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters params) {
                 // 验证必需参数
-                ValidationResult paramValidation = params.validateRequired("arrayType", "basePoint");
+                ValidationResult paramValidation = params.validateRequired("arrayType");
                 if (!paramValidation.isValid()) {
                     return paramValidation;
                 }
@@ -81,11 +81,13 @@ public class ArrayHandler implements IModifyHandler {
                         "阵列类型无效");
                 }
                 
-                // 检查基准点
-                Vec2d basePoint = params.getVec2d("basePoint");
-                if (basePoint == null) {
-                    throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_BASE_POINT, 
-                        "阵列基准点无效");
+                // 非路径阵列要求基准点，路径阵列不依赖基准点
+                if (!"PATH".equals(arrayType)) {
+                    Vec2d basePoint = params.getVec2d("basePoint");
+                    if (basePoint == null) {
+                        throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_BASE_POINT,
+                            "阵列基准点无效");
+                    }
                 }
                 
                 return ValidationResult.valid();
@@ -283,7 +285,7 @@ public class ArrayHandler implements IModifyHandler {
             Vec2d sourceCenter = getShapeCenter(shape);
             PathOffsetRelation relation = calculatePathOffsetRelation(pathPoints, sourceCenter);
 
-            for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置
+            for (int i = 0; i < count; i++) { // 全路径均分：包含起点与终点
                 double targetLength = i * stepLength;
                 double clampedLength = Math.max(0.0, Math.min(targetLength, totalLength));
                 Vec2d pathPos = getPositionAtLength(pathPoints, clampedLength);
