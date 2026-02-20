@@ -23,9 +23,7 @@ public class ModItems {
     public static void registerItemGroups() {
         LOGGER.info("Registering item groups...");
         try {
-            ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> {
-                entries.add(MasterPlannerItem.getInstance());
-            });
+            ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> entries.add(MasterPlannerItem.getInstance()));
             LOGGER.info("Item groups registered successfully");
         } catch (Exception e) {
             LOGGER.error("Failed to register item groups", e);
