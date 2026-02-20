@@ -4,6 +4,8 @@ import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
  * 负责验证参数和委托具体的修剪逻辑到专门的辅助类
  */
 public class TrimHandler implements IModifyHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TrimHandler.class);
     
     private final AppState appState;
     private final BoundaryTrimHelper boundaryTrimHelper;
@@ -92,7 +95,7 @@ public class TrimHandler implements IModifyHandler {
      */
     private List<Shape> calculateFenceTrimmedShapes(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         if (parameters == null) {
-            System.out.println("[DEBUG] calculateFenceTrimmedShapes - 参数为空，返回原图形");
+            LOGGER.debug("calculateFenceTrimmedShapes - 参数为空，返回原图形");
             return new ArrayList<>(shapes);
         }
         

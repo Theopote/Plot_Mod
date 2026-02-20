@@ -4,6 +4,8 @@ import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.geometry.shapes.*;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
  * 负责处理边界修剪模式下的所有修剪逻辑
  */
 public class BoundaryTrimHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BoundaryTrimHelper.class);
     
     private static final double TRIM_TOLERANCE = 5.0;
     private static final double INTERSECTION_TOLERANCE = 1e-6;
@@ -27,9 +30,9 @@ public class BoundaryTrimHelper {
      * 边界修剪模式：在边界和图形交点处分割，删除鼠标点击的一段
      */
     public List<Shape> calculateBoundaryTrimmedShapes(List<Shape> shapes, Vec2d trimPoint, List<Shape> boundaryShapes) {
-        System.out.println("[DEBUG] calculateBoundaryTrimmedShapes - 开始边界修剪");
-        System.out.println("[DEBUG] calculateBoundaryTrimmedShapes - 总图形数量: " + shapes.size());
-        System.out.println("[DEBUG] calculateBoundaryTrimmedShapes - 边界图形数量: " + (boundaryShapes != null ? boundaryShapes.size() : 0));
+        LOGGER.debug("calculateBoundaryTrimmedShapes - 开始边界修剪");
+        LOGGER.debug("calculateBoundaryTrimmedShapes - 总图形数量: {}", shapes.size());
+        LOGGER.debug("calculateBoundaryTrimmedShapes - 边界图形数量: {}", boundaryShapes != null ? boundaryShapes.size() : 0);
         
         List<Shape> modifiedShapes = new ArrayList<>();
         
@@ -39,17 +42,17 @@ public class BoundaryTrimHelper {
             
             if (isBoundaryShape) {
                 // 边界图形保持不变
-                System.out.println("[DEBUG] calculateBoundaryTrimmedShapes - 保持边界图形不变: " + shape.getClass().getSimpleName());
+                LOGGER.debug("calculateBoundaryTrimmedShapes - 保持边界图形不变: {}", shape.getClass().getSimpleName());
                 modifiedShapes.add(shape);
             } else {
                 // 非边界图形进行修剪：在交点处分割，删除点击的一段
-                System.out.println("[DEBUG] calculateBoundaryTrimmedShapes - 修剪非边界图形: " + shape.getClass().getSimpleName());
+                LOGGER.debug("calculateBoundaryTrimmedShapes - 修剪非边界图形: {}", shape.getClass().getSimpleName());
                 List<Shape> trimmedShapes = boundaryTrimShape(shape, trimPoint, boundaryShapes);
                 modifiedShapes.addAll(trimmedShapes);
             }
         }
         
-        System.out.println("[DEBUG] calculateBoundaryTrimmedShapes - 修改后图形数量: " + modifiedShapes.size());
+        LOGGER.debug("calculateBoundaryTrimmedShapes - 修改后图形数量: {}", modifiedShapes.size());
         return modifiedShapes;
     }
     
@@ -59,22 +62,22 @@ public class BoundaryTrimHelper {
     private List<Shape> boundaryTrimShape(Shape shape, Vec2d trimPoint, List<Shape> boundaryShapes) {
         List<Shape> result = new ArrayList<>();
         
-        System.out.println("[DEBUG] boundaryTrimShape - 开始边界修剪图形: " + shape.getClass().getSimpleName());
-        System.out.println("[DEBUG] boundaryTrimShape - 修剪点: " + trimPoint);
+        LOGGER.debug("boundaryTrimShape - 开始边界修剪图形: {}", shape.getClass().getSimpleName());
+        LOGGER.debug("boundaryTrimShape - 修剪点: {}", trimPoint);
         
         // 1. 找到图形与边界的交点
         List<Vec2d> intersections = geometryUtils.findIntersections(shape, boundaryShapes);
-        System.out.println("[DEBUG] boundaryTrimShape - 找到交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimShape - 找到交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
-            System.out.println("[DEBUG] boundaryTrimShape - 没有交点，返回原图形");
+            LOGGER.debug("boundaryTrimShape - 没有交点，返回原图形");
             result.add(shape);
             return result;
         }
         
         // 2. 检查修剪点是否在图形上
         if (!geometryUtils.isPointOnShape(shape, trimPoint)) {
-            System.out.println("[DEBUG] boundaryTrimShape - 修剪点不在图形上，返回原图形");
+            LOGGER.debug("boundaryTrimShape - 修剪点不在图形上，返回原图形");
             result.add(shape);
             return result;
         }
@@ -134,9 +137,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> pathPoints = path.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimFreeDrawPath - 开始边界修剪自由绘制路径");
-        System.out.println("[DEBUG] boundaryTrimFreeDrawPath - 原始点数: " + pathPoints.size());
-        System.out.println("[DEBUG] boundaryTrimFreeDrawPath - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimFreeDrawPath - 开始边界修剪自由绘制路径");
+        LOGGER.debug("boundaryTrimFreeDrawPath - 原始点数: {}", pathPoints.size());
+        LOGGER.debug("boundaryTrimFreeDrawPath - 交点数量: {}", intersections.size());
         
         if (pathPoints.size() < 2) {
             return result;
@@ -167,9 +170,9 @@ public class BoundaryTrimHelper {
         Vec2d center = circle.getCenter();
         double radius = circle.getRadius();
         
-        System.out.println("[DEBUG] boundaryTrimCircle - 开始边界修剪圆形");
-        System.out.println("[DEBUG] boundaryTrimCircle - 圆心: " + center + ", 半径: " + radius);
-        System.out.println("[DEBUG] boundaryTrimCircle - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimCircle - 开始边界修剪圆形");
+        LOGGER.debug("boundaryTrimCircle - 圆心: {}, 半径: {}", center, radius);
+        LOGGER.debug("boundaryTrimCircle - 交点数量: {}", intersections.size());
         
         // 过滤有效的交点（在圆上的点）
         List<Vec2d> validIntersections = new ArrayList<>();
@@ -236,9 +239,9 @@ public class BoundaryTrimHelper {
         double radiusY = ellipse.getRadiusY();
         double rotation = ellipse.getRotation();
         
-        System.out.println("[DEBUG] boundaryTrimEllipse - 开始边界修剪椭圆");
-        System.out.println("[DEBUG] boundaryTrimEllipse - 圆心: " + center + ", 半径X: " + radiusX + ", 半径Y: " + radiusY);
-        System.out.println("[DEBUG] boundaryTrimEllipse - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimEllipse - 开始边界修剪椭圆");
+        LOGGER.debug("boundaryTrimEllipse - 圆心: {}, 半径X: {}, 半径Y: {}", center, radiusX, radiusY);
+        LOGGER.debug("boundaryTrimEllipse - 交点数量: {}", intersections.size());
         
         // 过滤有效的交点（在椭圆上的点）
         List<Vec2d> validIntersections = new ArrayList<>();
@@ -308,9 +311,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> curvePoints = bezier.getCurvePoints();
         
-        System.out.println("[DEBUG] boundaryTrimBezierCurve - 开始边界修剪贝塞尔曲线");
-        System.out.println("[DEBUG] boundaryTrimBezierCurve - 原始点数: " + curvePoints.size());
-        System.out.println("[DEBUG] boundaryTrimBezierCurve - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimBezierCurve - 开始边界修剪贝塞尔曲线");
+        LOGGER.debug("boundaryTrimBezierCurve - 原始点数: {}", curvePoints.size());
+        LOGGER.debug("boundaryTrimBezierCurve - 交点数量: {}", intersections.size());
         
         if (curvePoints.size() < 2) {
             return result;
@@ -363,9 +366,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> corners = rectangle.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimRectangle - 开始边界修剪矩形");
-        System.out.println("[DEBUG] boundaryTrimRectangle - 原始角点数: " + corners.size());
-        System.out.println("[DEBUG] boundaryTrimRectangle - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimRectangle - 开始边界修剪矩形");
+        LOGGER.debug("boundaryTrimRectangle - 原始角点数: {}", corners.size());
+        LOGGER.debug("boundaryTrimRectangle - 交点数量: {}", intersections.size());
         
         if (corners.size() < 3) {
             return result;
@@ -408,9 +411,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> polylinePoints = polyline.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimPolylineShape - 开始边界修剪PolylineShape");
-        System.out.println("[DEBUG] boundaryTrimPolylineShape - 原始点数: " + polylinePoints.size());
-        System.out.println("[DEBUG] boundaryTrimPolylineShape - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimPolylineShape - 开始边界修剪PolylineShape");
+        LOGGER.debug("boundaryTrimPolylineShape - 原始点数: {}", polylinePoints.size());
+        LOGGER.debug("boundaryTrimPolylineShape - 交点数量: {}", intersections.size());
         
         if (polylinePoints.size() < 2) {
             return result;
@@ -441,9 +444,9 @@ public class BoundaryTrimHelper {
         Vec2d start = line.getStart();
         Vec2d end = line.getEnd();
         
-        System.out.println("[DEBUG] boundaryTrimLineShape - 开始边界修剪直线");
-        System.out.println("[DEBUG] boundaryTrimLineShape - 起点: " + start + ", 终点: " + end);
-        System.out.println("[DEBUG] boundaryTrimLineShape - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimLineShape - 开始边界修剪直线");
+        LOGGER.debug("boundaryTrimLineShape - 起点: {}, 终点: {}", start, end);
+        LOGGER.debug("boundaryTrimLineShape - 交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
             result.add(line);
@@ -487,9 +490,9 @@ public class BoundaryTrimHelper {
         double startAngle = arc.getStartAngle();
         double endAngle = arc.getEndAngle();
         
-        System.out.println("[DEBUG] boundaryTrimArcShape - 开始边界修剪圆弧");
-        System.out.println("[DEBUG] boundaryTrimArcShape - 圆心: " + center + ", 半径: " + radius);
-        System.out.println("[DEBUG] boundaryTrimArcShape - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimArcShape - 开始边界修剪圆弧");
+        LOGGER.debug("boundaryTrimArcShape - 圆心: {}, 半径: {}", center, radius);
+        LOGGER.debug("boundaryTrimArcShape - 交点数量: {}", intersections.size());
         
         // 过滤有效的交点（在圆弧上的点）
         List<Vec2d> validIntersections = new ArrayList<>();
@@ -553,9 +556,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> points = sine.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimSineCurveShape - 开始边界修剪正弦曲线");
-        System.out.println("[DEBUG] boundaryTrimSineCurveShape - 原始点数: " + points.size());
-        System.out.println("[DEBUG] boundaryTrimSineCurveShape - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimSineCurveShape - 开始边界修剪正弦曲线");
+        LOGGER.debug("boundaryTrimSineCurveShape - 原始点数: {}", points.size());
+        LOGGER.debug("boundaryTrimSineCurveShape - 交点数量: {}", intersections.size());
         
         if (points.size() < 2) {
             return result;
@@ -587,9 +590,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> points = spiral.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimSpiralShape - 开始边界修剪螺旋线");
-        System.out.println("[DEBUG] boundaryTrimSpiralShape - 原始点数: " + points.size());
-        System.out.println("[DEBUG] boundaryTrimSpiralShape - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimSpiralShape - 开始边界修剪螺旋线");
+        LOGGER.debug("boundaryTrimSpiralShape - 原始点数: {}", points.size());
+        LOGGER.debug("boundaryTrimSpiralShape - 交点数量: {}", intersections.size());
         
         if (points.size() < 2) {
             return result;
@@ -622,9 +625,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> points = catenary.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimCatenaryLine - 开始边界修剪悬链线");
-        System.out.println("[DEBUG] boundaryTrimCatenaryLine - 原始点数: " + points.size());
-        System.out.println("[DEBUG] boundaryTrimCatenaryLine - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimCatenaryLine - 开始边界修剪悬链线");
+        LOGGER.debug("boundaryTrimCatenaryLine - 原始点数: {}", points.size());
+        LOGGER.debug("boundaryTrimCatenaryLine - 交点数量: {}", intersections.size());
         
         if (points.size() < 2) {
             return result;
@@ -656,9 +659,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> points = polygon.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimPolygon - 开始边界修剪多边形");
-        System.out.println("[DEBUG] boundaryTrimPolygon - 原始点数: " + points.size());
-        System.out.println("[DEBUG] boundaryTrimPolygon - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimPolygon - 开始边界修剪多边形");
+        LOGGER.debug("boundaryTrimPolygon - 原始点数: {}", points.size());
+        LOGGER.debug("boundaryTrimPolygon - 交点数量: {}", intersections.size());
         
         if (points.size() < 3) {
             return result;
@@ -688,9 +691,9 @@ public class BoundaryTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> points = text.getPoints();
         
-        System.out.println("[DEBUG] boundaryTrimTextShape - 开始边界修剪文本");
-        System.out.println("[DEBUG] boundaryTrimTextShape - 原始点数: " + points.size());
-        System.out.println("[DEBUG] boundaryTrimTextShape - 交点数量: " + intersections.size());
+        LOGGER.debug("boundaryTrimTextShape - 开始边界修剪文本");
+        LOGGER.debug("boundaryTrimTextShape - 原始点数: {}", points.size());
+        LOGGER.debug("boundaryTrimTextShape - 交点数量: {}", intersections.size());
         
         if (points.size() < 2) {
             return result;

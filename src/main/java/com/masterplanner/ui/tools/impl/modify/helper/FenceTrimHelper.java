@@ -4,6 +4,8 @@ import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.geometry.shapes.*;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,6 +16,7 @@ import java.util.List;
  * 负责处理栅栏修剪模式下的所有修剪逻辑
  */
 public class FenceTrimHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FenceTrimHelper.class);
 
     private static final double SEGMENT_EPSILON = 1e-6;
 
@@ -29,12 +32,12 @@ public class FenceTrimHelper {
      * 栅栏修剪模式：删除栅栏内部的图形部分
      */
     public List<Shape> calculateFenceTrimmedShapes(List<Shape> shapes, List<Vec2d> fencePoints) {
-        System.out.println("[DEBUG] calculateFenceTrimmedShapes - 开始栅栏修剪");
-        System.out.println("[DEBUG] calculateFenceTrimmedShapes - 总图形数量: " + (shapes != null ? shapes.size() : 0));
-        System.out.println("[DEBUG] calculateFenceTrimmedShapes - 栅栏点数: " + (fencePoints != null ? fencePoints.size() : 0));
+        LOGGER.debug("calculateFenceTrimmedShapes - 开始栅栏修剪");
+        LOGGER.debug("calculateFenceTrimmedShapes - 总图形数量: {}", shapes != null ? shapes.size() : 0);
+        LOGGER.debug("calculateFenceTrimmedShapes - 栅栏点数: {}", fencePoints != null ? fencePoints.size() : 0);
         
         if (fencePoints == null || fencePoints.size() < 3) {
-            System.out.println("[DEBUG] calculateFenceTrimmedShapes - 栅栏点数不足，返回原图形");
+            LOGGER.debug("calculateFenceTrimmedShapes - 栅栏点数不足，返回原图形");
             if (shapes != null) {
                 return new ArrayList<>(shapes);
             }
@@ -43,17 +46,17 @@ public class FenceTrimHelper {
         
         List<Shape> modifiedShapes = new ArrayList<>();
         
-        System.out.println("[DEBUG] calculateFenceTrimmedShapes - 栅栏修剪模式，所有图形都进行修剪");
+        LOGGER.debug("calculateFenceTrimmedShapes - 栅栏修剪模式，所有图形都进行修剪");
         
         if (shapes != null) {
             for (Shape shape : shapes) {
-                System.out.println("[DEBUG] calculateFenceTrimmedShapes - 修剪目标图形: " + shape.getClass().getSimpleName());
+                LOGGER.debug("calculateFenceTrimmedShapes - 修剪目标图形: {}", shape.getClass().getSimpleName());
                 List<Shape> trimmedShapes = fenceTrimShape(shape, fencePoints);
                 modifiedShapes.addAll(trimmedShapes);
             }
         }
  
-        System.out.println("[DEBUG] calculateFenceTrimmedShapes - 修改后图形数量: " + modifiedShapes.size());
+        LOGGER.debug("calculateFenceTrimmedShapes - 修改后图形数量: {}", modifiedShapes.size());
         return modifiedShapes;
     }
     
@@ -63,7 +66,7 @@ public class FenceTrimHelper {
     private List<Shape> fenceTrimShape(Shape shape, List<Vec2d> fencePoints) {
         List<Shape> result = new ArrayList<>();
         
-        System.out.println("[DEBUG] fenceTrimShape - 开始栅栏修剪图形: " + shape.getClass().getSimpleName());
+        LOGGER.debug("fenceTrimShape - 开始栅栏修剪图形: {}", shape.getClass().getSimpleName());
         
         // 根据图形类型进行专门的修剪处理
         switch (shape) {
@@ -132,8 +135,8 @@ public class FenceTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> polylinePoints = polyline.getPoints();
 
-        System.out.println("[DEBUG] fenceTrimPolylineShape - 开始栅栏修剪PolylineShape");
-        System.out.println("[DEBUG] fenceTrimPolylineShape - 原始点数: " + polylinePoints.size());
+        LOGGER.debug("fenceTrimPolylineShape - 开始栅栏修剪PolylineShape");
+        LOGGER.debug("fenceTrimPolylineShape - 原始点数: {}", polylinePoints.size());
 
         if (polylinePoints.size() < 2) {
             return result;
@@ -220,8 +223,8 @@ public class FenceTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> pathPoints = path.getPoints();
         
-        System.out.println("[DEBUG] fenceTrimFreeDrawPath - 开始栅栏修剪自由绘制路径");
-        System.out.println("[DEBUG] fenceTrimFreeDrawPath - 原始点数: " + pathPoints.size());
+        LOGGER.debug("fenceTrimFreeDrawPath - 开始栅栏修剪自由绘制路径");
+        LOGGER.debug("fenceTrimFreeDrawPath - 原始点数: {}", pathPoints.size());
         
         if (pathPoints.size() < 2) {
             return result;
@@ -229,18 +232,18 @@ public class FenceTrimHelper {
         
         // 检查图形是否完全在栅栏内部
         if (isShapeCompletelyInsideFence(path, fencePoints)) {
-            System.out.println("[DEBUG] fenceTrimFreeDrawPath - 图形完全在栅栏内部，删除整个图形");
+            LOGGER.debug("fenceTrimFreeDrawPath - 图形完全在栅栏内部，删除整个图形");
             return result; // 返回空列表，删除整个图形
         }
         
         // 找到图形与栅栏的交点
         List<Vec2d> intersections = findIntersectionsWithFence(path, fencePoints);
-        System.out.println("[DEBUG] fenceTrimFreeDrawPath - 找到交点数量: " + intersections.size());
+        LOGGER.debug("fenceTrimFreeDrawPath - 找到交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
             // 没有交点，检查是否部分在内部
             if (hasInternalSegments(path, fencePoints)) {
-                System.out.println("[DEBUG] fenceTrimFreeDrawPath - 图形部分在栅栏内部，删除整个图形");
+                LOGGER.debug("fenceTrimFreeDrawPath - 图形部分在栅栏内部，删除整个图形");
             } else {
                 result.add(path); // 保留原图形
             }
@@ -259,23 +262,23 @@ public class FenceTrimHelper {
         Vec2d center = circle.getCenter();
         double radius = circle.getRadius();
         
-        System.out.println("[DEBUG] fenceTrimCircle - 开始栅栏修剪圆形");
-        System.out.println("[DEBUG] fenceTrimCircle - 圆心: " + center + ", 半径: " + radius);
+        LOGGER.debug("fenceTrimCircle - 开始栅栏修剪圆形");
+        LOGGER.debug("fenceTrimCircle - 圆心: {}, 半径: {}", center, radius);
         
         // 检查圆心是否在栅栏内部
         if (isPointInsideFence(center, fencePoints)) {
-            System.out.println("[DEBUG] fenceTrimCircle - 圆心在栅栏内部，删除整个圆形");
+            LOGGER.debug("fenceTrimCircle - 圆心在栅栏内部，删除整个圆形");
             return result; // 删除整个圆形
         }
         
         // 找到图形与栅栏的交点
         List<Vec2d> intersections = findIntersectionsWithFence(circle, fencePoints);
-        System.out.println("[DEBUG] fenceTrimCircle - 找到交点数量: " + intersections.size());
+        LOGGER.debug("fenceTrimCircle - 找到交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
             // 没有交点，检查是否完全在内部
             if (isShapeCompletelyInsideFence(circle, fencePoints)) {
-                System.out.println("[DEBUG] fenceTrimCircle - 圆形完全在栅栏内部，删除整个圆形");
+                LOGGER.debug("fenceTrimCircle - 圆形完全在栅栏内部，删除整个圆形");
             } else {
                 result.add(circle); // 保留原圆形
             }
@@ -293,23 +296,23 @@ public class FenceTrimHelper {
         List<Shape> result = new ArrayList<>();
         Vec2d center = ellipse.getCenter();
         
-        System.out.println("[DEBUG] fenceTrimEllipse - 开始栅栏修剪椭圆");
-        System.out.println("[DEBUG] fenceTrimEllipse - 圆心: " + center);
+        LOGGER.debug("fenceTrimEllipse - 开始栅栏修剪椭圆");
+        LOGGER.debug("fenceTrimEllipse - 圆心: {}", center);
         
         // 检查圆心是否在栅栏内部
         if (isPointInsideFence(center, fencePoints)) {
-            System.out.println("[DEBUG] fenceTrimEllipse - 圆心在栅栏内部，删除整个椭圆");
+            LOGGER.debug("fenceTrimEllipse - 圆心在栅栏内部，删除整个椭圆");
             return result; // 删除整个椭圆
         }
         
         // 找到图形与栅栏的交点
         List<Vec2d> intersections = findIntersectionsWithFence(ellipse, fencePoints);
-        System.out.println("[DEBUG] fenceTrimEllipse - 找到交点数量: " + intersections.size());
+        LOGGER.debug("fenceTrimEllipse - 找到交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
             // 没有交点，检查是否完全在内部
             if (isShapeCompletelyInsideFence(ellipse, fencePoints)) {
-                System.out.println("[DEBUG] fenceTrimEllipse - 椭圆完全在栅栏内部，删除整个椭圆");
+                LOGGER.debug("fenceTrimEllipse - 椭圆完全在栅栏内部，删除整个椭圆");
             } else {
                 result.add(ellipse); // 保留原椭圆
             }
@@ -327,8 +330,8 @@ public class FenceTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> curvePoints = bezier.getCurvePoints();
         
-        System.out.println("[DEBUG] fenceTrimBezierCurve - 开始栅栏修剪贝塞尔曲线");
-        System.out.println("[DEBUG] fenceTrimBezierCurve - 原始点数: " + curvePoints.size());
+        LOGGER.debug("fenceTrimBezierCurve - 开始栅栏修剪贝塞尔曲线");
+        LOGGER.debug("fenceTrimBezierCurve - 原始点数: {}", curvePoints.size());
         
         if (curvePoints.size() < 2) {
             return result;
@@ -336,18 +339,18 @@ public class FenceTrimHelper {
         
         // 检查图形是否完全在栅栏内部
         if (isShapeCompletelyInsideFence(bezier, fencePoints)) {
-            System.out.println("[DEBUG] fenceTrimBezierCurve - 图形完全在栅栏内部，删除整个图形");
+            LOGGER.debug("fenceTrimBezierCurve - 图形完全在栅栏内部，删除整个图形");
             return result;
         }
         
         // 找到图形与栅栏的交点
         List<Vec2d> intersections = findIntersectionsWithFence(bezier, fencePoints);
-        System.out.println("[DEBUG] fenceTrimBezierCurve - 找到交点数量: " + intersections.size());
+        LOGGER.debug("fenceTrimBezierCurve - 找到交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
             // 没有交点，检查是否部分在内部
             if (hasInternalSegments(bezier, fencePoints)) {
-                System.out.println("[DEBUG] fenceTrimBezierCurve - 图形部分在栅栏内部，删除整个图形");
+                LOGGER.debug("fenceTrimBezierCurve - 图形部分在栅栏内部，删除整个图形");
             } else {
                 result.add(bezier); // 保留原图形
             }
@@ -365,13 +368,13 @@ public class FenceTrimHelper {
         List<Shape> result = new ArrayList<>();
         List<Vec2d> corners = rectangle.getPoints();
         
-        System.out.println("[DEBUG] fenceTrimRectangle - 开始栅栏修剪矩形");
-        System.out.println("[DEBUG] fenceTrimRectangle - 原始角点数: " + corners.size());
+        LOGGER.debug("fenceTrimRectangle - 开始栅栏修剪矩形");
+        LOGGER.debug("fenceTrimRectangle - 原始角点数: {}", corners.size());
         
         // 检查矩形的关键点是否在栅栏内部
         Vec2d center = calculateRectangleCenter(corners);
         if (isPointInsideFence(center, fencePoints)) {
-            System.out.println("[DEBUG] fenceTrimRectangle - 矩形中心在栅栏内部，删除整个矩形");
+            LOGGER.debug("fenceTrimRectangle - 矩形中心在栅栏内部，删除整个矩形");
             return result; // 删除整个矩形
         }
         
@@ -385,18 +388,18 @@ public class FenceTrimHelper {
         }
         
         if (hasInternalCorner) {
-            System.out.println("[DEBUG] fenceTrimRectangle - 矩形有角点在栅栏内部，删除整个矩形");
+            LOGGER.debug("fenceTrimRectangle - 矩形有角点在栅栏内部，删除整个矩形");
             return result;
         }
         
         // 找到图形与栅栏的交点
         List<Vec2d> intersections = findIntersectionsWithFence(rectangle, fencePoints);
-        System.out.println("[DEBUG] fenceTrimRectangle - 找到交点数量: " + intersections.size());
+        LOGGER.debug("fenceTrimRectangle - 找到交点数量: {}", intersections.size());
         
         if (intersections.isEmpty()) {
             // 没有交点，检查是否完全在内部
             if (isShapeCompletelyInsideFence(rectangle, fencePoints)) {
-                System.out.println("[DEBUG] fenceTrimRectangle - 矩形完全在栅栏内部，删除整个矩形");
+                LOGGER.debug("fenceTrimRectangle - 矩形完全在栅栏内部，删除整个矩形");
             } else {
                 result.add(rectangle); // 保留原矩形
             }

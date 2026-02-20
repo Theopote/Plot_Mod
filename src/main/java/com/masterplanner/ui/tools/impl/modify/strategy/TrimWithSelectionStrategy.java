@@ -134,7 +134,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     /**
      * 恢复记住的状态
      */
-    private void restoreState() {
+    private boolean restoreState() {
         if (isStateRemembered) {
             if (trimType == TrimType.BOUNDARY && !rememberedBoundaryShapes.isEmpty()) {
                 // 恢复边界图形选择
@@ -143,6 +143,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 trimState = TrimState.BOUNDARY_READY;
                 isBoundaryModePersistent = true;
                 LOGGER.info("已恢复边界图形，数量: {}，保持持续状态", boundaryShapes.size());
+                return true;
             } else if (trimType == TrimType.FENCE && !rememberedTargetShapes.isEmpty()) {
                 // 恢复目标图形选择
                 targetShapes.clear();
@@ -150,8 +151,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 trimState = TrimState.FENCE_READY;
                 isFenceModePersistent = true;
                 LOGGER.info("已恢复目标图形，数量: {}，保持持续状态", targetShapes.size());
+                return true;
             }
         }
+        return false;
     }
     
     /**
@@ -220,8 +223,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private void initializeState() {
         // 检查是否有记住的状态需要恢复
-        if (isStateRemembered) {
-            restoreState();
+        if (isStateRemembered && restoreState()) {
             return;
         }
         
@@ -717,7 +719,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 } else {
                     resetClickTrimState();
                 }
-                return ModifyResult.COMPLETE;
+                return ModifyResult.CONTINUE;
             }
             
             LOGGER.error("创建修剪命令失败");
@@ -783,7 +785,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     resetFenceTrimState();
                     initializeState();
                 }
-                return ModifyResult.COMPLETE;
+                return ModifyResult.CONTINUE;
             }
 
             context.setStatusMessage("创建栅栏修剪命令失败");
@@ -821,6 +823,9 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         fencePoints.clear();
         trimClickPoint = null;
         currentMousePoint = null;
+        if (highlightedShape != null) {
+            highlightedShape.setHighlighted(false);
+        }
         highlightedShape = null;
         pendingCommand = null;
     }
