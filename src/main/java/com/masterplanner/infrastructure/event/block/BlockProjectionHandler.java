@@ -201,9 +201,6 @@ public class BlockProjectionHandler {
         try {
             Block block = client.world.getBlockState(pos).getBlock();
             Identifier id = Registries.BLOCK.getId(block);
-            if (id == null) {
-                return "minecraft:air";
-            }
             return id.toString();
         } catch (Exception e) {
             LOGGER.warn("读取方块ID失败: {}", pos, e);
@@ -278,11 +275,11 @@ public class BlockProjectionHandler {
             return false;
         }
     }
-    
+
     /**
      * 垂直向下扫描找到地面位置
      * 从指定位置开始向下扫描，找到第一个非空气且可被替换的方块位置
-     * 
+     *
      * @param world Minecraft世界
      * @param x X坐标
      * @param y 起始Y坐标
@@ -293,11 +290,11 @@ public class BlockProjectionHandler {
         // 从指定高度开始向下扫描
         for (int currentY = y; currentY >= world.getBottomY(); currentY--) {
             BlockPos checkPos = new BlockPos(x, currentY, z);
-            
+
             try {
                 // 获取当前位置的方块状态
                 var blockState = world.getBlockState(checkPos);
-                
+
                 // 检查方块是否可以被替换
                 if (!canReplaceBlock(world, checkPos, blockState)) {
                     // 找到可替换的位置，返回上方一格作为放置位置
@@ -309,16 +306,16 @@ public class BlockProjectionHandler {
                 LOGGER.warn("检查位置 {} 时发生错误: {}", checkPos, e.getMessage());
             }
         }
-        
+
         // 如果扫描到底部都没找到合适位置，返回底部上方一格
         BlockPos bottomPos = new BlockPos(x, world.getBottomY() + 1, z);
         LOGGER.warn("扫描到底部都没找到合适位置，使用底部位置: {}", bottomPos);
         return bottomPos;
     }
-    
+
     /**
      * 检查方块是否可以被替换
-     * 
+     *
      * @param blockState 方块状态
      * @return 是否可以被替换
      */
@@ -326,32 +323,32 @@ public class BlockProjectionHandler {
         if (blockState == null) {
             return true;
         }
-        
+
         // 检查是否为空气
         if (blockState.isAir()) {
             return true;
         }
-        
+
         // 检查是否为液体
         if (!blockState.getFluidState().isEmpty()) {
             return false;
         }
-        
+
         // 检查是否为植物（草、花等）
         if (blockState.getBlock() instanceof net.minecraft.block.PlantBlock) {
             return true; // 植物可以被替换
         }
-        
+
         // 检查是否为雪
         if (blockState.getBlock() instanceof net.minecraft.block.SnowBlock) {
             return true; // 雪可以被替换
         }
-        
+
         // 检查是否为树叶
         if (blockState.getBlock() instanceof net.minecraft.block.LeavesBlock) {
             return true; // 树叶可以被替换
         }
-        
+
         // 检查是否为固体方块（使用新的API）
         return !blockState.isSolidBlock(world, pos);
     }

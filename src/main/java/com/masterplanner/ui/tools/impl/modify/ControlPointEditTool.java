@@ -6,7 +6,6 @@ import com.masterplanner.api.snap.ISnapManager;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
-import com.masterplanner.core.snap.SnapManager;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.component.Icons;
@@ -89,14 +88,7 @@ public class ControlPointEditTool extends ModifyTool {
         
         LOGGER.debug("ControlPointEditTool 初始化完成");
     }
-    
-    /**
-     * 构造函数（兼容版本）
-     */
-    public ControlPointEditTool(ICanvas canvas) {
-        this(AppState.getInstance(), SnapManager.getInstance(), canvas);
-    }
-    
+
     /**
      * 设置事件监听器
      */
@@ -340,42 +332,14 @@ public class ControlPointEditTool extends ModifyTool {
     public int getHoveredControlPointIndex() {
         return hoveredControlPointIndex;
     }
-    
-    /**
-     * 设置激活的控制点索引
-     */
-    public void setActiveControlPointIndex(int index) {
-        this.activeControlPointIndex = index;
-    }
-    
+
     /**
      * 获取激活的控制点索引
      */
     public int getActiveControlPointIndex() {
         return activeControlPointIndex;
     }
-    
-    /**
-     * 设置拖拽开始位置
-     */
-    public void setDragStartPosition(Vec2d position) {
-        this.dragStartPosition = position;
-    }
-    
-    /**
-     * 获取拖拽开始位置
-     */
-    public Vec2d getDragStartPosition() {
-        return dragStartPosition;
-    }
-    
-    /**
-     * 设置原始控制点位置
-     */
-    public void setOriginalControlPointPosition(Vec2d position) {
-        this.originalControlPointPosition = position;
-    }
-    
+
     /**
      * 获取原始控制点位置
      */
