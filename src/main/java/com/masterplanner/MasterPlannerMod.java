@@ -121,6 +121,7 @@ public class MasterPlannerMod implements ModInitializer, ClientModInitializer {
 
             // 5. 注册物品（通用逻辑，服务端也需要）
             ModItems.registerItems();
+            ModItems.registerItemGroups();
 
             LOGGER.info("Master Planner Mod (通用逻辑) 初始化成功!");
             
