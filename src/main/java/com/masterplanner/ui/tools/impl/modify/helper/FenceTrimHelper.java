@@ -189,11 +189,9 @@ public class FenceTrimHelper {
     }
 
     private List<Shape> fenceTrimArcShape(ArcShape arc, List<Vec2d> fencePoints) {
-        List<Shape> result = new ArrayList<>();
 
         List<Shape> segments = createFenceTrimmedSegments(arc, fencePoints);
-        result.addAll(segments);
-        return result;
+        return new ArrayList<>(segments);
     }
     
     // ====== 特定形状的栅栏修剪方法 ======

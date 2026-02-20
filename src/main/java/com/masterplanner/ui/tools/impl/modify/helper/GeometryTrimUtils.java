@@ -951,7 +951,6 @@ public class GeometryTrimUtils {
             double pointDistance = pointToSegmentDistance(current, next, point);
             
             if (pointDistance < minDistance) {
-                minDistance = pointDistance;
                 return cumulativeDistance + getDistanceFromStart(current, next, point);
             }
             
@@ -1856,7 +1855,6 @@ public class GeometryTrimUtils {
             double pointDistance = pointToLineDistance(current, next, point);
             
             if (pointDistance < minDistance) {
-                minDistance = pointDistance;
                 return cumulativeDistance + getDistanceFromStart(current, next, point);
             }
             

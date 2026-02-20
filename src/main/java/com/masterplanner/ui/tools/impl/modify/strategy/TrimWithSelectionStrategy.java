@@ -141,7 +141,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 // 恢复边界图形选择
                 boundaryShapes.clear();
                 boundaryShapes.addAll(rememberedBoundaryShapes);
-                trimState = TrimState.BOUNDARY_READY;
+                    for (Shape shape : boundaryShapes) {
+                        if (shape != null && !shape.isDeleted()) {
+                            shape.setSelected(true);
+                        }
+                    }
+                    trimState = TrimState.BOUNDARY_READY;
                 isBoundaryModePersistent = true;
                 LOGGER.debug("已恢复边界图形，数量: {}，保持持续状态", boundaryShapes.size());
                 return true;
@@ -149,7 +154,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 // 恢复目标图形选择
                 targetShapes.clear();
                 targetShapes.addAll(rememberedTargetShapes);
-                trimState = TrimState.FENCE_READY;
+                    for (Shape shape : targetShapes) {
+                        if (shape != null && !shape.isDeleted()) {
+                            shape.setSelected(true);
+                        }
+                    }
+                    trimState = TrimState.FENCE_READY;
                 isFenceModePersistent = true;
                 LOGGER.debug("已恢复目标图形，数量: {}，保持持续状态", targetShapes.size());
                 return true;
@@ -608,6 +618,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 }
             } else {
                 // 框选模式：应用最终选择
+                boxCurrentPoint = worldPos;
                 completeTrimBoxSelection(context);
             }
             
