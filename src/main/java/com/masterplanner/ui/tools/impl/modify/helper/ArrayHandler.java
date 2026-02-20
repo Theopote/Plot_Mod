@@ -181,7 +181,7 @@ public class ArrayHandler implements IModifyHandler {
         for (Shape shape : shapes) {
             // 以“源图形”作为起始等分点（源图形也参与等分）
             // 新图形只生成剩余 (count - 1) 个，原图保留不动
-            Vec2d sourcePos = shape.getPosition();
+            Vec2d sourcePos = getShapeCenter(shape);
             double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
 
             // 如果面板传入了 angleStep（度），优先使用它；否则按数量等分 2π
@@ -194,7 +194,7 @@ public class ArrayHandler implements IModifyHandler {
 
             for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置（原图作为 i=0）
                 double currentAngle = startAngle + i * angleStepRad;
-                Vec2d arrayPos = basePoint.add(new Vec2d(
+                Vec2d arrayCenter = basePoint.add(new Vec2d(
                     radius * Math.cos(currentAngle),
                     radius * Math.sin(currentAngle)
                 ));
@@ -202,14 +202,18 @@ public class ArrayHandler implements IModifyHandler {
                 try {
                     Shape arrayedShape = shape.clone();
                     if (arrayedShape != null) {
-                        // 设置位置
-                        arrayedShape.setPosition(arrayPos);
+                        // 先将克隆图形几何中心平移到目标圆上中心
+                        Vec2d cloneCenter = getShapeCenter(arrayedShape);
+                        Vec2d offset = arrayCenter.subtract(cloneCenter);
+                        if (offset.length() > 1e-9) {
+                            arrayedShape.translate(offset);
+                        }
 
-                        // 保持与源图形相对于中心的朝向一致：
-                        // 目标旋转 = 源图形旋转 + (currentAngle - startAngle)
-                        double sourceRotation = shape.getRotation();
+                        // 只改变朝向，不再改变位置：绕自身中心（即目标中心）旋转
                         double delta = currentAngle - startAngle;
-                        arrayedShape.setRotation(sourceRotation + delta);
+                        if (Math.abs(delta) > 1e-9) {
+                            arrayedShape.rotate(delta, arrayCenter);
+                        }
 
                         arrayedShapes.add(arrayedShape);
                     }
@@ -220,6 +224,23 @@ public class ArrayHandler implements IModifyHandler {
         }
         
         return arrayedShapes;
+    }
+
+    private Vec2d getShapeCenter(Shape shape) {
+        if (shape == null) {
+            return new Vec2d(0, 0);
+        }
+
+        try {
+            if (shape.getBoundingBox() != null) {
+                return shape.getBoundingBox().getCenter();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("获取图形中心失败，回退到position: {}", e.getMessage());
+        }
+
+        Vec2d pos = shape.getPosition();
+        return pos != null ? pos : new Vec2d(0, 0);
     }
 
     /**

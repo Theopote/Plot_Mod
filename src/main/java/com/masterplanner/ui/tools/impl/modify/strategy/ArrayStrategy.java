@@ -368,7 +368,7 @@ public class ArrayStrategy implements IModifyStrategy {
             case CIRCULAR -> {
                 // 默认半径取源图形位置到中心的距离，等角分布
                 if (sourceShape != null) {
-                    radius = basePoint.distance(sourceShape.getPosition());
+                    radius = basePoint.distance(getShapeCenter(sourceShape));
                 }
                 currentState = ArrayState.PREVIEWING;
                 updateArrayPreview();
@@ -563,7 +563,7 @@ public class ArrayStrategy implements IModifyStrategy {
     private void calculateCircularArray() {
         // 与 ArrayHandler 保持一致：以源图形当前位置为起始角度，可选地使用面板传入的角度步长（度）
         int count = Math.max(1, rowCount);
-        Vec2d sourcePos = sourceShape.getPosition();
+        Vec2d sourcePos = getShapeCenter(sourceShape);
         double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
 
         // 面板中的 angle 字段以度为单位，优先使用它作为步长；否则按数量等分 2π
@@ -946,15 +946,14 @@ public class ArrayStrategy implements IModifyStrategy {
                 Shape clone = sourceShape.clone();
                 if (currentType == ArrayType.CIRCULAR) {
                     // 使用与 ArrayHandler 相同的逻辑：平移并按角度增量旋转（调用子类实现）
-                    Vec2d sourcePos = (sourceShape.getBoundingBox() != null)
-                        ? sourceShape.getBoundingBox().getCenter()
-                        : sourceShape.getPosition();
+                    Vec2d sourcePos = getShapeCenter(sourceShape);
                     double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
                     double delta = ang - startAngle; // ang 在 previewAngles 中为绝对角度
 
-                    Vec2d offset = pos.subtract(clone.getPosition());
+                    Vec2d cloneCenter = getShapeCenter(clone);
+                    Vec2d offset = pos.subtract(cloneCenter);
                     if (offset.length() > 1e-6) clone.translate(offset);
-                    if (Math.abs(delta) > 1e-9) clone.rotate(delta, basePoint);
+                    if (Math.abs(delta) > 1e-9) clone.rotate(delta, pos);
                 } else {
                     // 其他阵列类型仅平移
                     Vec2d offset = pos.subtract(clone.getPosition());
@@ -1020,6 +1019,23 @@ public class ArrayStrategy implements IModifyStrategy {
                 }
             }
         }
+    }
+
+    private Vec2d getShapeCenter(Shape shape) {
+        if (shape == null) {
+            return new Vec2d(0, 0);
+        }
+
+        try {
+            if (shape.getBoundingBox() != null) {
+                return shape.getBoundingBox().getCenter();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("获取图形中心失败，回退到position: {}", e.getMessage());
+        }
+
+        Vec2d pos = shape.getPosition();
+        return pos != null ? pos : new Vec2d(0, 0);
     }
 
     /**

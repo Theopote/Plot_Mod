@@ -275,7 +275,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
                 // 环形阵列：半径锚点（沿“源图形方向”的半径线上）
                 if (arrayType == ArrayType.CIRCULAR && selectedShapes != null && !selectedShapes.isEmpty()) {
-                    Vec2d sourcePos = selectedShapes.getFirst().getPosition();
+                    Vec2d sourcePos = getShapeCenter(selectedShapes.getFirst());
                     double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
                     Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
                     if (snapped.distance(radiusHandle) <= tol) {
@@ -300,7 +300,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     } else if (arrayType == ArrayType.CIRCULAR) {
                         // 环形阵列：点中心后立即预览（默认半径=中心到源图形距离）
                         if (selectedShapes != null) {
-                            radius = basePoint.distance(selectedShapes.getFirst().getPosition());
+                            radius = basePoint.distance(getShapeCenter(selectedShapes.getFirst()));
                         }
                         arrayState = ArrayState.PREVIEWING;
                         updateArrayPreview();
@@ -391,10 +391,14 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     if (selectedShapes != null && !selectedShapes.isEmpty()) {
                         try {
                             Shape original = selectedShapes.getFirst();
-                            Vec2d sourcePos = original.getPosition();
+                            Vec2d sourcePos = getShapeCenter(original);
                             double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
                             Vec2d newPos = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
-                            original.setPosition(newPos);
+                            Vec2d originalCenter = getShapeCenter(original);
+                            Vec2d offset = newPos.subtract(originalCenter);
+                            if (offset.length() > 1e-9) {
+                                original.translate(offset);
+                            }
                         } catch (Exception e) {
                             LOGGER.debug("移动原始图形失败: {}", e.getMessage());
                         }
@@ -637,7 +641,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             int count = Math.max(1, rowCount);
             double angleStep = (2 * Math.PI) / count;
             Vec2d sourcePos = (selectedShapes != null && !selectedShapes.isEmpty())
-                ? selectedShapes.getFirst().getPosition()
+                ? getShapeCenter(selectedShapes.getFirst())
                 : basePoint;
             double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
             for (int i = 1; i < count; i++) {
@@ -994,7 +998,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         // 环形阵列：绘制半径锚点（可拖拽）
         if (arrayType == ArrayType.CIRCULAR && arrayState == ArrayState.PREVIEWING && basePoint != null
             && selectedShapes != null && !selectedShapes.isEmpty()) {
-            Vec2d sourcePos = selectedShapes.getFirst().getPosition();
+            Vec2d sourcePos = getShapeCenter(selectedShapes.getFirst());
             double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
             Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
             Color handleColor = new Color(255, 200, 0, 220);
@@ -1035,7 +1039,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             // 环形阵列：绘制半径锚点（可拖拽）
             if (arrayType == ArrayType.CIRCULAR && arrayState == ArrayState.PREVIEWING && basePoint != null
                 && selectedShapes != null && !selectedShapes.isEmpty()) {
-                Vec2d sourcePos = selectedShapes.getFirst().getPosition();
+                Vec2d sourcePos = getShapeCenter(selectedShapes.getFirst());
                 double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
                 Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
                 Vec2d sBase = camera.worldToScreen(basePoint);
@@ -1047,5 +1051,22 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         } catch (Exception e) {
             LOGGER.warn("渲染阵列预览时出错: {}", e.getMessage());
         }
+    }
+
+    private Vec2d getShapeCenter(Shape shape) {
+        if (shape == null) {
+            return new Vec2d(0, 0);
+        }
+
+        try {
+            if (shape.getBoundingBox() != null) {
+                return shape.getBoundingBox().getCenter();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("获取图形中心失败，回退到position: {}", e.getMessage());
+        }
+
+        Vec2d pos = shape.getPosition();
+        return pos != null ? pos : new Vec2d(0, 0);
     }
 }
