@@ -3,7 +3,6 @@ package com.masterplanner.infrastructure.event.block;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.Events;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
@@ -199,68 +198,6 @@ public class GhostBlockManager {
         return (int) ghostBlocks.values().stream()
                 .filter(GhostBlock::isVisible)
                 .count();
-    }
-
-    public int projectAllGhostBlocks(BlockProjectionEvent.ProjectionMode projectionMode, Integer elevation) {
-        List<GhostBlock> visibleBlocks = getVisibleGhostBlocks();
-        int projectedCount = 0;
-        int skippedCount = 0;
-
-        for (GhostBlock ghostBlock : visibleBlocks) {
-            if (!canProjectAt(ghostBlock)) {
-                skippedCount++;
-                continue;
-            }
-
-            eventBus.publish(new BlockProjectionEvent(
-                    ghostBlock.getBlockType(),
-                    ghostBlock.getPosition().x,
-                    ghostBlock.getHeight(),
-                    ghostBlock.getPosition().y,
-                    0.0f,
-                    false,
-                    projectionMode,
-                    elevation
-            ));
-            removeGhostBlock(ghostBlock.getId());
-            projectedCount++;
-        }
-
-        LOGGER.info("已投影 {} 个幽灵方块到minecraft世界，跳过 {} 个", projectedCount, skippedCount);
-        eventBus.publish(new Events.WarningEvent("GhostBlockManager",
-                String.format("已成功投影 %d 个方块到minecraft世界，保留 %d 个未投影幽灵方块", projectedCount, skippedCount)));
-
-        return projectedCount;
-    }
-
-    private boolean canProjectAt(GhostBlock ghostBlock) {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.player == null || client.world == null) {
-                return false;
-            }
-
-            if (!client.player.getAbilities().creativeMode) {
-                return false;
-            }
-
-            int x = (int) Math.round(ghostBlock.getPosition().x);
-            int z = (int) Math.round(ghostBlock.getPosition().y);
-
-            double dx = x - client.player.getX();
-            double dz = z - client.player.getZ();
-            double distanceToPlayer = Math.sqrt(dx * dx + dz * dz);
-            if (distanceToPlayer > 256.0) {
-                return false;
-            }
-
-            int chunkX = x >> 4;
-            int chunkZ = z >> 4;
-            return client.world.isChunkLoaded(chunkX, chunkZ);
-        } catch (Exception e) {
-            LOGGER.warn("投影预检查失败: {}", e.getMessage());
-            return false;
-        }
     }
     
     /**

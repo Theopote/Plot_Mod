@@ -223,7 +223,6 @@ public class SnapManager implements ISnapManager {
                 ImGui.sameLine(0, buttonSpacing);
                 if (ImGui.button("重置默认", buttonWidth, 24.0f)) {
                     resetToDefaults();
-                    settingsChanged = true;
                 }
                 ImGui.spacing();
             }

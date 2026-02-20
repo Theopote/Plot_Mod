@@ -2,15 +2,12 @@ package com.masterplanner.core.snap;
 
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 吸附设置类
  */
 public class SnapSettings implements Cloneable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SnapSettings.class);
 
     // ImGui 绑定
     public ImBoolean endPointSnap = new ImBoolean(true);
