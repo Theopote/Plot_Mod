@@ -405,15 +405,14 @@ public class OffsetStrategy implements IModifyStrategy {
      */
     private void updatePreview(Vec2d point, ModifyToolContext context) {
         if (selectedShape != null) {
+            double offsetDistance;
             if (currentMode == OffsetMode.THROUGH_POINT) {
-                double distance = point.distance(startPoint);
-                selectedShape.setPreviewOffset(distance);
-                context.setStatusMessage(String.format("偏移距离: %.2f", distance));
+                offsetDistance = calculateThroughPointDistance(point);
             } else {
-                double offsetDistance = calculateDistance(point);
-                selectedShape.setPreviewOffset(offsetDistance);
-                context.setStatusMessage(String.format("偏移距离: %.2f", Math.abs(offsetDistance)));
+                offsetDistance = calculateDistance(point);
             }
+            selectedShape.setPreviewOffset(offsetDistance);
+            context.setStatusMessage(String.format("偏移距离: %.2f", Math.abs(offsetDistance)));
         }
     }
     
@@ -421,15 +420,40 @@ public class OffsetStrategy implements IModifyStrategy {
      * 计算偏移距离
      */
     private double calculateDistance(Vec2d point) {
-        if (startPoint == null) return distance;
-        
-        // 计算点到形状的有符号距离
-        double signedDistance = selectedShape.getSignedDistance(point);
-        double absDistance = Math.abs(signedDistance);
-        
-        // 保持符号，限制范围
-        return Math.max(-MAX_DISTANCE, Math.min(MAX_DISTANCE, 
-            signedDistance < 0 ? -absDistance : absDistance));
+        if (selectedShape == null) {
+            return distance;
+        }
+
+        double sign = Math.signum(selectedShape.getSignedDistance(point));
+        if (sign == 0.0) {
+            sign = 1.0;
+        }
+
+        double magnitude = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, Math.abs(distance)));
+        return sign * magnitude;
+    }
+
+    private double calculateThroughPointDistance(Vec2d point) {
+        if (selectedShape == null || point == null) {
+            return 0.0;
+        }
+
+        try {
+            Vec2d closestPoint = selectedShape.getClosestPoint(point);
+            if (closestPoint == null) {
+                return selectedShape.getSignedDistance(point);
+            }
+
+            double actualDistance = point.distance(closestPoint);
+            double sign = Math.signum(selectedShape.getSignedDistance(point));
+            if (sign == 0.0) {
+                sign = 1.0;
+            }
+
+            return sign * actualDistance;
+        } catch (Exception e) {
+            return selectedShape.getSignedDistance(point);
+        }
     }
 
     @Override

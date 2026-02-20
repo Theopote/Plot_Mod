@@ -65,7 +65,7 @@ public class OffsetTool extends ModifyTool {
 
     @Override
     protected String getInitialStatusMessage() {
-        return "选择一条线 → 点击第一点 → 在目标处点击第二点，完成偏移复制";
+        return "点击线类图形确定参考点 → 在目标侧点击第二点，完成偏移复制";
     }
 
     @Override

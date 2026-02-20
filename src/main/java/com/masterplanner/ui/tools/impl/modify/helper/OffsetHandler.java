@@ -89,27 +89,29 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         if (shapes == null || shapes.isEmpty()) {
             return ValidationResult.invalid("没有选择要偏移的图形");
         }
-        
-        if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
-            ValidationResult paramValidation = concreteParams.validateRequired("offsetDistance");
-            if (!paramValidation.isValid()) {
-                return paramValidation;
-            }
-        }
-        
+
         double offsetDistance = 0.0;
+        Vec2d offsetPoint = null;
         if (parameters instanceof com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters concreteParams) {
             offsetDistance = concreteParams.getDouble("offsetDistance", 0.0);
+            offsetPoint = concreteParams.getVec2d("offsetPoint");
         }
-        
-        if (Math.abs(offsetDistance) < MIN_OFFSET_DISTANCE) {
+
+        boolean hasOffsetPoint = offsetPoint != null;
+        boolean hasOffsetDistance = Math.abs(offsetDistance) >= MIN_OFFSET_DISTANCE;
+
+        if (!hasOffsetPoint && !hasOffsetDistance) {
+            return ValidationResult.invalid("请提供偏移距离或偏移点");
+        }
+
+        if (!hasOffsetPoint && Math.abs(offsetDistance) < MIN_OFFSET_DISTANCE) {
             return ValidationResult.invalid("偏移距离太小");
         }
-        
-        if (Math.abs(offsetDistance) > MAX_OFFSET_DISTANCE) {
+
+        if (hasOffsetDistance && Math.abs(offsetDistance) > MAX_OFFSET_DISTANCE) {
             return ValidationResult.invalid("偏移距离太大");
         }
-        
+
         return ValidationResult.valid();
     }
     
@@ -419,16 +421,17 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
             double minDistance = concreteConstraints.getDoubleValue("minDistance", MIN_OFFSET_DISTANCE);
             double maxDistance = concreteConstraints.getDoubleValue("maxDistance", MAX_OFFSET_DISTANCE);
             double stepDistance = concreteConstraints.getDoubleValue("stepDistance", 1.0);
-            
-            distance = Math.max(minDistance, Math.min(maxDistance, Math.abs(distance)));
-            
+
+            double sign = Math.signum(distance);
+            double absDistance = Math.max(minDistance, Math.min(maxDistance, Math.abs(distance)));
+
             if (stepDistance > 0) {
-                distance = Math.round(distance / stepDistance) * stepDistance;
+                absDistance = Math.round(absDistance / stepDistance) * stepDistance;
             }
-            
-            return distance;
+
+            return sign == 0.0 ? absDistance : sign * absDistance;
         }
-        
+
         return distance;
     }
 
@@ -854,20 +857,44 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
     @Override
     public Shape visit(TextShape text) {
         LOGGER.debug("访问文本形状进行偏移: {}", text.getId());
-        
+
         double distance = currentOffsetPoint != null ? 
             text.getSignedDistance(currentOffsetPoint) : currentOffsetDistance;
-        
+
         if (Math.abs(distance) < ZERO_TOLERANCE) {
             LOGGER.warn("偏移距离太小 ({}), 跳过偏移", distance);
             return text;
         }
-        
-        // 文本形状偏移：移动位置
+
+        // 文本形状偏移：优先沿穿点方向移动；无穿点时沿X轴移动
         Vec2d currentPosition = text.getPosition();
-        Vec2d newPosition = currentPosition.add(new Vec2d(distance, distance));
+        Vec2d moveVector;
+
+        if (currentOffsetPoint != null) {
+            Vec2d closestPoint;
+            try {
+                closestPoint = text.getClosestPoint(currentOffsetPoint);
+            } catch (Exception e) {
+                closestPoint = currentPosition;
+            }
+
+            Vec2d direction = currentOffsetPoint.subtract(closestPoint);
+            if (direction.length() < ZERO_TOLERANCE) {
+                double sign = Math.signum(distance);
+                if (sign == 0.0) {
+                    sign = 1.0;
+                }
+                moveVector = new Vec2d(sign * Math.abs(distance), 0.0);
+            } else {
+                moveVector = direction.normalize().multiply(distance);
+            }
+        } else {
+            moveVector = new Vec2d(distance, 0.0);
+        }
+
+        Vec2d newPosition = currentPosition.add(moveVector);
         text.setPosition(newPosition);
-        
+
         LOGGER.debug("文本形状 {} 偏移完成，距离: {}", text.getId(), distance);
         return text;
     }

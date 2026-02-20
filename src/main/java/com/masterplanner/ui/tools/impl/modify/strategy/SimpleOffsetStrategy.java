@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * 简化版偏移策略：
  * - 仅支持线类图形(LineShape)
- * - 工作流：点击选中线 → 点击第一参考点 → 点击目标点 → 复制偏移一条与原线平行且经过第二点的线
+ * - 工作流：点击图形并记录参考点 → 点击目标点 → 复制偏移图形
  * - 保留原图形，仅添加新线
  */
 public class SimpleOffsetStrategy implements IModifyStrategy {
@@ -80,7 +80,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             // 记录第一参考点
             firstPoint = snapped;
             state = State.FIRST_POINT_SET;
-            context.setStatusMessage("已选择第一点，请在目标位置点击第二点");
+            context.setStatusMessage("已选择图形并记录参考点，请在目标侧点击第二点");
             return ModifyResult.CONTINUE;
         }
 
@@ -166,7 +166,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
 
     @Override
     public String getStrategyDescription() {
-        return "在线类图形上：第一点 → 第二点，按第二点侧决定偏移侧并生成偏移线";
+        return "在线类图形上：先选图形参考点，再点击目标侧第二点，按目标侧生成偏移副本";
     }
 
     @Override

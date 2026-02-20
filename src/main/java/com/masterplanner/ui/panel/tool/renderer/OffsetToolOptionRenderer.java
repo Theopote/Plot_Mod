@@ -60,7 +60,7 @@ public class OffsetToolOptionRenderer extends AbstractToolOptionRenderer {
 
     private void renderUsageInstructions() {
         if (ImGui.collapsingHeader("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("步骤：选择图形第一点 → 在目标位置点击第二点，完成偏移复制。原图形保留，只添加复制品。");
+            ImGui.textWrapped("步骤：先点击线类图形记录参考点，再在目标侧点击第二点完成偏移复制。原图形保留，只添加复制品。");
         }
     }
 }
