@@ -1445,16 +1445,23 @@ public class GeometryTrimUtils {
         for (int i = 0; i < splitPoints.size() - 1; i++) {
             Vec2d start = splitPoints.get(i);
             Vec2d end = splitPoints.get(i + 1);
-            if (start.distance(end) > INTERSECTION_TOLERANCE) {
-                LineShape segment = new LineShape(start, end);
-                if (polyline.getStyle() != null) {
-                    segment.setStyle(polyline.getStyle().clone());
-                }
-                if (polyline.getTransform() != null) {
-                    segment.setTransform(polyline.getTransform().clone());
-                }
-                segments.add(segment);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
             }
+
+            List<Vec2d> segmentPoints = extractPathSection(points, start, end);
+            if (segmentPoints.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(segmentPoints, false);
+            if (polyline.getStyle() != null) {
+                segment.setStyle(polyline.getStyle().clone());
+            }
+            if (polyline.getTransform() != null) {
+                segment.setTransform(polyline.getTransform().clone());
+            }
+            segments.add(segment);
         }
 
         if (segments.isEmpty()) {
@@ -1515,17 +1522,38 @@ public class GeometryTrimUtils {
             return segments;
         }
         
-        // 将交点按在曲线上的位置排序
         List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
-        
-        // 创建段
-        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
-            Vec2d start = sortedIntersections.get(i);
-            Vec2d end = sortedIntersections.get(i + 1);
-            
-            SineCurveShape segment = new SineCurveShape(start, end, 
-                sine.getAmplitude(), sine.getWavelength(), sine.getPhase());
+
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(points.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(points.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            List<Vec2d> segmentPoints = extractPathSection(points, start, end);
+            if (segmentPoints.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(segmentPoints, false);
+            if (sine.getStyle() != null) {
+                segment.setStyle(sine.getStyle().clone());
+            }
+            if (sine.getTransform() != null) {
+                segment.setTransform(sine.getTransform().clone());
+            }
             segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(sine);
         }
         
         return segments;
@@ -1540,18 +1568,38 @@ public class GeometryTrimUtils {
             return segments;
         }
         
-        // 将交点按在曲线上的位置排序
         List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
-        
-        // 创建段
-        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
-            Vec2d start = sortedIntersections.get(i);
-            Vec2d end = sortedIntersections.get(i + 1);
-            
-            Vec2d center = calculateCenter(points);
-            double radius = calculateRadius(points, center);
-            SpiralShape segment = new SpiralShape(center, radius, 3.0, spiral.getSpacing(), spiral.getType());
+
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(points.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(points.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            List<Vec2d> segmentPoints = extractPathSection(points, start, end);
+            if (segmentPoints.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(segmentPoints, false);
+            if (spiral.getStyle() != null) {
+                segment.setStyle(spiral.getStyle().clone());
+            }
+            if (spiral.getTransform() != null) {
+                segment.setTransform(spiral.getTransform().clone());
+            }
             segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(spiral);
         }
         
         return segments;
@@ -1657,16 +1705,38 @@ public class GeometryTrimUtils {
             return segments;
         }
         
-        // 将交点按在曲线上的位置排序
         List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
-        
-        // 创建段
-        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
-            Vec2d start = sortedIntersections.get(i);
-            Vec2d end = sortedIntersections.get(i + 1);
-            
-                CableShape segment = new CableShape(start, end, 1.0, points.size());
+
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(points.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(points.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            List<Vec2d> segmentPoints = extractPathSection(points, start, end);
+            if (segmentPoints.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segment = new PolylineShape(segmentPoints, false);
+            if (catenary.getStyle() != null) {
+                segment.setStyle(catenary.getStyle().clone());
+            }
+            if (catenary.getTransform() != null) {
+                segment.setTransform(catenary.getTransform().clone());
+            }
             segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(catenary);
         }
         
         return segments;
