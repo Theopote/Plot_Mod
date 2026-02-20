@@ -2,6 +2,7 @@ package com.masterplanner.ui.tools.impl.modify.strategy;
 
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.command.commands.ModifyCommand;
+import com.masterplanner.core.geometry.BoundingBox;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
@@ -116,7 +117,8 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      * 记住当前状态，用于后续的修剪操作
      */
     private void rememberState() {
-        if (trimType == TrimType.BOUNDARY && trimState == TrimState.WAITING_TRIM_CLICK) {
+        if (trimType == TrimType.BOUNDARY &&
+            (trimState == TrimState.SELECTING_BOUNDARIES || trimState == TrimState.WAITING_TRIM_CLICK)) {
             // 记住边界图形
             rememberedBoundaryShapes = new ArrayList<>(boundaryShapes);
             isStateRemembered = true;
@@ -352,14 +354,15 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private ModifyResult handleLeftMouseDown(Vec2d pos, ModifyToolContext context) {
         Vec2d snappedPos = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
+        Vec2d worldPos = toWorldPoint(pos, context);
         
         switch (trimState) {
             case SELECTING_BOUNDARIES, SELECTING_TARGETS -> {
                 // 在选择模式中支持框选
                 // 开始框选
                 isBoxSelecting = true;
-                boxStartPoint = pos;
-                boxCurrentPoint = pos;
+                boxStartPoint = worldPos;
+                boxCurrentPoint = worldPos;
                 boxSelectedShapes.clear();
                 return ModifyResult.CONTINUE;
             }
@@ -508,7 +511,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     public ModifyResult onMouseMove(Vec2d pos, ModifyToolContext context) {
         if (isBoxSelecting) {
             // 框选模式
-            boxCurrentPoint = pos;
+            boxCurrentPoint = toWorldPoint(pos, context);
             updateBoxSelection(context);
             return ModifyResult.CONTINUE;
         }
@@ -535,10 +538,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (!highlightEnabled) {
                 return;
             }
+
+            Vec2d worldPos = toWorldPoint(pos, context);
             
             // 根据当前状态高亮不同的图形
             List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
-            Shape nearestShape = findShapeAtPoint(pos, allShapes);
+            Shape nearestShape = findShapeAtPoint(worldPos, allShapes);
             
             if (nearestShape != null) {
                 // 避免高亮已选择的图形
@@ -564,9 +569,13 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     @Override
     public ModifyResult onMouseUp(Vec2d pos, int button, ModifyToolContext context) {
         if (isBoxSelecting) {
+            Vec2d worldPos = toWorldPoint(pos, context);
+            double dragThreshold = context.getCamera() != null
+                ? context.getCamera().screenToWorldDistance(4.0)
+                : 4.0;
             // 检查是否为点选（拖动距离小于阈值）
-            double dragDistance = boxStartPoint.distance(pos);
-            if (dragDistance < 4.0) { // 拖动阈值
+            double dragDistance = boxStartPoint.distance(worldPos);
+            if (dragDistance < dragThreshold) { // 拖动阈值
                 // 点选模式：选择单个图形
                 Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
                 List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
@@ -696,7 +705,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 return ModifyResult.CONTINUE;
             }
 
-            if (trimmedShapes.size() == 1 && trimmedShapes.getFirst() == targetShape) {
+            if (isTrimResultUnchanged(targetShape, trimmedShapes)) {
                 LOGGER.debug("修剪结果未发生变化，取消提交命令");
                 context.setStatusMessage("修剪结果无变化，请点击要删除的一侧");
                 return ModifyResult.CONTINUE;
@@ -753,7 +762,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             ModifyParameters parameters = new ModifyParameters();
             parameters.setString("trimType", "FENCE");
             parameters.setParameter("fencePoints", fencePoints);
-            parameters.setParameter("boundaryShapes", targetShapes);
+            parameters.setParameter("targetShapes", targetShapes);
             parameters.setBoolean("fenceMode", true);
             
             LOGGER.debug("修剪参数创建完成，开始调用TrimHandler.calculateModifiedShapes");
@@ -845,6 +854,51 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         fencePoints.clear();
         currentMousePoint = null;
         trimState = TrimState.DRAWING_FENCE;
+    }
+
+    private Vec2d toWorldPoint(Vec2d pos, ModifyToolContext context) {
+        if (context != null && context.getCamera() != null && pos != null) {
+            try {
+                return context.getCamera().screenToWorld(pos);
+            } catch (Exception e) {
+                LOGGER.debug("坐标转换失败，回退原始坐标: {}", e.getMessage());
+            }
+        }
+        return pos;
+    }
+
+    private boolean isTrimResultUnchanged(Shape originalShape, List<Shape> trimmedShapes) {
+        if (trimmedShapes == null || trimmedShapes.size() != 1) {
+            return false;
+        }
+
+        Shape resultShape = trimmedShapes.getFirst();
+        if (resultShape == originalShape) {
+            return true;
+        }
+        if (resultShape == null || originalShape == null) {
+            return false;
+        }
+        if (!resultShape.getClass().equals(originalShape.getClass())) {
+            return false;
+        }
+
+        final double epsilon = 1e-6;
+        try {
+            BoundingBox originalBounds = originalShape.getBoundingBox();
+            BoundingBox resultBounds = resultShape.getBoundingBox();
+            if (originalBounds == null || resultBounds == null) {
+                return false;
+            }
+
+            return Math.abs(originalBounds.getMinX() - resultBounds.getMinX()) <= epsilon
+                && Math.abs(originalBounds.getMinY() - resultBounds.getMinY()) <= epsilon
+                && Math.abs(originalBounds.getMaxX() - resultBounds.getMaxX()) <= epsilon
+                && Math.abs(originalBounds.getMaxY() - resultBounds.getMaxY()) <= epsilon;
+        } catch (Exception e) {
+            LOGGER.debug("无变化检测失败，按有变化处理: {}", e.getMessage());
+            return false;
+        }
     }
     
     // ====== 框选相关方法 ======
