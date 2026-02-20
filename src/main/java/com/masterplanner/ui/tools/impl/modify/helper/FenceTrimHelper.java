@@ -64,38 +64,17 @@ public class FenceTrimHelper {
      * 栅栏修剪：删除栅栏内部的图形部分
      */
     private List<Shape> fenceTrimShape(Shape shape, List<Vec2d> fencePoints) {
-        List<Shape> result = new ArrayList<>();
-        
         LOGGER.debug("fenceTrimShape - 开始栅栏修剪图形: {}", shape.getClass().getSimpleName());
-        
-        // 根据图形类型进行专门的修剪处理
+
+        // 直线/折线保留精确段切分，其余图形统一走“打断并删除内部段”的通用逻辑
         switch (shape) {
             case LineShape lineShape -> {
                 return fenceTrimLineShape(lineShape, fencePoints);
-            }
-            case ArcShape arcShape -> {
-                return fenceTrimArcShape(arcShape, fencePoints);
-            }
-            case FreeDrawPath freeDrawPath -> {
-                return fenceTrimFreeDrawPath(freeDrawPath, fencePoints);
-            }
-            case CircleShape circleShape -> {
-                return fenceTrimCircle(circleShape, fencePoints);
-            }
-            case EllipseShape ellipseShape -> {
-                return fenceTrimEllipse(ellipseShape, fencePoints);
-            }
-            case BezierCurveShape bezierCurveShape -> {
-                return fenceTrimBezierCurve(bezierCurveShape, fencePoints);
-            }
-            case RectangleShape rectangleShape -> {
-                return fenceTrimRectangle(rectangleShape, fencePoints);
             }
             case PolylineShape polylineShape -> {
                 return fenceTrimPolylineShape(polylineShape, fencePoints);
             }
             default -> {
-                // 使用通用栅栏修剪逻辑
                 return createFenceTrimmedSegments(shape, fencePoints);
             }
         }
@@ -557,6 +536,9 @@ public class FenceTrimHelper {
             case EllipseShape ellipse -> {
                 return geometryUtils.createDenseEllipsePoints(ellipse);
             }
+            case EllipticalArcShape ellipticalArc -> {
+                return geometryUtils.createDensePolylineFromPoints(ellipticalArc.getPoints());
+            }
             case BezierCurveShape bezier -> {
                 return geometryUtils.createDenseBezierPoints(bezier);
             }
@@ -576,7 +558,7 @@ public class FenceTrimHelper {
                 return geometryUtils.createDenseTextPoints(text);
             }
             default -> {
-                return new ArrayList<>();
+                return geometryUtils.createDensePolylineFromPoints(shape.getPoints());
             }
         }
     }
@@ -647,31 +629,78 @@ public class FenceTrimHelper {
      */
     private List<Shape> createFenceTrimmedSegments(Shape shape, List<Vec2d> fencePoints) {
         List<Shape> result = new ArrayList<>();
-        
-        // 找到图形与栅栏的交点
-        List<Vec2d> intersections = findIntersectionsWithFence(shape, fencePoints);
-        
-        if (intersections.isEmpty()) {
-            // 没有交点，检查是否完全在内部
+
+        List<Vec2d> sampledPoints = getShapePointsForIntersection(shape);
+        if (sampledPoints == null || sampledPoints.size() < 2) {
             if (!isShapeCompletelyInsideFence(shape, fencePoints)) {
-                result.add(shape); // 保留原图形
+                result.add(shape);
             }
-            return result; // 删除整个图形
+            return result;
         }
-        
-        // 有交点，分割图形并删除内部部分
-        // 这里使用通用的分割逻辑
-        List<Shape> segments = geometryUtils.splitShapeAtIntersections(shape, intersections);
-        
-        if (segments != null) {
-            for (Shape segment : segments) {
-                // 检查段是否在栅栏内部
-                if (!isShapeCompletelyInsideFence(segment, fencePoints)) {
-                    result.add(segment);
+
+        boolean hasInternalSegments = hasInternalSegments(shape, fencePoints);
+        if (!hasInternalSegments) {
+            result.add(shape);
+            return result;
+        }
+
+        List<Vec2d> chain = null;
+        List<List<Vec2d>> outsideChains = new ArrayList<>();
+
+        for (int i = 0; i < sampledPoints.size() - 1; i++) {
+            Vec2d start = sampledPoints.get(i);
+            Vec2d end = sampledPoints.get(i + 1);
+            List<LineShape> outsideSegments = clipSegmentOutsideFence(start, end, fencePoints);
+
+            for (LineShape segment : outsideSegments) {
+                Vec2d segStart = segment.getStart();
+                Vec2d segEnd = segment.getEnd();
+
+                if (chain == null) {
+                    chain = new ArrayList<>();
+                    chain.add(segStart);
+                    chain.add(segEnd);
+                } else if (arePointsClose(chain.getLast(), segStart)) {
+                    chain.add(segEnd);
+                } else {
+                    if (chain.size() >= 2) {
+                        outsideChains.add(chain);
+                    }
+                    chain = new ArrayList<>();
+                    chain.add(segStart);
+                    chain.add(segEnd);
                 }
             }
         }
-        
+
+        if (chain != null && chain.size() >= 2) {
+            outsideChains.add(chain);
+        }
+
+        if (outsideChains.isEmpty()) {
+            return result;
+        }
+
+        for (List<Vec2d> outsideChain : outsideChains) {
+            List<Vec2d> deduplicated = geometryUtils.removeDuplicatePoints(outsideChain);
+            if (deduplicated.size() < 2) {
+                continue;
+            }
+
+            PolylineShape segmentShape = new PolylineShape(deduplicated, false);
+            if (shape.getStyle() != null) {
+                segmentShape.setStyle(shape.getStyle().clone());
+            }
+            if (shape.getTransform() != null) {
+                segmentShape.setTransform(shape.getTransform().clone());
+            }
+            result.add(segmentShape);
+        }
+
+        if (result.isEmpty() && !isShapeCompletelyInsideFence(shape, fencePoints)) {
+            result.add(shape);
+        }
+
         return result;
     }
     

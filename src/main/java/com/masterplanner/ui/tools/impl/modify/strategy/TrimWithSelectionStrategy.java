@@ -419,14 +419,22 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     /**
      * 在指定位置查找图形
      */
-    private Shape findShapeAtPoint(Vec2d pos, List<Shape> shapes) {
+    private Shape findShapeAtPoint(Vec2d pos, List<Shape> shapes, ModifyToolContext context) {
         Shape nearestShape = null;
         double minDistance = Double.MAX_VALUE;
+        double worldTolerance = getWorldPickTolerance(context);
         
         for (Shape shape : shapes) {
             try {
-                double distance = shape.distanceTo(pos);
-                if (distance <= trimTolerance && distance < minDistance) {
+                Vec2d closestPoint = shape.getClosestPoint(pos);
+                double distance;
+                if (closestPoint != null) {
+                    distance = closestPoint.distance(pos);
+                } else {
+                    distance = shape.distanceTo(pos);
+                }
+
+                if (distance <= worldTolerance && distance < minDistance) {
                     minDistance = distance;
                     nearestShape = shape;
                 }
@@ -436,6 +444,17 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         }
         
         return nearestShape;
+    }
+
+    private double getWorldPickTolerance(ModifyToolContext context) {
+        if (context != null && context.getCamera() != null) {
+            try {
+                return Math.max(context.getCamera().screenToWorldDistance(trimTolerance), 1e-6);
+            } catch (Exception e) {
+                LOGGER.debug("转换拾取阈值失败，使用默认值: {}", e.getMessage());
+            }
+        }
+        return Math.max(trimTolerance, 1e-6);
     }
     
         /**
@@ -525,7 +544,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             
             // 根据当前状态高亮不同的图形
             List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
-            Shape nearestShape = findShapeAtPoint(highlightPos, allShapes);
+            Shape nearestShape = findShapeAtPoint(highlightPos, allShapes, context);
             
             if (nearestShape != null) {
                 // 避免高亮已选择的图形
@@ -563,7 +582,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 // 点选模式：选择单个图形
                 Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
                 List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
-                Shape clickedShape = findShapeAtPoint(snappedPoint, allShapes);
+                Shape clickedShape = findShapeAtPoint(snappedPoint, allShapes, context);
                 if (clickedShape != null) {
                     boxSelectedShapes.clear();
                     switch (trimState) {
@@ -669,7 +688,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             // 查找被点击的图形
             List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
             LOGGER.debug("当前图层图形数量: {}", allShapes.size());
-            Shape targetShape = findShapeAtPoint(clickPos, allShapes);
+            Shape targetShape = findShapeAtPoint(clickPos, allShapes, context);
             
             if (targetShape == null) {
                 LOGGER.debug("未找到要修剪的图形");

@@ -82,53 +82,66 @@ public class BoundaryTrimHelper {
             return result;
         }
         
-        // 3. 根据图形类型进行专门的修剪处理
-        switch (shape) {
-            case FreeDrawPath freeDrawPath -> {
-                return boundaryTrimFreeDrawPath(freeDrawPath, trimPoint, intersections);
+        List<Shape> segments = geometryUtils.splitShapeAtIntersections(shape, intersections);
+        if (segments == null || segments.isEmpty()) {
+            result.add(shape);
+            return result;
+        }
+
+        List<Shape> filtered = removeSegmentNearestToTrimPoint(segments, trimPoint, shape);
+        if (filtered.isEmpty()) {
+            return filtered;
+        }
+
+        return filtered;
+    }
+
+    private List<Shape> removeSegmentNearestToTrimPoint(List<Shape> segments, Vec2d trimPoint, Shape originalShape) {
+        List<Shape> result = new ArrayList<>();
+        if (segments == null || segments.isEmpty()) {
+            return result;
+        }
+
+        if (segments.size() == 1) {
+            result.add(segments.getFirst());
+            return result;
+        }
+
+        int nearestIndex = -1;
+        double nearestDistance = Double.MAX_VALUE;
+
+        for (int i = 0; i < segments.size(); i++) {
+            Shape segment = segments.get(i);
+            double distance = Double.MAX_VALUE;
+            try {
+                Vec2d closestPoint = segment.getClosestPoint(trimPoint);
+                if (closestPoint != null) {
+                    distance = closestPoint.distance(trimPoint);
+                } else {
+                    distance = segment.distanceTo(trimPoint);
+                }
+            } catch (Exception e) {
+                LOGGER.debug("计算段距离失败: {}", e.getMessage());
             }
-            case CircleShape circleShape -> {
-                return boundaryTrimCircle(circleShape, trimPoint, intersections);
-            }
-            case EllipseShape ellipseShape -> {
-                return boundaryTrimEllipse(ellipseShape, trimPoint, intersections);
-            }
-            case BezierCurveShape bezierCurveShape -> {
-                return boundaryTrimBezierCurve(bezierCurveShape, trimPoint, intersections);
-            }
-            case RectangleShape rectangleShape -> {
-                return boundaryTrimRectangle(rectangleShape, trimPoint, intersections);
-            }
-            case PolylineShape polylineShape -> {
-                return boundaryTrimPolylineShape(polylineShape, trimPoint, intersections);
-            }
-            case LineShape lineShape -> {
-                return boundaryTrimLineShape(lineShape, trimPoint, intersections);
-            }
-            case ArcShape arcShape -> {
-                return boundaryTrimArcShape(arcShape, trimPoint, intersections);
-            }
-            case SineCurveShape sineCurveShape -> {
-                return boundaryTrimSineCurveShape(sineCurveShape, trimPoint, intersections);
-            }
-            case SpiralShape spiralShape -> {
-                return boundaryTrimSpiralShape(spiralShape, trimPoint, intersections);
-            }
-                case CableShape catenaryLine -> {
-                return boundaryTrimCatenaryLine(catenaryLine, trimPoint, intersections);
-            }
-            case Polygon polygon -> {
-                return boundaryTrimPolygon(polygon, trimPoint, intersections);
-            }
-            case TextShape textShape -> {
-                return boundaryTrimTextShape(textShape, trimPoint, intersections);
-            }
-            default -> {
-                // 使用通用分割逻辑
-                List<Shape> segments = geometryUtils.splitShapeAtIntersections(shape, intersections);
-                return filterSegmentsByTrimPoint(segments, trimPoint);
+
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestIndex = i;
             }
         }
+
+        double tolerance = Math.max(TRIM_TOLERANCE, geometryUtils.calculateAdaptiveTolerance(originalShape));
+        if (nearestIndex < 0 || nearestDistance > tolerance) {
+            return new ArrayList<>(segments);
+        }
+
+        for (int i = 0; i < segments.size(); i++) {
+            if (i != nearestIndex) {
+                result.add(segments.get(i));
+            }
+        }
+
+        return result;
     }
     
     // ====== 特定形状的边界修剪方法 ======

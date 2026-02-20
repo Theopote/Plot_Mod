@@ -95,6 +95,9 @@ public class GeometryTrimUtils {
             case EllipseShape ellipse -> {
                 return createDenseEllipsePoints(ellipse);
             }
+            case EllipticalArcShape ellipticalArc -> {
+                return createDensePolylineFromPoints(ellipticalArc.getPoints());
+            }
             case BezierCurveShape bezier -> {
                 return createDenseBezierPoints(bezier);
             }
@@ -114,10 +117,43 @@ public class GeometryTrimUtils {
                 return createDenseTextPoints(text);
             }
             default -> {
-                // 默认返回空列表
-                return new ArrayList<>();
+                return createDensePolylineFromPoints(shape.getPoints());
             }
         }
+    }
+
+    public List<Vec2d> createDensePolylineFromPoints(List<Vec2d> points) {
+        List<Vec2d> densePoints = new ArrayList<>();
+        if (points == null || points.isEmpty()) {
+            return densePoints;
+        }
+
+        if (points.size() == 1) {
+            densePoints.add(points.getFirst());
+            return densePoints;
+        }
+
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d current = points.get(i);
+            Vec2d next = points.get(i + 1);
+
+            densePoints.add(current);
+
+            double distance = current.distance(next);
+            int numPoints = Math.max(1, (int) (distance / 5.0));
+
+            for (int j = 1; j < numPoints; j++) {
+                double t = j / (double) numPoints;
+                Vec2d midPoint = new Vec2d(
+                    current.x + t * (next.x - current.x),
+                    current.y + t * (next.y - current.y)
+                );
+                densePoints.add(midPoint);
+            }
+        }
+
+        densePoints.add(points.getLast());
+        return densePoints;
     }
     
     // ====== 密集采样方法 ======
@@ -497,6 +533,9 @@ public class GeometryTrimUtils {
             case EllipseShape ellipse -> {
                 return isPointOnEllipse(ellipse, point);
             }
+            case EllipticalArcShape ellipticalArc -> {
+                return isPointOnPolyline(ellipticalArc, point, tolerance);
+            }
             case RectangleShape rectangle -> {
                 return isPointOnRectangleBoundary(rectangle, point);
             }
@@ -525,7 +564,7 @@ public class GeometryTrimUtils {
                 return isPointOnPolyline(text, point, tolerance);
             }
             default -> {
-                return false;
+                return isPointOnPolyline(shape, point, tolerance);
             }
         }
     }
@@ -623,7 +662,7 @@ public class GeometryTrimUtils {
         } else if (shape instanceof TextShape text) {
             return text.getPoints();
         }
-        return new ArrayList<>();
+        return shape.getPoints();
     }
     
     // ====== 辅助几何方法 ======
@@ -1005,6 +1044,9 @@ public class GeometryTrimUtils {
             case EllipseShape ellipse -> {
                 return splitEllipseAtIntersections(ellipse, intersections);
             }
+            case EllipticalArcShape ellipticalArc -> {
+                return splitGenericShapeAtIntersections(ellipticalArc, intersections);
+            }
             case BezierCurveShape bezier -> {
                 return splitBezierCurveAtIntersections(bezier, intersections);
             }
@@ -1021,11 +1063,55 @@ public class GeometryTrimUtils {
                 return splitCatenaryLineAtIntersections(catenary, intersections);
             }
             default -> {
-                // 对于其他图形类型，返回原图形
-                segments.add(shape);
-                return segments;
+                return splitGenericShapeAtIntersections(shape, intersections);
             }
         }
+    }
+
+    private List<Shape> splitGenericShapeAtIntersections(Shape shape, List<Vec2d> intersections) {
+        List<Vec2d> sampledPoints = createDensePolylineFromPoints(shape.getPoints());
+        if (sampledPoints.size() < 2) {
+            List<Shape> fallback = new ArrayList<>();
+            fallback.add(shape);
+            return fallback;
+        }
+
+        List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(sampledPoints, intersections);
+        if (sortedIntersections.isEmpty()) {
+            List<Shape> fallback = new ArrayList<>();
+            fallback.add(shape);
+            return fallback;
+        }
+
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(sampledPoints.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(sampledPoints.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        List<Shape> segments = new ArrayList<>();
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            LineShape segment = new LineShape(start, end);
+            if (shape.getStyle() != null) {
+                segment.setStyle(shape.getStyle().clone());
+            }
+            if (shape.getTransform() != null) {
+                segment.setTransform(shape.getTransform().clone());
+            }
+            segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(shape);
+        }
+
+        return segments;
     }
     
     private List<Shape> splitCircleAtIntersections(CircleShape circle, List<Vec2d> intersections) {
@@ -1314,20 +1400,33 @@ public class GeometryTrimUtils {
             return segments;
         }
         
-        // 将交点按在曲线上的位置排序
         List<Vec2d> sortedIntersections = sortIntersectionsAlongPath(points, intersections);
-        
-        // 创建段
-        for (int i = 0; i < sortedIntersections.size() - 1; i++) {
-            Vec2d start = sortedIntersections.get(i);
-            Vec2d end = sortedIntersections.get(i + 1);
-            
-            List<Vec2d> segmentPoints = new ArrayList<>();
-            segmentPoints.add(start);
-            segmentPoints.add(end);
-            
-            FreeDrawPath segment = new FreeDrawPath(segmentPoints);
+
+        List<Vec2d> splitPoints = new ArrayList<>();
+        splitPoints.add(points.getFirst());
+        splitPoints.addAll(sortedIntersections);
+        splitPoints.add(points.getLast());
+        splitPoints = removeDuplicatePoints(splitPoints);
+
+        for (int i = 0; i < splitPoints.size() - 1; i++) {
+            Vec2d start = splitPoints.get(i);
+            Vec2d end = splitPoints.get(i + 1);
+            if (start.distance(end) <= INTERSECTION_TOLERANCE) {
+                continue;
+            }
+
+            LineShape segment = new LineShape(start, end);
+            if (path.getStyle() != null) {
+                segment.setStyle(path.getStyle().clone());
+            }
+            if (path.getTransform() != null) {
+                segment.setTransform(path.getTransform().clone());
+            }
             segments.add(segment);
+        }
+
+        if (segments.isEmpty()) {
+            segments.add(path);
         }
         
         return segments;
