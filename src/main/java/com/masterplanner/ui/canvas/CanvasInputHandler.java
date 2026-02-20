@@ -21,9 +21,9 @@ import java.util.function.Consumer;
 
 /**
  * 画布输入处理类 (已优化)
- * 
+ * <p>
  * 负责处理鼠标和键盘输入，包括选择、拖动和工具交互。
- * 
+ * <p>
  * 优化点:
  * 1. 移除了本地的selectedShapes列表，统一使用AppState作为唯一数据源，避免状态不一致。
  * 2. 重构handleInput方法，将其拆分为更小、职责更单一的私有方法。
@@ -297,9 +297,7 @@ public class CanvasInputHandler {
             isPanningWithMiddleButton = false;
             lastMiddleButtonDragPos = null;
             // 确保拖动状态被清除
-            if (cameraManager != null) {
-                cameraManager.setPanning(false);
-            }
+            cameraManager.setPanning(false);
         }
     }
     
