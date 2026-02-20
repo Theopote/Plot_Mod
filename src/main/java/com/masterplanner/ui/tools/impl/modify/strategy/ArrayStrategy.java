@@ -540,7 +540,7 @@ public class ArrayStrategy implements IModifyStrategy {
      * 计算矩形阵列位置
      */
     private void calculateRectangularArray() {
-        Vec2d sourcePos = sourceShape.getPosition();
+        Vec2d sourcePos = getShapeCenter(sourceShape);
         Vec2d offset = basePoint.subtract(sourcePos);
         
         for (int row = 0; row < rowCount; row++) {
@@ -954,9 +954,18 @@ public class ArrayStrategy implements IModifyStrategy {
                     Vec2d offset = pos.subtract(cloneCenter);
                     if (offset.length() > 1e-6) clone.translate(offset);
                     if (Math.abs(delta) > 1e-9) clone.rotate(delta, pos);
+                } else if (currentType == ArrayType.PATH) {
+                    Vec2d cloneCenter = getShapeCenter(clone);
+                    Vec2d offset = pos.subtract(cloneCenter);
+                    if (offset.length() > 1e-6) clone.translate(offset);
+
+                    double startTangent = calculatePathTangentAngle(0.0);
+                    double delta = ang - startTangent;
+                    if (Math.abs(delta) > 1e-9) clone.rotate(delta, pos);
                 } else {
                     // 其他阵列类型仅平移
-                    Vec2d offset = pos.subtract(clone.getPosition());
+                    Vec2d cloneCenter = getShapeCenter(clone);
+                    Vec2d offset = pos.subtract(cloneCenter);
                     if (offset.length() > 1e-6) clone.translate(offset);
                 }
                 clone.setStyle(ShapeStyle.PREVIEW);

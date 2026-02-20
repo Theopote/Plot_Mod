@@ -176,7 +176,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 if (arrayType == ArrayType.RECTANGULAR) {
                     rowCount = 3;
                     columnCount = 3;
-                    basePoint = selectedShapes.getFirst().getPosition();
+                    basePoint = getShapeCenter(selectedShapes.getFirst());
                     arrayState = ArrayState.PREVIEWING;
                     updateArrayPreview();
                     context.setPreviewEnabled(true);
@@ -188,7 +188,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 } else {
                     // PATH
                     pathCount = Math.max(pathCount, 2);
-                    basePoint = selectedShapes.getFirst().getPosition(); // 满足 handler 校验需要
+                    basePoint = getShapeCenter(selectedShapes.getFirst()); // 满足 handler 校验需要
                     arrayState = ArrayState.AWAIT_PATH;
                     context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，左键点击选择路径");
                 }
@@ -558,7 +558,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
         ModifyParameters parameters = new ModifyParameters();
         parameters.setString("arrayType", arrayType.name());
-        parameters.setVec2d("basePoint", basePoint != null ? basePoint : selectedShapes.getFirst().getPosition());
+        parameters.setVec2d("basePoint", basePoint != null ? basePoint : getShapeCenter(selectedShapes.getFirst()));
 
         if (arrayType == ArrayType.RECTANGULAR) {
             parameters.setInt("rowCount", rowCount);
@@ -657,14 +657,14 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 double totalLength = PathUtils.calculatePathLength(pathPoints);
                 int count = Math.max(2, pathCount);
                 double step = totalLength / (count - 1);
+                double startTangentAngle = calculatePathTangentAngle(0.0);
                 for (int i = 1; i < count; i++) {
                     double distance = i * step;
                     Vec2d pos = PathUtils.getPositionAtLength(pathPoints, distance);
                     if (pos != null) {
                         previewPositions.add(pos);
-                        // 计算路径角度（简化版本）
-                        double angle = 0.0; // 暂时设为0，实际应该计算路径切线角度
-                        previewAngles.add(angle);
+                        double tangentAngle = calculatePathTangentAngle(distance);
+                        previewAngles.add(tangentAngle - startTangentAngle);
                     }
                 }
             }
@@ -786,14 +786,14 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 if (arrayType == ArrayType.RECTANGULAR) {
                     rowCount = 3;
                     columnCount = 3;
-                    basePoint = selectedShapes.getFirst().getPosition();
+                    basePoint = getShapeCenter(selectedShapes.getFirst());
                     arrayState = ArrayState.PREVIEWING;
                     updateArrayPreview();
                 } else if (arrayType == ArrayType.CIRCULAR) {
                     rowCount = 6;
                     arrayState = ArrayState.AWAIT_BASE_POINT;
                 } else {
-                    basePoint = selectedShapes.getFirst().getPosition();
+                    basePoint = getShapeCenter(selectedShapes.getFirst());
                     arrayState = ArrayState.AWAIT_PATH;
                 }
             } else {
@@ -1068,5 +1068,36 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
         Vec2d pos = shape.getPosition();
         return pos != null ? pos : new Vec2d(0, 0);
+    }
+
+    private double calculatePathTangentAngle(double targetLength) {
+        if (pathPoints.size() < 2) {
+            return 0.0;
+        }
+
+        double accumulatedLength = 0.0;
+        for (int i = 1; i < pathPoints.size(); i++) {
+            Vec2d prev = pathPoints.get(i - 1);
+            Vec2d curr = pathPoints.get(i);
+            double segmentLength = prev.distance(curr);
+
+            if (accumulatedLength + segmentLength >= targetLength) {
+                Vec2d direction = curr.subtract(prev);
+                if (direction.length() > 1e-9) {
+                    return Math.atan2(direction.y, direction.x);
+                }
+                return 0.0;
+            }
+
+            accumulatedLength += segmentLength;
+        }
+
+        Vec2d last = pathPoints.get(pathPoints.size() - 1);
+        Vec2d secondLast = pathPoints.get(pathPoints.size() - 2);
+        Vec2d direction = last.subtract(secondLast);
+        if (direction.length() > 1e-9) {
+            return Math.atan2(direction.y, direction.x);
+        }
+        return 0.0;
     }
 }

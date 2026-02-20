@@ -138,14 +138,14 @@ public class ArrayHandler implements IModifyHandler {
         Vec2d basePoint = params.getVec2d("basePoint");
         
         for (Shape shape : shapes) {
-            Vec2d sourcePos = shape.getPosition();
+            Vec2d sourcePos = getShapeCenter(shape);
             Vec2d offset = basePoint.subtract(sourcePos);
             
             for (int row = 0; row < rowCount; row++) {
                 for (int col = 0; col < columnCount; col++) {
                     if (row == 0 && col == 0) continue; // 跳过原始位置
                     
-                    Vec2d arrayPos = sourcePos.add(new Vec2d(
+                    Vec2d arrayCenter = sourcePos.add(new Vec2d(
                         offset.x + col * columnSpacing,
                         offset.y + row * rowSpacing
                     ));
@@ -153,7 +153,11 @@ public class ArrayHandler implements IModifyHandler {
                     try {
                         Shape arrayedShape = shape.clone();
                         if (arrayedShape != null) {
-                            arrayedShape.setPosition(arrayPos);
+                            Vec2d cloneCenter = getShapeCenter(arrayedShape);
+                            Vec2d centerOffset = arrayCenter.subtract(cloneCenter);
+                            if (centerOffset.length() > 1e-9) {
+                                arrayedShape.translate(centerOffset);
+                            }
                             arrayedShapes.add(arrayedShape);
                         }
                     } catch (Exception e) {
@@ -262,17 +266,29 @@ public class ArrayHandler implements IModifyHandler {
         // 计算路径总长度
         double totalLength = calculatePathLength(pathPoints);
         double stepLength = totalLength / (count - 1);
+        double startTangentAngle = calculatePathTangentAngle(pathPoints, 0.0);
         
         for (Shape shape : shapes) {
             for (int i = 1; i < count; i++) { // 从1开始，跳过原始位置
                 double targetLength = i * stepLength;
-                Vec2d arrayPos = getPositionAtLength(pathPoints, targetLength);
+                Vec2d arrayCenter = getPositionAtLength(pathPoints, targetLength);
                 
-                if (arrayPos != null) {
+                if (arrayCenter != null) {
                     try {
                         Shape arrayedShape = shape.clone();
                         if (arrayedShape != null) {
-                            arrayedShape.setPosition(arrayPos);
+                            Vec2d cloneCenter = getShapeCenter(arrayedShape);
+                            Vec2d centerOffset = arrayCenter.subtract(cloneCenter);
+                            if (centerOffset.length() > 1e-9) {
+                                arrayedShape.translate(centerOffset);
+                            }
+
+                            double tangentAngle = calculatePathTangentAngle(pathPoints, targetLength);
+                            double delta = tangentAngle - startTangentAngle;
+                            if (Math.abs(delta) > 1e-9) {
+                                arrayedShape.rotate(delta, arrayCenter);
+                            }
+
                             arrayedShapes.add(arrayedShape);
                         } else {
                             throw new ArrayOperationException(ArrayOperationException.ErrorType.CLONE_FAILED, 
@@ -304,6 +320,37 @@ public class ArrayHandler implements IModifyHandler {
      */
     private Vec2d getPositionAtLength(List<Vec2d> pathPoints, double targetLength) {
         return PathUtils.getPositionAtLength(pathPoints, targetLength);
+    }
+
+    private double calculatePathTangentAngle(List<Vec2d> pathPoints, double targetLength) {
+        if (pathPoints == null || pathPoints.size() < 2) {
+            return 0.0;
+        }
+
+        double accumulatedLength = 0.0;
+        for (int i = 1; i < pathPoints.size(); i++) {
+            Vec2d prev = pathPoints.get(i - 1);
+            Vec2d curr = pathPoints.get(i);
+            double segmentLength = prev.distance(curr);
+
+            if (accumulatedLength + segmentLength >= targetLength) {
+                Vec2d direction = curr.subtract(prev);
+                if (direction.length() > 1e-9) {
+                    return Math.atan2(direction.y, direction.x);
+                }
+                return 0.0;
+            }
+
+            accumulatedLength += segmentLength;
+        }
+
+        Vec2d last = pathPoints.get(pathPoints.size() - 1);
+        Vec2d secondLast = pathPoints.get(pathPoints.size() - 2);
+        Vec2d direction = last.subtract(secondLast);
+        if (direction.length() > 1e-9) {
+            return Math.atan2(direction.y, direction.x);
+        }
+        return 0.0;
     }
     
     @Override
