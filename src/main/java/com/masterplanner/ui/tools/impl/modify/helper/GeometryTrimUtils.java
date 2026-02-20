@@ -1242,7 +1242,7 @@ public class GeometryTrimUtils {
             segments.add(shape);
         }
 
-        return segments;
+        return filterSegmentQuality(segments, shape);
     }
     
     private List<Shape> splitCircleAtIntersections(CircleShape circle, List<Vec2d> intersections) {
@@ -1386,7 +1386,7 @@ public class GeometryTrimUtils {
             segments.add(bezier);
         }
 
-        return segments;
+        return filterSegmentQuality(segments, bezier);
     }
 
     private List<Shape> splitLineAtIntersections(LineShape line, List<Vec2d> intersections) {
@@ -1426,7 +1426,7 @@ public class GeometryTrimUtils {
             segments.add(line);
         }
 
-        return segments;
+        return filterSegmentQuality(segments, line);
     }
 
     private List<Shape> splitPolylineAtIntersections(PolylineShape polyline, List<Vec2d> intersections) {
@@ -1471,7 +1471,7 @@ public class GeometryTrimUtils {
             segments.add(polyline);
         }
 
-        return segments;
+        return filterSegmentQuality(segments, polyline);
     }
 
     private List<Shape> splitArcAtIntersections(ArcShape arc, List<Vec2d> intersections) {
@@ -1643,7 +1643,7 @@ public class GeometryTrimUtils {
             segments.add(sine);
         }
         
-        return segments;
+        return filterSegmentQuality(segments, sine);
     }
     
     private List<Shape> splitSpiralAtIntersections(SpiralShape spiral, List<Vec2d> intersections) {
@@ -1689,7 +1689,7 @@ public class GeometryTrimUtils {
             segments.add(spiral);
         }
         
-        return segments;
+        return filterSegmentQuality(segments, spiral);
     }
     
     private List<Shape> splitFreeDrawPathAtIntersections(FreeDrawPath path, List<Vec2d> intersections) {
@@ -1735,7 +1735,7 @@ public class GeometryTrimUtils {
             segments.add(path);
         }
         
-        return segments;
+        return filterSegmentQuality(segments, path);
     }
 
     private List<Vec2d> extractPathSection(List<Vec2d> pathPoints, Vec2d start, Vec2d end) {
@@ -1826,7 +1826,7 @@ public class GeometryTrimUtils {
             segments.add(catenary);
         }
         
-        return segments;
+        return filterSegmentQuality(segments, catenary);
     }
     
     // ====== 矩形交点排序 ======
