@@ -121,13 +121,13 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             rememberedBoundaryShapes = new ArrayList<>(boundaryShapes);
             isStateRemembered = true;
             isBoundaryModePersistent = true; // 进入边界持续状态
-            LOGGER.info("已记住边界图形，数量: {}，进入持续状态", rememberedBoundaryShapes.size());
+            LOGGER.debug("已记住边界图形，数量: {}，进入持续状态", rememberedBoundaryShapes.size());
         } else if (trimType == TrimType.FENCE && trimState == TrimState.SELECTING_TARGETS) {
             // 记住目标图形
             rememberedTargetShapes = new ArrayList<>(targetShapes);
             isStateRemembered = true;
             isFenceModePersistent = true; // 进入栅栏持续状态
-            LOGGER.info("已记住目标图形，数量: {}，进入持续状态", rememberedTargetShapes.size());
+            LOGGER.debug("已记住目标图形，数量: {}，进入持续状态", rememberedTargetShapes.size());
         }
     }
     
@@ -142,7 +142,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 boundaryShapes.addAll(rememberedBoundaryShapes);
                 trimState = TrimState.BOUNDARY_READY;
                 isBoundaryModePersistent = true;
-                LOGGER.info("已恢复边界图形，数量: {}，保持持续状态", boundaryShapes.size());
+                LOGGER.debug("已恢复边界图形，数量: {}，保持持续状态", boundaryShapes.size());
                 return true;
             } else if (trimType == TrimType.FENCE && !rememberedTargetShapes.isEmpty()) {
                 // 恢复目标图形选择
@@ -150,7 +150,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 targetShapes.addAll(rememberedTargetShapes);
                 trimState = TrimState.FENCE_READY;
                 isFenceModePersistent = true;
-                LOGGER.info("已恢复目标图形，数量: {}，保持持续状态", targetShapes.size());
+                LOGGER.debug("已恢复目标图形，数量: {}，保持持续状态", targetShapes.size());
                 return true;
             }
         }
@@ -167,7 +167,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         isStateRemembered = false;
         isBoundaryModePersistent = false;
         isFenceModePersistent = false;
-        LOGGER.info("已清除记住的状态");
+        LOGGER.debug("已清除记住的状态");
     }
 
     // 常量
@@ -264,11 +264,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     rememberState();
                     trimState = TrimState.BOUNDARY_READY;
                     context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧（持续模式）");
-                    LOGGER.info("完成边界选择，进入持续模式");
+                    LOGGER.debug("完成边界选择，进入持续模式");
                 } else {
                     trimState = TrimState.WAITING_TRIM_CLICK;
                     context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧");
-                    LOGGER.info("完成边界选择，进入单次修剪模式");
+                    LOGGER.debug("完成边界选择，进入单次修剪模式");
                 }
                 return ModifyResult.CONTINUE;
             }
@@ -285,12 +285,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     rememberState();
                     trimState = TrimState.FENCE_READY;
                     context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，可以继续使用栅栏修剪（持续模式）");
-                    LOGGER.info("完成目标图形选择，进入持续模式");
+                    LOGGER.debug("完成目标图形选择，进入持续模式");
                 } else {
                     fencePoints.clear();
                     trimState = TrimState.DRAWING_FENCE;
                     context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，开始绘制栅栏");
-                    LOGGER.info("完成目标图形选择，进入单次栅栏绘制模式");
+                    LOGGER.debug("完成目标图形选择，进入单次栅栏绘制模式");
                 }
                 return ModifyResult.CONTINUE;
             }
@@ -311,7 +311,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     clearRememberedState();
                     reset();
                     context.setStatusMessage("栅栏持续模式已取消");
-                    LOGGER.info("用户右键取消栅栏持续模式");
+                    LOGGER.debug("用户右键取消栅栏持续模式");
                     return ModifyResult.CANCEL;
                 }
                 return ModifyResult.CONTINUE;
@@ -330,7 +330,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     clearRememberedState();
                     reset();
                     context.setStatusMessage("边界持续模式已取消");
-                    LOGGER.info("用户右键取消边界持续模式");
+                    LOGGER.debug("用户右键取消边界持续模式");
                     return ModifyResult.CANCEL;
                 }
                 return ModifyResult.CONTINUE;
@@ -379,7 +379,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 fencePoints.clear();
                 trimState = TrimState.DRAWING_FENCE;
                 context.setStatusMessage("开始绘制栅栏区域，左键添加点，右键完成");
-                LOGGER.info("从持续模式开始绘制栅栏");
+                LOGGER.debug("从持续模式开始绘制栅栏");
                 return ModifyResult.CONTINUE;
             }
             
@@ -396,7 +396,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         try {
             fencePoints.add(pos);
             context.setStatusMessage("栅栏点 " + fencePoints.size() + " 个，右键完成栅栏绘制");
-            LOGGER.info("添加栅栏点: {}", pos);
+            LOGGER.debug("添加栅栏点: {}", pos);
             return ModifyResult.CONTINUE;
         } catch (Exception e) {
             LOGGER.error("添加栅栏点失败: {}", e.getMessage(), e);
@@ -430,26 +430,26 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      * 检查目标图形是否与边界图形相交
      */
     private boolean hasIntersectionWithBoundaries(Shape targetShape, List<Shape> boundaryShapes) {
-        LOGGER.info("检查目标图形与边界图形相交: 目标类型={}, 边界数量={}", 
+        LOGGER.debug("检查目标图形与边界图形相交: 目标类型={}, 边界数量={}", 
             targetShape.getClass().getSimpleName(), boundaryShapes.size());
         
         for (int i = 0; i < boundaryShapes.size(); i++) {
             Shape boundary = boundaryShapes.get(i);
             try {
-                LOGGER.info("检查与边界图形 {}: 类型={}", i, boundary.getClass().getSimpleName());
+                LOGGER.debug("检查与边界图形 {}: 类型={}", i, boundary.getClass().getSimpleName());
                 List<Vec2d> intersections = targetShape.getIntersectionsWith(boundary);
                 if (intersections != null && !intersections.isEmpty()) {
-                    LOGGER.info("找到交点: 数量={}", intersections.size());
+                    LOGGER.debug("找到交点: 数量={}", intersections.size());
                     return true;
                 } else {
-                    LOGGER.info("未找到交点");
+                    LOGGER.debug("未找到交点");
                 }
             } catch (Exception e) {
                 LOGGER.error("检查交点失败: {}", e.getMessage(), e);
             }
         }
         
-        LOGGER.info("目标图形与所有边界图形都不相交");
+        LOGGER.debug("目标图形与所有边界图形都不相交");
         return false;
     }
     
@@ -458,16 +458,16 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private List<Shape> calculateTrimmedShapes(Shape targetShape, Vec2d clickPos, List<Shape> boundaryShapes, ModifyToolContext context) {
         try {
-            LOGGER.info("开始计算修剪图形: 目标图形类型={}, 修剪点=({}, {}), 边界图形数量={}", 
+            LOGGER.debug("开始计算修剪图形: 目标图形类型={}, 修剪点=({}, {}), 边界图形数量={}", 
                 targetShape.getClass().getSimpleName(), clickPos.x, clickPos.y, boundaryShapes.size());
             
             // 确保TrimHandler已初始化
             if (trimHandler == null) {
-                LOGGER.info("TrimHandler未初始化，正在创建...");
+                LOGGER.debug("TrimHandler未初始化，正在创建...");
                 trimHandler = new TrimHandler((com.masterplanner.core.state.AppState) context.getAppState());
-                LOGGER.info("TrimHandler创建成功");
+                LOGGER.debug("TrimHandler创建成功");
             } else {
-                LOGGER.info("TrimHandler已存在");
+                LOGGER.debug("TrimHandler已存在");
             }
             
             // 创建修剪参数
@@ -475,11 +475,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             parameters.setVec2d("trimPoint", clickPos);
             parameters.setParameter("boundaryShapes", boundaryShapes);
             
-            LOGGER.info("修剪参数创建完成，开始调用TrimHandler.calculateModifiedShapes");
+            LOGGER.debug("修剪参数创建完成，开始调用TrimHandler.calculateModifiedShapes");
 
             // 使用TrimHandler计算修剪结果
             List<Shape> result = trimHandler.calculateModifiedShapes(List.of(targetShape), parameters);
-            LOGGER.info("TrimHandler返回修剪结果，图形数量: {}", result.size());
+            LOGGER.debug("TrimHandler返回修剪结果，图形数量: {}", result.size());
             return result;
         } catch (Exception e) {
             LOGGER.error("计算修剪图形失败: {}", e.getMessage(), e);
@@ -604,7 +604,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 clearRememberedState();
                 reset();
                 context.setStatusMessage("持续模式已取消");
-                LOGGER.info("用户按Esc键取消持续模式");
+                LOGGER.debug("用户按Esc键取消持续模式");
             } else {
                 reset();
                 context.setStatusMessage("操作已取消");
@@ -651,62 +651,62 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private ModifyResult performClickTrim(Vec2d clickPos, ModifyToolContext context) {
         try {
-            LOGGER.info("开始执行点击修剪操作，点击位置=({}, {})", clickPos.x, clickPos.y);
+            LOGGER.debug("开始执行点击修剪操作，点击位置=({}, {})", clickPos.x, clickPos.y);
             
             // 查找被点击的图形
             List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
-            LOGGER.info("当前图层图形数量: {}", allShapes.size());
+            LOGGER.debug("当前图层图形数量: {}", allShapes.size());
             Shape targetShape = findShapeAtPoint(clickPos, allShapes);
             
             if (targetShape == null) {
-                LOGGER.info("未找到要修剪的图形");
+                LOGGER.debug("未找到要修剪的图形");
                 context.setStatusMessage("未找到要修剪的图形");
                 return ModifyResult.CONTINUE;
             }
 
             if (boundaryShapes.contains(targetShape)) {
-                LOGGER.info("点击的是边界图形，忽略修剪");
+                LOGGER.debug("点击的是边界图形，忽略修剪");
                 context.setStatusMessage("请选择非边界图形进行修剪");
                 return ModifyResult.CONTINUE;
             }
             
-            LOGGER.info("找到目标图形: 类型={}", targetShape.getClass().getSimpleName());
+            LOGGER.debug("找到目标图形: 类型={}", targetShape.getClass().getSimpleName());
             
             // 检查目标图形是否与边界图形相交
-            LOGGER.info("检查目标图形与边界图形是否相交，边界图形数量: {}", boundaryShapes.size());
+            LOGGER.debug("检查目标图形与边界图形是否相交，边界图形数量: {}", boundaryShapes.size());
             if (!hasIntersectionWithBoundaries(targetShape, boundaryShapes)) {
-                LOGGER.info("目标图形与边界图形不相交，无法修剪");
+                LOGGER.debug("目标图形与边界图形不相交，无法修剪");
                 context.setStatusMessage("目标图形与边界图形不相交，无法修剪");
                 return ModifyResult.CONTINUE;
             }
             
-            LOGGER.info("目标图形与边界图形相交，可以修剪");
+            LOGGER.debug("目标图形与边界图形相交，可以修剪");
             
             // 记录修剪点击位置
             trimClickPoint = clickPos;
             
             // 执行修剪操作
-            LOGGER.info("开始调用calculateTrimmedShapes");
+            LOGGER.debug("开始调用calculateTrimmedShapes");
             List<Shape> trimmedShapes = calculateTrimmedShapes(targetShape, clickPos, boundaryShapes, context);
-            LOGGER.info("calculateTrimmedShapes返回结果，图形数量: {}", trimmedShapes.size());
+            LOGGER.debug("calculateTrimmedShapes返回结果，图形数量: {}", trimmedShapes.size());
             
             if (trimmedShapes.isEmpty()) {
-                LOGGER.info("修剪失败：无法生成修剪图形");
+                LOGGER.debug("修剪失败：无法生成修剪图形");
                 context.setStatusMessage("修剪失败：无法生成修剪图形");
                 return ModifyResult.CONTINUE;
             }
 
             if (trimmedShapes.size() == 1 && trimmedShapes.getFirst() == targetShape) {
-                LOGGER.info("修剪结果未发生变化，取消提交命令");
+                LOGGER.debug("修剪结果未发生变化，取消提交命令");
                 context.setStatusMessage("修剪结果无变化，请点击要删除的一侧");
                 return ModifyResult.CONTINUE;
             }
             
             // 创建修剪命令
-            LOGGER.info("开始创建修剪命令");
+            LOGGER.debug("开始创建修剪命令");
             pendingCommand = createTrimCommand(targetShape, trimmedShapes, context);
             if (pendingCommand != null) {
-                LOGGER.info("修剪命令创建成功，开始执行");
+                LOGGER.debug("修剪命令创建成功，开始执行");
                 // 执行命令
                 context.executeModifyCommand(pendingCommand);
                 context.setStatusMessage("修剪完成");
@@ -715,7 +715,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 if (isBoundaryModePersistent) {
                     trimState = TrimState.BOUNDARY_READY;
                     context.setStatusMessage("修剪完成，可以继续修剪其他图形（持续模式）");
-                    LOGGER.info("修剪完成，回到持续模式");
+                    LOGGER.debug("修剪完成，回到持续模式");
                 } else {
                     resetClickTrimState();
                 }
@@ -737,16 +737,16 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private ModifyResult performFenceTrim(ModifyToolContext context) {
         try {
-            LOGGER.info("开始执行栅栏修剪操作");
-            LOGGER.info("目标图形数量: {}, 栅栏点数: {}", targetShapes.size(), fencePoints.size());
+            LOGGER.debug("开始执行栅栏修剪操作");
+            LOGGER.debug("目标图形数量: {}, 栅栏点数: {}", targetShapes.size(), fencePoints.size());
             
             // 确保TrimHandler已初始化
             if (trimHandler == null) {
-                LOGGER.info("TrimHandler未初始化，正在创建...");
+                LOGGER.debug("TrimHandler未初始化，正在创建...");
                 trimHandler = new TrimHandler((com.masterplanner.core.state.AppState) context.getAppState());
-                LOGGER.info("TrimHandler创建成功");
+                LOGGER.debug("TrimHandler创建成功");
             } else {
-                LOGGER.info("TrimHandler已存在");
+                LOGGER.debug("TrimHandler已存在");
             }
             
             // 创建修剪参数
@@ -756,11 +756,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             parameters.setParameter("boundaryShapes", targetShapes);
             parameters.setBoolean("fenceMode", true);
             
-            LOGGER.info("修剪参数创建完成，开始调用TrimHandler.calculateModifiedShapes");
+            LOGGER.debug("修剪参数创建完成，开始调用TrimHandler.calculateModifiedShapes");
 
             // 生成修剪图形
             List<Shape> trimmedShapes = trimHandler.calculateModifiedShapes(targetShapes, parameters);
-            LOGGER.info("TrimHandler返回修剪结果，图形数量: {}", trimmedShapes.size());
+            LOGGER.debug("TrimHandler返回修剪结果，图形数量: {}", trimmedShapes.size());
             
             if (trimmedShapes.isEmpty()) {
                 context.setStatusMessage("栅栏修剪失败：无法生成修剪图形");
@@ -768,10 +768,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             }
 
             // 创建命令
-            LOGGER.info("开始创建修剪命令");
+            LOGGER.debug("开始创建修剪命令");
             pendingCommand = trimHandler.createModifyCommand(targetShapes, trimmedShapes, parameters);
             if (pendingCommand != null) {
-                LOGGER.info("修剪命令创建成功，开始执行");
+                LOGGER.debug("修剪命令创建成功，开始执行");
                 // 执行命令
                 context.executeModifyCommand(pendingCommand);
                 context.setStatusMessage("栅栏修剪完成");
@@ -780,7 +780,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 if (isFenceModePersistent) {
                     trimState = TrimState.FENCE_READY;
                     context.setStatusMessage("栅栏修剪完成，可以继续使用栅栏修剪（持续模式）");
-                    LOGGER.info("栅栏修剪完成，回到持续模式");
+                    LOGGER.debug("栅栏修剪完成，回到持续模式");
                 } else {
                     resetFenceTrimState();
                     initializeState();
