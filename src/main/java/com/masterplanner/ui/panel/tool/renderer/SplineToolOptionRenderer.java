@@ -206,7 +206,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                     tensionArray, 0.0f, 1.0f, "%.2f", currentTheme, 
                     key -> updateToolConfig(key, String.valueOf(tensionArray[0])));
             } else {
-//                // 控制多边形模式使用内置默认平滑度，无独立参数
+//                控制多边形模式使用内置默认平滑度，无独立参数
 //                ImGui.alignTextToFramePadding();
 //                ImGui.text("使用默认平滑度");
             }
