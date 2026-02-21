@@ -818,14 +818,9 @@ public class CompactBlockConfigDialog {
 
         ImGui.setCursorPosX(startX);
 
-        // 应用按钮 - 使用强调色
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
         if (ImGui.button("应用选择", buttonWidths[0], 24)) { // 统一按钮高度
             applyBlockSelection();
         }
-        ImGui.popStyleColor(3);
 
         // 取消按钮
         ImGui.sameLine(0, BLOCK_SPACING);
