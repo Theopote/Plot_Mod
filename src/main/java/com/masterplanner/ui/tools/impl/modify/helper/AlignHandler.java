@@ -207,7 +207,8 @@ public class AlignHandler implements IModifyHandler {
             return new com.masterplanner.core.command.commands.ModifyCommand(
                 originalShapes,
                 modifiedShapes,
-                com.masterplanner.core.state.AppState.getInstance()
+                com.masterplanner.core.state.AppState.getInstance(),
+                "对齐"
             );
         } catch (Exception e) {
             LOGGER.error("创建对齐命令失败: {}", e.getMessage(), e);
