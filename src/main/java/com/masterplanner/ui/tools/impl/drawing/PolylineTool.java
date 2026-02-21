@@ -11,6 +11,7 @@ import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.canvas.Canvas;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.drawing.helper.BezierUtils;
 import com.masterplanner.ui.tools.impl.drawing.helper.IModeHandler;
 import com.masterplanner.ui.tools.impl.drawing.helper.PolylineDrawModeHandler;
@@ -76,12 +77,12 @@ public class PolylineTool extends DrawingTool {
         }
         
         public static final class Colors {
-            public static final Color LINE = new Color(70, 130, 255);      // 主线条颜色（蓝色）
-            public static final Color PREVIEW = new Color(150, 150, 150);  // 预览颜色（灰色）
-            public static final Color CONTROL_LINE = new Color(100, 100, 100, 128); // 控制线颜色
-            public static final Color CONTROL_POINT = new Color(50, 200, 50);       // 控制点颜色（绿色）
-            public static final Color SELECTED = new Color(255, 50, 50);            // 选中颜色（红色）
-            public static final Color ANCHOR_POINT = new Color(70, 130, 255);       // 锚点颜色（蓝色）
+            public static final Color LINE = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
+            public static final Color PREVIEW = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().mutedText, 255);
+            public static final Color CONTROL_LINE = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().mutedText, 128);
+            public static final Color CONTROL_POINT = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().successText, 255);
+            public static final Color SELECTED = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().errorText, 255);
+            public static final Color ANCHOR_POINT = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
         }
         
         public static final class Messages {
@@ -658,6 +659,10 @@ public class PolylineTool extends DrawingTool {
                 prev = current;
             }
         }
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
     
     /**

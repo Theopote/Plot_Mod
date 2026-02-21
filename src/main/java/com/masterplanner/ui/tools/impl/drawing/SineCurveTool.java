@@ -61,12 +61,6 @@ public class SineCurveTool extends DrawingTool {
     private static final int DEFAULT_SEGMENTS = 100;
     
     // ====== 渲染常量 ======
-    
-    private static final int PREVIEW_COLOR = 0x80FFFFFF; // 白色半透明
-    private static final int START_POINT_COLOR = 0xFF0000FF; // 蓝色
-    private static final int END_POINT_COLOR = 0xFF00FF00; // 绿色
-    private static final int AMPLITUDE_POINT_COLOR = 0xFFFF0000; // 红色
-    private static final int BASELINE_COLOR = 0xFF888888; // 灰色
 
     private static final float LINE_THICKNESS = 2.0f;
     private static final float POINT_SIZE = 5.0f;
@@ -555,7 +549,7 @@ public class SineCurveTool extends DrawingTool {
             List<Vec2d> points = previewCurve.getPoints();
             if (points.size() >= 2) {
                 // 获取当前图层颜色用于预览
-                int previewColor = PREVIEW_COLOR; // 默认颜色
+                int previewColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().accent, 0x80);
                 
                 if (getStyleHandler() != null) {
                     com.masterplanner.core.graphics.style.ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();

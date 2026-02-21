@@ -81,11 +81,6 @@ public class SemicircleTool extends DrawingTool {
 
     // ====== 渲染常量 ======
 
-    private static final int PREVIEW_COLOR = 0x80FFFFFF; // 白色半透明
-    private static final int CENTER_POINT_COLOR = 0xFF0000FF; // 蓝色
-    private static final int CONTROL_POINT_COLOR = 0xFF00FF00; // 绿色
-    private static final int DIRECTION_POINT_COLOR = 0xFFFF0000; // 红色
-
     private static final float LINE_THICKNESS = 2.0f;
     private static final float POINT_SIZE = 5.0f;
 

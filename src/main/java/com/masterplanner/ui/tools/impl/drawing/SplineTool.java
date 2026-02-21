@@ -95,20 +95,6 @@ public class SplineTool extends DrawingTool {
     private int selectedPointIndex = -1;
     
     // 4. 渲染常量 - 统一管理所有渲染参数
-    // 颜色常量
-    private static final java.awt.Color CONTROL_POINT_COLOR_AWT = java.awt.Color.CYAN;
-    private static final java.awt.Color SELECTED_POINT_COLOR_AWT = java.awt.Color.RED;
-    private static final java.awt.Color HELPER_LINE_COLOR_AWT = java.awt.Color.LIGHT_GRAY;
-    private static final java.awt.Color INFO_TEXT_COLOR_AWT = java.awt.Color.WHITE;
-    private static final java.awt.Color CURRENT_MOUSE_COLOR_AWT = java.awt.Color.ORANGE;
-    
-    // ImGui颜色常量（从AWT颜色转换）
-    private static final int CONTROL_POINT_COLOR_IMGUI = 0xFF00FFFF; // 青色
-    private static final int SELECTED_POINT_COLOR_IMGUI = 0xFFFF0000; // 红色
-    private static final int HELPER_LINE_COLOR_IMGUI = 0x40FFFFFF; // 白色半透明
-    private static final int INFO_TEXT_COLOR_IMGUI = 0xFFFFFFFF; // 白色
-    private static final int CURRENT_MOUSE_COLOR_IMGUI = 0xFF00A5FF; // 橙色
-    
     // 尺寸常量
     private static final double POINT_SIZE = 3.0;
     private static final double SELECTED_POINT_SIZE = 4.0;
@@ -486,21 +472,27 @@ public class SplineTool extends DrawingTool {
      * 渲染控制点
      */
     private void renderControlPoints(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color selectedColor = toColor(theme.errorText, 255);
+        java.awt.Color controlColor = toColor(theme.infoText, 255);
+        java.awt.Color textColor = toColor(theme.text, 255);
+        java.awt.Color mouseColor = toColor(theme.warningText, 255);
+
         for (int i = 0; i < controlPoints.size(); i++) {
             Vec2d point = controlPoints.get(i);
-            java.awt.Color color = (i == selectedPointIndex) ? SELECTED_POINT_COLOR_AWT : CONTROL_POINT_COLOR_AWT;
+            java.awt.Color color = (i == selectedPointIndex) ? selectedColor : controlColor;
             double size = (i == selectedPointIndex) ? SELECTED_POINT_SIZE : POINT_SIZE;
             
             context.drawCircle(point, size, color);
             
             // 绘制点的索引
             context.drawText(String.valueOf(i + 1), 
-                new Vec2d(point.x + TEXT_OFFSET_X, point.y - TEXT_OFFSET_Y), INFO_TEXT_COLOR_AWT);
+                new Vec2d(point.x + TEXT_OFFSET_X, point.y - TEXT_OFFSET_Y), textColor);
         }
         
         // 当前鼠标位置
         if (currentMousePoint != null && !controlPoints.isEmpty()) {
-            context.drawCircle(currentMousePoint, CURRENT_MOUSE_SIZE, CURRENT_MOUSE_COLOR_AWT);
+            context.drawCircle(currentMousePoint, CURRENT_MOUSE_SIZE, mouseColor);
         }
     }
     
@@ -508,17 +500,18 @@ public class SplineTool extends DrawingTool {
      * 渲染辅助线 - 使用虚线
      */
     private void renderHelperLines(DrawContext context) {
+        java.awt.Color helperLineColor = toColor(ThemeManager.getInstance().getCurrentTheme().mutedText, 180);
         if (controlPoints.size() < 2) return;
         
         // 绘制控制点之间的虚线连线
         for (int i = 0; i < controlPoints.size() - 1; i++) {
-            context.drawDashedLine(controlPoints.get(i), controlPoints.get(i + 1), HELPER_LINE_COLOR_AWT);
+            context.drawDashedLine(controlPoints.get(i), controlPoints.get(i + 1), helperLineColor);
         }
         
         // 当前鼠标到最后一个点的虚线连线
         if (currentMousePoint != null && !controlPoints.isEmpty()) {
             Vec2d lastPoint = controlPoints.getLast();
-            context.drawDashedLine(lastPoint, currentMousePoint, HELPER_LINE_COLOR_AWT);
+            context.drawDashedLine(lastPoint, currentMousePoint, helperLineColor);
         }
     }
 

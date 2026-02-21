@@ -12,6 +12,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,12 +56,6 @@ public class CatenaryLineTool extends DrawingTool {
     private static final int DEFAULT_SEGMENTS = 20;
     private static final int MIN_SEGMENTS = 10;
     private static final int MAX_SEGMENTS = 60;
-
-    // 颜色常量
-    private static final Color CONTROL_POINT_COLOR = new Color(0, 100, 255);        // 蓝色控制点
-    private static final Color SAG_POINT_COLOR = new Color(255, 50, 50);            // 红色弧垂点
-    private static final Color CONNECTOR_LINE_COLOR = new Color(180, 180, 180, 160); // 灰色连接线
-    private static final Color PREVIEW_COLOR = new Color(100, 200, 255);            // 预览颜色
 
     // 渲染常量
     private static final float CONTROL_POINT_SIZE = 6.0f;
@@ -147,7 +142,8 @@ public class CatenaryLineTool extends DrawingTool {
         if (!shouldShowPreview() || previewShape == null) return;
         if (previewShape instanceof CableShape catenary) {
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
-            Color lineColor = previewStyle != null ? previewStyle.getLineColor() : PREVIEW_COLOR;
+            Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
+                    toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
 
             // 渲染悬链线
             List<Vec2d> points = catenary.getPoints();
@@ -161,7 +157,7 @@ public class CatenaryLineTool extends DrawingTool {
             List<Vec2d> pts = polyline.getPoints();
             if (pts != null && pts.size() >= 2) {
                 // 使用与 ImGui 预览一致的辅助线颜色
-                context.drawDashedLine(pts.get(0), pts.get(1), CONNECTOR_LINE_COLOR);
+                context.drawDashedLine(pts.get(0), pts.get(1), toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 160));
             }
         }
     }
@@ -490,10 +486,15 @@ public class CatenaryLineTool extends DrawingTool {
         public void renderImGuiPreview(ImDrawList drawList, CanvasCamera camera) {
             if (!isActive || camera == null) return;
             try {
+                var theme = ThemeManager.getInstance().getCurrentTheme();
+                int controlPointColor = theme.infoText;
+                int connectorLineColor = withAlpha(theme.warningText, 160);
+                int sagPointColor = theme.errorText;
+
                 // 渲染已确定的控制点
                 controlPoints.forEach(p -> {
                     Vec2d screenPoint = camera.worldToScreen(p);
-                    drawList.addCircleFilled((float)screenPoint.x, (float)screenPoint.y, CONTROL_POINT_SIZE, ImColor.rgba(CONTROL_POINT_COLOR));
+                    drawList.addCircleFilled((float)screenPoint.x, (float)screenPoint.y, CONTROL_POINT_SIZE, controlPointColor);
                 });
 
                 if (currentMousePoint != null) {
@@ -501,11 +502,11 @@ public class CatenaryLineTool extends DrawingTool {
                         // 渲染起点到鼠标的连接线
                         Vec2d screenStart = camera.worldToScreen(controlPoints.getFirst());
                         Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                        drawList.addLine((float)screenStart.x, (float)screenStart.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(CONNECTOR_LINE_COLOR), PREVIEW_LINE_WIDTH);
+                        drawList.addLine((float)screenStart.x, (float)screenStart.y, (float)screenMouse.x, (float)screenMouse.y, connectorLineColor, PREVIEW_LINE_WIDTH);
                     } else if (controlPoints.size() == 2) {
                         // 渲染第三个（弧垂/控制）点
                         Vec2d screenSag = camera.worldToScreen(currentMousePoint);
-                        drawList.addCircleFilled((float)screenSag.x, (float)screenSag.y, SAG_POINT_SIZE, ImColor.rgba(SAG_POINT_COLOR));
+                        drawList.addCircleFilled((float)screenSag.x, (float)screenSag.y, SAG_POINT_SIZE, sagPointColor);
                     }
                 }
             } catch (Exception e) {
@@ -572,5 +573,13 @@ public class CatenaryLineTool extends DrawingTool {
         public Vec2d getCurrentMousePoint() {
             return currentMousePoint;
         }
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 }
