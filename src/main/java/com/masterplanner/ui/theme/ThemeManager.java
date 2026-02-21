@@ -27,11 +27,7 @@ public class ThemeManager {
     private Theme currentThemeType = Theme.DARK;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Path themeConfigPath;
-    
-    // 保存工具栏原始样式值
-    private float toolbarOriginalFrameRounding;
-    private float toolbarOriginalGrabRounding;
-    
+
     // 使用静态内部类实现线程安全的单例模式
     private static class SingletonHolder {
         private static final ThemeManager INSTANCE = new ThemeManager();
@@ -244,33 +240,5 @@ public class ThemeManager {
         
         // 设置控件圆角
         style.setFrameRounding(currentTheme.panelControlRounding);
-    }
-
-    /**
-     * 设置工具栏样式
-     * @param push true表示应用工具栏样式，false表示恢复原始样式
-     */
-    public void setToolbarStyle(boolean push) {
-        ImGuiStyle style = ImGui.getStyle();
-        if (push) {
-            // 保存原始值
-            toolbarOriginalFrameRounding = style.getFrameRounding();
-            toolbarOriginalGrabRounding = style.getGrabRounding();
-            // 应用工具栏样式
-            style.setFrameRounding(currentTheme.toolbarFrameRounding);
-            style.setGrabRounding(currentTheme.toolbarGrabRounding);
-        } else {
-            // 恢复原始值
-            style.setFrameRounding(toolbarOriginalFrameRounding);
-            style.setGrabRounding(toolbarOriginalGrabRounding);
-        }
-    }
-
-    /**
-     * 判断当前是否为浅色主题
-     * @return 如果是浅色主题返回true，否则返回false
-     */
-    public boolean isLightTheme() {
-        return currentThemeType == Theme.LIGHT;
     }
 } 
