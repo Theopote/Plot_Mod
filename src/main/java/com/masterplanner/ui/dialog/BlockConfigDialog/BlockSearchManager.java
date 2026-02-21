@@ -84,6 +84,7 @@ public class BlockSearchManager {
      * 带有提示文本的搜索框
      */
     private void renderSearchInput(float height) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
         float framePaddingY = Math.max(0, (height - defaultFrameHeight) / 2.0f);
@@ -91,6 +92,11 @@ public class BlockSearchManager {
         // 设置无圆角，添加默认边框
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.inputText);
         
         boolean shouldPopColor = false;
         if (searchBuffer.get().isEmpty()) {
@@ -105,6 +111,7 @@ public class BlockSearchManager {
         if (shouldPopColor) {
             ImGui.popStyleColor();
         }
+        ImGui.popStyleColor(5);
         ImGui.popStyleVar(); // FrameBorderSize
         ImGui.popStyleVar(); // FrameRounding
         ImGui.popStyleVar(); // FramePadding
@@ -115,6 +122,7 @@ public class BlockSearchManager {
      * 下拉菜单，用于选择搜索范围（全部、名称、ID）
      */
     private void renderSearchScopeSelector(float height) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
         float framePaddingY = Math.max(0, (height - defaultFrameHeight) / 2.0f);
@@ -123,6 +131,11 @@ public class BlockSearchManager {
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
         ImGui.sameLine();
         ImGui.setNextItemWidth(80.0f); // 缩小过滤器宽度
         if (ImGui.beginCombo("##searchScope", searchScope.getDisplayName())) {
@@ -141,6 +154,7 @@ public class BlockSearchManager {
             }
             ImGui.endCombo();
         }
+        ImGui.popStyleColor(5);
         ImGui.popStyleVar(); // FrameBorderSize
         ImGui.popStyleVar(); // PopupRounding
         ImGui.popStyleVar(); // FrameRounding
@@ -153,7 +167,7 @@ public class BlockSearchManager {
      */
     private void renderSearchHint() {
         // 如果搜索文本不为空但太短，显示提示
-        if (!searchBuffer.get().isEmpty() && searchBuffer.get().isEmpty()) {
+        if (!searchBuffer.get().isEmpty() && searchBuffer.get().trim().length() < MIN_SEARCH_CHARS) {
             ImGui.sameLine();
             ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, 
                 String.format("请输入至少 %d 个字符", MIN_SEARCH_CHARS));

@@ -114,9 +114,14 @@ public class GalleryPanel implements UIComponent {
     }
 
     private void renderSearchBar() {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         // 添加样式设置
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8, 6);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, ThemeManager.getInstance().getCurrentTheme().controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.inputText);
 
         // 设置搜索框宽度为可用区域宽度减去边距
         float availableWidth = ImGui.getContentRegionAvailX() - 16; // 减去左右各8像素边距
@@ -129,11 +134,12 @@ public class GalleryPanel implements UIComponent {
         }
 
         // 恢复样式
-        ImGui.popStyleColor();
+        ImGui.popStyleColor(5);
         ImGui.popStyleVar();
     }
 
     private void renderCategories() {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.spacing();
 
         // 获取所有类别（预设 + 自定义）
@@ -170,19 +176,19 @@ public class GalleryPanel implements UIComponent {
             boolean isPresetCategory = Arrays.stream(CategoryType.values())
                     .anyMatch(c -> c.name.equals(category));
             
-            // 修改颜色定义，使用已有的主题颜色
-            int normalColor = isPresetCategory ? 
-                    ThemeManager.getInstance().getCurrentTheme().buttonActive : // 预设类别使用更深的颜色
-                    ThemeManager.getInstance().getCurrentTheme().buttonNormal;  // 自定义类别使用普通颜色
-            
-            // 如果是选中的类别，使用更深的颜色
+            int normalColor = isPresetCategory ? theme.tabNormal : theme.buttonNormal;
+            int hoveredColor = isPresetCategory ? theme.tabHovered : theme.buttonHovered;
+            int activeColor = isPresetCategory ? theme.tabActive : theme.buttonActive;
+
             if (category.equals(selectedCategory)) {
-                normalColor = ThemeManager.getInstance().getCurrentTheme().buttonActive;
+                normalColor = theme.buttonSelected;
+                hoveredColor = theme.buttonSelectedHovered;
+                activeColor = theme.buttonSelectedActive;
             }
-            
+
             ImGui.pushStyleColor(ImGuiCol.Button, normalColor);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ThemeManager.getInstance().getCurrentTheme().buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoveredColor);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
             
             // 渲染带文字的按钮
             if (ImGui.button(category + "##" + category, buttonWidth, 24)) {
@@ -193,8 +199,8 @@ public class GalleryPanel implements UIComponent {
             if (customCategories.contains(category)) {
                 ImGui.sameLine(0, 0);
                 ImGui.setCursorPosX(ImGui.getCursorPosX() - 20);
-                ImGui.pushStyleColor(ImGuiCol.Button, 0);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().buttonHovered);
+                ImGui.pushStyleColor(ImGuiCol.Button, theme.panelBackground);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
                 if (ImGui.button("×##delete" + category, 16, 16)) {
                     categoryToRemove = category;
                 }
@@ -245,9 +251,9 @@ public class GalleryPanel implements UIComponent {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 12);
         
-        ImGui.pushStyleColor(ImGuiCol.Button, ThemeManager.getInstance().getCurrentTheme().buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, ThemeManager.getInstance().getCurrentTheme().buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, ThemeManager.getInstance().getCurrentTheme().tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, ThemeManager.getInstance().getCurrentTheme().tabActive);
         
         if (ImGui.button("+ 添加类别##add_category", buttonWidth, 24)) {
             ImGui.openPopup("添加类别");

@@ -502,6 +502,7 @@ public class CompactBlockConfigDialog {
      * 渲染分类选择器
      */
     private void renderCategorySelector() {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         BlockCategory[] categories = BlockCategory.values();
         float buttonWidth = (currentDialogWidth - PADDING * 4
                 - BLOCK_SPACING * 4) / 5;
@@ -518,13 +519,13 @@ public class CompactBlockConfigDialog {
 
             // [ENHANCED] 应用主题颜色
             if (isSelected) {
-                ImGui.pushStyleColor(ImGuiCol.Button, BUTTON_COLOR_SELECTED);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, BUTTON_COLOR_HOVERED);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, BUTTON_COLOR_ACTIVE);
+                ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+                ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
             } else {
-                ImGui.pushStyleColor(ImGuiCol.Button, BUTTON_COLOR_NORMAL);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, BUTTON_COLOR_HOVERED);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, BUTTON_COLOR_ACTIVE);
+                ImGui.pushStyleColor(ImGuiCol.Button, theme.tabNormal);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.tabHovered);
+                ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.tabActive);
             }
 
             if (ImGui.button(category.getDisplayName(), buttonWidth, buttonHeight)) {
@@ -766,6 +767,7 @@ public class CompactBlockConfigDialog {
      * [ENHANCED] 渲染操作按钮 - 动态宽度适配
      */
     private void renderActionButtons() {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING);
 
         // [NEW] 计算动态按钮宽度
@@ -785,18 +787,20 @@ public class CompactBlockConfigDialog {
         float startX = (currentDialogWidth - totalWidth) * 0.5f;
 
         // [NEW] 应用主题颜色样式
-        ImGui.pushStyleColor(ImGuiCol.Button, BUTTON_COLOR_NORMAL);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, BUTTON_COLOR_HOVERED);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, BUTTON_COLOR_ACTIVE);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
         ImGui.setCursorPosX(startX);
 
         // 应用按钮 - 使用强调色
-        ImGui.pushStyleColor(ImGuiCol.Button, BUTTON_COLOR_SELECTED);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
         if (ImGui.button("应用选择", buttonWidths[0], 24)) { // 统一按钮高度
             applyBlockSelection();
         }
-        ImGui.popStyleColor();
+        ImGui.popStyleColor(3);
 
         // 取消按钮
         ImGui.sameLine(0, BLOCK_SPACING);
@@ -1462,6 +1466,7 @@ public class CompactBlockConfigDialog {
      * [ENHANCED] 渲染翻页信息 - 完整的分页控件
      */
     private void renderPageInfo(int totalBlocks) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         if (totalBlocks <= blocksPerPage) {
             return; // 只有一页时不显示翻页信息
         }
@@ -1488,9 +1493,9 @@ public class CompactBlockConfigDialog {
         ImGui.setCursorPosX((windowWidth - totalControlWidth) * 0.5f);
 
         // 上一页按钮
-        ImGui.pushStyleColor(ImGuiCol.Button, BUTTON_COLOR_NORMAL);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, BUTTON_COLOR_HOVERED);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, BUTTON_COLOR_ACTIVE);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
         boolean canGoPrev = displayPage > 0;
         if (!canGoPrev) ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);

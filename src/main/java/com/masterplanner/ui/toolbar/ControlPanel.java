@@ -410,10 +410,18 @@ public class ControlPanel implements UIComponent {
      * 渲染警告对话框
      */
     private void renderWarningDialog() {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+
         if (warningPopupPending) {
             ImGui.openPopup("##warning_dialog");
             warningPopupPending = false;
         }
+
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
         if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text(warningMessage);
@@ -430,6 +438,8 @@ public class ControlPanel implements UIComponent {
             
             ImGui.endPopup();
         }
+
+                    ImGui.popStyleColor(5);
     }
 
     @Override

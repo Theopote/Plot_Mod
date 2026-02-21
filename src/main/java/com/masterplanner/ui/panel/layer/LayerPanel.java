@@ -336,7 +336,14 @@ public class LayerPanel implements UIComponent {
      * 渲染警告消息对话框
      */
     private void renderWarningMessage() {
-        if (ImGui.beginPopupModal("警告", ImGuiWindowFlags.AlwaysAutoResize)) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+
+        if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text(warningMessage);
             ImGui.spacing();
             
@@ -347,6 +354,8 @@ public class LayerPanel implements UIComponent {
             
             ImGui.endPopup();
         }
+
+        ImGui.popStyleColor(5);
     }
 
     /**

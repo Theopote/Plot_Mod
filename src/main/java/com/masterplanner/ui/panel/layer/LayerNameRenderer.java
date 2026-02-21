@@ -61,6 +61,8 @@ public class LayerNameRenderer {
      * @param isSelected 是否被选中
      */
     public void render(Layer layer, float width, float height, boolean isActive, boolean isSelected) {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
         if (layer == null) {
             LOGGER.warn("尝试渲染空图层名称");
             return;
@@ -107,7 +109,7 @@ public class LayerNameRenderer {
                     originalY + windowY - scrollY,
                     originalX + windowX + ACTIVE_MARKER_WIDTH,
                     originalY + windowY - scrollY + height,
-                    ImGui.getColorU32(0.0f, 0.8f, 0.2f, 1.0f) // 活动图层标记颜色
+                    theme.accent
             );
         }
         
@@ -116,7 +118,7 @@ public class LayerNameRenderer {
         if (layer.isLocked()) {
             textColor = ImGui.getColorU32(ImGuiCol.TextDisabled); // 禁用文本颜色
         } else if (isSelected) {
-            textColor = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f); // 高亮文本颜色
+            textColor = theme.text; // 选中时仍保持主题文本可读性
         } else {
             textColor = ImGui.getColorU32(ImGuiCol.Text); // 普通文本颜色
         }
@@ -205,10 +207,7 @@ public class LayerNameRenderer {
         float originalX = ImGui.getCursorPosX();
         float originalY = ImGui.getCursorPosY();
         
-        // 使用 ImGui 的样式来判断当前主题
-        // 检查背景颜色的亮度来判断是否为深色主题
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        boolean isDarkTheme = ThemeManager.getInstance().getCurrentThemeType() == com.masterplanner.ui.theme.ThemeManager.Theme.DARK;
         
         // 根据当前主题设置编辑框背景色
         int editBgColor = theme.buttonHovered;

@@ -103,6 +103,7 @@ public class LayerItemRenderer {
      */
     public void render(Layer layer, boolean isActive, boolean isSelected) {
         // 获取当前主题颜色 - 使用ImGui的颜色系统替代
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         
         // 计算图层项的总高度（不包括额外间距）
 
@@ -112,13 +113,11 @@ public class LayerItemRenderer {
         
         // 设置图层项的背景颜色
         if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.ChildBg, 
-                0.2f, 0.4f, 0.8f, 0.5f); // 选中状态使用蓝色
+            ImGui.pushStyleColor(ImGuiCol.ChildBg, withAlpha(theme.buttonSelected, 0.50f));
         } else if (isActive) {
-            ImGui.pushStyleColor(ImGuiCol.ChildBg, 
-                0.0f, 0.4f, 0.0f, 0.2f); // 活动状态使用绿色
+            ImGui.pushStyleColor(ImGuiCol.ChildBg, withAlpha(theme.tabActive, 0.35f));
         } else {
-            ImGui.pushStyleColor(ImGuiCol.ChildBg, ImGui.getColorU32(ImGuiCol.FrameBg));
+            ImGui.pushStyleColor(ImGuiCol.ChildBg, theme.controlBackground);
         }
         
         // 创建图层项容器
@@ -145,6 +144,7 @@ public class LayerItemRenderer {
     }
 
     private void renderLayerListItem(Layer layer, boolean isActive, boolean isSelected, LayerItemContext context) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         // 设置项目位置
         ImGui.setCursorPos(context.x, context.y);
 
@@ -162,7 +162,7 @@ public class LayerItemRenderer {
                     itemStartY,
                     itemEndX,
                     itemEndY,
-                    ImGui.getColorU32(0.2f, 0.2f, 0.2f, 0.5f)
+                    withAlpha(theme.buttonHovered, 0.35f)
             );
         }
 
@@ -173,7 +173,7 @@ public class LayerItemRenderer {
                     itemStartY,
                     itemEndX,
                     itemEndY,
-                    ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f)
+                    withAlpha(theme.tabActive, 0.42f)
             );
         }
 
@@ -184,7 +184,7 @@ public class LayerItemRenderer {
                     itemStartY,
                     itemEndX,
                     itemEndY,
-                    ImGui.getColorU32(0.2f, 0.4f, 0.8f, 0.7f)
+                    withAlpha(theme.buttonSelected, 0.60f)
             );
         }
 
@@ -523,5 +523,10 @@ public class LayerItemRenderer {
         if (!dragDropHandler.isDragging() && ImGui.isMouseReleased(0)) {
             dragDropHandler.cancelDrag();
         }
+    }
+
+    private int withAlpha(int color, float alpha) {
+        int a = Math.max(0, Math.min(255, (int) (alpha * 255.0f)));
+        return (color & 0x00FFFFFF) | (a << 24);
     }
 }

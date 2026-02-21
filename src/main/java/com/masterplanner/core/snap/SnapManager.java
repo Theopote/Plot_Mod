@@ -69,8 +69,11 @@ public class SnapManager implements ISnapManager {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, ImColor.rgba(255, 255, 255, 255));
-        styleColorCount = 6;  // 更新计数
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
+        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
+        styleColorCount = 9;  // 更新计数
 
         try {
             ImGui.setNextWindowSizeConstraints(300, 0, 500, Float.MAX_VALUE);

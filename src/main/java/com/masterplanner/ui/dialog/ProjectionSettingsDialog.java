@@ -1,6 +1,9 @@
 package com.masterplanner.ui.dialog;
 
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +63,17 @@ public class ProjectionSettingsDialog {
         if (!isOpen) {
             return;
         }
+
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.TitleBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
         
         // 设置窗口标志
         int windowFlags = ImGuiWindowFlags.AlwaysAutoResize | 
@@ -115,6 +129,7 @@ public class ProjectionSettingsDialog {
             LOGGER.error("渲染投影设置对话框时出错", e);
         } finally {
             ImGui.end();
+            ImGui.popStyleColor(9);
         }
     }
     

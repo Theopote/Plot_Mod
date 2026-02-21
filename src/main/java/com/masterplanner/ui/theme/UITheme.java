@@ -516,8 +516,8 @@ public class UITheme {
 
         // 控件颜色
         theme.controlBackground = ImColor.rgba(0.85f, 0.85f, 0.85f, 1.0f);    // 浅灰色背景
-        theme.sliderGrab = ImColor.rgba(0.65f, 0.65f, 0.65f, 1.0f);          // 中灰色滑块
-        theme.sliderGrabActive = ImColor.rgba(0.60f, 0.60f, 0.60f, 1.0f);    // 深灰色激活滑块
+        theme.sliderGrab = ImColor.rgba(0.45f, 0.67f, 0.93f, 1.0f);          // 浅色主题滑块：中亮蓝
+        theme.sliderGrabActive = ImColor.rgba(0.22f, 0.55f, 0.90f, 1.0f);    // 激活滑块：更实一点的蓝
 
         // 画布颜色
         theme.canvasBackground = 0x33FFFFFF;

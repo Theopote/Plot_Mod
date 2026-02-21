@@ -207,6 +207,13 @@ public class ThemeManager {
         // 菜单相关
         style.setColor(ImGuiCol.MenuBarBg, currentTheme.panelBackground);
         style.setColor(ImGuiCol.PopupBg, currentTheme.panelBackground);
+
+        // 标签页
+        style.setColor(ImGuiCol.Tab, currentTheme.tabNormal);
+        style.setColor(ImGuiCol.TabHovered, currentTheme.tabHovered);
+        style.setColor(ImGuiCol.TabActive, currentTheme.tabActive);
+        style.setColor(ImGuiCol.TabUnfocused, currentTheme.tabNormal);
+        style.setColor(ImGuiCol.TabUnfocusedActive, currentTheme.tabActive);
         
         // 选择器
         style.setColor(ImGuiCol.CheckMark, currentTheme.accent);
