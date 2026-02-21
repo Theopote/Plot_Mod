@@ -999,6 +999,12 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      * 渲染阵列预览
      */
     private void renderArrayPreview(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color pointColor = withAlpha(toColor(theme.successText), 180);
+        Color pathDirectionColor = withAlpha(toColor(theme.accent), 220);
+        Color handleColor = withAlpha(toColor(theme.warningText), 220);
+        Color handleBorderColor = toColor(theme.text);
+
         // 渲染预览图形
         if (previewShapes != null) {
             for (Shape shape : previewShapes) {
@@ -1009,26 +1015,25 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         // 渲染预览位置点
         for (int i = 0; i < previewPositions.size(); i++) {
             Vec2d pos = previewPositions.get(i);
-            context.drawCircle(pos, 3.0, new Color(0, 255, 0, 180)); // 绿色圆点
+            context.drawCircle(pos, 3.0, pointColor);
 
             if (arrayType == ArrayType.PATH && i < previewAngles.size()) {
                 double angle = previewAngles.get(i);
                 Vec2d tip = pos.add(new Vec2d(12.0 * Math.cos(angle), 12.0 * Math.sin(angle)));
-                context.drawLine(pos, tip, new Color(0, 255, 255, 220));
+                context.drawLine(pos, tip, pathDirectionColor);
             }
         }
 
         // 矩形阵列：绘制间距锚点（可拖拽）
         if (arrayType == ArrayType.RECTANGULAR && arrayState == ArrayState.PREVIEWING && basePoint != null) {
-            Color handleColor = new Color(255, 200, 0, 220);
             Vec2d colHandle = basePoint.add(new Vec2d(spacing, 0));
             Vec2d rowHandle = basePoint.add(new Vec2d(0, rowSpacing));
             context.drawDashedLine(basePoint, colHandle, handleColor);
             context.drawDashedLine(basePoint, rowHandle, handleColor);
             context.drawCircleFilled(colHandle, 4.0f, handleColor);
             context.drawCircleFilled(rowHandle, 4.0f, handleColor);
-            context.drawCircleOutline(colHandle, 6.0f, Color.WHITE);
-            context.drawCircleOutline(rowHandle, 6.0f, Color.WHITE);
+            context.drawCircleOutline(colHandle, 6.0f, handleBorderColor);
+            context.drawCircleOutline(rowHandle, 6.0f, handleBorderColor);
         }
 
         // 环形阵列：绘制半径锚点（可拖拽）
@@ -1037,11 +1042,22 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             Vec2d sourcePos = getShapeCenter(selectedShapes.getFirst());
             double startAngle = Math.atan2(sourcePos.y - basePoint.y, sourcePos.x - basePoint.x);
             Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
-            Color handleColor = new Color(255, 200, 0, 220);
             context.drawDashedLine(basePoint, radiusHandle, handleColor);
             context.drawCircleFilled(radiusHandle, 4.0f, handleColor);
-            context.drawCircleOutline(radiusHandle, 6.0f, Color.WHITE);
+            context.drawCircleOutline(radiusHandle, 6.0f, handleBorderColor);
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

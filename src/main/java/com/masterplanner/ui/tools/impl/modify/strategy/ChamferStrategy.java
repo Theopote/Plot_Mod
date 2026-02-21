@@ -142,7 +142,7 @@ public class ChamferStrategy implements IModifyStrategy {
             return;
         }
         // 绘制虚线框
-        context.drawRect(boxStartPoint, boxCurrentPoint, java.awt.Color.WHITE);
+        context.drawRect(boxStartPoint, boxCurrentPoint, toColor(ThemeManager.getInstance().getCurrentTheme().text));
     }
     
     /**
@@ -360,18 +360,19 @@ public class ChamferStrategy implements IModifyStrategy {
     }
 
     private void renderDashedPreviewShape(DrawContext context, Shape shape) {
+        Color previewColor = toColor(ThemeManager.getInstance().getCurrentTheme().text);
         if (shape instanceof LineShape line) {
-            context.drawDashedLine(line.getStart(), line.getEnd(), Color.WHITE);
+            context.drawDashedLine(line.getStart(), line.getEnd(), previewColor);
             return;
         }
 
         if (shape instanceof PolylineShape polyline) {
             List<Vec2d> points = polyline.getPoints();
             for (int i = 0; i < points.size() - 1; i++) {
-                context.drawDashedLine(points.get(i), points.get(i + 1), Color.WHITE);
+                context.drawDashedLine(points.get(i), points.get(i + 1), previewColor);
             }
             if (polyline.isClosed() && points.size() > 2) {
-                context.drawDashedLine(points.getLast(), points.getFirst(), Color.WHITE);
+                context.drawDashedLine(points.getLast(), points.getFirst(), previewColor);
             }
             return;
         }
@@ -379,10 +380,10 @@ public class ChamferStrategy implements IModifyStrategy {
         if (shape instanceof Polygon polygon) {
             List<Vec2d> points = polygon.getPoints();
             for (int i = 0; i < points.size() - 1; i++) {
-                context.drawDashedLine(points.get(i), points.get(i + 1), Color.WHITE);
+                context.drawDashedLine(points.get(i), points.get(i + 1), previewColor);
             }
             if (polygon.isClosed() && points.size() > 2) {
-                context.drawDashedLine(points.getLast(), points.getFirst(), Color.WHITE);
+                context.drawDashedLine(points.getLast(), points.getFirst(), previewColor);
             }
             return;
         }
@@ -436,6 +437,14 @@ public class ChamferStrategy implements IModifyStrategy {
                 // 可以添加其他Shape类型的绘制逻辑
             }
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
     }
     
     @Override

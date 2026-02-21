@@ -6,6 +6,7 @@ import com.masterplanner.api.state.IAppState;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.constants.AlignConstants;
 import com.masterplanner.ui.tools.impl.modify.strategy.AlignStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.AlignWithSelectionStrategy;
@@ -245,7 +246,7 @@ public class AlignTool extends ModifyTool {
         }
         
         // 绘制辅助线
-        Color guideColor = new Color(0, 255, 0, 150); // 半透明绿色
+        Color guideColor = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().successText), 150);
         for (var guide : guides) {
             context.drawLine(guide.getStart(), guide.getEnd(), guideColor);
         }
@@ -258,7 +259,7 @@ public class AlignTool extends ModifyTool {
         try {
             var guides = alignStrategy.getPreviewGuides();
             if (guides == null || guides.isEmpty()) return;
-            Color dashed = new Color(0, 170, 255, 180);
+            Color dashed = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().accent), 180);
             for (var g : guides) {
                 // 使用虚线渲染（如果 DrawContext 支持 dashed 线型的重载，优先使用；否则退化为普通线）
                 try {
@@ -281,11 +282,23 @@ public class AlignTool extends ModifyTool {
         }
         
         // 绘制参考图形的高亮
-        Color highlightColor = new Color(255, 255, 0, 100); // 半透明黄色
+        Color highlightColor = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().warningText), 100);
         var bounds = referenceInfo.getBounds();
         if (bounds != null) {
             context.drawRect(new Vec2d(bounds.getMinX(), bounds.getMinY()), 
                            new Vec2d(bounds.getMaxX(), bounds.getMaxY()), highlightColor);
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 }

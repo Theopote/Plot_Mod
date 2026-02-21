@@ -5,6 +5,7 @@ import com.masterplanner.api.state.IAppState;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.ScaleHandler;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.ScaleStrategy;
@@ -124,6 +125,11 @@ public class ScaleTool extends ModifyTool {
      * 渲染缩放预览元素
      */
     private void renderScalePreview(DrawContext context, ScaleStrategy strategy) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color previewLineColor = toColor(theme.warningText);
+        java.awt.Color referenceLineColor = toColor(theme.successText);
+        java.awt.Color currentLineColor = toColor(theme.errorText);
+
         Vec2d centerPoint = strategy.getCenterPoint();
         Vec2d referencePoint = strategy.getReferencePoint();
         Vec2d currentPoint = strategy.getCurrentPoint();
@@ -137,7 +143,7 @@ public class ScaleTool extends ModifyTool {
                 case AWAITING_REFERENCE -> {
                     // 绘制从中心点到鼠标位置的预览线
                     if (currentPoint != null) {
-                        context.drawLine(centerPoint, currentPoint, java.awt.Color.YELLOW);
+                        context.drawLine(centerPoint, currentPoint, previewLineColor);
                         drawReferencePoint(context, currentPoint);
                     }
                 }
@@ -145,11 +151,11 @@ public class ScaleTool extends ModifyTool {
                     // 绘制缩放预览
                     if (referencePoint != null && currentPoint != null) {
                         // 绘制参考线（从中心到参考点）
-                        context.drawLine(centerPoint, referencePoint, java.awt.Color.GREEN);
+                        context.drawLine(centerPoint, referencePoint, referenceLineColor);
                         drawReferencePoint(context, referencePoint);
                         
                         // 绘制当前缩放线（从中心到当前鼠标位置）
-                        context.drawLine(centerPoint, currentPoint, java.awt.Color.RED);
+                        context.drawLine(centerPoint, currentPoint, currentLineColor);
                         drawCurrentPoint(context, currentPoint);
                         
                         // 绘制缩放比例指示器
@@ -168,21 +174,22 @@ public class ScaleTool extends ModifyTool {
      */
     private void drawScaleCenter(DrawContext context, Vec2d center) {
         double size = 6.0;
+        java.awt.Color centerColor = toColor(ThemeManager.getInstance().getCurrentTheme().infoText);
 
         // 绘制中心点（十字形）
         context.drawLine(
             new Vec2d(center.x - size, center.y),
             new Vec2d(center.x + size, center.y),
-            java.awt.Color.CYAN
+            centerColor
         );
         context.drawLine(
             new Vec2d(center.x, center.y - size),
             new Vec2d(center.x, center.y + size),
-            java.awt.Color.CYAN
+            centerColor
         );
         
         // 绘制中心点圆圈
-        context.drawCircle(center, size, java.awt.Color.CYAN);
+        context.drawCircle(center, size, centerColor);
     }
     
     /**
@@ -190,10 +197,11 @@ public class ScaleTool extends ModifyTool {
      */
     private void drawReferencePoint(DrawContext context, Vec2d point) {
         double size = 4.0;
+        java.awt.Color referenceColor = toColor(ThemeManager.getInstance().getCurrentTheme().successText);
 
         // 绘制参考点（实心圆）
-        context.fillCircle(point, size, java.awt.Color.GREEN);
-        context.drawCircle(point, size, java.awt.Color.GREEN);
+        context.fillCircle(point, size, referenceColor);
+        context.drawCircle(point, size, referenceColor);
     }
     
     /**
@@ -201,9 +209,10 @@ public class ScaleTool extends ModifyTool {
      */
     private void drawCurrentPoint(DrawContext context, Vec2d point) {
         double size = 4.0;
+        java.awt.Color currentColor = toColor(ThemeManager.getInstance().getCurrentTheme().errorText);
         
         // 绘制当前点（空心圆）
-        context.drawCircle(point, size, java.awt.Color.RED);
+        context.drawCircle(point, size, currentColor);
     }
     
     /**
@@ -211,6 +220,7 @@ public class ScaleTool extends ModifyTool {
      */
     private void drawScaleIndicator(DrawContext context, Vec2d center, Vec2d reference, Vec2d current) {
         if (reference == null || current == null) return;
+        java.awt.Color indicatorColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText);
         
         // 计算缩放比例
         double baseDistance = center.distance(reference);
@@ -225,7 +235,7 @@ public class ScaleTool extends ModifyTool {
         
         // 绘制缩放比例文本
         String scaleText = String.format("%.2fx", scaleFactor);
-        context.drawText(scaleText, textPos, java.awt.Color.ORANGE);
+        context.drawText(scaleText, textPos, indicatorColor);
         
         // 绘制缩放方向指示器（箭头）
         drawScaleArrow(context, center, current, scaleFactor);
@@ -260,9 +270,10 @@ public class ScaleTool extends ModifyTool {
         Vec2d arrowRight = arrowBase.subtract(perpendicular.multiply(arrowSize * 0.5));
         
         // 根据缩放因子选择颜色
-        java.awt.Color arrowColor = scaleFactor > 1.0 ? java.awt.Color.RED : 
-                                  scaleFactor < 1.0 ? java.awt.Color.BLUE : 
-                                  java.awt.Color.GREEN;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color arrowColor = scaleFactor > 1.0 ? toColor(theme.errorText) :
+                      scaleFactor < 1.0 ? toColor(theme.infoText) :
+                      toColor(theme.successText);
         
         // 绘制箭头线条
         context.drawLine(arrowLeft, arrowTip, arrowColor);
@@ -318,5 +329,13 @@ public class ScaleTool extends ModifyTool {
         return Optional.ofNullable(modifyStrategy)
                        .filter(ScaleStrategy.class::isInstance)
                        .map(ScaleStrategy.class::cast);
+    }
+
+    private static java.awt.Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new java.awt.Color(red, green, blue, alpha);
     }
 }

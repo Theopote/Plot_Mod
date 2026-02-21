@@ -7,6 +7,7 @@ import com.masterplanner.core.geometry.shapes.*;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.infrastructure.coordinate.CoordinateTransformer;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.AnnotationTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,13 +171,22 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     }
     
     private void renderDistancePreview(DrawContext context, Vec2d p1, Vec2d p2) {
+        java.awt.Color previewColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText);
         // 绘制连接线（黄色预览线）
-        context.drawLine(p1, p2, java.awt.Color.YELLOW);
+        context.drawLine(p1, p2, previewColor);
         
         // 在中间点显示距离文本
         String distance = calculateDistance(p1, p2);
         Vec2d midPoint = new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
-        context.drawText(distance, midPoint, java.awt.Color.YELLOW);
+        context.drawText(distance, midPoint, previewColor);
+    }
+
+    private static java.awt.Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new java.awt.Color(red, green, blue, alpha);
     }
     
     private void createDistanceAnnotation(ModifyToolContext context) {

@@ -8,6 +8,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.RotateWithSelectionStrategy;
@@ -133,6 +134,11 @@ public class RotateTool extends ModifyTool {
      * 渲染旋转预览元素
      */
     private void renderRotationPreview(DrawContext context, RotateStrategy strategy) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color previewLineColor = toColor(theme.warningText);
+        java.awt.Color referenceLineColor = toColor(theme.successText);
+        java.awt.Color currentLineColor = toColor(theme.errorText);
+
         Vec2d centerPoint = strategy.getCenterPoint();
         Vec2d referencePoint = strategy.getReferencePoint();
         Vec2d currentPoint = strategy.getCurrentPoint();
@@ -146,7 +152,7 @@ public class RotateTool extends ModifyTool {
                 case SETTING_REFERENCE -> {
                     // 绘制从中心点到鼠标位置的参考线
                     if (currentPoint != null) {
-                        context.drawLine(centerPoint, currentPoint, java.awt.Color.YELLOW);
+                        context.drawLine(centerPoint, currentPoint, previewLineColor);
                         drawReferencePoint(context, currentPoint);
                     }
                 }
@@ -154,11 +160,11 @@ public class RotateTool extends ModifyTool {
                     // 绘制旋转预览
                     if (referencePoint != null && currentPoint != null) {
                         // 绘制参考线（从中心到参考点）
-                        context.drawLine(centerPoint, referencePoint, java.awt.Color.GREEN);
+                        context.drawLine(centerPoint, referencePoint, referenceLineColor);
                         drawReferencePoint(context, referencePoint);
                         
                         // 绘制当前旋转线（从中心到当前鼠标位置）
-                        context.drawLine(centerPoint, currentPoint, java.awt.Color.RED);
+                        context.drawLine(centerPoint, currentPoint, currentLineColor);
                         drawCurrentPoint(context, currentPoint);
                         
                         // 绘制旋转角度弧线
@@ -177,21 +183,22 @@ public class RotateTool extends ModifyTool {
      */
     private void drawRotationCenter(DrawContext context, Vec2d center) {
         double size = 6.0;
+        java.awt.Color centerColor = toColor(ThemeManager.getInstance().getCurrentTheme().infoText);
 
         // 绘制中心点（十字形）
         context.drawLine(
             new Vec2d(center.x - size, center.y),
             new Vec2d(center.x + size, center.y),
-            java.awt.Color.CYAN
+            centerColor
         );
         context.drawLine(
             new Vec2d(center.x, center.y - size),
             new Vec2d(center.x, center.y + size),
-            java.awt.Color.CYAN
+            centerColor
         );
         
         // 绘制中心点圆圈
-        context.drawCircle(center, size, java.awt.Color.CYAN);
+        context.drawCircle(center, size, centerColor);
     }
     
     /**
@@ -199,10 +206,11 @@ public class RotateTool extends ModifyTool {
      */
     private void drawReferencePoint(DrawContext context, Vec2d point) {
         double size = 4.0;
+        java.awt.Color referenceColor = toColor(ThemeManager.getInstance().getCurrentTheme().successText);
 
         // 绘制参考点（实心圆）
-        context.fillCircle(point, size, java.awt.Color.GREEN);
-        context.drawCircle(point, size, java.awt.Color.GREEN);
+        context.fillCircle(point, size, referenceColor);
+        context.drawCircle(point, size, referenceColor);
     }
     
     /**
@@ -210,9 +218,10 @@ public class RotateTool extends ModifyTool {
      */
     private void drawCurrentPoint(DrawContext context, Vec2d point) {
         double size = 4.0;
+        java.awt.Color currentColor = toColor(ThemeManager.getInstance().getCurrentTheme().errorText);
         
         // 绘制当前点（空心圆）
-        context.drawCircle(point, size, java.awt.Color.RED);
+        context.drawCircle(point, size, currentColor);
     }
     
     /**
@@ -220,6 +229,7 @@ public class RotateTool extends ModifyTool {
      */
     private void drawRotationArc(DrawContext context, Vec2d center, Vec2d reference, Vec2d current) {
         if (reference == null || current == null) return;
+        java.awt.Color arcColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText);
         
         // 计算角度
         double referenceAngle = Math.atan2(reference.y - center.y, reference.x - center.x);
@@ -231,7 +241,7 @@ public class RotateTool extends ModifyTool {
         double radius = Math.min(refRadius, currentRadius) * 0.3; // 使用30%的半径
         
         // 绘制弧线
-        context.drawArc(center, radius, referenceAngle, currentAngle, java.awt.Color.ORANGE);
+        context.drawArc(center, radius, referenceAngle, currentAngle, arcColor);
         
         // 计算弧线的中点角度
         double midAngle = referenceAngle + (currentAngle - referenceAngle) / 2.0;
@@ -257,7 +267,7 @@ public class RotateTool extends ModifyTool {
         while (angleDiff > 180) angleDiff -= 360;
         while (angleDiff < -180) angleDiff += 360;
         
-        context.drawText(String.format("%.1f°", angleDiff), textPos, java.awt.Color.ORANGE);
+        context.drawText(String.format("%.1f°", angleDiff), textPos, arcColor);
     }
 
     @Override
@@ -400,5 +410,13 @@ public class RotateTool extends ModifyTool {
             return Math.toDegrees(radians);
         }
         return 15.0; // 默认15度
+    }
+
+    private static java.awt.Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new java.awt.Color(red, green, blue, alpha);
     }
 }

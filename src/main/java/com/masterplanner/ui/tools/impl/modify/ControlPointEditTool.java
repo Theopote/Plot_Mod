@@ -48,13 +48,6 @@ import java.util.List;
 public class ControlPointEditTool extends ModifyTool {
     private static final Logger LOGGER = LoggerFactory.getLogger(ControlPointEditTool.class);
     
-    // 渲染常量
-    private static final Color CONTROL_POINT_COLOR = new Color(0, 120, 255);        // 蓝色控制点
-    private static final Color CONTROL_POINT_HOVER_COLOR = new Color(255, 165, 0);  // 橙色悬停
-    private static final Color CONTROL_POINT_ACTIVE_COLOR = new Color(255, 0, 0);   // 红色激活
-    private static final Color CONTROL_POINT_BORDER_COLOR = new Color(255, 255, 255); // 白色边框
-    private static final Color ANCHOR_POINT_COLOR = new Color(0, 180, 0); // 绿色锚点
-    
     private static final float CONTROL_POINT_SIZE = 3.0f;
     private static final float CONTROL_POINT_HOVER_SIZE = 4.0f;
     private static final float CONTROL_POINT_ACTIVE_SIZE = 5.0f;
@@ -145,6 +138,13 @@ public class ControlPointEditTool extends ModifyTool {
         if (!displayEnabled) {
             return;
         }
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color controlPointColor = toColor(theme.infoText);
+        Color controlPointHoverColor = toColor(theme.warningText);
+        Color controlPointActiveColor = toColor(theme.errorText);
+        Color controlPointBorderColor = toColor(theme.text);
+        Color anchorPointColor = toColor(theme.successText);
+        Color indexTextColor = toColor(theme.text);
 
         List<Vec2d> controlPoints = targetShape.getControlPoints();
         if (controlPoints == null || controlPoints.isEmpty()) {
@@ -165,39 +165,47 @@ public class ControlPointEditTool extends ModifyTool {
             
             if (isAnchor) {
                 if (i == activeControlPointIndex) {
-                    pointColor = CONTROL_POINT_ACTIVE_COLOR;
+                    pointColor = controlPointActiveColor;
                     pointSize = ANCHOR_POINT_ACTIVE_SIZE;
                 } else if (i == hoveredControlPointIndex) {
-                    pointColor = CONTROL_POINT_HOVER_COLOR;
+                    pointColor = controlPointHoverColor;
                     pointSize = ANCHOR_POINT_HOVER_SIZE;
                 } else {
-                    pointColor = ANCHOR_POINT_COLOR;
+                    pointColor = anchorPointColor;
                     pointSize = ANCHOR_POINT_SIZE;
                 }
             } else {
                 if (i == activeControlPointIndex) {
-                    pointColor = CONTROL_POINT_ACTIVE_COLOR;
+                    pointColor = controlPointActiveColor;
                     pointSize = CONTROL_POINT_ACTIVE_SIZE;
                 } else if (i == hoveredControlPointIndex) {
-                    pointColor = CONTROL_POINT_HOVER_COLOR;
+                    pointColor = controlPointHoverColor;
                     pointSize = CONTROL_POINT_HOVER_SIZE;
                 } else {
-                    pointColor = CONTROL_POINT_COLOR;
+                    pointColor = controlPointColor;
                     pointSize = CONTROL_POINT_SIZE;
                 }
             }
             
             // 绘制控制点
             context.fillCircle(point, pointSize, pointColor);
-            context.drawCircle(point, pointSize + CONTROL_POINT_BORDER_WIDTH, CONTROL_POINT_BORDER_COLOR);
+            context.drawCircle(point, pointSize + CONTROL_POINT_BORDER_WIDTH, controlPointBorderColor);
             
             // 绘制控制点索引（可选）
             if (showPointIndex && controlPoints.size() > 1) {
                 context.drawText(String.valueOf(i), 
                     new Vec2d(point.x + pointSize + 2, point.y - pointSize - 2), 
-                    Color.WHITE);
+                    indexTextColor);
             }
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
     }
     
     /**

@@ -6,6 +6,7 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.model.Shape;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.ArrayHandler;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
 import org.slf4j.Logger;
@@ -978,9 +979,10 @@ public class ArrayStrategy implements IModifyStrategy {
      * 渲染基准点
      */
     private void renderBasePoint(DrawContext context) {
-        Color pointColor = new Color(255, 0, 0, 200);
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color pointColor = withAlpha(toColor(theme.errorText), 200);
         context.drawCircleFilled(basePoint, 4.0f, pointColor);
-        context.drawCircleOutline(basePoint, 6.0f, Color.WHITE);
+        context.drawCircleOutline(basePoint, 6.0f, toColor(theme.text));
     }
     
     /**
@@ -988,6 +990,10 @@ public class ArrayStrategy implements IModifyStrategy {
      */
     private void renderArrayPreview(DrawContext context) {
         if (sourceShape == null) return;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color fallbackOutlineColor = withAlpha(toColor(theme.infoText), 100);
+        Color pathDirectionColor = withAlpha(toColor(theme.accent), 220);
+
         for (int i = 0; i < previewPositions.size(); i++) {
             Vec2d pos = previewPositions.get(i);
             double ang = (i < previewAngles.size()) ? previewAngles.get(i) : 0.0;
@@ -1020,13 +1026,13 @@ public class ArrayStrategy implements IModifyStrategy {
                 // 修复：使用render方法而不是draw方法，确保应用正确的样式
                 clone.render(context);
             } catch (Exception e) {
-                context.drawCircleOutline(pos, 8.0f, new Color(0, 0, 255, 100));
+                context.drawCircleOutline(pos, 8.0f, fallbackOutlineColor);
             }
 
             if (currentType == ArrayType.PATH && i < previewAngles.size()) {
                 double tangentAngle = previewAngles.get(i);
                 Vec2d tip = pos.add(new Vec2d(12.0 * Math.cos(tangentAngle), 12.0 * Math.sin(tangentAngle)));
-                context.drawLine(pos, tip, new Color(0, 255, 255, 220));
+                context.drawLine(pos, tip, pathDirectionColor);
             }
         }
     }
@@ -1039,7 +1045,7 @@ public class ArrayStrategy implements IModifyStrategy {
             return;
         }
         
-        Color pathColor = new Color(255, 165, 0, 200); // 橙色
+        Color pathColor = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().warningText), 200);
         
         // 绘制路径线段
         for (int i = 1; i < pathPoints.size(); i++) {
@@ -1050,6 +1056,18 @@ public class ArrayStrategy implements IModifyStrategy {
         for (Vec2d point : pathPoints) {
             context.drawCircleFilled(point, 3.0f, pathColor);
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

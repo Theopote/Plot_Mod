@@ -6,6 +6,7 @@ import com.masterplanner.api.state.IAppState;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.MirrorMode;
 import com.masterplanner.ui.tools.impl.modify.strategy.MirrorStrategy;
@@ -132,16 +133,17 @@ public class MirrorTool extends ModifyTool {
     private void renderMirrorAxis(DrawContext context, MirrorStrategy strategy) {
         var axisStart = strategy.getAxisStartPoint();
         var axisEnd = strategy.getAxisEndPoint();
+        java.awt.Color axisColor = toColor(ThemeManager.getInstance().getCurrentTheme().infoText);
 
         if (axisStart != null) {
             if (axisEnd != null) {
                 // 绘制完整的镜像轴
-                context.drawLine(axisStart, axisEnd, java.awt.Color.CYAN);
+                context.drawLine(axisStart, axisEnd, axisColor);
             } else {
                 // 绘制临时镜像轴（从起点到当前鼠标位置）
                 var currentPoint = strategy.getCurrentPoint();
                 if (currentPoint != null && strategy.getCurrentState() == MirrorStrategy.MirrorState.SETTING_AXIS_END) {
-                    context.drawLine(axisStart, currentPoint, java.awt.Color.CYAN);
+                    context.drawLine(axisStart, currentPoint, axisColor);
                 }
             }
 
@@ -164,7 +166,15 @@ public class MirrorTool extends ModifyTool {
         com.masterplanner.api.geometry.Vec2d bottomRight = new com.masterplanner.api.geometry.Vec2d(point.x + size, point.y + size);
         
         // 绘制小方块标记
-        context.fillRect(topLeft, bottomRight, java.awt.Color.CYAN);
+        context.fillRect(topLeft, bottomRight, toColor(ThemeManager.getInstance().getCurrentTheme().infoText));
+    }
+
+    private static java.awt.Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new java.awt.Color(red, green, blue, alpha);
     }
     
     @Override

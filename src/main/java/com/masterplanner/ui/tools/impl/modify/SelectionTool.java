@@ -50,8 +50,6 @@ public class SelectionTool extends ModifyTool {
     public static final String CONFIG_VALUE_CROSSING = "crossing";
     
     // 渲染常量（由策略内部具体使用，这里不直接使用，保留作文档参考）
-    // private static final Color SELECTION_BOX_COLOR = new Color(0, 120, 255, 128);
-    // private static final Color LASSO_LINE_COLOR = new Color(255, 255, 255, 200);
     // private static final float SELECTION_LINE_WIDTH = 1.5f;
     
     // 当前选择模式
