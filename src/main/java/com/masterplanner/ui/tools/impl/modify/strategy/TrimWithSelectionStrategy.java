@@ -1437,13 +1437,6 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         }
     }
 
-    /**
-     * 渲染栅栏
-     */
-    private void renderFence(DrawContext context) {
-        renderFence(context, fencePoints);
-    }
-
     private void renderFence(DrawContext context, List<Vec2d> points) {
         if (points == null || points.size() < 2) {
             return;
