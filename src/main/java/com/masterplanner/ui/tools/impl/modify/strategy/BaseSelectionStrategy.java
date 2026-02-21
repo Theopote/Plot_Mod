@@ -43,8 +43,7 @@ public abstract class BaseSelectionStrategy {
     protected static final int MOUSE_RIGHT = 1;
     
     // 渲染常量
-    private static final Color SELECTION_BOX_SOLID_COLOR = Color.WHITE;
-    private static final Color SELECTION_BOX_DASHED_COLOR = Color.WHITE;
+    private static final int SELECTION_ALPHA = 255;
 
     // 选择状态
     protected boolean isSelecting = false;
@@ -365,9 +364,10 @@ public abstract class BaseSelectionStrategy {
         if (startPoint == null || currentPoint == null || isPointSelecting || !isSelecting) {
             return;
         }
+        Color selectionColor = getSelectionColor();
 
         if (isLeftToRight) {
-            context.drawRect(startPoint, currentPoint, SELECTION_BOX_SOLID_COLOR);
+            context.drawRect(startPoint, currentPoint, selectionColor);
         } else {
             drawDashedRect(context, startPoint, currentPoint);
         }
@@ -412,11 +412,28 @@ public abstract class BaseSelectionStrategy {
         Vec2d topRight = new Vec2d(Math.max(start.x, end.x), Math.min(start.y, end.y));
         Vec2d bottomLeft = new Vec2d(Math.min(start.x, end.x), Math.max(start.y, end.y));
         Vec2d bottomRight = new Vec2d(Math.max(start.x, end.x), Math.max(start.y, end.y));
+        Color selectionColor = getSelectionColor();
 
-        context.drawDashedLine(topLeft, topRight, SELECTION_BOX_DASHED_COLOR);
-        context.drawDashedLine(topRight, bottomRight, SELECTION_BOX_DASHED_COLOR);
-        context.drawDashedLine(bottomRight, bottomLeft, SELECTION_BOX_DASHED_COLOR);
-        context.drawDashedLine(bottomLeft, topLeft, SELECTION_BOX_DASHED_COLOR);
+        context.drawDashedLine(topLeft, topRight, selectionColor);
+        context.drawDashedLine(topRight, bottomRight, selectionColor);
+        context.drawDashedLine(bottomRight, bottomLeft, selectionColor);
+        context.drawDashedLine(bottomLeft, topLeft, selectionColor);
+    }
+
+    private Color getSelectionColor() {
+        return withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().text), SELECTION_ALPHA);
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

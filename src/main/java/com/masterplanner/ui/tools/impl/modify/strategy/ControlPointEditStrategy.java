@@ -33,10 +33,6 @@ public class ControlPointEditStrategy implements IModifyStrategy {
     // 交互常量
     private static final double CONTROL_POINT_HIT_TOLERANCE = 8.0; // 控制点命中容差
     
-    // 颜色常量
-    private static final Color DRAG_PREVIEW_COLOR = new Color(255, 255, 0, 128); // 黄色拖拽预览
-    private static final Color HOVER_PREVIEW_COLOR = new Color(255, 255, 255, 64); // 白色悬停预览
-    
     // 引用控制点编辑工具
     private final ControlPointEditTool editTool;
     
@@ -203,11 +199,11 @@ public class ControlPointEditStrategy implements IModifyStrategy {
         Vec2d currentPos = lastMousePosition;
         
         if (originalPos != null && currentPos != null) {
-            context.drawLine(originalPos, currentPos, DRAG_PREVIEW_COLOR);
+            context.drawLine(originalPos, currentPos, getDragPreviewColor());
             
             // 在当前位置绘制预览点
-            context.fillCircle(currentPos, 4, DRAG_PREVIEW_COLOR);
-            context.drawCircle(currentPos, 4, Color.WHITE);
+            context.fillCircle(currentPos, 4, withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().warningText), 200));
+            context.drawCircle(currentPos, 4, toColor(ThemeManager.getInstance().getCurrentTheme().text));
         }
     }
     
@@ -226,8 +222,8 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             Vec2d hoveredPoint = controlPoints.get(hoveredIndex);
             
             // 在悬停的控制点周围绘制预览圈
-            context.drawCircle(hoveredPoint, 6, HOVER_PREVIEW_COLOR);
-            context.drawCircle(hoveredPoint, 6, Color.WHITE);
+            context.drawCircle(hoveredPoint, 6, getHoverPreviewColor());
+            context.drawCircle(hoveredPoint, 6, toColor(ThemeManager.getInstance().getCurrentTheme().text));
         }
     }
     
@@ -308,6 +304,26 @@ public class ControlPointEditStrategy implements IModifyStrategy {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static Color getDragPreviewColor() {
+        return withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().warningText), 128);
+    }
+
+    private static Color getHoverPreviewColor() {
+        return withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().text), 64);
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     @Override

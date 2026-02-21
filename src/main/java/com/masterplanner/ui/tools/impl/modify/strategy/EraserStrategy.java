@@ -488,26 +488,30 @@ public class EraserStrategy implements IModifyStrategy {
      * 渲染橡皮擦光标
      */
     private void renderEraserCursor(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color fillColor = withAlpha(toColor(theme.errorText), 120);
+        Color strokeColor = toColor(theme.text);
+
         // 渲染半透明红色填充圆形
-        context.drawCircleFilled(currentMousePosition, eraserRadius, new Color(255, 0, 0, 120));
+        context.drawCircleFilled(currentMousePosition, eraserRadius, fillColor);
         
         // 渲染白色轮廓
-        context.drawCircleOutline(currentMousePosition, eraserRadius, Color.WHITE);
+        context.drawCircleOutline(currentMousePosition, eraserRadius, strokeColor);
         
         // 渲染中心点
-        context.drawCircleFilled(currentMousePosition, 3.0f, Color.WHITE);
+        context.drawCircleFilled(currentMousePosition, 3.0f, strokeColor);
         
         // 渲染十字线
         float crossSize = Math.max(8.0f, eraserRadius * 0.3f);
         context.drawLine(
             new Vec2d(currentMousePosition.x - crossSize, currentMousePosition.y),
             new Vec2d(currentMousePosition.x + crossSize, currentMousePosition.y),
-            Color.WHITE
+            strokeColor
         );
         context.drawLine(
             new Vec2d(currentMousePosition.x, currentMousePosition.y - crossSize),
             new Vec2d(currentMousePosition.x, currentMousePosition.y + crossSize),
-            Color.WHITE
+            strokeColor
         );
     }
     
@@ -515,7 +519,7 @@ public class EraserStrategy implements IModifyStrategy {
      * 渲染高亮图形
      */
     private void renderHighlightShapes(DrawContext context) {
-        Color highlightColor = new Color(255, 0, 0, 150);
+        Color highlightColor = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().errorText), 150);
         
         for (Shape shape : shapesToDelete) {
             if (shape != null) {
@@ -532,5 +536,17 @@ public class EraserStrategy implements IModifyStrategy {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 }
