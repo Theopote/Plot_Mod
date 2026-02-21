@@ -396,7 +396,7 @@ public class UITheme {
         theme.buttonActive = ImColor.rgba(0.35f, 0.35f, 0.35f, 1.0f);    // 激活状态：更亮的深灰色
         theme.buttonSelected = ImColor.rgba(0.12f, 0.56f, 1.00f, 1.0f);  // 选中状态：蓝色
         theme.buttonSelectedHovered = ImColor.rgba(0.00f, 0.75f, 1.00f, 1.0f); // 选中+悬停：亮蓝色
-        theme.buttonSelectedActive = ImColor.rgba(0.00f, 0.00f, 0.80f, 1.0f);  // 选中+激活：深蓝色
+        theme.buttonSelectedActive = ImColor.rgba(0.08f, 0.48f, 0.90f, 1.0f);  // 选中+激活：中亮蓝（避免过暗）
         theme.buttonBorder = ImColor.rgba(0.40f, 0.40f, 0.40f, 1.0f);    // 按钮边框：中灰色
         theme.buttonActiveBorder = ImColor.rgba(0.8f, 0.8f, 0.8f, 1.0f); // 激活边框：亮灰色
         
