@@ -258,9 +258,6 @@ public class ControlPanel implements UIComponent {
                 }
             }
             
-            if (rowIndex < rows.size() - 1) {
-                ImGui.dummy(0.0f, UILayout.Toolbar.ITEM_SPACING);
-            }
         }
     }
     
