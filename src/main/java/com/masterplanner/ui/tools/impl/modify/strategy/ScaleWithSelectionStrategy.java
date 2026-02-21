@@ -76,9 +76,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
     private static final int CTRL_KEY = 17;
 
     // 渲染常量
-    private static final Color SCALE_PREVIEW_COLOR = new Color(255, 165, 0, 180); // 橙色
-    private static final Color CENTER_POINT_COLOR = new Color(255, 0, 0, 255); // 红色
-    private static final Color REFERENCE_POINT_COLOR = new Color(0, 0, 255, 255); // 蓝色
+    private static final int PREVIEW_ALPHA = 180;
 
     // 策略状态
     private StrategyMode currentMode = StrategyMode.SELECTION;
@@ -531,6 +529,11 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
      * 渲染缩放预览
      */
     private void renderScalePreview(DrawContext context) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        Color centerPointColor = toColor(theme.errorText);
+        Color referencePointColor = toColor(theme.infoText);
+        Color scalePreviewColor = withAlpha(toColor(theme.warningText), PREVIEW_ALPHA);
+
         if (previewShapes != null) {
             for (Shape shape : previewShapes) {
                 shape.render(context);
@@ -539,28 +542,40 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
         // 渲染缩放中心点
         if (centerPoint != null) {
-            context.drawCircle(centerPoint, 5.0f, CENTER_POINT_COLOR);
+            context.drawCircle(centerPoint, 5.0f, centerPointColor);
         }
 
         // 渲染参考点
         if (referencePoint != null) {
-            context.drawCircle(referencePoint, 3.0f, REFERENCE_POINT_COLOR);
+            context.drawCircle(referencePoint, 3.0f, referencePointColor);
         }
 
         // 渲染当前点
         if (currentPoint != null && (currentState == ScaleState.SCALING || currentState == ScaleState.AWAITING_REFERENCE)) {
-            context.drawCircle(currentPoint, 3.0f, SCALE_PREVIEW_COLOR);
+            context.drawCircle(currentPoint, 3.0f, scalePreviewColor);
         }
 
         // 渲染缩放线
         if (centerPoint != null && referencePoint != null) {
-            context.drawDashedLine(centerPoint, referencePoint, REFERENCE_POINT_COLOR);
+            context.drawDashedLine(centerPoint, referencePoint, referencePointColor);
         }
 
         // 渲染从中心点到当前点的虚线（在设置参考点和缩放时都显示）
         if (centerPoint != null && currentPoint != null && (currentState == ScaleState.SCALING || currentState == ScaleState.AWAITING_REFERENCE)) {
-            context.drawDashedLine(centerPoint, currentPoint, SCALE_PREVIEW_COLOR);
+            context.drawDashedLine(centerPoint, currentPoint, scalePreviewColor);
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

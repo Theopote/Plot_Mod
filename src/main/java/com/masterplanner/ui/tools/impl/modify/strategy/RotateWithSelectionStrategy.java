@@ -77,9 +77,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     private static final int CTRL_KEY = 17;
 
     // 渲染常量
-    private static final Color ROTATE_PREVIEW_COLOR = new Color(0, 255, 0, 180); // 绿色
-    private static final Color CENTER_POINT_COLOR = new Color(255, 0, 0, 255); // 红色
-    private static final Color REFERENCE_POINT_COLOR = new Color(0, 0, 255, 255); // 蓝色
+    private static final int PREVIEW_ALPHA = 180;
 
     // 策略状态
     private StrategyMode currentMode = StrategyMode.SELECTION;
@@ -556,6 +554,12 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
      * 渲染旋转预览
      */
     private void renderRotatePreview(DrawContext context) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        Color centerPointColor = toColor(theme.errorText);
+        Color referencePointColor = toColor(theme.infoText);
+        Color rotatePreviewColor = withAlpha(toColor(theme.successText), PREVIEW_ALPHA);
+        Color angleColor = toColor(theme.warningText);
+
         if (previewShapes != null) {
             for (Shape shape : previewShapes) {
                 shape.render(context);
@@ -564,28 +568,28 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
         // 渲染旋转中心点
         if (centerPoint != null) {
-            context.drawCircle(centerPoint, 5.0f, CENTER_POINT_COLOR);
+            context.drawCircle(centerPoint, 5.0f, centerPointColor);
         }
 
         // 渲染参考点
         if (referencePoint != null) {
-            context.drawCircle(referencePoint, 3.0f, REFERENCE_POINT_COLOR);
+            context.drawCircle(referencePoint, 3.0f, referencePointColor);
         }
 
         // 渲染当前点
         if (currentPoint != null && (currentState == RotateState.ROTATING || currentState == RotateState.SETTING_REFERENCE)) {
-            context.drawCircle(currentPoint, 3.0f, ROTATE_PREVIEW_COLOR);
+            context.drawCircle(currentPoint, 3.0f, rotatePreviewColor);
         }
 
         // 渲染旋转线
         if (centerPoint != null && referencePoint != null) {
-            context.drawDashedLine(centerPoint, referencePoint, REFERENCE_POINT_COLOR);
+            context.drawDashedLine(centerPoint, referencePoint, referencePointColor);
         }
 
         // 渲染从中心点到当前点的虚线（在设置参考点和旋转时都显示）
         if (centerPoint != null && currentPoint != null && (currentState == RotateState.ROTATING || currentState == RotateState.SETTING_REFERENCE)) {
             Vec2d effectiveCurrent = constrainedCurrentPoint != null ? constrainedCurrentPoint : currentPoint;
-            context.drawDashedLine(centerPoint, effectiveCurrent, ROTATE_PREVIEW_COLOR);
+            context.drawDashedLine(centerPoint, effectiveCurrent, rotatePreviewColor);
 
             // 绘制角度弧线与角度文本（使用参考点与有效当前点）
             if (referencePoint != null) {
@@ -597,7 +601,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 double curRadius = centerPoint.distance(effectiveCurrent);
                 double radius = Math.min(refRadius, curRadius) * 0.3;
 
-                context.drawArc(centerPoint, radius, referenceAngle, effectiveAngle, java.awt.Color.ORANGE);
+                context.drawArc(centerPoint, radius, referenceAngle, effectiveAngle, angleColor);
 
                 double midAngle = referenceAngle + (effectiveAngle - referenceAngle) / 2.0;
                 double angleDiff = Math.toDegrees(effectiveAngle - referenceAngle);
@@ -609,9 +613,21 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                     centerPoint.x + textRadius * Math.cos(midAngle),
                     centerPoint.y + textRadius * Math.sin(midAngle)
                 );
-                context.drawText(String.format("%.1f°", angleDiff), textPos, java.awt.Color.ORANGE);
+                context.drawText(String.format("%.1f°", angleDiff), textPos, angleColor);
             }
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

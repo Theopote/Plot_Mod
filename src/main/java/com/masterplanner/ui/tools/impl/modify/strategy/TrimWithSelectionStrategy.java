@@ -1080,10 +1080,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         if (!isBoxSelecting || boxStartPoint == null || boxCurrentPoint == null) {
             return;
         }
+        Color selectionColor = toColor(ThemeManager.getInstance().getCurrentTheme().text);
         
         if (isLeftToRight) {
             // 从左往右：实线框
-            context.drawRect(boxStartPoint, boxCurrentPoint, Color.WHITE);
+            context.drawRect(boxStartPoint, boxCurrentPoint, selectionColor);
         } else {
             // 从右往左：虚线框
             drawDashedRect(context, boxStartPoint, boxCurrentPoint);
@@ -1127,11 +1128,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         Vec2d topRight = new Vec2d(Math.max(start.x, end.x), Math.min(start.y, end.y));
         Vec2d bottomLeft = new Vec2d(Math.min(start.x, end.x), Math.max(start.y, end.y));
         Vec2d bottomRight = new Vec2d(Math.max(start.x, end.x), Math.max(start.y, end.y));
+        Color dashedColor = toColor(ThemeManager.getInstance().getCurrentTheme().text);
 
-        context.drawDashedLine(topLeft, topRight, Color.WHITE);
-        context.drawDashedLine(topRight, bottomRight, Color.WHITE);
-        context.drawDashedLine(bottomRight, bottomLeft, Color.WHITE);
-        context.drawDashedLine(bottomLeft, topLeft, Color.WHITE);
+        context.drawDashedLine(topLeft, topRight, dashedColor);
+        context.drawDashedLine(topRight, bottomRight, dashedColor);
+        context.drawDashedLine(bottomRight, bottomLeft, dashedColor);
+        context.drawDashedLine(bottomLeft, topLeft, dashedColor);
     }
     
     /**
@@ -1361,10 +1363,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private void renderFencePreview(DrawContext context) {
         List<Vec2d> previewPoints = getFencePreviewPoints();
+        Color fencePointColor = toColor(ThemeManager.getInstance().getCurrentTheme().successText);
+        Color fencePreviewColor = withAlpha(fencePointColor, 180);
 
         // 渲染栅栏点
         for (Vec2d point : previewPoints) {
-            context.fillCircle(point, 4.0f, new Color(0, 255, 0, 255)); // 绿色圆点
+            context.fillCircle(point, 4.0f, fencePointColor);
         }
 
         // 渲染栅栏线
@@ -1375,8 +1379,8 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         // 渲染当前点（如果正在构建栅栏）
         if (fenceType == FenceType.POLYLINE && currentMousePoint != null && !fencePoints.isEmpty()) {
             Vec2d lastPoint = fencePoints.getLast();
-            context.drawLine(lastPoint, currentMousePoint, new Color(0, 255, 0, 180)); // 绿色预览线
-            context.fillCircle(currentMousePoint, 3.0f, new Color(0, 255, 0, 180)); // 绿色预览点
+            context.drawLine(lastPoint, currentMousePoint, fencePreviewColor);
+            context.fillCircle(currentMousePoint, 3.0f, fencePreviewColor);
         }
     }
 
@@ -1445,7 +1449,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         }
 
         // 绘制栅栏线
-        Color fenceColor = new Color(0, 255, 0, 200); // 绿色半透明
+        Color fenceColor = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().successText), 200);
         context.setLineWidth(2.0f);
         
         for (int i = 0; i < points.size() - 1; i++) {
@@ -1455,6 +1459,18 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         }
         
         context.setLineWidth(1.0f); // 恢复默认线宽
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     // ====== 配置方法 ======

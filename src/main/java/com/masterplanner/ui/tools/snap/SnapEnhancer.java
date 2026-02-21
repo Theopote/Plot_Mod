@@ -25,7 +25,6 @@ public class SnapEnhancer {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapEnhancer.class);
     
     // ====== 视觉常量（统一走 SnapVisualStyle） ======
-    private static final Color DEFAULT_SNAP_COLOR = SnapVisualStyle.DEFAULT_HIGHLIGHT;
     // 不再需要本地环尺寸常量，直接从 SnapVisualStyle 获取
     private static final float MARKER_SIZE = SnapVisualStyle.MARKER_SIZE;
     
@@ -256,37 +255,38 @@ public class SnapEnhancer {
     private void renderSnapTypeIndicator(DrawContext context, Vec2d point, 
                                        com.masterplanner.core.snap.SnapPriorityEvaluator.SnapType snapType) {
         float size = MARKER_SIZE;
+        Color markerColor = SnapVisualStyle.colorFor(snapType);
         switch (snapType) {
-            case END_POINT -> context.drawCircleFilled(point, size, Color.RED);
-            case MID_POINT -> context.drawCircleFilled(point, size * 0.8f, Color.GREEN);
+            case END_POINT -> context.drawCircleFilled(point, size, markerColor);
+            case MID_POINT -> context.drawCircleFilled(point, size * 0.8f, markerColor);
             case CENTER_POINT, CENTROID -> {
                 // 十字标记
                 context.drawLine(new Vec2d(point.x - size, point.y), 
-                               new Vec2d(point.x + size, point.y), Color.BLUE);
+                               new Vec2d(point.x + size, point.y), markerColor);
                 context.drawLine(new Vec2d(point.x, point.y - size), 
-                               new Vec2d(point.x, point.y + size), Color.BLUE);
+                               new Vec2d(point.x, point.y + size), markerColor);
             }
             case INTERSECTION, VERTEX -> {
                 // X标记
                 context.drawLine(new Vec2d(point.x - size, point.y - size), 
-                               new Vec2d(point.x + size, point.y + size), Color.MAGENTA);
+                               new Vec2d(point.x + size, point.y + size), markerColor);
                 context.drawLine(new Vec2d(point.x - size, point.y + size), 
-                               new Vec2d(point.x + size, point.y - size), Color.MAGENTA);
+                               new Vec2d(point.x + size, point.y - size), markerColor);
             }
             case PERPENDICULAR, HORIZONTAL, VERTICAL -> {
                 // 垂直线标记
                 context.drawLine(new Vec2d(point.x, point.y - size), 
-                               new Vec2d(point.x, point.y + size), Color.CYAN);
+                               new Vec2d(point.x, point.y + size), markerColor);
                 context.drawLine(new Vec2d(point.x - size * 0.5, point.y + size * 0.5), 
-                               new Vec2d(point.x + size * 0.5, point.y + size * 0.5), Color.CYAN);
+                               new Vec2d(point.x + size * 0.5, point.y + size * 0.5), markerColor);
             }
-            case TANGENT -> context.drawCircle(point, size * 0.6f, Color.ORANGE);
-            case QUADRANT, CONTROL_POINT -> context.drawCircleFilled(point, size * 0.5f, Color.PINK);
-            case NEAREST_POINT, GRID_POINT -> context.drawCircleFilled(point, size * 0.3f, Color.LIGHT_GRAY);
+            case TANGENT -> context.drawCircle(point, size * 0.6f, markerColor);
+            case QUADRANT, CONTROL_POINT -> context.drawCircleFilled(point, size * 0.5f, markerColor);
+            case NEAREST_POINT, GRID_POINT -> context.drawCircleFilled(point, size * 0.3f, markerColor);
             case EXTENSION, PARALLEL -> context.drawLine(new Vec2d(point.x - size * 0.5, point.y),
-                           new Vec2d(point.x + size * 0.5, point.y), Color.GRAY);
+                           new Vec2d(point.x + size * 0.5, point.y), markerColor);
             case NONE -> { /* 无标记 */ }
-            default -> context.drawCircleFilled(point, size * 0.4f, DEFAULT_SNAP_COLOR);
+            default -> context.drawCircleFilled(point, size * 0.4f, SnapVisualStyle.colorFor(com.masterplanner.core.snap.SnapPriorityEvaluator.SnapType.NONE));
         }
     }
     

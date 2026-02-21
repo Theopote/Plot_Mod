@@ -58,7 +58,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
     private static final int SHIFT_KEY = 16;
 
     // 渲染常量
-    private static final Color MOVE_PREVIEW_COLOR = new Color(255, 255, 0, 180);
+    private static final int PREVIEW_ALPHA = 180;
 
     // 策略状态
     private StrategyMode currentMode = StrategyMode.SELECTION;
@@ -495,6 +495,9 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
      * 渲染移动预览
      */
     private void renderMovePreview(DrawContext context) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        Color movePreviewColor = withAlpha(toColor(theme.warningText), PREVIEW_ALPHA);
+
         if (previewShapes != null) {
             for (Shape shape : previewShapes) {
                 shape.render(context);
@@ -508,11 +511,23 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             double moveDistance = moveVector.length();
 
             if (moveDistance > MIN_MOVE_DISTANCE) {
-                context.drawDashedLine(moveStartPoint, effectiveEnd, MOVE_PREVIEW_COLOR);
-                context.drawCircle(moveStartPoint, 3.0f, MOVE_PREVIEW_COLOR);
-                context.drawCircle(effectiveEnd, 3.0f, MOVE_PREVIEW_COLOR);
+                context.drawDashedLine(moveStartPoint, effectiveEnd, movePreviewColor);
+                context.drawCircle(moveStartPoint, 3.0f, movePreviewColor);
+                context.drawCircle(effectiveEnd, 3.0f, movePreviewColor);
             }
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

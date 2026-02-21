@@ -237,13 +237,14 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         if (!isBoxSelecting || boxStartPoint == null || boxCurrentPoint == null) {
             return;
         }
+        Color selectionColor = toColor(ThemeManager.getInstance().getCurrentTheme().text);
 
         // 判断框选方向：从左到右为实线，从右到左为虚线
         boolean isLeftToRight = boxStartPoint.x <= boxCurrentPoint.x;
 
         if (isLeftToRight) {
             // 从左到右：实线框
-            context.drawRect(boxStartPoint, boxCurrentPoint, Color.WHITE);
+            context.drawRect(boxStartPoint, boxCurrentPoint, selectionColor);
         } else {
             // 从右到左：虚线框
             drawDashedRect(context, boxStartPoint, boxCurrentPoint);
@@ -258,11 +259,12 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         Vec2d topRight = new Vec2d(Math.max(start.x, end.x), Math.min(start.y, end.y));
         Vec2d bottomLeft = new Vec2d(Math.min(start.x, end.x), Math.max(start.y, end.y));
         Vec2d bottomRight = new Vec2d(Math.max(start.x, end.x), Math.max(start.y, end.y));
+        Color selectionColor = toColor(ThemeManager.getInstance().getCurrentTheme().text);
 
-        context.drawDashedLine(topLeft, topRight, Color.WHITE);
-        context.drawDashedLine(topRight, bottomRight, Color.WHITE);
-        context.drawDashedLine(bottomRight, bottomLeft, Color.WHITE);
-        context.drawDashedLine(bottomLeft, topLeft, Color.WHITE);
+        context.drawDashedLine(topLeft, topRight, selectionColor);
+        context.drawDashedLine(topRight, bottomRight, selectionColor);
+        context.drawDashedLine(bottomRight, bottomLeft, selectionColor);
+        context.drawDashedLine(bottomLeft, topLeft, selectionColor);
     }
 
     @Override
@@ -1784,12 +1786,12 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
         // 渲染延伸点（红色圆点）
         if (extendPoint != null) {
-            context.fillCircle(extendPoint, 4.0f, new Color(255, 0, 0, 255));
+            context.fillCircle(extendPoint, 4.0f, toColor(ThemeManager.getInstance().getCurrentTheme().errorText));
         }
 
         // 渲染目标点（绿色或蓝色圆点）
         if (targetPoint != null) {
-            Color color = Color.BLUE; // 自动模式使用蓝色
+            Color color = toColor(ThemeManager.getInstance().getCurrentTheme().infoText);
             context.fillCircle(targetPoint, 4.0f, color);
         }
 
@@ -1815,16 +1817,29 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 // 绘制虚线预览到视口边缘
                 double previewDistance = 1000.0; // 预览距离
                 Vec2d previewEnd = extendPoint.add(extendDirection.multiply(previewDistance));
+                Color previewColor = withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().warningText), 180);
 
                 // 使用虚线绘制预览
-                context.drawDashedLine(extendPoint, previewEnd, Color.YELLOW);
+                context.drawDashedLine(extendPoint, previewEnd, previewColor);
 
                 // 在预览线末端绘制小圆点
-                context.fillCircle(previewEnd, 3.0f, new Color(255, 255, 0, 180));
+                context.fillCircle(previewEnd, 3.0f, previewColor);
             }
         } catch (Exception e) {
             LOGGER.debug("渲染备用预览失败: {}", e.getMessage());
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

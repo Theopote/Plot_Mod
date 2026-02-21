@@ -728,6 +728,14 @@ public class FilletStrategy implements IModifyStrategy {
         }
         
         // 绘制虚线框
-        context.drawRect(boxStartPoint, boxCurrentPoint, java.awt.Color.WHITE);
+        context.drawRect(boxStartPoint, boxCurrentPoint, toColor(ThemeManager.getInstance().getCurrentTheme().text));
+    }
+
+    private static java.awt.Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new java.awt.Color(red, green, blue, alpha);
     }
 } 

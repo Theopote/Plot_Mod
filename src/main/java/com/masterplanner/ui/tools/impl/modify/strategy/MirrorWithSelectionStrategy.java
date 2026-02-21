@@ -76,8 +76,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
     private static final int CTRL_KEY = 17;
 
     // 渲染常量
-    private static final Color MIRROR_PREVIEW_COLOR = new Color(128, 0, 128, 180); // 紫色
-    private static final Color AXIS_COLOR = new Color(255, 255, 0, 255); // 黄色镜像轴
+    private static final int PREVIEW_ALPHA = 180;
 
     // 策略状态
     private StrategyMode currentMode = StrategyMode.SELECTION;
@@ -525,6 +524,10 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
      * 渲染镜像预览
      */
     private void renderMirrorPreview(DrawContext context) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        Color axisColor = toColor(theme.warningText);
+        Color mirrorPreviewColor = withAlpha(toColor(theme.accent), PREVIEW_ALPHA);
+
         if (previewShapes != null) {
             for (Shape shape : previewShapes) {
                 shape.render(context);
@@ -534,27 +537,39 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         // 辅助提示：轴对称显示轴线；中心对称显示中心点
         if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
             if (axisStartPoint != null) {
-                context.drawCircle(axisStartPoint, 4.0f, AXIS_COLOR);
+                context.drawCircle(axisStartPoint, 4.0f, axisColor);
                 // 给用户一个“确认”的视觉反馈：从中心到鼠标画虚线（不参与计算）
                 if (currentPoint != null && currentState == MirrorState.SETTING_AXIS_END) {
                     Vec2d endToDraw = previewAxisEndPoint != null ? previewAxisEndPoint : currentPoint;
-                    context.drawDashedLine(axisStartPoint, endToDraw, AXIS_COLOR);
+                    context.drawDashedLine(axisStartPoint, endToDraw, axisColor);
                 }
             }
         } else {
             // 轴对称：渲染镜像轴
             if (axisStartPoint != null && axisEndPoint != null) {
-                context.drawLine(axisStartPoint, axisEndPoint, AXIS_COLOR);
-                context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
-                context.drawCircle(axisEndPoint, 3.0f, AXIS_COLOR);
+                context.drawLine(axisStartPoint, axisEndPoint, axisColor);
+                context.drawCircle(axisStartPoint, 3.0f, axisColor);
+                context.drawCircle(axisEndPoint, 3.0f, axisColor);
                 } else if (axisStartPoint != null && currentPoint != null) {
                     // 绘制临时镜像轴，优先使用受约束的预览终点
                     Vec2d endToDraw = previewAxisEndPoint != null ? previewAxisEndPoint : currentPoint;
-                    context.drawDashedLine(axisStartPoint, endToDraw, AXIS_COLOR);
-                    context.drawCircle(axisStartPoint, 3.0f, AXIS_COLOR);
-                    context.drawCircle(endToDraw, 3.0f, MIRROR_PREVIEW_COLOR);
+                    context.drawDashedLine(axisStartPoint, endToDraw, axisColor);
+                    context.drawCircle(axisStartPoint, 3.0f, axisColor);
+                    context.drawCircle(endToDraw, 3.0f, mirrorPreviewColor);
                 }
         }
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     /**

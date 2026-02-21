@@ -88,12 +88,9 @@ public class SelectionStrategy implements IModifyStrategy {
     private static final double DRAG_THRESHOLD = 4.0; // 拖动阈值，小于此值视为点选
     private static final double LASSO_MIN_DISTANCE = 3.0; // 套索点最小间距
     
-    // 渲染常量
-    private static final Color SELECTION_BOX_SOLID_COLOR = Color.WHITE;
-    private static final Color SELECTION_BOX_DASHED_COLOR = Color.WHITE;
-    private static final Color LASSO_LINE_COLOR = Color.WHITE;
+    // 渲染常量（主题语义色）
+    private static final int SELECTION_ALPHA = 255;
     // 预留：选中高亮色（当前未直接使用，由Shape自身渲染样式处理）
-    // private static final Color SELECTED_SHAPE_COLOR = new Color(255, 255, 0, 128);
     
     // 策略状态
     private SelectionMode currentMode = SelectionMode.NORMAL;
@@ -943,11 +940,12 @@ public class SelectionStrategy implements IModifyStrategy {
         if (startPoint == null || currentPoint == null || isPointSelecting) {
             return;
         }
+        Color selectionColor = getSelectionColor();
         
         // 根据选择方向绘制不同样式的选择框
         if (isLeftToRight) {
             // 从左到右：实线框
-            context.drawRect(startPoint, currentPoint, SELECTION_BOX_SOLID_COLOR);
+            context.drawRect(startPoint, currentPoint, selectionColor);
         } else {
             // 从右到左：虚线框
             drawDashedRect(context, startPoint, currentPoint);
@@ -961,21 +959,22 @@ public class SelectionStrategy implements IModifyStrategy {
         if (!isLassoSelecting || lassoPoints.size() < 2) {
             return;
         }
+        Color lassoColor = getSelectionColor();
         
         // 绘制已确定的套索线段
         for (int i = 1; i < lassoPoints.size(); i++) {
-            context.drawLine(lassoPoints.get(i - 1), lassoPoints.get(i), LASSO_LINE_COLOR);
+            context.drawLine(lassoPoints.get(i - 1), lassoPoints.get(i), lassoColor);
         }
         
         // 绘制当前鼠标位置到最后一个点的线段
         if (currentPoint != null && !lassoPoints.isEmpty()) {
             Vec2d lastPoint = lassoPoints.getLast();
-            context.drawLine(lastPoint, currentPoint, LASSO_LINE_COLOR);
+            context.drawLine(lastPoint, currentPoint, lassoColor);
         }
         
         // 如果有两个以上的点，绘制回到起点的虚线（预览闭合）
         if (lassoPoints.size() > 2 && currentPoint != null) {
-            context.drawDashedLine(currentPoint, lassoPoints.getFirst(), LASSO_LINE_COLOR);
+            context.drawDashedLine(currentPoint, lassoPoints.getFirst(), lassoColor);
         }
     }
     
@@ -1086,11 +1085,28 @@ public class SelectionStrategy implements IModifyStrategy {
         Vec2d topRight = new Vec2d(Math.max(start.x, end.x), Math.min(start.y, end.y));
         Vec2d bottomLeft = new Vec2d(Math.min(start.x, end.x), Math.max(start.y, end.y));
         Vec2d bottomRight = new Vec2d(Math.max(start.x, end.x), Math.max(start.y, end.y));
+        Color dashedColor = getSelectionColor();
         
-        context.drawDashedLine(topLeft, topRight, SelectionStrategy.SELECTION_BOX_DASHED_COLOR);
-        context.drawDashedLine(topRight, bottomRight, SelectionStrategy.SELECTION_BOX_DASHED_COLOR);
-        context.drawDashedLine(bottomRight, bottomLeft, SelectionStrategy.SELECTION_BOX_DASHED_COLOR);
-        context.drawDashedLine(bottomLeft, topLeft, SelectionStrategy.SELECTION_BOX_DASHED_COLOR);
+        context.drawDashedLine(topLeft, topRight, dashedColor);
+        context.drawDashedLine(topRight, bottomRight, dashedColor);
+        context.drawDashedLine(bottomRight, bottomLeft, dashedColor);
+        context.drawDashedLine(bottomLeft, topLeft, dashedColor);
+    }
+
+    private Color getSelectionColor() {
+        return withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().text), SELECTION_ALPHA);
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
     
     /**

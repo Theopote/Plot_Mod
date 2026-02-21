@@ -1,6 +1,7 @@
 package com.masterplanner.ui.tools.snap;
 
 import com.masterplanner.core.snap.SnapPriorityEvaluator;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImColor;
 
 import java.awt.Color;
@@ -17,29 +18,26 @@ public final class SnapVisualStyle {
     public static final float ENHANCED_RING_SIZE = 5.0f;
     public static final float MARKER_SIZE = 2.0f;
 
-    // 默认高亮颜色（例如通用预览环）
-    public static final Color DEFAULT_HIGHLIGHT = new Color(255, 230, 50);
+    // 兼容旧引用：默认高亮色
+    public static final Color DEFAULT_HIGHLIGHT = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 255);
 
     /**
      * 获取捕捉类型对应的颜色
      */
     public static Color colorFor(SnapPriorityEvaluator.SnapType type) {
-        if (type == null) return DEFAULT_HIGHLIGHT;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        if (type == null) return toColor(theme.warningText, 255);
         return switch (type) {
-            case END_POINT -> Color.RED;                 // 端点
-            case MID_POINT -> Color.GREEN;               // 中点
-            case CENTER_POINT -> Color.BLUE;             // 中心点
-            case INTERSECTION -> Color.MAGENTA;          // 交点
-            case PERPENDICULAR, HORIZONTAL, VERTICAL -> Color.CYAN; // 垂足/水平/竖直
-            case TANGENT -> Color.ORANGE;                // 切点
-            case QUADRANT -> Color.PINK;                 // 象限点
-            case NEAREST_POINT -> new Color(128, 128, 128); // 最近点
-            case GRID_POINT -> Color.LIGHT_GRAY;         // 网格点
-            case VERTEX -> new Color(255, 0, 255);       // 顶点
-            case CENTROID -> new Color(0, 100, 200);     // 质心
-            case CONTROL_POINT -> new Color(255, 192, 203); // 控制点
-            case EXTENSION, PARALLEL -> Color.GRAY;      // 延长线/平行
-            case NONE -> DEFAULT_HIGHLIGHT;
+            case END_POINT -> toColor(theme.errorText, 255);
+            case MID_POINT -> toColor(theme.successText, 255);
+            case CENTER_POINT, CENTROID -> toColor(theme.infoText, 255);
+            case INTERSECTION, VERTEX -> toColor(theme.accent, 255);
+            case PERPENDICULAR, HORIZONTAL, VERTICAL -> toColor(theme.infoText, 255);
+            case TANGENT -> toColor(theme.warningText, 255);
+            case QUADRANT, CONTROL_POINT -> toColor(theme.accent, 255);
+            case NEAREST_POINT, GRID_POINT -> toColor(theme.mutedText, 255);
+            case EXTENSION, PARALLEL -> toColor(theme.mutedText, 255);
+            case NONE -> toColor(theme.warningText, 255);
         };
     }
 
@@ -65,6 +63,10 @@ public final class SnapVisualStyle {
             case NEAREST_POINT, GRID_POINT -> DEFAULT_RING_SIZE - 2.0f;                   // 辅助更小
             case NONE -> 0.0f;
         };
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 }
 

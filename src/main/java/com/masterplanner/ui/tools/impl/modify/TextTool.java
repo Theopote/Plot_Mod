@@ -10,6 +10,7 @@ import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.log.LogManager;
 import com.masterplanner.core.tool.BaseTool;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.core.graphics.style.TextStyle;
 import com.masterplanner.core.graphics.style.TextAlignment;
 import com.masterplanner.ui.dialog.TextDialog;
@@ -49,7 +50,6 @@ public class TextTool extends BaseTool {
     private static final String CURSOR_CROSSHAIR = "crosshair";
     private static final String CURSOR_DEFAULT = "default";
     private static final String TOOL_MARKER_TEXT = "T";
-    private static final Color TOOL_MARKER_COLOR = Color.YELLOW;
     private static final double TOOL_MARKER_OFFSET_X_PX = 12.0;
     private static final double TOOL_MARKER_OFFSET_Y_PX = -14.0;
     
@@ -1025,7 +1025,7 @@ public class TextTool extends BaseTool {
         if (textShape.getTextStyle() != null && textShape.getTextStyle().getColor() != null) {
             shapeStyle.setStrokeColor(textShape.getTextStyle().getColor());
         } else {
-            shapeStyle.setStrokeColor(Color.BLACK);
+            shapeStyle.setStrokeColor(toColor(ThemeManager.getInstance().getCurrentTheme().text));
         }
         shapeStyle.setStrokeWidth(1.0f);
         return shapeStyle;
@@ -1057,7 +1057,19 @@ public class TextTool extends BaseTool {
         }
 
         Vec2d markerPos = new Vec2d(currentPoint.x + offsetX, currentPoint.y + offsetY);
-        context.drawText(TOOL_MARKER_TEXT, markerPos, TOOL_MARKER_COLOR);
+        context.drawText(TOOL_MARKER_TEXT, markerPos, getToolMarkerColor());
+    }
+
+    private static Color getToolMarkerColor() {
+        return toColor(ThemeManager.getInstance().getCurrentTheme().warningText);
+    }
+
+    private static Color toColor(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = (argb >>> 16) & 0xFF;
+        int green = (argb >>> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        return new Color(red, green, blue, alpha);
     }
 
     @Override
