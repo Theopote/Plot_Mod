@@ -97,9 +97,9 @@ public class StatusPanel implements UIComponent {
         updateStatus();
         
         // 设置标题颜色
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
         if (ImGui.collapsingHeader("状态属性", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -124,6 +124,11 @@ public class StatusPanel implements UIComponent {
                 ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4, 4);
                 if (ImGui.beginChild("##status_content", 0, 0, true, ImGuiWindowFlags.NoScrollbar)) {
                     // 使用表格形式显示状态信息 - 添加边框和行背景
+                        ImGui.pushStyleColor(ImGuiCol.TableHeaderBg, currentTheme.tabNormal);
+                        ImGui.pushStyleColor(ImGuiCol.TableBorderStrong, currentTheme.border);
+                        ImGui.pushStyleColor(ImGuiCol.TableBorderLight, currentTheme.separatorColor);
+                        ImGui.pushStyleColor(ImGuiCol.TableRowBg, currentTheme.panelBackground);
+                        ImGui.pushStyleColor(ImGuiCol.TableRowBgAlt, currentTheme.controlBackground);
                     if (ImGui.beginTable("##status_table", 2, 
                             ImGuiTableFlags.SizingStretchProp | 
                             ImGuiTableFlags.Borders | 
@@ -220,6 +225,7 @@ public class StatusPanel implements UIComponent {
                         
                         ImGui.endTable();
                     }
+                    ImGui.popStyleColor(5);
                 }
                 ImGui.endChild();
                 ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding

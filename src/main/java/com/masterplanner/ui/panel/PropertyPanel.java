@@ -126,9 +126,9 @@ public class PropertyPanel implements UIComponent {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         
         // 设置标题颜色
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
         if (ImGui.collapsingHeader("工具属性", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -144,9 +144,9 @@ public class PropertyPanel implements UIComponent {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         
         // 设置标题颜色
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
         if (ImGui.collapsingHeader("图层", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -161,9 +161,9 @@ public class PropertyPanel implements UIComponent {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         
         // 设置标题颜色
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
         if (ImGui.collapsingHeader("历史记录", ImGuiTreeNodeFlags.DefaultOpen)) {
