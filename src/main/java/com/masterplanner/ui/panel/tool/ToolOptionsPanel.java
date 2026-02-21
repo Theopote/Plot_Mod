@@ -230,7 +230,9 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 MIN_PANEL_HEIGHT,
                 (contentEndY - contentStartY) + PANEL_PADDING * 2
             );
-            toolPanelHeightCache.put(toolType, measuredContentHeight);
+            float previousHeight = toolPanelHeightCache.getOrDefault(toolType, measuredContentHeight);
+            // 同一工具内高度采用“只增不减”策略，避免点击时状态文案变化引起面板闪烁
+            toolPanelHeightCache.put(toolType, Math.max(previousHeight, measuredContentHeight));
         }
         ImGui.endChild();
         ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding(4,4)
