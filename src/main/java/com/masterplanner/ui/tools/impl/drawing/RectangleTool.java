@@ -11,6 +11,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImDrawList;
 import imgui.ImColor;
 import org.slf4j.Logger;
@@ -476,6 +477,7 @@ public class RectangleTool extends DrawingTool {
     @Override
     public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
         if (previewRectangle == null || camera == null) return;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         // 获取矩形顶点并转换为屏幕坐标
         Vec2d[] vertices = getRectangleVertices();
@@ -486,7 +488,7 @@ public class RectangleTool extends DrawingTool {
             }
 
             // 绘制矩形轮廓
-            int color = ImColor.rgba(100, 150, 255, 128);
+                int color = withAlpha(theme.accent, 0xAA);
             drawList.addQuad(
                     (float) screenVertices[0].x, (float) screenVertices[0].y,
                     (float) screenVertices[1].x, (float) screenVertices[1].y,
@@ -500,7 +502,7 @@ public class RectangleTool extends DrawingTool {
                 Vec2d screenPoint = camera.worldToScreen(point);
                 drawList.addCircleFilled(
                         (float) screenPoint.x, (float) screenPoint.y, 4.0f,
-                        ImColor.rgba(255, 100, 100, 200)
+                    withAlpha(theme.errorText, 0xCC)
                 );
             }
         }
@@ -585,6 +587,10 @@ public class RectangleTool extends DrawingTool {
             }
         }
         markDirty();
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
     private Vec2d[] calculateRectangleBounds() {

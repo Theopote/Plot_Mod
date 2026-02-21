@@ -4,6 +4,7 @@ import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -866,6 +867,7 @@ public class BoundingBoxControlManager {
      */
     public void renderImGui(ImDrawList drawList, CanvasCamera camera, boolean showPreview) {
         try {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             if (drawList == null || camera == null) {
                 LOGGER.error("渲染上下文无效：drawList={}, camera={}", drawList, camera);
                 sendStatusMessage("渲染上下文无效，无法显示包围盒");
@@ -894,7 +896,7 @@ public class BoundingBoxControlManager {
                 float[] coords = validateAndSortScreenCoordinates(screenMin, screenMax);
                 if (coords != null) {
                     // 绘制实线矩形边框 - 预览使用橙色实线
-                    drawList.addRect(coords[0], coords[1], coords[2], coords[3], ColorConfig.PREVIEW_BOX_COLOR, 0.0f, 0, 3.0f);
+                    drawList.addRect(coords[0], coords[1], coords[2], coords[3], theme.warningText, 0.0f, 0, 3.0f);
                 } else {
                     LOGGER.warn("预览坐标转换失败：screenMin={}, screenMax={}", screenMin, screenMax);
                 }
@@ -920,7 +922,7 @@ public class BoundingBoxControlManager {
                     drawList.addRect(
                         (float) screenPos.x - halfSize, (float) screenPos.y - halfSize,
                         (float) screenPos.x + halfSize, (float) screenPos.y + halfSize,
-                            ColorConfig.CONTROL_POINT_BORDER_COLOR, 1.0f
+                            withAlpha(theme.text, 0xDD), 1.0f
                     );
                     } else {
                         LOGGER.warn("控制点 {} 坐标转换失败", i);
@@ -940,14 +942,14 @@ public class BoundingBoxControlManager {
                         drawList.addRectFilled(
                             (float) screenPos.x - halfSize, (float) screenPos.y - halfSize,
                             (float) screenPos.x + halfSize, (float) screenPos.y + halfSize,
-                                ColorConfig.PREVIEW_BOX_COLOR
+                                theme.warningText
                         );
 
                         // 绘制预览控制点边框
                         drawList.addRect(
                             (float) screenPos.x - halfSize, (float) screenPos.y - halfSize,
                             (float) screenPos.x + halfSize, (float) screenPos.y + halfSize,
-                                ColorConfig.PREVIEW_BOX_COLOR, 1.0f
+                                theme.warningText, 1.0f
                         );
                         } else {
                             LOGGER.warn("预览控制点 {} 坐标转换失败", i);
@@ -963,7 +965,7 @@ public class BoundingBoxControlManager {
                  
                                   float[] coords = validateAndSortScreenCoordinates(screenStart, screenEnd);
                   if (coords != null) {
-                      drawList.addRect(coords[0], coords[1], coords[2], coords[3], ColorConfig.SELECTION_BOX_COLOR, 0.0f, 0, 1.0f); // 白色边框
+                      drawList.addRect(coords[0], coords[1], coords[2], coords[3], theme.text, 0.0f, 0, 1.0f);
                  } else {
                      LOGGER.warn("框选坐标转换失败：screenStart={}, screenEnd={}", screenStart, screenEnd);
                  }
@@ -1082,20 +1084,21 @@ public class BoundingBoxControlManager {
      */
     private Color getControlPointColorForDrawContext(int i) {
         ControlPointType controlPointType = ControlPointType.values()[i];
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         // 检查悬停状态
         if (hoveredControlPoint == controlPointType) {
-            return ColorConfig.CONTROL_POINT_HOVER_DRAW_COLOR; // 悬停状态显示为绿色
+            return toAwt(theme.successText, 200);
         }
 
         if (selectedControlPoints.contains(controlPointType)) {
             if (primaryControlPoint == controlPointType) {
-                return ColorConfig.CONTROL_POINT_PRIMARY_DRAW_COLOR; // 主要控制点显示为红色
+                return toAwt(theme.errorText, 255);
             } else {
-                return ColorConfig.CONTROL_POINT_SECONDARY_DRAW_COLOR; // 其他选中控制点显示为橙色
+                return toAwt(theme.warningText, 255);
             }
         } else {
-            return ColorConfig.CONTROL_POINT_NORMAL_DRAW_COLOR; // 普通控制点显示为蓝色
+            return toAwt(theme.infoText, 255);
         }
     }
     
@@ -1104,20 +1107,21 @@ public class BoundingBoxControlManager {
      */
     private int getControlPointColor(int i) {
         ControlPointType controlPointType = ControlPointType.values()[i];
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         // 检查悬停状态
         if (hoveredControlPoint == controlPointType) {
-            return ColorConfig.CONTROL_POINT_HOVER_COLOR; // 悬停状态显示为绿色
+            return theme.successText;
         }
 
         if (selectedControlPoints.contains(controlPointType)) {
             if (primaryControlPoint == controlPointType) {
-                return ColorConfig.CONTROL_POINT_SELECTED_COLOR; // 红色（主要控制点）
+                return theme.errorText;
             } else {
-                return ColorConfig.CONTROL_POINT_SECONDARY_COLOR; // 橙色（其他选中控制点）
+                return theme.warningText;
             }
         } else {
-            return ColorConfig.CONTROL_POINT_NORMAL_COLOR; // 蓝色（普通控制点）
+            return theme.infoText;
         }
     }
     
@@ -1137,6 +1141,7 @@ public class BoundingBoxControlManager {
      * <p>修复了无限循环 Bug：确保 currentPos 和 drawing 状态在每次循环中正确更新</p>
      */
     private void drawDashedLineForStretch(ImDrawList drawList, float x1, float y1, float x2, float y2) {
+        int dashColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().accent, 0x80);
         float totalLength = (float) Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
         if (totalLength < 0.1f) return;
 
@@ -1156,7 +1161,7 @@ public class BoundingBoxControlManager {
                 float startY = y1 + dy * currentPos;
                 float endX = x1 + dx * nextPos;
                 float endY = y1 + dy * nextPos;
-                drawList.addLine(startX, startY, endX, endY, ColorConfig.BOUNDING_BOX_COLOR, lineWidth);
+                drawList.addLine(startX, startY, endX, endY, dashColor, lineWidth);
             }
 
             // 修复：确保这两行代码在 if 语句之外，避免无限循环
@@ -1268,6 +1273,7 @@ public class BoundingBoxControlManager {
         if (boundingBoxMin == null || boundingBoxMax == null || !rotationIconsEnabled) {
             return;
         }
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         
         // 只渲染四个角点的旋转图标
         ControlPointType[] cornerPoints = {
@@ -1293,12 +1299,12 @@ public class BoundingBoxControlManager {
                 float radius = (float) (ROTATION_ICON_SIZE / 2);
                 drawList.addCircleFilled(
                     (float) screenPos.x, (float) screenPos.y, radius,
-                    ColorConfig.ROTATION_ICON_COLOR
+                    theme.successText
                 );
                 // 绘制旋转图标的边框
                 drawList.addCircle(
                     (float) screenPos.x, (float) screenPos.y, radius,
-                    ColorConfig.CONTROL_POINT_BORDER_COLOR, 0, 2.0f
+                    withAlpha(theme.text, 0xDD), 0, 2.0f
                 );
                 
                 // 绘制旋转箭头（简单的弧形）
@@ -1311,6 +1317,7 @@ public class BoundingBoxControlManager {
      * 绘制旋转箭头
      */
     private void drawRotationArrow(ImDrawList drawList, Vec2d center, float radius) {
+        int borderColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().text, 0xDD);
         // 绘制一个简单的弧形箭头表示旋转
         float outerRadius = radius * 0.9f;
         
@@ -1325,7 +1332,7 @@ public class BoundingBoxControlManager {
             float x2 = (float) (center.x + outerRadius * Math.cos(angle2));
             float y2 = (float) (center.y + outerRadius * Math.sin(angle2));
             
-            drawList.addLine(x1, y1, x2, y2, ColorConfig.CONTROL_POINT_BORDER_COLOR, 2.0f);
+            drawList.addLine(x1, y1, x2, y2, borderColor, 2.0f);
         }
         
         // 绘制箭头头部
@@ -1339,7 +1346,7 @@ public class BoundingBoxControlManager {
             arrowX, arrowY,
             arrowX - arrowSize, arrowY - arrowSize,
             arrowX - arrowSize, arrowY + arrowSize,
-            ColorConfig.CONTROL_POINT_BORDER_COLOR
+            borderColor
         );
     }
     
@@ -1350,6 +1357,7 @@ public class BoundingBoxControlManager {
         if (rotationCenter == null) {
             return;
         }
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         
         Vec2d screenCenter = camera.worldToScreen(rotationCenter);
         if (screenCenter == null) {
@@ -1369,7 +1377,7 @@ public class BoundingBoxControlManager {
             float x2 = (float) (screenCenter.x + radius * Math.cos(angle2));
             float y2 = (float) (screenCenter.y + radius * Math.sin(angle2));
             
-            drawList.addLine(x1, y1, x2, y2, ColorConfig.ROTATION_ARC_COLOR, 3.0f);
+            drawList.addLine(x1, y1, x2, y2, theme.successText, 3.0f);
         }
         
         // 绘制角度文本
@@ -1387,14 +1395,25 @@ public class BoundingBoxControlManager {
         drawList.addRectFilled(
             textX - textWidth/2 - 4, textY - textHeight/2 - 2,
             textX + textWidth/2 + 4, textY + textHeight/2 + 2,
-            0x80000000 // 半透明黑色背景
+            withAlpha(theme.panelBackground, 0xCC)
         );
         
         // 绘制文本边框（这里需要 ImGui 的文本绘制功能，暂时用矩形代替）
         drawList.addRect(
             textX - textWidth/2 - 4, textY - textHeight/2 - 2,
             textX + textWidth/2 + 4, textY + textHeight/2 + 2,
-            ColorConfig.ROTATION_ANGLE_TEXT_COLOR, 0.0f, 0, 1.0f
+            theme.text, 0.0f, 0, 1.0f
         );
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static Color toAwt(int color, int alpha) {
+        int r = color & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = (color >> 16) & 0xFF;
+        return new Color(r, g, b, Math.max(0, Math.min(alpha, 255)));
     }
 }

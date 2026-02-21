@@ -11,6 +11,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.snap.SnapEnhancer;
 
 import org.slf4j.Logger;
@@ -371,13 +372,13 @@ public class CircleTool extends DrawingTool {
     // ====== ImDrawList 预览渲染方法 ======
     
     private void renderCenterRadiusPreview(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         if (!controlPoints.isEmpty()) {
             Vec2d center = controlPoints.getFirst();
             Vec2d screenCenter = camera.worldToScreen(center);
             
             // 绘制圆心
-            int centerColor = ImColor.rgba(CENTER_POINT_COLOR.getRed(), CENTER_POINT_COLOR.getGreen(), 
-                                          CENTER_POINT_COLOR.getBlue(), 200);
+            int centerColor = withAlpha(theme.errorText, 0xCC);
             drawList.addCircleFilled((float)screenCenter.x, (float)screenCenter.y, CONTROL_POINT_SIZE, centerColor);
             
             if (previewCircle != null) {
@@ -392,18 +393,15 @@ public class CircleTool extends DrawingTool {
                 if (controlPoints.size() >= 2) {
                     Vec2d radiusPoint = controlPoints.get(1);
                     Vec2d screenRadiusPoint = camera.worldToScreen(radiusPoint);
-                    int radiusColor = ImColor.rgba(RADIUS_POINT_COLOR.getRed(), RADIUS_POINT_COLOR.getGreen(), 
-                                                  RADIUS_POINT_COLOR.getBlue(), 200);
+                    int radiusColor = withAlpha(theme.successText, 0xCC);
                     drawList.addCircleFilled((float)screenRadiusPoint.x, (float)screenRadiusPoint.y, CONTROL_POINT_SIZE, radiusColor);
                     
-                    int lineColor = ImColor.rgba(CONNECTOR_LINE_COLOR.getRed(), CONNECTOR_LINE_COLOR.getGreen(), 
-                                                CONNECTOR_LINE_COLOR.getBlue(), 150);
+                    int lineColor = withAlpha(theme.warningText, 0x99);
                     drawList.addLine((float)screenCenter.x, (float)screenCenter.y, 
                                    (float)screenRadiusPoint.x, (float)screenRadiusPoint.y, lineColor, 1.0f);
                 } else if (currentMousePoint != null) {
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    int lineColor = ImColor.rgba(CONNECTOR_LINE_COLOR.getRed(), CONNECTOR_LINE_COLOR.getGreen(), 
-                                                CONNECTOR_LINE_COLOR.getBlue(), 150);
+                    int lineColor = withAlpha(theme.warningText, 0x99);
                     drawList.addLine((float)screenCenter.x, (float)screenCenter.y, 
                                    (float)screenMouse.x, (float)screenMouse.y, lineColor, 1.0f);
                 }
@@ -412,10 +410,9 @@ public class CircleTool extends DrawingTool {
     }
     
     private void renderTwoPointsPreview(ImDrawList drawList, CanvasCamera camera) {
-        int controlColor = ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), 
-                                       CONTROL_POINT_COLOR.getBlue(), 200);
-        int lineColor = ImColor.rgba(CONNECTOR_LINE_COLOR.getRed(), CONNECTOR_LINE_COLOR.getGreen(), 
-                                    CONNECTOR_LINE_COLOR.getBlue(), 150);
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int controlColor = withAlpha(theme.infoText, 0xCC);
+        int lineColor = withAlpha(theme.warningText, 0x99);
         
         if (!controlPoints.isEmpty()) {
             Vec2d p1 = controlPoints.getFirst();
@@ -442,18 +439,16 @@ public class CircleTool extends DrawingTool {
                                               layerPreviewColor.getBlue(), layerPreviewColor.getAlpha());
                 drawList.addCircle((float)screenCenter.x, (float)screenCenter.y, screenRadius, previewColor, segments, 2.0f);
                 
-                int centerColor = ImColor.rgba(CENTER_POINT_COLOR.getRed(), CENTER_POINT_COLOR.getGreen(), 
-                                              CENTER_POINT_COLOR.getBlue(), 200);
+                int centerColor = withAlpha(theme.errorText, 0xCC);
                 drawList.addCircleFilled((float)screenCenter.x, (float)screenCenter.y, CONTROL_POINT_SIZE, centerColor);
             }
         }
     }
     
     private void renderThreePointsPreview(ImDrawList drawList, CanvasCamera camera) {
-        int controlColor = ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), 
-                                       CONTROL_POINT_COLOR.getBlue(), 200);
-        int lineColor = ImColor.rgba(CONNECTOR_LINE_COLOR.getRed(), CONNECTOR_LINE_COLOR.getGreen(), 
-                                    CONNECTOR_LINE_COLOR.getBlue(), 150);
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int controlColor = withAlpha(theme.infoText, 0xCC);
+        int lineColor = withAlpha(theme.warningText, 0x99);
         
         // 绘制控制点
         for (Vec2d point : controlPoints) {
@@ -493,8 +488,7 @@ public class CircleTool extends DrawingTool {
                                           layerPreviewColor.getBlue(), layerPreviewColor.getAlpha());
             drawList.addCircle((float)screenCenter.x, (float)screenCenter.y, screenRadius, previewColor, segments, 2.0f);
             
-            int centerColor = ImColor.rgba(CENTER_POINT_COLOR.getRed(), CENTER_POINT_COLOR.getGreen(), 
-                                          CENTER_POINT_COLOR.getBlue(), 200);
+            int centerColor = withAlpha(theme.errorText, 0xCC);
             drawList.addCircleFilled((float)screenCenter.x, (float)screenCenter.y, CONTROL_POINT_SIZE, centerColor);
         }
     }
@@ -686,17 +680,17 @@ public class CircleTool extends DrawingTool {
             }
             case QUADRANT, CONTROL_POINT -> {
                 // 控制点：小正方形
-                int color = ImColor.rgba(255, 192, 203, 255);
+                int color = ThemeManager.getInstance().getCurrentTheme().accent;
                 drawList.addRectFilled(x - size * 0.5f, y - size * 0.5f, x + size * 0.5f, y + size * 0.5f, color);
             }
             case NEAREST_POINT, GRID_POINT -> {
                 // 网格点：小圆点
-                int color = ImColor.rgba(211, 211, 211, 255);
+                int color = ThemeManager.getInstance().getCurrentTheme().mutedText;
                 drawList.addCircleFilled(x, y, size * 0.3f, color);
             }
             case EXTENSION, PARALLEL -> {
                 // 延长线：小线段
-                int color = ImColor.rgba(128, 128, 128, 255);
+                int color = ThemeManager.getInstance().getCurrentTheme().mutedText;
                 drawList.addLine(x - size * 0.5f, y, x + size * 0.5f, y, color, 2.0f);
             }
             case NONE -> {
@@ -704,10 +698,14 @@ public class CircleTool extends DrawingTool {
             }
             default -> {
                 // 其他类型：默认小圆点
-                int color = ImColor.rgba(255, 255, 0, 255);
+                int color = ThemeManager.getInstance().getCurrentTheme().warningText;
                 drawList.addCircleFilled(x, y, size * 0.4f, color);
             }
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
     
     /**

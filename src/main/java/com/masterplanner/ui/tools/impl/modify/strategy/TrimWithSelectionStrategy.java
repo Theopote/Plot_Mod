@@ -6,6 +6,7 @@ import com.masterplanner.core.geometry.BoundingBox;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.TrimHandler;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
 import imgui.ImDrawList;
@@ -1106,7 +1107,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         float maxX = (float) Math.max(screenStart.x, screenEnd.x);
         float maxY = (float) Math.max(screenStart.y, screenEnd.y);
         
-        int color = 0xFFFFFFFF; // 白色
+        int color = ThemeManager.getInstance().getCurrentTheme().text;
         float lineWidth = 1.0f;
         
         if (isLeftToRight) {
@@ -1392,6 +1393,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private void renderFencePreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             List<Vec2d> previewPoints = getFencePreviewPoints();
 
             // 渲染栅栏点
@@ -1399,7 +1401,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 Vec2d screenPos = camera.worldToScreen(point);
                 drawList.addCircleFilled(
                     (float) screenPos.x, (float) screenPos.y, 4.0f,
-                    0xFF00FF00 // 绿色
+                    theme.successText
                 );
             }
 
@@ -1410,7 +1412,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     drawList.addLine(
                         (float) start.x, (float) start.y,
                         (float) end.x, (float) end.y,
-                        0xFF00FF00, 2.0f
+                        theme.successText, 2.0f
                     );
                 }
             }
@@ -1424,12 +1426,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 drawList.addLine(
                     (float) screenLast.x, (float) screenLast.y,
                     (float) screenCurrent.x, (float) screenCurrent.y,
-                    0xFF00FF00, 2.0f // 绿色线
+                    theme.successText, 2.0f
                 );
                 
                 drawList.addCircleFilled(
                     (float) screenCurrent.x, (float) screenCurrent.y, 3.0f,
-                    0xFF00FF00 // 绿色
+                    theme.successText
                 );
             }
         } catch (Exception e) {

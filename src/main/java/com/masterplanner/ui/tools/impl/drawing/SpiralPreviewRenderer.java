@@ -5,6 +5,7 @@ import com.masterplanner.core.geometry.shapes.SpiralShape;
 import com.masterplanner.core.geometry.shapes.SpiralType;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.drawing.config.SpiralConfigManager;
 
 import imgui.ImDrawList;
@@ -193,6 +194,7 @@ public class SpiralPreviewRenderer {
      * 渲染控制点（ImGui版本）
      */
     private void renderControlPointsImGui(ImDrawList drawList, CanvasCamera camera, List<Vec2d> controlPoints, Vec2d currentMousePoint) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         SpiralType currentType = configManager.getCurrentType();
         
         if (currentType == SpiralType.LINEAR) {
@@ -201,11 +203,11 @@ public class SpiralPreviewRenderer {
                 Vec2d point = controlPoints.get(i);
                 Vec2d screenPoint = camera.worldToScreen(point);
                 int color = switch (i) {
-                    case 0 -> CENTER_POINT_COLOR; // 中心点
-                    case 1 -> RADIUS_POINT_COLOR; // 起始半径点
-                    case 2 -> PITCH_POINT_COLOR; // 螺距点
-                    case 3 -> MAX_RADIUS_POINT_COLOR; // 最大半径点
-                    default -> imgui.ImGui.getColorU32(0.5f, 0.5f, 0.5f, 1.0f);
+                    case 0 -> theme.infoText;
+                    case 1 -> theme.successText;
+                    case 2 -> theme.warningText;
+                    case 3 -> theme.accent;
+                    default -> theme.mutedText;
                 };
                 
                 drawList.addCircleFilled(
@@ -215,7 +217,7 @@ public class SpiralPreviewRenderer {
                 // 添加吸附指示器
                 drawList.addCircle(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    SNAP_INDICATOR_SIZE, SNAP_INDICATOR_COLOR, 12, 2.0f
+                    SNAP_INDICATOR_SIZE, theme.warningText, 12, 2.0f
                 );
             }
             
@@ -223,11 +225,11 @@ public class SpiralPreviewRenderer {
             if (currentMousePoint != null && controlPoints.size() < 4) {
                 Vec2d screenPoint = camera.worldToScreen(currentMousePoint);
                 int previewColor = switch (controlPoints.size()) {
-                    case 0 -> CENTER_POINT_COLOR; // 中心预览
-                    case 1 -> RADIUS_POINT_COLOR; // 起始半径预览
-                    case 2 -> PITCH_POINT_COLOR; // 螺距预览
-                    case 3 -> MAX_RADIUS_POINT_COLOR; // 最大半径预览
-                    default -> imgui.ImGui.getColorU32(0.5f, 0.5f, 0.5f, 1.0f);
+                    case 0 -> theme.infoText;
+                    case 1 -> theme.successText;
+                    case 2 -> theme.warningText;
+                    case 3 -> theme.accent;
+                    default -> theme.mutedText;
                 };
                 
                 drawList.addCircleFilled(
@@ -237,7 +239,7 @@ public class SpiralPreviewRenderer {
                 // 半透明吸附指示器
                 drawList.addCircle(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    SNAP_INDICATOR_SIZE * 0.7f, SNAP_INDICATOR_COLOR, 12, 1.5f
+                    SNAP_INDICATOR_SIZE * 0.7f, withAlpha(theme.warningText, 0xCC), 12, 1.5f
                 );
             }
         } else {
@@ -246,11 +248,11 @@ public class SpiralPreviewRenderer {
                 Vec2d screenPoint = camera.worldToScreen(controlPoints.getFirst());
                 drawList.addCircleFilled(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    POINT_SIZE, CENTER_POINT_COLOR
+                    POINT_SIZE, theme.infoText
                 );
                 drawList.addCircle(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    SNAP_INDICATOR_SIZE, SNAP_INDICATOR_COLOR, 12, 2.0f
+                    SNAP_INDICATOR_SIZE, theme.warningText, 12, 2.0f
                 );
             }
             
@@ -258,21 +260,21 @@ public class SpiralPreviewRenderer {
                 Vec2d screenPoint = camera.worldToScreen(controlPoints.get(1));
                 drawList.addCircleFilled(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    POINT_SIZE, RADIUS_POINT_COLOR
+                    POINT_SIZE, theme.successText
                 );
                 drawList.addCircle(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    SNAP_INDICATOR_SIZE, SNAP_INDICATOR_COLOR, 12, 2.0f
+                    SNAP_INDICATOR_SIZE, theme.warningText, 12, 2.0f
                 );
             } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
                 Vec2d screenPoint = camera.worldToScreen(currentMousePoint);
                 drawList.addCircleFilled(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    POINT_SIZE, RADIUS_POINT_COLOR
+                    POINT_SIZE, theme.successText
                 );
                 drawList.addCircle(
                     (float) screenPoint.x, (float) screenPoint.y,
-                    SNAP_INDICATOR_SIZE * 0.7f, SNAP_INDICATOR_COLOR, 12, 1.5f
+                    SNAP_INDICATOR_SIZE * 0.7f, withAlpha(theme.warningText, 0xCC), 12, 1.5f
                 );
             }
         }
@@ -282,6 +284,7 @@ public class SpiralPreviewRenderer {
      * 渲染连接线（ImGui版本）
      */
     private void renderConnectionLinesImGui(ImDrawList drawList, CanvasCamera camera, List<Vec2d> controlPoints, Vec2d currentMousePoint) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         SpiralType currentType = configManager.getCurrentType();
         
         if (currentType == SpiralType.LINEAR) {
@@ -293,10 +296,10 @@ public class SpiralPreviewRenderer {
                 Vec2d screenEnd = camera.worldToScreen(end);
                 
                 int color = switch (i) {
-                    case 0 -> imgui.ImGui.getColorU32(1.0f, 1.0f, 0.0f, 0.8f); // 黄色：中心到起始半径
-                    case 1 -> imgui.ImGui.getColorU32(1.0f, 0.5f, 0.0f, 0.8f); // 橙色：起始半径到螺距
-                    case 2 -> imgui.ImGui.getColorU32(1.0f, 0.0f, 0.5f, 0.8f); // 粉色：螺距到最大半径
-                    default -> imgui.ImGui.getColorU32(0.5f, 0.5f, 0.5f, 0.6f);
+                    case 0 -> withAlpha(theme.warningText, 0xCC);
+                    case 1 -> withAlpha(theme.warningText, 0xCC);
+                    case 2 -> withAlpha(theme.accent, 0xCC);
+                    default -> withAlpha(theme.mutedText, 0x99);
                 };
                 
                 drawList.addLine(
@@ -313,10 +316,10 @@ public class SpiralPreviewRenderer {
                 Vec2d screenEnd = camera.worldToScreen(currentMousePoint);
                 
                 int previewColor = switch (controlPoints.size()) {
-                    case 1 -> imgui.ImGui.getColorU32(1.0f, 1.0f, 0.0f, 0.5f); // 黄色预览
-                    case 2 -> imgui.ImGui.getColorU32(1.0f, 0.5f, 0.0f, 0.5f); // 橙色预览
-                    case 3 -> imgui.ImGui.getColorU32(1.0f, 0.0f, 0.5f, 0.5f); // 粉色预览
-                    default -> imgui.ImGui.getColorU32(0.5f, 0.5f, 0.5f, 0.3f);
+                    case 1 -> withAlpha(theme.warningText, 0x88);
+                    case 2 -> withAlpha(theme.warningText, 0x88);
+                    case 3 -> withAlpha(theme.accent, 0x88);
+                    default -> withAlpha(theme.mutedText, 0x66);
                 };
                 
                 drawList.addLine(
@@ -333,7 +336,7 @@ public class SpiralPreviewRenderer {
                 drawList.addLine(
                     (float) screenStart.x, (float) screenStart.y,
                     (float) screenEnd.x, (float) screenEnd.y,
-                    imgui.ImGui.getColorU32(1.0f, 1.0f, 0.0f, 0.6f), 1.5f
+                    withAlpha(theme.warningText, 0x99), 1.5f
                 );
             } else if (controlPoints.size() == 1 && currentMousePoint != null) {
                 Vec2d screenStart = camera.worldToScreen(controlPoints.getFirst());
@@ -341,7 +344,7 @@ public class SpiralPreviewRenderer {
                 drawList.addLine(
                     (float) screenStart.x, (float) screenStart.y,
                     (float) screenEnd.x, (float) screenEnd.y,
-                    imgui.ImGui.getColorU32(0.8f, 0.8f, 0.8f, 0.5f), 1.0f
+                    withAlpha(theme.mutedText, 0x88), 1.0f
                 );
             }
         }
@@ -405,6 +408,7 @@ public class SpiralPreviewRenderer {
      * 渲染参数信息（ImGui版本）
      */
     private void renderParameterInfoImGui(ImDrawList drawList, CanvasCamera camera, List<Vec2d> controlPoints, Vec2d currentMousePoint) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         SpiralType currentType = configManager.getCurrentType();
         
         if (currentType == SpiralType.LINEAR && !controlPoints.isEmpty() && currentMousePoint != null) {
@@ -415,7 +419,7 @@ public class SpiralPreviewRenderer {
             drawList.addText(
                 (float) screenPoint.x + TEXT_OFFSET_X, 
                 (float) screenPoint.y - TEXT_OFFSET_Y,
-                INFO_TEXT_COLOR, info
+                theme.text, info
             );
         } else if (!controlPoints.isEmpty() && currentMousePoint != null) {
             // 其它类型：保持原有逻辑
@@ -429,9 +433,13 @@ public class SpiralPreviewRenderer {
             drawList.addText(
                 (float) screenPoint.x + TEXT_OFFSET_X, 
                 (float) screenPoint.y - TEXT_OFFSET_Y,
-                INFO_TEXT_COLOR, info
+                theme.text, info
             );
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
     /**

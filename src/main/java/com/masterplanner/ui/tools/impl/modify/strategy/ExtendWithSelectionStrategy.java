@@ -5,6 +5,7 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.ExtendHandler;
 import com.masterplanner.ui.tools.impl.modify.dto.ExtendParameters;
 import imgui.ImDrawList;
@@ -1831,6 +1832,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     private void renderExtendPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             // 根据相机缩放动态调整渲染参数
             float zoom = camera != null ? camera.getZoom() : 1.0f;
 
@@ -1855,7 +1857,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 if (screenPos != null) {
                     drawList.addCircleFilled(
                         (float) screenPos.x, (float) screenPos.y, pointSize,
-                        0xFFFF0000 // 红色
+                        theme.errorText
                     );
                 }
             }
@@ -1863,7 +1865,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             // 渲染目标点（绿色或蓝色圆点）
             if (targetPoint != null) {
                 Vec2d screenPos = Objects.requireNonNull(camera).worldToScreen(targetPoint);
-                int color = 0xFF0000FF; // 自动模式使用蓝色
+                int color = theme.infoText;
                 drawList.addCircleFilled(
                     (float) screenPos.x, (float) screenPos.y, pointSize,
                     color
@@ -1901,7 +1903,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 // 从左到右：实线框（白色）
                 drawList.addRect(
                     x1, y1, x2, y2,
-                    0xFFFFFFFF, // 白色
+                    ThemeManager.getInstance().getCurrentTheme().text,
                     0.0f, // 无圆角
                     0, // 无标志
                     2.0f // 线宽
@@ -1944,7 +1946,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
         if (length < dashLength) {
             // 如果线段太短，直接绘制
-            drawList.addLine(x1, y1, x2, y2, 0xFFFFFFFF, 2.0f);
+            drawList.addLine(x1, y1, x2, y2, ThemeManager.getInstance().getCurrentTheme().text, 2.0f);
             return;
         }
 
@@ -1966,7 +1968,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 float endX = x1 + nextLength * unitX;
                 float endY = y1 + nextLength * unitY;
 
-                drawList.addLine(startX, startY, endX, endY, 0xFFFFFFFF, 2.0f);
+                drawList.addLine(startX, startY, endX, endY, ThemeManager.getInstance().getCurrentTheme().text, 2.0f);
             }
 
             currentLength = nextLength;

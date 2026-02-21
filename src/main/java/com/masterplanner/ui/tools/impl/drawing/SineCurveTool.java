@@ -10,6 +10,7 @@ import com.masterplanner.core.snap.SnapManager;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -415,12 +416,13 @@ public class SineCurveTool extends DrawingTool {
      * 渲染控制点（ImGui版本）
      */
     private void renderControlPointsImGui(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         // 起点
         if (!controlPoints.isEmpty()) {
             Vec2d screenPoint = camera.worldToScreen(controlPoints.getFirst());
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE, START_POINT_COLOR
+                POINT_SIZE, theme.infoText
             );
         }
         
@@ -429,7 +431,7 @@ public class SineCurveTool extends DrawingTool {
             Vec2d screenPoint = camera.worldToScreen(controlPoints.get(1));
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE, END_POINT_COLOR
+                POINT_SIZE, theme.successText
             );
         }
         
@@ -438,13 +440,13 @@ public class SineCurveTool extends DrawingTool {
             Vec2d screenPoint = camera.worldToScreen(controlPoints.get(2));
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE, 0xFFFFFF00 // 黄色
+                POINT_SIZE, theme.warningText
             );
         } else if (currentMousePoint != null && controlPoints.size() == 2) {
             Vec2d screenPoint = camera.worldToScreen(currentMousePoint);
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE, 0xFFFF8000 // 橙色
+                POINT_SIZE, theme.warningText
             );
         }
         
@@ -453,13 +455,13 @@ public class SineCurveTool extends DrawingTool {
             Vec2d screenPoint = camera.worldToScreen(controlPoints.get(3));
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE, AMPLITUDE_POINT_COLOR
+                POINT_SIZE, theme.errorText
             );
         } else if (currentMousePoint != null && controlPoints.size() == 3) {
             Vec2d screenPoint = camera.worldToScreen(currentMousePoint);
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE, 0xFFFF00FF // 洋红色
+                POINT_SIZE, theme.accent
             );
         }
     }
@@ -468,6 +470,7 @@ public class SineCurveTool extends DrawingTool {
      * 渲染基线（ImGui版本）
      */
     private void renderBaselineImGui(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         if (controlPoints.size() >= 2) {
             // 绘制波长线（起点到波长点）
             Vec2d screenStart = camera.worldToScreen(controlPoints.get(0));
@@ -475,7 +478,7 @@ public class SineCurveTool extends DrawingTool {
             drawList.addLine(
                 (float) screenStart.x, (float) screenStart.y,
                 (float) screenWavelength.x, (float) screenWavelength.y,
-                0xFF00FF00, LINE_THICKNESS // 绿色
+                theme.successText, LINE_THICKNESS
             );
             
             if (controlPoints.size() >= 3) {
@@ -484,7 +487,7 @@ public class SineCurveTool extends DrawingTool {
                 drawList.addLine(
                     (float) screenStart.x, (float) screenStart.y,
                     (float) screenLength.x, (float) screenLength.y,
-                    0xFFFFFF00, LINE_THICKNESS // 黄色
+                    theme.warningText, LINE_THICKNESS
                 );
             } else if (currentMousePoint != null) {
                 // 预览长度线
@@ -492,7 +495,7 @@ public class SineCurveTool extends DrawingTool {
                 drawList.addLine(
                     (float) screenStart.x, (float) screenStart.y,
                     (float) screenEnd.x, (float) screenEnd.y,
-                    0xFFFF8000, LINE_THICKNESS // 橙色
+                    theme.warningText, LINE_THICKNESS
                 );
             }
         } else if (controlPoints.size() == 1 && currentMousePoint != null) {
@@ -501,7 +504,7 @@ public class SineCurveTool extends DrawingTool {
             drawList.addLine(
                 (float) screenStart.x, (float) screenStart.y,
                 (float) screenEnd.x, (float) screenEnd.y,
-                BASELINE_COLOR, LINE_THICKNESS
+                withAlpha(theme.mutedText, 0xCC), LINE_THICKNESS
             );
         }
     }
@@ -510,6 +513,7 @@ public class SineCurveTool extends DrawingTool {
      * 渲染振幅线（ImGui版本）
      */
     private void renderAmplitudeLineImGui(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         if (controlPoints.size() >= 3) {
             Vec2d startPoint = controlPoints.get(0);
             Vec2d lengthPoint = controlPoints.get(2);
@@ -522,7 +526,7 @@ public class SineCurveTool extends DrawingTool {
                 drawList.addLine(
                     (float) screenMid.x, (float) screenMid.y,
                     (float) screenAmplitude.x, (float) screenAmplitude.y,
-                    0xFFFF00FF, LINE_THICKNESS // 洋红色
+                    theme.accent, LINE_THICKNESS
                 );
             }
         }
@@ -570,6 +574,7 @@ public class SineCurveTool extends DrawingTool {
      * 渲染参数信息（ImGui版本）
      */
     private void renderParameterInfoImGui(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         if (controlPoints.size() >= 2 && currentMousePoint != null) {
             Vec2d displayPoint = currentMousePoint;
             Vec2d screenPoint = camera.worldToScreen(displayPoint);
@@ -596,9 +601,13 @@ public class SineCurveTool extends DrawingTool {
             
             drawList.addText(
                 (float) screenPoint.x + 15, (float) screenPoint.y - 20,
-                PREVIEW_COLOR, info
+                theme.text, info
             );
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
     
     // ====== 自定义交互策略 ======

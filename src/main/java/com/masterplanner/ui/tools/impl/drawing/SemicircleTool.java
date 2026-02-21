@@ -5,6 +5,7 @@ import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -646,13 +647,14 @@ public class SemicircleTool extends DrawingTool {
      */
     private void renderTwoPointsPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         if (controlPoints.isEmpty()) return;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         // 绘制中心点
         Vec2d center = controlPoints.getFirst();
         Vec2d screenCenter = camera.worldToScreen(center);
         drawList.addCircleFilled(
             (float) screenCenter.x, (float) screenCenter.y,
-            POINT_SIZE, CENTER_POINT_COLOR
+            POINT_SIZE, theme.infoText
         );
 
         // 如果有鼠标位置，绘制半圆预览
@@ -660,7 +662,7 @@ public class SemicircleTool extends DrawingTool {
             Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
 
             // 绘制半径线（引导线）
-            int guideColor = 0x96808080; // 灰色半透明
+            int guideColor = withAlpha(theme.mutedText, 0x96);
             drawList.addLine(
                 (float) screenCenter.x, (float) screenCenter.y,
                 (float) screenMouse.x, (float) screenMouse.y,
@@ -685,7 +687,7 @@ public class SemicircleTool extends DrawingTool {
             String info = String.format("半径: %.2f", radius);
             drawList.addText(
                 (float) screenCenter.x + 10, (float) screenCenter.y + 10,
-                PREVIEW_COLOR, info
+                theme.text, info
             );
         }
     }
@@ -695,13 +697,14 @@ public class SemicircleTool extends DrawingTool {
      */
     private void renderThreePointsPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         if (controlPoints.isEmpty()) return;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         // 绘制第一个点
         Vec2d p1 = controlPoints.getFirst();
         Vec2d screenP1 = camera.worldToScreen(p1);
         drawList.addCircleFilled(
             (float) screenP1.x, (float) screenP1.y,
-            POINT_SIZE, CONTROL_POINT_COLOR
+            POINT_SIZE, theme.successText
         );
 
         if (controlPoints.size() >= 2) {
@@ -710,11 +713,11 @@ public class SemicircleTool extends DrawingTool {
             Vec2d screenP2 = camera.worldToScreen(p2);
             drawList.addCircleFilled(
                 (float) screenP2.x, (float) screenP2.y,
-                POINT_SIZE, CONTROL_POINT_COLOR
+                POINT_SIZE, theme.successText
             );
 
             // 绘制直径线（引导线）
-            int guideColor = 0x96808080; // 灰色半透明
+            int guideColor = withAlpha(theme.mutedText, 0x96);
             drawList.addLine(
                 (float) screenP1.x, (float) screenP1.y,
                 (float) screenP2.x, (float) screenP2.y,
@@ -726,7 +729,7 @@ public class SemicircleTool extends DrawingTool {
             Vec2d screenCenter = camera.worldToScreen(center);
             drawList.addCircleFilled(
                 (float) screenCenter.x, (float) screenCenter.y,
-                POINT_SIZE, DIRECTION_POINT_COLOR
+                POINT_SIZE, theme.errorText
             );
 
             // 如果有鼠标位置，绘制半圆预览
@@ -758,13 +761,13 @@ public class SemicircleTool extends DrawingTool {
                 String info = String.format("半径: %.2f", radius);
                 drawList.addText(
                     (float) screenCenter.x + 10, (float) screenCenter.y + 10,
-                    PREVIEW_COLOR, info
+                    theme.text, info
                 );
             }
         } else if (currentMousePoint != null) {
             // 只有一个点时，显示引导线
             Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-            int guideColor = 0x96808080; // 灰色半透明
+            int guideColor = withAlpha(theme.mutedText, 0x96);
             drawList.addLine(
                 (float) screenP1.x, (float) screenP1.y,
                 (float) screenMouse.x, (float) screenMouse.y,
@@ -795,6 +798,7 @@ public class SemicircleTool extends DrawingTool {
      * 渲染控制点
      */
     private void renderControlPoints(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         for (int i = 0; i < controlPoints.size(); i++) {
             Vec2d point = controlPoints.get(i);
             Vec2d screenPoint = camera.worldToScreen(point);
@@ -802,9 +806,9 @@ public class SemicircleTool extends DrawingTool {
             // 根据点的角色使用不同颜色
             int pointColor;
             if (currentMode == SemicircleMode.TWO_POINTS && i == 0) {
-                pointColor = CENTER_POINT_COLOR; // 中心点为蓝色
+                pointColor = theme.infoText;
             } else {
-                pointColor = CONTROL_POINT_COLOR; // 控制点为绿色
+                pointColor = theme.successText;
             }
 
             drawList.addCircleFilled(
@@ -815,9 +819,13 @@ public class SemicircleTool extends DrawingTool {
             // 添加边框以便更清晰地看到点
             drawList.addCircle(
                 (float) screenPoint.x, (float) screenPoint.y,
-                POINT_SIZE + 1, 0xFF000000, 12, 1.0f // 黑色边框
+                POINT_SIZE + 1, withAlpha(theme.text, 0xDD), 12, 1.0f
             );
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
     /**

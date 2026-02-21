@@ -9,6 +9,7 @@ import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import org.slf4j.Logger;
@@ -83,9 +84,6 @@ public class StarTool extends DrawingTool {
     private double outerTwist = 0.0; // 外顶点扭转角度（度）
 
     // ====== 渲染常量 ======
-    private static final int CENTER_POINT_COLOR = 0xFFFF0000; // 红色中心点
-    private static final int OUTER_RADIUS_COLOR = 0x80FF8800; // 橙色外半径线
-    private static final int INNER_RADIUS_COLOR = 0x8000FFFF; // 紫色内半径线
     private static final float CENTER_POINT_SIZE = 4.0f;
     private static final float RADIUS_LINE_THICKNESS = 1.5f;
     private static final float STAR_LINE_THICKNESS = 2.0f;
@@ -329,6 +327,7 @@ public class StarTool extends DrawingTool {
 
         List<Vec2d> interactionPoints = getInteractionPoints();
         int step = interactionPoints.size();
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         if (step == 0) return; // 未开始绘制
 
@@ -338,8 +337,8 @@ public class StarTool extends DrawingTool {
             currentMousePoint.ifPresent(mousePoint -> {
                 Vec2d center = camera.worldToScreen(interactionPoints.getFirst());
                 Vec2d mouse = camera.worldToScreen(mousePoint);
-                drawList.addLine((float)center.x, (float)center.y, (float)mouse.x, (float)mouse.y, OUTER_RADIUS_COLOR, RADIUS_LINE_THICKNESS);
-                drawList.addCircleFilled((float)center.x, (float)center.y, CENTER_POINT_SIZE, CENTER_POINT_COLOR);
+                drawList.addLine((float)center.x, (float)center.y, (float)mouse.x, (float)mouse.y, withAlpha(theme.warningText, 0xCC), RADIUS_LINE_THICKNESS);
+                drawList.addCircleFilled((float)center.x, (float)center.y, CENTER_POINT_SIZE, theme.errorText);
             });
         }
 
@@ -350,6 +349,7 @@ public class StarTool extends DrawingTool {
     }
 
     private void renderStarPreview(ImDrawList drawList, CanvasCamera camera, Polygon star, List<Vec2d> interactionPoints) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
         Color lineColor = previewStyle != null ? previewStyle.getLineColor() : Color.YELLOW;
         int imguiColor = ImColor.rgba(lineColor.getRed(), lineColor.getGreen(), lineColor.getBlue(), lineColor.getAlpha());
@@ -365,18 +365,18 @@ public class StarTool extends DrawingTool {
 
         // 绘制辅助元素
         Vec2d center = camera.worldToScreen(interactionPoints.get(0));
-        drawList.addCircleFilled((float)center.x, (float)center.y, CENTER_POINT_SIZE, CENTER_POINT_COLOR);
+        drawList.addCircleFilled((float)center.x, (float)center.y, CENTER_POINT_SIZE, theme.errorText);
 
         if (interactionPoints.size() == 2) {
             // 步骤2: 绘制固定的外半径线和动态的内半径线
             Vec2d outerVertex = camera.worldToScreen(interactionPoints.get(1));
-            drawList.addLine((float)center.x, (float)center.y, (float)outerVertex.x, (float)outerVertex.y, OUTER_RADIUS_COLOR, RADIUS_LINE_THICKNESS);
+            drawList.addLine((float)center.x, (float)center.y, (float)outerVertex.x, (float)outerVertex.y, withAlpha(theme.warningText, 0xCC), RADIUS_LINE_THICKNESS);
 
             // 绘制动态内半径线
             Optional<Vec2d> currentMousePoint = Optional.ofNullable(interactionStrategy.getCurrentMousePoint());
             currentMousePoint.ifPresent(mousePoint -> {
                 Vec2d mouse = camera.worldToScreen(mousePoint);
-                drawList.addLine((float)center.x, (float)center.y, (float)mouse.x, (float)mouse.y, INNER_RADIUS_COLOR, RADIUS_LINE_THICKNESS);
+                drawList.addLine((float)center.x, (float)center.y, (float)mouse.x, (float)mouse.y, withAlpha(theme.accent, 0xCC), RADIUS_LINE_THICKNESS);
             });
         }
 
@@ -390,6 +390,10 @@ public class StarTool extends DrawingTool {
                 drawList.addTriangleFilled((float)center.x, (float)center.y, (float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, fillImguiColor);
             }
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
     @Override
