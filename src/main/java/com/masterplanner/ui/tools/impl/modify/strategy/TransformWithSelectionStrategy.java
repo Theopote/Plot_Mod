@@ -11,6 +11,7 @@ import com.masterplanner.ui.tools.impl.modify.helper.DragSession;
 import com.masterplanner.ui.tools.impl.modify.enums.TransformMode;
 import com.masterplanner.ui.tools.impl.modify.enums.TransformState;
 import com.masterplanner.ui.tools.impl.modify.dto.TransformParams;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.core.command.commands.ModifyCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1014,8 +1015,9 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
                 Vec2d topLeft = camera.worldToScreen(new Vec2d(bounds.getMinX(), bounds.getMinY()));
                 Vec2d bottomRight = camera.worldToScreen(new Vec2d(bounds.getMaxX(), bounds.getMaxY()));
                 
-                // 创建高亮颜色（蓝色半透明）
-                int highlightColor = 0x4D0080FF; // ARGB格式：0x4D = 77/255透明度，0x0080FF = 蓝色
+                // 创建高亮颜色：使用主题强调色并应用固定半透明度
+                int accentColor = ThemeManager.getInstance().getCurrentTheme().accent;
+                int highlightColor = (accentColor & 0x00FFFFFF) | 0x4D000000;
                 
                 // 绘制高亮边框
                 float minX = (float) Math.min(topLeft.x, bottomRight.x);

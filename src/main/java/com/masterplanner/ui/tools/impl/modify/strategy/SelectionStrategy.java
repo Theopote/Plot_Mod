@@ -6,6 +6,7 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.geometry.BoundingBox;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.GeometricSelectionHelper;
 import com.masterplanner.ui.tools.impl.modify.ControlPointEditTool;
 import imgui.ImDrawList;
@@ -1010,7 +1011,7 @@ public class SelectionStrategy implements IModifyStrategy {
                        minX, minY, maxX, maxY);
             
             // 统一使用白色和1.0f线宽，根据选择方向绘制不同样式
-            int color = 0xFFFFFFFF; // 白色 
+            int color = ThemeManager.getInstance().getCurrentTheme().text;
             float lineWidth = 1.0f;
             
             if (isLeftToRight) {
@@ -1038,7 +1039,7 @@ public class SelectionStrategy implements IModifyStrategy {
         
         try {
             // 统一使用蓝色和1.0f线宽
-            int color = 0xFFFFFFFF; // 白色 
+            int color = ThemeManager.getInstance().getCurrentTheme().text;
             float lineWidth = 1.0f;
             
             // 绘制已确定的套索线段（不添加窗口偏移）

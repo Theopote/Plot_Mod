@@ -6,6 +6,8 @@ import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.UITheme;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
 import com.masterplanner.ui.tools.impl.modify.helper.MoveHandler;
 import com.masterplanner.ui.tools.impl.modify.constants.ModifyConstraints;
@@ -527,10 +529,11 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
                     Vec2d effectiveEnd = constrainedEndPoint != null ? constrainedEndPoint : moveCurrentPoint;
                     Vec2d screenStart = camera.worldToScreen(moveStartPoint);
                     Vec2d screenEnd = camera.worldToScreen(effectiveEnd);
+                    UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
 
-                    int lineColor = 0xFFFFFF00; // 黄色
+                    int lineColor = theme.warningText;
                     float lineWidth = 2.0f;
-                    int pointColor = 0xFFFF0000; // 红色
+                    int pointColor = theme.errorText;
 
                     // 绘制移动线
                     drawList.addLine(

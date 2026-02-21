@@ -5,6 +5,8 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.UITheme;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
 import com.masterplanner.ui.tools.impl.modify.constants.ModifyConstraints;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
@@ -566,22 +568,24 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     private void renderScalePreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
             // 渲染缩放中心点
             if (centerPoint != null) {
                 Vec2d screenCenter = camera.worldToScreen(centerPoint);
-                drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 6.0f, 0xFFFF0000); // 红色
+                drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 6.0f, theme.errorText);
             }
 
             // 渲染参考点
             if (referencePoint != null) {
                 Vec2d screenRef = camera.worldToScreen(referencePoint);
-                drawList.addCircleFilled((float) screenRef.x, (float) screenRef.y, 4.0f, 0xFF0000FF); // 蓝色
+                drawList.addCircleFilled((float) screenRef.x, (float) screenRef.y, 4.0f, theme.infoText);
             }
 
             // 渲染当前点
             if (currentPoint != null && (currentState == ScaleState.SCALING || currentState == ScaleState.AWAITING_REFERENCE)) {
                 Vec2d screenCurrent = camera.worldToScreen(currentPoint);
-                drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, 0xFFFFA500); // 橙色
+                drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, theme.warningText);
             }
 
             // 渲染缩放线
@@ -591,7 +595,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
                 drawList.addLine(
                     (float) screenCenter.x, (float) screenCenter.y,
                     (float) screenRef.x, (float) screenRef.y,
-                    0xFF0000FF, 2.0f // 蓝色线
+                    theme.infoText, 2.0f
                 );
             }
 
@@ -602,7 +606,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
                 drawList.addLine(
                     (float) screenCenter.x, (float) screenCenter.y,
                     (float) screenCurrent.x, (float) screenCurrent.y,
-                    0xFFFFA500, 2.0f // 橙色线
+                    theme.warningText, 2.0f
                 );
             }
         } catch (Exception e) {

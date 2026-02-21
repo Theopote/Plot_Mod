@@ -5,6 +5,7 @@ import com.masterplanner.core.geometry.BoundingBox;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.GeometricSelectionHelper;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy.ModifyResult;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy.ModifyToolContext;
@@ -390,7 +391,7 @@ public abstract class BaseSelectionStrategy {
             float maxX = (float) Math.max(screenStart.x, screenEnd.x);
             float maxY = (float) Math.max(screenStart.y, screenEnd.y);
 
-            int color = 0xFFFFFFFF;
+            int color = ThemeManager.getInstance().getCurrentTheme().text;
             float lineWidth = 1.0f;
 
             if (isLeftToRight) {

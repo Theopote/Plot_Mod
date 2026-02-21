@@ -993,9 +993,7 @@ public class CompactBlockConfigDialog {
         // 1) 优先用对应 Item 的贴图（和物品栏最一致）
         if (block.asItem() != Items.AIR) {
             Identifier itemId = Registries.ITEM.getId(block.asItem());
-            if (itemId != null) {
-                textureIdentifier = findFirstExistingTexture(itemId.getNamespace(), itemId.getPath());
-            }
+            textureIdentifier = findFirstExistingTexture(itemId.getNamespace(), itemId.getPath());
         }
 
         // 2) 方块ID直查
@@ -1364,7 +1362,7 @@ public class CompactBlockConfigDialog {
                 return null;
             }
 
-            Object atlasTexture = invokeOneArg(textureManager, "getTexture", atlasId);
+            Object atlasTexture = invokeOneArg(textureManager, atlasId);
             if (atlasTexture == null) {
                 return null;
             }
@@ -1398,14 +1396,14 @@ public class CompactBlockConfigDialog {
         }
     }
 
-    private static Object invokeOneArg(Object target, String methodName, Object arg) {
+    private static Object invokeOneArg(Object target, Object arg) {
         if (target == null || arg == null) {
             return null;
         }
 
         try {
             for (var method : target.getClass().getMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != 1) {
+                if (!method.getName().equals("getTexture") || method.getParameterCount() != 1) {
                     continue;
                 }
 

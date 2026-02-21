@@ -5,6 +5,8 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.UITheme;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
 import com.masterplanner.ui.tools.impl.modify.constants.ModifyConstraints;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
@@ -617,22 +619,24 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     private void renderRotatePreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
             // 渲染旋转中心点
             if (centerPoint != null) {
                 Vec2d screenCenter = camera.worldToScreen(centerPoint);
-                drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 6.0f, 0xFFFF0000); // 红色
+                drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 6.0f, theme.errorText);
             }
 
             // 渲染参考点
             if (referencePoint != null) {
                 Vec2d screenRef = camera.worldToScreen(referencePoint);
-                drawList.addCircleFilled((float) screenRef.x, (float) screenRef.y, 4.0f, 0xFF0000FF); // 蓝色
+                drawList.addCircleFilled((float) screenRef.x, (float) screenRef.y, 4.0f, theme.infoText);
             }
 
             // 渲染当前点
             if (currentPoint != null && (currentState == RotateState.ROTATING || currentState == RotateState.SETTING_REFERENCE)) {
                 Vec2d screenCurrent = camera.worldToScreen(currentPoint);
-                drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, 0xFF00FF00); // 绿色
+                drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, theme.successText);
             }
 
             // 渲染旋转线
@@ -642,7 +646,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 drawList.addLine(
                     (float) screenCenter.x, (float) screenCenter.y,
                     (float) screenRef.x, (float) screenRef.y,
-                    0xFF0000FF, 2.0f // 蓝色线
+                    theme.infoText, 2.0f
                 );
             }
 
@@ -653,7 +657,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 drawList.addLine(
                     (float) screenCenter.x, (float) screenCenter.y,
                     (float) screenCurrent.x, (float) screenCurrent.y,
-                    0xFF00FF00, 2.0f // 绿色线
+                    theme.successText, 2.0f
                 );
             }
         } catch (Exception e) {

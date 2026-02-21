@@ -5,6 +5,8 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.UITheme;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
 import com.masterplanner.ui.tools.impl.modify.constants.ModifyConstraints;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
@@ -560,16 +562,17 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     private void renderMirrorPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
             if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
                 if (axisStartPoint != null) {
                     Vec2d screenCenter = camera.worldToScreen(axisStartPoint);
-                    drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 5.0f, 0xFFFFFF00);
+                    drawList.addCircleFilled((float) screenCenter.x, (float) screenCenter.y, 5.0f, theme.warningText);
                     if (currentPoint != null && currentState == MirrorState.SETTING_AXIS_END) {
                         Vec2d screenCurrent = camera.worldToScreen(currentPoint);
                         drawList.addLine(
                             (float) screenCenter.x, (float) screenCenter.y,
                             (float) screenCurrent.x, (float) screenCurrent.y,
-                            0xFFFFFF00, 2.0f
+                            theme.warningText, 2.0f
                         );
                     }
                 }
@@ -582,11 +585,11 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
                     drawList.addLine(
                         (float) screenStart.x, (float) screenStart.y,
                         (float) screenEnd.x, (float) screenEnd.y,
-                        0xFFFFFF00, 3.0f // 黄色轴
+                        theme.warningText, 3.0f
                     );
 
-                    drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
-                    drawList.addCircleFilled((float) screenEnd.x, (float) screenEnd.y, 4.0f, 0xFFFFFF00);
+                    drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, theme.warningText);
+                    drawList.addCircleFilled((float) screenEnd.x, (float) screenEnd.y, 4.0f, theme.warningText);
                 } else if (axisStartPoint != null && currentPoint != null) {
                     // 绘制临时镜像轴（优先使用受约束的预览终点）
                     Vec2d endToDraw = previewAxisEndPoint != null ? previewAxisEndPoint : currentPoint;
@@ -596,11 +599,11 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
                     drawList.addLine(
                         (float) screenStart.x, (float) screenStart.y,
                         (float) screenCurrent.x, (float) screenCurrent.y,
-                        0xFFFFFF00, 2.0f // 黄色轴（虚线效果）
+                        theme.warningText, 2.0f
                     );
 
-                    drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, 0xFFFFFF00);
-                    drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, 0xFF800080); // 紫色
+                    drawList.addCircleFilled((float) screenStart.x, (float) screenStart.y, 4.0f, theme.warningText);
+                    drawList.addCircleFilled((float) screenCurrent.x, (float) screenCurrent.y, 4.0f, theme.accent);
                 }
             }
         } catch (Exception e) {
