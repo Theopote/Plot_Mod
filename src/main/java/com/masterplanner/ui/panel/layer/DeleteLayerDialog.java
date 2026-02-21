@@ -4,7 +4,10 @@ import com.masterplanner.api.model.ILayer;
 import com.masterplanner.core.layer.Layer;
 import com.masterplanner.core.layer.LayerManager;
 import com.masterplanner.core.state.AppState;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
@@ -74,6 +77,8 @@ public class DeleteLayerDialog {
             return;
         }
 
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
         // 设置对话框位置（居中）
         ImGui.setNextWindowPos(
             ImGui.getWindowPosX() + ImGui.getWindowWidth() * 0.5f,
@@ -83,13 +88,24 @@ public class DeleteLayerDialog {
             0.5f
         );
 
-        if (ImGui.beginPopupModal(DIALOG_TITLE, ImGuiWindowFlags.AlwaysAutoResize)) {
-            try {
-                renderDialogContent();
-            } catch (Exception e) {
-                hide();
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+
+        try {
+            if (ImGui.beginPopupModal(DIALOG_TITLE, ImGuiWindowFlags.AlwaysAutoResize)) {
+                try {
+                    renderDialogContent();
+                } catch (Exception e) {
+                    hide();
+                }
+                ImGui.endPopup();
             }
-            ImGui.endPopup();
+        } finally {
+            ImGui.popStyleColor(6);
         }
 
         if (isVisible) {

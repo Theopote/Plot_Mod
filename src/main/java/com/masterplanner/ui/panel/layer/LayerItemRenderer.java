@@ -287,6 +287,17 @@ public class LayerItemRenderer {
     }
 
     private void renderLineTypeAndWidth(Layer layer, float startX, float yPos) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
+
         // 使用传入的Y坐标，确保与其他元素完全对齐
         ImGui.setCursorPos(startX, yPos);
         
@@ -332,7 +343,7 @@ public class LayerItemRenderer {
         }
         
         if (isLocked && ImGui.isItemHovered()) {
-            ImGui.setTooltip("图层已锁定，无法修改线型");
+            showThemedTooltip("图层已锁定，无法修改线型");
         }
 
         // 线宽输入框（范围：0.1~5.0）
@@ -362,12 +373,14 @@ public class LayerItemRenderer {
         }
         
         if (isLocked && ImGui.isItemHovered()) {
-            ImGui.setTooltip("图层已锁定，无法修改线宽");
+            showThemedTooltip("图层已锁定，无法修改线宽");
         }
 
         if (isLocked) {
             ImGui.popStyleVar(); // 恢复透明度
         }
+
+        ImGui.popStyleColor(8);
     }
 
     private void renderLockIcon(Layer layer, float x, float y, float size) {
@@ -402,7 +415,7 @@ public class LayerItemRenderer {
         }
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(layer.isLocked() ? "解锁图层" : "锁定图层");
+            showThemedTooltip(layer.isLocked() ? "解锁图层" : "锁定图层");
         }
 
         ImGui.popStyleColor(4);
@@ -440,7 +453,7 @@ public class LayerItemRenderer {
         }
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(layer.isVisible() ? "隐藏图层" : "显示图层");
+            showThemedTooltip(layer.isVisible() ? "隐藏图层" : "显示图层");
         }
 
         ImGui.popStyleColor(4);
@@ -501,7 +514,7 @@ public class LayerItemRenderer {
         }
 
         if (isLocked && ImGui.isItemHovered()) {
-            ImGui.setTooltip("图层已锁定，无法修改颜色");
+            showThemedTooltip("图层已锁定，无法修改颜色");
         }
 
         if (isLocked) {
@@ -509,6 +522,15 @@ public class LayerItemRenderer {
         }
 
         ImGui.popStyleColor(4);
+    }
+
+    private void showThemedTooltip(String message) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
+        ImGui.setTooltip(message);
+        ImGui.popStyleColor(3);
     }
 
     private void handleDragDrop(Layer layer) {

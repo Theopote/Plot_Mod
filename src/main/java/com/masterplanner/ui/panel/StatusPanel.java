@@ -141,63 +141,63 @@ public class StatusPanel implements UIComponent {
                         // 当前工具
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("当前工具");
+                        ImGui.textColored(currentTheme.mutedText, "当前工具");
                         ImGui.tableNextColumn();
                         ImGui.text(currentToolName);
                         
                         // 视图状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("视图状态");
+                        ImGui.textColored(currentTheme.mutedText, "视图状态");
                         ImGui.tableNextColumn();
                         ImGui.text(getViewStatus());
                         
                         // 画布透明度
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("画布透明度");
+                        ImGui.textColored(currentTheme.mutedText, "画布透明度");
                         ImGui.tableNextColumn();
                         ImGui.text(String.format("%.0f%%", opacity * 100.0f));
                         
                         // 图形数量
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("图形数量");
+                        ImGui.textColored(currentTheme.mutedText, "图形数量");
                         ImGui.tableNextColumn();
                         ImGui.text(String.valueOf(getTotalShapeCount()));
                         
                         // 图层数量
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("图层数量");
+                        ImGui.textColored(currentTheme.mutedText, "图层数量");
                         ImGui.tableNextColumn();
                         ImGui.text(String.valueOf(getLayerCount()));
                         
                         // 当前图层
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("当前图层");
+                        ImGui.textColored(currentTheme.mutedText, "当前图层");
                         ImGui.tableNextColumn();
                         ImGui.text(activeLayer != null ? activeLayer : "无");
                         
                         // 网格状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("网格状态");
+                        ImGui.textColored(currentTheme.mutedText, "网格状态");
                         ImGui.tableNextColumn();
                         ImGui.text(getGridStatus());
                         
                         // 摄像机状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("摄像机状态");
+                        ImGui.textColored(currentTheme.mutedText, "摄像机状态");
                         ImGui.tableNextColumn();
                         ImGui.text(getCameraStatus());
                         
                         // 方块配置 - 使用 textWrapped 支持换行
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("方块配置");
+                        ImGui.textColored(currentTheme.mutedText, "方块配置");
                         ImGui.tableNextColumn();
                         // 获取可用宽度以便文本换行（列宽度减去一些内边距）
                         float availableWidth = ImGui.getContentRegionAvailX();
@@ -212,14 +212,14 @@ public class StatusPanel implements UIComponent {
                         // 投影模式
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("投影模式");
+                        ImGui.textColored(currentTheme.mutedText, "投影模式");
                         ImGui.tableNextColumn();
                         ImGui.text(getProjectionModeStatus());
                         
                         // 状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.text("状态");
+                        ImGui.textColored(currentTheme.mutedText, "状态");
                         ImGui.tableNextColumn();
                         ImGui.text(status != null ? status : "就绪");
                         

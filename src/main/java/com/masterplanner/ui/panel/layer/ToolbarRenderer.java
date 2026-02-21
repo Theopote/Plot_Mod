@@ -267,7 +267,7 @@ public class ToolbarRenderer {
         
         // 显示提示
         if (ImGui.isItemHovered() && !tooltip.isEmpty()) {
-            ImGui.setTooltip(tooltip);
+            showThemedTooltip(theme, tooltip);
         }
         
         // 恢复样式
@@ -285,6 +285,14 @@ public class ToolbarRenderer {
                                   UITheme.ThemeColors theme,
                                  Runnable onClick) {
         renderToolButton(textureId, tooltip, width, height, false, theme, onClick, false);
+    }
+
+    private void showThemedTooltip(UITheme.ThemeColors theme, String message) {
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
+        ImGui.setTooltip(message);
+        ImGui.popStyleColor(3);
     }
 
     /**

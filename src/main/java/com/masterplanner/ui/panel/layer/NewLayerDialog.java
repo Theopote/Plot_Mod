@@ -3,9 +3,12 @@ package com.masterplanner.ui.panel.layer;
 import com.masterplanner.core.graphics.style.LineStyle;
 import com.masterplanner.core.layer.LayerManager;
 import com.masterplanner.api.model.ILayer;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
@@ -180,6 +183,8 @@ public class NewLayerDialog {
     public void render() {
         if (!isVisible) return;
 
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
         float totalWidth = 300.0f;
         ImGui.setNextWindowSize(totalWidth, 200.0f, ImGuiCond.FirstUseEver);
 
@@ -196,77 +201,95 @@ public class NewLayerDialog {
                 ImGuiWindowFlags.NoScrollbar |
                 ImGuiWindowFlags.AlwaysAutoResize;
 
-        if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
-            float contentWidth = 300.0f;
-            float labelWidth = 60.0f;
-            float controlWidth = contentWidth - labelWidth - 2*SPACING;
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
+        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
 
-            // === 名称输入 ===
-            ImGui.text("名称：");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(controlWidth);
-            if (ImGui.isWindowAppearing()) {
-                ImGui.setKeyboardFocusHere();
-            }
-            // 使用不带回调的 inputText 重载，验证中文输入
-            if (ImGui.inputText("##new_layer_name", layerName,
-                    ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
-                            ImGuiInputTextFlags.CharsNoBlank)) {
-                String currentInput = layerName.get();
-                LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
-                        currentInput, currentInput.getBytes().length, currentInput.length());
-                ImGui.setKeyboardFocusHere(1); // 聚焦到"确定"按钮
-            }
+        try {
+            if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                float contentWidth = 300.0f;
+                float labelWidth = 60.0f;
+                float controlWidth = contentWidth - labelWidth - 2*SPACING;
 
-            // === 颜色选择器 ===
-            ImGui.text("颜色：");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(controlWidth);
-            ImGui.colorEdit4("##new_layer_color", layerColor);
-
-            // === 线型选择 ===
-            ImGui.text("线型：");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(controlWidth);
-            if (ImGui.beginCombo("##new_layer_line_type", lineType.toString())) {
-                for (LineStyle.LineType type : LineStyle.LineType.values()) {
-                    if (ImGui.selectable(type.toString(), type == lineType)) {
-                        lineType = type;
-                    }
+                // === 名称输入 ===
+                ImGui.text("名称：");
+                ImGui.sameLine(labelWidth);
+                ImGui.setNextItemWidth(controlWidth);
+                if (ImGui.isWindowAppearing()) {
+                    ImGui.setKeyboardFocusHere();
                 }
-                ImGui.endCombo();
+                // 使用不带回调的 inputText 重载，验证中文输入
+                if (ImGui.inputText("##new_layer_name", layerName,
+                        ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
+                                ImGuiInputTextFlags.CharsNoBlank)) {
+                    String currentInput = layerName.get();
+                    LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
+                            currentInput, currentInput.getBytes().length, currentInput.length());
+                    ImGui.setKeyboardFocusHere(1); // 聚焦到"确定"按钮
+                }
+
+                // === 颜色选择器 ===
+                ImGui.text("颜色：");
+                ImGui.sameLine(labelWidth);
+                ImGui.setNextItemWidth(controlWidth);
+                ImGui.colorEdit4("##new_layer_color", layerColor);
+
+                // === 线型选择 ===
+                ImGui.text("线型：");
+                ImGui.sameLine(labelWidth);
+                ImGui.setNextItemWidth(controlWidth);
+                if (ImGui.beginCombo("##new_layer_line_type", lineType.toString())) {
+                    for (LineStyle.LineType type : LineStyle.LineType.values()) {
+                        if (ImGui.selectable(type.toString(), type == lineType)) {
+                            lineType = type;
+                        }
+                    }
+                    ImGui.endCombo();
+                }
+
+                // === 线宽输入 ===
+                ImGui.text("线宽：");
+                ImGui.sameLine(labelWidth);
+                ImGui.setNextItemWidth(controlWidth);
+                float[] tempLineWidth = {lineWidth}; // 临时数组以兼容 ImGui
+                if (ImGui.dragFloat("##new_layer_line_width", tempLineWidth,
+                        0.1f, 0.1f, 5.0f, "%.1f")) {
+                    lineWidth = tempLineWidth[0];
+                }
+
+                ImGui.separator();
+
+                // === 按钮区域 ===
+                float buttonSpacing = 8.0f;
+                float buttonWidth = (controlWidth - buttonSpacing) / 2;
+
+                ImGui.setCursorPosX(labelWidth);
+                if (ImGui.button("确定", buttonWidth, 0) ||
+                        ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                    createNewLayer();
+                }
+
+                ImGui.sameLine(labelWidth + buttonWidth + buttonSpacing);
+                if (ImGui.button("取消", buttonWidth, 0) ||
+                        ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                    hide();
+                    ImGui.closeCurrentPopup();
+                }
+
+                ImGui.endPopup();
             }
-
-            // === 线宽输入 ===
-            ImGui.text("线宽：");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(controlWidth);
-            float[] tempLineWidth = {lineWidth}; // 临时数组以兼容 ImGui
-            if (ImGui.dragFloat("##new_layer_line_width", tempLineWidth,
-                    0.1f, 0.1f, 5.0f, "%.1f")) {
-                lineWidth = tempLineWidth[0];
-            }
-
-            ImGui.separator();
-
-            // === 按钮区域 ===
-            float buttonSpacing = 8.0f;
-            float buttonWidth = (controlWidth - buttonSpacing) / 2;
-
-            ImGui.setCursorPosX(labelWidth);
-            if (ImGui.button("确定", buttonWidth, 0) ||
-                    ImGui.isKeyPressed(ImGuiKey.Enter)) {
-                createNewLayer();
-            }
-
-            ImGui.sameLine(labelWidth + buttonWidth + buttonSpacing);
-            if (ImGui.button("取消", buttonWidth, 0) ||
-                    ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                hide();
-                ImGui.closeCurrentPopup();
-            }
-
-            ImGui.endPopup();
+        } finally {
+            ImGui.popStyleColor(13);
         }
     }
 }
