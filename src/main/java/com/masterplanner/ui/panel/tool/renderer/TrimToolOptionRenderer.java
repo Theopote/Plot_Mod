@@ -308,9 +308,9 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         TrimWithSelectionStrategy.FenceType currentType = currentTool.getFenceType();
         String previewLabel = currentType.getDisplayName();
 
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
 
@@ -346,9 +346,9 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextColumn();
             int[] sides = { currentTool.getFencePolygonSides() };
             ImGui.pushItemWidth(-1);
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
             ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
             ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);
@@ -388,9 +388,9 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             float[] tolerance = { (float) currentTolerance };
             
             // 应用控件样式
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
             ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
             ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);

@@ -269,9 +269,9 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             float[] columnSpacing = { (float) getColumnSpacingFromStrategy(currentTool) };
             
             // 应用控件样式
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
             ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
             ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);
@@ -399,9 +399,9 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             float[] radius = { (float) getRadiusFromStrategy(currentTool) };
             
             // 应用控件样式
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
             ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
             ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);
@@ -519,9 +519,9 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.alignTextToFramePadding();
         ImGui.text("点位数");
         ImGui.tableNextColumn();
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
         ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);

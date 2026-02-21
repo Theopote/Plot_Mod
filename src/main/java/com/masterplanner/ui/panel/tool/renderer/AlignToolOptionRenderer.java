@@ -131,9 +131,9 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         
         // 允许缩放复选框（参考螺旋线工具的勾选样式）
         var theme = com.masterplanner.ui.theme.ThemeManager.getInstance().getCurrentTheme();
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameBorderSize, 1.0f);

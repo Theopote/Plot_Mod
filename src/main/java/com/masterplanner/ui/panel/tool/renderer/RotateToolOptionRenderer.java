@@ -104,9 +104,9 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             
             ImGui.tableNextColumn();
             // 设置复选框样式，参考其他工具的实现
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
             ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);

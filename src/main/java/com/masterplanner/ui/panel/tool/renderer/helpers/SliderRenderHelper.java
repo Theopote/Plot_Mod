@@ -134,12 +134,12 @@ public final class SliderRenderHelper {
         ImGui.text(label);
         
         // 应用控件样式
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
         ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.frameBorder);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
         
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, theme.grabRounding);

@@ -112,9 +112,9 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushItemWidth(-1);
         
         // 设置复选框样式，参考OffsetTool的实现
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -180,9 +180,9 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         
         // 设置复选框样式，参考OffsetTool的实现
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);

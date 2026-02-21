@@ -231,9 +231,9 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextColumn();
         
         // 设置复选框样式
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -322,9 +322,9 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextColumn();
         
         // 设置复选框样式
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -426,11 +426,11 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         tempFontSize[0] = currentValue;
         
         // 设置滑块样式
-        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.buttonSelected);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         
         // 滑块
         if (ImGui.sliderFloat("##" + label, tempFontSize, min, max, "%.1f")) {
@@ -470,9 +470,9 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
                                                      T[] allValues, String configKey, 
                                                      UITheme.ThemeColors theme) {
         // 设置下拉菜单样式
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);

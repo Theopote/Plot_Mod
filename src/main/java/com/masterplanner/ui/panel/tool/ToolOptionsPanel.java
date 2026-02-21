@@ -315,6 +315,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         float availableWidth = ImGui.getContentRegionAvail().x;
         float availableHeight = ImGui.getContentRegionAvail().y;
         float labelColumnWidth = Math.min(LABEL_WIDTH, availableWidth * 0.3f);
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         
         MasterPlannerMod.LOGGER.debug("渲染工具选项 - 可用区域: {}x{}, 标签列宽度: {}", 
             availableWidth, availableHeight, labelColumnWidth);
@@ -333,15 +334,26 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             try {
                 ImGui.tableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, labelColumnWidth);
                 ImGui.tableSetupColumn("Control", ImGuiTableColumnFlags.WidthStretch);
+
+                ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+                ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+                ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+                ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
+                ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
+                ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
                 
-                // 使用工具选项渲染器
-                ToolOptionRenderer renderer = ToolOptionRendererFactory.getRenderer(currentTool);
-                if (renderer != null) {
-                    MasterPlannerMod.LOGGER.debug("使用渲染器: {}", renderer.getClass().getSimpleName());
-                    height = renderer.render();
-                    MasterPlannerMod.LOGGER.debug("渲染器返回高度: {}", height);
-                } else {
-                    MasterPlannerMod.LOGGER.warn("未找到工具 {} 的选项渲染器", currentTool.getId());
+                try {
+                    // 使用工具选项渲染器
+                    ToolOptionRenderer renderer = ToolOptionRendererFactory.getRenderer(currentTool);
+                    if (renderer != null) {
+                        MasterPlannerMod.LOGGER.debug("使用渲染器: {}", renderer.getClass().getSimpleName());
+                        height = renderer.render();
+                        MasterPlannerMod.LOGGER.debug("渲染器返回高度: {}", height);
+                    } else {
+                        MasterPlannerMod.LOGGER.warn("未找到工具 {} 的选项渲染器", currentTool.getId());
+                    }
+                } finally {
+                    ImGui.popStyleColor(6);
                 }
             } finally {
                 // 确保在表格创建成功的情况下，无论渲染过程中是否发生异常，都会调用endTable

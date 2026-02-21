@@ -4,8 +4,11 @@ import com.masterplanner.core.graphics.style.LineStyle;
 import com.masterplanner.core.layer.Layer;
 import com.masterplanner.api.model.ILayer;
 import com.masterplanner.core.layer.LayerManager;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 
 import java.util.Set;
@@ -41,6 +44,14 @@ public class LayerContextMenuRenderer {
      * @param isActive 是否为活动图层
      */
     public void render(Layer layer, boolean isActive) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
+
         if (ImGui.beginPopupContextItem("##layer_context_menu_" + layer.getId())) {
             try {
                 // 设置为活动图层选项 - 锁定图层不能设为活动图层
@@ -136,6 +147,8 @@ public class LayerContextMenuRenderer {
                 ImGui.endPopup();
             }
         }
+
+        ImGui.popStyleColor(6);
     }
     
     /**

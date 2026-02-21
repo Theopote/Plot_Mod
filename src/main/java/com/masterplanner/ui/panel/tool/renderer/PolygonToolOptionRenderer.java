@@ -167,9 +167,9 @@ public class PolygonToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.text("边数");
         
         // 应用控件样式
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
         ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);

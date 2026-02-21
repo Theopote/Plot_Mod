@@ -103,9 +103,9 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
         
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);

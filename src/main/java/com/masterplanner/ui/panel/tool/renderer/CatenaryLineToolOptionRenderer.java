@@ -50,9 +50,9 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
      * 设置滑块控件的样式
      */
     private void pushSliderStyle(UITheme.ThemeColors theme) {
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
         ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.frameBorder);
