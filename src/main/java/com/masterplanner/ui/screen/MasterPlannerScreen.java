@@ -751,11 +751,6 @@ public class MasterPlannerScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double delta, double modifiers) {
         double actualDelta = delta;
         
-        // 添加调试信息
-        boolean wantCaptureMouse = ImGui.getIO().getWantCaptureMouse();
-        LOGGER.debug("MasterPlannerScreen.mouseScrolled: mouseX={}, mouseY={}, delta={}, actualDelta={}, modifiers={}, wantCaptureMouse={}", 
-            mouseX, mouseY, delta, actualDelta, modifiers, wantCaptureMouse);
-        
         // ImGui 捕获时直接返回；GLFW 后端已注入滚轮，避免二次处理
         if (ImGui.getIO().getWantCaptureMouse()) {
             return true;
@@ -770,7 +765,6 @@ public class MasterPlannerScreen extends Screen {
         }
 
         BaseTool activeTool = appState.getCurrentTool();
-        LOGGER.debug("MasterPlannerScreen.mouseScrolled: 当前活动工具={}", activeTool != null ? activeTool.getName() : "null");
         
         if (activeTool != null) {
             // 转换为Vec2d坐标
@@ -778,15 +772,12 @@ public class MasterPlannerScreen extends Screen {
             
             // 尝试让工具处理鼠标滚轮事件，使用actualDelta
             boolean handled = activeTool.onMouseWheel(mousePos, actualDelta);
-            LOGGER.debug("MasterPlannerScreen.mouseScrolled: 工具处理结果={}", handled);
             
             if (handled) {
-                LOGGER.debug("工具 {} 处理了鼠标滚轮事件: actualDelta={}", activeTool.getName(), actualDelta);
                 return true;
             }
         }
-        
-        LOGGER.debug("MasterPlannerScreen.mouseScrolled: 事件传递给父类处理");
+
         return super.mouseScrolled(mouseX, mouseY, delta, modifiers);
     }
 
