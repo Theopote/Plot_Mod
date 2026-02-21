@@ -330,8 +330,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case ALIGN -> "先选择多个图形，再选择对齐/分布方式执行；常用模式可配合快捷键快速切换。";
             case ARRAY -> "先选择图形，再按阵列类型设置参数（矩形/环形/路径）并确认生成复制。";
             case OFFSET -> "左键选择对象并在目标侧指定偏移方向；可启用多重偏移进行连续偏移。";
-            case FILLET -> "左键依次选择两条对象，按半径创建圆角过渡；Esc可取消当前步骤。";
-            case CHAMFER -> "左键依次选择两条对象，按设定距离创建倒角连接；Esc可取消当前步骤。";
+            case FILLET -> "左键依次选择两条对象，按半径创建圆角过渡；右键确认，Esc可取消当前步骤。";
+            case CHAMFER -> "左键依次选择两条对象，按设定距离创建倒角连接；右键确认，Esc可取消当前步骤。";
             case TRANSFORM -> "先选择图形，右键进入变换后拖拽控制点进行缩放/旋转；Shift可等比约束，Esc可返回。";
             case TRIM -> "先选择边界后执行修剪；C/F可切换修剪模式，Shift可连续修剪，Esc可取消。";
             case EXTEND -> "先选择边界，再点击要延伸的对象；工具自动选择合适延伸方式，Esc可取消。";
