@@ -434,7 +434,12 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             }
 
             if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
-                ModifyCommand command = new ModifyCommand(Collections.emptyList(), new ArrayList<>(List.of(annotationShape)), appStateImpl);
+                ModifyCommand command = new ModifyCommand(
+                    Collections.emptyList(),
+                    new ArrayList<>(List.of(annotationShape)),
+                    appStateImpl,
+                    "添加标注"
+                );
                 context.executeModifyCommand(command);
                 LOGGER.debug("{}图形已添加到画布", annotationTypeName);
                 return;

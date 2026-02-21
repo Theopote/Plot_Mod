@@ -1014,7 +1014,12 @@ public class TextTool extends BaseTool {
                                             List<com.masterplanner.core.model.Shape> newShapes,
                                             String actionName) {
         try {
-            ModifyCommand command = new ModifyCommand(new ArrayList<>(oldShapes), new ArrayList<>(newShapes), appState);
+            ModifyCommand command = new ModifyCommand(
+                new ArrayList<>(oldShapes),
+                new ArrayList<>(newShapes),
+                appState,
+                actionName
+            );
             appState.getCommandHistory().execute(command);
             LogManager.getInstance().debug("TextTool: 命令已执行 - {}", actionName);
         } catch (Exception e) {
