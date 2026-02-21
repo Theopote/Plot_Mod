@@ -145,19 +145,19 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             switch (trimState) {
                 case SELECTING_BOUNDARIES, SELECTING_TARGETS -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.successText);
-                    ImGui.text("● 选择模式");
+                    ImGui.text("选择模式");
                 }
                 case WAITING_TRIM_CLICK, DRAWING_FENCE, BOUNDARY_READY, FENCE_READY -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.warningText);
-                    ImGui.text("● 修剪模式");
+                    ImGui.text("修剪模式");
                 }
                 case PROCESSING -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.errorText);
-                    ImGui.text("● 处理中");
+                    ImGui.text("处理中");
                 }
                 default -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.mutedText);
-                    ImGui.text("● 未知状态");
+                    ImGui.text("未知状态");
                 }
             }
             ImGui.popStyleColor();
