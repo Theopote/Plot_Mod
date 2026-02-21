@@ -168,6 +168,6 @@ public class SnapSettings implements Cloneable {
     }
 
     public void setMarkerSize(float size) {
-        this.markerSize = Math.max(2.0f, Math.min(8.0f, size));  // 限制在 2.0-8.0 px
+        this.markerSize = Math.max(2.0f, Math.min(10.0f, size));  // 限制在 2.0-10.0 px
     }
 } 

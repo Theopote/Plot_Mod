@@ -225,7 +225,7 @@ public class SettingsAndHelpDialog {
 
         float[] markerSize = new float[] { snapManager.getMarkerSize() };
         ImGui.setNextItemWidth(180);
-        if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 8.0f, "%.1f px")) {
+        if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
             snapManager.setMarkerSize(markerSize[0]);
         }
 
