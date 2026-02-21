@@ -168,6 +168,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     public void render() {
         BaseTool currentTool = appState.getCurrentTool();
         if (currentTool == null) return;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         MasterPlannerMod.LOGGER.debug("当前选中工具: {} (ID: {})", 
             currentTool.getName(), currentTool.getId());
@@ -176,6 +177,9 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         // 注意：beginChild 的边框应紧贴窗口边缘，内容边距由窗口级 WindowPadding 控制
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);  // 边框无内边距，与标题边距一致
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
 
         // 允许滚动：当内容高度超过可用高度时可使用滚轮浏览
         int flags = ImGuiWindowFlags.None;
@@ -236,6 +240,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         ImGui.endChild();
         ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding(4,4)
 
+        ImGui.popStyleColor(3);
         ImGui.popStyleVar(2);  // 弹出外部的 WindowPadding(0,0) 和 FramePadding(4,4)
     }
 
