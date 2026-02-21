@@ -51,12 +51,6 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
             // === 半径设置 ===
             height += renderRadiusSettings(currentTheme);
             
-            // === 使用说明 ===
-            height += renderUsageInstructions(currentTheme);
-            
-            // === 快捷键提示 ===
-            height += renderShortcutTips(currentTheme);
-            
             // 恢复原始样式
             ImGui.getStyle().setFrameRounding(originalRounding);
             

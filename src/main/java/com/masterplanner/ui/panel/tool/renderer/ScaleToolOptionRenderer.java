@@ -40,8 +40,7 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
         float height = 0;
         ImGui.pushID("scale_options");
         try {
-            // 缩放面板已简化：不显示“缩放中心”和“缩放方式”控件，仅显示使用说明与快捷键
-            renderUsageInstructions();
+            // 缩放面板当前无额外控件，使用方法由ToolOptionsPanel统一显示
         } catch (Exception e) {
             LOGGER.error("缩放工具选项渲染器渲染失败: {}", e.getMessage(), e);
         } finally {

@@ -222,6 +222,12 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
             float actualOptionsHeight = renderToolOptions();
             ImGui.popStyleVar();
+
+            // 将“使用方法”统一放在控件区域下方
+            ImGui.separator();
+            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
+            renderToolUsage(currentTool);
+            ImGui.popStyleVar();
             
             // 记录实际渲染高度与预计算高度的差异，用于调试
             if (Math.abs(actualOptionsHeight - optionsHeight) > 1.0f) {
@@ -281,7 +287,9 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     private void renderToolInfo(BaseTool tool) {
         ImGui.text("当前工具: " + getToolDisplayName(tool));
         ImGui.textWrapped(getToolDescription(tool));
+    }
 
+    private void renderToolUsage(BaseTool tool) {
         String usageHint = currentToolStatusMessage.isEmpty()
             ? getDefaultToolUsageHint(tool)
             : currentToolStatusMessage;
@@ -316,20 +324,20 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             case STAR -> "左键指定中心并拖拽确定外接半径，再确认角数/比例后完成星形。";
             case SPIRAL -> "左键指定起点或中心后拖拽确定尺寸，按当前螺旋模式完成绘制。";
             case SINE -> "左键指定基线范围，拖拽或在选项中调整振幅、波长和相位后完成。";
-            case MOVE -> "先选择图形，左键指定基点后拖动或点选目标位置完成移动。";
+            case MOVE -> "先选择图形，左键依次指定基点与目标点完成移动；Shift可正交约束，Esc/右键可取消当前操作。";
             case ROTATE -> "先选择图形，左键指定旋转中心与参考方向，再确定目标角度完成旋转。";
             case MIRROR -> "先选择图形，左键指定镜像轴的两个点完成镜像；可在选项中设置保留原图。";
-            case SCALE -> "先选择图形，左键指定缩放中心与参考点，再通过拖动或输入比例完成缩放。";
-            case ALIGN -> "先选择多个图形，在选项中选择对齐基准与方式后执行对齐。";
-            case ARRAY -> "先选择图形，在选项中设置阵列类型与参数，确认后生成阵列复制。";
-            case OFFSET -> "左键选择要偏移的图形，再点击偏移方向一侧创建等距副本。";
-            case FILLET -> "左键依次选择两条相交（或可延伸相交）对象，按半径创建圆角过渡。";
-            case CHAMFER -> "左键依次选择两条对象，按设定距离生成倒角连接。";
-            case TRANSFORM -> "先选择图形，再在工具选项中选择变换模式并按提示完成操作。";
-            case TRIM -> "先选边界后左键点击要修剪的部分；按住Shift可连续修剪，右键结束。";
-            case EXTEND -> "先选边界后左键点击要延伸的对象，系统自动延伸到可达边界。";
-            case BREAK -> "左键选择对象并指定一个或两个打断点，完成后可继续处理下一个对象。";
-            case TEXT -> "左键点击或拖拽放置文本区域，输入内容后确认完成文本创建。";
+            case SCALE -> "先选择图形后进入缩放，按提示依次确定中心点与参考点完成缩放；Shift可保持比例，Esc可取消。";
+            case ALIGN -> "先选择多个图形，再选择对齐/分布方式执行；常用模式可配合快捷键快速切换。";
+            case ARRAY -> "先选择图形，再按阵列类型设置参数（矩形/环形/路径）并确认生成复制。";
+            case OFFSET -> "左键选择对象并在目标侧指定偏移方向；可启用多重偏移进行连续偏移。";
+            case FILLET -> "左键依次选择两条对象，按半径创建圆角过渡；Esc可取消当前步骤。";
+            case CHAMFER -> "左键依次选择两条对象，按设定距离创建倒角连接；Esc可取消当前步骤。";
+            case TRANSFORM -> "先选择图形，右键进入变换后拖拽控制点进行缩放/旋转；Shift可等比约束，Esc可返回。";
+            case TRIM -> "先选择边界后执行修剪；C/F可切换修剪模式，Shift可连续修剪，Esc可取消。";
+            case EXTEND -> "先选择边界，再点击要延伸的对象；工具自动选择合适延伸方式，Esc可取消。";
+            case BREAK -> "选择对象后按模式指定一个或两个打断点完成打断；Esc可取消当前打断流程。";
+            case TEXT -> "点击或拖拽放置文本对象并输入内容；可通过属性面板调整文本样式与输入方式。";
             case ANNOTATION -> "先选择标注类型，再按提示点选几何对象或关键点完成标注。";
             case UNKNOWN -> "按左键进行绘制或编辑，右键取消当前步骤。";
         };

@@ -74,14 +74,6 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
             height += renderToolStatusInfo(currentTool);
             LOGGER.debug("工具状态信息渲染完成，高度: {}", height);
             
-            // === 使用说明 ===
-            height += renderUsageInstructions();
-            LOGGER.debug("使用说明渲染完成，总高度: {}", height);
-            
-            // === 快捷键提示 ===
-            height += renderShortcutTips();
-            LOGGER.debug("快捷键提示渲染完成，总高度: {}", height);
-            
             // 恢复原始的圆角设置
             ImGui.getStyle().setFrameRounding(originalRounding);
             

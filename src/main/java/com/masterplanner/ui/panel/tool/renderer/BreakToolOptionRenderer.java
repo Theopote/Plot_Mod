@@ -89,14 +89,6 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
             height += renderBreakModeSelection(currentTheme);
             LOGGER.debug("打断模式选择渲染完成，高度: {}", height);
             
-            // === 使用说明 ===
-            height += renderUsageInstructions();
-            LOGGER.debug("使用说明渲染完成，总高度: {}", height);
-            
-            // === 快捷键提示 ===
-            height += renderShortcutTips();
-            LOGGER.debug("快捷键提示渲染完成，总高度: {}", height);
-            
             ImGui.getStyle().setFrameRounding(originalRounding);
             
         } catch (Exception e) {

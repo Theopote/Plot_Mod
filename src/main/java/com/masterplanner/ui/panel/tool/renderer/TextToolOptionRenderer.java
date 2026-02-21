@@ -93,7 +93,6 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
                 height += renderInputMethodSection(currentTheme);
                 height += renderDialogInfo(currentTheme);
                 height += renderActionSection(currentTheme);
-                height += renderShortcutSection(currentTheme);
             } else {
                 // 未使用对话框时，保留完整的面板快速设置
                 height += renderFontSizeSection(currentTheme);
@@ -102,7 +101,6 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
                 height += renderLineHeightSection(currentTheme);
                 height += renderInputMethodSection(currentTheme);
                 height += renderActionSection(currentTheme);
-                height += renderShortcutSection(currentTheme);
             }
             
         } catch (Exception e) {

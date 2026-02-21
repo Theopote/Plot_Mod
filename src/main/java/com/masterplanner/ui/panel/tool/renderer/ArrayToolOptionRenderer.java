@@ -110,10 +110,6 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
                 }
             }
             
-            // === 使用说明 ===
-            height += renderUsageInstructions();
-            LOGGER.debug("使用说明渲染完成，总高度: {}", height);
-            
             // 恢复原始的圆角设置
             ImGui.getStyle().setFrameRounding(originalRounding);
             

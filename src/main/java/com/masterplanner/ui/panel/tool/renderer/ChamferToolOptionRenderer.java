@@ -84,12 +84,6 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
             // === 倒角距离设置 ===
             height += renderDistanceSettings(currentTheme);
             
-            // === 使用说明 ===
-            height += renderUsageInstructions(currentTheme);
-            
-            // === 快捷键提示 ===
-            height += renderShortcutTips(currentTheme);
-            
             // 恢复原始样式
             ImGui.getStyle().setFrameRounding(originalRounding);
             

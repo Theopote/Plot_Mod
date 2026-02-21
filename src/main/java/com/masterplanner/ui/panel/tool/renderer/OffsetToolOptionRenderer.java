@@ -39,9 +39,6 @@ public class OffsetToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.setTooltip("启用后可以连续偏移多个对象");
             }
             height += ImGui.getFrameHeightWithSpacing();
-
-            // 使用说明
-            renderUsageInstructions();
         } finally {
             ImGui.popID();
         }

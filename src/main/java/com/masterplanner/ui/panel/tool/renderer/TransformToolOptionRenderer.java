@@ -76,9 +76,6 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
             // === 功能设置 ===
             height += renderFeatureSettings(currentTool, currentTheme);
             
-            // === 使用说明 ===
-            height += renderUsageInstructions();
-            
         } catch (Exception e) {
             LOGGER.error("渲染变换工具选项时发生错误: {}", e.getMessage(), e);
         } finally {

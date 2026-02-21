@@ -102,14 +102,6 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             height += renderTrimParameters(currentTool, currentTheme);
             LOGGER.debug("修剪参数渲染完成，总高度: {}", height);
             
-            // === 使用说明 ===
-            height += renderUsageInstructions();
-            LOGGER.debug("使用说明渲染完成，总高度: {}", height);
-            
-            // === 快捷键提示 ===
-            height += renderShortcutTips();
-            LOGGER.debug("快捷键提示渲染完成，总高度: {}", height);
-            
             // 恢复原始的圆角设置
             ImGui.getStyle().setFrameRounding(originalRounding);
             

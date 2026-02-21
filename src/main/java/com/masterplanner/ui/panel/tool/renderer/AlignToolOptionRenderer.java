@@ -50,12 +50,6 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
             // === 缩放设置 ===
             height += renderScaleSettings();
             
-            // === 使用说明 ===
-            height += renderUsageInstructions();
-            
-            // === 快捷键提示 ===
-            height += renderShortcutTips();
-            
         } catch (Exception e) {
             MasterPlannerMod.LOGGER.error("渲染对齐工具选项失败: {}", e.getMessage(), e);
         } finally {
