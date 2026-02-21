@@ -1,7 +1,6 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,12 +52,6 @@ public class OffsetToolOptionRenderer extends AbstractToolOptionRenderer {
     @Override
     public void cleanup() {
         // 无资源
-    }
-
-    private void renderUsageInstructions() {
-        if (ImGui.collapsingHeader("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("步骤：先点击线类图形记录参考点，再在目标侧点击第二点完成偏移复制。原图形保留，只添加复制品。");
-        }
     }
 }
 

@@ -127,64 +127,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         
         return height;
     }
-    
 
-    
-    /**
-     * 渲染使用说明
-     */
-    private float renderUsageInstructions(UITheme.ThemeColors theme) {
-        float height = 0;
-        
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("使用说明");
-        
-        ImGui.tableNextColumn();
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 200.0f);
-        
-        String instructions = """
-                1. 选择第一条直线
-                2. 选择第二条直线
-                3. 使用+/-键调整距离
-            4. 按鼠标右键确认倒角""";
-            
-        ImGui.textColored(theme.mutedText, instructions);
-        ImGui.popTextWrapPos();
-        
-        height += ImGui.getFrameHeight() * 4 + ImGui.getStyle().getItemSpacingY();
-        
-        return height;
-    }
-    
-    /**
-     * 渲染快捷键提示
-     */
-    private float renderShortcutTips(UITheme.ThemeColors theme) {
-        float height = 0;
-        
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("快捷键");
-        
-        ImGui.tableNextColumn();
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 200.0f);
-        
-        String shortcuts = """
-            右键: 确认倒角
-                +/-: 调整距离
-                ESC: 取消操作""";
-            
-        ImGui.textColored(theme.mutedText, shortcuts);
-        ImGui.popTextWrapPos();
-        
-        height += ImGui.getFrameHeight() * 3 + ImGui.getStyle().getItemSpacingY();
-        
-        return height;
-    }
-    
     /**
      * 渲染错误状态
      */

@@ -5,7 +5,6 @@ import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.ui.tools.impl.modify.ExtendTool;
 import com.masterplanner.ui.tools.impl.modify.strategy.ExtendWithSelectionStrategy;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,87 +144,6 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.textColored(theme.successText, "自动延伸模式");
         ImGui.textWrapped("工具会自动选择最佳延伸方式：先尝试标准延伸，如果没有交点则自动使用投影延伸。");
         height += 60;
-        
-        return height;
-    }
-    
-    
-    /**
-     * 渲染使用说明 - 优化版本，使用动态高度计算并同步边界持久化交互流程
-     */
-    private float renderUsageInstructions() {
-        float height = 0;
-        
-        if (ImGui.treeNodeEx("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
-            String[] instructions = {
-                "1. 左键点击或框选边界图形（线、圆、圆弧等）",
-                "2. 右键确认边界选择",
-                "3. 左键点击或框选要延伸的线图形端点，立即延伸",
-                "4. 继续点击或框选其他图形端点进行多次延伸",
-                "5. 边界选择保持有效，可连续延伸多个图形",
-                "6. 按Esc取消边界选择，右键可重新选择边界",
-                "7. 工具会自动选择最佳延伸方式"
-            };
-            
-            for (String instruction : instructions) {
-                ImGui.textWrapped(instruction);
-                float textHeight = ImGui.calcTextSize(instruction).y + ImGui.getStyle().getItemSpacing().y;
-                height += textHeight;
-            }
-            
-            ImGui.treePop();
-        }
-        
-        return height;
-    }
-    
-    /**
-     * 渲染快捷键提示 - 优化版本，使用动态高度计算并同步边界持久化交互流程
-     */
-    private float renderShortcutTips() {
-        float height = 0;
-        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        
-        if (ImGui.treeNodeEx("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textColored(theme.warningText, "快捷键提示：");
-            float textHeight = ImGui.calcTextSize("快捷键提示：").y + ImGui.getStyle().getItemSpacing().y;
-            height += textHeight;
-            
-            String[] shortcuts = {
-                "Esc：取消边界选择或重置",
-                "右键：确认边界选择或重新选择边界",
-                "左键：选择边界或执行延伸",
-                "左键拖拽：框选边界图形",
-                "Shift+左键：多选边界图形"
-            };
-            
-            for (String shortcut : shortcuts) {
-                ImGui.bulletText(shortcut);
-                float shortcutHeight = ImGui.calcTextSize(shortcut).y + ImGui.getStyle().getItemSpacing().y;
-                height += shortcutHeight;
-            }
-            
-            ImGui.spacing();
-            ImGui.textColored(theme.mutedText, "提示：");
-            String[] tips = {
-                "• 自动延伸：工具自动选择最佳延伸方式",
-                "• 标准延伸：图形延伸到与边界相交的位置",
-                "• 投影延伸：图形延伸到边界延长线相交的位置",
-                "• 连续延伸：边界选择后保持有效，可连续延伸多个图形",
-                "• 立即执行：每次延伸操作立即生效，无需等待",
-                "• 边界持久化：除非按Esc或切换工具，边界选择一直有效",
-                "• 框选支持：左键拖拽可框选多个边界图形",
-                "• 鼠标悬停显示实时延伸预览"
-            };
-            
-            for (String tip : tips) {
-                ImGui.textWrapped(tip);
-                float tipHeight = ImGui.calcTextSize(tip).y + ImGui.getStyle().getItemSpacing().y;
-                height += tipHeight;
-            }
-            
-            ImGui.treePop();
-        }
         
         return height;
     }

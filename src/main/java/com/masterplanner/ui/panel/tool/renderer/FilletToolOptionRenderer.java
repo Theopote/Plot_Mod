@@ -110,63 +110,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
             return (float)FilletConstants.KEYBOARD_STEP_SMALL;
         }
     }
-    
-    /**
-     * 渲染使用说明
-     */
-    private float renderUsageInstructions(UITheme.ThemeColors theme) {
-        float height = 0;
-        
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("使用说明");
-        
-        ImGui.tableNextColumn();
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 200.0f);
-        
-        String instructions = """
-                1. 选择第一个图形（直线、矩形、圆弧等）
-                2. 选择第二个图形（直线、矩形、圆弧等）
-                3. 使用+/-键或滚轮调整参数
-            4. 按鼠标右键确认圆角""";
-            
-        ImGui.textColored(theme.mutedText, instructions);
-        ImGui.popTextWrapPos();
-        
-        height += ImGui.getFrameHeight() * 4 + ImGui.getStyle().getItemSpacingY();
-        
-        return height;
-    }
-    
-    /**
-     * 渲染快捷键提示
-     */
-    private float renderShortcutTips(UITheme.ThemeColors theme) {
-        float height = 0;
-        
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("快捷键");
-        
-        ImGui.tableNextColumn();
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 200.0f);
-        
-        String shortcuts = """
-            右键: 确认圆角
-                +/-: 调整参数
-                滚轮: 调整参数
-                ESC: 取消操作""";
-            
-        ImGui.textColored(theme.mutedText, shortcuts);
-        ImGui.popTextWrapPos();
-        
-        height += ImGui.getFrameHeight() * 4 + ImGui.getStyle().getItemSpacingY();
-        
-        return height;
-    }
-    
+
     /**
      * 渲染错误状态
      */

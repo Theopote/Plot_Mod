@@ -6,7 +6,6 @@ import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,51 +127,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         
         return height;
     }
-    
-    /**
-     * 渲染使用说明
-     */
-    private float renderUsageInstructions() {
-        float height = 0;
-        
-        if (ImGui.collapsingHeader("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("变换工具使用步骤：");
-            ImGui.spacing();
-            
-            ImGui.bulletText("1. 选择要变换的图形");
-            ImGui.bulletText("2. 右键进入变换模式");
-            ImGui.bulletText("3. 拖拽包围盒的控制点进行变换");
-            ImGui.bulletText("4. 右键返回选择模式");
-            
-            ImGui.spacing();
-            ImGui.textWrapped("变换控制点说明：");
-            ImGui.bulletText("变换框上有八个控制点：四个角点，四个边上的中点");
-            ImGui.bulletText("拖拽角点：自由变换（按住Shift键保持比例）");
-            ImGui.bulletText("拖拽边中点：单轴缩放（沿该轴向变换）");
-            ImGui.bulletText("鼠标往哪里拖动，变换框就沿着这个方向放大缩小");
-            
-            height += ImGui.getFrameHeightWithSpacing() * 8;
-        }
-        
-        if (ImGui.collapsingHeader("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            ImGui.textColored(currentTheme.warningText, "快捷键提示：");
-            ImGui.spacing();
-            
-            ImGui.bulletText("Shift: 拖拽角点时保持比例缩放");
-            ImGui.bulletText("右键: 切换模式 / 完成操作");
-            ImGui.bulletText("Esc: 取消操作 / 返回选择");
-            
-            ImGui.spacing();
-            ImGui.textColored(currentTheme.mutedText, "提示：");
-            ImGui.textWrapped("• 变换时会显示实时预览效果\n• 拖拽控制点可以精确控制变换\n• 角点支持自由变换和等比变换\n• 边中点支持单轴缩放");
-            
-            height += ImGui.getFrameHeightWithSpacing() * 6;
-        }
-        
-        return height;
-    }
-    
+
     /**
      * 获取当前工具实例
      */

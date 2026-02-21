@@ -92,7 +92,6 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
                 // 对话框已包含样式与多行输入，这里仅保留最小化选项
                 height += renderInputMethodSection(currentTheme);
                 height += renderDialogInfo(currentTheme);
-                height += renderActionSection(currentTheme);
             } else {
                 // 未使用对话框时，保留完整的面板快速设置
                 height += renderFontSizeSection(currentTheme);
@@ -100,9 +99,9 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
                 height += renderAlignmentSection(currentTheme);
                 height += renderLineHeightSection(currentTheme);
                 height += renderInputMethodSection(currentTheme);
-                height += renderActionSection(currentTheme);
             }
-            
+            height += renderActionSection(currentTheme);
+
         } catch (Exception e) {
             MasterPlannerMod.LOGGER.error("TextToolOptionRenderer 渲染失败: {}", e.getMessage(), e);
             hasError = true;
@@ -390,31 +389,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
         return height;
     }
-    
-    /**
-     * 渲染快捷键提示区域
-     */
-    private float renderShortcutSection(UITheme.ThemeColors theme) {
-        float height = 0;
-        
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("快捷键");
-        
-        ImGui.tableNextColumn();
-        ImGui.textColored(theme.mutedText,
-                """
-                        Shift + +/- : 调整字体大小
-                        双击文字 : 编辑文字
-                        Ctrl+Enter : 完成编辑
-                        Enter : 添加换行
-                        Esc : 取消编辑""");
-        
-        height += ImGui.getTextLineHeight() * 5 + ImGui.getStyle().getItemSpacing().y;
-        return height;
-    }
-    
+
     /**
      * 通用浮点数步进器 - 带滑块和+/-按钮
      */

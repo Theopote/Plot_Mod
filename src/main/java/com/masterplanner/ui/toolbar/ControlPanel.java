@@ -236,19 +236,18 @@ public class ControlPanel implements UIComponent {
         ImGui.dummy(0.0f, UILayout.Toolbar.BUTTON_PADDING);
 
         // 使用自然流布局推进Y，避免绝对Y定位与滚动状态冲突导致回弹
-        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
-            List<Integer> row = rows.get(rowIndex);
+        for (List<Integer> row : rows) {
             ImGui.setCursorPosX(contentMinX);
-            
+
             // 渲染这一行的所有组
             for (int i = 0; i < row.size(); i++) {
                 int groupIndex = row.get(i);
                 ToolbarGroup group = enabledGroups.get(groupIndex);
-                
+
                 try {
                     // 渲染工具组
                     group.render();
-                    
+
                     // 如果不是这一行的最后一个，添加统一间距（不再考虑分组和分隔符）
                     if (i < row.size() - 1) {
                         ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
@@ -257,7 +256,7 @@ public class ControlPanel implements UIComponent {
                     LOGGER.error("Error rendering tool group: {}", group.getGroupName(), e);
                 }
             }
-            
+
         }
     }
     

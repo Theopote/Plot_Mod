@@ -173,54 +173,6 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
     }
 
     /**
-     * 渲染使用说明
-     */
-    private float renderUsageInstructions() {
-        float height = 0;
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        
-        // 标题
-        ImGui.text("使用说明");
-        height += ImGui.getTextLineHeightWithSpacing();
-        
-        // 说明文字
-        ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.mutedText);
-        ImGui.textWrapped("1. 点击选择要打断的图形");
-        height += ImGui.getTextLineHeightWithSpacing();
-        ImGui.textWrapped("2. 点击设置打断点（单点模式）或第一个打断点（两点模式）");
-        height += ImGui.getTextLineHeightWithSpacing();
-        ImGui.textWrapped("3. 两点模式下再点击设置第二个打断点");
-        height += ImGui.getTextLineHeightWithSpacing();
-        ImGui.textWrapped("4. 自动执行打断操作");
-        height += ImGui.getTextLineHeightWithSpacing();
-        ImGui.popStyleColor();
-        
-        return height;
-    }
-    
-    /**
-     * 渲染快捷键提示
-     */
-    private float renderShortcutTips() {
-        float height = 0;
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        
-        // 标题
-        ImGui.text("快捷键");
-        height += ImGui.getTextLineHeightWithSpacing();
-        
-        // 快捷键说明
-        ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.mutedText);
-        ImGui.textWrapped("T - 切换打断模式");
-        height += ImGui.getTextLineHeightWithSpacing();
-        ImGui.textWrapped("ESC - 取消当前操作");
-        height += ImGui.getTextLineHeightWithSpacing();
-        ImGui.popStyleColor();
-        
-        return height;
-    }
-
-    /**
      * 从上下文中获取当前的BreakTool
      */
     private BreakTool getCurrentToolFromContext() {

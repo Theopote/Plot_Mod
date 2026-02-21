@@ -1014,12 +1014,11 @@ public class SelectionStrategy implements IModifyStrategy {
             
             // 使用与主题无关的画布固定高对比颜色
             int color = IMGUI_SELECTION_COLOR;
-            float lineWidth = SELECTION_LINE_WIDTH;
-            
+
             if (isLeftToRight) {
                 // 实线框（窗口选择）
                 LOGGER.debug("SelectionStrategy.renderNormalSelectionPreviewImGui: 绘制实线框（窗口选择），颜色=0x{}", Integer.toHexString(color));
-                drawList.addRect(minX, minY, maxX, maxY, color, 0.0f, 0, lineWidth);
+                drawList.addRect(minX, minY, maxX, maxY, color, 0.0f, 0, SELECTION_LINE_WIDTH);
             } else {
                 // 虚线框（交叉选择）
                 LOGGER.debug("SelectionStrategy.renderNormalSelectionPreviewImGui: 绘制虚线框（交叉选择），颜色=0x{}", Integer.toHexString(color));
@@ -1167,11 +1166,7 @@ public class SelectionStrategy implements IModifyStrategy {
     public boolean isSelecting() {
         return isSelecting;
     }
-    
-    public Set<String> getSelectedShapeIds() {
-        return new HashSet<>(selectedShapeIds);
-    }
-    
+
     public int getSelectedCount() {
         return selectedShapeIds.size();
     }

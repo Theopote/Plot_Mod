@@ -1,13 +1,11 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
-import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 
 /**
  * 移动工具属性面板渲染器
  */
 public class MoveToolOptionRenderer implements ToolOptionRenderer {
-    private UITheme theme;
 
     public MoveToolOptionRenderer() {
         // 默认构造函数

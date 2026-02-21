@@ -1,6 +1,5 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
-import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.AlignTool;
 import com.masterplanner.ui.tools.impl.modify.strategy.AlignStrategy;
 import imgui.ImGui;
@@ -149,42 +148,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         
         return height;
     }
-    
-    /**
-     * 渲染增强吸附功能开关
-     */
-    @SuppressWarnings("unused")
-    private float renderEnhancedSnapToggle() { return 0; }
-    
-    /**
-     * 渲染使用说明
-     */
-    private float renderUsageInstructions() {
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, "使用说明");
-        
-        ImGui.tableNextColumn();
-        ImGui.textWrapped(getUsageInstructions());
-        
-        return ImGui.getTextLineHeightWithSpacing() * 3; // 估算文本高度
-    }
-    
-    /**
-     * 渲染快捷键提示
-     */
-    private float renderShortcutTips() {
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, "快捷键");
-        
-        ImGui.tableNextColumn();
-        ImGui.textWrapped(getShortcutTips());
-        
-        return ImGui.getTextLineHeightWithSpacing() * 2; // 估算文本高度
-    }
+
     
     /**
      * 获取带快捷键的模式标签
@@ -254,26 +218,6 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         return null;
     }
 
-    /**
-     * 获取使用说明
-     */
-    private String getUsageInstructions() {
-        return """
-                1. 选择要对齐的图形（至少1个）
-                2. 第一次点击：选择源点1（在图形上或附近）
-                3. 第二次点击：选择目标点1
-                4. 第三次点击：选择源点2
-                5. 第四次点击：选择目标点2，完成对齐（CAD式流程）""";
-    }
-    
-    /**
-     * 获取快捷键提示
-     */
-    private String getShortcutTips() {
-        return """
-                ESC - 取消操作""";
-    }
-    
     @Override
     public void initialize() {
         // 初始化配置

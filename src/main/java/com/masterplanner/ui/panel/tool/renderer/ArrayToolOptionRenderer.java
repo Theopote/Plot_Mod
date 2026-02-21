@@ -623,39 +623,6 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
     }
     
     /**
-     * 渲染使用说明
-     */
-    private float renderUsageInstructions() {
-        float height = 0;
-        
-        if (ImGui.treeNodeEx("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
-            height += 20;
-            
-            ImGui.textWrapped("1. 选择要阵列的图形");
-            height += 20;
-            
-            ImGui.textWrapped("2. 选择阵列类型（矩形/环形/路径）");
-            height += 20;
-            
-            ImGui.textWrapped("3. 设置阵列参数");
-            height += 20;
-            
-            ImGui.textWrapped("4. 矩形/环形需要设置基准点；路径模式直接拾取路径");
-            height += 20;
-            
-            ImGui.textWrapped("5. 路径模式中，数量=沿路径等距分配的点位数（含起点与终点）");
-            height += 20;
-
-            ImGui.textWrapped("6. 点击完成阵列操作");
-            height += 20;
-            
-            ImGui.treePop();
-        }
-        
-        return height;
-    }
-    
-    /**
      * 设置按钮的样式
      */
     private void pushButtonStyle(UITheme.ThemeColors theme, boolean isSelected) {
