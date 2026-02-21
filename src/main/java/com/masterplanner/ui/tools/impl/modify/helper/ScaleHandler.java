@@ -193,7 +193,7 @@ public class ScaleHandler implements IModifyHandler {
             return new CopyScaleCommand(originalShapes, modifiedShapes, appState);
         } else {
             // 缩放模式：替换原图形
-            return new ModifyCommand(originalShapes, modifiedShapes, appState);
+            return new ModifyCommand(originalShapes, modifiedShapes, appState, "缩放");
         }
     }
     

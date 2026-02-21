@@ -18,11 +18,17 @@ public class ModifyCommand implements Command {
     protected List<Shape> oldShapes;
     protected List<Shape> newShapes;
     protected AppState appState;
+    protected String operationName;
     
     public ModifyCommand(List<Shape> oldShapes, List<Shape> newShapes, AppState appState) {
+        this(oldShapes, newShapes, appState, null);
+    }
+
+    public ModifyCommand(List<Shape> oldShapes, List<Shape> newShapes, AppState appState, String operationName) {
         this.oldShapes = new ArrayList<>(oldShapes);
         this.newShapes = new ArrayList<>(newShapes);
         this.appState = appState;
+        this.operationName = operationName;
     }
     
     @Override
@@ -82,24 +88,25 @@ public class ModifyCommand implements Command {
     public String getDescription() {
         int oldCount = oldShapes.size();
         int newCount = newShapes.size();
+        String operationType = resolveOperationType(oldCount, newCount);
 
         if (oldCount == 0 && newCount > 0) {
-            return String.format("绘制 %d 个%s", newCount, summarizeShapeTypes(newShapes));
+            return String.format("%s %d 个%s", operationType, newCount, summarizeShapeTypes(newShapes));
         }
 
         if (oldCount > 0 && newCount == 0) {
-            return String.format("删除 %d 个%s", oldCount, summarizeShapeTypes(oldShapes));
+            return String.format("%s %d 个%s", operationType, oldCount, summarizeShapeTypes(oldShapes));
         }
 
         if (oldCount == newCount && oldCount > 0) {
-            return String.format("修改 %d 个%s", oldCount, summarizeShapeTypes(newShapes));
+            return String.format("%s %d 个%s", operationType, oldCount, summarizeShapeTypes(newShapes));
         }
 
         if (oldCount > 0 && newCount > 0) {
-            return String.format("变更图形 %d→%d", oldCount, newCount);
+            return String.format("%s 图形 %d→%d", operationType, oldCount, newCount);
         }
 
-        return "修改图形";
+        return operationType + "图形";
     }
     
     @Override
@@ -225,6 +232,10 @@ public class ModifyCommand implements Command {
     }
 
     private String resolveOperationType(int oldCount, int newCount) {
+        if (operationName != null && !operationName.isBlank()) {
+            return operationName;
+        }
+
         if (oldCount == 0 && newCount > 0) {
             return "绘制";
         }

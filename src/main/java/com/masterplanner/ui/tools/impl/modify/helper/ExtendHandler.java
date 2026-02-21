@@ -157,7 +157,7 @@ public class ExtendHandler implements IModifyHandler {
                                            List<Shape> modifiedShapes, 
                                            ModifyParameters parameters) {
         // 统一使用 ModifyCommand，因为 ExtendCommand 不继承自 ModifyCommand
-        return new ModifyCommand(originalShapes, modifiedShapes, appState);
+        return new ModifyCommand(originalShapes, modifiedShapes, appState, "延伸");
     }
     
     @Override

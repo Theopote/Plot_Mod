@@ -209,7 +209,7 @@ public class MirrorHandler implements IModifyHandler {
         }
         return copyMode
             ? new CopyMirrorCommand(originalShapes, modifiedShapes, appState)
-            : new ModifyCommand(originalShapes, modifiedShapes, appState);
+            : new ModifyCommand(originalShapes, modifiedShapes, appState, "镜像");
     }
     
     @Override

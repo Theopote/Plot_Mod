@@ -13,7 +13,7 @@ import java.util.List;
 public class CopyMoveCommand extends ModifyCommand {
 
     public CopyMoveCommand(List<Shape> originalShapes, List<Shape> movedCopies, AppState appState) {
-        super(originalShapes, movedCopies, appState);
+        super(originalShapes, movedCopies, appState, "复制移动");
     }
 
     @Override
@@ -42,7 +42,7 @@ public class CopyMoveCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制移动 %d 个图形", oldShapes.size());
+        return String.format("复制移动 %d 个图形", newShapes.size());
     }
 }
 

@@ -128,6 +128,6 @@ public class TrimHandler implements IModifyHandler {
     public ModifyCommand createModifyCommand(List<Shape> originalShapes, 
                                            List<Shape> modifiedShapes, 
                                            IModifyHandler.ModifyParameters parameters) {
-        return new ModifyCommand(originalShapes, modifiedShapes, appState);
+        return new ModifyCommand(originalShapes, modifiedShapes, appState, "修剪");
     }
 }

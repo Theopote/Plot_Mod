@@ -202,7 +202,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
     public ModifyCommand createModifyCommand(List<Shape> originalShapes, 
                                            List<Shape> modifiedShapes, 
                                            IModifyHandler.ModifyParameters parameters) {
-        return new ModifyCommand(originalShapes, modifiedShapes, appState);
+        return new ModifyCommand(originalShapes, modifiedShapes, appState, "偏移");
     }
     
     @Override

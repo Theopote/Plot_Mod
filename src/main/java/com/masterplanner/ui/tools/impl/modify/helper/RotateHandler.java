@@ -167,7 +167,7 @@ public class RotateHandler implements IModifyHandler {
             return new CopyRotateCommand(originalShapes, modifiedShapes, appState);
         } else {
             // 旋转模式：替换原图形
-            return new ModifyCommand(originalShapes, modifiedShapes, appState);
+            return new ModifyCommand(originalShapes, modifiedShapes, appState, "旋转");
         }
     }
     

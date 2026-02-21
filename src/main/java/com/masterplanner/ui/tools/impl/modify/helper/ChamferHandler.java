@@ -261,7 +261,7 @@ public class ChamferHandler implements IModifyHandler {
             }
 
             List<Shape> uniqueOriginalShapes = uniqueByIdentity(originalShapes);
-            return new ModifyCommand(uniqueOriginalShapes, finalShapes, appState);
+            return new ModifyCommand(uniqueOriginalShapes, finalShapes, appState, "倒角");
             
         } catch (Exception e) {
             LOGGER.error("创建倒角命令失败", e);

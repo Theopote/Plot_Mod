@@ -11,7 +11,7 @@ import java.util.List;
 public class CopyOffsetCommand extends ModifyCommand {
 
     public CopyOffsetCommand(List<Shape> originalShapes, List<Shape> offsetCopies, AppState appState) {
-        super(originalShapes, offsetCopies, appState);
+        super(originalShapes, offsetCopies, appState, "复制偏移");
     }
 
     @Override
@@ -40,7 +40,7 @@ public class CopyOffsetCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return "偏移复制线段";
+        return String.format("复制偏移 %d 个图形", newShapes.size());
     }
 }
 

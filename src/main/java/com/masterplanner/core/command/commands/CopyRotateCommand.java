@@ -22,7 +22,7 @@ public class CopyRotateCommand extends ModifyCommand {
      * @param appState 应用状态
      */
     public CopyRotateCommand(List<Shape> originalShapes, List<Shape> rotatedShapes, AppState appState) {
-        super(originalShapes, rotatedShapes, appState);
+        super(originalShapes, rotatedShapes, appState, "复制旋转");
     }
     
     @Override
@@ -56,7 +56,7 @@ public class CopyRotateCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format("复制旋转 %d 个图形", oldShapes.size());
+        return String.format("复制旋转 %d 个图形", newShapes.size());
     }
     
     @Override

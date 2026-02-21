@@ -42,7 +42,7 @@ public class TransformCommand extends ModifyCommand {
     private List<Shape> transformedShapes;
     
     public TransformCommand(List<Shape> originalShapes, TransformParams transformParams, AppState appState) {
-        super(originalShapes, new ArrayList<>(), appState);
+        super(originalShapes, new ArrayList<>(), appState, "变换");
         this.originalShapes = Objects.requireNonNull(originalShapes, "原始图形列表不能为空");
         this.transformParams = Objects.requireNonNull(transformParams, "变换参数不能为空");
         this.originalShapeCopies = new ArrayList<>();

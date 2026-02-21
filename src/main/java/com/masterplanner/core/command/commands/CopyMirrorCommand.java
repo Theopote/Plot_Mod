@@ -13,7 +13,7 @@ import java.util.List;
 public class CopyMirrorCommand extends ModifyCommand {
 
     public CopyMirrorCommand(List<Shape> originalShapes, List<Shape> mirroredCopies, AppState appState) {
-        super(originalShapes, mirroredCopies, appState);
+        super(originalShapes, mirroredCopies, appState, "复制镜像");
     }
 
     @Override
@@ -42,6 +42,6 @@ public class CopyMirrorCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制镜像 %d 个图形", oldShapes.size());
+        return String.format("复制镜像 %d 个图形", newShapes.size());
     }
 }

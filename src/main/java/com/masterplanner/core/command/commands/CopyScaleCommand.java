@@ -13,7 +13,7 @@ import java.util.List;
 public class CopyScaleCommand extends ModifyCommand {
 
     public CopyScaleCommand(List<Shape> originalShapes, List<Shape> scaledCopies, AppState appState) {
-        super(originalShapes, scaledCopies, appState);
+        super(originalShapes, scaledCopies, appState, "复制缩放");
     }
 
     @Override
@@ -42,6 +42,6 @@ public class CopyScaleCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制缩放 %d 个图形", oldShapes.size());
+        return String.format("复制缩放 %d 个图形", newShapes.size());
     }
 }
