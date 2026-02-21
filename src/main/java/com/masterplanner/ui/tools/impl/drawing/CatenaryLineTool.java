@@ -17,7 +17,6 @@ import com.masterplanner.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
-import imgui.ImColor;
 import com.masterplanner.ui.tools.snap.SnapEnhancer;
 
 import java.awt.Color;
@@ -52,10 +51,7 @@ public class CatenaryLineTool extends DrawingTool {
     public static final String MODE_UNEVEN = "uneven";      // 样条插值悬链线
 
     // 默认参数
-    private static final double DEFAULT_SAG = 1.0;
     private static final int DEFAULT_SEGMENTS = 20;
-    private static final int MIN_SEGMENTS = 10;
-    private static final int MAX_SEGMENTS = 60;
 
     // 渲染常量
     private static final float CONTROL_POINT_SIZE = 6.0f;
@@ -190,14 +186,10 @@ public class CatenaryLineTool extends DrawingTool {
                         }
                     }
                 }
-                case CONFIG_KEY_SAG -> {
-                    // 已固定悬垂参数，忽略来自 UI 的修改
-                    LOGGER.debug("CatenaryLineTool: 忽略来自 UI 的悬垂参数修改 (固定值)");
-                }
-                case CONFIG_KEY_SEGMENTS -> {
-                    // 已固定分段数，忽略来自 UI 的修改
-                    LOGGER.debug("CatenaryLineTool: 忽略来自 UI 的分段数修改 (固定值)");
-                }
+                case CONFIG_KEY_SAG -> // 已固定悬垂参数，忽略来自 UI 的修改
+                        LOGGER.debug("CatenaryLineTool: 忽略来自 UI 的悬垂参数修改 (固定值)");
+                case CONFIG_KEY_SEGMENTS -> // 已固定分段数，忽略来自 UI 的修改
+                        LOGGER.debug("CatenaryLineTool: 忽略来自 UI 的分段数修改 (固定值)");
                 default -> LOGGER.debug("CatenaryLineTool: 未知配置键: {}", key);
             }
         } catch (Exception e) {
