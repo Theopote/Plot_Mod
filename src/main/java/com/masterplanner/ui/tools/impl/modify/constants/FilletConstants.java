@@ -25,8 +25,7 @@ public final class FilletConstants {
     public static final String CONFIG_KEY_RADIUS = "radius";
     public static final String CONFIG_KEY_PREVIEW = "preview";
     public static final String CONFIG_KEY_HIGHLIGHT = "highlight";
-    public static final String CONFIG_KEY_EXTEND_MODE = "extendMode"; // 延长模式
-    
+
     // 默认值
     public static final double DEFAULT_RADIUS = 10.0;
     
@@ -36,7 +35,6 @@ public final class FilletConstants {
     
     // 几何计算常量
     public static final double FILLET_TOLERANCE = 0.001; // 倒角计算容差
-    public static final double ANGLE_TOLERANCE = 0.01; // 角度容差（弧度）
     public static final double MIN_ANGLE_DIFF = 0.1; // 最小角度差（弧度，约5.7度）
     public static final double MAX_ANGLE_DIFF = Math.PI - 0.1; // 最大角度差（弧度，约174.3度）
     public static final double PARALLEL_TOLERANCE = 0.001; // 平行判断容差
@@ -44,7 +42,6 @@ public final class FilletConstants {
     // 用户交互常量
     public static final double KEYBOARD_STEP_SMALL = 1.0; // 键盘调整小步长
     public static final double KEYBOARD_STEP_LARGE = 5.0; // 键盘调整大步长
-    public static final double WHEEL_STEP = 0.5; // 滚轮调整步长
     public static final double RADIUS_THRESHOLD_LARGE_STEP = 10.0; // 大半径阈值
     
     // 选择容差
@@ -54,7 +51,6 @@ public final class FilletConstants {
     public static final String STATUS_SELECT_SECOND_LINE = "选择第二个图形，滚轮调整参数，或按ESC取消";
     public static final String STATUS_READY_TEMPLATE = "按鼠标右键确认倒圆角(半径:%.1f)，滚轮调整半径，或按ESC取消";
     public static final String STATUS_COMPLETE_TEMPLATE = "倒圆角完成 (半径: %.1f)";
-    public static final String STATUS_LINES_NOT_INTERSECT = "图形不相交，无法进行倒角操作";
     public static final String STATUS_LINES_PARALLEL = "图形平行，无法进行倒角操作";
     public static final String STATUS_ANGLE_TOO_SMALL = "图形夹角太小，无法进行倒角操作";
     public static final String STATUS_ANGLE_TOO_LARGE = "图形夹角太大，无法进行倒角操作";
@@ -63,7 +59,6 @@ public final class FilletConstants {
     // 错误消息
     public static final String ERROR_INVALID_SHAPES = "倒角操作需要选择两个图形";
     public static final String ERROR_INVALID_RADIUS = "倒角半径必须在 %.1f 到 %.1f 之间";
-    public static final String ERROR_CALCULATION_FAILED = "倒角计算失败";
     public static final String ERROR_COMMAND_CREATION_FAILED = "创建倒角命令失败";
     
     // 私有构造函数防止实例化

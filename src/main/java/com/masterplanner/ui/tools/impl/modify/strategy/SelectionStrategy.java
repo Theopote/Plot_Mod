@@ -90,8 +90,8 @@ public class SelectionStrategy implements IModifyStrategy {
     
     // 渲染常量（画布固定色，与UI主题解耦）
     private static final int SELECTION_ALPHA = 255;
-    private static final Color CANVAS_SELECTION_COLOR = new Color(0, 122, 255, 255);
-    private static final int IMGUI_SELECTION_COLOR = ImColor.rgba(0, 122, 255, 255);
+    private static final Color CANVAS_SELECTION_COLOR = new Color(255, 215, 0, 255);
+    private static final int IMGUI_SELECTION_COLOR = ImColor.rgba(255, 215, 0, 255);
     private static final float SELECTION_LINE_WIDTH = 1.5f;
     // 预留：选中高亮色（当前未直接使用，由Shape自身渲染样式处理）
     
