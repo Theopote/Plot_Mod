@@ -431,7 +431,7 @@ public class UITheme {
         // 圆角设置
         theme.windowRounding = 0.0f;
         theme.toolbarControlRounding = 4.0f;     // 工具栏控件圆角
-        theme.panelControlRounding = 0.2f;       // 属性面板控件圆角
+        theme.panelControlRounding = 0.0f;       // 通用小控件（含对话框按钮）无圆角
         theme.childRounding = 0.0f;
         theme.popupRounding = theme.toolbarControlRounding;  // 弹出菜单使用与工具栏一致的圆角
         theme.scrollbarRounding = theme.panelControlRounding;
@@ -534,7 +534,7 @@ public class UITheme {
         // 圆角设置
         theme.windowRounding = 0.0f;
         theme.toolbarControlRounding = 4.0f;     // 工具栏控件圆角
-        theme.panelControlRounding = 0.2f;       // 属性面板控件圆角
+        theme.panelControlRounding = 0.0f;       // 通用小控件（含对话框按钮）无圆角
         theme.childRounding = 0.0f;
         theme.popupRounding = theme.toolbarControlRounding;
         theme.scrollbarRounding = theme.panelControlRounding;

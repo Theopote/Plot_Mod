@@ -7,6 +7,7 @@ import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.ui.tools.snap.SnapVisualStyle;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -77,6 +78,13 @@ public class SettingsAndHelpDialog {
         ImGui.pushStyleColor(ImGuiCol.TabActive, theme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.TabUnfocused, theme.tabNormal);
         ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, theme.tabActive);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, 0.0f);
 
         try {
             ImGui.setNextWindowSize(680, 520);
@@ -114,6 +122,7 @@ public class SettingsAndHelpDialog {
 
             ImGui.end();
         } finally {
+            ImGui.popStyleVar(7);
             ImGui.popStyleColor(25);
         }
     }
