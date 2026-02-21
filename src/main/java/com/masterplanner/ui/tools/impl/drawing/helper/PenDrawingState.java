@@ -2,7 +2,7 @@ package com.masterplanner.ui.tools.impl.drawing.helper;
 
 /**
  * 钢笔绘制状态枚举
- * 
+ * <p>
  * 用于管理钢笔工具的不同绘制阶段，提供更清晰的状态转换逻辑。
  */
 public enum PenDrawingState {

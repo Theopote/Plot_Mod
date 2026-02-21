@@ -7,12 +7,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 模式处理器抽象基类
- * 
+ * <p>
  * 提供所有模式处理器的通用功能，包括：
  * - 通用的鼠标事件处理逻辑（右键取消、基础状态管理）
  * - 通用的键盘事件处理（ESC取消）
  * - 共同的状态字段和样式处理
- * 
+ * <p>
  * 子类只需要实现具体的绘制逻辑和渲染方法。
  */
 public abstract class AbstractModeHandler implements IModeHandler {
@@ -23,10 +23,6 @@ public abstract class AbstractModeHandler implements IModeHandler {
     protected boolean isDrawing = false;
     protected long lastClickTime = 0;
     protected final StyleHandler styleHandler;
-    
-    // 通用常量（从 PolylineTool.Constants 导入）
-    protected static final long DOUBLE_CLICK_TIME = 500; // 双击时间阈值（毫秒）
-    protected static final double POSITION_TOLERANCE = 8.0; // 双击位置容差
     
     protected AbstractModeHandler(StyleHandler styleHandler) {
         this.styleHandler = styleHandler;
@@ -126,29 +122,7 @@ public abstract class AbstractModeHandler implements IModeHandler {
         lastClickTime = 0;
         LOGGER.debug("{} 状态已重置", this.getClass().getSimpleName());
     }
-    
-    /**
-     * 检查双击条件的辅助方法
-     * 
-     * @param currentTime 当前时间戳
-     * @param currentPos 当前鼠标位置
-     * @param lastPos 上次点击位置
-     * @return 是否满足双击条件
-     */
-    protected boolean isDoubleClick(long currentTime, Vec2d currentPos, Vec2d lastPos) {
-        return currentTime - lastClickTime <= DOUBLE_CLICK_TIME &&
-               currentPos.distance(lastPos) < POSITION_TOLERANCE;
-    }
-    
-    /**
-     * 更新点击时间的辅助方法
-     * 
-     * @param currentTime 当前时间戳
-     */
-    protected void updateClickTime(long currentTime) {
-        this.lastClickTime = currentTime;
-    }
-    
+
     /**
      * 获取样式处理器的辅助方法
      */

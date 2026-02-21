@@ -1174,7 +1174,7 @@ public class ArrayStrategy implements IModifyStrategy {
                 return basePoint != null;
             }
             case PATH -> {
-                return pathPoints.size() >= 2 && Math.max(2, rowCount) >= 2;
+                return pathPoints.size() >= 2;
             }
             default -> {
                 return false;

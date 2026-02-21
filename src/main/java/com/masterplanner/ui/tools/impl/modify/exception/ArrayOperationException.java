@@ -34,16 +34,7 @@ public class ArrayOperationException extends RuntimeException {
     }
     
     private final ErrorType errorType;
-    
-    /**
-     * 构造函数
-     * @param errorType 错误类型
-     */
-    public ArrayOperationException(ErrorType errorType) {
-        super(errorType.getMessage());
-        this.errorType = errorType;
-    }
-    
+
     /**
      * 构造函数
      * @param errorType 错误类型
@@ -53,17 +44,7 @@ public class ArrayOperationException extends RuntimeException {
         super(String.format("%s: %s", errorType.getMessage(), message));
         this.errorType = errorType;
     }
-    
-    /**
-     * 构造函数
-     * @param errorType 错误类型
-     * @param cause 原因异常
-     */
-    public ArrayOperationException(ErrorType errorType, Throwable cause) {
-        super(errorType.getMessage(), cause);
-        this.errorType = errorType;
-    }
-    
+
     /**
      * 构造函数
      * @param errorType 错误类型
@@ -74,32 +55,5 @@ public class ArrayOperationException extends RuntimeException {
         super(String.format("%s: %s", errorType.getMessage(), message), cause);
         this.errorType = errorType;
     }
-    
-    /**
-     * 获取错误类型
-     * @return 错误类型
-     */
-    public ErrorType getErrorType() {
-        return errorType;
-    }
-    
-    /**
-     * 检查是否为可恢复的错误
-     * @return 是否可恢复
-     */
-    public boolean isRecoverable() {
-        return errorType == ErrorType.INVALID_ARRAY_PARAMETERS ||
-               errorType == ErrorType.PREVIEW_CALCULATION_FAILED;
-    }
-    
-    /**
-     * 检查是否需要用户干预
-     * @return 是否需要用户干预
-     */
-    public boolean requiresUserIntervention() {
-        return errorType == ErrorType.INVALID_SOURCE_SHAPE ||
-               errorType == ErrorType.INVALID_BASE_POINT ||
-               errorType == ErrorType.INVALID_PATH_POINTS ||
-               errorType == ErrorType.INSUFFICIENT_PATH_POINTS;
-    }
+
 }

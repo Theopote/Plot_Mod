@@ -9,9 +9,9 @@ import java.util.List;
 
 /**
  * 贝塞尔曲线工具类
- * 
+ * <p>
  * 提供贝塞尔曲线相关的数据转换、验证和计算功能。
- * 
+ * <p>
  * 修复版本：数据格式与BezierCurveShape完全匹配，职责清晰分离
  */
 public class BezierUtils {

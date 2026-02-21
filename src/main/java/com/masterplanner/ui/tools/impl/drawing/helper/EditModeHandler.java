@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * 编辑模式处理器
- * 
+ * <p>
  * 负责处理编辑模式下的所有交互逻辑，包括：
  * - 节点选择和移动
  * - 控制点调整
@@ -33,11 +33,7 @@ public class EditModeHandler implements IModeHandler {
     private static final float SELECTED_POINT_SIZE = 5.0f;
     private static final double SELECTION_TOLERANCE = 8.0;
     private static final Color LINE_COLOR = new Color(70, 130, 255);
-    private static final Color CONTROL_LINE_COLOR = new Color(100, 100, 100, 128);
-    private static final Color CONTROL_POINT_COLOR = new Color(50, 200, 50);
-    private static final Color SELECTED_COLOR = new Color(255, 50, 50);
-    private static final Color ANCHOR_POINT_COLOR = new Color(70, 130, 255);
-    
+
     // 编辑状态
     private final List<Vec2d> editPoints = new ArrayList<>();
     private final List<Boolean> isCurveSegment = new ArrayList<>();
@@ -53,55 +49,7 @@ public class EditModeHandler implements IModeHandler {
     public EditModeHandler(StyleHandler styleHandler) {
         this.styleHandler = styleHandler;
     }
-    
-    /**
-     * 进入编辑模式，设置要编辑的图形
-     */
-    public void enterEditMode(Shape shape) {
-        this.editingShape = shape;
-        loadShapeForEditing(shape);
-        LOGGER.debug("进入编辑模式，图形类型: {}", shape.getClass().getSimpleName());
-    }
-    
-    /**
-     * 从图形中加载编辑点
-     */
-    private void loadShapeForEditing(Shape shape) {
-        editPoints.clear();
-        isCurveSegment.clear();
-        
-        if (shape instanceof BezierCurveShape bezierShape) {
-            // 加载贝塞尔曲线的锚点和控制点
-            List<Vec2d> anchors = bezierShape.getAnchorPoints();
-            List<Vec2d> controlPoints = bezierShape.getControlPoints();
-            
-            // 重新构建编辑点列表：锚点 + 控制点对
-            // controlPoints 是扁平列表：[control1_seg1, control2_seg1, control1_seg2, control2_seg2, ...]
-            int numSegments = (anchors.size() > 1) ? anchors.size() - 1 : 0;
-            
-            for (int i = 0; i < numSegments; i++) {
-                editPoints.add(anchors.get(i)); // 锚点
-                if (i * 2 < controlPoints.size()) {
-                    editPoints.add(controlPoints.get(i * 2));     // control1
-                }
-                if (i * 2 + 1 < controlPoints.size()) {
-                    editPoints.add(controlPoints.get(i * 2 + 1)); // control2
-                }
-                isCurveSegment.add(true);
-            }
-            
-            // 添加最后一个锚点
-            if (anchors.size() > numSegments) {
-                editPoints.add(anchors.getLast());
-            }
-        } else {
-            // 对于其他图形类型，可以添加相应的处理逻辑
-            LOGGER.warn("编辑模式暂不支持图形类型: {}", shape.getClass().getSimpleName());
-        }
-        
-        LOGGER.debug("加载编辑点: {} 个点, {} 个段", editPoints.size(), isCurveSegment.size());
-    }
-    
+
     @Override
     public IInteractionStrategy.InteractionResult onMouseDown(Vec2d pos, int button, DrawingToolContext context) {
         if (button != 0) return IInteractionStrategy.InteractionResult.IGNORED; // 只响应左键
@@ -422,26 +370,5 @@ public class EditModeHandler implements IModeHandler {
         }
         return IInteractionStrategy.InteractionResult.IGNORED;
     }
-    
-    /**
-     * 退出编辑模式
-     */
-    public void exitEditMode() {
-        reset();
-        LOGGER.debug("退出编辑模式");
-    }
-    
-    /**
-     * 检查是否有图形正在编辑
-     */
-    public boolean hasEditingShape() {
-        return editingShape != null;
-    }
-    
-    /**
-     * 获取正在编辑的图形
-     */
-    public Shape getEditingShape() {
-        return editingShape;
-    }
+
 }

@@ -193,7 +193,7 @@ public class LineTool extends DrawingTool {
             // 修复：使用StyleHandler统一管理样式，确保颜色一致性
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
                 Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
-                    toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
+                    toColor(ThemeManager.getInstance().getCurrentTheme().accent);
 
             // 修复：对于多线模式，需要特殊处理预览渲染
             if (MODE_MULTI.equals(currentDrawingType)) {
@@ -328,7 +328,7 @@ public class LineTool extends DrawingTool {
     }
 
     private int getColor() {
-        Color previewColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
+        Color previewColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent);
 
         if (getStyleHandler() != null) {
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
@@ -344,8 +344,8 @@ public class LineTool extends DrawingTool {
                         previewColor.getRed();
     }
 
-    private static Color toColor(int color, int alpha) {
-        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
+    private static Color toColor(int color) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, 255);
     }
 
     // ====== 辅助方法 ======

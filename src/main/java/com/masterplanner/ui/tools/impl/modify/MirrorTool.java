@@ -266,36 +266,4 @@ public class MirrorTool extends ModifyTool {
         return mirrorStrategy != null ? mirrorStrategy.getCurrentMode() : MirrorMode.AXIS_SYMMETRY;
     }
 
-    /**
-     * 设置正交约束
-     * @param enabled 是否启用正交约束
-     */
-    public void setOrthogonalConstraint(boolean enabled) {
-        MirrorStrategy mirrorStrategy = getMirrorStrategy();
-        if (mirrorStrategy != null) {
-            mirrorStrategy.getMirrorConstraints().setOrthogonalConstraintEnabled(enabled);
-        }
-    }
-
-    /**
-     * 检查是否启用正交约束
-     * @return 是否启用正交约束
-     */
-    public boolean isOrthogonalConstraintEnabled() {
-        if (getMirrorStrategy() != null) {
-            return getMirrorStrategy().getMirrorConstraints().isOrthogonalConstraintEnabled();
-        }
-        return false;
-    }
-    
-    // 图形吸附配置方法 - 新增
-    public boolean isShapeSnapEnabled() {
-        MirrorStrategy mirrorStrategy = getMirrorStrategy();
-        return mirrorStrategy == null || mirrorStrategy.isShapeSnapEnabled(); // 提供默认值
-    }
-
-    public double getSnapDistance() {
-        MirrorStrategy mirrorStrategy = getMirrorStrategy();
-        return mirrorStrategy != null ? mirrorStrategy.getSnapDistance() : 20.0; // 使用硬编码默认值
-    }
 }

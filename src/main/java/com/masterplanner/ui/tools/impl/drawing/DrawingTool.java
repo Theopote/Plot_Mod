@@ -401,8 +401,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
      */
     private void commitShapeToAppState(Shape shape) {
         try {
-            if (appState instanceof com.masterplanner.core.state.AppState) {
-                com.masterplanner.core.state.AppState concreteAppState = (com.masterplanner.core.state.AppState) appState;
+            if (appState instanceof AppState concreteAppState) {
                 ModifyCommand command = new ModifyCommand(Collections.emptyList(), new ArrayList<>(List.of(shape)), concreteAppState);
                 concreteAppState.getCommandHistory().execute(command);
                 LOGGER.debug("工具 [{}] 成功提交图形 [{}] 到AppState", toolId, shape.getId());
@@ -462,12 +461,6 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         // 修复：在绘制状态下总是显示预览，不依赖previewShape
         // 因为有些工具（如PolylineTool）在绘制过程中使用实时渲染而不是previewShape
         return currentState == ToolState.DRAWING;
-    }
-
-    // ====== 吸附功能 ======
-
-    protected Vec2d getSnappedWorldPointSafe(Vec2d screenPoint) {
-        return snapHandler.getSnappedWorldPoint(screenPoint, camera);
     }
 
     // ====== 样式管理 ======
@@ -629,18 +622,16 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         @Override
         public Shape createShapeFromPoints(List<Vec2d> points) {
             // 优先调用子类的 public createShapeFromPoints（如 StarTool）
-            if (DrawingTool.this.getClass() != DrawingTool.class) {
-                try {
-                    return (Shape) DrawingTool.this.getClass()
-                        .getMethod("createShapeFromPoints", List.class)
-                        .invoke(DrawingTool.this, points);
-                } catch (NoSuchMethodException e) {
-                    // 方法不存在是正常情况，静默回退到默认实现
-                } catch (Exception e) {
-                    // 其他异常才记录为错误
-                    LOGGER.error("反射调用 createShapeFromPoints 失败: 工具类={}, 错误={}", 
-                               DrawingTool.this.getClass().getSimpleName(), e.getMessage(), e);
-                }
+            try {
+                return (Shape) DrawingTool.this.getClass()
+                    .getMethod("createShapeFromPoints", List.class)
+                    .invoke(DrawingTool.this, points);
+            } catch (NoSuchMethodException e) {
+                // 方法不存在是正常情况，静默回退到默认实现
+            } catch (Exception e) {
+                // 其他异常才记录为错误
+                LOGGER.error("反射调用 createShapeFromPoints 失败: 工具类={}, 错误={}",
+                        DrawingTool.this.getClass().getSimpleName(), e.getMessage(), e);
             }
             // 默认实现：两点降级
             if (points == null || points.isEmpty()) return null;

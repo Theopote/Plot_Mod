@@ -20,27 +20,16 @@ public interface AlignConstants {
     String ALIGN_MODE = "alignMode";
     String REFERENCE_MODE = "referenceMode";
     String DISTRIBUTE_SPACING = "distributeSpacing";
-    String ENHANCED_SNAP = "enhancedSnap";
-    
+
     // ====== 阈值常量 ======
-    double MIN_ALIGN_DISTANCE = 0.001;
-    double ZERO_TOLERANCE = 0.001;
     double MIN_RADIUS = 0.1;
-    double MAX_DISTRIBUTE_SPACING = 1000.0;
-    double MIN_DISTRIBUTE_SPACING = 0.1;
+
     
     // ====== 默认值常量 ======
     double DEFAULT_DISTRIBUTE_SPACING = 10.0;
-    boolean DEFAULT_ENHANCED_SNAP = true;
-    
+
     // ====== 键盘按键常量 ======
     int ESC_KEY = 27;
-    int L_KEY = 76; // L键 - 左对齐
-    int R_KEY = 82; // R键 - 右对齐
-    int C_KEY = 67; // C键 - 中心对齐
-    int T_KEY = 84; // T键 - 顶部对齐
-    int B_KEY = 66; // B键 - 底部对齐
-    int M_KEY = 77; // M键 - 中间对齐
     
     // ====== 鼠标按键常量 ======
     int MOUSE_LEFT = 0;

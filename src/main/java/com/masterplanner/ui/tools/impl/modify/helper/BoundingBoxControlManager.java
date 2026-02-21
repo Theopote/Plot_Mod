@@ -62,22 +62,6 @@ public class BoundingBoxControlManager {
             return ThemeManager.getInstance().getCurrentTheme();
         }
 
-        public static int boundingBoxColor() {
-            return withAlpha(theme().accent, 0x80);
-        }
-
-        public static int previewBoxColor() {
-            return theme().warningText;
-        }
-
-        public static int controlPointBorderColor() {
-            return withAlpha(theme().text, 0xDD);
-        }
-
-        public static int selectionBoxColor() {
-            return theme().text;
-        }
-
         public static Color boundingBoxDrawColor() {
             return toAwt(theme().accent, 100);
         }
@@ -182,14 +166,7 @@ public class BoundingBoxControlManager {
      * 内部数据结构：包围盒计算结果
      */
     private record BoundingBox(Vec2d min, Vec2d max) {}
-    
-    /**
-     * 设置状态消息回调
-     */
-    public void setStatusMessageCallback(StatusMessageCallback callback) {
-        this.statusCallback = callback;
-    }
-    
+
     /**
      * 发送状态消息给用户
      */
@@ -523,118 +500,6 @@ public class BoundingBoxControlManager {
         this.rotationIconsEnabled = enabled;
     }
 
-    /**
-     * 获取旋转图示是否启用
-     */
-    public boolean isRotationIconsEnabled() {
-        return rotationIconsEnabled;
-    }
-    
-    /**
-     * 清除悬停状态
-     */
-    public void clearHoveredControlPoint() {
-        hoveredControlPoint = null;
-    }
-    
-    /**
-     * 获取悬停的控制点
-     */
-    public ControlPointType getHoveredControlPoint() {
-        return hoveredControlPoint;
-    }
-    
-    /**
-     * 开始框选控制点
-     */
-    public void startControlPointSelection(Vec2d startPoint) {
-        isSelecting = true;
-        selectionStartPoint = startPoint;
-        selectionEndPoint = startPoint;
-    }
-    
-    /**
-     * 更新框选控制点
-     */
-    public void updateControlPointSelection(Vec2d endPoint) {
-        if (!isSelecting) {
-            return;
-        }
-        
-        selectionEndPoint = endPoint;
-        updateSelectedControlPoints();
-    }
-    
-    /**
-     * 完成框选控制点
-     */
-    public void finishControlPointSelection() {
-        isSelecting = false;
-        updateSelectedControlPoints();
-        // 清理框选状态，避免状态残留
-        selectionStartPoint = null;
-        selectionEndPoint = null;
-        LOGGER.debug("框选控制点完成，已清理选择状态");
-    }
-    
-    /**
-     * 更新选中的控制点
-     */
-    private void updateSelectedControlPoints() {
-        if (selectionStartPoint == null || selectionEndPoint == null) {
-            return;
-        }
-
-        selectedControlPoints.clear();
-        
-        // 计算框选矩形
-        double minX = Math.min(selectionStartPoint.x, selectionEndPoint.x);
-        double maxX = Math.max(selectionStartPoint.x, selectionEndPoint.x);
-        double minY = Math.min(selectionStartPoint.y, selectionEndPoint.y);
-        double maxY = Math.max(selectionStartPoint.y, selectionEndPoint.y);
-
-        // 检查每个控制点是否在框选范围内
-        for (ControlPointType controlPointType : ControlPointType.values()) {
-            Vec2d controlPoint = controlPoints[controlPointType.getIndex()];
-            if (controlPoint != null) {
-                if (controlPoint.x >= minX && controlPoint.x <= maxX &&
-                    controlPoint.y >= minY && controlPoint.y <= maxY) {
-                    selectedControlPoints.add(controlPointType);
-                }
-            }
-        }
-
-        // 设置主要控制点
-        if (!selectedControlPoints.isEmpty()) {
-            // 使用最后一个被添加的点作为主控制点，更符合用户的预期
-            // 这样在框选时，用户最后覆盖到的控制点会成为主控制点
-            primaryControlPoint = selectedControlPoints.getLast();
-        }
-    }
-    
-    /**
-     * 选择单个控制点
-     */
-    public void selectControlPoint(ControlPointType controlPointType, boolean clearPrevious) {
-        if (clearPrevious) {
-            selectedControlPoints.clear();
-        }
-        
-        if (!selectedControlPoints.contains(controlPointType)) {
-            selectedControlPoints.add(controlPointType);
-        }
-        
-        primaryControlPoint = controlPointType;
-    }
-    
-    /**
-     * 清除控制点选择
-     */
-    public void clearControlPointSelection() {
-        selectedControlPoints.clear();
-        primaryControlPoint = null;
-    }
-    
     /**
      * 计算预览包围盒和控制点
      * 
@@ -1174,38 +1039,13 @@ public class BoundingBoxControlManager {
             drawing = !drawing;
         }
     }
-    
-    /**
-     * 获取包围盒最小点
-     */
-    public Vec2d getBoundingBoxMin() { return boundingBoxMin; }
-    
-    /**
-     * 获取包围盒最大点
-     */
-    public Vec2d getBoundingBoxMax() { return boundingBoxMax; }
-    
-    /**
-     * 获取预览包围盒最小点
-     */
-    public Vec2d getPreviewBoundingBoxMin() { return previewBoundingBoxMin; }
-    
-    /**
-     * 获取预览包围盒最大点
-     */
-    public Vec2d getPreviewBoundingBoxMax() { return previewBoundingBoxMax; }
 
     /**
      * 获取控制点数组
      */
     public Vec2d[] getControlPoints() { return controlPoints.clone(); }
-    public List<ControlPointType> getSelectedControlPoints() { return new ArrayList<>(selectedControlPoints); }
-    public ControlPointType getPrimaryControlPoint() { return primaryControlPoint; }
-    public void setPrimaryControlPoint(ControlPointType controlPointType) { this.primaryControlPoint = controlPointType; }
     public boolean isSelecting() { return isSelecting; }
-    public Vec2d getSelectionStartPoint() { return selectionStartPoint; }
-    public Vec2d getSelectionEndPoint() { return selectionEndPoint; }
-    
+
     /**
      * 验证屏幕坐标的正确性
       * 

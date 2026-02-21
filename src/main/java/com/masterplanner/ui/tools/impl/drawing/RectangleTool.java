@@ -13,7 +13,6 @@ import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImDrawList;
-import imgui.ImColor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

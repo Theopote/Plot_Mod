@@ -735,17 +735,7 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
             setStatusMessage(messages[currentStep]);
         }
     }
-    
-    /**
-     * 强制更新预览
-     * 在鼠标移动或状态变化时调用
-     */
-    private void forceUpdatePreview() {
-        if (currentMousePoint != null && !controlPoints.isEmpty()) {
-            updatePreview();
-        }
-    }
-    
+
     /**
      * 检查是否应该显示预览
      */
@@ -842,45 +832,23 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
             }
             
             // 根据当前模式更新预览
-            switch (currentMode) {
-                case THREE_POINTS_AXIS:
-                    if (controlPoints.size() == 1) {
-                        // 第一个点和鼠标之间显示线段预览
-                        updateThreePointsAxisPreview();
-                        return InteractionResult.CONTINUE;
-                    } else {
-                        // 有足够的点来生成椭圆预览
-                        updateThreePointsAxisPreview();
-                        return InteractionResult.CONTINUE;
-                    }
-
-                case THREE_POINTS_CENTER:
-                    if (controlPoints.size() == 1) {
-                        // 显示以中心点为圆心的预览圆
-                        updateThreePointsCenterPreview();
-                        return InteractionResult.CONTINUE;
-                    } else {
-                        // 有足够的点来生成椭圆预览
-                        updateThreePointsCenterPreview();
-                        return InteractionResult.CONTINUE;
-                    }
-
-                case TWO_POINTS:
-                    if (controlPoints.size() == 1) {
-                        // 显示矩形预览
-                        updateTwoPointsEllipsePreview();
-                        return InteractionResult.CONTINUE;
-                    } else {
-                        // 有足够的点来生成椭圆预览
-                        updateTwoPointsEllipsePreview();
-                        return InteractionResult.CONTINUE;
-                    }
-            }
+            return switch (currentMode) {
+                case THREE_POINTS_AXIS -> {
+                    updateThreePointsAxisPreview();
+                    yield InteractionResult.CONTINUE;
+                }
+                case THREE_POINTS_CENTER -> {
+                    updateThreePointsCenterPreview();
+                    yield InteractionResult.CONTINUE;
+                }
+                case TWO_POINTS -> {
+                    updateTwoPointsEllipsePreview();
+                    yield InteractionResult.CONTINUE;
+                }
+            };
             
             // 强制更新预览
-            forceUpdatePreview();
-            
-            return InteractionResult.CONTINUE;
+
         }
         
         @Override

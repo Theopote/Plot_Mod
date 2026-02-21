@@ -12,7 +12,6 @@ import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.RotateWithSelectionStrategy;
-import com.masterplanner.ui.tools.impl.modify.helper.RotateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

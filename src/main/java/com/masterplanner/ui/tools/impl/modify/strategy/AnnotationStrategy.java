@@ -115,7 +115,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                     return ModifyResult.COMPLETE;
                 } else if (selected.size() == 1
                         && (selected.get(0) instanceof PolylineShape || selected.get(0) instanceof Polygon)) {
-                    createShapeInteriorAngleAnnotations(selected.get(0), context);
+                    createShapeInteriorAngleAnnotations(selected.getFirst(), context);
                     context.setStatusMessage("内角标注已创建");
                     return ModifyResult.COMPLETE;
                 } else {
@@ -312,24 +312,31 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     private void createRadiusAnnotation(List<Shape> selected, ModifyToolContext context) {
         for (Shape shape : selected) {
             AnnotationShape annotationShape;
-            
-            if (shape instanceof CircleShape circle) {
-                String radius = calculateRadius(circle);
-                LOGGER.info("创建半径标注（圆形）: {}", radius);
-                annotationShape = AnnotationShape.createRadiusAnnotation(
-                    circle.getCenter(), circle.getRadius(), radius);
-            } else if (shape instanceof ArcShape arc) {
-                // ArcShape 可以表示圆弧或半圆
-                String radius = calculateRadius(arc);
-                LOGGER.info("创建半径标注（圆弧/半圆）: {}", radius);
-                annotationShape = AnnotationShape.createRadiusAnnotation(
-                    arc.getCenter(), arc.getRadius(), radius);
-            } else if (shape instanceof RectangleShape rectangle && rectangle.getCornerRadius() > 0) {
-                createRoundedRectangleRadiusAnnotations(rectangle, context);
-                continue;
-            } else {
-                LOGGER.warn("半径标注需要圆形、半圆或圆弧，当前选中: {}", shape.getClass().getSimpleName());
-                continue;
+
+            switch (shape) {
+                case CircleShape circle -> {
+                    String radius = calculateRadius(circle);
+                    LOGGER.info("创建半径标注（圆形）: {}", radius);
+                    annotationShape = AnnotationShape.createRadiusAnnotation(
+                            circle.getCenter(), circle.getRadius(), radius);
+                }
+                case ArcShape arc -> {
+                    // ArcShape 可以表示圆弧或半圆
+                    String radius = calculateRadius(arc);
+                    LOGGER.info("创建半径标注（圆弧/半圆）: {}", radius);
+                    annotationShape = AnnotationShape.createRadiusAnnotation(
+                            arc.getCenter(), arc.getRadius(), radius);
+                }
+                case RectangleShape rectangle when rectangle.getCornerRadius() > 0 -> {
+                    createRoundedRectangleRadiusAnnotations(rectangle, context);
+                    continue;
+                }
+                case null, default -> {
+                    if (shape != null) {
+                        LOGGER.warn("半径标注需要圆形、半圆或圆弧，当前选中: {}", shape.getClass().getSimpleName());
+                    }
+                    continue;
+                }
             }
             
             addAnnotationShapeToCanvas(annotationShape, context, "半径标注");
@@ -450,41 +457,37 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
      * 只有闭合图形才能进行面积标注
      */
     private boolean isClosedShape(Shape shape) {
-        if (shape == null) {
-            return false;
-        }
-        
-        // 明确允许的闭合图形类型
-        if (shape instanceof RectangleShape) {
-            return true; // 矩形总是闭合的
-        }
-        if (shape instanceof CircleShape) {
-            return true; // 圆形总是闭合的
-        }
-        if (shape instanceof EllipseShape) {
-            return true; // 椭圆总是闭合的
-        }
-        if (shape instanceof Polygon) {
-            return true; // 多边形总是闭合的（Polygon 默认是闭合的）
-        }
-        if (shape instanceof PolylineShape polyline) {
-            // 折线需要检查是否闭合
-            return polyline.isClosed();
-        }
-        
-        // 明确不允许的类型
-        if (shape instanceof LineShape) {
-            return false; // 直线不是闭合图形
-        }
-        if (shape instanceof ArcShape) {
-            return false; // 圆弧不是闭合图形
-        }
-        if (shape instanceof AnnotationShape) {
-            return false; // 标注本身不能标注
-        }
-        
-        // 其他类型默认不允许
-        return false;
+        return switch (shape) {
+            case null -> false;
+
+
+            // 明确允许的闭合图形类型
+            case RectangleShape rectangleShape -> true; // 矩形总是闭合的
+
+            case CircleShape circleShape -> true; // 圆形总是闭合的
+
+            case EllipseShape ellipseShape -> true; // 椭圆总是闭合的
+
+            case Polygon polygon -> true; // 多边形总是闭合的（Polygon 默认是闭合的）
+
+            case PolylineShape polyline ->
+                // 折线需要检查是否闭合
+                    polyline.isClosed();
+
+
+            // 明确不允许的类型
+            case LineShape lineShape -> false; // 直线不是闭合图形
+
+            case ArcShape arcShape -> false; // 圆弧不是闭合图形
+
+            case AnnotationShape annotationShape -> false; // 标注本身不能标注
+
+            default ->
+
+                // 其他类型默认不允许
+                    false;
+        };
+
     }
     
     /**
@@ -600,16 +603,17 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                     Vec2d max = new Vec2d(bbox.getMaxX(), bbox.getMaxY());
                     Vec2d worldMin = coordinateTransformer.canvasToMinecraftWorld(min);
                     Vec2d worldMax = coordinateTransformer.canvasToMinecraftWorld(max);
+                    double a;
+                    double b;
                     if (worldMin != null && worldMax != null) {
-                        double a = Math.abs(worldMax.x - worldMin.x) / 2.0;  // 半长轴（Minecraft世界坐标）
-                        double b = Math.abs(worldMax.y - worldMin.y) / 2.0; // 半短轴（Minecraft世界坐标）
-                        return Math.PI * a * b;
+                        a = Math.abs(worldMax.x - worldMin.x) / 2.0;
+                        b = Math.abs(worldMax.y - worldMin.y) / 2.0;
                     } else {
                         // 如果转换失败，使用包围盒尺寸（可能不准确）
-                        double a = bbox.getWidth() / 2.0;
-                        double b = bbox.getHeight() / 2.0;
-                        return Math.PI * a * b;
+                        a = bbox.getWidth() / 2.0;
+                        b = bbox.getHeight() / 2.0;
                     }
+                    return Math.PI * a * b;
                 }
                 return -1;
             } else if (shape instanceof PolylineShape polyline) {
@@ -802,8 +806,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     @Override
     public int getMinimumSelectionCount() {
         return switch (currentMode) {
-            case ANGLE -> 1;
-            case RADIUS, AREA -> 1;
+            case ANGLE, RADIUS, AREA -> 1;
             default -> 0;
         };
     }
@@ -811,9 +814,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     @Override
     public int getMaximumSelectionCount() {
         return switch (currentMode) {
-            case ANGLE -> -1;
+            case ANGLE, AREA -> -1;
             case RADIUS -> -1; // 不限制
-            case AREA -> -1;
             default -> 0;
         };
     }

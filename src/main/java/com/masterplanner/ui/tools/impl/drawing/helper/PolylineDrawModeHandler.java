@@ -18,7 +18,7 @@ import static com.masterplanner.ui.tools.impl.drawing.PolylineTool.Constants.*;
 
 /**
  * 折线绘制模式处理器
- * 
+ * <p>
  * 负责处理折线模式下的所有交互逻辑，包括：
  * - 点击添加顶点
  * - 双击完成绘制
@@ -213,14 +213,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
         }
         return super.onKeyDown(key, context); // 处理其他键
     }
-    
-    /**
-     * 获取当前点数
-     */
-    public int getPointCount() {
-        return points.size();
-    }
-    
+
     /**
      * 获取当前点列表的只读副本
      */

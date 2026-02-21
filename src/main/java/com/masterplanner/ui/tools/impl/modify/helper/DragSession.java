@@ -73,7 +73,4 @@ public class DragSession {
         return startPoint;
     }
 
-    public ControlPointType getControlPoint() {
-        return controlPoint;
-    }
 }

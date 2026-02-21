@@ -8,11 +8,12 @@ import com.masterplanner.core.graphics.style.ShapeStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * 几何选择辅助类
- * 
+ * <p>
  * 实现基于图形实际几何形状的精确选择逻辑，而不是基于包围框的粗糙判断。
  * 主要功能：
  * - 精确点选择：只有点击图形实际轮廓才能选中
@@ -24,7 +25,6 @@ public class GeometricSelectionHelper {
     
     // 选择容差常量
     private static final double DEFAULT_POINT_TOLERANCE = 3.0; // 点选择的默认容差（像素）
-    private static final double DEFAULT_SELECTION_TOLERANCE = 1.0; // 选择检测的默认容差
     private static final double MIN_TOLERANCE = 0.5; // 最小容差
     private static final double MAX_TOLERANCE = 10.0; // 最大容差
     
@@ -424,9 +424,7 @@ public class GeometricSelectionHelper {
         if (Math.abs(d1) < 1e-10 && isPointOnSegment(p3, p1, p2)) return true;
         if (Math.abs(d2) < 1e-10 && isPointOnSegment(p4, p1, p2)) return true;
         if (Math.abs(d3) < 1e-10 && isPointOnSegment(p1, p3, p4)) return true;
-        if (Math.abs(d4) < 1e-10 && isPointOnSegment(p2, p3, p4)) return true;
-        
-        return false;
+        return Math.abs(d4) < 1e-10 && isPointOnSegment(p2, p3, p4);
     }
     
     /**
@@ -475,40 +473,7 @@ public class GeometricSelectionHelper {
         
         return false;
     }
-    
-    /**
-     * 精确套索选择检测
-     * 
-     * @param shape 要检测的图形
-     * @param lassoPoints 套索路径点
-     * @return 是否应该选中该图形
-     */
-    public static boolean isShapeInLassoSelection(Shape shape, List<Vec2d> lassoPoints) {
-        if (shape == null || lassoPoints == null || lassoPoints.size() < 3) {
-            return false;
-        }
-        
-        try {
-            // 首先检查图形的控制点是否在套索内
-            List<Vec2d> controlPoints = shape.getControlPoints();
-            if (controlPoints != null) {
-                for (Vec2d point : controlPoints) {
-                    if (isPointInPolygon(point, lassoPoints)) {
-                        LOGGER.debug("图形 {} 被套索选中（控制点在内）", shape.getClass().getSimpleName());
-                        return true;
-                    }
-                }
-            }
-            
-            // 然后检查套索是否与图形相交
-            return isLassoIntersectsShape(shape, lassoPoints);
-            
-        } catch (Exception e) {
-            LOGGER.warn("精确套索选择检测失败: {}", e.getMessage());
-            return false;
-        }
-    }
-    
+
     /**
      * 使用射线法检查点是否在多边形内
      */
@@ -547,13 +512,19 @@ public class GeometricSelectionHelper {
             // 回退：使用控制点或包围盒角点
             shapePts = new java.util.ArrayList<>();
             try {
-                List<Vec2d> cps = shape.getControlPoints();
+                List<Vec2d> cps = null;
+                if (shape != null) {
+                    cps = shape.getControlPoints();
+                }
                 if (cps != null && cps.size() >= 2) {
                     shapePts.addAll(cps);
                 } else {
-                    BoundingBox bb = shape.getBoundingBox();
+                    BoundingBox bb = null;
+                    if (shape != null) {
+                        bb = shape.getBoundingBox();
+                    }
                     if (bb != null) {
-                        for (Vec2d c : bb.getCorners()) shapePts.add(c);
+                        shapePts.addAll(Arrays.asList(bb.getCorners()));
                     }
                 }
             } catch (Exception ignored) {}
@@ -561,16 +532,8 @@ public class GeometricSelectionHelper {
         }
         
         // 判断图形是否闭合：部分Shape（如RectangleShape、ArcShape、PolylineShape）表现不同
-        boolean shapeClosed = false;
-        if (shape instanceof com.masterplanner.core.geometry.shapes.PolylineShape poly) {
-            shapeClosed = poly.isClosed();
-        } else if (shape instanceof com.masterplanner.core.geometry.shapes.RectangleShape
-                || shape instanceof com.masterplanner.core.geometry.shapes.CircleShape
-                || shape instanceof com.masterplanner.core.geometry.shapes.EllipseShape
-                || shape instanceof com.masterplanner.core.geometry.shapes.Polygon) {
-            shapeClosed = true;
-        }
-        
+        boolean shapeClosed = isShapeClosed(shape);
+
         // 3) 遍历所有边段，检测与套索任一边是否相交
         for (int si = 0; si < shapePts.size() - 1 + (shapeClosed ? 1 : 0); si++) {
             Vec2d s1 = shapePts.get(si % shapePts.size());
@@ -585,6 +548,19 @@ public class GeometricSelectionHelper {
             }
         }
         return false;
+    }
+
+    private static boolean isShapeClosed(Shape shape) {
+        boolean shapeClosed = false;
+        if (shape instanceof PolylineShape poly) {
+            shapeClosed = poly.isClosed();
+        } else if (shape instanceof RectangleShape
+                || shape instanceof CircleShape
+                || shape instanceof EllipseShape
+                || shape instanceof Polygon) {
+            shapeClosed = true;
+        }
+        return shapeClosed;
     }
 
     // 线段相交（含端点）

@@ -1,16 +1,13 @@
 package com.masterplanner.ui.tools.impl.drawing.helper;
 
 import com.masterplanner.api.state.IAppState;
-import com.masterplanner.api.graphics.IShapeStyle;
 import com.masterplanner.api.model.ILayer;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.graphics.style.DefaultStyleConfig;
-import com.masterplanner.core.graphics.style.StylePoolManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.Color;
 import java.util.Objects;
 
 /**
@@ -39,12 +36,8 @@ public class StyleHandler implements IStyleHandler {
     private volatile ShapeStyle cachedStyle;
     private volatile String cachedLayerId;
     private volatile long styleLastUpdateTime = 0;
-    private static final long STYLE_CACHE_TIMEOUT = 1000; // 1秒缓存超时
     private final Object styleCacheLock = new Object();
-    
-    // 预览和最终样式配置
-    private static final boolean USE_PREVIEW_TRANSPARENCY = false; // 待API支持后启用
-    
+
     /**
      * 构造函数（依赖注入）
      * 
@@ -149,80 +142,7 @@ public class StyleHandler implements IStyleHandler {
             LOGGER.debug("StyleHandler [{}] 样式缓存已失效", toolId);
         }
     }
-    
-    // ====== 私有样式管理方法 ======
-    
-    /**
-     * 获取当前样式（带缓存优化）
-     */
-    private ShapeStyle getCurrentStyle() {
-        try {
-            // 检查缓存有效性
-            if (isCacheValid()) {
-                return cachedStyle;
-            }
-            
-            // 更新缓存
-            refreshStyleCache();
-            return cachedStyle;
-            
-        } catch (Exception e) {
-            LOGGER.error("StyleHandler [{}] 获取当前样式失败: {}", toolId, e.getMessage(), e);
-            return createFallbackStyle();
-        }
-    }
-    
-    /**
-     * 检查缓存有效性
-     */
-    private boolean isCacheValid() {
-        if (cachedStyle == null) {
-            return false;
-        }
-        
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - styleLastUpdateTime >= STYLE_CACHE_TIMEOUT) {
-            return false;
-        }
-        
-        try {
-            ILayer currentLayer = appState.getActiveLayer();
-            String currentLayerId = currentLayer != null ? currentLayer.getId() : null;
-            return Objects.equals(cachedLayerId, currentLayerId);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    /**
-     * 线程安全的样式缓存刷新（使用样式池优化）
-     */
-    private void refreshStyleCache() {
-        try {
-            ILayer currentLayer = appState.getActiveLayer();
-            String currentLayerId = currentLayer != null ? currentLayer.getId() : null;
-            
-            // 优先使用应用状态的样式
-            IShapeStyle appStyle = appState.getCurrentShapeStyle();
-            
-            if (appStyle instanceof ShapeStyle) {
-                cachedStyle = (ShapeStyle) appStyle;
-            } else {
-                // 创建基于图层的默认样式
-                cachedStyle = createLayerBasedStyle(currentLayer);
-            }
-            
-            cachedLayerId = currentLayerId;
-            styleLastUpdateTime = System.currentTimeMillis();
-            
-            LOGGER.debug("StyleHandler [{}] 样式缓存已更新", toolId);
-            
-        } catch (Exception e) {
-            LOGGER.error("StyleHandler [{}] 刷新样式缓存失败: {}", toolId, e.getMessage(), e);
-            cachedStyle = createFallbackStyle();
-        }
-    }
-    
+
     /**
      * 创建基于图层的样式
      * 修复：优化图层颜色获取逻辑，增强错误处理
@@ -257,8 +177,7 @@ public class StyleHandler implements IStyleHandler {
             // 修复：尝试从AppState获取活动图层
             LOGGER.debug("StyleHandler [{}] 当前图层为null，尝试从AppState获取活动图层", toolId);
             try {
-                if (appState instanceof com.masterplanner.core.state.AppState) {
-                    com.masterplanner.core.state.AppState state = (com.masterplanner.core.state.AppState) appState;
+                if (appState instanceof com.masterplanner.core.state.AppState state) {
                     com.masterplanner.core.layer.LayerManager layerManager = state.getLayerManager();
                     if (layerManager != null) {
                         ILayer activeLayer = layerManager.getActiveLayer();
@@ -288,8 +207,7 @@ public class StyleHandler implements IStyleHandler {
      */
     private ILayer getCurrentLayer() {
         try {
-            if (appState instanceof com.masterplanner.core.state.AppState) {
-                com.masterplanner.core.state.AppState state = (com.masterplanner.core.state.AppState) appState;
+            if (appState instanceof com.masterplanner.core.state.AppState state) {
                 com.masterplanner.core.layer.LayerManager layerManager = state.getLayerManager();
                 if (layerManager != null) {
                     ILayer activeLayer = layerManager.getActiveLayer();
@@ -320,89 +238,5 @@ public class StyleHandler implements IStyleHandler {
     private ShapeStyle createFallbackStyle() {
         return DefaultStyleConfig.createFallbackShapeStyle();
     }
-    
-    // ====== 样式查询方法 ======
-    
-    /**
-     * 获取当前样式信息（用于调试）
-     */
-    public StyleInfo getCurrentStyleInfo() {
-        try {
-            ShapeStyle style = getCurrentStyle();
-            ILayer currentLayer = appState.getActiveLayer();
-            
-            return new StyleInfo(
-                style != null ? style.getLineColor() : null,
-                style != null ? style.getLineWidth() : 0,
-                currentLayer != null ? currentLayer.getId() : null,
-                currentLayer != null ? currentLayer.getColor() : null,
-                cachedStyle != null,
-                System.currentTimeMillis() - styleLastUpdateTime
-            );
-            
-        } catch (Exception e) {
-            LOGGER.debug("StyleHandler [{}] 获取样式信息失败: {}", toolId, e.getMessage());
-            return StyleInfo.createErrorInfo();
-        }
-    }
-    
-    /**
-     * 样式信息类（用于调试和诊断）
-     */
-    public static class StyleInfo {
-        public final java.awt.Color lineColor;
-        public final float lineWidth;
-        public final String layerId;
-        public final java.awt.Color layerColor;
-        public final boolean isCached;
-        public final long cacheAge;
-        
-        public StyleInfo(java.awt.Color lineColor, float lineWidth, String layerId,
-                        java.awt.Color layerColor, boolean isCached, long cacheAge) {
-            this.lineColor = lineColor;
-            this.lineWidth = lineWidth;
-            this.layerId = layerId;
-            this.layerColor = layerColor;
-            this.isCached = isCached;
-            this.cacheAge = cacheAge;
-        }
-        
-        public static StyleInfo createErrorInfo() {
-            return new StyleInfo(null, 0, null, null, false, -1);
-        }
-        
-        @Override
-        public String toString() {
-            return String.format("StyleInfo[lineColor=%s, lineWidth=%.1f, layer=%s, cached=%s, age=%dms]",
-                               lineColor, lineWidth, layerId, isCached, cacheAge);
-        }
-    }
-    
-    // ====== 样式池统计方法 ======
-    
-    /**
-     * 记录样式池性能统计（用于调试和性能分析）
-     */
-    public void logStylePoolStatistics() {
-        try {
-            StylePoolManager.PoolStatistics stats = StylePoolManager.getInstance().getStatistics();
-            LOGGER.debug("StyleHandler [{}] 样式池统计: {}", toolId, stats);
-        } catch (Exception e) {
-            LOGGER.debug("StyleHandler [{}] 记录样式池统计失败: {}", toolId, e.getMessage());
-        }
-    }
-    
-    /**
-     * 获取样式池命中率
-     */
-    public double getStylePoolHitRate() {
-        try {
-            StylePoolManager.PoolStatistics stats = StylePoolManager.getInstance().getStatistics();
-            // TODO: 实现命中率计算逻辑
-            return 0.0;
-        } catch (Exception e) {
-            LOGGER.debug("StyleHandler [{}] 获取样式池命中率失败: {}", toolId, e.getMessage());
-            return 0.0;
-        }
-    }
+
 } 

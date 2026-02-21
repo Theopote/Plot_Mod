@@ -511,10 +511,6 @@ public class CatenaryLineTool extends DrawingTool {
             LOGGER.debug("CatenaryLineTool 模式或参数已更改，预览将自动更新");
         }
 
-        public void onParameterChanged() {
-            onModeChanged();
-        }
-
         @Override
         public Shape getFinalShape() {
             if (previewCatenary != null) {

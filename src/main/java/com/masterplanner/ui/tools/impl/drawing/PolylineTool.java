@@ -50,9 +50,6 @@ public class PolylineTool extends DrawingTool {
         
         public static final class NodeTypes {
             public static final String AUTO = "auto";         // 自动
-            public static final String CORNER = "corner";     // 尖角
-            public static final String SMOOTH = "smooth";     // 平滑
-            public static final String SYMMETRIC = "symmetric"; // 对称
         }
         
         public static final class ConfigKeys {
@@ -64,7 +61,6 @@ public class PolylineTool extends DrawingTool {
         
         public static final class Timing {
             public static long DOUBLE_CLICK_TIME = 500; // 双击时间阈值（毫秒）
-            public static final double POSITION_TOLERANCE = 8.0; // 双击位置容差
         }
         
         public static final class Rendering {
@@ -72,30 +68,15 @@ public class PolylineTool extends DrawingTool {
             public static final float CONTROL_LINE_THICKNESS = 1.5f;
             public static final float POINT_SIZE = 4.0f;
             public static final float CONTROL_POINT_SIZE = 3.0f;
-            public static final float SELECTED_POINT_SIZE = 5.0f;
             public static final double SELECTION_TOLERANCE = 8.0;
         }
         
         public static final class Colors {
-            public static final Color LINE = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
-            public static final Color PREVIEW = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().mutedText, 255);
-            public static final Color CONTROL_LINE = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().mutedText, 128);
-            public static final Color CONTROL_POINT = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().successText, 255);
-            public static final Color SELECTED = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().errorText, 255);
-            public static final Color ANCHOR_POINT = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
+            public static final Color LINE = PolylineTool.toColor(ThemeManager.getInstance().getCurrentTheme().accent);
         }
-        
-        public static final class Messages {
-            public static final Map<String, String> MODE_STATUS = Map.of(
-                Modes.POLYLINE, "点击添加折线顶点，双击结束绘制，按ESC取消",
-                Modes.PEN, "点击创建锚点，拖动创建曲线控制点，双击结束绘制",
-                Modes.EDIT, "编辑模式：点击选择节点，拖动调整位置，Shift+点击转换段类型"
-            );
-        }
-        
+
         public static final class Keys {
             public static final int ESC = 27;    // ESC键
-            public static final int ENTER = 13;  // Enter键
         }
     }
 
@@ -607,7 +588,7 @@ public class PolylineTool extends DrawingTool {
             return screenPos; // 最后的回退
         }
     }
-    
+
     /**
      * 绘制适配器接口
      */
@@ -661,8 +642,8 @@ public class PolylineTool extends DrawingTool {
         }
     }
 
-    private static Color toColor(int color, int alpha) {
-        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
+    private static Color toColor(int color) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, 255);
     }
     
     /**

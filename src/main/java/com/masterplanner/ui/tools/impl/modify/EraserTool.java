@@ -100,9 +100,7 @@ public class EraserTool extends ModifyTool {
                     }
                 }
             }
-            default -> {
-                LOGGER.debug("未知的配置项: {} = {}", key, value);
-            }
+            default -> LOGGER.debug("未知的配置项: {} = {}", key, value);
         }
     }
 
@@ -137,23 +135,4 @@ public class EraserTool extends ModifyTool {
         return eraserStrategy != null ? eraserStrategy.getEraserRadius() : 15.0f;
     }
 
-    /**
-     * 设置橡皮擦模式
-     * @param mode 橡皮擦模式
-     */
-    public void setEraserMode(EraserStrategy.EraserMode mode) {
-        EraserStrategy eraserStrategy = getEraserStrategy();
-        if (eraserStrategy != null) {
-            eraserStrategy.setEraserMode(mode);
-        }
-    }
-
-    /**
-     * 获取当前橡皮擦模式
-     * @return 当前橡皮擦模式
-     */
-    public EraserStrategy.EraserMode getEraserMode() {
-        EraserStrategy eraserStrategy = getEraserStrategy();
-        return eraserStrategy != null ? eraserStrategy.getCurrentMode() : EraserStrategy.EraserMode.CLICK_DELETE;
-    }
 }

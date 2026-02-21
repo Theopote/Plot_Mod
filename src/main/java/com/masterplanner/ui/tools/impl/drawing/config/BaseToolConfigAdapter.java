@@ -14,10 +14,7 @@ import java.util.Map;
  * @version 1.0
  */
 public abstract class BaseToolConfigAdapter implements IToolConfig {
-    
-    public boolean hasKey(String key) {
-        return getValue(key) != null;
-    }
+
     
     @Override
     public Map<String, Object> getAllValues() {

@@ -9,10 +9,10 @@ import java.util.List;
 
 /**
  * 绘制模式处理器接口
- * 
+ * <p>
  * 该接口定义了多段线工具中每种绘制模式的标准行为。
  * 通过将不同模式的逻辑分离到独立的处理器中，实现了更好的代码组织和可维护性。
- * 
+ * <p>
  * 支持的绘制模式：
  * - 折线模式：直线段连接的多点绘制
  * - 钢笔模式：支持控制点的贝塞尔曲线绘制
@@ -65,7 +65,7 @@ public interface IModeHandler {
     
     /**
      * 重置当前模式的所有状态
-     * 
+     * <p>
      * 此方法会清除所有临时数据，将模式恢复到初始状态，
      * 通常在切换模式或取消当前操作时调用。
      */
@@ -116,7 +116,7 @@ public interface IModeHandler {
     
     /**
      * 绘制工具上下文接口
-     * 
+     * <p>
      * 提供模式处理器需要的基本服务和工具
      */
     interface DrawingToolContext {
@@ -163,7 +163,7 @@ public interface IModeHandler {
     
     /**
      * 绘制适配器接口
-     * 
+     * <p>
      * 抽象不同的渲染后端（DrawContext vs ImGui）
      */
     interface DrawingAdapter {

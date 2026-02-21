@@ -24,7 +24,7 @@ import java.util.Map;
 
 /**
  * 弧形工具 - 优化的策略模式版本
- * 
+ * <p>
  * 支持三种绘制模式：
  * 1. 起点-终点-圆弧点：点击第一个点作为圆弧起点，点击第二个点为圆弧的终点，点击第三个点为圆弧上的点完成圆弧绘制
  * 2. 经过点：点击第一个点作为圆弧起点，点击第二个点为圆弧上的点，点击第三个点为圆弧的终点完成绘制
@@ -863,7 +863,7 @@ public class ArcTool extends DrawingTool {
             // 直接使用外部类的统一逻辑，确保逻辑一致性
             if (previewArc != null) {
                 // clone() 确保返回的是一个新实例
-                ArcShape finalArc = (ArcShape) previewArc.clone(); 
+                ArcShape finalArc = previewArc.clone();
                 finalArc.setStyle(getStyleHandler().getFinalStyle()); // 应用最终样式
                 return finalArc;
             }

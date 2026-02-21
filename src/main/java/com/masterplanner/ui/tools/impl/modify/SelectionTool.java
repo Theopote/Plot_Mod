@@ -46,11 +46,6 @@ public class SelectionTool extends ModifyTool {
     public static final String CONFIG_SELECTION_MODE = "selection_mode";
     public static final String CONFIG_VALUE_NORMAL = "normal";
     public static final String CONFIG_VALUE_LASSO = "lasso";
-    public static final String CONFIG_VALUE_WINDOW = "window";
-    public static final String CONFIG_VALUE_CROSSING = "crossing";
-    
-    // 渲染常量（由策略内部具体使用，这里不直接使用，保留作文档参考）
-    // private static final float SELECTION_LINE_WIDTH = 1.5f;
     
     // 当前选择模式
     private SelectionStrategy.SelectionMode currentMode = SelectionStrategy.SelectionMode.NORMAL;
@@ -235,43 +230,7 @@ public class SelectionTool extends ModifyTool {
     public SelectionStrategy.SelectionMode getCurrentSelectionMode() {
         return currentMode;
     }
-    
-    /**
-     * 设置选择模式
-     */
-    public void setSelectionMode(SelectionStrategy.SelectionMode mode) {
-        if (mode == null) {
-            LOGGER.warn("尝试设置 null 选择模式，忽略此操作");
-            return;
-        }
-        
-        if (this.currentMode != mode) {
-            this.currentMode = mode;
-            
-            // 更新策略的选择模式
-            IModifyStrategy strategy = getStrategy();
-            if (strategy instanceof SelectionStrategy selectionStrategy) {
-                selectionStrategy.setSelectionMode(mode);
-            }
-            
-            // 更新状态消息
-            setStatusMessage(getInitialStatusMessage());
-            
-            LOGGER.debug("SelectionTool 选择模式已切换为: {}", mode.getDisplayName());
-        }
-    }
-    
-    /**
-     * 获取模式对应的配置值
-     */
-    // 备用：如需把模式回写到配置存储可启用
-    // private String getConfigValueForMode(SelectionStrategy.SelectionMode mode) {
-    //     return switch (mode) {
-    //         case NORMAL -> CONFIG_VALUE_NORMAL;
-    //         case LASSO -> CONFIG_VALUE_LASSO;
-    //     };
-    // }
-    
+
     /**
      * 检查是否正在选择
      */
@@ -280,16 +239,5 @@ public class SelectionTool extends ModifyTool {
         IModifyStrategy strategy = getStrategy();
         return strategy instanceof SelectionStrategy selectionStrategy && 
                selectionStrategy.isSelecting();
-    }
-    
-    /**
-     * 获取选中图形数量
-     */
-    public int getSelectedCount() {
-        IModifyStrategy strategy = getStrategy();
-        if (strategy instanceof SelectionStrategy selectionStrategy) {
-            return selectionStrategy.getSelectedCount();
-        }
-        return getSelectionCount();
     }
 } 

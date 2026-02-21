@@ -385,20 +385,6 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
     }
 
     /**
-     * 获取当前步数
-     */
-    public int getCurrentStep() {
-        return currentStep;
-    }
-
-    /**
-     * 检查是否可以提前完成
-     */
-    public boolean canFinishEarly() {
-        return allowEarlyCompletion && controlPoints.size() >= 2;
-    }
-
-    /**
      * 检查是否正在进行交互
      */
     public boolean isActive() {

@@ -40,7 +40,6 @@ public class ChamferStrategy implements IModifyStrategy {
     
     // 键盘常量
     private static final int KEY_ESC = KeyEvent.VK_ESCAPE;
-    private static final int KEY_ENTER = KeyEvent.VK_ENTER;
     private static final int KEY_PLUS = KeyEvent.VK_EQUALS; // + 键
     private static final int KEY_MINUS = KeyEvent.VK_MINUS; // - 键
     

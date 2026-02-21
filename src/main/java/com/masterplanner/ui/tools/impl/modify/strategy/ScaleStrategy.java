@@ -498,16 +498,7 @@ public class ScaleStrategy implements IModifyStrategy {
             
         return totalBounds != null ? totalBounds.getCenter() : new Vec2d(0, 0);
     }
-    
-    /**
-     * 设置缩放中心模式
-     * @param mode 缩放中心模式
-     */
-    public void setScaleCenterMode(ScaleHandler.ScaleCenterMode mode) {
-        this.scaleCenterMode = mode;
-        LOGGER.debug("缩放中心模式已设置为: {}", mode.getDisplayName());
-    }
-    
+
     /**
      * 获取当前缩放中心模式
      * @return 当前缩放中心模式

@@ -85,7 +85,6 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     
     // 变换工具常量定义
     public static final String CONFIG_KEY_MODE = "transform.mode";
-    public static final double CONTROL_POINT_SIZE = 6.0;
     public static final int ESC_KEY = 27;
 
     // 鼠标按钮常量 - 使用基类的常量

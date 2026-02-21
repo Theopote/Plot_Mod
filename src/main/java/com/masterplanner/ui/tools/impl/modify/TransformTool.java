@@ -246,34 +246,12 @@ public class TransformTool extends ModifyTool implements EventListener {
     }
 
     /**
-     * 检查是否支持中心缩放
-     */
-    public boolean isCenterScaleEnabled() {
-        return centerScaleEnabled;
-    }
-    
-    /**
      * 检查是否支持旋转
      */
     public boolean isRotationEnabled() {
         return rotationEnabled;
     }
-    
-    /**
-     * 检查是否支持数值输入
-     */
-    public boolean isNumericInputEnabled() {
-        return numericInputEnabled;
-    }
-    
-    /**
-     * 设置中心缩放
-     */
-    public void setCenterScaleEnabled(boolean enabled) {
-        this.centerScaleEnabled = enabled;
-        LOGGER.debug("中心缩放已{}", enabled ? "启用" : "禁用");
-    }
-    
+
     /**
      * 设置旋转功能
      */
@@ -284,15 +262,7 @@ public class TransformTool extends ModifyTool implements EventListener {
         }
         LOGGER.debug("旋转功能已{}", enabled ? "启用" : "禁用");
     }
-    
-    /**
-     * 设置数值输入
-     */
-    public void setNumericInputEnabled(boolean enabled) {
-        this.numericInputEnabled = enabled;
-        LOGGER.debug("数值输入已{}", enabled ? "启用" : "禁用");
-    }
-    
+
     /**
      * 工具激活时的处理
      */

@@ -76,13 +76,13 @@ public class ChamferHandler implements IModifyHandler {
         if (shape1 == shape2) {
             if (shape1 instanceof PolylineShape polyline) {
                 List<Shape> result = calculateSinglePolylineChamfer(polyline, distance, clickPoint1, clickPoint2);
-                return result == null || result.isEmpty()
+                return result.isEmpty()
                         ? ValidationResult.invalid("无法在该折线拐角创建倒角")
                         : ValidationResult.valid();
             }
             if (shape1 instanceof Polygon polygon) {
                 List<Shape> result = calculateSinglePolygonChamfer(polygon, distance, clickPoint1, clickPoint2);
-                return result == null || result.isEmpty()
+                return result.isEmpty()
                         ? ValidationResult.invalid("无法在该多边形拐角创建倒角")
                         : ValidationResult.valid();
             }
@@ -143,12 +143,12 @@ public class ChamferHandler implements IModifyHandler {
         if (shape1 == shape2) {
             if (shape1 instanceof PolylineShape polyline) {
                 List<Shape> single = calculateSinglePolylineChamfer(polyline, distance, clickPoint1, clickPoint2);
-                if (single != null && !single.isEmpty()) {
+                if (!single.isEmpty()) {
                     return single;
                 }
             } else if (shape1 instanceof Polygon polygon) {
                 List<Shape> single = calculateSinglePolygonChamfer(polygon, distance, clickPoint1, clickPoint2);
-                if (single != null && !single.isEmpty()) {
+                if (!single.isEmpty()) {
                     return single;
                 }
             }
@@ -199,7 +199,7 @@ public class ChamferHandler implements IModifyHandler {
     @Override
     public List<Shape> createPreviewShapes(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         if (shapes != null && shapes.size() == 2 && shapes.get(0) == shapes.get(1)) {
-            Shape baseShape = shapes.get(0);
+            Shape baseShape = shapes.getFirst();
             double chamferDistance = getDistanceFromParameters(parameters);
             Vec2d clickPoint1 = getClickPoint1FromParameters(parameters);
             Vec2d clickPoint2 = getClickPoint2FromParameters(parameters);
@@ -224,7 +224,7 @@ public class ChamferHandler implements IModifyHandler {
         }
 
         List<Shape> modifiedShapes = calculateModifiedShapes(shapes, parameters);
-        
+
         // 预览样式应与原图形一致
         for (int i = 0; i < modifiedShapes.size(); i++) {
             Shape preview = modifiedShapes.get(i);
@@ -436,11 +436,10 @@ public class ChamferHandler implements IModifyHandler {
             double distClickToStart = distance(clickPoint, start);
             double distClickToEnd = distance(clickPoint, end);
             preferred = distClickToStart <= distClickToEnd ? start : end;
-            alternate = preferred == start ? end : start;
         } else {
             preferred = availableStart < availableEnd ? start : end;
-            alternate = preferred == start ? end : start;
         }
+        alternate = preferred == start ? end : start;
 
         double preferredAvailable = preferred == start ? availableStart : availableEnd;
         if (chamferDistance <= preferredAvailable) {
@@ -641,11 +640,10 @@ public class ChamferHandler implements IModifyHandler {
             return Math.max(seg1, seg2);
         }
 
-        int segmentCount = pointCount;
-        if (seg2 == (seg1 + 1) % segmentCount) {
+        if (seg2 == (seg1 + 1) % pointCount) {
             return (seg1 + 1) % pointCount;
         }
-        if (seg1 == (seg2 + 1) % segmentCount) {
+        if (seg1 == (seg2 + 1) % pointCount) {
             return (seg2 + 1) % pointCount;
         }
         return null;
@@ -699,20 +697,15 @@ public class ChamferHandler implements IModifyHandler {
             return null;
         }
 
-        int cornerA = segmentIndex;
         int cornerB = (segmentIndex + 1) % pointCount;
 
         if (!closed) {
-            if (cornerA <= 0) {
+            if (segmentIndex <= 0) {
                 return cornerB;
             }
             if (cornerB >= pointCount - 1) {
-                return cornerA;
+                return segmentIndex;
             }
-        }
-
-        if (anchorPoint == null) {
-            return cornerB;
         }
 
         return cornerB;

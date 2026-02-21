@@ -19,13 +19,13 @@ import static com.masterplanner.ui.tools.impl.drawing.PolylineTool.Constants.*;
 
 /**
  * 钢笔绘制模式处理器（重构版）
- * 
+ * <p>
  * 负责处理钢笔模式下的所有交互逻辑，包括：
  * - 锚点创建
  * - 控制点拖动
  * - 贝塞尔曲线预览
  * - 最终图形生成
- * 
+ * <p>
  * 重构改进：
  * - 使用PathNode数据结构替代混合存储
  * - 采用状态机管理绘制状态
@@ -375,21 +375,7 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         }
         return super.onKeyDown(key, context); // 处理其他键
     }
-    
-    /**
-     * 获取当前路径节点数
-     */
-    public int getPathNodeCount() {
-        return pathNodes.size();
-    }
-    
-    /**
-     * 获取当前路径节点列表的只读副本
-     */
-    public List<PathNode> getPathNodes() {
-        return new ArrayList<>(pathNodes);
-    }
-    
+
     /**
      * 获取当前绘制状态
      */

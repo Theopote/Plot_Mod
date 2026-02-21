@@ -300,8 +300,7 @@ public class SpiralPreviewRenderer {
                 Vec2d screenEnd = camera.worldToScreen(end);
                 
                 int color = switch (i) {
-                    case 0 -> withAlpha(theme.warningText, 0xCC);
-                    case 1 -> withAlpha(theme.warningText, 0xCC);
+                    case 0, 1 -> withAlpha(theme.warningText, 0xCC);
                     case 2 -> withAlpha(theme.accent, 0xCC);
                     default -> withAlpha(theme.mutedText, 0x99);
                 };
@@ -320,8 +319,7 @@ public class SpiralPreviewRenderer {
                 Vec2d screenEnd = camera.worldToScreen(currentMousePoint);
                 
                 int previewColor = switch (controlPoints.size()) {
-                    case 1 -> withAlpha(theme.warningText, 0x88);
-                    case 2 -> withAlpha(theme.warningText, 0x88);
+                    case 1, 2 -> withAlpha(theme.warningText, 0x88);
                     case 3 -> withAlpha(theme.accent, 0x88);
                     default -> withAlpha(theme.mutedText, 0x66);
                 };
