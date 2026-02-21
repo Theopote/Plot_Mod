@@ -55,6 +55,25 @@ public class SettingsAndHelpDialog {
         ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground);
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(ImGuiCol.TextDisabled, theme.mutedText);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.Tab, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.TabHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.TabActive, theme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocused, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, theme.tabActive);
 
         try {
             ImGui.setNextWindowSize(680, 520);
@@ -92,7 +111,7 @@ public class SettingsAndHelpDialog {
 
             ImGui.end();
         } finally {
-            ImGui.popStyleColor(3);
+            ImGui.popStyleColor(22);
         }
     }
 
