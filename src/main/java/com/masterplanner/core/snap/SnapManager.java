@@ -6,7 +6,6 @@ import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.SnapSettingsChangedEvent;
-import imgui.ImColor;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;

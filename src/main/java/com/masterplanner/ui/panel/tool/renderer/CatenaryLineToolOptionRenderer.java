@@ -16,8 +16,6 @@ import net.minecraft.util.Identifier;
 public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
     // 配置键
     private static final String CONFIG_KEY_MODE = "mode";
-    private static final String CONFIG_KEY_SAG = "sag";
-    private static final String CONFIG_KEY_SEGMENTS = "segments";
 
     // 绘制模式常量
     private static final String MODE_STANDARD = "standard";      // 标准悬链线
