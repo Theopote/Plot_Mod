@@ -926,6 +926,20 @@ public class MasterPlannerScreen extends Screen {
                 }
             }
         }
+
+        // C 键转发给活动工具（如样条工具用于封闭曲线）
+        if (keyCode == 67) { // GLFW_KEY_C
+            BaseTool activeTool = appState.getCurrentTool();
+            if (activeTool != null) {
+                try {
+                    if (activeTool.onKeyDown(keyCode)) {
+                        return true;
+                    }
+                } catch (Throwable t) {
+                    LOGGER.error("工具 {} 处理C键时发生异常", activeTool.getClass().getSimpleName(), t);
+                }
+            }
+        }
         
         return super.keyPressed(keyInput);
     }

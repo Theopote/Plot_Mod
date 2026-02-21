@@ -231,6 +231,16 @@ public class SplineTool extends DrawingTool {
             return false;
         }
     }
+
+    @Override
+    public boolean onKeyTyped(char character) {
+        char normalized = Character.toLowerCase(character);
+        if (normalized == 'c' && controlPoints.size() >= 3) {
+            closeSpline();
+            return true;
+        }
+        return super.onKeyTyped(character);
+    }
     
     /**
      * 封闭样条曲线 - 简化版本，完全委托给策略

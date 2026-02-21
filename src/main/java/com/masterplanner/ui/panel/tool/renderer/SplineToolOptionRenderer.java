@@ -178,6 +178,8 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                     try {
                         boolean clicked = ImGui.imageButton(icons[i], BUTTON_SIZE, BUTTON_SIZE);
                         if (clicked && !isSelected) {
+                            localConfig.setCurrentMode(SplineTool.SplineMode.fromId(modes[i]));
+                            syncConfigToArrays();
                             updateToolConfig(SplineTool.CONFIG_KEY_MODE, modes[i]);
                         }
                         if (ImGui.isItemHovered()) {
@@ -204,9 +206,9 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                     tensionArray, 0.0f, 1.0f, "%.2f", currentTheme, 
                     key -> updateToolConfig(key, String.valueOf(tensionArray[0])));
             } else {
-                // 控制多边形模式使用内置默认平滑度，无独立参数
-                ImGui.alignTextToFramePadding();
-                ImGui.text("使用默认平滑度");
+//                // 控制多边形模式使用内置默认平滑度，无独立参数
+//                ImGui.alignTextToFramePadding();
+//                ImGui.text("使用默认平滑度");
             }
             height += ImGui.getFrameHeightWithSpacing();
             // "采样段数"始终显示
@@ -226,10 +228,10 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
 
     @Override
     public void initialize() {
-        // 初始化本地状态为默认值，与SplineTool一致
+        // 先初始化默认值，再主动从当前激活工具同步，避免事件时序导致模式显示不一致
         localConfig.reset();
         syncConfigToArrays();
-        // 纯事件驱动，不再需要主动同步
+        syncFromToolActivation();
         LOGGER.debug("初始化样条曲线工具选项: 配置={}", localConfig);
     }
 
