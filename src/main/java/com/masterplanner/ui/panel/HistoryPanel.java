@@ -11,6 +11,7 @@ import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.*;
 
+import java.util.Date;
 import java.util.List;
 
 public class HistoryPanel implements UIComponent {
@@ -65,8 +66,10 @@ public class HistoryPanel implements UIComponent {
                     }
                     
                     // 显示命令名称和时间戳
-                    String timestamp = new java.text.SimpleDateFormat("HH:mm:ss")
-                        .format(cmd.getTimestamp());
+                    Date recordedAt = commandHistory.getTimestampAt(i);
+                    String timestamp = recordedAt == null
+                        ? "--:--:--"
+                        : new java.text.SimpleDateFormat("HH:mm:ss").format(recordedAt);
                     String label = String.format("%s (%s)##%d", cmd.getDescription(), timestamp, i);
                     
                     if (ImGui.selectable(label, isCurrent)) {

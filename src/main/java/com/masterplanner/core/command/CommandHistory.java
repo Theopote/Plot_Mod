@@ -1,6 +1,7 @@
 package com.masterplanner.core.command;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ public class CommandHistory {
     private static volatile CommandHistory INSTANCE;
     
     private final List<Command> commands = new ArrayList<>();
+    private final List<Date> commandTimestamps = new ArrayList<>();
     private int currentIndex = -1;
     private static final int MAX_HISTORY = 50;  // 最大历史记录数
     
@@ -40,6 +42,7 @@ public class CommandHistory {
             // 如果当前不是在最新状态，清除当前位置之后的所有命令
             if (currentIndex < commands.size() - 1) {
                 commands.subList(currentIndex + 1, commands.size()).clear();
+                commandTimestamps.subList(currentIndex + 1, commandTimestamps.size()).clear();
             }
             
             // 执行命令
@@ -47,11 +50,13 @@ public class CommandHistory {
             
             // 添加到历史记录
             commands.add(command);
+            commandTimestamps.add(new Date());
             currentIndex++;
             
             // 如果超出最大历史记录数，移除最早的记录
             if (commands.size() > MAX_HISTORY) {
                 commands.removeFirst();
+                commandTimestamps.removeFirst();
                 currentIndex--;
             }
             
@@ -113,6 +118,7 @@ public class CommandHistory {
      */
     public void clear() {
         commands.clear();
+        commandTimestamps.clear();
         currentIndex = -1;
         LOGGER.debug("Cleared command history");
     }
@@ -130,6 +136,16 @@ public class CommandHistory {
      */
     public List<Command> getHistory() {
         return new ArrayList<>(commands);  // 返回副本以防止外部修改
+    }
+
+    /**
+     * 获取指定历史项的记录时间
+     */
+    public Date getTimestampAt(int index) {
+        if (index < 0 || index >= commandTimestamps.size()) {
+            return null;
+        }
+        return new Date(commandTimestamps.get(index).getTime());
     }
     
     /**
