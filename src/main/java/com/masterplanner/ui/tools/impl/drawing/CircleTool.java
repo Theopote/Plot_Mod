@@ -571,8 +571,7 @@ public class CircleTool extends DrawingTool {
             LOGGER.warn("CircleTool: 获取预览颜色失败: {}", e.getMessage());
         }
         
-        // 默认颜色：红色半透明
-        return new Color(255, 0, 0, 200);
+        return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
     }
 
     // 统一使用 SnapEnhancer 提供的增强捕捉与可视化
@@ -706,6 +705,10 @@ public class CircleTool extends DrawingTool {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
     
     /**

@@ -15,6 +15,7 @@ import com.masterplanner.infrastructure.event.base.Event;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import org.slf4j.Logger;
@@ -190,7 +191,8 @@ public class LineTool extends DrawingTool {
         try {
             // 修复：使用StyleHandler统一管理样式，确保颜色一致性
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
-            Color lineColor = previewStyle != null ? previewStyle.getLineColor() : Color.RED;
+                Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
+                    toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
 
             // 修复：对于多线模式，需要特殊处理预览渲染
             if (MODE_MULTI.equals(currentDrawingType)) {
@@ -325,7 +327,7 @@ public class LineTool extends DrawingTool {
     }
 
     private int getColor() {
-        Color previewColor = Color.RED; // 默认红色
+        Color previewColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
 
         if (getStyleHandler() != null) {
             ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
@@ -339,6 +341,10 @@ public class LineTool extends DrawingTool {
                         (previewColor.getBlue() << 16) |
                         (previewColor.getGreen() << 8) |
                         previewColor.getRed();
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 
     // ====== 辅助方法 ======

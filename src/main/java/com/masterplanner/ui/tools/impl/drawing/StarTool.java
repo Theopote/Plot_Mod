@@ -351,7 +351,7 @@ public class StarTool extends DrawingTool {
     private void renderStarPreview(ImDrawList drawList, CanvasCamera camera, Polygon star, List<Vec2d> interactionPoints) {
         var theme = ThemeManager.getInstance().getCurrentTheme();
         ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
-        Color lineColor = previewStyle != null ? previewStyle.getLineColor() : Color.YELLOW;
+        Color lineColor = previewStyle != null ? previewStyle.getLineColor() : toColor(theme.accent, 255);
         int imguiColor = ImColor.rgba(lineColor.getRed(), lineColor.getGreen(), lineColor.getBlue(), lineColor.getAlpha());
 
         List<Vec2d> vertices = star.getPoints();
@@ -394,6 +394,10 @@ public class StarTool extends DrawingTool {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 
     @Override

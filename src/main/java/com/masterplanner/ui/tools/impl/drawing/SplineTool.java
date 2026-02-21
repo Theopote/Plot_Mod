@@ -610,19 +610,19 @@ public class SplineTool extends DrawingTool {
         try {
             if (getStyleHandler() == null) {
                 LOGGER.warn("SplineTool: StyleHandler 为 null");
-                return new java.awt.Color(0, 100, 255, 200);
+                return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
             }
             
             com.masterplanner.core.graphics.style.ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
             if (previewStyle == null) {
                 LOGGER.warn("SplineTool: 预览样式为 null");
-                return new java.awt.Color(0, 100, 255, 200);
+                return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
             }
             
             java.awt.Color layerColor = previewStyle.getLineColor();
             if (layerColor == null) {
                 LOGGER.warn("SplineTool: 图层颜色为 null");
-                return new java.awt.Color(0, 100, 255, 200);
+                return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
             }
             
             LOGGER.debug("SplineTool: 获取到图层颜色: RGB({}, {}, {}), Alpha: {}", 
@@ -638,16 +638,15 @@ public class SplineTool extends DrawingTool {
         } catch (Exception e) {
             LOGGER.error("SplineTool: 获取预览颜色失败: {}", e.getMessage(), e);
         }
-        
-        // 默认颜色：蓝色半透明
-        return new java.awt.Color(0, 100, 255, 200);
+
+        return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
     }
     
     /**
      * 获取预览颜色（ImGui格式，参考 LineTool 的实现）
      */
     private int getPreviewColorInt() {
-        java.awt.Color previewColor = java.awt.Color.RED; // 默认红色
+        java.awt.Color previewColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
 
         if (getStyleHandler() != null) {
             com.masterplanner.core.graphics.style.ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
@@ -724,6 +723,10 @@ public class SplineTool extends DrawingTool {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static java.awt.Color toColor(int color, int alpha) {
+        return new java.awt.Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
     
     // ====== 自定义交互策略 (修正后) ======

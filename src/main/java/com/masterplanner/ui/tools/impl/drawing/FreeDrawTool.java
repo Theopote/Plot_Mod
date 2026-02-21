@@ -9,6 +9,7 @@ import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
@@ -279,7 +280,8 @@ public class FreeDrawTool extends DrawingTool {
         
         // 使用预览样式渲染
         ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
-        Color lineColor = previewStyle != null ? previewStyle.getLineColor() : Color.YELLOW;
+        Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
+            toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
         
         // 绘制路径
         for (int i = 0; i < currentPath.size() - 1; i++) {
@@ -297,7 +299,8 @@ public class FreeDrawTool extends DrawingTool {
         
         // 使用预览样式渲染
         ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
-        Color lineColor = previewStyle != null ? previewStyle.getLineColor() : Color.YELLOW;
+        Color lineColor = previewStyle != null ? previewStyle.getLineColor() :
+            toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
         int imguiColor = ImColor.rgba(lineColor.getRed(), lineColor.getGreen(), 
                                     lineColor.getBlue(), lineColor.getAlpha());
         
@@ -328,6 +331,10 @@ public class FreeDrawTool extends DrawingTool {
      */
     private void handleToolConfig(ToolConfigEvent event) {
                         updateConfig(event.getOptionName(), String.valueOf(event.getValue()));
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 
     @Override

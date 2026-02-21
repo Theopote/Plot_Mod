@@ -860,8 +860,11 @@ public class SemicircleTool extends DrawingTool {
             LOGGER.warn("SemicircleTool: 获取预览颜色失败: {}", e.getMessage());
         }
 
-        // 默认颜色：白色半透明
-        return new java.awt.Color(255, 255, 255, 200);
+        return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
+    }
+
+    private static java.awt.Color toColor(int color, int alpha) {
+        return new java.awt.Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 
     /**

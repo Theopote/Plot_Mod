@@ -619,9 +619,8 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
         } catch (Exception e) {
             LOGGER.warn("EllipseTool: 获取预览颜色失败: {}", e.getMessage());
         }
-        
-        // 默认颜色：白色半透明
-        return new Color(255, 255, 255, 200);
+
+        return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
     }
     
     /**
