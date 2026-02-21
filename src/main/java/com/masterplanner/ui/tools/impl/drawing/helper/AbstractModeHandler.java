@@ -169,9 +169,8 @@ public abstract class AbstractModeHandler implements IModeHandler {
      */
     protected void notifyPreviewUpdate(DrawingToolContext context) {
         try {
-            // 通过上下文接口通知工具更新预览
-            // 这是一个更安全的方法，不依赖反射
-            context.updateStatusMessage("预览已更新");
+            // 刷新为当前模式的状态提示，避免“预览已更新”覆盖实际操作引导
+            context.updateStatusMessage(getStatusMessage());
             LOGGER.debug("已通知工具更新预览");
         } catch (Exception e) {
             LOGGER.warn("无法通知工具更新预览: {}", e.getMessage());
