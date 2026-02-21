@@ -10,6 +10,7 @@ import com.masterplanner.core.model.Shape;
 
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.masterplanner.ui.tools.impl.drawing.config.SplineConfig;
 import com.masterplanner.ui.tools.impl.drawing.strategy.ISplineGenerationStrategy;
@@ -551,9 +552,10 @@ public class SplineTool extends DrawingTool {
      * 渲染控制点（ImGui版本）
      */
     private void renderControlPointsImGui(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         for (int i = 0; i < controlPoints.size(); i++) {
             Vec2d screenPoint = camera.worldToScreen(controlPoints.get(i));
-            int color = (i == selectedPointIndex) ? SELECTED_POINT_COLOR_IMGUI : CONTROL_POINT_COLOR_IMGUI;
+            int color = (i == selectedPointIndex) ? theme.errorText : theme.infoText;
             float size = (float) ((i == selectedPointIndex) ? SELECTED_POINT_SIZE : POINT_SIZE);
             
             drawList.addCircleFilled(
@@ -564,7 +566,7 @@ public class SplineTool extends DrawingTool {
             // 绘制点的索引
             drawList.addText(
                 (float) (screenPoint.x + TEXT_OFFSET_X), (float) (screenPoint.y - TEXT_OFFSET_Y),
-                INFO_TEXT_COLOR_IMGUI, String.valueOf(i + 1)
+                theme.text, String.valueOf(i + 1)
             );
         }
         
@@ -573,7 +575,7 @@ public class SplineTool extends DrawingTool {
             Vec2d screenPoint = camera.worldToScreen(currentMousePoint);
             drawList.addCircleFilled(
                 (float) screenPoint.x, (float) screenPoint.y,
-                (float) CURRENT_MOUSE_SIZE, CURRENT_MOUSE_COLOR_IMGUI
+                (float) CURRENT_MOUSE_SIZE, theme.warningText
             );
         }
     }
@@ -671,6 +673,8 @@ public class SplineTool extends DrawingTool {
      * 绘制虚线
      */
     private void drawDashedLine(ImDrawList drawList, Vec2d start, Vec2d end) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int helperLineColor = withAlpha(theme.mutedText, 0x90);
         float dashLength = 8.0f;  // 虚线段长度
         float gapLength = 4.0f;   // 虚线间隙长度
         
@@ -693,7 +697,7 @@ public class SplineTool extends DrawingTool {
                 double x2 = start.x + nextPos * unitX;
                 double y2 = start.y + nextPos * unitY;
                 
-                drawList.addLine((float) x1, (float) y1, (float) x2, (float) y2, SplineTool.HELPER_LINE_COLOR_IMGUI, (float) HELPER_LINE_THICKNESS);
+                drawList.addLine((float) x1, (float) y1, (float) x2, (float) y2, helperLineColor, (float) HELPER_LINE_THICKNESS);
             }
             
             currentPos = nextPos;
@@ -705,6 +709,7 @@ public class SplineTool extends DrawingTool {
      * 渲染参数信息（ImGui版本）
      */
     private void renderParameterInfoImGui(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         if (!controlPoints.isEmpty()) {
             Vec2d lastScreenPoint = camera.worldToScreen(controlPoints.getLast());
             String info = buildTooltipMessage();
@@ -712,9 +717,13 @@ public class SplineTool extends DrawingTool {
             drawList.addText(
                 (float) (lastScreenPoint.x + TEXT_OFFSET_X), 
                 (float) (lastScreenPoint.y - TEXT_OFFSET_Y),
-                INFO_TEXT_COLOR_IMGUI, info
+                theme.text, info
             );
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
     
     // ====== 自定义交互策略 (修正后) ======
