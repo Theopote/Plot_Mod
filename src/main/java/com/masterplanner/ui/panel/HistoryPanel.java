@@ -2,6 +2,9 @@ package com.masterplanner.ui.panel;
 
 import com.masterplanner.core.command.Command;
 import com.masterplanner.core.command.CommandHistory;
+import com.masterplanner.infrastructure.event.EventBus;
+import com.masterplanner.infrastructure.event.command.RedoEvent;
+import com.masterplanner.infrastructure.event.command.UndoEvent;
 import com.masterplanner.ui.component.UIComponent;
 import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
@@ -13,9 +16,11 @@ import java.util.List;
 public class HistoryPanel implements UIComponent {
     private static final int MAX_HISTORY_ITEMS = 30;
     private final CommandHistory commandHistory;
+    private final EventBus eventBus;
 
     public HistoryPanel(CommandHistory commandHistory) {
         this.commandHistory = commandHistory;
+        this.eventBus = EventBus.getInstance();
     }
 
     @Override
@@ -69,11 +74,11 @@ public class HistoryPanel implements UIComponent {
                         int steps = i - currentIndex;
                         if (steps > 0) {
                             for (int j = 0; j < steps; j++) {
-                                commandHistory.redo();
+                                eventBus.publish(new RedoEvent("HistoryPanel"));
                             }
                         } else if (steps < 0) {
                             for (int j = 0; j < -steps; j++) {
-                                commandHistory.undo();
+                                eventBus.publish(new UndoEvent("HistoryPanel"));
                             }
                         }
                     }

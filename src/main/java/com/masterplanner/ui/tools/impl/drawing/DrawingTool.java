@@ -1,6 +1,7 @@
 package com.masterplanner.ui.tools.impl.drawing;
 
 import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.tool.BaseTool;
 import com.masterplanner.core.graphics.DrawContext;
@@ -22,6 +23,8 @@ import com.masterplanner.ui.canvas.Canvas;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 // 导入策略模式相关类
@@ -399,7 +402,9 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     private void commitShapeToAppState(Shape shape) {
         try {
             if (appState instanceof com.masterplanner.core.state.AppState) {
-                ((com.masterplanner.core.state.AppState) appState).addShape(shape);
+                com.masterplanner.core.state.AppState concreteAppState = (com.masterplanner.core.state.AppState) appState;
+                ModifyCommand command = new ModifyCommand(Collections.emptyList(), new ArrayList<>(List.of(shape)), concreteAppState);
+                concreteAppState.getCommandHistory().execute(command);
                 LOGGER.debug("工具 [{}] 成功提交图形 [{}] 到AppState", toolId, shape.getId());
             } else if (appState != null) {
                 // 尝试使用反射调用addShape方法（兼容性处理）

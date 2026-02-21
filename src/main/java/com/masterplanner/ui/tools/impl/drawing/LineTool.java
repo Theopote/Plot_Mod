@@ -5,6 +5,7 @@ import com.masterplanner.api.render.IRenderVisitor;
 import com.masterplanner.api.state.IAppState;
 import com.masterplanner.api.snap.ISnapManager;
 import com.masterplanner.api.graphics.IShapeStyle;
+import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.geometry.shapes.LineShape;
 import com.masterplanner.core.geometry.AffineTransform;
 import com.masterplanner.core.graphics.DrawContext;
@@ -657,10 +658,14 @@ public class LineTool extends DrawingTool {
                         LOGGER.warn("LineTool: 为子线应用样式失败，继续提交其他线: {}", e.getMessage());
                     }
 
-                    // 提交到 AppState（与 DrawingTool.commitShapeToAppState 保持一致的兼容行为）
-                    if (appState instanceof com.masterplanner.core.state.AppState) {
-                        ((com.masterplanner.core.state.AppState) appState).addShape(line);
-                    } else if (appState != null) {
+                }
+
+                if (appState instanceof com.masterplanner.core.state.AppState concreteAppState) {
+                    ModifyCommand command = new ModifyCommand(new ArrayList<>(), new ArrayList<>(lines), concreteAppState);
+                    concreteAppState.getCommandHistory().execute(command);
+                } else if (appState != null) {
+                    for (LineShape line : lines) {
+                        if (line == null) continue;
                         try {
                             java.lang.reflect.Method addShapeMethod = appState.getClass()
                                 .getMethod("addShape", com.masterplanner.core.model.Shape.class);
@@ -669,10 +674,10 @@ public class LineTool extends DrawingTool {
                             LOGGER.error("LineTool: 通过反射提交子线失败: {}", reflectionEx.getMessage(), reflectionEx);
                             throw new RuntimeException("无法提交子线到AppState", reflectionEx);
                         }
-                    } else {
-                        LOGGER.error("LineTool: 提交子线失败，appState 为 null");
-                        throw new IllegalStateException("AppState 不可用");
                     }
+                } else {
+                    LOGGER.error("LineTool: 提交子线失败，appState 为 null");
+                    throw new IllegalStateException("AppState 不可用");
                 }
 
                 // 所有子线提交完成后统一重置状态

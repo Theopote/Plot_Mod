@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -426,7 +427,8 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             }
 
             if (appState instanceof com.masterplanner.core.state.AppState appStateImpl) {
-                appStateImpl.addShape(annotationShape);
+                ModifyCommand command = new ModifyCommand(Collections.emptyList(), new ArrayList<>(List.of(annotationShape)), appStateImpl);
+                context.executeModifyCommand(command);
                 LOGGER.debug("{}图形已添加到画布", annotationTypeName);
                 return;
             }

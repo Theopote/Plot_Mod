@@ -87,7 +87,7 @@ public class CommandHistory {
         try {
             currentIndex++;
             Command command = commands.get(currentIndex);
-            command.execute();
+            command.redo();
             LOGGER.debug("Redid command: {}", command.getDescription());
         } catch (Exception e) {
             LOGGER.error("Failed to redo command at index {}", currentIndex + 1, e);

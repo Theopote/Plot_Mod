@@ -4,6 +4,8 @@ import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.api.model.ICanvas;
 import com.masterplanner.api.model.ILayer;
 import com.masterplanner.api.graphics.IShapeStyle;
+import com.masterplanner.core.command.commands.ModifyCommand;
+import com.masterplanner.core.command.commands.TextEditCommand;
 import com.masterplanner.core.geometry.shapes.TextShape;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.graphics.style.ShapeStyle;
@@ -22,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,6 +98,7 @@ public class TextTool extends BaseTool {
     private final ICanvas canvas;
     private final Component parentComponent; // 父组件引用，提高健壮性
     private TextShape activeText;
+    private String editingOriginalText;
     private ToolState currentState; // 使用枚举替代多个布尔值
     private String pendingText;
     private TextShape previewText;
@@ -794,6 +798,7 @@ public class TextTool extends BaseTool {
         selectText(textId);
         if (activeText != null) {
             // 保存原始文字用于取消编辑
+            editingOriginalText = activeText.getText();
             activeText.saveOriginalText();
             
             currentState = ToolState.EDITING;
@@ -806,13 +811,10 @@ public class TextTool extends BaseTool {
         if (activeText != null) {
             String text = activeText.getText().trim();
             if (text.isEmpty()) {
-                // 如果文字为空，删除形状
-                ILayer owningLayer = findOwningLayer(activeText);
-                if (owningLayer != null) {
-                    owningLayer.removeShape(activeText);
-                    removeFromSpatialIndex(activeText);
-                    LogManager.getInstance().info("TextTool: 删除空文字");
-                }
+                executeShapeReplaceCommand(List.of(activeText), List.of(), "删除空文字");
+            } else if (editingOriginalText != null && !editingOriginalText.equals(activeText.getText())) {
+                appState.getCommandHistory().execute(new TextEditCommand(activeText, editingOriginalText, activeText.getText()));
+                LogManager.getInstance().info("TextTool: 完成编辑文字: {}", text);
             } else {
                 LogManager.getInstance().info("TextTool: 完成编辑文字: {}", text);
             }
@@ -879,6 +881,7 @@ public class TextTool extends BaseTool {
     private void resetToIdle() {
         currentState = ToolState.IDLE;
         activeText = null;
+        editingOriginalText = null;
         previewText = null;
         pendingText = null;
         pendingTextStyle = null;
@@ -924,20 +927,9 @@ public class TextTool extends BaseTool {
         
         List<com.masterplanner.core.model.Shape> graphics = activeText.convertToGraphics();
         if (!graphics.isEmpty()) {
-            ILayer owningLayer = findOwningLayer(activeText);
-            if (owningLayer != null) {
-                // 移除原文字
-                owningLayer.removeShape(activeText);
-                removeFromSpatialIndex(activeText);
-                
-                // 添加转换后的图形
-                for (com.masterplanner.core.model.Shape graphic : graphics) {
-                    owningLayer.addShape(graphic);
-                }
-                
-                LogManager.getInstance().info("TextTool: 文字已转换为 {} 个图形", graphics.size());
-                canvas.refresh();
-            }
+            executeShapeReplaceCommand(List.of(activeText), graphics, "文字转换为图形");
+            LogManager.getInstance().info("TextTool: 文字已转换为 {} 个图形", graphics.size());
+            canvas.refresh();
         }
     }
 
@@ -996,9 +988,8 @@ public class TextTool extends BaseTool {
                             }
                         }
                         
-                        // 通过AppState添加图形，确保完整的业务逻辑
-                        appState.addShape(graphic);
                     }
+                    executeShapeReplaceCommand(List.of(), graphics, "文字创建图形");
                     
                     LogManager.getInstance().info("TextTool: 文字已转换为 {} 个图形并添加到画布", graphics.size());
                     
@@ -1016,6 +1007,18 @@ public class TextTool extends BaseTool {
         } else {
             // 如果不是TextShape，使用父类的默认行为
             super.commit();
+        }
+    }
+
+    private void executeShapeReplaceCommand(List<com.masterplanner.core.model.Shape> oldShapes,
+                                            List<com.masterplanner.core.model.Shape> newShapes,
+                                            String actionName) {
+        try {
+            ModifyCommand command = new ModifyCommand(new ArrayList<>(oldShapes), new ArrayList<>(newShapes), appState);
+            appState.getCommandHistory().execute(command);
+            LogManager.getInstance().debug("TextTool: 命令已执行 - {}", actionName);
+        } catch (Exception e) {
+            LogManager.getInstance().error("TextTool: 执行命令失败 - {}", actionName, e);
         }
     }
 
