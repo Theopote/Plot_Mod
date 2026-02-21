@@ -42,7 +42,7 @@ public class ViewToolsGroup extends AbstractToolbarGroup {
             
             // 处理相机按钮的悬停提示和右键点击
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(isOrtho ? 
+                ToolbarUIUtils.renderThemedTooltip(isOrtho ? 
                     "左键：切换到透视相机\n右键：设置正交相机参数" :
                     "左键：切换到正交相机\n右键：设置正交相机参数");
                 
@@ -65,7 +65,7 @@ public class ViewToolsGroup extends AbstractToolbarGroup {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(isLocked ? "解除视图锁定" : "锁定视图");
+                ToolbarUIUtils.renderThemedTooltip(isLocked ? "解除视图锁定" : "锁定视图");
             }
             
         } catch (Exception e) {

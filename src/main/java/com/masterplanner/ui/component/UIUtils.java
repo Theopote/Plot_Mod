@@ -124,7 +124,9 @@ public class UIUtils {
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
             
             // 设置提示文字样式
-            ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.panelBackground);  // 使用面板背景色
+            ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.tooltipBackground);
+            ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.tooltipText);
+            ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
             
             // 设置按钮样式
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
@@ -145,7 +147,7 @@ public class UIUtils {
             LOGGER.error("Error rendering image button for {}: {}", icon, e.getMessage());
         } finally {
             ImGui.popStyleVar(2);
-            ImGui.popStyleColor(5);  // 增加了一个颜色设置
+            ImGui.popStyleColor(7);
         }
         
         return clicked;

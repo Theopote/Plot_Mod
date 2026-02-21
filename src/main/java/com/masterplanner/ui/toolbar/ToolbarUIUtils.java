@@ -303,6 +303,21 @@ public class ToolbarUIUtils {
                 UILayout.Toolbar.SEPARATOR_WIDTH
         );
     }
+
+    /**
+     * 渲染工具栏统一主题提示
+     */
+    public static void renderThemedTooltip(String tooltip) {
+        if (tooltip == null || tooltip.isEmpty()) {
+            return;
+        }
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
+        ImGui.setTooltip(tooltip);
+        ImGui.popStyleColor(3);
+    }
     
     /**
      * 函数式接口用于处理浮点值变化

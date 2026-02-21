@@ -4,6 +4,7 @@ import com.masterplanner.ui.component.UIComponent;
 import com.masterplanner.ui.component.ControlPanelIcons;
 import com.masterplanner.ui.layout.UILayout;
 import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.toolbar.ToolbarUIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -133,7 +134,7 @@ public class SystemPanel implements UIComponent {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("关闭MasterPlanner");
+            ToolbarUIUtils.renderThemedTooltip("关闭MasterPlanner");
         }
     }
     

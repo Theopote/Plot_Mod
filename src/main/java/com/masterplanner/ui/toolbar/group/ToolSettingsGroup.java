@@ -63,7 +63,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
             if (ImGui.isMouseClicked(1)) {
                 snapManager.toggleSettings();
             }
-            ImGui.setTooltip("左键: 开关吸附\n右键: 吸附设置");
+            ToolbarUIUtils.renderThemedTooltip("左键: 开关吸附\n右键: 吸附设置");
         }
     }
     
@@ -94,7 +94,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
                 LOGGER.debug("网格按钮被右键点击，打开设置窗口");
                 gridManager.toggleSettings();
             }
-            ImGui.setTooltip("左键: 开关网格\n右键: 网格设置");
+            ToolbarUIUtils.renderThemedTooltip("左键: 开关网格\n右键: 网格设置");
         }
     }
     

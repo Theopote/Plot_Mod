@@ -115,7 +115,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                     LOGGER.error("线转方块设置对话框实例为null");
                 }
             }
-            ImGui.setTooltip("左键: 执行线转方块\n右键: 线转方块设置");
+            ToolbarUIUtils.renderThemedTooltip("左键: 执行线转方块\n右键: 线转方块设置");
         }
     }
     
@@ -138,7 +138,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                     LOGGER.error("投影设置对话框实例为null");
                 }
             }
-            ImGui.setTooltip("左键: 执行投影\n右键: 投影设置");
+            ToolbarUIUtils.renderThemedTooltip("左键: 执行投影\n右键: 投影设置");
         }
     }
     
