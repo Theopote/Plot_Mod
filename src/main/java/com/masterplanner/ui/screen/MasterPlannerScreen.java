@@ -749,33 +749,35 @@ public class MasterPlannerScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta, double modifiers) {
-        double actualDelta = delta;
-        
-        // ImGui 捕获时直接返回；GLFW 后端已注入滚轮，避免二次处理
-        if (ImGui.getIO().getWantCaptureMouse()) {
-            return true;
+        // 兼容不同输入映射：滚轮纵向增量可能来自 delta 或 modifiers
+        double actualDelta;
+        if (Math.abs(delta) < 1e-6 && Math.abs(modifiers) >= 1e-6) {
+            actualDelta = modifiers;
+        } else if (Math.abs(modifiers) < 1e-6 && Math.abs(delta) >= 1e-6) {
+            actualDelta = delta;
+        } else {
+            actualDelta = Math.abs(modifiers) > Math.abs(delta) ? modifiers : delta;
         }
 
-        // 面板区域内禁止下发给工具，避免 UI 滚动与工具滚轮竞争导致回弹
-        float displayWidth = ImGui.getIO().getDisplaySizeX();
-        float rightPanelX = UILayout.getRightPanelX(displayWidth);
-        float leftPanelMaxX = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
-        if (mouseX <= leftPanelMaxX || mouseX >= rightPanelX) {
-            return true;
-        }
+        // 基于 ImGui 实时捕获状态决定滚轮归属，避免 Dock 尺寸变化时坐标硬编码误判
+        boolean imguiCapturingMouse = ImGui.getIO().getWantCaptureMouse();
 
         BaseTool activeTool = appState.getCurrentTool();
-        
-        if (activeTool != null) {
+
+        if (!imguiCapturingMouse && activeTool != null) {
             // 转换为Vec2d坐标
             Vec2d mousePos = new Vec2d(mouseX, mouseY);
-            
+
             // 尝试让工具处理鼠标滚轮事件，使用actualDelta
             boolean handled = activeTool.onMouseWheel(mousePos, actualDelta);
-            
+
             if (handled) {
                 return true;
             }
+        }
+
+        if (imguiCapturingMouse) {
+            return true;
         }
 
         return super.mouseScrolled(mouseX, mouseY, delta, modifiers);
