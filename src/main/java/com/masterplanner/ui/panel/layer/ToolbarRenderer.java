@@ -239,7 +239,7 @@ public class ToolbarRenderer {
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
         }
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, theme.toolbarControlRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         
         if (disabled) {
