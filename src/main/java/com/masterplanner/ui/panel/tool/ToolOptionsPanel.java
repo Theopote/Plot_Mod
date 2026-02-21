@@ -26,7 +26,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     // 界面布局常量
     private static final float LABEL_WIDTH = 60.0f;         // 标签文本宽度
     private static final float PANEL_PADDING = 4.0f;        // 面板内边距
-    private static final float MIN_PANEL_HEIGHT = 120.0f;   // 面板最小高度
+    private static final float MIN_PANEL_HEIGHT = 1.0f;     // 面板最小高度
 
     // 核心组件引用
     private final AppState appState;    // 应用状态管理器
@@ -230,9 +230,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 MIN_PANEL_HEIGHT,
                 (contentEndY - contentStartY) + PANEL_PADDING * 2
             );
-            float previousHeight = toolPanelHeightCache.getOrDefault(toolType, measuredContentHeight);
-            // 同一工具内高度采用“只增不减”策略，避免点击时状态文案变化引起面板闪烁
-            toolPanelHeightCache.put(toolType, Math.max(previousHeight, measuredContentHeight));
+            // 每帧按真实内容高度回写，确保所有工具都严格自适应
+            toolPanelHeightCache.put(toolType, measuredContentHeight);
         }
         ImGui.endChild();
         ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding(4,4)
