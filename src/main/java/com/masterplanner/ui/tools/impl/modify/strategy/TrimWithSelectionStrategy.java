@@ -75,6 +75,24 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         public String getDescription() { return description; }
     }
 
+    public enum FenceType {
+        POLYLINE("Polyline"),
+        RECTANGLE("矩形"),
+        CIRCLE("圆形"),
+        ELLIPSE("椭圆"),
+        REGULAR_POLYGON("正多边形");
+
+        private final String displayName;
+
+        FenceType(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+
     // 修剪状态枚举
     public enum TrimState {
         // 边界修剪状态
@@ -192,6 +210,8 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     private boolean previewEnabled = true;
     private boolean highlightEnabled = true;
     private boolean continuousMode = false;
+    private FenceType fenceType = FenceType.POLYLINE;
+    private int fencePolygonSides = 6;
 
     // 当前修剪类型和状态
     private TrimType trimType = TrimType.BOUNDARY;
@@ -204,6 +224,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     // 栅栏修剪模式的状态
     private List<Shape> targetShapes = new ArrayList<>(); // 要修剪的目标图形
     private final List<Vec2d> fencePoints = new ArrayList<>(); // 栅栏点
+    private Vec2d fenceAnchorPoint; // 参数化栅栏第一点
     private Vec2d currentMousePoint; // 当前鼠标位置
 
     // 修剪处理器和命令
@@ -299,6 +320,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     LOGGER.debug("完成目标图形选择，进入持续模式");
                 } else {
                     fencePoints.clear();
+                    fenceAnchorPoint = null;
                     trimState = TrimState.DRAWING_FENCE;
                     context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，开始绘制栅栏");
                     LOGGER.debug("完成目标图形选择，进入单次栅栏绘制模式");
@@ -395,6 +417,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             case FENCE_READY -> {
                 // 栅栏修剪持续模式：开始绘制栅栏
                 fencePoints.clear();
+                fenceAnchorPoint = null;
                 trimState = TrimState.DRAWING_FENCE;
                 context.setStatusMessage("开始绘制栅栏区域，左键添加点，右键完成");
                 LOGGER.debug("从持续模式开始绘制栅栏");
@@ -412,6 +435,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private ModifyResult addFencePoint(Vec2d pos, ModifyToolContext context) {
         try {
+            if (fenceType != FenceType.POLYLINE) {
+                return addParametricFencePoint(pos, context);
+            }
+
             if (!fencePoints.isEmpty() && arePointsNear(fencePoints.getLast(), pos)) {
                 return ModifyResult.CONTINUE;
             }
@@ -423,6 +450,27 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             LOGGER.error("添加栅栏点失败: {}", e.getMessage(), e);
             return ModifyResult.CONTINUE;
         }
+    }
+
+    private ModifyResult addParametricFencePoint(Vec2d pos, ModifyToolContext context) {
+        if (fenceAnchorPoint == null || fencePoints.size() > 1) {
+            fenceAnchorPoint = pos;
+            fencePoints.clear();
+            fencePoints.add(pos);
+            context.setStatusMessage("已设置栅栏基点，左键设置第二点，右键完成");
+            return ModifyResult.CONTINUE;
+        }
+
+        List<Vec2d> generated = buildFencePointsByType(fenceAnchorPoint, pos);
+        if (generated.size() < 4) {
+            context.setStatusMessage("栅栏范围过小，请重新设置第二点");
+            return ModifyResult.CONTINUE;
+        }
+
+        fencePoints.clear();
+        fencePoints.addAll(generated);
+        context.setStatusMessage("已生成" + fenceType.getDisplayName() + "栅栏，右键执行修剪（左键可重设）");
+        return ModifyResult.CONTINUE;
     }
     
     /**
@@ -855,6 +903,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         
         // 清除其他状态
         fencePoints.clear();
+        fenceAnchorPoint = null;
         trimClickPoint = null;
         currentMousePoint = null;
         if (highlightedShape != null) {
@@ -1310,18 +1359,20 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      * 渲染栅栏预览
      */
     private void renderFencePreview(DrawContext context) {
+        List<Vec2d> previewPoints = getFencePreviewPoints();
+
         // 渲染栅栏点
-        for (Vec2d point : fencePoints) {
+        for (Vec2d point : previewPoints) {
             context.fillCircle(point, 4.0f, new Color(0, 255, 0, 255)); // 绿色圆点
         }
 
         // 渲染栅栏线
-        if (fencePoints.size() >= 2) {
-            renderFence(context);
+        if (previewPoints.size() >= 2) {
+            renderFence(context, previewPoints);
         }
 
         // 渲染当前点（如果正在构建栅栏）
-        if (currentMousePoint != null && !fencePoints.isEmpty()) {
+        if (fenceType == FenceType.POLYLINE && currentMousePoint != null && !fencePoints.isEmpty()) {
             Vec2d lastPoint = fencePoints.getLast();
             context.drawLine(lastPoint, currentMousePoint, new Color(0, 255, 0, 180)); // 绿色预览线
             context.fillCircle(currentMousePoint, 3.0f, new Color(0, 255, 0, 180)); // 绿色预览点
@@ -1341,8 +1392,10 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private void renderFencePreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            List<Vec2d> previewPoints = getFencePreviewPoints();
+
             // 渲染栅栏点
-            for (Vec2d point : fencePoints) {
+            for (Vec2d point : previewPoints) {
                 Vec2d screenPos = camera.worldToScreen(point);
                 drawList.addCircleFilled(
                     (float) screenPos.x, (float) screenPos.y, 4.0f,
@@ -1350,8 +1403,20 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 );
             }
 
+            if (previewPoints.size() >= 2) {
+                for (int i = 0; i < previewPoints.size() - 1; i++) {
+                    Vec2d start = camera.worldToScreen(previewPoints.get(i));
+                    Vec2d end = camera.worldToScreen(previewPoints.get(i + 1));
+                    drawList.addLine(
+                        (float) start.x, (float) start.y,
+                        (float) end.x, (float) end.y,
+                        0xFF00FF00, 2.0f
+                    );
+                }
+            }
+
             // 渲染当前鼠标预览线
-            if (currentMousePoint != null && !fencePoints.isEmpty()) {
+            if (fenceType == FenceType.POLYLINE && currentMousePoint != null && !fencePoints.isEmpty()) {
                 Vec2d lastPoint = fencePoints.getLast();
                 Vec2d screenLast = camera.worldToScreen(lastPoint);
                 Vec2d screenCurrent = camera.worldToScreen(currentMousePoint);
@@ -1376,7 +1441,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      * 渲染栅栏
      */
     private void renderFence(DrawContext context) {
-        if (fencePoints.size() < 2) {
+        renderFence(context, fencePoints);
+    }
+
+    private void renderFence(DrawContext context, List<Vec2d> points) {
+        if (points == null || points.size() < 2) {
             return;
         }
 
@@ -1384,9 +1453,9 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         Color fenceColor = new Color(0, 255, 0, 200); // 绿色半透明
         context.setLineWidth(2.0f);
         
-        for (int i = 0; i < fencePoints.size() - 1; i++) {
-            Vec2d start = fencePoints.get(i);
-            Vec2d end = fencePoints.get(i + 1);
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d start = points.get(i);
+            Vec2d end = points.get(i + 1);
             context.drawLine(start, end, fenceColor);
         }
         
@@ -1436,6 +1505,143 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
     public void setContinuousMode(boolean enabled) {
         this.continuousMode = enabled;
         LOGGER.debug("连续模式已设置为: {}", enabled);
+    }
+
+    public FenceType getFenceType() {
+        return fenceType;
+    }
+
+    public void setFenceType(FenceType fenceType) {
+        if (fenceType == null) {
+            return;
+        }
+        this.fenceType = fenceType;
+        this.fencePoints.clear();
+        this.fenceAnchorPoint = null;
+        LOGGER.debug("栅栏类型已设置为: {}", fenceType);
+    }
+
+    public int getFencePolygonSides() {
+        return fencePolygonSides;
+    }
+
+    public void setFencePolygonSides(int sides) {
+        this.fencePolygonSides = Math.max(3, Math.min(24, sides));
+        LOGGER.debug("栅栏正多边形边数已设置为: {}", this.fencePolygonSides);
+    }
+
+    private List<Vec2d> getFencePreviewPoints() {
+        if (fenceType == FenceType.POLYLINE) {
+            return new ArrayList<>(fencePoints);
+        }
+
+        if (fencePoints.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        if (fencePoints.size() == 1 && currentMousePoint != null) {
+            return buildFencePointsByType(fencePoints.getFirst(), currentMousePoint);
+        }
+
+        return new ArrayList<>(fencePoints);
+    }
+
+    private List<Vec2d> buildFencePointsByType(Vec2d anchor, Vec2d reference) {
+        return switch (fenceType) {
+            case RECTANGLE -> buildRectangleFence(anchor, reference);
+            case CIRCLE -> buildCircleFence(anchor, reference);
+            case ELLIPSE -> buildEllipseFence(anchor, reference);
+            case REGULAR_POLYGON -> buildRegularPolygonFence(anchor, reference, fencePolygonSides);
+            case POLYLINE -> new ArrayList<>(fencePoints);
+        };
+    }
+
+    private List<Vec2d> buildRectangleFence(Vec2d p1, Vec2d p2) {
+        List<Vec2d> points = new ArrayList<>();
+        double minX = Math.min(p1.x, p2.x);
+        double minY = Math.min(p1.y, p2.y);
+        double maxX = Math.max(p1.x, p2.x);
+        double maxY = Math.max(p1.y, p2.y);
+
+        if (Math.abs(maxX - minX) <= FENCE_POINT_EPSILON || Math.abs(maxY - minY) <= FENCE_POINT_EPSILON) {
+            return points;
+        }
+
+        Vec2d a = new Vec2d(minX, minY);
+        Vec2d b = new Vec2d(maxX, minY);
+        Vec2d c = new Vec2d(maxX, maxY);
+        Vec2d d = new Vec2d(minX, maxY);
+        points.add(a);
+        points.add(b);
+        points.add(c);
+        points.add(d);
+        points.add(a);
+        return points;
+    }
+
+    private List<Vec2d> buildCircleFence(Vec2d center, Vec2d radiusPoint) {
+        List<Vec2d> points = new ArrayList<>();
+        double radius = center.distance(radiusPoint);
+        if (radius <= FENCE_POINT_EPSILON) {
+            return points;
+        }
+
+        int segments = 64;
+        for (int i = 0; i < segments; i++) {
+            double angle = (2.0 * Math.PI * i) / segments;
+            points.add(new Vec2d(
+                center.x + radius * Math.cos(angle),
+                center.y + radius * Math.sin(angle)
+            ));
+        }
+        if (!points.isEmpty()) {
+            points.add(points.getFirst());
+        }
+        return points;
+    }
+
+    private List<Vec2d> buildEllipseFence(Vec2d center, Vec2d axisPoint) {
+        List<Vec2d> points = new ArrayList<>();
+        double radiusX = Math.abs(axisPoint.x - center.x);
+        double radiusY = Math.abs(axisPoint.y - center.y);
+        if (radiusX <= FENCE_POINT_EPSILON || radiusY <= FENCE_POINT_EPSILON) {
+            return points;
+        }
+
+        int segments = 72;
+        for (int i = 0; i < segments; i++) {
+            double angle = (2.0 * Math.PI * i) / segments;
+            points.add(new Vec2d(
+                center.x + radiusX * Math.cos(angle),
+                center.y + radiusY * Math.sin(angle)
+            ));
+        }
+        if (!points.isEmpty()) {
+            points.add(points.getFirst());
+        }
+        return points;
+    }
+
+    private List<Vec2d> buildRegularPolygonFence(Vec2d center, Vec2d vertexPoint, int sides) {
+        List<Vec2d> points = new ArrayList<>();
+        int clampedSides = Math.max(3, Math.min(24, sides));
+        double radius = center.distance(vertexPoint);
+        if (radius <= FENCE_POINT_EPSILON) {
+            return points;
+        }
+
+        double startAngle = Math.atan2(vertexPoint.y - center.y, vertexPoint.x - center.x);
+        for (int i = 0; i < clampedSides; i++) {
+            double angle = startAngle + i * 2.0 * Math.PI / clampedSides;
+            points.add(new Vec2d(
+                center.x + radius * Math.cos(angle),
+                center.y + radius * Math.sin(angle)
+            ));
+        }
+        if (!points.isEmpty()) {
+            points.add(points.getFirst());
+        }
+        return points;
     }
 
 }

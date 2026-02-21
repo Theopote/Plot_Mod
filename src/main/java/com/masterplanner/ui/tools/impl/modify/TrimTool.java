@@ -25,6 +25,8 @@ public class TrimTool extends ModifyTool {
     public static final String CONFIG_KEY_PREVIEW = "preview";
     public static final String CONFIG_KEY_HIGHLIGHT = "highlight";
     public static final String CONFIG_KEY_CONTINUOUS = "continuous";
+    public static final String CONFIG_KEY_FENCE_TYPE = "fence_type";
+    public static final String CONFIG_KEY_FENCE_POLYGON_SIDES = "fence_polygon_sides";
 
     public TrimTool(IAppState appState, ISnapManager snapManager) {
         super("trim", "修剪", Icons.TRIM_IDENTIFIER, "修剪图形",
@@ -153,6 +155,32 @@ public class TrimTool extends ModifyTool {
                     LOGGER.warn("无效的连续模式值: {}，必须是true/false", value);
                 }
             }
+            case CONFIG_KEY_FENCE_TYPE -> {
+                if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
+                    try {
+                        TrimWithSelectionStrategy.FenceType fenceType = TrimWithSelectionStrategy.FenceType.valueOf(value);
+                        trimStrategy.setFenceType(fenceType);
+                        LOGGER.debug("栅栏类型已设置为: {}", fenceType);
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warn("无效的栅栏类型: {}，保持当前配置", value);
+                    }
+                } else {
+                    LOGGER.error("当前策略不是TrimWithSelectionStrategy，无法设置栅栏类型");
+                }
+            }
+            case CONFIG_KEY_FENCE_POLYGON_SIDES -> {
+                if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
+                    try {
+                        int sides = Integer.parseInt(value);
+                        trimStrategy.setFencePolygonSides(sides);
+                        LOGGER.debug("正多边形边数已设置为: {}", sides);
+                    } catch (NumberFormatException e) {
+                        LOGGER.warn("无效的正多边形边数: {}，必须是整数", value);
+                    }
+                } else {
+                    LOGGER.error("当前策略不是TrimWithSelectionStrategy，无法设置正多边形边数");
+                }
+            }
             default -> LOGGER.debug("未知的配置项: {} = {}", key, value);
         }
     }
@@ -198,6 +226,22 @@ public class TrimTool extends ModifyTool {
         }
         LOGGER.warn("当前策略不是TrimWithSelectionStrategy，返回默认容差5.0");
         return 5.0;
+    }
+
+    public TrimWithSelectionStrategy.FenceType getFenceType() {
+        if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
+            return trimStrategy.getFenceType();
+        }
+        LOGGER.warn("当前策略不是TrimWithSelectionStrategy，返回默认POLYLINE");
+        return TrimWithSelectionStrategy.FenceType.POLYLINE;
+    }
+
+    public int getFencePolygonSides() {
+        if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
+            return trimStrategy.getFencePolygonSides();
+        }
+        LOGGER.warn("当前策略不是TrimWithSelectionStrategy，返回默认边数6");
+        return 6;
     }
 
     @Override

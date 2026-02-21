@@ -33,10 +33,20 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
     // 配置键常量
     private static final String CONFIG_KEY_MODE = TrimTool.CONFIG_KEY_MODE;
     private static final String CONFIG_KEY_TOLERANCE = TrimTool.CONFIG_KEY_TOLERANCE;
+    private static final String CONFIG_KEY_FENCE_TYPE = TrimTool.CONFIG_KEY_FENCE_TYPE;
+    private static final String CONFIG_KEY_FENCE_POLYGON_SIDES = TrimTool.CONFIG_KEY_FENCE_POLYGON_SIDES;
     
     // 修剪模式常量
     private static final String TRIM_MODE_BOUNDARY = "BOUNDARY";
     private static final String TRIM_MODE_FENCE = "FENCE";
+    private static final String[] FENCE_TYPE_LABELS = {"Polyline", "矩形", "圆形", "椭圆", "正多边形"};
+    private static final TrimWithSelectionStrategy.FenceType[] FENCE_TYPE_VALUES = {
+        TrimWithSelectionStrategy.FenceType.POLYLINE,
+        TrimWithSelectionStrategy.FenceType.RECTANGLE,
+        TrimWithSelectionStrategy.FenceType.CIRCLE,
+        TrimWithSelectionStrategy.FenceType.ELLIPSE,
+        TrimWithSelectionStrategy.FenceType.REGULAR_POLYGON
+    };
     
     // 图标ID
     private final int boundaryTrimIconId;
@@ -274,8 +284,91 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.textDisabled("(按住Shift连续)");
 
         height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
+
+        if (currentTool.getTrimMode() == TrimWithSelectionStrategy.TrimMode.FENCE) {
+            height += renderFenceTypeOptions(currentTool, currentTheme);
+        }
+
         LOGGER.debug("修剪模式选择渲染完成，高度: {}", height);
         
+        return height;
+    }
+
+    private float renderFenceTypeOptions(TrimTool currentTool, UITheme.ThemeColors currentTheme) {
+        float height = 0.0f;
+
+        ImGui.tableNextRow();
+        ImGui.tableNextColumn();
+        ImGui.alignTextToFramePadding();
+        ImGui.text("栅栏类型");
+
+        ImGui.tableNextColumn();
+        ImGui.pushItemWidth(-1);
+
+        TrimWithSelectionStrategy.FenceType currentType = currentTool.getFenceType();
+        String previewLabel = currentType.getDisplayName();
+
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+
+        if (ImGui.beginCombo("##fence_type", previewLabel)) {
+            for (int i = 0; i < FENCE_TYPE_VALUES.length; i++) {
+                boolean selected = FENCE_TYPE_VALUES[i] == currentType;
+                if (ImGui.selectable(FENCE_TYPE_LABELS[i], selected)) {
+                    updateToolConfig(CONFIG_KEY_FENCE_TYPE, FENCE_TYPE_VALUES[i].name());
+                    LOGGER.debug("栅栏类型切换为: {}", FENCE_TYPE_VALUES[i]);
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("设置栅栏修剪边界类型");
+        }
+
+        ImGui.popStyleVar();
+        ImGui.popStyleColor(4);
+        ImGui.popItemWidth();
+        height += ImGui.getFrameHeightWithSpacing();
+
+        if (currentType == TrimWithSelectionStrategy.FenceType.REGULAR_POLYGON) {
+            ImGui.tableNextRow();
+            ImGui.tableNextColumn();
+            ImGui.alignTextToFramePadding();
+            ImGui.text("边数");
+
+            ImGui.tableNextColumn();
+            int[] sides = { currentTool.getFencePolygonSides() };
+            ImGui.pushItemWidth(-1);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
+            ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
+            ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.frameBorder);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, currentTheme.grabRounding);
+
+            if (ImGui.sliderInt("##fence_polygon_sides", sides, 3, 24)) {
+                updateToolConfig(CONFIG_KEY_FENCE_POLYGON_SIDES, String.valueOf(sides[0]));
+                LOGGER.debug("正多边形边数更新为: {}", sides[0]);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("设置正多边形栅栏的边数");
+            }
+
+            ImGui.popStyleVar(2);
+            ImGui.popStyleColor(6);
+            ImGui.popItemWidth();
+            height += ImGui.getFrameHeightWithSpacing();
+        }
+
         return height;
     }
     
