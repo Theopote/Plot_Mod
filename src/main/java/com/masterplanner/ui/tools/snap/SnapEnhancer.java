@@ -1,6 +1,7 @@
 package com.masterplanner.ui.tools.snap;
 
 import com.masterplanner.api.geometry.Vec2d;
+import com.masterplanner.core.snap.SnapManager;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import imgui.ImColor;
@@ -23,10 +24,6 @@ import java.awt.Color;
  */
 public class SnapEnhancer {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapEnhancer.class);
-    
-    // ====== 视觉常量（统一走 SnapVisualStyle） ======
-    // 不再需要本地环尺寸常量，直接从 SnapVisualStyle 获取
-    private static final float MARKER_SIZE = SnapVisualStyle.MARKER_SIZE;
     
     // ====== 捕捉状态 ======
     private boolean isSnapping = false;
@@ -156,7 +153,7 @@ public class SnapEnhancer {
         
         // 根据捕捉类型使用不同的视觉效果（统一样式）
         Color indicatorColor = SnapVisualStyle.colorFor(currentSnapType);
-        float indicatorSize = SnapVisualStyle.ringSizeFor(currentSnapType);
+        float indicatorSize = SnapVisualStyle.ringSizeFor(currentSnapType) * getMarkerScale();
         
         // 渲染主要的吸附指示器
         context.drawCircle(snapPoint, indicatorSize, indicatorColor);
@@ -177,7 +174,7 @@ public class SnapEnhancer {
         
         // 根据捕捉类型使用不同的颜色和大小（统一样式）
         Color indicatorColor = SnapVisualStyle.colorFor(currentSnapType);
-        float indicatorSize = SnapVisualStyle.ringSizeFor(currentSnapType);
+        float indicatorSize = SnapVisualStyle.ringSizeFor(currentSnapType) * getMarkerScale();
         
         int snapColor = ImColor.rgba(indicatorColor.getRed(), indicatorColor.getGreen(), 
                                    indicatorColor.getBlue(), 200);
@@ -254,7 +251,7 @@ public class SnapEnhancer {
      */
     private void renderSnapTypeIndicator(DrawContext context, Vec2d point, 
                                        com.masterplanner.core.snap.SnapPriorityEvaluator.SnapType snapType) {
-        float size = MARKER_SIZE;
+        float size = SnapVisualStyle.MARKER_SIZE * getMarkerScale();
         Color markerColor = SnapVisualStyle.colorFor(snapType);
         switch (snapType) {
             case END_POINT -> context.drawCircleFilled(point, size, markerColor);
@@ -298,7 +295,7 @@ public class SnapEnhancer {
         Vec2d screenPoint = camera.worldToScreen(point);
         float x = (float) screenPoint.x;
         float y = (float) screenPoint.y;
-        float size = MARKER_SIZE;
+        float size = SnapVisualStyle.MARKER_SIZE * getMarkerScale();
         
         switch (snapType) {
             case END_POINT -> {
@@ -345,6 +342,16 @@ public class SnapEnhancer {
                 int color = ImColor.rgba(255, 255, 0, 255);
                 drawList.addCircleFilled(x, y, size * 0.4f, color);
             }
+        }
+    }
+
+    private float getMarkerScale() {
+        try {
+            float configured = SnapManager.getInstance().getMarkerSize();
+            float scale = configured / 5.0f;
+            return Math.max(0.8f, Math.min(2.0f, scale));
+        } catch (Exception ignored) {
+            return 1.0f;
         }
     }
     

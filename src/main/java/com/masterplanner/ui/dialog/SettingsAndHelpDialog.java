@@ -1,8 +1,10 @@
 package com.masterplanner.ui.dialog;
 import com.masterplanner.core.snap.SnapManager;
+import com.masterplanner.core.snap.SnapPriorityEvaluator;
 import com.masterplanner.ui.tools.impl.modify.ControlPointEditTool;
 import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
+import com.masterplanner.ui.tools.snap.SnapVisualStyle;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTabBarFlags;
@@ -223,8 +225,25 @@ public class SettingsAndHelpDialog {
 
         float[] markerSize = new float[] { snapManager.getMarkerSize() };
         ImGui.setNextItemWidth(180);
-        if (ImGui.sliderFloat("标记大小", markerSize, 1.5f, 5.0f, "%.1f px")) {
+        if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 8.0f, "%.1f px")) {
             snapManager.setMarkerSize(markerSize[0]);
+        }
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.text("吸附颜色（自定义）");
+        ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
+
+        renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
+        renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
+        renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
+        renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT);
+        renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR);
+        renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT);
+        renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
+
+        if (ImGui.button("重置全部吸附颜色")) {
+            SnapVisualStyle.resetCustomColors();
         }
 
         ImGui.unindent(10);
@@ -245,7 +264,36 @@ public class SettingsAndHelpDialog {
 
         ImGui.unindent(10);
         ImGui.separator();
-        ImGui.textDisabled("提示：本次已将端点/中点/中心点等反馈尺寸调整为原来的 50%。");
+        ImGui.textDisabled("提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。\n");
+    }
+
+    private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {
+        int argb = SnapVisualStyle.getEffectiveColorArgb(type);
+        float[] rgba = argbToFloat4(argb);
+        if (ImGui.colorEdit4(label + "##snap_color_" + type.name(), rgba)) {
+            SnapVisualStyle.setCustomColor(type, float4ToArgb(rgba));
+        }
+        ImGui.sameLine();
+        if (ImGui.button("重置##snap_reset_" + type.name())) {
+            SnapVisualStyle.clearCustomColor(type);
+        }
+    }
+
+    private static float[] argbToFloat4(int argb) {
+        return new float[] {
+            ((argb >> 16) & 0xFF) / 255.0f,
+            ((argb >> 8) & 0xFF) / 255.0f,
+            (argb & 0xFF) / 255.0f,
+            ((argb >>> 24) & 0xFF) / 255.0f
+        };
+    }
+
+    private static int float4ToArgb(float[] rgba) {
+        int r = Math.max(0, Math.min(255, Math.round(rgba[0] * 255.0f)));
+        int g = Math.max(0, Math.min(255, Math.round(rgba[1] * 255.0f)));
+        int b = Math.max(0, Math.min(255, Math.round(rgba[2] * 255.0f)));
+        int a = Math.max(0, Math.min(255, Math.round(rgba[3] * 255.0f)));
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private String tryCaptureShortcutString() {

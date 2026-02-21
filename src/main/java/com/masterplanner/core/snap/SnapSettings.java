@@ -40,7 +40,7 @@ public class SnapSettings implements Cloneable {
     public ImBoolean tempDisableWithShift = new ImBoolean(true); // 临时禁用
     public ImBoolean showSnapMarkers = new ImBoolean(true);      // 吸附标记预览
 
-    private float markerSize = 5.0f;  // 默认大小 2.5 px
+    private float markerSize = 6.0f;  // 默认大小 6.0 px
     public ImBoolean enableMarkerPulse = new ImBoolean(true);  // 脉动动画开关
 
     public float getSnapRadius() {
@@ -159,7 +159,7 @@ public class SnapSettings implements Cloneable {
         showSnapMarkers.set(true);
 
         // 重置 markerSize 和 enableMarkerPulse
-        markerSize = 2.5f;
+        markerSize = 6.0f;
         enableMarkerPulse.set(true);
     }
 
@@ -168,6 +168,6 @@ public class SnapSettings implements Cloneable {
     }
 
     public void setMarkerSize(float size) {
-        this.markerSize = Math.max(1.5f, Math.min(5.0f, size));  // 限制在 1.5-5 px
+        this.markerSize = Math.max(2.0f, Math.min(8.0f, size));  // 限制在 2.0-8.0 px
     }
 } 

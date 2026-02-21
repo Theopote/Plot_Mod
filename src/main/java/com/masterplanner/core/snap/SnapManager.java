@@ -165,7 +165,7 @@ public class SnapManager implements ISnapManager {
                     ImGui.sameLine();
                     ImGui.pushItemWidth(100);
                     float[] markerSize = new float[] { settings.getMarkerSize() };
-                    if (ImGui.sliderFloat("##marker_size", markerSize, 1.5f, 5.0f, "%.1f px")) {
+                    if (ImGui.sliderFloat("##marker_size", markerSize, 2.0f, 8.0f, "%.1f px")) {
                         settings.setMarkerSize(markerSize[0]);
                         settingsChanged = true;
                     }
