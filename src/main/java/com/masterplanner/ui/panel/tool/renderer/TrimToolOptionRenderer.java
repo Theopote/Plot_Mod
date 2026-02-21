@@ -144,19 +144,19 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             // 设置状态指示器样式
             switch (trimState) {
                 case SELECTING_BOUNDARIES, SELECTING_TARGETS -> {
-                    ImGui.pushStyleColor(ImGuiCol.Text, 0xFF4CAF50); // 绿色 - 选择模式
+                    ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.successText);
                     ImGui.text("● 选择模式");
                 }
                 case WAITING_TRIM_CLICK, DRAWING_FENCE, BOUNDARY_READY, FENCE_READY -> {
-                    ImGui.pushStyleColor(ImGuiCol.Text, 0xFFFF9800); // 橙色 - 修剪模式
+                    ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.warningText);
                     ImGui.text("● 修剪模式");
                 }
                 case PROCESSING -> {
-                    ImGui.pushStyleColor(ImGuiCol.Text, 0xFFFF5722); // 红色 - 处理模式
+                    ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.errorText);
                     ImGui.text("● 处理中");
                 }
                 default -> {
-                    ImGui.pushStyleColor(ImGuiCol.Text, 0xFF9E9E9E); // 灰色
+                    ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.mutedText);
                     ImGui.text("● 未知状态");
                 }
             }
@@ -164,7 +164,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             
             // 显示详细状态
             ImGui.sameLine();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, " - " + trimState.getDescription());
+            ImGui.textColored(currentTheme.mutedText, " - " + trimState.getDescription());
             
             height += ImGui.getFrameHeightWithSpacing();
             
@@ -181,7 +181,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                     default -> "图形";
                 };
                 
-                ImGui.textColored(0.2f, 0.8f, 0.2f, 1.0f, 
+                ImGui.textColored(currentTheme.successText, 
                     "已选择 " + selectedCount + " 个" + itemType);
                 height += ImGui.getFrameHeightWithSpacing();
             }
@@ -193,7 +193,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                     ImGui.tableNextRow();
                     ImGui.tableNextColumn();
                     ImGui.tableNextColumn();
-                    ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, 
+                    ImGui.textColored(currentTheme.warningText, 
                         "栅栏点数: " + fencePointCount);
                     height += ImGui.getFrameHeightWithSpacing();
                 }
@@ -461,28 +461,29 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private float renderShortcutTips() {
         float height = 0;
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         
         if (ImGui.treeNodeEx("操作指南", ImGuiTreeNodeFlags.DefaultOpen)) {
             height += 20;
             
-            ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "操作流程：");
+            ImGui.textColored(theme.warningText, "操作流程：");
             ImGui.spacing();
             
-            ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, "1. 选择边界图形");
+            ImGui.textColored(theme.warningText, "1. 选择边界图形");
             ImGui.bulletText("左键点选或框选用作修剪边界的图形");
             ImGui.bulletText("可以选择多个边界图形");
             
             ImGui.spacing();
-            ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, "2. 确认选择");
+            ImGui.textColored(theme.warningText, "2. 确认选择");
             ImGui.bulletText("右键完成边界选择，进入修剪模式");
             
             ImGui.spacing();
-            ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, "3. 执行修剪");
+            ImGui.textColored(theme.warningText, "3. 执行修剪");
             ImGui.bulletText("边界修剪：左键点击要修剪图形的一侧");
             ImGui.bulletText("栅栏修剪：左键定义栅栏线，右键完成");
             
             ImGui.spacing();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "快捷键：");
+            ImGui.textColored(theme.mutedText, "快捷键：");
             ImGui.bulletText("C：切换到边界修剪模式");
             ImGui.bulletText("F：切换到栅栏修剪模式");
             ImGui.bulletText("ESC：取消当前操作，返回选择模式");

@@ -11,6 +11,7 @@ import com.masterplanner.infrastructure.event.tool.ToolStatusEvent;
 import com.masterplanner.ui.component.UIComponent;
 import com.masterplanner.ui.panel.tool.renderer.ToolOptionRenderer;
 import com.masterplanner.ui.panel.tool.renderer.ToolOptionRendererFactory;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.*;
 
@@ -261,7 +262,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         // 显示当前工具的使用方法提示
         if (!currentToolStatusMessage.isEmpty()) {
             ImGui.separator();
-            ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "使用方法:");
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, "使用方法:");
             ImGui.textWrapped(currentToolStatusMessage);
         }
     }

@@ -351,9 +351,10 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             
             boolean canConfirm = currentTool.canConfirmArray();
             if (!canConfirm) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.5f, 0.5f, 0.5f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.5f, 0.5f, 0.5f, 0.5f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.5f, 0.5f, 0.5f, 0.5f);
+                int disabledColor = ThemeManager.getInstance().getCurrentTheme().disabledBackground;
+                ImGui.pushStyleColor(ImGuiCol.Button, disabledColor);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, disabledColor);
+                ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
             }
             
             if (ImGui.button("完成", 80, 24)) {
@@ -463,9 +464,10 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             
             boolean canConfirm = currentTool.canConfirmArray();
             if (!canConfirm) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.5f, 0.5f, 0.5f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.5f, 0.5f, 0.5f, 0.5f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.5f, 0.5f, 0.5f, 0.5f);
+                int disabledColor = ThemeManager.getInstance().getCurrentTheme().disabledBackground;
+                ImGui.pushStyleColor(ImGuiCol.Button, disabledColor);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, disabledColor);
+                ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
             }
             
             if (ImGui.button("完成", 80, 24)) {
@@ -572,9 +574,10 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         
         boolean canConfirm = currentTool.canConfirmArray();
         if (!canConfirm) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.5f, 0.5f, 0.5f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.5f, 0.5f, 0.5f, 0.5f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.5f, 0.5f, 0.5f, 0.5f);
+            int disabledColor = ThemeManager.getInstance().getCurrentTheme().disabledBackground;
+            ImGui.pushStyleColor(ImGuiCol.Button, disabledColor);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, disabledColor);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
         }
         
         if (ImGui.button("完成", 90, 26)) {

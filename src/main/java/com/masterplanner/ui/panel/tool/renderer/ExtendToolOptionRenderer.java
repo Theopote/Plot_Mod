@@ -1,5 +1,7 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.ui.tools.impl.modify.ExtendTool;
 import com.masterplanner.ui.tools.impl.modify.strategy.ExtendWithSelectionStrategy;
 import imgui.ImGui;
@@ -98,6 +100,7 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private float renderToolStatusInfo(ExtendTool currentTool) {
         float height = 0;
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         
         // 显示当前工具状态信息
         try {
@@ -106,39 +109,39 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
                 int boundaryCount = toolState.selectedBoundaries().size();
                 if (boundaryCount > 0) {
                     // 显示边界图形数量
-                    ImGui.textColored(0.2f, 0.8f, 0.2f, 1.0f, 
+                    ImGui.textColored(theme.successText, 
                         String.format("已选择 %d 个边界图形", boundaryCount));
                     height += 20;
                     
                     // 显示边界缓存状态
                     String cacheStatus = currentTool.getBoundaryCacheStatus();
-                    ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, cacheStatus);
+                    ImGui.textColored(theme.mutedText, cacheStatus);
                     height += 20;
                     
                     // 显示当前延伸状态
                     String stateDescription = toolState.currentState().getDescription();
-                    ImGui.textColored(0.4f, 0.6f, 0.8f, 1.0f, "状态: " + stateDescription);
+                    ImGui.textColored(theme.infoText, "状态: " + stateDescription);
                     height += 20;
                     
                     // 显示当前延伸模式（自动模式）
-                    ImGui.textColored(0.8f, 0.6f, 0.4f, 1.0f, "模式: 自动延伸");
+                    ImGui.textColored(theme.warningText, "模式: 自动延伸");
                     height += 20;
                     
                     // 显示操作提示
                     String operationHint = getOperationHint(toolState.currentState(), boundaryCount);
-                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示: " + operationHint);
+                    ImGui.textColored(theme.mutedText, "提示: " + operationHint);
                     
                     // 如果是延伸模式，显示连续延伸提示
                     if (toolState.currentState() == ExtendWithSelectionStrategy.ExtendState.EXTENDING) {
-                        ImGui.textColored(0.9f, 0.7f, 0.3f, 1.0f, "✓ 延伸模式已激活，可连续延伸多个图形");
+                        ImGui.textColored(theme.warningText, "✓ 延伸模式已激活，可连续延伸多个图形");
                         height += 20;
                     }
                 } else {
                     // 没有选择边界图形时的提示
-                    ImGui.textColored(0.8f, 0.4f, 0.4f, 1.0f, "未选择边界图形");
+                    ImGui.textColored(theme.errorText, "未选择边界图形");
                     height += 20;
                     
-                    ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, "提示: 请先选择边界图形，然后右键确认");
+                    ImGui.textColored(theme.mutedText, "提示: 请先选择边界图形，然后右键确认");
                 }
                 height += 20;
             }
@@ -147,7 +150,7 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         // 模式选择已移除，现在显示自动模式信息
-        ImGui.textColored(0.2f, 0.8f, 0.2f, 1.0f, "自动延伸模式");
+        ImGui.textColored(theme.successText, "自动延伸模式");
         ImGui.textWrapped("工具会自动选择最佳延伸方式：先尝试标准延伸，如果没有交点则自动使用投影延伸。");
         height += 60;
         
@@ -189,9 +192,10 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private float renderShortcutTips() {
         float height = 0;
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         
         if (ImGui.treeNodeEx("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "快捷键提示：");
+            ImGui.textColored(theme.warningText, "快捷键提示：");
             float textHeight = ImGui.calcTextSize("快捷键提示：").y + ImGui.getStyle().getItemSpacing().y;
             height += textHeight;
             
@@ -210,7 +214,7 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             ImGui.spacing();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示：");
+            ImGui.textColored(theme.mutedText, "提示：");
             String[] tips = {
                 "• 自动延伸：工具自动选择最佳延伸方式",
                 "• 标准延伸：图形延伸到与边界相交的位置",

@@ -87,7 +87,7 @@ public class LineToBlockSettingsDialog {
                 ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
                 ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
                 ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-                ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+                ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
                 ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
                 ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
                 ImBoolean fillOption = new ImBoolean(fillClosedShapes);

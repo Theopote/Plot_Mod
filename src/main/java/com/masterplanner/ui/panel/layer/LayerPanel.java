@@ -5,6 +5,7 @@ import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.base.Event;
 import com.masterplanner.ui.component.UIComponent;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
@@ -258,7 +259,7 @@ public class LayerPanel implements UIComponent {
         // 使用ImGui的颜色系统替代ThemeColors
         
         // 设置面板背景色为主题背景色
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.1f, 0.1f, 0.1f, 1.0f); // 使用深色背景
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
         
         ImGui.pushID("LayerPanel");
         try {

@@ -4,6 +4,8 @@ import com.masterplanner.core.graphics.style.LineStyle;
 import com.masterplanner.core.layer.Layer;
 import com.masterplanner.api.model.ILayer;
 import com.masterplanner.core.layer.LayerManager;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.*;
 import org.slf4j.Logger;
@@ -369,10 +371,11 @@ public class LayerItemRenderer {
     }
 
     private void renderLockIcon(Layer layer, float x, float y, float size) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Button, 0, 0, 0, 0);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.2f, 0.2f, 0.5f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.3f, 0.3f, 0.3f, 0.5f);
-        ImGui.pushStyleColor(ImGuiCol.Border, 0.5f, 0.5f, 0.5f, 0.5f);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
 
         ImGui.setCursorPos(x, y);
 
@@ -406,10 +409,11 @@ public class LayerItemRenderer {
     }
 
     private void renderVisibilityIcon(Layer layer, float x, float y, float size) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Button, 0, 0, 0, 0);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.2f, 0.2f, 0.5f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.3f, 0.3f, 0.3f, 0.5f);
-        ImGui.pushStyleColor(ImGuiCol.Border, 0.5f, 0.5f, 0.5f, 0.5f);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
 
         ImGui.setCursorPos(x, y);
 
@@ -443,10 +447,11 @@ public class LayerItemRenderer {
     }
 
     private void renderColorIcon(Layer layer, float size) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Button, 0, 0, 0, 0);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.2f, 0.2f, 0.5f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.3f, 0.3f, 0.3f, 0.5f);
-        ImGui.pushStyleColor(ImGuiCol.Border, 0.5f, 0.5f, 0.5f, 0.5f);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
 
         java.awt.Color layerColor = layer.getColor();
         float[] colorArray = {

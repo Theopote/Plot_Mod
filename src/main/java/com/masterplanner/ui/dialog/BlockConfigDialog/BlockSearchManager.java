@@ -1,5 +1,6 @@
 package com.masterplanner.ui.dialog.BlockConfigDialog;
 
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -154,7 +155,7 @@ public class BlockSearchManager {
         // 如果搜索文本不为空但太短，显示提示
         if (!searchBuffer.get().isEmpty() && searchBuffer.get().isEmpty()) {
             ImGui.sameLine();
-            ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, 
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, 
                 String.format("请输入至少 %d 个字符", MIN_SEARCH_CHARS));
         }
     }

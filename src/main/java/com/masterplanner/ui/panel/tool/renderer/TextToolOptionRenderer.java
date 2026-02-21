@@ -187,7 +187,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextColumn();
         
         // 设置错误文本颜色
-        ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.errorText);
         ImGui.textWrapped(errorMessage);
         ImGui.popStyleColor();
         

@@ -2,6 +2,8 @@ package com.masterplanner.ui.panel.layer;
 
 import com.masterplanner.core.layer.Layer;
 import com.masterplanner.core.layer.LayerManager;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
@@ -205,19 +207,14 @@ public class LayerNameRenderer {
         
         // 使用 ImGui 的样式来判断当前主题
         // 检查背景颜色的亮度来判断是否为深色主题
-        imgui.ImVec4 bgColorVec = new imgui.ImVec4();
-        ImGui.getStyle().getColor(ImGuiCol.WindowBg, bgColorVec);
-        boolean isDarkTheme = (bgColorVec.x + bgColorVec.y + bgColorVec.z) / 3.0f < 0.5f;
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        boolean isDarkTheme = ThemeManager.getInstance().getCurrentThemeType() == com.masterplanner.ui.theme.ThemeManager.Theme.DARK;
         
         // 根据当前主题设置编辑框背景色
-        int editBgColor = isDarkTheme ? 
-            ImGui.getColorU32(0.2f, 0.3f, 0.4f, 0.7f) : // 深色主题
-            ImGui.getColorU32(0.7f, 0.8f, 0.9f, 0.7f);  // 浅色主题
+        int editBgColor = theme.buttonHovered;
             
         // 根据当前主题设置编辑框边框色
-        int borderColor = isDarkTheme ?
-            ImGui.getColorU32(0.5f, 0.7f, 1.0f, 1.0f) : // 深色主题
-            ImGui.getColorU32(0.2f, 0.4f, 0.8f, 1.0f);  // 浅色主题
+        int borderColor = theme.accent;
         
         // 绘制编辑框背景
         ImGui.getWindowDrawList().addRectFilled(
@@ -256,17 +253,11 @@ public class LayerNameRenderer {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, 0, 0, 0, 0); // 透明背景
         
         // 根据主题设置文本颜色
-        if (isDarkTheme) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 1.0f, 1.0f, 1.0f); // 深色主题白色文本
-        } else {
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.0f, 0.0f, 0.0f, 1.0f); // 浅色主题黑色文本
-        }
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
         
         // 设置文本选中背景色
         ImGui.pushStyleColor(ImGuiCol.TextSelectedBg, 
-            isDarkTheme ? 
-            ImGui.getColorU32(0.3f, 0.5f, 0.7f, 0.7f) : // 深色主题
-            ImGui.getColorU32(0.5f, 0.7f, 0.9f, 0.7f)   // 浅色主题
+            theme.buttonSelected
         );
         
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0); // 移除内边距

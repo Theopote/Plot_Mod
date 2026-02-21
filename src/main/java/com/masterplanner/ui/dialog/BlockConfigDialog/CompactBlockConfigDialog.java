@@ -5,6 +5,8 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.block.BlockConfigEvent;
 import com.masterplanner.ui.component.BlockIconRenderer;
 import com.masterplanner.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.utils.ImGuiUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -394,7 +396,7 @@ public class CompactBlockConfigDialog {
                     renderDragPreview();
                 } catch (Exception e) {
                     LOGGER.error("渲染方块配置对话框UI时出错: {}", e.getMessage(), e);
-                    ImGui.textColored(1.0f, 0.2f, 0.2f, 1.0f, "UI渲染错误: " + e.getMessage());
+                    ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().errorText, "UI渲染错误: " + e.getMessage());
                 }
             }
             ImGui.end();
@@ -418,6 +420,7 @@ public class CompactBlockConfigDialog {
      * 渲染自定义标题栏 - 20像素高度
      */
     private void renderCustomTitleBar() {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         float windowWidth = ImGui.getWindowWidth();
         
         // 获取窗口位置
@@ -429,12 +432,12 @@ public class CompactBlockConfigDialog {
         drawList.addRectFilled(
             windowX, windowY,
             windowX + windowWidth, windowY + TITLE_BAR_HEIGHT,
-            ImGui.getColorU32(0.2f, 0.2f, 0.2f, 1.0f) // 深灰色背景
+            theme.toolbarBackground
         );
         
         // 绘制标题文本
         ImGui.setCursorPos(8.0f, 2.0f); // 设置文本位置
-        ImGui.textColored(1.0f, 1.0f, 1.0f, 1.0f, "方块选择");
+        ImGui.textColored(theme.text, "方块选择");
         
         // 为后续内容预留空间
         ImGui.setCursorPosY(TITLE_BAR_HEIGHT + 4.0f);
@@ -849,7 +852,8 @@ public class CompactBlockConfigDialog {
                 }
 
                 // 绘制方块背景
-                int backgroundColor = isHovered ? 0xFF555555 : 0xFF373737;
+                UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+                int backgroundColor = isHovered ? theme.buttonHovered : theme.controlBackground;
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
 
@@ -873,7 +877,7 @@ public class CompactBlockConfigDialog {
         } catch (Exception e) {
             LOGGER.error("渲染方块图标时发生错误: {}", block != null ? Registries.BLOCK.getId(block) : "null", e);
             // 显示错误占位符
-            drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, 0xFFFF0000);
+            drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ThemeManager.getInstance().getCurrentTheme().errorText);
             drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, SLOT_BORDER_COLOR, 0.0f, 0, 1.0f);
         }
     }

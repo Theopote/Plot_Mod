@@ -134,7 +134,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgHovered, theme.buttonHovered);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgActive, theme.buttonActive);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FramePadding, 4.0f, 4.0f);

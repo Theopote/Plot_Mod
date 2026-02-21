@@ -63,14 +63,10 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.bulletText("2. 切换到缩放工具");
             
             // 使用说明（简化）：缩放中心由交互时确定，默认交互流程如下
-            ImGui.textColored(1.0f, 1.0f, 0.6f, 1.0f, "交互流程：");
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, "交互流程：");
             ImGui.bulletText("1. 使用选择工具选择图形");
             ImGui.bulletText("2. 切换到缩放工具，第一次点击或以选择框中心确定中心点");
             ImGui.bulletText("3. 第二次点击或拖动设置参考点并缩放，点击完成");
-            
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, ThemeManager.getInstance().getCurrentTheme().warningText);
-            ImGui.text("交互提示会随主题自适应颜色");
-            ImGui.popStyleColor();
 
         }
     }

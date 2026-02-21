@@ -246,7 +246,7 @@ public class TextInputDialog {
             ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
             ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
             ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-            ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f); // 亮绿色，确保勾选状态可见
+            ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
             ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
             
