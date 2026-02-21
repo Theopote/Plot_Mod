@@ -6,7 +6,9 @@ import com.masterplanner.core.state.AppState;
 import com.masterplanner.core.geometry.BoundingBox;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 修改图形的命令
@@ -78,18 +80,45 @@ public class ModifyCommand implements Command {
     
     @Override
     public String getDescription() {
-        return String.format("修改 %d 个图形", oldShapes.size());
+        int oldCount = oldShapes.size();
+        int newCount = newShapes.size();
+
+        if (oldCount == 0 && newCount > 0) {
+            return String.format("绘制 %d 个%s", newCount, summarizeShapeTypes(newShapes));
+        }
+
+        if (oldCount > 0 && newCount == 0) {
+            return String.format("删除 %d 个%s", oldCount, summarizeShapeTypes(oldShapes));
+        }
+
+        if (oldCount == newCount && oldCount > 0) {
+            return String.format("修改 %d 个%s", oldCount, summarizeShapeTypes(newShapes));
+        }
+
+        if (oldCount > 0 && newCount > 0) {
+            return String.format("变更图形 %d→%d", oldCount, newCount);
+        }
+
+        return "修改图形";
     }
     
     @Override
     public String getDetailedDescription() {
         StringBuilder details = new StringBuilder();
+        int oldCount = oldShapes.size();
+        int newCount = newShapes.size();
+
         details.append(String.format(
                 """
                         修改操作
-                        修改对象数量: %d
+                操作类型: %s
+                对象数量: %d → %d
+                图形类型: %s
                         所在图层: %s""",
-            oldShapes.size(),
+            resolveOperationType(oldCount, newCount),
+            oldCount,
+            newCount,
+            oldCount == 0 ? summarizeShapeTypes(newShapes) : summarizeShapeTypes(oldShapes),
             appState.getActiveLayer().getName()
         ));
 
@@ -193,5 +222,72 @@ public class ModifyCommand implements Command {
     
     protected List<Shape> getTargetShapes() {
         return newShapes;
+    }
+
+    private String resolveOperationType(int oldCount, int newCount) {
+        if (oldCount == 0 && newCount > 0) {
+            return "绘制";
+        }
+        if (oldCount > 0 && newCount == 0) {
+            return "删除";
+        }
+        if (oldCount == newCount && oldCount > 0) {
+            return "修改";
+        }
+        if (oldCount > 0 && newCount > 0) {
+            return "变更";
+        }
+        return "未知";
+    }
+
+    private String summarizeShapeTypes(List<Shape> shapes) {
+        if (shapes == null || shapes.isEmpty()) {
+            return "图形";
+        }
+
+        Set<String> uniqueTypes = new LinkedHashSet<>();
+        for (Shape shape : shapes) {
+            if (shape == null) {
+                continue;
+            }
+            uniqueTypes.add(toDisplayShapeType(shape.getClass().getSimpleName()));
+        }
+
+        if (uniqueTypes.isEmpty()) {
+            return "图形";
+        }
+
+        if (uniqueTypes.size() == 1) {
+            return uniqueTypes.iterator().next();
+        }
+
+        List<String> typeList = new ArrayList<>(uniqueTypes);
+        if (typeList.size() <= 3) {
+            return String.join("、", typeList);
+        }
+        return String.format("%s、%s、%s等%d类图形", typeList.get(0), typeList.get(1), typeList.get(2), typeList.size());
+    }
+
+    private String toDisplayShapeType(String className) {
+        return switch (className) {
+            case "LineShape" -> "直线";
+            case "CircleShape" -> "圆";
+            case "ArcShape" -> "圆弧";
+            case "RectangleShape" -> "矩形";
+            case "EllipseShape" -> "椭圆";
+            case "EllipticalArcShape" -> "椭圆弧";
+            case "PolylineShape" -> "多段线";
+            case "BezierCurveShape" -> "贝塞尔曲线";
+            case "SineCurveShape" -> "正弦曲线";
+            case "SpiralShape" -> "螺旋线";
+            case "TextShape" -> "文字";
+            case "AnnotationShape" -> "标注";
+            case "CableShape" -> "电缆";
+            case "Polygon" -> "多边形";
+            case "FreeDrawPath" -> "自由绘制路径";
+            default -> className.endsWith("Shape")
+                    ? className.substring(0, className.length() - "Shape".length())
+                    : className;
+        };
     }
 }
