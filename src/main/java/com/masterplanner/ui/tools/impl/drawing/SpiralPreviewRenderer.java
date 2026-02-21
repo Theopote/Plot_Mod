@@ -23,14 +23,6 @@ public class SpiralPreviewRenderer {
 
     // ====== 渲染常量 ======
     
-    private static final int PREVIEW_COLOR = 0x80FFFFFF; // 白色半透明
-    private static final int CENTER_POINT_COLOR = 0xFF0000FF; // 蓝色
-    private static final int RADIUS_POINT_COLOR = 0xFF00FF00; // 绿色
-    private static final int PITCH_POINT_COLOR = 0xFFFF8000; // 橙色
-    private static final int MAX_RADIUS_POINT_COLOR = 0xFFFF0080; // 粉色
-    private static final int INFO_TEXT_COLOR = 0xFFFFFFFF; // 白色
-    private static final int SNAP_INDICATOR_COLOR = 0xFFFFFF00; // 黄色吸附指示器
-    
     private static final float POINT_SIZE = 5.0f;
     private static final float CURVE_THICKNESS = 3.0f;
     private static final float TEXT_OFFSET_X = 10.0f;
@@ -70,6 +62,13 @@ public class SpiralPreviewRenderer {
      * 渲染控制点（DrawContext版本）
      */
     private void renderControlPoints(DrawContext context, List<Vec2d> controlPoints, Vec2d currentMousePoint) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color infoColor = toColor(theme.infoText, 255);
+        java.awt.Color successColor = toColor(theme.successText, 255);
+        java.awt.Color warningColor = toColor(theme.warningText, 255);
+        java.awt.Color accentColor = toColor(theme.accent, 255);
+        java.awt.Color mutedColor = toColor(theme.mutedText, 255);
+
         SpiralType currentType = configManager.getCurrentType();
         
         if (currentType == SpiralType.LINEAR) {
@@ -77,11 +76,11 @@ public class SpiralPreviewRenderer {
             for (int i = 0; i < controlPoints.size(); i++) {
                 Vec2d point = controlPoints.get(i);
                 java.awt.Color color = switch (i) {
-                    case 0 -> java.awt.Color.BLUE; // 中心点
-                    case 1 -> java.awt.Color.GREEN; // 起始半径点
-                    case 2 -> java.awt.Color.ORANGE; // 螺距点
-                    case 3 -> java.awt.Color.MAGENTA; // 最大半径点
-                    default -> java.awt.Color.GRAY;
+                    case 0 -> infoColor; // 中心点
+                    case 1 -> successColor; // 起始半径点
+                    case 2 -> warningColor; // 螺距点
+                    case 3 -> accentColor; // 最大半径点
+                    default -> mutedColor;
                 };
                 context.drawCircle(point, 4.0, color);
             }
@@ -89,23 +88,23 @@ public class SpiralPreviewRenderer {
             // 渲染鼠标预览点
             if (currentMousePoint != null && controlPoints.size() < 4) {
                 java.awt.Color previewColor = switch (controlPoints.size()) {
-                    case 0 -> java.awt.Color.CYAN; // 中心预览
-                    case 1 -> java.awt.Color.GREEN; // 起始半径预览
-                    case 2 -> java.awt.Color.ORANGE; // 螺距预览
-                    case 3 -> java.awt.Color.MAGENTA; // 最大半径预览
-                    default -> java.awt.Color.GRAY;
+                    case 0 -> infoColor; // 中心预览
+                    case 1 -> successColor; // 起始半径预览
+                    case 2 -> warningColor; // 螺距预览
+                    case 3 -> accentColor; // 最大半径预览
+                    default -> mutedColor;
                 };
                 context.drawCircle(currentMousePoint, 3.0, previewColor);
             }
         } else {
             // 其它类型：保持原有逻辑
             if (!controlPoints.isEmpty()) {
-                context.drawCircle(controlPoints.getFirst(), 3.0, java.awt.Color.BLUE);
+                context.drawCircle(controlPoints.getFirst(), 3.0, infoColor);
             }
             if (controlPoints.size() >= 2) {
-                context.drawCircle(controlPoints.get(1), 3.0, java.awt.Color.GREEN);
+                context.drawCircle(controlPoints.get(1), 3.0, successColor);
             } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
-                context.drawCircle(currentMousePoint, 3.0, java.awt.Color.ORANGE);
+                context.drawCircle(currentMousePoint, 3.0, warningColor);
             }
         }
     }
@@ -114,6 +113,11 @@ public class SpiralPreviewRenderer {
      * 渲染连接线（DrawContext版本）
      */
     private void renderConnectionLines(DrawContext context, List<Vec2d> controlPoints, Vec2d currentMousePoint) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color warningColor = toColor(theme.warningText, 255);
+        java.awt.Color accentColor = toColor(theme.accent, 255);
+        java.awt.Color mutedColor = toColor(theme.mutedText, 255);
+
         SpiralType currentType = configManager.getCurrentType();
         
         if (currentType == SpiralType.LINEAR) {
@@ -122,10 +126,10 @@ public class SpiralPreviewRenderer {
                 Vec2d start = controlPoints.get(i);
                 Vec2d end = controlPoints.get(i + 1);
                 java.awt.Color color = switch (i) {
-                    case 0 -> java.awt.Color.YELLOW; // 中心到起始半径
-                    case 1 -> java.awt.Color.ORANGE; // 起始半径到螺距
-                    case 2 -> java.awt.Color.MAGENTA; // 螺距到最大半径
-                    default -> java.awt.Color.GRAY;
+                    case 0 -> warningColor; // 中心到起始半径
+                    case 1 -> warningColor; // 起始半径到螺距
+                    case 2 -> accentColor; // 螺距到最大半径
+                    default -> mutedColor;
                 };
                 context.drawLine(start, end, color);
             }
@@ -134,19 +138,19 @@ public class SpiralPreviewRenderer {
             if (currentMousePoint != null && !controlPoints.isEmpty()) {
                 Vec2d lastPoint = controlPoints.getLast();
                 java.awt.Color previewColor = switch (controlPoints.size()) {
-                    case 1 -> java.awt.Color.YELLOW; // 中心到起始半径预览
-                    case 2 -> java.awt.Color.ORANGE; // 起始半径到螺距预览
-                    case 3 -> java.awt.Color.MAGENTA; // 螺距到最大半径预览
-                    default -> java.awt.Color.GRAY;
+                    case 1 -> warningColor; // 中心到起始半径预览
+                    case 2 -> warningColor; // 起始半径到螺距预览
+                    case 3 -> accentColor; // 螺距到最大半径预览
+                    default -> mutedColor;
                 };
                 context.drawLine(lastPoint, currentMousePoint, previewColor);
             }
         } else {
             // 其它类型：保持原有逻辑
             if (controlPoints.size() >= 2) {
-                context.drawLine(controlPoints.get(0), controlPoints.get(1), java.awt.Color.GRAY);
+                context.drawLine(controlPoints.get(0), controlPoints.get(1), mutedColor);
             } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-                context.drawLine(controlPoints.getFirst(), currentMousePoint, java.awt.Color.LIGHT_GRAY);
+                context.drawLine(controlPoints.getFirst(), currentMousePoint, toColor(theme.mutedText, 220));
             }
         }
     }
@@ -367,7 +371,7 @@ public class SpiralPreviewRenderer {
         }
 
         // 获取当前图层颜色用于预览
-        int previewColor = PREVIEW_COLOR; // 默认颜色
+        int previewColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().accent, 0x80);
         
         if (spiralTool.getStyleHandler() != null) {
             com.masterplanner.core.graphics.style.ShapeStyle previewStyle = spiralTool.getStyleHandler().getPreviewStyle();
@@ -440,6 +444,10 @@ public class SpiralPreviewRenderer {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static java.awt.Color toColor(int color, int alpha) {
+        return new java.awt.Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 
     /**

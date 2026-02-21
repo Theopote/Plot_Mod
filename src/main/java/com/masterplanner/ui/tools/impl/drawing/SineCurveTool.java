@@ -315,28 +315,36 @@ public class SineCurveTool extends DrawingTool {
      * 渲染控制点
      */
     private void renderControlPoints(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color startPointColor = toColor(theme.infoText, 255);
+        java.awt.Color wavelengthPointColor = toColor(theme.successText, 255);
+        java.awt.Color lengthPointColor = toColor(theme.warningText, 255);
+        java.awt.Color previewLengthPointColor = toColor(theme.warningText, 220);
+        java.awt.Color amplitudePointColor = toColor(theme.errorText, 255);
+        java.awt.Color previewAmplitudePointColor = toColor(theme.accent, 255);
+
         // 起点
         if (!controlPoints.isEmpty()) {
-            context.drawCircle(controlPoints.getFirst(), 3.0, java.awt.Color.BLUE);
+            context.drawCircle(controlPoints.getFirst(), 3.0, startPointColor);
         }
         
         // 波长点
         if (controlPoints.size() >= 2) {
-            context.drawCircle(controlPoints.get(1), 3.0, java.awt.Color.GREEN);
+            context.drawCircle(controlPoints.get(1), 3.0, wavelengthPointColor);
         }
         
         // 长度点
         if (controlPoints.size() >= 3) {
-            context.drawCircle(controlPoints.get(2), 3.0, java.awt.Color.YELLOW);
+            context.drawCircle(controlPoints.get(2), 3.0, lengthPointColor);
         } else if (currentMousePoint != null && controlPoints.size() == 2) {
-            context.drawCircle(currentMousePoint, 3.0, java.awt.Color.ORANGE);
+            context.drawCircle(currentMousePoint, 3.0, previewLengthPointColor);
         }
         
         // 振幅点
         if (controlPoints.size() >= 4) {
-            context.drawCircle(controlPoints.get(3), 3.0, java.awt.Color.RED);
+            context.drawCircle(controlPoints.get(3), 3.0, amplitudePointColor);
         } else if (currentMousePoint != null && controlPoints.size() == 3) {
-            context.drawCircle(currentMousePoint, 3.0, java.awt.Color.MAGENTA);
+            context.drawCircle(currentMousePoint, 3.0, previewAmplitudePointColor);
         }
     }
     
@@ -344,19 +352,25 @@ public class SineCurveTool extends DrawingTool {
      * 渲染基线
      */
     private void renderBaseline(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        java.awt.Color wavelengthLineColor = toColor(theme.successText, 255);
+        java.awt.Color lengthLineColor = toColor(theme.warningText, 255);
+        java.awt.Color previewLengthLineColor = toColor(theme.warningText, 220);
+        java.awt.Color seedLineColor = toColor(theme.mutedText, 220);
+
         if (controlPoints.size() >= 2) {
             // 绘制波长线（起点到波长点）
-            context.drawLine(controlPoints.get(0), controlPoints.get(1), java.awt.Color.GREEN);
+            context.drawLine(controlPoints.get(0), controlPoints.get(1), wavelengthLineColor);
             
             if (controlPoints.size() >= 3) {
                 // 绘制长度线（起点到长度点）
-                context.drawLine(controlPoints.get(0), controlPoints.get(2), java.awt.Color.YELLOW);
+                context.drawLine(controlPoints.get(0), controlPoints.get(2), lengthLineColor);
             } else if (currentMousePoint != null) {
                 // 预览长度线
-                context.drawLine(controlPoints.getFirst(), currentMousePoint, java.awt.Color.ORANGE);
+                context.drawLine(controlPoints.getFirst(), currentMousePoint, previewLengthLineColor);
             }
         } else if (controlPoints.size() == 1 && currentMousePoint != null) {
-            context.drawLine(controlPoints.getFirst(), currentMousePoint, java.awt.Color.LIGHT_GRAY);
+            context.drawLine(controlPoints.getFirst(), currentMousePoint, seedLineColor);
         }
     }
     
@@ -364,6 +378,7 @@ public class SineCurveTool extends DrawingTool {
      * 渲染振幅线
      */
     private void renderAmplitudeLine(DrawContext context) {
+        java.awt.Color amplitudeLineColor = toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255);
         if (controlPoints.size() >= 3) {
             Vec2d startPoint = controlPoints.get(0);
             Vec2d lengthPoint = controlPoints.get(2);
@@ -371,7 +386,7 @@ public class SineCurveTool extends DrawingTool {
             
             Vec2d amplitudePoint = controlPoints.size() >= 4 ? controlPoints.get(3) : currentMousePoint;
             if (amplitudePoint != null) {
-                context.drawLine(midPoint, amplitudePoint, java.awt.Color.MAGENTA);
+                context.drawLine(midPoint, amplitudePoint, amplitudeLineColor);
             }
         }
     }
@@ -608,6 +623,10 @@ public class SineCurveTool extends DrawingTool {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static java.awt.Color toColor(int color, int alpha) {
+        return new java.awt.Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
     
     // ====== 自定义交互策略 ======

@@ -271,7 +271,7 @@ public class RectangleTool extends DrawingTool {
         // 设置线条样式
         com.masterplanner.core.graphics.style.LineStyle lineStyle =
                 new com.masterplanner.core.graphics.style.LineStyle();
-        lineStyle.setColor(java.awt.Color.BLUE); // 默认蓝色轮廓
+        lineStyle.setColor(toColor(ThemeManager.getInstance().getCurrentTheme().accent, 255));
         lineStyle.setWidth(2.0f);
         lineStyle.setVisible(true);
         style.setLineStyle((com.masterplanner.api.graphics.ILineStyle) lineStyle);
@@ -443,25 +443,27 @@ public class RectangleTool extends DrawingTool {
 
         // 三点模式：绘制辅助线
         if (currentMode == RectangleMode.THREE_POINTS && controlPoints.size() == 2 && currentMousePoint != null) {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             Vec2d baseStart = controlPoints.get(0);
             Vec2d baseEnd = controlPoints.get(1);
-            context.drawLine(baseStart, baseEnd, java.awt.Color.DARK_GRAY);
+            context.drawLine(baseStart, baseEnd, toColor(theme.mutedText, 220));
             Vec2d projectedPoint = projectPointToBase(baseStart, baseEnd, currentMousePoint);
-            context.drawLine(currentMousePoint, projectedPoint, java.awt.Color.CYAN);
+            context.drawLine(currentMousePoint, projectedPoint, toColor(theme.infoText, 230));
         }
 
         // 圆角模式：绘制圆角半径指示线
         if (currentMode == RectangleMode.ROUNDED && controlPoints.size() == 2 && currentMousePoint != null) {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             Vec2d p1 = controlPoints.get(0);
             Vec2d p2 = controlPoints.get(1);
             Vec2d center = new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
 
             // 绘制从中心到第三点的连线，表示圆角半径
-            context.drawLine(center, currentMousePoint, java.awt.Color.ORANGE);
+            context.drawLine(center, currentMousePoint, toColor(theme.warningText, 230));
 
             // 绘制圆角半径文本
             double radius = calculateCornerRadiusFromThirdPoint(p1, p2, currentMousePoint);
-            context.drawText(String.format("半径: %.1f", radius), currentMousePoint, java.awt.Color.ORANGE);
+            context.drawText(String.format("半径: %.1f", radius), currentMousePoint, toColor(theme.warningText, 230));
         }
 
         if (previewShape != null) {
@@ -591,6 +593,10 @@ public class RectangleTool extends DrawingTool {
 
     private static int withAlpha(int color, int alpha) {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
     }
 
     private Vec2d[] calculateRectangleBounds() {
@@ -747,13 +753,14 @@ public class RectangleTool extends DrawingTool {
     }
 
     private void renderControlPoints(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         for (int i = 0; i < controlPoints.size(); i++) {
             Vec2d point = controlPoints.get(i);
             java.awt.Color color = switch (i) {
-                case 0 -> java.awt.Color.RED;
-                case 1 -> java.awt.Color.GREEN;
-                case 2 -> java.awt.Color.BLUE;
-                default -> java.awt.Color.GRAY;
+                case 0 -> toColor(theme.errorText, 255);
+                case 1 -> toColor(theme.successText, 255);
+                case 2 -> toColor(theme.infoText, 255);
+                default -> toColor(theme.mutedText, 255);
             };
             context.drawCircle(point, 4.0, color);
         }
@@ -764,9 +771,10 @@ public class RectangleTool extends DrawingTool {
      */
     @SuppressWarnings("unused")
     private Color getControlPointColor(int index) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         return switch (currentMode) {
-            case CENTER_POINT -> index == 0 ? Color.RED : Color.GREEN;
-            default -> Color.BLUE;
+            case CENTER_POINT -> index == 0 ? toColor(theme.errorText, 255) : toColor(theme.successText, 255);
+            default -> toColor(theme.infoText, 255);
         };
     }
 
