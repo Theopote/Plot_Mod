@@ -464,7 +464,7 @@ public class EraserStrategy implements IModifyStrategy {
             // 填充圆形
             drawList.addCircleFilled(
                 (float) screenPos.x, (float) screenPos.y,
-                screenRadius, redColor & 0x80FFFFFF // 半透明红色
+                screenRadius, withAlpha(redColor, 0x80)
             );
             
             // 轮廓圆形
@@ -528,5 +528,9 @@ public class EraserStrategy implements IModifyStrategy {
                 }
             }
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 }

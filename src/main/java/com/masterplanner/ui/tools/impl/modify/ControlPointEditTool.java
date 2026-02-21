@@ -9,6 +9,7 @@ import com.masterplanner.core.state.AppState;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.masterplanner.ui.tools.impl.modify.strategy.ControlPointEditStrategy;
 import imgui.ImDrawList;
@@ -206,6 +207,7 @@ public class ControlPointEditTool extends ModifyTool {
         if (!displayEnabled) {
             return;
         }
+        var theme = ThemeManager.getInstance().getCurrentTheme();
 
         List<Vec2d> controlPoints = targetShape.getControlPoints();
         if (controlPoints == null || controlPoints.isEmpty()) {
@@ -227,24 +229,24 @@ public class ControlPointEditTool extends ModifyTool {
 
             if (isAnchor) {
                 if (i == activeControlPointIndex) {
-                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_ACTIVE_COLOR.getRed(), CONTROL_POINT_ACTIVE_COLOR.getGreen(), CONTROL_POINT_ACTIVE_COLOR.getBlue(), 255);
+                    pointColor = theme.errorText;
                     pointSize = ANCHOR_POINT_ACTIVE_SIZE;
                 } else if (i == hoveredControlPointIndex) {
-                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_HOVER_COLOR.getRed(), CONTROL_POINT_HOVER_COLOR.getGreen(), CONTROL_POINT_HOVER_COLOR.getBlue(), 255);
+                    pointColor = theme.warningText;
                     pointSize = ANCHOR_POINT_HOVER_SIZE;
                 } else {
-                    pointColor = imgui.ImColor.rgba(ANCHOR_POINT_COLOR.getRed(), ANCHOR_POINT_COLOR.getGreen(), ANCHOR_POINT_COLOR.getBlue(), 255);
+                    pointColor = theme.successText;
                     pointSize = ANCHOR_POINT_SIZE;
                 }
             } else {
                 if (i == activeControlPointIndex) {
-                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_ACTIVE_COLOR.getRed(), CONTROL_POINT_ACTIVE_COLOR.getGreen(), CONTROL_POINT_ACTIVE_COLOR.getBlue(), 255);
+                    pointColor = theme.errorText;
                     pointSize = CONTROL_POINT_ACTIVE_SIZE;
                 } else if (i == hoveredControlPointIndex) {
-                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_HOVER_COLOR.getRed(), CONTROL_POINT_HOVER_COLOR.getGreen(), CONTROL_POINT_HOVER_COLOR.getBlue(), 255);
+                    pointColor = theme.warningText;
                     pointSize = CONTROL_POINT_HOVER_SIZE;
                 } else {
-                    pointColor = imgui.ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), CONTROL_POINT_COLOR.getBlue(), 255);
+                    pointColor = theme.infoText;
                     pointSize = CONTROL_POINT_SIZE;
                 }
             }
@@ -253,12 +255,12 @@ public class ControlPointEditTool extends ModifyTool {
             drawList.addCircleFilled((float)screenPoint.x, (float)screenPoint.y, pointSize, pointColor);
             
             // 绘制白色边框
-            int borderColor = imgui.ImColor.rgba(255, 255, 255, 255);
+            int borderColor = theme.text;
             drawList.addCircle((float)screenPoint.x, (float)screenPoint.y, pointSize + CONTROL_POINT_BORDER_WIDTH, borderColor, 0, CONTROL_POINT_BORDER_WIDTH);
             
             // 绘制控制点索引（可选）
             if (showPointIndex && controlPoints.size() > 1) {
-                int textColor = imgui.ImColor.rgba(255, 255, 255, 255);
+                int textColor = theme.text;
                 drawList.addText((float)(screenPoint.x + pointSize + 2), 
                     (float)(screenPoint.y - pointSize - 2), 
                     textColor, String.valueOf(i));
