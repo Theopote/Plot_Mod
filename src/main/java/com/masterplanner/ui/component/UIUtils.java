@@ -38,10 +38,11 @@ public class UIUtils {
      * @return 是否点击
      */
     public static boolean iconButton(String icon, String label, boolean selected) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         if (selected) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0xFF4040FF);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF5050FF);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0xFF3030FF);
+            ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
         }
 
         float width = ImGui.getWindowContentRegionMaxX() - ImGui.getCursorPosX() - 60;
@@ -63,7 +64,8 @@ public class UIUtils {
      * @return 是否点击
      */
     public static boolean selectableCard(String label, boolean selected, float width, float height) {
-        ImGui.pushStyleColor(ImGuiCol.ChildBg, selected ? 0xFF4040FF : 0xFF303030);
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.ChildBg, selected ? theme.buttonSelected : theme.panelBackground);
         ImGui.beginChild("##" + label, width, height, true);
         
         // 居中显示文本

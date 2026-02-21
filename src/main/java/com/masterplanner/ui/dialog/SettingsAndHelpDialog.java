@@ -95,6 +95,7 @@ public class SettingsAndHelpDialog {
     }
 
     private void renderShortcutsPage() {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         // 顶部工具行：搜索、重置默认、导出、导入
         ImGui.text("搜索：");
         ImGui.sameLine();
@@ -140,14 +141,14 @@ public class SettingsAndHelpDialog {
             // 显示与编辑状态
             String current = KeymapManager.getInstance().getBindingDisplay(actionId);
             if (editingActionId != null && editingActionId.equals(actionId)) {
-                ImGui.textColored(0xFFDDDD55, "按下组合键...（Esc取消）");
+                ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
                 // 录制：遍历GLFW keyCode范围，检测是否有按键按下
                 String captured = tryCaptureShortcutString();
                 if (captured != null) {
                     boolean ok = KeymapManager.getInstance().updateBinding(actionId, captured);
                     if (!ok) {
                         // 冲突提示（简单版）：显示一条提示文本
-                        ImGui.textColored(0xFF8888FF, "存在冲突，已覆盖旧绑定。");
+                        ImGui.textColored(theme.infoText, "存在冲突，已覆盖旧绑定。");
                     }
                     editingActionId = null;
                 }

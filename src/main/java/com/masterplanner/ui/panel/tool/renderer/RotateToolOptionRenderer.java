@@ -107,7 +107,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
             ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
             ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-            ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
@@ -268,10 +268,10 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             // 为每个按钮单独设置样式，避免样式栈问题
             if (angleStep[0] == presetValue) {
                 // 当前选中的按钮使用高亮样式
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 1.0f, 1.0f); // 蓝色高亮
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 1.0f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.4f, 0.8f, 1.0f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 1.0f, 1.0f, 1.0f); // 白色文字
+                ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonSelected);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonSelectedHovered);
+                ImGui.pushStyleColor(ImGuiCol.ButtonActive, currentTheme.buttonSelectedActive);
+                ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.foreground);
             } else {
                 // 普通按钮使用默认样式
                 ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.controlBackground);
@@ -374,8 +374,9 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
      * 渲染快捷键提示
      */
     private void renderShortcutTips() {
+        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         if (ImGui.collapsingHeader("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "快捷键提示：");
+            ImGui.textColored(currentTheme.warningText, "快捷键提示：");
             ImGui.spacing();
             
             ImGui.bulletText("Shift：启用角度约束（按步长对齐）");
@@ -385,7 +386,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.bulletText("Esc：取消旋转操作");
             
             ImGui.spacing();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示：");
+            ImGui.textColored(currentTheme.mutedText, "提示：");
             ImGui.textWrapped("""
                     • 旋转中心始终是第一次点击的位置
                     • 参考点用于确定旋转的基准角度

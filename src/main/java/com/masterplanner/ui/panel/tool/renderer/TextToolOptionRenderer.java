@@ -128,7 +128,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
 
         ImGui.tableNextColumn();
         // 使用较淡的提示色
-        ImGui.textColored(0.75f, 0.75f, 0.75f, 1.0f,
+        ImGui.textColored(theme.mutedText,
                 "样式、字号、对齐已移动到文字输入对话框中设置");
 
         height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
@@ -234,7 +234,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f); // 亮绿色
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         
@@ -325,7 +325,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         
@@ -405,7 +405,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.text("快捷键");
         
         ImGui.tableNextColumn();
-        ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
+        ImGui.textColored(theme.mutedText,
                 """
                         Shift + +/- : 调整字体大小
                         双击文字 : 编辑文字

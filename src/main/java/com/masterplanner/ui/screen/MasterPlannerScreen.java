@@ -308,9 +308,10 @@ public class MasterPlannerScreen extends Screen {
             if (tr == null) return;
             int x = 10;
             int y = 10;
-            context.drawTextWithShadow(tr, "MasterPlanner UI 渲染失败（1.21.11 适配中）", x, y, 0xFFFF5555);
-            context.drawTextWithShadow(tr, msg, x, y + 12, 0xFFFFFFFF);
-            context.drawTextWithShadow(tr, "请查看日志：ImGuiRenderer / MasterPlannerScreen", x, y + 24, 0xFFAAAAAA);
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+            context.drawTextWithShadow(tr, "MasterPlanner UI 渲染失败（1.21.11 适配中）", x, y, theme.errorText);
+            context.drawTextWithShadow(tr, msg, x, y + 12, theme.text);
+            context.drawTextWithShadow(tr, "请查看日志：ImGuiRenderer / MasterPlannerScreen", x, y + 24, theme.mutedText);
         } catch (Throwable ignored) {
         }
     }

@@ -118,7 +118,7 @@ public class SystemPanel implements UIComponent {
      * 获取当前主题索引
      */
     private int getCurrentThemeIndex() {
-        return ThemeManager.getInstance().getCurrentTheme() == UITheme.DARK_THEME ? 0 : 1;
+        return ThemeManager.getInstance().getCurrentThemeType() == ThemeManager.Theme.DARK ? 0 : 1;
     }
     
     /**

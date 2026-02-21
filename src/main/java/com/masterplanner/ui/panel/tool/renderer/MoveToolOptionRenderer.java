@@ -1,5 +1,6 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 
@@ -16,6 +17,7 @@ public class MoveToolOptionRenderer implements ToolOptionRenderer {
     @Override
     public float render() {
         float startY = ImGui.getCursorPosY();
+        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         
         // 设置窗口标题
         ImGui.text("移动工具");
@@ -31,7 +33,7 @@ public class MoveToolOptionRenderer implements ToolOptionRenderer {
 
         // 捕捉功能说明
         ImGui.separator();
-        ImGui.textColored(0.3f, 0.8f, 0.3f, 1.0f, "捕捉功能：");
+        ImGui.textColored(currentTheme.successText, "捕捉功能：");
         ImGui.textWrapped("""
                 • 移动起点可以捕捉到图形的端点、中点、圆心等
                 • 移动目标点可以捕捉到其他图形的特征点
@@ -40,7 +42,7 @@ public class MoveToolOptionRenderer implements ToolOptionRenderer {
 
         // 快捷键说明
         ImGui.separator();
-        ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "快捷键：");
+        ImGui.textColored(currentTheme.warningText, "快捷键：");
         ImGui.textWrapped("""
                 • Shift: 启用正交约束
                 • Esc: 取消移动操作
@@ -48,7 +50,7 @@ public class MoveToolOptionRenderer implements ToolOptionRenderer {
 
         // 显示警告信息
         ImGui.separator();
-        ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "注意：");
+        ImGui.textColored(currentTheme.warningText, "注意：");
         ImGui.textWrapped("如果没有图形被选中，将无法使用移动工具。请先使用选择工具选中要移动的图形。");
         
         return ImGui.getCursorPosY() - startY;

@@ -1,6 +1,7 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
 // imports simplified: ScaleStrategy and theme utilities not required by simplified renderer
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import org.slf4j.Logger;
@@ -66,6 +67,10 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.bulletText("1. 使用选择工具选择图形");
             ImGui.bulletText("2. 切换到缩放工具，第一次点击或以选择框中心确定中心点");
             ImGui.bulletText("3. 第二次点击或拖动设置参考点并缩放，点击完成");
+            
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, ThemeManager.getInstance().getCurrentTheme().warningText);
+            ImGui.text("交互提示会随主题自适应颜色");
+            ImGui.popStyleColor();
 
         }
     }

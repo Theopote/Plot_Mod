@@ -137,7 +137,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
                 3. 使用+/-键或滚轮调整参数
                 4. 按Enter确认圆角""";
             
-        ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, instructions);
+        ImGui.textColored(theme.mutedText, instructions);
         ImGui.popTextWrapPos();
         
         height += ImGui.getFrameHeight() * 4 + ImGui.getStyle().getItemSpacingY();
@@ -165,7 +165,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
                 滚轮: 调整参数
                 ESC: 取消操作""";
             
-        ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, shortcuts);
+        ImGui.textColored(theme.mutedText, shortcuts);
         ImGui.popTextWrapPos();
         
         height += ImGui.getFrameHeight() * 4 + ImGui.getStyle().getItemSpacingY();
@@ -178,14 +178,15 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private float renderErrorState() {
         float height = 0;
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误");
+        ImGui.textColored(theme.errorText, "错误");
         
         ImGui.tableNextColumn();
-        ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "渲染圆角工具选项时发生错误");
+        ImGui.textColored(theme.errorText, "渲染圆角工具选项时发生错误");
         
         height += ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingY();
         

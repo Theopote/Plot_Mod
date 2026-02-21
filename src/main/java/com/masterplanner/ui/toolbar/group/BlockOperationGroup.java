@@ -11,6 +11,7 @@ import com.masterplanner.ui.component.ControlPanelIcons;
 import com.masterplanner.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
 import com.masterplanner.ui.dialog.LineToBlockSettingsDialog;
 import com.masterplanner.ui.dialog.ProjectionSettingsDialog;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.toolbar.ToolbarUIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -88,9 +89,10 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         boolean lineToBlockEnabled = !shapes.isEmpty();
         
         if (!lineToBlockEnabled) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0x80808080);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0x80808080);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0x80808080);
+            int disabledColor = ThemeManager.getInstance().getCurrentTheme().disabledBackground;
+            ImGui.pushStyleColor(ImGuiCol.Button, disabledColor);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, disabledColor);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
         }
         
         if (ToolbarUIUtils.renderToolbarButton(

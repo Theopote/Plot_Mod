@@ -1,5 +1,7 @@
 package com.masterplanner.ui.theme;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.view.ThemeChangeEvent;
 import imgui.ImColor;
@@ -9,6 +11,12 @@ import imgui.flag.ImGuiCol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 /**
  * 主题管理器
  * 负责管理和切换不同的UI主题样式
@@ -16,6 +24,9 @@ import org.slf4j.LoggerFactory;
 public class ThemeManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("MasterPlanner/ThemeManager");
     private UITheme.ThemeColors currentTheme;    // 当前使用的主题
+    private Theme currentThemeType = Theme.DARK;
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private final Path themeConfigPath;
     
     // 保存工具栏原始样式值
     private float toolbarOriginalFrameRounding;
@@ -44,7 +55,9 @@ public class ThemeManager {
      * 初始化默认使用深色主题
      */
     private ThemeManager() {
-        currentTheme = UITheme.DARK_THEME;
+        themeConfigPath = initThemeConfigPath();
+        currentThemeType = loadSavedTheme();
+        currentTheme = mapTheme(currentThemeType);
         applyTheme();  // 立即应用深色主题
     }
     
@@ -53,30 +66,91 @@ public class ThemeManager {
      * 根据选择的主题类型切换颜色方案
      */
     public void setTheme(Theme theme) {
-        UITheme.ThemeColors newTheme;
-        switch (theme) {
-            case DARK -> newTheme = UITheme.DARK_THEME;
-            case LIGHT -> newTheme = UITheme.LIGHT_THEME;
-            default -> {
-                LOGGER.warn("未知主题类型: {}, 使用默认深色主题", theme);
-                newTheme = UITheme.DARK_THEME;
-            }
+        Theme targetTheme = theme == null ? Theme.DARK : theme;
+        UITheme.ThemeColors newTheme = mapTheme(targetTheme);
+
+        if (currentTheme == newTheme && currentThemeType == targetTheme) {
+            return;
         }
         
         // 更新当前主题
+        currentThemeType = targetTheme;
         currentTheme = newTheme;
-        
-        // 在应用主题之前发布事件
-        EventBus.getInstance().publish(new ThemeChangeEvent(currentTheme));
         
         // 应用新主题
         applyTheme();
+
+        // 主题切换后发布事件
+        EventBus.getInstance().publish(new ThemeChangeEvent(currentTheme));
+
+        // 保存主题偏好
+        saveTheme(targetTheme);
         
-        LOGGER.info("切换主题: {}", theme);
+        LOGGER.info("切换主题: {}", targetTheme);
     }
     
     public UITheme.ThemeColors getCurrentTheme() {
         return currentTheme;
+    }
+
+    public Theme getCurrentThemeType() {
+        return currentThemeType;
+    }
+
+    private UITheme.ThemeColors mapTheme(Theme theme) {
+        return switch (theme) {
+            case DARK -> UITheme.DARK_THEME;
+            case LIGHT -> UITheme.LIGHT_THEME;
+        };
+    }
+
+    private Path initThemeConfigPath() {
+        try {
+            Path base = Paths.get(
+                    net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().toString(),
+                    "masterplanner"
+            );
+            if (!Files.exists(base)) {
+                Files.createDirectories(base);
+            }
+            return base.resolve("ui_theme.json");
+        } catch (Exception e) {
+            LOGGER.warn("初始化主题配置路径失败，使用默认主题", e);
+            return null;
+        }
+    }
+
+    private Theme loadSavedTheme() {
+        if (themeConfigPath == null || !Files.exists(themeConfigPath)) {
+            return Theme.DARK;
+        }
+        try (Reader reader = Files.newBufferedReader(themeConfigPath)) {
+            ThemeSetting setting = gson.fromJson(reader, ThemeSetting.class);
+            if (setting == null || setting.theme == null || setting.theme.isBlank()) {
+                return Theme.DARK;
+            }
+            return Theme.valueOf(setting.theme.toUpperCase());
+        } catch (Exception e) {
+            LOGGER.warn("读取主题配置失败，使用默认深色主题", e);
+            return Theme.DARK;
+        }
+    }
+
+    private void saveTheme(Theme theme) {
+        if (themeConfigPath == null || theme == null) {
+            return;
+        }
+        try (Writer writer = Files.newBufferedWriter(themeConfigPath)) {
+            ThemeSetting setting = new ThemeSetting();
+            setting.theme = theme.name();
+            gson.toJson(setting, writer);
+        } catch (Exception e) {
+            LOGGER.warn("保存主题配置失败: {}", e.getMessage());
+        }
+    }
+
+    private static class ThemeSetting {
+        private String theme;
     }
     
     /**
@@ -88,7 +162,7 @@ public class ThemeManager {
         
         // 基础颜色
         style.setColor(ImGuiCol.Text, currentTheme.foreground);
-        style.setColor(ImGuiCol.TextDisabled, ImColor.rgba(0.5f, 0.5f, 0.5f, 1.0f));
+        style.setColor(ImGuiCol.TextDisabled, currentTheme.mutedText);
         // 关键：不要让 ImGui 画“整屏不透明背景”（否则会挡住 Minecraft 场景）。
         // 各个面板/工具栏会自己 push WindowBg，因此这里全局设为透明是安全的。
         style.setColor(ImGuiCol.WindowBg, ImColor.rgba(0, 0, 0, 0));
@@ -197,6 +271,6 @@ public class ThemeManager {
      * @return 如果是浅色主题返回true，否则返回false
      */
     public boolean isLightTheme() {
-        return getCurrentTheme().equals(UITheme.LIGHT_THEME);
+        return currentThemeType == Theme.LIGHT;
     }
 } 

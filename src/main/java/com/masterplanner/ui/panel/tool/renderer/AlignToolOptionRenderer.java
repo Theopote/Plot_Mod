@@ -1,5 +1,6 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.AlignTool;
 import com.masterplanner.ui.tools.impl.modify.strategy.AlignStrategy;
 import imgui.ImGui;
@@ -168,7 +169,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(0.8f, 0.8f, 0.8f, 1.0f, "使用说明");
+        ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, "使用说明");
         
         ImGui.tableNextColumn();
         ImGui.textWrapped(getUsageInstructions());
@@ -183,7 +184,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(0.8f, 0.8f, 0.8f, 1.0f, "快捷键");
+        ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, "快捷键");
         
         ImGui.tableNextColumn();
         ImGui.textWrapped(getShortcutTips());

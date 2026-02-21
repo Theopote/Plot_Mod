@@ -10,6 +10,8 @@ import imgui.type.ImBoolean;
 import com.masterplanner.ui.component.Icons;
 import com.masterplanner.ui.component.UIUtils;
 import com.masterplanner.MasterPlannerMod;
+import com.masterplanner.ui.theme.ThemeManager;
+import com.masterplanner.ui.theme.UITheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +54,7 @@ public class ExtensionPanel implements UIComponent {
         }
 
         try {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
             // 设置基本样式
             ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 14.0f);
             ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 8);
@@ -86,7 +89,7 @@ public class ExtensionPanel implements UIComponent {
                 // 启用/禁用开关
                 ImGui.sameLine(ImGui.getWindowWidth() - 60);
                 boolean enabled = plugin.isEnabled();
-                ImGui.pushStyleColor(ImGuiCol.Text, enabled ? 0xFF40FF40 : 0xFF808080);
+                ImGui.pushStyleColor(ImGuiCol.Text, enabled ? theme.successText : theme.mutedText);
                 ImBoolean enabledRef = new ImBoolean(enabled);
                 if (ImGui.checkbox("##enabled", enabledRef)) {
                     // enabledRef.get() 是点击后的新状态
@@ -121,11 +124,11 @@ public class ExtensionPanel implements UIComponent {
             if (currentActivePlugin != null) {
                 // 如果插件未启用，显示提示信息
                 if (!currentActivePlugin.isEnabled()) {
-                    ImGui.textColored((int) 0xFFFF4040FFL, "插件未启用");
+                    ImGui.textColored(theme.errorText, "插件未启用");
                     ImGui.text("请先启用插件 '" + currentActivePlugin.getName() + "' 以使用其功能");
                 } else {
                     // 显示插件名称和描述
-                    ImGui.pushStyleColor(ImGuiCol.Text, (int) 0xFF4080FFFFL);
+                    ImGui.pushStyleColor(ImGuiCol.Text, theme.infoText);
                     ImGui.text(currentActivePlugin.getName());
                     ImGui.popStyleColor();
                     
@@ -149,7 +152,7 @@ public class ExtensionPanel implements UIComponent {
                             currentActivePlugin.render();
                         } catch (Exception e) {
                             MasterPlannerMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
-                            ImGui.textColored((int) 0xFFFF4040FFL, "渲染错误: " + e.getMessage());
+                            ImGui.textColored(theme.errorText, "渲染错误: " + e.getMessage());
                         }
                         
                         ImGui.endChild();
@@ -157,7 +160,7 @@ public class ExtensionPanel implements UIComponent {
                 }
             } else {
                 // 没有激活的插件，显示提示信息
-                ImGui.textColored((int) 0xFF808080FFL, "请选择一个插件");
+                ImGui.textColored(theme.mutedText, "请选择一个插件");
                 ImGui.textWrapped("从上方列表中选择一个插件以查看和配置其参数");
             }
             

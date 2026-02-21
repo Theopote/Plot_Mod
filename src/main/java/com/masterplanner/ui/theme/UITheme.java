@@ -44,8 +44,8 @@ public class UITheme {
     public static void applyGlobalStyle() {
         ImGuiStyle style = ImGui.getStyle();
 
-        // 使用默认主题（深色主题）的样式设置
-        ThemeColors defaultTheme = DARK_THEME;
+        // 使用当前主题的样式设置
+        ThemeColors defaultTheme = ThemeManager.getInstance().getCurrentTheme();
         
         // 设置基础样式
         style.setWindowRounding(defaultTheme.windowRounding);
@@ -341,6 +341,18 @@ public class UITheme {
         public int tooltipText;
         /** 提示框背景颜色 */
         public int tooltipBackground;
+        /** 次级文本颜色 */
+        public int mutedText;
+        /** 成功态文本颜色 */
+        public int successText;
+        /** 警告态文本颜色 */
+        public int warningText;
+        /** 错误态文本颜色 */
+        public int errorText;
+        /** 信息态文本颜色 */
+        public int infoText;
+        /** 禁用态背景色 */
+        public int disabledBackground;
 
         // 输入框颜色 - 移除final修饰符
         public int inputBackground;        // 输入框背景色
@@ -372,6 +384,7 @@ public class UITheme {
         // 主色调：深色
         theme.background = ImColor.rgba(0.12f, 0.12f, 0.12f, 1.0f);
         theme.foreground = ImColor.rgba(0.9f, 0.9f, 0.9f, 1.0f);
+        theme.accent = ImColor.rgba(0.12f, 0.56f, 1.00f, 1.0f);
         
         // 边框和分割线颜色：浅灰色
         theme.border = ImColor.rgba(0.4f, 0.4f, 0.4f, 1.0f);          // 通用边框颜色
@@ -402,6 +415,11 @@ public class UITheme {
         theme.sliderBorder = theme.border;
         theme.groupBorder = theme.border;
         theme.selectorBorder = theme.border;
+
+        // 画布颜色
+        theme.canvasBackground = 0x33222222;
+        theme.gridLine = ImColor.rgba(0.38f, 0.38f, 0.38f, 0.45f);
+        theme.selectionOutline = theme.accent;
         
         // 标签颜色
         theme.tabNormal = ImColor.rgba(0.20f, 0.20f, 0.20f, 1.0f);
@@ -449,6 +467,12 @@ public class UITheme {
         theme.activeText = ImColor.rgba(0.4f, 0.8f, 1.0f, 1.0f);     // 激活文本：浅蓝色
         theme.tooltipText = ImColor.rgba(0.9f, 0.9f, 0.9f, 1.0f);    // 提示文本：浅灰白色
         theme.tooltipBackground = ImColor.rgba(0.2f, 0.2f, 0.2f, 0.95f); // 提示框背景：深灰色
+        theme.mutedText = ImColor.rgba(0.65f, 0.65f, 0.65f, 1.0f);
+        theme.successText = ImColor.rgba(0.45f, 0.90f, 0.45f, 1.0f);
+        theme.warningText = ImColor.rgba(0.95f, 0.76f, 0.35f, 1.0f);
+        theme.errorText = ImColor.rgba(1.0f, 0.45f, 0.40f, 1.0f);
+        theme.infoText = ImColor.rgba(0.55f, 0.78f, 1.0f, 1.0f);
+        theme.disabledBackground = ImColor.rgba(0.28f, 0.28f, 0.28f, 0.55f);
 
         // 输入框颜色
         theme.inputBackground = ImColor.rgba(0.20f, 0.20f, 0.20f, 1.0f);
@@ -469,6 +493,7 @@ public class UITheme {
         // 主色调：浅灰色
         theme.background = ImColor.rgba(0.95f, 0.95f, 0.95f, 1.0f);
         theme.foreground = ImColor.rgba(0.1f, 0.1f, 0.1f, 1.0f);
+        theme.accent = ImColor.rgba(0.12f, 0.47f, 0.92f, 1.0f);
         theme.border = ImColor.rgba(0.7f, 0.7f, 0.7f, 1.0f);          // 面板边框颜色
         theme.separatorColor = theme.border;                           // 分割线使用相同的颜色
         
@@ -545,6 +570,12 @@ public class UITheme {
         theme.activeText = ImColor.rgba(0.0f, 0.4f, 0.8f, 1.0f);     // 激活文本：深蓝色
         theme.tooltipText = ImColor.rgba(0.1f, 0.1f, 0.1f, 1.0f);    // 提示文本：深灰色
         theme.tooltipBackground = ImColor.rgba(0.95f, 0.95f, 0.95f, 0.95f); // 提示框背景：浅灰色
+        theme.mutedText = ImColor.rgba(0.42f, 0.42f, 0.42f, 1.0f);
+        theme.successText = ImColor.rgba(0.18f, 0.56f, 0.22f, 1.0f);
+        theme.warningText = ImColor.rgba(0.74f, 0.48f, 0.12f, 1.0f);
+        theme.errorText = ImColor.rgba(0.78f, 0.22f, 0.18f, 1.0f);
+        theme.infoText = ImColor.rgba(0.16f, 0.38f, 0.72f, 1.0f);
+        theme.disabledBackground = ImColor.rgba(0.70f, 0.70f, 0.70f, 0.55f);
 
         // 输入框颜色
         theme.inputBackground = ImColor.rgba(0.90f, 0.90f, 0.90f, 1.0f);

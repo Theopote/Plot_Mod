@@ -194,7 +194,7 @@ public class GalleryPanel implements UIComponent {
                 ImGui.sameLine(0, 0);
                 ImGui.setCursorPosX(ImGui.getCursorPosX() - 20);
                 ImGui.pushStyleColor(ImGuiCol.Button, 0);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF5555AA);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().buttonHovered);
                 if (ImGui.button("×##delete" + category, 16, 16)) {
                     categoryToRemove = category;
                 }
@@ -305,10 +305,11 @@ public class GalleryPanel implements UIComponent {
     private void renderItemOperations(GalleryItem item) {
         float buttonWidth = 35;
         float buttonHeight = 20;
+        var theme = ThemeManager.getInstance().getCurrentTheme();
         
         // 放置按钮
-        ImGui.pushStyleColor(ImGuiCol.Button, 0xFF4CAF50);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF66BB6A);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
         if (ImGui.button("+" + "##place" + item.id, buttonWidth, buttonHeight)) {
             handlePlaceItem(item);
         }
@@ -321,8 +322,8 @@ public class GalleryPanel implements UIComponent {
         
         // 编辑按钮
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Button, 0xFF2196F3);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFF42A5F5);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         if (ImGui.button("✎" + "##edit" + item.id, buttonWidth, buttonHeight)) {
             handleEditItem(item);
         }
@@ -335,8 +336,8 @@ public class GalleryPanel implements UIComponent {
         
         // 删除按钮
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Button, 0xFFF44336);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFFEF5350);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.errorText);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         if (ImGui.button("×" + "##delete" + item.id, buttonWidth, buttonHeight)) {
             handleDeleteItem(item);
         }
@@ -349,8 +350,8 @@ public class GalleryPanel implements UIComponent {
         
         // 导入按钮
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Button, 0xFF9E9E9E);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0xFFBDBDBD);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.mutedText);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         if (ImGui.button("↓" + "##import" + item.id, buttonWidth, buttonHeight)) {
             handleImportItem(item);
         }

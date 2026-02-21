@@ -115,7 +115,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
@@ -183,7 +183,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
@@ -410,7 +410,8 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         
         ImGui.tableNextColumn();
         ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - 10);
-        ImGui.textColored(0.8f, 0.8f, 0.8f, 1.0f,
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.textColored(theme.mutedText,
                 """
                         1. 点击确定螺旋中心
                         2. 点击确定螺旋起点
@@ -440,18 +441,19 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
             
             ImGui.tableNextColumn();
             ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - 10);
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             
             if (!controlPoints.isEmpty()) {
-                ImGui.textColored(0.7f, 0.9f, 0.7f, 1.0f, "✓ 已确定中心点");
+                ImGui.textColored(theme.successText, "✓ 已确定中心点");
             }
             if (controlPoints.size() >= 2) {
-                ImGui.textColored(0.7f, 0.9f, 0.7f, 1.0f, "✓ 已确定螺旋起点");
+                ImGui.textColored(theme.successText, "✓ 已确定螺旋起点");
             }
             if (controlPoints.size() >= 3) {
-                ImGui.textColored(0.7f, 0.9f, 0.7f, 1.0f, "✓ 已确定螺距");
+                ImGui.textColored(theme.successText, "✓ 已确定螺距");
             }
             if (controlPoints.size() >= 4) {
-                ImGui.textColored(0.7f, 0.9f, 0.7f, 1.0f, "✓ 已确定最外圈");
+                ImGui.textColored(theme.successText, "✓ 已确定最外圈");
             }
             
             ImGui.popTextWrapPos();

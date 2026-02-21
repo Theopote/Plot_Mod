@@ -106,7 +106,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, 0.0f, 1.0f, 0.0f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
@@ -158,7 +158,8 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         if (ImGui.collapsingHeader("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textColored(0.9f, 0.6f, 0.3f, 1.0f, "快捷键提示：");
+            UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
+            ImGui.textColored(currentTheme.warningText, "快捷键提示：");
             ImGui.spacing();
             
             ImGui.bulletText("Shift: 拖拽角点时保持比例缩放");
@@ -166,7 +167,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.bulletText("Esc: 取消操作 / 返回选择");
             
             ImGui.spacing();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示：");
+            ImGui.textColored(currentTheme.mutedText, "提示：");
             ImGui.textWrapped("• 变换时会显示实时预览效果\n• 拖拽控制点可以精确控制变换\n• 角点支持自由变换和等比变换\n• 边中点支持单轴缩放");
             
             height += ImGui.getFrameHeightWithSpacing() * 6;
