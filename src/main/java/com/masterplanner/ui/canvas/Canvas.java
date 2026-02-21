@@ -218,27 +218,5 @@ public class Canvas implements ICanvas, UIComponent {
     public void setOpacity(float opacity) { core.setOpacity(opacity); }
     public float getOpacity() { return core.getOpacity(); }
     public CanvasCamera getCamera() { return core.getCamera(); }
-    
-    /**
-     * 处理鼠标滚轮事件
-     * 将滚轮事件传递给CanvasCore进行缩放处理
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param delta 滚轮增量
-     */
-    public void handleMouseScroll(double mouseX, double mouseY, double delta) {
-        LOGGER.debug("Canvas处理鼠标滚轮: x={}, y={}, delta={}", mouseX, mouseY, delta);
-        
-        // 将滚轮事件传递给CanvasCore进行缩放处理
-        double currentScale = core.getScale();
-        double newScale = currentScale * (1.0 + delta * 0.1);
-        
-        // 限制缩放范围
-        newScale = Math.max(0.1, Math.min(10.0, newScale));
-        
-        core.setScale(newScale);
-        core.markDirty(CanvasCore.DirtyType.CONTENT, CanvasCore.DirtyType.LAYOUT);
-        
-        LOGGER.debug("缩放更新: {} -> {}", currentScale, newScale);
-    }
+
 }

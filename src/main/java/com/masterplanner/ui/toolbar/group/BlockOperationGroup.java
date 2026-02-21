@@ -15,6 +15,7 @@ import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.toolbar.ToolbarUIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -181,18 +182,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         }
         
         LOGGER.info("发现 {} 个幽灵方块需要投影", ghostBlockCount);
-        BlockProjectionEvent.ProjectionMode projectionMode = BlockProjectionEvent.ProjectionMode.GROUND;
-        Integer elevation = null;
-        if (projectionSettingsDialog != null && projectionSettingsDialog.getProjectionMode() == ProjectionSettingsDialog.ProjectionMode.ELEVATION) {
-            projectionMode = BlockProjectionEvent.ProjectionMode.ELEVATION;
-            elevation = projectionSettingsDialog.getElevation();
-        }
-
-        ProjectGhostBlocksCommand projectionCommand = new ProjectGhostBlocksCommand(
-                visibleGhostBlocks,
-                projectionMode,
-                elevation
-        );
+        ProjectGhostBlocksCommand projectionCommand = getProjectGhostBlocksCommand(visibleGhostBlocks);
         appState.getCommandHistory().execute(projectionCommand);
 
         int projectedCount = projectionCommand.getProjectedCount();
@@ -203,7 +193,22 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
             LOGGER.warn("投影操作失败，没有方块被投影");
         }
     }
-    
+
+    private @NotNull ProjectGhostBlocksCommand getProjectGhostBlocksCommand(List<GhostBlockManager.GhostBlock> visibleGhostBlocks) {
+        BlockProjectionEvent.ProjectionMode projectionMode = BlockProjectionEvent.ProjectionMode.GROUND;
+        Integer elevation = null;
+        if (projectionSettingsDialog != null && projectionSettingsDialog.getProjectionMode() == ProjectionSettingsDialog.ProjectionMode.ELEVATION) {
+            projectionMode = BlockProjectionEvent.ProjectionMode.ELEVATION;
+            elevation = projectionSettingsDialog.getElevation();
+        }
+
+        return new ProjectGhostBlocksCommand(
+                visibleGhostBlocks,
+                projectionMode,
+                elevation
+        );
+    }
+
     @Override
     public float getGroupWidth() {
         return calculateButtonGroupWidth(3); // 3个按钮（方块配置、线转方块、投影方块）

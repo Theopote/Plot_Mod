@@ -13,7 +13,7 @@ import java.awt.Color;
 
 /**
  * 捕捉增强器 - 通用的CAD级别捕捉功能增强器
- * 
+ * <p>
  * 为所有绘制和修改工具提供统一的捕捉功能，包括：
  * - 增强的捕捉检测
  * - 丰富的视觉反馈
@@ -197,21 +197,7 @@ public class SnapEnhancer {
         currentSnapType = com.masterplanner.core.snap.SnapPriorityEvaluator.SnapType.NONE;
         LOGGER.debug("{}: 捕捉状态已重置", toolName);
     }
-    
-    // ====== 获取器方法 ======
-    
-    public boolean isSnapping() {
-        return isSnapping;
-    }
-    
-    public Vec2d getSnapPoint() {
-        return snapPoint;
-    }
-    
-    public com.masterplanner.core.snap.SnapPriorityEvaluator.SnapType getCurrentSnapType() {
-        return currentSnapType;
-    }
-    
+
     // ====== 私有辅助方法 ======
     
     /**

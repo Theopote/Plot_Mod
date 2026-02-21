@@ -8,6 +8,7 @@ import imgui.ImColor;
 import java.awt.Color;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 捕捉可视样式统一配置
@@ -32,10 +33,7 @@ public final class SnapVisualStyle {
     public static Color colorFor(SnapPriorityEvaluator.SnapType type) {
         SnapPriorityEvaluator.SnapType snapType = type == null ? SnapPriorityEvaluator.SnapType.NONE : type;
         Integer customArgb = CUSTOM_COLORS.get(snapType);
-        if (customArgb != null) {
-            return toColor(customArgb, 255);
-        }
-        return toColor(defaultColorArgbFor(snapType), 255);
+        return toColor(Objects.requireNonNullElseGet(customArgb, () -> defaultColorArgbFor(snapType)), 255);
     }
 
     public static int defaultColorArgbFor(SnapPriorityEvaluator.SnapType type) {

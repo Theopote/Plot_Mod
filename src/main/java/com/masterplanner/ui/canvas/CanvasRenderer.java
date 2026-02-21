@@ -106,13 +106,7 @@ public class CanvasRenderer implements EventListener {
         void updateViewport(float x, float y, float width, float height) {
             viewportBounds = new BoundingBox(x, y, x + width, y + height);
         }
-        
-        /**
-         * 设置视口边界（从缓存获取）
-         */
-        void setViewportBounds(BoundingBox bounds) {
-            this.viewportBounds = bounds;
-        }
+
         
         /**
          * 检查形状是否在视口内（视锥体裁剪）

@@ -18,7 +18,6 @@ import com.masterplanner.infrastructure.event.EventBus;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -343,7 +342,7 @@ public class ImportFileDialog {
                 List<File> filteredFiles = currentFiles.stream()
                     .filter(file -> filterText.isEmpty() || 
                                    file.getName().toLowerCase().contains(filterText))
-                    .collect(Collectors.toList());
+                    .toList();
                 
                 // 渲染文件列表
                 for (int i = 0; i < filteredFiles.size(); i++) {

@@ -11,10 +11,8 @@ import imgui.flag.ImGuiStyleVar;
  */
 public abstract class AbstractToolOptionRenderer implements ToolOptionRenderer {
     // 界面布局常量
-    protected static final float LABEL_WIDTH = 60.0f;         // 标签文本宽度
     protected static final float BUTTON_SIZE = 32.0f;         // 按钮大小，与工具栏按钮保持一致
     protected static final float BUTTON_SPACING = 8.0f;       // 按钮之间的间距
-    protected static final float PANEL_PADDING = 8.0f;        // 面板内边距
     protected static final float BUTTON_CORNER_ROUNDING = 4.0f;// 按钮圆角半径
 
     protected final EventBus eventBus;
