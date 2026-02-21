@@ -8,6 +8,7 @@ import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.masterplanner.ui.imgui.gl.ImGuiGLStateGuard;
+import com.masterplanner.ui.theme.ThemeManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.opengl.GL11;
@@ -74,6 +75,7 @@ public class ImGuiRenderer {
             
             initializeFonts(io);
             ImGui.styleColorsDark();
+            ThemeManager.getInstance().applyThemeIfReady();
             
             imGuiGlfw = new ImGuiImplGlfw();
             if (!imGuiGlfw.init(windowHandle, true)) {

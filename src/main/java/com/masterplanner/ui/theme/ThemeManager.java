@@ -154,6 +154,11 @@ public class ThemeManager {
      * 将当前主题的颜色设置应用到ImGui界面
      */
     private void applyTheme() {
+        if (!isImGuiContextReady()) {
+            LOGGER.debug("ImGui context not ready, postpone applying theme: {}", currentThemeType);
+            return;
+        }
+
         ImGuiStyle style = ImGui.getStyle();
         
         // 基础颜色
@@ -240,5 +245,17 @@ public class ThemeManager {
         
         // 设置控件圆角
         style.setFrameRounding(currentTheme.panelControlRounding);
+    }
+
+    public void applyThemeIfReady() {
+        applyTheme();
+    }
+
+    private boolean isImGuiContextReady() {
+        try {
+            return ImGui.getCurrentContext() != null;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 } 

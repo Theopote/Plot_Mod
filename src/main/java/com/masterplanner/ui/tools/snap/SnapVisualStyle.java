@@ -1,6 +1,7 @@
 package com.masterplanner.ui.tools.snap;
 
 import com.masterplanner.core.snap.SnapPriorityEvaluator;
+import com.masterplanner.ui.theme.UITheme;
 import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImColor;
 
@@ -18,14 +19,14 @@ public final class SnapVisualStyle {
     public static final float ENHANCED_RING_SIZE = 5.0f;
     public static final float MARKER_SIZE = 2.0f;
 
-    // 兼容旧引用：默认高亮色
-    public static final Color DEFAULT_HIGHLIGHT = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 255);
+    // 兼容旧引用：默认高亮色（避免静态初始化期访问 ThemeManager）
+    public static final Color DEFAULT_HIGHLIGHT = new Color(255, 200, 0, 255);
 
     /**
      * 获取捕捉类型对应的颜色
      */
     public static Color colorFor(SnapPriorityEvaluator.SnapType type) {
-        var theme = ThemeManager.getInstance().getCurrentTheme();
+        var theme = getThemeColorsSafely();
         if (type == null) return toColor(theme.warningText, 255);
         return switch (type) {
             case END_POINT -> toColor(theme.errorText, 255);
@@ -67,6 +68,16 @@ public final class SnapVisualStyle {
 
     private static Color toColor(int color, int alpha) {
         return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
+    }
+
+    private static UITheme.ThemeColors getThemeColorsSafely() {
+        try {
+            var manager = ThemeManager.getInstance();
+            var theme = manager.getCurrentTheme();
+            return theme != null ? theme : UITheme.DARK_THEME;
+        } catch (Throwable ignored) {
+            return UITheme.DARK_THEME;
+        }
     }
 }
 
