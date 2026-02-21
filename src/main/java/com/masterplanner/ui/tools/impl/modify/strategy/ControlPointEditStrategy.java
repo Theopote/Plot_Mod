@@ -3,6 +3,7 @@ package com.masterplanner.ui.tools.impl.modify.strategy;
 import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.ControlPointEditTool;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
@@ -250,8 +251,9 @@ public class ControlPointEditStrategy implements IModifyStrategy {
         if (originalPos != null && currentPos != null) {
             Vec2d screenOriginalPos = camera.worldToScreen(originalPos);
             Vec2d screenCurrentPos = camera.worldToScreen(currentPos);
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             
-            int lineColor = imgui.ImColor.rgba(255, 255, 0, 128);
+            int lineColor = withAlpha(theme.warningText, 0x80);
             drawList.addLine(
                 (float)screenOriginalPos.x, (float)screenOriginalPos.y,
                 (float)screenCurrentPos.x, (float)screenCurrentPos.y,
@@ -259,8 +261,8 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             );
             
             // 在当前位置绘制预览点
-            int previewColor = imgui.ImColor.rgba(255, 255, 0, 200);
-            int borderColor = imgui.ImColor.rgba(255, 255, 255, 255);
+            int previewColor = withAlpha(theme.warningText, 0xC8);
+            int borderColor = theme.text;
             
             drawList.addCircleFilled(
                 (float)screenCurrentPos.x, (float)screenCurrentPos.y,
@@ -287,10 +289,11 @@ public class ControlPointEditStrategy implements IModifyStrategy {
         if (controlPoints != null && hoveredIndex >= 0 && hoveredIndex < controlPoints.size()) {
             Vec2d hoveredPoint = controlPoints.get(hoveredIndex);
             Vec2d screenPoint = camera.worldToScreen(hoveredPoint);
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             
             // 在悬停的控制点周围绘制预览圈
-            int previewColor = imgui.ImColor.rgba(255, 255, 255, 64);
-            int borderColor = imgui.ImColor.rgba(255, 255, 255, 255);
+            int previewColor = withAlpha(theme.text, 0x40);
+            int borderColor = theme.text;
             
             drawList.addCircle(
                 (float)screenPoint.x, (float)screenPoint.y,
@@ -301,6 +304,10 @@ public class ControlPointEditStrategy implements IModifyStrategy {
                 6, borderColor, 0, 1.0f
             );
         }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
     @Override

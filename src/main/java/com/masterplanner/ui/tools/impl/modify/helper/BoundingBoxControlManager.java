@@ -507,7 +507,7 @@ public class BoundingBoxControlManager {
 
             if (rotationIconsEnabled && controlPointType.supportsRotation()) {
                 Vec2d iconPosition = calculateRotationIconPosition(controlPointType, controlPoint);
-                if (iconPosition != null && point.distance(iconPosition) <= ROTATION_ICON_HOVER_DISTANCE) {
+                if (point.distance(iconPosition) <= ROTATION_ICON_HOVER_DISTANCE) {
                     return controlPointType;
                 }
             }

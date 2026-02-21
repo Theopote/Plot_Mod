@@ -7,6 +7,7 @@ import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.graphics.style.ShapeStyle;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.ArrayHandler;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
 import imgui.ImDrawList;
@@ -1048,13 +1049,14 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     private void renderArrayPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             // 渲染预览位置点
             for (int i = 0; i < previewPositions.size(); i++) {
                 Vec2d pos = previewPositions.get(i);
                 Vec2d screenPos = camera.worldToScreen(pos);
                 drawList.addCircleFilled(
                     (float) screenPos.x, (float) screenPos.y, 3.0f,
-                    0xFF00FF00 // 绿色
+                    theme.successText
                 );
 
                 if (arrayType == ArrayType.PATH && i < previewAngles.size()) {
@@ -1064,7 +1066,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     drawList.addLine(
                         (float) screenPos.x, (float) screenPos.y,
                         (float) screenTip.x, (float) screenTip.y,
-                        0xFF00FFFF, 1.5f
+                        theme.accent, 1.5f
                     );
                 }
             }
@@ -1076,7 +1078,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 Vec2d sBase = camera.worldToScreen(basePoint);
                 Vec2d sCol = camera.worldToScreen(colHandle);
                 Vec2d sRow = camera.worldToScreen(rowHandle);
-                int color = 0xFF00C8FF; // 偏亮的黄蓝（ARGB）
+                int color = theme.accent;
                 drawList.addLine((float) sBase.x, (float) sBase.y, (float) sCol.x, (float) sCol.y, color, 1.5f);
                 drawList.addLine((float) sBase.x, (float) sBase.y, (float) sRow.x, (float) sRow.y, color, 1.5f);
                 drawList.addCircleFilled((float) sCol.x, (float) sCol.y, 4.0f, color);
@@ -1091,7 +1093,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 Vec2d radiusHandle = basePoint.add(new Vec2d(radius * Math.cos(startAngle), radius * Math.sin(startAngle)));
                 Vec2d sBase = camera.worldToScreen(basePoint);
                 Vec2d sRad = camera.worldToScreen(radiusHandle);
-                int color = 0xFF00C8FF;
+                int color = theme.accent;
                 drawList.addLine((float) sBase.x, (float) sBase.y, (float) sRad.x, (float) sRad.y, color, 1.5f);
                 drawList.addCircleFilled((float) sRad.x, (float) sRad.y, 4.0f, color);
             }

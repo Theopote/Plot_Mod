@@ -6,6 +6,7 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -451,13 +452,14 @@ public class EraserStrategy implements IModifyStrategy {
         }
         
         try {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             // 转换到屏幕坐标
             Vec2d screenPos = camera.worldToScreen(currentMousePosition);
             float screenRadius = eraserRadius * camera.getZoom();
             
             // 渲染橡皮擦光标
-            int redColor = 0xFF0000FF; // 红色
-            int whiteColor = 0xFFFFFFFF; // 白色
+            int redColor = theme.errorText;
+            int whiteColor = theme.text;
             
             // 填充圆形
             drawList.addCircleFilled(

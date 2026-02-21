@@ -9,6 +9,7 @@ import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.ChamferTool;
 import com.masterplanner.ui.tools.impl.modify.helper.ChamferHandler;
 import com.masterplanner.ui.tools.impl.modify.helper.IModifyHandler;
@@ -392,6 +393,7 @@ public class ChamferStrategy implements IModifyStrategy {
     @Override
     public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
         if (previewEnabled && previewShapes != null) {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             for (Shape shape : previewShapes) {
                 // ImGui预览渲染实现
                 // 这里需要根据具体的Shape类型进行绘制
@@ -404,31 +406,31 @@ public class ChamferStrategy implements IModifyStrategy {
                     drawList.addLine(
                         (float)screenStart.x, (float)screenStart.y,
                         (float)screenEnd.x, (float)screenEnd.y,
-                        0xFFFFFFFF // 白色
+                        theme.text
                     );
                 } else if (shape instanceof PolylineShape polylineShape) {
                     List<Vec2d> points = polylineShape.getPoints();
                     for (int i = 0; i < points.size() - 1; i++) {
                         Vec2d p1 = camera.worldToScreen(points.get(i));
                         Vec2d p2 = camera.worldToScreen(points.get(i + 1));
-                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, theme.text);
                     }
                     if (polylineShape.isClosed() && points.size() > 2) {
                         Vec2d p1 = camera.worldToScreen(points.getLast());
                         Vec2d p2 = camera.worldToScreen(points.getFirst());
-                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, theme.text);
                     }
                 } else if (shape instanceof Polygon polygon) {
                     List<Vec2d> points = polygon.getPoints();
                     for (int i = 0; i < points.size() - 1; i++) {
                         Vec2d p1 = camera.worldToScreen(points.get(i));
                         Vec2d p2 = camera.worldToScreen(points.get(i + 1));
-                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, theme.text);
                     }
                     if (polygon.isClosed() && points.size() > 2) {
                         Vec2d p1 = camera.worldToScreen(points.getLast());
                         Vec2d p2 = camera.worldToScreen(points.getFirst());
-                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, 0xFFFFFFFF);
+                        drawList.addLine((float)p1.x, (float)p1.y, (float)p2.x, (float)p2.y, theme.text);
                     }
                 }
                 // 可以添加其他Shape类型的绘制逻辑

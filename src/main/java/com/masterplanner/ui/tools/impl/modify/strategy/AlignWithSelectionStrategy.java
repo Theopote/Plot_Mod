@@ -5,6 +5,7 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
+import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.AlignHandler;
 import com.masterplanner.ui.tools.impl.modify.dto.ModifyParameters;
 import imgui.ImDrawList;
@@ -608,6 +609,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     private void renderAlignPreviewImGui(ImDrawList drawList, CanvasCamera camera) {
         try {
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             // 渲染预览辅助线
             for (com.masterplanner.ui.tools.impl.modify.helper.AlignmentGuide guide : previewGuides) {
                 Vec2d screenStart = camera.worldToScreen(guide.getStart());
@@ -616,7 +618,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 drawList.addLine(
                     (float) screenStart.x, (float) screenStart.y,
                     (float) screenEnd.x, (float) screenEnd.y,
-                    0xFF00FF00, 2.0f // 绿色线
+                    theme.successText, 2.0f
                 );
             }
         } catch (Exception e) {
