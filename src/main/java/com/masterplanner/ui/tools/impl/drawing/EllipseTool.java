@@ -11,6 +11,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
@@ -46,14 +47,6 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
     private static final float FOCI_POINT_SIZE = 3.0f;      // 焦点大小
     private static final float CENTER_POINT_SIZE = 5.0f;    // 中心点大小
     private static final float SNAP_INDICATOR_SIZE = 8.0f;  // 吸附指示器大小
-    
-    // ====== 颜色常量 ======
-    private static final Color PREVIEW_COLOR = new Color(255, 255, 255, (int)(PREVIEW_ALPHA * 255));
-    private static final Color AXIS_COLOR = new Color(128, 204, 128, (int)(PREVIEW_ALPHA * 255));
-    private static final Color FOCI_COLOR = new Color(204, 102, 102, (int)(PREVIEW_ALPHA * 255));
-    private static final Color SNAP_INDICATOR_COLOR = new Color(255, 255, 0, 200); // 亮黄色
-    private static final Color CENTER_POINT_COLOR = new Color(255, 102, 102);
-    private static final Color CONTROL_POINT_COLOR = new Color(102, 255, 102);
     
     // ====== 文本偏移常量 ======
     private static final float TEXT_OFFSET_X = 10.0f;       // 文本X轴偏移
@@ -181,60 +174,65 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
 
     @Override
     protected void renderPreview(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color axisColor = toColor(theme.warningText, (int)(PREVIEW_ALPHA * 255));
+        Color centerPointColor = toColor(theme.errorText, 255);
+        Color controlPointColor = toColor(theme.infoText, 255);
+
         // 根据模式渲染不同的预览内容
         switch (currentMode) {
             case THREE_POINTS_AXIS -> {
                 if (controlPoints.size() == 1 && currentMousePoint != null) {
                     // 第一个点和鼠标之间显示线段
-                    context.drawLine(controlPoints.getFirst(), currentMousePoint, AXIS_COLOR);
+                    context.drawLine(controlPoints.getFirst(), currentMousePoint, axisColor);
                 }
                 if (!controlPoints.isEmpty()) {
-                    context.drawCircleFilled(controlPoints.getFirst(), 5.0f, CENTER_POINT_COLOR);
+                    context.drawCircleFilled(controlPoints.getFirst(), 5.0f, centerPointColor);
                 }
                 if (controlPoints.size() >= 2) {
-                    context.drawCircleFilled(controlPoints.get(1), 5.0f, CONTROL_POINT_COLOR);
-                    context.drawLine(controlPoints.get(0), controlPoints.get(1), AXIS_COLOR);
+                    context.drawCircleFilled(controlPoints.get(1), 5.0f, controlPointColor);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(1), axisColor);
                 } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
-                    context.drawLine(controlPoints.getFirst(), currentMousePoint, AXIS_COLOR);
+                    context.drawLine(controlPoints.getFirst(), currentMousePoint, axisColor);
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
                     Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
-                    context.drawLine(center, currentMousePoint, CONTROL_POINT_COLOR);
+                    context.drawLine(center, currentMousePoint, controlPointColor);
                 }
             }
             case THREE_POINTS_CENTER -> {
                 if (controlPoints.size() == 1 && currentMousePoint != null) {
                     // 显示圆心和预览圆
-                    context.drawCircleFilled(controlPoints.getFirst(), CENTER_POINT_SIZE, CENTER_POINT_COLOR);
+                    context.drawCircleFilled(controlPoints.getFirst(), CENTER_POINT_SIZE, centerPointColor);
                     double r = controlPoints.getFirst().distance(currentMousePoint);
                     context.drawCircle(controlPoints.getFirst(), r, getPreviewColor());
                 }
                 if (!controlPoints.isEmpty()) {
-                    context.drawCircleFilled(controlPoints.getFirst(), 5.0f, CENTER_POINT_COLOR);
+                    context.drawCircleFilled(controlPoints.getFirst(), 5.0f, centerPointColor);
                 }
                 if (controlPoints.size() >= 2) {
-                    context.drawCircleFilled(controlPoints.get(1), 5.0f, CONTROL_POINT_COLOR);
-                    context.drawLine(controlPoints.get(0), controlPoints.get(1), AXIS_COLOR);
+                    context.drawCircleFilled(controlPoints.get(1), 5.0f, controlPointColor);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(1), axisColor);
                 } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
-                    context.drawLine(controlPoints.getFirst(), currentMousePoint, AXIS_COLOR);
+                    context.drawLine(controlPoints.getFirst(), currentMousePoint, axisColor);
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
-                    context.drawLine(controlPoints.getFirst(), currentMousePoint, CONTROL_POINT_COLOR);
+                    context.drawLine(controlPoints.getFirst(), currentMousePoint, controlPointColor);
                 }
             }
             case TWO_POINTS -> {
                 if (controlPoints.size() == 1 && currentMousePoint != null) {
                     // 显示矩形框
-                    context.drawRect(controlPoints.getFirst(), currentMousePoint, AXIS_COLOR);
+                    context.drawRect(controlPoints.getFirst(), currentMousePoint, axisColor);
                 }
                 if (!controlPoints.isEmpty()) {
-                    context.drawCircleFilled(controlPoints.getFirst(), 5.0f, CONTROL_POINT_COLOR);
+                    context.drawCircleFilled(controlPoints.getFirst(), 5.0f, controlPointColor);
                 }
                 if (controlPoints.size() >= 2) {
-                    context.drawCircleFilled(controlPoints.get(1), 5.0f, CONTROL_POINT_COLOR);
-                    context.drawLine(controlPoints.get(0), controlPoints.get(1), AXIS_COLOR);
+                    context.drawCircleFilled(controlPoints.get(1), 5.0f, controlPointColor);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(1), axisColor);
                 } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
-                    context.drawLine(controlPoints.getFirst(), currentMousePoint, AXIS_COLOR);
+                    context.drawLine(controlPoints.getFirst(), currentMousePoint, axisColor);
                 }
             }
         }
@@ -259,6 +257,13 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
     @Override
     public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
         if (camera == null) return;
+
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int axisColorStrong = withAlpha(theme.warningText, 180);
+        int axisColorSoft = withAlpha(theme.warningText, 120);
+        int controlColorSoft = withAlpha(theme.infoText, 120);
+        int centerPointColor = withAlpha(theme.errorText, 0xFF);
+        int previewColor = toImColor(getPreviewColor());
         
         // 根据模式渲染不同的预览内容
         switch (currentMode) {
@@ -267,45 +272,45 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
                     // 第一个点和鼠标之间显示线段
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 180), 1.5f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, axisColorStrong, 1.5f);
                 }
                 if (controlPoints.size() >= 2) {
                     Vec2d screenP1 = camera.worldToScreen(controlPoints.get(1));
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenP1.x, (float)screenP1.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 180), 1.5f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenP1.x, (float)screenP1.y, axisColorStrong, 1.5f);
                 } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 120), 1.2f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, axisColorSoft, 1.2f);
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
                     Vec2d center = controlPoints.get(0).add(controlPoints.get(1)).multiply(0.5);
                     Vec2d screenCenter = camera.worldToScreen(center);
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    drawList.addLine((float)screenCenter.x, (float)screenCenter.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), CONTROL_POINT_COLOR.getBlue(), 120), 1.2f);
+                    drawList.addLine((float)screenCenter.x, (float)screenCenter.y, (float)screenMouse.x, (float)screenMouse.y, controlColorSoft, 1.2f);
                 }
             }
             case THREE_POINTS_CENTER -> {
                 if (controlPoints.size() == 1 && currentMousePoint != null) {
                     // 显示圆心和预览圆
                     Vec2d screenCenter = camera.worldToScreen(controlPoints.getFirst());
-                    drawList.addCircleFilled((float)screenCenter.x, (float)screenCenter.y, CENTER_POINT_SIZE, ImColor.rgba(CENTER_POINT_COLOR.getRed(), CENTER_POINT_COLOR.getGreen(), CENTER_POINT_COLOR.getBlue(), CENTER_POINT_COLOR.getAlpha()));
+                    drawList.addCircleFilled((float)screenCenter.x, (float)screenCenter.y, CENTER_POINT_SIZE, centerPointColor);
                     double r = controlPoints.getFirst().distance(currentMousePoint);
-                    drawList.addCircle((float)screenCenter.x, (float)screenCenter.y, (float)r * camera.getZoom(), ImColor.rgba(PREVIEW_COLOR.getRed(), PREVIEW_COLOR.getGreen(), PREVIEW_COLOR.getBlue(), PREVIEW_COLOR.getAlpha()), 0, 2.0f);
+                    drawList.addCircle((float)screenCenter.x, (float)screenCenter.y, (float)r * camera.getZoom(), previewColor, 0, 2.0f);
                 }
                 if (controlPoints.size() >= 2) {
                     Vec2d screenP1 = camera.worldToScreen(controlPoints.get(1));
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenP1.x, (float)screenP1.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 180), 1.5f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenP1.x, (float)screenP1.y, axisColorStrong, 1.5f);
                 } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 120), 1.2f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, axisColorSoft, 1.2f);
                 }
                 if (controlPoints.size() >= 2 && currentMousePoint != null) {
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), CONTROL_POINT_COLOR.getBlue(), 120), 1.2f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, controlColorSoft, 1.2f);
                 }
             }
             case TWO_POINTS -> {
@@ -313,16 +318,16 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
                     // 显示矩形框
                     Vec2d p1 = camera.worldToScreen(controlPoints.getFirst());
                     Vec2d p2 = camera.worldToScreen(currentMousePoint);
-                    drawList.addRect((float)Math.min(p1.x, p2.x), (float)Math.min(p1.y, p2.y), (float)Math.max(p1.x, p2.x), (float)Math.max(p1.y, p2.y), ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 180), 0, 0, 2.0f);
+                    drawList.addRect((float)Math.min(p1.x, p2.x), (float)Math.min(p1.y, p2.y), (float)Math.max(p1.x, p2.x), (float)Math.max(p1.y, p2.y), axisColorStrong, 0, 0, 2.0f);
                 }
                 if (controlPoints.size() >= 2) {
                     Vec2d screenP1 = camera.worldToScreen(controlPoints.get(1));
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenP1.x, (float)screenP1.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 180), 1.5f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenP1.x, (float)screenP1.y, axisColorStrong, 1.5f);
                 } else if (currentMousePoint != null && !controlPoints.isEmpty()) {
                     Vec2d screenP0 = camera.worldToScreen(controlPoints.getFirst());
                     Vec2d screenMouse = camera.worldToScreen(currentMousePoint);
-                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), AXIS_COLOR.getBlue(), 120), 1.2f);
+                    drawList.addLine((float)screenP0.x, (float)screenP0.y, (float)screenMouse.x, (float)screenMouse.y, axisColorSoft, 1.2f);
                 }
             }
         }
@@ -439,8 +444,7 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
      */
     private void renderAxes(ImDrawList drawList, CanvasCamera camera, Vec2d center, 
                           double majorRadius, double minorRadius, double rotation) {
-        int axisColor = ImColor.rgba(AXIS_COLOR.getRed(), AXIS_COLOR.getGreen(), 
-                                   AXIS_COLOR.getBlue(), AXIS_COLOR.getAlpha());
+        int axisColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().warningText, (int)(PREVIEW_ALPHA * 255));
         
         // 计算主轴和副轴上的点
         Vec2d majorStart = getPointAtAngle(center, majorRadius, minorRadius, 0, rotation);
@@ -499,8 +503,7 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
         Vec2d screenCenter = camera.worldToScreen(center);
         
         // 绘制焦点
-        int fociColor = ImColor.rgba(FOCI_COLOR.getRed(), FOCI_COLOR.getGreen(), 
-                                   FOCI_COLOR.getBlue(), FOCI_COLOR.getAlpha());
+        int fociColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().accent, (int)(PREVIEW_ALPHA * 255));
         
         drawList.addCircleFilled(
             (float)screenFocus1.x, (float)screenFocus1.y,
@@ -512,10 +515,7 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
         );
         
         // 绘制连接线
-        Color fociLineColor = new Color(FOCI_COLOR.getRed(), FOCI_COLOR.getGreen(), 
-                                      FOCI_COLOR.getBlue(), 128);
-        int fociLineColorInt = ImColor.rgba(fociLineColor.getRed(), fociLineColor.getGreen(), 
-                                          fociLineColor.getBlue(), fociLineColor.getAlpha());
+        int fociLineColorInt = withAlpha(ThemeManager.getInstance().getCurrentTheme().accent, 128);
         
         drawList.addLine(
             (float)screenFocus1.x, (float)screenFocus1.y,
@@ -533,16 +533,19 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
      * 渲染控制点
      */
     private void renderControlPoints(ImDrawList drawList, CanvasCamera camera) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int centerPointColor = withAlpha(theme.errorText, 0xFF);
+        int controlPointColor = withAlpha(theme.infoText, 0xFF);
+        int snapColor = withAlpha(theme.warningText, 200);
+
         for (int i = 0; i < controlPoints.size(); i++) {
             Vec2d point = controlPoints.get(i);
             Vec2d screenPoint = camera.worldToScreen(point);
             
             // 控制点颜色：第一个点红色（中心点），其他绿色
-            Color pointColor = (i == 0 && currentMode == EllipseMode.THREE_POINTS_CENTER) ? 
-                               CENTER_POINT_COLOR : CONTROL_POINT_COLOR;
-            
-            int color = ImColor.rgba(pointColor.getRed(), pointColor.getGreen(), 
-                                   pointColor.getBlue(), pointColor.getAlpha());
+            int color = (i == 0 && currentMode == EllipseMode.THREE_POINTS_CENTER)
+                    ? centerPointColor
+                    : controlPointColor;
             
             // 绘制控制点
             drawList.addCircleFilled(
@@ -551,8 +554,6 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
             );
             
             // 绘制吸附指示器（亮黄色环）
-            int snapColor = ImColor.rgba(SNAP_INDICATOR_COLOR.getRed(), SNAP_INDICATOR_COLOR.getGreen(), 
-                                       SNAP_INDICATOR_COLOR.getBlue(), SNAP_INDICATOR_COLOR.getAlpha());
             drawList.addCircle(
                 (float)screenPoint.x, (float)screenPoint.y, 
                 SNAP_INDICATOR_SIZE, snapColor, 0, 2.0f
@@ -566,18 +567,25 @@ public class EllipseTool extends DrawingTool implements com.masterplanner.infras
     private void renderMouseSnapIndicator(ImDrawList drawList, CanvasCamera camera) {
         if (currentMousePoint != null && !controlPoints.isEmpty()) {
             Vec2d screenPoint = camera.worldToScreen(currentMousePoint);
-            
-            // 半透明的吸附指示器
-            Color snapColor = new Color(SNAP_INDICATOR_COLOR.getRed(), SNAP_INDICATOR_COLOR.getGreen(), 
-                                      SNAP_INDICATOR_COLOR.getBlue(), (int)(SNAP_INDICATOR_COLOR.getAlpha() * 0.7));
-            int color = ImColor.rgba(snapColor.getRed(), snapColor.getGreen(), 
-                                   snapColor.getBlue(), snapColor.getAlpha());
+            int color = withAlpha(ThemeManager.getInstance().getCurrentTheme().warningText, 140);
             
             drawList.addCircle(
                 (float)screenPoint.x, (float)screenPoint.y, 
                 SNAP_INDICATOR_SIZE * 0.7f, color, 0, 1.5f
             );
         }
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
+    }
+
+    private static int toImColor(Color color) {
+        return ImColor.rgba(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
     
     /**

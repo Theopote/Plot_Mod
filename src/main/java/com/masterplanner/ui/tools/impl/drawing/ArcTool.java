@@ -11,6 +11,7 @@ import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.component.Icons;
+import com.masterplanner.ui.theme.ThemeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
@@ -71,9 +72,6 @@ public class ArcTool extends DrawingTool {
     private static final double ANGLE_SNAP_TOLERANCE = 1e-10;
     
     // ====== 渲染颜色常量 ======
-    private static final Color PREVIEW_COLOR = new Color(255, 255, 255, 200);
-    private static final Color CONTROL_POINT_COLOR = Color.YELLOW;
-    private static final Color CONNECTOR_LINE_COLOR = new Color(128, 128, 255);
     private static final float CONTROL_POINT_SIZE = 6.0f;
     
     // ====== 状态消息映射 ======
@@ -358,8 +356,9 @@ public class ArcTool extends DrawingTool {
         
         // 渲染预览弧形
         if (previewArc != null) {
+            Color previewColor = getPreviewColor();
             context.drawArc(previewArc.getCenter(), previewArc.getRadius(), 
-                          previewArc.getStartAngle(), previewArc.getEndAngle(), PREVIEW_COLOR);
+                          previewArc.getStartAngle(), previewArc.getEndAngle(), previewColor);
         }
         
         // 渲染控制点和辅助线
@@ -387,9 +386,13 @@ public class ArcTool extends DrawingTool {
     // ====== 渲染辅助方法 ======
     
     private void renderControlPointsAndGuides(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color controlPointColor = toColor(theme.infoText, 200);
+        Color connectorLineColor = toColor(theme.warningText, 180);
+
         // 渲染已有的控制点
         for (Vec2d point : controlPoints) {
-            context.drawCircleFilled(point, CONTROL_POINT_SIZE, CONTROL_POINT_COLOR);
+            context.drawCircleFilled(point, CONTROL_POINT_SIZE, controlPointColor);
         }
         
         // 渲染连接线（根据模式不同而不同）
@@ -400,15 +403,14 @@ public class ArcTool extends DrawingTool {
         // 渲染到鼠标位置的预览线
         if (currentMousePoint != null && !controlPoints.isEmpty() && controlPoints.size() < 3) {
             Vec2d lastPoint = controlPoints.getLast();
-            context.drawLine(lastPoint, currentMousePoint, CONNECTOR_LINE_COLOR);
+            context.drawLine(lastPoint, currentMousePoint, connectorLineColor);
         }
     }
     
     private void renderControlPointsAndGuidesImGui(ImDrawList drawList, CanvasCamera camera) {
-        int controlColor = ImColor.rgba(CONTROL_POINT_COLOR.getRed(), CONTROL_POINT_COLOR.getGreen(), 
-                                       CONTROL_POINT_COLOR.getBlue(), 200);
-        int lineColor = ImColor.rgba(CONNECTOR_LINE_COLOR.getRed(), CONNECTOR_LINE_COLOR.getGreen(), 
-                                    CONNECTOR_LINE_COLOR.getBlue(), 150);
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int controlColor = withAlpha(theme.infoText, 200);
+        int lineColor = withAlpha(theme.warningText, 150);
         
         // 渲染已有的控制点
         for (Vec2d point : controlPoints) {
@@ -432,31 +434,32 @@ public class ArcTool extends DrawingTool {
     }
     
     private void renderConnectionLines(DrawContext context) {
+        Color connectorLineColor = toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 180);
         switch (currentMode) {
             case START_END_DIRECTION:
                 if (controlPoints.size() >= 2) {
                     // 起点到终点的弦
-                    context.drawLine(controlPoints.get(0), controlPoints.get(1), CONNECTOR_LINE_COLOR);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(1), connectorLineColor);
                 }
                 break;
             case THROUGH_POINT:
                 if (controlPoints.size() >= 2) {
                     // 起点到经过点
-                    context.drawLine(controlPoints.get(0), controlPoints.get(1), CONNECTOR_LINE_COLOR);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(1), connectorLineColor);
                 }
                 if (controlPoints.size() >= 3) {
                     // 经过点到终点
-                    context.drawLine(controlPoints.get(1), controlPoints.get(2), CONNECTOR_LINE_COLOR);
+                    context.drawLine(controlPoints.get(1), controlPoints.get(2), connectorLineColor);
                 }
                 break;
             case CENTER_START_END:
                 if (controlPoints.size() >= 2) {
                     // 圆心到起点
-                    context.drawLine(controlPoints.get(0), controlPoints.get(1), CONNECTOR_LINE_COLOR);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(1), connectorLineColor);
                 }
                 if (controlPoints.size() >= 3) {
                     // 圆心到终点
-                    context.drawLine(controlPoints.get(0), controlPoints.get(2), CONNECTOR_LINE_COLOR);
+                    context.drawLine(controlPoints.get(0), controlPoints.get(2), connectorLineColor);
                 }
                 break;
         }
@@ -512,12 +515,38 @@ public class ArcTool extends DrawingTool {
         Vec2d screenCenter = camera.worldToScreen(center);
         float screenRadius = (float)(radius * camera.getZoom());
         
-        int arcColor = ImColor.rgba(ArcTool.PREVIEW_COLOR.getRed(), ArcTool.PREVIEW_COLOR.getGreen(), ArcTool.PREVIEW_COLOR.getBlue(), ArcTool.PREVIEW_COLOR.getAlpha());
+        int arcColor = toImColor(getPreviewColor());
         
         // 使用PathArcTo绘制弧形
         drawList.pathArcTo((float)screenCenter.x, (float)screenCenter.y, screenRadius, 
                           (float)startAngle, (float)endAngle, segments);
         drawList.pathStroke(arcColor, 0, 2.0f);
+    }
+
+    private Color getPreviewColor() {
+        try {
+            ShapeStyle previewStyle = getStyleHandler().getPreviewStyle();
+            if (previewStyle != null && previewStyle.getLineColor() != null) {
+                Color layerColor = previewStyle.getLineColor();
+                return new Color(layerColor.getRed(), layerColor.getGreen(), layerColor.getBlue(), 200);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("ArcTool: 获取预览颜色失败: {}", e.getMessage());
+        }
+
+        return toColor(ThemeManager.getInstance().getCurrentTheme().accent, 200);
+    }
+
+    private static Color toColor(int color, int alpha) {
+        return new Color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, alpha);
+    }
+
+    private static int toImColor(Color color) {
+        return ImColor.rgba(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
     // ====== 几何计算方法 ======
