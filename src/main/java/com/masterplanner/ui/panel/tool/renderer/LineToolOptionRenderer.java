@@ -1,5 +1,7 @@
 package com.masterplanner.ui.panel.tool.renderer;
 
+import com.masterplanner.core.state.AppState;
+import com.masterplanner.ui.tools.impl.drawing.LineTool;
 import com.masterplanner.utils.ImGuiUtils;
 import imgui.ImGui;
 import imgui.ImVec4;
@@ -37,6 +39,8 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushID("line_options");
         
         try {
+            syncFromToolState();
+
             // 保存当前的圆角样式
             float originalRounding = ImGui.getStyle().getFrameRounding();
             
@@ -175,6 +179,15 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         return height;
+    }
+
+    private void syncFromToolState() {
+        var currentTool = AppState.getInstance().getCurrentTool();
+        if (currentTool instanceof LineTool lineTool) {
+            lineToolType = lineTool.getDrawingMode();
+            lineCountArray[0] = lineTool.getLineCount();
+            lineSpacingArray[0] = lineTool.getLineSpacing();
+        }
     }
 
     @Override

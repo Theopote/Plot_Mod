@@ -540,6 +540,13 @@ public class LineTool extends DrawingTool {
             String oldMode = currentDrawingType;
             currentDrawingType = mode;
             LOGGER.info("LineTool: 绘制模式已更新: {} -> {}", oldMode, mode);
+
+            // 按模式更新使用方法提示，避免模式切换后残留旧提示
+            if (MODE_MULTI.equals(mode)) {
+                setStatusMessage("左键依次点击起点和终点，滚轮调整线条间距");
+            } else {
+                setStatusMessage("");
+            }
             
             // 修复：模式切换时立即清理旧的预览，确保状态一致性
             if (!oldMode.equals(mode)) {
@@ -629,7 +636,7 @@ public class LineTool extends DrawingTool {
             float newSpacing = Math.max(0.1f, Math.min(1000f, lineSpacing + adjustment));
             boolean changed = setLineSpacing(newSpacing);
             if (changed) {
-                setStatusMessage(String.format("线条间距: %.1f (滚轮调整)", newSpacing));
+                setStatusMessage("左键依次点击起点和终点，滚轮调整线条间距");
                 // 立即更新预览以反映变化
                 updatePreviewImmediately();
                 return true;
@@ -752,6 +759,18 @@ public class LineTool extends DrawingTool {
 
         @Override
         public Vec2d getCurrentMousePoint() { return delegate.getCurrentMousePoint(); }
+    }
+
+    public String getDrawingMode() {
+        return currentDrawingType;
+    }
+
+    public int getLineCount() {
+        return lineCount;
+    }
+
+    public float getLineSpacing() {
+        return lineSpacing;
     }
 
     /**
