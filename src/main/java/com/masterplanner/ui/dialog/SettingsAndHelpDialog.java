@@ -55,6 +55,9 @@ public class SettingsAndHelpDialog {
         ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground);
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.separatorColor);
         ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
         ImGui.pushStyleColor(ImGuiCol.TextDisabled, theme.mutedText);
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
@@ -111,7 +114,7 @@ public class SettingsAndHelpDialog {
 
             ImGui.end();
         } finally {
-            ImGui.popStyleColor(22);
+            ImGui.popStyleColor(25);
         }
     }
 

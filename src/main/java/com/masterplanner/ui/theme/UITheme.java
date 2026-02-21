@@ -422,9 +422,9 @@ public class UITheme {
         theme.selectionOutline = theme.accent;
         
         // 标签颜色
-        theme.tabNormal = ImColor.rgba(0.24f, 0.24f, 0.24f, 1.0f);
-        theme.tabHovered = ImColor.rgba(0.29f, 0.29f, 0.29f, 1.0f);
-        theme.tabActive = ImColor.rgba(0.35f, 0.35f, 0.35f, 1.0f);
+        theme.tabNormal = ImColor.rgba(0.22f, 0.22f, 0.22f, 1.0f);
+        theme.tabHovered = ImColor.rgba(0.32f, 0.32f, 0.32f, 1.0f);
+        theme.tabActive = ImColor.rgba(0.18f, 0.45f, 0.72f, 1.0f);
         theme.tabText = theme.foreground;
         theme.tabBorder = theme.border;                                  // 标签边框使用通用边框颜色
         
@@ -525,9 +525,9 @@ public class UITheme {
         theme.selectionOutline = theme.accent;
 
         // 标签颜色
-        theme.tabNormal = ImColor.rgba(0.80f, 0.80f, 0.80f, 1.0f);    // 浅色主题下加深底色，提升区分度
-        theme.tabHovered = ImColor.rgba(0.85f, 0.85f, 0.85f, 1.0f);   // 悬停态略亮
-        theme.tabActive = ImColor.rgba(0.89f, 0.89f, 0.89f, 1.0f);    // 激活态接近面板但保持可辨
+        theme.tabNormal = ImColor.rgba(0.70f, 0.70f, 0.70f, 1.0f);    // 明显加深未激活态
+        theme.tabHovered = ImColor.rgba(0.78f, 0.78f, 0.78f, 1.0f);   // 悬停态明显抬升
+        theme.tabActive = ImColor.rgba(0.58f, 0.74f, 0.92f, 1.0f);    // 激活态带浅蓝强调，清晰区分
         theme.tabText = theme.foreground;
         theme.tabBorder = theme.border;
 
