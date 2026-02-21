@@ -176,7 +176,7 @@ public class AppState implements IAppState {
      * 扩展类型枚举
      */
     public enum ExtensionType {
-        NONE, ROAD_SYSTEM, REDSTONE_PLANNER, IMAGE_TOOLS, EARTHWORK_BALANCE
+        NONE, ROAD_SYSTEM, IMAGE_TOOLS, EARTHWORK_BALANCE
     }
 
     /**
@@ -445,34 +445,6 @@ public class AppState implements IAppState {
         return currentProject;
     }
 
-    public Vec2d getMousePosition() {
-        return mousePosition;
-    }
-
-    public Vec2d getCursorPosition() {
-        return cursorPosition;
-    }
-
-    public int getTotalShapes() {
-        return getShapes().size();
-    }
-
-    public int getTotalBlocks() {
-        // 计算所有形状对应的方块数量的估算
-        List<Shape> allShapes = getShapes();
-        
-        return allShapes.stream()
-            .mapToInt(shape -> {
-                try {
-                    return shape.getBlockCount();
-                } catch (Exception e) {
-                    LOGGER.debug("获取图形方块数量时出错: {}", e.getMessage());
-                    return 0;
-                }
-            })
-            .sum();
-    }
-
     // --- 图层相关 ---
 
     public void setActiveLayer(ILayer layer) {
@@ -507,18 +479,6 @@ public class AppState implements IAppState {
 
     public Selection getSelection() {
         return new Selection(selectedShapes);
-    }
-
-    public boolean isSnapEnabled() {
-        return isSnappingEnabled;
-    }
-
-    public boolean isGridEnabled() {
-        return isGridEnabled;
-    }
-
-    public float getGridSize() {
-        return gridSize;
     }
 
     // --- 选择相关 ---

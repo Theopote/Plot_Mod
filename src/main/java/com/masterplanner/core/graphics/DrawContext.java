@@ -1106,50 +1106,6 @@ public class DrawContext {
         }
     }
 
-    /**
-     * 绘制双点划线
-     */
-    private void drawDashDotDotLine(Vec2d start, Vec2d end, Color color) {
-        Vec2d screenStart = worldToScreen(start);
-        Vec2d screenEnd = worldToScreen(end);
-        
-        // 计算线段总长度和方向
-        double length = screenStart.distance(screenEnd);
-        Vec2d direction = screenEnd.subtract(screenStart).normalize();
-        
-        // 使用缓存的颜色转换
-        int imColor = getImColor(color);
-        
-        // 计算双点划线的点
-        List<Vec2d> dashDotDotPoints = calculateDashDotDotPoints(screenStart, direction, length);
-        
-        // 绘制线段和点
-        for (int i = 0; i < dashDotDotPoints.size() - 1; i += 2) {
-            Vec2d segStart = dashDotDotPoints.get(i);
-            Vec2d segEnd = dashDotDotPoints.get(i + 1);
-            
-            drawList.addLine(
-                (float)segStart.x, (float)segStart.y,
-                (float)segEnd.x, (float)segEnd.y,
-                imColor, lineWidth
-            );
-        }
-        
-        // 绘制点
-        for (int i = 2; i < dashDotDotPoints.size(); i += 6) {
-            Vec2d point1 = dashDotDotPoints.get(i);
-            Vec2d point2 = dashDotDotPoints.get(i + 2);
-            
-            drawList.addCircleFilled(
-                (float)point1.x, (float)point1.y,
-                lineWidth / 2, imColor
-            );
-            drawList.addCircleFilled(
-                (float)point2.x, (float)point2.y,
-                lineWidth / 2, imColor
-            );
-        }
-    }
 
     /**
      * 计算虚线段的点
@@ -1431,75 +1387,7 @@ public class DrawContext {
     public void drawArc(Vec2d center, double radius, double startAngle, double endAngle, Color color) {
         drawArc(center, radius, startAngle, endAngle, color, DEFAULT_CIRCLE_SEGMENTS);
     }
-    
-    /**
-     * 绘制圆弧（使用LineStyle）
-     * @param center 圆心坐标
-     * @param radius 半径
-     * @param startAngle 起始角度（弧度）
-     * @param endAngle 结束角度（弧度）
-     * @param lineStyle 线型样式
-     */
-    public void drawArc(Vec2d center, double radius, double startAngle, double endAngle, LineStyle lineStyle) {
-        drawArc(center, radius, startAngle, endAngle, lineStyle, DEFAULT_CIRCLE_SEGMENTS);
-    }
-    
-    /**
-     * 绘制圆弧（使用LineStyle和指定分段数）
-     * @param center 圆心坐标
-     * @param radius 半径
-     * @param startAngle 起始角度（弧度）
-     * @param endAngle 结束角度（弧度）
-     * @param lineStyle 线型样式
-     * @param segments 分段数
-     */
-    public void drawArc(Vec2d center, double radius, double startAngle, double endAngle, LineStyle lineStyle, int segments) {
-        if (!checkDrawingEnvironment()) return;
-        if (center == null) {
-            LOGGER.warn("圆弧圆心为空，无法绘制");
-            return;
-        }
 
-        try {
-            // 保存当前线宽
-            float originalLineWidth = lineWidth;
-            
-            // 使用LineStyle的线宽
-            lineWidth = lineStyle.getWidth();
-            
-            Vec2d screenCenter = worldToScreen(center);
-            float screenRadius = (float)(radius * (camera != null ? camera.getZoom() : 1.0f));
-            Color lineColor = lineStyle.getColor();
-            int imColor = getImColor(lineColor);
-            
-            // 计算弧线上的点
-            List<Vec2d> arcPoints = new ArrayList<>();
-            double angleRange = endAngle - startAngle;
-            double angleStep = angleRange / segments;
-            
-            for (int i = 0; i <= segments; i++) {
-                double angle = startAngle + angleStep * i;
-                double x = center.x + radius * Math.cos(angle);
-                double y = center.y + radius * Math.sin(angle);
-                arcPoints.add(new Vec2d(x, y));
-            }
-            
-            // 绘制弧线
-            for (int i = 0; i < arcPoints.size() - 1; i++) {
-                drawLine(arcPoints.get(i), arcPoints.get(i + 1), lineStyle);
-            }
-            
-            // 恢复原始线宽
-            lineWidth = originalLineWidth;
-
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("绘制圆弧: 圆心={}, 半径={}, 起始角度={}, 结束角度={}, 样式={}, 分段数={}", 
-                    center, radius, startAngle, endAngle, lineStyle, segments);
-            }
-        } catch (Exception e) {
-            LOGGER.error("绘制圆弧失败: {}", e.getMessage());
-        }
-    }
     
     /**
      * 填充圆形

@@ -135,22 +135,6 @@ public class ShortcutManager {
     }
 
     /**
-     * 启用快捷键管理器
-     */
-    public void enable() {
-        enabled = true;
-        LogManager.getInstance().debug("Shortcut manager enabled");
-    }
-
-    /**
-     * 禁用快捷键管理器
-     */
-    public void disable() {
-        enabled = false;
-        LogManager.getInstance().debug("Shortcut manager disabled");
-    }
-
-    /**
      * 检查快捷键管理器是否启用
      */
     public boolean isEnabled() {
@@ -164,27 +148,6 @@ public class ShortcutManager {
         listeners.clear();
         shortcutMap.clear();
         LogManager.getInstance().debug("Cleared all shortcut listeners");
-    }
-
-    /**
-     * 获取所有已注册的快捷键
-     */
-    public Set<String> getRegisteredShortcuts() {
-        return new HashSet<>(shortcutMap.keySet());
-    }
-
-    /**
-     * 获取特定快捷键的所有监听器
-     */
-    public Set<IShortcutListener> getListenersForShortcut(String shortcut) {
-        return shortcutMap.getOrDefault(shortcut, Collections.emptySet());
-    }
-
-    /**
-     * 获取所有全局监听器
-     */
-    public List<IShortcutListener> getAllListeners() {
-        return new ArrayList<>(listeners);
     }
 
     private void sortListeners() {

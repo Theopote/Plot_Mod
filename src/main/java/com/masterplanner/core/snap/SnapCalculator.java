@@ -28,7 +28,6 @@ public class SnapCalculator {
     private final SpatialIndex spatialIndex;
     private final List<Shape> selectedShapes;  // 当前选中的图形
     private final String currentLayerId;          // 当前图层ID
-    private static final double MAX_EXTENSION_DISTANCE = 5.0; // 延长线最大检测距离系数
     private SnapPriorityEvaluator.SnapType lastSnapType = SnapPriorityEvaluator.SnapType.NONE;
 
     public SnapCalculator(SnapSettings settings, List<Shape> shapes, BoundingBox viewBounds) {
@@ -442,67 +441,6 @@ public class SnapCalculator {
             }
         }
         return points;
-    }
-
-    /**
-     * 查找延长线交点
-     */
-    private List<SnapPoint> findExtensionPoints(Vec2d point) {
-        List<SnapPoint> points = new ArrayList<>();
-        double height = viewBounds.getMax().y - viewBounds.getMin().y;
-        double maxDistance = height * MAX_EXTENSION_DISTANCE;
-
-        List<Shape> nearbyShapes = spatialIndex.queryNearby(point, maxDistance);
-
-        for (Shape shape : nearbyShapes) {
-            if (shape instanceof LineShape) {
-                Vec2d extensionPoint = calculateExtensionPoint((LineShape)shape, point, maxDistance);
-                if (extensionPoint != null) {
-                    points.add(new SnapPoint(extensionPoint, SnapPriorityEvaluator.SnapType.EXTENSION, shape));
-                }
-            }
-        }
-        return points;
-    }
-
-    /**
-     * 计算延长线上的点
-     * @param line 要延长的线段
-     * @param point 参考点
-     * @param maxDistance 最大延长距离
-     * @return 延长线上的点，如果不存在则返回null
-     */
-    private Vec2d calculateExtensionPoint(LineShape line, Vec2d point, double maxDistance) {
-        // 获取线段的端点
-        List<Vec2d> points = line.getPoints();
-        if (points == null || points.size() < 2) return null;
-
-        Vec2d start = points.getFirst();
-        Vec2d end = points.getLast();
-
-        // 计算线段方向向量
-        Vec2d direction = end.subtract(start).normalize();
-
-        // 计算点到线的投影
-        Vec2d toPoint = point.subtract(start);
-        double projection = toPoint.dot(direction);
-
-        // 计算投影点
-        Vec2d projPoint = start.add(direction.multiply(projection));
-
-        // 检查投影点是否在线段延长线上且在最大距离范围内
-        double distToStart = projPoint.distance(start);
-        double distToEnd = projPoint.distance(end);
-        double lineLength = start.distance(end);
-
-        // 如果投影点在线段外且距离在范围内，返回投影点
-        if (projection < 0 && distToStart <= maxDistance) {
-            return projPoint;
-        } else if (projection > lineLength && distToEnd <= maxDistance) {
-            return projPoint;
-        }
-
-        return null;
     }
 
     /**

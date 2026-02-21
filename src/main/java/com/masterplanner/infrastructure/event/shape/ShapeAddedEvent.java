@@ -12,10 +12,6 @@ public class ShapeAddedEvent extends Event {
     private final String layerId;
     private final String source;
 
-    public ShapeAddedEvent(Shape shape, String layerId) {
-        this("ShapeManager", shape, layerId);
-    }
-
     public ShapeAddedEvent(String source, Shape shape, String layerId) {
         super(EventType.SHAPE_ADDED);
         this.source = source;
@@ -27,10 +23,6 @@ public class ShapeAddedEvent extends Event {
         return shape;
     }
 
-    public String getLayerId() {
-        return layerId;
-    }
-    
     @Override
     public String getSource() {
         return source;

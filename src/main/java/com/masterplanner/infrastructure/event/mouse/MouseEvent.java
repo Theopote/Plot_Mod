@@ -1,8 +1,6 @@
 package com.masterplanner.infrastructure.event.mouse;
 
 import com.masterplanner.api.geometry.Vec2d;
-import com.masterplanner.ui.canvas.Canvas;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * 鼠标事件类
@@ -32,10 +30,6 @@ public class MouseEvent {
     private final double x;
     private final double y;
     private final int action;
-
-    public MouseEvent(Type type, Vec2d position) {
-        this(type, position, new Vec2d(0, 0), 0, 1, false, false, false, 0, 0, 0);
-    }
 
     public MouseEvent(Type type, Vec2d position, Vec2d delta) {
         this(type, position, delta, 0, 1, false, false, false, 0, 0, 0);
@@ -72,34 +66,6 @@ public class MouseEvent {
         return button;
     }
 
-    public int getClickCount() {
-        return clickCount;
-    }
-
-    public boolean isShiftDown() {
-        return isShiftDown;
-    }
-
-    public boolean isControlDown() {
-        return isControlDown;
-    }
-
-    public boolean isAltDown() {
-        return isAltDown;
-    }
-
-    public boolean isLeftButton() {
-        return button == 0;
-    }
-    
-    public boolean isRightButton() {
-        return button == 1;
-    }
-    
-    public boolean isMiddleButton() {
-        return button == 2;
-    }
-
     public double getX() {
         return x;
     }
@@ -108,40 +74,10 @@ public class MouseEvent {
         return y;
     }
 
-    public int getAction() {
-        return action;
-    }
-
     @Override
     public String toString() {
         return String.format("MouseEvent{type=%s, position=%s, delta=%s, button=%d, clickCount=%d, " +
                         "shift=%b, control=%b, alt=%b, x=%f, y=%f, action=%d}",
                 type, position, getDelta(), button, clickCount, isShiftDown, isControlDown, isAltDown, x, y, action);
-    }
-
-    public void handle(Canvas canvas) {
-        switch (action) {
-            case GLFW.GLFW_PRESS:
-                handleMousePress(canvas);
-                break;
-            case GLFW.GLFW_RELEASE:
-                handleMouseRelease(canvas);
-                break;
-            case GLFW.GLFW_REPEAT:
-                handleMouseDrag(canvas);
-                break;
-        }
-    }
-
-    private void handleMousePress(Canvas canvas) {
-        // 处理鼠标按下事件
-    }
-
-    private void handleMouseRelease(Canvas canvas) {
-        // 处理鼠标释放事件  
-    }
-
-    private void handleMouseDrag(Canvas canvas) {
-        // 处理鼠标拖动事件
     }
 } 

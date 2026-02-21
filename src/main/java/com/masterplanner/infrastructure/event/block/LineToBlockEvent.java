@@ -19,41 +19,6 @@ public class LineToBlockEvent extends Event {
     private final double canvasHeight;  // 绘制面板高度
     private final boolean isPreview;    // 是否为预览模式
     private final boolean fillClosedShapes; // 封闭图形是否填充
-    
-    /**
-     * 创建一个线转方块事件
-     */
-    public LineToBlockEvent(List<Shape> shapes) {
-        super(EventType.BLOCK_CONVERSION);
-        this.shapes = shapes;
-        this.conversionMode = ConversionMode.FULL;
-        this.simplificationRatio = 0.5f;
-        this.canvasHeight = 0;
-        this.isPreview = false;
-        this.fillClosedShapes = true;
-    }
-    
-    /**
-     * 创建一个线转方块事件
-     * @param shapes 要转换的图形列表
-     * @param canvasHeight 绘制面板高度
-     * @param isPreview 是否为预览模式
-     */
-    public LineToBlockEvent(List<Shape> shapes, double canvasHeight, boolean isPreview) {
-        this(shapes, ConversionMode.FULL, 0.5f, canvasHeight, isPreview, true);
-    }
-    
-    /**
-     * 创建一个线转方块事件
-     * @param shapes 要转换的图形列表
-     * @param conversionMode 转换模式
-     * @param simplificationRatio 简化比率
-     * @param canvasHeight 绘制面板高度
-     * @param isPreview 是否为预览模式
-     */
-    public LineToBlockEvent(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double canvasHeight, boolean isPreview) {
-        this(shapes, conversionMode, simplificationRatio, canvasHeight, isPreview, true);
-    }
 
     public LineToBlockEvent(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double canvasHeight, boolean isPreview, boolean fillClosedShapes) {
         super(EventType.BLOCK_CONVERSION);

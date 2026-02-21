@@ -32,8 +32,7 @@ public class QuadtreeSpatialIndex implements SpatialIndex {
     // 四叉树配置
     private static final int MAX_SHAPES_PER_NODE = 10;
     private static final int MAX_DEPTH = 8;
-    private static final double MIN_NODE_SIZE = 1.0;
-    
+
     // 性能统计
     private final AtomicLong queryCount = new AtomicLong(0);
     private final AtomicLong totalQueryTime = new AtomicLong(0);

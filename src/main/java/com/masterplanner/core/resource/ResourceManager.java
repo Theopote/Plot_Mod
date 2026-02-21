@@ -92,9 +92,6 @@ public class ResourceManager {
             return 0;
         }
     }
-    
-    /**
-     * 判断一个数是否是2的幂次方
-     */
+
     // 预留：如果后续需要对纹理尺寸做校验，可恢复 isPowerOfTwo 检查逻辑
 }

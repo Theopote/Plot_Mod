@@ -43,10 +43,6 @@ public class ToolConfigEvent extends Event {
         return configKey;
     }
 
-    public Object getOldValue() {
-        return oldValue;
-    }
-
     public Object getNewValue() {
         return newValue;
     }

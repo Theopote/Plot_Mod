@@ -31,10 +31,6 @@ public abstract class ProjectEvent extends Event {
         this.projectId = projectId;
     }
 
-    public String getProjectId() {
-        return projectId;
-    }
-    
     @Override
     public String getSource() {
         return source;

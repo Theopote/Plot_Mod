@@ -18,21 +18,13 @@ public class CommandExecutedEvent extends Event {
         REDO,       // 重做
         EXECUTE     // 执行
     }
-    
-    public CommandExecutedEvent(CommandType commandType) {
-        this("CommandManager", commandType);
-    }
-    
+
     public CommandExecutedEvent(String source, CommandType commandType) {
         super(EventType.COMMAND_EXECUTED);  // 使用 COMMAND_EXECUTED 事件类型
         this.source = source;
         this.commandType = commandType;
     }
-    
-    public CommandType getCommandType() {
-        return commandType;
-    }
-    
+
     @Override
     public String getSource() {
         return source;

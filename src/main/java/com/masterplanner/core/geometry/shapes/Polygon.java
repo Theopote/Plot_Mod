@@ -159,10 +159,7 @@ public class Polygon extends Shape {
     @Override
     public Shape transform(AffineTransform transformMatrix) {
         // 变换所有定义点
-        for (int i = 0; i < this.points.size(); i++) {
-            Vec2d point = this.points.get(i);
-            this.points.set(i, transformMatrix.transform(point));
-        }
+        this.points.replaceAll(transformMatrix::transform);
         invalidateBoundingBoxCache(); // 变换后必须让缓存失效
         return this; // 多边形变换后仍然是多边形
     }

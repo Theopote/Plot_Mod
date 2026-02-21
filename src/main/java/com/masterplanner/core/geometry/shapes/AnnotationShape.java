@@ -12,8 +12,6 @@ import com.masterplanner.core.model.Shape;
 import com.masterplanner.ui.canvas.CanvasCamera;
 import com.masterplanner.ui.tools.impl.modify.helper.IShapeVisitor;
 import imgui.ImDrawList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -24,8 +22,7 @@ import java.util.List;
  * 用于在画布上显示标注信息（距离、角度、半径、面积）
  */
 public class AnnotationShape extends Shape {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AnnotationShape.class);
-    
+
     /**
      * 标注类型
      */

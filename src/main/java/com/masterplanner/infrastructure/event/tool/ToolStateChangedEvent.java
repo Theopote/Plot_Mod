@@ -29,15 +29,7 @@ public class ToolStateChangedEvent extends Event {
     public ITool getTool() {
         return tool;
     }
-    
-    public ToolState getOldState() {
-        return oldState;
-    }
-    
-    public ToolState getNewState() {
-        return newState;
-    }
-    
+
     @Override
     public String getSource() {
         return source;
