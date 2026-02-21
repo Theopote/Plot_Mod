@@ -45,21 +45,6 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
     }
 
     /**
-     * 设置滑块控件的样式
-     */
-    private void pushSliderStyle(UITheme.ThemeColors theme) {
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
-        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
-        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.frameBorder);
-
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, theme.grabRounding);
-    }
-
-    /**
      * 设置按钮的样式
      */
     private void pushButtonStyle(UITheme.ThemeColors theme, boolean isSelected) {
@@ -143,42 +128,6 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
         }
 
         return height;
-    }
-
-    /**
-     * 渲染滑块控件
-     */
-    private void renderSlider(String label, Object value, float min, float max, String format,
-                            String configKey, String tooltip, UITheme.ThemeColors theme) {
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text(label);
-
-        pushSliderStyle(theme);
-
-        ImGui.tableNextColumn();
-        ImGui.pushItemWidth(-1);
-
-        boolean changed = false;
-        if (value instanceof ImFloat) {
-            changed = ImGui.sliderFloat("##" + configKey, ((ImFloat)value).getData(), min, max, format);
-        } else if (value instanceof ImInt) {
-            changed = ImGui.sliderInt("##" + configKey, ((ImInt)value).getData(), (int)min, (int)max, format);
-        }
-
-        if (changed) {
-            updateToolConfig(configKey, String.valueOf(value instanceof ImFloat ?
-                ((ImFloat)value).get() : ((ImInt)value).get()));
-        }
-
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
-        }
-
-        ImGui.popItemWidth();
-        ImGui.popStyleVar(2);
-        ImGui.popStyleColor(6);
     }
 
     @Override
