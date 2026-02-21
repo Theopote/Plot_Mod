@@ -15,6 +15,9 @@ import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.*;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 /**
  * 工具选项面板，负责渲染当前选中工具的所有选项和配置界面
  * 包括工具信息显示和各种工具特定的选项控件
@@ -23,6 +26,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     // 界面布局常量
     private static final float LABEL_WIDTH = 60.0f;         // 标签文本宽度
     private static final float PANEL_PADDING = 4.0f;        // 面板内边距
+    private static final float MIN_PANEL_HEIGHT = 120.0f;   // 面板最小高度
 
     // 核心组件引用
     private final AppState appState;    // 应用状态管理器
@@ -30,6 +34,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
 
     // 状态消息管理
     private String currentToolStatusMessage = "";  // 当前工具的状态消息
+    private final Map<ToolType, Float> toolPanelHeightCache = new EnumMap<>(ToolType.class);
 
     /**
      * 工具类型枚举，定义所有支持的工具类型及其显示名称
@@ -172,13 +177,14 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);  // 边框无内边距，与标题边距一致
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
 
-        // 使用正确的 ImGuiWindowFlags 枚举值
-        int flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        // 允许滚动：当内容高度超过可用高度时可使用滚轮浏览
+        int flags = ImGuiWindowFlags.None;
 
         // 获取可用区域
         float availableWidth = ImGui.getContentRegionAvailX();
+        float availableHeight = ImGui.getContentRegionAvailY();
         
-        // 预先计算内容高度
+        // 预先计算内容高度（首次渲染使用估算值，后续使用实际测量值）
         float infoHeight = HeightCalculator.getToolInfoHeight();
         float separatorHeight = HeightCalculator.getSeparatorHeight();
         float optionsHeight = calculateOptionsHeight(currentTool);
@@ -186,16 +192,20 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         // 为修改工具添加额外的高度缓冲
         ToolType toolType = ToolType.fromString(currentTool.getId());
         float extraHeight = getExtraHeightForTool(toolType);
-        // 使用固定的边距值计算高度，因为边框无内边距
-        float totalHeight = infoHeight + separatorHeight + optionsHeight + extraHeight + PANEL_PADDING * 2;
+        // 使用固定的边距值计算目标高度，因为边框无内边距
+        float estimatedHeight = infoHeight + separatorHeight + optionsHeight + extraHeight + PANEL_PADDING * 2;
+        float desiredHeight = toolPanelHeightCache.getOrDefault(toolType, estimatedHeight);
+        float totalHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(desiredHeight, availableHeight));
         
-        MasterPlannerMod.LOGGER.debug("工具面板高度计算 - 信息: {}, 分隔线: {}, 选项: {}, 额外: {}, 总计: {}", 
-            infoHeight, separatorHeight, optionsHeight, extraHeight, totalHeight);
+        MasterPlannerMod.LOGGER.debug("工具面板高度计算 - 信息: {}, 分隔线: {}, 选项: {}, 额外: {}, 目标: {}, 实际: {}", 
+            infoHeight, separatorHeight, optionsHeight, extraHeight, desiredHeight, totalHeight);
         
         // 使用计算出的精确高度
         // 在 beginChild 内部设置内容边距，保持与标题边距一致
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PANEL_PADDING, PANEL_PADDING);
         if (ImGui.beginChild("##tool_panel", availableWidth, totalHeight, true, flags)) {
+            float contentStartY = ImGui.getCursorPosY();
+
             // 工具信息部分
             ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
             renderToolInfo(currentTool);
@@ -214,6 +224,13 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 MasterPlannerMod.LOGGER.debug("工具选项高度差异 - 预计算: {}, 实际: {}, 差异: {}", 
                     optionsHeight, actualOptionsHeight, actualOptionsHeight - optionsHeight);
             }
+
+            float contentEndY = ImGui.getCursorPosY();
+            float measuredContentHeight = Math.max(
+                MIN_PANEL_HEIGHT,
+                (contentEndY - contentStartY) + PANEL_PADDING * 2
+            );
+            toolPanelHeightCache.put(toolType, measuredContentHeight);
         }
         ImGui.endChild();
         ImGui.popStyleVar(1);  // 弹出 beginChild 内部的 WindowPadding(4,4)
