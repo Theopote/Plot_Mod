@@ -58,36 +58,41 @@ public class BoundingBoxControlManager {
      * <p>集中管理所有渲染颜色，支持主题化配置</p>
      */
     public static class ColorConfig {
-        // 包围盒颜色
-        public static final int BOUNDING_BOX_COLOR = 0x6400FFFF; // 半透明青色
-        public static final int PREVIEW_BOX_COLOR = 0xFF00A5FF; // 橙色
-        
-        // 控制点颜色
-        public static final int CONTROL_POINT_SELECTED_COLOR = 0xFFFF0000; // 红色（主要控制点）
-        public static final int CONTROL_POINT_SECONDARY_COLOR = 0xFFFFA500; // 橙色（其他选中控制点）
-        public static final int CONTROL_POINT_NORMAL_COLOR = 0xFF0000FF; // 蓝色（普通控制点）
-        public static final int CONTROL_POINT_BORDER_COLOR = 0xFF000000; // 黑色边框
-        
-                 // 选择框颜色
-         public static final int SELECTION_BOX_COLOR = 0xFFFFFFFF; // 白色边框
-         
-         // 旋转相关颜色
-         public static final int ROTATION_ICON_COLOR = 0xFF00FF00; // 绿色旋转图标
-         public static final int ROTATION_ARC_COLOR = 0xFF00FF00; // 绿色旋转弧线
-         public static final int ROTATION_ANGLE_TEXT_COLOR = 0xFFFFFFFF; // 白色角度文本
-         
-         // DrawContext 颜色
-         public static final Color BOUNDING_BOX_DRAW_COLOR = new Color(0, 255, 255, 100); // 半透明青色
-         public static final Color PREVIEW_BOX_DRAW_COLOR = new Color(255, 165, 0, 200); // 橙色半透明
-         public static final Color SELECTION_BOX_DRAW_COLOR = Color.WHITE; // 白色
-         public static final Color CONTROL_POINT_PRIMARY_DRAW_COLOR = Color.RED; // 红色
-         public static final Color CONTROL_POINT_SECONDARY_DRAW_COLOR = Color.ORANGE; // 橙色
-         public static final Color CONTROL_POINT_NORMAL_DRAW_COLOR = Color.BLUE; // 蓝色
-         public static final Color CONTROL_POINT_BORDER_DRAW_COLOR = Color.BLACK; // 黑色
+        private static com.masterplanner.ui.theme.UITheme.ThemeColors theme() {
+            return ThemeManager.getInstance().getCurrentTheme();
+        }
 
-         // 悬停颜色
-         public static final int CONTROL_POINT_HOVER_COLOR = 0xFF00FF00; // 绿色悬停
-         public static final Color CONTROL_POINT_HOVER_DRAW_COLOR = new Color(0, 255, 0, 200); // 半透明绿色悬停
+        public static int boundingBoxColor() {
+            return withAlpha(theme().accent, 0x80);
+        }
+
+        public static int previewBoxColor() {
+            return theme().warningText;
+        }
+
+        public static int controlPointBorderColor() {
+            return withAlpha(theme().text, 0xDD);
+        }
+
+        public static int selectionBoxColor() {
+            return theme().text;
+        }
+
+        public static Color boundingBoxDrawColor() {
+            return toAwt(theme().accent, 100);
+        }
+
+        public static Color previewBoxDrawColor() {
+            return toAwt(theme().warningText, 200);
+        }
+
+        public static Color selectionBoxDrawColor() {
+            return toAwt(theme().text, 255);
+        }
+
+        public static Color controlPointBorderDrawColor() {
+            return toAwt(theme().text, 220);
+        }
     }
     
     // 控制点类型枚举
@@ -776,7 +781,7 @@ public class BoundingBoxControlManager {
         
         // 渲染框选矩形（如果正在框选控制点）
         if (isSelecting && selectionStartPoint != null && selectionEndPoint != null) {
-            context.drawRect(selectionStartPoint, selectionEndPoint, ColorConfig.SELECTION_BOX_DRAW_COLOR);
+            context.drawRect(selectionStartPoint, selectionEndPoint, ColorConfig.selectionBoxDrawColor());
         }
     }
     
@@ -1008,10 +1013,10 @@ public class BoundingBoxControlManager {
         Vec2d bottomLeft = new Vec2d(boundingBoxMin.x, boundingBoxMin.y);
         
         // 使用虚线绘制包围盒
-        context.drawDashedLine(topLeft, topRight, ColorConfig.BOUNDING_BOX_DRAW_COLOR);
-        context.drawDashedLine(topRight, bottomRight, ColorConfig.BOUNDING_BOX_DRAW_COLOR);
-        context.drawDashedLine(bottomRight, bottomLeft, ColorConfig.BOUNDING_BOX_DRAW_COLOR);
-        context.drawDashedLine(bottomLeft, topLeft, ColorConfig.BOUNDING_BOX_DRAW_COLOR);
+        context.drawDashedLine(topLeft, topRight, ColorConfig.boundingBoxDrawColor());
+        context.drawDashedLine(topRight, bottomRight, ColorConfig.boundingBoxDrawColor());
+        context.drawDashedLine(bottomRight, bottomLeft, ColorConfig.boundingBoxDrawColor());
+        context.drawDashedLine(bottomLeft, topLeft, ColorConfig.boundingBoxDrawColor());
         
         context.setLineWidth(1.0f); // 恢复默认线宽
     }
@@ -1030,10 +1035,10 @@ public class BoundingBoxControlManager {
         Vec2d bottomLeft = new Vec2d(previewBoundingBoxMin.x, previewBoundingBoxMin.y);
         
         // 使用实线绘制预览包围盒
-        context.drawLine(topLeft, topRight, ColorConfig.PREVIEW_BOX_DRAW_COLOR);
-        context.drawLine(topRight, bottomRight, ColorConfig.PREVIEW_BOX_DRAW_COLOR);
-        context.drawLine(bottomRight, bottomLeft, ColorConfig.PREVIEW_BOX_DRAW_COLOR);
-        context.drawLine(bottomLeft, topLeft, ColorConfig.PREVIEW_BOX_DRAW_COLOR);
+        context.drawLine(topLeft, topRight, ColorConfig.previewBoxDrawColor());
+        context.drawLine(topRight, bottomRight, ColorConfig.previewBoxDrawColor());
+        context.drawLine(bottomRight, bottomLeft, ColorConfig.previewBoxDrawColor());
+        context.drawLine(bottomLeft, topLeft, ColorConfig.previewBoxDrawColor());
         
         context.setLineWidth(1.0f); // 恢复默认线宽
     }
@@ -1047,12 +1052,12 @@ public class BoundingBoxControlManager {
                 context.fillRect(
                     new Vec2d(controlPoint.x - CONTROL_POINT_SIZE / 2, controlPoint.y + CONTROL_POINT_SIZE / 2),
                     new Vec2d(controlPoint.x + CONTROL_POINT_SIZE / 2, controlPoint.y - CONTROL_POINT_SIZE / 2),
-                    ColorConfig.PREVIEW_BOX_DRAW_COLOR
+                    ColorConfig.previewBoxDrawColor()
                 );
                 context.drawRect(
                     new Vec2d(controlPoint.x - CONTROL_POINT_SIZE / 2, controlPoint.y + CONTROL_POINT_SIZE / 2),
                     new Vec2d(controlPoint.x + CONTROL_POINT_SIZE / 2, controlPoint.y - CONTROL_POINT_SIZE / 2),
-                    ColorConfig.PREVIEW_BOX_DRAW_COLOR // 使用配置的颜色
+                    ColorConfig.previewBoxDrawColor()
                 );
             }
         }
@@ -1073,7 +1078,7 @@ public class BoundingBoxControlManager {
                 context.drawRect(
                     new Vec2d(controlPoint.x - CONTROL_POINT_SIZE / 2, controlPoint.y + CONTROL_POINT_SIZE / 2),
                     new Vec2d(controlPoint.x + CONTROL_POINT_SIZE / 2, controlPoint.y - CONTROL_POINT_SIZE / 2),
-                    ColorConfig.CONTROL_POINT_BORDER_DRAW_COLOR
+                    ColorConfig.controlPointBorderDrawColor()
                 );
             }
         }
