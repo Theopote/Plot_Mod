@@ -258,13 +258,58 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     private void renderToolInfo(BaseTool tool) {
         ImGui.text("当前工具: " + getToolDisplayName(tool));
         ImGui.textWrapped(getToolDescription(tool));
-        
-        // 显示当前工具的使用方法提示
-        if (!currentToolStatusMessage.isEmpty()) {
+
+        String usageHint = currentToolStatusMessage.isEmpty()
+            ? getDefaultToolUsageHint(tool)
+            : currentToolStatusMessage;
+
+        // 显示当前工具的使用方法提示（实时消息优先，否则显示默认使用方法）
+        if (!usageHint.isEmpty()) {
             ImGui.separator();
             ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, "使用方法:");
-            ImGui.textWrapped(currentToolStatusMessage);
+            ImGui.textWrapped(usageHint);
         }
+    }
+
+    private String getDefaultToolUsageHint(BaseTool tool) {
+        if (tool == null) {
+            return "";
+        }
+
+        return switch (ToolType.fromString(tool.getId())) {
+            case SELECT -> "左键单击选择图形，拖拽可框选；按住Shift可多选，按住Ctrl可取消选中。";
+            case LINE -> "左键依次指定起点和终点完成直线；按住Shift可约束到水平/垂直/45°。";
+            case CIRCLE -> "左键按当前模式确定圆心与半径或关键点；右键可取消当前步骤。";
+            case RECTANGLE -> "左键按当前模式依次指定角点或中心点；按住Shift可约束为正方形。";
+            case ELLIPSE -> "左键按当前模式依次指定主轴与副轴（或中心与轴点）；右键可取消当前步骤。";
+            case ARC -> "左键按当前模式依次指定圆弧关键点（如起点、终点、控制点/半径）完成绘制。";
+            case POLYGON -> "左键连续添加顶点，双击或按Enter完成多边形；右键可撤销当前步骤。";
+            case POLYLINE -> "左键连续添加节点形成多段线，双击或按Enter完成；右键可结束当前段。";
+            case SPLINE -> "左键依次添加控制点，按Enter或右键结束输入并生成样条曲线。";
+            case CATENARY -> "左键先指定两端点，再拖拽或输入参数调整垂度，确认后生成悬链线。";
+            case FREE_DRAW -> "按住左键拖动进行自由绘制，松开鼠标结束当前笔画。";
+            case ERASER -> "左键点击删除单个图形，按住左键拖动可连续擦除经过的图形。";
+            case SEMICIRCLE -> "左键按当前模式指定关键点生成半圆；右键可取消当前输入。";
+            case STAR -> "左键指定中心并拖拽确定外接半径，再确认角数/比例后完成星形。";
+            case SPIRAL -> "左键指定起点或中心后拖拽确定尺寸，按当前螺旋模式完成绘制。";
+            case SINE -> "左键指定基线范围，拖拽或在选项中调整振幅、波长和相位后完成。";
+            case MOVE -> "先选择图形，左键指定基点后拖动或点选目标位置完成移动。";
+            case ROTATE -> "先选择图形，左键指定旋转中心与参考方向，再确定目标角度完成旋转。";
+            case MIRROR -> "先选择图形，左键指定镜像轴的两个点完成镜像；可在选项中设置保留原图。";
+            case SCALE -> "先选择图形，左键指定缩放中心与参考点，再通过拖动或输入比例完成缩放。";
+            case ALIGN -> "先选择多个图形，在选项中选择对齐基准与方式后执行对齐。";
+            case ARRAY -> "先选择图形，在选项中设置阵列类型与参数，确认后生成阵列复制。";
+            case OFFSET -> "左键选择要偏移的图形，再点击偏移方向一侧创建等距副本。";
+            case FILLET -> "左键依次选择两条相交（或可延伸相交）对象，按半径创建圆角过渡。";
+            case CHAMFER -> "左键依次选择两条对象，按设定距离生成倒角连接。";
+            case TRANSFORM -> "先选择图形，再在工具选项中选择变换模式并按提示完成操作。";
+            case TRIM -> "先选边界后左键点击要修剪的部分；按住Shift可连续修剪，右键结束。";
+            case EXTEND -> "先选边界后左键点击要延伸的对象，系统自动延伸到可达边界。";
+            case BREAK -> "左键选择对象并指定一个或两个打断点，完成后可继续处理下一个对象。";
+            case TEXT -> "左键点击或拖拽放置文本区域，输入内容后确认完成文本创建。";
+            case ANNOTATION -> "先选择标注类型，再按提示点选几何对象或关键点完成标注。";
+            case UNKNOWN -> "按左键进行绘制或编辑，右键取消当前步骤。";
+        };
     }
 
     private String getToolDisplayName(BaseTool tool) {
@@ -410,8 +455,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 initializeToolOptions(currentTool);
             }
             
-            // 清空状态消息
-            currentToolStatusMessage = "";
+            // 重置为当前工具默认使用方法（后续可被实时状态消息覆盖）
+            currentToolStatusMessage = currentTool != null ? getDefaultToolUsageHint(currentTool) : "";
             
         } catch (Exception e) {
             MasterPlannerMod.LOGGER.error("处理工具切换事件时发生错误: {}", e.getMessage(), e);
