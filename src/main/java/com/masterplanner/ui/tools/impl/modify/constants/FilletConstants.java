@@ -52,7 +52,7 @@ public final class FilletConstants {
     
     // 状态消息模板
     public static final String STATUS_SELECT_SECOND_LINE = "选择第二个图形，滚轮调整参数，或按ESC取消";
-    public static final String STATUS_READY_TEMPLATE = "按Enter确认倒圆角(半径:%.1f)，滚轮调整半径，或按ESC取消";
+    public static final String STATUS_READY_TEMPLATE = "按鼠标右键确认倒圆角(半径:%.1f)，滚轮调整半径，或按ESC取消";
     public static final String STATUS_COMPLETE_TEMPLATE = "倒圆角完成 (半径: %.1f)";
     public static final String STATUS_LINES_NOT_INTERSECT = "图形不相交，无法进行倒角操作";
     public static final String STATUS_LINES_PARALLEL = "图形平行，无法进行倒角操作";

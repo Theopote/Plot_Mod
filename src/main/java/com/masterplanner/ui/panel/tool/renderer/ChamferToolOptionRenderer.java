@@ -148,7 +148,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
                 1. 选择第一条直线
                 2. 选择第二条直线
                 3. 使用+/-键调整距离
-                4. 按Enter确认倒角""";
+            4. 按鼠标右键确认倒角""";
             
         ImGui.textColored(theme.mutedText, instructions);
         ImGui.popTextWrapPos();
@@ -173,7 +173,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 200.0f);
         
         String shortcuts = """
-                Enter: 确认倒角
+            右键: 确认倒角
                 +/-: 调整距离
                 ESC: 取消操作""";
             

@@ -295,7 +295,7 @@ public class ChamferStrategy implements IModifyStrategy {
                     case SELECT_SECOND_SHAPE -> handleMouseDown_SelectSecond(selectedShape, snappedPoint, context);
                     case READY_TO_APPLY -> ModifyResult.IGNORED;
                 };
-                // 不在此处结束工具；保持 CONTINUE 让用户确认（例如按Enter）或继续交互
+                // 不在此处结束工具；保持 CONTINUE 让用户确认（例如按鼠标右键）或继续交互
                 return res == ModifyResult.IGNORED ? ModifyResult.CONTINUE : res;
             }
             return ModifyResult.CONTINUE;

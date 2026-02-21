@@ -129,7 +129,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
                 1. 选择第一个图形（直线、矩形、圆弧等）
                 2. 选择第二个图形（直线、矩形、圆弧等）
                 3. 使用+/-键或滚轮调整参数
-                4. 按Enter确认圆角""";
+            4. 按鼠标右键确认圆角""";
             
         ImGui.textColored(theme.mutedText, instructions);
         ImGui.popTextWrapPos();
@@ -154,7 +154,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 200.0f);
         
         String shortcuts = """
-                Enter: 确认圆角
+            右键: 确认圆角
                 +/-: 调整参数
                 滚轮: 调整参数
                 ESC: 取消操作""";

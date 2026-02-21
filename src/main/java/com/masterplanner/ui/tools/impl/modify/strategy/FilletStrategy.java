@@ -124,6 +124,11 @@ public class FilletStrategy implements IModifyStrategy {
         clickPoint1 = null; // 重置第一个点击位置
         clickPoint2 = null; // 重置第二个点击位置
         previewShapes = null;
+        previewEnabled = true;
+        isBoxSelecting = false;
+        boxStartPoint = null;
+        boxCurrentPoint = null;
+        boxSelectedShapes.clear();
         clearHighlight();
     }
     
@@ -146,10 +151,14 @@ public class FilletStrategy implements IModifyStrategy {
     @Override
     public ModifyResult onMouseMove(Vec2d point, ModifyToolContext context) {
         if (isBoxSelecting) {
-            // 框选模式
-            boxCurrentPoint = point;
-            updateBoxSelection(context);
-            return ModifyResult.CONTINUE;
+            if (boxStartPoint == null) {
+                isBoxSelecting = false;
+            } else {
+                // 框选模式
+                boxCurrentPoint = point;
+                updateBoxSelection(context);
+                return ModifyResult.CONTINUE;
+            }
         }
         
         try {
@@ -176,6 +185,12 @@ public class FilletStrategy implements IModifyStrategy {
         }
         
         if (isBoxSelecting) {
+            if (boxStartPoint == null) {
+                isBoxSelecting = false;
+                boxCurrentPoint = null;
+                boxSelectedShapes.clear();
+                return ModifyResult.CONTINUE;
+            }
             // 检查是否为点选（拖动距离小于阈值）
             double dragDistance = boxStartPoint.distance(point);
             if (dragDistance < 4.0) { // 拖动阈值
