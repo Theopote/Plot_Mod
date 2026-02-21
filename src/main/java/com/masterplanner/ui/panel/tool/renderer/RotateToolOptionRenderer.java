@@ -125,12 +125,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             height += ImGui.getFrameHeightWithSpacing();
-            
-            // 使用说明
-            renderUsageInstructions();
-            
-            // 快捷键提示
-            renderShortcutTips();
+
             
             // 渲染角度步长输入弹窗
             renderAngleStepInputPopup();
@@ -216,34 +211,6 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
     @Override
     public void cleanup() {
         // 清理资源
-    }
-    
-    /**
-     * 渲染使用说明
-     */
-    private void renderUsageInstructions() {
-        if (ImGui.collapsingHeader("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("旋转工具使用步骤：");
-            ImGui.spacing();
-            
-            ImGui.bulletText("1. 使用选择工具选择要旋转的图形");
-            ImGui.bulletText("2. 切换到旋转工具");
-            ImGui.bulletText("3. 第一次点击：设置旋转中心点");
-            ImGui.bulletText("4. 第二次点击：设置参考点（确定基准角度）");
-            ImGui.bulletText("5. 移动鼠标旋转图形，第三次点击完成旋转");
-            
-            ImGui.spacing();
-            ImGui.textWrapped("旋转模式说明：");
-            ImGui.bulletText("三点旋转：通过中心点、参考点、目标点精确控制旋转");
-            ImGui.bulletText("旋转中心：始终是第一次点击的位置");
-            ImGui.bulletText("参考点：用于确定旋转的基准角度");
-            ImGui.bulletText("目标点：确定最终的旋转角度");
-            
-            ImGui.spacing();
-            ImGui.textWrapped("角度约束说明：");
-            ImGui.bulletText("角度步长：按住Shift键时的角度对齐步长");
-            ImGui.bulletText("角度吸附：启用后旋转时会自动对齐到指定角度");
-        }
     }
     
     /**
@@ -369,29 +336,5 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.endPopup();
         }
     }
-    
-    /**
-     * 渲染快捷键提示
-     */
-    private void renderShortcutTips() {
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        if (ImGui.collapsingHeader("快捷键", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textColored(currentTheme.warningText, "快捷键提示：");
-            ImGui.spacing();
-            
-            ImGui.bulletText("Shift：启用角度约束（按步长对齐）");
-            ImGui.bulletText("Ctrl：复制模式（保留原始图形）");
-            ImGui.bulletText("Alt：禁用角度吸附（自由旋转）");
-            ImGui.bulletText("右键：取消当前旋转操作");
-            ImGui.bulletText("Esc：取消旋转操作");
-            
-            ImGui.spacing();
-            ImGui.textColored(currentTheme.mutedText, "提示：");
-            ImGui.textWrapped("""
-                    • 旋转中心始终是第一次点击的位置
-                    • 参考点用于确定旋转的基准角度
-                    • 移动鼠标时可以看到旋转预览
-                    • 按住 Ctrl 保留原始图形并创建旋转副本""");
-        }
-    }
+
 } 

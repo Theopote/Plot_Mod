@@ -363,12 +363,20 @@ public class LineTool extends DrawingTool {
 
         double dx = end.x - start.x;
         double dy = end.y - start.y;
-        // 选择更接近的正交方向
-        if (Math.abs(dx) >= Math.abs(dy)) {
-            return new Vec2d(end.x, start.y); // 水平
-        } else {
-            return new Vec2d(start.x, end.y); // 垂直
+        double length = Math.hypot(dx, dy);
+        if (length < 1e-9) {
+            return end;
         }
+
+        // 约束到最接近的45°倍角：0/45/90/135/.../315
+        double angle = Math.atan2(dy, dx);
+        double step = Math.PI / 4.0; // 45°
+        double snappedAngle = Math.round(angle / step) * step;
+
+        return new Vec2d(
+            start.x + length * Math.cos(snappedAngle),
+            start.y + length * Math.sin(snappedAngle)
+        );
     }
 
     /**
