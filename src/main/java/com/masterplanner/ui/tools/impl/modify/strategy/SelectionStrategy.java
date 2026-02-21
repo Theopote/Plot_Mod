@@ -6,9 +6,9 @@ import com.masterplanner.core.command.commands.ModifyCommand;
 import com.masterplanner.core.geometry.BoundingBox;
 import com.masterplanner.core.graphics.DrawContext;
 import com.masterplanner.ui.canvas.CanvasCamera;
-import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.tools.impl.modify.helper.GeometricSelectionHelper;
 import com.masterplanner.ui.tools.impl.modify.ControlPointEditTool;
+import imgui.ImColor;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,8 +88,11 @@ public class SelectionStrategy implements IModifyStrategy {
     private static final double DRAG_THRESHOLD = 4.0; // 拖动阈值，小于此值视为点选
     private static final double LASSO_MIN_DISTANCE = 3.0; // 套索点最小间距
     
-    // 渲染常量（主题语义色）
+    // 渲染常量（画布固定色，与UI主题解耦）
     private static final int SELECTION_ALPHA = 255;
+    private static final Color CANVAS_SELECTION_COLOR = new Color(0, 122, 255, 255);
+    private static final int IMGUI_SELECTION_COLOR = ImColor.rgba(0, 122, 255, 255);
+    private static final float SELECTION_LINE_WIDTH = 1.5f;
     // 预留：选中高亮色（当前未直接使用，由Shape自身渲染样式处理）
     
     // 策略状态
@@ -1009,9 +1012,9 @@ public class SelectionStrategy implements IModifyStrategy {
             LOGGER.debug("SelectionStrategy.renderNormalSelectionPreviewImGui: 绘制选择框 ({},{}) -> ({},{})", 
                        minX, minY, maxX, maxY);
             
-            // 统一使用白色和1.0f线宽，根据选择方向绘制不同样式
-            int color = ThemeManager.getInstance().getCurrentTheme().text;
-            float lineWidth = 1.0f;
+            // 使用与主题无关的画布固定高对比颜色
+            int color = IMGUI_SELECTION_COLOR;
+            float lineWidth = SELECTION_LINE_WIDTH;
             
             if (isLeftToRight) {
                 // 实线框（窗口选择）
@@ -1037,9 +1040,9 @@ public class SelectionStrategy implements IModifyStrategy {
         }
         
         try {
-            // 统一使用蓝色和1.0f线宽
-            int color = ThemeManager.getInstance().getCurrentTheme().text;
-            float lineWidth = 1.0f;
+            // 使用与主题无关的画布固定高对比颜色
+            int color = IMGUI_SELECTION_COLOR;
+            float lineWidth = SELECTION_LINE_WIDTH;
             
             // 绘制已确定的套索线段（不添加窗口偏移）
             for (int i = 1; i < lassoPoints.size(); i++) {
@@ -1094,15 +1097,7 @@ public class SelectionStrategy implements IModifyStrategy {
     }
 
     private Color getSelectionColor() {
-        return withAlpha(toColor(ThemeManager.getInstance().getCurrentTheme().text), SELECTION_ALPHA);
-    }
-
-    private static Color toColor(int argb) {
-        int alpha = (argb >>> 24) & 0xFF;
-        int red = (argb >>> 16) & 0xFF;
-        int green = (argb >>> 8) & 0xFF;
-        int blue = argb & 0xFF;
-        return new Color(red, green, blue, alpha);
+        return withAlpha(CANVAS_SELECTION_COLOR, SELECTION_ALPHA);
     }
 
     private static Color withAlpha(Color color, int alpha) {
