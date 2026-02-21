@@ -164,14 +164,30 @@ public class ChamferStrategy implements IModifyStrategy {
             return ModifyResult.IGNORED;
         }
 
-        if (shape != shape1 && !isChamferableShape(shape)) {
+        if (!isChamferableShape(shape)) {
+            return ModifyResult.IGNORED;
+        }
+
+        boolean sameShapeCornerMode = shape == shape1 && (shape instanceof PolylineShape || shape instanceof Polygon);
+        if (shape == shape1 && !sameShapeCornerMode) {
+            context.setStatusMessage("请选择不同图形（折线/多边形可点同一对象不同邻边）");
             return ModifyResult.IGNORED;
         }
 
         shape2 = shape;
         clickPoint2 = clickPoint;
 
-        // 验证并生成预览
+        ChamferParameters params = createModifyParameters();
+        IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(shape1, shape2), params);
+        if (!validation.isValid()) {
+            shape2 = null;
+            clickPoint2 = null;
+            previewShapes = null;
+            context.setStatusMessage(validation.getErrorMessage());
+            return ModifyResult.CONTINUE;
+        }
+
+        // 验证通过后再生成预览并切换到可应用状态
         updatePreviewWithContext(context);
         if (isReadyToApply()) {
            currentState = ChamferState.READY_TO_APPLY;
@@ -195,6 +211,11 @@ public class ChamferStrategy implements IModifyStrategy {
         clickPoint1 = null;
         clickPoint2 = null;
         previewShapes = null;
+        previewEnabled = true;
+        isBoxSelecting = false;
+        boxStartPoint = null;
+        boxCurrentPoint = null;
+        boxSelectedShapes.clear();
         clearHighlight();
     }
     
@@ -216,10 +237,14 @@ public class ChamferStrategy implements IModifyStrategy {
     @Override
     public ModifyResult onMouseMove(Vec2d point, ModifyToolContext context) {
         if (isBoxSelecting) {
+            if (boxStartPoint == null) {
+                isBoxSelecting = false;
+            } else {
             // 框选模式
             boxCurrentPoint = point;
             updateBoxSelection(context);
             return ModifyResult.CONTINUE;
+            }
         }
 
         try {
@@ -603,7 +628,7 @@ public class ChamferStrategy implements IModifyStrategy {
 
     private ModifyResult handleMouseMove_Ready(Vec2d snappedPoint, ModifyToolContext context) {
         if (shape1 != null && shape2 != null) {
-            updatePreviewWithShapes(shape1, shape2, snappedPoint, context);
+            updatePreviewWithContext(context);
             context.setStatusMessage(String.format("按鼠标右键确认倒角(距离:%.1f)，滚轮调整距离，或ESC取消", distance));
             return ModifyResult.CONTINUE;
         }
@@ -623,8 +648,13 @@ public class ChamferStrategy implements IModifyStrategy {
             IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(firstShape, secondShape), params);
             if (validation.isValid()) {
                 previewShapes = chamferHandler.createPreviewShapes(List.of(firstShape, secondShape), params);
+                if (context != null) {
+                    context.setPreviewEnabled(true);
+                }
             } else {
-                previewShapes = null;
+                if (previewShapes == null && context != null) {
+                    context.setStatusMessage(validation.getErrorMessage());
+                }
             }
         } finally {
             clickPoint2 = originalClickPoint2;
