@@ -296,7 +296,6 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
 
         // 显示当前工具的使用方法提示（实时消息优先，否则显示默认使用方法）
         if (!usageHint.isEmpty()) {
-            ImGui.separator();
             ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, "使用方法:");
             ImGui.textWrapped(usageHint);
         }
