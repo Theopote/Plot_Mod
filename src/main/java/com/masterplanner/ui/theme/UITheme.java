@@ -402,7 +402,7 @@ public class UITheme {
         
         // 面板颜色
         theme.panelBackground = ImColor.rgba(0.15f, 0.15f, 0.15f, 1.0f);
-        theme.toolbarBackground = ImColor.rgba(0.18f, 0.18f, 0.18f, 1.0f);
+        theme.toolbarBackground = theme.panelBackground;
         theme.toolbarBorder = theme.border;                               // 使用通用边框颜色
         theme.statusBarBackground = theme.toolbarBackground;
         theme.statusBarText = theme.foreground;
@@ -509,7 +509,7 @@ public class UITheme {
 
         // 面板颜色
         theme.panelBackground = ImColor.rgba(0.93f, 0.93f, 0.93f, 1.0f); // 面板背景色
-        theme.toolbarBackground = ImColor.rgba(0.92f, 0.92f, 0.92f, 1.0f);
+        theme.toolbarBackground = theme.panelBackground;
         theme.toolbarBorder = theme.border;
         theme.statusBarBackground = theme.toolbarBackground;
         theme.statusBarText = theme.foreground;

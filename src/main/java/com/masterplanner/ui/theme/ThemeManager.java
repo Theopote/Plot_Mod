@@ -172,7 +172,7 @@ public class ThemeManager {
         // 移除所有阴影效果
         style.setColor(ImGuiCol.BorderShadow, ImColor.rgba(0, 0, 0, 0));      // 完全透明
         style.setColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);     // 不使用阴影效果
-        style.setColor(ImGuiCol.TitleBgActive, currentTheme.buttonActive);     // 不使用阴影效果
+        style.setColor(ImGuiCol.TitleBgActive, currentTheme.panelBackground);   // 与标题栏背景统一
         style.setColor(ImGuiCol.NavHighlight, currentTheme.accent);            // 使用纯色
         style.setColor(ImGuiCol.NavWindowingHighlight, currentTheme.accent);   // 使用纯色
         style.setColor(ImGuiCol.NavWindowingDimBg, ImColor.rgba(0, 0, 0, 0)); // 完全透明
@@ -201,8 +201,8 @@ public class ThemeManager {
         
         // 标题栏
         style.setColor(ImGuiCol.TitleBg, currentTheme.panelBackground);
-        style.setColor(ImGuiCol.TitleBgActive, currentTheme.buttonActive);
-        style.setColor(ImGuiCol.TitleBgCollapsed, currentTheme.buttonNormal);
+        style.setColor(ImGuiCol.TitleBgActive, currentTheme.panelBackground);
+        style.setColor(ImGuiCol.TitleBgCollapsed, currentTheme.panelBackground);
         
         // 菜单相关
         style.setColor(ImGuiCol.MenuBarBg, currentTheme.panelBackground);

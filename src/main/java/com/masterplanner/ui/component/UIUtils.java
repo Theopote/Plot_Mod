@@ -102,20 +102,26 @@ public class UIUtils {
             // 根据按钮状态设置边框和背景颜色
             int borderColor;
             int buttonColor;
+            int hoveredColor;
+            int activeColor;
             
             if (isSelected) {
                 borderColor = currentTheme.buttonActiveBorder;
-                buttonColor = currentTheme.buttonActive;
+                buttonColor = currentTheme.buttonSelected;
+                hoveredColor = currentTheme.buttonSelectedHovered;
+                activeColor = currentTheme.buttonSelectedActive;
             } else {
                 borderColor = currentTheme.buttonBorder;
                 buttonColor = currentTheme.buttonNormal;
+                hoveredColor = currentTheme.buttonHovered;
+                activeColor = currentTheme.buttonActive;
             }
             
             // 设置按钮样式
             ImGui.pushStyleColor(ImGuiCol.Border, borderColor);
             ImGui.pushStyleColor(ImGuiCol.Button, buttonColor);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, currentTheme.buttonActive);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoveredColor);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
             
             // 设置提示文字样式
             ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.panelBackground);  // 使用面板背景色
