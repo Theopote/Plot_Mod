@@ -402,25 +402,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      * 渲染线性螺旋选项
      */
     private void renderLinearSpiralOptions(float[] height) {
-        // 线性螺旋现在完全由鼠标交互决定，显示使用方法说明
-        ImGui.tableNextRow();
-        ImGui.tableNextColumn();
-        ImGui.alignTextToFramePadding();
-        ImGui.text("使用方法");
-        
-        ImGui.tableNextColumn();
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - 10);
-        var theme = ThemeManager.getInstance().getCurrentTheme();
-        ImGui.textColored(theme.mutedText,
-                """
-                        1. 点击确定螺旋中心
-                        2. 点击确定螺旋起点
-                        3. 点击确定螺距
-                        4. 点击确定最外圈""");
-        ImGui.popTextWrapPos();
-        height[0] += ImGui.getTextLineHeight() * 4 + ImGui.getStyle().getItemSpacing().y;
-        
-        // 显示当前参数信息（只读）
+        // 线性螺旋的使用方法由ToolOptionsPanel统一展示；这里仅显示状态信息
         renderCurrentParametersInfo(height);
     }
     
