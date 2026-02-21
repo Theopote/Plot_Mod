@@ -11,6 +11,7 @@ import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
@@ -214,6 +215,15 @@ public class NewLayerDialog {
         ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
         ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.buttonActive);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
@@ -289,7 +299,8 @@ public class NewLayerDialog {
                 ImGui.endPopup();
             }
         } finally {
-            ImGui.popStyleColor(13);
+            ImGui.popStyleColor(16);
+            ImGui.popStyleVar(6);
         }
     }
 }

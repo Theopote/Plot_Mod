@@ -62,6 +62,31 @@ public class LineToBlockSettingsDialog {
     public void render() {
         if (!isOpen) return;
 
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.buttonActive);
+
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
+
         ImGui.setNextWindowSize(400, 0);
         // 重要：无论 begin() 返回 true/false，都必须 end()，否则会触发 ImGui 的窗口栈断言
         boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings", ImGuiWindowFlags.AlwaysAutoResize);
@@ -131,6 +156,8 @@ public class LineToBlockSettingsDialog {
             LOGGER.error("渲染线转方块设置对话框时发生错误", e);
         } finally {
             ImGui.end();
+            ImGui.popStyleColor(15);
+            ImGui.popStyleVar(6);
         }
     }
 

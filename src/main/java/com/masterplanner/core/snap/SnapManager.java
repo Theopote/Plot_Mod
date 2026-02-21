@@ -61,6 +61,12 @@ public class SnapManager implements ISnapManager {
         int styleColorCount;
 
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10.0f, 10.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
 
         // 基础样式
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.panelBackground);
@@ -72,7 +78,10 @@ public class SnapManager implements ISnapManager {
         ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
         ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
-        styleColorCount = 9;  // 更新计数
+        ImGui.pushStyleColor(ImGuiCol.Separator, currentTheme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, currentTheme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, currentTheme.buttonActive);
+        styleColorCount = 12;  // 更新计数
 
         try {
             ImGui.setNextWindowSizeConstraints(300, 0, 500, Float.MAX_VALUE);
@@ -233,7 +242,7 @@ public class SnapManager implements ISnapManager {
 
         } finally {
             ImGui.popStyleColor(styleColorCount);
-            ImGui.popStyleVar();
+            ImGui.popStyleVar(7);
         }
     }
 

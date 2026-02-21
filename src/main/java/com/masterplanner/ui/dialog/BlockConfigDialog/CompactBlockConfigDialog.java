@@ -375,7 +375,31 @@ public class CompactBlockConfigDialog {
     public void render() {
         if (!isOpen) return;
 
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        int styleColorCount = 0;
+        int styleVarCount = 0;
+
         try {
+            ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.ChildBg, theme.panelBackground); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.buttonHovered); styleColorCount++;
+            ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.buttonActive); styleColorCount++;
+
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f); styleVarCount++;
+            ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f); styleVarCount++;
+            ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f); styleVarCount++;
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f); styleVarCount++;
+            ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f); styleVarCount++;
+            ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f); styleVarCount++;
+
             ImGui.setNextWindowSize(currentDialogWidth, currentDialogHeight, ImGuiCond.FirstUseEver);
             ImGui.setNextWindowPos(
                     ImGui.getIO().getDisplaySizeX() / 2 - currentDialogWidth / 2,
@@ -409,6 +433,13 @@ public class CompactBlockConfigDialog {
         } catch (Exception e) {
             LOGGER.error("渲染方块配置对话框窗口时发生严重错误: {}", e.getMessage(), e);
             isOpen = false;
+        } finally {
+            if (styleColorCount > 0) {
+                ImGui.popStyleColor(styleColorCount);
+            }
+            if (styleVarCount > 0) {
+                ImGui.popStyleVar(styleVarCount);
+            }
         }
     }
 
@@ -2048,6 +2079,14 @@ public class CompactBlockConfigDialog {
         }
 
         try {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+            ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
+            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+            ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
+            ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+            ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
             ImGui.beginTooltip();
             
             // 显示方块名称（本地化）
@@ -2064,6 +2103,8 @@ public class CompactBlockConfigDialog {
             ImGui.textDisabled("拖拽: 移动到调色盘");
             
             ImGui.endTooltip();
+            ImGui.popStyleVar(3);
+            ImGui.popStyleColor(4);
             
         } catch (Exception e) {
             LOGGER.error("渲染方块提示时发生错误: {} - {}", 
@@ -2080,6 +2121,14 @@ public class CompactBlockConfigDialog {
         }
 
         try {
+            UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+            ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.tooltipBackground);
+            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+            ImGui.pushStyleColor(ImGuiCol.Text, theme.tooltipText);
+            ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+            ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
             ImGui.beginTooltip();
             
             // 显示方块名称（本地化）
@@ -2100,6 +2149,8 @@ public class CompactBlockConfigDialog {
             ImGui.textDisabled("右键: 移除方块");
             
             ImGui.endTooltip();
+            ImGui.popStyleVar(3);
+            ImGui.popStyleColor(4);
             
         } catch (Exception e) {
             LOGGER.error("渲染调色盘方块提示时发生错误: {} - {}", 

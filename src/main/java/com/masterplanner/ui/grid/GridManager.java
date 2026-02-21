@@ -122,11 +122,21 @@ public class GridManager {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
         ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonNormal);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Separator, currentTheme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, currentTheme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, currentTheme.buttonActive);
         
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 16, 16);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
 
         try {
             ImGui.setNextWindowSize(300, 0);
@@ -184,8 +194,8 @@ public class GridManager {
         } catch (Exception e) {
             LOGGER.error("渲染网格设置窗口时出错", e);
         } finally {
-            ImGui.popStyleColor(9);
-            ImGui.popStyleVar();
+            ImGui.popStyleColor(13);
+            ImGui.popStyleVar(7);
         }
 
         // 如果窗口被关闭，确保设置被应用

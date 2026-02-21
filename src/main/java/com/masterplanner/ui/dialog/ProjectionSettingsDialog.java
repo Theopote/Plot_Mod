@@ -4,6 +4,7 @@ import com.masterplanner.ui.theme.ThemeManager;
 import com.masterplanner.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,9 +72,19 @@ public class ProjectionSettingsDialog {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
         ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.buttonActive);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
         
         // 设置窗口标志
         int windowFlags = ImGuiWindowFlags.AlwaysAutoResize | 
@@ -129,7 +140,8 @@ public class ProjectionSettingsDialog {
             LOGGER.error("渲染投影设置对话框时出错", e);
         } finally {
             ImGui.end();
-            ImGui.popStyleColor(9);
+            ImGui.popStyleVar(6);
+            ImGui.popStyleColor(13);
         }
     }
     
