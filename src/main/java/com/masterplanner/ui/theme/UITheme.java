@@ -499,13 +499,13 @@ public class UITheme {
         
         // 按钮颜色
         theme.buttonNormal = ImColor.rgba(0.75f, 0.75f, 0.75f, 1.0f);    // 正常状态：浅灰色
-        theme.buttonHovered = ImColor.rgba(0.70f, 0.70f, 0.70f, 1.0f);   // 悬停状态：稍深的灰色
+        theme.buttonHovered = ImColor.rgba(0.82f, 0.82f, 0.82f, 1.0f);   // 悬停状态：略亮于正常，增强反馈
         theme.buttonActive = ImColor.rgba(0.80f, 0.90f, 0.95f, 1.0f);    // 激活状态：淡蓝色
-        theme.buttonSelected = ImColor.rgba(0.12f, 0.56f, 1.00f, 1.0f);  // 选中状态：蓝色
-        theme.buttonSelectedHovered = ImColor.rgba(0.00f, 0.75f, 1.00f, 1.0f); // 选中+悬停：亮蓝色
-        theme.buttonSelectedActive = ImColor.rgba(0.00f, 0.00f, 0.80f, 1.0f);  // 选中+激活：深蓝色
+        theme.buttonSelected = ImColor.rgba(0.18f, 0.58f, 0.95f, 1.0f);  // 选中状态：中亮蓝
+        theme.buttonSelectedHovered = ImColor.rgba(0.26f, 0.66f, 0.98f, 1.0f); // 选中+悬停：更亮蓝
+        theme.buttonSelectedActive = ImColor.rgba(0.12f, 0.50f, 0.90f, 1.0f);  // 选中+激活：较浅蓝（避免过暗）
         theme.buttonBorder = ImColor.rgba(0.60f, 0.60f, 0.60f, 1.0f);    // 按钮边框：中灰色
-        theme.buttonActiveBorder = ImColor.rgba(1.0f, 1.0f, 1.0f, 1.0f); // 激活边框：白色
+        theme.buttonActiveBorder = ImColor.rgba(0.45f, 0.66f, 0.92f, 1.0f); // 激活边框：柔和蓝边框
 
         // 面板颜色
         theme.panelBackground = ImColor.rgba(0.93f, 0.93f, 0.93f, 1.0f); // 面板背景色
