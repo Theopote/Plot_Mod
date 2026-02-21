@@ -58,12 +58,6 @@ public class CircleTool extends DrawingTool {
     private static final float MIN_RADIUS = 0.1f;
     private static final double COLLINEAR_TOLERANCE = 1e-10;
     
-    // ====== 渲染颜色常量 ======
-    private static final Color CENTER_POINT_COLOR = Color.RED;
-    private static final Color RADIUS_POINT_COLOR = Color.GREEN;
-    private static final Color CONTROL_POINT_COLOR = Color.BLUE;
-    private static final Color CONNECTOR_LINE_COLOR = Color.YELLOW;
-    private static final Color SNAP_INDICATOR_COLOR = Color.YELLOW; // 吸附指示器颜色
     private static final float CONTROL_POINT_SIZE = 6.0f;
     private static final float SNAP_INDICATOR_SIZE = 8.0f; // 吸附指示器大小
     
@@ -280,11 +274,16 @@ public class CircleTool extends DrawingTool {
     // ====== DrawContext 预览渲染方法 ======
     
     private void renderCenterRadiusPreview(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color centerPointColor = toColor(theme.errorText, 0xCC);
+        Color radiusPointColor = toColor(theme.successText, 0xCC);
+        Color connectorLineColor = toColor(theme.warningText, 0x99);
+
         if (!controlPoints.isEmpty()) {
             Vec2d center = controlPoints.get(0);
             
             // 绘制圆心
-            context.drawCircleFilled(center, CONTROL_POINT_SIZE, CENTER_POINT_COLOR);
+            context.drawCircleFilled(center, CONTROL_POINT_SIZE, centerPointColor);
             
             if (previewCircle != null) {
                 // 绘制预览圆 - 使用当前图层颜色
@@ -294,70 +293,80 @@ public class CircleTool extends DrawingTool {
                 // 如果有第二个点，绘制半径线
                 if (controlPoints.size() >= 2) {
                     Vec2d radiusPoint = controlPoints.get(1);
-                    context.drawCircleFilled(radiusPoint, CONTROL_POINT_SIZE, RADIUS_POINT_COLOR);
-                    context.drawLine(center, radiusPoint, CONNECTOR_LINE_COLOR);
+                    context.drawCircleFilled(radiusPoint, CONTROL_POINT_SIZE, radiusPointColor);
+                    context.drawLine(center, radiusPoint, connectorLineColor);
                 } else if (currentMousePoint != null) {
                     // 绘制到鼠标位置的半径线
-                    context.drawLine(center, currentMousePoint, CONNECTOR_LINE_COLOR);
+                    context.drawLine(center, currentMousePoint, connectorLineColor);
                 }
             }
         }
     }
     
     private void renderTwoPointsPreview(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color controlPointColor = toColor(theme.infoText, 0xCC);
+        Color centerPointColor = toColor(theme.errorText, 0xCC);
+        Color connectorLineColor = toColor(theme.warningText, 0x99);
+
         if (!controlPoints.isEmpty()) {
             Vec2d p1 = controlPoints.get(0);
-            context.drawCircleFilled(p1, CONTROL_POINT_SIZE, CONTROL_POINT_COLOR);
+            context.drawCircleFilled(p1, CONTROL_POINT_SIZE, controlPointColor);
             
             if (controlPoints.size() >= 2) {
                 Vec2d p2 = controlPoints.get(1);
-                context.drawCircleFilled(p2, CONTROL_POINT_SIZE, CONTROL_POINT_COLOR);
-                context.drawLine(p1, p2, CONNECTOR_LINE_COLOR);
+                context.drawCircleFilled(p2, CONTROL_POINT_SIZE, controlPointColor);
+                context.drawLine(p1, p2, connectorLineColor);
                 
                 if (previewCircle != null) {
                     Vec2d center = previewCircle.getCenter();
                     Color previewColor = getPreviewColor();
                     context.drawCircle(center, previewCircle.getRadius(), previewColor);
-                    context.drawCircleFilled(center, CONTROL_POINT_SIZE, CENTER_POINT_COLOR);
+                    context.drawCircleFilled(center, CONTROL_POINT_SIZE, centerPointColor);
                 }
             } else if (currentMousePoint != null) {
                 // 绘制到鼠标位置的线
-                context.drawLine(p1, currentMousePoint, CONNECTOR_LINE_COLOR);
+                context.drawLine(p1, currentMousePoint, connectorLineColor);
                 
                 if (previewCircle != null) {
                     Vec2d center = previewCircle.getCenter();
                     Color previewColor = getPreviewColor();
                     context.drawCircle(center, previewCircle.getRadius(), previewColor);
-                    context.drawCircleFilled(center, CONTROL_POINT_SIZE, CENTER_POINT_COLOR);
+                    context.drawCircleFilled(center, CONTROL_POINT_SIZE, centerPointColor);
                 }
             }
         }
     }
     
     private void renderThreePointsPreview(DrawContext context) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        Color controlPointColor = toColor(theme.infoText, 0xCC);
+        Color centerPointColor = toColor(theme.errorText, 0xCC);
+        Color connectorLineColor = toColor(theme.warningText, 0x99);
+
         // 绘制已有的控制点
         for (Vec2d point : controlPoints) {
-            context.drawCircleFilled(point, CONTROL_POINT_SIZE, CONTROL_POINT_COLOR);
+            context.drawCircleFilled(point, CONTROL_POINT_SIZE, controlPointColor);
         }
         
         // 绘制连线
         if (controlPoints.size() >= 2) {
             Vec2d p1 = controlPoints.get(0);
             Vec2d p2 = controlPoints.get(1);
-            context.drawLine(p1, p2, CONNECTOR_LINE_COLOR);
+            context.drawLine(p1, p2, connectorLineColor);
             
             if (controlPoints.size() >= 3) {
                 Vec2d p3 = controlPoints.get(2);
-                context.drawLine(p2, p3, CONNECTOR_LINE_COLOR);
-                context.drawLine(p3, p1, CONNECTOR_LINE_COLOR);
+                context.drawLine(p2, p3, connectorLineColor);
+                context.drawLine(p3, p1, connectorLineColor);
             } else if (currentMousePoint != null) {
                 // 绘制到鼠标位置的预览线
-                context.drawLine(p2, currentMousePoint, CONNECTOR_LINE_COLOR);
-                context.drawLine(currentMousePoint, p1, CONNECTOR_LINE_COLOR);
+                context.drawLine(p2, currentMousePoint, connectorLineColor);
+                context.drawLine(currentMousePoint, p1, connectorLineColor);
             }
         } else if (controlPoints.size() == 1 && currentMousePoint != null) {
             // 只有一个点时，绘制到鼠标的线
-            context.drawLine(controlPoints.getFirst(), currentMousePoint, CONNECTOR_LINE_COLOR);
+            context.drawLine(controlPoints.getFirst(), currentMousePoint, connectorLineColor);
         }
         
         // 绘制预览圆
@@ -365,7 +374,7 @@ public class CircleTool extends DrawingTool {
             Vec2d center = previewCircle.getCenter();
             Color previewColor = getPreviewColor();
             context.drawCircle(center, previewCircle.getRadius(), previewColor);
-            context.drawCircleFilled(center, CONTROL_POINT_SIZE, CENTER_POINT_COLOR);
+            context.drawCircleFilled(center, CONTROL_POINT_SIZE, centerPointColor);
         }
     }
     
@@ -596,7 +605,7 @@ public class CircleTool extends DrawingTool {
         
         // 已确定的控制点也显示吸附指示器
         for (Vec2d controlPoint : controlPoints) {
-            context.drawCircle(controlPoint, SNAP_INDICATOR_SIZE, SNAP_INDICATOR_COLOR);
+            context.drawCircle(controlPoint, SNAP_INDICATOR_SIZE, toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 200));
         }
     }
 
@@ -624,8 +633,7 @@ public class CircleTool extends DrawingTool {
         renderSnapTypeIndicatorImGui(drawList, camera, snapPoint, currentSnapType);
         
         // 已确定的控制点也显示吸附指示器
-        int controlSnapColor = ImColor.rgba(SNAP_INDICATOR_COLOR.getRed(), SNAP_INDICATOR_COLOR.getGreen(), 
-                                          SNAP_INDICATOR_COLOR.getBlue(), 200);
+        int controlSnapColor = withAlpha(ThemeManager.getInstance().getCurrentTheme().warningText, 200);
         for (Vec2d controlPoint : controlPoints) {
             Vec2d screenControlPoint = camera.worldToScreen(controlPoint);
             drawList.addCircle((float) screenControlPoint.x, (float) screenControlPoint.y, 
@@ -735,46 +743,47 @@ public class CircleTool extends DrawingTool {
     private void renderSnapTypeIndicator(DrawContext context, Vec2d point, 
                                        com.masterplanner.core.snap.SnapPriorityEvaluator.SnapType snapType) {
         float size = 4.0f;
+        Color markerColor = getSnapIndicatorColor(snapType);
         switch (snapType) {
             case END_POINT -> // 端点：实心正方形
-                    context.drawCircleFilled(point, size, Color.RED);
+                context.drawCircleFilled(point, size, markerColor);
             case MID_POINT -> // 中点：三角形标记
-                    context.drawCircleFilled(point, size * 0.8f, Color.GREEN);
+                context.drawCircleFilled(point, size * 0.8f, markerColor);
             case CENTER_POINT, CENTROID -> {
                 // 中心点：十字标记
                 context.drawLine(new Vec2d(point.x - size, point.y), 
-                               new Vec2d(point.x + size, point.y), Color.BLUE);
+                       new Vec2d(point.x + size, point.y), markerColor);
                 context.drawLine(new Vec2d(point.x, point.y - size), 
-                               new Vec2d(point.x, point.y + size), Color.BLUE);
+                       new Vec2d(point.x, point.y + size), markerColor);
             }
             case INTERSECTION, VERTEX -> {
                 // 交点：X标记
                 context.drawLine(new Vec2d(point.x - size, point.y - size), 
-                               new Vec2d(point.x + size, point.y + size), Color.MAGENTA);
+                       new Vec2d(point.x + size, point.y + size), markerColor);
                 context.drawLine(new Vec2d(point.x - size, point.y + size), 
-                               new Vec2d(point.x + size, point.y - size), Color.MAGENTA);
+                       new Vec2d(point.x + size, point.y - size), markerColor);
             }
             case PERPENDICULAR, HORIZONTAL, VERTICAL -> {
                 // 垂足：垂直线标记
                 context.drawLine(new Vec2d(point.x, point.y - size), 
-                               new Vec2d(point.x, point.y + size), Color.CYAN);
+                       new Vec2d(point.x, point.y + size), markerColor);
                 context.drawLine(new Vec2d(point.x - size * 0.5, point.y + size * 0.5), 
-                               new Vec2d(point.x + size * 0.5, point.y + size * 0.5), Color.CYAN);
+                       new Vec2d(point.x + size * 0.5, point.y + size * 0.5), markerColor);
             }
             case TANGENT -> // 切点：圆形标记
-                    context.drawCircle(point, size * 0.6f, Color.ORANGE);
+                context.drawCircle(point, size * 0.6f, markerColor);
             case QUADRANT, CONTROL_POINT -> // 控制点：小正方形
-                    context.drawCircleFilled(point, size * 0.5f, Color.PINK);
+                context.drawCircleFilled(point, size * 0.5f, markerColor);
             case NEAREST_POINT, GRID_POINT -> // 网格点：小圆点
-                    context.drawCircleFilled(point, size * 0.3f, Color.LIGHT_GRAY);
+                context.drawCircleFilled(point, size * 0.3f, markerColor);
             case EXTENSION, PARALLEL -> // 延长线：虚线标记 (简化为小线段)
                     context.drawLine(new Vec2d(point.x - size * 0.5, point.y),
-                                   new Vec2d(point.x + size * 0.5, point.y), Color.GRAY);
+                       new Vec2d(point.x + size * 0.5, point.y), markerColor);
             case NONE -> {
                 // 无捕捉：不渲染任何标记
             }
             default -> // 其他类型：默认小圆点
-                    context.drawCircleFilled(point, size * 0.4f, SNAP_INDICATOR_COLOR);
+                context.drawCircleFilled(point, size * 0.4f, toColor(ThemeManager.getInstance().getCurrentTheme().warningText, 200));
         }
     }
 
