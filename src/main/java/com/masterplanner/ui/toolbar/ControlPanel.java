@@ -156,9 +156,13 @@ public class ControlPanel implements UIComponent {
                 UILayout.Toolbar.ITEM_SPACING,
                 UILayout.Toolbar.ITEM_SPACING);
             try {
-                renderToolGroups();
-                renderFixedComponents();
-                renderDialogs();
+                if (ImGui.beginChild("##control_panel_scroll", 0, 0, false, ImGuiWindowFlags.NoScrollbar)) {
+                    renderToolGroups();
+                    renderFixedComponents();
+                    renderDialogs();
+                    ImGui.dummy(1.0f, UILayout.Toolbar.BUTTON_PADDING + 12.0f);
+                }
+                ImGui.endChild();
             } finally {
                 ImGui.popStyleVar(2);
             }
@@ -194,20 +198,10 @@ public class ControlPanel implements UIComponent {
      * 渲染所有工具组 - 不再分组，按顺序排列在同一行（自动换行）
      */
     private void renderToolGroups() {
-        // 获取窗口宽度和高度
-        float windowWidth = ImGui.getWindowWidth();
-        float windowHeight = ImGui.getWindowHeight();
-        float buttonHeight = UILayout.Toolbar.BUTTON_SIZE;
-        
         // 获取内容区域的边界（考虑窗口内边距）
         float contentMinX = ImGui.getWindowContentRegionMinX();
         float contentMaxX = ImGui.getWindowContentRegionMaxX();
-        float contentMinY = ImGui.getWindowContentRegionMinY();
         float contentWidth = contentMaxX - contentMinX;
-        
-        // 计算标签高度（如果有标签展开，这里可以动态计算）
-        // 目前没有标签功能，所以为0，将来可以扩展
-        float labelHeight = 0.0f;
         
         // 计算可用的工具组（过滤掉禁用的）
         List<ToolbarGroup> enabledGroups = new ArrayList<>();
@@ -238,15 +232,13 @@ public class ControlPanel implements UIComponent {
         // 计算每行可以放置的组（响应式布局，使用内容区域宽度）
         List<List<Integer>> rows = calculateRows(groupWidths, groupSpacings, contentWidth);
         
-        // 计算行数
-        int totalRows = rows.size();
+        // 顶部留白
+        ImGui.dummy(0.0f, UILayout.Toolbar.BUTTON_PADDING);
 
-        // 渲染每一行，从内容区域左边界和顶部边界开始
-        // 按钮距离上边界的距离和左边距一样（都是BUTTON_PADDING）
-        // 如果有标签展开，按钮会自动下移，保持和边界的固定间距
-        float currentY = contentMinY + UILayout.Toolbar.BUTTON_PADDING + labelHeight;
-        for (List<Integer> row : rows) {
-            ImGui.setCursorPos(contentMinX, currentY);
+        // 使用自然流布局推进Y，避免绝对Y定位与滚动状态冲突导致回弹
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            List<Integer> row = rows.get(rowIndex);
+            ImGui.setCursorPosX(contentMinX);
             
             // 渲染这一行的所有组
             for (int i = 0; i < row.size(); i++) {
@@ -266,8 +258,9 @@ public class ControlPanel implements UIComponent {
                 }
             }
             
-            // 移动到下一行
-            currentY += buttonHeight + UILayout.Toolbar.ITEM_SPACING;
+            if (rowIndex < rows.size() - 1) {
+                ImGui.dummy(0.0f, UILayout.Toolbar.ITEM_SPACING);
+            }
         }
     }
     

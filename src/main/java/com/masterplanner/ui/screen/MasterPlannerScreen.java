@@ -501,7 +501,7 @@ public class MasterPlannerScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
-        ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS);
+        ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
         controlPanel.renderInCurrentWindow();
         ImGui.end();
         ImGui.popStyleColor(2);
@@ -542,7 +542,7 @@ public class MasterPlannerScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.getContentHeight(displayHeight), ImGuiCond.FirstUseEver);
-        ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS);
+        ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
         toolPanel.renderInCurrentWindow();
         ImGui.end();
         ImGui.popStyleColor(2);
@@ -749,29 +749,26 @@ public class MasterPlannerScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta, double modifiers) {
-        // 【测试】强制记录所有滚轮事件，确保事件能被接收到
-        LOGGER.info("MasterPlannerScreen.mouseScrolled: 收到滚轮事件! mouseX={}, mouseY={}, delta={}, modifiers={}", 
-            mouseX, mouseY, delta, modifiers);
-        
-        // 【调试】检查delta值是否正常
-        if (Math.abs(delta) < 0.001) {
-            LOGGER.warn("MasterPlannerScreen.mouseScrolled: delta值异常小，可能是滚轮事件被拦截或转换错误");
-        }
-        
-        // 【修复】尝试从modifiers参数获取滚轮增量
         double actualDelta = delta;
-        if (Math.abs(delta) < 0.001 && Math.abs(modifiers) > 0.001) {
-            // 如果delta接近0但modifiers有值，可能滚轮信息在modifiers中
-            actualDelta = modifiers;
-            LOGGER.info("MasterPlannerScreen.mouseScrolled: 使用modifiers作为滚轮增量: {}", actualDelta);
-        }
         
         // 添加调试信息
         boolean wantCaptureMouse = ImGui.getIO().getWantCaptureMouse();
         LOGGER.debug("MasterPlannerScreen.mouseScrolled: mouseX={}, mouseY={}, delta={}, actualDelta={}, modifiers={}, wantCaptureMouse={}", 
             mouseX, mouseY, delta, actualDelta, modifiers, wantCaptureMouse);
         
-        // 【修复】优先让工具处理鼠标滚轮事件，不依赖ImGui状态
+        // ImGui 捕获时直接返回；GLFW 后端已注入滚轮，避免二次处理
+        if (ImGui.getIO().getWantCaptureMouse()) {
+            return true;
+        }
+
+        // 面板区域内禁止下发给工具，避免 UI 滚动与工具滚轮竞争导致回弹
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
+        float rightPanelX = UILayout.getRightPanelX(displayWidth);
+        float leftPanelMaxX = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
+        if (mouseX <= leftPanelMaxX || mouseX >= rightPanelX) {
+            return true;
+        }
+
         BaseTool activeTool = appState.getCurrentTool();
         LOGGER.debug("MasterPlannerScreen.mouseScrolled: 当前活动工具={}", activeTool != null ? activeTool.getName() : "null");
         
@@ -787,13 +784,6 @@ public class MasterPlannerScreen extends Screen {
                 LOGGER.debug("工具 {} 处理了鼠标滚轮事件: actualDelta={}", activeTool.getName(), actualDelta);
                 return true;
             }
-        }
-        
-        // 【修复】只有在工具没有处理时才让ImGui处理
-        if (isInputCapturedByImGui()) {
-            MasterPlannerMod.LOGGER.debug("ImGui 捕获鼠标滚轮: actualDelta={}", actualDelta);
-            ImGui.getIO().setMouseWheel((float) actualDelta);
-            return true;
         }
         
         LOGGER.debug("MasterPlannerScreen.mouseScrolled: 事件传递给父类处理");

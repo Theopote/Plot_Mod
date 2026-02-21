@@ -120,8 +120,12 @@ public class ToolPanel implements UIComponent {
             UILayout.Toolbar.LEFT_BUTTON_SPACING,
             UILayout.Toolbar.LEFT_BUTTON_SPACING);
         try {
-            // 渲染工具按钮
-            renderToolGroups();
+            if (ImGui.beginChild("##tool_panel_scroll", 0, 0, false, ImGuiWindowFlags.NoScrollbar)) {
+                // 渲染工具按钮
+                renderToolGroups();
+                ImGui.dummy(1.0f, UILayout.Toolbar.BUTTON_PADDING + 12.0f);
+            }
+            ImGui.endChild();
         } finally {
             ImGui.popStyleVar();
         }
@@ -130,10 +134,10 @@ public class ToolPanel implements UIComponent {
     private void renderToolGroups() {
         float contentWidth = ImGui.getWindowContentRegionMaxX() - ImGui.getWindowContentRegionMinX();
         float contentMinX = ImGui.getWindowContentRegionMinX();
-        float contentMinY = ImGui.getWindowContentRegionMinY();
-        
-        // 设置起始位置，与控制面板一致：距离顶部边界的距离和左边距一样（都是BUTTON_PADDING）
-        ImGui.setCursorPos(contentMinX, contentMinY + UILayout.Toolbar.BUTTON_PADDING);
+
+        // 顶部留白，并仅控制X位置，让Y由自然流布局推进
+        ImGui.dummy(0.0f, UILayout.Toolbar.BUTTON_PADDING);
+        ImGui.setCursorPosX(contentMinX);
         
         for (int i = 0; i < toolGroups.size(); i++) {
             ToolGroup group = toolGroups.get(i);
