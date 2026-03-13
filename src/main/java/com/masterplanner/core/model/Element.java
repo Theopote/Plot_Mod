@@ -35,26 +35,7 @@ public class Element {
         this.name = "元素";
     }
     
-    /**
-     * 带类型的构造函数
-     * @param type 元素类型
-     */
-    public Element(ElementType type) {
-        this.id = UUID.randomUUID().toString();
-        this.type = type;
-        this.name = type.getDisplayName();
-    }
-    
-    /**
-     * 带类型和名称的构造函数
-     * @param type 元素类型
-     * @param name 元素名称
-     */
-    public Element(ElementType type, String name) {
-        this.id = UUID.randomUUID().toString();
-        this.type = type;
-        this.name = name;
-    }
+
     
     /**
      * 获取元素ID
@@ -144,17 +125,7 @@ public class Element {
         this.selected = selected;
     }
     
-    /**
-     * 复制元素
-     * @return 元素的副本
-     */
-    public Element copy() {
-        Element copy = new Element(this.type, this.name);
-        copy.setVisible(this.visible);
-        copy.setLocked(this.locked);
-        copy.setSelected(this.selected);
-        return copy;
-    }
+
     
     @Override
     public boolean equals(Object obj) {

@@ -151,7 +151,7 @@ public class EllipseShape extends Shape {
     
     /**
      * 对椭圆进行缩放变换
-     * 
+     * <p>
      * 对于旋转椭圆的非均匀缩放，这是一个复杂的数学问题，需要二次型变换。
      * 本实现支持以下情况：
      * 1. 均匀缩放：直接缩放半径
@@ -280,7 +280,7 @@ public class EllipseShape extends Shape {
      * 1. 计算椭圆在x和y方向上的极值点，这些点是椭圆与其边界框相切的点
      * 2. 对于旋转椭圆，极值点出现在参数方程对x或y求导等于0的位置
      * 3. 通过这些极值点确定边界框的范围
-     * 
+     * <p>
      * 注意：这个方法返回的是轴对齐的边界框（Axis-Aligned Bounding Box, AABB）
      * 对于旋转的椭圆，这个边界框可能会比最小面积的旋转边界框（Oriented Bounding Box, OBB）大一些
      * 
@@ -392,7 +392,7 @@ public class EllipseShape extends Shape {
      * - 索引2：上点（次轴正方向）
      * - 索引3：左点（主轴负方向）
      * - 索引4：下点（次轴负方向）
-     * 
+     * <p>
      * 对于旋转的椭圆，我们通过以下步骤更新参数：
      * 1. 中心点直接更新位置
      * 2. 主轴点（右/左）用于更新radiusX和旋转角度

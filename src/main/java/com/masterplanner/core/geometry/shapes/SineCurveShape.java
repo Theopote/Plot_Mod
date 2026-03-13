@@ -111,8 +111,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     // Getter 和 Setter 方法
     public Vec2d getStartPoint() { return startPoint; }
     public Vec2d getEndPoint() { return endPoint; }
-    public double getAmplitude() { return amplitude; }
-    public double getWavelength() { return wavelength; }
+
     public double getPhase() { return phase; }
     
     public void setStartPoint(Vec2d startPoint) {
@@ -133,22 +132,6 @@ public class SineCurveShape extends Shape implements IExtendableShape {
             this.endPoint = endPoint;
             dirty = true;
         }
-    }
-    
-    public void setAmplitude(double amplitude) {
-        if (Double.isNaN(amplitude) || Double.isInfinite(amplitude)) {
-            throw new IllegalArgumentException("振幅必须是有限数值");
-        }
-        this.amplitude = amplitude;
-        dirty = true;
-    }
-    
-    public void setWavelength(double wavelength) {
-        if (wavelength <= 0 || Double.isNaN(wavelength) || Double.isInfinite(wavelength)) {
-            throw new IllegalArgumentException("波长必须是大于0的有限数值");
-        }
-        this.wavelength = wavelength;
-        dirty = true;
     }
     
     public void setPhase(double phase) {

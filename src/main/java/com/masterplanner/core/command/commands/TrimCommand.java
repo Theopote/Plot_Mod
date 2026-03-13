@@ -13,49 +13,17 @@ import java.util.ArrayList;
  * <p>该类已废弃，不再参与当前修剪主链路。当前修剪统一通过
  * {@link ModifyCommand} 由 {@code TrimHandler} 创建并执行。</p>
  */
-@Deprecated(since = "2.0", forRemoval = false)
+@Deprecated(since = "2.0")
 public class TrimCommand extends ModifyCommand {
-    private final Shape shape;
     private final Vec2d point;
-    private final List<Shape> boundaries;
     private Shape originalShape;
     private List<Shape> resultShapes;
 
-    @Deprecated(since = "2.0", forRemoval = false)
-    public TrimCommand(Shape shape, Vec2d point, List<Shape> boundaries, AppState appState) {
+    @Deprecated(since = "2.0")
+    public TrimCommand(Shape shape, Vec2d point, AppState appState) {
         super(List.of(shape), new ArrayList<>(), appState);
-        this.shape = shape;
         this.point = point;
-        this.boundaries = new ArrayList<>(boundaries);
         this.resultShapes = new ArrayList<>();
-    }
-    
-    //@Override
-    protected void doExecute() {
-        // 保存原始形状的副本
-        originalShape = shape.clone();
-
-        // 计算与边界的交点
-        List<Vec2d> intersections = new ArrayList<>();
-        for (Shape boundary : boundaries) {
-            if (boundary == shape) continue;
-            intersections.addAll(shape.getIntersectionsWith(boundary));
-        }
-
-        if (intersections.isEmpty()) {
-            // 如果没有交点，不执行修剪
-            setTargetShapes(List.of(shape));
-            return;
-        }
-
-        // 根据点击位置分割形状
-        resultShapes = shape.split(intersections, point);
-
-        // 删除原始形状
-        shape.delete();
-
-        // 设置目标形状
-        setTargetShapes(new ArrayList<>(resultShapes));
     }
 
     @Override

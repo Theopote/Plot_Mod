@@ -110,14 +110,7 @@ public class ConfigManager {
         }
         return defaultValue;
     }
-    
-    /**
-     * 设置整数配置
-     */
-    public void setInt(String key, int value) {
-        configMap.put(key, value);
-    }
-    
+
     /**
      * 获取整数配置
      */
@@ -128,76 +121,4 @@ public class ConfigManager {
         }
         return defaultValue;
     }
-    
-    /**
-     * 设置浮点数配置
-     */
-    public void setFloat(String key, float value) {
-        configMap.put(key, value);
-    }
-    
-    /**
-     * 获取浮点数配置
-     */
-    public float getFloat(String key, float defaultValue) {
-        Object value = configMap.get(key);
-        if (value instanceof Number) {
-            return ((Number) value).floatValue();
-        }
-        return defaultValue;
-    }
-    
-    /**
-     * 设置布尔值配置
-     */
-    public void setBoolean(String key, boolean value) {
-        configMap.put(key, value);
-    }
-    
-    /**
-     * 获取布尔值配置
-     */
-    public boolean getBoolean(String key, boolean defaultValue) {
-        Object value = configMap.get(key);
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        return defaultValue;
-    }
-    
-    /**
-     * 设置对象配置
-     */
-    public void setObject(String key, Object value) {
-        configMap.put(key, value);
-    }
-    
-    /**
-     * 获取对象配置
-     */
-    public Object getObject(String key, Object defaultValue) {
-        Object value = configMap.get(key);
-        return value != null ? value : defaultValue;
-    }
-    
-    /**
-     * 检查配置是否存在
-     */
-    public boolean hasConfig(String key) {
-        return configMap.containsKey(key);
-    }
-    
-    /**
-     * 移除配置
-     */
-    public void removeConfig(String key) {
-        configMap.remove(key);
-    }
-    
-    /**
-     * 清空所有配置
-     */
-    public void clearConfig() {
-        configMap.clear();
-    }
-} 
+}

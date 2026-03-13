@@ -21,8 +21,7 @@ public class SpatialIndexStats {
     private final long queryCount;
     private final double averageQueryTime;
     private final long memoryUsage;
-    private final long lastUpdateTime;
-    
+
     /**
      * 构造函数
      * 
@@ -39,63 +38,9 @@ public class SpatialIndexStats {
         this.queryCount = queryCount;
         this.averageQueryTime = averageQueryTime;
         this.memoryUsage = memoryUsage;
-        this.lastUpdateTime = System.currentTimeMillis();
+        long lastUpdateTime = System.currentTimeMillis();
     }
-    
-    /**
-     * 获取节点数量
-     * 
-     * @return 节点数量
-     */
-    public int getNodeCount() {
-        return nodeCount;
-    }
-    
-    /**
-     * 获取图形数量
-     * 
-     * @return 图形数量
-     */
-    public int getShapeCount() {
-        return shapeCount;
-    }
-    
-    /**
-     * 获取查询次数
-     * 
-     * @return 查询次数
-     */
-    public long getQueryCount() {
-        return queryCount;
-    }
-    
-    /**
-     * 获取平均查询时间
-     * 
-     * @return 平均查询时间（毫秒）
-     */
-    public double getAverageQueryTime() {
-        return averageQueryTime;
-    }
-    
-    /**
-     * 获取内存使用
-     * 
-     * @return 内存使用（字节）
-     */
-    public long getMemoryUsage() {
-        return memoryUsage;
-    }
-    
-    /**
-     * 获取最后更新时间
-     * 
-     * @return 最后更新时间（毫秒）
-     */
-    public long getLastUpdateTime() {
-        return lastUpdateTime;
-    }
-    
+
     /**
      * 获取内存使用的人类可读格式
      * 

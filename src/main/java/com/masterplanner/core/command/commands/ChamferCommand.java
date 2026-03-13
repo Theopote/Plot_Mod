@@ -30,19 +30,7 @@ public class ChamferCommand extends ModifyCommand {
     
     // 优化：保存新生成的图形列表
     private List<Shape> newGeneratedShapes;
-    
-    /**
-     * 优化：构造函数接收最终生成的图形列表，避免在命令中重复计算
-     */
-    public ChamferCommand(LineShape line1, LineShape line2, double distance, 
-                         List<Shape> newGeneratedShapes, AppState appState) {
-        super(List.of(line1, line2), newGeneratedShapes, appState);
-        this.line1 = line1;
-        this.line2 = line2;
-        this.distance = distance;
-        this.newGeneratedShapes = new ArrayList<>(newGeneratedShapes);
-    }
-    
+
     /**
      * 兼容性构造函数 - 保留原有接口
      * @deprecated 请使用新的构造函数，避免在命令中重复几何计算

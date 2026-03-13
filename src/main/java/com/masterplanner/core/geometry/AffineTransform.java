@@ -241,22 +241,7 @@ public class AffineTransform {
         postMultiply(scl);
         return this;
     }
-    
-    /**
-     * 叠加斜切变换（支持链式调用）
-     * 在当前变换基础上添加斜切
-     * 
-     * @param shx X方向斜切因子
-     * @param shy Y方向斜切因子
-     * @return 返回自身以支持链式调用
-     */
-    public AffineTransform shear(double shx, double shy) {
-        AffineTransform shr = AffineTransform.createShear(shx, shy);
-        // 使用后置乘法：先应用当前变换，再应用斜切
-        postMultiply(shr);
-        return this;
-    }
-    
+
     /**
      * 变换点
      */
@@ -296,25 +281,6 @@ public class AffineTransform {
     }
     
     /**
-     * 前置乘法（修改当前矩阵）：this = other * this
-     * 相当于先应用other变换，再应用当前的this变换
-     */
-    public void preMultiply(AffineTransform other) {
-        double new_m00 = other.m00 * this.m00 + other.m01 * this.m10;
-        double new_m01 = other.m00 * this.m01 + other.m01 * this.m11;
-        double new_m02 = other.m00 * this.m02 + other.m01 * this.m12 + other.m02;
-        
-        double new_m10 = other.m10 * this.m00 + other.m11 * this.m10;
-        double new_m11 = other.m10 * this.m01 + other.m11 * this.m11;
-        double new_m12 = other.m10 * this.m02 + other.m11 * this.m12 + other.m12;
-        
-        this.m00 = new_m00; this.m01 = new_m01; this.m02 = new_m02;
-        this.m10 = new_m10; this.m11 = new_m11; this.m12 = new_m12;
-        
-        invalidateCache();
-    }
-    
-    /**
      * 后置乘法（修改当前矩阵）：this = this * other
      * 相当于先应用当前的this变换，再应用other变换
      */
@@ -339,51 +305,7 @@ public class AffineTransform {
     public double getDeterminant() {
         return m00 * m11 - m01 * m10;
     }
-    
-    /**
-     * 计算逆矩阵
-     * 如果矩阵不可逆（行列式为0），抛出异常
-     * 
-     * @return 逆矩阵
-     * @throws ArithmeticException 如果矩阵不可逆
-     */
-    public AffineTransform inverse() {
-        double det = getDeterminant();
-        if (Math.abs(det) < 1e-15) {
-            throw new ArithmeticException("矩阵不可逆：行列式为0");
-        }
-        
-        // 计算逆矩阵
-        // 对于2D仿射变换矩阵 [a b tx; c d ty; 0 0 1]
-        // 逆矩阵为 [d -b -b*ty+d*tx; -c a c*ty-a*tx; 0 0 1] / det
-        double invDet = 1.0 / det;
-        
-        AffineTransform result = new AffineTransform();
-        result.m00 = m11 * invDet;
-        result.m01 = -m01 * invDet;
-        result.m02 = (m01 * m12 - m11 * m02) * invDet;
-        
-        result.m10 = -m10 * invDet;
-        result.m11 = m00 * invDet;
-        result.m12 = (m10 * m02 - m00 * m12) * invDet;
-        
-        return result;
-    }
-    
-    /**
-     * 计算逆矩阵（安全版本）
-     * 如果矩阵不可逆，返回null而不是抛出异常
-     * 
-     * @return 逆矩阵，如果不可逆则返回null
-     */
-    public AffineTransform inverseSafe() {
-        try {
-            return inverse();
-        } catch (ArithmeticException e) {
-            return null;
-        }
-    }
-    
+
     /**
      * 失效分解缓存
      */
@@ -453,27 +375,6 @@ public class AffineTransform {
     }
     
     /**
-     * 获取X方向斜切因子（使用极分解精确计算）
-     */
-    public double getShearX() {
-        return decompose()[3];
-    }
-    
-    /**
-     * 获取平移X
-     */
-    public double getTranslateX() {
-        return m02;
-    }
-    
-    /**
-     * 获取平移Y
-     */
-    public double getTranslateY() {
-        return m12;
-    }
-    
-    /**
      * 检查是否为均匀变换（等比例缩放，无斜切）
      * 使用极分解进行数学上完全正确的判断
      */
@@ -487,14 +388,7 @@ public class AffineTransform {
         return Math.abs(scaleX - scaleY) < 1e-9 && Math.abs(shearX) < 1e-9;
     }
     
-    /**
-     * 检查是否为纯平移
-     */
-    public boolean isTranslation() {
-        return Math.abs(m00 - 1.0) < 1e-10 && Math.abs(m01) < 1e-10 &&
-               Math.abs(m10) < 1e-10 && Math.abs(m11 - 1.0) < 1e-10;
-    }
-    
+
     /**
      * 检查是否为纯旋转
      */
@@ -556,13 +450,5 @@ public class AffineTransform {
         t.setToScale(sx, sy);
         return t;
     }
-    
-    /**
-     * 创建斜切变换
-     */
-    public static AffineTransform createShear(double shx, double shy) {
-        AffineTransform t = new AffineTransform();
-        t.setToShear(shx, shy);
-        return t;
-    }
+
 }

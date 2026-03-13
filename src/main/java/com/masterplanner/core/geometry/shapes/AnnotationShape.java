@@ -255,12 +255,11 @@ public class AnnotationShape extends Shape {
         Color lineColor = getLineColor();
         
         // 绘制从圆心到圆周的标注线
-        Vec2d radiusEnd = transformedRadiusPoint;
-        context.drawLine(transformedCenter, radiusEnd, lineColor);
+        context.drawLine(transformedCenter, transformedRadiusPoint, lineColor);
         
         // 在半径端点绘制箭头标记
         float markerSize = 4.0f;
-        context.fillCircle(radiusEnd, markerSize, lineColor);
+        context.fillCircle(transformedRadiusPoint, markerSize, lineColor);
     }
     
     /**
@@ -470,27 +469,6 @@ public class AnnotationShape extends Shape {
         cloned.setHighlighted(highlighted);
         cloned.setTransform(transform != null ? transform.clone() : null);
         return cloned;
-    }
-    
-    // Getter方法
-    public AnnotationType getAnnotationType() {
-        return annotationType;
-    }
-    
-    public String getAnnotationText() {
-        return annotationText;
-    }
-    
-    public Vec2d getPoint1() {
-        return point1;
-    }
-    
-    public Vec2d getPoint2() {
-        return point2;
-    }
-    
-    public Vec2d getTextPosition() {
-        return textPosition;
     }
     
     // ========== 实现Shape的抽象方法 ==========

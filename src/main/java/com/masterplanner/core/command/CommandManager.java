@@ -120,28 +120,4 @@ public class CommandManager {
         return !redoStack.isEmpty();
     }
 
-    /**
-     * 清空所有命令历史
-     */
-    public void clearHistory() {
-        undoStack.clear();
-        redoStack.clear();
-        LOGGER.debug("已清空命令历史");
-    }
-
-    /**
-     * 获取可撤销的命令数量
-     * @return 可撤销的命令数量
-     */
-    public int getUndoCount() {
-        return undoStack.size();
-    }
-
-    /**
-     * 获取可重做的命令数量
-     * @return 可重做的命令数量
-     */
-    public int getRedoCount() {
-        return redoStack.size();
-    }
 } 

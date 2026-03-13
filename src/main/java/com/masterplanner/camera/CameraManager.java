@@ -215,36 +215,7 @@ public class CameraManager {
         return orthographicCamera;
     }
 
-    public void setRotationAngle(float angle) {
-        if (!orthographicCamera.isLocked()) {
-            // 确保角度在0-360度之间
-            this.rotationAngle = angle % 360.0f;
-            if (this.rotationAngle < 0) {
-                this.rotationAngle += 360.0f;
-            }
-            updateCamera();
-        }
-    }
 
-    public float getRotationAngle() {
-        return rotationAngle;
-    }
-
-    /**
-     * 设置X轴平移值
-     */
-    public void setPanX(float x) {
-        this.panX = Math.max(-50.0f, Math.min(50.0f, x));  // 保持限制范围
-        updateCamera();
-    }
-
-    /**
-     * 设置Y轴平移值
-     */
-    public void setPanY(float y) {
-        this.panY = Math.max(-50.0f, Math.min(50.0f, y));  // 保持限制范围
-        updateCamera();
-    }
     
     /**
      * 设置平移值（用于拖动过程中，跳过区块更新以提高性能）
@@ -519,51 +490,6 @@ public class CameraManager {
     public void setToPerspective() {
         isOrthographic = false;
         updateCamera();
-    }
-
-    /**
-     * 从配置文件恢复相机设置
-     */
-    public void restoreSettings() {
-        try {
-            // 获取配置管理器
-            com.masterplanner.core.config.ConfigManager configManager = com.masterplanner.core.config.ConfigManager.getInstance();
-            
-            // 恢复相机设置
-            isOrthographic = configManager.getBoolean("camera.orthographic", false);
-            viewDistance = configManager.getFloat("camera.viewDistance", 50.0f);
-            rotationAngle = configManager.getFloat("camera.rotationAngle", 0.0f);
-            panX = configManager.getFloat("camera.panX", 0.0f);
-            panY = configManager.getFloat("camera.panY", 0.0f);
-            
-            // 更新相机
-            updateCamera();
-            
-            LOGGER.info("相机设置已恢复");
-        } catch (Exception e) {
-            LOGGER.error("恢复相机设置失败", e);
-        }
-    }
-
-    /**
-     * 重置相机到默认状态
-     * 用于在切换世界或创建新项目时重置相机设置
-     */
-    public void resetToDefaults() {
-        // 重置相机设置
-        isOrthographic = false;
-        viewDistance = 50.0f;
-        rotationAngle = 0.0f;
-        panX = 0.0f;
-        panY = 0.0f;
-        
-        // 更新相机
-        updateCamera();
-        
-        // 重置正交相机
-        orthographicCamera.resetToDefaults();
-        
-        LOGGER.info("相机设置已重置为默认值");
     }
     
     /**

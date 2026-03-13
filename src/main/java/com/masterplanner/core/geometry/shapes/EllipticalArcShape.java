@@ -7,18 +7,11 @@ import com.masterplanner.core.geometry.GeometryUtils;
 import com.masterplanner.core.geometry.AffineTransform;
 import com.masterplanner.core.model.Shape;
 import com.masterplanner.core.graphics.DrawContext;
-import com.masterplanner.core.graphics.style.ShapeStyle;
-import com.masterplanner.core.graphics.style.LineStyle;
 import com.masterplanner.ui.tools.impl.modify.helper.IShapeVisitor;
-import com.masterplanner.core.geometry.shapes.ArcShape;
 
-import java.awt.Color;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 椭圆弧形状
@@ -37,8 +30,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 public class EllipticalArcShape extends Shape {
-    private static final Logger LOGGER = LoggerFactory.getLogger(EllipticalArcShape.class);
-    
+
     private Vec2d center;
     private double radiusX;
     private double radiusY;
@@ -90,16 +82,8 @@ public class EllipticalArcShape extends Shape {
     }
     
     public double getRadiusX() { return radiusX; }
-    public void setRadiusX(double radiusX) { 
-        this.radiusX = Math.max(0, radiusX); 
-        invalidateCache(); 
-    }
-    
+
     public double getRadiusY() { return radiusY; }
-    public void setRadiusY(double radiusY) { 
-        this.radiusY = Math.max(0, radiusY); 
-        invalidateCache(); 
-    }
     
     public double getRotation() { return rotation; }
     public void setRotation(double rotation) { 

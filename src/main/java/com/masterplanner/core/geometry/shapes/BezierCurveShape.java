@@ -202,34 +202,6 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     public void setSplineMode(SplineMode mode) { 
         this.splineMode = mode; 
     }
-    
-    /**
-     * 设置是否闭合。闭合时自动调整首尾控制点以实现平滑闭合。
-     * 修复：正确处理segments的添加和移除
-     */
-    public void setClosed(boolean closed) {
-        if (this.closed == closed) return;
-        
-        // 增强参数校验
-        if (closed && segments.size() < 3) {
-            throw new IllegalArgumentException("闭合曲线至少需要3个段，当前段数: " + segments.size());
-        }
-        
-        this.closed = closed;
-        
-        if (closed) {
-            // 添加闭合段
-            BezierSegment lastSeg = segments.getLast();
-            BezierSegment firstSeg = segments.getFirst();
-            Vec2d[] closingControls = calculateClosingControls(getAnchorPoints(), getSegmentControlPoints());
-            segments.add(new BezierSegment(lastSeg.anchor2, closingControls[0], closingControls[1], firstSeg.anchor1));
-        } else if (!segments.isEmpty()) {
-            // 移除闭合段（最后一个段）
-            segments.removeLast();
-        }
-        
-        this.needsRecalculation = true;
-    }
 
     /** 获取段数 */
     public int getSegmentCount() { return segments.size(); }
@@ -241,8 +213,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     private static final int MIN_SAMPLING_STEPS = 8;
     private static final int MAX_SAMPLING_STEPS = 64;
     private static final double DEFAULT_VIEW_SCALE = 1.0;
-    private static final double COMPLEXITY_THRESHOLD = 0.5;
-    
+
     /**
      * 计算曲线点（优化版本）
      * 使用指数函数和全局缩放因子优化采样
@@ -265,7 +236,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             int steps;
             if (preferredSamplingSteps > 0) {
                 // 如果用户指定了采样步数，使用该值（均分到每段）
-                steps = Math.max(1, preferredSamplingSteps);
+                steps = preferredSamplingSteps;
             } else {
                 // 使用自适应采样（原有逻辑）
                 int baseSteps = (int)(MIN_SAMPLING_STEPS * Math.pow(2, complexity));
@@ -293,18 +264,6 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     public void setPreferredSamplingSteps(int steps) {
         this.preferredSamplingSteps = steps;
         this.needsRecalculation = true;
-    }
-    
-    /**
-     * 设置视图缩放因子（用于优化采样精度）
-     * @param viewScale 视图缩放因子
-     */
-    public void setViewScale(double viewScale) {
-        if (Math.abs(viewScale - lastViewScale) > 0.1) { // 缩放变化超过10%时才重新计算
-            lastViewScale = viewScale;
-            boolean viewScaleChanged = true;
-            needsRecalculation = true;
-        }
     }
     
     /**
@@ -737,7 +696,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     
     // 兼容旧API
     /**
-     * @deprecated 此方法已废弃，请使用 {@link #getAnchorPoints()} 和 {@link #getSegmentControlPoints()} 代替
+     * @deprecated 此方法已废弃，请使用 {@link #getAnchorPoints()}} 代替
      * @return 所有点的列表（锚点+控制点）
      */
     @Deprecated(since = "2.0", forRemoval = true)
@@ -1495,17 +1454,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     public boolean intersectsPolyline(List<Vec2d> polylinePoints) {
         return !getIntersectionsWithPolyline(polylinePoints).isEmpty();
     }
-    
-    /**
-     * 获取每段的控制点数组（不与Shape接口冲突）
-     */
-    private List<Vec2d[]> getSegmentControlPoints() {
-        List<Vec2d[]> controls = new ArrayList<>();
-        for (BezierSegment seg : segments) {
-            controls.add(new Vec2d[]{seg.control1, seg.control2});
-        }
-        return controls;
-    }
+
     
     @Override
     public Shape clone() {
@@ -1828,58 +1777,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
 
         needsRecalculation = true;
     }
-    
-    /**
-     * 设置贝塞尔控制点
-     * @param controlIndex 控制点索引（0 ~ 2*segments.size()-1）
-     * @param point 新位置
-     */
-    public void setBezierControlPoint(int controlIndex, Vec2d point) {
-        if (controlIndex < 0 || controlIndex >= segments.size() * 2) {
-            throw new IndexOutOfBoundsException("Control point index " + controlIndex + " is out of bounds.");
-        }
-        
-        int segmentIndex = controlIndex / 2;
-        int pointInSegment = controlIndex % 2;
-        
-        BezierSegment segment = segments.get(segmentIndex);
-        if (pointInSegment == 0) {
-            segment.control1 = point;
-        } else {
-            segment.control2 = point;
-        }
-        
-        needsRecalculation = true;
-    }
-    
-    /**
-     * 设置锚点并重新计算控制点以保持平滑（拟合模式）
-     * @param anchorIndex 锚点索引
-     * @param point 新位置
-     */
-    public void setAnchorPointWithSmoothRecalculation(int anchorIndex, Vec2d point) {
-        if (anchorIndex < 0 || anchorIndex > segments.size()) {
-            throw new IndexOutOfBoundsException("Anchor index " + anchorIndex + " is out of bounds.");
-        }
-        
-        // 设置锚点
-        if (anchorIndex == 0) {
-            if (!segments.isEmpty()) {
-                segments.getFirst().anchor1 = point;
-            }
-        } else {
-            segments.get(anchorIndex - 1).anchor2 = point;
-            if (anchorIndex < segments.size()) {
-                segments.get(anchorIndex).anchor1 = point;
-            }
-        }
-        
-        // 重新计算受影响段的控制点以保持平滑
-        recalculateControlPointsForSmoothness(anchorIndex);
-        
-        needsRecalculation = true;
-    }
-    
+
     /**
      * 设置贝塞尔控制点并维持C1连续性（控制模式）
      * 在控制点样条模式下，移动一个控制点必须自动调整其"配对"控制点以维持曲线平滑性
@@ -1955,96 +1853,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
 
         needsRecalculation = true;
     }
-    
-    /**
-     * 重新计算控制点以保持平滑性（拟合模式）
-     * @param changedAnchorIndex 改变的锚点索引
-     */
-    private void recalculateControlPointsForSmoothness(int changedAnchorIndex) {
-        if (segments.size() < 2) return; // 单段曲线不需要重新计算
-        
-        List<Vec2d> anchorPoints = getAnchorPoints();
-        if (anchorPoints.size() < 3) return; // 少于3个点不需要平滑处理
-        
-        // 重新计算受影响段的控制点
-        // 对于拟合样条，我们使用Catmull-Rom算法重新计算切线
-        double tension = 0.5; // 可以使用配置参数
-        
-        // 计算受影响的段：改变的点影响的段
-        int affectedStart = Math.max(0, changedAnchorIndex - 1);
-        int affectedEnd = Math.min(segments.size() - 1, changedAnchorIndex);
-        
-        for (int i = affectedStart; i <= affectedEnd; i++) {
-            if (i < anchorPoints.size() - 1) {
-                Vec2d p0 = anchorPoints.get(i);
-                Vec2d p1 = anchorPoints.get(i + 1);
-                
-                // 计算切线
-                Vec2d t0 = calculateTangent(anchorPoints, i, tension);
-                Vec2d t1 = calculateTangent(anchorPoints, i + 1, tension);
-                
-                // 重新生成控制点
-                Vec2d c1 = p0.add(t0.multiply(tension / 3.0));
-                Vec2d c2 = p1.subtract(t1.multiply(tension / 3.0));
-                
-                // 更新段
-                segments.get(i).control1 = c1;
-                segments.get(i).control2 = c2;
-            }
-        }
-    }
-    
-    /**
-     * 计算指定点的切线向量（用于拟合样条的平滑计算）
-     */
-    private Vec2d calculateTangent(List<Vec2d> points, int index, double tension) {
-        if (index == 0) {
-            // 第一个点：使用与下一个点的连线
-            return points.get(1).subtract(points.get(0));
-        } else if (index == points.size() - 1) {
-            // 最后一个点：使用与前一个点的连线
-            return points.get(index).subtract(points.get(index - 1));
-        } else {
-            // 中间点：使用 Catmull-Rom 切线公式
-            return points.get(index + 1).subtract(points.get(index - 1)).multiply(0.5);
-        }
-    }
-    
-    /**
-     * 调整相邻控制点以保持连续性（控制模式）
-     * @param segmentIndex 改变的段索引
-     * @param pointInSegment 段内的点索引（0或1）
-     * @param newPoint 新的控制点位置
-     */
-    private void adjustAdjacentControlPointsForContinuity(int segmentIndex, int pointInSegment, Vec2d newPoint) {
-        BezierSegment currentSegment = segments.get(segmentIndex);
-        Vec2d anchor1 = currentSegment.anchor1;
-        Vec2d anchor2 = currentSegment.anchor2;
-        
-        if (pointInSegment == 0) {
-            // 改变的是第一个控制点
-            // 调整第二个控制点以保持与下一个段的连续性
-            if (segmentIndex < segments.size() - 1) {
-                BezierSegment nextSegment = segments.get(segmentIndex + 1);
-                // 计算从新控制点到锚点的方向
-                Vec2d direction = newPoint.subtract(anchor1);
-                // 调整下一个段的第一个控制点以保持连续性
-                nextSegment.control1 = anchor2.add(direction.multiply(-1.0));
-            }
-        } else {
-            // 改变的是第二个控制点
-            // 调整第一个控制点以保持与上一个段的连续性
-            if (segmentIndex > 0) {
-                BezierSegment prevSegment = segments.get(segmentIndex - 1);
-                // 计算从锚点到新控制点的方向
-                Vec2d direction = newPoint.subtract(anchor2);
-                // 调整上一个段的第二个控制点以保持连续性
-                prevSegment.control2 = anchor1.add(direction.multiply(-1.0));
-            }
-        }
-    }
-    
-    
+
     /**
      * Shape接口兼容：判断是否与other相交
      */
@@ -2074,26 +1883,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                        imgui.ImDrawList drawList, com.masterplanner.ui.canvas.CanvasCamera camera) {
         visitor.render(this, drawList, camera);
     }
-    
-    
-    /**
-     * 将点投影到有限线段上（不延伸到线段外）
-     */
-    private Vec2d projectPointOnSegment(Vec2d point, Vec2d segStart, Vec2d segEnd) {
-        if (segStart.equals(segEnd)) return segStart;
-        
-        Vec2d v = segEnd.subtract(segStart);
-        Vec2d w = point.subtract(segStart);
-        
-        double c1 = w.dot(v);
-        double c2 = v.dot(v);
-        
-        if (c1 <= 0) return segStart;  // 投影在起点外，返回起点
-        if (c1 >= c2) return segEnd;   // 投影在终点外，返回终点
-        
-        double b = c1 / c2;
-        return segStart.add(v.multiply(b));  // 投影在线段内
-    }
+
 
     @Override
     public List<Shape> breakShape(Vec2d firstBreakPoint, Vec2d secondBreakPoint, String breakMode) {
@@ -2140,26 +1930,24 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                     return fallbackBreakShape(localFirstPoint, localSecondPoint, breakMode);
                 }
 
-                if (firstBreak != null && secondBreak != null) {
-                    // 确保第一个断点在第二个断点之前
-                    if (firstBreak.segmentIndex > secondBreak.segmentIndex || 
-                        (firstBreak.segmentIndex == secondBreak.segmentIndex && firstBreak.parameter > secondBreak.parameter)) {
-                        BreakInfo temp = firstBreak;
-                        firstBreak = secondBreak;
-                        secondBreak = temp;
-                    }
-                    
-                    List<BezierCurveShape> brokenCurves = breakBetweenParameters(
-                        firstBreak.segmentIndex, firstBreak.parameter,
-                        secondBreak.segmentIndex, secondBreak.parameter
-                    );
-                    
-                    // 应用样式和变换
-                    for (BezierCurveShape curve : brokenCurves) {
-                        if (getStyle() != null) curve.setStyle(getStyle().clone());
-                        if (getTransform() != null) curve.setTransform(getTransform().clone());
-                        newShapes.add(curve);
-                    }
+                // 确保第一个断点在第二个断点之前
+                if (firstBreak.segmentIndex > secondBreak.segmentIndex ||
+                    (firstBreak.segmentIndex == secondBreak.segmentIndex && firstBreak.parameter > secondBreak.parameter)) {
+                    BreakInfo temp = firstBreak;
+                    firstBreak = secondBreak;
+                    secondBreak = temp;
+                }
+
+                List<BezierCurveShape> brokenCurves = breakBetweenParameters(
+                    firstBreak.segmentIndex, firstBreak.parameter,
+                    secondBreak.segmentIndex, secondBreak.parameter
+                );
+
+                // 应用样式和变换
+                for (BezierCurveShape curve : brokenCurves) {
+                    if (getStyle() != null) curve.setStyle(getStyle().clone());
+                    if (getTransform() != null) curve.setTransform(getTransform().clone());
+                    newShapes.add(curve);
                 }
             }
         } catch (Exception e) {
@@ -2226,9 +2014,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                     }
                 }
 
-                if (minDistance < 1e-2) {
-                    return new BreakInfo(i, bestT);
-                }
+                return new BreakInfo(i, bestT);
             }
         }
         

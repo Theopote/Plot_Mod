@@ -564,22 +564,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
             // [transformedX.x, transformedY.x, 0]
             // [transformedX.y, transformedY.y, 0]
             // [0, 0, 1]
-            Matrix3d matrix3d = new Matrix3d();
-            matrix3d.set(0, 0, transformedX.x);
-            matrix3d.set(0, 1, transformedY.x);
-            matrix3d.set(0, 2, 0);
-            matrix3d.set(1, 0, transformedX.y);
-            matrix3d.set(1, 1, transformedY.y);
-            matrix3d.set(1, 2, 0);
-            matrix3d.set(2, 0, 0);
-            matrix3d.set(2, 1, 0);
-            matrix3d.set(2, 2, 1);
-            
-            // 与已有transform组合（新变换在线性空间左乘），确保连续变换可累积
-            Matrix3d existingTransform = getTransform();
-            if (existingTransform != null) {
-                matrix3d = matrix3d.multiply(existingTransform);
-            }
+            Matrix3d matrix3d = getMatrix3d(transformedX, transformedY);
             setTransform(matrix3d);
             
             // 修复旋转角度计算：使用AffineTransform的旋转增量，而不是从变换后的向量计算绝对角度
@@ -610,6 +595,26 @@ public class SpiralShape extends Shape implements IExtendableShape {
         markParameterDirty(SpiralParameter.RADIUS);
         markParameterDirty(SpiralParameter.GROWTH_FACTOR);
         return this;
+    }
+
+    private Matrix3d getMatrix3d(Vec2d transformedX, Vec2d transformedY) {
+        Matrix3d matrix3d = new Matrix3d();
+        matrix3d.set(0, 0, transformedX.x);
+        matrix3d.set(0, 1, transformedY.x);
+        matrix3d.set(0, 2, 0);
+        matrix3d.set(1, 0, transformedX.y);
+        matrix3d.set(1, 1, transformedY.y);
+        matrix3d.set(1, 2, 0);
+        matrix3d.set(2, 0, 0);
+        matrix3d.set(2, 1, 0);
+        matrix3d.set(2, 2, 1);
+
+        // 与已有transform组合（新变换在线性空间左乘），确保连续变换可累积
+        Matrix3d existingTransform = getTransform();
+        if (existingTransform != null) {
+            matrix3d = matrix3d.multiply(existingTransform);
+        }
+        return matrix3d;
     }
 
     @Override
@@ -1533,59 +1538,6 @@ public class SpiralShape extends Shape implements IExtendableShape {
     }
 
     /**
-     * 将平滑的螺旋线转换为尖角螺旋线
-     * - 默认状态：平滑曲线穿过点
-     * - 尖角样式：用直线连接节点，形成尖锐的外观
-     * <p>
-     * 算法原理：
-     * 1. 根据螺旋类型和sides参数确定角点数量
-     * 2. 在螺旋线上均匀分布角点
-     * 3. 用直线连接相邻角点，形成多边形螺旋
-     * 4. 始终保留起点和终点
-     * 
-     * @param smoothPoints 平滑螺旋线的点
-     * @return 尖角螺旋线的点
-     */
-    private List<Vec2d> createSharpEdges(List<Vec2d> smoothPoints) {
-        // 点数太少无法创建尖角样式
-        if (smoothPoints.size() < 3) {
-            return new ArrayList<>(smoothPoints);
-        }
-        
-        // 使用sides参数确定角点数量，确保至少3个点
-        int cornerCount = Math.max(3, this.sides);
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("创建尖角螺旋线，使用 {} 个角点", cornerCount);
-        }
-        
-        // 初始化结果列表
-        List<Vec2d> sharpPoints = new ArrayList<>();
-        
-        // 添加起点
-        sharpPoints.add(smoothPoints.getFirst());
-        
-        // 在螺旋线上均匀分布角点
-        int step = Math.max(1, (smoothPoints.size() - 2) / (cornerCount - 1));
-        
-        for (int i = 1; i < cornerCount - 1; i++) {
-            int index = i * step;
-            if (index < smoothPoints.size()) {
-                sharpPoints.add(smoothPoints.get(index));
-            }
-        }
-        
-        // 添加终点
-        sharpPoints.add(smoothPoints.getLast());
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("尖角样式完成: {} 个角点", sharpPoints.size());
-        }
-        
-        return sharpPoints;
-    }
-
-    /**
      * 检查是否可以进行增量更新
      * 简化了原有的复杂参数变更检测逻辑
      */
@@ -1900,30 +1852,6 @@ public class SpiralShape extends Shape implements IExtendableShape {
     }
 
     /**
-     * 优化的点旋转方法，直接使用Math三角函数
-     * @param point 要旋转的点
-     * @param center 旋转中心
-     * @param angle 旋转角度（弧度）
-     * @return 旋转后的点
-     */
-    private Vec2d rotatePointOptimized(Vec2d point, Vec2d center, double angle) {
-        // 将点平移到原点
-        double x = point.x - center.x;
-        double y = point.y - center.y; // 修复：使用正确的y坐标
-        
-        // 直接使用Math三角函数进行旋转计算
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        
-        // 执行旋转
-        double newX = x * cos - y * sin;
-        double newY = x * sin + y * cos;
-        
-        // 平移回原位置
-        return new Vec2d(newX + center.x, newY + center.y);
-    }
-
-    /**
      * 螺旋参数缓存类
      * 提供类型安全的参数存储，避免ClassCastException
      */
@@ -2039,20 +1967,6 @@ public class SpiralShape extends Shape implements IExtendableShape {
     public void accept(IRenderVisitor visitor,
                        imgui.ImDrawList drawList, com.masterplanner.ui.canvas.CanvasCamera camera) {
         visitor.render(this, drawList, camera);
-    }
-    
-    /**
-     * 将点精确投影到多段线上的正确线段
-     */
-    private Vec2d projectPointToPolyline(List<Vec2d> polylinePoints, Vec2d point) {
-        int segmentIndex = GeometryUtils.findSegmentContainingPoint(polylinePoints, point);
-        if (segmentIndex >= 0) {
-            Vec2d segStart = polylinePoints.get(segmentIndex);
-            Vec2d segEnd = polylinePoints.get(segmentIndex + 1);
-            return projectPointOnSegment(point, segStart, segEnd);
-        }
-        // 如果没有找到包含点的线段，返回原点（容错处理）
-        return point;
     }
     
     @Override
@@ -2276,8 +2190,6 @@ public class SpiralShape extends Shape implements IExtendableShape {
         public double spiralCoefficient;
         public boolean clockwise;
         public com.masterplanner.api.graphics.IShapeStyle style;
-        
-        public SpiralShapeData() {} // Gson需要无参构造函数
         
         public SpiralShapeData(SpiralShape shape) {
             this.center = shape.center;

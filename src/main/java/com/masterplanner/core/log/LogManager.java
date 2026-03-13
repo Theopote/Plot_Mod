@@ -1,7 +1,6 @@
 package com.masterplanner.core.log;
 
 import com.masterplanner.api.log.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -108,10 +107,6 @@ public class LogManager implements ILogger {
         handlers.remove(handler);
     }
 
-    //@Override
-    public List<ILogHandler> getHandlers() {
-        return new ArrayList<>(handlers);
-    }
 
     @Override
     public void clearHandlers() {
@@ -136,13 +131,6 @@ public class LogManager implements ILogger {
     @Override
     public void setFormatter(ILogFormatter formatter) {
         this.formatter = formatter;
-    }
-
-    //@Override
-    public void flush() {
-        for (ILogHandler handler : handlers) {
-            handler.flush();
-        }
     }
 
     //@Override

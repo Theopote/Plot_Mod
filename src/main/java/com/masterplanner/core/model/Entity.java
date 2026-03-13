@@ -22,11 +22,6 @@ public abstract class Entity {
         this.highlighted = false;
     }
 
-    protected Entity(String name) {
-        this();
-        this.name = name;
-    }
-
     public String getId() {
         return id;
     }
@@ -61,10 +56,6 @@ public abstract class Entity {
 
     public void setSelected(boolean selected) {
         this.selected = selected;
-    }
-
-    public boolean isHighlighted() {
-        return highlighted;
     }
 
     public void setHighlighted(boolean highlighted) {

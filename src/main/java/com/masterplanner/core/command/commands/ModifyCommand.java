@@ -226,10 +226,6 @@ public class ModifyCommand implements Command {
     protected void setTargetShapes(List<Shape> shapes) {
         this.newShapes = new ArrayList<>(shapes);
     }
-    
-    protected List<Shape> getTargetShapes() {
-        return newShapes;
-    }
 
     private String resolveOperationType(int oldCount, int newCount) {
         if (operationName != null && !operationName.isBlank()) {

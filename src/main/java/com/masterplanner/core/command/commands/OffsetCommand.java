@@ -22,12 +22,6 @@ public class OffsetCommand extends ModifyCommand {
         this.point = null;
     }
 
-    public OffsetCommand(Shape shape, Vec2d point, AppState appState) {
-        super(List.of(shape), new ArrayList<>(), appState);
-        this.shape = shape;
-        this.point = point;
-        this.distance = point.distance(shape.getPosition());
-    }
 
     @Override
     public void execute() {

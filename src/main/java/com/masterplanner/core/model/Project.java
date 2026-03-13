@@ -33,11 +33,6 @@ public class Project {
         activeLayer = defaultLayer;
     }
     
-    public Project(String name, String description) {
-        this(name);
-        this.description = description;
-    }
-    
     public String getName() {
         return name;
     }
@@ -82,31 +77,6 @@ public class Project {
         }
     }
     
-    /**
-     * 添加图层
-     */
-    public void addLayer(ILayer layer) {
-        if (layer != null && !layers.contains(layer)) {
-            layers.add(layer);
-        }
-    }
-    
-    /**
-     * 移除图层
-     */
-    public void removeLayer(ILayer layer) {
-        if (layer != null) {
-            layers.remove(layer);
-            if (layer == activeLayer) {
-                activeLayer = layers.isEmpty() ? null : layers.getFirst();
-            }
-        }
-    }
-    
-    public boolean isModified() {
-        return modified;
-    }
-    
     public void setModified(boolean modified) {
         this.modified = modified;
     }
@@ -137,21 +107,7 @@ public class Project {
         // TODO: 实现项目反序列化
         return new Project("未命名项目");
     }
-    
-    public int getTotalShapes() {
-        return layers.stream()
-                .mapToInt(layer -> layer.getShapes().size())
-                .sum();
-    }
-    
-    public int getTotalBlocks() {
-        return layers.stream()
-                .mapToInt(layer -> layer.getShapes().stream()
-                        .mapToInt(Shape::getBlockCount)
-                        .sum())
-                .sum();
-    }
-    
+
     @Override
     public String toString() {
         return String.format("Project[name=%s, layers=%d]", name, layers.size());

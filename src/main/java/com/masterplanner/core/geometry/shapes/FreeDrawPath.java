@@ -164,10 +164,7 @@ public class FreeDrawPath extends Shape implements IExtendableShape {
     @Override
     public Shape transform(AffineTransform transformMatrix) {
         // 变换所有定义点
-        for (int i = 0; i < points.size(); i++) {
-            Vec2d point = points.get(i);
-            points.set(i, transformMatrix.transform(point));
-        }
+        points.replaceAll(transformMatrix::transform);
         return this; // 自由绘制路径变换后仍然是自由绘制路径
     }
 
@@ -1156,20 +1153,6 @@ public class FreeDrawPath extends Shape implements IExtendableShape {
     }
     
     /**
-     * 将点精确投影到多段线上的正确线段
-     */
-    private Vec2d projectPointToPolyline(List<Vec2d> polylinePoints, Vec2d point) {
-        int segmentIndex = GeometryUtils.findSegmentContainingPoint(polylinePoints, point);
-        if (segmentIndex >= 0) {
-            Vec2d segStart = polylinePoints.get(segmentIndex);
-            Vec2d segEnd = polylinePoints.get(segmentIndex + 1);
-            return projectPointOnSegment(point, segStart, segEnd);
-        }
-        // 如果没有找到包含点的线段，返回原点（容错处理）
-        return point;
-    }
-    
-    /**
      * 将点投影到有限线段上（不延伸到线段外）
      */
     private Vec2d projectPointOnSegment(Vec2d point, Vec2d segStart, Vec2d segEnd) {
@@ -1529,64 +1512,6 @@ public class FreeDrawPath extends Shape implements IExtendableShape {
         
         return validSegments > 0;
     }
-    
-    /**
-     * 获取路径的统计信息
-     */
-    public PathStatistics getStatistics() {
-        return new PathStatistics(this);
-    }
-    
-    /**
-     * 路径统计信息类
-     */
-    public static class PathStatistics {
-        private final int pointCount;
-        private final int segmentCount;
-        private final double totalLength;
-        private final double averageSegmentLength;
-        private final double minSegmentLength;
-        private final double maxSegmentLength;
-        
-        public PathStatistics(FreeDrawPath path) {
-            this.pointCount = path.points.size();
-            this.segmentCount = Math.max(0, pointCount - 1);
-            
-            if (segmentCount == 0) {
-                this.totalLength = 0;
-                this.averageSegmentLength = 0;
-                this.minSegmentLength = 0;
-                this.maxSegmentLength = 0;
-            } else {
-                double total = 0;
-                double min = Double.MAX_VALUE;
-                double max = 0;
-                
-                for (int i = 0; i < segmentCount; i++) {
-                    double length = path.points.get(i).distance(path.points.get(i + 1));
-                    total += length;
-                    min = Math.min(min, length);
-                    max = Math.max(max, length);
-                }
-                
-                this.totalLength = total;
-                this.averageSegmentLength = total / segmentCount;
-                this.minSegmentLength = min;
-                this.maxSegmentLength = max;
-            }
-        }
-        
-        public int getPointCount() { return pointCount; }
-        public int getSegmentCount() { return segmentCount; }
-        public double getTotalLength() { return totalLength; }
-        public double getAverageSegmentLength() { return averageSegmentLength; }
-        public double getMinSegmentLength() { return minSegmentLength; }
-        public double getMaxSegmentLength() { return maxSegmentLength; }
-        
-        @Override
-        public String toString() {
-            return String.format("PathStatistics{points=%d, segments=%d, length=%.2f, avg=%.2f, min=%.2f, max=%.2f}",
-                pointCount, segmentCount, totalLength, averageSegmentLength, minSegmentLength, maxSegmentLength);
-        }
-    }
+
+
 } 

@@ -1073,89 +1073,7 @@ public class ArcShape extends Shape implements IExtendableShape {
         cachedPoints = null;
         cachedBoundingBox = null; // 同时使边界框缓存失效
     }
-    
-    /**
-     * 设置控制点预览
-     * @param index 控制点索引
-     * @param point 预览位置
-     */
-    public void setPreviewControlPoint(int index, Vec2d point) {
-        previewControlPointIndex = index;
-        previewControlPoint = point;
-        
-        // 保存当前状态用于预览
-        previewCenter = center;
-        previewRadius = radius;
-        previewStartAngle = startAngle;
-        previewEndAngle = endAngle;
-        
-        // 根据控制点索引计算预览状态
-        if (index == 0) {
-            // 中心点预览
-            previewCenter = point;
-        } else if (index == 1 || index == 2) {
-            // 起点或终点预览
-            Vec2d direction = point.subtract(center);
-            double angle = Math.atan2(direction.y, direction.x);
-            double newRadius = direction.length();
-            
-            if (index == 1) {
-                // 起点预览
-                previewStartAngle = angle;
-            } else {
-                // 终点预览
-                previewEndAngle = angle;
-            }
-            previewRadius = newRadius;
 
-            // 规范化预览角度
-            normalizePreviewAngles();
-        }
-    }
-    
-    /**
-     * 清除控制点预览
-     */
-    public void clearPreviewControlPoint() {
-        previewControlPointIndex = -1;
-        previewControlPoint = null;
-        previewCenter = null;
-        previewRadius = 0;
-        previewStartAngle = 0;
-        previewEndAngle = 0;
-    }
-    
-    /**
-     * 应用控制点预览
-     */
-    public void applyPreviewControlPoint() {
-        if (previewControlPointIndex >= 0 && previewControlPoint != null) {
-            setControlPoint(previewControlPointIndex, previewControlPoint);
-            clearPreviewControlPoint();
-        }
-    }
-    
-    /**
-     * 规范化预览角度
-     */
-    private void normalizePreviewAngles() {
-        // 规范化到 [0, 2π) 范围
-        while (previewStartAngle < 0) previewStartAngle += TWO_PI;
-        while (previewStartAngle >= TWO_PI) previewStartAngle -= TWO_PI;
-        while (previewEndAngle < 0) previewEndAngle += TWO_PI;
-        while (previewEndAngle >= TWO_PI) previewEndAngle -= TWO_PI;
-        
-        // 确保终点角度大于起点角度
-        if (previewEndAngle < previewStartAngle) {
-            previewEndAngle += TWO_PI;
-        }
-        
-        // 限制角度差不超过2π
-        if (previewEndAngle - previewStartAngle > TWO_PI) {
-            previewEndAngle = previewStartAngle + TWO_PI;
-        }
-    }
-    
     /**
      * 设置圆弧的段数
      * @param segments 段数
@@ -1195,16 +1113,7 @@ public class ArcShape extends Shape implements IExtendableShape {
         // 检查点是否在圆弧的角度范围内
         return isPointInArcAngleRange(localPoint);
     }
-    
-    /**
-     * 严格检查点是否在圆弧上（使用默认容差值）
-     * 
-     * @param point 要检查的点
-     * @return 如果点严格在圆弧上，则返回 true
-     */
-    public boolean containsExactly(Vec2d point) {
-        return containsExactly(point, DEFAULT_TOLERANCE);
-    }
+
     
     /**
      * 判断两个点是否在数值上相等（考虑容差）
