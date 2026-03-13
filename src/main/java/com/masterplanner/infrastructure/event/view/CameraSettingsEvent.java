@@ -37,18 +37,6 @@ public class CameraSettingsEvent extends Event {
     public float getScale() {
         return scale;
     }
-
-    public float getViewDistance() {
-        return viewDistance;
-    }
-
-    public float getNear() {
-        return near;
-    }
-
-    public float getFar() {
-        return far;
-    }
     
     @Override
     public String getSource() {

@@ -80,10 +80,7 @@ public class ToolbarRenderer {
 
             // 新建图层按钮
             renderToolButton(
-                textureNewLayer, 
-                "新建图层", 
-                BUTTON_WIDTH, 
-                TOOLBAR_HEIGHT,
+                textureNewLayer,
                     currentTheme,
                     showNewLayerDialog
             );
@@ -114,10 +111,8 @@ public class ToolbarRenderer {
             
             renderToolButton(
                 textureDeleteLayer, 
-                deleteTooltip, 
-                BUTTON_WIDTH, 
-                TOOLBAR_HEIGHT, 
-                false, 
+                deleteTooltip,
+                    false,
                 currentTheme,
                 () -> {
                     if (canDelete) {
@@ -143,10 +138,8 @@ public class ToolbarRenderer {
             boolean canMerge = selectedLayers.size() >= 2;
             renderToolButton(
                 textureMergeLayers, 
-                canMerge ? "合并选中图层" : "请选择至少两个图层进行合并", 
-                BUTTON_WIDTH, 
-                TOOLBAR_HEIGHT, 
-                false, 
+                canMerge ? "合并选中图层" : "请选择至少两个图层进行合并",
+                    false,
                 currentTheme,
                 () -> {
                     if (canMerge) {
@@ -162,10 +155,8 @@ public class ToolbarRenderer {
             boolean canMoveUp = !selectedLayers.isEmpty();
             renderToolButton(
                 textureMoveUp, 
-                canMoveUp ? "上移选中图层" : "请先选择要移动的图层", 
-                BUTTON_WIDTH, 
-                TOOLBAR_HEIGHT, 
-                false, 
+                canMoveUp ? "上移选中图层" : "请先选择要移动的图层",
+                    false,
                 currentTheme,
                     this::moveSelectedLayersUp,
                 !canMoveUp
@@ -177,10 +168,8 @@ public class ToolbarRenderer {
             boolean canMoveDown = !selectedLayers.isEmpty();
             renderToolButton(
                 textureMoveDown, 
-                canMoveDown ? "下移选中图层" : "请先选择要移动的图层", 
-                BUTTON_WIDTH, 
-                TOOLBAR_HEIGHT, 
-                false, 
+                canMoveDown ? "下移选中图层" : "请先选择要移动的图层",
+                    false,
                 currentTheme,
                     this::moveSelectedLayersDown,
                 !canMoveDown
@@ -192,10 +181,8 @@ public class ToolbarRenderer {
             boolean hasActiveLayer = layerManager.getActiveLayer() != null;
             renderToolButton(
                 textureSelectAll, 
-                hasActiveLayer ? "选择当前图层的所有图元" : "没有活动图层", 
-                BUTTON_WIDTH, 
-                TOOLBAR_HEIGHT, 
-                false, 
+                hasActiveLayer ? "选择当前图层的所有图元" : "没有活动图层",
+                    false,
                 currentTheme,
                 () -> {
                     if (hasActiveLayer) {
@@ -212,18 +199,17 @@ public class ToolbarRenderer {
     
     /**
      * 渲染工具按钮
-     * @param textureId 纹理ID
-     * @param tooltip 提示文本
-     * @param width 按钮宽度
-     * @param height 按钮高度
+     *
+     * @param textureId  纹理ID
+     * @param tooltip    提示文本
      * @param isSelected 是否选中
-     * @param theme 当前主题
-     * @param onClick 点击回调
-     * @param disabled 是否禁用
+     * @param theme      当前主题
+     * @param onClick    点击回调
+     * @param disabled   是否禁用
      */
-    private void renderToolButton(int textureId, String tooltip, float width, float height, 
-                                 boolean isSelected, com.masterplanner.ui.theme.UITheme.ThemeColors theme, 
-                                 Runnable onClick, boolean disabled) {
+    private void renderToolButton(int textureId, String tooltip,
+                                  boolean isSelected, UITheme.ThemeColors theme,
+                                  Runnable onClick, boolean disabled) {
         // 保存当前光标位置
         float cursorPosX = ImGui.getCursorPosX();
         float cursorPosY = ImGui.getCursorPosY();
@@ -247,7 +233,7 @@ public class ToolbarRenderer {
         }
         
         // 创建一个空的按钮作为背景
-        boolean clicked = ImGui.button("##" + textureId, width, height);
+        boolean clicked = ImGui.button("##" + textureId, ToolbarRenderer.BUTTON_WIDTH, ToolbarRenderer.TOOLBAR_HEIGHT);
         
         // 在按钮上方绘制纹理图标
         float screenX = cursorPosX + ImGui.getWindowPosX();
@@ -256,8 +242,8 @@ public class ToolbarRenderer {
             textureId,
             screenX,
             screenY,
-            screenX + width,
-            screenY + height
+            screenX + ToolbarRenderer.BUTTON_WIDTH,
+            screenY + ToolbarRenderer.TOOLBAR_HEIGHT
         );
         
         // 检测点击事件
@@ -281,10 +267,10 @@ public class ToolbarRenderer {
     /**
      * 渲染工具按钮（无禁用状态）
      */
-    private void renderToolButton(int textureId, String tooltip, float width, float height,
+    private void renderToolButton(int textureId,
                                   UITheme.ThemeColors theme,
-                                 Runnable onClick) {
-        renderToolButton(textureId, tooltip, width, height, false, theme, onClick, false);
+                                  Runnable onClick) {
+        renderToolButton(textureId, "新建图层", false, theme, onClick, false);
     }
 
     private void showThemedTooltip(UITheme.ThemeColors theme, String message) {

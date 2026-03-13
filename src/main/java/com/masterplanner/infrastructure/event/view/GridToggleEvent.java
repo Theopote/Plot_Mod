@@ -13,10 +13,6 @@ public class GridToggleEvent extends Event {
     private final boolean isSettingsUpdate;
     private final String source;
 
-    public GridToggleEvent(boolean enabled) {
-        this("ViewManager", enabled, null, false);
-    }
-
     public GridToggleEvent(boolean enabled, GridSettings settings, boolean isSettingsUpdate) {
         this("ViewManager", enabled, settings, isSettingsUpdate);
     }
@@ -50,10 +46,6 @@ public class GridToggleEvent extends Event {
 
     public GridSettings getSettings() {
         return settings;
-    }
-
-    public boolean isSettingsUpdate() {
-        return isSettingsUpdate;
     }
     
     @Override

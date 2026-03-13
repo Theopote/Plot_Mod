@@ -13,6 +13,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.*;
 import net.minecraft.block.Block;
@@ -868,7 +869,7 @@ public class CompactBlockConfigDialog {
                 boolean hasValidIcon = BlockIconRenderer.hasValidIcon(block);
                 if (!hasValidIcon) {
                     // 无 Item 形态时再回退 2D 资源纹理；再失败则占位
-                    if (!tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE)) {
+                    if (!tryRenderBlockTextureFromResources(drawList, block, x, y)) {
                         LOGGER.warn("方块 {} 无有效图标，显示占位符", Registries.BLOCK.getId(block));
                         drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.inputBackgroundHovered);
                         drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
@@ -886,8 +887,8 @@ public class CompactBlockConfigDialog {
                 com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
 
                 // 作为兜底（理论上不应频繁触发）
-                if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE)) {
-                    tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE);
+                if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y)) {
+                    tryRenderBlockTextureFromResources(drawList, block, x, y);
                 }
                 
             } else {
@@ -976,8 +977,8 @@ public class CompactBlockConfigDialog {
             float scale = BLOCK_ICON_SIZE / 16.0f;  // [ENHANCED] 使用正确的缩放系数
             com.masterplanner.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
 
-            if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y, BLOCK_ICON_SIZE)) {
-                tryRenderBlockTextureFromResources(drawList, block, x, y, BLOCK_ICON_SIZE);
+            if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y)) {
+                tryRenderBlockTextureFromResources(drawList, block, x, y);
             }
         } catch (Exception e) {
             LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
@@ -988,7 +989,7 @@ public class CompactBlockConfigDialog {
         drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(1.0f, 1.0f, 1.0f, 0.9f), 0.0f, 0, 2.0f);
     }
 
-    private boolean tryRenderBlockTextureFromResources(imgui.ImDrawList drawList, Block block, float x, float y, float size) {
+    private boolean tryRenderBlockTextureFromResources(ImDrawList drawList, Block block, float x, float y) {
         if (drawList == null || block == null) {
             return false;
         }
@@ -998,8 +999,8 @@ public class CompactBlockConfigDialog {
             return false;
         }
 
-        float inset = Math.max(2.0f, size * 0.0833f);
-        drawList.addImage(textureId, x + inset, y + inset, x + size - inset, y + size - inset);
+        float inset = Math.max(2.0f, CompactBlockConfigDialog.BLOCK_ICON_SIZE * 0.0833f);
+        drawList.addImage(textureId, x + inset, y + inset, x + CompactBlockConfigDialog.BLOCK_ICON_SIZE - inset, y + CompactBlockConfigDialog.BLOCK_ICON_SIZE - inset);
         return true;
     }
 
@@ -1303,7 +1304,7 @@ public class CompactBlockConfigDialog {
         }
     }
 
-    private boolean tryRenderBlockIconDirect(imgui.ImDrawList drawList, Block block, float x, float y, float size) {
+    private boolean tryRenderBlockIconDirect(ImDrawList drawList, Block block, float x, float y) {
         if (drawList == null || block == null) {
             return false;
         }
@@ -1314,13 +1315,13 @@ public class CompactBlockConfigDialog {
                 return false;
             }
 
-            float inset = Math.max(2.0f, size * 0.0833f);
+            float inset = Math.max(2.0f, CompactBlockConfigDialog.BLOCK_ICON_SIZE * 0.0833f);
             drawList.addImage(
                 data.textureId,
                 x + inset,
                 y + inset,
-                x + size - inset,
-                y + size - inset,
+                x + CompactBlockConfigDialog.BLOCK_ICON_SIZE - inset,
+                y + CompactBlockConfigDialog.BLOCK_ICON_SIZE - inset,
                 data.u0,
                 data.v0,
                 data.u1,

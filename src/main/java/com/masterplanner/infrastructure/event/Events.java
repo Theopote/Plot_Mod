@@ -1,6 +1,5 @@
 package com.masterplanner.infrastructure.event;
 
-import com.masterplanner.api.geometry.Vec2d;
 import com.masterplanner.api.event.EventType;
 import com.masterplanner.infrastructure.event.base.Event;
 
@@ -39,38 +38,6 @@ public class Events {
         public String getMessage() { return message; }
     }
 
-    /**
-     * 工具提示事件
-     */
-    public static class TooltipEvent extends Event {
-        private final String text;
-        private final Vec2d position;
-        private final String source;
-
-        public TooltipEvent(String text, Vec2d position) {
-            this("TooltipManager", text, position);
-        }
-        
-        public TooltipEvent(String source, String text, Vec2d position) {
-            super(EventType.TOOL_CONFIG_CHANGED);
-            this.source = source;
-            this.text = text;
-            this.position = position;
-        }
-        
-        @Override
-        public String getSource() {
-            return source;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("TooltipEvent[source=%s, text=%s, position=%s]", source, text, position);
-        }
-
-        public String getText() { return text; }
-        public Vec2d getPosition() { return position; }
-    }
 
     /**
      * 警告事件

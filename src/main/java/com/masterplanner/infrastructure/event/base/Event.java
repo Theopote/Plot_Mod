@@ -7,29 +7,15 @@ import com.masterplanner.api.event.EventType;
  */
 public abstract class Event {
     private final EventType type;
-    private final long timestamp;
-    private boolean handled;
 
     protected Event(EventType type) {
         this.type = type;
-        this.timestamp = System.currentTimeMillis();
-        this.handled = false;
+        long timestamp = System.currentTimeMillis();
+        boolean handled = false;
     }
 
     public EventType getType() {
         return type;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public boolean isHandled() {
-        return handled;
-    }
-
-    public void setHandled(boolean handled) {
-        this.handled = handled;
     }
 
     /**

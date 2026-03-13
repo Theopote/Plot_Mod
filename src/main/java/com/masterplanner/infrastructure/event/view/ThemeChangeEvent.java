@@ -21,10 +21,6 @@ public class ThemeChangeEvent extends Event {
         this.source = source;
         this.newTheme = newTheme;
     }
-
-    public UITheme.ThemeColors getNewTheme() {
-        return newTheme;
-    }
     
     @Override
     public String getSource() {

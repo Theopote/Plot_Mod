@@ -2,6 +2,7 @@ package com.masterplanner.ui.dialog.BlockConfigDialog;
 
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.core.state.AppState;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -255,49 +256,79 @@ public class BlockCategoryManager {
         JsonArray rulesArray = new JsonArray();
         
         // 1. 建筑方块规则
-        JsonObject buildingRule = new JsonObject();
-        buildingRule.addProperty("category", "BUILDING_BLOCKS");
-        
-        JsonArray buildingTags = new JsonArray();
-        buildingTags.add("minecraft:planks");
-        buildingTags.add("minecraft:stone_bricks");
-        buildingTags.add("minecraft:stairs");
-        buildingTags.add("minecraft:slabs");
-        buildingTags.add("minecraft:walls");
-        buildingTags.add("minecraft:fences");
-        buildingTags.add("minecraft:fence_gates");
-        buildingTags.add("minecraft:doors");
-        buildingTags.add("minecraft:trapdoors");
-        buildingTags.add("minecraft:logs");
-        buildingRule.add("tags", buildingTags);
-        
-        JsonArray buildingIdKeywords = new JsonArray();
-        buildingIdKeywords.add("brick");
-        buildingIdKeywords.add("purpur");
-        buildingIdKeywords.add("prismarine");
-        buildingIdKeywords.add("quartz");
-        buildingIdKeywords.add("end_stone");
-        buildingIdKeywords.add("nether_brick");
-        buildingIdKeywords.add("sandstone");
-        buildingIdKeywords.add("red_sandstone");
-        buildingIdKeywords.add("deepslate");
-        buildingIdKeywords.add("calcite");
-        buildingIdKeywords.add("polished");
-        buildingIdKeywords.add("chiseled");
-        buildingIdKeywords.add("copper");
-        buildingIdKeywords.add("tuff");
-        buildingIdKeywords.add("dripstone");
-        buildingIdKeywords.add("smooth");
-        buildingIdKeywords.add("cut");
-        buildingIdKeywords.add("cobbled");
-        buildingRule.add("idKeywords", buildingIdKeywords);
-        
+        JsonObject buildingRule = getObject();
+
         rulesArray.add(buildingRule);
         
         // 2. 染色方块规则
+        JsonObject coloredRule = getColoredRule();
+
+        rulesArray.add(coloredRule);
+        
+        // 3. 自然地形规则
+        JsonObject naturalRule = getNaturalRule();
+
+        rulesArray.add(naturalRule);
+        
+        // 4. 植物与树叶规则
+        JsonObject plantsRule = getPlantsRule();
+
+        rulesArray.add(plantsRule);
+        
+        // 5. 红石与机械规则
+        JsonObject redstoneRule = getRedstoneRule();
+
+        rulesArray.add(redstoneRule);
+        
+        // 6. 功能与设施规则
+        JsonObject functionalRule = getJsonObject();
+
+        rulesArray.add(functionalRule);
+        
+        // 7. 装饰方块规则
+        JsonObject decorativeRule = getDecorativeRule();
+
+        rulesArray.add(decorativeRule);
+        
+        // 8. 光源方块规则
+        JsonObject lightSourceRule = getLightSourceRule();
+
+        rulesArray.add(lightSourceRule);
+        
+        // 9. 液体与环境规则
+        JsonObject liquidsEnvironmentRule = getLiquidsEnvironmentRule();
+
+        rulesArray.add(liquidsEnvironmentRule);
+        
+        // 10. 杂项方块规则（默认规则）
+        JsonObject miscRule = new JsonObject();
+        miscRule.addProperty("category", "MISCELLANEOUS");
+        miscRule.addProperty("default", true);
+        
+        JsonArray miscTags = new JsonArray();
+        miscRule.add("tags", miscTags);
+        
+        JsonArray miscIdKeywords = new JsonArray();
+        miscRule.add("idKeywords", miscIdKeywords);
+        
+        rulesArray.add(miscRule);
+        
+        // 将规则数组添加到JSON对象
+        json.add("rules", rulesArray);
+        
+        // 写入文件
+        try (FileWriter writer = new FileWriter(configFile)) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            gson.toJson(json, writer);
+        }
+        
+        LOGGER.info("已保存10分类精确体系规则到配置文件: {}", configPath);
+    }
+
+    private static @NotNull JsonObject getColoredRule() {
         JsonObject coloredRule = new JsonObject();
         coloredRule.addProperty("category", "COLORED_BLOCKS");
-        
+
         JsonArray coloredTags = new JsonArray();
         coloredTags.add("minecraft:wool");
         coloredTags.add("minecraft:terracotta");
@@ -307,13 +338,119 @@ public class BlockCategoryManager {
         coloredTags.add("minecraft:stained_glass_panes");
         coloredTags.add("minecraft:shulker_boxes");
         coloredRule.add("tags", coloredTags);
-        
-        rulesArray.add(coloredRule);
-        
-        // 3. 自然地形规则
+        return coloredRule;
+    }
+
+    private static @NotNull JsonObject getLiquidsEnvironmentRule() {
+        JsonObject liquidsEnvironmentRule = new JsonObject();
+        liquidsEnvironmentRule.addProperty("category", "LIQUIDS_ENVIRONMENT");
+
+        JsonArray liquidsEnvironmentIdKeywords = new JsonArray();
+        liquidsEnvironmentIdKeywords.add("water");
+        liquidsEnvironmentIdKeywords.add("lava");
+        liquidsEnvironmentIdKeywords.add("ice");
+        liquidsEnvironmentIdKeywords.add("packed_ice");
+        liquidsEnvironmentIdKeywords.add("blue_ice");
+        liquidsEnvironmentIdKeywords.add("frosted_ice");
+        liquidsEnvironmentIdKeywords.add("snow");
+        liquidsEnvironmentIdKeywords.add("snow_block");
+        liquidsEnvironmentIdKeywords.add("sponge");
+        liquidsEnvironmentIdKeywords.add("wet_sponge");
+        liquidsEnvironmentIdKeywords.add("coral_block");
+        liquidsEnvironmentIdKeywords.add("dead_coral_block");
+        liquidsEnvironmentRule.add("idKeywords", liquidsEnvironmentIdKeywords);
+        return liquidsEnvironmentRule;
+    }
+
+    private static @NotNull JsonObject getLightSourceRule() {
+        JsonObject lightSourceRule = new JsonObject();
+        lightSourceRule.addProperty("category", "LIGHT_SOURCES");
+
+        JsonArray lightSourceIdKeywords = new JsonArray();
+        lightSourceIdKeywords.add("torch");
+        lightSourceIdKeywords.add("lantern");
+        lightSourceIdKeywords.add("glowstone");
+        lightSourceIdKeywords.add("sea_lantern");
+        lightSourceIdKeywords.add("redstone_lamp");
+        lightSourceIdKeywords.add("end_rod");
+        lightSourceIdKeywords.add("shroomlight");
+        lightSourceIdKeywords.add("jack_o_lantern");
+        lightSourceIdKeywords.add("campfire");
+        lightSourceIdKeywords.add("soul_campfire");
+        lightSourceIdKeywords.add("candle");
+        lightSourceIdKeywords.add("beacon");
+        lightSourceRule.add("idKeywords", lightSourceIdKeywords);
+        return lightSourceRule;
+    }
+
+    private static @NotNull JsonObject getDecorativeRule() {
+        JsonObject decorativeRule = new JsonObject();
+        decorativeRule.addProperty("category", "DECORATIVE_BLOCKS");
+
+        JsonArray decorativeTags = new JsonArray();
+        decorativeTags.add("minecraft:banners");
+        decorativeTags.add("minecraft:carpets");
+        decorativeTags.add("minecraft:candles");
+        decorativeRule.add("tags", decorativeTags);
+
+        JsonArray decorativeIdKeywords = new JsonArray();
+        decorativeIdKeywords.add("chain");
+        decorativeIdKeywords.add("flower_pot");
+        decorativeIdKeywords.add("item_frame");
+        decorativeIdKeywords.add("glow_item_frame");
+        decorativeIdKeywords.add("armor_stand");
+        decorativeIdKeywords.add("painting");
+        decorativeIdKeywords.add("skull");
+        decorativeIdKeywords.add("head");
+        decorativeIdKeywords.add("scaffolding");
+        decorativeIdKeywords.add("bookshelf");
+        decorativeIdKeywords.add("chiseled_bookshelf");
+        decorativeIdKeywords.add("decorated_pot");
+        decorativeIdKeywords.add("pottery_sherd");
+        decorativeIdKeywords.add("music_disc");
+        decorativeIdKeywords.add("dragon_head");
+        decorativeIdKeywords.add("wither_skeleton_skull");
+        decorativeRule.add("idKeywords", decorativeIdKeywords);
+        return decorativeRule;
+    }
+
+    private static @NotNull JsonObject getRedstoneRule() {
+        JsonObject redstoneRule = new JsonObject();
+        redstoneRule.addProperty("category", "REDSTONE_MECHANISMS");
+
+        JsonArray redstoneTags = new JsonArray();
+        redstoneTags.add("minecraft:rails");
+        redstoneTags.add("minecraft:buttons");
+        redstoneTags.add("minecraft:pressure_plates");
+        redstoneRule.add("tags", redstoneTags);
+
+        JsonArray redstoneIdKeywords = new JsonArray();
+        redstoneIdKeywords.add("redstone");
+        redstoneIdKeywords.add("piston");
+        redstoneIdKeywords.add("observer");
+        redstoneIdKeywords.add("repeater");
+        redstoneIdKeywords.add("comparator");
+        redstoneIdKeywords.add("lever");
+        redstoneIdKeywords.add("hopper");
+        redstoneIdKeywords.add("dispenser");
+        redstoneIdKeywords.add("dropper");
+        redstoneIdKeywords.add("target");
+        redstoneIdKeywords.add("crafter");
+        redstoneIdKeywords.add("tripwire_hook");
+        redstoneIdKeywords.add("daylight_detector");
+        redstoneIdKeywords.add("sticky_piston");
+        redstoneIdKeywords.add("slime_block");
+        redstoneIdKeywords.add("honey_block");
+        redstoneIdKeywords.add("sculk_sensor");
+        redstoneIdKeywords.add("calibrated_sculk_sensor");
+        redstoneRule.add("idKeywords", redstoneIdKeywords);
+        return redstoneRule;
+    }
+
+    private static @NotNull JsonObject getNaturalRule() {
         JsonObject naturalRule = new JsonObject();
         naturalRule.addProperty("category", "NATURAL_TERRAIN");
-        
+
         JsonArray naturalTags = new JsonArray();
         naturalTags.add("minecraft:dirt");
         naturalTags.add("minecraft:sand");
@@ -322,7 +459,13 @@ public class BlockCategoryManager {
         naturalTags.add("minecraft:ores");
         naturalTags.add("minecraft:ice");
         naturalRule.add("tags", naturalTags);
-        
+
+        JsonArray naturalIdKeywords = getElements();
+        naturalRule.add("idKeywords", naturalIdKeywords);
+        return naturalRule;
+    }
+
+    private static @NotNull JsonArray getElements() {
         JsonArray naturalIdKeywords = new JsonArray();
         naturalIdKeywords.add("gravel");
         naturalIdKeywords.add("clay");
@@ -339,14 +482,13 @@ public class BlockCategoryManager {
         naturalIdKeywords.add("ancient_debris");
         naturalIdKeywords.add("gilded_blackstone");
         naturalIdKeywords.add("crying_obsidian");
-        naturalRule.add("idKeywords", naturalIdKeywords);
-        
-        rulesArray.add(naturalRule);
-        
-        // 4. 植物与树叶规则
+        return naturalIdKeywords;
+    }
+
+    private static @NotNull JsonObject getPlantsRule() {
         JsonObject plantsRule = new JsonObject();
         plantsRule.addProperty("category", "PLANTS_FOLIAGE");
-        
+
         JsonArray plantsTags = new JsonArray();
         plantsTags.add("minecraft:leaves");
         plantsTags.add("minecraft:flowers");
@@ -355,7 +497,7 @@ public class BlockCategoryManager {
         plantsTags.add("minecraft:corals");
         plantsTags.add("minecraft:wart_blocks");
         plantsRule.add("tags", plantsTags);
-        
+
         JsonArray plantsIdKeywords = new JsonArray();
         plantsIdKeywords.add("mushroom");
         plantsIdKeywords.add("vine");
@@ -378,50 +520,62 @@ public class BlockCategoryManager {
         plantsIdKeywords.add("hanging_roots");
         plantsIdKeywords.add("spore_blossom");
         plantsRule.add("idKeywords", plantsIdKeywords);
-        
-        rulesArray.add(plantsRule);
-        
-        // 5. 红石与机械规则
-        JsonObject redstoneRule = new JsonObject();
-        redstoneRule.addProperty("category", "REDSTONE_MECHANISMS");
-        
-        JsonArray redstoneTags = new JsonArray();
-        redstoneTags.add("minecraft:rails");
-        redstoneTags.add("minecraft:buttons");
-        redstoneTags.add("minecraft:pressure_plates");
-        redstoneRule.add("tags", redstoneTags);
-        
-        JsonArray redstoneIdKeywords = new JsonArray();
-        redstoneIdKeywords.add("redstone");
-        redstoneIdKeywords.add("piston");
-        redstoneIdKeywords.add("observer");
-        redstoneIdKeywords.add("repeater");
-        redstoneIdKeywords.add("comparator");
-        redstoneIdKeywords.add("lever");
-        redstoneIdKeywords.add("hopper");
-        redstoneIdKeywords.add("dispenser");
-        redstoneIdKeywords.add("dropper");
-        redstoneIdKeywords.add("target");
-        redstoneIdKeywords.add("crafter");
-        redstoneIdKeywords.add("tripwire_hook");
-        redstoneIdKeywords.add("daylight_detector");
-        redstoneIdKeywords.add("sticky_piston");
-        redstoneIdKeywords.add("slime_block");
-        redstoneIdKeywords.add("honey_block");
-        redstoneIdKeywords.add("sculk_sensor");
-        redstoneIdKeywords.add("calibrated_sculk_sensor");
-        redstoneRule.add("idKeywords", redstoneIdKeywords);
-        
-        rulesArray.add(redstoneRule);
-        
-        // 6. 功能与设施规则
+        return plantsRule;
+    }
+
+    private static @NotNull JsonObject getObject() {
+        JsonObject buildingRule = new JsonObject();
+        buildingRule.addProperty("category", "BUILDING_BLOCKS");
+
+        JsonArray buildingTags = new JsonArray();
+        buildingTags.add("minecraft:planks");
+        buildingTags.add("minecraft:stone_bricks");
+        buildingTags.add("minecraft:stairs");
+        buildingTags.add("minecraft:slabs");
+        buildingTags.add("minecraft:walls");
+        buildingTags.add("minecraft:fences");
+        buildingTags.add("minecraft:fence_gates");
+        buildingTags.add("minecraft:doors");
+        buildingTags.add("minecraft:trapdoors");
+        buildingTags.add("minecraft:logs");
+        buildingRule.add("tags", buildingTags);
+
+        JsonArray buildingIdKeywords = getJsonElements();
+        buildingRule.add("idKeywords", buildingIdKeywords);
+        return buildingRule;
+    }
+
+    private static @NotNull JsonArray getJsonElements() {
+        JsonArray buildingIdKeywords = new JsonArray();
+        buildingIdKeywords.add("brick");
+        buildingIdKeywords.add("purpur");
+        buildingIdKeywords.add("prismarine");
+        buildingIdKeywords.add("quartz");
+        buildingIdKeywords.add("end_stone");
+        buildingIdKeywords.add("nether_brick");
+        buildingIdKeywords.add("sandstone");
+        buildingIdKeywords.add("red_sandstone");
+        buildingIdKeywords.add("deepslate");
+        buildingIdKeywords.add("calcite");
+        buildingIdKeywords.add("polished");
+        buildingIdKeywords.add("chiseled");
+        buildingIdKeywords.add("copper");
+        buildingIdKeywords.add("tuff");
+        buildingIdKeywords.add("dripstone");
+        buildingIdKeywords.add("smooth");
+        buildingIdKeywords.add("cut");
+        buildingIdKeywords.add("cobbled");
+        return buildingIdKeywords;
+    }
+
+    private static @NotNull JsonObject getJsonObject() {
         JsonObject functionalRule = new JsonObject();
         functionalRule.addProperty("category", "FUNCTIONAL_UTILITY");
-        
+
         JsonArray functionalTags = new JsonArray();
         functionalTags.add("minecraft:beds");
         functionalRule.add("tags", functionalTags);
-        
+
         JsonArray functionalIdKeywords = new JsonArray();
         functionalIdKeywords.add("crafting_table");
         functionalIdKeywords.add("furnace");
@@ -454,107 +608,9 @@ public class BlockCategoryManager {
         functionalIdKeywords.add("conduit");
         functionalIdKeywords.add("bell");
         functionalRule.add("idKeywords", functionalIdKeywords);
-        
-        rulesArray.add(functionalRule);
-        
-        // 7. 装饰方块规则
-        JsonObject decorativeRule = new JsonObject();
-        decorativeRule.addProperty("category", "DECORATIVE_BLOCKS");
-        
-        JsonArray decorativeTags = new JsonArray();
-        decorativeTags.add("minecraft:banners");
-        decorativeTags.add("minecraft:carpets");
-        decorativeTags.add("minecraft:candles");
-        decorativeRule.add("tags", decorativeTags);
-        
-        JsonArray decorativeIdKeywords = new JsonArray();
-        decorativeIdKeywords.add("chain");
-        decorativeIdKeywords.add("flower_pot");
-        decorativeIdKeywords.add("item_frame");
-        decorativeIdKeywords.add("glow_item_frame");
-        decorativeIdKeywords.add("armor_stand");
-        decorativeIdKeywords.add("painting");
-        decorativeIdKeywords.add("skull");
-        decorativeIdKeywords.add("head");
-        decorativeIdKeywords.add("scaffolding");
-        decorativeIdKeywords.add("bookshelf");
-        decorativeIdKeywords.add("chiseled_bookshelf");
-        decorativeIdKeywords.add("decorated_pot");
-        decorativeIdKeywords.add("pottery_sherd");
-        decorativeIdKeywords.add("music_disc");
-        decorativeIdKeywords.add("dragon_head");
-        decorativeIdKeywords.add("wither_skeleton_skull");
-        decorativeRule.add("idKeywords", decorativeIdKeywords);
-        
-        rulesArray.add(decorativeRule);
-        
-        // 8. 光源方块规则
-        JsonObject lightSourceRule = new JsonObject();
-        lightSourceRule.addProperty("category", "LIGHT_SOURCES");
-        
-        JsonArray lightSourceIdKeywords = new JsonArray();
-        lightSourceIdKeywords.add("torch");
-        lightSourceIdKeywords.add("lantern");
-        lightSourceIdKeywords.add("glowstone");
-        lightSourceIdKeywords.add("sea_lantern");
-        lightSourceIdKeywords.add("redstone_lamp");
-        lightSourceIdKeywords.add("end_rod");
-        lightSourceIdKeywords.add("shroomlight");
-        lightSourceIdKeywords.add("jack_o_lantern");
-        lightSourceIdKeywords.add("campfire");
-        lightSourceIdKeywords.add("soul_campfire");
-        lightSourceIdKeywords.add("candle");
-        lightSourceIdKeywords.add("beacon");
-        lightSourceRule.add("idKeywords", lightSourceIdKeywords);
-        
-        rulesArray.add(lightSourceRule);
-        
-        // 9. 液体与环境规则
-        JsonObject liquidsEnvironmentRule = new JsonObject();
-        liquidsEnvironmentRule.addProperty("category", "LIQUIDS_ENVIRONMENT");
-        
-        JsonArray liquidsEnvironmentIdKeywords = new JsonArray();
-        liquidsEnvironmentIdKeywords.add("water");
-        liquidsEnvironmentIdKeywords.add("lava");
-        liquidsEnvironmentIdKeywords.add("ice");
-        liquidsEnvironmentIdKeywords.add("packed_ice");
-        liquidsEnvironmentIdKeywords.add("blue_ice");
-        liquidsEnvironmentIdKeywords.add("frosted_ice");
-        liquidsEnvironmentIdKeywords.add("snow");
-        liquidsEnvironmentIdKeywords.add("snow_block");
-        liquidsEnvironmentIdKeywords.add("sponge");
-        liquidsEnvironmentIdKeywords.add("wet_sponge");
-        liquidsEnvironmentIdKeywords.add("coral_block");
-        liquidsEnvironmentIdKeywords.add("dead_coral_block");
-        liquidsEnvironmentRule.add("idKeywords", liquidsEnvironmentIdKeywords);
-        
-        rulesArray.add(liquidsEnvironmentRule);
-        
-        // 10. 杂项方块规则（默认规则）
-        JsonObject miscRule = new JsonObject();
-        miscRule.addProperty("category", "MISCELLANEOUS");
-        miscRule.addProperty("default", true);
-        
-        JsonArray miscTags = new JsonArray();
-        miscRule.add("tags", miscTags);
-        
-        JsonArray miscIdKeywords = new JsonArray();
-        miscRule.add("idKeywords", miscIdKeywords);
-        
-        rulesArray.add(miscRule);
-        
-        // 将规则数组添加到JSON对象
-        json.add("rules", rulesArray);
-        
-        // 写入文件
-        try (FileWriter writer = new FileWriter(configFile)) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            gson.toJson(json, writer);
-        }
-        
-        LOGGER.info("已保存10分类精确体系规则到配置文件: {}", configPath);
+        return functionalRule;
     }
-    
+
     /**
      * 初始化默认分类规则 - 使用新的10分类精确体系
      */

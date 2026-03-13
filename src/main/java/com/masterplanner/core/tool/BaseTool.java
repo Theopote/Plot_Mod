@@ -356,35 +356,8 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         eventBus.publish(new Events.StatusMessageEvent(message));
     }
 
-    protected void showTooltip(String text, Vec2d position) {
-        eventBus.publish(new Events.TooltipEvent(text, position));
-    }
-
     protected void setCursor(String cursorType) {
         eventBus.publish(new Events.CursorChangedEvent(cursorType));
-    }
-
-    // Getters and Setters for shortcut management
-    public String getShortcutKey() {
-        return shortcutKey;
-    }
-
-    public void setShortcutKey(String shortcutKey) {
-        // 如果已有快捷键，先注销
-        if (this.shortcutKey != null) {
-            shortcutManager.unregisterShortcut(this.shortcutKey, this);
-        }
-        
-        this.shortcutKey = shortcutKey;
-        
-        // 注册新快捷键
-        if (shortcutKey != null) {
-            shortcutManager.registerShortcut(shortcutKey, this);
-        }
-    }
-
-    public void setPriority(int priority) {
-        this.priority = priority;
     }
 
     @Override
@@ -485,7 +458,7 @@ public abstract class BaseTool implements ITool, IShortcutListener {
             LOGGER.debug("开始提交图形到活动图层 '{}'", activeLayer.getName());
             
             // 克隆预览图形以避免引用问题
-            Shape finalShape = (Shape)previewShape.clone();
+            Shape finalShape = previewShape.clone();
             
             // 确保图形有样式
             if (finalShape.getStyle() == null) {
@@ -591,13 +564,4 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         return "default";
     }
 
-    /**
-     * 工具配置变更时调用
-     * @param key 配置项的键
-     * @param value 配置项的值
-     */
-    public void onConfigChanged(String key, String value) {
-        // 默认实现为空，由子类根据需要重写
-        LOGGER.debug("Tool {} config changed: {} = {}", getName(), key, value);
-    }
 }

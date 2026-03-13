@@ -25,18 +25,16 @@ public class PropertyPanel implements UIComponent {
     private final LayerPanel layerPanel;
     private final HistoryPanel historyPanel;
     private final StatusPanel statusPanel;
-    private final AppState appState;
     private final EventBus eventBus;
-    private final ToolManager toolManager;
     private boolean initialized = false;
     
     // 事件监听器
     private final EventListener toolChangedListener;
 
     public PropertyPanel() {
-        this.appState = AppState.getInstance();
+        AppState appState = AppState.getInstance();
         this.eventBus = EventBus.getInstance();
-        this.toolManager = ToolManager.getInstance();
+        ToolManager toolManager = ToolManager.getInstance();
         this.toolOptionsPanel = new ToolOptionsPanel();
         this.layerPanel = new LayerPanel();
         this.historyPanel = new HistoryPanel(AppState.getInstance().getCommandHistory());

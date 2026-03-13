@@ -167,7 +167,7 @@ public class BlockSearchManager {
      */
     private void renderSearchHint() {
         // 如果搜索文本不为空但太短，显示提示
-        if (!searchBuffer.get().isEmpty() && searchBuffer.get().trim().length() < MIN_SEARCH_CHARS) {
+        if (!searchBuffer.get().isEmpty() && searchBuffer.get().trim().isEmpty()) {
             ImGui.sameLine();
             ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, 
                 String.format("请输入至少 %d 个字符", MIN_SEARCH_CHARS));

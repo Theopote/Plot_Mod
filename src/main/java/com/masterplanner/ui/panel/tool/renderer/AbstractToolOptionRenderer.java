@@ -2,8 +2,6 @@ package com.masterplanner.ui.panel.tool.renderer;
 
 import com.masterplanner.infrastructure.event.EventBus;
 import com.masterplanner.infrastructure.event.tool.ToolConfigEvent;
-import imgui.ImGui;
-import imgui.flag.ImGuiStyleVar;
 
 /**
  * 工具选项渲染器抽象基类
@@ -31,21 +29,6 @@ public abstract class AbstractToolOptionRenderer implements ToolOptionRenderer {
     protected void updateToolConfig(String key, String value) {
         ToolConfigEvent event = new ToolConfigEvent(toolId, key, null, value);
         eventBus.publish(event);
-    }
-
-    /**
-     * 设置按钮样式
-     */
-    protected void pushButtonStyle() {
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, BUTTON_CORNER_ROUNDING);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-    }
-
-    /**
-     * 恢复按钮样式
-     */
-    protected void popButtonStyle() {
-        ImGui.popStyleVar(2);
     }
 
     /**
