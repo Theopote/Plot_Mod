@@ -1,5 +1,6 @@
 package com.masterplanner.ui.manager;
 
+import com.masterplanner.ui.screen.MasterPlannerInitializer;
 import com.masterplanner.ui.screen.MasterPlannerScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
@@ -66,11 +67,19 @@ public class UIManager {
                 return;
             }
             
-            // 创建并打开新界面
-            MasterPlannerScreen screen = new MasterPlannerScreen();
-            client.setScreen(screen);
+            Runnable doOpen = () -> {
+                // 延迟初始化 ImGui：在用户首次打开界面时初始化，此时 OpenGL 与窗口上下文已就绪
+                MasterPlannerInitializer.initialize();
+                MasterPlannerScreen screen = new MasterPlannerScreen();
+                client.setScreen(screen);
+                LOGGER.info("MasterPlanner 界面已打开");
+            };
             
-            LOGGER.info("MasterPlanner 界面已打开");
+            if (client.isOnThread()) {
+                doOpen.run();
+            } else {
+                client.execute(doOpen);
+            }
             
         } catch (Exception e) {
             LOGGER.error("打开 MasterPlanner 界面时发生错误: {}", e.getMessage(), e);

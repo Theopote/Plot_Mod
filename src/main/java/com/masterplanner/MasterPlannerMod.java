@@ -4,7 +4,6 @@ import com.masterplanner.core.command.CommandManager;
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.core.tool.ToolManager;
 import com.masterplanner.ui.canvas.Canvas;
-import com.masterplanner.ui.screen.MasterPlannerInitializer;
 import com.masterplanner.ui.manager.UIManager;
 import com.masterplanner.ui.tools.DrawingToolsModule;
 import com.masterplanner.ui.tools.ModifyToolsModule;
@@ -143,9 +142,9 @@ public class MasterPlannerMod implements ModInitializer, ClientModInitializer {
             LOGGER.debug("步骤1: 获取AppState实例");
             AppState appState = AppState.getInstance();
 
-            // 2. 初始化仅客户端相关的系统，如 ImGui
-            LOGGER.debug("步骤2: 初始化MasterPlannerInitializer");
-            MasterPlannerInitializer.initialize();
+            // 2. ImGui 改为延迟初始化：在用户首次打开 MasterPlanner 界面时再初始化
+            //    避免在模组启动阶段初始化时 OpenGL 上下文未就绪导致的 "GImGui != NULL" 断言失败
+            //    见 UIManager.openMasterPlannerScreen() 中的调用
 
              // 3. 注册 1.21.11 稳定的 ImGui 贴屏绘制入口（WorldRenderEvents.END）
             ImGuiWorldRenderer.init();

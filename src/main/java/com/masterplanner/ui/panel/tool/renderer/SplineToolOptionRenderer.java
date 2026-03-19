@@ -129,15 +129,13 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
         try {
             // 获取当前主题
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            // 保存当前的圆角样式
-            float originalRounding = ImGui.getStyle().getFrameRounding();
+            // 使用 pushStyleVar 临时设置圆角
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
             // 绘制模式选择
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
             ImGui.text("绘制模式");
-            // 设置按钮的圆角和样式，使用工具栏控件圆角
-            ImGui.getStyle().setFrameRounding(currentTheme.toolbarControlRounding);
             // 设置按钮颜色样式
             ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonNormal);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonHovered);
@@ -195,7 +193,8 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                     }
                 }
             }
-            // 恢复样式
+            // 恢复样式（FrameBorderSize、FrameRounding）
+            ImGui.popStyleVar();
             ImGui.popStyleVar();
             ImGui.popStyleColor(4);
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
@@ -214,8 +213,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                 segmentsArray, 10, 200, "%d", currentTheme, 
                 key -> updateToolConfig(key, String.valueOf(segmentsArray[0])));
             height += ImGui.getFrameHeightWithSpacing();
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
+            ImGui.popStyleVar();
         } finally {
             ImGui.popID();
         }

@@ -86,7 +86,6 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             LOGGER.debug("可用区域: {}x{}", ImGui.getContentRegionAvail().x, ImGui.getContentRegionAvail().y);
 
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            float originalRounding = ImGui.getStyle().getFrameRounding();
             
             // === 阵列类型选择 ===
             height += renderArrayTypeSelection(currentTool, currentTheme);
@@ -109,9 +108,6 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
                     LOGGER.debug("路径阵列选项渲染完成，总高度: {}", height);
                 }
             }
-            
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
             
         } catch (Exception e) {
             LOGGER.error("渲染阵列工具选项时发生错误: {}", e.getMessage(), e);
