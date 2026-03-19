@@ -5,8 +5,8 @@ import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.internal.ImGuiContext;
 import imgui.flag.ImGuiConfigFlags;
+import imgui.flag.ImGuiKey;
 import imgui.gl3.ImGuiImplGl3;
-import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.masterplanner.ui.imgui.gl.ImGuiGLStateGuard;
 import net.minecraft.client.MinecraftClient;
@@ -22,13 +22,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.DoubleBuffer;
+import java.nio.IntBuffer;
+
+import org.lwjgl.system.MemoryStack;
 
 public class ImGuiRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImGuiRenderer.class);
     private static volatile ImGuiRenderer INSTANCE;
     private static final Object LOCK = new Object();
 
-    private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
     private long windowHandle;
     private boolean initialized;
@@ -39,6 +42,8 @@ public class ImGuiRenderer {
     private ImGuiContext ourContext;
     /** 初始化前已有的 ImGui 上下文（可能来自 ChronoBlocks/Treefactory 或其他 ImGui 模组）；关闭界面时恢复 */
     private ImGuiContext savedPreviousContext;
+    /** 上一帧时间戳（纳秒），用于计算 DeltaTime */
+    private long lastFrameTimeNanos;
 
     private ImGuiRenderer() {}
 
@@ -76,11 +81,18 @@ public class ImGuiRenderer {
             GLFW.glfwMakeContextCurrent(windowHandle);
 
             // 系统化方案：不依赖任何模组检测。保存当前上下文（可能来自 ChronoBlocks、Treefactory 或任何 ImGui 模组），
-            // 关闭 MasterPlanner 界面时恢复，避免破坏其他模组的字体/图标。绝不调用 getIO() 验证——在无有效上下文时会导致断言崩溃。
-            savedPreviousContext = ImGui.getCurrentContext();
+            // 关闭 MasterPlanner 界面时恢复，避免破坏其他模组的字体/图标。
+            // 关键：imgui-java 1.86.11 存在 bug（#253）—— createContext() 会覆盖先前上下文对象的 ptr，
+            // 导致 savedPreviousContext 被破坏，进而使 restorePreviousContext 恢复错误，其它模组的 ImGuiImplGlfw 等状态错乱。
+            // 必须在 createContext 之前保存指针值，并用 new ImGuiContext(ptr) 重建，确保不受 createContext 覆盖影响。
+            ImGuiContext previous = ImGui.getCurrentContext();
+            long previousPtr = (previous != null && previous.ptr != 0) ? previous.ptr : 0;
 
             // 始终创建本模组独立的 ImGui 上下文
             ourContext = ImGui.createContext();
+            // 同上 bug 变通：用新实例保存 ptr，防止后续 createContext（如 dispose 中 fallback）覆盖
+            ourContext = new ImGuiContext(ourContext.ptr);
+            savedPreviousContext = (previousPtr != 0) ? new ImGuiContext(previousPtr) : null;
             ImGui.setCurrentContext(ourContext);
             LOGGER.info("已创建并设置 ImGui 上下文");
 
@@ -88,14 +100,11 @@ public class ImGuiRenderer {
             io.setIniFilename(null);
             io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);
             initializeFonts(io);
+            // 设置 KeyMap，NavEnableKeyboard 要求映射 ImGuiKey_Space 等，否则 NewFrame 断言失败
+            setupKeyMap(io);
             // 不在此处设置样式；MasterPlannerStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
             
-            // 关键：install_callbacks=false，避免覆盖 ChronoBlocks/Treefactory 已安装的 GLFW 回调。
-            // 否则会干扰其他模组的输入与字体渲染，导致 ChronoBlocks 图标变问号、布局异常。
-            imGuiGlfw = new ImGuiImplGlfw();
-            if (!imGuiGlfw.init(windowHandle, false)) {
-                throw new RuntimeException("ImGui GLFW implementation init failed");
-            }
+            // 完全不使用 ImGuiImplGlfw，改用手动 IO 更新，彻底避免对 ChronoBlocks 等模组 GLFW 回调/窗口状态的任何影响。
 
             imGuiGl3 = new ImGuiImplGl3();
             // 使用与 ChronoBlocks 相同的 GLSL 版本选择逻辑
@@ -212,6 +221,67 @@ public class ImGuiRenderer {
         }
     }
 
+    /**
+     * 设置 ImGui KeyMap，将 GLFW 键码映射到 ImGuiKey。
+     * NavEnableKeyboard 要求至少映射 ImGuiKey_Space，否则 NewFrame 会断言失败。
+     * 参考 imgui_impl_glfw 的键盘映射。
+     */
+    private static void setupKeyMap(ImGuiIO io) {
+        io.setKeyMap(ImGuiKey.Tab, GLFW.GLFW_KEY_TAB);
+        io.setKeyMap(ImGuiKey.LeftArrow, GLFW.GLFW_KEY_LEFT);
+        io.setKeyMap(ImGuiKey.RightArrow, GLFW.GLFW_KEY_RIGHT);
+        io.setKeyMap(ImGuiKey.UpArrow, GLFW.GLFW_KEY_UP);
+        io.setKeyMap(ImGuiKey.DownArrow, GLFW.GLFW_KEY_DOWN);
+        io.setKeyMap(ImGuiKey.PageUp, GLFW.GLFW_KEY_PAGE_UP);
+        io.setKeyMap(ImGuiKey.PageDown, GLFW.GLFW_KEY_PAGE_DOWN);
+        io.setKeyMap(ImGuiKey.Home, GLFW.GLFW_KEY_HOME);
+        io.setKeyMap(ImGuiKey.End, GLFW.GLFW_KEY_END);
+        io.setKeyMap(ImGuiKey.Insert, GLFW.GLFW_KEY_INSERT);
+        io.setKeyMap(ImGuiKey.Delete, GLFW.GLFW_KEY_DELETE);
+        io.setKeyMap(ImGuiKey.Backspace, GLFW.GLFW_KEY_BACKSPACE);
+        io.setKeyMap(ImGuiKey.Space, GLFW.GLFW_KEY_SPACE);
+        io.setKeyMap(ImGuiKey.Enter, GLFW.GLFW_KEY_ENTER);
+        io.setKeyMap(ImGuiKey.Escape, GLFW.GLFW_KEY_ESCAPE);
+    }
+
+    /**
+     * 手动更新 ImGui IO（DeltaTime、鼠标位置、鼠标按键）。
+     * 使用 GLFW 只读 API（glfwGetCursorPos、glfwGetMouseButton），不安装任何回调，
+     * 彻底避免与 ChronoBlocks 等模组的 GLFW 回调冲突。
+     */
+    private void updateFrameInputs() {
+        try {
+            ImGuiIO io = ImGui.getIO();
+
+            // DeltaTime（imgui-java 1.86 使用 setDeltaTime）
+            long now = System.nanoTime();
+            if (lastFrameTimeNanos > 0) {
+                float dt = (float) ((now - lastFrameTimeNanos) / 1_000_000_000.0);
+                io.setDeltaTime(dt > 0.0f ? dt : 1.0f / 60.0f);
+            } else {
+                io.setDeltaTime(1.0f / 60.0f);
+            }
+            lastFrameTimeNanos = now;
+
+            // 鼠标位置与按键（只读 GLFW API，不修改任何回调；imgui-java 1.86 使用 setMousePos/setMouseDown）
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                DoubleBuffer x = stack.mallocDouble(1);
+                DoubleBuffer y = stack.mallocDouble(1);
+                GLFW.glfwGetCursorPos(windowHandle, x, y);
+                float mouseX = (float) x.get(0);
+                float mouseY = (float) y.get(0);
+                io.setMousePos(mouseX, mouseY);
+            }
+
+            for (int i = 0; i < 3; i++) {
+                boolean down = GLFW.glfwGetMouseButton(windowHandle, i) == GLFW.GLFW_PRESS;
+                io.setMouseDown(i, down);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("updateFrameInputs failed", e);
+        }
+    }
+
     public void beginFrame() {
         synchronized (LOCK) {
             if (!initialized || frameInProgress) {
@@ -225,7 +295,7 @@ public class ImGuiRenderer {
                     ImGui.setCurrentContext(ourContext);
                 }
                 updateDisplaySize();
-                imGuiGlfw.newFrame();
+                updateFrameInputs();
                 ImGui.newFrame();
                 frameInProgress = true;
             } catch (Exception e) {
@@ -304,6 +374,8 @@ public class ImGuiRenderer {
                 e.printStackTrace();
             } finally {
                 drawDataReady = false;
+                // 关键：渲染完成后立即恢复其他模组上下文，确保 ChronoBlocks 等下次打开时不受影响
+                restorePreviousContext();
             }
         }
     }
@@ -325,10 +397,6 @@ public class ImGuiRenderer {
                 if (imGuiGl3 != null) {
                     imGuiGl3.dispose();
                     imGuiGl3 = null;
-                }
-                if (imGuiGlfw != null) {
-                    imGuiGlfw.dispose();
-                    imGuiGlfw = null;
                 }
                 if (ourContext != null) {
                     // 必须在销毁前切换 current，否则 destroyContext 可能导致 GImGui 变为 null。
@@ -368,29 +436,32 @@ public class ImGuiRenderer {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client == null || client.getWindow() == null) return;
-            
+
             Window window = client.getWindow();
-            long currentWindowHandle = window.getHandle();
-            if (currentWindowHandle != windowHandle) {
-                windowHandle = currentWindowHandle;
-                if (imGuiGlfw != null) {
-                    imGuiGlfw.dispose();
-                    imGuiGlfw = new ImGuiImplGlfw();
-                    imGuiGlfw.init(windowHandle, false);  // 不覆盖 ChronoBlocks 等模组的 GLFW 回调
+            windowHandle = window.getHandle();
+            // 与 imgui_impl_glfw 一致：DisplaySize=窗口内容区，Scale=fb/窗口。用 GLFW 直接获取（IntBuffer 为 LWJGL 要求）
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer w = stack.mallocInt(1);
+                IntBuffer h = stack.mallocInt(1);
+                IntBuffer fbW = stack.mallocInt(1);
+                IntBuffer fbH = stack.mallocInt(1);
+                GLFW.glfwGetWindowSize(windowHandle, w, h);
+                GLFW.glfwGetFramebufferSize(windowHandle, fbW, fbH);
+                int winW = Math.max(1, w.get(0));
+                int winH = Math.max(1, h.get(0));
+                int fw = Math.max(1, fbW.get(0));
+                int fh = Math.max(1, fbH.get(0));
+                // 若窗口尺寸异常偏小（如 < 100），可能是驱动/环境问题，回退为 framebuffer 尺寸 + scale=1
+                if (winW < 100 || winH < 100) {
+                    winW = fw;
+                    winH = fh;
                 }
+                float displayW = (float) winW;
+                float displayH = (float) winH;
+                ImGuiIO io = ImGui.getIO();
+                io.setDisplaySize(displayW, displayH);
+                io.setDisplayFramebufferScale(winW > 0 ? (float) fw / winW : 1f, winH > 0 ? (float) fh / winH : 1f);
             }
-            
-            int winW = Math.max(1, window.getWidth());
-            int winH = Math.max(1, window.getHeight());
-            int fbW = Math.max(1, window.getFramebufferWidth());
-            int fbH = Math.max(1, window.getFramebufferHeight());
-            double sfD = Math.max(1.0, window.getScaleFactor());
-            float displayW = (float) (winW / sfD);
-            float displayH = (float) (winH / sfD);
-             
-            ImGuiIO io = ImGui.getIO();
-            io.setDisplaySize(displayW, displayH);
-            io.setDisplayFramebufferScale(fbW / displayW, fbH / displayH);
         } catch (Exception e) {
             LOGGER.error("Error updating display size", e);
         }
