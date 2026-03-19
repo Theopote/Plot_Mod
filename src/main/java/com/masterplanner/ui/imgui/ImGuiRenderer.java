@@ -3,6 +3,7 @@ package com.masterplanner.ui.imgui;
 import imgui.ImFontConfig;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.internal.ImGuiContext;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
@@ -34,8 +35,10 @@ public class ImGuiRenderer {
     private boolean frameInProgress;
     private boolean drawDataReady;
     private long lastDrawDataLogMs;
-    /** 本模组是否创建了 ImGui 上下文（共享模式下仅创建者负责销毁） */
-    private boolean weCreatedContext;
+    /** 本模组创建的 ImGui 上下文；渲染时设为 current */
+    private ImGuiContext ourContext;
+    /** 初始化前已有的 ImGui 上下文（可能来自 ChronoBlocks/Treefactory 或其他 ImGui 模组）；关闭界面时恢复 */
+    private ImGuiContext savedPreviousContext;
 
     private ImGuiRenderer() {}
 
@@ -70,25 +73,27 @@ public class ImGuiRenderer {
             }
 
             // 关键：在 Minecraft 环境中，必须显式使 GL 上下文为当前，否则 imgui-java 原生的 GImGui 断言失败
-            // 参考：fabric imgui 示例在 init 前调用 window.makeContextCurrent()
             GLFW.glfwMakeContextCurrent(windowHandle);
 
-            // 本模组始终创建自己的 ImGui 上下文，避免 getCurrentContext() 返回无效值导致 getIO() 断言失败
-            weCreatedContext = true;
-            var ctx = ImGui.createContext();
-            ImGui.setCurrentContext(ctx);
+            // 系统化方案：不依赖任何模组检测。保存当前上下文（可能来自 ChronoBlocks、Treefactory 或任何 ImGui 模组），
+            // 关闭 MasterPlanner 界面时恢复，避免破坏其他模组的字体/图标。绝不调用 getIO() 验证——在无有效上下文时会导致断言崩溃。
+            savedPreviousContext = ImGui.getCurrentContext();
+
+            // 始终创建本模组独立的 ImGui 上下文
+            ourContext = ImGui.createContext();
+            ImGui.setCurrentContext(ourContext);
             LOGGER.info("已创建并设置 ImGui 上下文");
 
             ImGuiIO io = ImGui.getIO();
             io.setIniFilename(null);
             io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);
-            
-            // 本模组始终创建自己的上下文，在此初始化字体
             initializeFonts(io);
             // 不在此处设置样式；MasterPlannerStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
             
+            // 关键：install_callbacks=false，避免覆盖 ChronoBlocks/Treefactory 已安装的 GLFW 回调。
+            // 否则会干扰其他模组的输入与字体渲染，导致 ChronoBlocks 图标变问号、布局异常。
             imGuiGlfw = new ImGuiImplGlfw();
-            if (!imGuiGlfw.init(windowHandle, true)) {
+            if (!imGuiGlfw.init(windowHandle, false)) {
                 throw new RuntimeException("ImGui GLFW implementation init failed");
             }
 
@@ -215,7 +220,10 @@ public class ImGuiRenderer {
 
             try {
                 drawDataReady = false;
-                ImGui.setCurrentContext(ImGui.getCurrentContext());
+                // 确保使用本模组上下文（可能因关闭界面已 restore，需重新激活）
+                if (ourContext != null) {
+                    ImGui.setCurrentContext(ourContext);
+                }
                 updateDisplaySize();
                 imGuiGlfw.newFrame();
                 ImGui.newFrame();
@@ -300,24 +308,53 @@ public class ImGuiRenderer {
         }
     }
 
+    /**
+     * 释放 ImGui 资源。在游戏退出 (CLIENT_STOPPING) 时调用。
+     * 关键：必须确保在销毁本模组上下文后，GImGui 永远不为 null，否则 ChronoBlocks 等模组
+     * 在关闭其界面时调用 ImGui.getIO() 会触发断言崩溃。
+     * 若 savedPreviousContext 为 null 或不可靠（其他模组可能已先清理），则创建临时
+     * fallback 上下文作为 current，避免任何模组后续调用 getIO() 时崩溃。
+     */
     public void dispose() {
         synchronized (LOCK) {
             if (!initialized) return;
 
             try {
                 if (frameInProgress) ImGui.render();
-                
-                if (imGuiGl3 != null) imGuiGl3.dispose();
-                if (imGuiGlfw != null) imGuiGlfw.dispose();
-                // 仅在本模组创建了上下文时销毁，避免影响共享同一上下文的 Treefactory/ChronoBlocks
-                if (weCreatedContext) {
-                    ImGui.destroyContext();
+
+                if (imGuiGl3 != null) {
+                    imGuiGl3.dispose();
+                    imGuiGl3 = null;
                 }
-                
+                if (imGuiGlfw != null) {
+                    imGuiGlfw.dispose();
+                    imGuiGlfw = null;
+                }
+                if (ourContext != null) {
+                    // 必须在销毁前切换 current，否则 destroyContext 可能导致 GImGui 变为 null。
+                    // 游戏退出时其他模组（如 ChronoBlocks）可能已先清理其上下文，savedPreviousContext
+                    // 可能已失效。为绝对安全，始终创建 fallback，确保后续任何 ImGui.getIO() 调用不崩溃。
+                    ImGuiContext fallback = ImGui.createContext();
+                    ImGui.setCurrentContext(fallback);
+                    ImGui.destroyContext(ourContext);
+                    ourContext = null;
+                    // 保留 fallback 为 current，不销毁（游戏退出时的小泄漏可接受）
+                }
+
                 initialized = false;
                 LOGGER.info("ImGui resources cleaned up");
             } catch (Exception e) {
                 LOGGER.error("Error cleaning up", e);
+                // 兜底：若异常导致未设置 current，尝试恢复或创建 fallback
+                try {
+                    if (ImGui.getCurrentContext() == null) {
+                        ImGuiContext fallback = ImGui.createContext();
+                        ImGui.setCurrentContext(fallback);
+                        LOGGER.debug("dispose: 异常后兜底，已设置 fallback 上下文");
+                    }
+                } catch (Throwable t) {
+                    LOGGER.error("dispose fallback failed", t);
+                }
             }
         }
     }
@@ -339,7 +376,7 @@ public class ImGuiRenderer {
                 if (imGuiGlfw != null) {
                     imGuiGlfw.dispose();
                     imGuiGlfw = new ImGuiImplGlfw();
-                    imGuiGlfw.init(windowHandle, true);
+                    imGuiGlfw.init(windowHandle, false);  // 不覆盖 ChronoBlocks 等模组的 GLFW 回调
                 }
             }
             
@@ -361,5 +398,16 @@ public class ImGuiRenderer {
 
     public boolean isInitialized() {
         return initialized;
+    }
+
+    /**
+     * 关闭 MasterPlanner 界面时恢复此前已有的 ImGui 上下文。
+     * 使 ChronoBlocks、Treefactory 或任何其他 ImGui 模组能继续正确渲染其字体与图标。
+     */
+    public void restorePreviousContext() {
+        if (savedPreviousContext != null) {
+            ImGui.setCurrentContext(savedPreviousContext);
+            LOGGER.debug("已恢复此前 ImGui 上下文");
+        }
     }
 }

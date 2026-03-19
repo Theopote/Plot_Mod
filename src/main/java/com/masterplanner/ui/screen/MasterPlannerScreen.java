@@ -692,6 +692,8 @@ public class MasterPlannerScreen extends Screen {
     public void removed() {
         LOGGER.debug("MasterPlannerScreen 已关闭。");
         
+        ImGuiRenderer.getInstance().restorePreviousContext();
+
         // 关闭 MasterPlanner 时清理幽灵方块，避免未投影预览残留
         GhostBlockManager.getInstance().clearAllGhostBlocks();
 
