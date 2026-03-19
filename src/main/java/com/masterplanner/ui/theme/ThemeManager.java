@@ -327,7 +327,7 @@ public class ThemeManager {
         ImGui.pushStyleColor(ImGuiCol.ResizeGrip, t.buttonNormal);
         ImGui.pushStyleColor(ImGuiCol.ResizeGripHovered, t.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ResizeGripActive, t.buttonActive);
-        int styleColorCount = 37;
+        int styleColorCount = 39;  // 与上方 pushStyleColor 调用数量一致，否则会导致 PushStyleColor/PopStyleColor Mismatch 崩溃
 
         return new int[]{styleVarCount, styleColorCount};
     }
