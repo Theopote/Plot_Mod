@@ -8,7 +8,6 @@ import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.masterplanner.ui.imgui.gl.ImGuiGLStateGuard;
-import com.masterplanner.ui.theme.ThemeManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.opengl.GL11;
@@ -34,6 +33,8 @@ public class ImGuiRenderer {
     private boolean frameInProgress;
     private boolean drawDataReady;
     private long lastDrawDataLogMs;
+    /** 本模组是否创建了 ImGui 上下文（共享模式下仅创建者负责销毁） */
+    private boolean weCreatedContext;
 
     private ImGuiRenderer() {}
 
@@ -67,15 +68,18 @@ public class ImGuiRenderer {
                 throw new RuntimeException("Not on main thread");
             }
 
-            ImGui.createContext();
+            // 使用共享上下文（与 Treefactory、ChronoBlocks 一致），样式通过 MasterPlannerStyleScope 每帧 push/pop 隔离
+            weCreatedContext = (ImGui.getCurrentContext() == null);
+            if (weCreatedContext) {
+                ImGui.createContext();
+            }
             
             ImGuiIO io = ImGui.getIO();
             io.setIniFilename(null);
             io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);
             
             initializeFonts(io);
-            ImGui.styleColorsDark();
-            ThemeManager.getInstance().applyThemeIfReady();
+            // 不在此处设置样式；MasterPlannerStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
             
             imGuiGlfw = new ImGuiImplGlfw();
             if (!imGuiGlfw.init(windowHandle, true)) {
@@ -299,7 +303,10 @@ public class ImGuiRenderer {
                 
                 if (imGuiGl3 != null) imGuiGl3.dispose();
                 if (imGuiGlfw != null) imGuiGlfw.dispose();
-                ImGui.destroyContext();
+                // 仅在本模组创建了上下文时销毁，避免影响共享同一上下文的 Treefactory/ChronoBlocks
+                if (weCreatedContext) {
+                    ImGui.destroyContext();
+                }
                 
                 initialized = false;
                 LOGGER.info("ImGui resources cleaned up");

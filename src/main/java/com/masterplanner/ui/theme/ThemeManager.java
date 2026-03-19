@@ -8,6 +8,7 @@ import imgui.ImColor;
 import imgui.ImGui;
 import imgui.ImGuiStyle;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -256,6 +257,79 @@ public class ThemeManager {
 
     public void applyThemeIfReady() {
         applyTheme();
+    }
+
+    /**
+     * 将当前主题 push 到 ImGui 样式栈（用于 MasterPlannerStyleScope 实现模组间样式隔离）。
+     * 不永久修改共享上下文，渲染结束后由 scope 负责 pop。
+     *
+     * @return int[2] = { styleVarCount, styleColorCount }
+     */
+    public int[] pushThemeToStack() {
+        UITheme.ThemeColors t = currentTheme;
+        // StyleVars（先 push，后 pop 时先 pop colors 再 pop vars）
+        ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, t.windowRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, t.panelControlRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, t.childRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, t.popupRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, t.scrollbarRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, t.grabRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, t.tabRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, t.windowBorderSize);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, t.frameBorderSize);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, t.popupBorderSize);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, t.windowPaddingX, t.windowPaddingY);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, t.framePaddingX, t.framePaddingY);
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, t.itemSpacingX, t.itemSpacingY);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, t.scrollbarSize);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabMinSize, t.grabMinSize);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, UITheme.WINDOW_MIN_SIZE, UITheme.WINDOW_MIN_SIZE);
+        int styleVarCount = 17;
+
+        // StyleColors
+        ImGui.pushStyleColor(ImGuiCol.Text, t.foreground);
+        ImGui.pushStyleColor(ImGuiCol.TextDisabled, t.mutedText);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, ImColor.rgba(0, 0, 0, 0));
+        ImGui.pushStyleColor(ImGuiCol.Border, t.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.BorderShadow, ImColor.rgba(0, 0, 0, 0));
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, t.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, t.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.NavHighlight, t.accent);
+        ImGui.pushStyleColor(ImGuiCol.NavWindowingHighlight, t.accent);
+        ImGui.pushStyleColor(ImGuiCol.NavWindowingDimBg, ImColor.rgba(0, 0, 0, 0));
+        ImGui.pushStyleColor(ImGuiCol.ModalWindowDimBg, ImColor.rgba(0, 0, 0, 0));
+        ImGui.pushStyleColor(ImGuiCol.Button, t.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, t.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, t.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, t.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, t.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarBg, t.controlBackground);
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrab, t.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabHovered, t.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabActive, t.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrab, t.sliderGrab);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, t.sliderGrabActive);
+        ImGui.pushStyleColor(ImGuiCol.TitleBg, t.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, t.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.MenuBarBg, t.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, t.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Tab, t.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.TabHovered, t.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.TabActive, t.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocused, t.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, t.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, t.accent);
+        ImGui.pushStyleColor(ImGuiCol.Header, t.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, t.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, t.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Separator, t.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.ResizeGrip, t.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ResizeGripHovered, t.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ResizeGripActive, t.buttonActive);
+        int styleColorCount = 37;
+
+        return new int[]{styleVarCount, styleColorCount};
     }
 
     private boolean isImGuiContextReady() {

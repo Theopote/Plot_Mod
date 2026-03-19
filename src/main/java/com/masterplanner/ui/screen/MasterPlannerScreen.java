@@ -2,6 +2,7 @@ package com.masterplanner.ui.screen;
 
 import com.masterplanner.core.state.AppState;
 import com.masterplanner.ui.imgui.ImGuiRenderer;
+import com.masterplanner.ui.imgui.MasterPlannerStyleScope;
 import com.masterplanner.ui.toolbar.ControlPanel;
 import com.masterplanner.infrastructure.event.block.GhostBlockManager;
 import com.masterplanner.ui.toolbar.SystemPanel;
@@ -152,7 +153,7 @@ public class MasterPlannerScreen extends Screen {
         LOGGER.debug("初始化 MasterPlannerScreen 布局和样式...");
         
         this.imGuiRenderer.updateDisplaySize();
-        UITheme.applyGlobalStyle();
+        // 样式由 MasterPlannerStyleScope 在每帧渲染时临时 push/pop，不在此处永久修改，避免影响 Treefactory/ChronoBlocks 等模组
 
         // 初始化所有UI组件
         ControlPanel controlPanel = uiContainer.get(ControlPanel.class);
@@ -240,18 +241,17 @@ public class MasterPlannerScreen extends Screen {
             imGuiRenderer.beginFrame();
             // DisplaySize/FramebufferScale 由 ImGuiRenderer.updateDisplaySize() 统一维护（1.21.x 下更稳定）
             
-            // 渲染所有 UI 组件
-            try {
+            // 渲染所有 UI 组件（使用 MasterPlannerStyleScope 临时应用样式，渲染后 pop 恢复，避免影响 Treefactory/ChronoBlocks 等模组）
+            try (MasterPlannerStyleScope scope = MasterPlannerStyleScope.enter()) {
                 renderUI();
+                // 渲染回退的 ImGui 文字输入对话框（如果开启）
+                try {
+                    com.masterplanner.ui.dialog.TextInputDialog.getInstance().render();
+                } catch (Throwable ignored) {}
             } catch (Throwable uiErr) {
                 LOGGER.error("renderUI 失败", uiErr);
                 drawFatalOverlay(context, "renderUI 异常: " + safeMsg(uiErr));
             }
-
-            // 渲染回退的 ImGui 文字输入对话框（如果开启）
-            try {
-                com.masterplanner.ui.dialog.TextInputDialog.getInstance().render();
-            } catch (Throwable ignored) {}
             
             // 结束 ImGui 帧并在后续的 swapBuffers 前由 mixin 渲染 ImGui draw data，
             // 本方法负责在 ImGui frame 结束后使用 DrawContext 绘制覆盖图标。
