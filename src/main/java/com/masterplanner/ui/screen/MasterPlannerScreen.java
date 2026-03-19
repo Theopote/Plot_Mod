@@ -89,6 +89,9 @@ public class MasterPlannerScreen extends Screen {
     private int lastDockH;
     private boolean firstRender = true; // 跟踪首次渲染，用于设置默认激活的标签
 
+    /** 是否正在执行 render()，用于避免 removed() 在渲染中被调用时切换 ImGui 上下文导致崩溃 */
+    private volatile boolean renderInProgress = false;
+
     /**
      * 构造函数
      * 初始化所有UI组件和ImGui渲染器
@@ -200,6 +203,7 @@ public class MasterPlannerScreen extends Screen {
      */
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        renderInProgress = true;
         try {
             // 更新相机状态
             CameraManager.getInstance().onFrame();
@@ -266,6 +270,8 @@ public class MasterPlannerScreen extends Screen {
         } catch (Exception e) {
             LOGGER.error("Error rendering MasterPlanner UI", e);
             drawFatalOverlay(context, "MasterPlannerScreen.render 异常: " + safeMsg(e));
+        } finally {
+            renderInProgress = false;
         }
     }
 
@@ -692,7 +698,14 @@ public class MasterPlannerScreen extends Screen {
     public void removed() {
         LOGGER.debug("MasterPlannerScreen 已关闭。");
         
-        ImGuiRenderer.getInstance().restorePreviousContext();
+        // 关键修复：若 removed() 在 render() 中被触发（如点击关闭按钮），不可立即切换 ImGui 上下文，
+        // 否则后续 ImGui.end() 会在错误上下文上执行，导致 "g.CurrentWindowStack.Size > 0" 断言崩溃。
+        // 若正在渲染，则延迟到下一 tick 再恢复，确保本帧 ImGui Begin/End 配对完成。
+        if (renderInProgress) {
+            MinecraftClient.getInstance().execute(() -> ImGuiRenderer.getInstance().restorePreviousContext());
+        } else {
+            ImGuiRenderer.getInstance().restorePreviousContext();
+        }
 
         // 关闭 MasterPlanner 时清理幽灵方块，避免未投影预览残留
         GhostBlockManager.getInstance().clearAllGhostBlocks();
