@@ -610,8 +610,8 @@ public class MasterPlannerScreen extends Screen {
      * 【新增】全屏切换优化：检测全屏变化后，强制刷新所有UI组件布局
      */
     @Override
-    public void resize(int width, int height) {
-        super.resize(width, height);
+    public void resize(net.minecraft.client.MinecraftClient client, int width, int height) {
+        super.resize(client, width, height);
         
         LOGGER.info("窗口大小改变: {}x{} -> {}x{}", this.width, this.height, width, height);
         

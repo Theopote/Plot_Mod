@@ -32,10 +32,11 @@ public class FogRendererMixin {
             // 返回空缓冲区，相当于禁用雾
             // 尝试使用不同的大小，从大到小，找到可用的最大值
             // slice 方法的 length 参数必须小于缓冲区大小（不能等于）
-            long[] sizes = {40L, 32L, 16L};
-            for (long size : sizes) {
+            // 1.21.10: GpuBuffer.slice 使用 int 参数
+            int[] sizes = {40, 32, 16};
+            for (int size : sizes) {
                 try {
-                    cir.setReturnValue(emptyBuffer.slice(0L, size));
+                    cir.setReturnValue(emptyBuffer.slice(0, size));
                     return;
                 } catch (IllegalArgumentException e) {
                     // 继续尝试下一个更小的值

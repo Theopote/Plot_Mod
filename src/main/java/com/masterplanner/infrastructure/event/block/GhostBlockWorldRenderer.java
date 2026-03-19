@@ -4,7 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
@@ -97,7 +97,7 @@ public final class GhostBlockWorldRenderer {
 
         matrices.push();
 
-        VertexConsumer lines = consumers.getBuffer(RenderLayers.linesTranslucent());
+        VertexConsumer lines = consumers.getBuffer(RenderLayer.LINES);
 
         int rendered = 0;
         GhostBlockManager.GhostBlock firstRendered = null;
@@ -228,14 +228,13 @@ public final class GhostBlockWorldRenderer {
             int a
     ) {
         float width = 1.5f;
+        // 1.21.10: VertexConsumer 无 lineWidth，线宽由 RenderLayer.LINES 决定
         consumer.vertex(entry, (float)x1, (float)y1, (float)z1)
                 .color(r, g, b, a)
-                .normal(entry, 0.0f, 1.0f, 0.0f)
-                .lineWidth(width);
+                .normal(entry, 0.0f, 1.0f, 0.0f);
         consumer.vertex(entry, (float)x2, (float)y2, (float)z2)
                 .color(r, g, b, a)
-                .normal(entry, 0.0f, 1.0f, 0.0f)
-                .lineWidth(width);
+                .normal(entry, 0.0f, 1.0f, 0.0f);
     }
 
 }
