@@ -6,6 +6,8 @@ import com.masterplanner.utils.ImGuiUtils;
 import imgui.ImGui;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiStyleVar;
 import net.minecraft.util.Identifier;
 
 /**
@@ -41,17 +43,14 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
         try {
             syncFromToolState();
 
-            // 保存当前的圆角样式
-            float originalRounding = ImGui.getStyle().getFrameRounding();
+            // 使用 pushStyleVar 临时设置圆角，避免永久修改共享 ImGui 样式（影响其他模组）
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, BUTTON_CORNER_ROUNDING);
             
             // 线型选择
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
             ImGui.text("线型");
-            
-            // 设置按钮的圆角
-            ImGui.getStyle().setFrameRounding(BUTTON_CORNER_ROUNDING);
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();
@@ -139,9 +138,9 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
 
             // 只在多线模式下显示额外选项
             if (lineToolType.equals("multi")) {
-                // 恢复默认的圆角（无圆角）
-                ImGui.getStyle().setFrameRounding(0);
-                
+                ImGui.popStyleVar(); // 先弹出按钮圆角
+                ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0f); // 滑动条无圆角
+                try {
                 // 线条数量滑动条
                 ImGui.tableNextRow();
                 ImGui.tableNextColumn();
@@ -169,10 +168,13 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
                 }
                 ImGui.popItemWidth();
                 height += ImGui.getFrameHeightWithSpacing();
+                } finally {
+                    ImGui.popStyleVar();
+                    ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, BUTTON_CORNER_ROUNDING); // 恢复按钮圆角供后续使用
+                }
             }
             
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
+            ImGui.popStyleVar();
             
         } finally {
             ImGui.popID();

@@ -45,17 +45,14 @@ public class EllipseToolOptionRenderer extends AbstractToolOptionRenderer {
             // 获取当前主题
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
             
-            // 保存当前的圆角样式
-            float originalRounding = ImGui.getStyle().getFrameRounding();
+            // 使用 pushStyleVar 临时设置圆角，避免永久修改共享 ImGui 样式（影响其他模组）
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
             
             // 绘制模式选择
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
             ImGui.text("绘制模式");
-            
-            // 设置按钮的圆角和样式，使用工具栏控件圆角
-            ImGui.getStyle().setFrameRounding(currentTheme.toolbarControlRounding);
             
             // 设置按钮颜色样式
             ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonNormal);
@@ -112,11 +109,9 @@ public class EllipseToolOptionRenderer extends AbstractToolOptionRenderer {
             // 恢复样式
             ImGui.popStyleVar();
             ImGui.popStyleColor(4);
+            ImGui.popStyleVar();  // FrameRounding
 
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
-            
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
             
         } finally {
             ImGui.popID();

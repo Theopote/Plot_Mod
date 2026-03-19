@@ -151,10 +151,15 @@ public class ThemeManager {
     }
     
     /**
-     * 应用主题
-     * 将当前主题的颜色设置应用到ImGui界面
+     * 应用主题（已禁用全局修改，避免影响 ChronoBlocks/Treefactory 等模组）
+     * 主题仅通过 MasterPlannerStyleScope.pushThemeToStack() 在每帧渲染时临时 push，渲染后 pop。
+     * 不再在此处修改共享 ImGui 的 style/colors，否则会导致其他模组界面透明、图标变问号等。
      */
     private void applyTheme() {
+        // 不再调用 style.setColor/setXxx：会永久修改共享上下文，影响其他 ImGui 模组。
+        // 主题由 pushThemeToStack() 在 Masterplanner 渲染时临时应用。
+        return;
+        /* 原逻辑已移除
         if (!isImGuiContextReady()) {
             LOGGER.debug("ImGui context not ready, postpone applying theme: {}", currentThemeType);
             return;
@@ -253,6 +258,7 @@ public class ThemeManager {
         
         // 设置控件圆角
         style.setFrameRounding(currentTheme.panelControlRounding);
+    */
     }
 
     public void applyThemeIfReady() {

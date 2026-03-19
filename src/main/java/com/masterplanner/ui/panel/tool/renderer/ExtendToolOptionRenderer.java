@@ -66,15 +66,10 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
             LOGGER.debug("开始渲染延伸工具选项面板，当前工具: {}", currentTool.getClass().getSimpleName());
             LOGGER.debug("延伸工具使用自动模式");
             LOGGER.debug("可用区域: {}x{}", ImGui.getContentRegionAvail().x, ImGui.getContentRegionAvail().y);
-
-            float originalRounding = ImGui.getStyle().getFrameRounding();
             
             // === 工具状态信息 ===
             height += renderToolStatusInfo(currentTool);
             LOGGER.debug("工具状态信息渲染完成，高度: {}", height);
-            
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
             
         } catch (Exception e) {
             LOGGER.error("渲染延伸工具选项时发生错误: {}", e.getMessage(), e);

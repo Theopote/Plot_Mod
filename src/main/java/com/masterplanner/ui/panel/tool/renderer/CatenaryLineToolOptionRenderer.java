@@ -68,7 +68,6 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
 
         try {
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            float originalRounding = ImGui.getStyle().getFrameRounding();
 
             // === 绘制模式选择 ===
             ImGui.tableNextRow();
@@ -76,7 +75,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.alignTextToFramePadding();
             ImGui.text("绘制模式");
 
-            ImGui.getStyle().setFrameRounding(currentTheme.toolbarControlRounding);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
 
             ImGui.tableNextColumn();
@@ -121,7 +120,8 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
 
             // 悬垂与分段数为固定参数，不在工具选项面板中显示
 
-            ImGui.getStyle().setFrameRounding(originalRounding);
+            ImGui.popStyleVar();
+            ImGui.popStyleVar();
 
         } finally {
             ImGui.popID();

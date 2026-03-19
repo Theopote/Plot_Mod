@@ -10,6 +10,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.masterplanner.ui.imgui.gl.ImGuiGLStateGuard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
+import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL12;
@@ -68,16 +69,21 @@ public class ImGuiRenderer {
                 throw new RuntimeException("Not on main thread");
             }
 
-            // 使用共享上下文（与 Treefactory、ChronoBlocks 一致），样式通过 MasterPlannerStyleScope 每帧 push/pop 隔离
-            weCreatedContext = (ImGui.getCurrentContext() == null);
-            if (weCreatedContext) {
-                ImGui.createContext();
-            }
-            
+            // 关键：在 Minecraft 环境中，必须显式使 GL 上下文为当前，否则 imgui-java 原生的 GImGui 断言失败
+            // 参考：fabric imgui 示例在 init 前调用 window.makeContextCurrent()
+            GLFW.glfwMakeContextCurrent(windowHandle);
+
+            // 本模组始终创建自己的 ImGui 上下文，避免 getCurrentContext() 返回无效值导致 getIO() 断言失败
+            weCreatedContext = true;
+            var ctx = ImGui.createContext();
+            ImGui.setCurrentContext(ctx);
+            LOGGER.info("已创建并设置 ImGui 上下文");
+
             ImGuiIO io = ImGui.getIO();
             io.setIniFilename(null);
             io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);
             
+            // 本模组始终创建自己的上下文，在此初始化字体
             initializeFonts(io);
             // 不在此处设置样式；MasterPlannerStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
             

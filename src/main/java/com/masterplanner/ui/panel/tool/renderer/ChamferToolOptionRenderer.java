@@ -79,13 +79,9 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         
         try {
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            float originalRounding = ImGui.getStyle().getFrameRounding();
             
             // === 倒角距离设置 ===
             height += renderDistanceSettings(currentTheme);
-            
-            // 恢复原始样式
-            ImGui.getStyle().setFrameRounding(originalRounding);
             
         } catch (Exception e) {
             LOGGER.error("渲染倒角工具选项时发生错误", e);

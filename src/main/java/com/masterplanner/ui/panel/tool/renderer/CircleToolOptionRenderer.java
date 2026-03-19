@@ -41,17 +41,14 @@ public class CircleToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushID("circle_options");
 
         try {
-            // 保存当前的圆角样式
-            float originalRounding = ImGui.getStyle().getFrameRounding();
+            // 使用 pushStyleVar 临时设置圆角，避免永久修改共享 ImGui 样式（影响其他模组）
+            ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, BUTTON_CORNER_ROUNDING);
             
             // 绘制模式选择
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
             ImGui.text("绘制模式");
-            
-            // 设置按钮的圆角
-            ImGui.getStyle().setFrameRounding(BUTTON_CORNER_ROUNDING);
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();
@@ -73,8 +70,7 @@ public class CircleToolOptionRenderer extends AbstractToolOptionRenderer {
 
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
             
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
+            ImGui.popStyleVar();
             
         } finally {
             ImGui.popID();

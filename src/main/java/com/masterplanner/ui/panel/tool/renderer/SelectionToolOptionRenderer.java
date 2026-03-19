@@ -51,8 +51,6 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushID("selection_options");
         
         try {
-            // 保存当前的圆角样式
-            float originalRounding = ImGui.getStyle().getFrameRounding();
             
             // 获取当前选择模式
             try {
@@ -82,8 +80,8 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.alignTextToFramePadding();
             ImGui.text("选择模式");
             
-            // 设置按钮的圆角
-            ImGui.getStyle().setFrameRounding(BUTTON_CORNER_ROUNDING);
+            // 使用 pushStyleVar 临时设置圆角，避免永久修改共享 ImGui 样式（影响其他模组）
+            ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, BUTTON_CORNER_ROUNDING);
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();
@@ -139,8 +137,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.popStyleColor(3);
             }
 
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
+            ImGui.popStyleVar();
             
             // 计算实际渲染的高度
             float endY = ImGui.getCursorPosY();

@@ -67,16 +67,14 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
         
         try {
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            float originalRounding = ImGui.getStyle().getFrameRounding();
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
             
             // === 镜像模式选择 ===
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
             ImGui.text("对称模式");
-            
-            ImGui.getStyle().setFrameRounding(currentTheme.toolbarControlRounding);
-            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();
@@ -123,8 +121,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             
             // 移除与图形吸附开关关联的“吸附距离”设置
             
-            // 恢复原始的圆角设置
-            ImGui.getStyle().setFrameRounding(originalRounding);
+            ImGui.popStyleVar();
             
         } finally {
             ImGui.popID();

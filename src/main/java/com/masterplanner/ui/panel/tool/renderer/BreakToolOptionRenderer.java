@@ -83,13 +83,10 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
             LOGGER.debug("可用区域: {}x{}", ImGui.getContentRegionAvail().x, ImGui.getContentRegionAvail().y);
 
             UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-            float originalRounding = ImGui.getStyle().getFrameRounding();
             
             // === 打断模式选择 ===
             height += renderBreakModeSelection(currentTheme);
             LOGGER.debug("打断模式选择渲染完成，高度: {}", height);
-            
-            ImGui.getStyle().setFrameRounding(originalRounding);
             
         } catch (Exception e) {
             LOGGER.error("渲染打断工具选项面板时发生错误: {}", e.getMessage(), e);
@@ -112,7 +109,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.alignTextToFramePadding();
         ImGui.text("打断模式");
 
-        ImGui.getStyle().setFrameRounding(currentTheme.toolbarControlRounding);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
 
         ImGui.tableNextColumn();
@@ -165,7 +162,8 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         if (pushedColorCountTwo > 0) { ImGui.popStyleColor(pushedColorCountTwo); }
 
-        // 恢复样式可见的边框设置
+        // 恢复样式（FrameBorderSize, FrameRounding）
+        ImGui.popStyleVar();
         ImGui.popStyleVar();
         height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
         
