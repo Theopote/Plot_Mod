@@ -91,17 +91,18 @@ public class ToolPanel implements UIComponent {
                 UILayout.Toolbar.LEFT_BUTTON_SPACING,
                 UILayout.Toolbar.LEFT_BUTTON_SPACING);
 
-            if (ImGui.begin("##ToolPanel",
+            boolean toolPanelWin = ImGui.begin("##ToolPanel",
                 ImGuiWindowFlags.NoTitleBar |
                 ImGuiWindowFlags.NoResize |
                 ImGuiWindowFlags.NoMove |
                 ImGuiWindowFlags.NoCollapse |
-                ImGuiWindowFlags.NoBringToFrontOnFocus)) {
-                try {
+                ImGuiWindowFlags.NoBringToFrontOnFocus);
+            try {
+                if (toolPanelWin) {
                     renderInCurrentWindow();
-                } finally {
-                    ImGui.end();
                 }
+            } finally {
+                ImGui.end();
             }
         } catch (Exception e) {
             LOGGER.error("Error rendering ToolPanel", e);

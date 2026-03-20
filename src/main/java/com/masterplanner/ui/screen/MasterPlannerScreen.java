@@ -415,12 +415,16 @@ public class MasterPlannerScreen extends Screen {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
-        if (ImGui.begin(DOCKSPACE_HOST_WINDOW, hostFlags)) {
-            dockspaceId = ImGui.getID(DOCKSPACE_ID_STR);
-            int dockFlags = ImGuiDockNodeFlags.PassthruCentralNode;
-            ImGui.dockSpace(dockspaceId, 0.0f, 0.0f, dockFlags);
-            // 默认布局：自动分割 Top/Left/Right/Bottom + Central(Canvas)
-            ensureDockLayout(displayWidth, displayHeight);
+        // Dear ImGui：Begin 即使返回 false（折叠/裁剪）也必须 End，否则帧末 ImGui.render 断言 CurrentWindowStack.Size==1
+        boolean dockHostOpen = ImGui.begin(DOCKSPACE_HOST_WINDOW, hostFlags);
+        try {
+            if (dockHostOpen) {
+                dockspaceId = ImGui.getID(DOCKSPACE_ID_STR);
+                int dockFlags = ImGuiDockNodeFlags.PassthruCentralNode;
+                ImGui.dockSpace(dockspaceId, 0.0f, 0.0f, dockFlags);
+                ensureDockLayout(displayWidth, displayHeight);
+            }
+        } finally {
             ImGui.end();
         }
         ImGui.popStyleVar(3);
@@ -529,8 +533,12 @@ public class MasterPlannerScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
-        if (ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse)) {
-            controlPanel.renderInCurrentWindow();
+        boolean controlVisible = ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
+        try {
+            if (controlVisible) {
+                controlPanel.renderInCurrentWindow();
+            }
+        } finally {
             ImGui.end();
         }
         ImGui.popStyleColor(2);
@@ -553,9 +561,12 @@ public class MasterPlannerScreen extends Screen {
         float x = UILayout.getRightPanelX(displayWidth);
         ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(UILayout.RIGHT_PANEL_DEFAULT_WIDTH, systemPanelHeight, ImGuiCond.FirstUseEver);
-        // 关键：仅当 ImGui.begin 返回 true 时才调用 ImGui.end()，否则会触发 "g.CurrentWindowStack.Size > 0" 断言崩溃
-        if (ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS)) {
-            systemPanel.render();
+        boolean systemVisible = ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS);
+        try {
+            if (systemVisible) {
+                systemPanel.render();
+            }
+        } finally {
             ImGui.end();
         }
         ImGui.popStyleColor(2);
@@ -573,8 +584,12 @@ public class MasterPlannerScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.getContentHeight(displayHeight), ImGuiCond.FirstUseEver);
-        if (ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse)) {
-            toolPanel.renderInCurrentWindow();
+        boolean toolDockVisible = ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
+        try {
+            if (toolDockVisible) {
+                toolPanel.renderInCurrentWindow();
+            }
+        } finally {
             ImGui.end();
         }
         ImGui.popStyleColor(2);
@@ -607,8 +622,12 @@ public class MasterPlannerScreen extends Screen {
                 if (firstRender) {
                     ImGui.setNextWindowFocus();
                 }
-                if (ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS)) {
-                    propertyPanel.render();
+                boolean propertyVisible = ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS);
+                try {
+                    if (propertyVisible) {
+                        propertyPanel.render();
+                    }
+                } finally {
                     ImGui.end();
                 }
             }
