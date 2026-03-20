@@ -8,6 +8,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,8 +128,15 @@ public class SystemPanel implements UIComponent {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.CLOSE), "关闭")) {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client.currentScreen instanceof net.minecraft.client.gui.screen.Screen) {
-                client.currentScreen.close();
+            Screen screen = client.currentScreen;
+            if (screen != null) {
+                // 不可在本帧 ImGui.begin/end 内同步 close()：会触发 removed() 与上下文切换，
+                // 当前窗口已从栈上弹出，随后 renderDockedSystemPanel 的 ImGui.end() 会触发断言。
+                client.execute(() -> {
+                    if (client.currentScreen == screen) {
+                        screen.close();
+                    }
+                });
             }
         }
         

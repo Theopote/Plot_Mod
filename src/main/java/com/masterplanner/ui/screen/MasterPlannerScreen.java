@@ -391,16 +391,14 @@ public class MasterPlannerScreen extends Screen {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
-        ImGui.begin(DOCKSPACE_HOST_WINDOW, hostFlags);
-
-        dockspaceId = ImGui.getID(DOCKSPACE_ID_STR);
-        int dockFlags = ImGuiDockNodeFlags.PassthruCentralNode;
-        ImGui.dockSpace(dockspaceId, 0.0f, 0.0f, dockFlags);
-
-        // 默认布局：自动分割 Top/Left/Right/Bottom + Central(Canvas)
-        ensureDockLayout(displayWidth, displayHeight);
-
-        ImGui.end();
+        if (ImGui.begin(DOCKSPACE_HOST_WINDOW, hostFlags)) {
+            dockspaceId = ImGui.getID(DOCKSPACE_ID_STR);
+            int dockFlags = ImGuiDockNodeFlags.PassthruCentralNode;
+            ImGui.dockSpace(dockspaceId, 0.0f, 0.0f, dockFlags);
+            // 默认布局：自动分割 Top/Left/Right/Bottom + Central(Canvas)
+            ensureDockLayout(displayWidth, displayHeight);
+            ImGui.end();
+        }
         ImGui.popStyleVar(3);
 
         // 2) 渲染可停靠面板窗口（不再 setNextWindowPos/Size）
@@ -507,9 +505,10 @@ public class MasterPlannerScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
-        ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
-        controlPanel.renderInCurrentWindow();
-        ImGui.end();
+        if (ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse)) {
+            controlPanel.renderInCurrentWindow();
+            ImGui.end();
+        }
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);
     }
@@ -530,9 +529,11 @@ public class MasterPlannerScreen extends Screen {
         float x = UILayout.getRightPanelX(displayWidth);
         ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(UILayout.RIGHT_PANEL_DEFAULT_WIDTH, systemPanelHeight, ImGuiCond.FirstUseEver);
-        ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS);
-        systemPanel.render();
-        ImGui.end();
+        // 关键：仅当 ImGui.begin 返回 true 时才调用 ImGui.end()，否则会触发 "g.CurrentWindowStack.Size > 0" 断言崩溃
+        if (ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS)) {
+            systemPanel.render();
+            ImGui.end();
+        }
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);
     }
@@ -548,9 +549,10 @@ public class MasterPlannerScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.getContentHeight(displayHeight), ImGuiCond.FirstUseEver);
-        ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
-        toolPanel.renderInCurrentWindow();
-        ImGui.end();
+        if (ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse)) {
+            toolPanel.renderInCurrentWindow();
+            ImGui.end();
+        }
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);
     }
@@ -581,9 +583,10 @@ public class MasterPlannerScreen extends Screen {
                 if (firstRender) {
                     ImGui.setNextWindowFocus();
                 }
-                ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS);
-                propertyPanel.render();
-                ImGui.end();
+                if (ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS)) {
+                    propertyPanel.render();
+                    ImGui.end();
+                }
             }
 
             // 暂时隐藏图库面板和扩展面板的UI渲染（保留代码供后续开发）

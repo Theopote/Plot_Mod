@@ -460,7 +460,7 @@ public class ImGuiRenderer {
                 float displayH = (float) winH;
                 ImGuiIO io = ImGui.getIO();
                 io.setDisplaySize(displayW, displayH);
-                io.setDisplayFramebufferScale(winW > 0 ? (float) fw / winW : 1f, winH > 0 ? (float) fh / winH : 1f);
+                io.setDisplayFramebufferScale((float) fw / winW, (float) fh / winH);
             }
         } catch (Exception e) {
             LOGGER.error("Error updating display size", e);
