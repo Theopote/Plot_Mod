@@ -1,10 +1,9 @@
 package com.masterplanner.ui.imgui;
 
 import com.masterplanner.ui.theme.ThemeManager;
-import imgui.ImColor;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * MasterPlanner ImGui 样式隔离作用域（仿 Treefactory/ChronoBlocks 实现）。
@@ -19,6 +18,7 @@ import imgui.flag.ImGuiStyleVar;
  * 在 ImGui.render() 之前关闭（使用 try-with-resources）。
  */
 public final class MasterPlannerStyleScope implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MasterPlannerStyleScope.class);
 
     private final int styleVarCount;
     private final int styleColorCount;
@@ -38,7 +38,23 @@ public final class MasterPlannerStyleScope implements AutoCloseable {
 
     @Override
     public void close() {
-        ImGui.popStyleColor(styleColorCount);
-        ImGui.popStyleVar(styleVarCount);
+        // 防御性关闭：某些工具渲染器在异常路径可能造成样式栈失衡。
+        // 逐个 pop 并在失败时停止，避免一次性 pop 导致断言直接崩溃。
+        for (int i = 0; i < styleColorCount; i++) {
+            try {
+                ImGui.popStyleColor();
+            } catch (Throwable t) {
+                LOGGER.error("ImGui style color stack mismatch while closing scope at index {}", i, t);
+                break;
+            }
+        }
+        for (int i = 0; i < styleVarCount; i++) {
+            try {
+                ImGui.popStyleVar();
+            } catch (Throwable t) {
+                LOGGER.error("ImGui style var stack mismatch while closing scope at index {}", i, t);
+                break;
+            }
+        }
     }
 }

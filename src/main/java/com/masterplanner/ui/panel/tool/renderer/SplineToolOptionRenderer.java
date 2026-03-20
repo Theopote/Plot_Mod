@@ -213,7 +213,6 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                 segmentsArray, 10, 200, "%d", currentTheme, 
                 key -> updateToolConfig(key, String.valueOf(segmentsArray[0])));
             height += ImGui.getFrameHeightWithSpacing();
-            ImGui.popStyleVar();
         } finally {
             ImGui.popID();
         }
