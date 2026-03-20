@@ -7,8 +7,8 @@ import com.masterplanner.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
+import com.masterplanner.ui.screen.MasterPlannerScreen;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,15 +128,10 @@ public class SystemPanel implements UIComponent {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.CLOSE), "关闭")) {
             MinecraftClient client = MinecraftClient.getInstance();
-            Screen screen = client.currentScreen;
-            if (screen != null) {
-                // 不可在本帧 ImGui.begin/end 内同步 close()：会触发 removed() 与上下文切换，
-                // 当前窗口已从栈上弹出，随后 renderDockedSystemPanel 的 ImGui.end() 会触发断言。
-                client.execute(() -> {
-                    if (client.currentScreen == screen) {
-                        screen.close();
-                    }
-                });
+            if (client.currentScreen instanceof MasterPlannerScreen mps) {
+                // 必须等本帧 ImGui.endFrame() 完成后再关屏；仅用 client.execute 时任务仍可能在
+                // 同一帧 render 中途运行，生产环境易触发 ImGui.end 栈断言。
+                mps.scheduleCloseAfterImGuiFrame();
             }
         }
         

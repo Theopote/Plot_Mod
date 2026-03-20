@@ -93,6 +93,18 @@ public class MasterPlannerScreen extends Screen {
     private volatile boolean renderInProgress = false;
 
     /**
+     * 用户点击关闭等：不可在 ImGui begin/end 嵌套内立刻 {@link #close()}，也不可仅依赖 {@link MinecraftClient#execute}，
+     * 因其可能在同一帧 {@code Screen.render} 中途执行，仍早于各 dock 窗口的 {@code ImGui.end()}。
+     * 须在 {@link ImGuiRenderer#endFrame()} 完成后再 {@code execute(close)}。
+     */
+    private volatile boolean closeAfterImGuiFrame = false;
+
+    /** 由 SystemPanel 等在 ImGui 交互回调中调用，真正的 {@link #close()} 延迟到本帧 ImGui 结束后。 */
+    public void scheduleCloseAfterImGuiFrame() {
+        this.closeAfterImGuiFrame = true;
+    }
+
+    /**
      * 构造函数
      * 初始化所有UI组件和ImGui渲染器
      */
@@ -204,6 +216,7 @@ public class MasterPlannerScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderInProgress = true;
+        boolean imguiFrameEnded = false;
         try {
             // 更新相机状态
             CameraManager.getInstance().onFrame();
@@ -260,6 +273,7 @@ public class MasterPlannerScreen extends Screen {
             // 结束 ImGui 帧并在后续的 swapBuffers 前由 mixin 渲染 ImGui draw data，
             // 本方法负责在 ImGui frame 结束后使用 DrawContext 绘制覆盖图标。
             imGuiRenderer.endFrame();
+            imguiFrameEnded = true;
             try {
                 // 将 DrawContext 注入到 GuiOverlayRenderer，让 mixin 在 ImGui GL 渲染后调用 flushPending()
                 com.masterplanner.ui.imgui.GuiOverlayRenderer.setPendingDrawContext(context);
@@ -272,6 +286,16 @@ public class MasterPlannerScreen extends Screen {
             drawFatalOverlay(context, "MasterPlannerScreen.render 异常: " + safeMsg(e));
         } finally {
             renderInProgress = false;
+            if (closeAfterImGuiFrame && imguiFrameEnded) {
+                closeAfterImGuiFrame = false;
+                MinecraftClient c = MinecraftClient.getInstance();
+                MasterPlannerScreen self = this;
+                c.execute(() -> {
+                    if (c.currentScreen == self) {
+                        self.close();
+                    }
+                });
+            }
         }
     }
 
