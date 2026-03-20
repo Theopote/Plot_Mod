@@ -214,13 +214,12 @@ public class StarTool extends DrawingTool {
      * 3) 内顶点（确定内半径）
      */
     public Shape createShapeFromPoints(List<Vec2d> points) {
-        if (points == null || points.size() < 3) {
+        if (points == null || points.size() < 2) {
             return null;
         }
 
         Vec2d center = points.get(0);
         Vec2d outerPoint = points.get(1);
-        Vec2d innerPoint = points.get(2);
 
         double outerRadius = center.distance(outerPoint);
         if (outerRadius < MIN_RADIUS) {
@@ -228,10 +227,19 @@ public class StarTool extends DrawingTool {
             return null;
         }
 
-        double innerRadius = Math.max(0.0, Math.min(center.distance(innerPoint), outerRadius));
         double rotationRad = Math.atan2(outerPoint.y - center.y, outerPoint.x - center.x) - START_ANGLE_OFFSET_RAD;
 
-        Polygon star = new Polygon(generateStarVertices(center, outerRadius, innerRadius, starPoints, rotationRad));
+        Polygon star;
+        if (points.size() >= 3) {
+            // 三点：最终星形（第三点控制内半径）
+            Vec2d innerPoint = points.get(2);
+            double innerRadius = Math.max(0.0, Math.min(center.distance(innerPoint), outerRadius));
+            star = new Polygon(generateStarVertices(center, outerRadius, innerRadius, starPoints, rotationRad));
+        } else {
+            // 两点：预览阶段，先给出正多边形轮廓
+            star = new Polygon(generateRegularPolygonVertices(center, outerRadius, starPoints, rotationRad));
+        }
+
         getStyleHandler().applyFinalStyle(star);
         return star;
     }
