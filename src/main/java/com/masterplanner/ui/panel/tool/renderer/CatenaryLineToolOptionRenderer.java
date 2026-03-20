@@ -115,13 +115,10 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.setTooltip("样条插值模式：非对称曲线，第三点为控制点，可拖拽至任意位置");
             }
             ImGui.popStyleColor(4);
-            ImGui.popStyleVar();
+            ImGui.popStyleVar(2);
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
 
             // 悬垂与分段数为固定参数，不在工具选项面板中显示
-
-            ImGui.popStyleVar();
-            ImGui.popStyleVar();
 
         } finally {
             ImGui.popID();

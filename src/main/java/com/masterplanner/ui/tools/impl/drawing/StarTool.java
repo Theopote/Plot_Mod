@@ -208,6 +208,35 @@ public class StarTool extends DrawingTool {
     }
 
     /**
+     * 三点创建最终星形：
+     * 1) 中心点
+     * 2) 外顶点（确定外半径与旋转）
+     * 3) 内顶点（确定内半径）
+     */
+    public Shape createShapeFromPoints(List<Vec2d> points) {
+        if (points == null || points.size() < 3) {
+            return null;
+        }
+
+        Vec2d center = points.get(0);
+        Vec2d outerPoint = points.get(1);
+        Vec2d innerPoint = points.get(2);
+
+        double outerRadius = center.distance(outerPoint);
+        if (outerRadius < MIN_RADIUS) {
+            LOGGER.warn("StarTool: 外半径过小，无法创建星形，outerRadius={}", outerRadius);
+            return null;
+        }
+
+        double innerRadius = Math.max(0.0, Math.min(center.distance(innerPoint), outerRadius));
+        double rotationRad = Math.atan2(outerPoint.y - center.y, outerPoint.x - center.x) - START_ANGLE_OFFSET_RAD;
+
+        Polygon star = new Polygon(generateStarVertices(center, outerRadius, innerRadius, starPoints, rotationRad));
+        getStyleHandler().applyFinalStyle(star);
+        return star;
+    }
+
+    /**
      * 生成星形顶点
      */
     private List<Vec2d> generateStarVertices(Vec2d center, double outerRadius, double innerRadius,
