@@ -1,0 +1,71 @@
+package com.plot.infrastructure.event.block;
+
+import com.plot.infrastructure.event.base.Event;
+import com.plot.api.event.EventType;
+import com.plot.core.model.Shape;
+import com.plot.ui.dialog.LineToBlockSettingsDialog.ConversionMode;
+
+import java.util.List;
+
+/**
+ * 线转方块事件
+ * 当用户点击"线转方块"按钮时触发，将选中的图形转换为方块
+ */
+public class LineToBlockEvent extends Event {
+    private static final String SOURCE = "LineToBlockManager";
+    private final List<Shape> shapes;
+    private final ConversionMode conversionMode;
+    private final float simplificationRatio;
+    private final double canvasHeight;  // 绘制面板高度
+    private final boolean isPreview;    // 是否为预览模式
+    private final boolean fillClosedShapes; // 封闭图形是否填充
+
+    public LineToBlockEvent(List<Shape> shapes, ConversionMode conversionMode, float simplificationRatio, double canvasHeight, boolean isPreview, boolean fillClosedShapes) {
+        super(EventType.BLOCK_CONVERSION);
+        this.shapes = shapes;
+        this.conversionMode = conversionMode;
+        this.simplificationRatio = simplificationRatio;
+        this.canvasHeight = canvasHeight;
+        this.isPreview = isPreview;
+        this.fillClosedShapes = fillClosedShapes;
+    }
+    
+    @Override
+    public String getSource() {
+        return SOURCE;
+    }
+
+    /**
+     * 获取要转换的图形列表
+     * @return 图形列表，如果为null则表示使用当前选中的图形
+     */
+    public List<Shape> getShapes() {
+        return shapes;
+    }
+
+    public ConversionMode getConversionMode() {
+        return conversionMode;
+    }
+
+    public float getSimplificationRatio() {
+        return simplificationRatio;
+    }
+
+    public double getCanvasHeight() {
+        return canvasHeight;
+    }
+
+    public boolean isPreview() {
+        return isPreview;
+    }
+
+    public boolean isFillClosedShapes() {
+        return fillClosedShapes;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("LineToBlockEvent[shapes=%d, mode=%s, ratio=%.2f, height=%.2f, preview=%b, fillClosed=%b]", 
+            shapes != null ? shapes.size() : 0, conversionMode, simplificationRatio, canvasHeight, isPreview, fillClosedShapes);
+    }
+} 

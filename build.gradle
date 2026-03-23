@@ -19,7 +19,7 @@ repositories {
 
 loom {
 	mods {
-		"masterplanner" {
+		"plot" {
 			sourceSet sourceSets.main
 		}
 	}

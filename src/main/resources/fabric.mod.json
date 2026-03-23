@@ -1,32 +1,32 @@
 {
 	"schemaVersion": 1,
-	"id": "masterplanner",
+	"id": "plot",
 	"version": "${version}",
-	"name": "Master Planner",
+	"name": "Plot",
 	"description": "A powerful planning and building tool for Minecraft",
 	"authors": [
 		"Theopote"
 	],
 	"contact": {
-		"homepage": "https://github.com/yourusername/masterplanner",
-		"sources": "https://github.com/yourusername/masterplanner"
+		"homepage": "https://github.com/yourusername/plot",
+		"sources": "https://github.com/yourusername/plot"
 	},
 	"license": "MIT",
-	"icon": "assets/masterplanner/icon.png",
+	"icon": "assets/plot/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.masterplanner.MasterPlannerMod"
+			"com.plot.PlotMod"
 		],
 		"client": [
-			"com.masterplanner.MasterPlannerMod"
+			"com.plot.PlotMod"
 		],
 		"fabric-datagen": [
-			"com.masterplanner.MasterPlannerDataGenerator"
+			"com.plot.PlotDataGenerator"
 		]
 	},
 	"mixins": [
-		"masterplanner.mixins.json"
+		"plot.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.18.4",
