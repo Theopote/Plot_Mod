@@ -103,9 +103,6 @@ public class KeymapManager {
         // 全局编辑
         actions.add(new ActionDef("edit.undo", "撤销"));
         actions.add(new ActionDef("edit.redo", "重做"));
-        actions.add(new ActionDef("file.save", "保存"));
-        actions.add(new ActionDef("file.open", "打开"));
-        actions.add(new ActionDef("file.export", "导出"));
 
         // 设置入口
         actions.add(new ActionDef("open.settings", "打开设置与帮助"));
