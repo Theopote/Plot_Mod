@@ -44,6 +44,8 @@ public class ImGuiRenderer {
     private ImGuiContext savedPreviousContext;
     /** 上一帧时间戳（纳秒），用于计算 DeltaTime */
     private long lastFrameTimeNanos;
+    /** 滚轮增量缓存：由 Screen 事件线程写入，在 beginFrame 时统一注入 ImGui IO */
+    private float pendingMouseWheel;
 
     private ImGuiRenderer() {}
 
@@ -277,8 +279,22 @@ public class ImGuiRenderer {
                 boolean down = GLFW.glfwGetMouseButton(windowHandle, i) == GLFW.GLFW_PRESS;
                 io.setMouseDown(i, down);
             }
+
+            // 手动桥接滚轮输入：本项目未使用 ImGuiImplGlfw，需要自行把滚轮事件喂给 ImGui
+            io.setMouseWheel(pendingMouseWheel);
+            pendingMouseWheel = 0.0f;
         } catch (Exception e) {
             LOGGER.debug("updateFrameInputs failed", e);
+        }
+    }
+
+    /**
+     * 记录鼠标滚轮增量（每帧在 updateFrameInputs 中消费）。
+     * @param verticalDelta 纵向滚轮增量（向上通常为正）
+     */
+    public void onMouseScrolled(double verticalDelta) {
+        synchronized (LOCK) {
+            pendingMouseWheel += (float) verticalDelta;
         }
     }
 

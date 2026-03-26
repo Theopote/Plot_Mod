@@ -465,9 +465,9 @@ public class PlotScreen extends Screen {
         ImInt dockRightTop = new ImInt();   // 右侧顶部（系统面板）
         ImInt dockRightBottom = new ImInt(); // 右侧底部（属性面板）
 
-        // 工具面板宽度（使用固定宽度，与控制面板一致）
-        float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
-        float leftRatio = Math.min(0.45f, toolPanelWidth / Math.max(1.0f, displayWidth));
+        // 左侧 dock 宽度：与控制面板默认宽度保持一致（工具面板与控制面板共享同一左侧列宽）
+        float leftDockWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
+        float leftRatio = Math.min(0.45f, leftDockWidth / Math.max(1.0f, displayWidth));
         float rightRatio = Math.min(0.45f, UILayout.RIGHT_PANEL_DEFAULT_WIDTH / Math.max(1.0f, displayWidth));
         
         // 控制面板高度比例：使用实际高度计算，确保能完全显示内容
@@ -496,7 +496,7 @@ public class PlotScreen extends Screen {
         // 设置控制面板dock节点的最小大小，确保内容不被裁剪
         // 使用工具面板宽度作为最小宽度，控制面板高度作为最小高度
         float minControlPanelHeight = UILayout.Toolbar.CONTROL_PANEL_HEIGHT;
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockLeftTop.get(), toolPanelWidth, minControlPanelHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockLeftTop.get(), leftDockWidth, minControlPanelHeight);
         
         // 右侧分割为上下：上部分系统面板，下部分属性面板
         imgui.internal.ImGui.dockBuilderSplitNode(dockRight.get(), ImGuiDir.Up, systemPanelHeightRatio, dockRightTop, dockRightBottom);
@@ -533,7 +533,7 @@ public class PlotScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
-        boolean controlVisible = ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
+        boolean controlVisible = ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS);
         try {
             if (controlVisible) {
                 controlPanel.renderInCurrentWindow();
@@ -584,7 +584,7 @@ public class PlotScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.getContentHeight(displayHeight), ImGuiCond.FirstUseEver);
-        boolean toolDockVisible = ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS | ImGuiWindowFlags.NoScrollWithMouse);
+        boolean toolDockVisible = ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS);
         try {
             if (toolDockVisible) {
                 toolPanel.renderInCurrentWindow();
@@ -819,6 +819,9 @@ public class PlotScreen extends Screen {
         } else {
             actualDelta = Math.abs(modifiers) > Math.abs(delta) ? modifiers : delta;
         }
+
+        // 统一把滚轮事件桥接给 ImGui（项目未使用 ImGuiImplGlfw 回调，需手动注入）
+        imGuiRenderer.onMouseScrolled(actualDelta);
 
         // 基于 ImGui 实时捕获状态决定滚轮归属，避免 Dock 尺寸变化时坐标硬编码误判
         boolean imguiCapturingMouse = ImGui.getIO().getWantCaptureMouse();
