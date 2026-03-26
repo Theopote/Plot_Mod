@@ -101,7 +101,6 @@ public class KeymapManager {
         actions.add(new ActionDef("tool.arc", "圆弧"));
 
         // 全局编辑
-        actions.add(new ActionDef("file.new", "新建"));
         actions.add(new ActionDef("edit.undo", "撤销"));
         actions.add(new ActionDef("edit.redo", "重做"));
         actions.add(new ActionDef("file.save", "保存"));
@@ -124,7 +123,6 @@ public class KeymapManager {
         actionToShortcut.put("tool.semicircle", "s");
         actionToShortcut.put("tool.arc", "a");
 
-        actionToShortcut.put("file.new", "ctrl+n");
         actionToShortcut.put("edit.undo", "ctrl+z");
         actionToShortcut.put("edit.redo", "ctrl+y");
         actionToShortcut.put("file.save", "ctrl+s");
@@ -192,7 +190,6 @@ class UIShortcutActions {
             case "tool.ellipse" -> ToolActions.activate("ellipse");
             case "tool.semicircle" -> ToolActions.activate("semicircle");
             case "tool.arc" -> ToolActions.activate("arc");
-            case "file.new" -> UiActions.openNewDialog();
             case "file.save" -> UiActions.openSaveDialog();
             case "file.open" -> UiActions.openImportDialog();
             case "file.export" -> UiActions.openExportDialog();
@@ -205,15 +202,6 @@ class UIShortcutActions {
     }
 
     static class UiActions {
-        static boolean openNewDialog() {
-            try {
-                com.plot.ui.dialog.NewFileDialog d = new com.plot.ui.dialog.NewFileDialog(
-                        com.plot.core.state.AppState.getInstance(),
-                        com.plot.infrastructure.event.EventBus.getInstance(), null);
-                d.show();
-                return true;
-            } catch (Exception e) { return false; }
-        }
         static boolean openSaveDialog() {
             try {
                 com.plot.ui.dialog.SaveFileDialog d = new com.plot.ui.dialog.SaveFileDialog(
