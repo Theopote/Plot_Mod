@@ -15,9 +15,6 @@ public class ControlPanelIcons {
     public static final String LOGO = "logo.png";
     
     // 文件操作工具组
-    public static final String NEW_FILE = "new_file.png";
-    public static final String SAVE = "save.png";
-    public static final String IMPORT = "import.png";
     public static final String UNDO = "undo.png";
     public static final String REDO = "redo.png";
 
@@ -58,9 +55,6 @@ public class ControlPanelIcons {
             loadTexture(LOGO);
             
             // 文件操作工具组
-            loadTexture(NEW_FILE);
-            loadTexture(SAVE);
-            loadTexture(IMPORT);
             loadTexture(UNDO);
             loadTexture(REDO);
             
@@ -94,7 +88,7 @@ public class ControlPanelIcons {
         try {
             // 获取所有图标文件的路径
             String[] iconNames = {
-                LOGO, NEW_FILE, SAVE, IMPORT, UNDO, REDO,
+                LOGO,  UNDO, REDO,
                 CAMERA, CAMERA_ORTHO, LOCK_CLOSED, LOCK_OPEN,
                 MAGNET, GRID, CLEAR, BLOCK_CONFIG, LINE_TO_BLOCK, PROJECTION,
                 CLOSE
