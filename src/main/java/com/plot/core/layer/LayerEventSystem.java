@@ -55,8 +55,7 @@ public class LayerEventSystem {
         
         public String getLayerId() { return layerId; }
         public ILayer getLayer() { return layer; }
-        public long getTimestamp() { return timestamp; }
-        
+
         @Override
         public String getSource() {
             return "LayerEventSystem";
