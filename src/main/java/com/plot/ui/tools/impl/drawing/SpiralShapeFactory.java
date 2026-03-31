@@ -624,7 +624,7 @@ public class SpiralShapeFactory {
                 // 线性螺旋无需额外参数约束
             }
             case POLYGON -> spiral.setSides(Math.max(3, configManager.getSides()));
-            case LOGARITHMIC -> spiral.setGrowthFactor(Math.max(0.1, Math.min(10.0, configManager.getGrowthFactor())));
+            case LOGARITHMIC -> spiral.setGrowthFactor(Math.max(0.1, Math.min(0.99, configManager.getGrowthFactor())));
             case SEMICIRCLE -> spiral.setExpansionRate(Math.max(0, configManager.getExpansionRate()));
             case FIBONACCI -> {
                 spiral.setSpiralCoefficient(Math.max(0.1, Math.min(5.0, configManager.getSpiralCoefficient())));

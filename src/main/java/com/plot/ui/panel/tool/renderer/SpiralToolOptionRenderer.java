@@ -445,7 +445,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderLogarithmicSpiralOptions(SpiralTool spiralTool, float[] height) {
         // 对数螺旋的起始半径由用户点击的第一点和第二点之间的距离决定，不需要滑动条
-        renderFloatSlider("生长因子", CONFIG_KEY_GROWTH_FACTOR, tempGrowthFactorArray, 0.1f, 10.0f, "%.2f", height);
+        renderFloatSlider("生长因子", CONFIG_KEY_GROWTH_FACTOR, tempGrowthFactorArray, 0.1f, 0.99f, "%.2f", height);
         renderCheckbox(tempClockwise, height);
     }
     

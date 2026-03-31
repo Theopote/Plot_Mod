@@ -390,7 +390,8 @@ public class SpiralTool extends DrawingTool {
                     // 对数螺旋：调整growthFactor
                     float currentGrowthFactor = configManager.getGrowthFactor();
                     float adjustment = (float) (delta * 0.1);
-                    float newGrowthFactor = Math.max(0.1f, Math.min(10.0f, currentGrowthFactor + adjustment));
+                    // 对数螺旋 growthFactor 限制在 (0,1) 区间，避免退化为短线段
+                    float newGrowthFactor = Math.max(0.1f, Math.min(0.99f, currentGrowthFactor + adjustment));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 调整生长因子 {} -> {}, 调整量={}", 
                         currentGrowthFactor, newGrowthFactor, adjustment);

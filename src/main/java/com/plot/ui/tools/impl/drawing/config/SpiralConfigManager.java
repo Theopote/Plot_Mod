@@ -233,7 +233,9 @@ public class SpiralConfigManager {
     private boolean handleGrowthFactorConfig(String value, ToolConfigEvent event) {
         try {
             float newGrowthFactor = Float.parseFloat(value);
-            newGrowthFactor = Math.max(0.01f, Math.min(10.0f, newGrowthFactor));
+            // 对数螺旋增长模型要求 growthFactor 在 (0, 1) 区间内；超过 1 会退化为半径衰减
+            // 并导致圈数求解被压到极小值，表现为“只画出很短一段线”。
+            newGrowthFactor = Math.max(0.1f, Math.min(0.99f, newGrowthFactor));
             if (Math.abs(growthFactor - newGrowthFactor) >= 0.001f) {
                 growthFactor = newGrowthFactor;
                 LOGGER.debug("更新生长因子: {}", growthFactor);
