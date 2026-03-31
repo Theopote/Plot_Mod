@@ -221,6 +221,9 @@ public class AppState implements IAppState {
         
         // 订阅图层删除事件
         eventBus.subscribe(LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
+
+        // 订阅“选择图层全部图元”事件
+        eventBus.subscribe(LayerEventSystem.SelectAllElementsInLayerEvent.class, this::handleSelectAllElementsInLayer);
         
         LOGGER.debug("AppState 已订阅图层相关事件");
     }
@@ -262,6 +265,32 @@ public class AppState implements IAppState {
             
             // 清理图形映射中与该图层相关的条目
             shapeToLayerMap.entrySet().removeIf(entry -> entry.getValue() == removedLayer);
+        }
+    }
+
+    /**
+     * 处理“选择图层全部图元”事件
+     */
+    private void handleSelectAllElementsInLayer(Event event) {
+        if (!(event instanceof LayerEventSystem.SelectAllElementsInLayerEvent selectEvent)) {
+            return;
+        }
+
+        ILayer targetLayer = selectEvent.getLayer();
+        if (targetLayer == null) {
+            LOGGER.warn("收到选择图层全部图元事件，但目标图层为空");
+            return;
+        }
+
+        try {
+            List<Shape> shapesInLayer = targetLayer.getShapes().stream()
+                .filter(shape -> shape != null && !shape.isDeleted())
+                .collect(Collectors.toList());
+
+            setSelectedShapes(shapesInLayer);
+            LOGGER.debug("已选中图层 '{}' 的 {} 个图元", targetLayer.getName(), shapesInLayer.size());
+        } catch (Exception e) {
+            LOGGER.error("处理图层全部图元选择事件失败: {}", e.getMessage(), e);
         }
     }
 
