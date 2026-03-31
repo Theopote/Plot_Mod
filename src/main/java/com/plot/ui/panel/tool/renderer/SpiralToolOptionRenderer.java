@@ -359,7 +359,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
             try {
                 // 检查纹理ID是否有效
                 if (icons[i] != -1) {
-                    clicked = ImGui.imageButton(icons[i], BUTTON_SIZE, BUTTON_SIZE);
+                    clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(icons[i], BUTTON_SIZE, BUTTON_SIZE);
                 } else {
                     // 纹理加载失败，使用文本按钮作为回退
                     clicked = ImGui.button(types[i].getDisplayName());

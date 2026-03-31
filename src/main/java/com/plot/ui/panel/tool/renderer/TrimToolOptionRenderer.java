@@ -214,7 +214,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isBoundarySelected = currentTool.getTrimMode() == TrimWithSelectionStrategy.TrimMode.BOUNDARY;
             pushButtonStyle(currentTheme, isBoundarySelected);
             ImGui.pushID("boundary_trim");
-            boolean boundaryClicked = ImGui.imageButton(boundaryTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean boundaryClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(boundaryTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("边界修剪：选择边界图形，然后点击要修剪的图形一侧");
@@ -228,7 +228,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isFenceSelected = currentTool.getTrimMode() == TrimWithSelectionStrategy.TrimMode.FENCE;
             pushButtonStyle(currentTheme, isFenceSelected);
             ImGui.pushID("fence_trim");
-            boolean fenceClicked = ImGui.imageButton(fenceTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean fenceClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(fenceTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("栅栏修剪：定义栅栏线进行批量修剪");

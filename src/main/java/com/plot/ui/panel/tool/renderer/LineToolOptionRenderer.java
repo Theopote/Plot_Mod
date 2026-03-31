@@ -77,7 +77,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             ImGui.pushID("single_line");
-            boolean clicked = ImGui.imageButton(singleLineIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(singleLineIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             
             if (clicked && !isSingleSelected) {
@@ -118,7 +118,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             ImGui.pushID("multi_line");
-            clicked = ImGui.imageButton(multiLineIconId, BUTTON_SIZE, BUTTON_SIZE);
+            clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(multiLineIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             
             if (clicked && !isMultiSelected) {

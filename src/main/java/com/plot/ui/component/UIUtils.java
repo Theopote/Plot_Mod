@@ -129,12 +129,13 @@ public class UIUtils {
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
             
             // 设置按钮样式
-            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
+            // PNG 图标按钮不保留内边距，保证图标铺满按钮可用区域
+            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, rounded ? currentTheme.toolbarControlRounding : 0);
             
             // 获取纹理ID并渲染按钮
             int textureId = ImGuiUtils.getTextureId(icon);
-            if (ImGui.imageButton(textureId, width - 8, height - 8, 0, 0, 1, 1)) {
+            if (ImGui.imageButton(textureId, width, height, 0, 0, 1, 1)) {
                 clicked = true;
             }
             
@@ -163,6 +164,22 @@ public class UIUtils {
      */
     public static boolean imageButton(Identifier icon, String tooltip, float size, boolean isSelected) {
         return imageButton(icon, tooltip, size, size, isSelected, true);  // 默认使用圆角
+    }
+
+    /**
+     * 创建无内边距图片按钮（用于工具选项面板中的PNG按钮）
+     * @param textureId 纹理ID
+     * @param width 按钮宽度
+     * @param height 按钮高度
+     * @return 是否点击
+     */
+    public static boolean imageButtonNoPadding(int textureId, float width, float height) {
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0);
+        try {
+            return ImGui.imageButton(textureId, width, height);
+        } finally {
+            ImGui.popStyleVar();
+        }
     }
 
     /**

@@ -174,7 +174,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
                     
                     ImGui.pushID("spline_mode_" + i);
                     try {
-                        boolean clicked = ImGui.imageButton(icons[i], BUTTON_SIZE, BUTTON_SIZE);
+                        boolean clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(icons[i], BUTTON_SIZE, BUTTON_SIZE);
                         if (clicked && !isSelected) {
                             localConfig.setCurrentMode(SplineTool.SplineMode.fromId(modes[i]));
                             syncConfigToArrays();

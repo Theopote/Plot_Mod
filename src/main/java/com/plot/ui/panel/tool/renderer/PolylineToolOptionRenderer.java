@@ -89,7 +89,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
                 }
 
                 ImGui.pushID("polyline_mode_" + i);
-                boolean clicked = ImGui.imageButton(icons[i], BUTTON_SIZE, BUTTON_SIZE);
+                boolean clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(icons[i], BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
 
                 if (clicked && !isSelected) {

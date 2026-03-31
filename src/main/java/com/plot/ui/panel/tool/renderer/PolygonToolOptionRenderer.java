@@ -124,7 +124,7 @@ public class PolygonToolOptionRenderer extends AbstractToolOptionRenderer {
                 
                 ImGui.pushID("polygon_mode_" + i);
                 try {
-                    boolean clicked = ImGui.imageButton(icons[i], BUTTON_SIZE, BUTTON_SIZE);
+                    boolean clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(icons[i], BUTTON_SIZE, BUTTON_SIZE);
                     if (clicked && !isSelected) {
                         currentMode = PolygonTool.PolygonMode.fromConfigValue(modes[i]);
                         updateToolConfig(CONFIG_KEY_MODE, modes[i]);

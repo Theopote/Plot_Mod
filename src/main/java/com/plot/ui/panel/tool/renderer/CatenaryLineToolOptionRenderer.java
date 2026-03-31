@@ -85,7 +85,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isStandardSelected = MODE_STANDARD.equals(catenaryMode);
             pushButtonStyle(currentTheme, isStandardSelected);
             ImGui.pushID("standard_mode");
-            if (ImGui.imageButton(standardModeIconId, BUTTON_SIZE, BUTTON_SIZE)) {
+            if (com.plot.ui.component.UIUtils.imageButtonNoPadding(standardModeIconId, BUTTON_SIZE, BUTTON_SIZE)) {
                 if (!isStandardSelected) {
                     catenaryMode = MODE_STANDARD;
                     updateToolConfig(CONFIG_KEY_MODE, catenaryMode);
@@ -104,7 +104,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isUnevenSelected = MODE_UNEVEN.equals(catenaryMode);
             pushButtonStyle(currentTheme, isUnevenSelected);
             ImGui.pushID("uneven_mode");
-            if (ImGui.imageButton(unevenModeIconId, BUTTON_SIZE, BUTTON_SIZE)) {
+            if (com.plot.ui.component.UIUtils.imageButtonNoPadding(unevenModeIconId, BUTTON_SIZE, BUTTON_SIZE)) {
                 if (!isUnevenSelected) {
                     catenaryMode = MODE_UNEVEN;
                     updateToolConfig(CONFIG_KEY_MODE, catenaryMode);

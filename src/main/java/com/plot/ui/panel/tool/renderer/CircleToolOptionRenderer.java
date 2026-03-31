@@ -102,7 +102,7 @@ public class CircleToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         ImGui.pushID(mode);
-        if (ImGui.imageButton(iconId, BUTTON_SIZE, BUTTON_SIZE) && !isSelected) {
+        if (com.plot.ui.component.UIUtils.imageButtonNoPadding(iconId, BUTTON_SIZE, BUTTON_SIZE) && !isSelected) {
             circleToolType = mode;
             updateToolConfig(CONFIG_KEY_TYPE, mode);
         }

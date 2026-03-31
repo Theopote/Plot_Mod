@@ -93,7 +93,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             ImGui.pushID("normal_select");
-            boolean clicked = ImGui.imageButton(normalSelectIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(normalSelectIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             
             if (clicked && !isNormalMode) {
@@ -120,7 +120,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             ImGui.pushID("lasso_select");
-            clicked = ImGui.imageButton(lassoSelectIconId, BUTTON_SIZE, BUTTON_SIZE);
+            clicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(lassoSelectIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             
             if (clicked && !isLassoMode) {

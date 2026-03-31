@@ -150,7 +150,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isRectangularSelected = "RECTANGULAR".equals(currentArrayTypeName);
             pushButtonStyle(currentTheme, isRectangularSelected);
             ImGui.pushID("rectangular_array");
-            boolean rectangularClicked = ImGui.imageButton(rectangularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean rectangularClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(rectangularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("矩形阵列：按行列排列图形");
@@ -164,7 +164,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isCircularSelected = "CIRCULAR".equals(currentArrayTypeName);
             pushButtonStyle(currentTheme, isCircularSelected);
             ImGui.pushID("circular_array");
-            boolean circularClicked = ImGui.imageButton(circularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean circularClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(circularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("环形阵列：按圆形排列图形");
@@ -178,7 +178,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isPathSelected = "PATH".equals(currentArrayTypeName);
             pushButtonStyle(currentTheme, isPathSelected);
             ImGui.pushID("path_array");
-            boolean pathClicked = ImGui.imageButton(pathArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
+            boolean pathClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(pathArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("路径阵列：沿路径等距分配（数量=点位数，含起点与终点）");

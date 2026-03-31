@@ -79,7 +79,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean isDistanceSelected = currentMode == AnnotationTool.AnnotationMode.DISTANCE;
                 pushButtonStyle(currentTheme, isDistanceSelected);
                 ImGui.pushID("annotation_distance");
-                boolean distanceClicked = ImGui.imageButton(distanceIconId, BUTTON_SIZE, BUTTON_SIZE);
+                boolean distanceClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(distanceIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("距离标注：以方块为单位");
@@ -98,7 +98,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean isAngleSelected = currentMode == AnnotationTool.AnnotationMode.ANGLE;
                 pushButtonStyle(currentTheme, isAngleSelected);
                 ImGui.pushID("annotation_angle");
-                boolean angleClicked = ImGui.imageButton(angleIconId, BUTTON_SIZE, BUTTON_SIZE);
+                boolean angleClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(angleIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("角度标注：两条线段之间的家教");
@@ -117,7 +117,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean isRadiusSelected = currentMode == AnnotationTool.AnnotationMode.RADIUS;
                 pushButtonStyle(currentTheme, isRadiusSelected);
                 ImGui.pushID("annotation_radius");
-                boolean radiusClicked = ImGui.imageButton(radiusIconId, BUTTON_SIZE, BUTTON_SIZE);
+                boolean radiusClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(radiusIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("半径标注：标注圆形、半圆、圆弧的半径");
@@ -136,7 +136,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 boolean isAreaSelected = currentMode == AnnotationTool.AnnotationMode.AREA;
                 pushButtonStyle(currentTheme, isAreaSelected);
                 ImGui.pushID("annotation_area");
-                boolean areaClicked = ImGui.imageButton(areaIconId, BUTTON_SIZE, BUTTON_SIZE);
+                boolean areaClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(areaIconId, BUTTON_SIZE, BUTTON_SIZE);
                 ImGui.popID();
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("区域标注：区域内的方块数量");

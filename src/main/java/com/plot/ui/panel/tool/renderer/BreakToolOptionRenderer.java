@@ -125,7 +125,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonActiveBorder); pushedColorCountSingle++;
         }
         ImGui.pushID("break_mode_single");
-        if (ImGui.imageButton(singleBreakIconId, BUTTON_SIZE, BUTTON_SIZE)) {
+        if (com.plot.ui.component.UIUtils.imageButtonNoPadding(singleBreakIconId, BUTTON_SIZE, BUTTON_SIZE)) {
             // 修复：移除条件判断，允许重复点击当前模式
             currentMode = BREAK_MODE_SINGLE; // 先更新本地，立即反映选中样式
             updateToolConfig(CONFIG_KEY_MODE, BREAK_MODE_SINGLE);
@@ -150,7 +150,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonActiveBorder); pushedColorCountTwo++;
         }
         ImGui.pushID("break_mode_two_point");
-        if (ImGui.imageButton(twoPointBreakIconId, BUTTON_SIZE, BUTTON_SIZE)) {
+        if (com.plot.ui.component.UIUtils.imageButtonNoPadding(twoPointBreakIconId, BUTTON_SIZE, BUTTON_SIZE)) {
             // 修复：移除条件判断，允许重复点击当前模式
             currentMode = BREAK_MODE_TWO_POINT; // 先更新本地，立即反映选中样式
             updateToolConfig(CONFIG_KEY_MODE, BREAK_MODE_TWO_POINT);

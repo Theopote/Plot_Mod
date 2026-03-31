@@ -83,7 +83,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isMirrorSelected = MODE_AXIS_SYMMETRY.equals(currentMode);
             pushButtonStyle(currentTheme, isMirrorSelected);
             ImGui.pushID("mirror_mode");
-            if (ImGui.imageButton(mirrorIconId, BUTTON_SIZE, BUTTON_SIZE)) {
+            if (com.plot.ui.component.UIUtils.imageButtonNoPadding(mirrorIconId, BUTTON_SIZE, BUTTON_SIZE)) {
                 if (!isMirrorSelected) {
                     currentMode = MODE_AXIS_SYMMETRY;
                     updateToolConfig(CONFIG_KEY_MODE, currentMode);
@@ -102,7 +102,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean isCopyMirrorSelected = MODE_CENTRAL_SYMMETRY.equals(currentMode);
             pushButtonStyle(currentTheme, isCopyMirrorSelected);
             ImGui.pushID("copy_mirror_mode");
-            if (ImGui.imageButton(copyMirrorIconId, BUTTON_SIZE, BUTTON_SIZE)) {
+            if (com.plot.ui.component.UIUtils.imageButtonNoPadding(copyMirrorIconId, BUTTON_SIZE, BUTTON_SIZE)) {
                 if (!isCopyMirrorSelected) {
                     currentMode = MODE_CENTRAL_SYMMETRY;
                     updateToolConfig(CONFIG_KEY_MODE, currentMode);
