@@ -22,7 +22,7 @@ public class LineToBlockSettingsDialog {
     private boolean isOpen = false;
     private ConversionMode conversionMode = ConversionMode.FULL;
     private float simplificationRatio = 0.5f;
-    private boolean fillClosedShapes = true;
+    private boolean fillClosedShapes = false;
 
     public enum ConversionMode {
         FULL("完整转换"),

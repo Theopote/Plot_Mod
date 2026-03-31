@@ -115,7 +115,8 @@ public class LineToBlockHandler {
         float simplificationRatio = lineToBlockEvent.getSimplificationRatio();
         double userSpecifiedYLevel = lineToBlockEvent.getCanvasHeight();
         boolean isPreview = lineToBlockEvent.isPreview();
-        boolean fillClosedShapes = lineToBlockEvent.isFillClosedShapes();
+        // 统一行为：线转方块仅转换轮廓线，不填充封闭图形内部
+        boolean fillClosedShapes = false;
 
         // 【优化】获取目标标高（优先使用用户指定，否则使用玩家位置）
         double targetYLevel = getTargetYLevel(userSpecifiedYLevel, isPreview);
