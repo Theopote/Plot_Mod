@@ -81,7 +81,10 @@ public class SystemPanel implements UIComponent {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 
             (UILayout.Toolbar.THEME_SELECTOR_HEIGHT - ImGui.getTextLineHeight()) / 2.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
+        // 主题选择器本体使用直角
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        // 下拉列表弹层也使用直角
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
         
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
@@ -110,7 +113,7 @@ public class SystemPanel implements UIComponent {
             }
         } finally {
             ImGui.popStyleColor(8);
-            ImGui.popStyleVar(3);
+            ImGui.popStyleVar(4);
         }
     }
     

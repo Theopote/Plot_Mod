@@ -465,8 +465,9 @@ public class PlotScreen extends Screen {
         ImInt dockRightTop = new ImInt();   // 右侧顶部（系统面板）
         ImInt dockRightBottom = new ImInt(); // 右侧底部（属性面板）
 
-        // 左侧 dock 宽度：与控制面板默认宽度保持一致（工具面板与控制面板共享同一左侧列宽）
-        float leftDockWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
+        // 左侧 dock 宽度：控制面板与工具面板共享同一列宽
+        // 目标宽度：刚好可容纳工具面板一行4个按钮，且控制面板单行滑动条宽度恰好可放下
+        float leftDockWidth = UILayout.Toolbar.PANEL_WIDTH;
         float leftRatio = Math.min(0.45f, leftDockWidth / Math.max(1.0f, displayWidth));
         float rightRatio = Math.min(0.45f, UILayout.RIGHT_PANEL_DEFAULT_WIDTH / Math.max(1.0f, displayWidth));
         
@@ -529,8 +530,8 @@ public class PlotScreen extends Screen {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
-        // 控制面板在左侧顶部，宽度和工具面板一致（两倍宽）
-        float toolPanelWidth = UILayout.Toolbar.TOOL_PANEL_WIDTH * 2.0f;
+        // 控制面板在左侧顶部，宽度与工具面板一致
+        float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
         boolean controlVisible = ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS);
