@@ -2,6 +2,7 @@ package com.plot.ui.panel.tool.renderer;
 
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
+import com.plot.ui.layout.UILayout;
 
 /**
  * 工具选项渲染器抽象基类
@@ -9,8 +10,8 @@ import com.plot.infrastructure.event.tool.ToolConfigEvent;
  */
 public abstract class AbstractToolOptionRenderer implements ToolOptionRenderer {
     // 界面布局常量
-    protected static final float BUTTON_SIZE = 32.0f;         // 按钮大小，与工具栏按钮保持一致
-    protected static final float BUTTON_SPACING = 8.0f;       // 按钮之间的间距
+    protected static final float BUTTON_SIZE = UILayout.Toolbar.LEFT_BUTTON_SIZE;         // 按钮大小，与工具面板一致
+    protected static final float BUTTON_SPACING = UILayout.Toolbar.LEFT_BUTTON_SPACING;   // 按钮之间的间距，与工具面板一致
     protected static final float BUTTON_CORNER_ROUNDING = 4.0f;// 按钮圆角半径
 
     protected final EventBus eventBus;

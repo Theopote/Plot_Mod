@@ -95,8 +95,8 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popStyleColor(4);
             
-            ImGui.sameLine();
-            ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING * 2));
+            ImGui.sameLine(0, BUTTON_SPACING);
+            ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING));
             
             // 中心对称按钮
             boolean isCopyMirrorSelected = MODE_CENTRAL_SYMMETRY.equals(currentMode);

@@ -72,8 +72,8 @@ public class SemicircleToolOptionRenderer extends AbstractToolOptionRenderer {
             
             for (int i = 0; i < modes.length; i++) {
                 if (i > 0) {
-                    ImGui.sameLine();
-                    ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING * 2) * i);
+                    ImGui.sameLine(0, BUTTON_SPACING);
+                    ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING) * i);
                 }
                 
                 boolean isSelected = semicircleToolMode.equals(modes[i]);

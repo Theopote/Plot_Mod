@@ -339,8 +339,8 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
                     ImGui.tableNextColumn();
                     ImGui.tableNextColumn();
                 } else {
-                    ImGui.sameLine();
-                    ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING * 2) * (i % 3));
+                    ImGui.sameLine(0, BUTTON_SPACING);
+                    ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING) * (i % 3));
                 }
             }
             

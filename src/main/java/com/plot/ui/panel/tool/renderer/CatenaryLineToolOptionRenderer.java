@@ -97,8 +97,8 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popStyleColor(4);
 
-            ImGui.sameLine();
-            ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING * 2));
+            ImGui.sameLine(0, BUTTON_SPACING);
+            ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING));
 
             // 样条插值模式按钮
             boolean isUnevenSelected = MODE_UNEVEN.equals(catenaryMode);

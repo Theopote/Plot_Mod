@@ -137,8 +137,8 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         if (pushedColorCountSingle > 0) { ImGui.popStyleColor(pushedColorCountSingle); }
 
-        ImGui.sameLine();
-        ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING * 2));
+        ImGui.sameLine(0, BUTTON_SPACING);
+        ImGui.setCursorPosX(firstButtonX + (BUTTON_SIZE + BUTTON_SPACING));
 
         // 两点打断模式
         boolean isTwoPointMode = BREAK_MODE_TWO_POINT.equals(currentMode);

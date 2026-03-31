@@ -111,8 +111,8 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
 
             // 套索选择按钮（放在同一行）
-            ImGui.sameLine();
-            ImGui.setCursorPosX(firstButtonX + BUTTON_SIZE + BUTTON_SPACING * 2);
+            ImGui.sameLine(0, BUTTON_SPACING);
+            ImGui.setCursorPosX(firstButtonX + BUTTON_SIZE + BUTTON_SPACING);
             
             boolean isLassoMode = SelectionTool.CONFIG_VALUE_LASSO.equals(selectionMode);
             if (isLassoMode) {
