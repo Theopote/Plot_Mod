@@ -17,11 +17,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.item.ItemStack;
 
@@ -111,28 +108,6 @@ public class CompactBlockConfigDialog {
     private int dropIndicatorIndex = -1;
 
     private enum DragSource { NONE, DISPLAY_AREA, PALETTE_AREA }
-
-    // ============ 逐帧MC物品渲染队列（覆盖在ImGui之上） ============
-    // 移除本地PendingItemDraw与队列，改为全局覆盖渲染器
-
-    // ImGui 直绘方块图标缓存（textureId + uv）
-    private final Map<Block, SpriteRenderData> spriteRenderCache = new HashMap<>();
-
-    private static final class SpriteRenderData {
-        final int textureId;
-        final float u0;
-        final float v0;
-        final float u1;
-        final float v1;
-
-        SpriteRenderData(int textureId, float u0, float v0, float u1, float v1) {
-            this.textureId = textureId;
-            this.u0 = u0;
-            this.v0 = v0;
-            this.u1 = u1;
-            this.v1 = v1;
-        }
-    }
 
     /**
      * [NEW] 全局访问管理器 - 用于向后兼容
@@ -971,28 +946,6 @@ public class CompactBlockConfigDialog {
         );
     }
 
-
-    private String resolveTextureReference(String value, Map<String, String> textures, Set<String> visited) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-
-        if (!value.startsWith("#")) {
-            return value;
-        }
-
-        String key = value.substring(1);
-        if (!visited.add(key)) {
-            return null;
-        }
-
-        String next = textures.get(key);
-        if (next == null || next.isBlank()) {
-            return null;
-        }
-
-        return resolveTextureReference(next, textures, visited);
-    }
 
     /**
      * 渲染空消息
