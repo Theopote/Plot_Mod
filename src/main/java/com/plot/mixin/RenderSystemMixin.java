@@ -2,6 +2,7 @@ package com.plot.mixin;
 
 import com.plot.ui.screen.PlotScreen;
 import com.plot.ui.imgui.ImGuiRenderer;
+import com.plot.ui.imgui.GuiOverlayRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.tracy.TracyFrameCapturer;
@@ -36,6 +37,7 @@ public class RenderSystemMixin {
         if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
             renderer.renderPendingDrawData();
         }
+        GuiOverlayRenderer.flushPending();
 
     }
 }

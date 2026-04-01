@@ -2,6 +2,7 @@ package com.plot.ui.screen;
 
 import com.plot.core.state.AppState;
 import com.plot.ui.imgui.ImGuiRenderer;
+import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.imgui.PlotStyleScope;
 import com.plot.ui.toolbar.ControlPanel;
 import com.plot.infrastructure.event.block.GhostBlockManager;
@@ -273,6 +274,7 @@ public class PlotScreen extends Screen {
             // 结束 ImGui 帧并在后续的 swapBuffers 前由 mixin 渲染 ImGui draw data，
             // 本方法负责在 ImGui frame 结束后使用 DrawContext 绘制覆盖图标。
             imGuiRenderer.endFrame();
+            GuiOverlayRenderer.setPendingDrawContext(context);
             imguiFrameEnded = true;
             
         } catch (Exception e) {

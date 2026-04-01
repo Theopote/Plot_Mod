@@ -1,25 +1,19 @@
 package com.plot.ui.component;
 
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.plot.camera.CameraManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.DiffuseLighting;
-import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.item.ItemRenderState;
 import net.minecraft.client.render.item.ItemRenderer;
-import net.minecraft.client.render.RawProjectionMatrix;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.client.render.model.json.Transformation;
-import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.Item;
@@ -27,7 +21,6 @@ import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
-import net.minecraft.util.math.random.Random;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
@@ -44,13 +37,17 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.render.GameRenderer;
 import java.util.List;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.random.Random;
 
 /**
  * 方块图标渲染器：
@@ -61,8 +58,6 @@ public final class BlockIconRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockIconRenderer");
     private static volatile boolean loggedRenderMethodHint = false;
     private static volatile boolean loggedDrawContextMethods = false;
-
-    private static volatile Method gameRendererGetProjectionMatrix;
 
     private static final BlockIconRenderer INSTANCE = new BlockIconRenderer(64);
     /** 每帧离屏生成数量上限；过小会导致首次打开面板长时间占位图 */
@@ -92,10 +87,6 @@ public final class BlockIconRenderer implements AutoCloseable {
     private final Map<Block, Integer> renderFailureCount = new HashMap<>();
     private int placeholderTextureId = -1;
     private boolean closed = false;
-
-    /** 1.21.10+：投影矩阵经 GPU 缓冲上传，离屏绘制需独立 RawProjectionMatrix，不可再传 Matrix4f 给 RenderSystem。 */
-    private final RawProjectionMatrix iconOrthoProjection = new RawProjectionMatrix("plot_block_icon_ortho");
-    private final RawProjectionMatrix worldProjectionRestore = new RawProjectionMatrix("plot_block_icon_restore");
 
     // 兼容旧接口：其他代码仍会读取方块 -> ItemStack
     private static final Map<Block, ItemStack> ITEM_STACK_CACHE = new ConcurrentHashMap<>();
@@ -318,53 +309,27 @@ public final class BlockIconRenderer implements AutoCloseable {
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-            // Plot 正交相机 mixin 会替换全局投影；离屏 FBO 须用与视口一致的 ORTHO（经 GpuBufferSlice），否则物品落在错误视锥内、纹理全透明。
-            float tickProgress = client.getRenderTickCounter().getTickProgress(false);
-            Matrix4f worldProj = getGameRendererProjectionMatrix(client.gameRenderer, tickProgress);
-            GpuBufferSlice restoreSlice = worldProjectionRestore.set(worldProj);
-            ProjectionType restoreType = CameraManager.getInstance().isOrthographic()
-                    ? ProjectionType.ORTHOGRAPHIC
-                    : ProjectionType.PERSPECTIVE;
-
-            Matrix4f ortho = new Matrix4f().setOrtho(0.0F, textureSize, textureSize, 0.0F, 1000.0F, 3000.0F);
-            GpuBufferSlice iconProjSlice = iconOrthoProjection.set(ortho);
-
-            Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
-            modelViewStack.pushMatrix();
-            try {
-                modelViewStack.identity();
-                RenderSystem.setProjectionMatrix(iconProjSlice, ProjectionType.ORTHOGRAPHIC);
-
-                try {
-                    renderGuiItemIntoCurrentFbo(stack, block);
-                } catch (IllegalStateException e) {
-                    String msg = e.getMessage();
-                    if (msg != null && (msg.startsWith("No drawable item layers") || msg.startsWith("ItemRenderState is empty"))) {
-                        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-                        renderParticleSpriteIntoCurrentFbo(stack);
-                    } else {
-                        throw e;
-                    }
-                }
-            } finally {
-                modelViewStack.popMatrix();
-                RenderSystem.setProjectionMatrix(restoreSlice, restoreType);
-            }
-
+            // 严格 3D：只走 GUI 3D item 模型层渲染；不再降级到 2D sprite。
+            renderGuiItemIntoCurrentFbo(stack, block);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, colorTexId);
-
             return colorTexId;
         } catch (Throwable t) {
             if (colorTexId > 0) {
                 GL11.glDeleteTextures(colorTexId);
             }
-            throw new RuntimeException("Failed to render block icon for: " + block, t);
+            throw new RuntimeException("3D block icon render failed for: " + block, t);
         } finally {
             if (fboId > 0) GL30.glDeleteFramebuffers(fboId);
             if (depthRboId > 0) GL30.glDeleteRenderbuffers(depthRboId);
             snapshot.restore();
         }
     }
+
+    private static int clamp(int v, int min, int max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    // 3D-only 模式下不再需要 atlas 纹理 id 反射
 
     private int getPlaceholderTextureId() {
         if (placeholderTextureId > 0) return placeholderTextureId;
@@ -554,51 +519,33 @@ public final class BlockIconRenderer implements AutoCloseable {
     }
 
     /**
-     * 无 BakedQuad 层时：把粒子精灵（方块图集上的那片 UV）直接画进当前 FBO。
-     * 不可使用 {@code DrawContext}：1.21.x 下其记录的是 GuiRenderState，不会写入当前绑定的 framebuffer。
+     * specialModel 方块（床、头颅、旗帜等）无 BakedQuad 层时的降级：用 {@link DrawContext#drawItemWithoutEntity} 走与物品栏相同的 GUI 物品绘制。
      */
     private void renderParticleSpriteIntoCurrentFbo(ItemStack stack) {
-        ItemRenderState particleState = new ItemRenderState();
-        client.getItemModelManager().clearAndUpdate(particleState, stack, ItemDisplayContext.GUI, client.world, null, 0);
-        Random random = client.world != null ? client.world.random : Random.create();
-        Sprite sprite = particleState.getParticleSprite(random);
-        RenderLayer layer = RenderLayer.getEntityCutoutNoCull(sprite.getAtlasId(), false);
-        int argb = 0xFFFFFFFF;
-        int overlay = OverlayTexture.DEFAULT_UV;
-        int light = FULL_BRIGHT;
-
-        try (BufferAllocator iconBufferAllocator = BufferAllocator.fixedSized(512)) {
-            VertexConsumerProvider.Immediate immediate = VertexConsumerProvider.immediate(iconBufferAllocator);
-            var buffer = immediate.getBuffer(layer);
-            float u0 = sprite.getMinU();
-            float v0 = sprite.getMinV();
-            float u1 = sprite.getMaxU();
-            float v1 = sprite.getMaxV();
-            float z = 0.0F;
-            buffer.vertex(0.0F, textureSize, z, argb, u0, v1, overlay, light, 0.0F, 0.0F, 1.0F);
-            buffer.vertex(textureSize, textureSize, z, argb, u1, v1, overlay, light, 0.0F, 0.0F, 1.0F);
-            buffer.vertex(textureSize, 0.0F, z, argb, u1, v0, overlay, light, 0.0F, 0.0F, 1.0F);
-            buffer.vertex(0.0F, 0.0F, z, argb, u0, v0, overlay, light, 0.0F, 0.0F, 1.0F);
-            immediate.draw();
+        GuiRenderState guiState = getGuiRenderStateReflect();
+        DrawContext context = new DrawContext(client, guiState);
+        context.getMatrices().pushMatrix();
+        try {
+            float scale = textureSize / 16.0F;
+            float pad = (textureSize - 16.0F * scale) * 0.5F;
+            context.getMatrices().translate(pad, pad);
+            context.getMatrices().scale(scale, scale);
+            context.drawItemWithoutEntity(stack, 0, 0);
+        } finally {
+            context.getMatrices().popMatrix();
         }
     }
 
-    private static Matrix4f getGameRendererProjectionMatrix(GameRenderer gameRenderer, float tickProgress) {
+    private static GuiRenderState getGuiRenderStateReflect() {
         try {
-            Method m = gameRendererGetProjectionMatrix;
-            if (m == null) {
-                m = GameRenderer.class.getDeclaredMethod("getProjectionMatrix", float.class);
-                m.setAccessible(true);
-                gameRendererGetProjectionMatrix = m;
-            }
-            Object out = m.invoke(gameRenderer, tickProgress);
-            if (out instanceof Matrix4f matrix4f) {
-                return matrix4f;
-            }
-        } catch (Throwable t) {
-            LOGGER.warn("无法反射读取 GameRenderer.getProjectionMatrix，恢复投影时可能异常: {}", t.getMessage());
+            MinecraftClient c = MinecraftClient.getInstance();
+            GameRenderer gr = c.gameRenderer;
+            Field f = GameRenderer.class.getDeclaredField("guiState");
+            f.setAccessible(true);
+            return (GuiRenderState) f.get(gr);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("无法读取 GameRenderer.guiState（DrawContext 需要）", e);
         }
-        return new Matrix4f();
     }
 
     private static void ensureItemRenderStateReflect() {

@@ -29,6 +29,7 @@ public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GuiOverlayRenderer");
     private static volatile long lastDrawContextFlushWarnMs;
     private static final boolean DEBUG_ITEM_PROBE = true;
+    private static long lastOverlayScaleLogMs;
 
     private GuiOverlayRenderer() {}
 
@@ -195,12 +196,21 @@ public final class GuiOverlayRenderer {
 
     private static void drawScaledItem(DrawContext context, PendingItem item) {
         float scale = item.scale <= 0.0f ? 1.0f : item.scale;
-        int drawX = Math.round(item.x);
-        int drawY = Math.round(item.y);
-        if (DEBUG_ITEM_PROBE) {
-            drawProbeRect(context, drawX, drawY, scale);
+        float drawXf = item.x;
+        float drawYf = item.y;
+        float drawScale = scale;
+        int drawX = Math.round(drawXf);
+        int drawY = Math.round(drawYf);
+        long now = System.currentTimeMillis();
+        if (now - lastOverlayScaleLogMs > 2000L) {
+            lastOverlayScaleLogMs = now;
+            LOGGER.info("Overlay图标坐标: pending={}, pos=({}, {}), scale={}",
+                    PENDING_ITEMS.size(), drawX, drawY, drawScale);
         }
-        if (Math.abs(scale - 1.0f) < 0.0001f) {
+        if (DEBUG_ITEM_PROBE) {
+            drawProbeRect(context, drawX, drawY, drawScale);
+        }
+        if (Math.abs(drawScale - 1.0f) < 0.0001f) {
             BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
             return;
         }
@@ -220,8 +230,8 @@ public final class GuiOverlayRenderer {
 
             push.invoke(matrices);
             try {
-                translate.invoke(matrices, (float) item.x, (float) item.y, 0.0f);
-                scaleMethod.invoke(matrices, scale, scale, 1.0f);
+                translate.invoke(matrices, drawXf, drawYf, 0.0f);
+                scaleMethod.invoke(matrices, drawScale, drawScale, 1.0f);
                 BlockIconRenderer.drawItem(context, item.stack, 0, 0);
             } finally {
                 pop.invoke(matrices);

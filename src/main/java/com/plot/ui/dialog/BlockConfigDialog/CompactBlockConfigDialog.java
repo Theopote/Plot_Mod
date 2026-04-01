@@ -5,6 +5,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.block.BlockConfigEvent;
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
+import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.ImGuiUtils;
@@ -867,21 +868,9 @@ public class CompactBlockConfigDialog {
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
                 float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
-                if (tryRenderBlockIconDirect(drawList, block, x, y)) {
-                    return;
-                }
-                int textureId = BlockIconRenderer.getInstance().getTextureId(block);
-                if (textureId > 0) {
-                    drawList.addImage(
-                        textureId,
-                        x + inset,
-                        y + inset,
-                        x + BLOCK_ICON_SIZE - inset,
-                        y + BLOCK_ICON_SIZE - inset,
-                        0.0f, 1.0f,
-                        1.0f, 0.0f
-                    );
-                }
+                float iconSize = Math.max(1.0f, BLOCK_ICON_SIZE - inset * 2.0f);
+                float scale = iconSize / 16.0f;
+                GuiOverlayRenderer.queueBlockItem(block, x + inset, y + inset, scale);
             } else {
                 // 只有在调试模式下才记录这个警告，避免日志污染
                 if (LOGGER.isDebugEnabled()) {
@@ -965,21 +954,9 @@ public class CompactBlockConfigDialog {
         try {
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
             float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
-            if (tryRenderBlockIconDirect(drawList, block, x, y)) {
-                return;
-            }
-            int textureId = BlockIconRenderer.getInstance().getTextureId(block);
-            if (textureId > 0) {
-                drawList.addImage(
-                    textureId,
-                    x + inset,
-                    y + inset,
-                    x + BLOCK_ICON_SIZE - inset,
-                    y + BLOCK_ICON_SIZE - inset,
-                    0.0f, 1.0f,
-                    1.0f, 0.0f
-                );
-            }
+            float iconSize = Math.max(1.0f, BLOCK_ICON_SIZE - inset * 2.0f);
+            float scale = iconSize / 16.0f;
+            GuiOverlayRenderer.queueBlockItem(block, x + inset, y + inset, scale);
         } catch (Exception e) {
             LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
                         block != null ? Registries.BLOCK.getId(block) : "null", e.getMessage(), e);
