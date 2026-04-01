@@ -2,7 +2,6 @@ package com.plot.ui.imgui;
 
 import com.plot.ui.component.BlockIconRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.Window;
@@ -99,35 +98,7 @@ public final class GuiOverlayRenderer {
         flush(context);
     }
 
-    /**
-     * 队列一个方块（带缩放）
-     */
-    public static void queueBlockItem(Block block, float x, float y, float scale) {
-        if (block == null) {
-            LOGGER.warn("queueBlockItem: block为null，跳过");
-            return;
-        }
 
-        try {
-            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
-
-            // BlockIconRenderer 已经处理 AIR，这里只是额外检查
-            if (stack == null || stack.isEmpty()) {
-                LOGGER.debug("⚠️  方块 {} 无有效 Item 形式，跳过队列", 
-                            net.minecraft.registry.Registries.BLOCK.getId(block));
-                return;
-            }
-
-            // 该项目当前运行环境下，ImGui 与 DrawContext 使用同一屏幕坐标系。
-            // 不做 DPI/GUI scale 换算，避免坐标被压缩到左上角。
-            PENDING_ITEMS.add(new PendingItem(stack, x, y, scale));
-            LOGGER.debug("✓ 已队列方块: {} @ ({}, {})", 
-                        net.minecraft.registry.Registries.BLOCK.getId(block), Math.round(x), Math.round(y));
-
-        } catch (Exception e) {
-            LOGGER.warn("queueBlockItem 异常: {}", e.getMessage(), e);
-        }
-    }
 
     /**
      * 在一帧 ImGui 渲染完成后调用
@@ -198,19 +169,18 @@ public final class GuiOverlayRenderer {
         float scale = item.scale <= 0.0f ? 1.0f : item.scale;
         float drawXf = item.x;
         float drawYf = item.y;
-        float drawScale = scale;
         int drawX = Math.round(drawXf);
         int drawY = Math.round(drawYf);
         long now = System.currentTimeMillis();
         if (now - lastOverlayScaleLogMs > 2000L) {
             lastOverlayScaleLogMs = now;
             LOGGER.info("Overlay图标坐标: pending={}, pos=({}, {}), scale={}",
-                    PENDING_ITEMS.size(), drawX, drawY, drawScale);
+                    PENDING_ITEMS.size(), drawX, drawY, scale);
         }
         if (DEBUG_ITEM_PROBE) {
-            drawProbeRect(context, drawX, drawY, drawScale);
+            drawProbeRect(context, drawX, drawY, scale);
         }
-        if (Math.abs(drawScale - 1.0f) < 0.0001f) {
+        if (Math.abs(scale - 1.0f) < 0.0001f) {
             BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
             return;
         }
@@ -231,7 +201,7 @@ public final class GuiOverlayRenderer {
             push.invoke(matrices);
             try {
                 translate.invoke(matrices, drawXf, drawYf, 0.0f);
-                scaleMethod.invoke(matrices, drawScale, drawScale, 1.0f);
+                scaleMethod.invoke(matrices, scale, scale, 1.0f);
                 BlockIconRenderer.drawItem(context, item.stack, 0, 0);
             } finally {
                 pop.invoke(matrices);
