@@ -5,7 +5,6 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.block.BlockConfigEvent;
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
-import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.ImGuiUtils;
@@ -854,38 +853,40 @@ public class CompactBlockConfigDialog {
     private void renderBlockIcon(Block block, float x, float y, boolean isHovered, boolean isPlaceholder) {
         var drawList = ImGui.getWindowDrawList();
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
         if (drawList == null) {
-            LOGGER.warn("ImGui drawList 为 null，无法渲染方块图标");
             return;
         }
 
         try {
-            if (isPlaceholder) {
-                drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.inputBackgroundHovered);
-                drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
-            } else if (block != null) {
-                int backgroundColor = isHovered ? theme.buttonHovered : theme.controlBackground;
-                drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
-                drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
-                float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
-                float iconSize = Math.max(1.0f, BLOCK_ICON_SIZE - inset * 2.0f);
-                float scale = iconSize / 16.0f;
-                GuiOverlayRenderer.queueBlockItem(block, x + inset, y + inset, scale);
-            } else {
-                // 只有在调试模式下才记录这个警告，避免日志污染
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("方块为 null，显示占位符");
-                }
-                drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.inputBackgroundHovered);
-                drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
+            int backgroundColor = isHovered ? theme.buttonHovered : theme.controlBackground;
+            drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
+            drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
+
+            if (isPlaceholder || block == null) {
+                return;
             }
-        } catch (Exception e) {
-            LOGGER.error("渲染方块图标时发生错误: {}", block != null ? Registries.BLOCK.getId(block) : "null", e);
-            // 显示错误占位符
+
+            int textureId = BlockIconRenderer.getInstance().getTextureId(block);
+            float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
+
+            // 注意：FBO 纹理给 ImGui 时要上下翻转 UV
+            drawList.addImage(
+                    textureId,
+                    x + inset,
+                    y + inset,
+                    x + BLOCK_ICON_SIZE - inset,
+                    y + BLOCK_ICON_SIZE - inset,
+                    0.0f, 1.0f,
+                    1.0f, 0.0f
+            );
+        } catch (Throwable t) {
+            LOGGER.error("renderBlockIcon failed: {}", block != null ? Registries.BLOCK.getId(block) : "null", t);
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.errorText);
             drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
         }
     }
+
 
     private void flushPendingItemDraws() { /* 改为全局覆盖渲染，无需本地Flush */ }
 
@@ -952,19 +953,41 @@ public class CompactBlockConfigDialog {
      */
     private void renderDraggedBlockPreview(imgui.ImDrawList drawList, Block block, float x, float y) {
         try {
-            drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
+            drawList.addRectFilled(
+                    x, y,
+                    x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE,
+                    ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f)
+            );
+
+            int textureId = BlockIconRenderer.getInstance().getTextureId(block);
             float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
-            float iconSize = Math.max(1.0f, BLOCK_ICON_SIZE - inset * 2.0f);
-            float scale = iconSize / 16.0f;
-            GuiOverlayRenderer.queueBlockItem(block, x + inset, y + inset, scale);
+
+            drawList.addImage(
+                    textureId,
+                    x + inset,
+                    y + inset,
+                    x + BLOCK_ICON_SIZE - inset,
+                    y + BLOCK_ICON_SIZE - inset,
+                    0.0f, 1.0f,
+                    1.0f, 0.0f
+            );
         } catch (Exception e) {
-            LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
-                        block != null ? Registries.BLOCK.getId(block) : "null", e.getMessage(), e);
-            // 渲染错误占位符
-            drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.5f, 0.2f, 0.2f, 0.6f));
+            LOGGER.error("渲染拖动预览异常: {}", block != null ? Registries.BLOCK.getId(block) : "null", e);
+            drawList.addRectFilled(
+                    x, y,
+                    x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE,
+                    ImGui.getColorU32(0.5f, 0.2f, 0.2f, 0.6f)
+            );
         }
-        drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(1.0f, 1.0f, 1.0f, 0.9f), 0.0f, 0, 2.0f);
+
+        drawList.addRect(
+                x, y,
+                x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE,
+                ImGui.getColorU32(1.0f, 1.0f, 1.0f, 0.9f),
+                0.0f, 0, 2.0f
+        );
     }
+
 
     private boolean tryRenderBlockTextureFromResources(ImDrawList drawList, Block block, float x, float y) {
         if (drawList == null || block == null) {
