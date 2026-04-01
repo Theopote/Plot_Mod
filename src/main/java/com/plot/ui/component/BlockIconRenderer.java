@@ -101,35 +101,6 @@ public final class BlockIconRenderer implements AutoCloseable {
         return getPlaceholderTextureId();
     }
 
-    public int renderNow(Block block) {
-        RenderSystem.assertOnRenderThread();
-        ensureOpen();
-
-        if (block == null) {
-            return getPlaceholderTextureId();
-        }
-
-        Integer cached = textureCache.get(block);
-        if (cached != null && cached > 0) {
-            return cached;
-        }
-
-        if (permanentlyFailed.contains(block)) {
-            return getPlaceholderTextureId();
-        }
-
-        int texId = renderBlockToTexture(block);
-        textureCache.put(block, texId);
-        queuedSet.remove(block);
-        pendingQueue.remove(block);
-        renderFailureCount.remove(block);
-        return texId;
-    }
-
-    public void processQueue() {
-        processQueue(DEFAULT_RENDER_BUDGET);
-    }
-
     public void processQueue(int maxPerFrame) {
         RenderSystem.assertOnRenderThread();
         ensureOpen();
@@ -184,28 +155,6 @@ public final class BlockIconRenderer implements AutoCloseable {
             queuedSet.add(block);
             pendingQueue.offer(block);
         }
-    }
-
-    public void updateTexture(Block block) {
-        RenderSystem.assertOnRenderThread();
-        ensureOpen();
-        invalidate(block);
-        renderNow(block);
-    }
-
-    public void invalidate(Block block) {
-        RenderSystem.assertOnRenderThread();
-        ensureOpen();
-
-        Integer texId = textureCache.remove(block);
-        if (texId != null && texId > 0 && texId != placeholderTextureId) {
-            GL11.glDeleteTextures(texId);
-        }
-
-        queuedSet.remove(block);
-        pendingQueue.remove(block);
-        permanentlyFailed.remove(block);
-        renderFailureCount.remove(block);
     }
 
     public void invalidateAll() {
@@ -623,10 +572,6 @@ public final class BlockIconRenderer implements AutoCloseable {
                 return ItemStack.EMPTY;
             }
         });
-    }
-
-    public static boolean hasValidIcon(Block block) {
-        return !getItemStackForBlock(block).isEmpty();
     }
 
     /**
