@@ -1,7 +1,6 @@
 package com.plot.ui.imgui;
 
 import com.plot.ui.component.BlockIconRenderer;
-import com.plot.ui.imgui.gl.ImGuiGLStateGuard;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
@@ -29,16 +28,17 @@ import java.util.List;
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GuiOverlayRenderer");
     private static volatile long lastDrawContextFlushWarnMs;
+    private static final boolean DEBUG_ITEM_PROBE = true;
 
     private GuiOverlayRenderer() {}
 
     private static final class PendingItem {
         final ItemStack stack;
-        final int x;
-        final int y;
+        final float x;
+        final float y;
         final float scale;
 
-        PendingItem(ItemStack stack, int x, int y, float scale) {
+        PendingItem(ItemStack stack, float x, float y, float scale) {
             this.stack = stack;
             this.x = x;
             this.y = y;
@@ -86,13 +86,16 @@ public final class GuiOverlayRenderer {
                 int fbH = Math.max(1, window.getFramebufferHeight());
                 GL11.glViewport(0, 0, fbW, fbH);
             }
+            // 关键：避免被 ImGui / 其他 pass 遗留的 scissor 与深度状态裁掉 overlay 图标
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         } catch (Throwable t) {
             // Don't break swapBuffers on viewport/FBO issues; just continue.
         }
 
-        try (ImGuiGLStateGuard ignored = ImGuiGLStateGuard.enter()) {
-            flush(context);
-        }
+        flush(context);
     }
 
     /**
@@ -114,12 +117,11 @@ public final class GuiOverlayRenderer {
                 return;
             }
 
-            int intX = Math.round(x);
-            int intY = Math.round(y);
-
-            PENDING_ITEMS.add(new PendingItem(stack, intX, intY, scale));
+            // 该项目当前运行环境下，ImGui 与 DrawContext 使用同一屏幕坐标系。
+            // 不做 DPI/GUI scale 换算，避免坐标被压缩到左上角。
+            PENDING_ITEMS.add(new PendingItem(stack, x, y, scale));
             LOGGER.debug("✓ 已队列方块: {} @ ({}, {})", 
-                        net.minecraft.registry.Registries.BLOCK.getId(block), intX, intY);
+                        net.minecraft.registry.Registries.BLOCK.getId(block), Math.round(x), Math.round(y));
 
         } catch (Exception e) {
             LOGGER.warn("queueBlockItem 异常: {}", e.getMessage(), e);
@@ -193,8 +195,13 @@ public final class GuiOverlayRenderer {
 
     private static void drawScaledItem(DrawContext context, PendingItem item) {
         float scale = item.scale <= 0.0f ? 1.0f : item.scale;
+        int drawX = Math.round(item.x);
+        int drawY = Math.round(item.y);
+        if (DEBUG_ITEM_PROBE) {
+            drawProbeRect(context, drawX, drawY, scale);
+        }
         if (Math.abs(scale - 1.0f) < 0.0001f) {
-            BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+            BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
             return;
         }
 
@@ -202,7 +209,7 @@ public final class GuiOverlayRenderer {
             var getMatrices = context.getClass().getMethod("getMatrices");
             Object matrices = getMatrices.invoke(context);
             if (matrices == null) {
-                BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+                BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
                 return;
             }
 
@@ -220,7 +227,22 @@ public final class GuiOverlayRenderer {
                 pop.invoke(matrices);
             }
         } catch (Throwable t) {
-            BlockIconRenderer.drawItem(context, item.stack, item.x, item.y);
+            BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
+        }
+    }
+
+    private static void drawProbeRect(DrawContext context, int x, int y, float scale) {
+        try {
+            int size = Math.max(8, Math.round(16.0f * scale));
+            int x2 = x + size;
+            int y2 = y + size;
+            // 半透明紫色填充 + 亮青色边框，便于在任何背景下识别
+            context.fill(x, y, x2, y2, 0x884000FF);
+            context.fill(x, y, x2, y + 1, 0xFF00FFFF);
+            context.fill(x, y2 - 1, x2, y2, 0xFF00FFFF);
+            context.fill(x, y, x + 1, y2, 0xFF00FFFF);
+            context.fill(x2 - 1, y, x2, y2, 0xFF00FFFF);
+        } catch (Throwable ignored) {
         }
     }
 

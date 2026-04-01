@@ -19,7 +19,9 @@ import com.plot.infrastructure.event.block.GhostBlockWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
@@ -272,25 +274,36 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
      * 等待客户端完全启动后再初始化，避免线程检查失败
      */
     private void registerDelayedBlockIconRendererInitialization() {
-        // 渲染器现在为无状态安全实现；保留一个轻量的预加载触发器以填充缓存
+        // 离屏 FBO 须在渲染线程执行；与预加载拆开：processQueue 每帧都跑，不依赖玩家；预加载仅一次且需已进入世界
         final boolean[] preloaded = {false};
-        LOGGER.info("注册BlockIconRenderer预加载事件监听器 (轻量)");
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (!preloaded[0] && client.player != null) {
-                try {
-                    LOGGER.info("触发 BlockIconRenderer 预加载常用方块缓存");
-                    com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog tmp = null; // placeholder
-                    // Use the compat preload method to warm caches
-                    com.plot.ui.component.BlockIconRenderer.preloadCommonBlocks();
-                    LOGGER.info("BlockIconRenderer 预加载完成: {}", com.plot.ui.component.BlockIconRenderer.getCacheStats());
-                } catch (Exception e) {
-                    LOGGER.warn("BlockIconRenderer 预加载失败: {}", e.getMessage());
-                } finally {
-                    preloaded[0] = true;
-                }
+        LOGGER.info("注册 BlockIconRenderer：END_MAIN 每帧 processQueue（独立）");
+        WorldRenderEvents.END_MAIN.register(context -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null) {
+                return;
+            }
+            com.plot.ui.component.BlockIconRenderer.getInstance()
+                .processQueue(com.plot.ui.component.BlockIconRenderer.DEFAULT_RENDER_BUDGET);
+        });
+        WorldRenderEvents.END_MAIN.register(context -> {
+            if (preloaded[0]) {
+                return;
+            }
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || client.world == null) {
+                return;
+            }
+            try {
+                LOGGER.info("触发 BlockIconRenderer 预加载常用方块缓存");
+                com.plot.ui.component.BlockIconRenderer.preloadCommonBlocks();
+                LOGGER.info("BlockIconRenderer 预加载完成: {}", com.plot.ui.component.BlockIconRenderer.getCacheStats());
+            } catch (Exception e) {
+                LOGGER.warn("BlockIconRenderer 预加载失败: {}", e.getMessage(), e);
+            } finally {
+                preloaded[0] = true;
             }
         });
-        LOGGER.info("BlockIconRenderer 预加载事件监听器已注册");
+        LOGGER.info("BlockIconRenderer：END_MAIN 预加载（world 非空时）已注册");
     }
 
     /**

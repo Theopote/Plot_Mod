@@ -37,7 +37,7 @@ import java.util.function.Consumer;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import net.minecraft.item.ItemStack;
-// removed unused direct MC rendering imports; we now use GuiOverlayRenderer
+// removed unused direct MC rendering imports; we now use FBO texture rendering
 
 /**
  * 紧凑型方块配置对话框
@@ -131,7 +131,6 @@ public class CompactBlockConfigDialog {
 
     // ImGui 直绘方块图标缓存（textureId + uv）
     private final Map<Block, SpriteRenderData> spriteRenderCache = new HashMap<>();
-    private final Map<Block, Integer> blockTextureCache = new HashMap<>();
 
     private static final class SpriteRenderData {
         final int textureId;
@@ -397,6 +396,8 @@ public class CompactBlockConfigDialog {
             int windowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
 
             if (ImGui.begin("方块选择", windowFlags)) {
+                // 在绘制含图标的格子前先处理离屏队列，减少整帧滞后；直绘图集路径不依赖此项但仍受益。
+                BlockIconRenderer.getInstance().processQueue(BlockIconRenderer.DEFAULT_RENDER_BUDGET * 4);
                 // 手动绘制20像素高的标题栏
                 renderCustomTitleBar();
                 try {
@@ -412,10 +413,7 @@ public class CompactBlockConfigDialog {
             }
             ImGui.end();
 
-            // [最终修复] 将渲染任务放在ImGui窗口渲染之后
-            processBlockIconRendering();
-            // 在ImGui结束后，用Minecraft的DrawContext覆盖绘制真实物品图标
-            flushPendingItemDraws();
+            // 离屏图标队列在 PlotMod WorldRenderEvents.END_MAIN 中处理（须在 ImGui 帧结束后、swap 前的正确 GL 时机）
 
         } catch (Exception e) {
             LOGGER.error("渲染方块配置对话框窗口时发生严重错误: {}", e.getMessage(), e);
@@ -865,32 +863,25 @@ public class CompactBlockConfigDialog {
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.inputBackgroundHovered);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
             } else if (block != null) {
-                // 检查方块是否有有效图标
-                boolean hasValidIcon = BlockIconRenderer.hasValidIcon(block);
-                if (!hasValidIcon) {
-                    // 无 Item 形态时再回退 2D 资源纹理；再失败则占位
-                    if (!tryRenderBlockTextureFromResources(drawList, block, x, y)) {
-                        LOGGER.warn("方块 {} 无有效图标，显示占位符", Registries.BLOCK.getId(block));
-                        drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.inputBackgroundHovered);
-                        drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
-                    }
-                    return;
-                }
-
-                // 绘制方块背景
                 int backgroundColor = isHovered ? theme.buttonHovered : theme.controlBackground;
                 drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, backgroundColor);
                 drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
-
-                // 优先 3D 物品渲染（与物品栏一致），2D 仅作为失败兜底
-                float scale = BLOCK_ICON_SIZE / 16.0f;  // 48/16 = 3.0
-                com.plot.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
-
-                // 作为兜底（理论上不应频繁触发）
-                if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y)) {
-                    tryRenderBlockTextureFromResources(drawList, block, x, y);
+                float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
+                if (tryRenderBlockIconDirect(drawList, block, x, y)) {
+                    return;
                 }
-                
+                int textureId = BlockIconRenderer.getInstance().getTextureId(block);
+                if (textureId > 0) {
+                    drawList.addImage(
+                        textureId,
+                        x + inset,
+                        y + inset,
+                        x + BLOCK_ICON_SIZE - inset,
+                        y + BLOCK_ICON_SIZE - inset,
+                        0.0f, 1.0f,
+                        1.0f, 0.0f
+                    );
+                }
             } else {
                 // 只有在调试模式下才记录这个警告，避免日志污染
                 if (LOGGER.isDebugEnabled()) {
@@ -972,13 +963,22 @@ public class CompactBlockConfigDialog {
      */
     private void renderDraggedBlockPreview(imgui.ImDrawList drawList, Block block, float x, float y) {
         try {
-            // 1.21.11：BlockIconRenderer 的离屏纹理渲染暂时禁用，拖拽预览改用覆盖绘制真实物品图标
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, ImGui.getColorU32(0.15f, 0.15f, 0.15f, 0.6f));
-            float scale = BLOCK_ICON_SIZE / 16.0f;  // [ENHANCED] 使用正确的缩放系数
-            com.plot.ui.imgui.GuiOverlayRenderer.queueBlockItem(block, x, y, scale);
-
-            if (LOGGER.isDebugEnabled() && !tryRenderBlockIconDirect(drawList, block, x, y)) {
-                tryRenderBlockTextureFromResources(drawList, block, x, y);
+            float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
+            if (tryRenderBlockIconDirect(drawList, block, x, y)) {
+                return;
+            }
+            int textureId = BlockIconRenderer.getInstance().getTextureId(block);
+            if (textureId > 0) {
+                drawList.addImage(
+                    textureId,
+                    x + inset,
+                    y + inset,
+                    x + BLOCK_ICON_SIZE - inset,
+                    y + BLOCK_ICON_SIZE - inset,
+                    0.0f, 1.0f,
+                    1.0f, 0.0f
+                );
             }
         } catch (Exception e) {
             LOGGER.error("渲染拖动预览时发生异常: {} - {}", 
@@ -1005,11 +1005,6 @@ public class CompactBlockConfigDialog {
     }
 
     private int getBlockTextureId(Block block) {
-        Integer cached = blockTextureCache.get(block);
-        if (cached != null) {
-            return cached;
-        }
-
         Identifier blockId = Registries.BLOCK.getId(block);
         String namespace = blockId.getNamespace();
         String path = blockId.getPath();
@@ -1048,10 +1043,7 @@ public class CompactBlockConfigDialog {
             textureIdentifier = Identifier.of("minecraft", "textures/item/barrier.png");
         }
 
-        int textureId = ImGuiUtils.getTextureId(textureIdentifier);
-
-        blockTextureCache.put(block, textureId);
-        return textureId;
+        return ImGuiUtils.getTextureId(textureIdentifier);
     }
 
     private Identifier findFirstExistingTexture(String namespace, String blockPath) {
@@ -2047,24 +2039,12 @@ public class CompactBlockConfigDialog {
             Blocks.REDSTONE_BLOCK, Blocks.EMERALD_BLOCK, Blocks.NETHERITE_BLOCK
         );
 
-        // 高优先级预加载：触发 ItemStack 缓存
-        for (Block block : commonBlocks) {
-            BlockIconRenderer.getItemStackForBlock(block);
-        }
+        BlockIconRenderer.getInstance().preload(commonBlocks);
 
-        LOGGER.debug("预加载了 {} 个常用方块图标 (缓存项)", commonBlocks.size());
+        LOGGER.debug("预加载了 {} 个常用方块图标 (纹理队列)", commonBlocks.size());
     }
 
     /**
-     * 在render方法中处理方块图标渲染队列
-     * [CRITICAL FIX] 添加延迟初始化逻辑，解决OpenGL上下文无效时的崩溃问题
-     */
-    private void processBlockIconRendering() {
-        // 新版 BlockIconRenderer 为无状态安全渲染器，不再需要延迟初始化或 renderTick
-        // 保持此处为无操作占位，以便日后扩展队列处理逻辑
-    }
-
-        /**
      * [ENHANCED] 渲染方块悬停提示 - 显示详细信息
      */
     private void renderBlockTooltip(Block block) {

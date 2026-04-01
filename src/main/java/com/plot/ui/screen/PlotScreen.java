@@ -274,12 +274,6 @@ public class PlotScreen extends Screen {
             // 本方法负责在 ImGui frame 结束后使用 DrawContext 绘制覆盖图标。
             imGuiRenderer.endFrame();
             imguiFrameEnded = true;
-            try {
-                // 将 DrawContext 注入到 GuiOverlayRenderer，让 mixin 在 ImGui GL 渲染后调用 flushPending()
-                com.plot.ui.imgui.GuiOverlayRenderer.setPendingDrawContext(context);
-            } catch (Exception overlayErr) {
-                LOGGER.error("GuiOverlayRenderer 注入 DrawContext 失败", overlayErr);
-            }
             
         } catch (Exception e) {
             LOGGER.error("Error rendering Plot UI", e);

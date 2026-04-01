@@ -114,10 +114,7 @@ public class BlockPreloadManager {
         LOGGER.debug("开始预加载分类 {} 的方块图标，数量: {}", 
             category.getDisplayName(), blocksToPreload.size());
 
-        for (Block block : blocksToPreload) {
-            // 触发 ItemStack 缓存以完成预加载
-            BlockIconRenderer.getItemStackForBlock(block);
-        }
+        BlockIconRenderer.getInstance().preload(blocksToPreload);
 
         // 由于 BlockIconRenderer 自己管理队列，PreloadManager 不再需要复杂的 CompletableFuture 和状态跟踪
         // 我们可以简化 PreloadStatus，或者完全移除它，因为加载状态现在由 BlockIconRenderer 内部处理

@@ -1,7 +1,7 @@
 package com.plot.mixin;
 
-import com.plot.ui.imgui.ImGuiRenderer;
 import com.plot.ui.screen.PlotScreen;
+import com.plot.ui.imgui.ImGuiRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.tracy.TracyFrameCapturer;
@@ -37,13 +37,5 @@ public class RenderSystemMixin {
             renderer.renderPendingDrawData();
         }
 
-        // 无论当前帧是否有 ImGui draw data，都尝试 flush 图标队列。
-        // 原因：某些帧 drawDataReady 可能为 false，但业务侧仍已 queueBlockItem，
-        // 如果这里不 flush，会表现为“图标一直不显示”。
-        try {
-            com.plot.ui.imgui.GuiOverlayRenderer.flushPending();
-        } catch (Throwable t) {
-            // 不要抛出异常以免影响 swapBuffers
-        }
     }
 }
