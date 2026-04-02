@@ -27,7 +27,7 @@ import java.util.List;
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GuiOverlayRenderer");
     private static volatile long lastDrawContextFlushWarnMs;
-    private static final boolean DEBUG_ITEM_PROBE = true;
+    private static final boolean DEBUG_ITEM_PROBE = false;
     private static long lastOverlayScaleLogMs;
 
     private GuiOverlayRenderer() {}
@@ -56,6 +56,14 @@ public final class GuiOverlayRenderer {
      */
     public static void setPendingDrawContext(DrawContext context) {
         pendingDrawContext = context;
+    }
+
+    public static void queueItem(ItemStack stack, float x, float y, float scale) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        float safeScale = scale <= 0.0f ? 1.0f : scale;
+        PENDING_ITEMS.add(new PendingItem(stack.copy(), x, y, safeScale));
     }
 
     /**

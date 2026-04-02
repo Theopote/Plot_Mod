@@ -4,6 +4,7 @@ import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.block.BlockConfigEvent;
 import com.plot.ui.component.BlockIconRenderer;
+import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -584,6 +585,9 @@ public class CompactBlockConfigDialog {
 
         List<Block> pageBlocks = validBlocks.subList(startIndex, endIndex);
 
+        // 预热当前页图标，减少翻页时占位图停留时间
+        BlockIconRenderer.getInstance().preload(pageBlocks);
+
         // 在循环开始前获取当前的Y坐标作为我们布局的"基准线"
         // 这样可以确保我们的网格绘制在正确的位置，而不是跳到窗口顶部。
         float initialY = ImGui.getCursorPosY();
@@ -828,6 +832,7 @@ public class CompactBlockConfigDialog {
                 return;
             }
 
+            boolean ready = BlockIconRenderer.getInstance().isTextureReady(block);
             int textureId = BlockIconRenderer.getInstance().getTextureId(block);
             float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
 
@@ -841,6 +846,24 @@ public class CompactBlockConfigDialog {
                     0.0f, 1.0f,
                     1.0f, 0.0f
             );
+
+            boolean needsOverlayFallback = !ready || BlockIconRenderer.isPlaceholderTexture(textureId);
+            if (needsOverlayFallback) {
+                ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+                if (!stack.isEmpty()) {
+                    float targetSize = BLOCK_ICON_SIZE - inset * 2.0f;
+                    float scale = targetSize / 16.0f;
+                    GuiOverlayRenderer.queueItem(stack, x + inset, y + inset, scale);
+                }
+
+                float dotSize = Math.max(3.0f, BLOCK_ICON_SIZE * 0.1f);
+                drawList.addCircleFilled(
+                        x + BLOCK_ICON_SIZE - dotSize - 3.0f,
+                        y + dotSize + 3.0f,
+                        dotSize,
+                        theme.accent
+                );
+            }
         } catch (Throwable t) {
             LOGGER.error("renderBlockIcon failed: {}", block != null ? Registries.BLOCK.getId(block) : "null", t);
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.errorText);

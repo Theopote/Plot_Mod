@@ -185,6 +185,25 @@ public final class BlockIconRenderer implements AutoCloseable {
         return pendingQueue.size();
     }
 
+    public boolean isTextureReady(Block block) {
+        RenderSystem.assertOnRenderThread();
+        ensureOpen();
+
+        if (block == null) {
+            return false;
+        }
+
+        Integer cached = textureCache.get(block);
+        return cached != null && cached > 0 && cached != placeholderTextureId;
+    }
+
+    public boolean isQueued(Block block) {
+        RenderSystem.assertOnRenderThread();
+        ensureOpen();
+
+        return block != null && queuedSet.contains(block);
+    }
+
     @Override
     public void close() {
         if (closed) return;
@@ -238,6 +257,9 @@ public final class BlockIconRenderer implements AutoCloseable {
             GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 
             drawVanillaGuiItemIntoCurrentFbo(stack);
+            if (!hasVisiblePixels()) {
+                throw new IllegalStateException("离屏物品渲染结果为空（透明纹理）");
+            }
 
             // 解绑颜色附件，避免后续误写
             GL30.glFramebufferTexture2D(
@@ -348,6 +370,34 @@ public final class BlockIconRenderer implements AutoCloseable {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
 
         return texId;
+    }
+
+    private boolean hasVisiblePixels() {
+        int size = Math.max(1, textureSize);
+        ByteBuffer pixels = BufferUtils.createByteBuffer(size * size * 4);
+        GL11.glReadPixels(0, 0, size, size, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
+
+        int step = Math.max(4, (size * size) / 256);
+        int samples = 0;
+        for (int i = 3; i < pixels.limit(); i += step * 4) {
+            samples++;
+            int alpha = pixels.get(i) & 0xFF;
+            if (alpha > 8) {
+                return true;
+            }
+        }
+
+        if (samples == 0) {
+            return false;
+        }
+
+        for (int i = 3; i < pixels.limit(); i += 4) {
+            int alpha = pixels.get(i) & 0xFF;
+            if (alpha > 8) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private int getPlaceholderTextureId() {
@@ -604,6 +654,14 @@ public final class BlockIconRenderer implements AutoCloseable {
         return "IconTex缓存: " + INSTANCE.textureCache.size()
                 + ", ItemStack缓存: " + ITEM_STACK_CACHE.size()
                 + ", 待渲染: " + INSTANCE.getPendingCount();
+    }
+
+    public static int getPendingCountGlobal() {
+        return INSTANCE.getPendingCount();
+    }
+
+    public static boolean isPlaceholderTexture(int textureId) {
+        return textureId == INSTANCE.placeholderTextureId;
     }
 
     public static boolean isInitialized() {

@@ -449,7 +449,6 @@ public class PlotScreen extends Screen {
 
         // 清理并重建 dockspace 节点树
         imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
-        // 参考 ChronoBlocks：DockBuilderAddNode 要显式使用 DockSpace flag
         imgui.internal.ImGui.dockBuilderAddNode(dockspaceId, imgui.internal.flag.ImGuiDockNodeFlags.DockSpace);
         imgui.internal.ImGui.dockBuilderSetNodeSize(dockspaceId, displayWidth, displayHeight);
 

@@ -13,7 +13,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * 1.21.x：将 ImGui 的最终绘制放到 swapBuffers 前，避免被新渲染管线的 RenderPass/命令队列覆盖。
- * 参考 ChronoBlocks 的实现方式
  */
 @Mixin(RenderSystem.class)
 public class RenderSystemMixin {
