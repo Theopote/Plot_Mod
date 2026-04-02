@@ -604,7 +604,6 @@ public class PlotScreen extends Screen {
         float x = UILayout.getRightPanelX(displayWidth);
         // 属性面板在系统面板下方，系统面板高度约两倍按钮高度
         float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE * 2.0f;
-        float y = systemPanelHeight;
         float w = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
         // 属性面板高度 = 总高度 - 系统面板高度
         float h = displayHeight - systemPanelHeight;
@@ -612,7 +611,7 @@ public class PlotScreen extends Screen {
         try {
             // 属性面板（第一个渲染，确保在最前面且默认打开）
             if (propertyPanel != null) {
-                ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
+                ImGui.setNextWindowPos(x, systemPanelHeight, ImGuiCond.FirstUseEver);
                 ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
                 // 首次渲染时设置焦点，确保属性面板默认激活
                 if (firstRender) {
