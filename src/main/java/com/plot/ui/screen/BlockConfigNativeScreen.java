@@ -24,13 +24,11 @@ import java.util.List;
 public class BlockConfigNativeScreen extends Screen {
     private static final int MAX_PALETTE_SLOTS = 12;
     private static final int GRID_COLS = 12;
-    private static final int GRID_ROWS = 6;
+    private static final int GRID_ROWS = 8;
     private static final int PAGE_SIZE = GRID_COLS * GRID_ROWS;
 
-    private static final int SLOT_SIZE = 20;
-    private static final int SLOT_INSET = 2;
-    private static final int SLOT_GAP = 4;
-
+    private static final int SLOT_GAP = 1;
+    private static final int MARGIN = 3; // 
     private final CompactBlockConfigDialog bridge;
     private final Screen parent;
 
@@ -45,6 +43,9 @@ public class BlockConfigNativeScreen extends Screen {
     private int panelW;
     private int panelH;
 
+    private int slotSize;
+    private int slotInset;
+
     private int gridX;
     private int gridY;
 
@@ -56,7 +57,7 @@ public class BlockConfigNativeScreen extends Screen {
     private int btnClearX;
     private int btnY;
     private static final int BTN_W = 70;
-    private static final int BTN_H = 20;
+    private static final int BTN_H = 14;
 
     public BlockConfigNativeScreen(CompactBlockConfigDialog bridge, Screen parent) {
         super(Text.of("方块配置（原生）"));
@@ -68,19 +69,28 @@ public class BlockConfigNativeScreen extends Screen {
     protected void init() {
         super.init();
 
-        panelW = Math.min(760, this.width - 24);
-        panelH = Math.min(560, this.height - 24);
-        panelX = (this.width - panelW) / 2;
+        panelH = Math.min(760, this.height - 24);
         panelY = (this.height - panelH) / 2;
 
-        gridX = panelX + 16;
+        // 从面板高度反推 slotSize
+        int byHeight = (panelH - 220) / GRID_ROWS;
+        slotSize = Math.max(18, Math.min(36, byHeight));
+        slotInset = Math.max(1, (slotSize - 16) / 2);
+
+        // 面板宽度 = 12 x slotSize + 11 x SLOT_GAP + 2 x MARGIN
+        panelW = GRID_COLS * slotSize + (GRID_COLS - 1) * SLOT_GAP + 2 * MARGIN;
+        panelW = Math.min(panelW, this.width - 24);
+        panelX = (this.width - panelW) / 2;
+
+        gridX = panelX + MARGIN;
         gridY = panelY + 62;
 
-        paletteX = panelX + 16;
-        paletteY = gridY + GRID_ROWS * (SLOT_SIZE + SLOT_GAP) + 26;
+        int gridHeight = GRID_ROWS * slotSize + (GRID_ROWS - 1) * SLOT_GAP;
+        paletteX = panelX + MARGIN;
+        paletteY = gridY + gridHeight + 22;
 
         btnY = panelY + panelH - 32;
-        btnApplyX = panelX + panelW - (BTN_W * 3 + 16 + 12);
+        btnApplyX = panelX + panelW - (BTN_W * 3 + 16 + 14);
         btnCancelX = btnApplyX + BTN_W + 6;
         btnClearX = btnCancelX + BTN_W + 6;
 
@@ -112,7 +122,7 @@ public class BlockConfigNativeScreen extends Screen {
 
         context.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xE61F1F1F);
         drawBorder(context, panelX, panelY, panelW, panelH, 0xFF4A4A4A);
-        context.drawText(this.textRenderer, this.title, panelX + 14, panelY + 12, 0xFFFFFFFF, false);
+        context.drawText(this.textRenderer, this.title, panelX + MARGIN, panelY + 12, 0xFFFFFFFF, false);
 
         renderCategoryTabs(context, mouseX, mouseY);
         renderGrid(context, mouseX, mouseY);
@@ -131,21 +141,21 @@ public class BlockConfigNativeScreen extends Screen {
     private void renderCategoryTabs(DrawContext context, int mouseX, int mouseY) {
         List<BlockCategory> categories = bridge != null ? bridge.getAvailableCategories() : List.of(BlockCategory.values());
 
-        int x = panelX + 14;
+        int x = panelX + MARGIN;
         int y = panelY + 30;
         int h = 18;
 
         for (BlockCategory category : categories) {
             String text = category.getDisplayName();
-            int w = Math.max(46, this.textRenderer.getWidth(text) + 12);
+            int w = this.textRenderer.getWidth(text) + 4; // 文字宽度 + 2px 左右内边距
             boolean active = category == currentCategory;
             boolean hover = isInside(mouseX, mouseY, x, y, w, h);
 
             int bg = active ? 0xFF4A6FA5 : (hover ? 0xFF3B3B3B : 0xFF2D2D2D);
             context.fill(x, y, x + w, y + h, bg);
             drawBorder(context, x, y, w, h, 0xFF5A5A5A);
-            context.drawText(this.textRenderer, text, x + 6, y + 5, 0xFFFFFFFF, false);
-            x += w + 6;
+            context.drawText(this.textRenderer, text, x + 2, y + 5, 0xFFFFFFFF, false);
+            x += w + 3; // 按钮间距改为 SLOT_GAP（3）
         }
     }
 
@@ -157,12 +167,12 @@ public class BlockConfigNativeScreen extends Screen {
             int col = i % GRID_COLS;
             int row = i / GRID_COLS;
 
-            int x = gridX + col * (SLOT_SIZE + SLOT_GAP);
-            int y = gridY + row * (SLOT_SIZE + SLOT_GAP);
+            int x = gridX + col * (slotSize + SLOT_GAP);
+            int y = gridY + row * (slotSize + SLOT_GAP);
 
-            boolean hover = isInside(mouseX, mouseY, x, y, SLOT_SIZE, SLOT_SIZE);
-            context.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, hover ? 0xFF464646 : 0xFF343434);
-            drawBorder(context, x, y, SLOT_SIZE, SLOT_SIZE, 0xFF616161);
+            boolean hover = isInside(mouseX, mouseY, x, y, slotSize, slotSize);
+            context.fill(x, y, x + slotSize, y + slotSize, hover ? 0xFF464646 : 0xFF343434);
+            drawBorder(context, x, y, slotSize, slotSize, 0xFF616161);
 
             if (idx >= categoryBlocks.size()) {
                 continue;
@@ -171,7 +181,7 @@ public class BlockConfigNativeScreen extends Screen {
             Block block = categoryBlocks.get(idx);
             ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
             if (!stack.isEmpty()) {
-                BlockIconRenderer.tryDrawItem(context, stack, x + SLOT_INSET, y + SLOT_INSET);
+                BlockIconRenderer.tryDrawItem(context, stack, x + slotInset, y + slotInset);
             }
         }
     }
@@ -180,12 +190,12 @@ public class BlockConfigNativeScreen extends Screen {
         context.drawText(this.textRenderer, Text.of("调色盘"), paletteX, paletteY - 14, 0xFFE6E6E6, false);
 
         for (int i = 0; i < MAX_PALETTE_SLOTS; i++) {
-            int x = paletteX + i * (SLOT_SIZE + SLOT_GAP);
+            int x = paletteX + i * (slotSize + SLOT_GAP);
             int y = paletteY;
-            boolean hover = isInside(mouseX, mouseY, x, y, SLOT_SIZE, SLOT_SIZE);
+            boolean hover = isInside(mouseX, mouseY, x, y, slotSize, slotSize);
 
-            context.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, hover ? 0xFF4A4A4A : 0xFF2F2F2F);
-            drawBorder(context, x, y, SLOT_SIZE, SLOT_SIZE, 0xFF707070);
+            context.fill(x, y, x + slotSize, y + slotSize, hover ? 0xFF4A4A4A : 0xFF2F2F2F);
+            drawBorder(context, x, y, slotSize, slotSize, 0xFF707070);
 
             if (i >= palette.size()) {
                 continue;
@@ -193,7 +203,7 @@ public class BlockConfigNativeScreen extends Screen {
 
             ItemStack stack = BlockIconRenderer.getItemStackForBlock(palette.get(i));
             if (!stack.isEmpty()) {
-                BlockIconRenderer.tryDrawItem(context, stack, x + SLOT_INSET, y + SLOT_INSET);
+                BlockIconRenderer.tryDrawItem(context, stack, x + slotInset, y + slotInset);
             }
         }
     }
@@ -201,7 +211,7 @@ public class BlockConfigNativeScreen extends Screen {
     private void renderPagerAndButtons(DrawContext context, int mouseX, int mouseY) {
         int totalPages = Math.max(1, (categoryBlocks.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         String pageText = String.format("第 %d/%d 页", page + 1, totalPages);
-        context.drawText(this.textRenderer, pageText, panelX + 16, btnY + 6, 0xFFD6D6D6, false);
+        context.drawText(this.textRenderer, pageText, panelX + MARGIN, btnY + 3, 0xFFD6D6D6, false);
 
         int prevX = panelX + 110;
         int nextX = panelX + 160;
@@ -217,7 +227,7 @@ public class BlockConfigNativeScreen extends Screen {
         boolean hover = isInside(mouseX, mouseY, x, y, w, h);
         context.fill(x, y, x + w, y + h, hover ? 0xFF4A4A4A : 0xFF333333);
         drawBorder(context, x, y, w, h, 0xFF777777);
-        context.drawText(this.textRenderer, text, x + 5, y + 6, 0xFFFFFFFF, false);
+        context.drawText(this.textRenderer, text, x + 5, y + 3, 0xFFFFFFFF, false);
     }
 
     private void drawMainButton(DrawContext context, int x, int y, int w, int h, String text, int baseColor, int mouseX, int mouseY) {
@@ -225,7 +235,7 @@ public class BlockConfigNativeScreen extends Screen {
         int bg = hover ? brighten(baseColor) : baseColor;
         context.fill(x, y, x + w, y + h, bg);
         drawBorder(context, x, y, w, h, 0xFF919191);
-        context.drawText(this.textRenderer, text, x + 24, y + 6, 0xFFFFFFFF, false);
+        context.drawText(this.textRenderer, text, x + 24, y + 3, 0xFFFFFFFF, false);
     }
 
     private void renderHoverTooltip(DrawContext context, int mouseX, int mouseY) {
@@ -253,9 +263,9 @@ public class BlockConfigNativeScreen extends Screen {
             }
             int col = i % GRID_COLS;
             int row = i / GRID_COLS;
-            int x = gridX + col * (SLOT_SIZE + SLOT_GAP);
-            int y = gridY + row * (SLOT_SIZE + SLOT_GAP);
-            if (isInside(mouseX, mouseY, x, y, SLOT_SIZE, SLOT_SIZE)) {
+            int x = gridX + col * (slotSize + SLOT_GAP);
+            int y = gridY + row * (slotSize + SLOT_GAP);
+            if (isInside(mouseX, mouseY, x, y, slotSize, slotSize)) {
                 return categoryBlocks.get(idx);
             }
         }
@@ -264,9 +274,9 @@ public class BlockConfigNativeScreen extends Screen {
 
     private Block getHoveredPaletteBlock(int mouseX, int mouseY) {
         for (int i = 0; i < palette.size(); i++) {
-            int x = paletteX + i * (SLOT_SIZE + SLOT_GAP);
+            int x = paletteX + i * (slotSize + SLOT_GAP);
             int y = paletteY;
-            if (isInside(mouseX, mouseY, x, y, SLOT_SIZE, SLOT_SIZE)) {
+            if (isInside(mouseX, mouseY, x, y, slotSize, slotSize)) {
                 return palette.get(i);
             }
         }
@@ -326,20 +336,20 @@ public class BlockConfigNativeScreen extends Screen {
 
     private boolean handleCategoryClick(double mouseX, double mouseY) {
         List<BlockCategory> categories = bridge != null ? bridge.getAvailableCategories() : List.of(BlockCategory.values());
-        int x = panelX + 14;
+        int x = panelX + MARGIN;
         int y = panelY + 30;
         int h = 18;
 
         for (BlockCategory category : categories) {
             String text = category.getDisplayName();
-            int w = Math.max(46, this.textRenderer.getWidth(text) + 12);
+            int w = this.textRenderer.getWidth(text) + 4; // 文字宽度 + 2px 左右内边距
             if (isInside(mouseX, mouseY, x, y, w, h)) {
                 currentCategory = category;
                 page = 0;
                 reloadCategory();
                 return true;
             }
-            x += w + 6;
+            x += w + 3; // 按钮间距改为 SLOT_GAP（3）
         }
 
         return false;
@@ -355,9 +365,9 @@ public class BlockConfigNativeScreen extends Screen {
 
             int col = i % GRID_COLS;
             int row = i / GRID_COLS;
-            int x = gridX + col * (SLOT_SIZE + SLOT_GAP);
-            int y = gridY + row * (SLOT_SIZE + SLOT_GAP);
-            if (!isInside(mouseX, mouseY, x, y, SLOT_SIZE, SLOT_SIZE)) {
+            int x = gridX + col * (slotSize + SLOT_GAP);
+            int y = gridY + row * (slotSize + SLOT_GAP);
+            if (!isInside(mouseX, mouseY, x, y, slotSize, slotSize)) {
                 continue;
             }
 
@@ -381,9 +391,9 @@ public class BlockConfigNativeScreen extends Screen {
 
     private boolean handlePaletteClick(double mouseX, double mouseY, int button) {
         for (int i = 0; i < palette.size(); i++) {
-            int x = paletteX + i * (SLOT_SIZE + SLOT_GAP);
+            int x = paletteX + i * (slotSize + SLOT_GAP);
             int y = paletteY;
-            if (!isInside(mouseX, mouseY, x, y, SLOT_SIZE, SLOT_SIZE)) {
+            if (!isInside(mouseX, mouseY, x, y, slotSize, slotSize)) {
                 continue;
             }
 
