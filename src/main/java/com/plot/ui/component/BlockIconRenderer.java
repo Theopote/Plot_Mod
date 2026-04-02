@@ -33,12 +33,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fabric 1.21.10 / Minecraft 1.21.10
- *
+ * <p>
  * 离屏 3D 方块图标渲染器：
  * 1. 使用 OpenGL FBO 渲染到纹理
  * 2. 使用 Vanilla DrawContext.drawItemWithoutEntity 渲染 GUI 风格 3D 方块物品
  * 3. 输出 textureId，可直接给 ImGui.addImage / ImGui.image 使用
- *
+ * <p>
  * 重点：
  * - 不依赖 ItemRenderState 私有字段反射
  * - 不走 overlay 队列方案
@@ -46,6 +46,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BlockIconRenderer implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockIconRenderer");
+    // 1.21.11 渲染时序下，离屏 DrawContext/FBO 路径会出现大规模 GL_INVALID_OPERATION。
+    // 临时关闭离屏图标渲染，改由 GuiOverlayRenderer 兜底绘制原生物品图标。
+    private static final boolean OFFSCREEN_ICON_RENDERING_ENABLED = false;
+    private static boolean offscreenDisableLogged = false;
 
     public static final int DEFAULT_RENDER_BUDGET = 16;
     private static final int MAX_RENDER_ATTEMPTS = 3;
@@ -80,6 +84,10 @@ public final class BlockIconRenderer implements AutoCloseable {
         RenderSystem.assertOnRenderThread();
         ensureOpen();
 
+        if (!OFFSCREEN_ICON_RENDERING_ENABLED) {
+            return getPlaceholderTextureId();
+        }
+
         if (block == null) {
             return getPlaceholderTextureId();
         }
@@ -104,6 +112,16 @@ public final class BlockIconRenderer implements AutoCloseable {
     public void processQueue(int maxPerFrame) {
         RenderSystem.assertOnRenderThread();
         ensureOpen();
+
+        if (!OFFSCREEN_ICON_RENDERING_ENABLED) {
+            if (!offscreenDisableLogged) {
+                offscreenDisableLogged = true;
+                LOGGER.info("已禁用离屏方块图标渲染，使用 GuiOverlayRenderer 兜底绘制");
+            }
+            pendingQueue.clear();
+            queuedSet.clear();
+            return;
+        }
 
         ensureRenderTarget();
 
@@ -145,6 +163,10 @@ public final class BlockIconRenderer implements AutoCloseable {
     public void preload(Iterable<Block> blocks) {
         RenderSystem.assertOnRenderThread();
         ensureOpen();
+
+        if (!OFFSCREEN_ICON_RENDERING_ENABLED) {
+            return;
+        }
 
         for (Block block : blocks) {
             if (block == null) continue;
@@ -189,19 +211,16 @@ public final class BlockIconRenderer implements AutoCloseable {
         RenderSystem.assertOnRenderThread();
         ensureOpen();
 
+        if (!OFFSCREEN_ICON_RENDERING_ENABLED) {
+            return false;
+        }
+
         if (block == null) {
             return false;
         }
 
         Integer cached = textureCache.get(block);
         return cached != null && cached > 0 && cached != placeholderTextureId;
-    }
-
-    public boolean isQueued(Block block) {
-        RenderSystem.assertOnRenderThread();
-        ensureOpen();
-
-        return block != null && queuedSet.contains(block);
     }
 
     @Override
@@ -654,10 +673,6 @@ public final class BlockIconRenderer implements AutoCloseable {
         return "IconTex缓存: " + INSTANCE.textureCache.size()
                 + ", ItemStack缓存: " + ITEM_STACK_CACHE.size()
                 + ", 待渲染: " + INSTANCE.getPendingCount();
-    }
-
-    public static int getPendingCountGlobal() {
-        return INSTANCE.getPendingCount();
     }
 
     public static boolean isPlaceholderTexture(int textureId) {
