@@ -8,10 +8,14 @@ import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.utils.ImGuiUtils;
 import imgui.ImGui;
 import imgui.flag.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.Item;
+import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.lang.reflect.Method;
 import java.util.function.Consumer;
 import net.minecraft.item.ItemStack;
 
@@ -107,6 +112,9 @@ public class CompactBlockConfigDialog {
     private DragSource dragSource = DragSource.NONE;
     private int dragOriginIndex = -1;
     private int dropIndicatorIndex = -1;
+    private long lastSpriteFallbackLogMs = 0L;
+    private long lastSpriteFallbackFailLogMs = 0L;
+    private long lastSimpleTextureFallbackLogMs = 0L;
 
     private enum DragSource { NONE, DISPLAY_AREA, PALETTE_AREA }
 
@@ -836,8 +844,13 @@ public class CompactBlockConfigDialog {
             int textureId = BlockIconRenderer.getInstance().getTextureId(block);
             float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
 
-            // 注意：FBO 纹理给 ImGui 时要上下翻转 UV
-            drawList.addImage(
+                boolean offscreenEnabled = BlockIconRenderer.isOffscreenIconRenderingEnabled();
+                boolean isPlaceholderTexture = BlockIconRenderer.isPlaceholderTexture(textureId);
+                boolean shouldDrawTexture = !(isPlaceholderTexture && !offscreenEnabled);
+
+                if (shouldDrawTexture) {
+                // 注意：FBO 纹理给 ImGui 时要上下翻转 UV
+                drawList.addImage(
                     textureId,
                     x + inset,
                     y + inset,
@@ -845,30 +858,298 @@ public class CompactBlockConfigDialog {
                     y + BLOCK_ICON_SIZE - inset,
                     0.0f, 1.0f,
                     1.0f, 0.0f
-            );
+                );
+                }
 
-            boolean needsOverlayFallback = !ready || BlockIconRenderer.isPlaceholderTexture(textureId);
+                boolean needsOverlayFallback = !ready || isPlaceholderTexture;
             if (needsOverlayFallback) {
+                boolean fallbackQueued = false;
+                boolean spriteRendered = renderSpriteFallback(block, drawList,
+                        x + inset,
+                        y + inset,
+                        x + BLOCK_ICON_SIZE - inset,
+                        y + BLOCK_ICON_SIZE - inset);
+
+                boolean simpleTextureRendered = false;
+                if (!spriteRendered) {
+                    simpleTextureRendered = renderSimpleItemTextureFallback(
+                            block,
+                            drawList,
+                            x + inset,
+                            y + inset,
+                            x + BLOCK_ICON_SIZE - inset,
+                            y + BLOCK_ICON_SIZE - inset
+                    );
+                }
+
                 ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
-                if (!stack.isEmpty()) {
+                if (!stack.isEmpty() && !spriteRendered && !simpleTextureRendered) {
                     float targetSize = BLOCK_ICON_SIZE - inset * 2.0f;
                     float scale = targetSize / 16.0f;
                     GuiOverlayRenderer.queueItem(stack, x + inset, y + inset, scale);
+                    fallbackQueued = true;
                 }
 
-                float dotSize = Math.max(3.0f, BLOCK_ICON_SIZE * 0.1f);
-                drawList.addCircleFilled(
-                        x + BLOCK_ICON_SIZE - dotSize - 3.0f,
-                        y + dotSize + 3.0f,
-                        dotSize,
-                        theme.accent
-                );
+                if (!fallbackQueued && !spriteRendered && !simpleTextureRendered) {
+                    float dotSize = Math.max(3.0f, BLOCK_ICON_SIZE * 0.1f);
+                    drawList.addCircleFilled(
+                            x + BLOCK_ICON_SIZE - dotSize - 3.0f,
+                            y + dotSize + 3.0f,
+                            dotSize,
+                            theme.accent
+                    );
+                }
             }
         } catch (Throwable t) {
             LOGGER.error("renderBlockIcon failed: {}", block != null ? Registries.BLOCK.getId(block) : "null", t);
             drawList.addRectFilled(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.errorText);
             drawList.addRect(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, theme.buttonBorder, 0.0f, 0, 1.0f);
         }
+    }
+
+    private boolean renderSpriteFallback(Block block, imgui.ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        String failStage = "unknown";
+        try {
+            if (block == null || drawList == null) {
+                return failSpriteFallback("invalid-args", block);
+            }
+            failStage = "client";
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || client.getTextureManager() == null) {
+                return failSpriteFallback("client-or-texture-manager-null", block);
+            }
+            failStage = "block-model";
+
+            Object model = resolveBlockModelReflect(client, block);
+            if (model == null) {
+                return failSpriteFallback("block-model-null", block);
+            }
+
+            failStage = "sprite";
+            Object sprite = invokeFirstNoArg(model, "getParticleSprite", "getParticleTexture");
+            if (sprite == null) {
+                sprite = readFirstField(model, "particleSprite", "particleTexture", "sprite");
+            }
+            if (sprite == null) {
+                return failSpriteFallback("sprite-null", block);
+            }
+
+            failStage = "atlasId";
+            Identifier atlasId = null;
+            Object atlasIdObj = invokeFirstNoArg(sprite, "getAtlasId", "atlasId");
+            if (atlasIdObj instanceof Identifier id) {
+                atlasId = id;
+            }
+            if (atlasId == null) {
+                atlasId = Identifier.of("minecraft", "textures/atlas/blocks.png");
+            }
+
+            failStage = "atlasTexture";
+            Object atlasTexture = client.getTextureManager().getTexture(atlasId);
+            if (atlasTexture == null) {
+                return failSpriteFallback("atlas-texture-null", block);
+            }
+
+            failStage = "atlasTextureId";
+            int atlasTextureId = getTextureIdReflect(atlasTexture);
+            if (atlasTextureId <= 0) {
+                return failSpriteFallback("atlas-texture-id-invalid", block);
+            }
+
+            failStage = "uv";
+            float minU = getFloatNoArg(sprite, "getMinU");
+            float minV = getFloatNoArg(sprite, "getMinV");
+            float maxU = getFloatNoArg(sprite, "getMaxU");
+            float maxV = getFloatNoArg(sprite, "getMaxV");
+
+            if (maxU <= minU || maxV <= minV) {
+                return failSpriteFallback("uv-invalid", block);
+            }
+
+            failStage = "draw";
+            drawList.addImage(
+                    atlasTextureId,
+                    x0,
+                    y0,
+                    x1,
+                    y1,
+                    minU,
+                    minV,
+                    maxU,
+                    maxV
+            );
+            long now = System.currentTimeMillis();
+            if (now - lastSpriteFallbackLogMs > 2000L) {
+                lastSpriteFallbackLogMs = now;
+                LOGGER.info("Sprite兜底已绘制: {}", Registries.BLOCK.getId(block));
+            }
+            return true;
+        } catch (Throwable t) {
+            return failSpriteFallback("exception-" + failStage, block);
+        }
+    }
+
+    private boolean renderSimpleItemTextureFallback(Block block, imgui.ImDrawList drawList, float x0, float y0, float x1, float y1) {
+        try {
+            if (block == null || drawList == null) {
+                return false;
+            }
+
+            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+            if (stack.isEmpty()) {
+                return false;
+            }
+
+            Item item = stack.getItem();
+            if (item == null) {
+                return false;
+            }
+
+            Identifier itemId = Registries.ITEM.getId(item);
+            if (itemId == null) {
+                return false;
+            }
+
+            Identifier[] candidates = new Identifier[]{
+                    Identifier.of(itemId.getNamespace(), "textures/item/" + itemId.getPath() + ".png"),
+                    Identifier.of(itemId.getNamespace(), "textures/block/" + itemId.getPath() + ".png")
+            };
+
+            for (Identifier id : candidates) {
+                int texId = ImGuiUtils.getTextureId(id);
+                if (texId <= 0) {
+                    continue;
+                }
+                drawList.addImage(texId, x0, y0, x1, y1, 0.0f, 0.0f, 1.0f, 1.0f);
+                long now = System.currentTimeMillis();
+                if (now - lastSimpleTextureFallbackLogMs > 2000L) {
+                    lastSimpleTextureFallbackLogMs = now;
+                    LOGGER.info("Simple纹理兜底已绘制: {} via {}", Registries.BLOCK.getId(block), id);
+                }
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    private boolean failSpriteFallback(String reason, Block block) {
+        long now = System.currentTimeMillis();
+        if (now - lastSpriteFallbackFailLogMs > 2000L) {
+            lastSpriteFallbackFailLogMs = now;
+            LOGGER.info("Sprite兜底失败: {} stage={}",
+                    block != null ? Registries.BLOCK.getId(block) : "null",
+                    reason);
+        }
+        return false;
+    }
+
+    private Object resolveBlockModelReflect(MinecraftClient client, Block block) {
+        try {
+            if (client == null || block == null) {
+                return null;
+            }
+
+            Object blockRenderManager = invokeNoArg(client, "getBlockRenderManager");
+            if (blockRenderManager == null) {
+                return null;
+            }
+
+            Object blockState = invokeNoArg(block, "getDefaultState");
+            if (blockState == null) {
+                return null;
+            }
+
+            for (Method m : blockRenderManager.getClass().getMethods()) {
+                if (!"getModel".equals(m.getName())) {
+                    continue;
+                }
+                Class<?>[] params = m.getParameterTypes();
+                if (params.length != 1) {
+                    continue;
+                }
+                if (!params[0].isAssignableFrom(blockState.getClass()) && !blockState.getClass().isAssignableFrom(params[0])) {
+                    continue;
+                }
+                try {
+                    return m.invoke(blockRenderManager, blockState);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private Object invokeNoArg(Object target, String methodName) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            Method m = target.getClass().getMethod(methodName);
+            return m.invoke(target);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Object invokeFirstNoArg(Object target, String... methodNames) {
+        if (target == null || methodNames == null) {
+            return null;
+        }
+        for (String name : methodNames) {
+            Object value = invokeNoArg(target, name);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Object readFirstField(Object target, String... fieldNames) {
+        if (target == null || fieldNames == null) {
+            return null;
+        }
+        Class<?> c = target.getClass();
+        while (c != null) {
+            for (String name : fieldNames) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    Object v = f.get(target);
+                    if (v != null) {
+                        return v;
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            c = c.getSuperclass();
+        }
+        return null;
+    }
+
+    private float getFloatNoArg(Object target, String methodName) {
+        Object v = invokeNoArg(target, methodName);
+        if (v instanceof Number n) {
+            return n.floatValue();
+        }
+        return 0.0f;
+    }
+
+    private int getTextureIdReflect(Object texture) {
+        String[] methodNames = new String[]{"getGlId", "getGlTexture", "getGlTextureId"};
+        for (String name : methodNames) {
+            try {
+                Method m = texture.getClass().getMethod(name);
+                Object v = m.invoke(texture);
+                if (v instanceof Number n) {
+                    return n.intValue();
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return 0;
     }
 
     /**

@@ -50,6 +50,7 @@ public final class BlockIconRenderer implements AutoCloseable {
     // 临时关闭离屏图标渲染，改由 GuiOverlayRenderer 兜底绘制原生物品图标。
     private static final boolean OFFSCREEN_ICON_RENDERING_ENABLED = false;
     private static boolean offscreenDisableLogged = false;
+    private static boolean drawItemReflectWarnLogged = false;
 
     public static final int DEFAULT_RENDER_BUDGET = 16;
     private static final int MAX_RENDER_ATTEMPTS = 3;
@@ -511,8 +512,14 @@ public final class BlockIconRenderer implements AutoCloseable {
     }
 
     private static void flushDrawContextCompat(DrawContext context) {
+        try {
+            context.drawDeferredElements();
+            return;
+        } catch (Throwable ignored) {
+        }
+
         // 不同映射/版本方法名可能不同，全部试一次
-        for (String name : new String[]{"draw", "flush"}) {
+        for (String name : new String[]{"drawDeferredElements", "draw", "flush"}) {
             try {
                 Method m = context.getClass().getMethod(name);
                 m.invoke(context);
@@ -643,30 +650,96 @@ public final class BlockIconRenderer implements AutoCloseable {
         });
     }
 
-    /**
-     * 兼容 GuiOverlayRenderer：在当前 DrawContext 上绘制一个物品图标。
-     */
-    public static void drawItem(DrawContext context, ItemStack stack, int x, int y) {
+    public static boolean tryDrawItem(DrawContext context, ItemStack stack, int x, int y) {
         if (context == null || stack == null || stack.isEmpty() || stack.getItem() == Items.AIR) {
-            return;
+            return false;
         }
         try {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc != null && mc.player != null) {
                 context.drawItem(mc.player, stack, x, y, 0);
-                return;
+                return true;
             }
         } catch (Throwable ignored) {
         }
         try {
             context.drawItem(stack, x, y, 0);
-            return;
+            return true;
         } catch (Throwable ignored) {
         }
         try {
             context.drawItem(stack, x, y);
+            return true;
         } catch (Throwable ignored) {
         }
+
+        // 反射兜底：适配不同 Yarn/映射下 drawItem* 签名变化
+        try {
+            Method[] methods = context.getClass().getMethods();
+            for (Method m : methods) {
+                String name = m.getName();
+                if (!"drawItem".equals(name) && !"drawItemWithoutEntity".equals(name) && !"drawItemInSlot".equals(name)) {
+                    continue;
+                }
+
+                Class<?>[] params = m.getParameterTypes();
+                Object[] args = new Object[params.length];
+                int intIndex = 0;
+                boolean supported = true;
+
+                for (int i = 0; i < params.length; i++) {
+                    Class<?> p = params[i];
+                    if (ItemStack.class.isAssignableFrom(p)) {
+                        args[i] = stack;
+                        continue;
+                    }
+                    if (p == int.class || p == Integer.class) {
+                        if (intIndex == 0) args[i] = x;
+                        else if (intIndex == 1) args[i] = y;
+                        else args[i] = 0;
+                        intIndex++;
+                        continue;
+                    }
+                    if (p == long.class || p == Long.class) {
+                        args[i] = 0L;
+                        continue;
+                    }
+                    if (p == boolean.class || p == Boolean.class) {
+                        args[i] = false;
+                        continue;
+                    }
+                    String simple = p.getSimpleName();
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    if ("LivingEntity".equals(simple) || "PlayerEntity".equals(simple) || "ClientPlayerEntity".equals(simple)) {
+                        args[i] = mc != null ? mc.player : null;
+                        continue;
+                    }
+                    if ("TextRenderer".equals(simple)) {
+                        args[i] = mc != null ? mc.textRenderer : null;
+                        continue;
+                    }
+                    supported = false;
+                    break;
+                }
+
+                if (!supported) {
+                    continue;
+                }
+
+                try {
+                    m.invoke(context, args);
+                    return true;
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+
+        if (!drawItemReflectWarnLogged) {
+            drawItemReflectWarnLogged = true;
+            LOGGER.warn("DrawContext.drawItem 反射兜底失败，方块图标后置绘制可能不可见");
+        }
+        return false;
     }
 
     public static String getCacheStats() {
@@ -677,6 +750,10 @@ public final class BlockIconRenderer implements AutoCloseable {
 
     public static boolean isPlaceholderTexture(int textureId) {
         return textureId == INSTANCE.placeholderTextureId;
+    }
+
+    public static boolean isOffscreenIconRenderingEnabled() {
+        return OFFSCREEN_ICON_RENDERING_ENABLED;
     }
 
     public static boolean isInitialized() {

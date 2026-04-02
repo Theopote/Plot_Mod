@@ -2,6 +2,7 @@ package com.plot.ui.imgui;
 
 import com.plot.ui.component.BlockIconRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
+import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.Window;
@@ -10,9 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.IntBuffer;
+import org.lwjgl.system.MemoryStack;
 
 /**
  * GuiOverlayRenderer - 在ImGui之后的安全覆盖渲染
@@ -129,12 +133,10 @@ public final class GuiOverlayRenderer {
             int itemCount = PENDING_ITEMS.size();
             LOGGER.debug("GuiOverlayRenderer.flush: 开始渲染 {} 个物品", itemCount);
 
-            // 可见性探针：如果连 fill 都看不到，说明 DrawContext 在 flipFrame 阶段根本不可用
-            // 或者顶层渲染状态/缓冲提交有问题。
-            try {
-                context.fill(2, 2, 2 + 48, 2 + 16, 0xA000FFFF);
-            } catch (Throwable ignored) {
-            }
+            float[] guiScale = computeGuiScale();
+            float xScale = guiScale[0];
+            float yScale = guiScale[1];
+            float uniformScale = Math.min(xScale, yScale);
 
             // DrawContext 内部有 GuiGraphics，我们通过 getGuiGraphics() 获取
             // 注意：DrawContext 在 1.21+ 是 GuiGraphics 的包装
@@ -152,7 +154,7 @@ public final class GuiOverlayRenderer {
                         continue;
                     }
 
-                    drawScaledItem(context, item);
+                    drawScaledItem(context, item, xScale, yScale, uniformScale);
                     successCount++;
 
                 } catch (Throwable e) {
@@ -173,10 +175,10 @@ public final class GuiOverlayRenderer {
         }
     }
 
-    private static void drawScaledItem(DrawContext context, PendingItem item) {
-        float scale = item.scale <= 0.0f ? 1.0f : item.scale;
-        float drawXf = item.x;
-        float drawYf = item.y;
+    private static void drawScaledItem(DrawContext context, PendingItem item, float xScale, float yScale, float uniformScale) {
+        float scale = (item.scale <= 0.0f ? 1.0f : item.scale) * uniformScale;
+        float drawXf = item.x * xScale;
+        float drawYf = item.y * yScale;
         int drawX = Math.round(drawXf);
         int drawY = Math.round(drawYf);
         long now = System.currentTimeMillis();
@@ -189,7 +191,7 @@ public final class GuiOverlayRenderer {
             drawProbeRect(context, drawX, drawY, scale);
         }
         if (Math.abs(scale - 1.0f) < 0.0001f) {
-            BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
+            BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
             return;
         }
 
@@ -197,7 +199,7 @@ public final class GuiOverlayRenderer {
             var getMatrices = context.getClass().getMethod("getMatrices");
             Object matrices = getMatrices.invoke(context);
             if (matrices == null) {
-                BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
+                BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
                 return;
             }
 
@@ -210,13 +212,50 @@ public final class GuiOverlayRenderer {
             try {
                 translate.invoke(matrices, drawXf, drawYf, 0.0f);
                 scaleMethod.invoke(matrices, scale, scale, 1.0f);
-                BlockIconRenderer.drawItem(context, item.stack, 0, 0);
+                BlockIconRenderer.tryDrawItem(context, item.stack, 0, 0);
             } finally {
                 pop.invoke(matrices);
             }
         } catch (Throwable t) {
-            BlockIconRenderer.drawItem(context, item.stack, drawX, drawY);
+            BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
         }
+    }
+
+    private static float[] computeGuiScale() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc == null || mc.getWindow() == null) {
+            return new float[]{1.0f, 1.0f};
+        }
+
+        Window window = mc.getWindow();
+        int windowW = 0;
+        int windowH = 0;
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            GLFW.glfwGetWindowSize(window.getHandle(), w, h);
+            windowW = Math.max(1, w.get(0));
+            windowH = Math.max(1, h.get(0));
+        } catch (Throwable ignored) {
+        }
+
+        if (windowW <= 0 || windowH <= 0) {
+            try {
+                float displayW = ImGui.getIO().getDisplaySizeX();
+                float displayH = ImGui.getIO().getDisplaySizeY();
+                windowW = Math.max(1, Math.round(displayW));
+                windowH = Math.max(1, Math.round(displayH));
+            } catch (Throwable ignored) {
+                windowW = 1;
+                windowH = 1;
+            }
+        }
+
+        int guiW = Math.max(1, window.getScaledWidth());
+        int guiH = Math.max(1, window.getScaledHeight());
+
+        return new float[]{(float) guiW / windowW, (float) guiH / windowH};
     }
 
     private static void drawProbeRect(DrawContext context, int x, int y, float scale) {
@@ -236,7 +275,22 @@ public final class GuiOverlayRenderer {
 
     private static void tryFlushDrawContext(DrawContext context) {
         try {
-            // 1) DrawContext#draw()
+            // 1.21.10+：物品/纹理等多走 GuiRenderState 延迟提交，必须 drawDeferredElements()；
+            // 旧版才有无参 draw()，此处优先新 API。
+            try {
+                context.drawDeferredElements();
+                return;
+            } catch (Throwable ignored) {
+            }
+
+            try {
+                var m = context.getClass().getMethod("drawDeferredElements");
+                m.invoke(context);
+                return;
+            } catch (NoSuchMethodException ignored) {
+            }
+
+            // 2) 更旧映射：DrawContext#draw()
             try {
                 var m = context.getClass().getMethod("draw");
                 m.invoke(context);
