@@ -5,6 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.Window;
 import net.minecraft.item.ItemStack;
 import org.slf4j.Logger;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.nio.IntBuffer;
 import org.lwjgl.system.MemoryStack;
+import java.lang.reflect.Field;
 
 /**
  * GuiOverlayRenderer - 在ImGui之后的安全覆盖渲染
@@ -31,6 +34,7 @@ import org.lwjgl.system.MemoryStack;
 public final class GuiOverlayRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GuiOverlayRenderer");
     private static volatile long lastDrawContextFlushWarnMs;
+    private static volatile long lastDrawItemFailWarnMs;
     private static final boolean DEBUG_ITEM_PROBE = false;
     private static long lastOverlayScaleLogMs;
 
@@ -75,8 +79,13 @@ public final class GuiOverlayRenderer {
      * If no context is available, clear the queue to avoid cross-frame accumulation.
      */
     public static void flushPending() {
-        DrawContext context = pendingDrawContext;
+        DrawContext context = createOverlayDrawContext();
+        DrawContext screenContext = pendingDrawContext;
         pendingDrawContext = null;
+
+        if (context == null) {
+            context = screenContext;
+        }
 
         if (context == null) {
             if (!PENDING_ITEMS.isEmpty()) {
@@ -110,6 +119,26 @@ public final class GuiOverlayRenderer {
         flush(context);
     }
 
+    private static DrawContext createOverlayDrawContext() {
+        try {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc == null || mc.gameRenderer == null) {
+                return null;
+            }
+
+            Field guiStateField = GameRenderer.class.getDeclaredField("guiState");
+            guiStateField.setAccessible(true);
+            Object state = guiStateField.get(mc.gameRenderer);
+            if (!(state instanceof GuiRenderState guiState)) {
+                return null;
+            }
+
+            return new DrawContext(mc, guiState);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
 
 
     /**
@@ -136,7 +165,6 @@ public final class GuiOverlayRenderer {
             float[] guiScale = computeGuiScale();
             float xScale = guiScale[0];
             float yScale = guiScale[1];
-            float uniformScale = Math.min(xScale, yScale);
 
             // DrawContext 内部有 GuiGraphics，我们通过 getGuiGraphics() 获取
             // 注意：DrawContext 在 1.21+ 是 GuiGraphics 的包装
@@ -154,7 +182,7 @@ public final class GuiOverlayRenderer {
                         continue;
                     }
 
-                    drawScaledItem(context, item, xScale, yScale, uniformScale);
+                    drawScaledItem(context, item, xScale, yScale);
                     successCount++;
 
                 } catch (Throwable e) {
@@ -175,8 +203,8 @@ public final class GuiOverlayRenderer {
         }
     }
 
-    private static void drawScaledItem(DrawContext context, PendingItem item, float xScale, float yScale, float uniformScale) {
-        float scale = (item.scale <= 0.0f ? 1.0f : item.scale) * uniformScale;
+    private static void drawScaledItem(DrawContext context, PendingItem item, float xScale, float yScale) {
+        float scale = item.scale <= 0.0f ? 1.0f : item.scale;
         float drawXf = item.x * xScale;
         float drawYf = item.y * yScale;
         int drawX = Math.round(drawXf);
@@ -191,7 +219,15 @@ public final class GuiOverlayRenderer {
             drawProbeRect(context, drawX, drawY, scale);
         }
         if (Math.abs(scale - 1.0f) < 0.0001f) {
-            BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
+            boolean ok = BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
+            if (!ok) {
+                drawProbeRect(context, drawX, drawY, 1.0f);
+                long failNow = System.currentTimeMillis();
+                if (failNow - lastDrawItemFailWarnMs > 3000L) {
+                    lastDrawItemFailWarnMs = failNow;
+                    LOGGER.warn("Overlay drawItem 失败，已绘制探针方块: pos=({}, {})", drawX, drawY);
+                }
+            }
             return;
         }
 
@@ -212,12 +248,28 @@ public final class GuiOverlayRenderer {
             try {
                 translate.invoke(matrices, drawXf, drawYf, 0.0f);
                 scaleMethod.invoke(matrices, scale, scale, 1.0f);
-                BlockIconRenderer.tryDrawItem(context, item.stack, 0, 0);
+                boolean ok = BlockIconRenderer.tryDrawItem(context, item.stack, 0, 0);
+                if (!ok) {
+                    drawProbeRect(context, drawX, drawY, 1.0f);
+                    long failNow = System.currentTimeMillis();
+                    if (failNow - lastDrawItemFailWarnMs > 3000L) {
+                        lastDrawItemFailWarnMs = failNow;
+                        LOGGER.warn("Overlay 缩放 drawItem 失败，已绘制探针方块: pos=({}, {})", drawX, drawY);
+                    }
+                }
             } finally {
                 pop.invoke(matrices);
             }
         } catch (Throwable t) {
-            BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
+            boolean ok = BlockIconRenderer.tryDrawItem(context, item.stack, drawX, drawY);
+            if (!ok) {
+                drawProbeRect(context, drawX, drawY, 1.0f);
+                long failNow = System.currentTimeMillis();
+                if (failNow - lastDrawItemFailWarnMs > 3000L) {
+                    lastDrawItemFailWarnMs = failNow;
+                    LOGGER.warn("Overlay 异常回退 drawItem 失败，已绘制探针方块: pos=({}, {})", drawX, drawY);
+                }
+            }
         }
     }
 
@@ -228,24 +280,39 @@ public final class GuiOverlayRenderer {
         }
 
         Window window = mc.getWindow();
-        int windowW = 0;
-        int windowH = 0;
+        float imguiW = 0.0f;
+        float imguiH = 0.0f;
 
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            IntBuffer w = stack.mallocInt(1);
-            IntBuffer h = stack.mallocInt(1);
-            GLFW.glfwGetWindowSize(window.getHandle(), w, h);
-            windowW = Math.max(1, w.get(0));
-            windowH = Math.max(1, h.get(0));
+        try {
+            imguiW = ImGui.getIO().getDisplaySizeX();
+            imguiH = ImGui.getIO().getDisplaySizeY();
         } catch (Throwable ignored) {
+        }
+
+        int windowW;
+        int windowH;
+
+        if (imguiW > 1.0f && imguiH > 1.0f) {
+            windowW = Math.round(imguiW);
+            windowH = Math.round(imguiH);
+        } else {
+            windowW = 0;
+            windowH = 0;
+
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer w = stack.mallocInt(1);
+                IntBuffer h = stack.mallocInt(1);
+                GLFW.glfwGetWindowSize(window.getHandle(), w, h);
+                windowW = Math.max(1, w.get(0));
+                windowH = Math.max(1, h.get(0));
+            } catch (Throwable ignored) {
+            }
         }
 
         if (windowW <= 0 || windowH <= 0) {
             try {
-                float displayW = ImGui.getIO().getDisplaySizeX();
-                float displayH = ImGui.getIO().getDisplaySizeY();
-                windowW = Math.max(1, Math.round(displayW));
-                windowH = Math.max(1, Math.round(displayH));
+                windowW = Math.max(1, window.getScaledWidth());
+                windowH = Math.max(1, window.getScaledHeight());
             } catch (Throwable ignored) {
                 windowW = 1;
                 windowH = 1;
@@ -274,43 +341,43 @@ public final class GuiOverlayRenderer {
     }
 
     private static void tryFlushDrawContext(DrawContext context) {
+        boolean anySucceeded = false;
         try {
-            // 1.21.10+：物品/纹理等多走 GuiRenderState 延迟提交，必须 drawDeferredElements()；
-            // 旧版才有无参 draw()，此处优先新 API。
+            // 1) 1.21.10+ 延迟提交路径
             try {
                 context.drawDeferredElements();
-                return;
+                anySucceeded = true;
             } catch (Throwable ignored) {
             }
 
             try {
                 var m = context.getClass().getMethod("drawDeferredElements");
                 m.invoke(context);
-                return;
+                anySucceeded = true;
             } catch (NoSuchMethodException ignored) {
             }
 
-            // 2) 更旧映射：DrawContext#draw()
+            // 2) 旧映射：DrawContext#draw()
             try {
                 var m = context.getClass().getMethod("draw");
                 m.invoke(context);
-                return;
+                anySucceeded = true;
             } catch (NoSuchMethodException ignored) {
             }
 
-            // 2) DrawContext#getVertexConsumers().draw()
+            // 3) DrawContext#getVertexConsumers().draw()
             try {
                 var getVc = context.getClass().getMethod("getVertexConsumers");
                 Object vc = getVc.invoke(context);
                 if (vc != null) {
                     var draw = vc.getClass().getMethod("draw");
                     draw.invoke(vc);
-                    return;
+                    anySucceeded = true;
                 }
             } catch (NoSuchMethodException ignored) {
             }
 
-            // 3) DrawContext#vertexConsumers field -> draw()
+            // 4) DrawContext#vertexConsumers field -> draw()
             try {
                 var f = context.getClass().getDeclaredField("vertexConsumers");
                 f.setAccessible(true);
@@ -318,8 +385,17 @@ public final class GuiOverlayRenderer {
                 if (vc != null) {
                     var draw = vc.getClass().getMethod("draw");
                     draw.invoke(vc);
+                    anySucceeded = true;
                 }
             } catch (NoSuchFieldException ignored) {
+            }
+
+            if (!anySucceeded) {
+                long now = System.currentTimeMillis();
+                if (now - lastDrawContextFlushWarnMs > 3000L) {
+                    lastDrawContextFlushWarnMs = now;
+                    LOGGER.warn("tryFlushDrawContext: 未找到可用提交方法");
+                }
             }
         } catch (NoSuchMethodException ignored) {
             // Not available in this MC version/mapping.

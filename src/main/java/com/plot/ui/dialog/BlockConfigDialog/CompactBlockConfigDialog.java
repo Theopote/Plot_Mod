@@ -1,5 +1,9 @@
 package com.plot.ui.dialog.BlockConfigDialog;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.block.BlockConfigEvent;
@@ -15,14 +19,21 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
+import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
@@ -115,6 +126,7 @@ public class CompactBlockConfigDialog {
     private long lastSpriteFallbackLogMs = 0L;
     private long lastSpriteFallbackFailLogMs = 0L;
     private long lastSimpleTextureFallbackLogMs = 0L;
+    private boolean overlayIconPrimaryLogged = false;
 
     private enum DragSource { NONE, DISPLAY_AREA, PALETTE_AREA }
 
@@ -840,65 +852,53 @@ public class CompactBlockConfigDialog {
                 return;
             }
 
-            boolean ready = BlockIconRenderer.getInstance().isTextureReady(block);
-            int textureId = BlockIconRenderer.getInstance().getTextureId(block);
             float inset = Math.max(2.0f, BLOCK_ICON_SIZE * 0.0833f);
 
-                boolean offscreenEnabled = BlockIconRenderer.isOffscreenIconRenderingEnabled();
+            boolean offscreenEnabled = BlockIconRenderer.isOffscreenIconRenderingEnabled();
+            boolean renderedByTexture = false;
+
+            if (offscreenEnabled) {
+                boolean ready = BlockIconRenderer.getInstance().isTextureReady(block);
+                int textureId = BlockIconRenderer.getInstance().getTextureId(block);
                 boolean isPlaceholderTexture = BlockIconRenderer.isPlaceholderTexture(textureId);
-                boolean shouldDrawTexture = !(isPlaceholderTexture && !offscreenEnabled);
-
-                if (shouldDrawTexture) {
-                // 注意：FBO 纹理给 ImGui 时要上下翻转 UV
-                drawList.addImage(
-                    textureId,
-                    x + inset,
-                    y + inset,
-                    x + BLOCK_ICON_SIZE - inset,
-                    y + BLOCK_ICON_SIZE - inset,
-                    0.0f, 1.0f,
-                    1.0f, 0.0f
-                );
-                }
-
-                boolean needsOverlayFallback = !ready || isPlaceholderTexture;
-            if (needsOverlayFallback) {
-                boolean fallbackQueued = false;
-                boolean spriteRendered = renderSpriteFallback(block, drawList,
-                        x + inset,
-                        y + inset,
-                        x + BLOCK_ICON_SIZE - inset,
-                        y + BLOCK_ICON_SIZE - inset);
-
-                boolean simpleTextureRendered = false;
-                if (!spriteRendered) {
-                    simpleTextureRendered = renderSimpleItemTextureFallback(
-                            block,
-                            drawList,
+                if (ready && textureId > 0 && !isPlaceholderTexture) {
+                    // 注意：FBO 纹理给 ImGui 时要上下翻转 UV
+                    drawList.addImage(
+                            textureId,
                             x + inset,
                             y + inset,
                             x + BLOCK_ICON_SIZE - inset,
-                            y + BLOCK_ICON_SIZE - inset
+                            y + BLOCK_ICON_SIZE - inset,
+                            0.0f, 1.0f,
+                            1.0f, 0.0f
                     );
+                    renderedByTexture = true;
                 }
+            }
 
+            if (!renderedByTexture) {
                 ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
-                if (!stack.isEmpty() && !spriteRendered && !simpleTextureRendered) {
-                    float targetSize = BLOCK_ICON_SIZE - inset * 2.0f;
-                    float scale = targetSize / 16.0f;
-                    GuiOverlayRenderer.queueItem(stack, x + inset, y + inset, scale);
-                    fallbackQueued = true;
+                if (!stack.isEmpty()) {
+                    // Overlay 主路径优先稳定可见：使用原生 16x16 物品图标，不再依赖矩阵缩放。
+                    float iconSize = 16.0f;
+                    float iconX = x + (BLOCK_ICON_SIZE - iconSize) * 0.5f;
+                    float iconY = y + (BLOCK_ICON_SIZE - iconSize) * 0.5f;
+                    GuiOverlayRenderer.queueItem(stack, iconX, iconY, 1.0f);
+                    if (!overlayIconPrimaryLogged) {
+                        overlayIconPrimaryLogged = true;
+                        LOGGER.info("方块图标已切换到 Overlay 原生绘制主路径");
+                    }
+                    return;
                 }
 
-                if (!fallbackQueued && !spriteRendered && !simpleTextureRendered) {
-                    float dotSize = Math.max(3.0f, BLOCK_ICON_SIZE * 0.1f);
-                    drawList.addCircleFilled(
-                            x + BLOCK_ICON_SIZE - dotSize - 3.0f,
-                            y + dotSize + 3.0f,
-                            dotSize,
-                            theme.accent
-                    );
-                }
+                // 无法构建物品栈时，保留轻量标记，避免退回 2D 简化贴图误导。
+                float dotSize = Math.max(3.0f, BLOCK_ICON_SIZE * 0.1f);
+                drawList.addCircleFilled(
+                        x + BLOCK_ICON_SIZE - dotSize - 3.0f,
+                        y + dotSize + 3.0f,
+                        dotSize,
+                        theme.accent
+                );
             }
         } catch (Throwable t) {
             LOGGER.error("renderBlockIcon failed: {}", block != null ? Registries.BLOCK.getId(block) : "null", t);
@@ -1007,17 +1007,9 @@ public class CompactBlockConfigDialog {
             }
 
             Identifier itemId = Registries.ITEM.getId(item);
-            if (itemId == null) {
-                return false;
-            }
 
-            Identifier[] candidates = new Identifier[]{
-                    Identifier.of(itemId.getNamespace(), "textures/item/" + itemId.getPath() + ".png"),
-                    Identifier.of(itemId.getNamespace(), "textures/block/" + itemId.getPath() + ".png")
-            };
-
-            for (Identifier id : candidates) {
-                int texId = ImGuiUtils.getTextureId(id);
+            for (Identifier id : buildTextureCandidates(block, itemId)) {
+                int texId = ImGuiUtils.tryGetTextureId(id);
                 if (texId <= 0) {
                     continue;
                 }
@@ -1032,6 +1024,279 @@ public class CompactBlockConfigDialog {
         } catch (Throwable ignored) {
         }
         return false;
+    }
+
+    private List<Identifier> buildTextureCandidates(Block block, Identifier itemId) {
+        LinkedHashSet<Identifier> candidates = new LinkedHashSet<>();
+
+        String namespace = itemId.getNamespace();
+        String blockPath = Registries.BLOCK.getId(block).getPath();
+        String itemPath = itemId.getPath();
+
+        appendResolvedModelTextureCandidates(candidates, block);
+
+        addTextureCandidate(candidates, namespace, "textures/item/" + itemPath + ".png");
+        addTextureCandidate(candidates, namespace, "textures/block/" + itemPath + ".png");
+        addTextureCandidate(candidates, namespace, "textures/block/" + blockPath + ".png");
+
+        for (String derived : deriveBaseTextureNames(blockPath)) {
+            addTextureCandidate(candidates, namespace, "textures/block/" + derived + ".png");
+            addTextureCandidate(candidates, namespace, "textures/item/" + derived + ".png");
+        }
+
+        return new ArrayList<>(candidates);
+    }
+
+    private void appendResolvedModelTextureCandidates(LinkedHashSet<Identifier> candidates, Block block) {
+        try {
+            Identifier blockId = Registries.BLOCK.getId(block);
+
+            for (Identifier modelId : resolveBlockModelIds(blockId)) {
+                candidates.addAll(resolveTextureCandidatesFromModel(modelId));
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private List<Identifier> resolveBlockModelIds(Identifier blockId) {
+        LinkedHashSet<Identifier> modelIds = new LinkedHashSet<>();
+        JsonObject blockStateJson = readJsonResource(Identifier.of(blockId.getNamespace(), "blockstates/" + blockId.getPath() + ".json"));
+        if (blockStateJson == null) {
+            return new ArrayList<>(modelIds);
+        }
+
+        JsonObject variants = getObject(blockStateJson, "variants");
+        if (variants != null) {
+            for (Map.Entry<String, JsonElement> entry : variants.entrySet()) {
+                collectModelIds(modelIds, entry.getValue(), blockId.getNamespace());
+            }
+        }
+
+        JsonArray multipart = getArray(blockStateJson);
+        if (multipart != null) {
+            for (JsonElement element : multipart) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject part = element.getAsJsonObject();
+                collectModelIds(modelIds, part.get("apply"), blockId.getNamespace());
+            }
+        }
+
+        return new ArrayList<>(modelIds);
+    }
+
+    private void collectModelIds(LinkedHashSet<Identifier> modelIds, JsonElement element, String defaultNamespace) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                collectModelIds(modelIds, child, defaultNamespace);
+            }
+            return;
+        }
+        if (!element.isJsonObject()) {
+            return;
+        }
+
+        JsonObject object = element.getAsJsonObject();
+        String modelName = getString(object, "model");
+        if (modelName == null || modelName.isBlank()) {
+            return;
+        }
+
+        Identifier modelId = parseNamespacedIdentifier(modelName, defaultNamespace);
+        if (modelId != null) {
+            modelIds.add(modelId);
+        }
+    }
+
+    private List<Identifier> resolveTextureCandidatesFromModel(Identifier modelId) {
+        LinkedHashSet<Identifier> resolved = new LinkedHashSet<>();
+        Map<String, String> textureMap = resolveModelTextureMap(modelId, new LinkedHashSet<>());
+        if (textureMap.isEmpty()) {
+            return new ArrayList<>(resolved);
+        }
+
+        String[] preferredKeys = new String[]{
+                "particle", "all", "side", "top", "end", "bottom", "front",
+                "texture", "north", "south", "east", "west"
+        };
+
+        for (String key : preferredKeys) {
+            String value = resolveTextureReference(textureMap, "#" + key);
+            Identifier id = toTexturePngIdentifier(value, modelId.getNamespace());
+            if (id != null) {
+                resolved.add(id);
+            }
+        }
+
+        for (String value : textureMap.values()) {
+            Identifier id = toTexturePngIdentifier(resolveTextureReference(textureMap, value), modelId.getNamespace());
+            if (id != null) {
+                resolved.add(id);
+            }
+        }
+
+        return new ArrayList<>(resolved);
+    }
+
+    private Map<String, String> resolveModelTextureMap(Identifier modelId, LinkedHashSet<Identifier> visited) {
+        if (modelId == null || !visited.add(modelId)) {
+            return Collections.emptyMap();
+        }
+
+        JsonObject modelJson = readJsonResource(Identifier.of(modelId.getNamespace(), "models/" + modelId.getPath() + ".json"));
+        if (modelJson == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, String> textures = new HashMap<>();
+
+        String parentName = getString(modelJson, "parent");
+        if (parentName != null && !parentName.isBlank()) {
+            Identifier parentId = parseNamespacedIdentifier(parentName, modelId.getNamespace());
+            if (parentId != null) {
+                textures.putAll(resolveModelTextureMap(parentId, visited));
+            }
+        }
+
+        JsonObject localTextures = getObject(modelJson, "textures");
+        if (localTextures != null) {
+            for (Map.Entry<String, JsonElement> entry : localTextures.entrySet()) {
+                if (entry.getValue().isJsonPrimitive()) {
+                    textures.put(entry.getKey(), entry.getValue().getAsString());
+                }
+            }
+        }
+
+        return textures;
+    }
+
+    private String resolveTextureReference(Map<String, String> textures, String value) {
+        String current = value;
+        int guard = 0;
+        while (current != null && current.startsWith("#") && guard++ < 16) {
+            current = textures.get(current.substring(1));
+        }
+        return current;
+    }
+
+    private Identifier toTexturePngIdentifier(String textureRef, String defaultNamespace) {
+        if (textureRef == null || textureRef.isBlank() || textureRef.startsWith("#")) {
+            return null;
+        }
+
+        Identifier textureId = parseNamespacedIdentifier(textureRef, defaultNamespace);
+        if (textureId == null) {
+            return null;
+        }
+
+        String path = textureId.getPath();
+        if (!path.startsWith("textures/")) {
+            path = "textures/" + path;
+        }
+        if (!path.endsWith(".png")) {
+            path = path + ".png";
+        }
+        return Identifier.of(textureId.getNamespace(), path);
+    }
+
+    private Identifier parseNamespacedIdentifier(String raw, String defaultNamespace) {
+        try {
+            if (raw == null || raw.isBlank()) {
+                return null;
+            }
+            if (raw.indexOf(':') >= 0) {
+                return Identifier.of(raw);
+            }
+            return Identifier.of(defaultNamespace, raw);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private JsonObject readJsonResource(Identifier resourceId) {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null) {
+                return null;
+            }
+
+            Resource resource = client.getResourceManager().getResource(resourceId).orElse(null);
+            if (resource == null) {
+                return null;
+            }
+
+            try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)) {
+                JsonElement element = JsonParser.parseReader(reader);
+                return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private JsonObject getObject(JsonObject source, String name) {
+        if (source == null || !source.has(name) || !source.get(name).isJsonObject()) {
+            return null;
+        }
+        return source.getAsJsonObject(name);
+    }
+
+    private JsonArray getArray(JsonObject source) {
+        if (source == null || !source.has("multipart") || !source.get("multipart").isJsonArray()) {
+            return null;
+        }
+        return source.getAsJsonArray("multipart");
+    }
+
+    private String getString(JsonObject source, String name) {
+        if (source == null || !source.has(name) || !source.get(name).isJsonPrimitive()) {
+            return null;
+        }
+        return source.get(name).getAsString();
+    }
+
+    private void addTextureCandidate(LinkedHashSet<Identifier> candidates, String namespace, String path) {
+        try {
+            candidates.add(Identifier.of(namespace, path));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private List<String> deriveBaseTextureNames(String blockPath) {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        names.add(blockPath);
+
+        String[] suffixes = new String[]{
+                "_stairs", "_slab", "_wall", "_fence", "_fence_gate", "_button",
+                "_pressure_plate", "_trapdoor", "_door", "_sign", "_hanging_sign"
+        };
+
+        for (String suffix : suffixes) {
+            if (blockPath.endsWith(suffix)) {
+                String base = blockPath.substring(0, blockPath.length() - suffix.length());
+                names.add(base);
+                names.add(base + "_planks");
+                names.add(base + "_block");
+            }
+        }
+
+        if (blockPath.endsWith("_pillar")) {
+            String base = blockPath.substring(0, blockPath.length() - "_pillar".length());
+            names.add(base);
+            names.add(base + "_side");
+            names.add(base + "_top");
+        }
+
+        if (blockPath.endsWith("_log") || blockPath.endsWith("_wood")) {
+            names.add(blockPath + "_top");
+            names.add(blockPath + "_side");
+        }
+
+        return new ArrayList<>(names);
     }
 
     private boolean failSpriteFallback(String reason, Block block) {
@@ -1744,18 +2009,22 @@ public class CompactBlockConfigDialog {
      * 应用方块选择
      */
     private void applyBlockSelection() {
+        if (publishSelectedBlocks()) {
+            close();
+        }
+    }
+
+    private boolean publishSelectedBlocks() {
         if (paletteBlocks.isEmpty()) {
             showWarningDialog.accept("调色盘为空，请至少选择一个方块。");
-            return;
+            return false;
         }
 
         try {
-            // 转换为ID列表
             List<String> blockIds = paletteBlocks.stream()
-                .map(block -> Registries.BLOCK.getId(block).toString())
-                .toList();
+                    .map(block -> Registries.BLOCK.getId(block).toString())
+                    .toList();
 
-            // 发布事件
             String primaryBlockId = blockIds.getFirst();
             String blockIdsStr = String.join(",", blockIds);
             BlockConfigEvent event = new BlockConfigEvent(primaryBlockId, "selected_blocks", blockIdsStr);
@@ -1763,13 +2032,11 @@ public class CompactBlockConfigDialog {
 
             LOGGER.info("应用方块选择: {} 个方块", paletteBlocks.size());
             LOGGER.debug("选中的方块ID: {}", blockIds);
-
-            // 关闭对话框
-            close();
-
+            return true;
         } catch (Exception e) {
             LOGGER.error("应用方块选择时出错: {}", e.getMessage(), e);
             showWarningDialog.accept("应用方块选择时出错: " + e.getMessage());
+            return false;
         }
     }
 
@@ -1806,6 +2073,57 @@ public class CompactBlockConfigDialog {
     public void clearPalette() {
         paletteBlocks.clear();
         LOGGER.info("清空调色盘");
+    }
+
+    public List<BlockCategory> getAvailableCategories() {
+        return List.of(BlockCategory.values());
+    }
+
+    public List<Block> getBlocksForCategory(BlockCategory category) {
+        List<Block> blocks = categoryManager.getBlocksInCategory(category);
+        if (blocks == null || blocks.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Block> filtered = new ArrayList<>();
+        for (Block block : blocks) {
+            if (block == null) {
+                continue;
+            }
+            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+            if (!stack.isEmpty()) {
+                filtered.add(block);
+            }
+        }
+        return filtered;
+    }
+
+    public List<Block> getPaletteBlocksSnapshot() {
+        return new ArrayList<>(paletteBlocks);
+    }
+
+    public void setPaletteBlocksFromExternal(List<Block> blocks) {
+        paletteBlocks.clear();
+        if (blocks == null || blocks.isEmpty()) {
+            return;
+        }
+
+        for (Block block : blocks) {
+            if (block == null) {
+                continue;
+            }
+            if (paletteBlocks.size() >= MAX_PALETTE_SLOTS) {
+                break;
+            }
+            ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+            if (!stack.isEmpty()) {
+                paletteBlocks.add(block);
+            }
+        }
+    }
+
+    public boolean applySelectionFromExternal() {
+        return publishSelectedBlocks();
     }
 
     // ============================================================================

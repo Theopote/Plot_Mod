@@ -11,10 +11,12 @@ import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
+import com.plot.ui.screen.BlockConfigNativeScreen;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.toolbar.ToolbarUIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import net.minecraft.client.MinecraftClient;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -69,8 +71,11 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
             try {
                 LOGGER.debug("方块配置按钮被点击，准备打开对话框...");
                 if (blockConfigDialog != null) {
-                    blockConfigDialog.open();
-                    LOGGER.debug("方块配置对话框打开成功");
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null) {
+                        client.execute(() -> client.setScreen(new BlockConfigNativeScreen(blockConfigDialog, client.currentScreen)));
+                        LOGGER.debug("原生方块配置面板打开成功");
+                    }
                 } else {
                     LOGGER.error("方块配置对话框实例为null，无法打开");
                     // TODO: 显示警告消息

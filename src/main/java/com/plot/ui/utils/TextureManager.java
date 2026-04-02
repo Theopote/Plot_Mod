@@ -1,6 +1,8 @@
 package com.plot.ui.utils;
 
 import net.minecraft.util.Identifier;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.Resource;
 import org.lwjgl.opengl.GL11;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,70 +39,63 @@ public class TextureManager {
      * @return 纹理ID
      */
     public int loadTexture(Identifier identifier) {
-        String texturePath = String.format("assets/%s/%s", identifier.getNamespace(), identifier.getPath());
-        return loadTexture(texturePath, identifier.toString());
-    }
-
-    /**
-     * 加载纹理并返回纹理ID
-     * @param path 纹理文件路径
-     * @param key 缓存键
-     * @return 纹理ID
-     */
-    public int loadTexture(String path, String key) {
-        // 检查缓存
+        String key = identifier.toString();
         if (textureCache.containsKey(key)) {
             return textureCache.get(key);
         }
 
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(path)) {
-            if (is == null) {
-                throw new IOException("Resource not found: " + path);
+        try {
+            Resource resource = MinecraftClient.getInstance()
+                    .getResourceManager()
+                    .getResource(identifier)
+                    .orElseThrow(() -> new IOException("Resource not found: " + identifier));
+
+            try (InputStream is = resource.getInputStream()) {
+                int textureId = uploadTexture(is);
+                textureCache.put(key, textureId);
+                return textureId;
             }
-
-            // 读取图片
-            BufferedImage image = ImageIO.read(is);
-            int width = image.getWidth();
-            int height = image.getHeight();
-
-            // 获取图片数据
-            int[] pixels = new int[width * height];
-            image.getRGB(0, 0, width, height, pixels, 0, width);
-
-            // 创建字节缓冲区
-            ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4);
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    int pixel = pixels[y * width + x];
-                    buffer.put((byte) ((pixel >> 16) & 0xFF)); // Red
-                    buffer.put((byte) ((pixel >> 8) & 0xFF));  // Green
-                    buffer.put((byte) (pixel & 0xFF));         // Blue
-                    buffer.put((byte) ((pixel >> 24) & 0xFF)); // Alpha
-                }
-            }
-            buffer.flip();
-
-            // 生成纹理
-            int textureId = GL11.glGenTextures();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
-
-            // 设置纹理参数
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-
-            // 上传纹理数据
-            try (GlTextureUploadGuard ignored = GlTextureUploadGuard.enter()) {
-                GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, width, height, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
-            }
-
-            // 缓存纹理ID
-            textureCache.put(key, textureId);
-            return textureId;
-
         } catch (IOException e) {
-            LOGGER.error("Failed to load texture: {}", path, e);
+            LOGGER.error("Failed to load texture: {}", identifier, e);
             return 0;
         }
+    }
+
+    private int uploadTexture(InputStream is) throws IOException {
+        BufferedImage image = ImageIO.read(is);
+        if (image == null) {
+            throw new IOException("Failed to decode image stream");
+        }
+
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        int[] pixels = new int[width * height];
+        image.getRGB(0, 0, width, height, pixels, 0, width);
+
+        ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int pixel = pixels[y * width + x];
+                buffer.put((byte) ((pixel >> 16) & 0xFF));
+                buffer.put((byte) ((pixel >> 8) & 0xFF));
+                buffer.put((byte) (pixel & 0xFF));
+                buffer.put((byte) ((pixel >> 24) & 0xFF));
+            }
+        }
+        buffer.flip();
+
+        int textureId = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+
+        try (GlTextureUploadGuard ignored = GlTextureUploadGuard.enter()) {
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, width, height, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+        }
+
+        return textureId;
     }
 
     /**

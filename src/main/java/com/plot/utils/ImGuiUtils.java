@@ -54,6 +54,24 @@ public class ImGuiUtils {
             return getDefaultTextureId();
         }
     }
+
+    public static int tryGetTextureId(Identifier texture) {
+        try {
+            Integer cached = textureCache.get(texture);
+            if (cached != null) {
+                return cached;
+            }
+
+            int textureId = loadTexture(texture);
+            if (textureId > 0) {
+                textureCache.put(texture, textureId);
+            }
+            return textureId;
+        } catch (Exception e) {
+            LOGGER.error("Error trying texture ID for {}: {}", texture, e.getMessage());
+            return 0;
+        }
+    }
     
     private static int getDefaultTextureId() {
         if (defaultTextureId == 0) {
