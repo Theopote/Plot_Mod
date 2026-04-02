@@ -24,7 +24,7 @@ import java.util.List;
 public class BlockConfigNativeScreen extends Screen {
     private static final int MAX_PALETTE_SLOTS = 12;
     private static final int GRID_COLS = 12;
-    private static final int GRID_ROWS = 8;
+    private static final int GRID_ROWS = 7;
     private static final int PAGE_SIZE = GRID_COLS * GRID_ROWS;
 
     private static final int SLOT_GAP = 1;
