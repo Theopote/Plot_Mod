@@ -21,8 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
-import java.util.Objects;
-
 // no-op
 
 /**
@@ -36,6 +34,7 @@ public class SettingsAndHelpDialog {
     private final ImString searchText = new ImString(64);
     private String editingActionId = null; // 当前正在录制快捷键的动作
     private String shortcutConflictMessage = null;
+    private int selectedHelpTopic = 0;
 
     private SettingsAndHelpDialog() {}
 
@@ -234,11 +233,53 @@ public class SettingsAndHelpDialog {
     }
 
     private void renderHelpPage() {
-        ImGui.textWrapped("Plot 快速上手：");
-        ImGui.bulletText("F1：打开快捷键速查（预留）");
-        ImGui.bulletText("按住 Shift：绘制/修改时正交或角度约束");
+        ImGui.textDisabled("点击左侧条目查看对应教程");
         ImGui.separator();
-        ImGui.textWrapped("如果快捷键不生效，请检查是否有文本框获得输入焦点，或是否与其他模组快捷键冲突。");
+
+        if (ImGui.beginChild("##help_nav", 180, 0, true)) {
+            if (ImGui.selectable("基础操作", selectedHelpTopic == 0)) selectedHelpTopic = 0;
+            if (ImGui.selectable("高级技巧", selectedHelpTopic == 1)) selectedHelpTopic = 1;
+            if (ImGui.selectable("快捷键与排障", selectedHelpTopic == 2)) selectedHelpTopic = 2;
+            if (ImGui.selectable("更新日志", selectedHelpTopic == 3)) selectedHelpTopic = 3;
+        }
+        ImGui.endChild();
+
+        ImGui.sameLine();
+
+        if (ImGui.beginChild("##help_content", 0, 0, true)) {
+            switch (selectedHelpTopic) {
+                case 0 -> {
+                    ImGui.text("基础操作");
+                    ImGui.separator();
+                    ImGui.bulletText("选择：Space 切换到选择工具。拖拽框选可一次选中多个图元。");
+                    ImGui.bulletText("移动：选中对象后直接拖拽，或输入精确位移值进行调整。");
+                    ImGui.bulletText("缩放视图：使用滚轮缩放，按住中键可平移画布。");
+                }
+                case 1 -> {
+                    ImGui.text("高级技巧");
+                    ImGui.separator();
+                    ImGui.bulletText("按住 Shift：绘制或修改时启用正交/角度约束，快速得到规整图形。");
+                    ImGui.bulletText("吸附配合：开启端点/中点/垂足吸附可显著提高定位效率。");
+                    ImGui.bulletText("修改建议：先用选择工具定位，再切换编辑工具，减少误操作。");
+                }
+                case 2 -> {
+                    ImGui.text("快捷键与排障");
+                    ImGui.separator();
+                    ImGui.bulletText("快捷键冲突时，系统会提示被占用动作并自动移除旧绑定。");
+                    ImGui.bulletText("若快捷键无效：先确认没有输入框焦点，再检查是否被其它模组拦截。");
+                    ImGui.bulletText("录制快捷键时按 Esc 可立即取消当前录制。");
+                }
+                case 3 -> {
+                    ImGui.text("更新日志");
+                    ImGui.separator();
+                    ImGui.bulletText("设置页已迁移至 Table API，列表列宽更稳定，支持分组显示。");
+                    ImGui.bulletText("快捷键录制增强：支持冲突提示、录制状态高亮和清除按钮。");
+                    ImGui.bulletText("显示反馈页已拆分为基础设置与颜色自定义两个折叠区。");
+                }
+                default -> selectedHelpTopic = 0;
+            }
+        }
+        ImGui.endChild();
     }
 
     private void renderDisplayPage() {
@@ -321,6 +362,14 @@ public class SettingsAndHelpDialog {
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {
         int argb = SnapVisualStyle.getEffectiveColorArgb(type);
         float[] rgba = argbToFloat4(argb);
+
+        ImGui.pushStyleColor(ImGuiCol.Button, argb);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, argb);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, argb);
+        ImGui.button("##snap_preview_" + type.name(), 16, 16);
+        ImGui.popStyleColor(3);
+
+        ImGui.sameLine();
         if (ImGui.colorEdit4(label + "##snap_color_" + type.name(), rgba)) {
             SnapVisualStyle.setCustomColor(type, float4ToArgb(rgba));
         }
