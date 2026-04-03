@@ -138,6 +138,10 @@ public class BlockConfigNativeScreen extends Screen {
     /** 拖拽时当前悬停的目标槽位索引，用于预览交换位置 */
     private int dragHoverSlot = -1;
 
+    // ── 分类侧边栏滚动 ────────────────────────────────────────────────────────────
+    /** 侧边栏垂直滚动位置（像素）。为负时表示向上滚了一些 */
+    private int sidebarScroll = 0;
+
     // ── 布局坐标（init() 中计算） ──────────────────────────────────────────────
     private int panelX, panelY, panelW, panelH;
     private int slotSize, slotInset;
@@ -345,7 +349,7 @@ public class BlockConfigNativeScreen extends Screen {
     }
 
     /**
-     * 计算分类侧边栏每个标签的固定位置（竖向排列，固定宽度）。
+     * 计算分类侧边栏每个标签的固定位置（竖向排列，固定宽度），并应用滚动偏移。
      */
     private void buildCategoryTabLayouts() {
         categoryTabLayouts.clear();
@@ -354,11 +358,21 @@ public class BlockConfigNativeScreen extends Screen {
                 : List.of(BlockCategory.values());
 
         int x = sidebarX;
-        int y = sidebarY;
+        int y = sidebarY + sidebarScroll;  // 应用滚动偏移
         for (BlockCategory cat : categories) {
             categoryTabLayouts.add(new CategoryTabLayout(cat, x, y, SIDEBAR_W, TAB_H));
             y += TAB_H + TAB_GAP;
         }
+    }
+
+    /**
+     * 计算分类侧边栏的总内容高度（不考虑滚动）。
+     */
+    private int getSidebarContentHeight() {
+        List<BlockCategory> categories = (bridge != null)
+                ? bridge.getAvailableCategories()
+                : List.of(BlockCategory.values());
+        return categories.size() * (TAB_H + TAB_GAP);
     }
 
     // =========================================================================
@@ -421,12 +435,22 @@ public class BlockConfigNativeScreen extends Screen {
                 closeHover ? 0xFFFFAAAA : 0xFFAAAAAA, false);
     }
 
-    /** 左侧分类侧边栏。 */
+    /** 左侧分类侧边栏（支持滚动）。 */
     private void renderSidebar(DrawContext context, int mouseX, int mouseY) {
         // 侧边栏背景
         context.fill(sidebarX, sidebarY, sidebarX + SIDEBAR_W, sidebarY + sidebarH, COLOR_SIDEBAR_BG);
+        // 侧边栏边框
+        drawBorder(context, sidebarX, sidebarY, SIDEBAR_W, sidebarH, 0xFF505050);
+
+        // 在侧边栏区域内裁剪，避免分类项溢出
+        // 为了兼容性，这里采用简单做法：检查 Y 是否在范围内即可
 
         for (CategoryTabLayout layout : categoryTabLayouts) {
+            // 跳过超出侧边栏范围的标签（向上超出）
+            if (layout.y + layout.h <= sidebarY) continue;
+            // 跳过超出侧边栏范围的标签（向下超出）
+            if (layout.y >= sidebarY + sidebarH) continue;
+
             boolean active = layout.category == currentCategory;
             boolean hover  = isInside(mouseX, mouseY, layout.x, layout.y, layout.w, layout.h);
             int bg = active ? COLOR_TAB_ACTIVE : (hover ? COLOR_TAB_HOVER : COLOR_TAB_NORMAL);
@@ -465,7 +489,7 @@ public class BlockConfigNativeScreen extends Screen {
         drawBorder(context, x, y, w, h, borderColor);
 
         // 🔍 图标
-        context.drawText(this.textRenderer, "?", x + 3, y + (h - this.textRenderer.fontHeight) / 2,
+        context.drawText(this.textRenderer, "🔍", x + 3, y + (h - this.textRenderer.fontHeight) / 2,
                 0xFF666666, false);
 
         // 委托 TextFieldWidget 渲染文本、光标、选区等
@@ -663,6 +687,28 @@ public class BlockConfigNativeScreen extends Screen {
         context.drawTooltip(this.textRenderer, lines, mouseX + 10, mouseY + 10);
     }
 
+    /** 拖拽时在鼠标位置渲染浮动的方块图标。 */
+    private void renderDraggedItem(DrawContext context, int mouseX, int mouseY) {
+        if (dragIndex < 0 || dragIndex >= palette.size()) return;
+        
+        Block draggedBlock = palette.get(dragIndex);
+        ItemStack draggedStack = BlockIconRenderer.getItemStackForBlock(draggedBlock);
+        
+        if (!draggedStack.isEmpty()) {
+            // 在鼠标位置绘制方块，略微偏下右以避免遮挡光标
+            int offsetX = 8;
+            int offsetY = 8;
+            BlockIconRenderer.tryDrawItem(context, draggedStack, mouseX + offsetX, mouseY + offsetY);
+            
+            // 方块周围加一个微妙的半透明蓝色矩形边框，强化视觉效果
+            int w = slotSize;
+            int h = slotSize;
+            context.fill(mouseX + offsetX - 1, mouseY + offsetY - 1, 
+                    mouseX + offsetX + w + 1, mouseY + offsetY + h + 1, 
+                    0x448888FF);  // 半透明蓝色背景
+        }
+    }
+
     // =========================================================================
     //  命中检测辅助
     // =========================================================================
@@ -783,7 +829,24 @@ public class BlockConfigNativeScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        // 鼠标在网格或内容区上方时，滚轮翻页
+        // 优先：鼠标在侧边栏上时滚动分类栏
+        boolean overSidebar = mouseX >= sidebarX && mouseX < sidebarX + SIDEBAR_W
+                && mouseY >= sidebarY && mouseY < sidebarY + sidebarH;
+        
+        if (overSidebar) {
+            int contentHeight = getSidebarContentHeight();
+            int maxScroll = Math.max(0, contentHeight - sidebarH);
+            
+            // 滚轮向上为正，向下为负；调整为：向上滚 = 向上看内容 = scroll 减少（更负）
+            int newScroll = sidebarScroll - (int) (verticalAmount * TAB_H);
+            sidebarScroll = Math.max(-maxScroll, Math.min(0, newScroll));
+            
+            // 重新计算分类标签布局以应用新的滚动位置
+            buildCategoryTabLayouts();
+            return true;
+        }
+        
+        // 次级：鼠标在网格或内容区上方时，滚轮翻页
         boolean overGrid = mouseX >= contentX && mouseX < contentX + contentW
                 && mouseY >= gridY    && mouseY < gridY + GRID_ROWS * (slotSize + SLOT_GAP);
         if (overGrid) {
