@@ -62,8 +62,7 @@ public class SettingsAndHelpDialog {
     public void render() {
         if (!isOpen) return;
 
-        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        UITheme.SettingsDialogStyleScope styleScope = UITheme.applySettingsDialogStyle(theme);
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
             ImGui.setNextWindowSize(680, 520);
@@ -101,7 +100,7 @@ public class SettingsAndHelpDialog {
 
             ImGui.end();
         } finally {
-            UITheme.popSettingsDialogStyle(styleScope);
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 

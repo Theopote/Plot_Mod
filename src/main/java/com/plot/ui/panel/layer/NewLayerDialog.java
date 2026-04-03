@@ -3,15 +3,14 @@ package com.plot.ui.panel.layer;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
@@ -184,8 +183,6 @@ public class NewLayerDialog {
     public void render() {
         if (!isVisible) return;
 
-        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-
         float totalWidth = 300.0f;
         ImGui.setNextWindowSize(totalWidth, 200.0f, ImGuiCond.FirstUseEver);
 
@@ -202,28 +199,7 @@ public class NewLayerDialog {
                 ImGuiWindowFlags.NoScrollbar |
                 ImGuiWindowFlags.AlwaysAutoResize;
 
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
-        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
-        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
-        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
-        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.buttonActive);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
@@ -299,8 +275,7 @@ public class NewLayerDialog {
                 ImGui.endPopup();
             }
         } finally {
-            ImGui.popStyleColor(16);
-            ImGui.popStyleVar(6);
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 }

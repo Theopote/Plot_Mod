@@ -10,6 +10,7 @@ import com.plot.infrastructure.event.block.BlockConfigEvent;
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.ImGuiUtils;
@@ -343,31 +344,9 @@ public class CompactBlockConfigDialog {
     public void render() {
         if (!isOpen) return;
 
-        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        int styleColorCount = 0;
-        int styleVarCount = 0;
-
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        
         try {
-            ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.ChildBg, theme.panelBackground); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.buttonHovered); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.buttonActive); styleColorCount++;
-
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f); styleVarCount++;
-            ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f); styleVarCount++;
-            ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f); styleVarCount++;
-            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f); styleVarCount++;
-            ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f); styleVarCount++;
-            ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f); styleVarCount++;
-
             ImGui.setNextWindowSize(currentDialogWidth, currentDialogHeight, ImGuiCond.FirstUseEver);
             ImGui.setNextWindowPos(
                     ImGui.getIO().getDisplaySizeX() / 2 - currentDialogWidth / 2,
@@ -401,12 +380,7 @@ public class CompactBlockConfigDialog {
             LOGGER.error("渲染方块配置对话框窗口时发生严重错误: {}", e.getMessage(), e);
             isOpen = false;
         } finally {
-            if (styleColorCount > 0) {
-                ImGui.popStyleColor(styleColorCount);
-            }
-            if (styleVarCount > 0) {
-                ImGui.popStyleVar(styleVarCount);
-            }
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 
