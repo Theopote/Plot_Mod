@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 public class BlockConfigNativeScreen extends Screen {
 
     // ── 调色盘 ──────────────────────────────────────────────────────────────
-    private static final int MAX_PALETTE_SLOTS = 12;
+    private static final int MAX_PALETTE_SLOTS = 14;
 
     // ── 网格 ────────────────────────────────────────────────────────────────
     private static final int GRID_COLS = 12;
@@ -288,8 +288,8 @@ public class BlockConfigNativeScreen extends Screen {
         paletteAreaY = cy;
         cy += 2 + SECTION_GAP; // 分隔线本身占2px
 
-        // 调色盘标签文字在 renderPalette 中相对 paletteY 计算，此处只推 paletteY
-        cy += 9 + 2; // 标签行
+        // 调色盘标签文字在 renderPalette 中相对 paletteY 计算：使用字体高度控制与槽位间距
+        cy += this.textRenderer.fontHeight + 1;
         paletteX = panelX + MARGIN;
         paletteY = cy;
         cy += paletteRowH + SECTION_GAP;
@@ -299,7 +299,7 @@ public class BlockConfigNativeScreen extends Screen {
         cy += 9 + SECTION_GAP;
 
         // 底部按钮（宽度按文字自适应，保持按钮更紧凑）
-        btnY = cy;
+        btnY = panelY + panelH - BOTTOM_MARGIN - BTN_H;
         btnApplyW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth("✓ 应用") + BTN_TEXT_PAD_X * 2);
         btnCancelW = Math.max(BTN_MIN_W, this.textRenderer.getWidth("取消") + BTN_TEXT_PAD_X * 2);
         btnClearW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth("清空") + BTN_TEXT_PAD_X * 2);
@@ -430,7 +430,7 @@ public class BlockConfigNativeScreen extends Screen {
         // 标题居中
         int tw = this.textRenderer.getWidth(this.title);
         int tx = panelX + (panelW - tw) / 2;
-        int ty = panelY + (TITLE_HEIGHT - this.textRenderer.fontHeight) / 2;
+        int ty = panelY + (TITLE_HEIGHT - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, this.title, tx, ty, COLOR_TEXT_NORMAL, false);
 
         // × 关闭按钮
@@ -580,7 +580,7 @@ public class BlockConfigNativeScreen extends Screen {
         drawBorder(context, x, y, w, h, enabled ? 0xFF606060 : 0xFF3A3A3A);
         int tw = this.textRenderer.getWidth(text);
         int tx = x + (w - tw) / 2;
-        int ty = y + (h - this.textRenderer.fontHeight) / 2;
+        int ty = y + (h - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, text, tx, ty,
                 enabled ? (hover ? 0xFFFFFFFF : 0xFFCCCCCC) : COLOR_TEXT_HINT, false);
     }
@@ -671,7 +671,7 @@ public class BlockConfigNativeScreen extends Screen {
         // 文字正确居中
         int tw = this.textRenderer.getWidth(text);
         int tx = x + (w - tw) / 2;
-        int ty = y + (h - this.textRenderer.fontHeight) / 2;
+        int ty = y + (h - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, text, tx, ty, 0xFFFFFFFF, false);
     }
 
