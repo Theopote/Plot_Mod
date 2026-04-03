@@ -29,8 +29,8 @@ import java.util.Objects;
  */
 public class SettingsAndHelpDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/SettingsAndHelpDialog");
-    private static final float FOOTER_HEIGHT = 40.0f;
     private static final float TAB_CHILD_BOTTOM_PADDING = 8.0f;
+    private static final float FOOTER_EXTRA_PADDING = 2.0f;
     private static SettingsAndHelpDialog INSTANCE;
 
     private boolean isOpen = false;
@@ -74,7 +74,7 @@ public class SettingsAndHelpDialog {
                 return;
             }
 
-            float footerStartY = ImGui.getWindowHeight() - ImGui.getStyle().getWindowPaddingY() - FOOTER_HEIGHT;
+            float footerStartY = ImGui.getWindowHeight() - ImGui.getStyle().getWindowPaddingY() - getFooterReservedHeight();
 
             if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
                 if (ImGui.beginTabItem("快捷键")) {
@@ -448,6 +448,10 @@ public class SettingsAndHelpDialog {
     private float getScrollableSectionHeight(float footerStartY) {
         float available = footerStartY - ImGui.getCursorPosY() - TAB_CHILD_BOTTOM_PADDING;
         return Math.max(80.0f, available);
+    }
+
+    private float getFooterReservedHeight() {
+        return ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingY() + FOOTER_EXTRA_PADDING;
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {
