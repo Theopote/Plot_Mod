@@ -80,11 +80,12 @@ public class DeleteLayerDialog {
 
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
 
-        // 设置对话框位置（居中）
+        // 仅首次出现时居中，避免用户拖动后被下一帧重置位置
+        var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(
-            ImGui.getWindowPosX() + ImGui.getWindowWidth() * 0.5f,
-            ImGui.getWindowPosY() + ImGui.getWindowHeight() * 0.5f,
-            ImGuiCond.Always,
+            center.x,
+            center.y,
+            ImGuiCond.Appearing,
             0.5f,
             0.5f
         );

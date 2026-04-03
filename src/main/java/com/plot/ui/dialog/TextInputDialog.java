@@ -213,20 +213,12 @@ public class TextInputDialog {
     }
 
     private void renderStyleSection(float contentWidth, UITheme.ThemeColors theme) {
-        // 使用统一的布局常量
-        // contentWidth 已经是减去左右边距后的宽度
         float labelColWidth = LABEL_COLUMN_WIDTH;
-        // 计算值列宽度：内容宽度 - 标签列宽度 - 表格内部间距
-        // 表格内部有垂直边框，需要减去边框宽度
-        float tableBorderWidth = 1.0f; // 表格垂直边框宽度
-        float valueColWidth = contentWidth - labelColWidth - tableBorderWidth;
-
-        // 使用固定列宽，避免表格自动扩展
-        // 设置表格外层尺寸为contentWidth，确保表格右边界与内容区域对齐
-        int tableFlags = imgui.flag.ImGuiTableFlags.BordersInnerV | imgui.flag.ImGuiTableFlags.SizingFixedFit;
+        // 主表格：标签列固定，值列自动拉伸
+        int tableFlags = imgui.flag.ImGuiTableFlags.BordersInnerV | imgui.flag.ImGuiTableFlags.SizingStretchProp;
         if (ImGui.beginTable("##text_style_table", 2, tableFlags, contentWidth, 0)) {
             ImGui.tableSetupColumn("label", imgui.flag.ImGuiTableColumnFlags.WidthFixed, labelColWidth);
-            ImGui.tableSetupColumn("value", imgui.flag.ImGuiTableColumnFlags.WidthFixed, valueColWidth);
+            ImGui.tableSetupColumn("value", imgui.flag.ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
             // 字体大小（范围100~200）
             ImGui.tableNextRow();
@@ -285,39 +277,41 @@ public class TextInputDialog {
             ImGui.alignTextToFramePadding();
             ImGui.text("对齐");
             ImGui.tableNextColumn();
-            // 确保两个下拉框宽度完全一致，并且总宽度（包括间距）等于滑动条宽度
-            // 为下拉箭头预留空间（每个下拉框的箭头大约需要15像素）
-            float arrowSpace = 15.0f; // 每个下拉箭头所需的空间
-            // 计算：总宽度 - 间距 - 两个箭头空间，然后平分
-            // 这样：comboWidth1 + arrowSpace + spacing + comboWidth2 + arrowSpace = valueColWidth
-            float comboWidth = (valueColWidth - HORIZONTAL_SPACING - arrowSpace * 2) / 2.0f;
-            // 第一个下拉框：水平对齐
-            ImGui.setNextItemWidth(comboWidth);
-            String currentH = hAlign.name();
-            if (ImGui.beginCombo("##h_align", currentH)) {
-                for (TextAlignment.Horizontal h : TextAlignment.Horizontal.values()) {
-                    boolean selected = h == hAlign;
-                    if (ImGui.selectable(h.name(), selected)) {
-                        hAlign = h;
+            int alignTableFlags = imgui.flag.ImGuiTableFlags.SizingStretchSame;
+            if (ImGui.beginTable("##text_align_table", 2, alignTableFlags, 0, 0)) {
+                ImGui.tableSetupColumn("h", imgui.flag.ImGuiTableColumnFlags.WidthStretch, 1.0f);
+                ImGui.tableSetupColumn("v", imgui.flag.ImGuiTableColumnFlags.WidthStretch, 1.0f);
+                ImGui.tableNextRow();
+
+                ImGui.tableNextColumn();
+                ImGui.setNextItemWidth(-1.0f);
+                String currentH = hAlign.name();
+                if (ImGui.beginCombo("##h_align", currentH)) {
+                    for (TextAlignment.Horizontal h : TextAlignment.Horizontal.values()) {
+                        boolean selected = h == hAlign;
+                        if (ImGui.selectable(h.name(), selected)) {
+                            hAlign = h;
+                        }
+                        if (selected) ImGui.setItemDefaultFocus();
                     }
-                    if (selected) ImGui.setItemDefaultFocus();
+                    ImGui.endCombo();
                 }
-                ImGui.endCombo();
-            }
-            // 第二个下拉框：垂直对齐，使用相同的宽度和样式
-            // 两个下拉框之间有明确的间距
-            ImGui.sameLine(0, HORIZONTAL_SPACING);
-            ImGui.setNextItemWidth(comboWidth); // 确保宽度完全一致
-            String currentV = vAlign.name();
-            if (ImGui.beginCombo("##v_align", currentV)) {
-                for (TextAlignment.Vertical v : TextAlignment.Vertical.values()) {
-                    boolean selected = v == vAlign;
-                    if (ImGui.selectable(v.name(), selected)) {
-                        vAlign = v;
+
+                ImGui.tableNextColumn();
+                ImGui.setNextItemWidth(-1.0f);
+                String currentV = vAlign.name();
+                if (ImGui.beginCombo("##v_align", currentV)) {
+                    for (TextAlignment.Vertical v : TextAlignment.Vertical.values()) {
+                        boolean selected = v == vAlign;
+                        if (ImGui.selectable(v.name(), selected)) {
+                            vAlign = v;
+                        }
+                        if (selected) ImGui.setItemDefaultFocus();
                     }
-                    if (selected) ImGui.setItemDefaultFocus();
+                    ImGui.endCombo();
                 }
-                ImGui.endCombo();
+
+                ImGui.endTable();
             }
 
             ImGui.endTable();

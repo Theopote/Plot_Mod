@@ -39,6 +39,7 @@ public class SettingsAndHelpDialog {
     private String shortcutConflictMessage = null;
     private int selectedHelpTopic = 0;
     private boolean captureSuppressionApplied = false;
+    private boolean suppressCloseHotkeysThisFrame = false;
 
     private SettingsAndHelpDialog() {}
 
@@ -63,6 +64,7 @@ public class SettingsAndHelpDialog {
 
     public void render() {
         if (!isOpen) return;
+        suppressCloseHotkeysThisFrame = false;
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
@@ -74,7 +76,11 @@ public class SettingsAndHelpDialog {
                 return;
             }
 
-            if (DialogStyleManager.renderTopRightCloseButton("settings_help")) {
+            boolean captureActive = editingActionId != null;
+            if (captureActive) ImGui.beginDisabled();
+            boolean closeClicked = DialogStyleManager.renderTopRightCloseButton("settings_help");
+            if (captureActive) ImGui.endDisabled();
+            if (closeClicked) {
                 close();
                 ImGui.end();
                 return;
@@ -103,13 +109,18 @@ public class SettingsAndHelpDialog {
             ImGui.separator();
             float buttonWidth = 100.0f;
             DialogStyleManager.centerTwoButtons(buttonWidth);
-            if (ImGui.button("完成", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+            boolean captureActiveNow = editingActionId != null;
+            if (captureActiveNow) ImGui.beginDisabled();
+            if (ImGui.button("完成", buttonWidth, 0)
+                    || (!captureActiveNow && !suppressCloseHotkeysThisFrame && ImGui.isKeyPressed(ImGuiKey.Enter))) {
                 close();
             }
             ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
-            if (ImGui.button("返回", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            if (ImGui.button("返回", buttonWidth, 0)
+                    || (!captureActiveNow && !suppressCloseHotkeysThisFrame && ImGui.isKeyPressed(ImGuiKey.Escape))) {
                 close();
             }
+            if (captureActiveNow) ImGui.endDisabled();
 
             ImGui.end();
         } finally {
@@ -122,16 +133,20 @@ public class SettingsAndHelpDialog {
         boolean captureActive = editingActionId != null;
         applyCaptureSuppression(captureActive);
 
+        // Esc 在录制态仅取消录制，不应冒泡到对话框“返回/关闭”逻辑
+        if (captureActive && ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            cancelCapture();
+            captureActive = false;
+        }
+
         // 顶部工具行：搜索、重置默认、导出、导入
+        if (captureActive) ImGui.beginDisabled();
         ImGui.text("搜索：");
         ImGui.sameLine();
         ImGui.setNextItemWidth(240);
-        if (captureActive) ImGui.beginDisabled();
         ImGui.inputTextWithHint("##shortcut_search", "搜索动作或按键...", searchText);
-        if (captureActive) ImGui.endDisabled();
 
         ImGui.sameLine();
-        if (captureActive) ImGui.beginDisabled();
         if (ImGui.button("重置为默认")) {
             KeymapManager.getInstance().resetToDefault();
         }
@@ -536,6 +551,7 @@ public class SettingsAndHelpDialog {
 
     private String cancelCapture() {
         editingActionId = null;
+        suppressCloseHotkeysThisFrame = true;
         return null;
     }
 
