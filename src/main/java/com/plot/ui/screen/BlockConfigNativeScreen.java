@@ -554,11 +554,11 @@ public class BlockConfigNativeScreen extends Screen {
         boolean canNext = page < totalPages - 1;
 
         // 上一页按钮
-        drawPagerButton(context, pagerPrevX, pagerY, PAGER_BTN_W, BTN_H, "← 上页",
+        drawPagerButton(context, pagerPrevX, pagerY, "← 上页",
                 mouseX, mouseY, canPrev);
 
         // 下一页按钮
-        drawPagerButton(context, pagerNextX, pagerY, PAGER_BTN_W, BTN_H, "下页 →",
+        drawPagerButton(context, pagerNextX, pagerY, "下页 →",
                 mouseX, mouseY, canNext);
 
         // 页码居中显示
@@ -575,15 +575,15 @@ public class BlockConfigNativeScreen extends Screen {
                 totalPages > 1 ? COLOR_TEXT_NORMAL : COLOR_TEXT_MUTED, false);
     }
 
-    private void drawPagerButton(DrawContext context, int x, int y, int w, int h,
+    private void drawPagerButton(DrawContext context, int x, int y,
                                  String text, int mouseX, int mouseY, boolean enabled) {
-        boolean hover = enabled && isInside(mouseX, mouseY, x, y, w, h);
+        boolean hover = enabled && isInside(mouseX, mouseY, x, y, BlockConfigNativeScreen.PAGER_BTN_W, BlockConfigNativeScreen.BTN_H);
         int bg = !enabled ? COLOR_PAGER_DISABLED : (hover ? brighten(COLOR_PAGER_ACTIVE) : COLOR_PAGER_ACTIVE);
-        context.fill(x, y, x + w, y + h, bg);
-        drawBorder(context, x, y, w, h, enabled ? 0xFF606060 : 0xFF3A3A3A);
+        context.fill(x, y, x + BlockConfigNativeScreen.PAGER_BTN_W, y + BlockConfigNativeScreen.BTN_H, bg);
+        drawBorder(context, x, y, BlockConfigNativeScreen.PAGER_BTN_W, BlockConfigNativeScreen.BTN_H, enabled ? 0xFF606060 : 0xFF3A3A3A);
         int tw = this.textRenderer.getWidth(text);
-        int tx = x + (w - tw) / 2;
-        int ty = y + (h - this.textRenderer.fontHeight) / 2 + 1;
+        int tx = x + (BlockConfigNativeScreen.PAGER_BTN_W - tw) / 2;
+        int ty = y + (BlockConfigNativeScreen.BTN_H - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, text, tx, ty,
                 enabled ? (hover ? 0xFFFFFFFF : 0xFFCCCCCC) : COLOR_TEXT_HINT, false);
     }
@@ -661,20 +661,20 @@ public class BlockConfigNativeScreen extends Screen {
 
     /** 底部操作按钮。 */
     private void renderBottomButtons(DrawContext context, int mouseX, int mouseY) {
-        drawMainButton(context, btnApplyX,  btnY, btnApplyW,  BTN_H, "✓ 应用", COLOR_BTN_APPLY,  mouseX, mouseY);
-        drawMainButton(context, btnCancelX, btnY, btnCancelW, BTN_H, "取消",   COLOR_BTN_CANCEL, mouseX, mouseY);
-        drawMainButton(context, btnClearX,  btnY, btnClearW,  BTN_H, "清空",   COLOR_BTN_CLEAR,  mouseX, mouseY);
+        drawMainButton(context, btnApplyX,  btnY, btnApplyW, "✓ 应用", COLOR_BTN_APPLY,  mouseX, mouseY);
+        drawMainButton(context, btnCancelX, btnY, btnCancelW, "取消",   COLOR_BTN_CANCEL, mouseX, mouseY);
+        drawMainButton(context, btnClearX,  btnY, btnClearW, "清空",   COLOR_BTN_CLEAR,  mouseX, mouseY);
     }
 
-    private void drawMainButton(DrawContext context, int x, int y, int w, int h,
+    private void drawMainButton(DrawContext context, int x, int y, int w,
                                 String text, int baseColor, int mouseX, int mouseY) {
-        boolean hover = isInside(mouseX, mouseY, x, y, w, h);
-        context.fill(x, y, x + w, y + h, hover ? brighten(baseColor) : baseColor);
-        drawBorder(context, x, y, w, h, 0xFF888888);
+        boolean hover = isInside(mouseX, mouseY, x, y, w, BlockConfigNativeScreen.BTN_H);
+        context.fill(x, y, x + w, y + BlockConfigNativeScreen.BTN_H, hover ? brighten(baseColor) : baseColor);
+        drawBorder(context, x, y, w, BlockConfigNativeScreen.BTN_H, 0xFF888888);
         // 文字正确居中
         int tw = this.textRenderer.getWidth(text);
         int tx = x + (w - tw) / 2;
-        int ty = y + (h - this.textRenderer.fontHeight) / 2 + 1;
+        int ty = y + (BlockConfigNativeScreen.BTN_H - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, text, tx, ty, 0xFFFFFFFF, false);
     }
 
@@ -888,7 +888,7 @@ public class BlockConfigNativeScreen extends Screen {
             // IME 兜底：某些输入法场景下 charTyped 可能返回 false，
             // 但 asString 仍有已提交文本（如中文上屏），此时手动写入。
             String committed = charInput.asString();
-            if (committed != null && !committed.isEmpty()) {
+            if (!committed.isEmpty()) {
                 searchBox.write(committed);
                 return true;
             }

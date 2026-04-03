@@ -737,6 +737,15 @@ public class PlotScreen extends Screen {
      */
     @Override
     public void removed() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        boolean switchingToBlockConfig = client != null && client.currentScreen instanceof BlockConfigNativeScreen;
+
+        if (switchingToBlockConfig) {
+            LOGGER.debug("PlotScreen 切换到 Plot 子界面，跳过相机/HUD 清理。");
+            super.removed();
+            return;
+        }
+
         LOGGER.debug("PlotScreen 已关闭。");
         
         // 关键修复：若 removed() 在 render() 中被触发（如点击关闭按钮），不可立即切换 ImGui 上下文，
@@ -1084,9 +1093,7 @@ public class PlotScreen extends Screen {
 
     @Override
     public void close() {
-        // 在super.close()之前恢复相机，确保逻辑正确
-        CameraManager.getInstance().setToPerspective();
-        CameraManager.getInstance().restoreState();
+        // 相机/HUD 恢复统一放到 removed() 中，根据目标界面决定是否真正执行。
         super.close();
     }
 }
