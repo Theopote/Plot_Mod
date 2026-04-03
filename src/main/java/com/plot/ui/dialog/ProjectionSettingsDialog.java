@@ -1,7 +1,5 @@
 package com.plot.ui.dialog;
 
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
@@ -143,14 +141,6 @@ public class ProjectionSettingsDialog {
     public int getElevation() {
         return elevation;
     }
-    
-    /**
-     * 设置标高值
-     */
-    public void setElevation(int elevation) {
-        this.elevation = Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, elevation));
-    }
-    
     /**
      * 投影模式枚举
      */

@@ -29,6 +29,8 @@ import java.util.Objects;
  */
 public class SettingsAndHelpDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/SettingsAndHelpDialog");
+    private static final float FOOTER_HEIGHT = 40.0f;
+    private static final float TAB_CHILD_BOTTOM_PADDING = 8.0f;
     private static SettingsAndHelpDialog INSTANCE;
 
     private boolean isOpen = false;
@@ -66,29 +68,32 @@ public class SettingsAndHelpDialog {
 
         try {
             ImGui.setNextWindowSize(680, 520);
-            int flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings;
+            int flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
             if (!ImGui.begin("设置与帮助", flags)) {
                 ImGui.end();
                 return;
             }
 
+            float footerStartY = ImGui.getWindowHeight() - ImGui.getStyle().getWindowPaddingY() - FOOTER_HEIGHT;
+
             if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
                 if (ImGui.beginTabItem("快捷键")) {
-                    renderShortcutsPage();
+                    renderShortcutsPage(footerStartY);
                     ImGui.endTabItem();
                 }
                 if (ImGui.beginTabItem("吸附与反馈")) {
-                    renderDisplayPage();
+                    renderDisplayPage(footerStartY);
                     ImGui.endTabItem();
                 }
                 if (ImGui.beginTabItem("帮助与教程")) {
-                    renderHelpPage();
+                    renderHelpPage(footerStartY);
                     ImGui.endTabItem();
                 }
                 ImGui.endTabBar();
             }
 
             // 底部操作区：设置即时生效，仅用于完成/返回。
+            ImGui.setCursorPosY(footerStartY);
             ImGui.separator();
             if (ImGui.button("完成", 80, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                 close();
@@ -104,7 +109,7 @@ public class SettingsAndHelpDialog {
         }
     }
 
-    private void renderShortcutsPage() {
+    private void renderShortcutsPage(float footerStartY) {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         boolean captureActive = editingActionId != null;
         applyCaptureSuppression(captureActive);
@@ -124,308 +129,325 @@ public class SettingsAndHelpDialog {
         }
         if (captureActive) ImGui.endDisabled();
 
+        float childHeight = getScrollableSectionHeight(footerStartY);
         ImGui.separator();
 
-        if (editingActionId != null) {
-            String actionName = KeymapManager.getInstance().getActionDisplayName(editingActionId);
-            ImGui.pushStyleColor(ImGuiCol.ChildBg, withAlpha(theme.accent, 56));
-            if (ImGui.beginChild("##shortcut_capture_notice", 0, 40, true)) {
-                ImGui.textColored(theme.warningText, "正在录制快捷键：" + actionName + "（Backspace 清除，Esc 取消）");
+        if (ImGui.beginChild("##shortcut_scroll_region", 0, childHeight,
+            true, ImGuiWindowFlags.NoScrollbar)) {
+            if (editingActionId != null) {
+                String actionName = KeymapManager.getInstance().getActionDisplayName(editingActionId);
+                ImGui.pushStyleColor(ImGuiCol.ChildBg, withAlpha(theme.accent, 56));
+                if (ImGui.beginChild("##shortcut_capture_notice", 0, 40, true)) {
+                    ImGui.textColored(theme.warningText, "正在录制快捷键：" + actionName + "（Backspace 清除，Esc 取消）");
+                }
+                ImGui.endChild();
+                ImGui.popStyleColor();
+                ImGui.spacing();
             }
-            ImGui.endChild();
-            ImGui.popStyleColor();
-            ImGui.spacing();
-        }
 
-        float tableHeight = Math.max(240.0f, ImGui.getContentRegionAvailY() - 70.0f);
-        int tableFlags = ImGuiTableFlags.BordersInnerV
-                | ImGuiTableFlags.RowBg
-                | ImGuiTableFlags.Resizable
-                | ImGuiTableFlags.ScrollY
-                | ImGuiTableFlags.SizingStretchProp;
-        if (ImGui.beginTable("shortcut_table", 3, tableFlags, 0, tableHeight)) {
-            ImGui.tableSetupColumn("动作", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.tableSetupColumn("当前快捷键", ImGuiTableColumnFlags.WidthFixed, 220.0f);
-            ImGui.tableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, 210.0f);
-            ImGui.tableHeadersRow();
+            float tableHeight = Math.max(240.0f, ImGui.getContentRegionAvailY() - 36.0f);
+            int tableFlags = ImGuiTableFlags.BordersInnerV
+                    | ImGuiTableFlags.RowBg
+                    | ImGuiTableFlags.Resizable
+                    | ImGuiTableFlags.ScrollY
+                    | ImGuiTableFlags.SizingStretchProp;
+            if (ImGui.beginTable("shortcut_table", 3, tableFlags, 0, tableHeight)) {
+                ImGui.tableSetupColumn("动作", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+                ImGui.tableSetupColumn("当前快捷键", ImGuiTableColumnFlags.WidthFixed, 220.0f);
+                ImGui.tableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, 210.0f);
+                ImGui.tableHeadersRow();
 
-            String filter = searchText.get().trim().toLowerCase();
-            String lastCategory = null;
-            int matchedActions = 0;
-            for (KeymapManager.ActionDef def : KeymapManager.getInstance().getAllActions()) {
-                String display = def.displayName();
-                String actionId = def.actionId();
-                if (!filter.isEmpty()) {
-                    String binding = KeymapManager.getInstance().getBindingDisplay(actionId);
-                    if (!(display.toLowerCase().contains(filter) || (binding != null && binding.toLowerCase().contains(filter)))) {
-                        continue;
+                String filter = searchText.get().trim().toLowerCase();
+                String lastCategory = null;
+                int matchedActions = 0;
+                for (KeymapManager.ActionDef def : KeymapManager.getInstance().getAllActions()) {
+                    String display = def.displayName();
+                    String actionId = def.actionId();
+                    if (!filter.isEmpty()) {
+                        String binding = KeymapManager.getInstance().getBindingDisplay(actionId);
+                        if (!(display.toLowerCase().contains(filter) || (binding != null && binding.toLowerCase().contains(filter)))) {
+                            continue;
+                        }
                     }
-                }
 
-                String category = def.category();
-                if (!Objects.equals(category, lastCategory)) {
+                    String category = def.category();
+                    if (!Objects.equals(category, lastCategory)) {
+                        ImGui.tableNextRow();
+                        ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.panelBackground, 180));
+                        ImGui.tableSetColumnIndex(0);
+                        ImGui.textColored(theme.infoText, "[" + category + "]");
+                        ImGui.tableSetColumnIndex(1);
+                        ImGui.text("");
+                        ImGui.tableSetColumnIndex(2);
+                        ImGui.text("");
+                        lastCategory = category;
+                    }
+                    matchedActions++;
+
+                    boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
                     ImGui.tableNextRow();
-                    ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.panelBackground, 180));
+                    if (isEditing) {
+                        float anim = (float) (Math.sin(ImGui.getTime() * 6.0f) * 0.15f + 0.2f);
+                        ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.accent, (int) (anim * 255.0f)));
+                    }
+
                     ImGui.tableSetColumnIndex(0);
-                    ImGui.textColored(theme.infoText, "[" + category + "]");
+                    ImGui.text(display);
+
                     ImGui.tableSetColumnIndex(1);
-                    ImGui.text("");
-                    ImGui.tableSetColumnIndex(2);
-                    ImGui.text("");
-                    lastCategory = category;
-                }
-                matchedActions++;
-
-                boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
-                ImGui.tableNextRow();
-                if (isEditing) {
-                    float anim = (float) (Math.sin(ImGui.getTime() * 6.0f) * 0.15f + 0.2f);
-                    ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.accent, (int) (anim * 255.0f)));
-                }
-
-                ImGui.tableSetColumnIndex(0);
-                ImGui.text(display);
-
-                // 显示与编辑状态
-                ImGui.tableSetColumnIndex(1);
-                String current = KeymapManager.getInstance().getBindingDisplay(actionId);
-                if (isEditing) {
-                    ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
-                    if (ImGui.isKeyPressed(ImGuiKey.Backspace)) {
-                        KeymapManager.getInstance().clearBinding(actionId);
-                        editingActionId = null;
-                    } else {
-                        String captured = tryCaptureShortcutString();
-                        if (captured != null) {
-                            String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
-                            if (conflicted != null) {
-                                String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
-                                shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
-                                ImGui.openPopup("##shortcut_conflict_popup");
+                    String current = KeymapManager.getInstance().getBindingDisplay(actionId);
+                    if (isEditing) {
+                        ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
+                        if (ImGui.isKeyPressed(ImGuiKey.Backspace)) {
+                            KeymapManager.getInstance().clearBinding(actionId);
+                            editingActionId = null;
+                        } else {
+                            String captured = tryCaptureShortcutString();
+                            if (captured != null) {
+                                String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
+                                if (conflicted != null) {
+                                    String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
+                                    shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
+                                    ImGui.openPopup("##shortcut_conflict_popup");
+                                }
+                                editingActionId = null;
                             }
+                        }
+                    } else {
+                        ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
+                        if (!captureActive && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+                            editingActionId = actionId;
+                        }
+                        if (ImGui.isItemHovered()) {
+                            ImGui.setTooltip("双击可进入快捷键录制");
+                        }
+                    }
+
+                    ImGui.tableSetColumnIndex(2);
+                    if (isEditing) {
+                        if (ImGui.button("取消##cancel_" + actionId)) {
                             editingActionId = null;
                         }
-                    }
-                } else {
-                    ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
-                    if (!captureActive && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
-                        editingActionId = actionId;
-                    }
-                    if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip("双击可进入快捷键录制");
-                    }
-                }
-
-                // 操作按钮
-                ImGui.tableSetColumnIndex(2);
-                if (isEditing) {
-                    if (ImGui.button("取消##cancel_" + actionId)) {
-                        editingActionId = null;
-                    }
-                } else {
-                    if (captureActive) ImGui.beginDisabled();
-                    if (ImGui.button("编辑##edit_" + actionId)) {
-                        editingActionId = actionId;
-                    }
-                    ImGui.sameLine();
-                    if (ImGui.button("清除##clear_" + actionId)) {
-                        KeymapManager.getInstance().clearBinding(actionId);
-                    }
-                    ImGui.sameLine();
-                    String defaultKey = KeymapManager.getInstance().getDefaultBinding(actionId);
-                    boolean hasDefault = defaultKey != null && !defaultKey.isEmpty();
-                    boolean isAtDefault = hasDefault && Objects.equals(current, defaultKey);
-                    boolean canReset = hasDefault && !isAtDefault;
-
-                    if (!canReset) ImGui.beginDisabled();
-                    if (canReset) {
-                        ImGui.pushStyleColor(ImGuiCol.Button, withAlpha(theme.accent, 120));
-                        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, withAlpha(theme.accent, 180));
-                        ImGui.pushStyleColor(ImGuiCol.ButtonActive, withAlpha(theme.accent, 220));
-                    }
-                    if (ImGui.smallButton("重置##reset_" + actionId)) {
-                        KeymapManager.getInstance().updateBinding(actionId, defaultKey);
-                    }
-                    if (canReset) {
-                        ImGui.popStyleColor(3);
-                    }
-                    if (ImGui.isItemHovered()) {
-                        if (canReset) {
-                            ImGui.setTooltip("恢复默认：" + defaultKey);
-                        } else if (!hasDefault) {
-                            ImGui.setTooltip("该动作暂无预设默认快捷键");
-                        } else {
-                            ImGui.setTooltip("当前已是默认快捷键");
+                    } else {
+                        if (captureActive) ImGui.beginDisabled();
+                        if (ImGui.button("编辑##edit_" + actionId)) {
+                            editingActionId = actionId;
                         }
+                        ImGui.sameLine();
+                        if (ImGui.button("清除##clear_" + actionId)) {
+                            KeymapManager.getInstance().clearBinding(actionId);
+                        }
+                        ImGui.sameLine();
+                        String defaultKey = KeymapManager.getInstance().getDefaultBinding(actionId);
+                        boolean hasDefault = defaultKey != null && !defaultKey.isEmpty();
+                        boolean isAtDefault = hasDefault && Objects.equals(current, defaultKey);
+                        boolean canReset = hasDefault && !isAtDefault;
+
+                        if (!canReset) ImGui.beginDisabled();
+                        if (canReset) {
+                            ImGui.pushStyleColor(ImGuiCol.Button, withAlpha(theme.accent, 120));
+                            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, withAlpha(theme.accent, 180));
+                            ImGui.pushStyleColor(ImGuiCol.ButtonActive, withAlpha(theme.accent, 220));
+                        }
+                        if (ImGui.smallButton("重置##reset_" + actionId)) {
+                            KeymapManager.getInstance().updateBinding(actionId, defaultKey);
+                        }
+                        if (canReset) {
+                            ImGui.popStyleColor(3);
+                        }
+                        if (ImGui.isItemHovered()) {
+                            if (canReset) {
+                                ImGui.setTooltip("恢复默认：" + defaultKey);
+                            } else if (!hasDefault) {
+                                ImGui.setTooltip("该动作暂无预设默认快捷键");
+                            } else {
+                                ImGui.setTooltip("当前已是默认快捷键");
+                            }
+                        }
+                        if (!canReset) ImGui.endDisabled();
+                        if (captureActive) ImGui.endDisabled();
                     }
-                    if (!canReset) ImGui.endDisabled();
-                    if (captureActive) ImGui.endDisabled();
+                }
+                ImGui.endTable();
+
+                if (!filter.isEmpty() && matchedActions == 0) {
+                    ImGui.spacing();
+                    ImGui.textDisabled("未找到相关动作");
+                    ImGui.sameLine();
+                    if (ImGui.smallButton("清除搜索##clear_shortcut_search")) {
+                        searchText.set("");
+                    }
                 }
             }
-            ImGui.endTable();
 
-            if (!filter.isEmpty() && matchedActions == 0) {
-                ImGui.spacing();
-                ImGui.textDisabled("未找到相关动作");
-                ImGui.sameLine();
-                if (ImGui.smallButton("清除搜索##clear_shortcut_search")) {
-                    searchText.set("");
+            if (ImGui.beginPopup("##shortcut_conflict_popup")) {
+                ImGui.textWrapped(shortcutConflictMessage == null ? "检测到快捷键冲突。" : shortcutConflictMessage);
+                if (ImGui.button("知道了", 90, 0)) {
+                    ImGui.closeCurrentPopup();
                 }
+                ImGui.endPopup();
             }
-        }
 
-        if (ImGui.beginPopup("##shortcut_conflict_popup")) {
-            ImGui.textWrapped(shortcutConflictMessage == null ? "检测到快捷键冲突。" : shortcutConflictMessage);
-            if (ImGui.button("知道了", 90, 0)) {
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.endPopup();
+            ImGui.separator();
+            ImGui.textDisabled("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
         }
-
-        ImGui.separator();
-        ImGui.textDisabled("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
+        ImGui.endChild();
     }
 
-    private void renderHelpPage() {
+    private void renderHelpPage(float footerStartY) {
         ImGui.textDisabled("点击左侧条目查看对应教程");
         ImGui.separator();
 
-        if (ImGui.beginChild("##help_nav", 180, 0, true)) {
-            if (ImGui.selectable("基础操作", selectedHelpTopic == 0)) selectedHelpTopic = 0;
-            if (ImGui.selectable("高级技巧", selectedHelpTopic == 1)) selectedHelpTopic = 1;
-            if (ImGui.selectable("快捷键与排障", selectedHelpTopic == 2)) selectedHelpTopic = 2;
-            if (ImGui.selectable("更新日志", selectedHelpTopic == 3)) selectedHelpTopic = 3;
-        }
-        ImGui.endChild();
-
-        ImGui.sameLine();
-
-        if (ImGui.beginChild("##help_content", 0, 0, true)) {
-            switch (selectedHelpTopic) {
-                case 0 -> {
-                    ImGui.text("基础操作");
-                    ImGui.separator();
-                    ImGui.bulletText("选择：Space 切换到选择工具。拖拽框选可一次选中多个图元。");
-                    ImGui.bulletText("移动：选中对象后直接拖拽，或输入精确位移值进行调整。");
-                    ImGui.bulletText("缩放视图：使用滚轮缩放，按住中键可平移画布。");
-                }
-                case 1 -> {
-                    ImGui.text("高级技巧");
-                    ImGui.separator();
-                    ImGui.bulletText("按住 Shift：绘制或修改时启用正交/角度约束，快速得到规整图形。");
-                    ImGui.bulletText("吸附配合：开启端点/中点/垂足吸附可显著提高定位效率。");
-                    ImGui.bulletText("修改建议：先用选择工具定位，再切换编辑工具，减少误操作。");
-                }
-                case 2 -> {
-                    ImGui.text("快捷键与排障");
-                    ImGui.separator();
-                    ImGui.bulletText("快捷键冲突时，系统会提示被占用动作并自动移除旧绑定。");
-                    ImGui.bulletText("若快捷键无效：先确认没有输入框焦点，再检查是否被其它模组拦截。");
-                    ImGui.bulletText("录制快捷键时按 Esc 可立即取消当前录制。");
-                }
-                case 3 -> {
-                    ImGui.text("更新日志");
-                    ImGui.separator();
-                    ImGui.bulletText("设置页已迁移至 Table API，列表列宽更稳定，支持分组显示。");
-                    ImGui.bulletText("快捷键录制增强：支持冲突提示、录制状态高亮和清除按钮。");
-                    ImGui.bulletText("显示反馈页已拆分为基础设置与颜色自定义两个折叠区。");
-                }
-                default -> selectedHelpTopic = 0;
+        float childHeight = getScrollableSectionHeight(footerStartY);
+        if (ImGui.beginChild("##help_scroll_region", 0, childHeight, false, 0)) {
+            if (ImGui.beginChild("##help_nav", 180, 0, true)) {
+                if (ImGui.selectable("基础操作", selectedHelpTopic == 0)) selectedHelpTopic = 0;
+                if (ImGui.selectable("高级技巧", selectedHelpTopic == 1)) selectedHelpTopic = 1;
+                if (ImGui.selectable("快捷键与排障", selectedHelpTopic == 2)) selectedHelpTopic = 2;
+                if (ImGui.selectable("更新日志", selectedHelpTopic == 3)) selectedHelpTopic = 3;
             }
+            ImGui.endChild();
+
+            ImGui.sameLine();
+
+            if (ImGui.beginChild("##help_content", 0, 0, true)) {
+                switch (selectedHelpTopic) {
+                    case 0 -> {
+                        ImGui.text("基础操作");
+                        ImGui.separator();
+                        ImGui.bulletText("选择：Space 切换到选择工具。拖拽框选可一次选中多个图元。");
+                        ImGui.bulletText("移动：选中对象后直接拖拽，或输入精确位移值进行调整。");
+                        ImGui.bulletText("缩放视图：使用滚轮缩放，按住中键可平移画布。");
+                    }
+                    case 1 -> {
+                        ImGui.text("高级技巧");
+                        ImGui.separator();
+                        ImGui.bulletText("按住 Shift：绘制或修改时启用正交/角度约束，快速得到规整图形。");
+                        ImGui.bulletText("吸附配合：开启端点/中点/垂足吸附可显著提高定位效率。");
+                        ImGui.bulletText("修改建议：先用选择工具定位，再切换编辑工具，减少误操作。");
+                    }
+                    case 2 -> {
+                        ImGui.text("快捷键与排障");
+                        ImGui.separator();
+                        ImGui.bulletText("快捷键冲突时，系统会提示被占用动作并自动移除旧绑定。");
+                        ImGui.bulletText("若快捷键无效：先确认没有输入框焦点，再检查是否被其它模组拦截。");
+                        ImGui.bulletText("录制快捷键时按 Esc 可立即取消当前录制。");
+                    }
+                    case 3 -> {
+                        ImGui.text("更新日志");
+                        ImGui.separator();
+                        ImGui.bulletText("设置页已迁移至 Table API，列表列宽更稳定，支持分组显示。");
+                        ImGui.bulletText("快捷键录制增强：支持冲突提示、录制状态高亮和清除按钮。");
+                        ImGui.bulletText("显示反馈页已拆分为基础设置与颜色自定义两个折叠区。");
+                    }
+                    default -> selectedHelpTopic = 0;
+                }
+            }
+            ImGui.endChild();
         }
         ImGui.endChild();
     }
 
-    private void renderDisplayPage() {
+    private void renderDisplayPage(float footerStartY) {
         SnapManager snapManager = SnapManager.getInstance();
 
         ImGui.textWrapped("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
         ImGui.separator();
 
-        if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent(10);
+        float childHeight = getScrollableSectionHeight(footerStartY);
+        if (ImGui.beginChild("##display_scroll_region", 0, childHeight, false, 0)) {
 
-            ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
-            ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
-            ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
-            ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
-            ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
+            if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent(10);
 
-            if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
-                ImGui.tableNextRow();
-                ImGui.tableSetColumnIndex(0);
-                if (ImGui.checkbox("显示吸附标记", showMarkers)) {
-                    snapManager.setShowSnapMarkersEnabled(showMarkers.get());
-                }
-                ImGui.tableSetColumnIndex(1);
-                if (ImGui.checkbox("显示端点反馈", endPoint)) {
-                    snapManager.setEndPointSnapEnabled(endPoint.get());
+                ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
+                ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
+                ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
+                ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
+                ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
+
+                if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
+                    ImGui.tableNextRow();
+                    ImGui.tableSetColumnIndex(0);
+                    if (ImGui.checkbox("显示吸附标记", showMarkers)) {
+                        snapManager.setShowSnapMarkersEnabled(showMarkers.get());
+                    }
+                    ImGui.tableSetColumnIndex(1);
+                    if (ImGui.checkbox("显示端点反馈", endPoint)) {
+                        snapManager.setEndPointSnapEnabled(endPoint.get());
+                    }
+
+                    ImGui.tableNextRow();
+                    ImGui.tableSetColumnIndex(0);
+                    if (ImGui.checkbox("显示中点反馈", midPoint)) {
+                        snapManager.setMidPointSnapEnabled(midPoint.get());
+                    }
+                    ImGui.tableSetColumnIndex(1);
+                    if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
+                        snapManager.setCenterPointSnapEnabled(centerPoint.get());
+                    }
+                    renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
+
+                    ImGui.tableNextRow();
+                    ImGui.tableSetColumnIndex(0);
+                    if (ImGui.checkbox("显示中心点反馈", centroid)) {
+                        snapManager.setCentroidSnapEnabled(centroid.get());
+                    }
+                    renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
+                    ImGui.tableSetColumnIndex(1);
+                    ImGui.textDisabled(" ");
+
+                    ImGui.endTable();
                 }
 
-                ImGui.tableNextRow();
-                ImGui.tableSetColumnIndex(0);
-                if (ImGui.checkbox("显示中点反馈", midPoint)) {
-                    snapManager.setMidPointSnapEnabled(midPoint.get());
+                float[] markerSize = new float[] { snapManager.getMarkerSize() };
+                ImGui.setNextItemWidth(180);
+                if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
+                    snapManager.setMarkerSize(markerSize[0]);
                 }
-                ImGui.tableSetColumnIndex(1);
-                if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
-                    snapManager.setCenterPointSnapEnabled(centerPoint.get());
-                }
-                renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
 
-                ImGui.tableNextRow();
-                ImGui.tableSetColumnIndex(0);
-                if (ImGui.checkbox("显示中心点反馈", centroid)) {
-                    snapManager.setCentroidSnapEnabled(centroid.get());
+                ImBoolean showControlPoints = new ImBoolean(ControlPointEditTool.isDisplayEnabled());
+                if (ImGui.checkbox("显示控制点", showControlPoints)) {
+                    ControlPointEditTool.setDisplayEnabled(showControlPoints.get());
                 }
-                renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
-                ImGui.tableSetColumnIndex(1);
-                ImGui.textDisabled(" ");
 
-                ImGui.endTable();
+                ImBoolean showPointIndex = new ImBoolean(ControlPointEditTool.isShowPointIndex());
+                if (ImGui.checkbox("显示控制点编号", showPointIndex)) {
+                    ControlPointEditTool.setShowPointIndex(showPointIndex.get());
+                }
+
+                ImGui.unindent(10);
+                ImGui.treePop();
             }
 
-            float[] markerSize = new float[] { snapManager.getMarkerSize() };
-            ImGui.setNextItemWidth(180);
-            if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
-                snapManager.setMarkerSize(markerSize[0]);
+            if (ImGui.treeNodeEx("颜色自定义##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent(10);
+                ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
+
+                renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
+                renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
+                renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
+                renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT, "中心点颜色：用于圆心/中心点吸附提示。");
+                renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR, "垂足吸附：从当前点向目标线作垂线，吸附到垂足位置。");
+                renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT, "切点吸附：吸附到与目标曲线相切的接触点。");
+                renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
+
+                if (ImGui.button("重置全部吸附颜色")) {
+                    SnapVisualStyle.resetCustomColors();
+                }
+                ImGui.unindent(10);
+                ImGui.treePop();
             }
 
-            ImBoolean showControlPoints = new ImBoolean(ControlPointEditTool.isDisplayEnabled());
-            if (ImGui.checkbox("显示控制点", showControlPoints)) {
-                ControlPointEditTool.setDisplayEnabled(showControlPoints.get());
-            }
-
-            ImBoolean showPointIndex = new ImBoolean(ControlPointEditTool.isShowPointIndex());
-            if (ImGui.checkbox("显示控制点编号", showPointIndex)) {
-                ControlPointEditTool.setShowPointIndex(showPointIndex.get());
-            }
-
-            ImGui.unindent(10);
-            ImGui.treePop();
+            ImGui.separator();
+            ImGui.textDisabled("提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。\n");
         }
+        ImGui.endChild();
+    }
 
-        if (ImGui.treeNodeEx("颜色自定义##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent(10);
-            ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
-
-            renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
-            renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
-            renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
-            renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT, "中心点颜色：用于圆心/中心点吸附提示。");
-            renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR, "垂足吸附：从当前点向目标线作垂线，吸附到垂足位置。");
-            renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT, "切点吸附：吸附到与目标曲线相切的接触点。");
-            renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
-
-            if (ImGui.button("重置全部吸附颜色")) {
-                SnapVisualStyle.resetCustomColors();
-            }
-            ImGui.unindent(10);
-            ImGui.treePop();
-        }
-
-        ImGui.separator();
-        ImGui.textDisabled("提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。\n");
+    private float getScrollableSectionHeight(float footerStartY) {
+        float available = footerStartY - ImGui.getCursorPosY() - TAB_CHILD_BOTTOM_PADDING;
+        return Math.max(80.0f, available);
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {
