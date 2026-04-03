@@ -2,6 +2,7 @@ package com.plot.ui.theme;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.ImGuiStyle;
 import imgui.ImColor;
 
@@ -62,6 +63,50 @@ public class UITheme {
         style.setColor(ImGuiCol.Button, defaultTheme.buttonNormal);
         style.setColor(ImGuiCol.ButtonHovered, defaultTheme.buttonHovered);
         style.setColor(ImGuiCol.ButtonActive, defaultTheme.buttonActive);
+    }
+
+    /**
+     * 应用“设置与帮助”对话框的局部样式。
+     */
+    public static void applySettingsDialogStyle(ThemeColors theme) {
+        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.separatorColor);
+        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(ImGuiCol.TextDisabled, theme.mutedText);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
+        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.Tab, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.TabHovered, theme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.TabActive, theme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocused, theme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, theme.tabActive);
+
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, 0.0f);
+    }
+
+    public static void popSettingsDialogStyle() {
+        ImGui.popStyleVar(7);
+        ImGui.popStyleColor(25);
     }
 
     /**

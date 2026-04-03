@@ -48,15 +48,34 @@ public class KeymapManager {
     public List<ActionDef> getAllActions() { return Collections.unmodifiableList(actions); }
     public String getBindingDisplay(String actionId) { return actionToShortcut.get(actionId); }
 
+    public String getActionDisplayName(String actionId) {
+        if (actionId == null) return null;
+        for (ActionDef def : actions) {
+            if (actionId.equals(def.actionId())) {
+                return def.displayName();
+            }
+        }
+        return actionId;
+    }
+
     public boolean updateBinding(String actionId, String shortcut) {
         if (actionId == null || shortcut == null) return false;
+        updateBindingAndGetConflict(actionId, shortcut);
+        return true;
+    }
+
+    /**
+     * 更新动作绑定，并返回被占用同一快捷键的动作ID（如无冲突则返回 null）。
+     */
+    public String updateBindingAndGetConflict(String actionId, String shortcut) {
+        if (actionId == null || shortcut == null) return null;
         String normalized = shortcut.toLowerCase(Locale.ROOT);
         // 简单冲突：移除旧动作占用
         String conflicted = findActionByShortcut(normalized);
         if (conflicted != null && !conflicted.equals(actionId)) actionToShortcut.remove(conflicted);
         actionToShortcut.put(actionId, normalized);
         save();
-        return true;
+        return conflicted != null && !conflicted.equals(actionId) ? conflicted : null;
     }
 
     public void clearBinding(String actionId) { actionToShortcut.remove(actionId); save(); }

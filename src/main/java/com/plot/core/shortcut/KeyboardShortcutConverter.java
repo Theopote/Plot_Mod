@@ -9,6 +9,10 @@ import org.slf4j.LoggerFactory;
  */
 public class KeyboardShortcutConverter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyboardShortcutConverter.class);
+
+    // 快捷键录制时的键盘扫描范围（GLFW keycode）
+    private static final int CAPTURE_KEY_MIN = 32;
+    private static final int CAPTURE_KEY_MAX = 348;
     
     // GLFW 修饰键常量
     private static final int GLFW_MOD_SHIFT = 0x0001;
@@ -198,5 +202,17 @@ public class KeyboardShortcutConverter {
                     modifiers != 0;
         };
 
+    }
+
+    public static int captureKeyMin() {
+        return CAPTURE_KEY_MIN;
+    }
+
+    public static int captureKeyMax() {
+        return CAPTURE_KEY_MAX;
+    }
+
+    public static boolean isModifierKey(int keyCode) {
+        return keyCode >= 340 && keyCode <= 347;
     }
 }
