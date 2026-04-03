@@ -12,6 +12,8 @@ import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
 import com.plot.ui.screen.BlockConfigNativeScreen;
+import com.plot.ui.screen.PlotScreen;
+import com.plot.ui.screen.PlotScreenState;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.toolbar.ToolbarUIUtils;
 import imgui.ImGui;
@@ -73,7 +75,12 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                 if (blockConfigDialog != null) {
                     MinecraftClient client = MinecraftClient.getInstance();
                     if (client != null) {
-                        client.execute(() -> client.setScreen(new BlockConfigNativeScreen(blockConfigDialog, client.currentScreen)));
+                        client.execute(() -> {
+                            if (client.currentScreen instanceof PlotScreen) {
+                                PlotScreenState.markSwitchingToPlotSubScreen();
+                            }
+                            client.setScreen(new BlockConfigNativeScreen(blockConfigDialog, client.currentScreen));
+                        });
                         LOGGER.debug("原生方块配置面板打开成功");
                     }
                 } else {

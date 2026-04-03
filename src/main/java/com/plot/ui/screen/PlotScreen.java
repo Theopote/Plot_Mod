@@ -737,8 +737,7 @@ public class PlotScreen extends Screen {
      */
     @Override
     public void removed() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        boolean switchingToBlockConfig = client != null && client.currentScreen instanceof BlockConfigNativeScreen;
+        boolean switchingToBlockConfig = PlotScreenState.consumeSwitchingToPlotSubScreen();
 
         if (switchingToBlockConfig) {
             LOGGER.debug("PlotScreen 切换到 Plot 子界面，跳过相机/HUD 清理。");

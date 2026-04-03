@@ -13,6 +13,8 @@ public class PlotScreenState {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlotScreenState.class);
     
     private static boolean plotScreenOpen = false;
+    /** 一次性标记：当前正从 PlotScreen 切换到 Plot 子界面。 */
+    private static boolean switchingToPlotSubScreen = false;
 
     /**
      * 检查 Plot 屏幕是否打开
@@ -48,6 +50,18 @@ public class PlotScreenState {
     public static void setPlotScreenOpen(boolean open) {
         plotScreenOpen = open;
         LOGGER.debug("Plot 屏幕状态: {}", open ? "打开" : "关闭");
+    }
+
+    /** 标记一次从 PlotScreen 进入子界面的过渡。 */
+    public static void markSwitchingToPlotSubScreen() {
+        switchingToPlotSubScreen = true;
+    }
+
+    /** 消费一次过渡标记。 */
+    public static boolean consumeSwitchingToPlotSubScreen() {
+        boolean value = switchingToPlotSubScreen;
+        switchingToPlotSubScreen = false;
+        return value;
     }
 
 }
