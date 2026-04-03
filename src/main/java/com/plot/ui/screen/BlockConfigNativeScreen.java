@@ -563,10 +563,11 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 页码居中显示
         String pageText;
+        int totalInCategory = rawCategoryBlocks.size();
         if (totalPages <= 1 && filteredBlocks.isEmpty() && !searchBox.getText().isEmpty()) {
-            pageText = "无结果";
+            pageText = String.format("无结果（此分类总共：%d 方块）", totalInCategory);
         } else {
-            pageText = String.format("%d / %d", page + 1, totalPages);
+            pageText = String.format("%d / %d（此分类总共：%d 方块）", page + 1, totalPages, totalInCategory);
         }
         int pw = this.textRenderer.getWidth(pageText);
         context.drawText(this.textRenderer, pageText,
@@ -879,8 +880,18 @@ public class BlockConfigNativeScreen extends Screen {
     @Override
     public boolean charTyped(CharInput charInput) {
         // 优先交给搜索框，确保输入法上屏字符可被稳定接收。
-        if (searchBox != null && searchBox.isFocused() && searchBox.charTyped(charInput)) {
-            return true;
+        if (searchBox != null && searchBox.isFocused()) {
+            if (searchBox.charTyped(charInput)) {
+                return true;
+            }
+
+            // IME 兜底：某些输入法场景下 charTyped 可能返回 false，
+            // 但 asString 仍有已提交文本（如中文上屏），此时手动写入。
+            String committed = charInput.asString();
+            if (committed != null && !committed.isEmpty()) {
+                searchBox.write(committed);
+                return true;
+            }
         }
         return super.charTyped(charInput);
     }
