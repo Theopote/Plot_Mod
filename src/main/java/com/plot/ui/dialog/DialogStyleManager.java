@@ -14,10 +14,10 @@ public class DialogStyleManager {
     
     // ====== 布局常量 ======
     /** 控件之间的垂直间距 */
-    public static final float ITEM_SPACING = 8.0f;
+    public static final float ITEM_SPACING = 4.0f;
     
     /** 控件之间的水平间距 */
-    public static final float ITEM_SPACING_H = 8.0f;
+    public static final float ITEM_SPACING_H = 4.0f;
     
     /** 框架内边距（控制输入框、按钮等的内部填充及高度） */
     public static final float FRAME_PADDING = 2.0f;
