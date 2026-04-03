@@ -113,7 +113,8 @@ public class GridManager {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
             ImGui.setNextWindowSize(300, 0);
-            if (ImGui.begin("网格设置##GridSettings", ImGuiWindowFlags.NoCollapse)) {
+            if (ImGui.begin("网格设置##GridSettings",
+                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings)) {
                 boolean settingsChanged = false;
 
                 // 网格大小设置
@@ -178,10 +179,8 @@ public class GridManager {
     }
 
     private void renderButtons() {
-        // 在分隔线前添加一些空间
-        ImGui.dummy(0, 8);
         ImGui.separator();
-        ImGui.dummy(0, 8);
+        ImGui.spacing();
 
         float windowWidth = ImGui.getContentRegionAvailX();
         float buttonSpacing = ImGui.getStyle().getItemSpacingX();
@@ -201,8 +200,6 @@ public class GridManager {
             eventBus.publish(new GridToggleEvent(isEnabled, settings, true));
             LOGGER.debug("重置网格设置为默认值并发布GridToggleEvent");
         }
-
-        ImGui.dummy(0, 4);
     }
 
     public GridSettings getSettings() {

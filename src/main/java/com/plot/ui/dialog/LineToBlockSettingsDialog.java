@@ -60,7 +60,8 @@ public class LineToBlockSettingsDialog {
         
         try {
             ImGui.setNextWindowSize(400, 0);
-            boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings", ImGuiWindowFlags.AlwaysAutoResize);
+            boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings",
+                    ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {
                 if (windowVisible) {
                     // 转换模式选择

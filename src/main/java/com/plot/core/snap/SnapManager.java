@@ -67,7 +67,9 @@ public class SnapManager implements ISnapManager {
             int windowFlags = ImGuiWindowFlags.NoCollapse |
                     ImGuiWindowFlags.AlwaysAutoResize |
                     ImGuiWindowFlags.NoResize |
-                    ImGuiWindowFlags.NoNav;  // 移除 AlwaysUseWindowPadding，允许窗口拖动
+                    ImGuiWindowFlags.NoScrollbar |
+                    ImGuiWindowFlags.NoSavedSettings |
+                    ImGuiWindowFlags.NoNav;
 
             if (ImGui.begin("吸附设置##snap_settings", windowFlags)) {
 

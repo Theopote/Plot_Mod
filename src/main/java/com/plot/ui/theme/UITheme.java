@@ -64,6 +64,32 @@ public class UITheme {
         style.setColor(ImGuiCol.ButtonActive, defaultTheme.buttonActive);
     }
 
+    public static void popSettingsDialogStyle(SettingsDialogStyleScope scope) {
+        if (scope == null) {
+            return;
+        }
+        ImGui.popStyleVar(scope.varCount());
+        ImGui.popStyleColor(scope.colorCount());
+    }
+
+    public static final class SettingsDialogStyleScope {
+        private final int colorCount;
+        private final int varCount;
+
+        public SettingsDialogStyleScope(int colorCount, int varCount) {
+            this.colorCount = colorCount;
+            this.varCount = varCount;
+        }
+
+        public int colorCount() {
+            return colorCount;
+        }
+
+        public int varCount() {
+            return varCount;
+        }
+    }
+
     /**
      * 获取颜色的RGBA值
      * @param colorId ImGuiCol 颜色ID
@@ -78,6 +104,26 @@ public class UITheme {
             case ImGuiCol.ButtonActive -> BUTTON_ACTIVE;
             default -> ImColor.rgba(0.0f, 0.0f, 0.0f, 1.0f); // 默认黑色
         };
+    }
+
+    // ====== 工具栏专用样式 ======
+    public static final class Toolbar {
+        /** 按钮圆角：4像素 */
+        public static final float BUTTON_ROUNDING = 4.0f;
+
+        /** 获取当前主题的工具栏按钮颜色 */
+        public static int getButtonColor(boolean selected, boolean hovered, boolean active) {
+            ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+            if (selected) {
+                return theme.buttonSelected;
+            } else if (active) {
+                return theme.buttonActive;
+            } else if (hovered) {
+                return theme.buttonHovered;
+            } else {
+                return theme.buttonNormal;
+            }
+        }
     }
 
     // ====== 画布专用样式 ======

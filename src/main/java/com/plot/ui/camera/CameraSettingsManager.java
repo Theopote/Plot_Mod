@@ -45,7 +45,8 @@ public class CameraSettingsManager {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
             ImGui.setNextWindowSize(300, 0);
-            boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings", ImGuiWindowFlags.NoCollapse);
+            boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings",
+                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {
                 if (windowVisible) {
                     boolean settingsChanged = false;
