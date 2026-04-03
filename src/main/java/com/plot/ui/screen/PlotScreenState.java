@@ -15,6 +15,8 @@ public class PlotScreenState {
     private static boolean plotScreenOpen = false;
     /** 一次性标记：当前正从 PlotScreen 切换到 Plot 子界面。 */
     private static boolean switchingToPlotSubScreen = false;
+    /** 防点击穿透：返回 Plot 后短时间内吞掉一次鼠标点击。 */
+    private static long suppressNextPlotClickUntilMs = 0L;
 
     /**
      * 检查 Plot 屏幕是否打开
@@ -62,6 +64,24 @@ public class PlotScreenState {
         boolean value = switchingToPlotSubScreen;
         switchingToPlotSubScreen = false;
         return value;
+    }
+
+    /** 标记在返回 Plot 后需要屏蔽一次点击穿透。 */
+    public static void markSuppressNextPlotClick() {
+        suppressNextPlotClickUntilMs = System.currentTimeMillis() + 200L;
+    }
+
+    /** 消费点击穿透屏蔽标记（仅在有效时间窗内生效一次）。 */
+    public static boolean consumeSuppressNextPlotClick() {
+        long now = System.currentTimeMillis();
+        if (suppressNextPlotClickUntilMs > 0L && now <= suppressNextPlotClickUntilMs) {
+            suppressNextPlotClickUntilMs = 0L;
+            return true;
+        }
+        if (suppressNextPlotClickUntilMs > 0L && now > suppressNextPlotClickUntilMs) {
+            suppressNextPlotClickUntilMs = 0L;
+        }
+        return false;
     }
 
 }

@@ -995,7 +995,12 @@ public class BlockConfigNativeScreen extends Screen {
     @Override
     public void close() {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null) client.setScreen(parent);
+        if (client != null) {
+            if (parent instanceof PlotScreen) {
+                PlotScreenState.markSuppressNextPlotClick();
+            }
+            client.setScreen(parent);
+        }
     }
 
     // =========================================================================

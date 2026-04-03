@@ -780,6 +780,11 @@ public class PlotScreen extends Screen {
     // 鼠标事件处理方法
     @Override
     public boolean mouseClicked(Click click, boolean handled) {
+        // 防止从子界面返回 Plot 时，最后一次关闭点击穿透到画布。
+        if (PlotScreenState.consumeSuppressNextPlotClick()) {
+            return true;
+        }
+
         // 【优化】统一事件处理逻辑
         if (isInputCapturedByImGui()) {
             PlotMod.LOGGER.debug("ImGui 捕获鼠标点击: x={}, y={}, button={}", 
