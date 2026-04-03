@@ -4,11 +4,15 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.ui.theme.ThemeManager;
+import com.plot.ui.theme.UITheme;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
@@ -40,6 +44,7 @@ public class NewLayerDialog {
     private LineStyle.LineType lineType =      // 图层线型
             LineStyle.LineType.SOLID;
     private float lineWidth = 1.0f;            // 图层线宽（改为单值）
+        private boolean nameInputInvalid = false;  // 名称输入是否合法（用于红色边框反馈）
 
     // === 依赖项 ===
     private final LayerManager layerManager;    // 图层管理器
@@ -55,6 +60,7 @@ public class NewLayerDialog {
 
     public void show() {
         isVisible = true;
+        nameInputInvalid = false;
         ImGui.openPopup(DIALOG_TITLE);
 
         if (layerName.get().isEmpty()) {
@@ -86,20 +92,24 @@ public class NewLayerDialog {
         // 验证名称
         if (name.isEmpty()) {
             showWarningDialog.accept("图层名称不能为空");
+            nameInputInvalid = true;
             return;
         }
         if (name.length() > MAX_NAME_LENGTH) {
             showWarningDialog.accept("图层名称不能超过" + MAX_NAME_LENGTH + "个字符");
+            nameInputInvalid = true;
             return;
         }
         if (!name.matches("[a-zA-Z0-9_\u4E00-\u9FFF]+")) {
             showWarningDialog.accept("图层名称只能包含中文、字母、数字或下划线");
+            nameInputInvalid = true;
             return;
         }
 
         synchronized (layerManager) {
             if (layerManager.isNameExists(name)) {
                 showWarningDialog.accept("图层名称已存在，请使用其他名称");
+                nameInputInvalid = true;
                 return;
             }
 
@@ -127,6 +137,7 @@ public class NewLayerDialog {
 
                 // 清空输入框
                 layerName.set("");
+                nameInputInvalid = false;
 
                 // 关闭对话框
                 hide();
@@ -169,6 +180,7 @@ public class NewLayerDialog {
 
     private void hide() {
         isVisible = false;
+        nameInputInvalid = false;
         layerName.clear();
         Arrays.fill(layerColor, 1.0f);
         lineType = LineStyle.LineType.SOLID;
@@ -219,12 +231,19 @@ public class NewLayerDialog {
                 float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
 
                 // === 名称输入 ===
+                UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
                 ImGui.text("名称：");
                 ImGui.sameLine(labelWidth);
                 ImGui.setNextItemWidth(controlWidth);
                 if (ImGui.isWindowAppearing()) {
                     ImGui.setKeyboardFocusHere();
                 }
+
+                if (nameInputInvalid) {
+                    ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.Border, theme.errorText);
+                }
+
                 // 使用不带回调的 inputText 重载，验证中文输入
                 if (ImGui.inputText("##new_layer_name", layerName,
                         ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
@@ -232,7 +251,13 @@ public class NewLayerDialog {
                     String currentInput = layerName.get();
                     LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
                             currentInput, currentInput.getBytes().length, currentInput.length());
+                    nameInputInvalid = false;
                     ImGui.setKeyboardFocusHere(1); // 聚焦到"确定"按钮
+                }
+
+                if (nameInputInvalid) {
+                    ImGui.popStyleColor();
+                    ImGui.popStyleVar();
                 }
 
                 // === 颜色选择器 ===
