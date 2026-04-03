@@ -102,14 +102,15 @@ public class LineToBlockSettingsDialog {
                     ImGui.separator();
 
                     // 按钮
-                    float buttonWidth = ImGui.getWindowWidth() * 0.3f;
-                    ImGui.setCursorPosX((ImGui.getWindowWidth() - buttonWidth * 2 - 10) * 0.5f);
+                        float buttonWidth = DialogStyleManager.getTwoButtonWidth(
+                            Math.min(DialogStyleManager.getContentWidth(), 220.0f));
+                        DialogStyleManager.centerTwoButtons(buttonWidth);
                     
                     if (ImGui.button("确定##line_to_block_settings_ok", buttonWidth, 0)) {
                         close();
                     }
                     
-                    ImGui.sameLine();
+                    ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
                     
                     if (ImGui.button("取消##line_to_block_settings_cancel", buttonWidth, 0)) {
                         close();

@@ -23,13 +23,12 @@ public class TextInputDialog {
     private static final TextInputDialog INSTANCE = new TextInputDialog();
     
     // 统一的布局常量
-    private static final float WINDOW_PADDING = 8.0f; // 窗口内边距（左右统一）
     // 使用DialogStyleManager中定义的统一间距常数
     private static final float VERTICAL_SPACING = DialogStyleManager.ITEM_SPACING; // 垂直间距（所有控件上下间距统一）
     private static final float HORIZONTAL_SPACING = DialogStyleManager.ITEM_SPACING_H; // 水平间距（控件之间的水平间距）
     private static final float LABEL_COLUMN_WIDTH = 80.0f; // 标签列宽度
     private static final float BUTTON_WIDTH = 100.0f; // 按钮宽度
-    private static final float BUTTON_SPACING = 8.0f; // 按钮之间的间距
+    private static final float BUTTON_SPACING = DialogStyleManager.BUTTON_SPACING; // 按钮之间的间距
     private static final float INPUT_AREA_HEIGHT = 120.0f; // 输入框高度
     private static final float BUTTON_AREA_EXTRA_HEIGHT = 40.0f; // 按钮高度+上下间距补偿
 
@@ -99,7 +98,7 @@ public class TextInputDialog {
         float width = 420.0f;
         // 计算窗口高度：标题 + 输入框 + 样式标题 + 表格(4行) + 按钮 + 间距
         float styleTitleHeight = ImGui.getTextLineHeight();
-        float framePadding = 4.0f; // 与工具属性面板一致
+        float framePadding = DialogStyleManager.FRAME_PADDING;
         float buttonHeight = styleTitleHeight + framePadding * 2; // 估算控件高度
 
         float inputHeight = INPUT_AREA_HEIGHT;
@@ -108,10 +107,11 @@ public class TextInputDialog {
         // 计算总内容高度，增加按钮区补偿，确保“取消/确定”始终可见
         float totalContentHeight = styleTitleHeight + VERTICAL_SPACING + inputHeight + VERTICAL_SPACING
                 + styleTitleHeight + VERTICAL_SPACING + tableHeight + VERTICAL_SPACING + buttonHeight;
-        float height = totalContentHeight + WINDOW_PADDING * 2 + BUTTON_AREA_EXTRA_HEIGHT;
+        float height = totalContentHeight + DialogStyleManager.PANEL_PADDING * 2 + BUTTON_AREA_EXTRA_HEIGHT;
         
         // 在窗口开始之前设置WindowPadding，确保边距正确应用
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, WINDOW_PADDING, WINDOW_PADDING);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding,
+            DialogStyleManager.PANEL_PADDING, DialogStyleManager.PANEL_PADDING);
         ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
@@ -132,8 +132,7 @@ public class TextInputDialog {
             ImGui.pushStyleColor(ImGuiCol.Header, theme.buttonActive);
             
             try {
-                // 计算内容区域宽度（统一右边界）
-                float inputWidth = width - WINDOW_PADDING * 2;
+                float inputWidth = DialogStyleManager.getContentWidth();
                 
                 // 标题说明（统一左对齐，使用统一的左边距）
                 ImGui.text("请输入文字内容（可多行）");
@@ -169,8 +168,8 @@ public class TextInputDialog {
                 // 按钮区域（右边界与内容区域对齐）
                 // 按钮应该从内容区域的右边界开始向左排列
                 float totalButtonsWidth = BUTTON_WIDTH * 2 + BUTTON_SPACING;
-                // 计算按钮起始X位置：窗口左边界 + 内容宽度 - 按钮总宽度
-                float buttonStartX = WINDOW_PADDING + inputWidth - totalButtonsWidth;
+                float buttonStartX = DialogStyleManager.getContentStartX()
+                    + Math.max(0.0f, inputWidth - totalButtonsWidth);
                 float currentY = ImGui.getCursorPosY();
                 ImGui.setCursorPos(buttonStartX, currentY);
                 if (ImGui.button("取消", BUTTON_WIDTH, 0)) {

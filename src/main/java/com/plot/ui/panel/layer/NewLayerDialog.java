@@ -202,9 +202,8 @@ public class NewLayerDialog {
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
-                float contentWidth = 300.0f;
-                float labelWidth = 60.0f;
-                float controlWidth = contentWidth - labelWidth - 2*SPACING;
+                float labelWidth = DialogStyleManager.LABEL_WIDTH;
+                float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
 
                 // === 名称输入 ===
                 ImGui.text("名称：");
@@ -255,16 +254,16 @@ public class NewLayerDialog {
                 ImGui.separator();
 
                 // === 按钮区域 ===
-                float buttonSpacing = 8.0f;
-                float buttonWidth = (controlWidth - buttonSpacing) / 2;
+                float buttonSpacing = DialogStyleManager.BUTTON_SPACING;
+                float buttonWidth = DialogStyleManager.getTwoButtonWidth(controlWidth);
 
-                ImGui.setCursorPosX(labelWidth);
+                DialogStyleManager.centerTwoButtons(buttonWidth);
                 if (ImGui.button("确定", buttonWidth, 0) ||
                         ImGui.isKeyPressed(ImGuiKey.Enter)) {
                     createNewLayer();
                 }
 
-                ImGui.sameLine(labelWidth + buttonWidth + buttonSpacing);
+                ImGui.sameLine(0, buttonSpacing);
                 if (ImGui.button("取消", buttonWidth, 0) ||
                         ImGui.isKeyPressed(ImGuiKey.Escape)) {
                     hide();

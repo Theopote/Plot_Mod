@@ -21,6 +21,9 @@ public class DialogStyleManager {
     
     /** 框架内边距（控制输入框、按钮等的内部填充及高度） */
     public static final float FRAME_PADDING = 2.0f;
+
+    /** 对话框内容到边界的统一内边距 */
+    public static final float PANEL_PADDING = ITEM_SPACING * 2.0f;
     
     /** 内容区域宽度 */
     public static final float CONTENT_WIDTH = 300.0f;
@@ -43,6 +46,9 @@ public class DialogStyleManager {
     
     /** 标准对话框高度 */
     public static final float DIALOG_HEIGHT = 300.0f;
+
+    /** 默认按钮组间距 */
+    public static final float BUTTON_SPACING = ITEM_SPACING_H;
     
     // ====== 样式作用域类 ======
     public static class DialogStyleScope {
@@ -139,6 +145,58 @@ public class DialogStyleManager {
         varCount++;
         
         return new DialogStyleScope(colorCount, varCount);
+    }
+
+    /**
+     * 获取当前窗口内容区宽度。
+     */
+    public static float getContentWidth() {
+        return ImGui.getWindowContentRegionMaxX() - ImGui.getWindowContentRegionMinX();
+    }
+
+    /**
+     * 获取当前窗口内容区起始 X。
+     */
+    public static float getContentStartX() {
+        return ImGui.getWindowContentRegionMinX();
+    }
+
+    /**
+     * 根据标签宽度计算控件宽度，统一保留右侧呼吸空间。
+     */
+    public static float getControlWidth(float labelWidth) {
+        return Math.max(0.0f, getContentWidth() - labelWidth - 2 * ITEM_SPACING_H);
+    }
+
+    /**
+     * 计算双按钮布局时单个按钮宽度。
+     */
+    public static float getTwoButtonWidth(float availableWidth) {
+        return Math.max(0.0f, (availableWidth - BUTTON_SPACING) / 2.0f);
+    }
+
+    /**
+     * 在内容区内按给定总宽度居中设置光标 X。
+     */
+    public static void centerByWidth(float totalWidth) {
+        float startX = getContentStartX() + Math.max(0.0f, (getContentWidth() - totalWidth) * 0.5f);
+        ImGui.setCursorPosX(startX);
+    }
+
+    /**
+     * 将单按钮行居中到当前窗口内容区。
+     */
+    public static void centerSingleButton(float buttonWidth) {
+        centerByWidth(buttonWidth);
+    }
+
+    /**
+     * 将双按钮行居中到当前窗口内容区。
+     */
+    public static void centerTwoButtons(float buttonWidth) {
+        float totalWidth = buttonWidth * 2.0f + BUTTON_SPACING;
+        float startX = getContentStartX() + Math.max(0.0f, (getContentWidth() - totalWidth) * 0.5f);
+        ImGui.setCursorPosX(startX);
     }
     
     /**

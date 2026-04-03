@@ -288,8 +288,8 @@ public class ImportFileDialog {
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
                 // 计算布局尺寸
-                float contentWidth = totalWidth - 16;           // 内容区域总宽度
-                float contentHeight = totalHeight - 16;         // 内容区域总高度
+                float contentWidth = DialogStyleManager.getContentWidth();
+                float contentHeight = ImGui.getContentRegionAvailY();
                 float pathBarHeight = 30.0f;                    // 路径栏高度
                 float filterBarHeight = 30.0f;                  // 过滤栏高度
                 float buttonBarHeight = 40.0f;                  // 按钮栏高度
@@ -379,10 +379,10 @@ public class ImportFileDialog {
                 
                 // === 按钮区域 ===
                 float buttonWidth = 100.0f;
-                float buttonSpacing = 10.0f;
-                
-                // 右对齐按钮
-                ImGui.setCursorPosX(contentWidth - 2 * buttonWidth - buttonSpacing);
+                float buttonSpacing = DialogStyleManager.BUTTON_SPACING;
+
+                ImGui.setCursorPosX(DialogStyleManager.getContentStartX()
+                    + Math.max(0.0f, contentWidth - 2 * buttonWidth - buttonSpacing));
                 
                 if (ImGui.button("导入", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                     importFile();

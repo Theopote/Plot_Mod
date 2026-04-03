@@ -63,8 +63,14 @@ public class CompactBlockConfigDialog {
     private static final int DISPLAY_BLOCKS_PER_PAGE = BLOCKS_PER_ROW * DISPLAY_ROWS; // 96个方块/页
     private static final int MAX_PALETTE_SLOTS = 12; // [CORRECTED] 调色盘12个槽位，一行
     private static final float BLOCK_ICON_SIZE = 48.0f;  // [ENHANCED] 增大到48x48便于点击和显示
-    private static final float BLOCK_SPACING = 4.0f;
-    private static final float PADDING = 4.0f;
+    private static final float BLOCK_SPACING = DialogStyleManager.ITEM_SPACING_H;
+    private static final float PADDING = DialogStyleManager.ITEM_SPACING;
+    private static final float STANDARD_BUTTON_HEIGHT = 0.0f;
+    private static final float CATEGORY_BUTTON_HEIGHT = 24.0f;
+    private static final float PAGE_BUTTON_WIDTH = 30.0f;
+    private static final float DISPLAY_PAGINATION_INFO_HEIGHT = 50.0f;
+    private static final float EMPTY_HINT_VERTICAL_SPACING = PADDING * 8.0f;
+    private static final float FALLBACK_BADGE_INSET = DialogStyleManager.ITEM_SPACING_H - 1.0f;
 
     // [REVISED] 统一所有间距，包括边距和方块间距
     // private static final float GRID_SPACING = 4.0f; // 未使用，保留注释说明
@@ -77,12 +83,12 @@ public class CompactBlockConfigDialog {
     // [CORRECTED] 计算窗口高度 - 容纳8行方块展示
     private static final float DISPLAY_AREA_HEIGHT = (BLOCK_ICON_SIZE * DISPLAY_ROWS) +
                                                      (BLOCK_SPACING * (DISPLAY_ROWS)) +
-                                                     (PADDING * 2) + 50; // 预留翻页信息空间
+                                                     (PADDING * 2) + DISPLAY_PAGINATION_INFO_HEIGHT; // 预留翻页信息空间
     private static final float TITLE_BAR_HEIGHT = 20.0f;        // 自定义标题栏高度
     private static final float TOP_PANEL_HEIGHT = 88.0f;        // 顶部面板
     private static final float BOTTOM_PANEL_HEIGHT = 134.0f;     // 调色盘(一行) + 按钮 + 说明文字 (增高以容纳所有元素)
     private static final float COMPACT_DIALOG_HEIGHT = TITLE_BAR_HEIGHT + TOP_PANEL_HEIGHT + DISPLAY_AREA_HEIGHT +
-                                                      BOTTOM_PANEL_HEIGHT + (PADDING * 3)+4;// 面板间间距也改为4
+                                                      BOTTOM_PANEL_HEIGHT + (PADDING * 3) + PADDING;
 
     // [CORRECTED] 使用计算出的尺寸
     private float currentDialogWidth = EXACT_DIALOG_WIDTH;
@@ -414,11 +420,11 @@ public class CompactBlockConfigDialog {
         );
         
         // 绘制标题文本
-        ImGui.setCursorPos(8.0f, 2.0f); // 设置文本位置
+        ImGui.setCursorPos(PADDING * 2.0f, PADDING * 0.5f);
         ImGui.textColored(theme.text, "方块选择");
         
         // 为后续内容预留空间
-        ImGui.setCursorPosY(TITLE_BAR_HEIGHT + 4.0f);
+        ImGui.setCursorPosY(TITLE_BAR_HEIGHT + PADDING);
     }
 
     /**
@@ -482,9 +488,9 @@ public class CompactBlockConfigDialog {
     private void renderCategorySelector() {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         BlockCategory[] categories = BlockCategory.values();
-        float buttonWidth = (currentDialogWidth - PADDING * 4
-                - BLOCK_SPACING * 4) / 5;
-        float buttonHeight = 24.0f; // 统一按钮高度
+        float contentWidth = DialogStyleManager.getContentWidth();
+        float buttonWidth = Math.max(0.0f, (contentWidth - BLOCK_SPACING * 4) / 5.0f);
+        float buttonHeight = CATEGORY_BUTTON_HEIGHT; // 统一按钮高度
 
         for (int i = 0; i < categories.length; i++) {
             BlockCategory category = categories[i];
@@ -767,28 +773,27 @@ public class CompactBlockConfigDialog {
         }
 
         float totalWidth = totalTextWidth + BLOCK_SPACING * (buttonTexts.length - 1);
-        float startX = (currentDialogWidth - totalWidth) * 0.5f;
 
         // [NEW] 应用主题颜色样式
         ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
-        ImGui.setCursorPosX(startX);
+        DialogStyleManager.centerByWidth(totalWidth);
 
-        if (ImGui.button("应用选择", buttonWidths[0], 24)) { // 统一按钮高度
+        if (ImGui.button("应用选择", buttonWidths[0], STANDARD_BUTTON_HEIGHT)) {
             applyBlockSelection();
         }
 
         // 取消按钮
         ImGui.sameLine(0, BLOCK_SPACING);
-        if (ImGui.button("取消", buttonWidths[1], 24)) { // 统一按钮高度
+        if (ImGui.button("取消", buttonWidths[1], STANDARD_BUTTON_HEIGHT)) {
             close();
         }
 
         // 重置按钮
         ImGui.sameLine(0, BLOCK_SPACING);
-        if (ImGui.button("重置", buttonWidths[2], 24)) { // 统一按钮高度
+        if (ImGui.button("重置", buttonWidths[2], STANDARD_BUTTON_HEIGHT)) {
             clearPalette();
         }
 
@@ -797,7 +802,7 @@ public class CompactBlockConfigDialog {
         // [NEW] 添加快捷键提示
         String shortcutHint = "Enter=应用 | Esc=取消 | Ctrl+R=重置";
         float hintWidth = ImGui.calcTextSize(shortcutHint).x;
-        ImGui.setCursorPosX((currentDialogWidth - hintWidth) * 0.5f);
+        DialogStyleManager.centerByWidth(hintWidth);
         ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING);
         ImGui.textDisabled(shortcutHint);
     }
@@ -868,8 +873,8 @@ public class CompactBlockConfigDialog {
                 // 无法构建物品栈时，保留轻量标记，避免退回 2D 简化贴图误导。
                 float dotSize = Math.max(3.0f, BLOCK_ICON_SIZE * 0.1f);
                 drawList.addCircleFilled(
-                        x + BLOCK_ICON_SIZE - dotSize - 3.0f,
-                        y + dotSize + 3.0f,
+                    x + BLOCK_ICON_SIZE - dotSize - FALLBACK_BADGE_INSET,
+                    y + dotSize + FALLBACK_BADGE_INSET,
                         dotSize,
                         theme.accent
                 );
@@ -1495,9 +1500,8 @@ public class CompactBlockConfigDialog {
      */
     private void renderEmptyMessage() {
         float textWidth = ImGui.calcTextSize("当前分类或搜索结果为空").x;
-        float windowWidth = ImGui.getWindowWidth();
-        ImGui.setCursorPosX((windowWidth - textWidth) * 0.5f);
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING * 8); // 使用统一间距的倍数
+        DialogStyleManager.centerByWidth(textWidth);
+        ImGui.setCursorPosY(ImGui.getCursorPosY() + EMPTY_HINT_VERTICAL_SPACING);
         ImGui.textDisabled("当前分类或搜索结果为空");
     }
 
@@ -1515,8 +1519,7 @@ public class CompactBlockConfigDialog {
         ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING);
 
         // 计算布局
-        float windowWidth = ImGui.getWindowWidth();
-        float buttonWidth = 30.0f;
+        float buttonWidth = PAGE_BUTTON_WIDTH;
         // 使用统一间距
 
         // 分页按钮和信息
@@ -1529,7 +1532,7 @@ public class CompactBlockConfigDialog {
         float hintTextWidth = ImGui.calcTextSize(hintText).x;
 
         // 居中布局控件
-        ImGui.setCursorPosX((windowWidth - totalControlWidth) * 0.5f);
+        DialogStyleManager.centerByWidth(totalControlWidth);
 
         // 上一页按钮
         ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
@@ -1541,7 +1544,7 @@ public class CompactBlockConfigDialog {
         boolean canGoPrev = displayPage > 0;
         if (!canGoPrev) ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
 
-        if (ImGui.button("◀", buttonWidth, 24.0f) && canGoPrev) {
+        if (ImGui.button("◀", buttonWidth, STANDARD_BUTTON_HEIGHT) && canGoPrev) {
             displayPage--;
             LOGGER.debug("分页按钮：切换到第 {} 页", displayPage + 1);
         }
@@ -1549,17 +1552,16 @@ public class CompactBlockConfigDialog {
         if (!canGoPrev) ImGui.popStyleVar();
 
         // 页码显示
-        ImGui.sameLine();
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + 3.0f); // 微调垂直对齐
+        ImGui.sameLine(0, BLOCK_SPACING);
+        ImGui.alignTextToFramePadding();
         ImGui.text(pageText);
-        ImGui.setCursorPosY(ImGui.getCursorPosY() - 3.0f);
 
         // 下一页按钮
-        ImGui.sameLine();
+        ImGui.sameLine(0, BLOCK_SPACING);
         boolean canGoNext = displayPage < totalPages - 1;
         if (!canGoNext) ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
 
-        if (ImGui.button("▶", buttonWidth, 24.0f) && canGoNext) {
+        if (ImGui.button("▶", buttonWidth, STANDARD_BUTTON_HEIGHT) && canGoNext) {
             displayPage++;
             LOGGER.debug("分页按钮：切换到第 {} 页", displayPage + 1);
         }
@@ -1569,7 +1571,7 @@ public class CompactBlockConfigDialog {
         ImGui.popStyleColor(4);
 
         // 操作提示
-        ImGui.setCursorPosX((windowWidth - hintTextWidth) * 0.5f);
+        DialogStyleManager.centerByWidth(hintTextWidth);
         ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING);
         ImGui.textDisabled(hintText);
     }

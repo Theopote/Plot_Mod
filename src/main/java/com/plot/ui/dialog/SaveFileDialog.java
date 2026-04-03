@@ -244,10 +244,10 @@ public class SaveFileDialog {
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
                 // 计算布局尺寸
-                float contentWidth = totalWidth - 16;           // 内容区域总宽度
-                float labelWidth = 60.0f;                       // 标签宽度
-                float controlWidth = contentWidth - labelWidth; // 控件宽度
-                float itemSpacing = 8.0f;                       // 控件之间的间距
+                float contentWidth = DialogStyleManager.getContentWidth();
+                float labelWidth = DialogStyleManager.LABEL_WIDTH;
+                float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
+                float itemSpacing = DialogStyleManager.BUTTON_SPACING;
     
                 // === 文件名输入 ===
                 ImGui.alignTextToFramePadding();
@@ -292,16 +292,16 @@ public class SaveFileDialog {
                 ImGui.spacing();  // 添加间距
     
                 // === 按钮区域 ===
-                float buttonSpacing = 8.0f;                     // 按钮之间的间距
-                float buttonWidth = (controlWidth - buttonSpacing) / 2;  // 按钮宽度
-    
-                ImGui.setCursorPosX(labelWidth);               // 对齐到标签宽度位置
+                float buttonSpacing = DialogStyleManager.BUTTON_SPACING;
+                float buttonWidth = DialogStyleManager.getTwoButtonWidth(controlWidth);
+
+                DialogStyleManager.centerTwoButtons(buttonWidth);
                 if (ImGui.button("保存", buttonWidth, 0) ||     // 保存按钮
                     ImGui.isKeyPressed(ImGuiKey.Enter)) {      // 或按回车键
                     saveFile();
                 }
     
-                ImGui.sameLine(labelWidth + buttonWidth + buttonSpacing);
+                ImGui.sameLine(0, buttonSpacing);
                 if (ImGui.button("取消", buttonWidth, 0) ||     // 取消按钮
                     ImGui.isKeyPressed(ImGuiKey.Escape)) {     // 或按ESC键
                     hide();

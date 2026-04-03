@@ -107,7 +107,9 @@ public class ProjectionSettingsDialog {
                     
                     // 添加关闭按钮
                     ImGui.separator();
-                    if (ImGui.button("关闭")) {
+                    float buttonWidth = Math.min(120.0f, DialogStyleManager.getContentWidth());
+                    DialogStyleManager.centerSingleButton(buttonWidth);
+                    if (ImGui.button("关闭", buttonWidth, 0)) {
                         close();
                     }
                 }

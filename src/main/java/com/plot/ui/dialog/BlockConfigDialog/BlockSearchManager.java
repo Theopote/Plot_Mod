@@ -1,5 +1,6 @@
 package com.plot.ui.dialog.BlockConfigDialog;
 
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -88,7 +89,7 @@ public class BlockSearchManager {
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
         float framePaddingY = Math.max(0, (height - defaultFrameHeight) / 2.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, framePaddingY);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, DialogStyleManager.ITEM_SPACING_H, framePaddingY);
         // 设置无圆角，添加默认边框
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -126,7 +127,7 @@ public class BlockSearchManager {
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
         float framePaddingY = Math.max(0, (height - defaultFrameHeight) / 2.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, framePaddingY);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, DialogStyleManager.ITEM_SPACING_H, framePaddingY);
         // 设置下拉列表无圆角，添加默认边框
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
