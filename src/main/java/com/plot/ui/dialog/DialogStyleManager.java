@@ -238,6 +238,7 @@ public class DialogStyleManager {
 
         int bgColor = hovered ? theme.buttonHovered : theme.buttonNormal;
         drawList.addRectFilled(btnX1, btnY1, btnX2, btnY2, bgColor, 0.0f);
+        drawList.addRect(btnX1, btnY1, btnX2, btnY2, theme.border, 0.0f, 0, 1.0f);
 
         // "×" 使用实际文本尺寸做几何中心对齐
         String closeText = "×";
