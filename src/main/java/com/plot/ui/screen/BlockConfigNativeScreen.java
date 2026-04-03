@@ -462,29 +462,32 @@ public class BlockConfigNativeScreen extends Screen {
             // 跳过超出侧边栏范围的标签（向下超出）
             if (layout.y >= sidebarY + sidebarH) continue;
 
+            int tabX = layout.x + 1;
+            int tabW = layout.w - 2;
+
             boolean active = layout.category == currentCategory;
-            boolean hover  = isInside(mouseX, mouseY, layout.x, layout.y, layout.w, layout.h);
+            boolean hover  = isInside(mouseX, mouseY, tabX, layout.y, tabW, layout.h);
             int bg = active ? COLOR_TAB_ACTIVE : (hover ? COLOR_TAB_HOVER : COLOR_TAB_NORMAL);
 
-            context.fill(layout.x, layout.y, layout.x + layout.w, layout.y + layout.h, bg);
+            context.fill(tabX, layout.y, tabX + tabW, layout.y + layout.h, bg);
 
             // 激活状态左侧高亮条
             if (active) {
-                context.fill(layout.x, layout.y, layout.x + 2, layout.y + layout.h, 0xFF6AAAE8);
+                context.fill(tabX, layout.y, tabX + 2, layout.y + layout.h, 0xFF6AAAE8);
             }
 
             // 底部分隔线（非最后一项）
-            context.fill(layout.x + 2, layout.y + layout.h - 1,
-                    layout.x + layout.w - 2, layout.y + layout.h, COLOR_TAB_BORDER);
+            context.fill(tabX + 2, layout.y + layout.h - 1,
+                    tabX + tabW - 2, layout.y + layout.h, COLOR_TAB_BORDER);
 
             String text = layout.category.getDisplayName();
             int tw = this.textRenderer.getWidth(text);
             // 侧边栏较窄，文字超长时截断显示省略号
-            if (tw > layout.w - 4) {
-                text = truncateText(text, layout.w - 4 - this.textRenderer.getWidth("..")) + "..";
+            if (tw > tabW - 4) {
+                text = truncateText(text, tabW - 4 - this.textRenderer.getWidth("..")) + "..";
                 tw   = this.textRenderer.getWidth(text);
             }
-            int tx = layout.x + (layout.w - tw) / 2;
+            int tx = tabX + (tabW - tw) / 2;
             int ty = layout.y + (layout.h - this.textRenderer.fontHeight) / 2;
             context.drawText(this.textRenderer, text, tx, ty,
                     active ? 0xFFFFFFFF : (hover ? 0xFFCCCCCC : 0xFF999999), false);
@@ -909,7 +912,9 @@ public class BlockConfigNativeScreen extends Screen {
     private boolean handleCategoryClick(double mx, double my) {
         for (CategoryTabLayout layout : categoryTabLayouts) {
             if (layout.y + layout.h <= sidebarY || layout.y >= sidebarY + sidebarH) continue;
-            if (isInside(mx, my, layout.x, layout.y, layout.w, layout.h)) {
+            int tabX = layout.x + 1;
+            int tabW = layout.w - 2;
+            if (isInside(mx, my, tabX, layout.y, tabW, layout.h)) {
                 if (layout.category != currentCategory) {
                     currentCategory = layout.category;
                     page = 0;
