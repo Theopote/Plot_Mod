@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.item.ItemStack;
@@ -129,14 +130,13 @@ public class BlockConfigNativeScreen extends Screen {
     private int page = 0;
 
     // ── 搜索 ─────────────────────────────────────────────────────────────────
-    private String searchQuery = "";
-    private boolean searchFocused = false;
-    /** 光标闪烁计时（帧计数） */
-    private int cursorTick = 0;
+    private TextFieldWidget searchBox;
 
     // ── 拖拽排序（调色盘） ────────────────────────────────────────────────────
     /** 正在拖拽的调色盘槽位索引，-1 表示无 */
     private int dragIndex = -1;
+    /** 拖拽时当前悬停的目标槽位索引，用于预览交换位置 */
+    private int dragHoverSlot = -1;
 
     // ── 布局坐标（init() 中计算） ──────────────────────────────────────────────
     private int panelX, panelY, panelW, panelH;
@@ -248,6 +248,18 @@ public class BlockConfigNativeScreen extends Screen {
         searchY = cy;
         cy += SEARCH_H + SECTION_GAP;
 
+        // 初始化搜索框 Widget
+        if (searchBox == null) {
+            searchBox = new TextFieldWidget(this.textRenderer, searchX + 13, searchY + 2, contentW - 20, SEARCH_H - 4, Text.literal("搜索方块"));
+            searchBox.setMaxLength(128);
+            searchBox.setPlaceholder(Text.literal("搜索方块名称 / ID…"));
+        } else {
+            // 调整位置
+            searchBox.setX(searchX + 13);
+            searchBox.setY(searchY + 2);
+            searchBox.setWidth(contentW - 20);
+        }
+
         // 网格
         gridX = contentX;
         gridY = cy;
@@ -315,10 +327,10 @@ public class BlockConfigNativeScreen extends Screen {
     }
 
     /**
-     * 根据 searchQuery 过滤 rawCategoryBlocks → filteredBlocks，并修正分页。
+     * 根据搜索框内容过滤 rawCategoryBlocks → filteredBlocks，并修正分页。
      */
     private void applySearchFilter() {
-        String q = searchQuery.trim().toLowerCase();
+        String q = searchBox.getText().trim().toLowerCase();
         if (q.isEmpty()) {
             filteredBlocks = rawCategoryBlocks;
         } else {
@@ -371,8 +383,7 @@ public class BlockConfigNativeScreen extends Screen {
         renderBottomButtons(context, mouseX, mouseY);
         renderHoverTooltip(context, mouseX, mouseY);
 
-        // 光标计时（用于搜索框光标闪烁）
-        cursorTick++;
+
 
         super.render(context, mouseX, mouseY, delta);
     }
@@ -445,10 +456,10 @@ public class BlockConfigNativeScreen extends Screen {
         }
     }
 
-    /** 搜索栏（支持光标闪烁）。 */
+    /** 搜索栏（使用 TextFieldWidget 自动处理光标、输入法等）。 */
     private void renderSearch(DrawContext context, int mouseX, int mouseY) {
         int x = searchX, y = searchY, w = contentW, h = SEARCH_H;
-        int borderColor = searchFocused ? COLOR_SEARCH_ACTIVE : COLOR_SEARCH_BORDER;
+        int borderColor = searchBox.isFocused() ? COLOR_SEARCH_ACTIVE : COLOR_SEARCH_BORDER;
 
         context.fill(x, y, x + w, y + h, COLOR_SEARCH_BG);
         drawBorder(context, x, y, w, h, borderColor);
@@ -457,26 +468,9 @@ public class BlockConfigNativeScreen extends Screen {
         context.drawText(this.textRenderer, "?", x + 3, y + (h - this.textRenderer.fontHeight) / 2,
                 0xFF666666, false);
 
-        int textStartX = x + 13;
-        int ty = y + (h - this.textRenderer.fontHeight) / 2;
-
-        if (searchQuery.isEmpty() && !searchFocused) {
-            // 占位提示
-            context.drawText(this.textRenderer, "搜索方块名称 / ID…", textStartX, ty, COLOR_TEXT_HINT, false);
-        } else {
-            // 输入内容（截断到搜索框宽度）
-            String display = searchQuery;
-            int maxW = w - 18;
-            while (!display.isEmpty() && this.textRenderer.getWidth(display) > maxW) {
-                display = display.substring(1);
-            }
-            context.drawText(this.textRenderer, display, textStartX, ty, COLOR_TEXT_NORMAL, false);
-            // 光标（每 20 帧闪烁一次）
-            if (searchFocused && (cursorTick / 20) % 2 == 0) {
-                int cursorX = textStartX + this.textRenderer.getWidth(display);
-                context.fill(cursorX, ty, cursorX + 1, ty + this.textRenderer.fontHeight, 0xFFCCCCCC);
-            }
-        }
+        // 委托 TextFieldWidget 渲染文本、光标、选区等
+        // （Widget 会自动处理占位符、光标闪烁、输入法等）
+        searchBox.render(context, mouseX, mouseY, 0);
     }
 
     /** 方块网格（高亮已选中方块）。 */
@@ -539,7 +533,7 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 页码居中显示
         String pageText;
-        if (totalPages <= 1 && filteredBlocks.isEmpty() && !searchQuery.isEmpty()) {
+        if (totalPages <= 1 && filteredBlocks.isEmpty() && !searchBox.getText().isEmpty()) {
             pageText = "无结果";
         } else {
             pageText = String.format("%d / %d", page + 1, totalPages);
@@ -591,8 +585,15 @@ public class BlockConfigNativeScreen extends Screen {
             int bg = !filled ? COLOR_PALETTE_EMPTY
                     : (isDrag ? 0xFF505050 : (hover ? COLOR_PALETTE_HOVER : COLOR_PALETTE_BG));
             context.fill(x, y, x + slotSize, y + slotSize, bg);
-            drawBorder(context, x, y, slotSize, slotSize,
-                    isDrag ? 0xFF8888FF : COLOR_PALETTE_BORDER);
+            
+            // 边框：拖拽源用蓝色，拖拽目标预览用绿色，普通边框
+            int borderColor = COLOR_PALETTE_BORDER;
+            if (isDrag) {
+                borderColor = 0xFF8888FF;  // 蓝色 - 正在拖
+            } else if (dragIndex >= 0 && dragHoverSlot == i && i != dragIndex) {
+                borderColor = 0xFF88FF88;  // 绿色 - 拖拽目标预览
+            }
+            drawBorder(context, x, y, slotSize, slotSize, borderColor);
 
             if (!filled) {
                 // 空槽位显示 +
@@ -648,6 +649,9 @@ public class BlockConfigNativeScreen extends Screen {
 
     /** 悬停 Tooltip（方块名称 + 注册 ID）。 */
     private void renderHoverTooltip(DrawContext context, int mouseX, int mouseY) {
+        // 拖拽时不显示 Tooltip
+        if (dragIndex >= 0) return;
+        
         Block hovered = getHoveredGridBlock(mouseX, mouseY);
         if (hovered == null) hovered = getHoveredPaletteBlock(mouseX, mouseY);
         if (hovered == null) return;
@@ -708,13 +712,12 @@ public class BlockConfigNativeScreen extends Screen {
             return true;
         }
 
-        // 搜索栏获取/失去焦点
+        // 搜索栏点击处理（委托给 TextFieldWidget）
         if (isInside(mx, my, searchX, searchY, contentW, SEARCH_H)) {
-            searchFocused = true;
-            cursorTick = 0;
+            searchBox.setFocused(true);
             return true;
         } else {
-            searchFocused = false;
+            searchBox.setFocused(false);
         }
 
         // 分类侧边栏
@@ -793,12 +796,12 @@ public class BlockConfigNativeScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput charInput) {
-        char chr = (char) charInput.codepoint();
-
-        if (searchFocused) {
-            searchQuery += chr;
-            applySearchFilter();
-            return true;
+        // 如果搜索框有焦点，委托给它处理
+        if (searchBox.isFocused()) {
+            if (searchBox.charTyped(charInput)) {
+                applySearchFilter();
+                return true;
+            }
         }
         return super.charTyped(charInput);
     }
@@ -807,23 +810,26 @@ public class BlockConfigNativeScreen extends Screen {
     public boolean keyPressed(KeyInput keyInput) {
         int keyCode = keyInput.key();
 
-        if (searchFocused) {
-            if (keyCode == 259 /* BACKSPACE */ && !searchQuery.isEmpty()) {
-                searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
-                applySearchFilter();
-                return true;
-            }
+        // 如果搜索框有焦点，委托给它处理（包括 Backspace、Ctrl+A、Ctrl+V 等）
+        if (searchBox.isFocused()) {
+            // 特殊处理 ESC 键：清空或失焦
             if (keyCode == 256 /* ESCAPE */) {
-                if (!searchQuery.isEmpty()) {
-                    searchQuery = "";
+                if (!searchBox.getText().isEmpty()) {
+                    searchBox.setText("");
                     applySearchFilter();
                 } else {
-                    searchFocused = false;
+                    searchBox.setFocused(false);
                 }
                 return true;
             }
+            // 其他按键交给 TextFieldWidget
+            if (searchBox.keyPressed(keyInput)) {
+                applySearchFilter();
+                return true;
+            }
         }
-        if (keyCode == 256 /* ESCAPE */ && !searchFocused) {
+        // 全局 ESC 关闭（搜索框无焦点时）
+        if (keyCode == 256 /* ESCAPE */ && !searchBox.isFocused()) {
             close();
             return true;
         }
@@ -840,7 +846,7 @@ public class BlockConfigNativeScreen extends Screen {
                 if (layout.category != currentCategory) {
                     currentCategory = layout.category;
                     page = 0;
-                    searchQuery = "";
+                    searchBox.setText("");
                     reloadRawCategory();
                     applySearchFilter();
                 }
