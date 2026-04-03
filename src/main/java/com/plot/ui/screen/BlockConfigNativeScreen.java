@@ -442,7 +442,7 @@ public class BlockConfigNativeScreen extends Screen {
         int clw = this.textRenderer.getWidth(closeLabel);
         context.drawText(this.textRenderer, closeLabel,
                 closeBtnX + (closeBtnW - clw) / 2,
-                closeBtnY + (closeBtnH - this.textRenderer.fontHeight) / 2,
+            closeBtnY + (closeBtnH - this.textRenderer.fontHeight) / 2 + 1,
                 closeHover ? 0xFFFFAAAA : 0xFFAAAAAA, false);
     }
 
