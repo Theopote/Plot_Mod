@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 /**
  * 原生方块配置面板（3D 物品图标稳定路径）。
- *
+ * <p>
  * 布局结构（左右分栏）：
  *   ┌──────────────────────────────────────────┐
  *   │              标题栏（含关闭×按钮）           │
@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
  *   ├──────────────────────────────────────────┤
  *   │                     ✓ 应用  取消  🗑 清空  │
  *   └──────────────────────────────────────────┘
- *
+ * <p>
  * 优化要点：
  *  1. 左侧固定宽度分类侧边栏，消除换行布局的不确定性；
  *  2. 搜索栏实时过滤方块（支持名称 / 命名空间 ID 模糊匹配）；
@@ -762,11 +762,7 @@ public class BlockConfigNativeScreen extends Screen {
         }
 
         // 搜索栏焦点管理（点击外部失焦）
-        if (isInside(mx, my, searchX, searchY, contentW, SEARCH_H)) {
-            searchBox.setFocused(true);
-        } else {
-            searchBox.setFocused(false);
-        }
+        searchBox.setFocused(isInside(mx, my, searchX, searchY, contentW, SEARCH_H));
 
         // 分类侧边栏
         if (handleCategoryClick(mx, my)) return true;
