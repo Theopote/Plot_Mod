@@ -765,8 +765,16 @@ public class BlockConfigNativeScreen extends Screen {
             return true;
         }
 
-        // 搜索栏焦点管理（点击外部失焦）
-        searchBox.setFocused(isInside(mx, my, searchX, searchY, contentW, SEARCH_H));
+        // 搜索栏焦点管理（同步 Screen 焦点与 Widget 焦点，保证输入法事件链稳定）
+        if (isInside(mx, my, searchX, searchY, contentW, SEARCH_H)) {
+            searchBox.setFocused(true);
+            this.setFocused(searchBox);
+        } else {
+            searchBox.setFocused(false);
+            if (this.getFocused() == searchBox) {
+                this.setFocused(null);
+            }
+        }
 
         // 分类侧边栏
         if (handleCategoryClick(mx, my)) return true;
@@ -871,8 +879,10 @@ public class BlockConfigNativeScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput charInput) {
-        // 交给 Screen/widget 树分发，保留输入法(IME)原生行为。
-        // 过滤逻辑由 searchBox.setChangedListener 自动触发。
+        // 优先交给搜索框，确保输入法上屏字符可被稳定接收。
+        if (searchBox != null && searchBox.isFocused() && searchBox.charTyped(charInput)) {
+            return true;
+        }
         return super.charTyped(charInput);
     }
 
@@ -892,7 +902,12 @@ public class BlockConfigNativeScreen extends Screen {
             }
         }
 
-        // 其余按键交给 Screen/widget 树分发，TextFieldWidget 可原生处理 Ctrl+A/C/V 等。
+        // 搜索框聚焦时优先交给它处理（Ctrl+A/C/V、方向键、退格等）。
+        if (searchBox != null && searchBox.isFocused() && searchBox.keyPressed(keyInput)) {
+            return true;
+        }
+
+        // 其余按键交给 Screen/widget 树分发。
         if (super.keyPressed(keyInput)) {
             return true;
         }
