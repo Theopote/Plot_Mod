@@ -19,6 +19,10 @@ import imgui.flag.ImGuiKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
+import java.util.Objects;
+
 // no-op
 
 /**
@@ -146,6 +150,7 @@ public class SettingsAndHelpDialog {
             ImGui.tableHeadersRow();
 
             String filter = searchText.get().trim().toLowerCase();
+            String lastCategory = null;
             for (KeymapManager.ActionDef def : KeymapManager.getInstance().getAllActions()) {
                 String display = def.displayName();
                 String actionId = def.actionId();
@@ -154,6 +159,19 @@ public class SettingsAndHelpDialog {
                     if (!(display.toLowerCase().contains(filter) || (binding != null && binding.toLowerCase().contains(filter)))) {
                         continue;
                     }
+                }
+
+                String category = def.category();
+                if (!Objects.equals(category, lastCategory)) {
+                    ImGui.tableNextRow();
+                    ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.panelBackground, 180));
+                    ImGui.tableSetColumnIndex(0);
+                    ImGui.textColored(theme.infoText, "[" + category + "]");
+                    ImGui.tableSetColumnIndex(1);
+                    ImGui.text("");
+                    ImGui.tableSetColumnIndex(2);
+                    ImGui.text("");
+                    lastCategory = category;
                 }
 
                 boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
@@ -229,74 +247,73 @@ public class SettingsAndHelpDialog {
         ImGui.textWrapped("线图形选择与吸附时的视觉反馈设置（端点/中点/中心点等）。");
         ImGui.separator();
 
-        ImGui.text("吸附点显示");
-        ImGui.indent(10);
+        if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent(10);
 
-        ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
-        if (ImGui.checkbox("显示吸附标记", showMarkers)) {
-            snapManager.setShowSnapMarkersEnabled(showMarkers.get());
+            ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
+            if (ImGui.checkbox("显示吸附标记", showMarkers)) {
+                snapManager.setShowSnapMarkersEnabled(showMarkers.get());
+            }
+
+            ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
+            if (ImGui.checkbox("显示端点反馈", endPoint)) {
+                snapManager.setEndPointSnapEnabled(endPoint.get());
+            }
+
+            ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
+            if (ImGui.checkbox("显示中点反馈", midPoint)) {
+                snapManager.setMidPointSnapEnabled(midPoint.get());
+            }
+
+            ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
+            if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
+                snapManager.setCenterPointSnapEnabled(centerPoint.get());
+            }
+
+            ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
+            if (ImGui.checkbox("显示中心点反馈", centroid)) {
+                snapManager.setCentroidSnapEnabled(centroid.get());
+            }
+
+            float[] markerSize = new float[] { snapManager.getMarkerSize() };
+            ImGui.setNextItemWidth(180);
+            if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
+                snapManager.setMarkerSize(markerSize[0]);
+            }
+
+            ImBoolean showControlPoints = new ImBoolean(ControlPointEditTool.isDisplayEnabled());
+            if (ImGui.checkbox("显示控制点", showControlPoints)) {
+                ControlPointEditTool.setDisplayEnabled(showControlPoints.get());
+            }
+
+            ImBoolean showPointIndex = new ImBoolean(ControlPointEditTool.isShowPointIndex());
+            if (ImGui.checkbox("显示控制点编号", showPointIndex)) {
+                ControlPointEditTool.setShowPointIndex(showPointIndex.get());
+            }
+
+            ImGui.unindent(10);
+            ImGui.treePop();
         }
 
-        ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
-        if (ImGui.checkbox("显示端点反馈", endPoint)) {
-            snapManager.setEndPointSnapEnabled(endPoint.get());
+        if (ImGui.treeNodeEx("颜色自定义##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent(10);
+            ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
+
+            renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
+            renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
+            renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
+            renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT);
+            renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR);
+            renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT);
+            renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
+
+            if (ImGui.button("重置全部吸附颜色")) {
+                SnapVisualStyle.resetCustomColors();
+            }
+            ImGui.unindent(10);
+            ImGui.treePop();
         }
 
-        ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
-        if (ImGui.checkbox("显示中点反馈", midPoint)) {
-            snapManager.setMidPointSnapEnabled(midPoint.get());
-        }
-
-        ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
-        if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
-            snapManager.setCenterPointSnapEnabled(centerPoint.get());
-        }
-
-        ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
-        if (ImGui.checkbox("显示中心点反馈", centroid)) {
-            snapManager.setCentroidSnapEnabled(centroid.get());
-        }
-
-        float[] markerSize = new float[] { snapManager.getMarkerSize() };
-        ImGui.setNextItemWidth(180);
-        if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
-            snapManager.setMarkerSize(markerSize[0]);
-        }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("吸附颜色（自定义）");
-        ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
-
-        renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
-        renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
-        renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
-        renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT);
-        renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR);
-        renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT);
-        renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
-
-        if (ImGui.button("重置全部吸附颜色")) {
-            SnapVisualStyle.resetCustomColors();
-        }
-
-        ImGui.unindent(10);
-        ImGui.separator();
-
-        ImGui.text("控制点显示");
-        ImGui.indent(10);
-
-        ImBoolean showControlPoints = new ImBoolean(ControlPointEditTool.isDisplayEnabled());
-        if (ImGui.checkbox("显示控制点", showControlPoints)) {
-            ControlPointEditTool.setDisplayEnabled(showControlPoints.get());
-        }
-
-        ImBoolean showPointIndex = new ImBoolean(ControlPointEditTool.isShowPointIndex());
-        if (ImGui.checkbox("显示控制点编号", showPointIndex)) {
-            ControlPointEditTool.setShowPointIndex(showPointIndex.get());
-        }
-
-        ImGui.unindent(10);
         ImGui.separator();
         ImGui.textDisabled("提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。\n");
     }

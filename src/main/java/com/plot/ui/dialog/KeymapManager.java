@@ -22,11 +22,16 @@ public class KeymapManager {
     public static class ActionDef {
         private final String actionId;
         private final String displayName;
-        public ActionDef(String actionId, String displayName) {
-            this.actionId = actionId; this.displayName = displayName;
+        private final String category;
+
+        public ActionDef(String actionId, String displayName, String category) {
+            this.actionId = actionId;
+            this.displayName = displayName;
+            this.category = category;
         }
         public String actionId() { return actionId; }
         public String displayName() { return displayName; }
+        public String category() { return category; }
     }
 
     private static final KeymapManager INSTANCE = new KeymapManager();
@@ -56,6 +61,16 @@ public class KeymapManager {
             }
         }
         return actionId;
+    }
+
+    public String getActionCategory(String actionId) {
+        if (actionId == null) return "未分类";
+        for (ActionDef def : actions) {
+            if (actionId.equals(def.actionId())) {
+                return def.category();
+            }
+        }
+        return "未分类";
     }
 
     public boolean updateBinding(String actionId, String shortcut) {
@@ -109,23 +124,23 @@ public class KeymapManager {
 
     private void defineActions() {
         // 工具切换
-        actions.add(new ActionDef("tool.select", "选择"));
-        actions.add(new ActionDef("tool.eraser", "橡皮擦"));
-        actions.add(new ActionDef("tool.line", "线段"));
-        actions.add(new ActionDef("tool.free", "自由绘制"));
-        actions.add(new ActionDef("tool.circle", "圆形"));
-        actions.add(new ActionDef("tool.rectangle", "矩形"));
-        actions.add(new ActionDef("tool.ellipse", "椭圆形"));
-        actions.add(new ActionDef("tool.semicircle", "半圆"));
-        actions.add(new ActionDef("tool.arc", "圆弧"));
+        actions.add(new ActionDef("tool.select", "选择", "绘图工具"));
+        actions.add(new ActionDef("tool.eraser", "橡皮擦", "绘图工具"));
+        actions.add(new ActionDef("tool.line", "线段", "绘图工具"));
+        actions.add(new ActionDef("tool.free", "自由绘制", "绘图工具"));
+        actions.add(new ActionDef("tool.circle", "圆形", "绘图工具"));
+        actions.add(new ActionDef("tool.rectangle", "矩形", "绘图工具"));
+        actions.add(new ActionDef("tool.ellipse", "椭圆形", "绘图工具"));
+        actions.add(new ActionDef("tool.semicircle", "半圆", "绘图工具"));
+        actions.add(new ActionDef("tool.arc", "圆弧", "绘图工具"));
 
         // 全局编辑
-        actions.add(new ActionDef("edit.undo", "撤销"));
-        actions.add(new ActionDef("edit.redo", "重做"));
+        actions.add(new ActionDef("edit.undo", "撤销", "编辑操作"));
+        actions.add(new ActionDef("edit.redo", "重做", "编辑操作"));
 
         // 设置入口
-        actions.add(new ActionDef("open.settings", "打开设置与帮助"));
-        actions.add(new ActionDef("open.keycheatsheet", "打开快捷键速查"));
+        actions.add(new ActionDef("open.settings", "打开设置与帮助", "视图与面板"));
+        actions.add(new ActionDef("open.keycheatsheet", "打开快捷键速查", "视图与面板"));
     }
 
     private void setDefaults() {

@@ -145,18 +145,6 @@ public class UITheme {
         }
     }
 
-    public static final class StatusBar {
-        // ... 保持原有内容 ...
-    }
-
-    public static final class Panel {
-        // ... 保持原有内容 ...
-    }
-
-    public static final class Control {
-        // ... 保持原有内容 ...
-    }
-
     // ====== 画布专用样式 ======
     public static class Canvas {
         /** 画布背景颜色：深灰色，20%透明度 */
