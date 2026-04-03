@@ -243,24 +243,26 @@ public class ImportFileDialog {
         if (!isVisible) return;
 
         float totalWidth = 500.0f;
-        float totalHeight = 400.0f;
         
-        // 设置窗口大小
-        ImGui.setNextWindowSize(totalWidth, totalHeight, ImGuiCond.Always);
+        // 固定宽度，交由内容驱动高度，避免系统缩放或字体变大时底部按钮被裁剪
+        ImGui.setNextWindowSize(totalWidth, 0.0f, ImGuiCond.Always);
 
         // 只在第一次显示时设置窗口位置（水平居中）
         if (ImGui.isPopupOpen(DIALOG_TITLE)) {
             ImGui.setNextWindowPos(
-                ImGui.getMainViewport().getCenter().x - totalWidth/2,
-                ImGui.getMainViewport().getCenter().y - totalHeight/2,  // 垂直居中
-                ImGuiCond.Appearing
+                ImGui.getMainViewport().getCenter().x,
+                ImGui.getMainViewport().getCenter().y,
+                ImGuiCond.Appearing,
+                0.5f,
+                0.5f
             );
         }
 
         // 设置窗口标志
         int windowFlags = ImGuiWindowFlags.NoResize |
                          ImGuiWindowFlags.NoSavedSettings |
-                         ImGuiWindowFlags.NoScrollbar;
+                         ImGuiWindowFlags.NoScrollbar |
+                         ImGuiWindowFlags.AlwaysAutoResize;
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
@@ -275,11 +277,18 @@ public class ImportFileDialog {
 
                 // 计算布局尺寸
                 float contentWidth = DialogStyleManager.getContentWidth();
-                float contentHeight = ImGui.getContentRegionAvailY();
-                float pathBarHeight = 30.0f;                    // 路径栏高度
-                float filterBarHeight = 30.0f;                  // 过滤栏高度
-                float buttonBarHeight = 40.0f;                  // 按钮栏高度
-                float fileListHeight = contentHeight - pathBarHeight - filterBarHeight - buttonBarHeight - 20.0f; // 文件列表高度
+
+                // 过滤文件列表
+                String filterText = fileFilterInput.get().toLowerCase();
+                List<File> filteredFiles = currentFiles.stream()
+                    .filter(file -> filterText.isEmpty() ||
+                                   file.getName().toLowerCase().contains(filterText))
+                    .toList();
+
+                // 文件列表采用动态高度：按行高和可见行数计算，并保底显示最少几行
+                float rowHeight = ImGui.getTextLineHeightWithSpacing();
+                int visibleRows = Math.max(4, Math.min(MAX_VISIBLE_FILES, filteredFiles.size()));
+                float fileListHeight = rowHeight * visibleRows + DialogStyleManager.ITEM_SPACING * 2.0f;
                 
                 // === 路径栏 ===
                 ImGui.alignTextToFramePadding();
@@ -322,13 +331,6 @@ public class ImportFileDialog {
                 
                 // === 文件列表 ===
                 ImGui.beginChild("##file_list", contentWidth, fileListHeight, true);
-                
-                // 过滤文件列表
-                String filterText = fileFilterInput.get().toLowerCase();
-                List<File> filteredFiles = currentFiles.stream()
-                    .filter(file -> filterText.isEmpty() || 
-                                   file.getName().toLowerCase().contains(filterText))
-                    .toList();
                 
                 // 渲染文件列表
                 for (int i = 0; i < filteredFiles.size(); i++) {

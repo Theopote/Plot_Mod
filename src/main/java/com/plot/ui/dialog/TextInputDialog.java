@@ -29,8 +29,7 @@ public class TextInputDialog {
     private static final float LABEL_COLUMN_WIDTH = 80.0f; // 标签列宽度
     private static final float BUTTON_WIDTH = 100.0f; // 按钮宽度
     private static final float BUTTON_SPACING = DialogStyleManager.BUTTON_SPACING; // 按钮之间的间距
-    private static final float INPUT_AREA_HEIGHT = 120.0f; // 输入框高度
-    private static final float BUTTON_AREA_EXTRA_HEIGHT = 40.0f; // 按钮高度+上下间距补偿
+    private static final float MIN_INPUT_ROWS = 6.0f; // 多行输入框最小可见行数
 
     public static TextInputDialog getInstance() {
         return INSTANCE;
@@ -119,29 +118,21 @@ public class TextInputDialog {
 
         // 居中并设置窗口属性
         float width = 420.0f;
-        // 计算窗口高度：标题 + 输入框 + 样式标题 + 表格(4行) + 按钮 + 间距
-        float styleTitleHeight = ImGui.getTextLineHeight();
-        float framePadding = DialogStyleManager.FRAME_PADDING;
-        float buttonHeight = styleTitleHeight + framePadding * 2; // 估算控件高度
-
-        float inputHeight = INPUT_AREA_HEIGHT;
-        // 每行高度
-        float tableHeight = buttonHeight * 4; // 4行：字体大小、行高、字形、对齐
-        // 计算总内容高度，增加按钮区补偿，确保“取消/确定”始终可见
-        float totalContentHeight = styleTitleHeight + VERTICAL_SPACING + inputHeight + VERTICAL_SPACING
-                + styleTitleHeight + VERTICAL_SPACING + tableHeight + VERTICAL_SPACING + buttonHeight;
-        float height = totalContentHeight + DialogStyleManager.PANEL_PADDING * 2 + BUTTON_AREA_EXTRA_HEIGHT;
+        float inputHeight = Math.max(
+            ImGui.getTextLineHeightWithSpacing() * MIN_INPUT_ROWS,
+            ImGui.getFrameHeightWithSpacing() * 4.0f
+        );
         
         // 在窗口开始之前设置WindowPadding，确保边距正确应用
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding,
             DialogStyleManager.PANEL_PADDING, DialogStyleManager.PANEL_PADDING);
-        ImGui.setNextWindowSize(width, height, ImGuiCond.Always);
+        ImGui.setNextWindowSize(width, 0.0f, ImGuiCond.Always);
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
 
-        // 移除AlwaysAutoResize标志，避免窗口自动变宽
-        // 使用固定宽度和高度，不需要滚动条
-        int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
+        // 固定宽度 + 自动高度，防止高DPI和字体缩放导致按钮区域被裁剪
+        int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings |
+            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.AlwaysAutoResize;
 
         // 应用统一的对话框样式
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();

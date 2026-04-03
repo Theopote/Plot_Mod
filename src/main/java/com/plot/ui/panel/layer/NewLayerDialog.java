@@ -183,7 +183,14 @@ public class NewLayerDialog {
         if (!isVisible) return;
 
         float totalWidth = 300.0f;
-        ImGui.setNextWindowSize(totalWidth, 200.0f, ImGuiCond.Always);
+
+        // 动态计算高度，避免固定高度在高 DPI/大字体下裁剪底部按钮
+        float rowHeight = ImGui.getFrameHeightWithSpacing();
+        float separatorHeight = ImGui.getStyle().getItemSpacingY() + 1.0f;
+        float verticalPadding = DialogStyleManager.PANEL_PADDING * 2.0f;
+        float dynamicHeight = verticalPadding + rowHeight * 6.0f + separatorHeight + DialogStyleManager.ITEM_SPACING;
+
+        ImGui.setNextWindowSize(totalWidth, dynamicHeight, ImGuiCond.Always);
 
         if (ImGui.isPopupOpen(DIALOG_TITLE)) {
             ImGui.setNextWindowPos(
