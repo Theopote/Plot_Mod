@@ -4,11 +4,8 @@ import com.plot.camera.CameraManager;
 import com.plot.camera.OrthographicCamera;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
+import com.plot.ui.dialog.DialogStyleManager;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
@@ -45,34 +42,9 @@ public class CameraSettingsManager {
     public void renderSettingsWindow() {
         if (!showSettings) return;
 
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        
-        int styleColorCount = 0;
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            // 设置窗口样式
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10.0f, 10.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
-            
-            // 计数并压入样式颜色
-            ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.panelBackground); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonNormal); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonHovered); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, currentTheme.buttonActive); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.Separator, currentTheme.separatorColor); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, currentTheme.buttonHovered); styleColorCount++;
-            ImGui.pushStyleColor(ImGuiCol.SeparatorActive, currentTheme.buttonActive); styleColorCount++;
-
             ImGui.setNextWindowSize(300, 0);
-            // 重要：无论 begin() 返回 true/false，都必须 end()，否则会触发 ImGui 的窗口栈断言
             boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings", ImGuiWindowFlags.NoCollapse);
             try {
                 if (windowVisible) {
@@ -122,11 +94,7 @@ public class CameraSettingsManager {
                 ImGui.end();
             }
         } finally {
-            // 确保样式被正确弹出
-            if (styleColorCount > 0) {
-                ImGui.popStyleColor(styleColorCount);
-            }
-            ImGui.popStyleVar(7);
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 
@@ -142,11 +110,11 @@ public class CameraSettingsManager {
         
         ImGui.setCursorPosX(startX);
 
-        if (ImGui.button("确定", buttonWidth, 24)) {
+        if (ImGui.button("确定", buttonWidth, 0)) {
             showSettings = false;
         }
         ImGui.sameLine(0, buttonSpacing);
-        if (ImGui.button("重置默认值", buttonWidth, 24)) {
+        if (ImGui.button("重置默认値", buttonWidth, 0)) {
             camera.resetToDefaults();
             eventBus.publish(new CameraSettingsEvent(camera));
         }

@@ -20,7 +20,7 @@ public class DialogStyleManager {
     public static final float ITEM_SPACING_H = 8.0f;
     
     /** 框架内边距（控制输入框、按钮等的内部填充及高度） */
-    public static final float FRAME_PADDING = 4.0f;
+    public static final float FRAME_PADDING = 2.0f;
     
     /** 内容区域宽度 */
     public static final float CONTENT_WIDTH = 300.0f;

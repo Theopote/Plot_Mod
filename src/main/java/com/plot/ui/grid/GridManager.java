@@ -3,11 +3,8 @@ package com.plot.ui.grid;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.GridToggleEvent;
 import com.plot.infrastructure.event.view.GridColorChangedEvent;
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
+import com.plot.ui.dialog.DialogStyleManager;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,32 +109,8 @@ public class GridManager {
         if (!showSettings) return;
         
         LOGGER.debug("开始渲染网格设置窗口");
-        
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        
-        // 设置窗口样式
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.TitleBg, currentTheme.toolbarBackground);
-        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, currentTheme.toolbarBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
-        ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, currentTheme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.Separator, currentTheme.separatorColor);
-        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, currentTheme.buttonActive);
-        
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 16, 16);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
 
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
             ImGui.setNextWindowSize(300, 0);
             if (ImGui.begin("网格设置##GridSettings", ImGuiWindowFlags.NoCollapse)) {
@@ -194,8 +167,7 @@ public class GridManager {
         } catch (Exception e) {
             LOGGER.error("渲染网格设置窗口时出错", e);
         } finally {
-            ImGui.popStyleColor(13);
-            ImGui.popStyleVar(7);
+            DialogStyleManager.popDialogStyle(styleScope);
         }
 
         // 如果窗口被关闭，确保设置被应用
@@ -219,12 +191,12 @@ public class GridManager {
         
         ImGui.setCursorPosX(startX);
 
-        if (ImGui.button("确定", buttonWidth, 24)) {
+        if (ImGui.button("确定", buttonWidth, 0)) {
             showSettings = false;
-            LOGGER.debug("关闭网格设置窗口（点击确定按钮）");
+            LOGGER.debug("关闭网格设置窗口（点击确定按鈕）");
         }
         ImGui.sameLine(0, buttonSpacing);
-        if (ImGui.button("重置默认值", buttonWidth, 24)) {
+        if (ImGui.button("重置默认値", buttonWidth, 0)) {
             settings = new GridSettings();
             eventBus.publish(new GridToggleEvent(isEnabled, settings, true));
             LOGGER.debug("重置网格设置为默认值并发布GridToggleEvent");

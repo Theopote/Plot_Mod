@@ -8,11 +8,8 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.SnapSettingsChangedEvent;
 import imgui.ImDrawList;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
+import com.plot.ui.dialog.DialogStyleManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.flag.ImGuiCond;
@@ -55,33 +52,7 @@ public class SnapManager implements ISnapManager {
     public void renderSettingsWindow() {
         if (!showSettings) return;
 
-        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
-
-        // 记录推送的样式数量
-        int styleColorCount;
-
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10.0f, 10.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
-
-        // 基础样式
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, currentTheme.accent);
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
-        ImGui.pushStyleColor(ImGuiCol.Separator, currentTheme.separatorColor);
-        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, currentTheme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, currentTheme.buttonActive);
-        styleColorCount = 12;  // 更新计数
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
             ImGui.setNextWindowSizeConstraints(300, 0, 500, Float.MAX_VALUE);
@@ -221,18 +192,18 @@ public class SnapManager implements ISnapManager {
                 float startX = (windowWidth - totalButtonWidth) * 0.5f;
                 ImGui.setCursorPosX(startX);
 
-                if (ImGui.button("确定", buttonWidth, 24.0f)) {
+                if (ImGui.button("确定", buttonWidth, 0)) {
                     if (settingsChanged) {
                         applySettings();
                     }
                     showSettings = false;
                 }
                 ImGui.sameLine(0, buttonSpacing);
-                if (ImGui.button("取消", buttonWidth, 24.0f)) {
+                if (ImGui.button("取消", buttonWidth, 0)) {
                     showSettings = false;
                 }
                 ImGui.sameLine(0, buttonSpacing);
-                if (ImGui.button("重置默认", buttonWidth, 24.0f)) {
+                if (ImGui.button("重置默认", buttonWidth, 0)) {
                     resetToDefaults();
                 }
                 ImGui.spacing();
@@ -241,8 +212,7 @@ public class SnapManager implements ISnapManager {
             ImGui.end();
 
         } finally {
-            ImGui.popStyleColor(styleColorCount);
-            ImGui.popStyleVar(7);
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 
