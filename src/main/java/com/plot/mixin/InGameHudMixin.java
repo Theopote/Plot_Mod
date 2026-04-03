@@ -22,7 +22,7 @@ public class InGameHudMixin {
     @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
     private void onRenderHotbar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         // 如果 Plot 屏幕打开，跳过物品栏渲染
-        if (PlotScreenState.isPlotScreenOpen()) {
+        if (PlotScreenState.isPlotUiActive()) {
             ci.cancel();
         }
     }
@@ -33,7 +33,7 @@ public class InGameHudMixin {
     @Inject(method = "renderHeldItemTooltip", at = @At("HEAD"), cancellable = true)
     private void onRenderHeldItemTooltip(DrawContext context, CallbackInfo ci) {
         // 如果 Plot 屏幕打开，跳过手持物品工具提示渲染
-        if (PlotScreenState.isPlotScreenOpen()) {
+        if (PlotScreenState.isPlotUiActive()) {
             ci.cancel();
         }
     }

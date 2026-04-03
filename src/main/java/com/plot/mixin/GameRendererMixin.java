@@ -26,7 +26,7 @@ public class GameRendererMixin {
     @Inject(method = "renderHand", at = @At("HEAD"), cancellable = true)
     private void onRenderHand(CallbackInfo ci) {
         // 如果 Plot 屏幕打开，跳过玩家手臂渲染
-        if (PlotScreenState.isPlotScreenOpen()) {
+        if (PlotScreenState.isPlotUiActive()) {
             ci.cancel();
         }
     }

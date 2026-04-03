@@ -28,7 +28,7 @@ public class FogRendererMixin {
     @Inject(method = "getFogBuffer", at = @At("RETURN"), cancellable = true)
     private void onGetFogBuffer(FogRenderer.FogType fogType, CallbackInfoReturnable<GpuBufferSlice> cir) {
         // 如果 Plot 屏幕打开，强制返回空缓冲区（禁用雾）
-        if (PlotScreenState.isPlotScreenOpen()) {
+        if (PlotScreenState.isPlotUiActive()) {
             // 返回空缓冲区，相当于禁用雾
             // 尝试使用不同的大小，从大到小，找到可用的最大值
             // slice 方法的 length 参数必须小于缓冲区大小（不能等于）

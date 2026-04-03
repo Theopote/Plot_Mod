@@ -1,5 +1,7 @@
 package com.plot.ui.screen;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +19,27 @@ public class PlotScreenState {
      */
     public static boolean isPlotScreenOpen() {
         return plotScreenOpen;
+    }
+
+    /**
+     * 检查 Plot 模组界面是否处于活跃状态。
+     *
+     * 仅靠 plotScreenOpen 布尔值不够：从 PlotScreen 切到 BlockConfigNativeScreen 时，
+     * PlotScreen.removed() 会把状态设为 false，导致 HUD/手臂/雾/云重新出现。
+     * 这里同时检查当前 Screen 是否属于 Plot 界面族，保证界面切换期间状态连续。
+     */
+    public static boolean isPlotUiActive() {
+        if (plotScreenOpen) {
+            return true;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return false;
+        }
+
+        Screen currentScreen = client.currentScreen;
+        return currentScreen instanceof PlotScreen || currentScreen instanceof BlockConfigNativeScreen;
     }
     
     /**

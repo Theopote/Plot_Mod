@@ -20,7 +20,7 @@ public class WorldRendererMixin {
     @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
     private void onRenderClouds(CallbackInfo ci) {
         // 如果 Plot 屏幕打开，跳过云渲染
-        if (PlotScreenState.isPlotScreenOpen()) {
+        if (PlotScreenState.isPlotUiActive()) {
             ci.cancel();
         }
     }
