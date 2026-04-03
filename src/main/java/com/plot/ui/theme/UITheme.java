@@ -2,7 +2,6 @@ package com.plot.ui.theme;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.ImGuiStyle;
 import imgui.ImColor;
 
@@ -66,108 +65,6 @@ public class UITheme {
     }
 
     /**
-     * 应用“设置与帮助”对话框的局部样式。
-     */
-    public static SettingsDialogStyleScope applySettingsDialogStyle(ThemeColors theme) {
-        int colorCount = 0;
-        int varCount = 0;
-
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.WindowBg, theme.panelBackground);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.Separator, theme.separatorColor);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.SeparatorHovered, theme.separatorColor);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.SeparatorActive, theme.separatorColor);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.TextDisabled, theme.mutedText);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.SliderGrab, theme.sliderGrab);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, theme.sliderGrabActive);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.Header, theme.tabNormal);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.Tab, theme.tabNormal);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.TabHovered, theme.tabHovered);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.TabActive, theme.tabActive);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.TabUnfocused, theme.tabNormal);
-        colorCount++;
-        ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, theme.tabActive);
-        colorCount++;
-
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
-        varCount++;
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
-        varCount++;
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 0.0f);
-        varCount++;
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
-        varCount++;
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
-        varCount++;
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
-        varCount++;
-        ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, 0.0f);
-        varCount++;
-
-        return new SettingsDialogStyleScope(colorCount, varCount);
-    }
-
-    public static void popSettingsDialogStyle(SettingsDialogStyleScope scope) {
-        if (scope == null) {
-            return;
-        }
-        ImGui.popStyleVar(scope.varCount());
-        ImGui.popStyleColor(scope.colorCount());
-    }
-
-    public static final class SettingsDialogStyleScope {
-        private final int colorCount;
-        private final int varCount;
-
-        public SettingsDialogStyleScope(int colorCount, int varCount) {
-            this.colorCount = colorCount;
-            this.varCount = varCount;
-        }
-
-        public int colorCount() {
-            return colorCount;
-        }
-
-        public int varCount() {
-            return varCount;
-        }
-    }
-
-    /**
      * 获取颜色的RGBA值
      * @param colorId ImGuiCol 颜色ID
      * @return int 颜色的整数值
@@ -181,26 +78,6 @@ public class UITheme {
             case ImGuiCol.ButtonActive -> BUTTON_ACTIVE;
             default -> ImColor.rgba(0.0f, 0.0f, 0.0f, 1.0f); // 默认黑色
         };
-    }
-
-    // ====== 工具栏专用样式 ======
-    public static final class Toolbar {
-        /** 按钮圆角：4像素 */
-        public static final float BUTTON_ROUNDING = 4.0f;
-
-        /** 获取当前主题的工具栏按钮颜色 */
-        public static int getButtonColor(boolean selected, boolean hovered, boolean active) {
-            ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-            if (selected) {
-                return theme.buttonSelected;
-            } else if (active) {
-                return theme.buttonActive;
-            } else if (hovered) {
-                return theme.buttonHovered;
-            } else {
-                return theme.buttonNormal;
-            }
-        }
     }
 
     // ====== 画布专用样式 ======
