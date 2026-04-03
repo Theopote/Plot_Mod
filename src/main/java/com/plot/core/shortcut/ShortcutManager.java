@@ -17,11 +17,13 @@ public class ShortcutManager {
     private final List<IShortcutListener> listeners;
     private final Map<String, Set<IShortcutListener>> shortcutMap;
     private boolean enabled;
+    private volatile boolean dispatchSuppressed;
 
     private ShortcutManager() {
         this.listeners = new CopyOnWriteArrayList<>();
         this.shortcutMap = new HashMap<>();
         this.enabled = true;
+        this.dispatchSuppressed = false;
     }
 
     public static ShortcutManager getInstance() {
@@ -93,6 +95,11 @@ public class ShortcutManager {
     public boolean handleShortcut(String shortcut) {
         if (!enabled || shortcut == null) return false;
 
+        if (dispatchSuppressed) {
+            LogManager.getInstance().debug("Shortcut dispatch suppressed, consumed: {}", shortcut);
+            return true;
+        }
+
         // 首先检查特定快捷键的监听器
         Set<IShortcutListener> specificListeners = shortcutMap.get(shortcut);
         if (specificListeners != null) {
@@ -139,6 +146,17 @@ public class ShortcutManager {
      */
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /**
+     * 设置快捷键分发抑制状态。抑制时会直接消费快捷键，防止事件穿透。
+     */
+    public void setDispatchSuppressed(boolean suppressed) {
+        this.dispatchSuppressed = suppressed;
+    }
+
+    public boolean isDispatchSuppressed() {
+        return dispatchSuppressed;
     }
 
     /**

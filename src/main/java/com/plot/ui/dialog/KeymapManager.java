@@ -36,6 +36,7 @@ public class KeymapManager {
 
     private static final KeymapManager INSTANCE = new KeymapManager();
     private final Map<String, String> actionToShortcut = new LinkedHashMap<>();
+    private final Map<String, String> defaultBindings = new LinkedHashMap<>();
     private final List<ActionDef> actions = new ArrayList<>();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Path configPath;
@@ -52,6 +53,7 @@ public class KeymapManager {
 
     public List<ActionDef> getAllActions() { return Collections.unmodifiableList(actions); }
     public String getBindingDisplay(String actionId) { return actionToShortcut.get(actionId); }
+    public String getDefaultBinding(String actionId) { return defaultBindings.get(actionId); }
 
     public String getActionDisplayName(String actionId) {
         if (actionId == null) return null;
@@ -144,24 +146,31 @@ public class KeymapManager {
     }
 
     private void setDefaults() {
-        actionToShortcut.put("tool.select", "space");
-        actionToShortcut.put("tool.eraser", "d");
-        actionToShortcut.put("tool.line", "l");
-        actionToShortcut.put("tool.free", "p");
-        actionToShortcut.put("tool.circle", "c");
-        actionToShortcut.put("tool.rectangle", "r");
-        actionToShortcut.put("tool.ellipse", "e");
-        actionToShortcut.put("tool.semicircle", "s");
-        actionToShortcut.put("tool.arc", "a");
+        if (defaultBindings.isEmpty()) {
+            fillDefaults(defaultBindings);
+        }
+        actionToShortcut.putAll(defaultBindings);
+    }
 
-        actionToShortcut.put("edit.undo", "ctrl+z");
-        actionToShortcut.put("edit.redo", "ctrl+y");
-        actionToShortcut.put("file.save", "ctrl+s");
-        actionToShortcut.put("file.open", "ctrl+o");
-        actionToShortcut.put("file.export", "ctrl+e");
+    private void fillDefaults(Map<String, String> target) {
+        target.put("tool.select", "space");
+        target.put("tool.eraser", "d");
+        target.put("tool.line", "l");
+        target.put("tool.free", "p");
+        target.put("tool.circle", "c");
+        target.put("tool.rectangle", "r");
+        target.put("tool.ellipse", "e");
+        target.put("tool.semicircle", "s");
+        target.put("tool.arc", "a");
 
-        actionToShortcut.put("open.settings", "ctrl+comma");
-        actionToShortcut.put("open.keycheatsheet", "f1");
+        target.put("edit.undo", "ctrl+z");
+        target.put("edit.redo", "ctrl+y");
+        target.put("file.save", "ctrl+s");
+        target.put("file.open", "ctrl+o");
+        target.put("file.export", "ctrl+e");
+
+        target.put("open.settings", "ctrl+comma");
+        target.put("open.keycheatsheet", "f1");
     }
 
     private Path initConfigPath() {
@@ -178,26 +187,19 @@ public class KeymapManager {
     }
 
     private void loadOrDefault() {
-        if (configPath == null || !Files.exists(configPath)) { setDefaults(); return; }
+        // 1) 先写入默认值；2) 再用用户配置覆盖默认值
+        actionToShortcut.clear();
+        setDefaults();
+        if (configPath == null || !Files.exists(configPath)) return;
+
         try (FileReader r = new FileReader(configPath.toFile())) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             Map<String, String> loaded = gson.fromJson(r, type);
-            actionToShortcut.clear();
-            if (loaded != null) actionToShortcut.putAll(loaded);
-            // 合并默认项
-            Map<String, String> defaults = new LinkedHashMap<>();
-            // temp map
-            defaults.put("tool.select", "space"); // sentinel to init
-            actionToShortcut.forEach((k,v)->{}); // no-op to avoid lint
-            actionToShortcut.clear();
-            setDefaults();
-            defaults.clear(); defaults.putAll(actionToShortcut);
-            actionToShortcut.clear();
-            if (loaded != null) actionToShortcut.putAll(defaults);
-            if (loaded != null) actionToShortcut.putAll(loaded);
+            if (loaded != null) {
+                actionToShortcut.putAll(loaded);
+            }
         } catch (IOException e) {
-            LogManager.getInstance().error("读取快捷键配置失败，使用默认值", e);
-            setDefaults();
+            LogManager.getInstance().error("读取快捷键配置失败", e);
         }
     }
 

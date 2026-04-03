@@ -1,5 +1,6 @@
 package com.plot.ui.dialog;
 import com.plot.core.shortcut.KeyboardShortcutConverter;
+import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.snap.SnapPriorityEvaluator;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
@@ -35,6 +36,7 @@ public class SettingsAndHelpDialog {
     private String editingActionId = null; // 当前正在录制快捷键的动作
     private String shortcutConflictMessage = null;
     private int selectedHelpTopic = 0;
+    private boolean captureSuppressionApplied = false;
 
     private SettingsAndHelpDialog() {}
 
@@ -53,6 +55,7 @@ public class SettingsAndHelpDialog {
     public void close() {
         isOpen = false;
         editingActionId = null;
+        applyCaptureSuppression(false);
         LOGGER.debug("关闭 设置与帮助 对话框");
     }
 
@@ -60,7 +63,7 @@ public class SettingsAndHelpDialog {
         if (!isOpen) return;
 
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        UITheme.applySettingsDialogStyle(theme);
+        UITheme.SettingsDialogStyleScope styleScope = UITheme.applySettingsDialogStyle(theme);
 
         try {
             ImGui.setNextWindowSize(680, 520);
@@ -98,19 +101,25 @@ public class SettingsAndHelpDialog {
 
             ImGui.end();
         } finally {
-            UITheme.popSettingsDialogStyle();
+            UITheme.popSettingsDialogStyle(styleScope);
         }
     }
 
     private void renderShortcutsPage() {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        boolean captureActive = editingActionId != null;
+        applyCaptureSuppression(captureActive);
+
         // 顶部工具行：搜索、重置默认、导出、导入
         ImGui.text("搜索：");
         ImGui.sameLine();
         ImGui.setNextItemWidth(240);
+        if (captureActive) ImGui.beginDisabled();
         ImGui.inputTextWithHint("##shortcut_search", "搜索动作或按键...", searchText);
+        if (captureActive) ImGui.endDisabled();
 
         ImGui.sameLine();
+        if (captureActive) ImGui.beginDisabled();
         if (ImGui.button("重置为默认")) {
             KeymapManager.getInstance().resetToDefault();
         }
@@ -122,6 +131,7 @@ public class SettingsAndHelpDialog {
         if (ImGui.button("导入配置")) {
             KeymapManager.getInstance().importBindings();
         }
+        if (captureActive) ImGui.endDisabled();
 
         ImGui.separator();
 
@@ -176,7 +186,8 @@ public class SettingsAndHelpDialog {
                 boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
                 ImGui.tableNextRow();
                 if (isEditing) {
-                    ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.accent, 48));
+                    float anim = (float) (Math.sin(ImGui.getTime() * 6.0f) * 0.15f + 0.2f);
+                    ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.accent, (int) (anim * 255.0f)));
                 }
 
                 ImGui.tableSetColumnIndex(0);
@@ -199,6 +210,12 @@ public class SettingsAndHelpDialog {
                     }
                 } else {
                     ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
+                    if (!captureActive && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+                        editingActionId = actionId;
+                    }
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip("双击可进入快捷键录制");
+                    }
                 }
 
                 // 操作按钮
@@ -208,6 +225,7 @@ public class SettingsAndHelpDialog {
                         editingActionId = null;
                     }
                 } else {
+                    if (captureActive) ImGui.beginDisabled();
                     if (ImGui.button("编辑##edit_" + actionId)) {
                         editingActionId = actionId;
                     }
@@ -215,6 +233,17 @@ public class SettingsAndHelpDialog {
                     if (ImGui.button("清除##clear_" + actionId)) {
                         KeymapManager.getInstance().clearBinding(actionId);
                     }
+                    ImGui.sameLine();
+                    String defaultKey = KeymapManager.getInstance().getDefaultBinding(actionId);
+                    if (defaultKey == null || defaultKey.isEmpty()) ImGui.beginDisabled();
+                    if (ImGui.smallButton("重置##reset_" + actionId)) {
+                        KeymapManager.getInstance().updateBinding(actionId, defaultKey);
+                    }
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip("恢复该动作的默认快捷键");
+                    }
+                    if (defaultKey == null || defaultKey.isEmpty()) ImGui.endDisabled();
+                    if (captureActive) ImGui.endDisabled();
                 }
             }
             ImGui.endTable();
@@ -310,11 +339,13 @@ public class SettingsAndHelpDialog {
             if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
                 snapManager.setCenterPointSnapEnabled(centerPoint.get());
             }
+            renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
 
             ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
             if (ImGui.checkbox("显示中心点反馈", centroid)) {
                 snapManager.setCentroidSnapEnabled(centroid.get());
             }
+            renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
 
             float[] markerSize = new float[] { snapManager.getMarkerSize() };
             ImGui.setNextItemWidth(180);
@@ -343,9 +374,9 @@ public class SettingsAndHelpDialog {
             renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
             renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
             renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
-            renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT);
-            renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR);
-            renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT);
+            renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT, "中心点颜色：用于圆心/中心点吸附提示。");
+            renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR, "垂足吸附：从当前点向目标线作垂线，吸附到垂足位置。");
+            renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT, "切点吸附：吸附到与目标曲线相切的接触点。");
             renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
 
             if (ImGui.button("重置全部吸附颜色")) {
@@ -360,6 +391,10 @@ public class SettingsAndHelpDialog {
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {
+        renderSnapColorEditor(label, type, null);
+    }
+
+    private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type, String tooltip) {
         int argb = SnapVisualStyle.getEffectiveColorArgb(type);
         float[] rgba = argbToFloat4(argb);
 
@@ -373,9 +408,15 @@ public class SettingsAndHelpDialog {
         if (ImGui.colorEdit4(label + "##snap_color_" + type.name(), rgba)) {
             SnapVisualStyle.setCustomColor(type, float4ToArgb(rgba));
         }
+        if (tooltip != null && !tooltip.isEmpty() && ImGui.isItemHovered()) {
+            ImGui.setTooltip(tooltip);
+        }
         ImGui.sameLine();
-        if (ImGui.button("重置##snap_reset_" + type.name())) {
+        if (ImGui.smallButton("重置##snap_reset_" + type.name())) {
             SnapVisualStyle.clearCustomColor(type);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("恢复该项默认颜色");
         }
     }
 
@@ -438,6 +479,22 @@ public class SettingsAndHelpDialog {
     private static int withAlpha(int color, int alpha) {
         int a = Math.max(0, Math.min(255, alpha));
         return (color & 0x00FFFFFF) | (a << 24);
+    }
+
+    private void renderHelpMarkerInline(String id, String tooltip) {
+        ImGui.sameLine();
+        ImGui.textDisabled("(?)##" + id);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(tooltip);
+        }
+    }
+
+    private void applyCaptureSuppression(boolean captureActive) {
+        if (captureSuppressionApplied == captureActive) {
+            return;
+        }
+        ShortcutManager.getInstance().setDispatchSuppressed(captureActive);
+        captureSuppressionApplied = captureActive;
     }
 }
 
