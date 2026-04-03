@@ -296,7 +296,6 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 计数行
         paletteCountY = cy;
-        cy += 9 + SECTION_GAP;
 
         // 底部按钮（宽度按文字自适应，保持按钮更紧凑）
         btnY = panelY + panelH - BOTTOM_MARGIN - BTN_H;
