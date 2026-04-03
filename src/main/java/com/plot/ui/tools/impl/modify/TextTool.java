@@ -15,13 +15,12 @@ import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.core.graphics.style.TextStyle;
 import com.plot.core.graphics.style.TextAlignment;
-import com.plot.ui.dialog.TextDialog;
+import com.plot.ui.dialog.TextInputDialog;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -512,136 +511,53 @@ public class TextTool extends BaseTool {
      */
     private void showTextDialog(Vec2d point) {
         LogManager.getInstance().debug("TextTool: 显示文字输入对话框");
-        
-        SwingUtilities.invokeLater(() -> {
-            try {
-                // 优先尝试 Swing 对话框
-                if (!GraphicsEnvironment.isHeadless()) {
-                    TextDialog dialog = getTextDialog();
+        try {
+            TextInputDialog.TextInputPreset preset = new TextInputDialog.TextInputPreset(
+                    configFontSize,
+                    configBold,
+                    configItalic,
+                    configHorizontalAlignment,
+                    configVerticalAlignment,
+                    configLineHeight
+            );
 
-                    if (dialog.isConfirmed()) {
-                        pendingText = dialog.getInputText();
-                        if (pendingText != null && !pendingText.isEmpty()) {
-                            var dlgStyle = dialog.getTextStyle();
-                            TextStyle finalStyle = new TextStyle.Builder()
-                                    .fontFamily(dlgStyle.getFontFamily())
-                                    .fontSize(dlgStyle.getFontSize())
-                                    .bold(dlgStyle.isBold())
-                                    .italic(dlgStyle.isItalic())
-                                    .horizontalAlignment(getHorizontalAlignment())
-                                    .verticalAlignment(getVerticalAlignment())
-                                    .lineHeight(dlgStyle.getLineHeight())
-                                    .color(getCurrentLayerColor())
-                                    .build();
-
-                            TextShape newText = new TextShape(point, pendingText);
-                            newText.setTextStyle(finalStyle);
-                            this.previewShape = newText;
-                            commit();
-                            rebuildSpatialIndex();
-                            LogManager.getInstance().info("TextTool: 用户输入文字: {}，已放置到画布", pendingText);
+            TextInputDialog.getInstance().scheduleOpen(
+                    "",
+                    preset,
+                    result -> {
+                        if (result == null) {
                             resetToIdle();
                             return;
                         }
-                    } else {
-                        LogManager.getInstance().debug("TextTool: 用户取消文字输入");
-                        resetToIdle();
-                        return;
-                    }
-                }
-            } catch (Exception e) {
-                LogManager.getInstance().warn("TextTool: Swing 对话框不可用，切换到 ImGui 对话框: {}", e.toString());
-            }
-
-            // 回退：使用 ImGui 对话框（无 Swing 依赖）
-            try {
-                com.plot.ui.dialog.TextInputDialog.getInstance().scheduleOpen(
-                        "",
-                        result -> {
-                            if (result == null) {
-                                resetToIdle();
-                                return;
-                            }
-                            String text = result.text();
-                            if (text == null || text.isEmpty()) {
-                                resetToIdle();
-                                return;
-                            }
-                            pendingText = text;
-                            TextStyle finalStyle = new TextStyle.Builder()
-                                    .fontSize(result.fontSize())
-                                    .bold(result.bold())
-                                    .italic(result.italic())
-                                    .horizontalAlignment(result.hAlign())
-                                    .verticalAlignment(result.vAlign())
-                                    .lineHeight(result.lineHeight())
-                                    .color(getCurrentLayerColor())
-                                    .build();
-                            TextShape newText = new TextShape(point, pendingText);
-                            newText.setTextStyle(finalStyle);
-                            this.previewShape = newText;
-                            commit();
-                            rebuildSpatialIndex();
-                            canvas.refresh();
+                        String text = result.text();
+                        if (text == null || text.isEmpty()) {
                             resetToIdle();
-                        },
-                        this::resetToIdle
-                );
-            } catch (Exception ex) {
-                LogManager.getInstance().error("TextTool: ImGui 回退对话框也不可用，使用默认文字", ex);
-                useDefaultText(point);
-            }
-        });
-    }
-
-    private @NotNull TextDialog getTextDialog() {
-        Frame owner = getParentFrame();
-        TextDialog dialog = new TextDialog(owner);
-        // 设置对话框的初始值为当前配置
-        dialog.setInitialFontSize(configFontSize);
-        dialog.setInitialBold(configBold);
-        dialog.setInitialItalic(configItalic);
-        dialog.setInitialHorizontalAlignment(configHorizontalAlignment);
-        dialog.setInitialVerticalAlignment(configVerticalAlignment);
-        dialog.setInitialLineHeight(configLineHeight);
-        dialog.setVisible(true);
-        return dialog;
-    }
-
-    /**
-     * 安全地获取父Frame - 改进的健壮性
-     */
-    private Frame getParentFrame() {
-        // 优先使用注入的父组件
-        if (parentComponent != null) {
-            if (parentComponent instanceof Frame) {
-                return (Frame) parentComponent;
-            }
-            
-            // 尝试从父组件层次结构中查找Frame
-            Frame frame = (Frame) SwingUtilities.getAncestorOfClass(Frame.class, parentComponent);
-            if (frame != null) {
-                return frame;
-            }
+                            return;
+                        }
+                        pendingText = text;
+                        TextStyle finalStyle = new TextStyle.Builder()
+                                .fontSize(result.fontSize())
+                                .bold(result.bold())
+                                .italic(result.italic())
+                                .horizontalAlignment(result.hAlign())
+                                .verticalAlignment(result.vAlign())
+                                .lineHeight(result.lineHeight())
+                                .color(getCurrentLayerColor())
+                                .build();
+                        TextShape newText = new TextShape(point, pendingText);
+                        newText.setTextStyle(finalStyle);
+                        this.previewShape = newText;
+                        commit();
+                        rebuildSpatialIndex();
+                        canvas.refresh();
+                        resetToIdle();
+                    },
+                    this::resetToIdle
+            );
+        } catch (Exception ex) {
+            LogManager.getInstance().error("TextTool: ImGui 文字对话框不可用，使用默认文字", ex);
+            useDefaultText(point);
         }
-        
-        // 回退到全局查找（只选择可见窗口，避免选择隐藏或临时窗口导致对话框不可见）
-        Frame[] frames = JFrame.getFrames();
-        if (frames.length > 0) {
-            // 优先选择可见的主窗口
-            for (Frame frame : frames) {
-                if (frame.isVisible() && frame.getTitle() != null && !frame.getTitle().isEmpty()) {
-                    return frame;
-                }
-            }
-            // 如果没有找到合适的主窗口，避免返回一个不可见/未初始化的Frame
-            // 返回null，让对话框使用无父窗口模式，避免被隐藏
-            return null;
-        }
-        
-        // 最后回退：不创建临时窗口，直接返回null
-        LogManager.getInstance().warn("TextTool: 未找到合适的父窗口，采用无父窗口对话框");
-        return null;
     }
 
     /**

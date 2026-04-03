@@ -46,6 +46,7 @@ public class TextInputDialog {
     private String pendingPreset = "";
     private Consumer<TextInputResult> pendingOnConfirm;
     private Runnable pendingOnCancel;
+    private TextInputPreset pendingStylePreset;
 
     // 样式参数（跟随 TextStyle 的默认值与范围）
     // 注意：字体大小滑动条范围为 100~200，所以初始值设为 100.0f
@@ -63,6 +64,17 @@ public class TextInputDialog {
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
         this.textBuffer.set(presetText != null ? presetText : "");
+        applyPreset(TextInputPreset.defaults());
+        this.visible = true;
+        ImGui.openPopup(DIALOG_TITLE);
+    }
+
+    public void open(String presetText, TextInputPreset preset,
+                     Consumer<TextInputResult> onConfirm, Runnable onCancel) {
+        this.onConfirm = onConfirm;
+        this.onCancel = onCancel;
+        this.textBuffer.set(presetText != null ? presetText : "");
+        applyPreset(preset);
         this.visible = true;
         ImGui.openPopup(DIALOG_TITLE);
     }
@@ -74,6 +86,16 @@ public class TextInputDialog {
         this.pendingPreset = presetText != null ? presetText : "";
         this.pendingOnConfirm = onConfirm;
         this.pendingOnCancel = onCancel;
+        this.pendingStylePreset = TextInputPreset.defaults();
+        this.pendingOpen = true;
+    }
+
+    public void scheduleOpen(String presetText, TextInputPreset preset,
+                             Consumer<TextInputResult> onConfirm, Runnable onCancel) {
+        this.pendingPreset = presetText != null ? presetText : "";
+        this.pendingOnConfirm = onConfirm;
+        this.pendingOnCancel = onCancel;
+        this.pendingStylePreset = preset;
         this.pendingOpen = true;
     }
 
@@ -87,6 +109,7 @@ public class TextInputDialog {
             this.onConfirm = pendingOnConfirm;
             this.onCancel = pendingOnCancel;
             this.textBuffer.set(pendingPreset);
+            applyPreset(pendingStylePreset);
             this.visible = true;
             this.pendingOpen = false;
             ImGui.openPopup(DIALOG_TITLE);
@@ -331,10 +354,34 @@ public class TextInputDialog {
         visible = false;
         onConfirm = null;
         onCancel = null;
+        pendingStylePreset = null;
+    }
+
+    private void applyPreset(TextInputPreset preset) {
+        TextInputPreset p = preset != null ? preset : TextInputPreset.defaults();
+        this.fontSize = clamp(p.fontSize(), 100.0f, 200.0f);
+        this.bold = p.bold();
+        this.italic = p.italic();
+        this.hAlign = p.hAlign() != null ? p.hAlign() : TextAlignment.Horizontal.LEFT;
+        this.vAlign = p.vAlign() != null ? p.vAlign() : TextAlignment.Vertical.TOP;
+        this.lineHeight = clamp(p.lineHeight(), 0.5f, 3.0f);
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     public record TextInputResult(String text, float fontSize, boolean bold, boolean italic,
                                   TextAlignment.Horizontal hAlign, TextAlignment.Vertical vAlign, float lineHeight) {
+    }
+
+    public record TextInputPreset(float fontSize, boolean bold, boolean italic,
+                                  TextAlignment.Horizontal hAlign, TextAlignment.Vertical vAlign, float lineHeight) {
+        public static TextInputPreset defaults() {
+            return new TextInputPreset(100.0f, false, false,
+                    TextAlignment.Horizontal.LEFT, TextAlignment.Vertical.TOP,
+                    TextStyle.DEFAULT_LINE_HEIGHT);
+        }
     }
 }
 
