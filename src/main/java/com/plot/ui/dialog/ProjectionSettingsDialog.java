@@ -67,7 +67,7 @@ public class ProjectionSettingsDialog {
                               ImGuiWindowFlags.NoSavedSettings;
             
             // 开始渲染窗口
-            ImGui.setNextWindowSize(300, 200);
+            ImGui.setNextWindowSize(300, 0);
             // 重要：无论 begin() 返回 true/false，都必须 end()，否则会触发 ImGui 的窗口栈断言
             boolean windowVisible = ImGui.begin("方块投影设置", windowFlags);
             try {

@@ -101,11 +101,13 @@ public class SettingsAndHelpDialog {
             // 底部操作区：设置即时生效，仅用于完成/返回。
             ImGui.setCursorPosY(footerStartY);
             ImGui.separator();
-            if (ImGui.button("完成", 80, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+            float buttonWidth = 100.0f;
+            DialogStyleManager.centerTwoButtons(buttonWidth);
+            if (ImGui.button("完成", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                 close();
             }
-            ImGui.sameLine();
-            if (ImGui.button("返回", 80, 0) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
+            if (ImGui.button("返回", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
                 close();
             }
 

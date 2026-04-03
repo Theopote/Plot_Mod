@@ -2,13 +2,10 @@ package com.plot.ui.dialog;
 
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.file.FileImportedEvent;
-import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
@@ -265,25 +262,7 @@ public class ImportFileDialog {
                          ImGuiWindowFlags.NoSavedSettings |
                          ImGuiWindowFlags.NoScrollbar;
 
-        // 设置控件样式
-        var currentTheme = ThemeManager.getInstance().getCurrentTheme();
-        
-        // 设置所有控件的基础样式
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, 4);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.panelControlRounding);
-        
-        // 设置所有控件的颜色
-        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);          // 边框颜色
-        ImGui.pushStyleColor(ImGuiCol.Button, currentTheme.buttonNormal);    // 按钮背景色
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, currentTheme.buttonHovered);   // 按钮悬停色
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, currentTheme.buttonActive);     // 按钮激活色
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.controlBackground);    // 控件背景色
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered); // 控件悬停色
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);   // 控件激活色
-        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.buttonActive);          // 选中项背景色
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.buttonHovered);  // 选中项悬停色
-        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.buttonActive);    // 选中项激活色
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
@@ -385,17 +364,14 @@ public class ImportFileDialog {
                 ImGui.spacing();
                 
                 // === 按钮区域 ===
-                float buttonWidth = 100.0f;
-                float buttonSpacing = DialogStyleManager.BUTTON_SPACING;
-
-                ImGui.setCursorPosX(DialogStyleManager.getContentStartX()
-                    + Math.max(0.0f, contentWidth - 2 * buttonWidth - buttonSpacing));
+                float buttonWidth = DialogStyleManager.getTwoButtonWidth(Math.min(contentWidth, 220.0f));
+                DialogStyleManager.centerTwoButtons(buttonWidth);
                 
                 if (ImGui.button("导入", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                     importFile();
                 }
                 
-                ImGui.sameLine(0, buttonSpacing);
+                ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
                 
                 if (ImGui.button("取消", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
                     hide();
@@ -405,9 +381,7 @@ public class ImportFileDialog {
                 ImGui.endPopup();
             }
         } finally {
-            // 恢复样式
-            ImGui.popStyleVar(3);  // 弹出之前推入的3个样式变量
-            ImGui.popStyleColor(10);  // 弹出之前推入的10个样式颜色
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 }
