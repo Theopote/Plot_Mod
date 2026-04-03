@@ -235,14 +235,32 @@ public class SettingsAndHelpDialog {
                     }
                     ImGui.sameLine();
                     String defaultKey = KeymapManager.getInstance().getDefaultBinding(actionId);
-                    if (defaultKey == null || defaultKey.isEmpty()) ImGui.beginDisabled();
+                    boolean hasDefault = defaultKey != null && !defaultKey.isEmpty();
+                    boolean isAtDefault = hasDefault && Objects.equals(current, defaultKey);
+                    boolean canReset = hasDefault && !isAtDefault;
+
+                    if (!canReset) ImGui.beginDisabled();
+                    if (canReset) {
+                        ImGui.pushStyleColor(ImGuiCol.Button, withAlpha(theme.accent, 120));
+                        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, withAlpha(theme.accent, 180));
+                        ImGui.pushStyleColor(ImGuiCol.ButtonActive, withAlpha(theme.accent, 220));
+                    }
                     if (ImGui.smallButton("重置##reset_" + actionId)) {
                         KeymapManager.getInstance().updateBinding(actionId, defaultKey);
                     }
-                    if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip("恢复该动作的默认快捷键");
+                    if (canReset) {
+                        ImGui.popStyleColor(3);
                     }
-                    if (defaultKey == null || defaultKey.isEmpty()) ImGui.endDisabled();
+                    if (ImGui.isItemHovered()) {
+                        if (canReset) {
+                            ImGui.setTooltip("恢复默认：" + defaultKey);
+                        } else if (!hasDefault) {
+                            ImGui.setTooltip("该动作暂无预设默认快捷键");
+                        } else {
+                            ImGui.setTooltip("当前已是默认快捷键");
+                        }
+                    }
+                    if (!canReset) ImGui.endDisabled();
                     if (captureActive) ImGui.endDisabled();
                 }
             }
