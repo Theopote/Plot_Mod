@@ -32,7 +32,7 @@ public class SettingsAndHelpDialog {
     private static SettingsAndHelpDialog INSTANCE;
 
     private boolean isOpen = false;
-    private final ImString searchText = new ImString(64);
+    private final ImString searchText = new ImString(256);
     private String editingActionId = null; // 当前正在录制快捷键的动作
     private String shortcutConflictMessage = null;
     private int selectedHelpTopic = 0;
@@ -122,14 +122,6 @@ public class SettingsAndHelpDialog {
         if (captureActive) ImGui.beginDisabled();
         if (ImGui.button("重置为默认")) {
             KeymapManager.getInstance().resetToDefault();
-        }
-        ImGui.sameLine();
-        if (ImGui.button("导出配置")) {
-            KeymapManager.getInstance().exportBindings();
-        }
-        ImGui.sameLine();
-        if (ImGui.button("导入配置")) {
-            KeymapManager.getInstance().importBindings();
         }
         if (captureActive) ImGui.endDisabled();
 
