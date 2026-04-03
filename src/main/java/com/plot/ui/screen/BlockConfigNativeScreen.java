@@ -254,15 +254,17 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 初始化搜索框 Widget
         if (searchBox == null) {
-            searchBox = new TextFieldWidget(this.textRenderer, searchX + 13, searchY + 2, contentW - 20, SEARCH_H - 4, Text.literal("搜索方块"));
+            searchBox = new TextFieldWidget(this.textRenderer, searchX + 13, searchY + 2, contentW - 16, SEARCH_H - 4, Text.literal("搜索方块"));
             searchBox.setMaxLength(128);
             searchBox.setPlaceholder(Text.literal("搜索方块名称 / ID…"));
         } else {
             // 调整位置
             searchBox.setX(searchX + 13);
             searchBox.setY(searchY + 2);
-            searchBox.setWidth(contentW - 20);
+            searchBox.setWidth(contentW - 16);
         }
+        searchBox.setDrawsBackground(false);
+        addDrawableChild(searchBox);
 
         // 网格
         gridX = contentX;
@@ -344,7 +346,7 @@ public class BlockConfigNativeScreen extends Screen {
                 return name.contains(q) || id.contains(q);
             }).collect(Collectors.toList());
         }
-        int maxPage = Math.max(0, (filteredBlocks.size() - 1) / PAGE_SIZE);
+        int maxPage = Math.max(0, (filteredBlocks.size() + PAGE_SIZE - 1) / PAGE_SIZE - 1);
         if (page > maxPage) page = maxPage;
     }
 
@@ -390,14 +392,16 @@ public class BlockConfigNativeScreen extends Screen {
 
         renderTitleBar(context, mouseX, mouseY);
         renderSidebar(context, mouseX, mouseY);
-        renderSearch(context, mouseX, mouseY);
+        renderSearchDecoration(context);
         renderGrid(context, mouseX, mouseY);
         renderPager(context, mouseX, mouseY);
         renderPalette(context, mouseX, mouseY);
         renderBottomButtons(context, mouseX, mouseY);
         renderHoverTooltip(context, mouseX, mouseY);
 
-
+        if (dragIndex >= 0) {
+            renderDraggedItem(context, mouseX, mouseY);
+        }
 
         super.render(context, mouseX, mouseY, delta);
     }
@@ -480,21 +484,14 @@ public class BlockConfigNativeScreen extends Screen {
         }
     }
 
-    /** 搜索栏（使用 TextFieldWidget 自动处理光标、输入法等）。 */
-    private void renderSearch(DrawContext context, int mouseX, int mouseY) {
-        int x = searchX, y = searchY, w = contentW, h = SEARCH_H;
+    /** 搜索栏装饰：只绘制边框与图标，文本由 Widget 树渲染。 */
+    private void renderSearchDecoration(DrawContext context) {
         int borderColor = searchBox.isFocused() ? COLOR_SEARCH_ACTIVE : COLOR_SEARCH_BORDER;
-
-        context.fill(x, y, x + w, y + h, COLOR_SEARCH_BG);
-        drawBorder(context, x, y, w, h, borderColor);
+        drawBorder(context, searchX, searchY, contentW, SEARCH_H, borderColor);
 
         // 🔍 图标
-        context.drawText(this.textRenderer, "🔍", x + 3, y + (h - this.textRenderer.fontHeight) / 2,
+        context.drawText(this.textRenderer, "🔍", searchX + 3, searchY + (SEARCH_H - this.textRenderer.fontHeight) / 2,
                 0xFF666666, false);
-
-        // 委托 TextFieldWidget 渲染文本、光标、选区等
-        // （Widget 会自动处理占位符、光标闪烁、输入法等）
-        searchBox.render(context, mouseX, mouseY, 0);
     }
 
     /** 方块网格（高亮已选中方块）。 */
@@ -571,7 +568,7 @@ public class BlockConfigNativeScreen extends Screen {
     private void drawPagerButton(DrawContext context, int x, int y, int w, int h,
                                  String text, int mouseX, int mouseY, boolean enabled) {
         boolean hover = enabled && isInside(mouseX, mouseY, x, y, w, h);
-        int bg = !enabled ? COLOR_PAGER_DISABLED : (hover ? COLOR_PAGER_ACTIVE + 0x0A101010 : COLOR_PAGER_ACTIVE);
+        int bg = !enabled ? COLOR_PAGER_DISABLED : (hover ? brighten(COLOR_PAGER_ACTIVE) : COLOR_PAGER_ACTIVE);
         context.fill(x, y, x + w, y + h, bg);
         drawBorder(context, x, y, w, h, enabled ? 0xFF606060 : 0xFF3A3A3A);
         int tw = this.textRenderer.getWidth(text);
@@ -758,10 +755,9 @@ public class BlockConfigNativeScreen extends Screen {
             return true;
         }
 
-        // 搜索栏点击处理（委托给 TextFieldWidget）
+        // 搜索栏焦点管理（点击外部失焦）
         if (isInside(mx, my, searchX, searchY, contentW, SEARCH_H)) {
             searchBox.setFocused(true);
-            return true;
         } else {
             searchBox.setFocused(false);
         }
@@ -822,9 +818,19 @@ public class BlockConfigNativeScreen extends Screen {
                 Collections.swap(palette, dragIndex, targetIdx);
             }
             dragIndex = -1;
+            dragHoverSlot = -1;
             return true;
         }
         return super.mouseReleased(click);
+    }
+
+    @Override
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        if (click.button() == 0 && dragIndex >= 0) {
+            dragHoverSlot = getHoveredPaletteIndex(click.x(), click.y());
+            return true;
+        }
+        return super.mouseDragged(click, deltaX, deltaY);
     }
 
     @Override
@@ -905,6 +911,7 @@ public class BlockConfigNativeScreen extends Screen {
 
     private boolean handleCategoryClick(double mx, double my) {
         for (CategoryTabLayout layout : categoryTabLayouts) {
+            if (layout.y + layout.h <= sidebarY || layout.y >= sidebarY + sidebarH) continue;
             if (isInside(mx, my, layout.x, layout.y, layout.w, layout.h)) {
                 if (layout.category != currentCategory) {
                     currentCategory = layout.category;
