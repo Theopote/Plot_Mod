@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
 import com.plot.ui.dialog.DialogStyleManager;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
@@ -88,12 +89,11 @@ public class CameraSettingsManager {
                         eventBus.publish(new CameraSettingsEvent(camera));
                     }
 
-                    renderButtons();
-
-                    // 检查是否点击了关闭按钮
-                    if (!ImGui.isWindowFocused() && ImGui.isMouseClicked(0)) {
+                    if (ImGui.isKeyReleased(ImGuiKey.Escape)) {
                         showSettings = false;
                     }
+
+                    renderButtons();
                 }
             } finally {
                 ImGui.end();
