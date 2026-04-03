@@ -1,24 +1,18 @@
 package com.plot.ui.dialog;
 
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.type.ImInt;
 import imgui.type.ImBoolean;
 import imgui.flag.ImGuiWindowFlags;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LineToBlockSettingsDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/LineToBlockSettingsDialog");
     private static LineToBlockSettingsDialog INSTANCE;
-    private final AppState appState;
-    private final EventBus eventBus;
-    
+
     private boolean isOpen = false;
     private ConversionMode conversionMode = ConversionMode.FULL;
     private float simplificationRatio = 0.5f;
@@ -40,8 +34,8 @@ public class LineToBlockSettingsDialog {
     }
 
     private LineToBlockSettingsDialog() {
-        this.appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
+        AppState appState = AppState.getInstance();
+        EventBus eventBus = EventBus.getInstance();
     }
 
     public static LineToBlockSettingsDialog getInstance() {

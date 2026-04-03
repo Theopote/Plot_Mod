@@ -56,19 +56,6 @@ public class ShortcutManager {
     }
 
     /**
-     * 注册特定快捷键的监听器
-     * @param shortcut 快捷键
-     * @param listener 监听器
-     */
-    public void registerShortcut(String shortcut, IShortcutListener listener) {
-        if (shortcut == null || listener == null) return;
-
-        shortcutMap.computeIfAbsent(shortcut, k -> new HashSet<>()).add(listener);
-        LogManager.getInstance().debug(String.format("Registered shortcut '%s' for %s",
-            shortcut, listener.getClass().getSimpleName()));
-    }
-
-    /**
      * 注销特定快捷键的监听器
      * @param shortcut 快捷键
      * @param listener 监听器
@@ -153,10 +140,6 @@ public class ShortcutManager {
      */
     public void setDispatchSuppressed(boolean suppressed) {
         this.dispatchSuppressed = suppressed;
-    }
-
-    public boolean isDispatchSuppressed() {
-        return dispatchSuppressed;
     }
 
     /**

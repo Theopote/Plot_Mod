@@ -4,8 +4,6 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
 import com.plot.ui.dialog.DialogStyleManager;
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;

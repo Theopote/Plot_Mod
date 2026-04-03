@@ -65,16 +65,6 @@ public class KeymapManager {
         return actionId;
     }
 
-    public String getActionCategory(String actionId) {
-        if (actionId == null) return "未分类";
-        for (ActionDef def : actions) {
-            if (actionId.equals(def.actionId())) {
-                return def.category();
-            }
-        }
-        return "未分类";
-    }
-
     public boolean updateBinding(String actionId, String shortcut) {
         if (actionId == null || shortcut == null) return false;
         updateBindingAndGetConflict(actionId, shortcut);
@@ -97,8 +87,6 @@ public class KeymapManager {
 
     public void clearBinding(String actionId) { actionToShortcut.remove(actionId); save(); }
     public void resetToDefault() { actionToShortcut.clear(); setDefaults(); save(); }
-    public void exportBindings() { save(); }
-    public void importBindings() { loadOrDefault(); }
 
     private void registerRouter() {
         if (router != null) return;
