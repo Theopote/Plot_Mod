@@ -62,7 +62,7 @@ public class BlockConfigNativeScreen extends Screen {
 
     // ── 间距 ────────────────────────────────────────────────────────────────
     private static final int SLOT_GAP     = 1;   // 格子间间距
-    private static final int MARGIN       = 4;   // 面板内边距
+    private static final int MARGIN       = 3;   // 面板内边距
     private static final int SECTION_GAP  = 3;   // 区块之间的垂直间隔
 
     // ── 分类侧边栏 ──────────────────────────────────────────────────────────
@@ -102,7 +102,6 @@ public class BlockConfigNativeScreen extends Screen {
     private static final int COLOR_PALETTE_HOVER = 0xFF444444;
     private static final int COLOR_PALETTE_EMPTY = 0xFF1E1E1E;
     private static final int COLOR_PALETTE_BORDER= 0xFF686868;
-    private static final int COLOR_SEARCH_BG     = 0xFF252525;
     private static final int COLOR_SEARCH_BORDER = 0xFF555555;
     private static final int COLOR_SEARCH_ACTIVE = 0xFF4A6FA5;
     private static final int COLOR_DIVIDER       = 0xFF505050;
