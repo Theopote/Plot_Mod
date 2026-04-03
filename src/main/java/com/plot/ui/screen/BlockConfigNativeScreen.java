@@ -67,19 +67,20 @@ public class BlockConfigNativeScreen extends Screen {
 
     // ── 分类侧边栏 ──────────────────────────────────────────────────────────
     private static final int SIDEBAR_W    = 56;  // 固定宽度
-    private static final int TAB_H        = 16;  // 每个分类按钮的高度
+    private static final int TAB_H        = 14;  // 每个分类按钮的高度（略微减小）
     private static final int TAB_GAP      = 1;   // 分类按钮间间距
 
     // ── 搜索栏 ──────────────────────────────────────────────────────────────
     private static final int SEARCH_H     = 14;  // 搜索栏高度
 
     // ── 标题栏 ──────────────────────────────────────────────────────────────
-    private static final int TITLE_HEIGHT = 14;
+    private static final int TITLE_HEIGHT = 12;  // 略微减小
 
     // ── 分页 / 底部按钮 ──────────────────────────────────────────────────────
     private static final int PAGER_BTN_W  = 36;
-    private static final int BTN_W        = 68;
-    private static final int BTN_H        = 14;
+    private static final int BTN_H        = 12;  // 略微减小
+    private static final int BTN_MIN_W    = 34;  // 按钮最小宽度，保证大于文字宽度
+    private static final int BTN_TEXT_PAD_X = 8; // 按钮左右文字留白
     private static final int BTN_GAP      = 2;
     private static final int BOTTOM_MARGIN = 4;
 
@@ -162,6 +163,7 @@ public class BlockConfigNativeScreen extends Screen {
     private int paletteCountY;  // 计数文字 Y
     // 底部按钮
     private int btnY, btnApplyX, btnCancelX, btnClearX;
+    private int btnApplyW, btnCancelW, btnClearW;
     // 标题栏关闭按钮
     private int closeBtnX, closeBtnY, closeBtnW, closeBtnH;
 
@@ -295,13 +297,17 @@ public class BlockConfigNativeScreen extends Screen {
         paletteCountY = cy;
         cy += 9 + SECTION_GAP;
 
-        // 底部按钮
+        // 底部按钮（宽度按文字自适应，保持按钮更紧凑）
         btnY = cy;
+        btnApplyW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth("✓ 应用") + BTN_TEXT_PAD_X * 2);
+        btnCancelW = Math.max(BTN_MIN_W, this.textRenderer.getWidth("取消") + BTN_TEXT_PAD_X * 2);
+        btnClearW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth("清空") + BTN_TEXT_PAD_X * 2);
+
         // 三个按钮右对齐
-        int totalBtnW = BTN_W * 3 + BTN_GAP * 2;
+        int totalBtnW = btnApplyW + btnCancelW + btnClearW + BTN_GAP * 2;
         btnApplyX  = panelX + panelW - MARGIN - totalBtnW;
-        btnCancelX = btnApplyX + BTN_W + BTN_GAP;
-        btnClearX  = btnCancelX + BTN_W + BTN_GAP;
+        btnCancelX = btnApplyX + btnApplyW + BTN_GAP;
+        btnClearX  = btnCancelX + btnCancelW + BTN_GAP;
 
         // 标题栏关闭按钮
         closeBtnW = 18;
@@ -651,9 +657,9 @@ public class BlockConfigNativeScreen extends Screen {
 
     /** 底部操作按钮。 */
     private void renderBottomButtons(DrawContext context, int mouseX, int mouseY) {
-        drawMainButton(context, btnApplyX,  btnY, BTN_W, BTN_H, "✓ 应用", COLOR_BTN_APPLY,  mouseX, mouseY);
-        drawMainButton(context, btnCancelX, btnY, BTN_W, BTN_H, "取消",   COLOR_BTN_CANCEL, mouseX, mouseY);
-        drawMainButton(context, btnClearX,  btnY, BTN_W, BTN_H, "清空",   COLOR_BTN_CLEAR,  mouseX, mouseY);
+        drawMainButton(context, btnApplyX,  btnY, btnApplyW,  BTN_H, "✓ 应用", COLOR_BTN_APPLY,  mouseX, mouseY);
+        drawMainButton(context, btnCancelX, btnY, btnCancelW, BTN_H, "取消",   COLOR_BTN_CANCEL, mouseX, mouseY);
+        drawMainButton(context, btnClearX,  btnY, btnClearW,  BTN_H, "清空",   COLOR_BTN_CLEAR,  mouseX, mouseY);
     }
 
     private void drawMainButton(DrawContext context, int x, int y, int w, int h,
@@ -798,9 +804,9 @@ public class BlockConfigNativeScreen extends Screen {
         }
 
         // 底部按钮
-        if (btn == 0 && isInside(mx, my, btnApplyX,  btnY, BTN_W, BTN_H)) { applyAndClose(); return true; }
-        if (btn == 0 && isInside(mx, my, btnCancelX, btnY, BTN_W, BTN_H)) { close();         return true; }
-        if (btn == 0 && isInside(mx, my, btnClearX,  btnY, BTN_W, BTN_H)) { palette.clear(); return true; }
+        if (btn == 0 && isInside(mx, my, btnApplyX,  btnY, btnApplyW,  BTN_H)) { applyAndClose(); return true; }
+        if (btn == 0 && isInside(mx, my, btnCancelX, btnY, btnCancelW, BTN_H)) { close();         return true; }
+        if (btn == 0 && isInside(mx, my, btnClearX,  btnY, btnClearW,  BTN_H)) { palette.clear(); return true; }
 
         return super.mouseClicked(click, handled);
     }
