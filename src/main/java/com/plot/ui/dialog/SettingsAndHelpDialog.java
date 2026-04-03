@@ -69,7 +69,7 @@ public class SettingsAndHelpDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
-            ImGui.setNextWindowSize(680, 520);
+            ImGui.setNextWindowSize(680, 540);
             int flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
             if (!ImGui.begin("设置与帮助", flags)) {
                 ImGui.end();
@@ -312,7 +312,9 @@ public class SettingsAndHelpDialog {
             }
 
             ImGui.separator();
+            ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
             ImGui.textDisabled("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
+            ImGui.popTextWrapPos();
         }
         ImGui.endChild();
     }
@@ -373,12 +375,18 @@ public class SettingsAndHelpDialog {
 
     private void renderDisplayPage(float footerStartY) {
         SnapManager snapManager = SnapManager.getInstance();
+        final String displayHintText = "提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。";
 
         ImGui.textWrapped("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
         ImGui.separator();
 
         float childHeight = getScrollableSectionHeight(footerStartY);
-        if (ImGui.beginChild("##display_scroll_region", 0, childHeight, false, 0)) {
+        // 为底部提示预留动态高度：根据当前宽度下的实际换行行数计算
+        float wrapWidth = Math.max(1.0f, ImGui.getContentRegionAvailX());
+        float hintReservedHeight = getWrappedTextHeight(displayHintText, wrapWidth)
+            + ImGui.getStyle().getItemSpacingY();
+        float scrollHeight = Math.max(80.0f, childHeight - hintReservedHeight);
+        if (ImGui.beginChild("##display_scroll_region", 0, scrollHeight, false, 0)) {
 
             if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent(10);
@@ -461,11 +469,20 @@ public class SettingsAndHelpDialog {
                 ImGui.unindent(10);
                 ImGui.treePop();
             }
-
-            ImGui.separator();
-            ImGui.textDisabled("提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。\n");
         }
         ImGui.endChild();
+
+        ImGui.separator();
+        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
+        ImGui.textDisabled(displayHintText);
+        ImGui.popTextWrapPos();
+    }
+
+    private float getWrappedTextHeight(String text, float wrapWidth) {
+        float textWidth = ImGui.calcTextSize(text).x;
+        float lineHeight = ImGui.getTextLineHeightWithSpacing();
+        int lines = Math.max(1, (int) Math.ceil(textWidth / Math.max(1.0f, wrapWidth)));
+        return lines * lineHeight;
     }
 
     private float getScrollableSectionHeight(float footerStartY) {
