@@ -24,8 +24,9 @@ public class TextInputDialog {
     
     // 统一的布局常量
     private static final float WINDOW_PADDING = 8.0f; // 窗口内边距（左右统一）
-    private static final float VERTICAL_SPACING = 8.0f; // 垂直间距（所有控件上下间距统一）
-    private static final float HORIZONTAL_SPACING = 8.0f; // 水平间距（控件之间的水平间距）
+    // 使用DialogStyleManager中定义的统一间距常数
+    private static final float VERTICAL_SPACING = DialogStyleManager.ITEM_SPACING; // 垂直间距（所有控件上下间距统一）
+    private static final float HORIZONTAL_SPACING = DialogStyleManager.ITEM_SPACING_H; // 水平间距（控件之间的水平间距）
     private static final float LABEL_COLUMN_WIDTH = 80.0f; // 标签列宽度
     private static final float BUTTON_WIDTH = 100.0f; // 按钮宽度
     private static final float BUTTON_SPACING = 8.0f; // 按钮之间的间距
@@ -119,24 +120,17 @@ public class TextInputDialog {
         // 使用固定宽度和高度，不需要滚动条
         int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
 
+        // 应用统一的对话框样式
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        
         if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
-            // 主题样式
-            var theme = ThemeManager.getInstance().getCurrentTheme();
-            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+            // 推送TextInputDialog特有的样式（在DialogStyleManager样式之后）
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0, VERTICAL_SPACING); // 统一垂直间距
-            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f); // 与工具属性面板一致，增加控件高度
-            ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
+            ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0, VERTICAL_SPACING); // 保持垂直间距，水平间距为0
+            var theme = ThemeManager.getInstance().getCurrentTheme();
             ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
-            ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
             ImGui.pushStyleColor(ImGuiCol.Header, theme.buttonActive);
-            ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.buttonHovered);
-            ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.buttonActive);
-
+            
             try {
                 // 计算内容区域宽度（统一右边界）
                 float inputWidth = width - WINDOW_PADDING * 2;
@@ -187,10 +181,11 @@ public class TextInputDialog {
                     confirmAndClose();
                 }
             } finally {
-                ImGui.popStyleColor(10);
-                ImGui.popStyleVar(4); // FrameRounding, FrameBorderSize, ItemSpacing, FramePadding
+                ImGui.popStyleColor(2);  // FrameBg, Header
+                ImGui.popStyleVar(2);    // FrameBorderSize, ItemSpacing
                 ImGui.endPopup();
             }
+            DialogStyleManager.popDialogStyle(styleScope);
         }
         // 弹出在窗口开始之前设置的WindowPadding
         ImGui.popStyleVar(1);

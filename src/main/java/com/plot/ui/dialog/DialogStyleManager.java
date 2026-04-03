@@ -14,7 +14,13 @@ public class DialogStyleManager {
     
     // ====== 布局常量 ======
     /** 控件之间的垂直间距 */
-    public static final float ITEM_SPACING = 4.0f;
+    public static final float ITEM_SPACING = 8.0f;
+    
+    /** 控件之间的水平间距 */
+    public static final float ITEM_SPACING_H = 8.0f;
+    
+    /** 框架内边距（控制输入框、按钮等的内部填充及高度） */
+    public static final float FRAME_PADDING = 4.0f;
     
     /** 内容区域宽度 */
     public static final float CONTENT_WIDTH = 300.0f;
@@ -25,11 +31,8 @@ public class DialogStyleManager {
     /** 控件宽度（内容宽度 - 标签宽度 - 间距） */
     public static final float CONTROL_WIDTH = CONTENT_WIDTH - LABEL_WIDTH - 2 * ITEM_SPACING;
     
-    /** 输入框高度 */
-    public static final float INPUT_HEIGHT = 0.0f; // 0表示使用默认高度
-    
-    /** 按钮高度 */
-    public static final float BUTTON_HEIGHT = 0.0f; // 0表示使用默认高度
+    /** 输入框高度 - 所有输入框、按钮、标签、树结点都使用此高度 */
+    public static final float CONTROL_HEIGHT = 0.0f; // 0表示使用ImGui默认计算值
     
     /** 分隔线间距 */
     public static final float SEPARATOR_SPACING = 4.0f;
@@ -127,6 +130,12 @@ public class DialogStyleManager {
         ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, 0.0f);
         varCount++;
         ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0.0f);
+        varCount++;
+        // 统一控件间距：输入框、按钮、标签、树结点都使用相同的垂直间距
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, ITEM_SPACING_H, ITEM_SPACING);
+        varCount++;
+        // 统一框架内边距：控制输入框、按钮等的高度
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, FRAME_PADDING, FRAME_PADDING);
         varCount++;
         
         return new DialogStyleScope(colorCount, varCount);

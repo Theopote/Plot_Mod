@@ -28,7 +28,8 @@ public class NewLayerDialog {
     private static final Logger LOGGER = LogManager.getLogger("NewLayerDialog");
 
     // === 常量定义 ===
-    private static final float SPACING = 4.0f;  // 控件之间的间距
+    // 使用DialogStyleManager中定义的统一间距常数
+    private static final float SPACING = DialogStyleManager.ITEM_SPACING;
     private static final String DIALOG_TITLE = "新建图层";
     private static final int MAX_NAME_LENGTH = 32;  // 最大名称长度（字符）
     private static final int MAX_BUFFER_SIZE = 512; // ImString 缓冲区大小（字节，足够支持长中文输入）
