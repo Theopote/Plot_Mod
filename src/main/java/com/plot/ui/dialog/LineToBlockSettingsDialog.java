@@ -64,6 +64,10 @@ public class LineToBlockSettingsDialog {
                     ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {
                 if (windowVisible) {
+                    if (DialogStyleManager.renderTopRightCloseButton("line_to_block")) {
+                        close();
+                    }
+
                     // 转换模式选择
                     String[] modes = new String[]{
                         ConversionMode.FULL.getDisplayName(),

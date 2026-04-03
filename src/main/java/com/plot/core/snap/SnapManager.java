@@ -73,6 +73,10 @@ public class SnapManager implements ISnapManager {
 
             if (ImGui.begin("吸附设置##snap_settings", windowFlags)) {
 
+                if (DialogStyleManager.renderTopRightCloseButton("snap_settings")) {
+                    showSettings = false;
+                }
+
                 boolean settingsChanged = false;
 
                 // 几何特征吸附

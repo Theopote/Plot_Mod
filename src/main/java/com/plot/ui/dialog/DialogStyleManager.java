@@ -49,6 +49,9 @@ public class DialogStyleManager {
 
     /** 默认按钮组间距 */
     public static final float BUTTON_SPACING = ITEM_SPACING_H;
+
+    /** 右上角关闭按钮尺寸 */
+    public static final float CLOSE_BUTTON_SIZE = 18.0f;
     
     // ====== 样式作用域类 ======
     public static class DialogStyleScope {
@@ -198,7 +201,56 @@ public class DialogStyleManager {
         float startX = getContentStartX() + Math.max(0.0f, (getContentWidth() - totalWidth) * 0.5f);
         ImGui.setCursorPosX(startX);
     }
-    
+
+    /**
+     * 在对话框标题栏右端渲染统一的关闭按钮（×）。
+     * 使用 DrawList + pushClipRect(false) 绘制，绕过内容区域裁剪限制，确保按钮
+     * 显示在标题栏内而不被 ImGui 的内容区 clip rect 裁掉。
+     *
+     * @param idSuffix 按钮ID后缀（不使用，仅保留签名兼容性）
+     * @return 是否点击关闭
+     */
+    public static boolean renderTopRightCloseButton(String idSuffix) {
+        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+
+        float windowPosX  = ImGui.getWindowPosX();
+        float windowPosY  = ImGui.getWindowPosY();
+        float windowWidth = ImGui.getWindowWidth();
+        float windowHeight = ImGui.getWindowHeight();
+
+        // 标题栏高度 = 字体高度 + 框架内边距 * 2（ImGui 标准计算）
+        float titleBarHeight = ImGui.getFrameHeight();
+
+        // 按钮区域：与标题栏右端对齐，且按钮高度等于标题栏高度
+        float btnX1 = windowPosX + windowWidth - titleBarHeight;
+        float btnY1 = windowPosY;
+        float btnX2 = windowPosX + windowWidth;
+        float btnY2 = windowPosY + titleBarHeight;
+
+        // 手动检测悬停（clip=false：不受当前内容区 clip rect 限制）
+        boolean hovered = ImGui.isMouseHoveringRect(btnX1, btnY1, btnX2, btnY2, false);
+        boolean clicked  = hovered && ImGui.isMouseClicked(0);
+
+        // 用 DrawList 直接绘制（intersect=false 使 clip rect 覆盖整个窗口含标题栏）
+        var drawList = ImGui.getWindowDrawList();
+        drawList.pushClipRect(windowPosX, windowPosY,
+                windowPosX + windowWidth, windowPosY + windowHeight, false);
+
+        int bgColor = hovered ? theme.buttonHovered : theme.buttonNormal;
+        drawList.addRectFilled(btnX1, btnY1, btnX2, btnY2, bgColor, 0.0f);
+
+        // "×" 使用实际文本尺寸做几何中心对齐
+        String closeText = "×";
+        var textSize = ImGui.calcTextSize(closeText);
+        float textX = btnX1 + (titleBarHeight - textSize.x) * 0.5f;
+        float textY = btnY1 + (titleBarHeight - textSize.y) * 0.5f;
+        drawList.addText(textX, textY, 0xFFFFFFFF, closeText);
+
+        drawList.popClipRect();
+
+        return clicked;
+    }
+
     /**
      * 恢复对话框样式
      * @param scope 由applyDialogStyle()返回的样式作用域

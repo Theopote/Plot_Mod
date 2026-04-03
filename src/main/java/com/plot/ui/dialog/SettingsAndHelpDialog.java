@@ -74,6 +74,12 @@ public class SettingsAndHelpDialog {
                 return;
             }
 
+            if (DialogStyleManager.renderTopRightCloseButton("settings_help")) {
+                close();
+                ImGui.end();
+                return;
+            }
+
             float footerStartY = ImGui.getWindowHeight() - ImGui.getStyle().getWindowPaddingY() - getFooterReservedHeight();
 
             if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {

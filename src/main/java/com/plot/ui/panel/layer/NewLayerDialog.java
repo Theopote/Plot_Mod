@@ -183,7 +183,7 @@ public class NewLayerDialog {
         if (!isVisible) return;
 
         float totalWidth = 300.0f;
-        ImGui.setNextWindowSize(totalWidth, 200.0f, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(totalWidth, 200.0f, ImGuiCond.Always);
 
         if (ImGui.isPopupOpen(DIALOG_TITLE)) {
             ImGui.setNextWindowPos(
@@ -195,13 +195,19 @@ public class NewLayerDialog {
 
         int windowFlags = ImGuiWindowFlags.NoResize |
                 ImGuiWindowFlags.NoSavedSettings |
-                ImGuiWindowFlags.NoScrollbar |
-                ImGuiWindowFlags.AlwaysAutoResize;
+            ImGuiWindowFlags.NoScrollbar;
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                if (DialogStyleManager.renderTopRightCloseButton("new_layer")) {
+                    hide();
+                    ImGui.closeCurrentPopup();
+                    ImGui.endPopup();
+                    return;
+                }
+
                 float labelWidth = DialogStyleManager.LABEL_WIDTH;
                 float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
 

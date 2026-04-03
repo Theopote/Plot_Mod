@@ -49,6 +49,10 @@ public class CameraSettingsManager {
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {
                 if (windowVisible) {
+                    if (DialogStyleManager.renderTopRightCloseButton("camera_settings")) {
+                        showSettings = false;
+                    }
+
                     boolean settingsChanged = false;
                     camera = cameraManager.getOrthographicCamera();
 

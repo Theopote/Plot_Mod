@@ -72,6 +72,10 @@ public class ProjectionSettingsDialog {
             boolean windowVisible = ImGui.begin("方块投影设置", windowFlags);
             try {
                 if (windowVisible) {
+                    if (DialogStyleManager.renderTopRightCloseButton("projection_settings")) {
+                        close();
+                    }
+
                     // 渲染投影模式选择
                     ImGui.text("投影模式:");
                     

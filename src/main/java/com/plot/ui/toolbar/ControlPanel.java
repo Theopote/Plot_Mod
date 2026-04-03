@@ -9,6 +9,7 @@ import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.ui.component.UIComponent;
 import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
 import com.plot.ui.layout.UILayout;
@@ -413,6 +414,13 @@ public class ControlPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
         if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
+            if (DialogStyleManager.renderTopRightCloseButton("control_warning")) {
+                ImGui.closeCurrentPopup();
+                ImGui.endPopup();
+                ImGui.popStyleColor(5);
+                return;
+            }
+
             ImGui.text(warningMessage);
             ImGui.separator();
             

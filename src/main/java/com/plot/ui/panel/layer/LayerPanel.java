@@ -5,6 +5,7 @@ import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.ui.component.UIComponent;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.*;
@@ -344,6 +345,13 @@ public class LayerPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
         if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
+            if (DialogStyleManager.renderTopRightCloseButton("layer_warning")) {
+                ImGui.closeCurrentPopup();
+                ImGui.endPopup();
+                ImGui.popStyleColor(5);
+                return;
+            }
+
             ImGui.text(warningMessage);
             ImGui.spacing();
             

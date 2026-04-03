@@ -124,6 +124,14 @@ public class TextInputDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         
         if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+            if (DialogStyleManager.renderTopRightCloseButton("text_input")) {
+                cancelAndClose();
+                ImGui.endPopup();
+                DialogStyleManager.popDialogStyle(styleScope);
+                ImGui.popStyleVar(1);
+                return;
+            }
+
             // 推送TextInputDialog特有的样式（在DialogStyleManager样式之后）
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
             ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0, VERTICAL_SPACING); // 保持垂直间距，水平间距为0

@@ -4,6 +4,7 @@ import com.plot.api.model.ILayer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.state.AppState;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
@@ -98,6 +99,12 @@ public class DeleteLayerDialog {
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, ImGuiWindowFlags.AlwaysAutoResize)) {
                 try {
+                    if (DialogStyleManager.renderTopRightCloseButton("delete_layer")) {
+                        hide();
+                        ImGui.closeCurrentPopup();
+                        ImGui.endPopup();
+                        return;
+                    }
                     renderDialogContent();
                 } catch (Exception e) {
                     hide();

@@ -287,6 +287,13 @@ public class ImportFileDialog {
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                if (DialogStyleManager.renderTopRightCloseButton("import_file")) {
+                    hide();
+                    ImGui.closeCurrentPopup();
+                    ImGui.endPopup();
+                    return;
+                }
+
                 // 计算布局尺寸
                 float contentWidth = DialogStyleManager.getContentWidth();
                 float contentHeight = ImGui.getContentRegionAvailY();

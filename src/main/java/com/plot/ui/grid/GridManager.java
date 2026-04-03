@@ -115,6 +115,10 @@ public class GridManager {
             ImGui.setNextWindowSize(300, 0);
             if (ImGui.begin("网格设置##GridSettings",
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings)) {
+                if (DialogStyleManager.renderTopRightCloseButton("grid_settings")) {
+                    showSettings = false;
+                }
+
                 boolean settingsChanged = false;
 
                 // 网格大小设置

@@ -243,6 +243,13 @@ public class SaveFileDialog {
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                if (DialogStyleManager.renderTopRightCloseButton("save_file")) {
+                    hide();
+                    ImGui.closeCurrentPopup();
+                    ImGui.endPopup();
+                    return;
+                }
+
                 // 计算布局尺寸
                 float contentWidth = DialogStyleManager.getContentWidth();
                 float labelWidth = DialogStyleManager.LABEL_WIDTH;

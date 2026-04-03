@@ -2,6 +2,7 @@ package com.plot.ui.panel.tool.renderer;
 
 import com.plot.ui.tools.impl.modify.RotateTool;
 import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
@@ -274,6 +275,12 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderAngleStepInputPopup() {
         if (ImGui.beginPopupModal("angle_step_input", ImGuiWindowFlags.AlwaysAutoResize)) {
+            if (DialogStyleManager.renderTopRightCloseButton("rotate_angle_input")) {
+                ImGui.closeCurrentPopup();
+                ImGui.endPopup();
+                return;
+            }
+
             ImGui.text("请输入角度步长值（1-90）：");
             ImGui.spacing();
             

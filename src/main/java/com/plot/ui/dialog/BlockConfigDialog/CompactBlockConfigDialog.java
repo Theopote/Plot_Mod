@@ -422,6 +422,18 @@ public class CompactBlockConfigDialog {
         // 绘制标题文本
         ImGui.setCursorPos(PADDING * 2.0f, PADDING * 0.5f);
         ImGui.textColored(theme.text, "方块选择");
+
+        // 右上角关闭按钮
+        float closeSize = Math.max(DialogStyleManager.CLOSE_BUTTON_SIZE, TITLE_BAR_HEIGHT - PADDING);
+        float closeX = windowWidth - closeSize - PADDING;
+        float closeY = Math.max(0.0f, (TITLE_BAR_HEIGHT - closeSize) * 0.5f);
+        float oldX = ImGui.getCursorPosX();
+        float oldY = ImGui.getCursorPosY();
+        ImGui.setCursorPos(closeX, closeY);
+        if (ImGui.button("×##compact_block_close", closeSize, closeSize)) {
+            close();
+        }
+        ImGui.setCursorPos(oldX, oldY);
         
         // 为后续内容预留空间
         ImGui.setCursorPosY(TITLE_BAR_HEIGHT + PADDING);
