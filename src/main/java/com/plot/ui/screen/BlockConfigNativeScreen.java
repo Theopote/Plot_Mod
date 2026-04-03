@@ -259,11 +259,13 @@ public class BlockConfigNativeScreen extends Screen {
             searchBox = new TextFieldWidget(this.textRenderer, searchX + 13, searchY + 2, contentW - 16, SEARCH_H - 4, Text.literal("搜索方块"));
             searchBox.setMaxLength(128);
             searchBox.setPlaceholder(Text.literal("搜索方块名称 / ID…"));
+            searchBox.setChangedListener(text -> applySearchFilter());
         } else {
             // 调整位置
             searchBox.setX(searchX + 13);
             searchBox.setY(searchY + 2);
             searchBox.setWidth(contentW - 16);
+            searchBox.setChangedListener(text -> applySearchFilter());
         }
         searchBox.setDrawsBackground(false);
         addDrawableChild(searchBox);
@@ -867,13 +869,8 @@ public class BlockConfigNativeScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput charInput) {
-        // 如果搜索框有焦点，委托给它处理
-        if (searchBox.isFocused()) {
-            if (searchBox.charTyped(charInput)) {
-                applySearchFilter();
-                return true;
-            }
-        }
+        // 交给 Screen/widget 树分发，保留输入法(IME)原生行为。
+        // 过滤逻辑由 searchBox.setChangedListener 自动触发。
         return super.charTyped(charInput);
     }
 
@@ -881,30 +878,29 @@ public class BlockConfigNativeScreen extends Screen {
     public boolean keyPressed(KeyInput keyInput) {
         int keyCode = keyInput.key();
 
-        // 如果搜索框有焦点，委托给它处理（包括 Backspace、Ctrl+A、Ctrl+V 等）
+        // 搜索框聚焦时，保留 ESC 的清空/失焦行为。
         if (searchBox.isFocused()) {
-            // 特殊处理 ESC 键：清空或失焦
             if (keyCode == 256 /* ESCAPE */) {
                 if (!searchBox.getText().isEmpty()) {
                     searchBox.setText("");
-                    applySearchFilter();
                 } else {
                     searchBox.setFocused(false);
                 }
                 return true;
             }
-            // 其他按键交给 TextFieldWidget
-            if (searchBox.keyPressed(keyInput)) {
-                applySearchFilter();
-                return true;
-            }
         }
+
+        // 其余按键交给 Screen/widget 树分发，TextFieldWidget 可原生处理 Ctrl+A/C/V 等。
+        if (super.keyPressed(keyInput)) {
+            return true;
+        }
+
         // 全局 ESC 关闭（搜索框无焦点时）
         if (keyCode == 256 /* ESCAPE */ && !searchBox.isFocused()) {
             close();
             return true;
         }
-        return super.keyPressed(keyInput);
+        return false;
     }
 
     // =========================================================================
