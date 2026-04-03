@@ -78,7 +78,7 @@ public class SettingsAndHelpDialog {
                     renderShortcutsPage();
                     ImGui.endTabItem();
                 }
-                if (ImGui.beginTabItem("显示反馈")) {
+                if (ImGui.beginTabItem("吸附与反馈")) {
                     renderDisplayPage();
                     ImGui.endTabItem();
                 }
@@ -139,7 +139,7 @@ public class SettingsAndHelpDialog {
             String actionName = KeymapManager.getInstance().getActionDisplayName(editingActionId);
             ImGui.pushStyleColor(ImGuiCol.ChildBg, withAlpha(theme.accent, 56));
             if (ImGui.beginChild("##shortcut_capture_notice", 0, 40, true)) {
-                ImGui.textColored(theme.warningText, "正在录制快捷键：" + actionName + "（按 Esc 取消）");
+                ImGui.textColored(theme.warningText, "正在录制快捷键：" + actionName + "（Backspace 清除，Esc 取消）");
             }
             ImGui.endChild();
             ImGui.popStyleColor();
@@ -160,6 +160,7 @@ public class SettingsAndHelpDialog {
 
             String filter = searchText.get().trim().toLowerCase();
             String lastCategory = null;
+            int matchedActions = 0;
             for (KeymapManager.ActionDef def : KeymapManager.getInstance().getAllActions()) {
                 String display = def.displayName();
                 String actionId = def.actionId();
@@ -182,6 +183,7 @@ public class SettingsAndHelpDialog {
                     ImGui.text("");
                     lastCategory = category;
                 }
+                matchedActions++;
 
                 boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
                 ImGui.tableNextRow();
@@ -198,15 +200,20 @@ public class SettingsAndHelpDialog {
                 String current = KeymapManager.getInstance().getBindingDisplay(actionId);
                 if (isEditing) {
                     ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
-                    String captured = tryCaptureShortcutString();
-                    if (captured != null) {
-                        String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
-                        if (conflicted != null) {
-                            String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
-                            shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
-                            ImGui.openPopup("##shortcut_conflict_popup");
-                        }
+                    if (ImGui.isKeyPressed(ImGuiKey.Backspace)) {
+                        KeymapManager.getInstance().clearBinding(actionId);
                         editingActionId = null;
+                    } else {
+                        String captured = tryCaptureShortcutString();
+                        if (captured != null) {
+                            String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
+                            if (conflicted != null) {
+                                String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
+                                shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
+                                ImGui.openPopup("##shortcut_conflict_popup");
+                            }
+                            editingActionId = null;
+                        }
                     }
                 } else {
                     ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
@@ -265,6 +272,15 @@ public class SettingsAndHelpDialog {
                 }
             }
             ImGui.endTable();
+
+            if (!filter.isEmpty() && matchedActions == 0) {
+                ImGui.spacing();
+                ImGui.textDisabled("未找到相关动作");
+                ImGui.sameLine();
+                if (ImGui.smallButton("清除搜索##clear_shortcut_search")) {
+                    searchText.set("");
+                }
+            }
         }
 
         if (ImGui.beginPopup("##shortcut_conflict_popup")) {
@@ -332,38 +348,51 @@ public class SettingsAndHelpDialog {
     private void renderDisplayPage() {
         SnapManager snapManager = SnapManager.getInstance();
 
-        ImGui.textWrapped("线图形选择与吸附时的视觉反馈设置（端点/中点/中心点等）。");
+        ImGui.textWrapped("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
         ImGui.separator();
 
         if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent(10);
 
             ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
-            if (ImGui.checkbox("显示吸附标记", showMarkers)) {
-                snapManager.setShowSnapMarkersEnabled(showMarkers.get());
-            }
-
             ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
-            if (ImGui.checkbox("显示端点反馈", endPoint)) {
-                snapManager.setEndPointSnapEnabled(endPoint.get());
-            }
-
             ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
-            if (ImGui.checkbox("显示中点反馈", midPoint)) {
-                snapManager.setMidPointSnapEnabled(midPoint.get());
-            }
-
             ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
-            if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
-                snapManager.setCenterPointSnapEnabled(centerPoint.get());
-            }
-            renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
-
             ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
-            if (ImGui.checkbox("显示中心点反馈", centroid)) {
-                snapManager.setCentroidSnapEnabled(centroid.get());
+
+            if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
+                ImGui.tableNextRow();
+                ImGui.tableSetColumnIndex(0);
+                if (ImGui.checkbox("显示吸附标记", showMarkers)) {
+                    snapManager.setShowSnapMarkersEnabled(showMarkers.get());
+                }
+                ImGui.tableSetColumnIndex(1);
+                if (ImGui.checkbox("显示端点反馈", endPoint)) {
+                    snapManager.setEndPointSnapEnabled(endPoint.get());
+                }
+
+                ImGui.tableNextRow();
+                ImGui.tableSetColumnIndex(0);
+                if (ImGui.checkbox("显示中点反馈", midPoint)) {
+                    snapManager.setMidPointSnapEnabled(midPoint.get());
+                }
+                ImGui.tableSetColumnIndex(1);
+                if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
+                    snapManager.setCenterPointSnapEnabled(centerPoint.get());
+                }
+                renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
+
+                ImGui.tableNextRow();
+                ImGui.tableSetColumnIndex(0);
+                if (ImGui.checkbox("显示中心点反馈", centroid)) {
+                    snapManager.setCentroidSnapEnabled(centroid.get());
+                }
+                renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
+                ImGui.tableSetColumnIndex(1);
+                ImGui.textDisabled(" ");
+
+                ImGui.endTable();
             }
-            renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
 
             float[] markerSize = new float[] { snapManager.getMarkerSize() };
             ImGui.setNextItemWidth(180);
