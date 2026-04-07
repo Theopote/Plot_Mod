@@ -242,7 +242,6 @@ public class TextInputDialog {
             case LEFT -> "左对齐";
             case CENTER -> "居中";
             case RIGHT -> "右对齐";
-            default -> align.name();
         };
     }
 
@@ -251,7 +250,6 @@ public class TextInputDialog {
             case TOP -> "顶部";
             case MIDDLE -> "居中";
             case BOTTOM -> "底部";
-            default -> align.name();
         };
     }
 

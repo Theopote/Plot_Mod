@@ -5,7 +5,6 @@ import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;

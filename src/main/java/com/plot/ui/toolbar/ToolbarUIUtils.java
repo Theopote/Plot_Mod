@@ -7,7 +7,6 @@ import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.type.ImFloat;
 import net.minecraft.util.Identifier;
