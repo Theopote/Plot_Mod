@@ -233,10 +233,9 @@ public class SaveFileDialog {
 
                 // 计算布局尺寸
                 float contentWidth = DialogStyleManager.getContentWidth();
-                float labelWidth = DialogStyleManager.LABEL_WIDTH;
-                float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
 
                 DialogLayoutHelper.beginSection("保存参数");
+                DialogLayoutHelper.helpText("文件将保存为 .mp 项目文件，可通过右侧按钮快速选择目录。");
                 if (DialogLayoutHelper.beginForm("##save_file_form")) {
                     DialogLayoutHelper.formRowLabel("文件名");
                     if (ImGui.isWindowAppearing()) {
@@ -247,13 +246,11 @@ public class SaveFileDialog {
 
                     DialogLayoutHelper.formRowLabel("保存位置");
                     float browseButtonWidth = 60.0f;
-                    float pathInputWidth = Math.max(0.0f, controlWidth - browseButtonWidth - DialogStyleManager.BUTTON_SPACING);
-                    ImGui.setNextItemWidth(pathInputWidth);
+                    DialogLayoutHelper.reserveTrailingButton(browseButtonWidth);
                     ImGui.inputText("##save_file_path", filePath,
                         ImGuiInputTextFlags.ReadOnly);
 
-                    ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
-                    if (ImGui.button("浏览...", browseButtonWidth, 0)) {
+                    if (DialogLayoutHelper.trailingButton("浏览...", browseButtonWidth)) {
                         browseFolder();
                     }
 
@@ -264,11 +261,11 @@ public class SaveFileDialog {
                 DialogLayoutHelper.FooterResult action =
                         DialogLayoutHelper.footerConfirmCancelRight("取消", "保存", contentWidth);
 
-                if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                     saveFile();
                 }
 
-                if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
                     hide();
                     ImGui.closeCurrentPopup();
                 }

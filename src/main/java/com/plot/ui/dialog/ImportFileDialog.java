@@ -290,6 +290,8 @@ public class ImportFileDialog {
                 float fileListHeight = rowHeight * visibleRows + DialogStyleManager.ITEM_SPACING * 2.0f;
                 
                 DialogLayoutHelper.beginSection("文件浏览");
+                DialogLayoutHelper.helpText("支持 .svg、.dxf、.dwg、.ai、.pdf，双击文件可直接导入。");
+                DialogLayoutHelper.subsectionGap();
 
                 // === 路径栏 ===
                 ImGui.alignTextToFramePadding();
@@ -297,16 +299,12 @@ public class ImportFileDialog {
                 ImGui.sameLine();
 
                 float upButtonWidth = 30.0f;
-                float pathInputWidth = contentWidth - ImGui.getItemRectSize().x - upButtonWidth
-                        - DialogStyleManager.SUBSECTION_GAP;
-
-                ImGui.setNextItemWidth(pathInputWidth);
+                DialogLayoutHelper.reserveTrailingButton(upButtonWidth);
                 if (ImGui.inputText("##import_file_path", filePath, ImGuiInputTextFlags.ReadOnly)) {
                     updateFileList(filePath.get());
                 }
 
-                ImGui.sameLine();
-                if (ImGui.button("↑", upButtonWidth, 0)) {
+                if (DialogLayoutHelper.trailingButton("↑", upButtonWidth)) {
                     navigateUp();
                 }
                 if (ImGui.isItemHovered()) {
@@ -320,8 +318,7 @@ public class ImportFileDialog {
                 ImGui.text("过滤：");
                 ImGui.sameLine();
 
-                float filterInputWidth = contentWidth - ImGui.getItemRectSize().x - DialogStyleManager.SUBSECTION_GAP;
-                ImGui.setNextItemWidth(filterInputWidth);
+                ImGui.setNextItemWidth(-1.0f);
                 if (ImGui.inputText("##file_filter", fileFilterInput)) {
                     selectedFileIndex = -1;
                 }
@@ -367,11 +364,11 @@ public class ImportFileDialog {
                 DialogLayoutHelper.FooterResult action =
                         DialogLayoutHelper.footerConfirmCancelRight("取消", "导入", contentWidth);
 
-                if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                     importFile();
                 }
 
-                if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
                     hide();
                     ImGui.closeCurrentPopup();
                 }

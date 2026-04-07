@@ -284,11 +284,11 @@ public class NewLayerDialog {
                 DialogLayoutHelper.FooterResult action =
                         DialogLayoutHelper.footerConfirmCancelRight("取消", "创建", DialogStyleManager.getContentWidth());
 
-                if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                     createNewLayer();
                 }
 
-                if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
                     hide();
                     ImGui.closeCurrentPopup();
                 }

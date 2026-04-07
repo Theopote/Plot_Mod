@@ -2,6 +2,8 @@ package com.plot.ui.panel.gallery;
 
 import com.plot.ui.component.Icons;
 import com.plot.ui.component.UIComponent;
+import com.plot.ui.dialog.DialogLayoutHelper;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.*;
@@ -433,27 +435,40 @@ public class GalleryPanel implements UIComponent {
     private final ImString newCategoryName = new ImString(32);
     
     private void renderAddCategoryPopup() {
-        if (ImGui.beginPopup("添加类别")) {
-            ImGui.text("输入新类别名称：");
-            ImGui.inputText("##new_category", newCategoryName);
-            
-            if (ImGui.button("确定")) {
-                String categoryName = newCategoryName.get().trim();
-                if (!categoryName.isEmpty() && !customCategories.contains(categoryName)) {
-                    customCategories.add(categoryName);
-                    newCategoryName.clear();
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        try {
+            if (ImGui.beginPopup("添加类别")) {
+                try {
+                    DialogLayoutHelper.beginSection("新建类别");
+                    DialogLayoutHelper.helpText("输入新的分类名称后确认即可添加。");
+                    DialogLayoutHelper.endSection();
+
+                    ImGui.setNextItemWidth(-1.0f);
+                    ImGui.inputText("##new_category", newCategoryName);
+
+                    DialogLayoutHelper.beginFooter();
+                    DialogLayoutHelper.FooterResult action =
+                            DialogLayoutHelper.footerConfirmCancelCentered("取消", "确定", DialogStyleManager.getContentWidth());
+
+                    if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
+                        String categoryName = newCategoryName.get().trim();
+                        if (!categoryName.isEmpty() && !customCategories.contains(categoryName)) {
+                            customCategories.add(categoryName);
+                            newCategoryName.clear();
+                        }
+                        ImGui.closeCurrentPopup();
+                    }
+
+                    if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
+                        newCategoryName.clear();
+                        ImGui.closeCurrentPopup();
+                    }
+                } finally {
+                    ImGui.endPopup();
                 }
-                ImGui.closeCurrentPopup();
             }
-            
-            ImGui.sameLine();
-            
-            if (ImGui.button("取消")) {
-                newCategoryName.clear();
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.endPopup();
+        } finally {
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
 

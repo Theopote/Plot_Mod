@@ -1,12 +1,14 @@
 package com.plot.ui.toolbar;
 
 import com.plot.ui.component.UIUtils;
+import com.plot.ui.dialog.DialogLayoutHelper;
+import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiStyleVar;
 import imgui.type.ImFloat;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -246,25 +248,37 @@ public class ToolbarUIUtils {
      */
     public static void renderInputPopup(String popupName, String label, float currentValue, 
                                       float minValue, float maxValue, FloatConsumer onValueChanged) {
-        if (ImGui.beginPopup(popupName)) {
-            ImGui.text(label);
-            
-            ImFloat value = new ImFloat(currentValue);
-            if (ImGui.inputFloat("##value", value)) {
-                value.set(Math.max(minValue, Math.min(maxValue, value.get())));
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        try {
+            if (ImGui.beginPopup(popupName)) {
+                try {
+                    DialogLayoutHelper.beginSection(label);
+                    DialogLayoutHelper.helpText(String.format("请输入 %.2f - %.2f 范围内的数值。", minValue, maxValue));
+                    DialogLayoutHelper.endSection();
+
+                    ImFloat value = new ImFloat(currentValue);
+                    ImGui.setNextItemWidth(-1.0f);
+                    if (ImGui.inputFloat("##value", value)) {
+                        value.set(Math.max(minValue, Math.min(maxValue, value.get())));
+                    }
+
+                    DialogLayoutHelper.beginFooter();
+                    DialogLayoutHelper.FooterResult action =
+                            DialogLayoutHelper.footerConfirmCancelCentered("取消", "确定", DialogStyleManager.getContentWidth());
+
+                    if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
+                        onValueChanged.accept(value.get());
+                        ImGui.closeCurrentPopup();
+                    }
+                    if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
+                        ImGui.closeCurrentPopup();
+                    }
+                } finally {
+                    ImGui.endPopup();
+                }
             }
-            
-            ImGui.spacing();
-            if (ImGui.button("确定") || ImGui.isKeyPressed(ImGuiKey.Enter)) {
-                onValueChanged.accept(value.get());
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.sameLine();
-            if (ImGui.button("取消") || ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.endPopup();
+        } finally {
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
     

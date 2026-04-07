@@ -3,6 +3,8 @@ package com.plot.ui.dialog;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
 
@@ -12,6 +14,16 @@ import imgui.flag.ImGuiTableFlags;
  */
 public final class DialogLayoutHelper {
     private DialogLayoutHelper() {}
+
+    public static final class DenseEditorStyleScope {
+        private final int colorCount;
+        private final int varCount;
+
+        private DenseEditorStyleScope(int colorCount, int varCount) {
+            this.colorCount = colorCount;
+            this.varCount = varCount;
+        }
+    }
 
     public static void rowGap() {
         ImGui.dummy(0, DialogStyleManager.ROW_GAP);
@@ -77,9 +89,63 @@ public final class DialogLayoutHelper {
         ImGui.setNextItemWidth(-1.0f);
     }
 
+    public static float reserveTrailingButton(float buttonWidth) {
+        float inputWidth = Math.max(0.0f,
+                ImGui.getContentRegionAvailX() - buttonWidth - DialogStyleManager.FOOTER_BUTTON_GAP);
+        ImGui.setNextItemWidth(inputWidth);
+        return inputWidth;
+    }
+
+    public static boolean trailingButton(String label, float buttonWidth) {
+        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
+        return ImGui.button(label, buttonWidth, 0);
+    }
+
     public static void beginFooter() {
         ImGui.separator();
         ImGui.dummy(0, DialogStyleManager.FOOTER_TOP_GAP);
+    }
+
+    public static boolean isConfirmShortcutPressed() {
+        return ImGui.isKeyPressed(ImGuiKey.Enter);
+    }
+
+    public static boolean isCancelShortcutPressed() {
+        return ImGui.isKeyPressed(ImGuiKey.Escape);
+    }
+
+    public static boolean shouldSuppressDialogHotkeys(boolean... conditions) {
+        if (conditions == null) {
+            return false;
+        }
+        for (boolean condition : conditions) {
+            if (condition) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static DenseEditorStyleScope pushDenseEditorStyle() {
+        int colorCount = 0;
+        int varCount = 0;
+
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        varCount++;
+
+        return new DenseEditorStyleScope(colorCount, varCount);
+    }
+
+    public static void popDenseEditorStyle(DenseEditorStyleScope scope) {
+        if (scope == null) {
+            return;
+        }
+        if (scope.varCount > 0) {
+            ImGui.popStyleVar(scope.varCount);
+        }
+        if (scope.colorCount > 0) {
+            ImGui.popStyleColor(scope.colorCount);
+        }
     }
 
     public static boolean footerSingleCentered(String label, float availableWidth) {

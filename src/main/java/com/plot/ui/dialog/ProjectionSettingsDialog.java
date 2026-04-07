@@ -4,6 +4,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImInt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,37 +79,36 @@ public class ProjectionSettingsDialog {
                         close();
                     }
 
-                    DialogLayoutHelper.beginSection("投影模式");
-
-                    boolean isGroundMode = (projectionMode == ProjectionMode.GROUND);
-                    if (ImGui.radioButton("投影到地面", isGroundMode)) {
-                        projectionMode = ProjectionMode.GROUND;
-                        LOGGER.debug("投影模式已更改为: 地面投影");
-                    }
-
-                    boolean isElevationMode = (projectionMode == ProjectionMode.ELEVATION);
-                    if (ImGui.radioButton("投影到指定标高", isElevationMode)) {
-                        projectionMode = ProjectionMode.ELEVATION;
-                        LOGGER.debug("投影模式已更改为: 指定标高");
-                    }
-
-                    if (projectionMode == ProjectionMode.ELEVATION) {
-                        DialogLayoutHelper.sectionSeparator();
-                        ImGui.text("标高设置");
-
-                        int[] elevationValue = {elevation};
-                        if (ImGui.sliderInt("标高", elevationValue, MIN_ELEVATION, MAX_ELEVATION)) {
-                            elevation = elevationValue[0];
-                            LOGGER.debug("标高已更改为: {}", elevation);
+                    DialogLayoutHelper.beginSection("投影参数");
+                    if (DialogLayoutHelper.beginForm("##projection_form")) {
+                        DialogLayoutHelper.formRowLabel("模式");
+                        String[] modes = {"投影到地面", "投影到指定标高"};
+                        ImInt currentMode = new ImInt(projectionMode == ProjectionMode.GROUND ? 0 : 1);
+                        if (ImGui.combo("##projection_mode", currentMode, modes)) {
+                            projectionMode = currentMode.get() == 0 ? ProjectionMode.GROUND : ProjectionMode.ELEVATION;
+                            LOGGER.debug("投影模式已更改为: {}", projectionMode == ProjectionMode.GROUND ? "地面投影" : "指定标高");
                         }
 
-                        DialogLayoutHelper.helpText(String.format("当前标高: %d", elevation));
+                        if (projectionMode == ProjectionMode.ELEVATION) {
+                            DialogLayoutHelper.formRowLabel("标高");
+                            int[] elevationValue = {elevation};
+                            if (ImGui.sliderInt("##projection_elevation", elevationValue, MIN_ELEVATION, MAX_ELEVATION)) {
+                                elevation = elevationValue[0];
+                                LOGGER.debug("标高已更改为: {}", elevation);
+                            }
+                        }
+
+                        DialogLayoutHelper.endForm();
                     }
+
+                    DialogLayoutHelper.helpText(projectionMode == ProjectionMode.GROUND
+                            ? "地面模式会按默认地表高度投影结果。"
+                            : String.format("当前将投影到指定标高：%d", elevation));
 
                     DialogLayoutHelper.endSection();
                     DialogLayoutHelper.beginFooter();
                     if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
-                            || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                            || DialogLayoutHelper.isCancelShortcutPressed()) {
                         close();
                     }
                 }

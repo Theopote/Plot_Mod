@@ -166,7 +166,7 @@ public class SnapManager implements ISnapManager {
                         applySettings();
                     }
 
-                    if (ImGui.isKeyReleased(ImGuiKey.Escape)) {
+                    if (DialogLayoutHelper.isCancelShortcutPressed()) {
                         showSettings = false;
                     }
 

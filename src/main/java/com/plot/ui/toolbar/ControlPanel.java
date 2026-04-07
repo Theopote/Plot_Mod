@@ -424,7 +424,7 @@ public class ControlPanel implements UIComponent {
 
                     DialogLayoutHelper.warningText(warningMessage);
 
-                    if (ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                    if (DialogLayoutHelper.isConfirmShortcutPressed() || DialogLayoutHelper.isCancelShortcutPressed()) {
                         ImGui.closeCurrentPopup();
                     }
 

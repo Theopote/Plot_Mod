@@ -312,8 +312,8 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
                         applyAngleStepValue(newValue, "输入");
                     }
 
-                    boolean confirmWithEnter = ImGui.isKeyPressed(ImGuiKey.Enter);
-                    boolean cancelWithEsc = ImGui.isKeyPressed(ImGuiKey.Escape);
+                    boolean confirmWithEnter = DialogLayoutHelper.isConfirmShortcutPressed();
+                    boolean cancelWithEsc = DialogLayoutHelper.isCancelShortcutPressed();
 
                     if (cancelWithEsc) {
                         ImGui.closeCurrentPopup();

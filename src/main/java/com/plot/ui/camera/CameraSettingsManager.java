@@ -96,7 +96,7 @@ public class CameraSettingsManager {
 
                     DialogLayoutHelper.endSection();
 
-                    if (ImGui.isKeyReleased(ImGuiKey.Escape)) {
+                    if (DialogLayoutHelper.isCancelShortcutPressed()) {
                         showSettings = false;
                     }
 

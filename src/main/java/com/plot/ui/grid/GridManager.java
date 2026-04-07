@@ -168,7 +168,7 @@ public class GridManager {
 
                 DialogLayoutHelper.endSection();
 
-                if (ImGui.isKeyReleased(ImGuiKey.Escape)) {
+                if (DialogLayoutHelper.isCancelShortcutPressed()) {
                     showSettings = false;
                     LOGGER.debug("关闭网格设置窗口（Esc）");
                 }

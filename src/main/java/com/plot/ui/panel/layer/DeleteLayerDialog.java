@@ -101,9 +101,6 @@ public class DeleteLayerDialog {
             DialogStyleManager.popDialogStyle(styleScope);
         }
 
-        if (isVisible) {
-            ImGui.openPopup(DIALOG_TITLE);
-        }
     }
 
     private void renderDialogContent() {
@@ -126,7 +123,7 @@ public class DeleteLayerDialog {
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("取消", "删除", contentWidth);
 
-        if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+        if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
             try {
                 LayerManager layerManager = appState.getLayerManager();
                 int totalLayers = layerManager.getLayers().size();
@@ -146,7 +143,7 @@ public class DeleteLayerDialog {
             }
         }
 
-        if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
             hide();
             ImGui.closeCurrentPopup();
         }

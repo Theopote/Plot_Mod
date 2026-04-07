@@ -39,37 +39,15 @@ public class DialogStyleManager {
 
     /** Footer 按钮间距 */
     public static final float FOOTER_BUTTON_GAP = ITEM_SPACING_H;
-    
-    /** 内容区域宽度 */
-    public static final float CONTENT_WIDTH = 300.0f;
-    
+
     /** 标签宽度 */
     public static final float LABEL_WIDTH = 84.0f;
-    
-    /** 控件宽度（内容宽度 - 标签宽度 - 间距） */
-    public static final float CONTROL_WIDTH = CONTENT_WIDTH - LABEL_WIDTH - 2 * ITEM_SPACING;
-    
-    /** 输入框高度 - 所有输入框、按钮、标签、树结点都使用此高度 */
-    public static final float CONTROL_HEIGHT = 0.0f; // 0表示使用ImGui默认计算值
-    
-    /** 分隔线间距 */
-    public static final float SEPARATOR_SPACING = 4.0f;
-    
-    // ====== 窗口配置 ======
-    /** 标准对话框宽度 */
-    public static final float DIALOG_WIDTH = 340.0f;
-    
-    /** 标准对话框高度 */
-    public static final float DIALOG_HEIGHT = 300.0f;
 
     /** 标准按钮最小宽度 */
     public static final float BUTTON_MIN_WIDTH = 96.0f;
 
     /** 标准按钮最大宽度 */
     public static final float BUTTON_MAX_WIDTH = 140.0f;
-
-    /** 默认按钮组间距 */
-    public static final float BUTTON_SPACING = ITEM_SPACING_H;
 
     /** 右上角关闭按钮尺寸 */
     public static final float CLOSE_BUTTON_SIZE = 18.0f;
@@ -212,7 +190,7 @@ public class DialogStyleManager {
      * 计算双按钮布局时单个按钮宽度。
      */
     public static float getTwoButtonWidth(float availableWidth) {
-        return Math.max(0.0f, (availableWidth - BUTTON_SPACING) / 2.0f);
+        return Math.max(0.0f, (availableWidth - FOOTER_BUTTON_GAP) / 2.0f);
     }
 
     /**
@@ -249,7 +227,7 @@ public class DialogStyleManager {
      * 将双按钮行居中到当前窗口内容区。
      */
     public static void centerTwoButtons(float buttonWidth) {
-        float totalWidth = buttonWidth * 2.0f + BUTTON_SPACING;
+        float totalWidth = buttonWidth * 2.0f + FOOTER_BUTTON_GAP;
         float startX = getContentStartX() + Math.max(0.0f, (getContentWidth() - totalWidth) * 0.5f);
         ImGui.setCursorPosX(startX);
     }
@@ -263,6 +241,10 @@ public class DialogStyleManager {
      * @return 是否点击关闭
      */
     public static boolean renderTopRightCloseButton(String idSuffix) {
+        return renderTopRightCloseButton(idSuffix, false);
+    }
+
+    public static boolean renderTopRightCloseButton(String idSuffix, boolean disabled) {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
 
         float windowPosX  = ImGui.getWindowPosX();
@@ -270,34 +252,30 @@ public class DialogStyleManager {
         float windowWidth = ImGui.getWindowWidth();
         float windowHeight = ImGui.getWindowHeight();
 
-        // 标题栏高度 = 字体高度 + 框架内边距 * 2（ImGui 标准计算）
         float titleBarHeight = ImGui.getFrameHeight();
 
-        // 按钮区域：与标题栏右端对齐，且按钮高度等于标题栏高度
         float btnX1 = windowPosX + windowWidth - titleBarHeight;
         float btnY1 = windowPosY;
         float btnX2 = windowPosX + windowWidth;
         float btnY2 = windowPosY + titleBarHeight;
 
-        // 手动检测悬停（clip=false：不受当前内容区 clip rect 限制）
-        boolean hovered = ImGui.isMouseHoveringRect(btnX1, btnY1, btnX2, btnY2, false);
-        boolean clicked  = hovered && ImGui.isMouseClicked(0);
+        boolean hovered = !disabled && ImGui.isMouseHoveringRect(btnX1, btnY1, btnX2, btnY2, false);
+        boolean clicked = hovered && ImGui.isMouseClicked(0);
 
-        // 用 DrawList 直接绘制（intersect=false 使 clip rect 覆盖整个窗口含标题栏）
         var drawList = ImGui.getWindowDrawList();
         drawList.pushClipRect(windowPosX, windowPosY,
                 windowPosX + windowWidth, windowPosY + windowHeight, false);
 
-        int bgColor = hovered ? theme.buttonHovered : theme.buttonNormal;
+        int bgColor = disabled ? theme.panelBackground : (hovered ? theme.buttonHovered : theme.buttonNormal);
+        int textColor = disabled ? theme.mutedText : theme.text;
         drawList.addRectFilled(btnX1, btnY1, btnX2, btnY2, bgColor, 0.0f);
         drawList.addRect(btnX1, btnY1, btnX2, btnY2, theme.border, 0.0f, 0, 1.0f);
 
-        // "×" 使用实际文本尺寸做几何中心对齐
         String closeText = "×";
         var textSize = ImGui.calcTextSize(closeText);
         float textX = btnX1 + (titleBarHeight - textSize.x) * 0.5f;
         float textY = btnY1 + (titleBarHeight - textSize.y) * 0.5f;
-        drawList.addText(textX, textY, 0xFFFFFFFF, closeText);
+        drawList.addText(textX, textY, textColor, closeText);
 
         drawList.popClipRect();
 

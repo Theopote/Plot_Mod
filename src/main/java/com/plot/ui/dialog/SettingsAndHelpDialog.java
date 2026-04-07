@@ -84,9 +84,7 @@ public class SettingsAndHelpDialog {
             }
 
             boolean captureActive = editingActionId != null;
-            if (captureActive) ImGui.beginDisabled();
-            boolean closeClicked = DialogStyleManager.renderTopRightCloseButton("settings_help");
-            if (captureActive) ImGui.endDisabled();
+            boolean closeClicked = DialogStyleManager.renderTopRightCloseButton("settings_help", captureActive);
             if (closeClicked) {
                 close();
                 ImGui.end();
@@ -118,12 +116,14 @@ public class SettingsAndHelpDialog {
             if (captureActiveNow) ImGui.beginDisabled();
             DialogLayoutHelper.FooterResult footerAction =
                     DialogLayoutHelper.footerConfirmCancelCentered("返回", "完成", DialogStyleManager.getContentWidth());
+            boolean suppressDialogHotkeys = DialogLayoutHelper.shouldSuppressDialogHotkeys(
+                    captureActiveNow, suppressCloseHotkeysThisFrame);
             if (footerAction.confirmClicked()
-                    || (!captureActiveNow && !suppressCloseHotkeysThisFrame && ImGui.isKeyPressed(ImGuiKey.Enter))) {
+                    || (!suppressDialogHotkeys && DialogLayoutHelper.isConfirmShortcutPressed())) {
                 close();
             }
             if (footerAction.cancelClicked()
-                    || (!captureActiveNow && !suppressCloseHotkeysThisFrame && ImGui.isKeyPressed(ImGuiKey.Escape))) {
+                    || (!suppressDialogHotkeys && DialogLayoutHelper.isCancelShortcutPressed())) {
                 close();
             }
             if (captureActiveNow) ImGui.endDisabled();
@@ -140,7 +140,7 @@ public class SettingsAndHelpDialog {
         applyCaptureSuppression(captureActive);
 
         // Esc 在录制态仅取消录制，不应冒泡到对话框“返回/关闭”逻辑
-        if (captureActive && ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        if (captureActive && DialogLayoutHelper.isCancelShortcutPressed()) {
             cancelCapture();
             captureActive = false;
         }
