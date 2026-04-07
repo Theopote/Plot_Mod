@@ -27,7 +27,6 @@ public class SaveFileDialog {
     private static final Logger LOGGER = LogManager.getLogger("SaveFileDialog");
 
     // === 常量定义 ===
-    private static final float SPACING = 4.0f;  // 控件之间的间距
     private static final String DIALOG_TITLE = "保存文件";
     private static final String DEFAULT_FILE_EXTENSION = ".mp";  // 默认文件扩展名
 
@@ -201,8 +200,8 @@ public class SaveFileDialog {
     public void render() {
         if (!isVisible) return;
 
-        float totalWidth = 300.0f;
-        
+        float totalWidth = DialogStyleManager.DialogWidth.STANDARD.value;
+
         // 不再设置固定高度，让窗口自动调整
         ImGui.setNextWindowSize(totalWidth, 0, ImGuiCond.Always);
 
@@ -236,62 +235,40 @@ public class SaveFileDialog {
                 float contentWidth = DialogStyleManager.getContentWidth();
                 float labelWidth = DialogStyleManager.LABEL_WIDTH;
                 float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
-    
-                // === 文件名输入 ===
-                ImGui.alignTextToFramePadding();
-                ImGui.text("文件名：");
-                ImGui.sameLine(labelWidth);                     // 对齐到标签宽度位置
-                ImGui.setNextItemWidth(controlWidth);           // 设置输入框宽度
-                if (ImGui.isWindowAppearing()) {
-                    ImGui.setKeyboardFocusHere();               // 自动聚焦到文件名输入框
-                }
-                ImGui.inputText("##save_file_name", fileName,    // 文件名输入框
-                    ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
-    
-                ImGui.spacing();  // 添加间距
-    
-                // === 文件路径输入 ===
-                ImGui.alignTextToFramePadding();
-                ImGui.text("保存位置：");
-                ImGui.sameLine(labelWidth);
-                
-                // 计算取消按钮的右侧边界位置
-                float cancelButtonRightEdge = labelWidth + controlWidth;
-                
-                // 计算浏览按钮的起始位置，使其右侧边界与取消按钮的右侧边界对齐
-                float browseButtonWidth = 60.0f;
-                float browseButtonX = cancelButtonRightEdge - browseButtonWidth;
-                
-                // 计算路径输入框的宽度
-                float pathInputWidth = browseButtonX - labelWidth - SPACING;
-                
-                ImGui.setNextItemWidth(pathInputWidth);
-                ImGui.inputText("##save_file_path", filePath,    // 路径输入框
-                    ImGuiInputTextFlags.ReadOnly);              // 设为只读，通过浏览按钮选择
-                
-                ImGui.sameLine();
-                ImGui.setCursorPosX(browseButtonX);
-                if (ImGui.button("浏览...", browseButtonWidth, 0)) {
-                    browseFolder();
-                }
-    
-                ImGui.spacing();  // 添加间距
-                ImGui.separator();  // 分隔线
-                ImGui.spacing();  // 添加间距
-    
-                // === 按钮区域 ===
-                float buttonSpacing = DialogStyleManager.BUTTON_SPACING;
-                float buttonWidth = DialogStyleManager.getTwoButtonWidth(controlWidth);
 
-                DialogStyleManager.centerTwoButtons(buttonWidth);
-                if (ImGui.button("保存", buttonWidth, 0) ||     // 保存按钮
-                    ImGui.isKeyPressed(ImGuiKey.Enter)) {      // 或按回车键
+                DialogLayoutHelper.beginSection("保存参数");
+                if (DialogLayoutHelper.beginForm("##save_file_form")) {
+                    DialogLayoutHelper.formRowLabel("文件名");
+                    if (ImGui.isWindowAppearing()) {
+                        ImGui.setKeyboardFocusHere();
+                    }
+                    ImGui.inputText("##save_file_name", fileName,
+                        ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+
+                    DialogLayoutHelper.formRowLabel("保存位置");
+                    float browseButtonWidth = 60.0f;
+                    float pathInputWidth = Math.max(0.0f, controlWidth - browseButtonWidth - DialogStyleManager.BUTTON_SPACING);
+                    ImGui.setNextItemWidth(pathInputWidth);
+                    ImGui.inputText("##save_file_path", filePath,
+                        ImGuiInputTextFlags.ReadOnly);
+
+                    ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
+                    if (ImGui.button("浏览...", browseButtonWidth, 0)) {
+                        browseFolder();
+                    }
+
+                    DialogLayoutHelper.endForm();
+                }
+                DialogLayoutHelper.endSection();
+                DialogLayoutHelper.beginFooter();
+                DialogLayoutHelper.FooterResult action =
+                        DialogLayoutHelper.footerConfirmCancelRight("取消", "保存", contentWidth);
+
+                if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                     saveFile();
                 }
-    
-                ImGui.sameLine(0, buttonSpacing);
-                if (ImGui.button("取消", buttonWidth, 0) ||     // 取消按钮
-                    ImGui.isKeyPressed(ImGuiKey.Escape)) {     // 或按ESC键
+
+                if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
                     hide();
                     ImGui.closeCurrentPopup();
                 }

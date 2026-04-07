@@ -117,15 +117,12 @@ public class TextInputDialog {
         if (!visible) return;
 
         // 居中并设置窗口属性
-        float width = 420.0f;
+        float width = DialogStyleManager.DialogWidth.WIDE.value;
         float inputHeight = Math.max(
             ImGui.getTextLineHeightWithSpacing() * MIN_INPUT_ROWS,
             ImGui.getFrameHeightWithSpacing() * 4.0f
         );
-        
-        // 在窗口开始之前设置WindowPadding，确保边距正确应用
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding,
-            DialogStyleManager.PANEL_PADDING, DialogStyleManager.PANEL_PADDING);
+
         ImGui.setNextWindowSize(width, 0.0f, ImGuiCond.Always);
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
@@ -142,7 +139,6 @@ public class TextInputDialog {
                 cancelAndClose();
                 ImGui.endPopup();
                 DialogStyleManager.popDialogStyle(styleScope);
-                ImGui.popStyleVar(1);
                 return;
             }
 
@@ -152,24 +148,19 @@ public class TextInputDialog {
             var theme = ThemeManager.getInstance().getCurrentTheme();
             ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
             ImGui.pushStyleColor(ImGuiCol.Header, theme.buttonActive);
-            
-            try {
-                float inputWidth = DialogStyleManager.getContentWidth();
-                
-                // 标题说明（统一左对齐，使用统一的左边距）
-                ImGui.text("请输入文字内容（可多行）");
 
-                // 文本输入区域（宽度为内容宽度的一半）
-                // 输入框宽度为内容宽度的一半
-                // inputHeight 已在上面定义（87.0f，约为原来的1/3）
-                
+            try {
+                float contentWidth = DialogStyleManager.getContentWidth();
+
+                DialogLayoutHelper.beginSection("文字内容");
+                DialogLayoutHelper.helpText("请输入文字内容（可多行）");
+
                 if (ImGui.isWindowAppearing()) {
                     ImGui.setKeyboardFocusHere();
                 }
                 boolean multilineOk = true;
                 try {
-                    // 使用调整后的输入框宽度和高度
-                    ImGui.inputTextMultiline("##text_input", textBuffer, inputWidth, inputHeight,
+                    ImGui.inputTextMultiline("##text_input", textBuffer, contentWidth, inputHeight,
                             ImGuiInputTextFlags.AllowTabInput);
                 } catch (Throwable t) {
                     multilineOk = false;
@@ -177,28 +168,19 @@ public class TextInputDialog {
                 if (!multilineOk) {
                     ImGui.inputText("##text_input", textBuffer, ImGuiInputTextFlags.CallbackHistory);
                 }
+                DialogLayoutHelper.endSection();
 
-                
-                // 样式标题（与输入框标题左对齐）
-                ImGui.text("文字样式");
+                DialogLayoutHelper.beginSection("文字样式");
+                renderStyleSection(theme);
+                DialogLayoutHelper.endSection();
 
-
-                // 样式区域（使用统一的内容宽度，确保右边界对齐）
-                renderStyleSection(inputWidth, theme);
-
-
-                // 按钮区域（右边界与内容区域对齐）
-                // 按钮应该从内容区域的右边界开始向左排列
-                float totalButtonsWidth = BUTTON_WIDTH * 2 + BUTTON_SPACING;
-                float buttonStartX = DialogStyleManager.getContentStartX()
-                    + Math.max(0.0f, inputWidth - totalButtonsWidth);
-                float currentY = ImGui.getCursorPosY();
-                ImGui.setCursorPos(buttonStartX, currentY);
-                if (ImGui.button("取消", BUTTON_WIDTH, 0)) {
+                DialogLayoutHelper.beginFooter();
+                DialogLayoutHelper.FooterResult action =
+                        DialogLayoutHelper.footerConfirmCancelRight("取消", "确定", contentWidth);
+                if (action.cancelClicked()) {
                     cancelAndClose();
                 }
-                ImGui.sameLine(0, BUTTON_SPACING);
-                if (ImGui.button("确定", BUTTON_WIDTH, 0)) {
+                if (action.confirmClicked()) {
                     confirmAndClose();
                 }
             } finally {
@@ -208,57 +190,29 @@ public class TextInputDialog {
             }
             DialogStyleManager.popDialogStyle(styleScope);
         }
-        // 弹出在窗口开始之前设置的WindowPadding
-        ImGui.popStyleVar(1);
     }
 
-    private void renderStyleSection(float contentWidth, UITheme.ThemeColors theme) {
-        float labelColWidth = LABEL_COLUMN_WIDTH;
-        // 主表格：标签列固定，值列自动拉伸
-        int tableFlags = imgui.flag.ImGuiTableFlags.BordersInnerV | imgui.flag.ImGuiTableFlags.SizingStretchProp;
-        if (ImGui.beginTable("##text_style_table", 2, tableFlags, contentWidth, 0)) {
-            ImGui.tableSetupColumn("label", imgui.flag.ImGuiTableColumnFlags.WidthFixed, labelColWidth);
-            ImGui.tableSetupColumn("value", imgui.flag.ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-            // 字体大小（范围100~200）
-            ImGui.tableNextRow();
-            ImGui.tableNextColumn();
-            ImGui.alignTextToFramePadding();
-            ImGui.text("字体大小");
-            ImGui.tableNextColumn();
-            ImGui.setNextItemWidth(-1); // 使用全部可用宽度
+    private void renderStyleSection(UITheme.ThemeColors theme) {
+        if (DialogLayoutHelper.beginForm("##text_style_form")) {
+            DialogLayoutHelper.formRowLabel("字体大小");
             float[] sizeArr = new float[]{fontSize};
             if (ImGui.sliderFloat("##font_size", sizeArr, 100.0f, 200.0f, "%.1f")) {
                 fontSize = sizeArr[0];
             }
 
-            // 行高
-            ImGui.tableNextRow();
-            ImGui.tableNextColumn();
-            ImGui.alignTextToFramePadding();
-            ImGui.text("行高");
-            ImGui.tableNextColumn();
-            ImGui.setNextItemWidth(-1); // 使用全部可用宽度
+            DialogLayoutHelper.formRowLabel("行高");
             float[] lineArr = new float[]{lineHeight};
             if (ImGui.sliderFloat("##line_height", lineArr, 0.5f, 3.0f, "%.2f")) {
                 lineHeight = lineArr[0];
             }
 
-            // 粗体 / 斜体
-            ImGui.tableNextRow();
-            ImGui.tableNextColumn();
-            ImGui.alignTextToFramePadding();
-            ImGui.text("字形");
-            ImGui.tableNextColumn();
-            // 设置复选框样式，确保勾选状态可见（参考工具属性面板的实现）
+            DialogLayoutHelper.formRowLabel("字形");
             ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.controlBackground);
             ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.buttonHovered);
             ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.buttonActive);
             ImGui.pushStyleColor(ImGuiCol.CheckMark, theme.accent);
             ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-            
-            // 修复：直接使用bold和italic变量，而不是创建新变量
             if (ImGui.checkbox("粗体##bold", bold)) {
                 bold = !bold;
             }
@@ -266,17 +220,10 @@ public class TextInputDialog {
             if (ImGui.checkbox("斜体##italic", italic)) {
                 italic = !italic;
             }
-            
-            // 恢复样式
             ImGui.popStyleVar();
             ImGui.popStyleColor(5);
 
-            // 对齐方式（水平 + 垂直）
-            ImGui.tableNextRow();
-            ImGui.tableNextColumn();
-            ImGui.alignTextToFramePadding();
-            ImGui.text("对齐");
-            ImGui.tableNextColumn();
+            DialogLayoutHelper.formRowLabel("对齐");
             int alignTableFlags = imgui.flag.ImGuiTableFlags.SizingStretchSame;
             if (ImGui.beginTable("##text_align_table", 2, alignTableFlags, 0, 0)) {
                 ImGui.tableSetupColumn("h", imgui.flag.ImGuiTableColumnFlags.WidthStretch, 1.0f);
@@ -314,7 +261,7 @@ public class TextInputDialog {
                 ImGui.endTable();
             }
 
-            ImGui.endTable();
+            DialogLayoutHelper.endForm();
         }
     }
 

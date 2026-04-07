@@ -24,12 +24,27 @@ public class DialogStyleManager {
 
     /** 对话框内容到边界的统一内边距 */
     public static final float PANEL_PADDING = ITEM_SPACING * 2.0f;
+
+    /** 表单行间距 */
+    public static final float ROW_GAP = ITEM_SPACING;
+
+    /** 小分组间距 */
+    public static final float SUBSECTION_GAP = ITEM_SPACING * 2.0f;
+
+    /** 大分组间距 */
+    public static final float SECTION_GAP = ITEM_SPACING * 3.0f;
+
+    /** Footer 顶部留白 */
+    public static final float FOOTER_TOP_GAP = ITEM_SPACING * 2.0f;
+
+    /** Footer 按钮间距 */
+    public static final float FOOTER_BUTTON_GAP = ITEM_SPACING_H;
     
     /** 内容区域宽度 */
     public static final float CONTENT_WIDTH = 300.0f;
     
     /** 标签宽度 */
-    public static final float LABEL_WIDTH = 60.0f;
+    public static final float LABEL_WIDTH = 84.0f;
     
     /** 控件宽度（内容宽度 - 标签宽度 - 间距） */
     public static final float CONTROL_WIDTH = CONTENT_WIDTH - LABEL_WIDTH - 2 * ITEM_SPACING;
@@ -47,11 +62,31 @@ public class DialogStyleManager {
     /** 标准对话框高度 */
     public static final float DIALOG_HEIGHT = 300.0f;
 
+    /** 标准按钮最小宽度 */
+    public static final float BUTTON_MIN_WIDTH = 96.0f;
+
+    /** 标准按钮最大宽度 */
+    public static final float BUTTON_MAX_WIDTH = 140.0f;
+
     /** 默认按钮组间距 */
     public static final float BUTTON_SPACING = ITEM_SPACING_H;
 
     /** 右上角关闭按钮尺寸 */
     public static final float CLOSE_BUTTON_SIZE = 18.0f;
+
+    /** 标准对话框宽度分级 */
+    public enum DialogWidth {
+        COMPACT(300.0f),
+        STANDARD(380.0f),
+        WIDE(520.0f),
+        LARGE(720.0f);
+
+        public final float value;
+
+        DialogWidth(float value) {
+            this.value = value;
+        }
+    }
     
     // ====== 样式作用域类 ======
     public static class DialogStyleScope {
@@ -128,6 +163,8 @@ public class DialogStyleManager {
         colorCount++;
         
         // 推送变量样式
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PANEL_PADDING, PANEL_PADDING);
+        varCount++;
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
         varCount++;
         ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f);
@@ -176,6 +213,21 @@ public class DialogStyleManager {
      */
     public static float getTwoButtonWidth(float availableWidth) {
         return Math.max(0.0f, (availableWidth - BUTTON_SPACING) / 2.0f);
+    }
+
+    /**
+     * 根据可用宽度和按钮个数计算标准按钮宽度。
+     */
+    public static float getStandardButtonWidth(float availableWidth, int buttonCount) {
+        int safeCount = Math.max(1, buttonCount);
+        float raw = (availableWidth - (safeCount - 1) * FOOTER_BUTTON_GAP) / safeCount;
+        if (raw <= 0.0f) {
+            return 0.0f;
+        }
+        if (raw < BUTTON_MIN_WIDTH) {
+            return raw;
+        }
+        return Math.min(BUTTON_MAX_WIDTH, raw);
     }
 
     /**

@@ -59,7 +59,7 @@ public class LineToBlockSettingsDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         
         try {
-            ImGui.setNextWindowSize(400, 0);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0);
             boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings",
                     ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {
@@ -68,7 +68,8 @@ public class LineToBlockSettingsDialog {
                         close();
                     }
 
-                    // 转换模式选择
+                    DialogLayoutHelper.beginSection("转换参数");
+
                     String[] modes = new String[]{
                         ConversionMode.FULL.getDisplayName(),
                         ConversionMode.SIMPLIFIED.getDisplayName()
@@ -78,45 +79,40 @@ public class LineToBlockSettingsDialog {
                         conversionMode = ConversionMode.values()[currentMode.get()];
                     }
 
-                    // 显示模式说明
-                    ImGui.textWrapped(conversionMode == ConversionMode.FULL ?
-                        "完整转换：线条经过方块投影方格的区域全部转换为方块" :
-                        "精简转换：经过投影方格的线条的长度超过方块边长的指定比例时才转换");
+                    DialogLayoutHelper.helpText(conversionMode == ConversionMode.FULL
+                            ? "完整转换：线条经过方块投影方格的区域全部转换为方块"
+                            : "精简转换：经过投影方格的线条的长度超过方块边长的指定比例时才转换");
 
-                    ImGui.separator();
+                    DialogLayoutHelper.sectionSeparator();
                     ImBoolean fillOption = new ImBoolean(fillClosedShapes);
                     if (ImGui.checkbox("封闭图形填充##fill_closed_shapes", fillOption)) {
                         fillClosedShapes = fillOption.get();
                     }
-                    ImGui.textWrapped(fillClosedShapes
+                    DialogLayoutHelper.helpText(fillClosedShapes
                             ? "启用：封闭图形会填充内部区域。"
                             : "关闭：封闭图形只转换边缘轮廓。");
 
-                    // 精简比率滑动条（仅在精简转换模式下显示）
                     if (conversionMode == ConversionMode.SIMPLIFIED) {
-                        ImGui.separator();
+                        DialogLayoutHelper.sectionSeparator();
                         ImGui.text("精简比率");
                         float[] ratio = new float[]{simplificationRatio};
                         if (ImGui.sliderFloat("##simplification_ratio", ratio, 0.1f, 1.0f, "%.2f")) {
                             simplificationRatio = ratio[0];
                         }
-                        ImGui.textWrapped(String.format("当线条在方块中的长度超过方块边长的 %.2f 倍时才会转换为方块", simplificationRatio));
+                        DialogLayoutHelper.helpText(String.format(
+                                "当线条在方块中的长度超过方块边长的 %.2f 倍时才会转换为方块", simplificationRatio));
                     }
 
-                    ImGui.separator();
+                    DialogLayoutHelper.endSection();
+                    DialogLayoutHelper.beginFooter();
+                    DialogLayoutHelper.FooterResult action =
+                            DialogLayoutHelper.footerConfirmCancelRight("取消", "确定", DialogStyleManager.getContentWidth());
 
-                    // 按钮
-                        float buttonWidth = DialogStyleManager.getTwoButtonWidth(
-                            Math.min(DialogStyleManager.getContentWidth(), 220.0f));
-                        DialogStyleManager.centerTwoButtons(buttonWidth);
-                    
-                    if (ImGui.button("确定##line_to_block_settings_ok", buttonWidth, 0)) {
+                    if (action.confirmClicked()) {
                         close();
                     }
-                    
-                    ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
-                    
-                    if (ImGui.button("取消##line_to_block_settings_cancel", buttonWidth, 0)) {
+
+                    if (action.cancelClicked()) {
                         close();
                     }
                 }

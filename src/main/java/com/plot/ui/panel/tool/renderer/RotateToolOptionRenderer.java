@@ -2,11 +2,13 @@ package com.plot.ui.panel.tool.renderer;
 
 import com.plot.ui.tools.impl.modify.RotateTool;
 import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -269,78 +271,71 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
         height[0] += buttonHeight + ImGui.getStyle().getItemSpacingY();
     }
     
+    private void applyAngleStepValue(int value, String source) {
+        int clampedValue = Math.max(1, Math.min(90, value));
+        angleStep[0] = clampedValue;
+        updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(clampedValue));
+        PlotMod.LOGGER.debug("角度步长已通过{}更新为: {}°", source, clampedValue);
+    }
+
     /**
      * 渲染角度步长输入弹窗
      */
     private void renderAngleStepInputPopup() {
-        if (ImGui.beginPopupModal("angle_step_input", ImGuiWindowFlags.AlwaysAutoResize)) {
-            if (DialogStyleManager.renderTopRightCloseButton("rotate_angle_input")) {
-                ImGui.closeCurrentPopup();
-                ImGui.endPopup();
-                return;
-            }
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        try {
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
 
-            ImGui.text("请输入角度步长值（1-90）：");
-            ImGui.spacing();
-            
-            // 临时输入缓冲区
-            ImInt tempInput = new ImInt(angleStep[0]);
-            ImGui.pushItemWidth(100);
-            
-            // 使用inputInt但不自动关闭弹窗
-            boolean inputChanged = ImGui.inputInt("##angle_input", tempInput, 1, 5);
-            
-            // 验证输入范围并更新值，但不关闭弹窗
-            if (inputChanged) {
-                int newValue = tempInput.get();
-                if (newValue >= 1 && newValue <= 90) {
-                    angleStep[0] = newValue;
-                    updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(angleStep[0]));
-                    PlotMod.LOGGER.debug("角度步长已通过输入更新为: {}°", newValue);
-                } else {
-                    // 如果输入值超出范围，重置为当前值
-                    tempInput.set(angleStep[0]);
+            int popupFlags = ImGuiWindowFlags.NoResize |
+                    ImGuiWindowFlags.NoScrollbar |
+                    ImGuiWindowFlags.NoSavedSettings;
+
+            if (ImGui.beginPopupModal("angle_step_input", popupFlags)) {
+                try {
+                    if (DialogStyleManager.renderTopRightCloseButton("rotate_angle_input")) {
+                        ImGui.closeCurrentPopup();
+                        return;
+                    }
+
+                    DialogLayoutHelper.beginSection("角度步长");
+                    DialogLayoutHelper.helpText("请输入 1 - 90 之间的整数，回车可直接确认，双击滑块也可再次打开此面板。");
+                    DialogLayoutHelper.endSection();
+
+                    ImInt tempInput = new ImInt(angleStep[0]);
+                    ImGui.pushItemWidth(-1);
+                    boolean inputChanged = ImGui.inputInt("##angle_input", tempInput, 1, 5);
+                    ImGui.popItemWidth();
+
+                    if (inputChanged) {
+                        int newValue = Math.max(1, Math.min(90, tempInput.get()));
+                        tempInput.set(newValue);
+                        applyAngleStepValue(newValue, "输入");
+                    }
+
+                    boolean confirmWithEnter = ImGui.isKeyPressed(ImGuiKey.Enter);
+                    boolean cancelWithEsc = ImGui.isKeyPressed(ImGuiKey.Escape);
+
+                    if (cancelWithEsc) {
+                        ImGui.closeCurrentPopup();
+                    }
+
+                    DialogLayoutHelper.beginFooter();
+                    DialogLayoutHelper.FooterResult action =
+                            DialogLayoutHelper.footerConfirmCancelCentered("取消", "确定", DialogStyleManager.getContentWidth());
+
+                    if (action.confirmClicked() || confirmWithEnter) {
+                        applyAngleStepValue(tempInput.get(), action.confirmClicked() ? "确定按钮" : "回车键");
+                        ImGui.closeCurrentPopup();
+                    }
+                    if (action.cancelClicked()) {
+                        ImGui.closeCurrentPopup();
+                    }
+                } finally {
+                    ImGui.endPopup();
                 }
             }
-            
-            ImGui.popItemWidth();
-            
-            ImGui.spacing();
-            
-            // 按钮行
-            if (ImGui.button("确定", 80, 0)) {
-                int finalValue = tempInput.get();
-                if (finalValue >= 1 && finalValue <= 90) {
-                    angleStep[0] = finalValue;
-                    updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(angleStep[0]));
-                    PlotMod.LOGGER.debug("角度步长已通过确定按钮更新为: {}°", finalValue);
-                }
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.sameLine();
-            if (ImGui.button("取消", 80, 0)) {
-                ImGui.closeCurrentPopup();
-            }
-            
-            // 添加回车键支持
-            if (ImGui.isKeyPressed(ImGui.getKeyIndex(ImGuiKey.Enter))) {
-                int finalValue = tempInput.get();
-                if (finalValue >= 1 && finalValue <= 90) {
-                    angleStep[0] = finalValue;
-                    updateToolConfig(CONFIG_KEY_ANGLE_STEP, String.valueOf(angleStep[0]));
-                    PlotMod.LOGGER.debug("角度步长已通过回车键更新为: {}°", finalValue);
-                }
-                ImGui.closeCurrentPopup();
-            }
-            
-            // 添加ESC键支持
-            if (ImGui.isKeyPressed(ImGui.getKeyIndex(ImGuiKey.Escape))) {
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.endPopup();
+        } finally {
+            DialogStyleManager.popDialogStyle(styleScope);
         }
     }
-
-} 
+}

@@ -5,6 +5,7 @@ import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.ui.component.UIComponent;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
@@ -337,33 +338,38 @@ public class LayerPanel implements UIComponent {
      * 渲染警告消息对话框
      */
     private void renderWarningMessage() {
-        var theme = ThemeManager.getInstance().getCurrentTheme();
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        try {
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
 
-        if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
-            if (DialogStyleManager.renderTopRightCloseButton("layer_warning")) {
-                ImGui.closeCurrentPopup();
-                ImGui.endPopup();
-                ImGui.popStyleColor(5);
-                return;
-            }
+            int popupFlags = ImGuiWindowFlags.NoResize |
+                    ImGuiWindowFlags.NoScrollbar |
+                    ImGuiWindowFlags.NoSavedSettings;
 
-            ImGui.text(warningMessage);
-            ImGui.spacing();
-            
-            float buttonWidth = 120.0f;
-            if (ImGui.button("确定", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
-                ImGui.closeCurrentPopup();
+            if (ImGui.beginPopupModal("##warning_dialog", popupFlags)) {
+                try {
+                    if (DialogStyleManager.renderTopRightCloseButton("layer_warning")) {
+                        ImGui.closeCurrentPopup();
+                        return;
+                    }
+
+                    DialogLayoutHelper.warningText(warningMessage);
+
+                    if (ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                        ImGui.closeCurrentPopup();
+                    }
+
+                    DialogLayoutHelper.beginFooter();
+                    if (DialogLayoutHelper.footerSingleCentered("确定", DialogStyleManager.getContentWidth())) {
+                        ImGui.closeCurrentPopup();
+                    }
+                } finally {
+                    ImGui.endPopup();
+                }
             }
-            
-            ImGui.endPopup();
+        } finally {
+            DialogStyleManager.popDialogStyle(styleScope);
         }
-
-        ImGui.popStyleColor(5);
     }
 
     /**

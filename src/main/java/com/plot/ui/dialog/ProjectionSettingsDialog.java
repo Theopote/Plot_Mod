@@ -1,6 +1,8 @@
 package com.plot.ui.dialog;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,12 +64,12 @@ public class ProjectionSettingsDialog {
         
         try {
             // 设置窗口标志
-            int windowFlags = ImGuiWindowFlags.AlwaysAutoResize | 
-                              ImGuiWindowFlags.NoCollapse | 
+            int windowFlags = ImGuiWindowFlags.AlwaysAutoResize |
+                              ImGuiWindowFlags.NoCollapse |
                               ImGuiWindowFlags.NoSavedSettings;
-            
+
             // 开始渲染窗口
-            ImGui.setNextWindowSize(300, 0);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
             // 重要：无论 begin() 返回 true/false，都必须 end()，否则会触发 ImGui 的窗口栈断言
             boolean windowVisible = ImGui.begin("方块投影设置", windowFlags);
             try {
@@ -76,44 +78,37 @@ public class ProjectionSettingsDialog {
                         close();
                     }
 
-                    // 渲染投影模式选择
-                    ImGui.text("投影模式:");
-                    
-                    // 地面投影选项
+                    DialogLayoutHelper.beginSection("投影模式");
+
                     boolean isGroundMode = (projectionMode == ProjectionMode.GROUND);
                     if (ImGui.radioButton("投影到地面", isGroundMode)) {
                         projectionMode = ProjectionMode.GROUND;
                         LOGGER.debug("投影模式已更改为: 地面投影");
                     }
-                    
-                    // 指定标高选项
+
                     boolean isElevationMode = (projectionMode == ProjectionMode.ELEVATION);
                     if (ImGui.radioButton("投影到指定标高", isElevationMode)) {
                         projectionMode = ProjectionMode.ELEVATION;
                         LOGGER.debug("投影模式已更改为: 指定标高");
                     }
-                    
-                    // 如果选择了指定标高，显示标高滑动条
+
                     if (projectionMode == ProjectionMode.ELEVATION) {
-                        ImGui.separator();
-                        ImGui.text("标高设置:");
-                        
-                        // 创建一个整数滑动条
+                        DialogLayoutHelper.sectionSeparator();
+                        ImGui.text("标高设置");
+
                         int[] elevationValue = {elevation};
                         if (ImGui.sliderInt("标高", elevationValue, MIN_ELEVATION, MAX_ELEVATION)) {
                             elevation = elevationValue[0];
                             LOGGER.debug("标高已更改为: {}", elevation);
                         }
-                        
-                        // 显示当前标高值
-                        ImGui.text(String.format("当前标高: %d", elevation));
+
+                        DialogLayoutHelper.helpText(String.format("当前标高: %d", elevation));
                     }
-                    
-                    // 添加关闭按钮
-                    ImGui.separator();
-                    float buttonWidth = Math.min(120.0f, DialogStyleManager.getContentWidth());
-                    DialogStyleManager.centerSingleButton(buttonWidth);
-                    if (ImGui.button("关闭", buttonWidth, 0)) {
+
+                    DialogLayoutHelper.endSection();
+                    DialogLayoutHelper.beginFooter();
+                    if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
+                            || ImGui.isKeyPressed(ImGuiKey.Escape)) {
                         close();
                     }
                 }

@@ -3,6 +3,7 @@ package com.plot.ui.panel.layer;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -30,8 +31,6 @@ public class NewLayerDialog {
     private static final Logger LOGGER = LogManager.getLogger("NewLayerDialog");
 
     // === 常量定义 ===
-    // 使用DialogStyleManager中定义的统一间距常数
-    private static final float SPACING = DialogStyleManager.ITEM_SPACING;
     private static final String DIALOG_TITLE = "新建图层";
     private static final int MAX_NAME_LENGTH = 32;  // 最大名称长度（字符）
     private static final int MAX_BUFFER_SIZE = 512; // ImString 缓冲区大小（字节，足够支持长中文输入）
@@ -44,7 +43,7 @@ public class NewLayerDialog {
     private LineStyle.LineType lineType =      // 图层线型
             LineStyle.LineType.SOLID;
     private float lineWidth = 1.0f;            // 图层线宽（改为单值）
-        private boolean nameInputInvalid = false;  // 名称输入是否合法（用于红色边框反馈）
+    private boolean nameInputInvalid = false;  // 名称输入是否合法（用于红色边框反馈）
 
     // === 依赖项 ===
     private final LayerManager layerManager;    // 图层管理器
@@ -194,7 +193,7 @@ public class NewLayerDialog {
     public void render() {
         if (!isVisible) return;
 
-        float totalWidth = 300.0f;
+        float totalWidth = DialogStyleManager.DialogWidth.STANDARD.value;
 
         // 动态计算高度，避免固定高度在高 DPI/大字体下裁剪底部按钮
         float rowHeight = ImGui.getFrameHeightWithSpacing();
@@ -227,83 +226,69 @@ public class NewLayerDialog {
                     return;
                 }
 
-                float labelWidth = DialogStyleManager.LABEL_WIDTH;
-                float controlWidth = DialogStyleManager.getControlWidth(labelWidth);
-
-                // === 名称输入 ===
                 UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-                ImGui.text("名称：");
-                ImGui.sameLine(labelWidth);
-                ImGui.setNextItemWidth(controlWidth);
-                if (ImGui.isWindowAppearing()) {
-                    ImGui.setKeyboardFocusHere();
-                }
 
-                if (nameInputInvalid) {
-                    ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
-                    ImGui.pushStyleColor(ImGuiCol.Border, theme.errorText);
-                }
-
-                // 使用不带回调的 inputText 重载，验证中文输入
-                if (ImGui.inputText("##new_layer_name", layerName,
-                        ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
-                                ImGuiInputTextFlags.CharsNoBlank)) {
-                    String currentInput = layerName.get();
-                    LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
-                            currentInput, currentInput.getBytes().length, currentInput.length());
-                    nameInputInvalid = false;
-                    ImGui.setKeyboardFocusHere(1); // 聚焦到"确定"按钮
-                }
-
-                if (nameInputInvalid) {
-                    ImGui.popStyleColor();
-                    ImGui.popStyleVar();
-                }
-
-                // === 颜色选择器 ===
-                ImGui.text("颜色：");
-                ImGui.sameLine(labelWidth);
-                ImGui.setNextItemWidth(controlWidth);
-                ImGui.colorEdit4("##new_layer_color", layerColor);
-
-                // === 线型选择 ===
-                ImGui.text("线型：");
-                ImGui.sameLine(labelWidth);
-                ImGui.setNextItemWidth(controlWidth);
-                if (ImGui.beginCombo("##new_layer_line_type", lineType.toString())) {
-                    for (LineStyle.LineType type : LineStyle.LineType.values()) {
-                        if (ImGui.selectable(type.toString(), type == lineType)) {
-                            lineType = type;
-                        }
+                DialogLayoutHelper.beginSection("基础信息");
+                if (DialogLayoutHelper.beginForm("##new_layer_form")) {
+                    DialogLayoutHelper.formRowLabel("名称");
+                    if (ImGui.isWindowAppearing()) {
+                        ImGui.setKeyboardFocusHere();
                     }
-                    ImGui.endCombo();
+
+                    if (nameInputInvalid) {
+                        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+                        ImGui.pushStyleColor(ImGuiCol.Border, theme.errorText);
+                    }
+
+                    if (ImGui.inputText("##new_layer_name", layerName,
+                            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
+                                    ImGuiInputTextFlags.CharsNoBlank)) {
+                        String currentInput = layerName.get();
+                        LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
+                                currentInput, currentInput.getBytes().length, currentInput.length());
+                        nameInputInvalid = false;
+                        ImGui.setKeyboardFocusHere(1);
+                    }
+
+                    if (nameInputInvalid) {
+                        ImGui.popStyleColor();
+                        ImGui.popStyleVar();
+                        DialogLayoutHelper.errorText("请输入合法的图层名称（中文、字母、数字或下划线）。");
+                    }
+
+                    DialogLayoutHelper.formRowLabel("颜色");
+                    ImGui.colorEdit4("##new_layer_color", layerColor);
+
+                    DialogLayoutHelper.formRowLabel("线型");
+                    if (ImGui.beginCombo("##new_layer_line_type", lineType.toString())) {
+                        for (LineStyle.LineType type : LineStyle.LineType.values()) {
+                            if (ImGui.selectable(type.toString(), type == lineType)) {
+                                lineType = type;
+                            }
+                        }
+                        ImGui.endCombo();
+                    }
+
+                    DialogLayoutHelper.formRowLabel("线宽");
+                    float[] tempLineWidth = {lineWidth};
+                    if (ImGui.dragFloat("##new_layer_line_width", tempLineWidth,
+                            0.1f, 0.1f, 5.0f, "%.1f")) {
+                        lineWidth = tempLineWidth[0];
+                    }
+
+                    DialogLayoutHelper.endForm();
                 }
+                DialogLayoutHelper.endSection();
 
-                // === 线宽输入 ===
-                ImGui.text("线宽：");
-                ImGui.sameLine(labelWidth);
-                ImGui.setNextItemWidth(controlWidth);
-                float[] tempLineWidth = {lineWidth}; // 临时数组以兼容 ImGui
-                if (ImGui.dragFloat("##new_layer_line_width", tempLineWidth,
-                        0.1f, 0.1f, 5.0f, "%.1f")) {
-                    lineWidth = tempLineWidth[0];
-                }
+                DialogLayoutHelper.beginFooter();
+                DialogLayoutHelper.FooterResult action =
+                        DialogLayoutHelper.footerConfirmCancelRight("取消", "创建", DialogStyleManager.getContentWidth());
 
-                ImGui.separator();
-
-                // === 按钮区域 ===
-                float buttonSpacing = DialogStyleManager.BUTTON_SPACING;
-                float buttonWidth = DialogStyleManager.getTwoButtonWidth(controlWidth);
-
-                DialogStyleManager.centerTwoButtons(buttonWidth);
-                if (ImGui.button("确定", buttonWidth, 0) ||
-                        ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                     createNewLayer();
                 }
 
-                ImGui.sameLine(0, buttonSpacing);
-                if (ImGui.button("取消", buttonWidth, 0) ||
-                        ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
                     hide();
                     ImGui.closeCurrentPopup();
                 }

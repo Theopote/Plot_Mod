@@ -4,8 +4,10 @@ import com.plot.camera.CameraManager;
 import com.plot.camera.OrthographicCamera;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -45,7 +47,7 @@ public class CameraSettingsManager {
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            ImGui.setNextWindowSize(300, 0);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
             boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings",
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {
@@ -56,6 +58,9 @@ public class CameraSettingsManager {
 
                     boolean settingsChanged = false;
                     camera = cameraManager.getOrthographicCamera();
+
+                    DialogLayoutHelper.beginSection("相机参数");
+                    DialogLayoutHelper.helpText("调整缩放、视野与裁剪范围，修改会即时生效。");
 
                     // 缩放比例设置
                     float[] scale = {camera.getScale()};
@@ -89,6 +94,8 @@ public class CameraSettingsManager {
                         eventBus.publish(new CameraSettingsEvent(camera));
                     }
 
+                    DialogLayoutHelper.endSection();
+
                     if (ImGui.isKeyReleased(ImGuiKey.Escape)) {
                         showSettings = false;
                     }
@@ -104,22 +111,14 @@ public class CameraSettingsManager {
     }
 
     private void renderButtons() {
-        ImGui.separator();
-        ImGui.spacing();
+        DialogLayoutHelper.beginFooter();
+        DialogLayoutHelper.FooterResult action =
+                DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
 
-        float windowWidth = ImGui.getContentRegionAvailX();
-        float buttonSpacing = ImGui.getStyle().getItemSpacingX();
-        float buttonWidth = Math.min((windowWidth - buttonSpacing) / 2, 120);
-        float buttonsWidth = buttonWidth * 2 + buttonSpacing;
-        float startX = ImGui.getCursorPosX() + (windowWidth - buttonsWidth) * 0.5f;
-        
-        ImGui.setCursorPosX(startX);
-
-        if (ImGui.button("确定", buttonWidth, 0)) {
+        if (action.confirmClicked()) {
             showSettings = false;
         }
-        ImGui.sameLine(0, buttonSpacing);
-        if (ImGui.button("重置默认値", buttonWidth, 0)) {
+        if (action.cancelClicked()) {
             camera.resetToDefaults();
             eventBus.publish(new CameraSettingsEvent(camera));
         }

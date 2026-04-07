@@ -9,6 +9,7 @@ import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.snap.SnapVisualStyle;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTableBgTarget;
 import imgui.flag.ImGuiTableColumnFlags;
@@ -75,7 +76,7 @@ public class SettingsAndHelpDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
-            ImGui.setNextWindowSize(680, 550);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.LARGE.value, 550.0f, ImGuiCond.Appearing);
             int flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
             if (!ImGui.begin("设置与帮助", flags)) {
                 ImGui.end();
@@ -112,17 +113,16 @@ public class SettingsAndHelpDialog {
 
             // 底部操作区：设置即时生效，仅用于完成/返回。
             ImGui.setCursorPosY(footerStartY);
-            ImGui.separator();
-            float buttonWidth = 100.0f;
-            DialogStyleManager.centerTwoButtons(buttonWidth);
+            DialogLayoutHelper.beginFooter();
             boolean captureActiveNow = editingActionId != null;
             if (captureActiveNow) ImGui.beginDisabled();
-            if (ImGui.button("完成", buttonWidth, 0)
+            DialogLayoutHelper.FooterResult footerAction =
+                    DialogLayoutHelper.footerConfirmCancelCentered("返回", "完成", DialogStyleManager.getContentWidth());
+            if (footerAction.confirmClicked()
                     || (!captureActiveNow && !suppressCloseHotkeysThisFrame && ImGui.isKeyPressed(ImGuiKey.Enter))) {
                 close();
             }
-            ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
-            if (ImGui.button("返回", buttonWidth, 0)
+            if (footerAction.cancelClicked()
                     || (!captureActiveNow && !suppressCloseHotkeysThisFrame && ImGui.isKeyPressed(ImGuiKey.Escape))) {
                 close();
             }
@@ -318,9 +318,7 @@ public class SettingsAndHelpDialog {
             }
 
             ImGui.separator();
-            ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
-            ImGui.textDisabled("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
-            ImGui.popTextWrapPos();
+            DialogLayoutHelper.helpText("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
         }
         ImGui.endChild();
     }
@@ -472,9 +470,7 @@ public class SettingsAndHelpDialog {
         ImGui.endChild();
 
         ImGui.separator();
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
-        ImGui.textDisabled(displayHintText);
-        ImGui.popTextWrapPos();
+        DialogLayoutHelper.helpText(displayHintText);
     }
 
     private void syncDisplayToggleStates(SnapManager snapManager) {

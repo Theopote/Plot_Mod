@@ -30,7 +30,6 @@ public class ImportFileDialog {
     private static final Logger LOGGER = LogManager.getLogger("ImportFileDialog");
 
     // === 常量定义 ===
-    private static final float SPACING = 4.0f;  // 控件之间的间距
     private static final String DIALOG_TITLE = "导入文件";
     private static final String[] SUPPORTED_EXTENSIONS = {".svg", ".dxf", ".dwg", ".ai", ".pdf"};  // 支持的文件扩展名
     private static final int MAX_VISIBLE_FILES = 10;  // 文件列表最大显示行数
@@ -242,8 +241,8 @@ public class ImportFileDialog {
     public void render() {
         if (!isVisible) return;
 
-        float totalWidth = 500.0f;
-        
+        float totalWidth = DialogStyleManager.DialogWidth.WIDE.value;
+
         // 固定宽度，交由内容驱动高度，避免系统缩放或字体变大时底部按钮被裁剪
         ImGui.setNextWindowSize(totalWidth, 0.0f, ImGuiCond.Always);
 
@@ -290,21 +289,22 @@ public class ImportFileDialog {
                 int visibleRows = Math.max(4, Math.min(MAX_VISIBLE_FILES, filteredFiles.size()));
                 float fileListHeight = rowHeight * visibleRows + DialogStyleManager.ITEM_SPACING * 2.0f;
                 
+                DialogLayoutHelper.beginSection("文件浏览");
+
                 // === 路径栏 ===
                 ImGui.alignTextToFramePadding();
                 ImGui.text("位置：");
                 ImGui.sameLine();
-                
-                // 路径输入框和上级按钮在同一行
+
                 float upButtonWidth = 30.0f;
-                float pathInputWidth = contentWidth - ImGui.getItemRectSize().x - upButtonWidth - SPACING * 3;
-                
+                float pathInputWidth = contentWidth - ImGui.getItemRectSize().x - upButtonWidth
+                        - DialogStyleManager.SUBSECTION_GAP;
+
                 ImGui.setNextItemWidth(pathInputWidth);
                 if (ImGui.inputText("##import_file_path", filePath, ImGuiInputTextFlags.ReadOnly)) {
-                    // 路径变更时更新文件列表
                     updateFileList(filePath.get());
                 }
-                
+
                 ImGui.sameLine();
                 if (ImGui.button("↑", upButtonWidth, 0)) {
                     navigateUp();
@@ -312,23 +312,22 @@ public class ImportFileDialog {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("上一级目录");
                 }
-                
-                ImGui.spacing();
-                
+
+                DialogLayoutHelper.subsectionGap();
+
                 // === 过滤栏 ===
                 ImGui.alignTextToFramePadding();
                 ImGui.text("过滤：");
                 ImGui.sameLine();
-                
-                float filterInputWidth = contentWidth - ImGui.getItemRectSize().x - SPACING * 2;
+
+                float filterInputWidth = contentWidth - ImGui.getItemRectSize().x - DialogStyleManager.SUBSECTION_GAP;
                 ImGui.setNextItemWidth(filterInputWidth);
                 if (ImGui.inputText("##file_filter", fileFilterInput)) {
-                    // 过滤条件变更时重置选中项
                     selectedFileIndex = -1;
                 }
-                
-                ImGui.spacing();
-                
+
+                DialogLayoutHelper.subsectionGap();
+
                 // === 文件列表 ===
                 ImGui.beginChild("##file_list", contentWidth, fileListHeight, true);
                 
@@ -362,20 +361,17 @@ public class ImportFileDialog {
                 }
                 
                 ImGui.endChild();
-                
-                ImGui.spacing();
-                
-                // === 按钮区域 ===
-                float buttonWidth = DialogStyleManager.getTwoButtonWidth(Math.min(contentWidth, 220.0f));
-                DialogStyleManager.centerTwoButtons(buttonWidth);
-                
-                if (ImGui.button("导入", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+
+                DialogLayoutHelper.endSection();
+                DialogLayoutHelper.beginFooter();
+                DialogLayoutHelper.FooterResult action =
+                        DialogLayoutHelper.footerConfirmCancelRight("取消", "导入", contentWidth);
+
+                if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
                     importFile();
                 }
-                
-                ImGui.sameLine(0, DialogStyleManager.BUTTON_SPACING);
-                
-                if (ImGui.button("取消", buttonWidth, 0) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+
+                if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
                     hide();
                     ImGui.closeCurrentPopup();
                 }

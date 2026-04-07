@@ -3,8 +3,11 @@ package com.plot.ui.grid;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.GridToggleEvent;
 import com.plot.infrastructure.event.view.GridColorChangedEvent;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +115,7 @@ public class GridManager {
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            ImGui.setNextWindowSize(300, 0);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
             if (ImGui.begin("网格设置##GridSettings",
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings)) {
                 if (DialogStyleManager.renderTopRightCloseButton("grid_settings")) {
@@ -120,6 +123,9 @@ public class GridManager {
                 }
 
                 boolean settingsChanged = false;
+
+                DialogLayoutHelper.beginSection("网格参数");
+                DialogLayoutHelper.helpText("调整网格大小、透明度、线宽和颜色，修改会即时生效。");
 
                 // 网格大小设置
                 float[] gridSize = {settings.getGridSize()};
@@ -160,13 +166,14 @@ public class GridManager {
                     LOGGER.debug("已发布GridToggleEvent：启用={}, 设置更新=true", isEnabled);
                 }
 
-                renderButtons();
+                DialogLayoutHelper.endSection();
 
-                // 检查是否点击了关闭按钮
-                if (!ImGui.isWindowFocused() && ImGui.isMouseClicked(0)) {
+                if (ImGui.isKeyReleased(ImGuiKey.Escape)) {
                     showSettings = false;
-                    LOGGER.debug("关闭网格设置窗口（点击外部）");
+                    LOGGER.debug("关闭网格设置窗口（Esc）");
                 }
+
+                renderButtons();
             }
             ImGui.end();
         } catch (Exception e) {
@@ -183,23 +190,15 @@ public class GridManager {
     }
 
     private void renderButtons() {
-        ImGui.separator();
-        ImGui.spacing();
+        DialogLayoutHelper.beginFooter();
+        DialogLayoutHelper.FooterResult action =
+                DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
 
-        float windowWidth = ImGui.getContentRegionAvailX();
-        float buttonSpacing = ImGui.getStyle().getItemSpacingX();
-        float buttonWidth = Math.min((windowWidth - buttonSpacing) / 2, 120);
-        float buttonsWidth = buttonWidth * 2 + buttonSpacing;
-        float startX = ImGui.getCursorPosX() + (windowWidth - buttonsWidth) * 0.5f;
-        
-        ImGui.setCursorPosX(startX);
-
-        if (ImGui.button("确定", buttonWidth, 0)) {
+        if (action.confirmClicked()) {
             showSettings = false;
             LOGGER.debug("关闭网格设置窗口（点击确定按鈕）");
         }
-        ImGui.sameLine(0, buttonSpacing);
-        if (ImGui.button("重置默认値", buttonWidth, 0)) {
+        if (action.cancelClicked()) {
             settings = new GridSettings();
             eventBus.publish(new GridToggleEvent(isEnabled, settings, true));
             LOGGER.debug("重置网格设置为默认值并发布GridToggleEvent");

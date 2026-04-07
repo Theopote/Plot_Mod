@@ -9,6 +9,7 @@ import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.ui.component.UIComponent;
 import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
@@ -17,6 +18,7 @@ import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.toolbar.group.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -400,43 +402,43 @@ public class ControlPanel implements UIComponent {
      * 渲染警告对话框
      */
     private void renderWarningDialog() {
-        var theme = ThemeManager.getInstance().getCurrentTheme();
-
         if (warningPopupPending) {
             ImGui.openPopup("##warning_dialog");
             warningPopupPending = false;
         }
 
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        try {
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
 
-        if (ImGui.beginPopupModal("##warning_dialog", ImGuiWindowFlags.AlwaysAutoResize)) {
-            if (DialogStyleManager.renderTopRightCloseButton("control_warning")) {
-                ImGui.closeCurrentPopup();
-                ImGui.endPopup();
-                ImGui.popStyleColor(5);
-                return;
-            }
+            int popupFlags = ImGuiWindowFlags.NoResize |
+                    ImGuiWindowFlags.NoScrollbar |
+                    ImGuiWindowFlags.NoSavedSettings;
 
-            ImGui.text(warningMessage);
-            ImGui.separator();
-            
-            float buttonWidth = 120;
-            ImGui.setCursorPosX((ImGui.getWindowWidth() - buttonWidth) * 0.5f);
-            
-            if (ImGui.button("确定", buttonWidth, 0) || 
-                ImGui.isKeyPressed(ImGuiKey.Enter) || 
-                ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                ImGui.closeCurrentPopup();
+            if (ImGui.beginPopupModal("##warning_dialog", popupFlags)) {
+                try {
+                    if (DialogStyleManager.renderTopRightCloseButton("control_warning")) {
+                        ImGui.closeCurrentPopup();
+                        return;
+                    }
+
+                    DialogLayoutHelper.warningText(warningMessage);
+
+                    if (ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                        ImGui.closeCurrentPopup();
+                    }
+
+                    DialogLayoutHelper.beginFooter();
+                    if (DialogLayoutHelper.footerSingleCentered("确定", DialogStyleManager.getContentWidth())) {
+                        ImGui.closeCurrentPopup();
+                    }
+                } finally {
+                    ImGui.endPopup();
+                }
             }
-            
-            ImGui.endPopup();
+        } finally {
+            DialogStyleManager.popDialogStyle(styleScope);
         }
-
-                    ImGui.popStyleColor(5);
     }
 
     @Override

@@ -4,11 +4,9 @@ import com.plot.api.model.ILayer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.state.AppState;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
-import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
@@ -21,8 +19,6 @@ import java.util.function.Consumer;
 public class DeleteLayerDialog {
     // === 常量定义 ===
     private static final String DIALOG_TITLE = "删除图层确认##DeleteLayerPopup";
-    private static final float BUTTON_WIDTH = 120.0f;
-    private static final float BUTTON_SPACING = 8.0f;
 
     // === 状态字段 ===
     private boolean isVisible = false;
@@ -78,27 +74,16 @@ public class DeleteLayerDialog {
             return;
         }
 
-        UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
+        DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         // 仅首次出现时居中，避免用户拖动后被下一帧重置位置
         var center = ImGui.getMainViewport().getCenter();
-        ImGui.setNextWindowPos(
-            center.x,
-            center.y,
-            ImGuiCond.Appearing,
-            0.5f,
-            0.5f
-        );
-
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.border);
-        ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
+        ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+        ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0.0f, ImGuiCond.Appearing);
 
         try {
-            if (ImGui.beginPopupModal(DIALOG_TITLE, ImGuiWindowFlags.AlwaysAutoResize)) {
+            int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize;
+            if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
                 try {
                     if (DialogStyleManager.renderTopRightCloseButton("delete_layer")) {
                         hide();
@@ -113,7 +98,7 @@ public class DeleteLayerDialog {
                 ImGui.endPopup();
             }
         } finally {
-            ImGui.popStyleColor(6);
+            DialogStyleManager.popDialogStyle(styleScope);
         }
 
         if (isVisible) {
@@ -123,36 +108,36 @@ public class DeleteLayerDialog {
 
     private void renderDialogContent() {
         if (!selectedLayers.isEmpty()) {
-            // 显示确认信息
             if (selectedLayers.size() == 1) {
                 ILayer layer = selectedLayers.iterator().next();
-                ImGui.text("确定要删除图层 \"" + layer.getName() + "\" 吗？");
+                ImGui.textWrapped("确定要删除图层 \"" + layer.getName() + "\" 吗？");
             } else {
-                ImGui.text("确定要删除选中的 " + selectedLayers.size() + " 个图层吗？");
+                ImGui.textWrapped("确定要删除选中的 " + selectedLayers.size() + " 个图层吗？");
             }
-            ImGui.text("此操作不可撤销。");
-            ImGui.separator();
 
-            // 按钮布局
+            DialogLayoutHelper.warningText("此操作不可撤销。");
+            DialogLayoutHelper.beginFooter();
             renderButtons();
         }
     }
 
     private void renderButtons() {
-        // 确定按钮
-        if (ImGui.button("确定", BUTTON_WIDTH, 0) || ImGui.isKeyPressed(ImGuiKey.Enter)) {
+        float contentWidth = DialogStyleManager.getContentWidth();
+        DialogLayoutHelper.FooterResult action =
+                DialogLayoutHelper.footerConfirmCancelCentered("取消", "删除", contentWidth);
+
+        if (action.confirmClicked() || ImGui.isKeyPressed(ImGuiKey.Enter)) {
             try {
-                // 再次检查是否可以删除
                 LayerManager layerManager = appState.getLayerManager();
                 int totalLayers = layerManager.getLayers().size();
-                
+
                 if (totalLayers <= selectedLayers.size()) {
                     showWarningDialog.accept("必须至少保留一个图层");
                     hide();
                     ImGui.closeCurrentPopup();
                     return;
                 }
-                
+
                 deleteSelectedLayers();
                 hide();
                 ImGui.closeCurrentPopup();
@@ -161,10 +146,7 @@ public class DeleteLayerDialog {
             }
         }
 
-        ImGui.sameLine(0, BUTTON_SPACING);
-
-        // 取消按钮
-        if (ImGui.button("取消", BUTTON_WIDTH, 0) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        if (action.cancelClicked() || ImGui.isKeyPressed(ImGuiKey.Escape)) {
             hide();
             ImGui.closeCurrentPopup();
         }
