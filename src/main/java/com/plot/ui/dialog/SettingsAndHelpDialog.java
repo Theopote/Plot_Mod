@@ -30,8 +30,7 @@ import java.util.Objects;
  */
 public class SettingsAndHelpDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/SettingsAndHelpDialog");
-    private static final float TAB_CHILD_BOTTOM_PADDING = 8.0f;
-    private static final float FOOTER_EXTRA_PADDING = 2.0f;
+    private static final float DISPLAY_HINT_RESERVED_LINES = 3.0f;
     private static final SettingsAndHelpDialog INSTANCE = new SettingsAndHelpDialog();
 
     private boolean isOpen = false;
@@ -91,26 +90,31 @@ public class SettingsAndHelpDialog {
                 return;
             }
 
-            float footerStartY = ImGui.getWindowHeight() - ImGui.getStyle().getWindowPaddingY() - getFooterReservedHeight();
-
-            if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
-                if (ImGui.beginTabItem("快捷键")) {
-                    renderShortcutsPage(footerStartY);
-                    ImGui.endTabItem();
+            float footerReservedHeight = getFooterReservedHeight();
+            if (DialogLayoutHelper.beginRemainingChild("##settings_body_region", footerReservedHeight, false,
+                    ImGuiWindowFlags.NoScrollbar)) {
+                try {
+                    if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
+                        if (ImGui.beginTabItem("快捷键")) {
+                            renderShortcutsPage();
+                            ImGui.endTabItem();
+                        }
+                        if (ImGui.beginTabItem("吸附与反馈")) {
+                            renderDisplayPage();
+                            ImGui.endTabItem();
+                        }
+                        if (ImGui.beginTabItem("帮助与教程")) {
+                            renderHelpPage();
+                            ImGui.endTabItem();
+                        }
+                        ImGui.endTabBar();
+                    }
+                } finally {
+                    ImGui.endChild();
                 }
-                if (ImGui.beginTabItem("吸附与反馈")) {
-                    renderDisplayPage(footerStartY);
-                    ImGui.endTabItem();
-                }
-                if (ImGui.beginTabItem("帮助与教程")) {
-                    renderHelpPage(footerStartY);
-                    ImGui.endTabItem();
-                }
-                ImGui.endTabBar();
             }
 
             // 底部操作区：设置即时生效，仅用于完成/返回。
-            ImGui.setCursorPosY(footerStartY);
             DialogLayoutHelper.beginFooter();
             boolean captureActiveNow = editingActionId != null;
             if (captureActiveNow) ImGui.beginDisabled();
@@ -134,7 +138,7 @@ public class SettingsAndHelpDialog {
         }
     }
 
-    private void renderShortcutsPage(float footerStartY) {
+    private void renderShortcutsPage() {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         boolean captureActive = editingActionId != null;
         applyCaptureSuppression(captureActive);
@@ -158,10 +162,9 @@ public class SettingsAndHelpDialog {
         }
         if (captureActive) ImGui.endDisabled();
 
-        float childHeight = getScrollableSectionHeight(footerStartY);
         ImGui.separator();
 
-        if (ImGui.beginChild("##shortcut_scroll_region", 0, childHeight,
+        if (DialogLayoutHelper.beginRemainingChild("##shortcut_scroll_region", 0.0f,
             true, ImGuiWindowFlags.NoScrollbar)) {
             if (editingActionId != null) {
                 String actionName = KeymapManager.getInstance().getActionDisplayName(editingActionId);
@@ -323,12 +326,11 @@ public class SettingsAndHelpDialog {
         ImGui.endChild();
     }
 
-    private void renderHelpPage(float footerStartY) {
+    private void renderHelpPage() {
         ImGui.textDisabled("点击左侧条目查看对应教程");
         ImGui.separator();
 
-        float childHeight = getScrollableSectionHeight(footerStartY);
-        if (ImGui.beginChild("##help_scroll_region", 0, childHeight, false, 0)) {
+        if (DialogLayoutHelper.beginRemainingChild("##help_scroll_region", 0.0f, false, 0)) {
             if (ImGui.beginChild("##help_nav", 180, 0, true)) {
                 if (ImGui.selectable("基础操作", selectedHelpTopic == 0)) selectedHelpTopic = 0;
                 if (ImGui.selectable("高级技巧", selectedHelpTopic == 1)) selectedHelpTopic = 1;
@@ -377,21 +379,16 @@ public class SettingsAndHelpDialog {
         ImGui.endChild();
     }
 
-    private void renderDisplayPage(float footerStartY) {
+    private void renderDisplayPage() {
         SnapManager snapManager = SnapManager.getInstance();
         syncDisplayToggleStates(snapManager);
         final String displayHintText = "提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。";
 
-        ImGui.textWrapped("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
-        ImGui.separator();
+        DialogLayoutHelper.helpText("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
+        DialogLayoutHelper.sectionSeparator();
 
-        float childHeight = getScrollableSectionHeight(footerStartY);
-        // 为底部提示预留动态高度：根据当前宽度下的实际换行行数计算
-        float wrapWidth = Math.max(1.0f, ImGui.getContentRegionAvailX());
-        float hintReservedHeight = getWrappedTextHeight(displayHintText, wrapWidth)
-                + ImGui.getStyle().getItemSpacingY();
-        float scrollHeight = Math.max(80.0f, childHeight - hintReservedHeight);
-        if (ImGui.beginChild("##display_scroll_region", 0, scrollHeight, false, 0)) {
+        float hintReservedHeight = getDisplayHintReservedHeight();
+        if (DialogLayoutHelper.beginRemainingChild("##display_scroll_region", hintReservedHeight, false, 0)) {
 
             if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent(10);
@@ -469,8 +466,12 @@ public class SettingsAndHelpDialog {
         }
         ImGui.endChild();
 
-        ImGui.separator();
-        DialogLayoutHelper.helpText(displayHintText);
+        DialogLayoutHelper.subsectionGap();
+        if (ImGui.beginChild("##display_hint_region", 0, 0, false,
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
+            DialogLayoutHelper.helpText(displayHintText);
+        }
+        ImGui.endChild();
     }
 
     private void syncDisplayToggleStates(SnapManager snapManager) {
@@ -483,20 +484,15 @@ public class SettingsAndHelpDialog {
         showPointIndexState.set(ControlPointEditTool.isShowPointIndex());
     }
 
-    private float getWrappedTextHeight(String text, float wrapWidth) {
-        float textWidth = ImGui.calcTextSize(text).x;
-        float lineHeight = ImGui.getTextLineHeightWithSpacing();
-        int lines = Math.max(1, (int) Math.ceil(textWidth / Math.max(1.0f, wrapWidth)));
-        return lines * lineHeight;
-    }
-
-    private float getScrollableSectionHeight(float footerStartY) {
-        float available = footerStartY - ImGui.getCursorPosY() - TAB_CHILD_BOTTOM_PADDING;
-        return Math.max(80.0f, available);
+    private float getDisplayHintReservedHeight() {
+        return ImGui.getTextLineHeightWithSpacing() * DISPLAY_HINT_RESERVED_LINES
+                + DialogStyleManager.SUBSECTION_GAP;
     }
 
     private float getFooterReservedHeight() {
-        return ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingY() + FOOTER_EXTRA_PADDING;
+        return ImGui.getFrameHeight()
+                + DialogStyleManager.FOOTER_TOP_GAP
+                + DialogStyleManager.SECTION_GAP;
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {

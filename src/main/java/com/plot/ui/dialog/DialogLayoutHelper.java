@@ -101,6 +101,11 @@ public final class DialogLayoutHelper {
         return ImGui.button(label, buttonWidth, 0);
     }
 
+    public static boolean beginRemainingChild(String id, float reservedBottomHeight, boolean border, int windowFlags) {
+        float height = reservedBottomHeight > 0.0f ? -reservedBottomHeight : 0.0f;
+        return ImGui.beginChild(id, 0, height, border, windowFlags);
+    }
+
     public static void beginFooter() {
         ImGui.separator();
         ImGui.dummy(0, DialogStyleManager.FOOTER_TOP_GAP);
