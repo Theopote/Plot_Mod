@@ -69,7 +69,7 @@ public class SettingsAndHelpDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
         try {
-            ImGui.setNextWindowSize(680, 540);
+            ImGui.setNextWindowSize(680, 550);
             int flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
             if (!ImGui.begin("设置与帮助", flags)) {
                 ImGui.end();
