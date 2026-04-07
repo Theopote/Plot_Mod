@@ -89,6 +89,25 @@ public final class DialogLayoutHelper {
         ImGui.setNextItemWidth(-1.0f);
     }
 
+    public static void formRowHelp(String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        ImGui.tableNextRow();
+        ImGui.tableSetColumnIndex(0);
+        ImGui.textDisabled(" ");
+        ImGui.tableSetColumnIndex(1);
+        helpText(text);
+    }
+
+    public static InlineToggleResult formRowCheckboxPair(String leftLabel, boolean leftValue,
+                                                         String rightLabel, boolean rightValue) {
+        boolean leftClicked = ImGui.checkbox(leftLabel, leftValue);
+        ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
+        boolean rightClicked = ImGui.checkbox(rightLabel, rightValue);
+        return new InlineToggleResult(leftClicked, rightClicked);
+    }
+
     public static float reserveTrailingButton(float buttonWidth) {
         float inputWidth = Math.max(0.0f,
                 ImGui.getContentRegionAvailX() - buttonWidth - DialogStyleManager.FOOTER_BUTTON_GAP);
@@ -192,6 +211,9 @@ public final class DialogLayoutHelper {
         ImGui.textWrapped(text);
         ImGui.popTextWrapPos();
         ImGui.popStyleColor();
+    }
+
+    public record InlineToggleResult(boolean firstClicked, boolean secondClicked) {
     }
 
     public record FooterResult(boolean confirmClicked, boolean cancelClicked) {

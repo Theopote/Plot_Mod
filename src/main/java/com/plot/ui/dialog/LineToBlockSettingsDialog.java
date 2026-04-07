@@ -80,12 +80,18 @@ public class LineToBlockSettingsDialog {
                         if (ImGui.combo("##conversion_mode", currentMode, modes)) {
                             conversionMode = ConversionMode.values()[currentMode.get()];
                         }
+                        DialogLayoutHelper.formRowHelp(conversionMode == ConversionMode.FULL
+                                ? "完整转换会尽量保留线条覆盖到的所有方块。"
+                                : "精简转换会根据下方阈值跳过细碎覆盖区域。 ");
 
                         DialogLayoutHelper.formRowLabel("封闭填充");
                         ImBoolean fillOption = new ImBoolean(fillClosedShapes);
                         if (ImGui.checkbox("##fill_closed_shapes", fillOption)) {
                             fillClosedShapes = fillOption.get();
                         }
+                        DialogLayoutHelper.formRowHelp(fillClosedShapes
+                                ? "已启用封闭图形内部填充。"
+                                : "当前仅转换封闭图形的边缘轮廓。");
 
                         if (conversionMode == ConversionMode.SIMPLIFIED) {
                             DialogLayoutHelper.formRowLabel("精简比率");
@@ -93,28 +99,17 @@ public class LineToBlockSettingsDialog {
                             if (ImGui.sliderFloat("##simplification_ratio", ratio, 0.1f, 1.0f, "%.2f")) {
                                 simplificationRatio = ratio[0];
                             }
+                            DialogLayoutHelper.formRowHelp(String.format("仅当线条覆盖长度超过 %.2f 倍方块边长时才转换。", simplificationRatio));
                         }
 
                         DialogLayoutHelper.endForm();
                     }
 
-                    DialogLayoutHelper.helpText(conversionMode == ConversionMode.FULL
-                            ? "完整转换：线条经过方块投影方格的区域会全部转换为方块。"
-                            : String.format("精简转换：仅当线条覆盖长度超过 %.2f 倍方块边长时才转换。", simplificationRatio));
-                    DialogLayoutHelper.helpText(fillClosedShapes
-                            ? "已启用封闭图形内部填充。"
-                            : "当前仅转换封闭图形的边缘轮廓。");
-
                     DialogLayoutHelper.endSection();
                     DialogLayoutHelper.beginFooter();
-                    DialogLayoutHelper.FooterResult action =
-                            DialogLayoutHelper.footerConfirmCancelRight("取消", "确定", DialogStyleManager.getContentWidth());
-
-                    if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
-                        close();
-                    }
-
-                    if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
+                    if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
+                            || DialogLayoutHelper.isCancelShortcutPressed()
+                            || DialogLayoutHelper.isConfirmShortcutPressed()) {
                         close();
                     }
                 }

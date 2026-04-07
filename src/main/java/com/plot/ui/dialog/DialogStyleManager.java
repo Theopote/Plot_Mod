@@ -180,18 +180,9 @@ public class DialogStyleManager {
     }
 
     /**
-     * 根据标签宽度计算控件宽度，统一保留右侧呼吸空间。
+     * 说明：旧版 `getControlWidth()` / `getTwoButtonWidth()` 已不再推荐。
+     * 当前统一使用 Table stretch 列与 `DialogLayoutHelper.footer...()` 进行布局。
      */
-    public static float getControlWidth(float labelWidth) {
-        return Math.max(0.0f, getContentWidth() - labelWidth - 2 * ITEM_SPACING_H);
-    }
-
-    /**
-     * 计算双按钮布局时单个按钮宽度。
-     */
-    public static float getTwoButtonWidth(float availableWidth) {
-        return Math.max(0.0f, (availableWidth - FOOTER_BUTTON_GAP) / 2.0f);
-    }
 
     /**
      * 根据可用宽度和按钮个数计算标准按钮宽度。
@@ -216,21 +207,6 @@ public class DialogStyleManager {
         ImGui.setCursorPosX(startX);
     }
 
-    /**
-     * 将单按钮行居中到当前窗口内容区。
-     */
-    public static void centerSingleButton(float buttonWidth) {
-        centerByWidth(buttonWidth);
-    }
-
-    /**
-     * 将双按钮行居中到当前窗口内容区。
-     */
-    public static void centerTwoButtons(float buttonWidth) {
-        float totalWidth = buttonWidth * 2.0f + FOOTER_BUTTON_GAP;
-        float startX = getContentStartX() + Math.max(0.0f, (getContentWidth() - totalWidth) * 0.5f);
-        ImGui.setCursorPosX(startX);
-    }
 
     /**
      * 在对话框标题栏右端渲染统一的关闭按钮（×）。

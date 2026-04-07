@@ -32,6 +32,7 @@ public class NewLayerDialog {
 
     // === 常量定义 ===
     private static final String DIALOG_TITLE = "新建图层";
+    private static final String LAYER_NAME_PATTERN = "[a-zA-Z0-9_\u4E00-\u9FFF]+";
     private static final int MAX_NAME_LENGTH = 32;  // 最大名称长度（字符）
     private static final int MAX_BUFFER_SIZE = 512; // ImString 缓冲区大小（字节，足够支持长中文输入）
 
@@ -99,7 +100,7 @@ public class NewLayerDialog {
             nameInputInvalid = true;
             return;
         }
-        if (!name.matches("[a-zA-Z0-9_\u4E00-\u9FFF]+")) {
+        if (!name.matches(LAYER_NAME_PATTERN)) {
             showWarningDialog.accept("图层名称只能包含中文、字母、数字或下划线");
             nameInputInvalid = true;
             return;
@@ -152,25 +153,15 @@ public class NewLayerDialog {
             return "";
         }
         try {
-            // 验证 UTF-8 编码
             CharsetEncoder encoder = StandardCharsets.UTF_8.newEncoder();
             encoder.encode(CharBuffer.wrap(text));
-            // 移除 U+FFFD 和无效字符
+
             String cleaned = text.replace("\uFFFD", "").trim();
-            if (cleaned.isEmpty()) {
-                StringBuilder validChars = new StringBuilder();
-                for (int i = 0; i < text.length() && validChars.length() < MAX_NAME_LENGTH; i++) {
-                    char c = text.charAt(i);
-                    // 中文字符范围
-                    // 中文扩展A
-                    // 中文扩展B
-                    if (c != '\uFFFD' && (Character.isLetterOrDigit(c) || c >= 0x4E00 && c <= 0x9FFF || c >= 0x3400 && c <= 0x4DBF || c == '_' || c == '-' || c == ' ')) {
-                        validChars.append(c);
-                    }
-                }
-                return validChars.toString().trim();
+            String normalized = cleaned.replaceAll("[^a-zA-Z0-9_\u4E00-\u9FFF]", "");
+            if (normalized.length() > MAX_NAME_LENGTH) {
+                return normalized.substring(0, MAX_NAME_LENGTH);
             }
-            return cleaned;
+            return normalized;
         } catch (CharacterCodingException e) {
             LOGGER.error("无效字符编码: {}", text, e);
             return "";

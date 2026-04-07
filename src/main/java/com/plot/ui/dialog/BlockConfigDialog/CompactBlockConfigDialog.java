@@ -10,6 +10,7 @@ import com.plot.infrastructure.event.block.BlockConfigEvent;
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
+import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -65,7 +66,6 @@ public class CompactBlockConfigDialog {
     private static final float BLOCK_ICON_SIZE = 48.0f;  // [ENHANCED] 增大到48x48便于点击和显示
     private static final float BLOCK_SPACING = DialogStyleManager.ITEM_SPACING_H;
     private static final float PADDING = DialogStyleManager.ITEM_SPACING;
-    private static final float STANDARD_BUTTON_HEIGHT = 0.0f;
     private static final float CATEGORY_BUTTON_HEIGHT = 24.0f;
     private static final float PAGE_BUTTON_WIDTH = 30.0f;
     private static final float DISPLAY_PAGINATION_INFO_HEIGHT = 50.0f;
@@ -423,17 +423,10 @@ public class CompactBlockConfigDialog {
         ImGui.setCursorPos(PADDING * 2.0f, PADDING * 0.5f);
         ImGui.textColored(theme.text, "方块选择");
 
-        // 右上角关闭按钮
-        float closeSize = Math.max(DialogStyleManager.CLOSE_BUTTON_SIZE, TITLE_BAR_HEIGHT - PADDING);
-        float closeX = windowWidth - closeSize - PADDING;
-        float closeY = Math.max(0.0f, (TITLE_BAR_HEIGHT - closeSize) * 0.5f);
-        float oldX = ImGui.getCursorPosX();
-        float oldY = ImGui.getCursorPosY();
-        ImGui.setCursorPos(closeX, closeY);
-        if (ImGui.button("×##compact_block_close", closeSize, closeSize)) {
+        // 右上角关闭按钮统一走共享 helper
+        if (DialogStyleManager.renderTopRightCloseButton("compact_block_config")) {
             close();
         }
-        ImGui.setCursorPos(oldX, oldY);
         
         // 为后续内容预留空间
         ImGui.setCursorPosY(TITLE_BAR_HEIGHT + PADDING);
@@ -446,13 +439,11 @@ public class CompactBlockConfigDialog {
         int childFlags = ImGuiWindowFlags.NoScrollbar;
 
         if (ImGui.beginChild("TopPanel", -1, TOP_PANEL_HEIGHT, true, childFlags)) {
-            // 设置统一的边距样式
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PADDING, PADDING);
-            
+            DialogLayoutHelper.beginSection("分类与搜索");
             renderCategorySelector();
-            ImGui.spacing();
+            DialogLayoutHelper.rowGap();
             searchManager.renderSearchControls();
-            
             ImGui.popStyleVar(1);
         }
         ImGui.endChild();
@@ -465,11 +456,9 @@ public class CompactBlockConfigDialog {
         int childFlags = ImGuiWindowFlags.NoScrollbar;
 
         if (ImGui.beginChild("DisplayArea", -1, DISPLAY_AREA_HEIGHT, true, childFlags)) {
-            // 设置统一的边距样式
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PADDING, PADDING);
-            
+            DialogLayoutHelper.beginSection("方块列表");
             renderBlockDisplayArea();
-            
             ImGui.popStyleVar(1);
         }
         ImGui.endChild();
@@ -482,13 +471,11 @@ public class CompactBlockConfigDialog {
         int childFlags = ImGuiWindowFlags.NoScrollbar;
 
         if (ImGui.beginChild("BottomPanel", -1, BOTTOM_PANEL_HEIGHT, true, childFlags)) {
-            // 设置统一的边距样式
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PADDING, PADDING);
-            
+            DialogLayoutHelper.beginSection("调色盘");
             renderPaletteArea();
-            ImGui.spacing();
+            DialogLayoutHelper.beginFooter();
             renderActionButtons();
-            
             ImGui.popStyleVar(1);
         }
         ImGui.endChild();
@@ -769,53 +756,45 @@ public class CompactBlockConfigDialog {
      */
     private void renderActionButtons() {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING);
 
-        // [NEW] 计算动态按钮宽度
         String[] buttonTexts = {"应用选择", "取消", "重置"};
-        // 使用统一间距
-        float padding = PADDING * 2; // 使用统一内边距
-
-        // 计算每个按钮的最佳宽度
         float[] buttonWidths = new float[buttonTexts.length];
-        float totalTextWidth = 0;
+        float totalTextWidth = 0.0f;
         for (int i = 0; i < buttonTexts.length; i++) {
-            buttonWidths[i] = Math.max(ImGui.calcTextSize(buttonTexts[i]).x + padding, 80.0f);
+            float preferredWidth = ImGui.calcTextSize(buttonTexts[i]).x + PADDING * 4.0f;
+            buttonWidths[i] = Math.max(DialogStyleManager.BUTTON_MIN_WIDTH,
+                    Math.min(DialogStyleManager.BUTTON_MAX_WIDTH, preferredWidth));
             totalTextWidth += buttonWidths[i];
         }
 
-        float totalWidth = totalTextWidth + BLOCK_SPACING * (buttonTexts.length - 1);
+        float totalWidth = totalTextWidth + DialogStyleManager.FOOTER_BUTTON_GAP * (buttonTexts.length - 1);
 
-        // [NEW] 应用主题颜色样式
         ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
 
         DialogStyleManager.centerByWidth(totalWidth);
 
-        if (ImGui.button("应用选择", buttonWidths[0], STANDARD_BUTTON_HEIGHT)) {
+        if (ImGui.button("应用选择", buttonWidths[0], 0)) {
             applyBlockSelection();
         }
 
-        // 取消按钮
-        ImGui.sameLine(0, BLOCK_SPACING);
-        if (ImGui.button("取消", buttonWidths[1], STANDARD_BUTTON_HEIGHT)) {
+        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
+        if (ImGui.button("取消", buttonWidths[1], 0)) {
             close();
         }
 
-        // 重置按钮
-        ImGui.sameLine(0, BLOCK_SPACING);
-        if (ImGui.button("重置", buttonWidths[2], STANDARD_BUTTON_HEIGHT)) {
+        ImGui.sameLine(0, DialogStyleManager.FOOTER_BUTTON_GAP);
+        if (ImGui.button("重置", buttonWidths[2], 0)) {
             clearPalette();
         }
 
         ImGui.popStyleColor(3);
 
-        // [NEW] 添加快捷键提示
         String shortcutHint = "Enter=应用 | Esc=取消 | Ctrl+R=重置";
         float hintWidth = ImGui.calcTextSize(shortcutHint).x;
         DialogStyleManager.centerByWidth(hintWidth);
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + PADDING);
+        DialogLayoutHelper.rowGap();
         ImGui.textDisabled(shortcutHint);
     }
 
@@ -1556,7 +1535,7 @@ public class CompactBlockConfigDialog {
         boolean canGoPrev = displayPage > 0;
         if (!canGoPrev) ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
 
-        if (ImGui.button("◀", buttonWidth, STANDARD_BUTTON_HEIGHT) && canGoPrev) {
+        if (ImGui.button("◀", buttonWidth, 0) && canGoPrev) {
             displayPage--;
             LOGGER.debug("分页按钮：切换到第 {} 页", displayPage + 1);
         }
@@ -1573,7 +1552,7 @@ public class CompactBlockConfigDialog {
         boolean canGoNext = displayPage < totalPages - 1;
         if (!canGoNext) ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
 
-        if (ImGui.button("▶", buttonWidth, STANDARD_BUTTON_HEIGHT) && canGoNext) {
+        if (ImGui.button("▶", buttonWidth, 0) && canGoNext) {
             displayPage++;
             LOGGER.debug("分页按钮：切换到第 {} 页", displayPage + 1);
         }
@@ -1597,13 +1576,13 @@ public class CompactBlockConfigDialog {
      */
     private void handleGlobalShortcuts() {
         // Enter 键 - 应用选择
-        if (ImGui.isKeyPressed(ImGui.getKeyIndex(ImGuiKey.Enter))) {
+        if (DialogLayoutHelper.isConfirmShortcutPressed()) {
             applyBlockSelection();
             return;
         }
 
         // Escape 键 - 取消/关闭
-        if (ImGui.isKeyPressed(ImGui.getKeyIndex(ImGuiKey.Escape))) {
+        if (DialogLayoutHelper.isCancelShortcutPressed()) {
             close();
             return;
         }

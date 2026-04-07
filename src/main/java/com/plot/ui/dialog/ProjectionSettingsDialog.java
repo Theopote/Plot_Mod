@@ -88,6 +88,9 @@ public class ProjectionSettingsDialog {
                             projectionMode = currentMode.get() == 0 ? ProjectionMode.GROUND : ProjectionMode.ELEVATION;
                             LOGGER.debug("投影模式已更改为: {}", projectionMode == ProjectionMode.GROUND ? "地面投影" : "指定标高");
                         }
+                        DialogLayoutHelper.formRowHelp(projectionMode == ProjectionMode.GROUND
+                                ? "地面模式会按默认地表高度投影结果。"
+                                : "指定标高模式会将结果投影到手动设置的高度层。 ");
 
                         if (projectionMode == ProjectionMode.ELEVATION) {
                             DialogLayoutHelper.formRowLabel("标高");
@@ -96,14 +99,11 @@ public class ProjectionSettingsDialog {
                                 elevation = elevationValue[0];
                                 LOGGER.debug("标高已更改为: {}", elevation);
                             }
+                            DialogLayoutHelper.formRowHelp(String.format("当前投影到 Y=%d，可在 -64 到 320 之间调整。", elevation));
                         }
 
                         DialogLayoutHelper.endForm();
                     }
-
-                    DialogLayoutHelper.helpText(projectionMode == ProjectionMode.GROUND
-                            ? "地面模式会按默认地表高度投影结果。"
-                            : String.format("当前将投影到指定标高：%d", elevation));
 
                     DialogLayoutHelper.endSection();
                     DialogLayoutHelper.beginFooter();

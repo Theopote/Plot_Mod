@@ -131,7 +131,8 @@ public class TextInputDialog {
                     float contentWidth = DialogStyleManager.getContentWidth();
 
                     DialogLayoutHelper.beginSection("文字内容");
-                    DialogLayoutHelper.helpText("请输入文字内容（可多行）");
+                    DialogLayoutHelper.helpText("请输入文字内容（可多行）。在非编辑状态下可按 Enter 确认。 ");
+                    boolean textEditorActive = false;
                     DialogLayoutHelper.DenseEditorStyleScope editorStyle = DialogLayoutHelper.pushDenseEditorStyle();
                     try {
                         if (ImGui.isWindowAppearing()) {
@@ -141,11 +142,13 @@ public class TextInputDialog {
                         try {
                             ImGui.inputTextMultiline("##text_input", textBuffer, contentWidth, inputHeight,
                                     ImGuiInputTextFlags.AllowTabInput);
+                            textEditorActive = ImGui.isItemActive();
                         } catch (Throwable t) {
                             multilineOk = false;
                         }
                         if (!multilineOk) {
                             ImGui.inputText("##text_input", textBuffer, ImGuiInputTextFlags.CallbackHistory);
+                            textEditorActive = ImGui.isItemActive();
                         }
                     } finally {
                         DialogLayoutHelper.popDenseEditorStyle(editorStyle);
@@ -163,7 +166,9 @@ public class TextInputDialog {
                     if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
                         cancelAndClose();
                     }
-                    if (action.confirmClicked()) {
+                    if (action.confirmClicked()
+                            || (!DialogLayoutHelper.shouldSuppressDialogHotkeys(textEditorActive)
+                            && DialogLayoutHelper.isConfirmShortcutPressed())) {
                         confirmAndClose();
                     }
                 } finally {
@@ -190,21 +195,23 @@ public class TextInputDialog {
             }
 
             DialogLayoutHelper.formRowLabel("字形");
-            if (ImGui.checkbox("粗体##bold", bold)) {
+            DialogLayoutHelper.InlineToggleResult glyphAction =
+                    DialogLayoutHelper.formRowCheckboxPair("粗体##bold", bold, "斜体##italic", italic);
+            if (glyphAction.firstClicked()) {
                 bold = !bold;
             }
-            ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
-            if (ImGui.checkbox("斜体##italic", italic)) {
+            if (glyphAction.secondClicked()) {
                 italic = !italic;
             }
+            DialogLayoutHelper.formRowHelp("粗体适合强调标题，斜体适合说明性标注。 ");
 
             DialogLayoutHelper.formRowLabel("水平对齐");
-            ImGui.setNextItemWidth(-1.0f);
-            String currentH = hAlign.name();
+            String currentH = getHorizontalAlignLabel(hAlign);
             if (ImGui.beginCombo("##h_align", currentH)) {
                 for (TextAlignment.Horizontal h : TextAlignment.Horizontal.values()) {
                     boolean selected = h == hAlign;
-                    if (ImGui.selectable(h.name(), selected)) {
+                    String displayLabel = getHorizontalAlignLabel(h);
+                    if (ImGui.selectable(displayLabel, selected)) {
                         hAlign = h;
                     }
                     if (selected) ImGui.setItemDefaultFocus();
@@ -213,12 +220,12 @@ public class TextInputDialog {
             }
 
             DialogLayoutHelper.formRowLabel("垂直对齐");
-            ImGui.setNextItemWidth(-1.0f);
-            String currentV = vAlign.name();
+            String currentV = getVerticalAlignLabel(vAlign);
             if (ImGui.beginCombo("##v_align", currentV)) {
                 for (TextAlignment.Vertical v : TextAlignment.Vertical.values()) {
                     boolean selected = v == vAlign;
-                    if (ImGui.selectable(v.name(), selected)) {
+                    String displayLabel = getVerticalAlignLabel(v);
+                    if (ImGui.selectable(displayLabel, selected)) {
                         vAlign = v;
                     }
                     if (selected) ImGui.setItemDefaultFocus();
@@ -228,6 +235,24 @@ public class TextInputDialog {
 
             DialogLayoutHelper.endForm();
         }
+    }
+
+    private String getHorizontalAlignLabel(TextAlignment.Horizontal align) {
+        return switch (align) {
+            case LEFT -> "左对齐";
+            case CENTER -> "居中";
+            case RIGHT -> "右对齐";
+            default -> align.name();
+        };
+    }
+
+    private String getVerticalAlignLabel(TextAlignment.Vertical align) {
+        return switch (align) {
+            case TOP -> "顶部";
+            case MIDDLE -> "居中";
+            case BOTTOM -> "底部";
+            default -> align.name();
+        };
     }
 
     private void confirmAndClose() {

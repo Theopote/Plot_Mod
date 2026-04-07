@@ -7,6 +7,8 @@ import com.plot.core.state.AppState;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import imgui.ImGui;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
@@ -17,6 +19,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public class DeleteLayerDialog {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/DeleteLayerDialog");
     // === 常量定义 ===
     private static final String DIALOG_TITLE = "删除图层确认##DeleteLayerPopup";
 
@@ -93,7 +96,9 @@ public class DeleteLayerDialog {
                     }
                     renderDialogContent();
                 } catch (Exception e) {
+                    LOGGER.error("渲染删除图层确认对话框时发生错误", e);
                     hide();
+                    ImGui.closeCurrentPopup();
                 }
                 ImGui.endPopup();
             }
@@ -139,7 +144,10 @@ public class DeleteLayerDialog {
                 hide();
                 ImGui.closeCurrentPopup();
             } catch (Exception e) {
-                throw new RuntimeException("删除图层失败", e);
+                LOGGER.error("删除图层失败", e);
+                showWarningDialog.accept("删除图层失败，请重试");
+                hide();
+                ImGui.closeCurrentPopup();
             }
         }
 

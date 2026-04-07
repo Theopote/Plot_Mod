@@ -162,7 +162,7 @@ public class SettingsAndHelpDialog {
         }
         if (captureActive) ImGui.endDisabled();
 
-        ImGui.separator();
+        //ImGui.separator();
 
         if (DialogLayoutHelper.beginRemainingChild("##shortcut_scroll_region", 0.0f,
             true, ImGuiWindowFlags.NoScrollbar)) {
@@ -328,7 +328,7 @@ public class SettingsAndHelpDialog {
 
     private void renderHelpPage() {
         ImGui.textDisabled("点击左侧条目查看对应教程");
-        ImGui.separator();
+        //ImGui.separator();
 
         if (DialogLayoutHelper.beginRemainingChild("##help_scroll_region", 0.0f, false, 0)) {
             if (ImGui.beginChild("##help_nav", 180, 0, true)) {
