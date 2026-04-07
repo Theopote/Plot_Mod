@@ -31,7 +31,7 @@ public class SettingsAndHelpDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/SettingsAndHelpDialog");
     private static final float TAB_CHILD_BOTTOM_PADDING = 8.0f;
     private static final float FOOTER_EXTRA_PADDING = 2.0f;
-    private static SettingsAndHelpDialog INSTANCE;
+    private static final SettingsAndHelpDialog INSTANCE = new SettingsAndHelpDialog();
 
     private boolean isOpen = false;
     private final ImString searchText = new ImString(256);
@@ -41,12 +41,18 @@ public class SettingsAndHelpDialog {
     private boolean captureSuppressionApplied = false;
     private boolean suppressCloseHotkeysThisFrame = false;
 
+    // 复用状态对象，避免在 renderDisplayPage() 中每帧分配新的 ImBoolean
+    private final ImBoolean showMarkersState = new ImBoolean();
+    private final ImBoolean endPointState = new ImBoolean();
+    private final ImBoolean midPointState = new ImBoolean();
+    private final ImBoolean centerPointState = new ImBoolean();
+    private final ImBoolean centroidState = new ImBoolean();
+    private final ImBoolean showControlPointsState = new ImBoolean();
+    private final ImBoolean showPointIndexState = new ImBoolean();
+
     private SettingsAndHelpDialog() {}
 
     public static SettingsAndHelpDialog getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new SettingsAndHelpDialog();
-        }
         return INSTANCE;
     }
 
@@ -375,6 +381,7 @@ public class SettingsAndHelpDialog {
 
     private void renderDisplayPage(float footerStartY) {
         SnapManager snapManager = SnapManager.getInstance();
+        syncDisplayToggleStates(snapManager);
         final String displayHintText = "提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。";
 
         ImGui.textWrapped("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
@@ -384,45 +391,39 @@ public class SettingsAndHelpDialog {
         // 为底部提示预留动态高度：根据当前宽度下的实际换行行数计算
         float wrapWidth = Math.max(1.0f, ImGui.getContentRegionAvailX());
         float hintReservedHeight = getWrappedTextHeight(displayHintText, wrapWidth)
-            + ImGui.getStyle().getItemSpacingY();
+                + ImGui.getStyle().getItemSpacingY();
         float scrollHeight = Math.max(80.0f, childHeight - hintReservedHeight);
         if (ImGui.beginChild("##display_scroll_region", 0, scrollHeight, false, 0)) {
 
             if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent(10);
 
-                ImBoolean showMarkers = new ImBoolean(snapManager.isShowSnapMarkersEnabled());
-                ImBoolean endPoint = new ImBoolean(snapManager.isEndPointSnapEnabled());
-                ImBoolean midPoint = new ImBoolean(snapManager.isMidPointSnapEnabled());
-                ImBoolean centerPoint = new ImBoolean(snapManager.isCenterPointSnapEnabled());
-                ImBoolean centroid = new ImBoolean(snapManager.isCentroidSnapEnabled());
-
                 if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
                     ImGui.tableNextRow();
                     ImGui.tableSetColumnIndex(0);
-                    if (ImGui.checkbox("显示吸附标记", showMarkers)) {
-                        snapManager.setShowSnapMarkersEnabled(showMarkers.get());
+                    if (ImGui.checkbox("显示吸附标记", showMarkersState)) {
+                        snapManager.setShowSnapMarkersEnabled(showMarkersState.get());
                     }
                     ImGui.tableSetColumnIndex(1);
-                    if (ImGui.checkbox("显示端点反馈", endPoint)) {
-                        snapManager.setEndPointSnapEnabled(endPoint.get());
+                    if (ImGui.checkbox("显示端点反馈", endPointState)) {
+                        snapManager.setEndPointSnapEnabled(endPointState.get());
                     }
 
                     ImGui.tableNextRow();
                     ImGui.tableSetColumnIndex(0);
-                    if (ImGui.checkbox("显示中点反馈", midPoint)) {
-                        snapManager.setMidPointSnapEnabled(midPoint.get());
+                    if (ImGui.checkbox("显示中点反馈", midPointState)) {
+                        snapManager.setMidPointSnapEnabled(midPointState.get());
                     }
                     ImGui.tableSetColumnIndex(1);
-                    if (ImGui.checkbox("显示圆心反馈", centerPoint)) {
-                        snapManager.setCenterPointSnapEnabled(centerPoint.get());
+                    if (ImGui.checkbox("显示圆心反馈", centerPointState)) {
+                        snapManager.setCenterPointSnapEnabled(centerPointState.get());
                     }
                     renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
 
                     ImGui.tableNextRow();
                     ImGui.tableSetColumnIndex(0);
-                    if (ImGui.checkbox("显示中心点反馈", centroid)) {
-                        snapManager.setCentroidSnapEnabled(centroid.get());
+                    if (ImGui.checkbox("显示中心点反馈", centroidState)) {
+                        snapManager.setCentroidSnapEnabled(centroidState.get());
                     }
                     renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
                     ImGui.tableSetColumnIndex(1);
@@ -437,14 +438,12 @@ public class SettingsAndHelpDialog {
                     snapManager.setMarkerSize(markerSize[0]);
                 }
 
-                ImBoolean showControlPoints = new ImBoolean(ControlPointEditTool.isDisplayEnabled());
-                if (ImGui.checkbox("显示控制点", showControlPoints)) {
-                    ControlPointEditTool.setDisplayEnabled(showControlPoints.get());
+                if (ImGui.checkbox("显示控制点", showControlPointsState)) {
+                    ControlPointEditTool.setDisplayEnabled(showControlPointsState.get());
                 }
 
-                ImBoolean showPointIndex = new ImBoolean(ControlPointEditTool.isShowPointIndex());
-                if (ImGui.checkbox("显示控制点编号", showPointIndex)) {
-                    ControlPointEditTool.setShowPointIndex(showPointIndex.get());
+                if (ImGui.checkbox("显示控制点编号", showPointIndexState)) {
+                    ControlPointEditTool.setShowPointIndex(showPointIndexState.get());
                 }
 
                 ImGui.unindent(10);
@@ -478,6 +477,16 @@ public class SettingsAndHelpDialog {
         ImGui.popTextWrapPos();
     }
 
+    private void syncDisplayToggleStates(SnapManager snapManager) {
+        showMarkersState.set(snapManager.isShowSnapMarkersEnabled());
+        endPointState.set(snapManager.isEndPointSnapEnabled());
+        midPointState.set(snapManager.isMidPointSnapEnabled());
+        centerPointState.set(snapManager.isCenterPointSnapEnabled());
+        centroidState.set(snapManager.isCentroidSnapEnabled());
+        showControlPointsState.set(ControlPointEditTool.isDisplayEnabled());
+        showPointIndexState.set(ControlPointEditTool.isShowPointIndex());
+    }
+
     private float getWrappedTextHeight(String text, float wrapWidth) {
         float textWidth = ImGui.calcTextSize(text).x;
         float lineHeight = ImGui.getTextLineHeightWithSpacing();
@@ -509,6 +518,8 @@ public class SettingsAndHelpDialog {
         ImGui.popStyleColor(3);
 
         ImGui.sameLine();
+        float colorEditorWidth = Math.min(200.0f, Math.max(120.0f, ImGui.getContentRegionAvailX() - 70.0f));
+        ImGui.setNextItemWidth(colorEditorWidth);
         if (ImGui.colorEdit4(label + "##snap_color_" + type.name(), rgba)) {
             SnapVisualStyle.setCustomColor(type, float4ToArgb(rgba));
         }
