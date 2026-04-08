@@ -143,11 +143,14 @@ public class SettingsAndHelpDialog {
     private float getBottomHintReservedHeight(String text) {
         float wrapWidth = Math.max(180.0f, ImGui.getContentRegionAvailX());
         float textHeight = ImGui.calcTextSize(text, false, wrapWidth).y;
-        return DialogStyleManager.ROW_GAP * 2.0f + 1.0f + textHeight;
+        return textHeight
+                + DialogStyleManager.SUBSECTION_GAP
+                + DialogStyleManager.ROW_GAP * 2.0f
+                + ImGui.getStyle().getFramePaddingY() * 2.0f;
     }
 
     private void renderBottomHintText(String text) {
-        DialogLayoutHelper.rowGap();
+        //DialogLayoutHelper.rowGap();
         ImGui.separator();
         DialogLayoutHelper.rowGap();
         DialogLayoutHelper.helpText(text);
