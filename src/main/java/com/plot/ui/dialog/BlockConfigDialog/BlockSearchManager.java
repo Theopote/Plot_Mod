@@ -22,8 +22,9 @@ public class BlockSearchManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockSearchManager");
     
     // 搜索相关常量
-    private static final float SEARCH_FIELD_WIDTH = 200.0f; // 搜索框宽度
-    private static final float SEARCH_CONTROLS_OFFSET = 432.0f; // 搜索控件偏移量
+    private static final float SEARCH_FIELD_WIDTH = 200.0f; // 搜索框理想宽度
+    private static final float SEARCH_SCOPE_WIDTH = 80.0f; // 范围选择宽度
+    private static final float MIN_SEARCH_FIELD_WIDTH = 120.0f; // 搜索框最小宽度
     private static final int MIN_SEARCH_CHARS = 1; // 开始搜索的最小字符数
     
     // 搜索状态
@@ -61,21 +62,24 @@ public class BlockSearchManager {
      * 包括搜索框、搜索范围选择和模糊搜索开关
      */
     public void renderSearchControls() {
-        float windowWidth = ImGui.getWindowWidth();
-        
+        float contentWidth = DialogStyleManager.getContentWidth();
+
         // 设置统一的高度为24像素
         float searchHeight = 24.0f;
-        
-        // 搜索框
-        ImGui.sameLine(windowWidth - SEARCH_CONTROLS_OFFSET);
-        ImGui.setNextItemWidth(SEARCH_FIELD_WIDTH);
-        
+        float searchGap = DialogStyleManager.ITEM_SPACING_H;
+        float inputWidth = Math.min(SEARCH_FIELD_WIDTH,
+                Math.max(MIN_SEARCH_FIELD_WIDTH, contentWidth - SEARCH_SCOPE_WIDTH - searchGap));
+        float totalWidth = inputWidth + searchGap + SEARCH_SCOPE_WIDTH;
+
+        // 右对齐到当前内容区，避免依赖固定偏移量。
+        DialogStyleManager.alignRightByWidth(totalWidth);
+
         // 渲染搜索输入框
-        renderSearchInput(searchHeight);
-        
+        renderSearchInput(searchHeight, inputWidth);
+
         // 渲染搜索范围选择
-        renderSearchScopeSelector(searchHeight);
-        
+        renderSearchScopeSelector(searchHeight, SEARCH_SCOPE_WIDTH);
+
         // 显示搜索提示（如果需要）
         renderSearchHint();
     }
@@ -84,7 +88,7 @@ public class BlockSearchManager {
      * 渲染搜索输入框
      * 带有提示文本的搜索框
      */
-    private void renderSearchInput(float height) {
+    private void renderSearchInput(float height, float inputWidth) {
         var theme = ThemeManager.getInstance().getCurrentTheme();
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
@@ -98,15 +102,14 @@ public class BlockSearchManager {
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
         ImGui.pushStyleColor(ImGuiCol.Text, theme.inputText);
-        
+
         boolean shouldPopColor = false;
+        ImGui.setNextItemWidth(inputWidth);
         if (searchBuffer.get().isEmpty()) {
             ImGui.pushStyleColor(ImGuiCol.Text, ImGui.getColorU32(ImGuiCol.TextDisabled));
             shouldPopColor = true;
-            ImGui.setNextItemWidth(SEARCH_FIELD_WIDTH);
             ImGui.inputTextWithHint("##search", "搜索方块...", searchBuffer);
         } else {
-            ImGui.setNextItemWidth(SEARCH_FIELD_WIDTH);
             ImGui.inputText("##search", searchBuffer);
         }
         if (shouldPopColor) {
@@ -122,7 +125,7 @@ public class BlockSearchManager {
      * 渲染搜索范围选择器
      * 下拉菜单，用于选择搜索范围（全部、名称、ID）
      */
-    private void renderSearchScopeSelector(float height) {
+    private void renderSearchScopeSelector(float height, float comboWidth) {
         var theme = ThemeManager.getInstance().getCurrentTheme();
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
@@ -137,8 +140,8 @@ public class BlockSearchManager {
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(80.0f); // 缩小过滤器宽度
+        ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
+        ImGui.setNextItemWidth(comboWidth);
         if (ImGui.beginCombo("##searchScope", searchScope.getDisplayName())) {
             for (BlockSearchService.SearchScope scope : BlockSearchService.SearchScope.values()) {
                 boolean isSelected = (scope == searchScope);
@@ -167,10 +170,16 @@ public class BlockSearchManager {
      * 当搜索文本太短时显示提示信息
      */
     private void renderSearchHint() {
+        if (isSearching) {
+            ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, "搜索中...");
+            return;
+        }
+
         // 如果搜索文本不为空但太短，显示提示
         if (!searchBuffer.get().isEmpty() && searchBuffer.get().trim().isEmpty()) {
-            ImGui.sameLine();
-            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, 
+            ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText,
                 String.format("请输入至少 %d 个字符", MIN_SEARCH_CHARS));
         }
     }

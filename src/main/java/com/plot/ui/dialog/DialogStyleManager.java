@@ -207,6 +207,14 @@ public class DialogStyleManager {
         ImGui.setCursorPosX(startX);
     }
 
+    /**
+     * 在内容区内按给定总宽度右对齐设置光标 X。
+     */
+    public static void alignRightByWidth(float totalWidth) {
+        float startX = getContentStartX() + Math.max(0.0f, getContentWidth() - totalWidth);
+        ImGui.setCursorPosX(startX);
+    }
+
 
     /**
      * 在对话框标题栏右端渲染统一的关闭按钮（×）。

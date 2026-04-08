@@ -382,10 +382,11 @@ public class SettingsAndHelpDialog {
         final String displayHintText = "提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。";
 
         DialogLayoutHelper.helpText("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
-        DialogLayoutHelper.sectionSeparator();
+        DialogLayoutHelper.subsectionGap();
 
         float hintReservedHeight = DialogLayoutHelper.getReservedTextHeight(DISPLAY_HINT_RESERVED_LINES);
-        if (DialogLayoutHelper.beginSettingsPageBody("##display_scroll_region", hintReservedHeight)) {
+        if (DialogLayoutHelper.beginRemainingChild("##display_scroll_region", hintReservedHeight, true,
+                ImGuiWindowFlags.NoScrollbar)) {
 
             if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent(10);

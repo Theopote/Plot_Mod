@@ -147,7 +147,6 @@ public final class DialogLayoutHelper {
     }
 
     public static void beginFooter() {
-        ImGui.separator();
         ImGui.dummy(0, DialogStyleManager.FOOTER_TOP_GAP);
     }
 

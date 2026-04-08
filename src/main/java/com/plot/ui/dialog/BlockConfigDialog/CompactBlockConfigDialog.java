@@ -71,6 +71,9 @@ public class CompactBlockConfigDialog {
     private static final float DISPLAY_PAGINATION_INFO_HEIGHT = 50.0f;
     private static final float EMPTY_HINT_VERTICAL_SPACING = PADDING * 8.0f;
     private static final float FALLBACK_BADGE_INSET = DialogStyleManager.ITEM_SPACING_H - 1.0f;
+    private static final int RESET_SHORTCUT_KEY_CODE = 'R';
+    private static final int CATEGORY_SHORTCUT_KEY_CODE_START = '1';
+    private static final int CATEGORY_SHORTCUT_KEY_CODE_END = '9';
 
     // [REVISED] 统一所有间距，包括边距和方块间距
     // private static final float GRID_SPACING = 4.0f; // 未使用，保留注释说明
@@ -1575,6 +1578,12 @@ public class CompactBlockConfigDialog {
      * [NEW] 处理全局快捷键
      */
     private void handleGlobalShortcuts() {
+        boolean suppressHotkeys = DialogLayoutHelper.shouldSuppressDialogHotkeys(
+                ImGui.getIO().getWantTextInput(), ImGui.isAnyItemActive());
+        if (suppressHotkeys) {
+            return;
+        }
+
         // Enter 键 - 应用选择
         if (DialogLayoutHelper.isConfirmShortcutPressed()) {
             applyBlockSelection();
@@ -1588,18 +1597,17 @@ public class CompactBlockConfigDialog {
         }
 
         // Ctrl+R - 重置调色盘
-        if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(82)) { // R key scancode
+        if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(RESET_SHORTCUT_KEY_CODE)) {
             clearPalette();
             LOGGER.debug("快捷键 Ctrl+R：重置调色盘");
             return;
         }
 
-        // [NEW] 数字键快速选择分类 (1-9)
+        // 数字键快速选择分类 (1-9)
         if (!ImGui.getIO().getKeyCtrl() && !ImGui.getIO().getKeyAlt()) {
-            // 检查数字键 1-9 (ASCII 49-57)
-            for (int keyCode = 49; keyCode <= 57; keyCode++) {
+            for (int keyCode = CATEGORY_SHORTCUT_KEY_CODE_START; keyCode <= CATEGORY_SHORTCUT_KEY_CODE_END; keyCode++) {
                 if (ImGui.isKeyPressed(keyCode)) {
-                    int categoryIndex = keyCode - 49; // 1键对应索引0
+                    int categoryIndex = keyCode - CATEGORY_SHORTCUT_KEY_CODE_START;
                     BlockCategory[] categories = BlockCategory.values();
                     if (categoryIndex < categories.length) {
                         setCurrentCategory(categories[categoryIndex], false);
