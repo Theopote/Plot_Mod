@@ -144,7 +144,7 @@ public final class DialogLayoutHelper {
     public static float getStandardFooterReservedHeight() {
         return ImGui.getFrameHeight()
                 + DialogStyleManager.FOOTER_TOP_GAP
-                + DialogStyleManager.ROW_GAP;
+                + DialogStyleManager.PANEL_PADDING;
     }
 
     public static void beginFooter() {
