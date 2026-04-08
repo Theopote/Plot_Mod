@@ -35,7 +35,7 @@ public class DialogStyleManager {
     public static final float SECTION_GAP = ITEM_SPACING * 3.0f;
 
     /** Footer 顶部留白 */
-    public static final float FOOTER_TOP_GAP = ITEM_SPACING * 2.0f;
+    public static final float FOOTER_TOP_GAP = ITEM_SPACING;
 
     /** Footer 按钮间距 */
     public static final float FOOTER_BUTTON_GAP = ITEM_SPACING_H;
