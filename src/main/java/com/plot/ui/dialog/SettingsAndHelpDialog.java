@@ -471,7 +471,7 @@ public class SettingsAndHelpDialog {
             }
             ImGui.endChild();
 
-            DialogLayoutHelper.rowGap();
+            ImGui.separator();
             DialogLayoutHelper.helpText(displayHintText);
         }
         ImGui.endChild();

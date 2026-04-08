@@ -41,7 +41,7 @@ public class DialogStyleManager {
     public static final float FOOTER_BUTTON_GAP = ITEM_SPACING_H;
 
     /** 标签宽度 */
-    public static final float LABEL_WIDTH = 64.0f;
+    public static final float LABEL_WIDTH = 84.0f;
 
     /** 标准按钮最小宽度 */
     public static final float BUTTON_MIN_WIDTH = 96.0f;
