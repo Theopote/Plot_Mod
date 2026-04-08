@@ -127,7 +127,8 @@ public final class DialogLayoutHelper {
     }
 
     public static boolean beginSettingsPageBody(String id, float footerReservedHeight) {
-        return beginRemainingChild(id, footerReservedHeight, false, ImGuiWindowFlags.NoScrollbar);
+        return beginRemainingChild(id, footerReservedHeight, false,
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
     }
 
     public static boolean beginPinnedBottomRegion(String id) {
