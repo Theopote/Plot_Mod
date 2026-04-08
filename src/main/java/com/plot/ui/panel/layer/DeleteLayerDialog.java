@@ -41,35 +41,46 @@ public class DeleteLayerDialog {
     }
 
     public void show() {
-        // 检查是否只剩一个图层
-        LayerManager layerManager = appState.getLayerManager();
-        if (layerManager.getLayers().size() <= 1) {
-            showWarningDialog.accept("不能删除仅有的图层");
+        String blockReason = getDeletionBlockReason();
+        if (blockReason != null) {
+            showWarningDialog.accept(blockReason);
             return;
         }
-        
-        // 检查是否有锁定的图层
-        boolean hasLockedLayer = false;
-        String lockedLayerName = "";
-        for (ILayer layer : selectedLayers) {
-            if (layer instanceof Layer && layer.isLocked()) {
-                hasLockedLayer = true;
-                lockedLayerName = layer.getName();
-                break;
-            }
-        }
-        
-        if (hasLockedLayer) {
-            showWarningDialog.accept("无法删除锁定的图层: " + lockedLayerName + "，请先解锁");
-            return;
-        }
-        
+
         isVisible = true;
         ImGui.openPopup(DIALOG_TITLE);
     }
 
     public void hide() {
         isVisible = false;
+    }
+
+    private void closePopup() {
+        hide();
+        ImGui.closeCurrentPopup();
+    }
+
+    private String getDeletionBlockReason() {
+        LayerManager layerManager = appState.getLayerManager();
+        if (layerManager.getLayers().size() <= 1) {
+            return "不能删除仅有的图层";
+        }
+
+        if (selectedLayers == null || selectedLayers.isEmpty()) {
+            return "请先选择要删除的图层";
+        }
+
+        if (layerManager.getLayers().size() <= selectedLayers.size()) {
+            return "必须至少保留一个图层";
+        }
+
+        for (ILayer layer : selectedLayers) {
+            if (layer instanceof Layer && layer.isLocked()) {
+                return "无法删除锁定的图层: " + layer.getName() + "，请先解锁";
+            }
+        }
+
+        return null;
     }
 
     public void render() {
@@ -89,16 +100,14 @@ public class DeleteLayerDialog {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
                 try {
                     if (DialogStyleManager.renderTopRightCloseButton("delete_layer")) {
-                        hide();
-                        ImGui.closeCurrentPopup();
+                        closePopup();
                         ImGui.endPopup();
                         return;
                     }
                     renderDialogContent();
                 } catch (Exception e) {
                     LOGGER.error("渲染删除图层确认对话框时发生错误", e);
-                    hide();
-                    ImGui.closeCurrentPopup();
+                    closePopup();
                 }
                 ImGui.endPopup();
             }
@@ -130,30 +139,24 @@ public class DeleteLayerDialog {
 
         if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
             try {
-                LayerManager layerManager = appState.getLayerManager();
-                int totalLayers = layerManager.getLayers().size();
-
-                if (totalLayers <= selectedLayers.size()) {
-                    showWarningDialog.accept("必须至少保留一个图层");
-                    hide();
-                    ImGui.closeCurrentPopup();
+                String blockReason = getDeletionBlockReason();
+                if (blockReason != null) {
+                    showWarningDialog.accept(blockReason);
+                    closePopup();
                     return;
                 }
 
                 deleteSelectedLayers();
-                hide();
-                ImGui.closeCurrentPopup();
+                closePopup();
             } catch (Exception e) {
                 LOGGER.error("删除图层失败", e);
                 showWarningDialog.accept("删除图层失败，请重试");
-                hide();
-                ImGui.closeCurrentPopup();
+                closePopup();
             }
         }
 
         if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
-            hide();
-            ImGui.closeCurrentPopup();
+            closePopup();
         }
     }
 

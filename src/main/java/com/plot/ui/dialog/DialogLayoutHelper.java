@@ -7,6 +7,7 @@ import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
+import imgui.flag.ImGuiWindowFlags;
 
 /**
  * 对话框布局辅助工具。
@@ -123,6 +124,26 @@ public final class DialogLayoutHelper {
     public static boolean beginRemainingChild(String id, float reservedBottomHeight, boolean border, int windowFlags) {
         float height = reservedBottomHeight > 0.0f ? -reservedBottomHeight : 0.0f;
         return ImGui.beginChild(id, 0, height, border, windowFlags);
+    }
+
+    public static boolean beginSettingsPageBody(String id, float footerReservedHeight) {
+        return beginRemainingChild(id, footerReservedHeight, false, ImGuiWindowFlags.NoScrollbar);
+    }
+
+    public static boolean beginPinnedBottomRegion(String id) {
+        return ImGui.beginChild(id, 0, 0, false,
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+    }
+
+    public static float getReservedTextHeight(float lineCount) {
+        float lines = Math.max(1.0f, lineCount);
+        return ImGui.getTextLineHeightWithSpacing() * lines + DialogStyleManager.SUBSECTION_GAP;
+    }
+
+    public static float getStandardFooterReservedHeight() {
+        return ImGui.getFrameHeight()
+                + DialogStyleManager.FOOTER_TOP_GAP
+                + DialogStyleManager.SECTION_GAP;
     }
 
     public static void beginFooter() {

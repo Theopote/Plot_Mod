@@ -90,9 +90,8 @@ public class SettingsAndHelpDialog {
                 return;
             }
 
-            float footerReservedHeight = getFooterReservedHeight();
-            if (DialogLayoutHelper.beginRemainingChild("##settings_body_region", footerReservedHeight, false,
-                    ImGuiWindowFlags.NoScrollbar)) {
+            float footerReservedHeight = DialogLayoutHelper.getStandardFooterReservedHeight();
+            if (DialogLayoutHelper.beginSettingsPageBody("##settings_body_region", footerReservedHeight)) {
                 try {
                     if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
                         if (ImGui.beginTabItem("快捷键")) {
@@ -328,7 +327,7 @@ public class SettingsAndHelpDialog {
     private void renderHelpPage() {
         ImGui.textDisabled("点击左侧条目查看对应教程");
 
-        if (DialogLayoutHelper.beginRemainingChild("##help_scroll_region", 0.0f, false, 0)) {
+        if (DialogLayoutHelper.beginSettingsPageBody("##help_scroll_region", 0.0f)) {
             if (ImGui.beginChild("##help_nav", 180, 0, true)) {
                 if (ImGui.selectable("基础操作", selectedHelpTopic == 0)) selectedHelpTopic = 0;
                 if (ImGui.selectable("高级技巧", selectedHelpTopic == 1)) selectedHelpTopic = 1;
@@ -385,8 +384,8 @@ public class SettingsAndHelpDialog {
         DialogLayoutHelper.helpText("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
         DialogLayoutHelper.sectionSeparator();
 
-        float hintReservedHeight = getDisplayHintReservedHeight();
-        if (DialogLayoutHelper.beginRemainingChild("##display_scroll_region", hintReservedHeight, false, 0)) {
+        float hintReservedHeight = DialogLayoutHelper.getReservedTextHeight(DISPLAY_HINT_RESERVED_LINES);
+        if (DialogLayoutHelper.beginSettingsPageBody("##display_scroll_region", hintReservedHeight)) {
 
             if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent(10);
@@ -465,8 +464,7 @@ public class SettingsAndHelpDialog {
         ImGui.endChild();
 
         DialogLayoutHelper.subsectionGap();
-        if (ImGui.beginChild("##display_hint_region", 0, 0, false,
-                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
+        if (DialogLayoutHelper.beginPinnedBottomRegion("##display_hint_region")) {
             DialogLayoutHelper.helpText(displayHintText);
         }
         ImGui.endChild();
@@ -480,17 +478,6 @@ public class SettingsAndHelpDialog {
         centroidState.set(snapManager.isCentroidSnapEnabled());
         showControlPointsState.set(ControlPointEditTool.isDisplayEnabled());
         showPointIndexState.set(ControlPointEditTool.isShowPointIndex());
-    }
-
-    private float getDisplayHintReservedHeight() {
-        return ImGui.getTextLineHeightWithSpacing() * DISPLAY_HINT_RESERVED_LINES
-                + DialogStyleManager.SUBSECTION_GAP;
-    }
-
-    private float getFooterReservedHeight() {
-        return ImGui.getFrameHeight()
-                + DialogStyleManager.FOOTER_TOP_GAP
-                + DialogStyleManager.SECTION_GAP;
     }
 
     private void renderSnapColorEditor(String label, SnapPriorityEvaluator.SnapType type) {
