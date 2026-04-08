@@ -137,6 +137,13 @@ public class SettingsAndHelpDialog {
         }
     }
 
+    private void renderBottomHintText(String text) {
+        DialogLayoutHelper.rowGap();
+        ImGui.separator();
+        DialogLayoutHelper.rowGap();
+        DialogLayoutHelper.helpText(text);
+    }
+
     private void renderShortcutsPage() {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         boolean captureActive = editingActionId != null;
@@ -318,8 +325,7 @@ public class SettingsAndHelpDialog {
                 ImGui.endPopup();
             }
 
-            ImGui.separator();
-            DialogLayoutHelper.helpText("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
+            renderBottomHintText("说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。");
         }
         ImGui.endChild();
     }
@@ -471,8 +477,7 @@ public class SettingsAndHelpDialog {
             }
             ImGui.endChild();
 
-            ImGui.separator();
-            DialogLayoutHelper.helpText(displayHintText);
+            renderBottomHintText(displayHintText);
         }
         ImGui.endChild();
     }
