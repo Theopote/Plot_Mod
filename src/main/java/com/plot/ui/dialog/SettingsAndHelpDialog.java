@@ -30,7 +30,7 @@ import java.util.Objects;
  */
 public class SettingsAndHelpDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/SettingsAndHelpDialog");
-    private static final float DISPLAY_HINT_RESERVED_LINES = 3.0f;
+    private static final float DISPLAY_HINT_RESERVED_LINES = 2.0f;
     private static final SettingsAndHelpDialog INSTANCE = new SettingsAndHelpDialog();
 
     private boolean isOpen = false;
@@ -382,7 +382,6 @@ public class SettingsAndHelpDialog {
         final String displayHintText = "提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。";
 
         DialogLayoutHelper.helpText("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
-        DialogLayoutHelper.subsectionGap();
 
         if (DialogLayoutHelper.beginRemainingChild("##display_panel_region", 0.0f, true,
                 ImGuiWindowFlags.NoScrollbar)) {
@@ -472,11 +471,8 @@ public class SettingsAndHelpDialog {
             }
             ImGui.endChild();
 
-            DialogLayoutHelper.subsectionGap();
-            if (DialogLayoutHelper.beginPinnedBottomRegion("##display_hint_region")) {
-                DialogLayoutHelper.helpText(displayHintText);
-            }
-            ImGui.endChild();
+            DialogLayoutHelper.rowGap();
+            DialogLayoutHelper.helpText(displayHintText);
         }
         ImGui.endChild();
     }
