@@ -68,18 +68,6 @@ public class TextInputDialog {
         ImGui.openPopup(DIALOG_TITLE);
     }
 
-    /**
-     * 在任意线程请求打开（将在下一帧渲染时真正打开）
-     */
-    public void scheduleOpen(String presetText, Consumer<TextInputResult> onConfirm, Runnable onCancel) {
-        this.pendingOpenRequest = new PendingOpenRequest(
-                presetText != null ? presetText : "",
-                TextInputPreset.defaults(),
-                onConfirm,
-                onCancel
-        );
-    }
-
     public void scheduleOpen(String presetText, TextInputPreset preset,
                              Consumer<TextInputResult> onConfirm, Runnable onCancel) {
         this.pendingOpenRequest = new PendingOpenRequest(
