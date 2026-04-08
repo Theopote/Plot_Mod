@@ -11,8 +11,10 @@ import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.ui.dialog.ImportFileDialog;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
+import com.plot.ui.dialog.SaveFileDialog;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.toolbar.group.*;
@@ -314,6 +316,8 @@ public class ControlPanel implements UIComponent {
         if (blockConfigDialog != null) blockConfigDialog.render();
         if (projectionSettingsDialog != null) projectionSettingsDialog.render();
         if (lineToBlockSettingsDialog != null) lineToBlockSettingsDialog.render();
+        SaveFileDialog.getSharedInstance().render();
+        ImportFileDialog.getSharedInstance().render();
         // 新增：设置与帮助对话框
         com.plot.ui.dialog.SettingsAndHelpDialog.getInstance().render();
         renderWarningDialog();

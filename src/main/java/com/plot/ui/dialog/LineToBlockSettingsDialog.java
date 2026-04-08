@@ -1,17 +1,16 @@
 package com.plot.ui.dialog;
 
 import imgui.ImGui;
-import imgui.type.ImInt;
-import imgui.type.ImBoolean;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
-import com.plot.core.state.AppState;
-import com.plot.infrastructure.event.EventBus;
+import imgui.type.ImBoolean;
+import imgui.type.ImInt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LineToBlockSettingsDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/LineToBlockSettingsDialog");
-    private static LineToBlockSettingsDialog INSTANCE;
+    private static final LineToBlockSettingsDialog INSTANCE = new LineToBlockSettingsDialog();
 
     private boolean isOpen = false;
     private ConversionMode conversionMode = ConversionMode.FULL;
@@ -34,14 +33,9 @@ public class LineToBlockSettingsDialog {
     }
 
     private LineToBlockSettingsDialog() {
-        AppState appState = AppState.getInstance();
-        EventBus eventBus = EventBus.getInstance();
     }
 
     public static LineToBlockSettingsDialog getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new LineToBlockSettingsDialog();
-        }
         return INSTANCE;
     }
 
@@ -59,7 +53,9 @@ public class LineToBlockSettingsDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         
         try {
-            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0);
+            var center = ImGui.getMainViewport().getCenter();
+            ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
             boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings",
                     ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
             try {

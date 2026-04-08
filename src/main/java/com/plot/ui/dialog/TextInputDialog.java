@@ -21,6 +21,10 @@ public class TextInputDialog {
     /** 多行输入框最小可见行数 */
     private static final float MIN_INPUT_ROWS = 6.0f;
 
+    private record PendingOpenRequest(String presetText, TextInputPreset preset,
+                                      Consumer<TextInputResult> onConfirm, Runnable onCancel) {
+    }
+
     public static TextInputDialog getInstance() {
         return INSTANCE;
     }
@@ -30,12 +34,8 @@ public class TextInputDialog {
     private Consumer<TextInputResult> onConfirm;
     private Runnable onCancel;
 
-    // 跨线程安全的延迟打开标记与参数（避免在非渲染线程调用 ImGui.openPopup）
-    private volatile boolean pendingOpen = false;
-    private String pendingPreset = "";
-    private Consumer<TextInputResult> pendingOnConfirm;
-    private Runnable pendingOnCancel;
-    private TextInputPreset pendingStylePreset;
+    // 跨线程安全的延迟打开请求（避免在非渲染线程调用 ImGui.openPopup）
+    private volatile PendingOpenRequest pendingOpenRequest;
 
     // 样式参数（跟随 TextStyle 的默认值与范围）
     // 注意：字体大小滑动条范围为 100~200，所以初始值设为 100.0f
@@ -72,20 +72,22 @@ public class TextInputDialog {
      * 在任意线程请求打开（将在下一帧渲染时真正打开）
      */
     public void scheduleOpen(String presetText, Consumer<TextInputResult> onConfirm, Runnable onCancel) {
-        this.pendingPreset = presetText != null ? presetText : "";
-        this.pendingOnConfirm = onConfirm;
-        this.pendingOnCancel = onCancel;
-        this.pendingStylePreset = TextInputPreset.defaults();
-        this.pendingOpen = true;
+        this.pendingOpenRequest = new PendingOpenRequest(
+                presetText != null ? presetText : "",
+                TextInputPreset.defaults(),
+                onConfirm,
+                onCancel
+        );
     }
 
     public void scheduleOpen(String presetText, TextInputPreset preset,
                              Consumer<TextInputResult> onConfirm, Runnable onCancel) {
-        this.pendingPreset = presetText != null ? presetText : "";
-        this.pendingOnConfirm = onConfirm;
-        this.pendingOnCancel = onCancel;
-        this.pendingStylePreset = preset;
-        this.pendingOpen = true;
+        this.pendingOpenRequest = new PendingOpenRequest(
+                presetText != null ? presetText : "",
+                preset,
+                onConfirm,
+                onCancel
+        );
     }
 
     public boolean isVisible() {
@@ -94,13 +96,14 @@ public class TextInputDialog {
 
     public void render() {
         // 若收到延迟打开请求，则在渲染线程执行真正的打开
-        if (pendingOpen) {
-            this.onConfirm = pendingOnConfirm;
-            this.onCancel = pendingOnCancel;
-            this.textBuffer.set(pendingPreset);
-            applyPreset(pendingStylePreset);
+        PendingOpenRequest pendingRequest = pendingOpenRequest;
+        if (pendingRequest != null) {
+            this.onConfirm = pendingRequest.onConfirm();
+            this.onCancel = pendingRequest.onCancel();
+            this.textBuffer.set(pendingRequest.presetText());
+            applyPreset(pendingRequest.preset());
             this.visible = true;
-            this.pendingOpen = false;
+            this.pendingOpenRequest = null;
             ImGui.openPopup(DIALOG_TITLE);
         }
 
@@ -274,7 +277,7 @@ public class TextInputDialog {
         visible = false;
         onConfirm = null;
         onCancel = null;
-        pendingStylePreset = null;
+        pendingOpenRequest = null;
     }
 
     private void applyPreset(TextInputPreset preset) {

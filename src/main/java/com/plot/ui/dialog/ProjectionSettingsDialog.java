@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ProjectionSettingsDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/ProjectionSettingsDialog");
-    private static ProjectionSettingsDialog INSTANCE;
+    private static final ProjectionSettingsDialog INSTANCE = new ProjectionSettingsDialog();
     
     // 对话框状态
     private boolean isOpen = false;
@@ -33,9 +33,6 @@ public class ProjectionSettingsDialog {
      * 获取单例实例
      */
     public static ProjectionSettingsDialog getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new ProjectionSettingsDialog();
-        }
         return INSTANCE;
     }
     
@@ -69,6 +66,8 @@ public class ProjectionSettingsDialog {
                               ImGuiWindowFlags.NoSavedSettings;
 
             // 开始渲染窗口
+            var center = ImGui.getMainViewport().getCenter();
+            ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
             // 重要：无论 begin() 返回 true/false，都必须 end()，否则会触发 ImGui 的窗口栈断言
             boolean windowVisible = ImGui.begin("方块投影设置", windowFlags);

@@ -7,7 +7,11 @@ import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.File;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * 文件对话框工具类
@@ -16,295 +20,167 @@ import java.util.concurrent.atomic.AtomicReference;
 public class FileDialogUtil {
     private static final Logger LOGGER = LogManager.getLogger("FileDialogUtil");
 
+    private static void configureChooser(JFileChooser fileChooser, String initialPath,
+                                         String fileExtension, String description, boolean allowFileSelection) {
+        if (fileExtension != null && !fileExtension.isEmpty()) {
+            fileChooser.setFileFilter(new FileNameExtensionFilter(description, fileExtension));
+        }
+
+        if (initialPath == null || initialPath.isEmpty()) {
+            return;
+        }
+
+        File initialFile = new File(initialPath);
+        if (!initialFile.exists()) {
+            return;
+        }
+
+        if (initialFile.isDirectory()) {
+            fileChooser.setCurrentDirectory(initialFile);
+        } else if (allowFileSelection) {
+            File parent = initialFile.getParentFile();
+            if (parent != null && parent.exists()) {
+                fileChooser.setCurrentDirectory(parent);
+            }
+            fileChooser.setSelectedFile(initialFile);
+        }
+    }
+
+    private static void runChooserAsync(String dialogTitle,
+                                        Consumer<JFileChooser> configurator,
+                                        Function<JFileChooser, Integer> dialogOpener,
+                                        Function<File, String> resultMapper,
+                                        Consumer<String> callback) {
+        LOGGER.info("异步打开文件对话框: {}", dialogTitle);
+
+        SwingUtilities.invokeLater(() -> {
+            String result = null;
+            try {
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setDialogTitle(dialogTitle);
+                if (configurator != null) {
+                    configurator.accept(fileChooser);
+                }
+
+                int returnValue = dialogOpener.apply(fileChooser);
+                if (returnValue == JFileChooser.APPROVE_OPTION && fileChooser.getSelectedFile() != null) {
+                    File selectedFile = fileChooser.getSelectedFile();
+                    result = resultMapper != null
+                            ? resultMapper.apply(selectedFile)
+                            : selectedFile.getAbsolutePath();
+                }
+            } catch (Exception e) {
+                LOGGER.error("显示文件对话框时发生错误: {}", dialogTitle, e);
+            }
+
+            if (callback != null) {
+                callback.accept(result);
+            }
+        });
+    }
+
+    private static String waitForAsyncResult(Consumer<Consumer<String>> starter, String timeoutMessage) {
+        AtomicReference<String> result = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        starter.accept(path -> {
+            result.set(path);
+            latch.countDown();
+        });
+
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                LOGGER.warn(timeoutMessage);
+                return null;
+            }
+        } catch (InterruptedException e) {
+            LOGGER.error("等待文件对话框结果时被中断", e);
+            Thread.currentThread().interrupt();
+            return null;
+        }
+
+        return result.get();
+    }
+
+    public static void showFolderDialogAsync(String initialDirectory, Consumer<String> callback) {
+        runChooserAsync(
+                "选择文件夹",
+                fileChooser -> {
+                    fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                    configureChooser(fileChooser, initialDirectory, null, null, false);
+                },
+                fileChooser -> fileChooser.showOpenDialog(null),
+                File::getAbsolutePath,
+                callback
+        );
+    }
+
+    public static void showOpenFileDialogAsync(String initialDirectory, String fileExtension,
+                                               String description, Consumer<String> callback) {
+        runChooserAsync(
+                "打开文件",
+                fileChooser -> configureChooser(fileChooser, initialDirectory, fileExtension, description, true),
+                fileChooser -> fileChooser.showOpenDialog(null),
+                File::getAbsolutePath,
+                callback
+        );
+    }
+
+    public static void showSaveFileDialogAsync(String initialDirectory, String defaultFileName,
+                                               String fileExtension, String description,
+                                               Consumer<String> callback) {
+        runChooserAsync(
+                "保存文件",
+                fileChooser -> {
+                    configureChooser(fileChooser, initialDirectory, fileExtension, description, false);
+                    if (defaultFileName != null && !defaultFileName.isEmpty()) {
+                        File baseDir = fileChooser.getCurrentDirectory();
+                        fileChooser.setSelectedFile(baseDir != null
+                                ? new File(baseDir, defaultFileName)
+                                : new File(defaultFileName));
+                    }
+                },
+                fileChooser -> fileChooser.showSaveDialog(null),
+                selectedFile -> {
+                    String filePath = selectedFile.getAbsolutePath();
+                    if (fileExtension != null && !fileExtension.isEmpty()
+                            && !filePath.toLowerCase().endsWith("." + fileExtension.toLowerCase())) {
+                        filePath += "." + fileExtension;
+                    }
+                    return filePath;
+                },
+                callback
+        );
+    }
+
     /**
-     * 显示文件夹选择对话框
-     * @param initialDirectory 初始目录
-     * @return 选择的文件夹路径，如果取消则返回null
+     * 兼容旧接口；UI 层优先使用 async 版本以避免阻塞渲染线程。
      */
     public static String showFolderDialog(String initialDirectory) {
-        LOGGER.info("调用showFolderDialog，初始目录: {}", initialDirectory);
-        
-        // 使用AtomicReference来存储结果，因为我们需要在lambda表达式中修改它
-        AtomicReference<String> result = new AtomicReference<>();
-        
-        // 创建一个锁对象，用于同步
-        Object lock = new Object();
-        
-        // 标记操作是否完成
-        AtomicReference<Boolean> done = new AtomicReference<>(false);
-        
-        // 在Swing线程中执行文件选择对话框
-        SwingUtilities.invokeLater(() -> {
-            try {
-                LOGGER.info("在Swing线程中创建文件选择对话框");
-                JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setDialogTitle("选择文件夹");
-                fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-                
-                // 设置初始目录
-                if (initialDirectory != null && !initialDirectory.isEmpty()) {
-                    File initialDir = new File(initialDirectory);
-                    if (initialDir.exists() && initialDir.isDirectory()) {
-                        fileChooser.setCurrentDirectory(initialDir);
-                        LOGGER.info("设置初始目录: {}", initialDir.getAbsolutePath());
-                    }
-                }
-                
-                // 显示对话框
-                LOGGER.info("显示文件夹选择对话框");
-                int returnValue = fileChooser.showOpenDialog(null);
-                
-                synchronized (lock) {
-                    if (returnValue == JFileChooser.APPROVE_OPTION) {
-                        File selectedFile = fileChooser.getSelectedFile();
-                        result.set(selectedFile.getAbsolutePath());
-                        LOGGER.info("用户选择了文件夹: {}", selectedFile.getAbsolutePath());
-                    } else {
-                        result.set(null);
-                        LOGGER.info("用户取消了文件夹选择");
-                    }
-                    
-                    // 标记操作完成
-                    done.set(true);
-                    
-                    // 通知等待的线程
-                    lock.notifyAll();
-                }
-            } catch (Exception e) {
-                LOGGER.error("显示文件夹选择对话框时发生错误", e);
-                
-                synchronized (lock) {
-                    result.set(null);
-                    done.set(true);
-                    lock.notifyAll();
-                }
-            }
-        });
-        
-        // 等待对话框操作完成
-        synchronized (lock) {
-            try {
-                // 最多等待10秒
-                long startTime = System.currentTimeMillis();
-                while (!done.get() && System.currentTimeMillis() - startTime < 10000) {
-                    lock.wait(100);
-                }
-                
-                if (!done.get()) {
-                    LOGGER.warn("文件夹选择对话框操作超时");
-                    return null;
-                }
-            } catch (InterruptedException e) {
-                LOGGER.error("等待文件夹选择结果时被中断", e);
-                Thread.currentThread().interrupt();
-                return null;
-            }
-        }
-        
-        LOGGER.info("showFolderDialog返回结果: {}", result.get());
-        return result.get();
+        return waitForAsyncResult(
+                callback -> showFolderDialogAsync(initialDirectory, callback),
+                "文件夹选择对话框操作超时"
+        );
     }
 
     /**
-     * 显示打开文件对话框
-     * @param initialDirectory 初始目录
-     * @param fileExtension 文件扩展名（不包含点，例如"mp"）
-     * @param description 文件类型描述
-     * @return 选择的文件路径，如果取消则返回null
+     * 兼容旧接口；UI 层优先使用 async 版本以避免阻塞渲染线程。
      */
     public static String showOpenFileDialog(String initialDirectory, String fileExtension, String description) {
-        LOGGER.info("调用showOpenFileDialog，初始目录: {}", initialDirectory);
-        
-        // 使用AtomicReference来存储结果
-        AtomicReference<String> result = new AtomicReference<>();
-        
-        // 创建一个锁对象，用于同步
-        Object lock = new Object();
-        
-        // 标记操作是否完成
-        AtomicReference<Boolean> done = new AtomicReference<>(false);
-        
-        // 在Swing线程中执行文件选择对话框
-        SwingUtilities.invokeLater(() -> {
-            try {
-                JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setDialogTitle("打开文件");
-                
-                // 设置文件过滤器
-                if (fileExtension != null && !fileExtension.isEmpty()) {
-                    FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        description, fileExtension
-                    );
-                    fileChooser.setFileFilter(filter);
-                }
-                
-                // 设置初始目录
-                if (initialDirectory != null && !initialDirectory.isEmpty()) {
-                    File initialDir = new File(initialDirectory);
-                    if (initialDir.exists()) {
-                        if (initialDir.isDirectory()) {
-                            fileChooser.setCurrentDirectory(initialDir);
-                        } else {
-                            fileChooser.setCurrentDirectory(initialDir.getParentFile());
-                            fileChooser.setSelectedFile(initialDir);
-                        }
-                    }
-                }
-                
-                // 显示对话框
-                int returnValue = fileChooser.showOpenDialog(null);
-                
-                synchronized (lock) {
-                    if (returnValue == JFileChooser.APPROVE_OPTION) {
-                        File selectedFile = fileChooser.getSelectedFile();
-                        result.set(selectedFile.getAbsolutePath());
-                    } else {
-                        result.set(null);
-                    }
-                    
-                    // 标记操作完成
-                    done.set(true);
-                    
-                    // 通知等待的线程
-                    lock.notifyAll();
-                }
-            } catch (Exception e) {
-                LOGGER.error("显示打开文件对话框时发生错误", e);
-                
-                synchronized (lock) {
-                    result.set(null);
-                    done.set(true);
-                    lock.notifyAll();
-                }
-            }
-        });
-        
-        // 等待对话框操作完成
-        synchronized (lock) {
-            try {
-                // 最多等待10秒
-                long startTime = System.currentTimeMillis();
-                while (!done.get() && System.currentTimeMillis() - startTime < 10000) {
-                    lock.wait(100);
-                }
-                
-                if (!done.get()) {
-                    LOGGER.warn("打开文件对话框操作超时");
-                    return null;
-                }
-            } catch (InterruptedException e) {
-                LOGGER.error("等待打开文件结果时被中断", e);
-                Thread.currentThread().interrupt();
-                return null;
-            }
-        }
-        
-        return result.get();
+        return waitForAsyncResult(
+                callback -> showOpenFileDialogAsync(initialDirectory, fileExtension, description, callback),
+                "打开文件对话框操作超时"
+        );
     }
 
     /**
-     * 显示保存文件对话框
-     * @param initialDirectory 初始目录
-     * @param defaultFileName 默认文件名
-     * @param fileExtension 文件扩展名（不包含点，例如"mp"）
-     * @param description 文件类型描述
-     * @return 选择的文件路径，如果取消则返回null
+     * 兼容旧接口；UI 层优先使用 async 版本以避免阻塞渲染线程。
      */
-    public static String showSaveFileDialog(String initialDirectory, String defaultFileName, 
+    public static String showSaveFileDialog(String initialDirectory, String defaultFileName,
                                            String fileExtension, String description) {
-        LOGGER.info("调用showSaveFileDialog，初始目录: {}", initialDirectory);
-        
-        // 使用AtomicReference来存储结果
-        AtomicReference<String> result = new AtomicReference<>();
-        
-        // 创建一个锁对象，用于同步
-        Object lock = new Object();
-        
-        // 标记操作是否完成
-        AtomicReference<Boolean> done = new AtomicReference<>(false);
-        
-        // 在Swing线程中执行文件选择对话框
-        SwingUtilities.invokeLater(() -> {
-            try {
-                JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setDialogTitle("保存文件");
-                
-                // 设置文件过滤器
-                if (fileExtension != null && !fileExtension.isEmpty()) {
-                    FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        description, fileExtension
-                    );
-                    fileChooser.setFileFilter(filter);
-                }
-                
-                // 设置初始目录和文件名
-                if (initialDirectory != null && !initialDirectory.isEmpty()) {
-                    File initialDir = new File(initialDirectory);
-                    if (initialDir.exists() && initialDir.isDirectory()) {
-                        fileChooser.setCurrentDirectory(initialDir);
-                    }
-                }
-                
-                if (defaultFileName != null && !defaultFileName.isEmpty()) {
-                    fileChooser.setSelectedFile(new File(fileChooser.getCurrentDirectory(), defaultFileName));
-                }
-                
-                // 显示对话框
-                int returnValue = fileChooser.showSaveDialog(null);
-                
-                synchronized (lock) {
-                    if (returnValue == JFileChooser.APPROVE_OPTION) {
-                        File selectedFile = fileChooser.getSelectedFile();
-                        String filePath = selectedFile.getAbsolutePath();
-                        
-                        // 确保文件有正确的扩展名
-                        if (fileExtension != null && !fileExtension.isEmpty() && 
-                            !filePath.toLowerCase().endsWith("." + fileExtension.toLowerCase())) {
-                            filePath += "." + fileExtension;
-                        }
-                        
-                        result.set(filePath);
-                    } else {
-                        result.set(null);
-                    }
-                    
-                    // 标记操作完成
-                    done.set(true);
-                    
-                    // 通知等待的线程
-                    lock.notifyAll();
-                }
-            } catch (Exception e) {
-                LOGGER.error("显示保存文件对话框时发生错误", e);
-                
-                synchronized (lock) {
-                    result.set(null);
-                    done.set(true);
-                    lock.notifyAll();
-                }
-            }
-        });
-        
-        // 等待对话框操作完成
-        synchronized (lock) {
-            try {
-                // 最多等待10秒
-                long startTime = System.currentTimeMillis();
-                while (!done.get() && System.currentTimeMillis() - startTime < 10000) {
-                    lock.wait(100);
-                }
-                
-                if (!done.get()) {
-                    LOGGER.warn("保存文件对话框操作超时");
-                    return null;
-                }
-            } catch (InterruptedException e) {
-                LOGGER.error("等待保存文件结果时被中断", e);
-                Thread.currentThread().interrupt();
-                return null;
-            }
-        }
-        
-        return result.get();
+        return waitForAsyncResult(
+                callback -> showSaveFileDialogAsync(initialDirectory, defaultFileName, fileExtension, description, callback),
+                "保存文件对话框操作超时"
+        );
     }
 }

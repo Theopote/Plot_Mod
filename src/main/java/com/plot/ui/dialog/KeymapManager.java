@@ -128,6 +128,11 @@ public class KeymapManager {
         actions.add(new ActionDef("edit.undo", "撤销", "编辑操作"));
         actions.add(new ActionDef("edit.redo", "重做", "编辑操作"));
 
+        // 文件操作
+        actions.add(new ActionDef("file.save", "保存项目", "文件操作"));
+        actions.add(new ActionDef("file.open", "导入文件", "文件操作"));
+        actions.add(new ActionDef("file.export", "导出文件", "文件操作"));
+
         // 设置入口
         actions.add(new ActionDef("open.settings", "打开设置与帮助", "视图与面板"));
         actions.add(new ActionDef("open.keycheatsheet", "打开快捷键速查", "视图与面板"));
@@ -225,21 +230,21 @@ class UIShortcutActions {
     static class UiActions {
         static boolean openSaveDialog() {
             try {
-                com.plot.ui.dialog.SaveFileDialog d = new com.plot.ui.dialog.SaveFileDialog(
-                        com.plot.core.state.AppState.getInstance(),
-                        com.plot.infrastructure.event.EventBus.getInstance(), null);
-                d.show();
+                com.plot.ui.dialog.SaveFileDialog.getSharedInstance().show();
                 return true;
-            } catch (Exception e) { return false; }
+            } catch (Exception e) {
+                LogManager.getInstance().error("无法打开保存对话框", e);
+                return false;
+            }
         }
         static boolean openImportDialog() {
             try {
-                com.plot.ui.dialog.ImportFileDialog d = new com.plot.ui.dialog.ImportFileDialog(
-                        com.plot.core.state.AppState.getInstance(),
-                        com.plot.infrastructure.event.EventBus.getInstance(), null);
-                d.show();
+                com.plot.ui.dialog.ImportFileDialog.getSharedInstance().show();
                 return true;
-            } catch (Exception e) { return false; }
+            } catch (Exception e) {
+                LogManager.getInstance().error("无法打开导入对话框", e);
+                return false;
+            }
         }
         static boolean openExportDialog() { return false; }
         static boolean publishUndo() {

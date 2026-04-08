@@ -1,17 +1,17 @@
 package com.plot.ui.dialog;
 
 import com.plot.core.state.AppState;
+import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.file.FileImportedEvent;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.plot.infrastructure.event.EventBus;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
  */
 public class ImportFileDialog {
     private static final Logger LOGGER = LogManager.getLogger("ImportFileDialog");
+    private static ImportFileDialog SHARED_INSTANCE;
 
     // === 常量定义 ===
     private static final String DIALOG_TITLE = "导入文件";
@@ -39,13 +40,24 @@ public class ImportFileDialog {
     private final ImString filePath;            // 文件路径输入缓冲区
     private String lastBrowsedPath = System.getProperty("user.home");  // 上次浏览的路径
     private List<File> currentFiles = new ArrayList<>();  // 当前目录下的文件列表
-    private int selectedFileIndex = -1;         // 当前选中的文件索引
+    private File selectedFile = null;           // 当前选中的文件对象
     private final ImString fileFilterInput;     // 文件过滤输入
 
     // === 依赖项 ===
     private final AppState appState;            // 应用程序状态
     private final EventBus eventBus;            // 事件总线
     private final Consumer<String> showWarningDialog;  // 警告对话框回调
+
+    public static synchronized ImportFileDialog getSharedInstance() {
+        if (SHARED_INSTANCE == null) {
+            SHARED_INSTANCE = new ImportFileDialog(
+                    AppState.getInstance(),
+                    EventBus.getInstance(),
+                    ImportFileDialog::publishWarningMessage
+            );
+        }
+        return SHARED_INSTANCE;
+    }
 
     public ImportFileDialog(
             AppState appState,
@@ -82,8 +94,8 @@ public class ImportFileDialog {
         // 清空文件过滤输入
         fileFilterInput.set("");
         
-        // 重置选中的文件索引
-        selectedFileIndex = -1;
+        // 重置选中的文件
+        selectedFile = null;
     }
 
     /**
@@ -91,53 +103,60 @@ public class ImportFileDialog {
      */
     private void hide() {
         isVisible = false;
-        selectedFileIndex = -1;
+        selectedFile = null;
+    }
+
+    private static void publishWarningMessage(String message) {
+        EventBus.getInstance().publish(new Events.WarningEvent("ImportFileDialog", message));
+    }
+
+    private void showWarning(String message) {
+        if (showWarningDialog != null) {
+            showWarningDialog.accept(message);
+        } else {
+            publishWarningMessage(message);
+        }
     }
 
     /**
      * 导入选中的文件
      */
     private void importFile() {
-        if (selectedFileIndex < 0 || selectedFileIndex >= currentFiles.size()) {
-            showWarningDialog.accept("请先选择要导入的文件");
+        importFile(selectedFile);
+    }
+
+    private void importFile(File fileToImport) {
+        if (fileToImport == null) {
+            showWarning("请先选择要导入的文件");
             return;
         }
-        
-        File selectedFile = currentFiles.get(selectedFileIndex);
-        
-        // 检查文件是否存在
-        if (!selectedFile.exists()) {
-            showWarningDialog.accept("选择的文件不存在");
+
+        if (fileToImport.isDirectory()) {
+            showWarning("请选择要导入的文件，而不是目录");
             return;
         }
-        
-        // 检查文件是否是支持的格式
-        boolean isSupported = false;
-        String fileName = selectedFile.getName().toLowerCase();
-        for (String ext : SUPPORTED_EXTENSIONS) {
-            if (fileName.endsWith(ext)) {
-                isSupported = true;
-                break;
-            }
+
+        if (!fileToImport.exists()) {
+            showWarning("选择的文件不存在");
+            return;
         }
-        
-        if (!isSupported) {
-            showWarningDialog.accept("不支持的文件格式，请选择以下格式之一: " + 
-                                    String.join(", ", SUPPORTED_EXTENSIONS));
+
+        if (!isSupportedFile(fileToImport)) {
+            showWarning("不支持的文件格式，请选择以下格式之一: " +
+                    String.join(", ", SUPPORTED_EXTENSIONS));
             return;
         }
 
         try {
-            // 发布文件导入事件
-            String fullPathStr = selectedFile.getAbsolutePath();
+            String fullPathStr = fileToImport.getAbsolutePath();
             eventBus.publish(new FileImportedEvent(fullPathStr));
-            
+
             LOGGER.info("成功导入文件: {}", fullPathStr);
-            
+
             hide();
             ImGui.closeCurrentPopup();
         } catch (Exception e) {
-            showWarningDialog.accept("导入文件失败: " + e.getMessage());
+            showWarning("导入文件失败: " + e.getMessage());
             LOGGER.error("导入文件失败", e);
         }
     }
@@ -164,6 +183,7 @@ public class ImportFileDialog {
                         })
                         .collect(Collectors.toList());
                     
+                    selectedFile = null;
                     LOGGER.info("已加载目录 {} 中的 {} 个文件/文件夹", directoryPath, currentFiles.size());
                 } else {
                     currentFiles.clear();
@@ -205,7 +225,7 @@ public class ImportFileDialog {
                 filePath.set(parentDir.getAbsolutePath());
                 lastBrowsedPath = parentDir.getAbsolutePath();
                 updateFileList(parentDir.getAbsolutePath());
-                selectedFileIndex = -1;
+                selectedFile = null;
             }
         } catch (Exception e) {
             LOGGER.error("导航到上一级目录时发生错误", e);
@@ -221,7 +241,7 @@ public class ImportFileDialog {
                 filePath.set(directory.getAbsolutePath());
                 lastBrowsedPath = directory.getAbsolutePath();
                 updateFileList(directory.getAbsolutePath());
-                selectedFileIndex = -1;
+                selectedFile = null;
             }
         } catch (Exception e) {
             LOGGER.error("导航到目录时发生错误", e);
@@ -282,7 +302,7 @@ public class ImportFileDialog {
                 List<File> filteredFiles = currentFiles.stream()
                     .filter(file -> filterText.isEmpty() ||
                                    file.getName().toLowerCase().contains(filterText))
-                    .toList();
+                    .collect(Collectors.toList());
 
                 // 文件列表采用动态高度：按行高和可见行数计算，并保底显示最少几行
                 float rowHeight = ImGui.getTextLineHeightWithSpacing();
@@ -320,7 +340,7 @@ public class ImportFileDialog {
 
                 ImGui.setNextItemWidth(-1.0f);
                 if (ImGui.inputText("##file_filter", fileFilterInput)) {
-                    selectedFileIndex = -1;
+                    selectedFile = null;
                 }
 
                 DialogLayoutHelper.subsectionGap();
@@ -335,24 +355,15 @@ public class ImportFileDialog {
                                         "[目录] " + file.getName() : 
                                         file.getName();
                     
-                    boolean isSelected = i == selectedFileIndex;
+                    boolean isSelected = selectedFile != null && selectedFile.equals(file);
                     if (ImGui.selectable(displayName, isSelected, ImGuiSelectableFlags.AllowDoubleClick)) {
+                        selectedFile = file;
                         if (file.isDirectory()) {
                             if (ImGui.isMouseDoubleClicked(0)) {
-                                // 双击目录时导航到该目录
                                 navigateToDirectory(file);
-                            } else {
-                                // 单击选中目录
-                                selectedFileIndex = i;
                             }
-                        } else {
-                            // 选中文件
-                            selectedFileIndex = i;
-                            
-                            if (ImGui.isMouseDoubleClicked(0)) {
-                                // 双击文件时导入
-                                importFile();
-                            }
+                        } else if (ImGui.isMouseDoubleClicked(0)) {
+                            importFile(file);
                         }
                     }
                 }

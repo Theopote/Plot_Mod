@@ -1,6 +1,9 @@
 package com.plot.ui.dialog;
 
+import com.plot.core.model.Project;
 import com.plot.core.state.AppState;
+import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -9,8 +12,6 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.plot.infrastructure.event.EventBus;
-import com.plot.core.model.Project;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -24,21 +25,38 @@ import java.util.function.Consumer;
  */
 public class SaveFileDialog {
     private static final Logger LOGGER = LogManager.getLogger("SaveFileDialog");
+    private static SaveFileDialog SHARED_INSTANCE;
 
     // === 常量定义 ===
     private static final String DIALOG_TITLE = "保存文件";
     private static final String DEFAULT_FILE_EXTENSION = ".mp";  // 默认文件扩展名
+
+    private record FolderSelectionResult(String path) {
+    }
 
     // === 状态字段 ===
     private boolean isVisible = false;          // 对话框是否可见
     private final ImString fileName;            // 文件名输入缓冲区
     private final ImString filePath;            // 文件路径输入缓冲区
     private String lastBrowsedPath = System.getProperty("user.home");  // 上次浏览的路径
+    private volatile FolderSelectionResult pendingFolderSelection;
+    private volatile boolean folderDialogInProgress = false;
 
     // === 依赖项 ===
     private final AppState appState;            // 应用程序状态
     private final EventBus eventBus;            // 事件总线
     private final Consumer<String> showWarningDialog;  // 警告对话框回调
+
+    public static synchronized SaveFileDialog getSharedInstance() {
+        if (SHARED_INSTANCE == null) {
+            SHARED_INSTANCE = new SaveFileDialog(
+                    AppState.getInstance(),
+                    EventBus.getInstance(),
+                    SaveFileDialog::publishWarningMessage
+            );
+        }
+        return SHARED_INSTANCE;
+    }
 
     public SaveFileDialog(
             AppState appState,
@@ -101,6 +119,36 @@ public class SaveFileDialog {
         isVisible = false;
     }
 
+    private static void publishWarningMessage(String message) {
+        EventBus.getInstance().publish(new Events.WarningEvent("SaveFileDialog", message));
+    }
+
+    private void showWarning(String message) {
+        if (showWarningDialog != null) {
+            showWarningDialog.accept(message);
+        } else {
+            publishWarningMessage(message);
+        }
+    }
+
+    private void consumePendingFolderSelection() {
+        FolderSelectionResult result = pendingFolderSelection;
+        if (result == null) {
+            return;
+        }
+        pendingFolderSelection = null;
+
+        String selectedPath = result.path();
+        LOGGER.info("文件夹选择对话框返回结果: {}", selectedPath);
+        if (selectedPath != null && !selectedPath.isEmpty()) {
+            filePath.set(selectedPath);
+            lastBrowsedPath = selectedPath;
+            LOGGER.info("成功设置选择的文件夹路径: {}", selectedPath);
+        } else {
+            LOGGER.info("用户取消了文件夹选择或未选择任何文件夹");
+        }
+    }
+
     /**
      * 保存文件
      */
@@ -109,7 +157,7 @@ public class SaveFileDialog {
         String path = filePath.get().trim();
 
         if (name.isEmpty()) {
-            showWarningDialog.accept("文件名不能为空");
+            showWarning("文件名不能为空");
             return;
         }
 
@@ -121,7 +169,7 @@ public class SaveFileDialog {
         // 检查路径是否存在
         Path dirPath = Paths.get(path);
         if (!Files.exists(dirPath)) {
-            showWarningDialog.accept("指定的路径不存在");
+            showWarning("指定的路径不存在");
             return;
         }
 
@@ -151,14 +199,14 @@ public class SaveFileDialog {
                 LOGGER.info("成功保存文件: {}", fullPathStr);
             } else {
                 LOGGER.error("保存失败：当前没有活动项目");
-                showWarningDialog.accept("保存失败：当前没有活动项目");
+                showWarning("保存失败：当前没有活动项目");
                 return;
             }
             
             hide();
             ImGui.closeCurrentPopup();
         } catch (Exception e) {
-            showWarningDialog.accept("保存文件失败: " + e.getMessage());
+            showWarning("保存文件失败: " + e.getMessage());
             LOGGER.error("保存文件失败", e);
         }
     }
@@ -169,20 +217,20 @@ public class SaveFileDialog {
     private void browseFolder() {
         LOGGER.info("开始打开文件夹选择对话框，初始路径: {}", lastBrowsedPath);
         try {
-            // 使用FileDialogUtil打开文件夹选择对话框
-            String selectedPath = FileDialogUtil.showFolderDialog(lastBrowsedPath);
-            LOGGER.info("文件夹选择对话框返回结果: {}", selectedPath);
-            
-            if (selectedPath != null && !selectedPath.isEmpty()) {
-                filePath.set(selectedPath);
-                lastBrowsedPath = selectedPath;
-                LOGGER.info("成功设置选择的文件夹路径: {}", selectedPath);
-            } else {
-                LOGGER.info("用户取消了文件夹选择或未选择任何文件夹");
+            if (folderDialogInProgress) {
+                LOGGER.debug("文件夹选择对话框已在进行中，忽略重复打开请求");
+                return;
             }
+
+            folderDialogInProgress = true;
+            FileDialogUtil.showFolderDialogAsync(lastBrowsedPath, selectedPath -> {
+                pendingFolderSelection = new FolderSelectionResult(selectedPath);
+                folderDialogInProgress = false;
+            });
         } catch (Exception e) {
+            folderDialogInProgress = false;
             LOGGER.error("打开文件夹选择对话框时发生错误", e);
-            showWarningDialog.accept("打开文件夹选择对话框失败: " + e.getMessage());
+            showWarning("打开文件夹选择对话框失败: " + e.getMessage());
         }
     }
 
@@ -197,6 +245,7 @@ public class SaveFileDialog {
      * 渲染对话框
      */
     public void render() {
+        consumePendingFolderSelection();
         if (!isVisible) return;
 
         float totalWidth = DialogStyleManager.DialogWidth.STANDARD.value;
