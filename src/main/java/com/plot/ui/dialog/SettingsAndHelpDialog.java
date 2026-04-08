@@ -384,89 +384,99 @@ public class SettingsAndHelpDialog {
         DialogLayoutHelper.helpText("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
         DialogLayoutHelper.subsectionGap();
 
-        float hintReservedHeight = DialogLayoutHelper.getReservedTextHeight(DISPLAY_HINT_RESERVED_LINES);
-        if (DialogLayoutHelper.beginRemainingChild("##display_scroll_region", hintReservedHeight, true,
+        if (DialogLayoutHelper.beginRemainingChild("##display_panel_region", 0.0f, true,
                 ImGuiWindowFlags.NoScrollbar)) {
+            float hintReservedHeight = DialogLayoutHelper.getReservedTextHeight(DISPLAY_HINT_RESERVED_LINES);
+            if (DialogLayoutHelper.beginRemainingChild("##display_scroll_region", hintReservedHeight, false,
+                    ImGuiWindowFlags.NoScrollbar)) {
 
-            if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent(10);
+                if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                    ImGui.indent(10);
 
-                if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
-                    ImGui.tableNextRow();
-                    ImGui.tableSetColumnIndex(0);
-                    if (ImGui.checkbox("显示吸附标记", showMarkersState)) {
-                        snapManager.setShowSnapMarkersEnabled(showMarkersState.get());
-                    }
-                    ImGui.tableSetColumnIndex(1);
-                    if (ImGui.checkbox("显示端点反馈", endPointState)) {
-                        snapManager.setEndPointSnapEnabled(endPointState.get());
+                    if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
+                        ImGui.tableNextRow();
+                        ImGui.tableSetColumnIndex(0);
+                        if (ImGui.checkbox("显示吸附标记", showMarkersState)) {
+                            snapManager.setShowSnapMarkersEnabled(showMarkersState.get());
+                        }
+                        ImGui.tableSetColumnIndex(1);
+                        if (ImGui.checkbox("显示端点反馈", endPointState)) {
+                            snapManager.setEndPointSnapEnabled(endPointState.get());
+                        }
+
+                        ImGui.tableNextRow();
+                        ImGui.tableSetColumnIndex(0);
+                        if (ImGui.checkbox("显示中点反馈", midPointState)) {
+                            snapManager.setMidPointSnapEnabled(midPointState.get());
+                        }
+                        ImGui.tableSetColumnIndex(1);
+                        if (ImGui.checkbox("显示圆心反馈", centerPointState)) {
+                            snapManager.setCenterPointSnapEnabled(centerPointState.get());
+                        }
+                        renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
+
+                        ImGui.tableNextRow();
+                        ImGui.tableSetColumnIndex(0);
+                        if (ImGui.checkbox("显示中心点反馈", centroidState)) {
+                            snapManager.setCentroidSnapEnabled(centroidState.get());
+                        }
+                        renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
+                        ImGui.tableSetColumnIndex(1);
+                        ImGui.textDisabled(" ");
+
+                        ImGui.endTable();
                     }
 
-                    ImGui.tableNextRow();
-                    ImGui.tableSetColumnIndex(0);
-                    if (ImGui.checkbox("显示中点反馈", midPointState)) {
-                        snapManager.setMidPointSnapEnabled(midPointState.get());
+                    DialogLayoutHelper.rowGap();
+                    float[] markerSize = new float[] { snapManager.getMarkerSize() };
+                    ImGui.setNextItemWidth(Math.min(220.0f, Math.max(160.0f, ImGui.getContentRegionAvailX() - 12.0f)));
+                    if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
+                        snapManager.setMarkerSize(markerSize[0]);
                     }
-                    ImGui.tableSetColumnIndex(1);
-                    if (ImGui.checkbox("显示圆心反馈", centerPointState)) {
-                        snapManager.setCenterPointSnapEnabled(centerPointState.get());
-                    }
-                    renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
 
-                    ImGui.tableNextRow();
-                    ImGui.tableSetColumnIndex(0);
-                    if (ImGui.checkbox("显示中心点反馈", centroidState)) {
-                        snapManager.setCentroidSnapEnabled(centroidState.get());
+                    DialogLayoutHelper.rowGap();
+                    if (ImGui.checkbox("显示控制点", showControlPointsState)) {
+                        ControlPointEditTool.setDisplayEnabled(showControlPointsState.get());
                     }
-                    renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
-                    ImGui.tableSetColumnIndex(1);
-                    ImGui.textDisabled(" ");
 
-                    ImGui.endTable();
+                    DialogLayoutHelper.rowGap();
+                    if (ImGui.checkbox("显示控制点编号", showPointIndexState)) {
+                        ControlPointEditTool.setShowPointIndex(showPointIndexState.get());
+                    }
+
+                    ImGui.unindent(10);
+                    ImGui.treePop();
                 }
 
-                float[] markerSize = new float[] { snapManager.getMarkerSize() };
-                ImGui.setNextItemWidth(180);
-                if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
-                    snapManager.setMarkerSize(markerSize[0]);
-                }
+                DialogLayoutHelper.subsectionGap();
+                if (ImGui.treeNodeEx("颜色自定义##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                    ImGui.indent(10);
+                    ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
+                    DialogLayoutHelper.rowGap();
 
-                if (ImGui.checkbox("显示控制点", showControlPointsState)) {
-                    ControlPointEditTool.setDisplayEnabled(showControlPointsState.get());
-                }
+                    renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
+                    renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
+                    renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
+                    renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT, "中心点颜色：用于圆心/中心点吸附提示。");
+                    renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR, "垂足吸附：从当前点向目标线作垂线，吸附到垂足位置。");
+                    renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT, "切点吸附：吸附到与目标曲线相切的接触点。");
+                    renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
 
-                if (ImGui.checkbox("显示控制点编号", showPointIndexState)) {
-                    ControlPointEditTool.setShowPointIndex(showPointIndexState.get());
+                    DialogLayoutHelper.rowGap();
+                    if (ImGui.button("重置全部吸附颜色")) {
+                        SnapVisualStyle.resetCustomColors();
+                    }
+                    ImGui.unindent(10);
+                    ImGui.treePop();
                 }
-
-                ImGui.unindent(10);
-                ImGui.treePop();
             }
+            ImGui.endChild();
 
-            if (ImGui.treeNodeEx("颜色自定义##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent(10);
-                ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
-
-                renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
-                renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
-                renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
-                renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT, "中心点颜色：用于圆心/中心点吸附提示。");
-                renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR, "垂足吸附：从当前点向目标线作垂线，吸附到垂足位置。");
-                renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT, "切点吸附：吸附到与目标曲线相切的接触点。");
-                renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
-
-                if (ImGui.button("重置全部吸附颜色")) {
-                    SnapVisualStyle.resetCustomColors();
-                }
-                ImGui.unindent(10);
-                ImGui.treePop();
+            DialogLayoutHelper.subsectionGap();
+            if (DialogLayoutHelper.beginPinnedBottomRegion("##display_hint_region")) {
+                DialogLayoutHelper.helpText(displayHintText);
             }
-        }
-        ImGui.endChild();
-
-        DialogLayoutHelper.subsectionGap();
-        if (DialogLayoutHelper.beginPinnedBottomRegion("##display_hint_region")) {
-            DialogLayoutHelper.helpText(displayHintText);
+            ImGui.endChild();
         }
         ImGui.endChild();
     }
