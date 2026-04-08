@@ -21,6 +21,8 @@ import imgui.flag.ImGuiKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 // no-op
@@ -197,138 +199,142 @@ public class SettingsAndHelpDialog {
                     ImGui.spacing();
                 }
 
-                float tableHeight = Math.max(240.0f, ImGui.getContentRegionAvailY() - 36.0f);
-                int tableFlags = ImGuiTableFlags.BordersInnerV
-                        | ImGuiTableFlags.RowBg
-                        | ImGuiTableFlags.Resizable
-                        | ImGuiTableFlags.ScrollY
-                        | ImGuiTableFlags.SizingStretchProp;
-                if (ImGui.beginTable("shortcut_table", 3, tableFlags, 0, tableHeight)) {
-                    ImGui.tableSetupColumn("动作", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                    ImGui.tableSetupColumn("当前快捷键", ImGuiTableColumnFlags.WidthFixed, 220.0f);
-                    ImGui.tableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, 210.0f);
-                    ImGui.tableHeadersRow();
-
-                    String filter = searchText.get().trim().toLowerCase();
-                    String lastCategory = null;
-                    int matchedActions = 0;
-                    for (KeymapManager.ActionDef def : KeymapManager.getInstance().getAllActions()) {
-                        String display = def.displayName();
-                        String actionId = def.actionId();
-                        if (!filter.isEmpty()) {
-                            String binding = KeymapManager.getInstance().getBindingDisplay(actionId);
-                            if (!(display.toLowerCase().contains(filter) || (binding != null && binding.toLowerCase().contains(filter)))) {
-                                continue;
-                            }
-                        }
-
-                        String category = def.category();
-                        if (!Objects.equals(category, lastCategory)) {
-                            ImGui.tableNextRow();
-                            ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.panelBackground, 180));
-                            ImGui.tableSetColumnIndex(0);
-                            ImGui.textColored(theme.infoText, "[" + category + "]");
-                            ImGui.tableSetColumnIndex(1);
-                            ImGui.text("");
-                            ImGui.tableSetColumnIndex(2);
-                            ImGui.text("");
-                            lastCategory = category;
-                        }
-                        matchedActions++;
-
-                        boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
-                        ImGui.tableNextRow();
-                        if (isEditing) {
-                            float anim = (float) (Math.sin(ImGui.getTime() * 6.0f) * 0.15f + 0.2f);
-                            ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.accent, (int) (anim * 255.0f)));
-                        }
-
-                        ImGui.tableSetColumnIndex(0);
-                        ImGui.text(display);
-
-                        ImGui.tableSetColumnIndex(1);
-                        String current = KeymapManager.getInstance().getBindingDisplay(actionId);
-                        if (isEditing) {
-                            ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
-                            if (ImGui.isKeyPressed(ImGuiKey.Backspace)) {
-                                KeymapManager.getInstance().clearBinding(actionId);
-                                editingActionId = null;
-                            } else {
-                                String captured = tryCaptureShortcutString();
-                                if (captured != null) {
-                                    String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
-                                    if (conflicted != null) {
-                                        String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
-                                        shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
-                                        ImGui.openPopup("##shortcut_conflict_popup");
-                                    }
-                                    editingActionId = null;
-                                }
-                            }
-                        } else {
-                            ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
-                            if (!captureActive && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
-                                editingActionId = actionId;
-                            }
-                            if (ImGui.isItemHovered()) {
-                                ImGui.setTooltip("双击可进入快捷键录制");
-                            }
-                        }
-
-                        ImGui.tableSetColumnIndex(2);
-                        if (isEditing) {
-                            if (ImGui.button("取消##cancel_" + actionId)) {
-                                editingActionId = null;
-                            }
-                        } else {
-                            if (captureActive) ImGui.beginDisabled();
-                            if (ImGui.button("编辑##edit_" + actionId)) {
-                                editingActionId = actionId;
-                            }
-                            ImGui.sameLine();
-                            if (ImGui.button("清除##clear_" + actionId)) {
-                                KeymapManager.getInstance().clearBinding(actionId);
-                            }
-                            ImGui.sameLine();
-                            String defaultKey = KeymapManager.getInstance().getDefaultBinding(actionId);
-                            boolean hasDefault = defaultKey != null && !defaultKey.isEmpty();
-                            boolean isAtDefault = hasDefault && Objects.equals(current, defaultKey);
-                            boolean canReset = hasDefault && !isAtDefault;
-
-                            if (!canReset) ImGui.beginDisabled();
-                            if (canReset) {
-                                ImGui.pushStyleColor(ImGuiCol.Button, withAlpha(theme.accent, 120));
-                                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, withAlpha(theme.accent, 180));
-                                ImGui.pushStyleColor(ImGuiCol.ButtonActive, withAlpha(theme.accent, 220));
-                            }
-                            if (ImGui.smallButton("重置##reset_" + actionId)) {
-                                KeymapManager.getInstance().updateBinding(actionId, defaultKey);
-                            }
-                            if (canReset) {
-                                ImGui.popStyleColor(3);
-                            }
-                            if (ImGui.isItemHovered()) {
-                                if (canReset) {
-                                    ImGui.setTooltip("恢复默认：" + defaultKey);
-                                } else if (!hasDefault) {
-                                    ImGui.setTooltip("该动作暂无预设默认快捷键");
-                                } else {
-                                    ImGui.setTooltip("当前已是默认快捷键");
-                                }
-                            }
-                            if (!canReset) ImGui.endDisabled();
-                            if (captureActive) ImGui.endDisabled();
+                String filter = searchText.get().trim().toLowerCase();
+                List<KeymapManager.ActionDef> filteredActions = new ArrayList<>();
+                for (KeymapManager.ActionDef def : KeymapManager.getInstance().getAllActions()) {
+                    String display = def.displayName();
+                    String actionId = def.actionId();
+                    if (!filter.isEmpty()) {
+                        String binding = KeymapManager.getInstance().getBindingDisplay(actionId);
+                        if (!(display.toLowerCase().contains(filter)
+                                || (binding != null && binding.toLowerCase().contains(filter)))) {
+                            continue;
                         }
                     }
-                    ImGui.endTable();
+                    filteredActions.add(def);
+                }
 
-                    if (!filter.isEmpty() && matchedActions == 0) {
-                        ImGui.spacing();
-                        ImGui.textDisabled("未找到相关动作");
-                        ImGui.sameLine();
-                        if (ImGui.smallButton("清除搜索##clear_shortcut_search")) {
-                            searchText.set("");
+                if (filteredActions.isEmpty()) {
+                    ImGui.textDisabled("未找到相关动作");
+                    ImGui.sameLine();
+                    if (ImGui.smallButton("清除搜索##clear_shortcut_search")) {
+                        searchText.set("");
+                    }
+                } else {
+                    float tableHeight = Math.max(240.0f, ImGui.getContentRegionAvailY());
+                    int tableFlags = ImGuiTableFlags.BordersInnerV
+                            | ImGuiTableFlags.RowBg
+                            | ImGuiTableFlags.Resizable
+                            | ImGuiTableFlags.ScrollY
+                            | ImGuiTableFlags.SizingStretchProp;
+                    if (ImGui.beginTable("shortcut_table", 3, tableFlags, 0, tableHeight)) {
+                        ImGui.tableSetupColumn("动作", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+                        ImGui.tableSetupColumn("当前快捷键", ImGuiTableColumnFlags.WidthFixed, 220.0f);
+                        ImGui.tableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, 210.0f);
+                        ImGui.tableHeadersRow();
+
+                        String lastCategory = null;
+                        for (KeymapManager.ActionDef def : filteredActions) {
+                            String display = def.displayName();
+                            String actionId = def.actionId();
+                            String category = def.category();
+                            if (!Objects.equals(category, lastCategory)) {
+                                ImGui.tableNextRow();
+                                ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.panelBackground, 180));
+                                ImGui.tableSetColumnIndex(0);
+                                ImGui.textColored(theme.infoText, "[" + category + "]");
+                                ImGui.tableSetColumnIndex(1);
+                                ImGui.text("");
+                                ImGui.tableSetColumnIndex(2);
+                                ImGui.text("");
+                                lastCategory = category;
+                            }
+
+                            boolean isEditing = editingActionId != null && editingActionId.equals(actionId);
+                            ImGui.tableNextRow();
+                            if (isEditing) {
+                                float anim = (float) (Math.sin(ImGui.getTime() * 6.0f) * 0.15f + 0.2f);
+                                ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, withAlpha(theme.accent, (int) (anim * 255.0f)));
+                            }
+
+                            ImGui.tableSetColumnIndex(0);
+                            ImGui.text(display);
+
+                            ImGui.tableSetColumnIndex(1);
+                            String current = KeymapManager.getInstance().getBindingDisplay(actionId);
+                            if (isEditing) {
+                                ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
+                                if (ImGui.isKeyPressed(ImGuiKey.Backspace)) {
+                                    KeymapManager.getInstance().clearBinding(actionId);
+                                    editingActionId = null;
+                                } else {
+                                    String captured = tryCaptureShortcutString();
+                                    if (captured != null) {
+                                        String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
+                                        if (conflicted != null) {
+                                            String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
+                                            shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
+                                            ImGui.openPopup("##shortcut_conflict_popup");
+                                        }
+                                        editingActionId = null;
+                                    }
+                                }
+                            } else {
+                                ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
+                                if (!captureActive && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+                                    editingActionId = actionId;
+                                }
+                                if (ImGui.isItemHovered()) {
+                                    ImGui.setTooltip("双击可进入快捷键录制");
+                                }
+                            }
+
+                            ImGui.tableSetColumnIndex(2);
+                            if (isEditing) {
+                                if (ImGui.button("取消##cancel_" + actionId)) {
+                                    editingActionId = null;
+                                }
+                            } else {
+                                if (captureActive) ImGui.beginDisabled();
+                                if (ImGui.button("编辑##edit_" + actionId)) {
+                                    editingActionId = actionId;
+                                }
+                                ImGui.sameLine();
+                                if (ImGui.button("清除##clear_" + actionId)) {
+                                    KeymapManager.getInstance().clearBinding(actionId);
+                                }
+                                ImGui.sameLine();
+                                String defaultKey = KeymapManager.getInstance().getDefaultBinding(actionId);
+                                boolean hasDefault = defaultKey != null && !defaultKey.isEmpty();
+                                boolean isAtDefault = hasDefault && Objects.equals(current, defaultKey);
+                                boolean canReset = hasDefault && !isAtDefault;
+
+                                if (!canReset) ImGui.beginDisabled();
+                                if (canReset) {
+                                    ImGui.pushStyleColor(ImGuiCol.Button, withAlpha(theme.accent, 120));
+                                    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, withAlpha(theme.accent, 180));
+                                    ImGui.pushStyleColor(ImGuiCol.ButtonActive, withAlpha(theme.accent, 220));
+                                }
+                                if (ImGui.smallButton("重置##reset_" + actionId)) {
+                                    KeymapManager.getInstance().updateBinding(actionId, defaultKey);
+                                }
+                                if (canReset) {
+                                    ImGui.popStyleColor(3);
+                                }
+                                if (ImGui.isItemHovered()) {
+                                    if (canReset) {
+                                        ImGui.setTooltip("恢复默认：" + defaultKey);
+                                    } else if (!hasDefault) {
+                                        ImGui.setTooltip("该动作暂无预设默认快捷键");
+                                    } else {
+                                        ImGui.setTooltip("当前已是默认快捷键");
+                                    }
+                                }
+                                if (!canReset) ImGui.endDisabled();
+                                if (captureActive) ImGui.endDisabled();
+                            }
                         }
+                        ImGui.endTable();
                     }
                 }
 
