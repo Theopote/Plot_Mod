@@ -214,7 +214,6 @@ public class NewLayerDialog {
 
                 UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
 
-                DialogLayoutHelper.beginSection("基础信息");
                 if (DialogLayoutHelper.beginForm("##new_layer_form")) {
                     DialogLayoutHelper.formRowLabel("名称");
                     if (ImGui.isWindowAppearing()) {

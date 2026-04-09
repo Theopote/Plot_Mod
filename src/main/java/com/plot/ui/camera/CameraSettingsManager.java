@@ -16,7 +16,6 @@ import imgui.flag.ImGuiWindowFlags;
  */
 public class CameraSettingsManager {
     private static CameraSettingsManager INSTANCE;
-    private static final float SETTINGS_WINDOW_HEIGHT = 250.0f;
     
     private final EventBus eventBus;
     private final CameraManager cameraManager;
@@ -47,12 +46,13 @@ public class CameraSettingsManager {
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, SETTINGS_WINDOW_HEIGHT, ImGuiCond.Appearing);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
             boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings",
                     ImGuiWindowFlags.NoCollapse
                             | ImGuiWindowFlags.NoResize
                             | ImGuiWindowFlags.NoScrollbar
-                            | ImGuiWindowFlags.NoSavedSettings);
+                            | ImGuiWindowFlags.NoSavedSettings
+                            | ImGuiWindowFlags.AlwaysAutoResize);
             try {
                 if (windowVisible) {
                     if (DialogStyleManager.renderTopRightCloseButton("camera_settings")) {
@@ -95,8 +95,6 @@ public class CameraSettingsManager {
                         eventBus.publish(new CameraSettingsEvent(camera));
                     }
 
-                    DialogLayoutHelper.endSection();
-
                     if (DialogLayoutHelper.isCancelShortcutPressed()) {
                         showSettings = false;
                     }
@@ -113,7 +111,6 @@ public class CameraSettingsManager {
 
     private void renderButtons() {
         ImGui.separator();
-        DialogLayoutHelper.beginFooter();
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
 
