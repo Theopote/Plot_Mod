@@ -55,16 +55,19 @@ public class LineToBlockSettingsDialog {
         try {
             var center = ImGui.getMainViewport().getCenter();
             ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
-            boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings",
-                    ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
+            // 使用更贴近实际内容的初始宽度，避免 Appearing 首帧偏宽后再收窄。
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
+            int windowFlags = ImGuiWindowFlags.AlwaysAutoResize
+                    | ImGuiWindowFlags.NoResize
+                    | ImGuiWindowFlags.NoScrollbar
+                    | ImGuiWindowFlags.NoSavedSettings;
+            boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings", windowFlags);
             try {
                 if (windowVisible) {
                     if (DialogStyleManager.renderTopRightCloseButton("line_to_block")) {
                         close();
                     }
 
-                    DialogLayoutHelper.beginSection("转换参数");
                     if (DialogLayoutHelper.beginForm("##line_to_block_form")) {
                         String[] modes = new String[]{
                                 ConversionMode.FULL.getDisplayName(),
@@ -101,8 +104,7 @@ public class LineToBlockSettingsDialog {
                         DialogLayoutHelper.endForm();
                     }
 
-                    DialogLayoutHelper.endSection();
-                    DialogLayoutHelper.beginFooter();
+                    ImGui.separator();
                     if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
                             || DialogLayoutHelper.isCancelShortcutPressed()
                             || DialogLayoutHelper.isConfirmShortcutPressed()) {
