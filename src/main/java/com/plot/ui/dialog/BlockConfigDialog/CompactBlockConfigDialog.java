@@ -491,16 +491,31 @@ public class CompactBlockConfigDialog {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
         BlockCategory[] categories = BlockCategory.values();
         float contentWidth = DialogStyleManager.getContentWidth();
-        float buttonWidth = Math.max(0.0f, (contentWidth - BLOCK_SPACING * 4) / 5.0f);
-        float buttonHeight = CATEGORY_BUTTON_HEIGHT; // 统一按钮高度
+        int buttonsPerRow = Math.min(5, categories.length);
+
+        String[] categoryLabels = new String[categories.length];
+        for (int i = 0; i < categories.length; i++) {
+            categoryLabels[i] = categories[i].getDisplayName();
+        }
+
+        float buttonWidth = DialogStyleManager.getStandardButtonWidth(contentWidth, buttonsPerRow, categoryLabels);
+        float buttonHeight = CATEGORY_BUTTON_HEIGHT;
+        float rowWidth = buttonWidth * buttonsPerRow + BLOCK_SPACING * Math.max(0, buttonsPerRow - 1);
+
+        DialogStyleManager.centerByWidth(Math.min(contentWidth, rowWidth));
 
         for (int i = 0; i < categories.length; i++) {
             BlockCategory category = categories[i];
             boolean isSelected = (category == currentCategory);
 
-            // 每行5个按钮，使用统一间距
-            if (i > 0 && i % 5 != 0) {
-                ImGui.sameLine(0, BLOCK_SPACING);
+            // 每行最多 5 个按钮，使用统一间距并在换行后重新居中
+            if (i > 0) {
+                if (i % buttonsPerRow == 0) {
+                    ImGui.newLine();
+                    DialogStyleManager.centerByWidth(Math.min(contentWidth, rowWidth));
+                } else {
+                    ImGui.sameLine(0, BLOCK_SPACING);
+                }
             }
 
             // [ENHANCED] 应用主题颜色

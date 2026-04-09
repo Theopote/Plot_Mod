@@ -151,33 +151,37 @@ public class GalleryPanel implements UIComponent {
         }
         allCategories.addAll(customCategories);
 
-        // 计算每个按钮的宽度
         float availableWidth = ImGui.getContentRegionAvailX() - 16;
-        float buttonWidth = Math.min(100, (availableWidth / allCategories.size()) - 4);
-        
+        float baseButtonWidth = Math.max(56.0f,
+                Math.min(84.0f, (availableWidth / Math.max(1, Math.min(allCategories.size(), 5))) - 4.0f));
+
         // 渲染所有类别按钮
         float startX = ImGui.getCursorPosX();
         float currentX = startX;
-        
+
         String categoryToRemove = null;
 
         // 设置标签按钮样式
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 12);
-        
+
         for (String category : allCategories) {
+            boolean isCustomCategory = customCategories.contains(category);
+            float categoryButtonWidth = getCompactCategoryButtonWidth(
+                    category, baseButtonWidth, availableWidth, isCustomCategory);
+
             // 检查是否需要换行
-            if (currentX + buttonWidth > startX + availableWidth) {
+            if (currentX + categoryButtonWidth > startX + availableWidth) {
                 ImGui.newLine();
                 currentX = startX;
             }
-            
+
             ImGui.setCursorPosX(currentX);
-            
+
             // 设置标签颜色
             boolean isPresetCategory = Arrays.stream(CategoryType.values())
                     .anyMatch(c -> c.name.equals(category));
-            
+
             int normalColor = isPresetCategory ? theme.tabNormal : theme.buttonNormal;
             int hoveredColor = isPresetCategory ? theme.tabHovered : theme.buttonHovered;
             int activeColor = isPresetCategory ? theme.tabActive : theme.buttonActive;
@@ -191,14 +195,14 @@ public class GalleryPanel implements UIComponent {
             ImGui.pushStyleColor(ImGuiCol.Button, normalColor);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoveredColor);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
-            
+
             // 渲染带文字的按钮
-            if (ImGui.button(category + "##" + category, buttonWidth, 24)) {
+            if (ImGui.button(category + "##" + category, categoryButtonWidth, 24)) {
                 selectedCategory = category;
             }
-            
+
             // 如果是自定义类别，添加删除按钮
-            if (customCategories.contains(category)) {
+            if (isCustomCategory) {
                 ImGui.sameLine(0, 0);
                 ImGui.setCursorPosX(ImGui.getCursorPosX() - 20);
                 ImGui.pushStyleColor(ImGuiCol.Button, theme.panelBackground);
@@ -213,16 +217,16 @@ public class GalleryPanel implements UIComponent {
                 }
                 ImGui.popStyleColor(2);
             }
-            
+
             ImGui.popStyleColor(3);
 
-            currentX += buttonWidth + 4;
-            
+            currentX += categoryButtonWidth + 4;
+
             if (currentX < startX + availableWidth) {
                 ImGui.sameLine();
             }
         }
-        
+
         ImGui.popStyleVar(2);
 
         // 处理类别删除
@@ -234,12 +238,13 @@ public class GalleryPanel implements UIComponent {
         }
 
         // 添加新类别的按钮
-        if (currentX + buttonWidth <= startX + availableWidth) {
+        float addButtonWidth = getCompactCategoryButtonWidth("+ 添加类别", baseButtonWidth, availableWidth, false);
+        if (currentX + addButtonWidth <= startX + availableWidth) {
             ImGui.setCursorPosX(currentX);
-            renderAddCategoryButton(buttonWidth);
+            renderAddCategoryButton(addButtonWidth);
         } else {
             ImGui.newLine();
-            renderAddCategoryButton(buttonWidth);
+            renderAddCategoryButton(addButtonWidth);
         }
 
         // 添加类别的弹出窗口
@@ -247,6 +252,11 @@ public class GalleryPanel implements UIComponent {
 
         ImGui.newLine();
         ImGui.separator();
+    }
+
+    private float getCompactCategoryButtonWidth(String label, float baseWidth, float maxWidth, boolean reserveDeleteSpace) {
+        float preferredWidth = ImGui.calcTextSize(label).x + (reserveDeleteSpace ? 36.0f : 24.0f);
+        return Math.min(maxWidth, Math.max(baseWidth, preferredWidth));
     }
 
     private void renderAddCategoryButton(float buttonWidth) {

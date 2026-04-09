@@ -49,12 +49,6 @@ public final class DialogLayoutHelper {
         sectionGap();
     }
 
-    public static void sectionSeparator() {
-        sectionGap();
-        ImGui.separator();
-        sectionGap();
-    }
-
     public static void helpText(String text) {
         renderTextWithColor(text, ThemeManager.getInstance().getCurrentTheme().mutedText);
     }
@@ -131,15 +125,6 @@ public final class DialogLayoutHelper {
                 ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
     }
 
-    public static boolean beginPinnedBottomRegion(String id) {
-        return ImGui.beginChild(id, 0, 0, false,
-                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
-    }
-
-    public static float getReservedTextHeight(float lineCount) {
-        float lines = Math.max(1.0f, lineCount);
-        return ImGui.getTextLineHeightWithSpacing() * lines + DialogStyleManager.SUBSECTION_GAP;
-    }
 
     public static float getStandardFooterReservedHeight() {
         return ImGui.getFrameHeight()

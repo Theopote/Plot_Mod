@@ -44,16 +44,16 @@ public class DialogStyleManager {
     public static final float LABEL_WIDTH = 84.0f;
 
     /** 标准按钮最小宽度 */
-    public static final float BUTTON_MIN_WIDTH = 80.0f;
+    public static final float BUTTON_MIN_WIDTH = 68.0f;
 
     /** 标准按钮最大宽度 */
-    public static final float BUTTON_MAX_WIDTH = 128.0f;
+    public static final float BUTTON_MAX_WIDTH = 120.0f;
 
     /** 紧凑按钮宽度缩放比例 */
-    public static final float BUTTON_COMPACT_RATIO = 0.82f;
+    public static final float BUTTON_COMPACT_RATIO = 0.74f;
 
     /** 为按钮文本额外预留的水平空间，避免文字贴边 */
-    public static final float BUTTON_TEXT_EXTRA_PADDING = 12.0f;
+    public static final float BUTTON_TEXT_EXTRA_PADDING = 10.0f;
 
     /** 标准对话框宽度分级 */
     public enum DialogWidth {
@@ -227,7 +227,14 @@ public class DialogStyleManager {
         if (raw <= 0.0f) {
             return 0.0f;
         }
-        float compactWidth = raw * BUTTON_COMPACT_RATIO;
+
+        float minWidth = getMinimumButtonWidth(labels);
+        if (raw < minWidth) {
+            return raw;
+        }
+
+        float textFitTarget = minWidth + ImGui.getStyle().getFramePaddingX();
+        float compactWidth = Math.min(raw * BUTTON_COMPACT_RATIO, textFitTarget);
         return clampButtonWidth(compactWidth, labels);
     }
 
