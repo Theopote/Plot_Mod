@@ -19,7 +19,8 @@ public class TextInputDialog {
     private static final TextInputDialog INSTANCE = new TextInputDialog();
     
     /** 多行输入框最小可见行数 */
-    private static final float MIN_INPUT_ROWS = 6.0f;
+    private static final float MIN_INPUT_ROWS = 3.0f;
+    private static final float DIALOG_WIDTH = DialogStyleManager.DialogWidth.WIDE.value - 60.0f;
 
     private record PendingOpenRequest(String presetText, TextInputPreset preset,
                                       Consumer<TextInputResult> onConfirm, Runnable onCancel) {
@@ -97,13 +98,12 @@ public class TextInputDialog {
 
         if (!visible) return;
 
-        float width = DialogStyleManager.DialogWidth.WIDE.value;
         float inputHeight = Math.max(
                 ImGui.getTextLineHeightWithSpacing() * MIN_INPUT_ROWS,
-                ImGui.getFrameHeightWithSpacing() * 4.0f
+                ImGui.getFrameHeightWithSpacing() * 2.0f
         );
 
-        ImGui.setNextWindowSize(width, 0.0f, ImGuiCond.Appearing);
+        ImGui.setNextWindowSize(DIALOG_WIDTH, 0.0f, ImGuiCond.Appearing);
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
 
@@ -121,7 +121,6 @@ public class TextInputDialog {
 
                     float contentWidth = DialogStyleManager.getContentWidth();
 
-                    DialogLayoutHelper.beginSection("文字内容");
                     DialogLayoutHelper.helpText("请输入文字内容（可多行）。在非编辑状态下可按 Enter 确认。 ");
                     boolean textEditorActive = false;
                     DialogLayoutHelper.DenseEditorStyleScope editorStyle = DialogLayoutHelper.pushDenseEditorStyle();
@@ -148,9 +147,8 @@ public class TextInputDialog {
 
                     DialogLayoutHelper.beginSection("文字样式");
                     renderStyleSection();
-                    DialogLayoutHelper.helpText("样式会应用到当前新建的文字对象。");
-                    DialogLayoutHelper.endSection();
 
+                    ImGui.separator();
                     DialogLayoutHelper.beginFooter();
                     DialogLayoutHelper.FooterResult action =
                             DialogLayoutHelper.footerConfirmCancelRight("取消", "确定", contentWidth);
@@ -194,7 +192,6 @@ public class TextInputDialog {
             if (glyphAction.secondClicked()) {
                 italic = !italic;
             }
-            DialogLayoutHelper.formRowHelp("粗体适合强调标题，斜体适合说明性标注。 ");
 
             DialogLayoutHelper.formRowLabel("水平对齐");
             String currentH = getHorizontalAlignLabel(hAlign);
