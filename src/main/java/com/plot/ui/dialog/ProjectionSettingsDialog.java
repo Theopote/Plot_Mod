@@ -77,7 +77,6 @@ public class ProjectionSettingsDialog {
                         close();
                     }
 
-                    DialogLayoutHelper.beginSection("投影参数");
                     if (DialogLayoutHelper.beginForm("##projection_form")) {
                         DialogLayoutHelper.formRowLabel("模式");
                         String[] modes = {"投影到地面", "投影到指定标高"};
