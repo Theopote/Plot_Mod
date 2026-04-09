@@ -154,9 +154,7 @@ public class SnapManager implements ISnapManager {
                         settingsChanged |= ImGui.checkbox("临时禁用 (Shift)", settings.tempDisableWithShift);
                         settingsChanged |= ImGui.checkbox("吸附标记预览", settings.showSnapMarkers);
                         if (settings.showSnapMarkers.get()) {
-                            ImGui.indent(20);
                             settingsChanged |= ImGui.checkbox("标记动画", settings.enableMarkerPulse);
-                            ImGui.unindent(20);
                         }
 
                         ImGui.unindent(10);
