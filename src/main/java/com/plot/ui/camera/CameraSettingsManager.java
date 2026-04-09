@@ -16,6 +16,7 @@ import imgui.flag.ImGuiWindowFlags;
  */
 public class CameraSettingsManager {
     private static CameraSettingsManager INSTANCE;
+    private static final float SETTINGS_WINDOW_HEIGHT = 250.0f;
     
     private final EventBus eventBus;
     private final CameraManager cameraManager;
@@ -46,9 +47,12 @@ public class CameraSettingsManager {
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, SETTINGS_WINDOW_HEIGHT, ImGuiCond.Appearing);
             boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings",
-                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings);
+                    ImGuiWindowFlags.NoCollapse
+                            | ImGuiWindowFlags.NoResize
+                            | ImGuiWindowFlags.NoScrollbar
+                            | ImGuiWindowFlags.NoSavedSettings);
             try {
                 if (windowVisible) {
                     if (DialogStyleManager.renderTopRightCloseButton("camera_settings")) {
@@ -57,8 +61,6 @@ public class CameraSettingsManager {
 
                     boolean settingsChanged = false;
                     camera = cameraManager.getOrthographicCamera();
-
-                    DialogLayoutHelper.beginSection("相机参数");
                     DialogLayoutHelper.helpText("调整缩放、视野与裁剪范围，修改会即时生效。");
 
                     // 缩放比例设置
@@ -110,6 +112,7 @@ public class CameraSettingsManager {
     }
 
     private void renderButtons() {
+        ImGui.separator();
         DialogLayoutHelper.beginFooter();
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());

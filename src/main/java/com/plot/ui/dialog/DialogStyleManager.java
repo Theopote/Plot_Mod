@@ -212,13 +212,6 @@ public class DialogStyleManager {
     }
 
     /**
-     * 根据可用宽度和按钮个数计算标准按钮宽度。
-     */
-    public static float getStandardButtonWidth(float availableWidth, int buttonCount) {
-        return getStandardButtonWidth(availableWidth, buttonCount, (String[]) null);
-    }
-
-    /**
      * 根据可用宽度、按钮个数和标签文本计算更紧凑的标准按钮宽度。
      */
     public static float getStandardButtonWidth(float availableWidth, int buttonCount, String... labels) {
