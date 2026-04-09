@@ -103,11 +103,10 @@ public final class DialogLayoutHelper {
         return new InlineToggleResult(leftClicked, rightClicked);
     }
 
-    public static float reserveTrailingButton(float buttonWidth) {
+    public static void reserveTrailingButton(float buttonWidth) {
         float inputWidth = Math.max(0.0f,
                 ImGui.getContentRegionAvailX() - buttonWidth - DialogStyleManager.FOOTER_BUTTON_GAP);
         ImGui.setNextItemWidth(inputWidth);
-        return inputWidth;
     }
 
     public static boolean trailingButton(String label, float buttonWidth) {
