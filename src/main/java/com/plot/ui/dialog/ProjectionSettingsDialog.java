@@ -104,6 +104,7 @@ public class ProjectionSettingsDialog {
                     }
 
                     DialogLayoutHelper.endSection();
+                    ImGui.separator();
                     DialogLayoutHelper.beginFooter();
                     if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
                             || DialogLayoutHelper.isCancelShortcutPressed()) {
@@ -125,13 +126,6 @@ public class ProjectionSettingsDialog {
      */
     public ProjectionMode getProjectionMode() {
         return projectionMode;
-    }
-    
-    /**
-     * 设置投影模式
-     */
-    public void setProjectionMode(ProjectionMode mode) {
-        this.projectionMode = mode;
     }
     
     /**
