@@ -189,8 +189,8 @@ public class GridManager {
 
     private void renderButtons() {
         ImGui.separator();
-        DialogLayoutHelper.rowGap();
-        DialogLayoutHelper.beginFooter();
+//        DialogLayoutHelper.rowGap();
+//        DialogLayoutHelper.beginFooter();
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
 
