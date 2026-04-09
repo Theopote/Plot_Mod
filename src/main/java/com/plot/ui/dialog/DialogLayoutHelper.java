@@ -195,13 +195,14 @@ public final class DialogLayoutHelper {
 
     public static boolean footerSingleCentered(String label, float availableWidth) {
         float buttonWidth = DialogStyleManager.getStandardButtonWidth(
-                Math.min(availableWidth, DialogStyleManager.BUTTON_MAX_WIDTH), 1);
+                Math.min(availableWidth, DialogStyleManager.BUTTON_MAX_WIDTH), 1, label);
         DialogStyleManager.centerByWidth(buttonWidth);
         return ImGui.button(label, buttonWidth, 0);
     }
 
     public static FooterResult footerConfirmCancelRight(String cancelLabel, String confirmLabel, float availableWidth) {
-        float buttonWidth = DialogStyleManager.getStandardButtonWidth(availableWidth * 0.65f, 2);
+        float buttonWidth = DialogStyleManager.getStandardButtonWidth(availableWidth * 0.65f, 2,
+                cancelLabel, confirmLabel);
         float totalWidth = buttonWidth * 2.0f + DialogStyleManager.FOOTER_BUTTON_GAP;
         float startX = DialogStyleManager.getContentStartX() + Math.max(0.0f, availableWidth - totalWidth);
         ImGui.setCursorPosX(startX);
@@ -213,7 +214,8 @@ public final class DialogLayoutHelper {
     }
 
     public static FooterResult footerConfirmCancelCentered(String cancelLabel, String confirmLabel, float availableWidth) {
-        float buttonWidth = DialogStyleManager.getStandardButtonWidth(availableWidth * 0.65f, 2);
+        float buttonWidth = DialogStyleManager.getStandardButtonWidth(availableWidth * 0.65f, 2,
+                cancelLabel, confirmLabel);
         float totalWidth = buttonWidth * 2.0f + DialogStyleManager.FOOTER_BUTTON_GAP;
         DialogStyleManager.centerByWidth(totalWidth);
 

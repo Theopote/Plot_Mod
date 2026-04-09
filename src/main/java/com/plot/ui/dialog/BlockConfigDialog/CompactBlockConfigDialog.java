@@ -765,8 +765,7 @@ public class CompactBlockConfigDialog {
         float totalTextWidth = 0.0f;
         for (int i = 0; i < buttonTexts.length; i++) {
             float preferredWidth = ImGui.calcTextSize(buttonTexts[i]).x + PADDING * 4.0f;
-            buttonWidths[i] = Math.max(DialogStyleManager.BUTTON_MIN_WIDTH,
-                    Math.min(DialogStyleManager.BUTTON_MAX_WIDTH, preferredWidth));
+            buttonWidths[i] = DialogStyleManager.clampButtonWidth(preferredWidth, buttonTexts[i]);
             totalTextWidth += buttonWidths[i];
         }
 

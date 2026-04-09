@@ -44,10 +44,16 @@ public class DialogStyleManager {
     public static final float LABEL_WIDTH = 84.0f;
 
     /** 标准按钮最小宽度 */
-    public static final float BUTTON_MIN_WIDTH = 96.0f;
+    public static final float BUTTON_MIN_WIDTH = 80.0f;
 
     /** 标准按钮最大宽度 */
-    public static final float BUTTON_MAX_WIDTH = 140.0f;
+    public static final float BUTTON_MAX_WIDTH = 128.0f;
+
+    /** 紧凑按钮宽度缩放比例 */
+    public static final float BUTTON_COMPACT_RATIO = 0.82f;
+
+    /** 为按钮文本额外预留的水平空间，避免文字贴边 */
+    public static final float BUTTON_TEXT_EXTRA_PADDING = 12.0f;
 
     /** 标准对话框宽度分级 */
     public enum DialogWidth {
@@ -177,18 +183,52 @@ public class DialogStyleManager {
     }
 
     /**
+     * 计算容纳给定按钮标签所需的最小宽度，确保文字不会被裁切。
+     */
+    public static float getMinimumButtonWidth(String... labels) {
+        float minWidth = BUTTON_MIN_WIDTH;
+        if (labels == null) {
+            return minWidth;
+        }
+        float textPadding = ImGui.getStyle().getFramePaddingX() * 2.0f + BUTTON_TEXT_EXTRA_PADDING;
+        for (String label : labels) {
+            if (label == null || label.isEmpty()) {
+                continue;
+            }
+            float textWidth = ImGui.calcTextSize(label).x + textPadding;
+            minWidth = Math.max(minWidth, textWidth);
+        }
+        return minWidth;
+    }
+
+    /**
+     * 将按钮宽度收敛到统一范围，同时保证不会小于标签文字所需宽度。
+     */
+    public static float clampButtonWidth(float preferredWidth, String... labels) {
+        float minWidth = getMinimumButtonWidth(labels);
+        float safePreferred = Math.max(0.0f, preferredWidth);
+        float upperBound = Math.max(BUTTON_MAX_WIDTH, minWidth);
+        return Math.min(upperBound, Math.max(minWidth, safePreferred));
+    }
+
+    /**
      * 根据可用宽度和按钮个数计算标准按钮宽度。
      */
     public static float getStandardButtonWidth(float availableWidth, int buttonCount) {
+        return getStandardButtonWidth(availableWidth, buttonCount, (String[]) null);
+    }
+
+    /**
+     * 根据可用宽度、按钮个数和标签文本计算更紧凑的标准按钮宽度。
+     */
+    public static float getStandardButtonWidth(float availableWidth, int buttonCount, String... labels) {
         int safeCount = Math.max(1, buttonCount);
         float raw = (availableWidth - (safeCount - 1) * FOOTER_BUTTON_GAP) / safeCount;
         if (raw <= 0.0f) {
             return 0.0f;
         }
-        if (raw < BUTTON_MIN_WIDTH) {
-            return raw;
-        }
-        return Math.min(BUTTON_MAX_WIDTH, raw);
+        float compactWidth = raw * BUTTON_COMPACT_RATIO;
+        return clampButtonWidth(compactWidth, labels);
     }
 
     /**
