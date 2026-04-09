@@ -58,6 +58,7 @@ public class LineToBlockSettingsDialog {
             // 使用更贴近实际内容的初始宽度，避免 Appearing 首帧偏宽后再收窄。
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
             int windowFlags = ImGuiWindowFlags.AlwaysAutoResize
+                    | ImGuiWindowFlags.NoCollapse
                     | ImGuiWindowFlags.NoResize
                     | ImGuiWindowFlags.NoScrollbar
                     | ImGuiWindowFlags.NoSavedSettings;
