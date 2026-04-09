@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import net.minecraft.client.MinecraftClient;
 import imgui.flag.ImGuiStyleVar;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.Window;
 import com.plot.ui.container.UIContainer;
 import com.plot.ui.theme.ThemeManager;
@@ -270,7 +269,6 @@ public class PlotScreen extends Screen {
             
             // 开始新的 ImGui 帧
             imGuiRenderer.beginFrame();
-            syncModifierKeyState(0);
             // DisplaySize/FramebufferScale 由 ImGuiRenderer.updateDisplaySize() 统一维护（1.21.x 下更稳定）
             
             // 渲染所有 UI 组件（使用 PlotStyleScope 临时应用样式，渲染后 pop 恢复，避免影响 Treefactory/ChronoBlocks 等模组）
@@ -317,34 +315,6 @@ public class PlotScreen extends Screen {
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         // no-op: 不绘制任何背景/模糊层
-    }
-
-    private void syncModifierKeyState(int modifiers) {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            Window window = client != null ? client.getWindow() : null;
-
-            boolean ctrlPressed = (modifiers & GLFW_MOD_CONTROL) != 0
-                    || isWindowKeyPressed(window, GLFW_KEY_LEFT_CONTROL)
-                    || isWindowKeyPressed(window, GLFW_KEY_RIGHT_CONTROL);
-            boolean shiftPressed = (modifiers & GLFW_MOD_SHIFT) != 0
-                    || isWindowKeyPressed(window, GLFW_KEY_LEFT_SHIFT)
-                    || isWindowKeyPressed(window, GLFW_KEY_RIGHT_SHIFT);
-            boolean altPressed = (modifiers & GLFW_MOD_ALT) != 0
-                    || isWindowKeyPressed(window, GLFW_KEY_LEFT_ALT)
-                    || isWindowKeyPressed(window, GLFW_KEY_RIGHT_ALT);
-            boolean superPressed = (modifiers & GLFW_MOD_SUPER) != 0;
-
-            ImGui.getIO().setKeyCtrl(ctrlPressed);
-            ImGui.getIO().setKeyShift(shiftPressed);
-            ImGui.getIO().setKeyAlt(altPressed);
-            ImGui.getIO().setKeySuper(superPressed);
-        } catch (Exception ignored) {
-        }
-    }
-
-    private boolean isWindowKeyPressed(Window window, int keyCode) {
-        return window != null && InputUtil.isKeyPressed(window, keyCode);
     }
 
     private boolean dispatchModifierKeyToTool(BaseTool activeTool, int keyCode, int legacyKeyCode, boolean pressed, String keyName) {
@@ -927,8 +897,6 @@ public class PlotScreen extends Screen {
         LOGGER.debug("PlotScreen.keyPressed: keyCode={}, modifiers={}, wantCaptureMouse={}, wantCaptureKeyboard={}", 
             keyCode, modifiers, wantCaptureMouse, wantCaptureKeyboard);
 
-        // 同步修饰键状态到 ImGui（JAR 环境下优先用真实窗口按键状态兜底）
-        syncModifierKeyState(modifiers);
         
         // 【修复】优先尝试通过快捷键系统处理
         if (KeyboardShortcutConverter.isValidShortcut(keyCode, modifiers)) {
@@ -1051,9 +1019,7 @@ public class PlotScreen extends Screen {
         int keyCode = keyInput.key();
         int modifiers = keyInput.modifiers();
         
-        // 同步修饰键状态
-        syncModifierKeyState(modifiers);
-
+        
         if (isInputCapturedByImGui()) {
             ImGui.getIO().setKeysDown(keyCode, false);
             return true;

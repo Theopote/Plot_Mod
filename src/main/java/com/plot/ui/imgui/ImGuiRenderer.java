@@ -280,6 +280,20 @@ public class ImGuiRenderer {
                 io.setMouseDown(i, down);
             }
 
+            // 修饰键必须在 NewFrame 之前同步，否则 io.KeyCtrl/io.KeyShift 与 io.KeyMods 会断言不一致
+            boolean ctrlDown = GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                    || GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+            boolean shiftDown = GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                    || GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+            boolean altDown = GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS
+                    || GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS;
+            boolean superDown = GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_LEFT_SUPER) == GLFW.GLFW_PRESS
+                    || GLFW.glfwGetKey(windowHandle, GLFW.GLFW_KEY_RIGHT_SUPER) == GLFW.GLFW_PRESS;
+            io.setKeyCtrl(ctrlDown);
+            io.setKeyShift(shiftDown);
+            io.setKeyAlt(altDown);
+            io.setKeySuper(superDown);
+
             // 手动桥接滚轮输入：本项目未使用 ImGuiImplGlfw，需要自行把滚轮事件喂给 ImGui
             io.setMouseWheel(pendingMouseWheel);
             pendingMouseWheel = 0.0f;
