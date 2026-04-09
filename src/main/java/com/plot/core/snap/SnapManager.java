@@ -58,9 +58,11 @@ public class SnapManager implements ISnapManager {
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
 
             int windowFlags = ImGuiWindowFlags.NoCollapse |
+                    ImGuiWindowFlags.NoResize |
                     ImGuiWindowFlags.NoScrollbar |
                     ImGuiWindowFlags.NoSavedSettings |
-                    ImGuiWindowFlags.NoNav;
+                    ImGuiWindowFlags.NoNav |
+                    ImGuiWindowFlags.AlwaysAutoResize;
 
             boolean windowVisible = ImGui.begin("吸附设置##snap_settings", windowFlags);
             try {
@@ -69,108 +71,99 @@ public class SnapManager implements ISnapManager {
                         showSettings = false;
                     }
 
-                    float footerReservedHeight = DialogLayoutHelper.getStandardFooterReservedHeight();
-                    if (DialogLayoutHelper.beginRemainingChild("##snap_settings_body", footerReservedHeight,
-                            false, ImGuiWindowFlags.None)) {
-                        try {
-                            boolean settingsChanged = false;
+                    boolean settingsChanged = false;
 
-                            DialogLayoutHelper.beginSection("吸附参数");
-                            DialogLayoutHelper.helpText("按需启用吸附目标、约束与预览选项，修改会即时生效。按住 Alt 可切换半径单位。");
-                            DialogLayoutHelper.endSection();
+                    DialogLayoutHelper.helpText("按需启用吸附目标、约束与预览选项，修改会即时生效。按住 Alt 可切换半径单位。");
+//                    DialogLayoutHelper.endSection();
 
-                            if (ImGui.collapsingHeader("几何特征吸附")) {
-                                ImGui.indent(10);
+                    if (ImGui.collapsingHeader("几何特征吸附")) {
+                        ImGui.indent(10);
 
-                                settingsChanged |= ImGui.checkbox("端点吸附", settings.endPointSnap);
-                                settingsChanged |= ImGui.checkbox("中点吸附", settings.midPointSnap);
-                                settingsChanged |= ImGui.checkbox("圆心吸附", settings.centerPointSnap);
-                                settingsChanged |= ImGui.checkbox("中心点吸附", settings.centroidSnap);
-                                settingsChanged |= ImGui.checkbox("角点吸附", settings.vertexSnap);
-                                settingsChanged |= ImGui.checkbox("象限点吸附", settings.quadrantSnap);
-                                settingsChanged |= ImGui.checkbox("网格点吸附", settings.gridPointSnap);
-                                settingsChanged |= ImGui.checkbox("垂足吸附", settings.perpendicularSnap);
-                                settingsChanged |= ImGui.checkbox("交点吸附", settings.intersectionSnap);
-                                settingsChanged |= ImGui.checkbox("最近点吸附", settings.nearestPointSnap);
-                                settingsChanged |= ImGui.checkbox("控制点吸附", settings.controlPointSnap);
-                                settingsChanged |= ImGui.checkbox("切点吸附", settings.tangentPointSnap);
+                        settingsChanged |= ImGui.checkbox("端点吸附", settings.endPointSnap);
+                        settingsChanged |= ImGui.checkbox("中点吸附", settings.midPointSnap);
+                        settingsChanged |= ImGui.checkbox("圆心吸附", settings.centerPointSnap);
+                        settingsChanged |= ImGui.checkbox("中心点吸附", settings.centroidSnap);
+                        settingsChanged |= ImGui.checkbox("角点吸附", settings.vertexSnap);
+                        settingsChanged |= ImGui.checkbox("象限点吸附", settings.quadrantSnap);
+                        settingsChanged |= ImGui.checkbox("网格点吸附", settings.gridPointSnap);
+                        settingsChanged |= ImGui.checkbox("垂足吸附", settings.perpendicularSnap);
+                        settingsChanged |= ImGui.checkbox("交点吸附", settings.intersectionSnap);
+                        settingsChanged |= ImGui.checkbox("最近点吸附", settings.nearestPointSnap);
+                        settingsChanged |= ImGui.checkbox("控制点吸附", settings.controlPointSnap);
+                        settingsChanged |= ImGui.checkbox("切点吸附", settings.tangentPointSnap);
 
-                                ImGui.unindent(10);
+                        ImGui.unindent(10);
+                    }
+
+                    if (ImGui.collapsingHeader("几何关系约束")) {
+                        ImGui.indent(10);
+                        settingsChanged |= ImGui.checkbox("水平约束", settings.horizontalSnap);
+                        settingsChanged |= ImGui.checkbox("竖直约束", settings.verticalSnap);
+                        settingsChanged |= ImGui.checkbox("平行约束", settings.parallelSnap);
+                        settingsChanged |= ImGui.checkbox("延长线约束", settings.extensionSnap);
+                        ImGui.unindent(10);
+                    }
+
+                    if (ImGui.collapsingHeader("吸附设置")) {
+                        ImGui.indent(10);
+
+                        if (DialogLayoutHelper.beginForm("##snap_settings_form")) {
+                            DialogLayoutHelper.formRowLabel("吸附半径");
+
+                            float[] snapRadius = settings.isPixelMode()
+                                    ? new float[]{settings.getSnapRadiusInPixels()}
+                                    : new float[]{settings.getSnapRadiusInMM()};
+
+                            float minRadius = settings.isPixelMode() ? 1.0f : 0.2f;
+                            float maxRadius = settings.isPixelMode() ? 50.0f : 15.0f;
+                            String format = settings.isPixelMode() ? "%.0f px" : "%.1f mm";
+
+                            if (ImGui.sliderFloat("##snap_radius", snapRadius, minRadius, maxRadius, format)) {
+                                settings.setSnapRadius(snapRadius[0]);
+                                settingsChanged = true;
+                            }
+                            if (ImGui.isItemHovered()) {
+                                ImGui.setTooltip("按住Alt键切换单位\n当前单位: " +
+                                        (settings.isPixelMode() ? "像素" : "毫米"));
+                            }
+                            if (ImGui.isItemActive() && ImGui.getIO().getKeyAlt()) {
+                                settings.toggleUnitMode();
+                                settingsChanged = true;
                             }
 
-                            if (ImGui.collapsingHeader("几何关系约束")) {
-                                ImGui.indent(10);
-                                settingsChanged |= ImGui.checkbox("水平约束", settings.horizontalSnap);
-                                settingsChanged |= ImGui.checkbox("竖直约束", settings.verticalSnap);
-                                settingsChanged |= ImGui.checkbox("平行约束", settings.parallelSnap);
-                                settingsChanged |= ImGui.checkbox("延长线约束", settings.extensionSnap);
-                                ImGui.unindent(10);
+                            DialogLayoutHelper.formRowLabel("标记大小");
+                            float[] markerSize = new float[]{settings.getMarkerSize()};
+                            if (ImGui.sliderFloat("##marker_size", markerSize, 2.0f, 10.0f, "%.1f px")) {
+                                settings.setMarkerSize(markerSize[0]);
+                                settingsChanged = true;
                             }
 
-                            if (ImGui.collapsingHeader("吸附设置")) {
-                                ImGui.indent(10);
+                            DialogLayoutHelper.formRowLabel("吸附层级");
+                            String[] levels = {"全局", "当前工具", "当前图层"};
+                            settingsChanged |= ImGui.combo("##snap_level", settings.snapLevel, levels);
 
-                                if (DialogLayoutHelper.beginForm("##snap_settings_form")) {
-                                    DialogLayoutHelper.formRowLabel("吸附半径");
+                            DialogLayoutHelper.formRowLabel("优先策略");
+                            String[] priorities = {"类型优先", "距离优先"};
+                            settingsChanged |= ImGui.combo("##snap_priority", settings.snapPriority, priorities);
 
-                                    float[] snapRadius = settings.isPixelMode()
-                                            ? new float[]{settings.getSnapRadiusInPixels()}
-                                            : new float[]{settings.getSnapRadiusInMM()};
-
-                                    float minRadius = settings.isPixelMode() ? 1.0f : 0.2f;
-                                    float maxRadius = settings.isPixelMode() ? 50.0f : 15.0f;
-                                    String format = settings.isPixelMode() ? "%.0f px" : "%.1f mm";
-
-                                    if (ImGui.sliderFloat("##snap_radius", snapRadius, minRadius, maxRadius, format)) {
-                                        settings.setSnapRadius(snapRadius[0]);
-                                        settingsChanged = true;
-                                    }
-                                    if (ImGui.isItemHovered()) {
-                                        ImGui.setTooltip("按住Alt键切换单位\n当前单位: " +
-                                                (settings.isPixelMode() ? "像素" : "毫米"));
-                                    }
-                                    if (ImGui.isItemActive() && ImGui.getIO().getKeyAlt()) {
-                                        settings.toggleUnitMode();
-                                        settingsChanged = true;
-                                    }
-
-                                    DialogLayoutHelper.formRowLabel("标记大小");
-                                    float[] markerSize = new float[]{settings.getMarkerSize()};
-                                    if (ImGui.sliderFloat("##marker_size", markerSize, 2.0f, 10.0f, "%.1f px")) {
-                                        settings.setMarkerSize(markerSize[0]);
-                                        settingsChanged = true;
-                                    }
-
-                                    DialogLayoutHelper.formRowLabel("吸附层级");
-                                    String[] levels = {"全局", "当前工具", "当前图层"};
-                                    settingsChanged |= ImGui.combo("##snap_level", settings.snapLevel, levels);
-
-                                    DialogLayoutHelper.formRowLabel("优先策略");
-                                    String[] priorities = {"类型优先", "距离优先"};
-                                    settingsChanged |= ImGui.combo("##snap_priority", settings.snapPriority, priorities);
-
-                                    DialogLayoutHelper.endForm();
-                                }
-
-                                DialogLayoutHelper.rowGap();
-                                settingsChanged |= ImGui.checkbox("排除隐藏图层", settings.excludeHiddenLayers);
-                                settingsChanged |= ImGui.checkbox("临时禁用 (Shift)", settings.tempDisableWithShift);
-                                settingsChanged |= ImGui.checkbox("吸附标记预览", settings.showSnapMarkers);
-                                if (settings.showSnapMarkers.get()) {
-                                    ImGui.indent(20);
-                                    settingsChanged |= ImGui.checkbox("标记动画", settings.enableMarkerPulse);
-                                    ImGui.unindent(20);
-                                }
-
-                                ImGui.unindent(10);
-                            }
-
-                            if (settingsChanged) {
-                                applySettings();
-                            }
-                        } finally {
-                            ImGui.endChild();
+                            DialogLayoutHelper.endForm();
                         }
+
+                        DialogLayoutHelper.rowGap();
+                        settingsChanged |= ImGui.checkbox("排除隐藏图层", settings.excludeHiddenLayers);
+                        settingsChanged |= ImGui.checkbox("临时禁用 (Shift)", settings.tempDisableWithShift);
+                        settingsChanged |= ImGui.checkbox("吸附标记预览", settings.showSnapMarkers);
+                        if (settings.showSnapMarkers.get()) {
+                            ImGui.indent(20);
+                            settingsChanged |= ImGui.checkbox("标记动画", settings.enableMarkerPulse);
+                            ImGui.unindent(20);
+                        }
+
+                        ImGui.unindent(10);
+                    }
+
+                    if (settingsChanged) {
+                        applySettings();
                     }
 
                     if (DialogLayoutHelper.isCancelShortcutPressed()) {
@@ -445,7 +438,7 @@ public class SnapManager implements ISnapManager {
     }
 
     private void renderButtons() {
-        DialogLayoutHelper.beginFooter();
+        ImGui.separator();
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
 
