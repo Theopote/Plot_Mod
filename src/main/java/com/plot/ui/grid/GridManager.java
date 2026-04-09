@@ -116,15 +116,19 @@ public class GridManager {
         try {
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
             if (ImGui.begin("网格设置##GridSettings",
-                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings)) {
+                    ImGuiWindowFlags.NoCollapse
+                            | ImGuiWindowFlags.NoResize
+                            | ImGuiWindowFlags.NoScrollbar
+                            | ImGuiWindowFlags.NoSavedSettings
+                            | ImGuiWindowFlags.AlwaysAutoResize)) {
                 if (DialogStyleManager.renderTopRightCloseButton("grid_settings")) {
                     showSettings = false;
                 }
 
                 boolean settingsChanged = false;
-
-                DialogLayoutHelper.beginSection("网格参数");
-                DialogLayoutHelper.helpText("调整网格大小、透明度、线宽和颜色，修改会即时生效。");
+//
+//                DialogLayoutHelper.beginSection("网格参数");
+//                DialogLayoutHelper.helpText("调整网格大小、透明度、线宽和颜色，修改会即时生效。");
 
                 // 网格大小设置
                 float[] gridSize = {settings.getGridSize()};
