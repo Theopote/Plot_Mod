@@ -103,7 +103,7 @@ public class ProjectionSettingsDialog {
                         DialogLayoutHelper.endForm();
                     }
 
-                    DialogLayoutHelper.endSection();
+                    DialogLayoutHelper.rowGap();
                     ImGui.separator();
                     DialogLayoutHelper.beginFooter();
                     if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
