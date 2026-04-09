@@ -11,7 +11,7 @@ import imgui.type.ImString;
 import java.util.function.Consumer;
 
 /**
- * 纯 ImGui 实现的文字输入对话框（无 Swing 依赖，适用于 headless 环境）
+ * 纯 ImGui 实现的文字输入对话框。
  */
 public class TextInputDialog {
     private static final String DIALOG_TITLE = "添加文字";
@@ -31,6 +31,7 @@ public class TextInputDialog {
     }
 
     private boolean visible = false;
+    private boolean popupOpenRequested = false;
     private final ImString textBuffer = new ImString(2048);
     private Consumer<TextInputResult> onConfirm;
     private Runnable onCancel;
@@ -56,7 +57,7 @@ public class TextInputDialog {
         this.textBuffer.set(presetText != null ? presetText : "");
         applyPreset(TextInputPreset.defaults());
         this.visible = true;
-        ImGui.openPopup(DIALOG_TITLE);
+        this.popupOpenRequested = true;
     }
 
     public void open(String presetText, TextInputPreset preset,
@@ -66,7 +67,7 @@ public class TextInputDialog {
         this.textBuffer.set(presetText != null ? presetText : "");
         applyPreset(preset);
         this.visible = true;
-        ImGui.openPopup(DIALOG_TITLE);
+        this.popupOpenRequested = true;
     }
 
     public void scheduleOpen(String presetText, TextInputPreset preset,
@@ -92,11 +93,15 @@ public class TextInputDialog {
             this.textBuffer.set(pendingRequest.presetText());
             applyPreset(pendingRequest.preset());
             this.visible = true;
+            this.popupOpenRequested = true;
             this.pendingOpenRequest = null;
-            ImGui.openPopup(DIALOG_TITLE);
         }
 
         if (!visible) return;
+
+        if (popupOpenRequested) {
+            ImGui.openPopup(DIALOG_TITLE);
+        }
 
         float inputHeight = Math.max(
                 ImGui.getTextLineHeightWithSpacing() * MIN_INPUT_ROWS,
@@ -113,6 +118,7 @@ public class TextInputDialog {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                popupOpenRequested = false;
                 try {
                     if (DialogStyleManager.renderTopRightCloseButton("text_input")) {
                         cancelAndClose();
@@ -143,7 +149,6 @@ public class TextInputDialog {
                     } finally {
                         DialogLayoutHelper.popDenseEditorStyle(editorStyle);
                     }
-                    //DialogLayoutHelper.endSection();
 
                     DialogLayoutHelper.beginSection("文字样式");
                     renderStyleSection();
@@ -260,6 +265,7 @@ public class TextInputDialog {
 
     private void closeInternal() {
         visible = false;
+        popupOpenRequested = false;
         onConfirm = null;
         onCancel = null;
         pendingOpenRequest = null;

@@ -37,6 +37,7 @@ public class NewLayerDialog {
 
     // === 状态字段 ===
     private boolean isVisible = false;          // 对话框是否可见
+    private boolean popupOpenRequested = false;
     private final ImString layerName;           // 图层名称输入缓冲区
     private final float[] layerColor =         // 图层颜色 (RGBA)
             {1.0f, 1.0f, 1.0f, 1.0f};
@@ -60,7 +61,7 @@ public class NewLayerDialog {
     public void show() {
         isVisible = true;
         nameInputInvalid = false;
-        ImGui.openPopup(DIALOG_TITLE);
+        popupOpenRequested = true;
 
         if (layerName.get().isEmpty()) {
             layerName.set(generateDefaultName());
@@ -169,6 +170,7 @@ public class NewLayerDialog {
 
     private void hide() {
         isVisible = false;
+        popupOpenRequested = false;
         nameInputInvalid = false;
         layerName.clear();
         Arrays.fill(layerColor, 1.0f);
@@ -182,6 +184,10 @@ public class NewLayerDialog {
 
     public void render() {
         if (!isVisible) return;
+
+        if (popupOpenRequested) {
+            ImGui.openPopup(DIALOG_TITLE);
+        }
 
         float totalWidth = DialogStyleManager.DialogWidth.STANDARD.value;
 
@@ -205,6 +211,7 @@ public class NewLayerDialog {
 
         try {
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                popupOpenRequested = false;
                 if (DialogStyleManager.renderTopRightCloseButton("new_layer")) {
                     hide();
                     ImGui.closeCurrentPopup();
@@ -216,6 +223,7 @@ public class NewLayerDialog {
 
                 if (DialogLayoutHelper.beginForm("##new_layer_form")) {
                     DialogLayoutHelper.formRowLabel("名称");
+
                     if (ImGui.isWindowAppearing()) {
                         ImGui.setKeyboardFocusHere();
                     }
@@ -284,4 +292,5 @@ public class NewLayerDialog {
             DialogStyleManager.popDialogStyle(styleScope);
         }
     }
+
 }
