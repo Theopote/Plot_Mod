@@ -71,17 +71,8 @@ public class PlotScreen extends Screen {
     // ---- DockSpace（可停靠布局）----
     private static final String DOCKSPACE_HOST_WINDOW = "PlotDockSpace##DockspaceHost";
     private static final String DOCKSPACE_ID_STR = "PlotDockSpace";
-
-    private static final int GLFW_MOD_SHIFT = 0x0001;
-    private static final int GLFW_MOD_CONTROL = 0x0002;
-    private static final int GLFW_MOD_ALT = 0x0004;
-    private static final int GLFW_MOD_SUPER = 0x0008;
     private static final int GLFW_KEY_LEFT_SHIFT = 340;
     private static final int GLFW_KEY_RIGHT_SHIFT = 344;
-    private static final int GLFW_KEY_LEFT_CONTROL = 341;
-    private static final int GLFW_KEY_RIGHT_CONTROL = 345;
-    private static final int GLFW_KEY_LEFT_ALT = 342;
-    private static final int GLFW_KEY_RIGHT_ALT = 346;
     private static final int LEGACY_SHIFT_KEY = 16;
 
     private static final String WIN_TOP = "ControlPanel##ControlPanel";
@@ -317,7 +308,7 @@ public class PlotScreen extends Screen {
         // no-op: 不绘制任何背景/模糊层
     }
 
-    private boolean dispatchModifierKeyToTool(BaseTool activeTool, int keyCode, int legacyKeyCode, boolean pressed, String keyName) {
+    private boolean dispatchModifierKeyToTool(BaseTool activeTool, int keyCode, boolean pressed, String keyName) {
         boolean handled = false;
         try {
             handled = pressed ? activeTool.onKeyDown(keyCode) : activeTool.onKeyUp(keyCode);
@@ -325,9 +316,9 @@ public class PlotScreen extends Screen {
             LOGGER.error("工具 {} 处理{}键时发生异常", activeTool.getClass().getSimpleName(), keyName, t);
         }
 
-        if (legacyKeyCode != keyCode) {
+        if (PlotScreen.LEGACY_SHIFT_KEY != keyCode) {
             try {
-                handled = (pressed ? activeTool.onKeyDown(legacyKeyCode) : activeTool.onKeyUp(legacyKeyCode)) || handled;
+                handled = (pressed ? activeTool.onKeyDown(PlotScreen.LEGACY_SHIFT_KEY) : activeTool.onKeyUp(PlotScreen.LEGACY_SHIFT_KEY)) || handled;
             } catch (Throwable t) {
                 LOGGER.error("工具 {} 处理{}兼容键码时发生异常", activeTool.getClass().getSimpleName(), keyName, t);
             }
@@ -800,11 +791,17 @@ public class PlotScreen extends Screen {
     }
 
     /**
-     * 【优化】统一事件处理逻辑
-     * 【新增】统一检查ImGui是否捕获输入
+     * 鼠标事件应只看鼠标捕获状态。
      */
-    private boolean isInputCapturedByImGui() {
-        return ImGui.getIO().getWantCaptureMouse() || ImGui.getIO().getWantCaptureKeyboard();
+    private boolean isMouseCapturedByImGui() {
+        return ImGui.getIO().getWantCaptureMouse();
+    }
+
+    /**
+     * 键盘/文本事件需同时考虑普通键盘捕获与文本输入意图（IME/中文输入依赖 WantTextInput）。
+     */
+    private boolean isKeyboardCapturedByImGui() {
+        return ImGui.getIO().getWantCaptureKeyboard() || ImGui.getIO().getWantTextInput();
     }
 
     // 鼠标事件处理方法
@@ -816,7 +813,7 @@ public class PlotScreen extends Screen {
         }
 
         // 【优化】统一事件处理逻辑
-        if (isInputCapturedByImGui()) {
+        if (isMouseCapturedByImGui()) {
             PlotMod.LOGGER.debug("ImGui 捕获鼠标点击: x={}, y={}, button={}", 
                 click.x(), click.y(), click.button());
             return true;
@@ -827,7 +824,7 @@ public class PlotScreen extends Screen {
     @Override
     public boolean mouseReleased(Click click) {
         // 【优化】统一事件处理逻辑
-        if (isInputCapturedByImGui()) {
+        if (isMouseCapturedByImGui()) {
             PlotMod.LOGGER.debug("ImGui 捕获鼠标释放: x={}, y={}, button={}", 
                 click.x(), click.y(), click.button());
             return true;
@@ -838,7 +835,7 @@ public class PlotScreen extends Screen {
     @Override
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         // 【优化】统一事件处理逻辑
-        if (isInputCapturedByImGui()) {
+        if (isMouseCapturedByImGui()) {
             PlotMod.LOGGER.debug("ImGui 捕获鼠标拖动: x={}, y={}, deltaX={}, deltaY={}", 
                 click.x(), click.y(), deltaX, deltaY);
             return true;
@@ -911,7 +908,7 @@ public class PlotScreen extends Screen {
         }
         
         // 【优化】统一事件处理逻辑
-        if (isInputCapturedByImGui()) {
+        if (isKeyboardCapturedByImGui()) {
             LOGGER.debug("键盘事件被ImGui捕获，keyCode={}", keyCode);
             
             // 处理组合键（剪切复制粘贴等）
@@ -991,7 +988,7 @@ public class PlotScreen extends Screen {
         if (keyCode == GLFW_KEY_LEFT_SHIFT || keyCode == GLFW_KEY_RIGHT_SHIFT) {
             BaseTool activeTool = appState.getCurrentTool();
             if (activeTool != null) {
-                if (dispatchModifierKeyToTool(activeTool, keyCode, LEGACY_SHIFT_KEY, true, "Shift")) {
+                if (dispatchModifierKeyToTool(activeTool, keyCode, true, "Shift")) {
                     return true;
                 }
             }
@@ -1020,7 +1017,7 @@ public class PlotScreen extends Screen {
         int modifiers = keyInput.modifiers();
         
         
-        if (isInputCapturedByImGui()) {
+        if (isKeyboardCapturedByImGui()) {
             ImGui.getIO().setKeysDown(keyCode, false);
             return true;
         }
@@ -1028,7 +1025,7 @@ public class PlotScreen extends Screen {
         // 转发 Shift 释放给当前工具
         if (keyCode == GLFW_KEY_LEFT_SHIFT || keyCode == GLFW_KEY_RIGHT_SHIFT) {
             BaseTool activeTool = appState.getCurrentTool();
-            if (activeTool != null && dispatchModifierKeyToTool(activeTool, keyCode, LEGACY_SHIFT_KEY, false, "Shift")) {
+            if (activeTool != null && dispatchModifierKeyToTool(activeTool, keyCode, false, "Shift")) {
                 return true;
             }
         }
@@ -1037,40 +1034,46 @@ public class PlotScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput charInput) {
-        char chr = (char) charInput.codepoint();
+        int codepoint = charInput.codepoint();
         int modifiers = charInput.modifiers();
-        
-        // 【优化】统一事件处理逻辑
-        if (isInputCapturedByImGui()) {
-            PlotMod.LOGGER.debug("ImGui 捕获字符输入: char='{}', modifiers={}", 
-                chr, modifiers);
-            ImGui.getIO().addInputCharacter(chr);
+        String text = codepoint > 0 ? new String(Character.toChars(codepoint)) : "";
+        char chr = text.isEmpty() ? '\0' : text.charAt(0);
+
+        // 文本输入应优先尊重 ImGui 的 WantTextInput，IME/中文输入依赖这一分支。
+        if (isKeyboardCapturedByImGui()) {
+            PlotMod.LOGGER.debug("ImGui 捕获字符输入: text='{}', codepoint={}, modifiers={}", 
+                text, codepoint, modifiers);
+            if (codepoint > 0 && !Character.isISOControl(codepoint)) {
+                ImGui.getIO().addInputCharactersUTF8(text);
+            }
             return true;
         }
-        // 单键工具快捷键（不区分大小写），优先走 ShortcutManager
+        // 单键工具快捷键仅处理 ASCII，避免把中文/IME 提交文本误当成快捷键吞掉。
         try {
-            String s;
-            if (chr == ' ') {
+            String s = null;
+            if (codepoint == ' ') {
                 s = "space"; // 与 KeymapManager 默认绑定一致
-            } else {
-                s = String.valueOf(Character.toLowerCase(chr));
+            } else if (codepoint > 0 && codepoint <= 0x7F && !Character.isISOControl(codepoint)) {
+                s = String.valueOf(Character.toLowerCase((char) codepoint));
             }
-            if (s.length() == 1) {
-                if (ShortcutManager.getInstance().handleShortcut(s)) {
-                    return true;
-                }
-            } else if ("space".equals(s)) {
-                if (ShortcutManager.getInstance().handleShortcut(s)) {
-                    return true;
+            if (s != null) {
+                if (s.length() == 1) {
+                    if (ShortcutManager.getInstance().handleShortcut(s)) {
+                        return true;
+                    }
+                } else if ("space".equals(s)) {
+                    if (ShortcutManager.getInstance().handleShortcut(s)) {
+                        return true;
+                    }
                 }
             }
         } catch (Exception ignored) {}
 
         // 如果ImGui没有捕获，尝试传递给当前工具
         BaseTool currentTool = AppState.getInstance().getCurrentTool();
-        if (currentTool != null && currentTool.onKeyTyped(chr)) {
-            PlotMod.LOGGER.debug("工具处理字符输入: char='{}', tool={}", 
-                chr, currentTool.getClass().getSimpleName());
+        if (currentTool != null && chr != '\0' && currentTool.onKeyTyped(chr)) {
+            PlotMod.LOGGER.debug("工具处理字符输入: text='{}', tool={}", 
+                text, currentTool.getClass().getSimpleName());
             return true;
         }
         
