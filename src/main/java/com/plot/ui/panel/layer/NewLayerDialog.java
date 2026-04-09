@@ -263,8 +263,8 @@ public class NewLayerDialog {
 
                     DialogLayoutHelper.endForm();
                 }
-                DialogLayoutHelper.endSection();
 
+                ImGui.separator();
                 DialogLayoutHelper.beginFooter();
                 DialogLayoutHelper.FooterResult action =
                         DialogLayoutHelper.footerConfirmCancelRight("取消", "创建", DialogStyleManager.getContentWidth());

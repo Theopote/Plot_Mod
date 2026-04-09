@@ -144,7 +144,7 @@ public class TextInputDialog {
                     } finally {
                         DialogLayoutHelper.popDenseEditorStyle(editorStyle);
                     }
-                    DialogLayoutHelper.endSection();
+                    //DialogLayoutHelper.endSection();
 
                     DialogLayoutHelper.beginSection("文字样式");
                     renderStyleSection();
