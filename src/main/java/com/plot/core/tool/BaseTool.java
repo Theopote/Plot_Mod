@@ -337,14 +337,17 @@ public abstract class BaseTool implements ITool, IShortcutListener {
     // 辅助方法
     protected void updateModifierKeys(int keyCode, boolean pressed) {
         switch (keyCode) {
+            case 16:  // Legacy Shift
             case 340: // Left Shift
             case 344: // Right Shift
                 isShiftDown = pressed;
                 break;
+            case 17:  // Legacy Control
             case 341: // Left Control
             case 345: // Right Control
                 isControlDown = pressed;
                 break;
+            case 18:  // Legacy Alt
             case 342: // Left Alt
             case 346: // Right Alt
                 isAltDown = pressed;

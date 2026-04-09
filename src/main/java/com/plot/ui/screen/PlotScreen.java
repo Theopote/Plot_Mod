@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import net.minecraft.client.MinecraftClient;
 import imgui.flag.ImGuiStyleVar;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.Window;
 import com.plot.ui.container.UIContainer;
 import com.plot.ui.theme.ThemeManager;
@@ -71,6 +72,18 @@ public class PlotScreen extends Screen {
     // ---- DockSpace（可停靠布局）----
     private static final String DOCKSPACE_HOST_WINDOW = "PlotDockSpace##DockspaceHost";
     private static final String DOCKSPACE_ID_STR = "PlotDockSpace";
+
+    private static final int GLFW_MOD_SHIFT = 0x0001;
+    private static final int GLFW_MOD_CONTROL = 0x0002;
+    private static final int GLFW_MOD_ALT = 0x0004;
+    private static final int GLFW_MOD_SUPER = 0x0008;
+    private static final int GLFW_KEY_LEFT_SHIFT = 340;
+    private static final int GLFW_KEY_RIGHT_SHIFT = 344;
+    private static final int GLFW_KEY_LEFT_CONTROL = 341;
+    private static final int GLFW_KEY_RIGHT_CONTROL = 345;
+    private static final int GLFW_KEY_LEFT_ALT = 342;
+    private static final int GLFW_KEY_RIGHT_ALT = 346;
+    private static final int LEGACY_SHIFT_KEY = 16;
 
     private static final String WIN_TOP = "ControlPanel##ControlPanel";
     private static final String WIN_TOP_SYSTEM = "SystemPanel##SystemPanel";
@@ -257,6 +270,7 @@ public class PlotScreen extends Screen {
             
             // 开始新的 ImGui 帧
             imGuiRenderer.beginFrame();
+            syncModifierKeyState(0);
             // DisplaySize/FramebufferScale 由 ImGuiRenderer.updateDisplaySize() 统一维护（1.21.x 下更稳定）
             
             // 渲染所有 UI 组件（使用 PlotStyleScope 临时应用样式，渲染后 pop 恢复，避免影响 Treefactory/ChronoBlocks 等模组）
@@ -303,6 +317,52 @@ public class PlotScreen extends Screen {
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         // no-op: 不绘制任何背景/模糊层
+    }
+
+    private void syncModifierKeyState(int modifiers) {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            Window window = client != null ? client.getWindow() : null;
+
+            boolean ctrlPressed = (modifiers & GLFW_MOD_CONTROL) != 0
+                    || isWindowKeyPressed(window, GLFW_KEY_LEFT_CONTROL)
+                    || isWindowKeyPressed(window, GLFW_KEY_RIGHT_CONTROL);
+            boolean shiftPressed = (modifiers & GLFW_MOD_SHIFT) != 0
+                    || isWindowKeyPressed(window, GLFW_KEY_LEFT_SHIFT)
+                    || isWindowKeyPressed(window, GLFW_KEY_RIGHT_SHIFT);
+            boolean altPressed = (modifiers & GLFW_MOD_ALT) != 0
+                    || isWindowKeyPressed(window, GLFW_KEY_LEFT_ALT)
+                    || isWindowKeyPressed(window, GLFW_KEY_RIGHT_ALT);
+            boolean superPressed = (modifiers & GLFW_MOD_SUPER) != 0;
+
+            ImGui.getIO().setKeyCtrl(ctrlPressed);
+            ImGui.getIO().setKeyShift(shiftPressed);
+            ImGui.getIO().setKeyAlt(altPressed);
+            ImGui.getIO().setKeySuper(superPressed);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private boolean isWindowKeyPressed(Window window, int keyCode) {
+        return window != null && InputUtil.isKeyPressed(window, keyCode);
+    }
+
+    private boolean dispatchModifierKeyToTool(BaseTool activeTool, int keyCode, int legacyKeyCode, boolean pressed, String keyName) {
+        boolean handled = false;
+        try {
+            handled = pressed ? activeTool.onKeyDown(keyCode) : activeTool.onKeyUp(keyCode);
+        } catch (Throwable t) {
+            LOGGER.error("工具 {} 处理{}键时发生异常", activeTool.getClass().getSimpleName(), keyName, t);
+        }
+
+        if (legacyKeyCode != keyCode) {
+            try {
+                handled = (pressed ? activeTool.onKeyDown(legacyKeyCode) : activeTool.onKeyUp(legacyKeyCode)) || handled;
+            } catch (Throwable t) {
+                LOGGER.error("工具 {} 处理{}兼容键码时发生异常", activeTool.getClass().getSimpleName(), keyName, t);
+            }
+        }
+        return handled;
     }
 
     private static String safeMsg(Throwable t) {
@@ -867,17 +927,8 @@ public class PlotScreen extends Screen {
         LOGGER.debug("PlotScreen.keyPressed: keyCode={}, modifiers={}, wantCaptureMouse={}, wantCaptureKeyboard={}", 
             keyCode, modifiers, wantCaptureMouse, wantCaptureKeyboard);
 
-        // 同步修饰键状态到 ImGui（确保 getKeyShift/getKeyAlt 等可用）
-        try {
-            boolean ctrlPressed = (modifiers & 0x0002) != 0;  // GLFW_MOD_CONTROL
-            boolean shiftPressed = (modifiers & 0x0001) != 0; // GLFW_MOD_SHIFT
-            boolean altPressed = (modifiers & 0x0004) != 0;   // GLFW_MOD_ALT
-            boolean superPressed = (modifiers & 0x0008) != 0; // GLFW_MOD_SUPER
-            ImGui.getIO().setKeyCtrl(ctrlPressed);
-            ImGui.getIO().setKeyShift(shiftPressed);
-            ImGui.getIO().setKeyAlt(altPressed);
-            ImGui.getIO().setKeySuper(superPressed);
-        } catch (Exception ignored) {}
+        // 同步修饰键状态到 ImGui（JAR 环境下优先用真实窗口按键状态兜底）
+        syncModifierKeyState(modifiers);
         
         // 【修复】优先尝试通过快捷键系统处理
         if (KeyboardShortcutConverter.isValidShortcut(keyCode, modifiers)) {
@@ -969,15 +1020,11 @@ public class PlotScreen extends Screen {
         }
 
         // 左/右 Shift 转发给工具，便于工具内部切换正交/角度约束
-        if (keyCode == 340 || keyCode == 344) { // GLFW_KEY_LEFT_SHIFT / GLFW_KEY_RIGHT_SHIFT
+        if (keyCode == GLFW_KEY_LEFT_SHIFT || keyCode == GLFW_KEY_RIGHT_SHIFT) {
             BaseTool activeTool = appState.getCurrentTool();
             if (activeTool != null) {
-                try {
-                    if (activeTool.onKeyDown(keyCode)) {
-                        return true;
-                    }
-                } catch (Throwable t) {
-                    LOGGER.error("工具 {} 处理Shift键时发生异常", activeTool.getClass().getSimpleName(), t);
+                if (dispatchModifierKeyToTool(activeTool, keyCode, LEGACY_SHIFT_KEY, true, "Shift")) {
+                    return true;
                 }
             }
         }
@@ -1005,16 +1052,7 @@ public class PlotScreen extends Screen {
         int modifiers = keyInput.modifiers();
         
         // 同步修饰键状态
-        try {
-            boolean ctrlPressed = (modifiers & 0x0002) != 0;
-            boolean shiftPressed = (modifiers & 0x0001) != 0;
-            boolean altPressed = (modifiers & 0x0004) != 0;
-            boolean superPressed = (modifiers & 0x0008) != 0;
-            ImGui.getIO().setKeyCtrl(ctrlPressed);
-            ImGui.getIO().setKeyShift(shiftPressed);
-            ImGui.getIO().setKeyAlt(altPressed);
-            ImGui.getIO().setKeySuper(superPressed);
-        } catch (Exception ignored) {}
+        syncModifierKeyState(modifiers);
 
         if (isInputCapturedByImGui()) {
             ImGui.getIO().setKeysDown(keyCode, false);
@@ -1022,9 +1060,9 @@ public class PlotScreen extends Screen {
         }
 
         // 转发 Shift 释放给当前工具
-        if (keyCode == 340 || keyCode == 344) {
+        if (keyCode == GLFW_KEY_LEFT_SHIFT || keyCode == GLFW_KEY_RIGHT_SHIFT) {
             BaseTool activeTool = appState.getCurrentTool();
-            if (activeTool != null && activeTool.onKeyUp(keyCode)) {
+            if (activeTool != null && dispatchModifierKeyToTool(activeTool, keyCode, LEGACY_SHIFT_KEY, false, "Shift")) {
                 return true;
             }
         }
