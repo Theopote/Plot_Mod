@@ -126,9 +126,6 @@ public class GridManager {
                 }
 
                 boolean settingsChanged = false;
-//
-//                DialogLayoutHelper.beginSection("网格参数");
-//                DialogLayoutHelper.helpText("调整网格大小、透明度、线宽和颜色，修改会即时生效。");
 
                 // 网格大小设置
                 float[] gridSize = {settings.getGridSize()};
@@ -169,8 +166,6 @@ public class GridManager {
                     LOGGER.debug("已发布GridToggleEvent：启用={}, 设置更新=true", isEnabled);
                 }
 
-                DialogLayoutHelper.endSection();
-
                 if (DialogLayoutHelper.isCancelShortcutPressed()) {
                     showSettings = false;
                     LOGGER.debug("关闭网格设置窗口（Esc）");
@@ -193,6 +188,8 @@ public class GridManager {
     }
 
     private void renderButtons() {
+        ImGui.separator();
+        DialogLayoutHelper.rowGap();
         DialogLayoutHelper.beginFooter();
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
