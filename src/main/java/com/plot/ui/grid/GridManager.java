@@ -188,9 +188,8 @@ public class GridManager {
     }
 
     private void renderButtons() {
+        // 不额外添加 footer 留白，保持与上方滑动条一致的默认控件间距。
         ImGui.separator();
-//        DialogLayoutHelper.rowGap();
-//        DialogLayoutHelper.beginFooter();
         DialogLayoutHelper.FooterResult action =
                 DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
 
