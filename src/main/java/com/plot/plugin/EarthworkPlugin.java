@@ -1,7 +1,7 @@
 package com.plot.plugin;
 
 import imgui.ImGui;
-import imgui.flag.*;
+
 import imgui.type.ImBoolean;
 
 import com.plot.ui.component.Icons;

@@ -5,6 +5,7 @@ import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.ui.dialog.TextDialogUtil;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 
@@ -25,6 +26,7 @@ import java.nio.charset.CharacterCodingException;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.awt.Color;
+import java.awt.GraphicsEnvironment;
 
 public class NewLayerDialog {
     private static final Logger LOGGER = LogManager.getLogger("NewLayerDialog");
@@ -46,6 +48,17 @@ public class NewLayerDialog {
     private float lineWidth = 1.0f;            // 图层线宽（改为单值）
     private boolean nameInputInvalid = false;  // 名称输入是否合法（用于红色边框反馈）
 
+    /** 系统输入框是否已经发起，避免每帧重复打开。 */
+    private volatile boolean nativeInputRequested = false;
+    /** 系统输入框是否已经返回结果。 */
+    private volatile boolean nativeInputCompleted = false;
+    /** 系统输入框是否被取消。 */
+    private volatile boolean nativeInputCancelled = false;
+    /** 系统输入框返回的文本。 */
+    private volatile String nativeInputText = null;
+    /** 当前运行环境是否支持 Swing 系统输入框。 */
+    private final boolean nativeInputSupported = !GraphicsEnvironment.isHeadless();
+
     // === 依赖项 ===
     private final LayerManager layerManager;    // 图层管理器
     private final Consumer<String> showWarningDialog;  // 警告对话框回调
@@ -62,6 +75,7 @@ public class NewLayerDialog {
         isVisible = true;
         nameInputInvalid = false;
         popupOpenRequested = true;
+        resetNativeInputState();
 
         if (layerName.get().isEmpty()) {
             layerName.set(generateDefaultName());
@@ -185,6 +199,21 @@ public class NewLayerDialog {
     public void render() {
         if (!isVisible) return;
 
+        if (nativeInputSupported) {
+            requestNativeNameInputIfNeeded();
+        }
+
+        if (nativeInputSupported && nativeInputCompleted) {
+            if (nativeInputCancelled) {
+                hide();
+                return;
+            }
+            if (nativeInputText != null) {
+                layerName.set(nativeInputText);
+            }
+            nativeInputCompleted = false;
+        }
+
         if (popupOpenRequested) {
             ImGui.openPopup(DIALOG_TITLE);
         }
@@ -224,29 +253,41 @@ public class NewLayerDialog {
                 if (DialogLayoutHelper.beginForm("##new_layer_form")) {
                     DialogLayoutHelper.formRowLabel("名称");
 
-                    if (ImGui.isWindowAppearing()) {
-                        ImGui.setKeyboardFocusHere();
-                    }
-
                     if (nameInputInvalid) {
                         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
                         ImGui.pushStyleColor(ImGuiCol.Border, theme.errorText);
                     }
 
-                    if (ImGui.inputText("##new_layer_name", layerName,
-                            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
-                                    ImGuiInputTextFlags.CharsNoBlank)) {
-                        String currentInput = layerName.get();
-                        LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
-                                currentInput, currentInput.getBytes().length, currentInput.length());
-                        nameInputInvalid = false;
-                        ImGui.setKeyboardFocusHere(1);
+                    if (nativeInputSupported) {
+                        ImGui.inputText("##new_layer_name_preview", layerName,
+                                ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AutoSelectAll);
+                    } else {
+                        if (ImGui.isWindowAppearing()) {
+                            ImGui.setKeyboardFocusHere();
+                        }
+                        if (ImGui.inputText("##new_layer_name", layerName,
+                                ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll |
+                                        ImGuiInputTextFlags.CharsNoBlank)) {
+                            String currentInput = layerName.get();
+                            LOGGER.debug("输入完成 - 当前输入: '{}', 字节长度: {}, 字符长度: {}",
+                                    currentInput, currentInput.getBytes().length, currentInput.length());
+                            nameInputInvalid = false;
+                            ImGui.setKeyboardFocusHere(1);
+                        }
                     }
 
                     if (nameInputInvalid) {
                         ImGui.popStyleColor();
                         ImGui.popStyleVar();
                         DialogLayoutHelper.errorText("请输入合法的图层名称（中文、字母、数字或下划线）。");
+                    }
+
+                    if (nativeInputSupported) {
+                        DialogLayoutHelper.beginSection("编辑");
+                        if (ImGui.button("重新编辑名称", 0, 0)) {
+                            nativeInputRequested = false;
+                            requestNativeNameInputIfNeeded();
+                        }
                     }
 
                     DialogLayoutHelper.formRowLabel("颜色");
@@ -291,6 +332,30 @@ public class NewLayerDialog {
         } finally {
             DialogStyleManager.popDialogStyle(styleScope);
         }
+    }
+
+    private void resetNativeInputState() {
+        nativeInputRequested = false;
+        nativeInputCompleted = false;
+        nativeInputCancelled = false;
+        nativeInputText = null;
+    }
+
+    private void requestNativeNameInputIfNeeded() {
+        if (nativeInputRequested) {
+            return;
+        }
+        nativeInputRequested = true;
+        TextDialogUtil.showSingleLineTextInputAsync(
+                DIALOG_TITLE,
+                layerName.get(),
+                MAX_NAME_LENGTH,
+                result -> {
+                    nativeInputText = result;
+                    nativeInputCancelled = (result == null);
+                    nativeInputCompleted = true;
+                }
+        );
     }
 
 }

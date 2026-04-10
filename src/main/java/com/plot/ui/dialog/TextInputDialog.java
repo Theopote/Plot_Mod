@@ -8,10 +8,17 @@ import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 
+import com.plot.ui.dialog.TextDialogUtil;
+
+import java.awt.GraphicsEnvironment;
 import java.util.function.Consumer;
 
+
 /**
- * 纯 ImGui 实现的文字输入对话框。
+ * 文字输入对话框。
+ *
+ * <p>实际文本编辑通过系统原生输入框完成，ImGui 弹窗仅负责预览与样式确认，
+ * 用来规避 Windows IME 在 ImGui 文本框中的兼容性问题。</p>
  */
 public class TextInputDialog {
     private static final String DIALOG_TITLE = "添加文字";
@@ -36,6 +43,17 @@ public class TextInputDialog {
     private Consumer<TextInputResult> onConfirm;
     private Runnable onCancel;
 
+    /** 系统输入框是否已经发起，避免每帧重复打开。 */
+    private volatile boolean nativeInputRequested = false;
+    /** 系统输入框是否已经返回结果。 */
+    private volatile boolean nativeInputCompleted = false;
+    /** 系统输入框是否被取消。 */
+    private volatile boolean nativeInputCancelled = false;
+    /** 系统输入框返回的文本。 */
+    private volatile String nativeInputText = null;
+    /** 当前运行环境是否支持 Swing 系统输入框。 */
+    private final boolean nativeInputSupported = !GraphicsEnvironment.isHeadless();
+
     // 跨线程安全的延迟打开请求（避免在非渲染线程调用 ImGui.openPopup）
     private volatile PendingOpenRequest pendingOpenRequest;
 
@@ -58,6 +76,7 @@ public class TextInputDialog {
         applyPreset(TextInputPreset.defaults());
         this.visible = true;
         this.popupOpenRequested = true;
+        resetNativeInputState();
     }
 
     public void open(String presetText, TextInputPreset preset,
@@ -68,6 +87,7 @@ public class TextInputDialog {
         applyPreset(preset);
         this.visible = true;
         this.popupOpenRequested = true;
+        resetNativeInputState();
     }
 
     public void scheduleOpen(String presetText, TextInputPreset preset,
@@ -95,9 +115,25 @@ public class TextInputDialog {
             this.visible = true;
             this.popupOpenRequested = true;
             this.pendingOpenRequest = null;
+            resetNativeInputState();
         }
 
         if (!visible) return;
+
+        if (nativeInputSupported) {
+            requestNativeTextInputIfNeeded();
+        }
+
+        if (nativeInputSupported && nativeInputCompleted) {
+            if (nativeInputCancelled) {
+                cancelAndClose();
+                return;
+            }
+            if (nativeInputText != null) {
+                textBuffer.set(nativeInputText);
+            }
+            nativeInputCompleted = false;
+        }
 
         if (popupOpenRequested) {
             ImGui.openPopup(DIALOG_TITLE);
@@ -127,27 +163,43 @@ public class TextInputDialog {
 
                     float contentWidth = DialogStyleManager.getContentWidth();
 
-                    DialogLayoutHelper.helpText("请输入文字内容（可多行）。在非编辑状态下可按 Enter 确认。 ");
+                    DialogLayoutHelper.helpText(nativeInputSupported
+                            ? "已打开系统输入框，可输入中文；下方仅显示预览。 "
+                            : "当前环境不支持系统输入框，已回退到内置输入。 ");
                     boolean textEditorActive = false;
                     DialogLayoutHelper.DenseEditorStyleScope editorStyle = DialogLayoutHelper.pushDenseEditorStyle();
                     try {
-                        if (ImGui.isWindowAppearing()) {
-                            ImGui.setKeyboardFocusHere();
+                        if (nativeInputSupported) {
+                            ImGui.inputTextMultiline("##text_input_preview", textBuffer, contentWidth, inputHeight,
+                                    ImGuiInputTextFlags.ReadOnly | ImGuiInputTextFlags.AllowTabInput);
+                        } else {
+                            if (ImGui.isWindowAppearing()) {
+                                ImGui.setKeyboardFocusHere();
+                            }
+                            boolean multilineOk = true;
+                            try {
+                                ImGui.inputTextMultiline("##text_input", textBuffer, contentWidth, inputHeight,
+                                        ImGuiInputTextFlags.AllowTabInput);
+                                textEditorActive = ImGui.isItemActive();
+                            } catch (Throwable t) {
+                                multilineOk = false;
+                            }
+                            if (!multilineOk) {
+                                ImGui.inputText("##text_input", textBuffer, ImGuiInputTextFlags.CallbackHistory);
+                                textEditorActive = ImGui.isItemActive();
+                            }
                         }
-                        boolean multilineOk = true;
-                        try {
-                            ImGui.inputTextMultiline("##text_input", textBuffer, contentWidth, inputHeight,
-                                    ImGuiInputTextFlags.AllowTabInput);
-                            textEditorActive = ImGui.isItemActive();
-                        } catch (Throwable t) {
-                            multilineOk = false;
-                        }
-                        if (!multilineOk) {
-                            ImGui.inputText("##text_input", textBuffer, ImGuiInputTextFlags.CallbackHistory);
-                            textEditorActive = ImGui.isItemActive();
-                        }
+                        textEditorActive = ImGui.isItemActive();
                     } finally {
                         DialogLayoutHelper.popDenseEditorStyle(editorStyle);
+                    }
+
+                    if (nativeInputSupported) {
+                        DialogLayoutHelper.beginSection("编辑");
+                        if (ImGui.button("重新编辑", 0, 0)) {
+                            nativeInputRequested = false;
+                            requestNativeTextInputIfNeeded();
+                        }
                     }
 
                     DialogLayoutHelper.beginSection("文字样式");
@@ -269,6 +321,30 @@ public class TextInputDialog {
         onConfirm = null;
         onCancel = null;
         pendingOpenRequest = null;
+        resetNativeInputState();
+    }
+
+    private void resetNativeInputState() {
+        nativeInputRequested = false;
+        nativeInputCompleted = false;
+        nativeInputCancelled = false;
+        nativeInputText = null;
+    }
+
+    private void requestNativeTextInputIfNeeded() {
+        if (nativeInputRequested) {
+            return;
+        }
+        nativeInputRequested = true;
+        TextDialogUtil.showMultilineTextInputAsync(
+                DIALOG_TITLE,
+                textBuffer.get(),
+                result -> {
+                    nativeInputText = result;
+                    nativeInputCancelled = (result == null);
+                    nativeInputCompleted = true;
+                }
+        );
     }
 
     private void applyPreset(TextInputPreset preset) {
