@@ -8,8 +8,6 @@ import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 
-import com.plot.ui.dialog.TextDialogUtil;
-
 import java.awt.GraphicsEnvironment;
 import java.util.function.Consumer;
 
@@ -166,7 +164,7 @@ public class TextInputDialog {
                     DialogLayoutHelper.helpText(nativeInputSupported
                             ? "已打开系统输入框，可输入中文；下方仅显示预览。 "
                             : "当前环境不支持系统输入框，已回退到内置输入。 ");
-                    boolean textEditorActive = false;
+                    boolean textEditorActive;
                     DialogLayoutHelper.DenseEditorStyleScope editorStyle = DialogLayoutHelper.pushDenseEditorStyle();
                     try {
                         if (nativeInputSupported) {
@@ -180,13 +178,13 @@ public class TextInputDialog {
                             try {
                                 ImGui.inputTextMultiline("##text_input", textBuffer, contentWidth, inputHeight,
                                         ImGuiInputTextFlags.AllowTabInput);
-                                textEditorActive = ImGui.isItemActive();
+                                ImGui.isItemActive();
                             } catch (Throwable t) {
                                 multilineOk = false;
                             }
                             if (!multilineOk) {
                                 ImGui.inputText("##text_input", textBuffer, ImGuiInputTextFlags.CallbackHistory);
-                                textEditorActive = ImGui.isItemActive();
+                                ImGui.isItemActive();
                             }
                         }
                         textEditorActive = ImGui.isItemActive();
