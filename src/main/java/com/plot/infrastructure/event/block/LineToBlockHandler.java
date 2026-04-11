@@ -922,8 +922,8 @@ public class LineToBlockHandler {
     }
 
     /**
-     * 使用Bresenham算法精确光栅化线条为方块位置
-     * 【修复】确保线条穿过方块的中心，而不是边缘
+     * 使用基于浮点端点的网格穿越算法光栅化线条为方块位置。
+     * 候选格子先完整枚举，`SIMPLIFIED` 再按单元内覆盖长度做二次过滤。
      * @param x0 起点X (Minecraft世界坐标)
      * @param z0 起点Z (Minecraft世界坐标)
      * @param x1 终点X (Minecraft世界坐标)
@@ -958,11 +958,13 @@ public class LineToBlockHandler {
             return candidates;
         }
 
+        // 按“覆盖了多少倍方块边长”解释阈值，与设置面板文案保持一致。
         double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
         List<BlockPos> filtered = new ArrayList<>(candidates.size());
         for (BlockPos pos : candidates) {
             double insideLength = segmentLengthInsideUnitCell(x0, z0, x1, z1, pos.getX(), pos.getZ(), segmentLength);
-            if (insideLength >= threshold) {
+            double coverage = insideLength;
+            if (coverage >= threshold) {
                 filtered.add(pos);
             }
         }
@@ -981,7 +983,7 @@ public class LineToBlockHandler {
         double tMax = 1.0;
 
         if (Math.abs(dx) < 1e-12) {
-            if (x0 < (double) cellX || x0 > xmax) {
+            if (x0 < (double) cellX || x0 >= xmax) {
                 return 0.0;
             }
         } else {
@@ -997,7 +999,7 @@ public class LineToBlockHandler {
         }
 
         if (Math.abs(dz) < 1e-12) {
-            if (z0 < (double) cellZ || z0 > zmax) {
+            if (z0 < (double) cellZ || z0 >= zmax) {
                 return 0.0;
             }
         } else {
@@ -1022,68 +1024,87 @@ public class LineToBlockHandler {
     }
 
     private List<BlockPos> rasterizeLine(double x0, double z0, double x1, double z1, double yLevel) {
-        // 直接按世界坐标落格，避免引入统一方向偏移
-        int ix0 = (int) Math.floor(x0);
-        int iz0 = (int) Math.floor(z0);
-        int ix1 = (int) Math.floor(x1);
-        int iz1 = (int) Math.floor(z1);
         int y = (int) Math.floor(yLevel);
 
-        LOGGER.debug("线段光栅化: 世界坐标({}, {}) -> ({}, {}), 方块坐标({}, {}) -> ({}, {}), 标高={}",
-            x0, z0, x1, z1, ix0, iz0, ix1, iz1, y);
+        LOGGER.debug("线段光栅化(DDA): 世界坐标({}, {}) -> ({}, {}), 标高={}",
+            x0, z0, x1, z1, y);
 
-        // 使用Bresenham算法计算线条经过的所有方块
-        return rasterizeLineBresenham(ix0, iz0, ix1, iz1, y);
+        return rasterizeLineGridTraversal(x0, z0, x1, z1, y);
     }
 
     /**
-     * Bresenham线条光栅化算法
-     * 计算线条经过的所有网格点，每个网格点对应一个方块位置
-     * @param x0 起始X坐标
-     * @param z0 起始Z坐标
-     * @param x1 结束X坐标
-     * @param z1 结束Z坐标
-     * @param y 标高
-     * @return 方块位置列表
+     * 使用 Amanatides & Woo 风格的网格穿越算法枚举线段实际穿越的所有方块。
+     * 这样不会再出现整数 Bresenham 在负坐标/格线边界上的系统性偏移或漏格。
      */
-    private List<BlockPos> rasterizeLineBresenham(int x0, int z0, int x1, int z1, int y) {
+    private List<BlockPos> rasterizeLineGridTraversal(double x0, double z0, double x1, double z1, int y) {
         List<BlockPos> positions = new ArrayList<>();
 
-        // 计算方向向量
-        int dx = Math.abs(x1 - x0);
-        int dz = -Math.abs(z1 - z0);
-        int sx = x0 < x1 ? 1 : -1;
-        int sz = z0 < z1 ? 1 : -1;
-        int err = dx + dz;
-
-        int currentX = x0;
-        int currentZ = z0;
-
-        while (true) {
-            // 添加当前网格点对应的方块位置
-            positions.add(new BlockPos(currentX, y, currentZ));
-
-            // 检查是否到达终点
-            if (currentX == x1 && currentZ == z1) {
-                break;
-            }
-
-            // Bresenham算法的误差更新
-            int e2 = 2 * err;
-            if (e2 >= dz) {
-                err += dz;
-                currentX += sx;
-            }
-            if (e2 <= dx) {
-                err += dx;
-                currentZ += sz;
-            }
+        double dx = x1 - x0;
+        double dz = z1 - z0;
+        if (Math.abs(dx) < 1e-12 && Math.abs(dz) < 1e-12) {
+            positions.add(new BlockPos((int) Math.floor(x0), y, (int) Math.floor(z0)));
+            return positions;
         }
 
-        LOGGER.debug("Bresenham光栅化完成: 从({},{})到({},{})，标高{}，生成{}个方块",
+        double startX = nudgeTraversalCoordinate(x0, dx, true);
+        double startZ = nudgeTraversalCoordinate(z0, dz, true);
+        double endX = nudgeTraversalCoordinate(x1, dx, false);
+        double endZ = nudgeTraversalCoordinate(z1, dz, false);
+
+        int currentX = (int) Math.floor(startX);
+        int currentZ = (int) Math.floor(startZ);
+        int endCellX = (int) Math.floor(endX);
+        int endCellZ = (int) Math.floor(endZ);
+
+        int stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
+        int stepZ = dz > 0 ? 1 : (dz < 0 ? -1 : 0);
+
+        double tMaxX = stepX == 0 ? Double.POSITIVE_INFINITY
+                : (((stepX > 0 ? currentX + 1.0 : currentX) - x0) / dx);
+        double tMaxZ = stepZ == 0 ? Double.POSITIVE_INFINITY
+                : (((stepZ > 0 ? currentZ + 1.0 : currentZ) - z0) / dz);
+
+        double tDeltaX = stepX == 0 ? Double.POSITIVE_INFINITY : Math.abs(1.0 / dx);
+        double tDeltaZ = stepZ == 0 ? Double.POSITIVE_INFINITY : Math.abs(1.0 / dz);
+
+        positions.add(new BlockPos(currentX, y, currentZ));
+
+        int guard = 0;
+        while ((currentX != endCellX || currentZ != endCellZ) && guard++ < 100000) {
+            if (tMaxX < tMaxZ) {
+                currentX += stepX;
+                tMaxX += tDeltaX;
+            } else if (tMaxZ < tMaxX) {
+                currentZ += stepZ;
+                tMaxZ += tDeltaZ;
+            } else {
+                currentX += stepX;
+                currentZ += stepZ;
+                tMaxX += tDeltaX;
+                tMaxZ += tDeltaZ;
+            }
+
+            positions.add(new BlockPos(currentX, y, currentZ));
+        }
+
+        if (guard >= 100000) {
+            LOGGER.warn("DDA 网格穿越触发保护退出: start=({}, {}), end=({}, {}), generated={}",
+                    x0, z0, x1, z1, positions.size());
+        }
+
+        LOGGER.debug("DDA光栅化完成: 从({},{})到({},{})，标高{}，生成{}个方块",
                 x0, z0, x1, z1, y, positions.size());
 
         return positions;
+    }
+
+    private double nudgeTraversalCoordinate(double coordinate, double delta, boolean isStart) {
+        if (Math.abs(delta) < 1e-12) {
+            return coordinate;
+        }
+
+        double epsilon = 1.0e-9 * Math.signum(delta);
+        return isStart ? coordinate + epsilon : coordinate - epsilon;
     }
 
     /**
