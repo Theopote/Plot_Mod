@@ -481,12 +481,17 @@ public class LineToBlockHandler {
             return List.of();
         }
 
+        List<BlockPos> outline = rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, true);
         if (!fillClosedShapes) {
-            return rasterizeCurvePolyline(minecraftPoints, yLevel, conversionMode, simplificationRatio, true);
+            return outline;
         }
 
         List<BlockPos> candidates = rasterizePolygon(minecraftPoints, yLevel);
-        return filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftPoints, conversionMode, simplificationRatio);
+        List<BlockPos> filled = filterBlocksByPolygonCoverageIfSimplified(candidates, minecraftPoints, conversionMode, simplificationRatio);
+
+        java.util.LinkedHashSet<BlockPos> merged = new java.util.LinkedHashSet<>(outline);
+        merged.addAll(filled);
+        return new ArrayList<>(merged);
     }
 
     private List<Vec2d> convertCanvasPointsToMinecraftPoints(List<Vec2d> canvasPoints) {
@@ -1202,61 +1207,52 @@ public class LineToBlockHandler {
      */
     private List<BlockPos> rasterizePolygon(List<Vec2d> points, double yLevel) {
         List<BlockPos> result = new ArrayList<>();
-        
+
         if (points.size() < 3) {
             LOGGER.warn("多边形点数不足: {}", points.size());
             return result;
         }
-        
-        // 计算边界框
-        double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
-        double maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
-        
+
+        // 以方块中心所在的扫描线进行填充，避免整体向正 X / 正 Z 偏移
+        double minZ = Double.MAX_VALUE;
+        double maxZ = -Double.MAX_VALUE;
         for (Vec2d point : points) {
-            minX = Math.min(minX, point.x);
-            maxX = Math.max(maxX, point.x);
             minZ = Math.min(minZ, point.y);
             maxZ = Math.max(maxZ, point.y);
         }
-        
-        int startX = (int) Math.floor(minX + 0.5);
-        int endX = (int) Math.floor(maxX + 0.5);
-        int startZ = (int) Math.floor(minZ + 0.5);
-        int endZ = (int) Math.floor(maxZ + 0.5);
-        int y = (int) Math.floor(yLevel);
-        
-        // 扫描线算法填充多边形
-        for (int z = startZ; z <= endZ; z++) {
-            List<Integer> intersections = getIntegers(points, z);
 
-            // 排序交点
+        int startZ = (int) Math.floor(minZ);
+        int endZ = (int) Math.floor(maxZ);
+        int y = (int) Math.floor(yLevel);
+
+        for (int z = startZ; z <= endZ; z++) {
+            double scanZ = z + 0.5;
+            List<Integer> intersections = getIntersectionsForScanline(points, scanZ);
             intersections.sort(Integer::compareTo);
-            
-            // 填充交点之间的区域
+
             for (int i = 0; i < intersections.size() - 1; i += 2) {
                 int x1 = intersections.get(i);
                 int x2 = intersections.get(i + 1);
-                
+
                 for (int x = x1; x <= x2; x++) {
                     result.add(new BlockPos(x, y, z));
                 }
             }
         }
-        
+
         return result;
     }
 
-    private static @NotNull List<Integer> getIntegers(List<Vec2d> points, int z) {
+    private static @NotNull List<Integer> getIntersectionsForScanline(List<Vec2d> points, double scanZ) {
         List<Integer> intersections = new ArrayList<>();
 
-        // 计算与扫描线的交点
         for (int i = 0; i < points.size(); i++) {
             Vec2d p1 = points.get(i);
             Vec2d p2 = points.get((i + 1) % points.size());
 
-            if ((p1.y <= z && p2.y > z) || (p2.y <= z && p1.y > z)) {
-                double x = p1.x + (p2.x - p1.x) * (z - p1.y) / (p2.y - p1.y);
-                intersections.add((int) Math.floor(x + 0.5));
+            if ((p1.y <= scanZ && p2.y > scanZ) || (p2.y <= scanZ && p1.y > scanZ)) {
+                double x = p1.x + (p2.x - p1.x) * (scanZ - p1.y) / (p2.y - p1.y);
+                intersections.add((int) Math.floor(x));
             }
         }
         return intersections;
