@@ -959,15 +959,18 @@ public class LineToBlockHandler {
         }
 
         double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
-        List<BlockPos> filtered = new ArrayList<>(candidates.size());
-        for (BlockPos pos : candidates) {
+        boolean[] keep = new boolean[candidates.size()];
+        for (int i = 0; i < candidates.size(); i++) {
+            BlockPos pos = candidates.get(i);
             double insideLength = segmentLengthInsideUnitCell(x0, z0, x1, z1, pos.getX(), pos.getZ());
-            if (insideLength >= threshold) {
-                filtered.add(pos);
-            }
+            keep[i] = insideLength >= threshold;
         }
 
-        return filtered;
+        // 端点始终保留，避免折线接缝或短线段在精简模式下出现断头。
+        keep[0] = true;
+        keep[candidates.size() - 1] = true;
+
+        return restoreShortLineGaps(candidates, keep);
     }
 
     /**
@@ -1113,6 +1116,40 @@ public class LineToBlockHandler {
 
         double epsilon = 1.0e-9 * Math.signum(delta);
         return isStart ? coordinate + epsilon : coordinate - epsilon;
+    }
+
+    private List<BlockPos> restoreShortLineGaps(List<BlockPos> candidates, boolean[] keep) {
+        int previousKept = -1;
+        for (int i = 0; i < candidates.size(); i++) {
+            if (!keep[i]) {
+                continue;
+            }
+
+            if (previousKept >= 0 && i - previousKept > 1) {
+                int gapLength = i - previousKept - 1;
+                BlockPos prev = candidates.get(previousKept);
+                BlockPos current = candidates.get(i);
+                if (gapLength <= 2 && !areBlocksTouching(prev, current)) {
+                    for (int gap = previousKept + 1; gap < i; gap++) {
+                        keep[gap] = true;
+                    }
+                }
+            }
+
+            previousKept = i;
+        }
+
+        List<BlockPos> restored = new ArrayList<>(candidates.size());
+        for (int i = 0; i < candidates.size(); i++) {
+            if (keep[i]) {
+                restored.add(candidates.get(i));
+            }
+        }
+        return restored;
+    }
+
+    private boolean areBlocksTouching(BlockPos a, BlockPos b) {
+        return Math.abs(a.getX() - b.getX()) <= 1 && Math.abs(a.getZ() - b.getZ()) <= 1;
     }
 
     /**
