@@ -25,16 +25,22 @@ import java.util.function.BiConsumer;
 import net.minecraft.client.MinecraftClient;
 
 /**
- * 线转方块事件处理器
- * 负责将选中的图形转换为Minecraft方块或幽灵方块
+ * 线转方块事件处理器。
+ * 负责将选中的图形转换为 Minecraft 方块或幽灵方块。
  * <p>
- * 坐标转换说明：
- * 1. Shape.getBlockPositions() 返回画布坐标系位置
- * 2. 通过 CoordinateTransformer 转换为世界坐标 (X, Z)
- * 3. 结合用户指定的高度 (Y) 形成 BlockPos
- * 4. 【优化】支持画布区域在窗口中的位置偏移
- * 5. 【优化】缓存转换结果以提升性能
- * 6. 【优化】进度反馈和标高管理
+ * 坐标转换链路：
+ * <ol>
+ *   <li>图形提供画布坐标系下的点集或路径；</li>
+ *   <li>通过 {@link CoordinateTransformer} 转换为 Minecraft 世界 XZ 坐标；</li>
+ *   <li>结合用户指定或自动推导的标高 Y，生成最终 {@link BlockPos}。</li>
+ * </ol>
+ * <p>
+ * 光栅化实现说明：
+ * <ul>
+ *   <li>线框候选格使用基于浮点端点的 DDA / grid traversal 枚举，避免负坐标和贴格线时的系统性偏移；</li>
+ *   <li>{@code SIMPLIFIED} 模式在候选格基础上，再按单元格内的实际覆盖长度或面积进行二次过滤；</li>
+ *   <li>封闭图形填充使用以方块中心为采样基准的扫描线方案，避免整体向正 X / 正 Z 偏移。</li>
+ * </ul>
  */
 public class LineToBlockHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/LineToBlockHandler");
@@ -922,14 +928,10 @@ public class LineToBlockHandler {
     }
 
     /**
-     * 使用基于浮点端点的网格穿越算法光栅化线条为方块位置。
-     * 候选格子先完整枚举，`SIMPLIFIED` 再按单元内覆盖长度做二次过滤。
-     * @param x0 起点X (Minecraft世界坐标)
-     * @param z0 起点Z (Minecraft世界坐标)
-     * @param x1 终点X (Minecraft世界坐标)
-     * @param z1 终点Z (Minecraft世界坐标)
-     * @param yLevel 方块的Y坐标（标高）
-     * @return 构成线段的BlockPos列表
+     * 光栅化一条线段为方块列表，并在 `SIMPLIFIED` 模式下按单元覆盖长度过滤。
+     * <p>
+     * 候选格先由 DDA 枚举完整穿越集合，再根据单元格内的真实穿越长度做二次筛选；
+     * `simplificationRatio` 的语义保持为“至少覆盖多少倍方块边长才保留”。
      */
     private List<BlockPos> rasterizeLineSegment(
             double x0,
@@ -949,8 +951,6 @@ public class LineToBlockHandler {
             return candidates;
         }
 
-        // 使用世界坐标原值，避免整体向正X/正Z（右下）出现0.5格系统偏移
-
         double dx = x1 - x0;
         double dz = z1 - z0;
         double segmentLength = Math.hypot(dx, dz);
@@ -958,13 +958,11 @@ public class LineToBlockHandler {
             return candidates;
         }
 
-        // 按“覆盖了多少倍方块边长”解释阈值，与设置面板文案保持一致。
         double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
         List<BlockPos> filtered = new ArrayList<>(candidates.size());
         for (BlockPos pos : candidates) {
-            double insideLength = segmentLengthInsideUnitCell(x0, z0, x1, z1, pos.getX(), pos.getZ(), segmentLength);
-            double coverage = insideLength;
-            if (coverage >= threshold) {
+            double insideLength = segmentLengthInsideUnitCell(x0, z0, x1, z1, pos.getX(), pos.getZ());
+            if (insideLength >= threshold) {
                 filtered.add(pos);
             }
         }
@@ -972,9 +970,18 @@ public class LineToBlockHandler {
         return filtered;
     }
 
-    private double segmentLengthInsideUnitCell(double x0, double z0, double x1, double z1, int cellX, int cellZ, double segmentLength) {
+    /**
+     * 计算线段在指定单元格内的实际穿越长度（单位：方块边长）。
+     * 单元格采用半开区间 `[cellX, cellX + 1)` / `[cellZ, cellZ + 1)`，
+     * 从而避免端点恰好落在格线上时被错误归入相邻格。
+     */
+    private double segmentLengthInsideUnitCell(double x0, double z0, double x1, double z1, int cellX, int cellZ) {
         double dx = x1 - x0;
         double dz = z1 - z0;
+        double segmentLength = Math.hypot(dx, dz);
+        if (segmentLength < 1e-12) {
+            return 0.0;
+        }
 
         double xmax = cellX + 1.0;
         double zmax = cellZ + 1.0;
@@ -993,7 +1000,7 @@ public class LineToBlockHandler {
             double exit = Math.max(tx1, tx2);
             tMin = Math.max(tMin, enter);
             tMax = Math.min(tMax, exit);
-            if (tMin > tMax) {
+            if (tMin >= tMax) {
                 return 0.0;
             }
         }
@@ -1009,13 +1016,13 @@ public class LineToBlockHandler {
             double exit = Math.max(tz1, tz2);
             tMin = Math.max(tMin, enter);
             tMax = Math.min(tMax, exit);
-            if (tMin > tMax) {
+            if (tMin >= tMax) {
                 return 0.0;
             }
         }
 
-        double clampedEnter = Math.max(0.0, Math.min(1.0, tMin));
-        double clampedExit = Math.max(0.0, Math.min(1.0, tMax));
+        double clampedEnter = Math.max(0.0, tMin);
+        double clampedExit = Math.min(1.0, tMax);
         if (clampedExit <= clampedEnter) {
             return 0.0;
         }
@@ -1033,8 +1040,10 @@ public class LineToBlockHandler {
     }
 
     /**
-     * 使用 Amanatides & Woo 风格的网格穿越算法枚举线段实际穿越的所有方块。
-     * 这样不会再出现整数 Bresenham 在负坐标/格线边界上的系统性偏移或漏格。
+     * 使用 Amanatides & Woo 风格的网格穿越算法枚举线段真实穿越的全部方块。
+     * <p>
+     * 相比“先 `floor()` 再用整数 Bresenham 连线”的方案，这里直接在浮点端点上追踪
+     * 射线与网格边界的交点，因此不会在负坐标或格线边界处引入系统性偏移。
      */
     private List<BlockPos> rasterizeLineGridTraversal(double x0, double z0, double x1, double z1, int y) {
         List<BlockPos> positions = new ArrayList<>();
@@ -1056,8 +1065,8 @@ public class LineToBlockHandler {
         int endCellX = (int) Math.floor(endX);
         int endCellZ = (int) Math.floor(endZ);
 
-        int stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
-        int stepZ = dz > 0 ? 1 : (dz < 0 ? -1 : 0);
+        int stepX = Double.compare(dx, 0.0);
+        int stepZ = Double.compare(dz, 0.0);
 
         double tMaxX = stepX == 0 ? Double.POSITIVE_INFINITY
                 : (((stepX > 0 ? currentX + 1.0 : currentX) - x0) / dx);
@@ -1069,8 +1078,12 @@ public class LineToBlockHandler {
 
         positions.add(new BlockPos(currentX, y, currentZ));
 
-        int guard = 0;
-        while ((currentX != endCellX || currentZ != endCellZ) && guard++ < 100000) {
+        int maxSteps = Math.abs(endCellX - currentX) + Math.abs(endCellZ - currentZ) + 2;
+        for (int step = 0; step < maxSteps; step++) {
+            if (currentX == endCellX && currentZ == endCellZ) {
+                break;
+            }
+
             if (tMaxX < tMaxZ) {
                 currentX += stepX;
                 tMaxX += tDeltaX;
@@ -1085,11 +1098,6 @@ public class LineToBlockHandler {
             }
 
             positions.add(new BlockPos(currentX, y, currentZ));
-        }
-
-        if (guard >= 100000) {
-            LOGGER.warn("DDA 网格穿越触发保护退出: start=({}, {}), end=({}, {}), generated={}",
-                    x0, z0, x1, z1, positions.size());
         }
 
         LOGGER.debug("DDA光栅化完成: 从({},{})到({},{})，标高{}，生成{}个方块",
