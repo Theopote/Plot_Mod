@@ -78,7 +78,7 @@ public class BlockSearchManager {
         renderSearchInput(searchHeight, inputWidth);
 
         // 渲染搜索范围选择
-        renderSearchScopeSelector(searchHeight, SEARCH_SCOPE_WIDTH);
+        renderSearchScopeSelector(searchHeight);
 
         // 显示搜索提示（如果需要）
         renderSearchHint();
@@ -125,7 +125,7 @@ public class BlockSearchManager {
      * 渲染搜索范围选择器
      * 下拉菜单，用于选择搜索范围（全部、名称、ID）
      */
-    private void renderSearchScopeSelector(float height, float comboWidth) {
+    private void renderSearchScopeSelector(float height) {
         var theme = ThemeManager.getInstance().getCurrentTheme();
         // 设置统一的高度样式
         float defaultFrameHeight = ImGui.getFrameHeight();
@@ -141,7 +141,7 @@ public class BlockSearchManager {
         ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
         ImGui.pushStyleColor(ImGuiCol.PopupBg, theme.panelBackground);
         ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
-        ImGui.setNextItemWidth(comboWidth);
+        ImGui.setNextItemWidth(BlockSearchManager.SEARCH_SCOPE_WIDTH);
         if (ImGui.beginCombo("##searchScope", searchScope.getDisplayName())) {
             for (BlockSearchService.SearchScope scope : BlockSearchService.SearchScope.values()) {
                 boolean isSelected = (scope == searchScope);

@@ -499,7 +499,6 @@ public class CompactBlockConfigDialog {
         }
 
         float buttonWidth = DialogStyleManager.getStandardButtonWidth(contentWidth, buttonsPerRow, categoryLabels);
-        float buttonHeight = CATEGORY_BUTTON_HEIGHT;
         float rowWidth = buttonWidth * buttonsPerRow + BLOCK_SPACING * Math.max(0, buttonsPerRow - 1);
 
         DialogStyleManager.centerByWidth(Math.min(contentWidth, rowWidth));
@@ -529,7 +528,7 @@ public class CompactBlockConfigDialog {
                 ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.tabActive);
             }
 
-            if (ImGui.button(category.getDisplayName(), buttonWidth, buttonHeight)) {
+            if (ImGui.button(category.getDisplayName(), buttonWidth, CATEGORY_BUTTON_HEIGHT)) {
                 if (!isSelected) {
                     setCurrentCategory(category, false);
                 }
