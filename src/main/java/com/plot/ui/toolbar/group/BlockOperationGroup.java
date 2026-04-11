@@ -8,7 +8,6 @@ import com.plot.infrastructure.event.block.GhostBlockManager;
 import com.plot.infrastructure.event.block.BlockProjectionEvent;
 import com.plot.infrastructure.event.block.LineToBlockEvent;
 import com.plot.ui.component.ControlPanelIcons;
-import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
 import com.plot.ui.screen.BlockConfigNativeScreen;
@@ -29,16 +28,13 @@ import java.util.List;
  */
 public class BlockOperationGroup extends AbstractToolbarGroup {
     
-    private final CompactBlockConfigDialog blockConfigDialog;
     private final LineToBlockSettingsDialog lineToBlockSettingsDialog;
     private final ProjectionSettingsDialog projectionSettingsDialog;
     
     public BlockOperationGroup(AppState appState, EventBus eventBus,
-                               CompactBlockConfigDialog blockConfigDialog,
                                LineToBlockSettingsDialog lineToBlockSettingsDialog,
                                ProjectionSettingsDialog projectionSettingsDialog) {
         super("方块操作", appState, eventBus);
-        this.blockConfigDialog = blockConfigDialog;
         this.lineToBlockSettingsDialog = lineToBlockSettingsDialog;
         this.projectionSettingsDialog = projectionSettingsDialog;
     }
@@ -72,19 +68,17 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                 "方块配置")) {
             try {
                 LOGGER.debug("方块配置按钮被点击，准备打开对话框...");
-                if (blockConfigDialog != null) {
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null) {
-                        client.execute(() -> {
-                            if (client.currentScreen instanceof PlotScreen) {
-                                PlotScreenState.markSwitchingToPlotSubScreen();
-                            }
-                            client.setScreen(new BlockConfigNativeScreen(blockConfigDialog, client.currentScreen));
-                        });
-                        LOGGER.debug("原生方块配置面板打开成功");
-                    }
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null) {
+                    client.execute(() -> {
+                        if (client.currentScreen instanceof PlotScreen) {
+                            PlotScreenState.markSwitchingToPlotSubScreen();
+                        }
+                        client.setScreen(new BlockConfigNativeScreen(client.currentScreen));
+                    });
+                    LOGGER.debug("原生方块配置面板打开成功");
                 } else {
-                    LOGGER.error("方块配置对话框实例为null，无法打开");
+                    LOGGER.error("MinecraftClient 为 null，无法打开方块配置面板");
                     // TODO: 显示警告消息
                 }
             } catch (Exception e) {

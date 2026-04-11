@@ -7,7 +7,7 @@ import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.base.Event;
-import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
+import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.dialog.LineToBlockSettingsDialog.ConversionMode;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasCamera;
@@ -1107,7 +1107,7 @@ public class LineToBlockHandler {
     private double getUserSpecifiedYLevelFromUI() {
         try {
             // 目前UI中未实现标高设置功能，返回未设置状态
-            // 未来可以在CompactBlockConfigDialog中添加标高设置UI
+            // 未来可以在方块配置界面中添加标高设置 UI
             LOGGER.debug("UI中未实现标高设置功能");
             return Double.MIN_VALUE;
         } catch (Exception e) {
@@ -1122,7 +1122,7 @@ public class LineToBlockHandler {
      */
     private List<String> getPaletteBlockTypes() {
         try {
-            var blockConfigManager = CompactBlockConfigDialog.BlockConfigManager.getInstance();
+            var blockConfigManager = BlockConfigManager.getInstance();
 
             // 添加详细的调试信息
             LOGGER.debug("检查方块配置管理器状态:");

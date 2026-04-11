@@ -8,7 +8,6 @@ import com.plot.infrastructure.event.command.UndoEvent;
 import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.ui.component.UIComponent;
 import com.plot.ui.component.ControlPanelIcons;
-import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.dialog.LineToBlockSettingsDialog;
@@ -50,7 +49,6 @@ public class ControlPanel implements UIComponent {
     private final List<ToolbarGroup> toolGroups;
     
     // 对话框组件（保持原有功能）
-    private final CompactBlockConfigDialog blockConfigDialog;
     private final ProjectionSettingsDialog projectionSettingsDialog;
     private final LineToBlockSettingsDialog lineToBlockSettingsDialog;
     
@@ -72,8 +70,6 @@ public class ControlPanel implements UIComponent {
             ControlPanelIcons.loadTextures();
             
             // 先初始化对话框组件
-            this.blockConfigDialog = CompactBlockConfigDialog.createSafely(
-                appState, eventBus, this::showWarningDialog);
             this.projectionSettingsDialog = ProjectionSettingsDialog.getInstance();
             this.lineToBlockSettingsDialog = LineToBlockSettingsDialog.getInstance();
             
@@ -101,7 +97,7 @@ public class ControlPanel implements UIComponent {
         groups.add(new PlotLogo());
         groups.add(new FileToolsGroup(appState, eventBus));
         groups.add(new ToolSettingsGroup(appState, eventBus));
-        groups.add(new BlockOperationGroup(appState, eventBus, blockConfigDialog, lineToBlockSettingsDialog, projectionSettingsDialog));
+        groups.add(new BlockOperationGroup(appState, eventBus, lineToBlockSettingsDialog, projectionSettingsDialog));
         groups.add(new ViewToolsGroup(eventBus));
         groups.add(new ControlSlidersGroup(appState, eventBus));
         
@@ -311,7 +307,6 @@ public class ControlPanel implements UIComponent {
      * 渲染所有对话框
      */
     private void renderDialogs() {
-        if (blockConfigDialog != null) blockConfigDialog.render();
         if (projectionSettingsDialog != null) projectionSettingsDialog.render();
         if (lineToBlockSettingsDialog != null) lineToBlockSettingsDialog.render();
         com.plot.ui.dialog.SettingsAndHelpDialog.getInstance().render();

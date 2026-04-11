@@ -10,7 +10,7 @@ import com.plot.ui.component.UIComponent;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.grid.GridManager;
-import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
+import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
 import com.plot.camera.CameraManager;
 import net.minecraft.registry.Registries;
@@ -318,8 +318,7 @@ public class StatusPanel implements UIComponent {
     
     private String getBlockConfigStatus() {
         try {
-            CompactBlockConfigDialog.BlockConfigManager manager = 
-                CompactBlockConfigDialog.BlockConfigManager.getInstance();
+            BlockConfigManager manager = BlockConfigManager.getInstance();
             if (manager == null || !manager.hasSelectedBlocks()) {
                 return "未配置";
             }

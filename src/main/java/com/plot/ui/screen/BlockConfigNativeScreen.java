@@ -2,7 +2,7 @@ package com.plot.ui.screen;
 
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
-import com.plot.ui.dialog.BlockConfigDialog.CompactBlockConfigDialog;
+import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -117,7 +117,7 @@ public class BlockConfigNativeScreen extends Screen {
     private static final int COLOR_CLOSE_HOVER   = 0xFF882222;
 
     // ── 状态 ─────────────────────────────────────────────────────────────────
-    private final CompactBlockConfigDialog bridge;
+    private final BlockConfigManager configManager;
     private final Screen parent;
 
     private BlockCategory currentCategory = BlockCategory.BUILDING_BLOCKS;
@@ -177,9 +177,9 @@ public class BlockConfigNativeScreen extends Screen {
     private final List<CategoryTabLayout> categoryTabLayouts = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
-    public BlockConfigNativeScreen(CompactBlockConfigDialog bridge, Screen parent) {
+    public BlockConfigNativeScreen(Screen parent) {
         super(Text.of("方块配置"));
-        this.bridge = bridge;
+        this.configManager = BlockConfigManager.getInstance();
         this.parent = parent;
     }
 
@@ -319,10 +319,8 @@ public class BlockConfigNativeScreen extends Screen {
         buildCategoryTabLayouts();
 
         // 9. 同步调色盘数据
-        if (bridge != null) {
-            palette.clear();
-            palette.addAll(bridge.getPaletteBlocksSnapshot());
-        }
+        palette.clear();
+        palette.addAll(configManager.getPaletteBlocksSnapshot());
 
         // 10. 应用搜索过滤
         applySearchFilter();
@@ -332,9 +330,7 @@ public class BlockConfigNativeScreen extends Screen {
      * 加载当前分类的全量方块列表，重置分页（不做搜索过滤）。
      */
     private void reloadRawCategory() {
-        rawCategoryBlocks = (bridge != null)
-                ? bridge.getBlocksForCategory(currentCategory)
-                : Collections.emptyList();
+        rawCategoryBlocks = configManager.getBlocksForCategory(currentCategory);
         page = 0;
     }
 
@@ -361,9 +357,7 @@ public class BlockConfigNativeScreen extends Screen {
      */
     private void buildCategoryTabLayouts() {
         categoryTabLayouts.clear();
-        List<BlockCategory> categories = (bridge != null)
-                ? bridge.getAvailableCategories()
-                : List.of(BlockCategory.values());
+        List<BlockCategory> categories = configManager.getAvailableCategories();
 
         int x = sidebarX;
         int y = sidebarY + sidebarScroll;  // 应用滚动偏移
@@ -377,9 +371,7 @@ public class BlockConfigNativeScreen extends Screen {
      * 计算分类侧边栏的总内容高度（不考虑滚动）。
      */
     private int getSidebarContentHeight() {
-        List<BlockCategory> categories = (bridge != null)
-                ? bridge.getAvailableCategories()
-                : List.of(BlockCategory.values());
+        List<BlockCategory> categories = configManager.getAvailableCategories();
         return categories.size() * (TAB_H + TAB_GAP);
     }
 
@@ -389,8 +381,10 @@ public class BlockConfigNativeScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 半透明全屏遮罩
-        context.fill(0, 0, this.width, this.height, 0x88000000);
+        renderParentBackdrop(context, mouseX, mouseY, delta);
+
+        // 半透明全屏遮罩：保留 Plot 主界面可见，只做轻量压暗作为模态层
+        context.fill(0, 0, this.width, this.height, 0x55000000);
 
         // 面板背景 + 外边框
         context.fill(panelX, panelY, panelX + panelW, panelY + panelH, COLOR_PANEL_BG);
@@ -412,9 +406,27 @@ public class BlockConfigNativeScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
     }
 
+    private void renderParentBackdrop(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (parent == null || parent == this) {
+            return;
+        }
+
+        try {
+            // 使用离屏鼠标坐标渲染背景界面，尽量避免底层 hover 态被当前鼠标位置触发。
+            parent.render(context, -10_000, -10_000, delta);
+        } catch (Exception e) {
+            // 背景渲染失败不应阻断当前面板显示。
+        }
+    }
+
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         // no-op：由 render() 自行绘制背景，避免 1.21.x 重复 blur。
+    }
+
+    @Override
+    public boolean shouldPause() {
+        return false;
     }
 
     // =========================================================================
@@ -985,10 +997,7 @@ public class BlockConfigNativeScreen extends Screen {
     // =========================================================================
 
     private void applyAndClose() {
-        if (bridge != null) {
-            bridge.setPaletteBlocksFromExternal(palette);
-            bridge.applySelectionFromExternal();
-        }
+        configManager.setPaletteBlocks(palette);
         close();
     }
 
