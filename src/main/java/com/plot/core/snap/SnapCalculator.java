@@ -85,15 +85,60 @@ public class SnapCalculator {
             addCandidates(candidates, centerPoints, point);
             LOGGER.debug("SnapCalculator: 中心点捕捉启用，找到{}个中心点", centerPoints.size());
         }
+        if (settings.centroidSnap.get()) {
+            List<SnapPoint> centroidPoints = findCentroidPoints();
+            addCandidates(candidates, centroidPoints, point);
+            LOGGER.debug("SnapCalculator: 重心捕捉启用，找到{}个重心点", centroidPoints.size());
+        }
+        if (settings.vertexSnap.get()) {
+            List<SnapPoint> vertexPoints = findVertexPoints();
+            addCandidates(candidates, vertexPoints, point);
+            LOGGER.debug("SnapCalculator: 角点捕捉启用，找到{}个角点", vertexPoints.size());
+        }
         if (settings.quadrantSnap.get()) {
             List<SnapPoint> quadrantPoints = findQuadrantPoints();
             addCandidates(candidates, quadrantPoints, point);
             LOGGER.debug("SnapCalculator: 象限点捕捉启用，找到{}个象限点", quadrantPoints.size());
         }
+        if (settings.intersectionSnap.get()) {
+            List<SnapPoint> intersectionPoints = findIntersectionPoints();
+            addCandidates(candidates, intersectionPoints, point);
+            LOGGER.debug("SnapCalculator: 交点捕捉启用，找到{}个交点", intersectionPoints.size());
+        }
+        if (settings.controlPointSnap.get()) {
+            List<SnapPoint> controlPoints = findControlPoints();
+            addCandidates(candidates, controlPoints, point);
+            LOGGER.debug("SnapCalculator: 控制点捕捉启用，找到{}个控制点", controlPoints.size());
+        }
+        if (settings.tangentPointSnap.get()) {
+            List<SnapPoint> tangentPoints = findTangentPoints(point);
+            addCandidates(candidates, tangentPoints, point);
+            LOGGER.debug("SnapCalculator: 切点捕捉启用，找到{}个切点", tangentPoints.size());
+        }
         if (settings.perpendicularSnap.get()) {
             List<SnapPoint> perpendicularPoints = findPerpendicularPoints(point);
             addCandidates(candidates, perpendicularPoints, point);
             LOGGER.debug("SnapCalculator: 垂足捕捉启用，找到{}个垂足点", perpendicularPoints.size());
+        }
+        if (settings.horizontalSnap.get()) {
+            List<SnapPoint> horizontalPoints = findHorizontalConstraintPoints(point);
+            addCandidates(candidates, horizontalPoints, point);
+            LOGGER.debug("SnapCalculator: 水平约束启用，找到{}个候选点", horizontalPoints.size());
+        }
+        if (settings.verticalSnap.get()) {
+            List<SnapPoint> verticalPoints = findVerticalConstraintPoints(point);
+            addCandidates(candidates, verticalPoints, point);
+            LOGGER.debug("SnapCalculator: 竖直约束启用，找到{}个候选点", verticalPoints.size());
+        }
+        if (settings.parallelSnap.get()) {
+            List<SnapPoint> parallelPoints = findParallelConstraintPoints(point);
+            addCandidates(candidates, parallelPoints, point);
+            LOGGER.debug("SnapCalculator: 平行约束启用，找到{}个候选点", parallelPoints.size());
+        }
+        if (settings.extensionSnap.get()) {
+            List<SnapPoint> extensionPoints = findExtensionPoints(point);
+            addCandidates(candidates, extensionPoints, point);
+            LOGGER.debug("SnapCalculator: 延长线约束启用，找到{}个候选点", extensionPoints.size());
         }
         if (settings.nearestPointSnap.get()) {
             List<SnapPoint> nearestPoints = findNearestPoints(point);
@@ -466,6 +511,313 @@ public class SnapCalculator {
             }
         }
         return points;
+    }
+
+    /**
+     * 查找重心点（闭合形状优先几何重心，无法计算时退化为包围盒中心）
+     */
+    private List<SnapPoint> findCentroidPoints() {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!isShapeVisible(shape)) continue;
+            Vec2d centroid = computeShapeCentroid(shape);
+            if (centroid != null) {
+                points.add(new SnapPoint(centroid, SnapPriorityEvaluator.SnapType.CENTROID, shape));
+            }
+        }
+        return points;
+    }
+
+    /**
+     * 查找角点（优先使用控制点，其次使用形状点集）
+     */
+    private List<SnapPoint> findVertexPoints() {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!isShapeVisible(shape)) continue;
+
+            List<Vec2d> controlPoints = shape.getControlPoints();
+            if (controlPoints != null && !controlPoints.isEmpty()) {
+                for (Vec2d controlPoint : controlPoints) {
+                    if (controlPoint != null) {
+                        points.add(new SnapPoint(controlPoint, SnapPriorityEvaluator.SnapType.VERTEX, shape));
+                    }
+                }
+                continue;
+            }
+
+            List<Vec2d> shapePoints = shape.getPoints();
+            if (shapePoints != null) {
+                for (Vec2d shapePoint : shapePoints) {
+                    if (shapePoint != null) {
+                        points.add(new SnapPoint(shapePoint, SnapPriorityEvaluator.SnapType.VERTEX, shape));
+                    }
+                }
+            }
+        }
+        return points;
+    }
+
+    /**
+     * 查找交点（当前实现仅计算线段与线段交点）
+     */
+    private List<SnapPoint> findIntersectionPoints() {
+        List<SnapPoint> points = new ArrayList<>();
+        List<LineShape> lines = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (shape instanceof LineShape lineShape && isShapeVisible(lineShape)) {
+                lines.add(lineShape);
+            }
+        }
+
+        for (int i = 0; i < lines.size(); i++) {
+            LineShape a = lines.get(i);
+            Vec2d a1 = getLineStart(a);
+            Vec2d a2 = getLineEnd(a);
+            if (a1 == null || a2 == null) continue;
+
+            for (int j = i + 1; j < lines.size(); j++) {
+                LineShape b = lines.get(j);
+                Vec2d b1 = getLineStart(b);
+                Vec2d b2 = getLineEnd(b);
+                if (b1 == null || b2 == null) continue;
+
+                Vec2d intersection = intersectSegments(a1, a2, b1, b2);
+                if (intersection != null) {
+                    points.add(new SnapPoint(intersection, SnapPriorityEvaluator.SnapType.INTERSECTION, a));
+                }
+            }
+        }
+        return points;
+    }
+
+    /**
+     * 查找控制点
+     */
+    private List<SnapPoint> findControlPoints() {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!isShapeVisible(shape)) continue;
+            List<Vec2d> controlPoints = shape.getControlPoints();
+            if (controlPoints == null) continue;
+            for (Vec2d controlPoint : controlPoints) {
+                if (controlPoint != null) {
+                    points.add(new SnapPoint(controlPoint, SnapPriorityEvaluator.SnapType.CONTROL_POINT, shape));
+                }
+            }
+        }
+        return points;
+    }
+
+    /**
+     * 查找切点（当前实现为外点到圆的切点）
+     */
+    private List<SnapPoint> findTangentPoints(Vec2d point) {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!(shape instanceof CircleShape circle) || !isShapeVisible(circle)) {
+                continue;
+            }
+
+            Vec2d center = circle.getCenter();
+            double radius = circle.getRadius();
+            Vec2d toPoint = point.subtract(center);
+            double d2 = toPoint.lengthSquared();
+            double r2 = radius * radius;
+            if (d2 <= r2 + 1e-6) {
+                continue;
+            }
+
+            double l = r2 / d2;
+            double m = radius * Math.sqrt(Math.max(0.0, d2 - r2)) / d2;
+            Vec2d perp = new Vec2d(-toPoint.y, toPoint.x);
+
+            Vec2d t1 = center.add(toPoint.multiply(l)).add(perp.multiply(m));
+            Vec2d t2 = center.add(toPoint.multiply(l)).subtract(perp.multiply(m));
+            points.add(new SnapPoint(t1, SnapPriorityEvaluator.SnapType.TANGENT, shape));
+            points.add(new SnapPoint(t2, SnapPriorityEvaluator.SnapType.TANGENT, shape));
+        }
+        return points;
+    }
+
+    /**
+     * 查找水平约束候选点：吸附到参考点的 Y 轴水平线
+     */
+    private List<SnapPoint> findHorizontalConstraintPoints(Vec2d point) {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!isShapeVisible(shape)) continue;
+            for (Vec2d ref : collectReferencePoints(shape)) {
+                points.add(new SnapPoint(new Vec2d(point.x, ref.y), SnapPriorityEvaluator.SnapType.HORIZONTAL, shape));
+            }
+        }
+        return points;
+    }
+
+    /**
+     * 查找竖直约束候选点：吸附到参考点的 X 轴竖直线
+     */
+    private List<SnapPoint> findVerticalConstraintPoints(Vec2d point) {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!isShapeVisible(shape)) continue;
+            for (Vec2d ref : collectReferencePoints(shape)) {
+                points.add(new SnapPoint(new Vec2d(ref.x, point.y), SnapPriorityEvaluator.SnapType.VERTICAL, shape));
+            }
+        }
+        return points;
+    }
+
+    /**
+     * 查找平行约束候选点：以最近线段端点为锚，构造与该线段平行的约束线并投影。
+     */
+    private List<SnapPoint> findParallelConstraintPoints(Vec2d point) {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!(shape instanceof LineShape lineShape) || !isShapeVisible(lineShape)) {
+                continue;
+            }
+
+            Vec2d start = getLineStart(lineShape);
+            Vec2d end = getLineEnd(lineShape);
+            if (start == null || end == null) continue;
+
+            Vec2d dir = end.subtract(start);
+            double len2 = dir.lengthSquared();
+            if (len2 < 1e-6) continue;
+
+            Vec2d anchor = start.distance(point) <= end.distance(point) ? start : end;
+            double t = point.subtract(anchor).dot(dir) / len2;
+            Vec2d projected = anchor.add(dir.multiply(t));
+            points.add(new SnapPoint(projected, SnapPriorityEvaluator.SnapType.PARALLEL, shape));
+        }
+        return points;
+    }
+
+    /**
+     * 查找延长线约束候选点：投影到线段延长线，且仅保留线段外的投影。
+     */
+    private List<SnapPoint> findExtensionPoints(Vec2d point) {
+        List<SnapPoint> points = new ArrayList<>();
+        for (Shape shape : shapes) {
+            if (!(shape instanceof LineShape lineShape) || !isShapeVisible(lineShape)) {
+                continue;
+            }
+
+            Vec2d start = getLineStart(lineShape);
+            Vec2d end = getLineEnd(lineShape);
+            if (start == null || end == null) continue;
+
+            Vec2d dir = end.subtract(start);
+            double len2 = dir.lengthSquared();
+            if (len2 < 1e-6) continue;
+
+            double t = point.subtract(start).dot(dir) / len2;
+            if (t >= 0.0 && t <= 1.0) {
+                continue;
+            }
+
+            Vec2d projected = start.add(dir.multiply(t));
+            points.add(new SnapPoint(projected, SnapPriorityEvaluator.SnapType.EXTENSION, shape));
+        }
+        return points;
+    }
+
+    private Vec2d computeShapeCentroid(Shape shape) {
+        if (shape instanceof CircleShape circle) {
+            return circle.getCenter();
+        }
+        if (shape instanceof EllipseShape ellipse) {
+            return ellipse.getCenter();
+        }
+
+        List<Vec2d> polygon = shape.getPoints();
+        if (polygon != null && polygon.size() >= 3) {
+            Vec2d centroid = computePolygonCentroid(polygon);
+            if (centroid != null) {
+                return centroid;
+            }
+        }
+
+        BoundingBox bounds = shape.getBoundingBox();
+        return bounds == null ? null : bounds.getCenter();
+    }
+
+    private Vec2d computePolygonCentroid(List<Vec2d> polygon) {
+        double area = 0.0;
+        double cx = 0.0;
+        double cy = 0.0;
+        int n = polygon.size();
+
+        for (int i = 0; i < n; i++) {
+            Vec2d p0 = polygon.get(i);
+            Vec2d p1 = polygon.get((i + 1) % n);
+            if (p0 == null || p1 == null) {
+                continue;
+            }
+            double cross = p0.x * p1.y - p1.x * p0.y;
+            area += cross;
+            cx += (p0.x + p1.x) * cross;
+            cy += (p0.y + p1.y) * cross;
+        }
+
+        area *= 0.5;
+        if (Math.abs(area) < 1e-9) {
+            return null;
+        }
+        return new Vec2d(cx / (6.0 * area), cy / (6.0 * area));
+    }
+
+    private Vec2d getLineStart(LineShape line) {
+        List<Vec2d> points = line.getPoints();
+        return (points == null || points.isEmpty()) ? null : points.getFirst();
+    }
+
+    private Vec2d getLineEnd(LineShape line) {
+        List<Vec2d> points = line.getPoints();
+        return (points == null || points.isEmpty()) ? null : points.getLast();
+    }
+
+    private Vec2d intersectSegments(Vec2d a1, Vec2d a2, Vec2d b1, Vec2d b2) {
+        double dx1 = a2.x - a1.x;
+        double dy1 = a2.y - a1.y;
+        double dx2 = b2.x - b1.x;
+        double dy2 = b2.y - b1.y;
+
+        double denom = dx1 * dy2 - dy1 * dx2;
+        if (Math.abs(denom) < 1e-9) {
+            return null;
+        }
+
+        double s = ((b1.x - a1.x) * dy2 - (b1.y - a1.y) * dx2) / denom;
+        double t = ((b1.x - a1.x) * dy1 - (b1.y - a1.y) * dx1) / denom;
+        if (s < 0.0 || s > 1.0 || t < 0.0 || t > 1.0) {
+            return null;
+        }
+        return new Vec2d(a1.x + s * dx1, a1.y + s * dy1);
+    }
+
+    private List<Vec2d> collectReferencePoints(Shape shape) {
+        List<Vec2d> refs = new ArrayList<>();
+        List<Vec2d> controlPoints = shape.getControlPoints();
+        if (controlPoints != null) {
+            for (Vec2d controlPoint : controlPoints) {
+                if (controlPoint != null) {
+                    refs.add(controlPoint);
+                }
+            }
+        }
+        if (refs.isEmpty()) {
+            List<Vec2d> shapePoints = shape.getPoints();
+            if (shapePoints != null) {
+                for (Vec2d shapePoint : shapePoints) {
+                    if (shapePoint != null) {
+                        refs.add(shapePoint);
+                    }
+                }
+            }
+        }
+        return refs;
     }
     
     /**
