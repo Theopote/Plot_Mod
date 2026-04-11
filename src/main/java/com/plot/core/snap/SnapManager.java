@@ -33,6 +33,7 @@ public class SnapManager implements ISnapManager {
     private boolean isEnabled = true;
     private boolean showSettings = false;
     private SnapSettings settings;
+    private SnapPriorityEvaluator.SnapType lastResolvedSnapType = SnapPriorityEvaluator.SnapType.NONE;
 
     private SnapManager() {
         this.eventBus = EventBus.getInstance();
@@ -186,6 +187,7 @@ public class SnapManager implements ISnapManager {
      */
     public Vec2d getSnapPoint(Vec2d point, List<Shape> shapes) {
         if (!isEnabled || (settings.tempDisableWithShift.get() && ImGui.isKeyDown(SHIFT_KEY_CODE))) {
+            lastResolvedSnapType = SnapPriorityEvaluator.SnapType.NONE;
             return point;
         }
 
@@ -200,6 +202,7 @@ public class SnapManager implements ISnapManager {
 
             // 计算吸附点
             Vec2d snapPoint = calculator.findNearestSnapPoint(point);
+            lastResolvedSnapType = calculator.getSnapType();
 
             // 如果启用了吸附标记预览，显示吸附点
             if (settings.showSnapMarkers.get() && !point.equals(snapPoint)) {
@@ -208,9 +211,14 @@ public class SnapManager implements ISnapManager {
 
             return snapPoint;
         } catch (Exception e) {
+            lastResolvedSnapType = SnapPriorityEvaluator.SnapType.NONE;
             LOGGER.error("计算吸附点时发生错误", e);
             return point;
         }
+    }
+
+    public SnapPriorityEvaluator.SnapType getLastResolvedSnapType() {
+        return lastResolvedSnapType;
     }
 
     /**

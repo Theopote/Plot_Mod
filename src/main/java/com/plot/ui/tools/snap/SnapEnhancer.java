@@ -68,10 +68,13 @@ public class SnapEnhancer {
             boolean actuallySnapped = distance > 0.001; // 允许小的浮点误差
             
             if (actuallySnapped) {
-                // 获取捕捉类型（暂时使用通用类型，后续可以优化）
-                com.plot.core.snap.SnapPriorityEvaluator.SnapType snapType = 
-                    inferSnapType(originalWorldPoint, snappedWorldPoint);
-                
+                // 直接使用 SnapManager 解析出的真实吸附类型，避免各工具再做一套启发式推断导致显示错乱。
+                com.plot.core.snap.SnapPriorityEvaluator.SnapType snapType =
+                    SnapManager.getInstance().getLastResolvedSnapType();
+                if (snapType == null || snapType == com.plot.core.snap.SnapPriorityEvaluator.SnapType.NONE) {
+                    snapType = inferSnapType(originalWorldPoint, snappedWorldPoint);
+                }
+
                 // 更新内部状态
                 this.isSnapping = true;
                 this.snapPoint = snappedWorldPoint;
@@ -123,7 +126,10 @@ public class SnapEnhancer {
             boolean actuallySnapped = distance > 0.001;
 
             if (actuallySnapped) {
-                var snapType = inferSnapType(originalWorldPoint, snappedWorldPoint);
+                var snapType = SnapManager.getInstance().getLastResolvedSnapType();
+                if (snapType == null || snapType == com.plot.core.snap.SnapPriorityEvaluator.SnapType.NONE) {
+                    snapType = inferSnapType(originalWorldPoint, snappedWorldPoint);
+                }
                 this.isSnapping = true;
                 this.snapPoint = snappedWorldPoint;
                 this.currentSnapType = snapType;

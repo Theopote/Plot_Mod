@@ -5,6 +5,8 @@ import com.plot.api.model.ILayer;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.EllipseShape;
 import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.BoundingBox;
@@ -176,61 +178,53 @@ public class SnapCalculator {
 
     /**
      * 查找端点
+     * 端点仅针对开放曲线/折线，避免与“角点/控制点”逻辑重叠。
      */
     private List<SnapPoint> findEndPoints() {
         List<SnapPoint> points = new ArrayList<>();
         for (Shape shape : shapes) {
             if (!isShapeVisible(shape)) continue;
+            if (!(shape instanceof LineShape || shape instanceof PolylineShape)) continue;
 
             List<Vec2d> shapePoints = shape.getPoints();
-            if (shapePoints == null || shapePoints.isEmpty()) continue;
+            if (shapePoints == null || shapePoints.size() < 2) continue;
 
-            if (shape instanceof LineShape) {
-                points.add(new SnapPoint(shapePoints.getFirst(), SnapPriorityEvaluator.SnapType.END_POINT, shape));
-                points.add(new SnapPoint(shapePoints.getLast(), SnapPriorityEvaluator.SnapType.END_POINT, shape));
-            }
-            // 对于其他形状，所有控制点都可以作为端点
-            else {
-                List<Vec2d> controlPoints = shape.getControlPoints();
-                if (controlPoints != null) {
-                    for (Vec2d point : controlPoints) {
-                        points.add(new SnapPoint(point, SnapPriorityEvaluator.SnapType.END_POINT, shape));
-                    }
-                }
-            }
+            points.add(new SnapPoint(shapePoints.getFirst(), SnapPriorityEvaluator.SnapType.END_POINT, shape));
+            points.add(new SnapPoint(shapePoints.getLast(), SnapPriorityEvaluator.SnapType.END_POINT, shape));
         }
         return points;
     }
 
     /**
      * 查找中点
+     * 中点应当来自边/线段的几何中点，而不是整形状的包围盒中心，避免与“圆心/重心”重叠。
      */
     private List<SnapPoint> findMidPoints() {
         List<SnapPoint> points = new ArrayList<>();
         for (Shape shape : shapes) {
             if (!isShapeVisible(shape)) continue;
+            if (shape instanceof CircleShape || shape instanceof EllipseShape) continue;
 
-            // 计算形状的中点
             List<Vec2d> shapePoints = shape.getPoints();
             if (shapePoints == null || shapePoints.size() < 2) continue;
 
-            // 对于线段，中点是两个端点的中点
-            if (shape instanceof LineShape) {
-                Vec2d start = shapePoints.getFirst();
-                Vec2d end = shapePoints.getLast();
+            int segmentCount = shapePoints.size() - 1;
+            if ((shape instanceof PolylineShape polyline && polyline.isClosed() && shapePoints.size() > 2)
+                    || (shape instanceof Polygon && shapePoints.size() > 2)) {
+                segmentCount = shapePoints.size();
+            }
+
+            for (int i = 0; i < segmentCount; i++) {
+                Vec2d start = shapePoints.get(i);
+                Vec2d end = shapePoints.get((i + 1) % shapePoints.size());
+                if (start == null || end == null) {
+                    continue;
+                }
                 Vec2d midpoint = new Vec2d(
                         (start.x + end.x) * 0.5,
                         (start.y + end.y) * 0.5
                 );
                 points.add(new SnapPoint(midpoint, SnapPriorityEvaluator.SnapType.MID_POINT, shape));
-            }
-            // 对于其他形状，可以使用边界框的中心点
-            else {
-                BoundingBox bounds = shape.getBoundingBox();
-                if (bounds != null) {
-                    points.add(new SnapPoint(bounds.getCenter(),
-                            SnapPriorityEvaluator.SnapType.MID_POINT, shape));
-                }
             }
         }
         return points;
@@ -490,6 +484,7 @@ public class SnapCalculator {
 
     /**
      * 查找圆心点
+     * 仅针对圆/椭圆，避免与“重心”在普通图形上重复。
      */
     private List<SnapPoint> findCenterPoints() {
         List<SnapPoint> points = new ArrayList<>();
@@ -497,29 +492,25 @@ public class SnapCalculator {
             if (!isShapeVisible(shape)) continue;
 
             if (shape instanceof CircleShape circle) {
-                // 圆形：使用真实圆心
                 points.add(new SnapPoint(circle.getCenter(), SnapPriorityEvaluator.SnapType.CENTER_POINT, shape));
             } else if (shape instanceof EllipseShape ellipse) {
-                // 椭圆：使用真实中心
                 points.add(new SnapPoint(ellipse.getCenter(), SnapPriorityEvaluator.SnapType.CENTER_POINT, shape));
-            } else {
-                // 其他形状：使用边界框中心
-                BoundingBox bounds = shape.getBoundingBox();
-                if (bounds != null) {
-                    points.add(new SnapPoint(bounds.getCenter(), SnapPriorityEvaluator.SnapType.CENTER_POINT, shape));
-                }
             }
         }
         return points;
     }
 
     /**
-     * 查找重心点（闭合形状优先几何重心，无法计算时退化为包围盒中心）
+     * 查找重心点
+     * 重心仅针对闭合区域，圆/椭圆应由“圆心吸附”单独负责，避免二者完全重叠。
      */
     private List<SnapPoint> findCentroidPoints() {
         List<SnapPoint> points = new ArrayList<>();
         for (Shape shape : shapes) {
             if (!isShapeVisible(shape)) continue;
+            if (shape instanceof CircleShape || shape instanceof EllipseShape || shape instanceof LineShape) continue;
+            if (shape instanceof PolylineShape polyline && !polyline.isClosed()) continue;
+
             Vec2d centroid = computeShapeCentroid(shape);
             if (centroid != null) {
                 points.add(new SnapPoint(centroid, SnapPriorityEvaluator.SnapType.CENTROID, shape));
@@ -529,29 +520,31 @@ public class SnapCalculator {
     }
 
     /**
-     * 查找角点（优先使用控制点，其次使用形状点集）
+     * 查找角点
+     * 角点应代表多边形/折线的拐点，不应覆盖直线端点或圆/椭圆中心等其它吸附类型。
      */
     private List<SnapPoint> findVertexPoints() {
         List<SnapPoint> points = new ArrayList<>();
         for (Shape shape : shapes) {
             if (!isShapeVisible(shape)) continue;
+            if (shape instanceof LineShape || shape instanceof CircleShape || shape instanceof EllipseShape) continue;
 
-            List<Vec2d> controlPoints = shape.getControlPoints();
-            if (controlPoints != null && !controlPoints.isEmpty()) {
-                for (Vec2d controlPoint : controlPoints) {
-                    if (controlPoint != null) {
-                        points.add(new SnapPoint(controlPoint, SnapPriorityEvaluator.SnapType.VERTEX, shape));
-                    }
-                }
+            List<Vec2d> shapePoints = shape.getPoints();
+            if (shapePoints == null || shapePoints.isEmpty()) {
                 continue;
             }
 
-            List<Vec2d> shapePoints = shape.getPoints();
-            if (shapePoints != null) {
-                for (Vec2d shapePoint : shapePoints) {
-                    if (shapePoint != null) {
-                        points.add(new SnapPoint(shapePoint, SnapPriorityEvaluator.SnapType.VERTEX, shape));
-                    }
+            int startIndex = 0;
+            int endExclusive = shapePoints.size();
+            if (shape instanceof PolylineShape polyline && !polyline.isClosed()) {
+                startIndex = Math.min(1, shapePoints.size());
+                endExclusive = Math.max(startIndex, shapePoints.size() - 1);
+            }
+
+            for (int i = startIndex; i < endExclusive; i++) {
+                Vec2d shapePoint = shapePoints.get(i);
+                if (shapePoint != null) {
+                    points.add(new SnapPoint(shapePoint, SnapPriorityEvaluator.SnapType.VERTEX, shape));
                 }
             }
         }
@@ -593,13 +586,17 @@ public class SnapCalculator {
 
     /**
      * 查找控制点
+     * 若控制点与图形顶点/端点完全相同，则不再重复作为“控制点吸附”候选，避免和其它类型叠加。
      */
     private List<SnapPoint> findControlPoints() {
         List<SnapPoint> points = new ArrayList<>();
         for (Shape shape : shapes) {
             if (!isShapeVisible(shape)) continue;
+
             List<Vec2d> controlPoints = shape.getControlPoints();
-            if (controlPoints == null) continue;
+            if (controlPoints == null || controlPoints.isEmpty()) continue;
+            if (isEquivalentPointSet(controlPoints, shape.getPoints())) continue;
+
             for (Vec2d controlPoint : controlPoints) {
                 if (controlPoint != null) {
                     points.add(new SnapPoint(controlPoint, SnapPriorityEvaluator.SnapType.CONTROL_POINT, shape));
@@ -724,19 +721,14 @@ public class SnapCalculator {
     }
 
     private Vec2d computeShapeCentroid(Shape shape) {
-        if (shape instanceof CircleShape circle) {
-            return circle.getCenter();
-        }
-        if (shape instanceof EllipseShape ellipse) {
-            return ellipse.getCenter();
+        List<Vec2d> polygon = shape.getPoints();
+        if (polygon == null || polygon.size() < 3) {
+            return null;
         }
 
-        List<Vec2d> polygon = shape.getPoints();
-        if (polygon != null && polygon.size() >= 3) {
-            Vec2d centroid = computePolygonCentroid(polygon);
-            if (centroid != null) {
-                return centroid;
-            }
+        Vec2d centroid = computePolygonCentroid(polygon);
+        if (centroid != null) {
+            return centroid;
         }
 
         BoundingBox bounds = shape.getBoundingBox();
@@ -818,6 +810,24 @@ public class SnapCalculator {
             }
         }
         return refs;
+    }
+
+    private boolean isEquivalentPointSet(List<Vec2d> pointsA, List<Vec2d> pointsB) {
+        if (pointsA == null || pointsB == null || pointsA.size() != pointsB.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < pointsA.size(); i++) {
+            Vec2d a = pointsA.get(i);
+            Vec2d b = pointsB.get(i);
+            if (a == null || b == null) {
+                return false;
+            }
+            if (a.distance(b) > 1.0e-6) {
+                return false;
+            }
+        }
+        return true;
     }
     
     /**
