@@ -31,6 +31,7 @@ public class SnapCalculator {
     private final List<Shape> selectedShapes;  // 当前选中的图形
     private final String currentLayerId;          // 当前图层ID
     private SnapPriorityEvaluator.SnapType lastSnapType = SnapPriorityEvaluator.SnapType.NONE;
+    private Shape lastSnapSourceShape = null;
 
     public SnapCalculator(SnapSettings settings, List<Shape> shapes, BoundingBox viewBounds) {
         this.settings = settings;
@@ -62,6 +63,10 @@ public class SnapCalculator {
      */
     public SnapPriorityEvaluator.SnapType getSnapType() {
         return lastSnapType;
+    }
+
+    public Shape getLastSnapSourceShape() {
+        return lastSnapSourceShape;
     }
 
     /**
@@ -166,12 +171,14 @@ public class SnapCalculator {
         // 返回排序后的第一个点（如果有的话）
         if (!candidates.isEmpty()) {
             lastSnapType = candidates.getFirst().getType();  // 保存吸附类型
+            lastSnapSourceShape = candidates.getFirst().sourceShape;
             Vec2d result = candidates.getFirst().getPoint();
             LOGGER.debug("SnapCalculator: 找到最佳捕捉点={}, 类型={}", result, lastSnapType);
             return result;
         }
 
         lastSnapType = SnapPriorityEvaluator.SnapType.NONE;
+        lastSnapSourceShape = null;
         LOGGER.debug("SnapCalculator: 未找到任何捕捉点，返回原始点={}", point);
         return point;
     }
@@ -442,15 +449,15 @@ public class SnapCalculator {
                     SnapPriorityEvaluator.SnapCandidate candidate;
                     if (isFromSelectedShape(point.shape)) {
                         candidate = SnapPriorityEvaluator.SnapCandidate.createFromSelected(
-                                point.position, point.type, distance, index
+                                point.position, point.type, distance, index, point.shape
                         );
                     } else if (isFromCurrentLayer(point.shape)) {
                         candidate = SnapPriorityEvaluator.SnapCandidate.createFromCurrentLayer(
-                                point.position, point.type, distance, index
+                                point.position, point.type, distance, index, point.shape
                         );
                     } else {
                         candidate = SnapPriorityEvaluator.SnapCandidate.create(
-                                point.position, point.type, distance, index
+                                point.position, point.type, distance, index, point.shape
                         );
                     }
                     candidates.add(candidate);

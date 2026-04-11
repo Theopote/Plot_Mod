@@ -1,8 +1,10 @@
 package com.plot.ui.tools.snap;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.snap.SnapManager;
 import com.plot.core.graphics.DrawContext;
+import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.model.Shape;
+import com.plot.core.snap.SnapManager;
 import com.plot.ui.canvas.CanvasCamera;
 import imgui.ImColor;
 import imgui.ImDrawList;
@@ -160,7 +162,9 @@ public class SnapEnhancer {
         // 根据捕捉类型使用不同的视觉效果（统一样式）
         Color indicatorColor = SnapVisualStyle.colorFor(currentSnapType);
         float indicatorSize = SnapVisualStyle.ringSizeFor(currentSnapType) * getMarkerScale();
-        
+
+        renderConstraintGuide(context);
+
         // 渲染主要的吸附指示器
         context.drawCircle(snapPoint, indicatorSize, indicatorColor);
         
@@ -184,7 +188,9 @@ public class SnapEnhancer {
         
         int snapColor = ImColor.rgba(indicatorColor.getRed(), indicatorColor.getGreen(), 
                                    indicatorColor.getBlue(), 200);
-        
+
+        renderConstraintGuideImGui(drawList, camera);
+
         // 渲染当前吸附点的指示器环
         Vec2d screenSnapPoint = camera.worldToScreen(snapPoint);
         drawList.addCircle((float) screenSnapPoint.x, (float) screenSnapPoint.y, 
@@ -335,6 +341,87 @@ public class SnapEnhancer {
                 drawList.addCircleFilled(x, y, size * 0.4f, color);
             }
         }
+    }
+
+    private void renderConstraintGuide(DrawContext context) {
+        if (currentSnapType != com.plot.core.snap.SnapPriorityEvaluator.SnapType.EXTENSION) {
+            return;
+        }
+        Vec2d[] guide = resolveExtensionGuide();
+        if (guide == null) {
+            return;
+        }
+        context.drawDashedLine(guide[0], guide[1], withAlpha(SnapVisualStyle.colorFor(currentSnapType), 180));
+    }
+
+    private void renderConstraintGuideImGui(ImDrawList drawList, CanvasCamera camera) {
+        if (currentSnapType != com.plot.core.snap.SnapPriorityEvaluator.SnapType.EXTENSION || drawList == null || camera == null) {
+            return;
+        }
+        Vec2d[] guide = resolveExtensionGuide();
+        if (guide == null) {
+            return;
+        }
+
+        Vec2d screenStart = camera.worldToScreen(guide[0]);
+        Vec2d screenEnd = camera.worldToScreen(guide[1]);
+        int color = SnapVisualStyle.imGuiColorFor(currentSnapType, 180);
+        drawDashedLineImGui(drawList, screenStart, screenEnd, color, 8.0f, 4.0f, 1.8f);
+    }
+
+    private Vec2d[] resolveExtensionGuide() {
+        if (snapPoint == null) {
+            return null;
+        }
+
+        Shape sourceShape = SnapManager.getInstance().getLastResolvedSnapSourceShape();
+        if (!(sourceShape instanceof LineShape lineShape)) {
+            return null;
+        }
+
+        Vec2d start = lineShape.getStart();
+        Vec2d end = lineShape.getEnd();
+        if (start == null || end == null) {
+            return null;
+        }
+
+        Vec2d anchor = start.distance(snapPoint) <= end.distance(snapPoint) ? start : end;
+        if (anchor.distance(snapPoint) <= 1.0e-6) {
+            return null;
+        }
+        return new Vec2d[] { anchor, snapPoint };
+    }
+
+    private void drawDashedLineImGui(ImDrawList drawList, Vec2d start, Vec2d end, int color,
+                                     float dashLength, float gapLength, float thickness) {
+        double dx = end.x - start.x;
+        double dy = end.y - start.y;
+        double length = Math.sqrt(dx * dx + dy * dy);
+        if (length <= 1.0e-6) {
+            return;
+        }
+
+        double ux = dx / length;
+        double uy = dy / length;
+        boolean drawing = true;
+        double current = 0.0;
+
+        while (current < length) {
+            double next = Math.min(length, current + (drawing ? dashLength : gapLength));
+            if (drawing) {
+                float x1 = (float) (start.x + ux * current);
+                float y1 = (float) (start.y + uy * current);
+                float x2 = (float) (start.x + ux * next);
+                float y2 = (float) (start.y + uy * next);
+                drawList.addLine(x1, y1, x2, y2, color, thickness);
+            }
+            current = next;
+            drawing = !drawing;
+        }
+    }
+
+    private Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
 
     private float getMarkerScale() {

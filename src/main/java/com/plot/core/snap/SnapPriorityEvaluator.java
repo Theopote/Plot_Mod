@@ -1,6 +1,7 @@
 package com.plot.core.snap;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.model.Shape;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -136,6 +137,7 @@ public class SnapPriorityEvaluator {
         // 0.5 = 其他可见图层的特征点
         // 0.0 = 默认优先级
         public final int index;  // 添加索引确保排序稳定性
+        public final Shape sourceShape; // 命中该候选点的源图形，用于约束辅助线等视觉反馈
 
         /**
          * 创建吸附候选点
@@ -146,33 +148,50 @@ public class SnapPriorityEvaluator {
          * @param index 候选点索引
          */
         public SnapCandidate(Vec2d position, SnapType type, double distance, double priority, int index) {
+            this(position, type, distance, priority, index, null);
+        }
+
+        public SnapCandidate(Vec2d position, SnapType type, double distance, double priority, int index, Shape sourceShape) {
             this.position = position;
             this.type = type;
             this.distance = distance;
             // 确保优先级在有效范围内
             this.priority = Math.max(0.0, Math.min(1.0, priority));
             this.index = index;
+            this.sourceShape = sourceShape;
         }
 
         /**
          * 创建默认优先级的候选点
          */
         public static SnapCandidate create(Vec2d position, SnapType type, double distance, int index) {
-            return new SnapCandidate(position, type, distance, 0.0, index);
+            return new SnapCandidate(position, type, distance, 0.0, index, null);
+        }
+
+        public static SnapCandidate create(Vec2d position, SnapType type, double distance, int index, Shape sourceShape) {
+            return new SnapCandidate(position, type, distance, 0.0, index, sourceShape);
         }
 
         /**
          * 创建选中对象的候选点
          */
         public static SnapCandidate createFromSelected(Vec2d position, SnapType type, double distance, int index) {
-            return new SnapCandidate(position, type, distance, 1.0, index);
+            return new SnapCandidate(position, type, distance, 1.0, index, null);
+        }
+
+        public static SnapCandidate createFromSelected(Vec2d position, SnapType type, double distance, int index, Shape sourceShape) {
+            return new SnapCandidate(position, type, distance, 1.0, index, sourceShape);
         }
 
         /**
          * 创建当前图层的候选点
          */
         public static SnapCandidate createFromCurrentLayer(Vec2d position, SnapType type, double distance, int index) {
-            return new SnapCandidate(position, type, distance, 0.8, index);
+            return new SnapCandidate(position, type, distance, 0.8, index, null);
+        }
+
+        public static SnapCandidate createFromCurrentLayer(Vec2d position, SnapType type, double distance, int index, Shape sourceShape) {
+            return new SnapCandidate(position, type, distance, 0.8, index, sourceShape);
         }
 
         public Vec2d getPoint() {
