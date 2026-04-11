@@ -80,7 +80,6 @@ public class PlotScreen extends Screen {
     private static final String WIN_LEFT = "ToolPanel##ToolPanel";
     // 右侧拆分为三个独立窗口，Dock 到同一个 right dock node 后会自动以 Tab 形式组合展示
     private static final String WIN_RIGHT_PROPERTY = "属性##PropertyPanel";
-    private static final String WIN_RIGHT_GALLERY = "图库##GalleryPanel";
     private static final String WIN_RIGHT_EXTENSION = "扩展##ExtensionPanel";
 
     private int dockspaceId;
@@ -181,7 +180,6 @@ public class PlotScreen extends Screen {
         SystemPanel systemPanel = uiContainer.get(SystemPanel.class);
         ToolPanel toolPanel = uiContainer.get(ToolPanel.class);
         PropertyPanel propertyPanel = uiContainer.get(PropertyPanel.class);
-        GalleryPanel galleryPanel = uiContainer.get(GalleryPanel.class);
         ExtensionPanel extensionPanel = uiContainer.get(ExtensionPanel.class);
         Canvas canvas = uiContainer.get(Canvas.class);
 
@@ -195,8 +193,7 @@ public class PlotScreen extends Screen {
             toolPanel.init();
         }
         if (propertyPanel != null) propertyPanel.init();
-        // 暂时隐藏图库面板和扩展面板的初始化（保留代码供后续开发）
-        // if (galleryPanel != null) galleryPanel.init();
+        // 暂时隐藏扩展面板的初始化（保留代码供后续开发）
         // if (extensionPanel != null) extensionPanel.init();
         if (canvas != null) {
             // 修复：确保Canvas被正确初始化，包括CanvasCore的camera
@@ -297,7 +294,9 @@ public class PlotScreen extends Screen {
             LOGGER.error("Error rendering Plot UI", e);
             drawFatalOverlay(context, "PlotScreen.render 异常: " + safeMsg(e));
         } finally {
-            imGuiRenderer.setInputSuppressed(false);
+            if (imGuiRenderer != null) {
+                imGuiRenderer.setInputSuppressed(false);
+            }
             renderInProgress = false;
             if (closeAfterImGuiFrame && imguiFrameEnded) {
                 closeAfterImGuiFrame = false;
@@ -661,16 +660,6 @@ public class PlotScreen extends Screen {
                     ImGui.end();
                 }
             }
-
-            // 暂时隐藏图库面板和扩展面板的UI渲染（保留代码供后续开发）
-            // 图库
-            // if (galleryPanel != null) {
-            //     ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
-            //     ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
-            //     ImGui.begin(WIN_RIGHT_GALLERY, DOCKABLE_WINDOW_FLAGS);
-            //     galleryPanel.render();
-            //     ImGui.end();
-            // }
 
             // 扩展
             // if (extensionPanel != null) {
