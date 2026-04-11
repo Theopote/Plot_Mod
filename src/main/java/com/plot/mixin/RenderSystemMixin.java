@@ -1,6 +1,6 @@
 package com.plot.mixin;
 
-import com.plot.ui.screen.PlotScreen;
+import com.plot.ui.screen.PlotScreenState;
 import com.plot.ui.imgui.ImGuiRenderer;
 import com.plot.ui.imgui.GuiOverlayRenderer;
 import net.minecraft.client.MinecraftClient;
@@ -29,7 +29,7 @@ public class RenderSystemMixin {
     )
     private static void plot$beforeSwapBuffers(Window window, TracyFrameCapturer capturer, CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (!(mc.currentScreen instanceof PlotScreen)) {
+        if (mc == null || !PlotScreenState.isPlotUiActive()) {
             return;
         }
         ImGuiRenderer renderer = ImGuiRenderer.getInstance();
@@ -37,6 +37,5 @@ public class RenderSystemMixin {
             renderer.renderPendingDrawData();
         }
         GuiOverlayRenderer.flushPending();
-
     }
 }

@@ -46,6 +46,8 @@ public class ImGuiRenderer {
     private long lastFrameTimeNanos;
     /** 滚轮增量缓存：由 Screen 事件线程写入，在 beginFrame 时统一注入 ImGui IO */
     private float pendingMouseWheel;
+    /** 作为背景层补绘 Plot UI 时，禁止 ImGui 读取真实鼠标/修饰键输入，避免点击穿透到底层面板。 */
+    private boolean inputSuppressed;
 
     private ImGuiRenderer() {}
 
@@ -265,6 +267,20 @@ public class ImGuiRenderer {
             }
             lastFrameTimeNanos = now;
 
+            if (inputSuppressed) {
+                io.setMousePos(-10_000.0f, -10_000.0f);
+                for (int i = 0; i < 3; i++) {
+                    io.setMouseDown(i, false);
+                }
+                io.setKeyCtrl(false);
+                io.setKeyShift(false);
+                io.setKeyAlt(false);
+                io.setKeySuper(false);
+                io.setMouseWheel(0.0f);
+                pendingMouseWheel = 0.0f;
+                return;
+            }
+
             // 鼠标位置与按键（只读 GLFW API，不修改任何回调；imgui-java 1.86 使用 setMousePos/setMouseDown）
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 DoubleBuffer x = stack.mallocDouble(1);
@@ -309,6 +325,15 @@ public class ImGuiRenderer {
     public void onMouseScrolled(double verticalDelta) {
         synchronized (LOCK) {
             pendingMouseWheel += (float) verticalDelta;
+        }
+    }
+
+    public void setInputSuppressed(boolean suppressed) {
+        synchronized (LOCK) {
+            inputSuppressed = suppressed;
+            if (suppressed) {
+                pendingMouseWheel = 0.0f;
+            }
         }
     }
 

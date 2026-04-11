@@ -3,6 +3,8 @@ package com.plot.ui.screen;
 import com.plot.ui.component.BlockIconRenderer;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
+import com.plot.ui.imgui.GuiOverlayRenderer;
+import com.plot.ui.imgui.ImGuiRenderer;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -412,7 +414,18 @@ public class BlockConfigNativeScreen extends Screen {
         }
 
         try {
-            // 使用离屏鼠标坐标渲染背景界面，尽量避免底层 hover 态被当前鼠标位置触发。
+            if (parent instanceof PlotScreen plotScreen) {
+                // 作为背景层补绘 Plot 的 ImGui，但禁止其处理真实鼠标输入，避免点击穿透。
+                plotScreen.renderAsBackdrop(context, delta);
+                ImGuiRenderer renderer = ImGuiRenderer.getInstance();
+                if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
+                    renderer.renderPendingDrawData();
+                }
+                GuiOverlayRenderer.flushPending();
+                return;
+            }
+
+            // 其他普通 Screen 则直接按常规背景方式绘制。
             parent.render(context, -10_000, -10_000, delta);
         } catch (Exception e) {
             // 背景渲染失败不应阻断当前面板显示。

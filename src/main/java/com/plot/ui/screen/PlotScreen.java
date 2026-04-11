@@ -102,6 +102,8 @@ public class PlotScreen extends Screen {
      * 须在 {@link ImGuiRenderer#endFrame()} 完成后再 {@code execute(close)}。
      */
     private volatile boolean closeAfterImGuiFrame = false;
+    /** 作为原生子界面的背景层补绘时，禁止 ImGui 处理真实输入，避免点击穿透。 */
+    private boolean suppressImGuiInputThisFrame = false;
 
     /** 由 SystemPanel 等在 ImGui 交互回调中调用，真正的 {@link #close()} 延迟到本帧 ImGui 结束后。 */
     public void scheduleCloseAfterImGuiFrame() {
@@ -217,6 +219,16 @@ public class PlotScreen extends Screen {
      * 渲染方法
      * 每帧调用，负责渲染整个界面
      */
+    public void renderAsBackdrop(DrawContext context, float delta) {
+        boolean previous = suppressImGuiInputThisFrame;
+        suppressImGuiInputThisFrame = true;
+        try {
+            render(context, -10_000, -10_000, delta);
+        } finally {
+            suppressImGuiInputThisFrame = previous;
+        }
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderInProgress = true;
@@ -259,6 +271,7 @@ public class PlotScreen extends Screen {
             }
             
             // 开始新的 ImGui 帧
+            imGuiRenderer.setInputSuppressed(suppressImGuiInputThisFrame);
             imGuiRenderer.beginFrame();
             // DisplaySize/FramebufferScale 由 ImGuiRenderer.updateDisplaySize() 统一维护（1.21.x 下更稳定）
             
@@ -284,6 +297,7 @@ public class PlotScreen extends Screen {
             LOGGER.error("Error rendering Plot UI", e);
             drawFatalOverlay(context, "PlotScreen.render 异常: " + safeMsg(e));
         } finally {
+            imGuiRenderer.setInputSuppressed(false);
             renderInProgress = false;
             if (closeAfterImGuiFrame && imguiFrameEnded) {
                 closeAfterImGuiFrame = false;
