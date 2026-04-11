@@ -175,7 +175,7 @@ public class SettingsAndHelpDialog {
                 true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
             if (DialogLayoutHelper.beginRemainingChild("##shortcut_scroll_region", hintReservedHeight,
                     false, ImGuiWindowFlags.NoScrollbar)) {
-                // 顶部工具行：搜索、重置默认、导出、导入
+                // 顶部工具行：搜索与重置默认
                 if (captureActive) ImGui.beginDisabled();
                 ImGui.text("搜索：");
                 ImGui.sameLine();

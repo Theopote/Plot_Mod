@@ -152,35 +152,4 @@ public class FileDialogUtil {
                 callback
         );
     }
-
-    /**
-     * 兼容旧接口；UI 层优先使用 async 版本以避免阻塞渲染线程。
-     */
-    public static String showFolderDialog(String initialDirectory) {
-        return waitForAsyncResult(
-                callback -> showFolderDialogAsync(initialDirectory, callback),
-                "文件夹选择对话框操作超时"
-        );
-    }
-
-    /**
-     * 兼容旧接口；UI 层优先使用 async 版本以避免阻塞渲染线程。
-     */
-    public static String showOpenFileDialog(String initialDirectory, String fileExtension, String description) {
-        return waitForAsyncResult(
-                callback -> showOpenFileDialogAsync(initialDirectory, fileExtension, description, callback),
-                "打开文件对话框操作超时"
-        );
-    }
-
-    /**
-     * 兼容旧接口；UI 层优先使用 async 版本以避免阻塞渲染线程。
-     */
-    public static String showSaveFileDialog(String initialDirectory, String defaultFileName,
-                                           String fileExtension, String description) {
-        return waitForAsyncResult(
-                callback -> showSaveFileDialogAsync(initialDirectory, defaultFileName, fileExtension, description, callback),
-                "保存文件对话框操作超时"
-        );
-    }
 }

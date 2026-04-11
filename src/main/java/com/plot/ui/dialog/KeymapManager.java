@@ -128,11 +128,6 @@ public class KeymapManager {
         actions.add(new ActionDef("edit.undo", "撤销", "编辑操作"));
         actions.add(new ActionDef("edit.redo", "重做", "编辑操作"));
 
-        // 文件操作
-        actions.add(new ActionDef("file.save", "保存项目", "文件操作"));
-        actions.add(new ActionDef("file.open", "导入文件", "文件操作"));
-        actions.add(new ActionDef("file.export", "导出文件", "文件操作"));
-
         // 设置入口
         actions.add(new ActionDef("open.settings", "打开设置与帮助", "视图与面板"));
         actions.add(new ActionDef("open.keycheatsheet", "打开快捷键速查", "视图与面板"));
@@ -158,9 +153,6 @@ public class KeymapManager {
 
         target.put("edit.undo", "ctrl+z");
         target.put("edit.redo", "ctrl+y");
-        target.put("file.save", "ctrl+s");
-        target.put("file.open", "ctrl+o");
-        target.put("file.export", "ctrl+e");
 
         target.put("open.settings", "ctrl+comma");
         target.put("open.keycheatsheet", "f1");
@@ -190,10 +182,19 @@ public class KeymapManager {
             Map<String, String> loaded = gson.fromJson(r, type);
             if (loaded != null) {
                 actionToShortcut.putAll(loaded);
+                pruneUnknownBindings();
             }
         } catch (IOException e) {
             LogManager.getInstance().error("读取快捷键配置失败", e);
         }
+    }
+
+    private void pruneUnknownBindings() {
+        Set<String> validActionIds = new HashSet<>();
+        for (ActionDef action : actions) {
+            validActionIds.add(action.actionId());
+        }
+        actionToShortcut.entrySet().removeIf(entry -> !validActionIds.contains(entry.getKey()));
     }
 
     private void save() {
@@ -216,9 +217,6 @@ class UIShortcutActions {
             case "tool.ellipse" -> ToolActions.activate("ellipse");
             case "tool.semicircle" -> ToolActions.activate("semicircle");
             case "tool.arc" -> ToolActions.activate("arc");
-            case "file.save" -> UiActions.openSaveDialog();
-            case "file.open" -> UiActions.openImportDialog();
-            case "file.export" -> UiActions.openExportDialog();
             case "edit.undo" -> UiActions.publishUndo();
             case "edit.redo" -> UiActions.publishRedo();
             case "open.settings" -> UiActions.openSettings();
@@ -228,25 +226,6 @@ class UIShortcutActions {
     }
 
     static class UiActions {
-        static boolean openSaveDialog() {
-            try {
-                com.plot.ui.dialog.SaveFileDialog.getSharedInstance().show();
-                return true;
-            } catch (Exception e) {
-                LogManager.getInstance().error("无法打开保存对话框", e);
-                return false;
-            }
-        }
-        static boolean openImportDialog() {
-            try {
-                com.plot.ui.dialog.ImportFileDialog.getSharedInstance().show();
-                return true;
-            } catch (Exception e) {
-                LogManager.getInstance().error("无法打开导入对话框", e);
-                return false;
-            }
-        }
-        static boolean openExportDialog() { return false; }
         static boolean publishUndo() {
             com.plot.infrastructure.event.EventBus.getInstance().publish(
                     new com.plot.infrastructure.event.command.UndoEvent());
