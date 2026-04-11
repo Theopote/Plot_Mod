@@ -127,10 +127,6 @@ public class KeymapManager {
         // 全局编辑
         actions.add(new ActionDef("edit.undo", "撤销", "编辑操作"));
         actions.add(new ActionDef("edit.redo", "重做", "编辑操作"));
-
-        // 设置入口
-        actions.add(new ActionDef("open.settings", "打开设置与帮助", "视图与面板"));
-        actions.add(new ActionDef("open.keycheatsheet", "打开快捷键速查", "视图与面板"));
     }
 
     private void setDefaults() {
@@ -153,9 +149,6 @@ public class KeymapManager {
 
         target.put("edit.undo", "ctrl+z");
         target.put("edit.redo", "ctrl+y");
-
-        target.put("open.settings", "ctrl+comma");
-        target.put("open.keycheatsheet", "f1");
     }
 
     private Path initConfigPath() {
@@ -219,8 +212,6 @@ class UIShortcutActions {
             case "tool.arc" -> ToolActions.activate("arc");
             case "edit.undo" -> UiActions.publishUndo();
             case "edit.redo" -> UiActions.publishRedo();
-            case "open.settings" -> UiActions.openSettings();
-            case "open.keycheatsheet" -> UiActions.openCheatSheet();
             default -> false;
         };
     }
@@ -236,11 +227,6 @@ class UIShortcutActions {
                     new com.plot.infrastructure.event.command.RedoEvent());
             return true;
         }
-        static boolean openSettings() {
-            com.plot.ui.dialog.SettingsAndHelpDialog.getInstance().open();
-            return true;
-        }
-        static boolean openCheatSheet() { return false; }
     }
 
     static class ToolActions {
