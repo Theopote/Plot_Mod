@@ -81,8 +81,8 @@ public class LineToBlockSettingsDialog {
                             conversionMode = ConversionMode.values()[currentMode.get()];
                         }
                         DialogLayoutHelper.formRowHelp(conversionMode == ConversionMode.FULL
-                                ? "完整转换会尽量保留线条覆盖到的所有方块。"
-                                : "精简转换会根据下方阈值跳过细碎覆盖区域。 ");
+                                ? "完整转换会尽量保留图形覆盖到的所有方块。"
+                                : "精简转换会按覆盖阈值过滤细碎区域：线框看覆盖长度，填充看单元覆盖率。");
 
                         DialogLayoutHelper.formRowLabel("封闭填充");
                         ImBoolean fillOption = new ImBoolean(fillClosedShapes);
@@ -99,7 +99,9 @@ public class LineToBlockSettingsDialog {
                             if (ImGui.sliderFloat("##simplification_ratio", ratio, 0.1f, 1.0f, "%.2f")) {
                                 simplificationRatio = ratio[0];
                             }
-                            DialogLayoutHelper.formRowHelp(String.format("仅当线条覆盖长度超过 %.2f 倍方块边长时才转换。", simplificationRatio));
+                            DialogLayoutHelper.formRowHelp(fillClosedShapes
+                                    ? String.format("线框按覆盖长度过滤，填充区域按单元覆盖率过滤；当前阈值为 %.2f。", simplificationRatio)
+                                    : String.format("仅当线条覆盖长度超过 %.2f 倍方块边长时才转换。", simplificationRatio));
                         }
 
                         DialogLayoutHelper.endForm();

@@ -115,8 +115,7 @@ public class LineToBlockHandler {
         float simplificationRatio = lineToBlockEvent.getSimplificationRatio();
         double userSpecifiedYLevel = lineToBlockEvent.getCanvasHeight();
         boolean isPreview = lineToBlockEvent.isPreview();
-        // 统一行为：线转方块仅转换轮廓线，不填充封闭图形内部
-        boolean fillClosedShapes = false;
+        boolean fillClosedShapes = lineToBlockEvent.isFillClosedShapes();
 
         // 【优化】获取目标标高（优先使用用户指定，否则使用玩家位置）
         double targetYLevel = getTargetYLevel(userSpecifiedYLevel, isPreview);
@@ -271,7 +270,7 @@ public class LineToBlockHandler {
 
             // 处理折线
             case com.plot.core.geometry.shapes.PolylineShape polyline ->
-                    result.addAll(rasterizePolylineShape(polyline, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizePolylineShape(polyline, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
             // 处理圆形
             case com.plot.core.geometry.shapes.CircleShape circle ->
@@ -294,7 +293,7 @@ public class LineToBlockHandler {
 
                 // 处理贝塞尔/样条曲线
                 case com.plot.core.geometry.shapes.BezierCurveShape bezier ->
-                    result.addAll(rasterizeBezierCurveShape(bezier, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizeBezierCurveShape(bezier, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
                 // 处理正弦曲线
                 case com.plot.core.geometry.shapes.SineCurveShape sine ->
@@ -302,7 +301,7 @@ public class LineToBlockHandler {
 
             // 处理自由绘制路径
             case com.plot.core.geometry.shapes.FreeDrawPath freeDraw ->
-                    result.addAll(rasterizeFreeDrawPath(freeDraw, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizeFreeDrawPath(freeDraw, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
             // 处理多边形
             case com.plot.core.geometry.shapes.Polygon polygon ->
@@ -311,7 +310,7 @@ public class LineToBlockHandler {
             // 处理其他复杂图形（如螺旋、星形等）
             default ->
                 // 对于复杂图形，尝试获取其边界或轮廓点进行光栅化
-                    result.addAll(rasterizeComplexShape(shape, conversionMode, simplificationRatio, yLevel));
+                    result.addAll(rasterizeComplexShape(shape, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
         }
 
         LOGGER.info("【调试】光栅化完成，生成 {} 个方块位置", result.size());
@@ -363,9 +362,13 @@ public class LineToBlockHandler {
     /**
      * 光栅化折线
      */
-    private List<BlockPos> rasterizePolylineShape(com.plot.core.geometry.shapes.PolylineShape polyline, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizePolylineShape(com.plot.core.geometry.shapes.PolylineShape polyline, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = polyline.getPoints();
+
+        if (fillClosedShapes && polyline.isClosed()) {
+            return rasterizeClosedShapeByPoints(canvasPoints, conversionMode, simplificationRatio, yLevel, true);
+        }
         
         if (canvasPoints.size() < 2) {
             LOGGER.warn("折线点数不足，至少需要2个点，当前点数: {}", canvasPoints.size());
@@ -459,9 +462,13 @@ public class LineToBlockHandler {
         return rasterizeShapePathByPoints(arc.getPoints(), conversionMode, simplificationRatio, yLevel);
     }
 
-    private List<BlockPos> rasterizeBezierCurveShape(com.plot.core.geometry.shapes.BezierCurveShape bezier, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizeBezierCurveShape(com.plot.core.geometry.shapes.BezierCurveShape bezier, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
+        List<Vec2d> curvePoints = bezier.getCurvePoints();
+        if (fillClosedShapes && bezier.isClosed()) {
+            return rasterizeClosedShapeByPoints(curvePoints, conversionMode, simplificationRatio, yLevel, true);
+        }
         // 使用曲线采样点（而不是控制点），避免样条曲线被折线化导致失真
-        return rasterizeShapePathByPoints(bezier.getCurvePoints(), conversionMode, simplificationRatio, yLevel);
+        return rasterizeShapePathByPoints(curvePoints, conversionMode, simplificationRatio, yLevel);
     }
 
     private List<BlockPos> rasterizeSineCurveShape(com.plot.core.geometry.shapes.SineCurveShape sine, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
@@ -526,9 +533,13 @@ public class LineToBlockHandler {
     /**
      * 光栅化自由绘制路径
      */
-    private List<BlockPos> rasterizeFreeDrawPath(com.plot.core.geometry.shapes.FreeDrawPath freeDraw, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizeFreeDrawPath(com.plot.core.geometry.shapes.FreeDrawPath freeDraw, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = freeDraw.getPoints();
+
+        if (fillClosedShapes && isEffectivelyClosed(canvasPoints)) {
+            return rasterizeClosedShapeByPoints(canvasPoints, conversionMode, simplificationRatio, yLevel, true);
+        }
         
         if (canvasPoints.size() < 2) {
             LOGGER.warn("自由绘制路径点数不足，至少需要2个点，当前点数: {}", canvasPoints.size());
@@ -684,10 +695,24 @@ public class LineToBlockHandler {
         return inside;
     }
 
+    private boolean isEffectivelyClosed(List<Vec2d> points) {
+        if (points == null || points.size() < 3) {
+            return false;
+        }
+
+        Vec2d first = points.getFirst();
+        Vec2d last = points.getLast();
+        if (first == null || last == null) {
+            return false;
+        }
+
+        return first.distance(last) <= 1.0e-3;
+    }
+
     /**
      * 光栅化复杂图形（如螺旋、星形等）
      */
-    private List<BlockPos> rasterizeComplexShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
+    private List<BlockPos> rasterizeComplexShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
         
         LOGGER.debug("处理复杂图形: {}", shape.getClass().getSimpleName());
@@ -696,6 +721,9 @@ public class LineToBlockHandler {
         try {
             List<Vec2d> shapePoints = shape.getPoints();
             if (shapePoints != null && shapePoints.size() >= 2) {
+                if (fillClosedShapes && isEffectivelyClosed(shapePoints)) {
+                    return rasterizeClosedShapeByPoints(shapePoints, conversionMode, simplificationRatio, yLevel, true);
+                }
                 return rasterizeShapePathByPoints(shapePoints, conversionMode, simplificationRatio, yLevel);
             }
         } catch (Exception e) {
