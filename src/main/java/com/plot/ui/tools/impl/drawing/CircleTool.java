@@ -565,6 +565,22 @@ public class CircleTool extends DrawingTool {
     }
 
     /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
+
+    /**
      * 获取预览颜色（使用当前图层颜色）
      */
     private Color getPreviewColor() {
@@ -882,6 +898,9 @@ public class CircleTool extends DrawingTool {
             // 使用SnapEnhancer进行捕捉检测
             SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d worldPoint = snapResult.point;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
             
             // 更新捕捉状态
             isSnapping = snapResult.snapped;
@@ -969,6 +988,9 @@ public class CircleTool extends DrawingTool {
             // 总是进行捕捉检测，即使在绘制开始前
             SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             currentMousePoint = snapResult.point;
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
             
             // 如果还没有控制点，只显示捕捉效果，不更新预览
             if (controlPoints.isEmpty()) {

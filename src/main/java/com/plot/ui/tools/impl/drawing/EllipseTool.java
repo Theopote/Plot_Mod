@@ -766,6 +766,30 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             previewShape = previewEllipse;
         }
     }
+
+    /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
+
+    private boolean shouldConstrainSecondPoint() {
+        if (!isShiftDown || controlPoints.size() != 1) {
+            return false;
+        }
+        return currentMode == EllipseMode.THREE_POINTS_AXIS
+            || currentMode == EllipseMode.THREE_POINTS_CENTER;
+    }
     
     // ====== 自定义交互策略 ======
     
@@ -789,6 +813,9 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             // 使用增强捕捉，带类型识别与可视化状态
             var snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d worldPoint = snapResult.point;
+            if (shouldConstrainSecondPoint()) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
             LOGGER.debug("EllipseTool.onMouseDown: 点击位置={}, 捕捉后={}, 类型={}", pos, worldPoint, snapResult.snapType);
             
             // 根据当前模式处理点击
@@ -825,6 +852,9 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
             // 更新当前鼠标位置（含捕捉状态）
             var snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             currentMousePoint = snapResult.point;
+            if (shouldConstrainSecondPoint()) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
             
             // 即使没有控制点，也要更新鼠标位置以显示吸附效果
             if (controlPoints.isEmpty()) {
