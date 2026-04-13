@@ -198,6 +198,22 @@ public class CatenaryLineTool extends DrawingTool {
     }
 
     /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
+
+    /**
      * 悬链线交互策略 - 三点绘制模式
      */
     private class CatenaryInteractionStrategy implements IInteractionStrategy {
@@ -220,6 +236,7 @@ public class CatenaryLineTool extends DrawingTool {
                 } else if (controlPoints.size() == 1) {
                     SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
                     snappedPoint = snapResult.point;
+                    snappedPoint = constrainSecondPointToAxis(controlPoints.getFirst(), snappedPoint);
                 } else {
                     // 第三点：使用原始屏幕坐标转换为世界坐标，避免吸附覆盖侧向选择
                     try {
@@ -280,6 +297,7 @@ public class CatenaryLineTool extends DrawingTool {
                 } else if (controlPoints.size() == 1) {
                     SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
                     currentMousePoint = snapResult.point;
+                    currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
                 } else {
                     try {
                         CanvasCamera cam = context.getCamera();

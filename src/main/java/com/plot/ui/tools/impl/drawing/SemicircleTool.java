@@ -353,6 +353,22 @@ public class SemicircleTool extends DrawingTool {
     }
 
     /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
+
+    /**
      * 更新预览形状（关键方法）
      */
     private void updatePreviewShape(PolylineShape semicircle) {
@@ -891,6 +907,9 @@ public class SemicircleTool extends DrawingTool {
 
             var snap = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d worldPoint = snap.point;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
             LOGGER.debug("SemicircleTool.onMouseDown: 点击位置={}, 转换后={}", pos, worldPoint);
 
             // 根据当前模式处理点击
@@ -926,6 +945,9 @@ public class SemicircleTool extends DrawingTool {
             // 即使没有控制点，也要更新鼠标位置以显示吸附效果
             var snap = snapEnhancer.performEnhancedSnap(pos, context);
             currentMousePoint = snap.point;
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
 
             if (controlPoints.isEmpty()) {
                 return InteractionResult.CONTINUE;

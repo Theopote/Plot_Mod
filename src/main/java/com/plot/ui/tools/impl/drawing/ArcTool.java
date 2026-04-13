@@ -602,6 +602,22 @@ public class ArcTool extends DrawingTool {
             controlPoints = savedPoints;
         }
     }
+
+    /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
     
     /**
      * 判断一个角度是否在两个角度之间
@@ -810,6 +826,9 @@ public class ArcTool extends DrawingTool {
             
             var snap = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d worldPoint = snap.point;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
             LOGGER.debug("ArcTool.onMouseDown: 点击位置={}, 转换后={}", pos, worldPoint);
             
             // 添加控制点
@@ -839,6 +858,9 @@ public class ArcTool extends DrawingTool {
             // 始终进行增强捕捉：未开始绘制前也更新指示器
             var snap = snapEnhancer.performEnhancedSnap(pos, context);
             currentMousePoint = snap.point;
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
             
             if (controlPoints.isEmpty()) {
                 return InteractionResult.CONTINUE; // 触发重绘显示吸附指示

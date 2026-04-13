@@ -120,6 +120,22 @@ public class StarTool extends DrawingTool {
     }
 
     /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
+
+    /**
      * 获取当前交互点（使用接口方法，避免强转）
      */
     private List<Vec2d> getInteractionPoints() {
@@ -136,14 +152,22 @@ public class StarTool extends DrawingTool {
             public InteractionResult onMouseDown(Vec2d pos, int button, DrawingToolContext context) {
                 // 增强吸附：点击前更新吸附状态，并使用吸附点
                 SnapEnhancer.SnapResult snap = snapEnhancer.performEnhancedSnap(pos, context);
-                return super.onMouseDown(snap.point, button, context);
+                Vec2d worldPoint = snap.point;
+                if (getControlPoints().size() == 1) {
+                    worldPoint = constrainSecondPointToAxis(getControlPoints().getFirst(), worldPoint);
+                }
+                return super.onMouseDown(worldPoint, button, context);
             }
 
             @Override
             public InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
                 // 始终增强吸附：即使未开始也更新指示器
                 SnapEnhancer.SnapResult snap = snapEnhancer.performEnhancedSnap(pos, context);
-                InteractionResult result = super.onMouseMove(snap.point, context);
+                Vec2d worldPoint = snap.point;
+                if (getControlPoints().size() == 1) {
+                    worldPoint = constrainSecondPointToAxis(getControlPoints().getFirst(), worldPoint);
+                }
+                InteractionResult result = super.onMouseMove(worldPoint, context);
                 // 如果未进入绘制，返回 CONTINUE 以触发重绘显示指示器
                 return result == InteractionResult.IGNORED ? InteractionResult.CONTINUE : result;
             }

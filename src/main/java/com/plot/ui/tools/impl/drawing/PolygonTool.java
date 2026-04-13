@@ -299,6 +299,22 @@ public class PolygonTool extends DrawingTool {
         // 计算信息文本
         previewGeometry.infoText = calculateInfoText();
     }
+
+    /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
     
 
     
@@ -668,6 +684,9 @@ public class PolygonTool extends DrawingTool {
             // 增强捕捉：更新可视化与类型标记
             var snap = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d worldPoint = snap.point;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
             LOGGER.debug("PolygonTool.onMouseDown: 点击位置={}, 转换后={}", pos, worldPoint);
             
             controlPoints.add(worldPoint);
@@ -687,6 +706,9 @@ public class PolygonTool extends DrawingTool {
             // 始终执行增强捕捉：在开始绘制之前也更新捕捉状态以显示指示器
             var snap = snapEnhancer.performEnhancedSnap(pos, context);
             currentMousePoint = snap.point;
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
 
             // 未开始绘制：仅显示捕捉指示器
             // 触发重绘

@@ -267,6 +267,22 @@ public class SineCurveTool extends DrawingTool {
             }
         }
     }
+
+    /**
+     * Shift 约束：将第二点锁定到与第一点水平或垂直对齐
+     */
+    private Vec2d constrainSecondPointToAxis(Vec2d anchor, Vec2d candidate) {
+        if (!isShiftDown || anchor == null || candidate == null) {
+            return candidate;
+        }
+        double dx = Math.abs(candidate.x - anchor.x);
+        double dy = Math.abs(candidate.y - anchor.y);
+        if (dx >= dy) {
+            // 水平优先
+            return new Vec2d(candidate.x, anchor.y);
+        }
+        return new Vec2d(anchor.x, candidate.y);
+    }
     
     /**
      * 计算实际振幅
@@ -644,6 +660,9 @@ public class SineCurveTool extends DrawingTool {
             // 使用增强吸附，确保捕捉类型与可视化一致
             SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             Vec2d worldPoint = snapResult.point;
+            if (controlPoints.size() == 1) {
+                worldPoint = constrainSecondPointToAxis(controlPoints.getFirst(), worldPoint);
+            }
             LOGGER.debug("SineCurveTool.onMouseDown: 点击位置={}, 转换后={}", pos, worldPoint);
             
             // 添加控制点
@@ -664,6 +683,9 @@ public class SineCurveTool extends DrawingTool {
             // 始终进行增强吸附：在开始绘制之前也更新捕捉状态以显示指示器
             SnapEnhancer.SnapResult snapResult = snapEnhancer.performEnhancedSnap(pos, context);
             currentMousePoint = snapResult.point;
+            if (controlPoints.size() == 1) {
+                currentMousePoint = constrainSecondPointToAxis(controlPoints.getFirst(), currentMousePoint);
+            }
 
             // 如果还没有控制点，仅显示捕捉效果，不更新曲线预览
             if (controlPoints.isEmpty()) {
