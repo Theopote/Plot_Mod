@@ -61,7 +61,6 @@ public class CameraSettingsManager {
 
                     boolean settingsChanged = false;
                     camera = cameraManager.getOrthographicCamera();
-                    DialogLayoutHelper.helpText("调整缩放、视野与裁剪范围，修改会即时生效。");
 
                     // 缩放比例设置
                     float[] scale = {camera.getScale()};
