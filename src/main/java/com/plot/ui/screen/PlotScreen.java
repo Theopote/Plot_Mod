@@ -579,8 +579,8 @@ public class PlotScreen extends Screen {
         float systemPanelHeight = getTopBarHeight();
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float x = UILayout.getRightPanelX(displayWidth);
-        ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.FirstUseEver);
-        ImGui.setNextWindowSize(UILayout.RIGHT_PANEL_DEFAULT_WIDTH, systemPanelHeight, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.Always);
+        ImGui.setNextWindowSize(UILayout.RIGHT_PANEL_DEFAULT_WIDTH, systemPanelHeight, ImGuiCond.Always);
         boolean systemVisible = ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS);
         try {
             if (systemVisible) {
@@ -635,8 +635,8 @@ public class PlotScreen extends Screen {
         try {
             // 属性面板（第一个渲染，确保在最前面且默认打开）
             if (propertyPanel != null) {
-                ImGui.setNextWindowPos(x, systemPanelHeight, ImGuiCond.FirstUseEver);
-                ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
+                ImGui.setNextWindowPos(x, systemPanelHeight, ImGuiCond.Always);
+                ImGui.setNextWindowSize(w, h, ImGuiCond.Always);
                 // 首次渲染时设置焦点，确保属性面板默认激活
                 if (firstRender) {
                     ImGui.setNextWindowFocus();
