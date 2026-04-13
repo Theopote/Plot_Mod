@@ -48,7 +48,7 @@ public class LineToBlockHandler {
     private final EventBus eventBus;
     private final AppState appState;
     private final GhostBlockManager ghostBlockManager;
-    
+
     // 【新增】坐标转换缓存
     private final ConcurrentHashMap<String, Vec2d> coordinateCache = new ConcurrentHashMap<>();
     private static final int MAX_CACHE_SIZE = 1000;
@@ -127,7 +127,7 @@ public class LineToBlockHandler {
         double targetYLevel = getTargetYLevel(userSpecifiedYLevel, isPreview);
 
         LOGGER.info("线转方块参数: 图形数量={}, 调色盘大小={}, 精简比率={}, 标高={}, 预览模式={}, 封闭填充={}",
-            shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
+                shapes.size(), paletteBlocks.size(), simplificationRatio, targetYLevel, isPreview, fillClosedShapes);
 
         // 清理之前的幽灵方块
         ghostBlockManager.clearAllGhostBlocks();
@@ -212,8 +212,8 @@ public class LineToBlockHandler {
         final int totalShapes = shapes.size();
 
         // 【新增】发布开始处理事件
-        eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler", 
-            String.format("开始处理 %d 个图形...", totalShapes)));
+        eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler",
+                String.format("开始处理 %d 个图形...", totalShapes)));
 
         for (Shape shape : shapes) {
             LOGGER.debug("处理图形: {} ({}/{})", shape.getClass().getSimpleName(), processedShapes + 1, totalShapes);
@@ -229,9 +229,9 @@ public class LineToBlockHandler {
 
             // 【新增】发布图形处理进度
             if (totalShapes > 5) { // 只有图形数量较多时才发布进度
-                eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler", 
-                    String.format("处理图形 %d/%d: 生成 %d 个方块", 
-                        processedShapes + 1, totalShapes, blockPositions.size())));
+                eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler",
+                        String.format("处理图形 %d/%d: 生成 %d 个方块",
+                                processedShapes + 1, totalShapes, blockPositions.size())));
             }
 
             for (BlockPos finalPos : blockPositions) {
@@ -243,16 +243,16 @@ public class LineToBlockHandler {
                 paletteIndex++;
                 totalBlocks++;
             }
-            
+
             processedShapes++;
         }
-        
+
         // 【新增】发布完成事件
         if (totalShapes > 5) {
-            eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler", 
-                String.format("处理完成: %d 个图形，共生成 %d 个方块", totalShapes, totalBlocks)));
+            eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler",
+                    String.format("处理完成: %d 个图形，共生成 %d 个方块", totalShapes, totalBlocks)));
         }
-        
+
         return totalBlocks;
     }
 
@@ -293,16 +293,16 @@ public class LineToBlockHandler {
             // 处理圆弧
             case com.plot.core.geometry.shapes.ArcShape arc -> result.addAll(rasterizeArcShape(arc, conversionMode, simplificationRatio, yLevel));
 
-                // 处理椭圆弧
-                case com.plot.core.geometry.shapes.EllipticalArcShape ellipticalArc ->
+            // 处理椭圆弧
+            case com.plot.core.geometry.shapes.EllipticalArcShape ellipticalArc ->
                     result.addAll(rasterizeEllipticalArcShape(ellipticalArc, conversionMode, simplificationRatio, yLevel));
 
-                // 处理贝塞尔/样条曲线
-                case com.plot.core.geometry.shapes.BezierCurveShape bezier ->
+            // 处理贝塞尔/样条曲线
+            case com.plot.core.geometry.shapes.BezierCurveShape bezier ->
                     result.addAll(rasterizeBezierCurveShape(bezier, conversionMode, simplificationRatio, yLevel, fillClosedShapes));
 
-                // 处理正弦曲线
-                case com.plot.core.geometry.shapes.SineCurveShape sine ->
+            // 处理正弦曲线
+            case com.plot.core.geometry.shapes.SineCurveShape sine ->
                     result.addAll(rasterizeSineCurveShape(sine, conversionMode, simplificationRatio, yLevel));
 
             // 处理自由绘制路径
@@ -329,30 +329,30 @@ public class LineToBlockHandler {
     private List<BlockPos> rasterizeLineShape(com.plot.core.geometry.shapes.LineShape line, ConversionMode conversionMode, float simplificationRatio, double yLevel) {
         Vec2d canvasStart = line.getStart();
         Vec2d canvasEnd = line.getEnd();
-        
-        LOGGER.info("【调试】处理线条图形: 画布起点({}, {}), 画布终点({}, {})", 
+
+        LOGGER.info("【调试】处理线条图形: 画布起点({}, {}), 画布终点({}, {})",
                 canvasStart.x, canvasStart.y, canvasEnd.x, canvasEnd.y);
-        
+
         // 【修复】先将画布世界坐标转换为窗口坐标，再转换为Minecraft坐标
         LOGGER.info("【调试】开始画布坐标转换...");
         Vec2d windowStart = canvasToWindowCoordinates(canvasStart);
         Vec2d windowEnd = canvasToWindowCoordinates(canvasEnd);
-        
+
         if (windowStart != null && windowEnd != null) {
-            LOGGER.info("【调试】画布坐标转换为窗口坐标成功: 起点({}, {}) -> ({}, {}), 终点({}, {}) -> ({}, {})", 
+            LOGGER.info("【调试】画布坐标转换为窗口坐标成功: 起点({}, {}) -> ({}, {}), 终点({}, {}) -> ({}, {})",
                     canvasStart.x, canvasStart.y, windowStart.x, windowStart.y,
                     canvasEnd.x, canvasEnd.y, windowEnd.x, windowEnd.y);
-            
+
             // 使用增强的坐标转换器
             LOGGER.info("【调试】开始窗口坐标到Minecraft坐标转换...");
             Vec2d minecraftStart = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowStart);
             Vec2d minecraftEnd = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowEnd);
-            
+
             if (minecraftStart != null && minecraftEnd != null) {
                 LOGGER.info("【调试】坐标转换成功: 窗口坐标({}, {}) -> ({}, {}) → Minecraft坐标({}, {}) -> ({}, {}), 标高={}",
                         windowStart.x, windowStart.y, windowEnd.x, windowEnd.y,
                         minecraftStart.x, minecraftStart.y, minecraftEnd.x, minecraftEnd.y, yLevel);
-                
+
                 return rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
                         minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio);
             } else {
@@ -361,7 +361,7 @@ public class LineToBlockHandler {
         } else {
             LOGGER.error("【调试】画布坐标到窗口坐标转换失败，跳过线条: 起点={}, 终点={}", canvasStart, canvasEnd);
         }
-        
+
         return new ArrayList<>();
     }
 
@@ -375,7 +375,7 @@ public class LineToBlockHandler {
         if (fillClosedShapes && polyline.isClosed()) {
             return rasterizeClosedShapeByPoints(canvasPoints, conversionMode, simplificationRatio, yLevel, true);
         }
-        
+
         if (canvasPoints.size() < 2) {
             LOGGER.warn("折线点数不足，至少需要2个点，当前点数: {}", canvasPoints.size());
             return result;
@@ -392,8 +392,8 @@ public class LineToBlockHandler {
                 Vec2d minecraftPoint = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowPoint);
                 if (minecraftPoint != null) {
                     minecraftPoints.add(minecraftPoint);
-                    LOGGER.debug("折线点{}转换成功: 画布({}, {}) → 窗口({}, {}) → Minecraft({}, {})", 
-                            i + 1, canvasPoint.x, canvasPoint.y, windowPoint.x, windowPoint.y, 
+                    LOGGER.debug("折线点{}转换成功: 画布({}, {}) → 窗口({}, {}) → Minecraft({}, {})",
+                            i + 1, canvasPoint.x, canvasPoint.y, windowPoint.x, windowPoint.y,
                             minecraftPoint.x, minecraftPoint.y);
                 } else {
                     LOGGER.warn("折线点{}窗口到Minecraft坐标转换失败: {}", i + 1, windowPoint);
@@ -404,7 +404,7 @@ public class LineToBlockHandler {
         }
 
         if (minecraftPoints.size() < 2) {
-            LOGGER.warn("转换后的Minecraft点数不足，跳过折线: 原始{}个点，转换后{}个点", 
+            LOGGER.warn("转换后的Minecraft点数不足，跳过折线: 原始{}个点，转换后{}个点",
                     canvasPoints.size(), minecraftPoints.size());
             return result;
         }
@@ -413,7 +413,7 @@ public class LineToBlockHandler {
         for (int i = 0; i < minecraftPoints.size() - 1; i++) {
             Vec2d start = minecraftPoints.get(i);
             Vec2d end = minecraftPoints.get(i + 1);
-            LOGGER.debug("处理折线段{}: ({}, {}) -> ({}, {})", 
+            LOGGER.debug("处理折线段{}: ({}, {}) -> ({}, {})",
                     i + 1, start.x, start.y, end.x, end.y);
             result.addAll(rasterizeLineSegment(start.x, start.y, end.x, end.y, yLevel, conversionMode, simplificationRatio));
         }
@@ -422,7 +422,7 @@ public class LineToBlockHandler {
         if (polyline.isClosed() && minecraftPoints.size() >= 3) {
             Vec2d start = minecraftPoints.getLast();
             Vec2d end = minecraftPoints.getFirst();
-            LOGGER.debug("处理闭合折线段: ({}, {}) -> ({}, {})", 
+            LOGGER.debug("处理闭合折线段: ({}, {}) -> ({}, {})",
                     start.x, start.y, end.x, end.y);
             result.addAll(rasterizeLineSegment(start.x, start.y, end.x, end.y, yLevel, conversionMode, simplificationRatio));
         }
@@ -551,7 +551,7 @@ public class LineToBlockHandler {
         if (fillClosedShapes && isEffectivelyClosed(canvasPoints)) {
             return rasterizeClosedShapeByPoints(canvasPoints, conversionMode, simplificationRatio, yLevel, true);
         }
-        
+
         if (canvasPoints.size() < 2) {
             LOGGER.warn("自由绘制路径点数不足，至少需要2个点，当前点数: {}", canvasPoints.size());
             return result;
@@ -572,7 +572,7 @@ public class LineToBlockHandler {
         }
 
         if (minecraftPoints.size() < 2) {
-            LOGGER.warn("转换后的Minecraft点数不足，跳过自由绘制路径: 原始{}个点，转换后{}个点", 
+            LOGGER.warn("转换后的Minecraft点数不足，跳过自由绘制路径: 原始{}个点，转换后{}个点",
                     canvasPoints.size(), minecraftPoints.size());
             return result;
         }
@@ -593,7 +593,7 @@ public class LineToBlockHandler {
     private List<BlockPos> rasterizePolygonShape(com.plot.core.geometry.shapes.Polygon polygon, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
         List<Vec2d> canvasPoints = polygon.getPoints();
-        
+
         if (canvasPoints.size() < 3) {
             LOGGER.warn("多边形点数不足，至少需要3个点，当前点数: {}", canvasPoints.size());
             return result;
@@ -614,7 +614,7 @@ public class LineToBlockHandler {
         }
 
         if (minecraftPoints.size() < 3) {
-            LOGGER.warn("转换后的Minecraft点数不足，跳过多边形: 原始{}个点，转换后{}个点", 
+            LOGGER.warn("转换后的Minecraft点数不足，跳过多边形: 原始{}个点，转换后{}个点",
                     canvasPoints.size(), minecraftPoints.size());
             return result;
         }
@@ -725,7 +725,7 @@ public class LineToBlockHandler {
      */
     private List<BlockPos> rasterizeComplexShape(Shape shape, ConversionMode conversionMode, float simplificationRatio, double yLevel, boolean fillClosedShapes) {
         List<BlockPos> result = new ArrayList<>();
-        
+
         LOGGER.debug("处理复杂图形: {}", shape.getClass().getSimpleName());
 
         // 优先使用图形采样点，尽量与画布显示保持一致
@@ -740,7 +740,7 @@ public class LineToBlockHandler {
         } catch (Exception e) {
             LOGGER.debug("复杂图形采样点获取失败，回退控制点连接: {}", e.getMessage());
         }
-        
+
         // 尝试获取图形的控制点或边界点
         List<Vec2d> controlPoints = shape.getControlPoints();
         if (controlPoints != null && controlPoints.size() >= 2) {
@@ -748,14 +748,14 @@ public class LineToBlockHandler {
             for (int i = 0; i < controlPoints.size() - 1; i++) {
                 Vec2d start = controlPoints.get(i);
                 Vec2d end = controlPoints.get(i + 1);
-                
+
                 Vec2d windowStart = canvasToWindowCoordinates(start);
                 Vec2d windowEnd = canvasToWindowCoordinates(end);
-                
+
                 if (windowStart != null && windowEnd != null) {
                     Vec2d minecraftStart = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowStart);
                     Vec2d minecraftEnd = CoordinateTransformer.getInstance().canvasToMinecraftWorld(windowEnd);
-                    
+
                     if (minecraftStart != null && minecraftEnd != null) {
                         result.addAll(rasterizeLineSegment(minecraftStart.x, minecraftStart.y,
                                 minecraftEnd.x, minecraftEnd.y, yLevel, conversionMode, simplificationRatio));
@@ -765,7 +765,7 @@ public class LineToBlockHandler {
         } else {
             LOGGER.warn("复杂图形 {} 没有有效的控制点，无法光栅化", shape.getClass().getSimpleName());
         }
-        
+
         return result;
     }
 
@@ -779,11 +779,11 @@ public class LineToBlockHandler {
     private Vec2d canvasToWindowCoordinates(Vec2d canvasPos) {
         try {
             // 【新增】检查缓存
-            String cacheKey = String.format("%.2f,%.2f", canvasPos.x, canvasPos.y);
+            String cacheKey = Double.toHexString(canvasPos.x) + "," + Double.toHexString(canvasPos.y);
             Vec2d cachedResult = coordinateCache.get(cacheKey);
             if (cachedResult != null) {
-                LOGGER.debug("使用缓存的坐标转换结果: 画布({}, {}) → 窗口({}, {})", 
-                    canvasPos.x, canvasPos.y, cachedResult.x, cachedResult.y);
+                LOGGER.debug("使用缓存的坐标转换结果: 画布({}, {}) → 窗口({}, {})",
+                        canvasPos.x, canvasPos.y, cachedResult.x, cachedResult.y);
                 return cachedResult;
             }
 
@@ -802,7 +802,7 @@ public class LineToBlockHandler {
 
             // 【优化】获取画布的实际屏幕位置和尺寸
             Vec2d windowPos = getCanvasWindowPosition(canvas, camera, canvasPos);
-            
+
             if (windowPos != null) {
                 // 【新增】缓存结果
                 if (coordinateCache.size() < MAX_CACHE_SIZE) {
@@ -812,11 +812,11 @@ public class LineToBlockHandler {
                     clearCoordinateCache();
                     coordinateCache.put(cacheKey, windowPos);
                 }
-                
-                LOGGER.debug("画布世界坐标转窗口坐标: 画布世界({}, {}) → 窗口({}, {})", 
+
+                LOGGER.debug("画布世界坐标转窗口坐标: 画布世界({}, {}) → 窗口({}, {})",
                         canvasPos.x, canvasPos.y, windowPos.x, windowPos.y);
             }
-            
+
             return windowPos;
 
         } catch (Exception e) {
@@ -838,16 +838,16 @@ public class LineToBlockHandler {
             // 【修复】正确的坐标转换流程
             // 1. 画布世界坐标 → 画布屏幕坐标
             Vec2d canvasScreenPos = camera.worldToScreen(canvasPos);
-            
+
             // 2. 画布屏幕坐标 → 窗口坐标
             Vec2d windowPos = canvasScreenToWindowCoordinates(canvasScreenPos);
-            
-            LOGGER.debug("坐标转换: 画布世界({}, {}) → 画布屏幕({}, {}) → 窗口({}, {})", 
-                    canvasPos.x, canvasPos.y, canvasScreenPos.x, canvasScreenPos.y, 
+
+            LOGGER.debug("坐标转换: 画布世界({}, {}) → 画布屏幕({}, {}) → 窗口({}, {})",
+                    canvasPos.x, canvasPos.y, canvasScreenPos.x, canvasScreenPos.y,
                     windowPos.x, windowPos.y);
-            
+
             return windowPos;
-            
+
         } catch (Exception e) {
             LOGGER.error("获取画布窗口位置失败", e);
             return null;
@@ -901,18 +901,18 @@ public class LineToBlockHandler {
             // 【修复】直接检查画布是否占据整个窗口
             // 在全屏模式下，画布确实占据整个窗口，所以直接返回true
             // 这样可以确保坐标转换逻辑的一致性
-            
+
             // 获取当前显示尺寸
             float displayWidth = imgui.ImGui.getIO().getDisplaySizeX();
             float displayHeight = imgui.ImGui.getIO().getDisplaySizeY();
-            
+
             LOGGER.debug("全屏模式检测: 显示尺寸={}x{}", displayWidth, displayHeight);
-            
+
             // 【核心修复】由于CanvasRenderer已经将画布设置为全屏模式，
             // 并且PlotScreen也确认画布占据整个窗口，
             // 所以这里直接返回true，确保坐标转换逻辑的一致性
             return true;
-            
+
         } catch (Exception e) {
             LOGGER.warn("检查全屏模式失败，默认假设为全屏", e);
             return true;
@@ -959,11 +959,14 @@ public class LineToBlockHandler {
         }
 
         double threshold = Math.max(0.0, Math.min(1.0, simplificationRatio));
+        // sqrt(2) 是格内线段的最大可能穿越长度（对角线），除以它将绝对长度归一化为 0~1 的覆盖比例，
+        // 使 simplificationRatio 的语义与 UI 含义（至少覆盖多少比例才保留）完全对应。
+        final double CELL_MAX_LENGTH = Math.sqrt(2.0);
         boolean[] keep = new boolean[candidates.size()];
         for (int i = 0; i < candidates.size(); i++) {
             BlockPos pos = candidates.get(i);
             double insideLength = segmentLengthInsideUnitCell(x0, z0, x1, z1, pos.getX(), pos.getZ());
-            keep[i] = insideLength >= threshold;
+            keep[i] = (insideLength / CELL_MAX_LENGTH) >= threshold;
         }
 
         // 端点始终保留，避免折线接缝或短线段在精简模式下出现断头。
@@ -1037,7 +1040,7 @@ public class LineToBlockHandler {
         int y = (int) Math.floor(yLevel);
 
         LOGGER.debug("线段光栅化(DDA): 世界坐标({}, {}) -> ({}, {}), 标高={}",
-            x0, z0, x1, z1, y);
+                x0, z0, x1, z1, y);
 
         return rasterizeLineGridTraversal(x0, z0, x1, z1, y);
     }
@@ -1058,15 +1061,17 @@ public class LineToBlockHandler {
             return positions;
         }
 
-        double startX = nudgeTraversalCoordinate(x0, dx, true);
-        double startZ = nudgeTraversalCoordinate(z0, dz, true);
-        double endX = nudgeTraversalCoordinate(x1, dx, false);
-        double endZ = nudgeTraversalCoordinate(z1, dz, false);
+        // 起点微推：若起点恰好落在格线上，向行进方向推入正确的格，避免 floor 将其归入反方向的格。
+        // 终点不做微推，直接取 floor(x1)/floor(z1) 作为目标格——
+        // 终点同时是折线下一段的起点，下一段方向可能相反，若终点也做 nudge
+        // 会导致两段对同一坐标的落格结果不一致，产生 1 格缝隙或重叠。
+        double startX = nudgeStartCoordinate(x0, dx);
+        double startZ = nudgeStartCoordinate(z0, dz);
 
         int currentX = (int) Math.floor(startX);
         int currentZ = (int) Math.floor(startZ);
-        int endCellX = (int) Math.floor(endX);
-        int endCellZ = (int) Math.floor(endZ);
+        int endCellX = (int) Math.floor(x1);
+        int endCellZ = (int) Math.floor(z1);
 
         int stepX = Double.compare(dx, 0.0);
         int stepZ = Double.compare(dz, 0.0);
@@ -1109,13 +1114,20 @@ public class LineToBlockHandler {
         return positions;
     }
 
-    private double nudgeTraversalCoordinate(double coordinate, double delta, boolean isStart) {
+    /**
+     * 若起点坐标恰好落在格线上（即为整数），将其向行进方向微推一个极小量，
+     * 确保 floor() 将其归入行进方向前方的格，而非后方的格。
+     * 只对线段起点调用；终点不做此处理，以保证折线相邻段的格子连续性。
+     */
+    private double nudgeStartCoordinate(double coordinate, double delta) {
         if (Math.abs(delta) < 1e-12) {
             return coordinate;
         }
-
-        double epsilon = 1.0e-9 * Math.signum(delta);
-        return isStart ? coordinate + epsilon : coordinate - epsilon;
+        // 仅当坐标精确落在格线上时才微推，普通浮点坐标不受影响
+        if (coordinate == Math.floor(coordinate)) {
+            return coordinate + 1.0e-9 * Math.signum(delta);
+        }
+        return coordinate;
     }
 
     private List<BlockPos> restoreShortLineGaps(List<BlockPos> candidates, boolean[] keep) {
