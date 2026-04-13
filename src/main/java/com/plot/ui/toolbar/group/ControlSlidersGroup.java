@@ -94,6 +94,105 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             cleanupSliderStyles();
         }
     }
+
+    /**
+     * 顶部控制面板紧凑渲染（单行）
+     */
+    public void renderCompactSingleRow(float targetHeight) {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastSyncTime > SYNC_INTERVAL_MS && !isAnySliderActive()) {
+            syncValuesFromManagers();
+        }
+
+        float textHeight = ImGui.getTextLineHeight();
+        float framePaddingY = Math.max(0, (targetHeight - textHeight) / 2.0f);
+        setupCompactSliderStyles(framePaddingY);
+        try {
+            boolean isLocked = CameraManager.getInstance().getOrthographicCamera().isLocked();
+
+            // 视距
+            ImGui.text("视图范围");
+            ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
+            ImGui.pushItemWidth(240.0f);
+            try {
+                if (isLocked) {
+                    ImGui.beginDisabled();
+                }
+                String sliderID1 = "##slider_viewDistance_compact_" + System.identityHashCode(viewDistanceValue);
+                if (ImGui.sliderFloat(sliderID1, viewDistanceValue, 40.0f, 310.0f, "%.0f")) {
+                    CameraManager.getInstance().setViewDistance(viewDistanceValue[0]);
+                }
+                if (isLocked) {
+                    ImGui.endDisabled();
+                }
+                if (ImGui.isItemHovered() && ImGui.isMouseClicked(1)) {
+                    String uniquePopupTitle = "视图范围输入_" + System.identityHashCode(viewDistanceValue);
+                    ImGui.openPopup(uniquePopupTitle);
+                }
+            } finally {
+                ImGui.popItemWidth();
+            }
+            ToolbarUIUtils.renderInputPopup(
+                "视图范围输入_" + System.identityHashCode(viewDistanceValue),
+                "输入视图范围 (40-310)", viewDistanceValue[0], 40.0f, 310.0f,
+                newValue -> {
+                    viewDistanceValue[0] = newValue;
+                    CameraManager.getInstance().setViewDistance(newValue);
+                }
+            );
+
+            ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING * 2.0f);
+
+            // 透明
+            ImGui.text("画布透明度");
+            ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
+            ImGui.pushItemWidth(240.0f);
+            try {
+                String sliderID2 = "##slider_opacity_compact_" + System.identityHashCode(opacityValue);
+                if (ImGui.sliderFloat(sliderID2, opacityValue, 0.0f, 100.0f, "%.0f%%")) {
+                    float normalizedOpacity = opacityValue[0] / 100.0f;
+                    eventBus.publish(new OpacityChangeEvent(normalizedOpacity));
+                    appState.setOpacity(normalizedOpacity);
+                }
+                if (ImGui.isItemHovered() && ImGui.isMouseClicked(1)) {
+                    String uniquePopupTitle2 = "画布透明度输入_" + System.identityHashCode(opacityValue);
+                    ImGui.openPopup(uniquePopupTitle2);
+                }
+            } finally {
+                ImGui.popItemWidth();
+            }
+            ToolbarUIUtils.renderInputPopup(
+                "画布透明度输入_" + System.identityHashCode(opacityValue),
+                "输入画布透明度 (0-100)", opacityValue[0], 0.0f, 100.0f,
+                newValue -> {
+                    opacityValue[0] = newValue;
+                    float normalizedOpacity = newValue / 100.0f;
+                    eventBus.publish(new OpacityChangeEvent(normalizedOpacity));
+                    appState.setOpacity(normalizedOpacity);
+                }
+            );
+        } finally {
+            cleanupCompactSliderStyles();
+        }
+    }
+
+    private void setupCompactSliderStyles(float framePaddingY) {
+        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4, framePaddingY);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0.0f);
+        ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.buttonBorder);
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.buttonNormal);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.buttonHovered);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, currentTheme.buttonActive);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrab, currentTheme.sliderGrab);
+        ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, currentTheme.sliderGrabActive);
+    }
+
+    private void cleanupCompactSliderStyles() {
+        ImGui.popStyleColor(6);
+        ImGui.popStyleVar(3);
+    }
     
     /**
      * 检查是否有任何滑动条正在被拖拽

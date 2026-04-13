@@ -466,6 +466,12 @@ public class PlotScreen extends Screen {
         renderDockedRightPanels(propertyPanel, galleryPanel, extensionPanel);
     }
 
+    private float getTopBarHeight() {
+        ImGuiStyle style = ImGui.getStyle();
+        float titleBarHeight = ImGui.getTextLineHeight() + style.getFramePadding().y * 2.0f;
+        return UILayout.Toolbar.BUTTON_SIZE + 2.0f * UILayout.Toolbar.BUTTON_PADDING + titleBarHeight;
+    }
+
     /**
      * 默认 Dock 布局：不需要用户首次手动拖拽。
      *
@@ -487,59 +493,46 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderSetNodeSize(dockspaceId, displayWidth, displayHeight);
 
         ImInt dockMain = new ImInt(dockspaceId);
-        ImInt dockLeft = new ImInt();
-        ImInt dockRight = new ImInt();
-        ImInt dockLeftTop = new ImInt();  // 左侧顶部（控制面板）
-        ImInt dockLeftBottom = new ImInt(); // 左侧底部（工具面板）
-        ImInt dockRightTop = new ImInt();   // 右侧顶部（系统面板）
-        ImInt dockRightBottom = new ImInt(); // 右侧底部（属性面板）
+        ImInt dockTopLeft = new ImInt();     // 顶部左侧（控制面板）
+        ImInt dockTopRight = new ImInt();    // 顶部右侧（系统面板）
+        ImInt dockBottomLeft = new ImInt();  // 左侧底部（工具面板）
+        ImInt dockBottomRight = new ImInt(); // 右侧底部（属性面板）
+        ImInt dockBottomMain = new ImInt();  // 底部中间（画布）
 
-        // 左侧 dock 宽度：控制面板与工具面板共享同一列宽
-        // 目标宽度：刚好可容纳工具面板一行4个按钮，且控制面板单行滑动条宽度恰好可放下
         float leftDockWidth = UILayout.Toolbar.PANEL_WIDTH;
+        float rightDockWidth = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
         float leftRatio = Math.min(0.45f, leftDockWidth / Math.max(1.0f, displayWidth));
-        float rightRatio = Math.min(0.45f, UILayout.RIGHT_PANEL_DEFAULT_WIDTH / Math.max(1.0f, displayWidth));
-        
-        // 控制面板高度比例：使用实际高度计算，确保能完全显示内容
-        // 根据实际需要的像素高度计算比例
-        float controlPanelHeightRatio = UILayout.Toolbar.CONTROL_PANEL_HEIGHT / Math.max(1.0f, displayHeight);
-        // 设置最大比例为屏幕高度的40%，避免控制面板过大，但确保足够显示内容
-        controlPanelHeightRatio = Math.min(controlPanelHeightRatio, 0.40f);
-        // 确保最小比例足够（至少能显示内容），如果计算出的比例太小，使用至少20%
-        controlPanelHeightRatio = Math.max(controlPanelHeightRatio, 0.25f);
-        
-        // 系统面板高度：按钮高度 + 2*边距 + 标题栏高度
-        // 标题栏高度通常等于文本行高 + 框架内边距 * 2（上下各一个）
-        // 或者使用 ImGui 样式中的 TitleBarHeight（如果有的话）
-        ImGuiStyle style = ImGui.getStyle();
-        float titleBarHeight = ImGui.getTextLineHeight() + style.getFramePadding().y * 2.0f;
-        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE + 2.0f * UILayout.Toolbar.BUTTON_PADDING + titleBarHeight;
-        float systemPanelHeightRatio = Math.min(0.15f, systemPanelHeight / Math.max(1.0f, displayHeight));
+        float rightRatio = Math.min(0.45f, rightDockWidth / Math.max(1.0f, displayWidth));
 
-        // 先分割左右
-        imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockLeft, dockMain);
-        imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Right, rightRatio, dockRight, dockMain);
-        
-        // 左侧分割为上下：上部分控制面板，下部分工具面板
-        imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, controlPanelHeightRatio, dockLeftTop, dockLeftBottom);
-        
-        // 设置控制面板dock节点的最小大小，确保内容不被裁剪
-        // 使用工具面板宽度作为最小宽度，控制面板高度作为最小高度
-        float minControlPanelHeight = UILayout.Toolbar.CONTROL_PANEL_HEIGHT;
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockLeftTop.get(), leftDockWidth, minControlPanelHeight);
-        
-        // 右侧分割为上下：上部分系统面板，下部分属性面板
-        imgui.internal.ImGui.dockBuilderSplitNode(dockRight.get(), ImGuiDir.Up, systemPanelHeightRatio, dockRightTop, dockRightBottom);
+        float topBarHeight = getTopBarHeight();
+        float topBarHeightRatio = Math.min(0.20f, topBarHeight / Math.max(1.0f, displayHeight));
 
-        dockIdTopLeft = dockLeftTop.get();
-        dockIdLeft = dockLeftBottom.get();
-        dockIdTopRight = dockRightTop.get();
-        dockIdRight = dockRightBottom.get();
+        // 先分割上下：顶部条（控制面板 + 系统面板），底部内容区
+        imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Up, topBarHeightRatio, dockTopLeft, dockMain);
+
+        // 顶部再分割左右：左为控制面板，右为系统面板
+        float systemPanelWidthRatio = Math.min(0.45f, rightDockWidth / Math.max(1.0f, displayWidth));
+        imgui.internal.ImGui.dockBuilderSplitNode(dockTopLeft.get(), ImGuiDir.Right, systemPanelWidthRatio, dockTopRight, dockTopLeft);
+
+        // 固定顶部左右节点宽度，确保系统面板与属性面板对齐
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockTopRight.get(), rightDockWidth, topBarHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockTopLeft.get(), Math.max(0.0f, displayWidth - rightDockWidth), topBarHeight);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockTopRight.get(), displayWidth - rightDockWidth, 0.0f);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockTopLeft.get(), 0.0f, 0.0f);
+
+        // 底部内容区再分割左右：左为工具面板，右为属性面板，中间为画布
+        imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockBottomLeft, dockBottomMain);
+        imgui.internal.ImGui.dockBuilderSplitNode(dockBottomMain.get(), ImGuiDir.Right, rightRatio, dockBottomRight, dockBottomMain);
+
+        dockIdTopLeft = dockTopLeft.get();
+        dockIdTopRight = dockTopRight.get();
+        dockIdLeft = dockBottomLeft.get();
+        dockIdRight = dockBottomRight.get();
 
         // 停靠窗口到对应的dock节点
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTopLeft);  // 控制面板在左侧顶部
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);  // 工具面板在左侧底部
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP_SYSTEM, dockIdTopRight);  // 系统面板在右侧顶部
+        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTopLeft);  // 控制面板在顶部左侧
+        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP_SYSTEM, dockIdTopRight);  // 系统面板在顶部右侧
+        imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);  // 工具面板在左侧
         // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
         // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_PROPERTY, dockIdRight);
@@ -559,10 +552,11 @@ public class PlotScreen extends Screen {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
-        // 控制面板在左侧顶部，宽度与工具面板一致
-        float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
+        float topBarHeight = getTopBarHeight();
+        float controlPanelWidth = Math.max(0.0f, displayWidth - UILayout.RIGHT_PANEL_DEFAULT_WIDTH);
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
-        ImGui.setNextWindowSize(toolPanelWidth, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(controlPanelWidth, topBarHeight, ImGuiCond.FirstUseEver);
         boolean controlVisible = ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS);
         try {
             if (controlVisible) {
@@ -582,11 +576,7 @@ public class PlotScreen extends Screen {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
-        // 系统面板在右侧顶部，宽度和属性面板一样，高度 = 按钮高度 + 2*边距 + 标题栏高度
-        // 标题栏高度通常等于文本行高 + 框架内边距 * 2（上下各一个）
-        ImGuiStyle style = ImGui.getStyle();
-        float titleBarHeight = ImGui.getTextLineHeight() + style.getFramePadding().y * 2.0f;
-        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE + 2.0f * UILayout.Toolbar.BUTTON_PADDING + titleBarHeight;
+        float systemPanelHeight = getTopBarHeight();
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float x = UILayout.getRightPanelX(displayWidth);
         ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.FirstUseEver);
@@ -610,10 +600,11 @@ public class PlotScreen extends Screen {
         ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().toolbarBackground);
         float displayHeight = ImGui.getIO().getDisplaySizeY();
+        float topBarHeight = getTopBarHeight();
         // 工具面板宽度（使用固定宽度，与控制面板一致）
         float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
-        ImGui.setNextWindowPos(0.0f, UILayout.Toolbar.CONTROL_PANEL_HEIGHT, ImGuiCond.FirstUseEver);
-        ImGui.setNextWindowSize(toolPanelWidth, UILayout.getContentHeight(displayHeight), ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowPos(0.0f, topBarHeight, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(toolPanelWidth, displayHeight - topBarHeight, ImGuiCond.FirstUseEver);
         boolean toolDockVisible = ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS);
         try {
             if (toolDockVisible) {
@@ -636,8 +627,7 @@ public class PlotScreen extends Screen {
         float displayWidth = ImGui.getIO().getDisplaySizeX();
         float displayHeight = ImGui.getIO().getDisplaySizeY();
         float x = UILayout.getRightPanelX(displayWidth);
-        // 属性面板在系统面板下方，系统面板高度约两倍按钮高度
-        float systemPanelHeight = UILayout.Toolbar.BUTTON_SIZE * 2.0f;
+        float systemPanelHeight = getTopBarHeight();
         float w = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
         // 属性面板高度 = 总高度 - 系统面板高度
         float h = displayHeight - systemPanelHeight;

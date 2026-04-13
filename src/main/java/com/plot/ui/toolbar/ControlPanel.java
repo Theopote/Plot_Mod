@@ -154,13 +154,9 @@ public class ControlPanel implements UIComponent {
                 UILayout.Toolbar.ITEM_SPACING,
                 UILayout.Toolbar.ITEM_SPACING);
             try {
-                if (ImGui.beginChild("##control_panel_scroll", 0, 0, false, ImGuiWindowFlags.NoScrollbar)) {
-                    renderToolGroups();
-                    renderFixedComponents();
-                    renderDialogs();
-                    ImGui.dummy(1.0f, UILayout.Toolbar.BUTTON_PADDING + 12.0f);
-                }
-                ImGui.endChild();
+                renderToolGroupsSingleRow();
+                renderFixedComponents();
+                renderDialogs();
             } finally {
                 ImGui.popStyleVar(2);
             }
@@ -255,6 +251,46 @@ public class ControlPanel implements UIComponent {
                 }
             }
 
+        }
+    }
+
+    /**
+     * 单行渲染工具组（顶部工具栏模式）
+     */
+    private void renderToolGroupsSingleRow() {
+        float contentMinX = ImGui.getWindowContentRegionMinX();
+        float contentMaxX = ImGui.getWindowContentRegionMaxX();
+        float contentMinY = ImGui.getWindowContentRegionMinY();
+        float contentMaxY = ImGui.getWindowContentRegionMaxY();
+        float availableHeight = Math.max(0.0f, contentMaxY - contentMinY);
+        float cursorY = contentMinY + Math.max(0.0f, (availableHeight - UILayout.Toolbar.BUTTON_SIZE) * 0.5f);
+
+        List<ToolbarGroup> enabledGroups = new ArrayList<>();
+        for (ToolbarGroup group : toolGroups) {
+            if (group.isEnabled()) {
+                enabledGroups.add(group);
+            }
+        }
+
+        if (enabledGroups.isEmpty()) {
+            return;
+        }
+
+        ImGui.setCursorPos(contentMinX, cursorY);
+        for (int i = 0; i < enabledGroups.size(); i++) {
+            ToolbarGroup group = enabledGroups.get(i);
+            try {
+                if (group instanceof ControlSlidersGroup slidersGroup) {
+                    slidersGroup.renderCompactSingleRow(UILayout.Toolbar.BUTTON_SIZE);
+                } else {
+                    group.render();
+                }
+                if (i < enabledGroups.size() - 1) {
+                    ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error rendering tool group: {}", group.getGroupName(), e);
+            }
         }
     }
     

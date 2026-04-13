@@ -11,7 +11,7 @@ public class UILayout {
         public static final float BUTTON_PADDING = 4.0f;        // 按钮内边距
         public static final float ITEM_SPACING = 4.0f;          // 组内项目间距
         public static final float SEPARATOR_WIDTH = 1;          // 分隔符宽度
-        public static final float SLIDER_WIDTH = 172.0f;        // 滑动条宽度（172 = 180 - 2*边距）
+        public static final float SLIDER_WIDTH = 172.0f;        // 滑动条宽度
         public static final float SLIDER_HEIGHT = 26.0f;        // 滑动条高度
         public static final float THEME_SELECTOR_HEIGHT = 40.0f; // 主题选择器高度
         public static final float LABEL_HEIGHT = 16.0f;         // 标题高度（文本行高）
@@ -34,11 +34,10 @@ public class UILayout {
         public static final float TOOL_PANEL_PADDING = BUTTON_PADDING;   // 工具面板内边距（与控制面板一致）
 
         
-        // 面板宽度计算：四个按钮宽度 + 三个间距 + 两个边距 + 窗口边框 = 滑动条宽度 + 两个边距 + 窗口边框
-        // 考虑窗口边框（WindowBorderSize = 1.0f，左右各1像素，共2像素）
-        // 4 * BUTTON_SIZE + 3 * ITEM_SPACING + 2 * BUTTON_PADDING + 2 * WINDOW_BORDER = 4 * 40 + 3 * 4 + 2 * 4 + 2 * 1 = 160 + 12 + 8 + 2 = 182
-        // SLIDER_WIDTH + 2 * BUTTON_PADDING + 2 * WINDOW_BORDER = 172 + 2 * 4 + 2 * 1 = 172 + 8 + 2 = 182
-        public static final float PANEL_WIDTH = 182.0f;        // 控制面板和工具面板的默认宽度（180 + 2边框）
+        // 面板宽度计算：两列按钮
+        // 2 * BUTTON_SIZE + 1 * ITEM_SPACING + 2 * BUTTON_PADDING + 2 * WINDOW_BORDER
+        // 2 * 40 + 1 * 4 + 2 * 4 + 2 * 1 = 80 + 4 + 8 + 2 = 94
+        public static final float PANEL_WIDTH = 94.0f;        // 工具面板默认宽度（两列按钮）
         
         // 默认工具面板宽度（使用固定宽度180，与控制面板一致）
         public static final float TOOL_PANEL_WIDTH = PANEL_WIDTH;
