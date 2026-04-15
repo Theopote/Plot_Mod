@@ -416,7 +416,7 @@ public class ImGuiRenderer {
                 long now = System.currentTimeMillis();
                 if (dd != null && now - lastDrawDataLogMs > 3000L) {
                     lastDrawDataLogMs = now;
-                    LOGGER.warn("ImGui dd lists={}, vtx={}, idx={}",
+                    LOGGER.debug("ImGui dd lists={}, vtx={}, idx={}",
                         dd.getCmdListsCount(), dd.getTotalVtxCount(), dd.getTotalIdxCount());
                 }
                 if (dd != null) {

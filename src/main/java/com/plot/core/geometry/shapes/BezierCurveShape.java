@@ -701,10 +701,6 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
      */
     @Deprecated(since = "2.0", forRemoval = true)
     public List<Vec2d> getPoints() {
-        // 记录废弃方法的使用警告
-        System.err.println("警告: getPoints()方法已废弃，将在未来版本中移除。" +
-                          "请使用getAnchorPoints()和getSegmentControlPoints()代替。");
-        
         List<Vec2d> pts = new ArrayList<>();
         for (BezierSegment seg : segments) {
             pts.add(seg.anchor1);
@@ -722,9 +718,6 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
      */
     @Deprecated(since = "2.0", forRemoval = true)
     public void setPoints(List<Vec2d> points) {
-        // 记录废弃方法的使用警告
-        System.err.println("警告: setPoints()方法已废弃，将在未来版本中移除。" +
-                          "请使用BezierCurveShape(anchorPoints, controls, closed)构造函数代替。");
         segments.clear();
         if (points != null && points.size() >= 4 && (points.size() - 1) % 3 == 0) {
             int segCount = (points.size() - 1) / 3;

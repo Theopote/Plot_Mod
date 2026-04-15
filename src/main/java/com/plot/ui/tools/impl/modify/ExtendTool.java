@@ -49,6 +49,7 @@ public class ExtendTool extends ModifyTool {
     public static final String CONFIG_KEY_ENDPOINT_TOLERANCE = "endpointTolerance";
 
     private final AtomicBoolean eventSubscribed = new AtomicBoolean(false);
+    private final com.plot.infrastructure.event.EventListener toolConfigListener = this::handleToolConfigEvent;
     
     /**
      * 依赖注入构造函数（推荐）
@@ -174,10 +175,10 @@ public class ExtendTool extends ModifyTool {
         
         // 在激活时订阅事件 - 使用原子操作确保线程安全
         if (eventSubscribed.compareAndSet(false, true)) {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+            EventBus.getInstance().subscribe(ToolConfigEvent.class, toolConfigListener);
             LOGGER.debug("ExtendTool 已订阅 ToolConfigEvent");
         } else {
-            LOGGER.warn("尝试重复订阅 ToolConfigEvent，跳过");
+            LOGGER.debug("ExtendTool 已订阅 ToolConfigEvent，跳过重复订阅");
         }
         
         LOGGER.debug("CAD风格延伸工具已激活");
@@ -203,10 +204,10 @@ public class ExtendTool extends ModifyTool {
         
         // 在停用时取消订阅事件 - 使用原子操作确保线程安全
         if (eventSubscribed.compareAndSet(true, false)) {
-            EventBus.getInstance().unsubscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+            EventBus.getInstance().unsubscribe(ToolConfigEvent.class, toolConfigListener);
             LOGGER.debug("ExtendTool 已取消订阅 ToolConfigEvent");
         } else {
-            LOGGER.warn("尝试取消未订阅的 ToolConfigEvent");
+            LOGGER.debug("ExtendTool 未订阅 ToolConfigEvent，跳过取消订阅");
         }
         
         super.onDeactivate();
