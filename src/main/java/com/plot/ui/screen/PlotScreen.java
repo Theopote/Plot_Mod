@@ -576,11 +576,7 @@ public class PlotScreen extends Screen {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
-        float systemPanelHeight = getTopBarHeight();
-        float displayWidth = ImGui.getIO().getDisplaySizeX();
-        float x = UILayout.getRightPanelX(displayWidth);
-        ImGui.setNextWindowPos(x, 0.0f, ImGuiCond.Always);
-        ImGui.setNextWindowSize(UILayout.RIGHT_PANEL_DEFAULT_WIDTH, systemPanelHeight, ImGuiCond.Always);
+        // 只用DockSpace窗口，不再setNextWindowPos/Size，保证可停靠
         boolean systemVisible = ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS);
         try {
             if (systemVisible) {
@@ -624,20 +620,9 @@ public class PlotScreen extends Screen {
         ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
 
-        float displayWidth = ImGui.getIO().getDisplaySizeX();
-        float displayHeight = ImGui.getIO().getDisplaySizeY();
-        float x = UILayout.getRightPanelX(displayWidth);
-        float systemPanelHeight = getTopBarHeight();
-        float w = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
-        // 属性面板高度 = 总高度 - 系统面板高度
-        float h = displayHeight - systemPanelHeight;
-
         try {
             // 属性面板（第一个渲染，确保在最前面且默认打开）
             if (propertyPanel != null) {
-                ImGui.setNextWindowPos(x, systemPanelHeight, ImGuiCond.Always);
-                ImGui.setNextWindowSize(w, h, ImGuiCond.Always);
-                // 首次渲染时设置焦点，确保属性面板默认激活
                 if (firstRender) {
                     ImGui.setNextWindowFocus();
                 }
