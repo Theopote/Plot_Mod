@@ -90,18 +90,34 @@ public class ImageUtils {
      * @param imagePath 图像路径
      */
     public static void checkImageInfo(String imagePath) {
-        try (InputStream is = ImageUtils.class.getClassLoader().getResourceAsStream(imagePath)) {
-            if (is == null) {
-                LOGGER.error("图像文件不存在: {}", imagePath);
+        InputStream input = ImageUtils.class.getClassLoader().getResourceAsStream(imagePath);
+        String resolvedPath = imagePath;
+
+        if (input == null && imagePath.endsWith(".png")) {
+            String svgPath = imagePath.substring(0, imagePath.length() - 4) + ".svg";
+            input = ImageUtils.class.getClassLoader().getResourceAsStream(svgPath);
+            if (input != null) {
+                resolvedPath = svgPath;
+                LOGGER.info("图标检查回退: {} -> {}", imagePath, svgPath);
+            }
+        }
+
+        if (input == null) {
+            LOGGER.error("图像文件不存在: {}", imagePath);
+            return;
+        }
+
+        try (InputStream is = input) {
+            BufferedImage image = resolvedPath.endsWith(".svg") ? SvgUtils.readSvg(is) : ImageIO.read(is);
+            if (image == null) {
+                LOGGER.error("无法解析图像文件: {}", resolvedPath);
                 return;
             }
-            
-            BufferedImage image = ImageIO.read(is);
             int width = image.getWidth();
             int height = image.getHeight();
             
             LOGGER.info("图像信息 - 路径: {}, 尺寸: {}x{}, 类型: {}", 
-                      imagePath, width, height, getImageTypeName(image.getType()));
+                      resolvedPath, width, height, getImageTypeName(image.getType()));
             
             if (!isPowerOfTwo(width) || !isPowerOfTwo(height)) {
                 LOGGER.warn("图像尺寸不是2的幂次方: {}x{}, 建议调整为: {}x{}", 

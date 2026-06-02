@@ -1,5 +1,6 @@
 package com.plot.core.resource;
 
+import com.plot.utils.SvgUtils;
 import net.minecraft.util.Identifier;
 import org.lwjgl.opengl.GL11;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 import com.plot.ui.imgui.gl.GlTextureUploadGuard;
 
 public class ResourceManager {
@@ -40,18 +42,17 @@ public class ResourceManager {
             
             // 创建正确的Identifier
             Identifier identifier = Identifier.of("plot", path);
+            ResolvedResource resolvedResource = resolveResource(identifier);
             
             // 使用Minecraft的资源管理器获取资源
-            Resource resource = MinecraftClient.getInstance().getResourceManager()
-                .getResource(identifier)
-                .orElseThrow(() -> new RuntimeException("Resource not found: " + identifier));
-
             // 1.21.11：NativeImage/RenderSystem 的纹理上传 API 发生变化。
             // 这里改用 ImageIO -> RGBA ByteBuffer -> glTexImage2D 的纯 OpenGL 路径，避免版本耦合。
-            try (InputStream in = resource.getInputStream()) {
-                BufferedImage image = ImageIO.read(in);
+            try (InputStream in = resolvedResource.resource().getInputStream()) {
+                BufferedImage image = resolvedResource.identifier().getPath().endsWith(".svg")
+                        ? SvgUtils.readSvg(in)
+                        : ImageIO.read(in);
                 if (image == null) {
-                    throw new RuntimeException("Failed to decode image: " + identifier);
+                    throw new RuntimeException("Failed to decode image: " + resolvedResource.identifier());
                 }
                 int width = image.getWidth();
                 int height = image.getHeight();
@@ -83,7 +84,7 @@ public class ResourceManager {
                     GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, width, height, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
                 }
 
-                LOGGER.debug("Loaded texture: {} (ID: {}, {}x{})", path, textureId, width, height);
+                LOGGER.debug("Loaded texture: {} (resolved as {}, ID: {}, {}x{})", path, resolvedResource.identifier(), textureId, width, height);
                 return textureId;
             }
             
@@ -91,6 +92,31 @@ public class ResourceManager {
             LOGGER.error("Failed to load texture: {}", path, e);
             return 0;
         }
+    }
+
+    private ResolvedResource resolveResource(Identifier requested) {
+        Optional<Resource> direct = MinecraftClient.getInstance().getResourceManager().getResource(requested);
+        if (direct.isPresent()) {
+            return new ResolvedResource(requested, direct.get());
+        }
+
+        String path = requested.getPath();
+        if (path.endsWith(".png")) {
+            Identifier svgIdentifier = Identifier.of(
+                    requested.getNamespace(),
+                    path.substring(0, path.length() - 4) + ".svg"
+            );
+            Optional<Resource> svg = MinecraftClient.getInstance().getResourceManager().getResource(svgIdentifier);
+            if (svg.isPresent()) {
+                LOGGER.debug("Texture fallback hit: {} -> {}", requested, svgIdentifier);
+                return new ResolvedResource(svgIdentifier, svg.get());
+            }
+        }
+
+        throw new RuntimeException("Resource not found: " + requested);
+    }
+
+    private record ResolvedResource(Identifier identifier, Resource resource) {
     }
 
     // 预留：如果后续需要对纹理尺寸做校验，可恢复 isPowerOfTwo 检查逻辑

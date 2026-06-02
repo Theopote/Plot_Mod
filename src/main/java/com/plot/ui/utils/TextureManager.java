@@ -1,5 +1,6 @@
 package com.plot.ui.utils;
 
+import com.plot.utils.SvgUtils;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.Resource;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
@@ -45,13 +47,10 @@ public class TextureManager {
         }
 
         try {
-            Resource resource = MinecraftClient.getInstance()
-                    .getResourceManager()
-                    .getResource(identifier)
-                    .orElseThrow(() -> new IOException("Resource not found: " + identifier));
+            ResolvedResource resolvedResource = resolveResource(identifier);
 
-            try (InputStream is = resource.getInputStream()) {
-                int textureId = uploadTexture(is);
+            try (InputStream is = resolvedResource.resource().getInputStream()) {
+                int textureId = uploadTexture(is, resolvedResource.identifier().getPath());
                 textureCache.put(key, textureId);
                 return textureId;
             }
@@ -61,8 +60,30 @@ public class TextureManager {
         }
     }
 
-    private int uploadTexture(InputStream is) throws IOException {
-        BufferedImage image = ImageIO.read(is);
+    private ResolvedResource resolveResource(Identifier requested) throws IOException {
+        Optional<Resource> direct = MinecraftClient.getInstance().getResourceManager().getResource(requested);
+        if (direct.isPresent()) {
+            return new ResolvedResource(requested, direct.get());
+        }
+
+        String path = requested.getPath();
+        if (path.endsWith(".png")) {
+            Identifier svgIdentifier = Identifier.of(
+                    requested.getNamespace(),
+                    path.substring(0, path.length() - 4) + ".svg"
+            );
+            Optional<Resource> svg = MinecraftClient.getInstance().getResourceManager().getResource(svgIdentifier);
+            if (svg.isPresent()) {
+                LOGGER.debug("Texture fallback hit: {} -> {}", requested, svgIdentifier);
+                return new ResolvedResource(svgIdentifier, svg.get());
+            }
+        }
+
+        throw new IOException("Resource not found: " + requested);
+    }
+
+    private int uploadTexture(InputStream is, String path) throws IOException {
+        BufferedImage image = path.endsWith(".svg") ? SvgUtils.readSvg(is) : ImageIO.read(is);
         if (image == null) {
             throw new IOException("Failed to decode image stream");
         }
@@ -108,5 +129,8 @@ public class TextureManager {
             }
         }
         textureCache.clear();
+    }
+
+    private record ResolvedResource(Identifier identifier, Resource resource) {
     }
 } 
