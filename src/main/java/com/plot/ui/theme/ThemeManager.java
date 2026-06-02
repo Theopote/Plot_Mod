@@ -6,7 +6,6 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.ThemeChangeEvent;
 import imgui.ImColor;
 import imgui.ImGui;
-import imgui.ImGuiStyle;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import org.slf4j.Logger;

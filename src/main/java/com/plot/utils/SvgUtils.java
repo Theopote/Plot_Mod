@@ -20,7 +20,7 @@ public final class SvgUtils {
         try {
             BufferedImageTranscoder transcoder = new BufferedImageTranscoder();
             TranscoderInput input = new TranscoderInput(inputStream);
-            transcoder.transcode(input, (TranscoderOutput) null);
+            transcoder.transcode(input, null);
 
             BufferedImage image = transcoder.getImage();
             if (image == null) {
