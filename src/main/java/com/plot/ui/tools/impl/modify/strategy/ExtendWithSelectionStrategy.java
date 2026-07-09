@@ -200,10 +200,11 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
         // 更新状态消息
         if (isShiftPressed) {
-            context.setStatusMessage(String.format("已添加到选择，新增 %d 个图形，总计 %d 个",
-                addedCount, selectedShapeIds.size()));
+            context.setStatusMessage(PlotI18n.status("status.plot.common.added_to_selection",
+                    addedCount, selectedShapeIds.size()));
         } else {
-            context.setStatusMessage(String.format("已选择 %d 个图形", selectedShapeIds.size()));
+            context.setStatusMessage(PlotI18n.status("status.plot.common.selected_count",
+                    selectedShapeIds.size()));
         }
 
         // 重置框选状态
@@ -219,10 +220,8 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             cacheBoundaryShapes(context); // 缓存边界图形，提升性能
 
             // 框选成功消息
-            String boxSelectMessage = String.format(
-                "框选完成！已选择 %d 个边界图形，自动进入延伸模式。点击要延伸的图形端点执行延伸，ESC重新选择边界",
-                boundaryShapes.size());
-            context.setStatusMessage(boxSelectMessage);
+            context.setStatusMessage(PlotI18n.status("status.plot.extend.box_boundary_done",
+                    boundaryShapes.size()));
             LOGGER.info("框选后自动切换到延伸模式，边界图形数量: {}", boundaryShapes.size());
         }
 
@@ -460,10 +459,8 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 extendState = ExtendState.EXTENDING;
 
                 // 状态消息
-                String confirmMessage = String.format(
-                    "边界已确认！已选择 %d 个边界图形，点击要延伸的图形端点执行延伸，ESC重新选择边界",
-                    boundaryShapes.size());
-                context.setStatusMessage(confirmMessage);
+                context.setStatusMessage(PlotI18n.status("status.plot.extend.boundary_confirmed",
+                        boundaryShapes.size()));
                 LOGGER.info("右键确认边界选择，进入延伸模式，边界图形数量: {}", boundaryShapes.size());
                 return ModifyResult.CONTINUE;
             } else {
@@ -728,8 +725,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 resetExtendState();
                 extendState = ExtendState.SELECTING_BOUNDARY;
                 
-                String message = String.format("延伸框选完成！成功延伸 %d 个图形，工具已重置，请重新选择边界图形开始下一次延伸", successCount);
-                context.setStatusMessage(message);
+                context.setStatusMessage(PlotI18n.status("status.plot.extend.box_extend_done", successCount));
                 LOGGER.debug("延伸框选完成，工具已重置，准备下一次延伸");
                 return ModifyResult.COMPLETE;
             } else {
@@ -834,24 +830,17 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
             // 更新状态消息
             if (isShiftPressed) {
-                String addMessage = String.format(
-                    "已添加边界图形 %s，总计 %d 个边界图形，右键确认选择",
-                    clickedShape.getId(), selectedShapeIds.size());
-                context.setStatusMessage(addMessage);
+                context.setStatusMessage(PlotI18n.status("status.plot.extend.boundary_added",
+                        clickedShape.getId(), selectedShapeIds.size()));
             } else {
-                String selectMessage = String.format(
-                    "已选择边界图形 %s，总计 %d 个边界图形，右键确认选择",
-                    clickedShape.getId(), selectedShapeIds.size());
-                context.setStatusMessage(selectMessage);
+                context.setStatusMessage(PlotI18n.status("status.plot.extend.boundary_selected",
+                        clickedShape.getId(), selectedShapeIds.size()));
             }
         } else if (isShiftPressed) {
-            // Shift+点击已选中的图形：取消选择
             selectedShapeIds.remove(clickedShape.getId());
             super.updateShapeSelection(clickedShape, false, context);
-            String deselectMessage = String.format(
-                "已取消选择边界图形 %s，总计 %d 个边界图形",
-                clickedShape.getId(), selectedShapeIds.size());
-            context.setStatusMessage(deselectMessage);
+            context.setStatusMessage(PlotI18n.status("status.plot.extend.boundary_deselected",
+                    clickedShape.getId(), selectedShapeIds.size()));
         }
 
         return ModifyResult.CONTINUE;
@@ -912,10 +901,8 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                     extendState = ExtendState.SELECTING_BOUNDARY;
 
                     // 动态状态消息：提示用户延伸完成并已重置
-                    String successMessage = String.format(
-                        "延伸成功！图形 %s 已延伸，工具已重置，请重新选择边界图形开始下一次延伸",
-                        targetInfo.targetShape.getId());
-                    context.setStatusMessage(successMessage);
+                    context.setStatusMessage(PlotI18n.status("status.plot.extend.success_reset",
+                            targetInfo.targetShape.getId()));
 
                     LOGGER.debug("延伸操作完成并立即执行，工具已重置，准备下一次延伸");
                     // 返回COMPLETE表示操作完成，状态已重置
@@ -927,10 +914,8 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 }
             } else {
                 // 更具体的失败消息
-                String failureMessage = String.format(
-                    "延伸失败：无法计算延伸结果，请确保边界有效（当前边界数: %d）",
-                    getEffectiveBoundaries().size());
-                context.setStatusMessage(failureMessage);
+                context.setStatusMessage(PlotI18n.status("status.plot.extend.calc_failed",
+                        getEffectiveBoundaries().size()));
                 LOGGER.warn("延伸操作失败：无法计算修改后的图形");
                 return ModifyResult.CANCEL;
             }
@@ -938,10 +923,8 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             LOGGER.error("执行延伸操作时出错: {}", e.getMessage(), e);
 
             // 更具体的错误消息
-            String errorMessage = String.format(
-                "延伸操作失败: %s，边界数: %d，请检查边界图形是否有效",
-                e.getMessage(), getEffectiveBoundaries().size());
-            context.setStatusMessage(errorMessage);
+            context.setStatusMessage(PlotI18n.status("status.plot.extend.error_with_boundaries",
+                    e.getMessage(), getEffectiveBoundaries().size()));
             return ModifyResult.CANCEL;
         }
     }
@@ -1727,10 +1710,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             if (result == ModifyResult.COMPLETE) {
                 int count = getSelectedCount();
                 if (count > 0) {
-                    String selectionMessage = String.format(
-                        "已选择 %d 个边界图形，右键确认边界选择并开始延伸操作",
-                        count);
-                    context.setStatusMessage(selectionMessage);
+                    context.setStatusMessage(PlotI18n.status("status.plot.extend.boundaries_selected", count));
                 } else {
                     context.setStatusMessage("status.plot.extend.select_boundary_required");
                 }
