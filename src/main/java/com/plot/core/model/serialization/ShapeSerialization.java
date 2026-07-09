@@ -126,12 +126,7 @@ public final class ShapeSerialization {
             if (trimmed.contains("\"annotationType\":\"DISTANCE\"")
                     || trimmed.contains("\"annotationType\":\"ANGLE\"")
                     || trimmed.contains("\"annotationType\":\"RADIUS\"")
-                    || trimmed.contains("\"annotationType\":\"AREA\"")
-                    || trimmed.contains("\"type\":\"DISTANCE\"")
-                    || trimmed.contains("\"type\":\"ANGLE\"")
-                    || trimmed.contains("\"type\":\"RADIUS\"")
-                    || trimmed.contains("\"type\":\"AREA\"")
-                    || trimmed.contains("\"shapeType\":\"AnnotationShape\"")) {
+                    || trimmed.contains("\"annotationType\":\"AREA\"")) {
                 return "AnnotationShape";
             }
             return null;

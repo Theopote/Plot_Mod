@@ -1078,7 +1078,7 @@ public class AnnotationShape extends Shape {
                 throw new IllegalArgumentException("无法解析标注数据");
             }
 
-            String typeName = shapeData.annotationType != null ? shapeData.annotationType : shapeData.type;
+            String typeName = shapeData.annotationType;
             if (typeName == null || typeName.isBlank()) {
                 throw new IllegalArgumentException("缺少标注类型");
             }
@@ -1189,9 +1189,7 @@ public class AnnotationShape extends Shape {
     }
 
     private static class AnnotationShapeData {
-        public String shapeType = "AnnotationShape";
         public String annotationType;
-        public String type;
         public String text;
         public PointData textPosition;
         public PointData point1;
