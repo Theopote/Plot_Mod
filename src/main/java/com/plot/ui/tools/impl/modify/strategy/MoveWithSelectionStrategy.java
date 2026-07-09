@@ -15,6 +15,7 @@ import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
@@ -164,7 +165,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         try {
             isShiftPressed = imgui.ImGui.getIO().getKeyShift();
             isCtrlPressed = imgui.ImGui.getIO().getKeyCtrl();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("MoveWithSelectionStrategy: read modifier key state", e); }
 
         if (!hasBasePoint) {
             // 第一次点击：设置基点

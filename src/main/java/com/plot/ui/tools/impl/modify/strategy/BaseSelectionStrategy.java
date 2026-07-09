@@ -12,6 +12,7 @@ import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy.ModifyToolContext;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -80,7 +81,7 @@ public abstract class BaseSelectionStrategy {
         // 检查Ctrl键状态用于多选
         try {
             isCtrlPressed = imgui.ImGui.getIO().getKeyCtrl();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("BaseSelectionStrategy: read Ctrl key state", e); }
 
         // 参考SelectionStrategy，对于Ctrl+点击立即处理
         if (isCtrlPressed) {

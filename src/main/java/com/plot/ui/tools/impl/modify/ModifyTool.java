@@ -15,6 +15,7 @@ import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.graphics.DrawContext;
 import com.plot.ui.canvas.CanvasCamera;
+import com.plot.utils.ExceptionDebug;
 import com.plot.infrastructure.event.EventBus;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -185,7 +186,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         
         try {
             // 更新捕捉可视化状态
-            try { snapEnhancer.performEnhancedSnap(pos, this); } catch (Exception ignored) {}
+            try { snapEnhancer.performEnhancedSnap(pos, this); } catch (Exception e) { ExceptionDebug.log("ModifyTool: update snap on mouse down", e); }
             IModifyStrategy.ModifyResult result = 
                 strategy.onMouseDown(pos, button, this);
             
@@ -207,10 +208,10 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         
         try {
             // 更新捕捉可视化状态
-            try { snapEnhancer.performEnhancedSnap(pos, this); } catch (Exception ignored) {}
-            IModifyStrategy.ModifyResult result = 
+            try { snapEnhancer.performEnhancedSnap(pos, this); } catch (Exception e) { ExceptionDebug.log("ModifyTool: update snap on mouse move", e); }
+            IModifyStrategy.ModifyResult result =
                 strategy.onMouseMove(pos, this);
-            
+
             return handleModifyResult(result, "鼠标移动");
             
         } catch (Exception e) {
@@ -354,13 +355,13 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
                     List<Shape> oldShapes = command.getOldShapes();
                     if (oldShapes != null) {
                         for (Shape s : oldShapes) {
-                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception ignored) {}
+                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception e) { ExceptionDebug.log("ModifyTool: clear selection on command shapes", e); }
                         }
                     }
                     List<Shape> newShapes = command.getNewShapes();
                     if (newShapes != null) {
                         for (Shape s : newShapes) {
-                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception ignored) {}
+                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception e) { ExceptionDebug.log("ModifyTool: clear selection on command shapes", e); }
                         }
                     }
                 } catch (Exception e) {
@@ -511,7 +512,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
                 } else if (getCanvas() != null && getCanvas().getScale() > 0) {
                     worldTolerance = tolerance / getCanvas().getScale();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) { ExceptionDebug.log("ModifyTool: convert selection tolerance to world", e); }
             
             // 从后往前遍历（后绘制的图形在上层，优先选择）
             for (int i = allShapes.size() - 1; i >= 0; i--) {
@@ -530,7 +531,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
                         } else if (getCanvas() != null && getCanvas().getScale() > 0) {
                             dynamicWorldTolerance = dynamicTolerancePixels / getCanvas().getScale();
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) { ExceptionDebug.log("ModifyTool: convert dynamic tolerance to world", e); }
                     double actualTolerance = Math.min(worldTolerance, dynamicWorldTolerance);
                     
                     if (GeometricSelectionHelper.isPointOnShape(shape, pos, actualTolerance)) {
@@ -746,7 +747,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     public void render(DrawContext context) {
         renderPreview(context);
         // 统一渲染捕捉指示器（DrawContext）
-        try { snapEnhancer.renderSnapIndicator(context); } catch (Exception ignored) {}
+        try { snapEnhancer.renderSnapIndicator(context); } catch (Exception e) { ExceptionDebug.log("ModifyTool: render snap indicator", e); }
     }
 
     /**
@@ -760,7 +761,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         }
         
         // 在尾部统一渲染捕捉指示器
-        try { snapEnhancer.renderSnapIndicator(drawList, camera); } catch (Exception ignored) {}
+        try { snapEnhancer.renderSnapIndicator(drawList, camera); } catch (Exception e) { ExceptionDebug.log("ModifyTool: render snap indicator overlay", e); }
     }
 
     // ====== 选项管理 ======

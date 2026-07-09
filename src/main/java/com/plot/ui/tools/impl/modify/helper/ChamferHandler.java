@@ -10,6 +10,7 @@ import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.ChamferTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -214,7 +215,7 @@ public class ChamferHandler implements IModifyHandler {
             if (overlayPreview != null && !overlayPreview.isEmpty()) {
                 for (Shape preview : overlayPreview) {
                     if (baseShape.getStyle() != null) {
-                        try { preview.setStyle(baseShape.getStyle().clone()); } catch (Exception ignore) {}
+                        try { preview.setStyle(baseShape.getStyle().clone()); } catch (Exception e) { ExceptionDebug.log("ChamferHandler: clone base shape style for preview", e); }
                     }
                     preview.setSelected(false);
                     preview.setHighlighted(false);
@@ -230,7 +231,7 @@ public class ChamferHandler implements IModifyHandler {
             Shape preview = modifiedShapes.get(i);
             Shape original = i < shapes.size() ? shapes.get(i) : null;
             if (original != null && original.getStyle() != null) {
-                try { preview.setStyle(original.getStyle().clone()); } catch (Exception ignore) {}
+                try { preview.setStyle(original.getStyle().clone()); } catch (Exception e) { ExceptionDebug.log("ChamferHandler: clone style for preview", e); }
             }
             
             // 修复：清除预览图形的选中状态，确保使用图层颜色而不是选中颜色

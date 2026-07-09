@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.modify.helper.RotateHandler;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
@@ -182,7 +183,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             isShiftPressed = imgui.ImGui.getIO().getKeyShift();
             isCtrlPressed = imgui.ImGui.getIO().getKeyCtrl();
             isAltPressed = imgui.ImGui.getIO().getKeyAlt();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("RotateWithSelectionStrategy: read modifier key state", e); }
 
         switch (currentState) {
             case IDLE, SETTING_CENTER -> {
@@ -258,7 +259,8 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                 } else {
                     constrainedCurrentPoint = currentPoint;
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                ExceptionDebug.log("RotateWithSelectionStrategy: constrain rotation angle", e);
                 constrainedCurrentPoint = currentPoint;
             }
 

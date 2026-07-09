@@ -10,6 +10,7 @@ import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 // import com.plot.infrastructure.event.mouse.KeyEvent; // 未使用
 import com.plot.infrastructure.event.mouse.MouseEvent;
+import com.plot.utils.ExceptionDebug;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import org.slf4j.Logger;
@@ -87,7 +88,9 @@ public class CanvasInputHandler {
                 if (ImGui.getIO().getWantCaptureMouse()) {
                     return;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                ExceptionDebug.log("CanvasInputHandler: check ImGui wantCaptureMouse", e);
+            }
 
             // 获取通用状态（鼠标相关）
             Vec2d worldPos = core.screenToWorld(mouseScreenPos);
@@ -343,7 +346,9 @@ public class CanvasInputHandler {
                 double worldTol = 5.0;
                 try {
                     worldTol = core.getCamera() != null ? core.getCamera().screenToWorldDistance(5.0) : 5.0;
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    ExceptionDebug.log("CanvasInputHandler: screenToWorldDistance for selection", e);
+                }
                 if (com.plot.ui.tools.impl.modify.helper.GeometricSelectionHelper
                         .isPointOnShape(shape, worldPos, worldTol)) {
                     isDraggingShapes = true;
@@ -417,9 +422,9 @@ public class CanvasInputHandler {
         boolean ctrlDown = ImGui.getIO().getKeyCtrl();
         if (ctrlDown != wasCtrlDown) {
             if (ctrlDown) {
-                try { currentTool.onKeyDown(17); } catch (Exception ignored) {}
+                try { currentTool.onKeyDown(17); } catch (Exception e) { ExceptionDebug.log("CanvasInputHandler: forward Ctrl key down", e); }
             } else {
-                try { currentTool.onKeyUp(17); } catch (Exception ignored) {}
+                try { currentTool.onKeyUp(17); } catch (Exception e) { ExceptionDebug.log("CanvasInputHandler: forward Ctrl key up", e); }
             }
             wasCtrlDown = ctrlDown;
         }
@@ -427,9 +432,9 @@ public class CanvasInputHandler {
         boolean shiftDown = ImGui.getIO().getKeyShift();
         if (shiftDown != wasShiftDown) {
             if (shiftDown) {
-                try { currentTool.onKeyDown(16); } catch (Exception ignored) {}
+                try { currentTool.onKeyDown(16); } catch (Exception e) { ExceptionDebug.log("CanvasInputHandler: forward Shift key down", e); }
             } else {
-                try { currentTool.onKeyUp(16); } catch (Exception ignored) {}
+                try { currentTool.onKeyUp(16); } catch (Exception e) { ExceptionDebug.log("CanvasInputHandler: forward Shift key up", e); }
             }
             wasShiftDown = shiftDown;
         }
@@ -518,7 +523,9 @@ public class CanvasInputHandler {
         double worldTol = 5.0;
         try {
             worldTol = core.getCamera() != null ? core.getCamera().screenToWorldDistance(5.0) : 5.0;
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            ExceptionDebug.log("CanvasInputHandler: screenToWorldDistance for click", e);
+        }
         Shape clickedShape = findShapeAtOutline(worldPos, worldTol);
         if (!ImGui.getIO().getKeyShift() && clickedShape == null) {
             appState.clearSelection();

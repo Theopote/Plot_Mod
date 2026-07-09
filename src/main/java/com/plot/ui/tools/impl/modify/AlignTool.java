@@ -13,6 +13,7 @@ import com.plot.ui.tools.impl.modify.strategy.AlignWithSelectionStrategy;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
+import com.plot.utils.ExceptionDebug;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -268,7 +269,7 @@ public class AlignTool extends ModifyTool {
                     context.drawLine(g.getStart(), g.getEnd(), dashed);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignTool: render alignment preview guides", e); }
     }
     
     /**

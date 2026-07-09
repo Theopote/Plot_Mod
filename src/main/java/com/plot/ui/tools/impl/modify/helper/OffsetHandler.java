@@ -17,6 +17,7 @@ import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.CableShape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -183,7 +184,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
                 Shape preview = modifiedShapes.get(i);
                 Shape original = i < shapes.size() ? shapes.get(i) : null;
                 if (original != null && original.getStyle() != null) {
-                    try { preview.setStyle(original.getStyle().clone()); } catch (Exception ignore) {}
+                    try { preview.setStyle(original.getStyle().clone()); } catch (Exception e) { ExceptionDebug.log("OffsetHandler: clone style for preview", e); }
                 }
                 
                 // 修复：清除预览图形的选中状态，确保使用图层颜色而不是选中颜色
@@ -952,7 +953,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
                 if (bezier.getStyle() != null && offsetShape.getStyle() == null) {
                     try {
                         offsetShape.setStyle(bezier.getStyle().clone());
-                    } catch (Exception ignore) {}
+                    } catch (Exception e) { ExceptionDebug.log("OffsetHandler: clone bezier offset style", e); }
                 }
                 LOGGER.warn("贝塞尔曲线偏移可能不够准确，使用近似方法");
                 // 注意：这里返回的是新的形状，但为了保持一致性，我们使用控制点偏移
@@ -996,7 +997,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
                 if (cable.getStyle() != null && offsetCable.getStyle() == null) {
                     try {
                         offsetCable.setStyle(cable.getStyle().clone());
-                    } catch (Exception ignore) {}
+                    } catch (Exception e) { ExceptionDebug.log("OffsetHandler: clone cable offset style", e); }
                 }
                 LOGGER.warn("悬链线偏移可能不够准确，仅平移了端点");
                 // 注意：由于无法直接获取 sagPoint，我们使用 createOffset 的结果

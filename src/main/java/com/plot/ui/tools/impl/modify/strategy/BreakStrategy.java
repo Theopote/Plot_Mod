@@ -13,6 +13,7 @@ import com.plot.ui.tools.impl.modify.helper.IModifyHandler;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.List;
 
@@ -336,7 +337,7 @@ public class BreakStrategy implements IModifyStrategy {
                         lastBreakMark = firstBreakPoint;
                         lastBreakMarkAtMs = System.currentTimeMillis();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) { ExceptionDebug.log("BreakStrategy: record break mark feedback", e); }
                 
                 // 打断后为连续操作做准备（保持工具可继续下一次打断）
                 prepareForNextOperation(context);
@@ -744,7 +745,7 @@ public class BreakStrategy implements IModifyStrategy {
             if (cam != null) {
                 tolWorld = cam.screenToWorldDistance(SELECTION_TOLERANCE);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("BreakStrategy: convert selection tolerance to world", e); }
         return tolWorld;
     }
 

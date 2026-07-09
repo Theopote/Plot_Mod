@@ -8,6 +8,7 @@ import com.plot.ui.tools.impl.modify.helper.AlignHandler;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.*;
 import java.util.List;
@@ -330,7 +331,7 @@ public class AlignStrategy implements IModifyStrategy {
                 previewGuides.add(new com.plot.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint2, targetPoint2, "PAIR_2"));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignStrategy: build alignment preview guides", e); }
     }
 
     /**
@@ -347,7 +348,7 @@ public class AlignStrategy implements IModifyStrategy {
                 previewGuides.add(new com.plot.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint2, dynamicTarget2, "PAIR_2_PREVIEW"));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignStrategy: preview guide for dynamic target 2", e); }
     }
 
     /**
@@ -374,7 +375,7 @@ public class AlignStrategy implements IModifyStrategy {
                         best = cp;
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) { ExceptionDebug.log("AlignStrategy: project point onto shape", e); }
         }
         return best != null ? best : point;
     }

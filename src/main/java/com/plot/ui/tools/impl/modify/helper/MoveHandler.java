@@ -7,6 +7,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -146,7 +147,7 @@ public class MoveHandler implements IModifyHandler {
                 
                 // 预览样式应与原图形一致
                 if (shape.getStyle() != null) {
-                    try { previewShape.setStyle(shape.getStyle().clone()); } catch (Exception ignore) {}
+                    try { previewShape.setStyle(shape.getStyle().clone()); } catch (Exception e) { ExceptionDebug.log("MoveHandler: clone style for preview", e); }
                 }
                 
                 // 修复：清除预览图形的选中状态，确保使用图层颜色而不是选中颜色

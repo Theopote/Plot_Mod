@@ -10,6 +10,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
+import com.plot.utils.ExceptionDebug;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -292,13 +293,13 @@ public class TransformTool extends ModifyTool implements EventListener {
                     List<com.plot.core.model.Shape> oldShapes = command.getOldShapes();
                     if (oldShapes != null) {
                         for (com.plot.core.model.Shape s : oldShapes) {
-                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception ignored) {}
+                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception e) { ExceptionDebug.log("TransformTool: clear selection on command shapes", e); }
                         }
                     }
                     List<com.plot.core.model.Shape> newShapes = command.getNewShapes();
                     if (newShapes != null) {
                         for (com.plot.core.model.Shape s : newShapes) {
-                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception ignored) {}
+                            try { s.setSelected(false); s.setHighlighted(false); } catch (Exception e) { ExceptionDebug.log("TransformTool: clear selection on command shapes", e); }
                         }
                     }
                 } catch (Exception e) {

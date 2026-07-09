@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.utils.ExceptionDebug;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
@@ -406,7 +407,7 @@ public class FreeDrawTool extends DrawingTool {
         @Override
         public InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
             // 始终更新增强吸附状态，未开始绘制时也显示指示器
-            try { snapEnhancer.performEnhancedSnap(pos, context); } catch (Exception ignored) {}
+            try { snapEnhancer.performEnhancedSnap(pos, context); } catch (Exception e) { ExceptionDebug.log("FreeDrawTool: update snap on mouse move", e); }
             if (!isDrawing) {
                 return InteractionResult.CONTINUE; // 触发重绘以显示吸附指示器
             }

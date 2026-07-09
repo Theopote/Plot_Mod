@@ -1,6 +1,7 @@
 package com.plot.ui.screen;
 
 import com.plot.core.state.AppState;
+import com.plot.utils.ExceptionDebug;
 import com.plot.ui.imgui.ImGuiRenderer;
 import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.imgui.PlotStyleScope;
@@ -1059,7 +1060,7 @@ public class PlotScreen extends Screen {
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("PlotScreen: handle character shortcut", e); }
 
         // 如果ImGui没有捕获，尝试传递给当前工具
         BaseTool currentTool = AppState.getInstance().getCurrentTool();

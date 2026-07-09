@@ -9,6 +9,7 @@ import com.plot.ui.component.Icons;
 import com.plot.ui.tools.impl.modify.strategy.BreakStrategy;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
+import com.plot.utils.ExceptionDebug;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -240,6 +241,6 @@ public class BreakTool extends ModifyTool {
                     context.drawLine(mark.add(new Vec2d(size, -size)), mark.add(new Vec2d(-size, size)), color);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("BreakTool: render break mark feedback", e); }
     }
 } 

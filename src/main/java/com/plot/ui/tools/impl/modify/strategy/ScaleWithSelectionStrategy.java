@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.modify.helper.ScaleHandler;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
@@ -177,7 +178,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
         try {
             isShiftPressed = imgui.ImGui.getIO().getKeyShift();
             isCtrlPressed = imgui.ImGui.getIO().getKeyCtrl();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("ScaleWithSelectionStrategy: read modifier key state", e); }
 
         switch (currentState) {
             case IDLE -> {

@@ -10,6 +10,7 @@ import imgui.ImColor;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 
@@ -429,7 +430,8 @@ public class SnapEnhancer {
             float configured = SnapManager.getInstance().getMarkerSize();
             float scale = configured / 5.0f;
             return Math.max(0.8f, Math.min(2.0f, scale));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            ExceptionDebug.log("SnapEnhancer: compute marker scale", e);
             return 1.0f;
         }
     }

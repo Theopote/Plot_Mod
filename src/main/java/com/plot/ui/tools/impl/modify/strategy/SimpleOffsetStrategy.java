@@ -18,6 +18,7 @@ import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.utils.ExceptionDebug;
 // import org.slf4j.Logger;
 // import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,8 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
                 targetShape.setHighlighted(false);
                 targetShape.setSelected(true);
                 context.addSelectedShape(targetShape);
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                ExceptionDebug.log("SimpleOffsetStrategy: select clicked shape", e);
             }
             // 记录第一参考点
             firstPoint = snapped;
@@ -119,10 +121,9 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
                     s.setHighlighted(false);
                     context.addSelectedShape(s);
                 }
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                ExceptionDebug.log("SimpleOffsetStrategy: select offset result shapes", e);
             }
-
-            context.setStatusMessage(String.format("偏移完成（距离 %.2f）", Math.abs(signedDistance)));
             if (multipleMode) {
                 reset();
                 context.setStatusMessage(String.format("偏移完成（距离 %.2f），请继续选择下一条线", Math.abs(signedDistance)));
@@ -225,7 +226,8 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             double sign = Math.signum(crossZ);
             if (sign == 0) sign = 1.0; // 与切线共线时默认外侧
             return sign * distance;
-        } catch (Exception ignore) {
+        } catch (Exception e) {
+            ExceptionDebug.log("SimpleOffsetStrategy: compute signed offset distance", e);
             // 最后回退：使用原有的signedDistance（部分形状可能返回无符号）
             return shape.getSignedDistance(clickPoint);
         }
@@ -265,6 +267,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             }
             return shape.containsPoint(point, SimpleOffsetStrategy.OUTLINE_PICK_TOLERANCE);
         } catch (Exception e) {
+            ExceptionDebug.log("SimpleOffsetStrategy: check near outline", e);
             return false;
         }
     }
@@ -298,6 +301,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             }
             return shape.contains(point);
         } catch (Exception e) {
+            ExceptionDebug.log("SimpleOffsetStrategy: check inside closed shape", e);
             return false;
         }
     }
@@ -327,7 +331,8 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
         if (shape instanceof PolylineShape poly) {
             try {
                 return poly.isClosed();
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                ExceptionDebug.log("SimpleOffsetStrategy: check polyline closed", e);
                 return false;
             }
         }

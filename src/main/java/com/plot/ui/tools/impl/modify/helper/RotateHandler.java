@@ -7,6 +7,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,7 +112,8 @@ public class RotateHandler implements IModifyHandler {
                         if (shapeCenter != null) {
                             centerForThis = shapeCenter;
                         }
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        ExceptionDebug.log("RotateHandler: resolve shape center for rotation", e);
                     }
                 }
                 // 旋转（弧度）
@@ -145,7 +147,7 @@ public class RotateHandler implements IModifyHandler {
                 // 修复：清除预览图形的选中状态，确保使用图层颜色而不是选中颜色
                 preview.setSelected(false);
                 preview.setHighlighted(false);
-            } catch (Exception ignored) {}
+            } catch (Exception e) { ExceptionDebug.log("RotateHandler: clone style for preview", e); }
         }
         return modifiedShapes;
     }

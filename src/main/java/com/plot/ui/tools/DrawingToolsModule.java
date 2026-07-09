@@ -97,7 +97,7 @@ public final class DrawingToolsModule {
             ToolGroup drawingGroup = getOrCreateDrawingGroup(toolManager);
             
             // 创建所有绘图工具
-            List<BaseTool> tools = createAllDrawingTools(appState, eventBus, snapManager, commandManager);
+            List<BaseTool> tools = createAllDrawingTools(appState, snapManager, commandManager);
             
             // 注册工具到ToolManager和工具组
             registerTools(toolManager, drawingGroup, tools);

@@ -7,6 +7,7 @@ import com.plot.ui.tools.impl.modify.ControlPointEditTool;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.snap.SnapVisualStyle;
+import com.plot.utils.ExceptionDebug;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
@@ -575,7 +576,7 @@ public class SettingsAndHelpDialog {
             shift = ImGui.getIO().getKeyShift();
             alt = ImGui.getIO().getKeyAlt();
             superKey = ImGui.getIO().getKeySuper();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("SettingsAndHelpDialog: read modifier key state", e); }
 
         for (int key = KeyboardShortcutConverter.captureKeyMin(); key <= KeyboardShortcutConverter.captureKeyMax(); key++) {
             if (ImGui.isKeyPressed(key)) {

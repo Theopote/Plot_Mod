@@ -25,6 +25,7 @@ import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
 import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -725,13 +726,13 @@ public class LineTool extends DrawingTool {
 
         @Override
         public InteractionResult onMouseDown(Vec2d pos, int button, DrawingToolContext context) {
-            try { snapEnhancer.performEnhancedSnap(pos, context); } catch (Exception ignored) {}
+            try { snapEnhancer.performEnhancedSnap(pos, context); } catch (Exception e) { ExceptionDebug.log("LineTool: update snap on mouse down", e); }
             return delegate.onMouseDown(pos, button, context);
         }
 
         @Override
         public InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
-            try { snapEnhancer.performEnhancedSnap(pos, context); } catch (Exception ignored) {}
+            try { snapEnhancer.performEnhancedSnap(pos, context); } catch (Exception e) { ExceptionDebug.log("LineTool: update snap on mouse move", e); }
             return delegate.onMouseMove(pos, context);
         }
 

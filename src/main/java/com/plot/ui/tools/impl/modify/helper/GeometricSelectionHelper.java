@@ -7,6 +7,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.graphics.style.ShapeStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.Arrays;
 import java.util.List;
@@ -83,7 +84,7 @@ public class GeometricSelectionHelper {
                 style.getFillStyle() != null && style.getFillStyle().isVisible()) {
                 hasFill = true;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("GeometricSelectionHelper: detect shape fill visibility", e); }
 
         // 首先尝试在"无填充"情况下使用 containsPoint（多数实现基于轮廓距离）
         if (!hasFill) {
@@ -122,7 +123,7 @@ public class GeometricSelectionHelper {
                             if (cp != null) {
                                 closestDistance = point.distance(cp);
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) { ExceptionDebug.log("GeometricSelectionHelper: get closest point for hit test", e); }
                     }
                     if (closestDistance != null && closestDistance <= tolerance) {
                         return true;
@@ -527,7 +528,7 @@ public class GeometricSelectionHelper {
                         shapePts.addAll(Arrays.asList(bb.getCorners()));
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) { ExceptionDebug.log("GeometricSelectionHelper: collect shape points for crossing test", e); }
             if (shapePts.size() < 2) return false;
         }
         

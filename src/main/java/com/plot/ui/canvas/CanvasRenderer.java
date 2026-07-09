@@ -11,6 +11,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.ui.tools.impl.modify.SelectionTool;
 import com.plot.ui.theme.UITheme;
+import com.plot.utils.ExceptionDebug;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseCursor;
@@ -343,7 +344,7 @@ public class CanvasRenderer implements EventListener {
                 core.setSize(Math.max(1, Math.round(displayWidth)), Math.max(1, Math.round(displayHeight)));
                 optimizer.updateViewport(0.0f, 0.0f, displayWidth, displayHeight);
                 // 相机偏移为全屏原点
-                try { core.getCamera().setOffset(new com.plot.api.geometry.Vec2d(0, 0)); } catch (Exception ignored) {}
+                try { core.getCamera().setOffset(new com.plot.api.geometry.Vec2d(0, 0)); } catch (Exception e) { ExceptionDebug.log("CanvasRenderer: reset camera offset for fullscreen", e); }
 
                 ImDrawList drawList = ImGui.getBackgroundDrawList();
                 if (drawList != null) {
@@ -407,7 +408,9 @@ public class CanvasRenderer implements EventListener {
                                 float wh = ImGui.getWindowHeight();
                                 core.setCanvasScreenBounds(wx, wy, ww, wh);
                                 core.setSize(Math.max(1, Math.round(ww)), Math.max(1, Math.round(wh)));
-                            } catch (Exception ignored) {}
+                            } catch (Exception e) {
+                                ExceptionDebug.log("CanvasRenderer: sync canvas screen bounds", e);
+                            }
                         }
                         // 无论是否 docking，都同步相机 offset 到当前窗口内容区域
                         try {
@@ -419,7 +422,9 @@ public class CanvasRenderer implements EventListener {
                                 windowX + contentRegionX,
                                 windowY + contentRegionY
                             ));
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) {
+                            ExceptionDebug.log("CanvasRenderer: set camera offset from window position", e);
+                        }
 
                         // 获取draw list前检查窗口状态
                         if (!ImGui.isWindowCollapsed()) {

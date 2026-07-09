@@ -18,6 +18,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.core.graphics.style.TextStyle;
+import com.plot.utils.ExceptionDebug;
 import com.plot.core.graphics.style.TextAlignment;
 import com.plot.ui.dialog.TextInputDialog;
 import com.plot.infrastructure.event.EventListener;
@@ -365,7 +366,7 @@ public class TextTool extends BaseTool {
                     return layer.getColor();
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("TextTool: resolve text color from layer", e); }
         // 3) 最后回退到默认颜色
         return TextStyle.DEFAULT_COLOR;
     }

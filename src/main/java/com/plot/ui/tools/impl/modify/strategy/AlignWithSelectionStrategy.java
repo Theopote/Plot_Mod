@@ -11,6 +11,7 @@ import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -392,7 +393,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 previewGuides.add(new com.plot.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint2, targetPoint2, "PAIR_2"));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignWithSelectionStrategy: build alignment preview guides", e); }
     }
 
     /**
@@ -405,7 +406,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 previewGuides.add(new com.plot.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint1, dynamicTarget1, "PAIR_1_PREVIEW"));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignWithSelectionStrategy: preview guide for dynamic target 1", e); }
     }
 
     /**
@@ -418,8 +419,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 previewGuides.add(new com.plot.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint1, targetPoint1, "PAIR_1"));
             }
-            // 在等待选择源点2时，不显示从动态源点到目标点1的辅助线（用户希望该阶段无辅助线）
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignWithSelectionStrategy: preview guide while selecting source point 2", e); }
     }
 
     /**
@@ -436,7 +436,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 previewGuides.add(new com.plot.ui.tools.impl.modify.helper.AlignmentGuide(
                         sourcePoint2, dynamicTarget2, "PAIR_2_PREVIEW"));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { ExceptionDebug.log("AlignWithSelectionStrategy: preview guide for dynamic target 2", e); }
     }
 
     /**
@@ -456,7 +456,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                         best = cp;
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) { ExceptionDebug.log("AlignWithSelectionStrategy: project point onto shape", e); }
         }
         return best != null ? best : point;
     }

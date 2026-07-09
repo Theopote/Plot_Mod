@@ -22,6 +22,7 @@ import com.plot.ui.tools.impl.modify.constants.FilletConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.core.geometry.GeometryUtils;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -578,7 +579,7 @@ public class FilletHandler implements IModifyHandler {
                             );
                         }
                     }
-                } catch (Exception ignore) {}
+                } catch (Exception e) { ExceptionDebug.log("FilletHandler: clone dashed style for preview", e); }
             }
             
             // 清除预览图形的选中状态，确保使用图层颜色而不是选中颜色

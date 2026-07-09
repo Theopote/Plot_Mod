@@ -26,6 +26,7 @@ import com.plot.infrastructure.event.base.Event;
 import com.plot.core.spatial.SpatialIndex;
 import com.plot.core.spatial.QuadtreeSpatialIndex;
 import com.plot.api.geometry.IBoundingBox;
+import com.plot.utils.ExceptionDebug;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -529,13 +530,13 @@ public class AppState implements IAppState {
         // 取消旧选择中但不在新选择中的图形的选中标记
         for (Shape old : oldSelection) {
             if (!newSelection.contains(old)) {
-                try { old.setSelected(false); } catch (Exception ignored) {}
+                try { old.setSelected(false); } catch (Exception e) { ExceptionDebug.log("AppState: clear previous selection", e); }
             }
         }
 
         // 设置新选择中的选中标记
         for (Shape cur : newSelection) {
-            try { cur.setSelected(true); } catch (Exception ignored) {}
+            try { cur.setSelected(true); } catch (Exception e) { ExceptionDebug.log("AppState: set new selection highlight", e); }
         }
 
         selectedShapes.clear();
@@ -546,14 +547,14 @@ public class AppState implements IAppState {
     public void addSelectedShape(Shape shape) {
         if (shape != null && !selectedShapes.contains(shape)) {
             selectedShapes.add(shape);
-            try { shape.setSelected(true); } catch (Exception ignored) {}
+            try { shape.setSelected(true); } catch (Exception e) { ExceptionDebug.log("AppState: add shape to selection", e); }
             publishSelectionChangedEvent();
         }
     }
 
     public void removeSelectedShape(Shape shape) {
         if (selectedShapes.remove(shape)) {
-            try { shape.setSelected(false); } catch (Exception ignored) {}
+            try { shape.setSelected(false); } catch (Exception e) { ExceptionDebug.log("AppState: remove shape from selection", e); }
             publishSelectionChangedEvent();
         }
     }
@@ -569,7 +570,7 @@ public class AppState implements IAppState {
         if (!selectedShapes.isEmpty()) {
             // 清除视觉选中标记
             for (Shape s : new ArrayList<>(selectedShapes)) {
-                try { s.setSelected(false); } catch (Exception ignored) {}
+                try { s.setSelected(false); } catch (Exception e) { ExceptionDebug.log("AppState: clear all selection highlights", e); }
             }
             selectedShapes.clear();
             publishSelectionChangedEvent();
