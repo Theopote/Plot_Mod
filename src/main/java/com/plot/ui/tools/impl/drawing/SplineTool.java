@@ -106,9 +106,9 @@ public class SplineTool extends DrawingTool {
     
     // 5. 状态消息
     private static final List<String> STATUS_MESSAGES = List.of(
-        "点击添加样条控制点",
-        "继续点击添加控制点，右键完成绘制",
-        "继续点击添加控制点，按C键封闭曲线，右键完成绘制"
+        "status.plot.draw.spline.add_point",
+        "status.plot.draw.spline.continue",
+        "status.plot.draw.spline.continue_close"
     );
     
     // ====== 构造函数 ======

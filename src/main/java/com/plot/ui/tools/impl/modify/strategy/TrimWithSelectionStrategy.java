@@ -46,80 +46,80 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
 
     // 修剪类型枚举
     public enum TrimType {
-        BOUNDARY("边界修剪", "选择边界图形，然后点击要修剪的图形一侧"),
-        FENCE("栅栏修剪", "选择要修剪的图形，然后绘制栅栏区域");
+        BOUNDARY("trim.plot.boundary", "trim.plot.mode.boundary.desc"),
+        FENCE("trim.plot.fence", "trim.plot.mode.fence.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        TrimType(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        TrimType(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.tr(nameKey); }
+        public String getDescription() { return PlotI18n.tr(descKey); }
     }
 
     public enum TrimMode {
-        BOUNDARY("边界修剪", "选择边界图形，然后点击要修剪的图形一侧"),
-        FENCE("栅栏修剪", "定义栅栏线进行批量修剪");
+        BOUNDARY("trim.plot.boundary", "trim.plot.mode.boundary.desc"),
+        FENCE("trim.plot.fence", "trim.plot.mode.fence_alt.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        TrimMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        TrimMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.tr(nameKey); }
+        public String getDescription() { return PlotI18n.tr(descKey); }
     }
 
     public enum FenceType {
-        POLYLINE("Polyline"),
-        RECTANGLE("矩形"),
-        CIRCLE("圆形"),
-        ELLIPSE("椭圆"),
-        REGULAR_POLYGON("正多边形");
+        POLYLINE("fence.plot.polyline"),
+        RECTANGLE("fence.plot.rectangle"),
+        CIRCLE("fence.plot.circle"),
+        ELLIPSE("fence.plot.ellipse"),
+        REGULAR_POLYGON("fence.plot.polygon");
 
-        private final String displayName;
+        private final String nameKey;
 
-        FenceType(String displayName) {
-            this.displayName = displayName;
+        FenceType(String nameKey) {
+            this.nameKey = nameKey;
         }
 
         public String getDisplayName() {
-            return displayName;
+            return PlotI18n.tr(nameKey);
         }
     }
 
     // 修剪状态枚举
     public enum TrimState {
         // 边界修剪状态
-        SELECTING_BOUNDARIES("选择边界", "左键选择用作修剪边界的图形，右键完成选择"),
-        WAITING_TRIM_CLICK("等待修剪", "左键点击要修剪的图形一侧"),
-        BOUNDARY_READY("边界就绪", "边界已选择，可以继续修剪其他图形"),
-        
+        SELECTING_BOUNDARIES("trim.plot.state.selecting_boundaries", "trim.plot.state.selecting_boundaries.desc"),
+        WAITING_TRIM_CLICK("trim.plot.state.waiting_trim", "trim.plot.state.waiting_trim.desc"),
+        BOUNDARY_READY("trim.plot.state.boundary_ready", "trim.plot.state.boundary_ready.desc"),
+
         // 栅栏修剪状态
-        SELECTING_TARGETS("选择目标", "左键选择要修剪的图形，右键完成选择"),
-        DRAWING_FENCE("绘制栅栏", "左键绘制栅栏区域，右键完成并执行修剪"),
-        FENCE_READY("栅栏就绪", "目标已选择，可以继续使用栅栏修剪"),
-        
+        SELECTING_TARGETS("trim.plot.state.selecting_targets", "trim.plot.state.selecting_targets.desc"),
+        DRAWING_FENCE("trim.plot.state.drawing_fence", "trim.plot.state.drawing_fence.desc"),
+        FENCE_READY("trim.plot.state.fence_ready", "trim.plot.state.fence_ready.desc"),
+
         // 通用状态
-        PROCESSING("处理中", "正在执行修剪操作");
+        PROCESSING("trim.plot.state.processing", "trim.plot.state.processing.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        TrimState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        TrimState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.tr(nameKey); }
+        public String getDescription() { return PlotI18n.tr(descKey); }
     }
     
     // 状态记忆字段 - 在工具切换前保持有效

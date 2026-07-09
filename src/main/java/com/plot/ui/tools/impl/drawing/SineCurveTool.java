@@ -80,10 +80,10 @@ public class SineCurveTool extends DrawingTool {
     
     // 状态消息映射
     private static final List<String> STATUS_MESSAGES = List.of(
-        "点击确定正弦曲线起点",
-        "点击确定波长（第一点到第二点的距离）",
-        "点击确定整体长度（从起点到第三点的总长度）",
-        "点击确定振幅"
+        "status.plot.draw.sine.start",
+        "status.plot.draw.sine.wavelength",
+        "status.plot.draw.sine.length",
+        "status.plot.draw.sine.amplitude"
     );
     
     // ====== 构造函数 ======

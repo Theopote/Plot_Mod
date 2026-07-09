@@ -99,13 +99,13 @@ public class SemicircleTool extends DrawingTool {
     // 状态消息映射
     private static final Map<SemicircleMode, List<String>> MODE_STATUS_MESSAGES = Map.of(
         SemicircleMode.TWO_POINTS, List.of(
-            "两点模式：点击确定半圆中心点",
-            "点击确定半径和方向"
+            "status.plot.draw.semicircle.two_center",
+            "status.plot.draw.semicircle.radius_direction"
         ),
         SemicircleMode.THREE_POINTS, List.of(
-            "三点模式：点击确定直径的第一个点",
-            "点击确定直径的第二个点",
-            "点击确定半圆的方向"
+            "status.plot.draw.semicircle.three_first",
+            "status.plot.draw.semicircle.three_second",
+            "status.plot.draw.semicircle.three_direction"
         )
     );
 

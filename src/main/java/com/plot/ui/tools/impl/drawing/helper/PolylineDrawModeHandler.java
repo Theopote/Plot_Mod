@@ -5,6 +5,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImGui;
@@ -192,11 +193,11 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     @Override
     public String getStatusMessage() {
         if (!isDrawing) {
-            return "点击开始绘制折线";
+            return "status.plot.draw.polyline_start";
         } else if (points.size() == 1) {
-            return "点击添加下一个顶点，右键或Enter键完成绘制，Esc键取消";
+            return "status.plot.draw.polyline_add_enter";
         } else {
-            return String.format("已添加 %d 个顶点，右键或Enter键完成绘制，Esc键取消", points.size());
+            return PlotI18n.status("status.plot.draw.polyline_vertex_count", points.size());
         }
     }
     

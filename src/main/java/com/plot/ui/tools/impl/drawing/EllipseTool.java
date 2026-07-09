@@ -90,18 +90,18 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
     // ====== 状态提示映射 ======
     private static final Map<EllipseMode, String[]> MODE_STATUS_MESSAGES = Map.of(
         EllipseMode.THREE_POINTS_AXIS, new String[]{
-            "三点-轴模式：点击设置长轴第一点",
-            "三点-轴模式：点击设置长轴第二点", 
-            "三点-轴模式：点击设置短轴长度"
+            "status.plot.draw.ellipse.axis_p1",
+            "status.plot.draw.ellipse.axis_p2", 
+            "status.plot.draw.ellipse.axis_minor"
         },
         EllipseMode.THREE_POINTS_CENTER, new String[]{
-            "三点-中心点模式：点击设置椭圆中心点",
-            "三点-中心点模式：点击设置长半轴终点",
-            "三点-中心点模式：点击设置短半轴终点"
+            "status.plot.draw.ellipse.center_p1",
+            "status.plot.draw.ellipse.center_major",
+            "status.plot.draw.ellipse.center_minor"
         },
         EllipseMode.TWO_POINTS, new String[]{
-            "两点模式：点击设置矩形第一个角点",
-            "两点模式：点击设置矩形对角点",
+            "status.plot.draw.ellipse.two_p1",
+            "status.plot.draw.ellipse.two_p2",
             "" // 两点模式只需要两步
         }
     );

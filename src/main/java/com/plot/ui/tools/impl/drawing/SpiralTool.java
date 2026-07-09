@@ -66,34 +66,34 @@ public class SpiralTool extends DrawingTool {
     // 状态消息映射
     private static final java.util.Map<SpiralType, java.util.List<String>> TYPE_STATUS_MESSAGES = java.util.Map.of(
         SpiralType.LINEAR, java.util.List.of(
-            "点击确定螺旋中心",
-            "点击确定螺旋起点",
-            "点击确定螺距点",
+            "status.plot.draw.spiral.center",
+            "status.plot.draw.spiral.start",
+            "status.plot.draw.spiral.pitch_point",
             "移动鼠标调整最外圈，点击完成绘制"
         ),
         SpiralType.LOGARITHMIC, java.util.List.of(
-            "点击确定螺旋中心",
-            "点击确定起始半径（中心到第一点的距离）",
+            "status.plot.draw.spiral.center",
+            "status.plot.draw.spiral.start_radius",
             "移动鼠标调整最外圈，滚轮调整生长因子，点击完成绘制"
         ),
         SpiralType.SEMICIRCLE, java.util.List.of(
-            "点击确定螺旋中心",
-            "点击确定起始半径（中心到第一点的距离）",
+            "status.plot.draw.spiral.center",
+            "status.plot.draw.spiral.start_radius",
             "移动鼠标调整最外圈，滚轮调整扩张率，点击完成绘制"
         ),
         SpiralType.FERMAT, java.util.List.of(
-            "点击确定螺旋中心（起点）",
+            "status.plot.draw.spiral.center_start",
             "移动鼠标调整最外圈，滚轮调整螺旋系数，点击完成绘制"
         ),
         SpiralType.FIBONACCI, java.util.List.of(
-            "点击确定螺旋中心",
-            "点击确定起始半径（中心到第一点的距离）",
+            "status.plot.draw.spiral.center",
+            "status.plot.draw.spiral.start_radius",
             "移动鼠标调整最外圈，滚轮调整螺旋系数，点击完成绘制"
         ),
         SpiralType.POLYGON, java.util.List.of(
-            "点击确定螺旋中心",
-            "点击确定起始半径（中心到第二点的距离）",
-            "点击确定最外圈，完成绘制"
+            "status.plot.draw.spiral.center",
+            "status.plot.draw.spiral.start_radius_2",
+            "status.plot.draw.spiral.outer"
         )
     );
     
@@ -173,7 +173,7 @@ public class SpiralTool extends DrawingTool {
      * 更新状态消息
      */
     private void updateStatusMessage() {
-        List<String> messages = TYPE_STATUS_MESSAGES.getOrDefault(configManager.getCurrentType(), List.of("点击确定螺旋中心", "点击确定半径和方向"));
+        List<String> messages = TYPE_STATUS_MESSAGES.getOrDefault(configManager.getCurrentType(), List.of("status.plot.draw.spiral.center", "status.plot.draw.semicircle.radius_direction"));
         int index = Math.min(controlPoints.size(), messages.size() - 1);
         String message = messages.get(index);
         setStatusMessage(message);

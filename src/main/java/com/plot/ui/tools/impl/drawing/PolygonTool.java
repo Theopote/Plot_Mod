@@ -138,12 +138,12 @@ public class PolygonTool extends DrawingTool {
     // ====== 状态提示映射 ======
     private static final Map<PolygonMode, String[]> MODE_STATUS_MESSAGES = Map.of(
         PolygonMode.CENTER_RADIUS, new String[]{
-            "中心-半径模式：点击设置多边形中心点",
-            "中心-半径模式：点击设置半径和起始顶点位置"
+            "status.plot.draw.polygon.center_radius_p1",
+            "status.plot.draw.polygon.center_radius_p2"
         },
         PolygonMode.CENTER_VERTEX, new String[]{
-            "中心-顶点模式：点击设置多边形中心点",
-            "中心-顶点模式：拖动确定外接圆半径"
+            "status.plot.draw.polygon.center_vertex_p1",
+            "status.plot.draw.polygon.center_vertex_p2"
         }
     );
     

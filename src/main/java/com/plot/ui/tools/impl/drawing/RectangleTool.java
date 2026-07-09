@@ -192,18 +192,18 @@ public class RectangleTool extends DrawingTool {
 
     private void updateStatusMessage() {
         String message = switch (currentMode) {
-            case TWO_POINTS -> controlPoints.isEmpty() ? "点击第一个角点" : "点击第二个角点";
+            case TWO_POINTS -> controlPoints.isEmpty() ? "status.plot.draw.rect.click_first_corner" : "status.plot.draw.rect.click_second_corner";
             case THREE_POINTS -> switch (controlPoints.size()) {
-                case 0 -> "点击底边第一个点";
-                case 1 -> "点击底边第二个点";
-                case 2 -> "点击高度点";
+                case 0 -> "status.plot.draw.rect.click_base_first";
+                case 1 -> "status.plot.draw.rect.click_base_second";
+                case 2 -> "status.plot.draw.rect.click_height";
                 default -> currentMode.description;
             };
-            case CENTER_POINT -> controlPoints.isEmpty() ? "点击中心点" : "点击角点";
+            case CENTER_POINT -> controlPoints.isEmpty() ? "status.plot.draw.rect.click_center" : "status.plot.draw.rect.click_corner";
             case ROUNDED -> switch (controlPoints.size()) {
-                case 0 -> "点击第一个角点";
-                case 1 -> "点击第二个角点";
-                case 2 -> "移动鼠标调整圆角大小，点击确定";
+                case 0 -> "status.plot.draw.rect.click_first_corner";
+                case 1 -> "status.plot.draw.rect.click_second_corner";
+                case 2 -> "status.plot.draw.rect.drag_rounded";
                 default -> currentMode.description;
             };
         };

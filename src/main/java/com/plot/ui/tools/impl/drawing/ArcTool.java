@@ -76,9 +76,9 @@ public class ArcTool extends DrawingTool {
     
     // ====== 状态消息映射 ======
     private static final Map<ArcMode, List<String>> MODE_STATUS_MESSAGES = Map.of(
-        ArcMode.START_END_DIRECTION, List.of("点击设置起点", "点击设置终点", "点击设置圆弧上的点"),
-        ArcMode.THROUGH_POINT, List.of("点击设置起点", "点击设置经过点", "点击设置终点"),
-        ArcMode.CENTER_START_END, List.of("点击设置圆心", "点击设置起点", "点击设置终点")
+        ArcMode.START_END_DIRECTION, List.of("status.plot.draw.click_start", "status.plot.draw.click_end", "status.plot.draw.click_arc_point"),
+        ArcMode.THROUGH_POINT, List.of("status.plot.draw.click_start", "status.plot.draw.click_through", "status.plot.draw.click_end"),
+        ArcMode.CENTER_START_END, List.of("status.plot.draw.click_center", "status.plot.draw.click_start", "status.plot.draw.click_end")
     );
 
     // ====== 核心状态 ======

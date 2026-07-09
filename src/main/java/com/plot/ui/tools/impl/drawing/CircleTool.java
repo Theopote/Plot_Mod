@@ -63,9 +63,9 @@ public class CircleTool extends DrawingTool {
     
     // ====== 状态消息映射 ======
     private static final Map<DrawMode, List<String>> MODE_STATUS_MESSAGES = Map.of(
-        DrawMode.CENTER_RADIUS, List.of("点击设置圆心", "点击或拖动设置半径"),
-        DrawMode.TWO_POINTS, List.of("点击设置第一个点", "点击设置第二个点以确定直径"),
-        DrawMode.THREE_POINTS, List.of("点击设置第一个点", "点击设置第二个点", "点击设置第三个点以确定圆")
+        DrawMode.CENTER_RADIUS, List.of("status.plot.draw.click_center", "status.plot.draw.click_or_drag_radius"),
+        DrawMode.TWO_POINTS, List.of("status.plot.draw.click_first_point", "status.plot.draw.click_second_for_diameter"),
+        DrawMode.THREE_POINTS, List.of("status.plot.draw.click_first_point", "status.plot.draw.click_second_point", "status.plot.draw.click_third_for_circle")
     );
     
     // ====== 核心状态 ======

@@ -346,13 +346,13 @@ public class EditModeHandler implements IModeHandler {
     @Override
     public String getStatusMessage() {
         if (editingShape == null) {
-            return "选择要编辑的图形";
+            return "status.plot.draw.edit.select_shape";
         } else if (selectedNodeIndex != -1) {
-            return "拖动调整锚点位置";
+            return "status.plot.draw.edit.drag_anchor";
         } else if (selectedControlPointIndex != -1) {
-            return "拖动调整控制点位置";
+            return "status.plot.draw.edit.drag_control";
         } else {
-            return "点击选择节点，拖动调整位置，Shift+点击转换段类型";
+            return "status.plot.draw.edit.select_node";
         }
     }
     

@@ -352,9 +352,9 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
     @Override
     public String getStrategyDescription() {
         if (maxSteps > 0) {
-            return String.format("点击设置控制点，最多%d步", maxSteps);
+            return String.format("status.plot.draw.multistep.max", maxSteps);
         } else {
-            return "点击设置控制点，右键或双击完成";
+            return "status.plot.draw.multistep.finish";
         }
     }
     

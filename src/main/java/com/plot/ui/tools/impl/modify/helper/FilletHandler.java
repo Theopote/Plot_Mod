@@ -113,7 +113,7 @@ public class FilletHandler implements IModifyHandler {
         List<LineShape> edges2 = getFilletableEdges(shape2);
         
         if (edges1.isEmpty() || edges2.isEmpty()) {
-            return ValidationResult.invalid("图形没有可进行圆角操作的边");
+            return ValidationResult.invalid("status.plot.fillet.no_edges");
         }
         
         // 检查是否有合适的边组合可以进行圆角
@@ -128,7 +128,7 @@ public class FilletHandler implements IModifyHandler {
             }
         }
         
-        return ValidationResult.invalid("没有找到合适的边组合进行圆角操作");
+        return ValidationResult.invalid("status.plot.fillet.no_edge_pair");
     }
     
     /**
@@ -183,7 +183,7 @@ public class FilletHandler implements IModifyHandler {
     private ValidationResult validateEdgePair(LineShape edge1, LineShape edge2, double radius) {
         // 检查边是否有效
         if (!isValidLine(edge1) || !isValidLine(edge2)) {
-            return ValidationResult.invalid("边无效，无法进行圆角操作");
+            return ValidationResult.invalid("status.plot.fillet.edge_invalid");
         }
         
         // 计算交点（包括虚拟交点）

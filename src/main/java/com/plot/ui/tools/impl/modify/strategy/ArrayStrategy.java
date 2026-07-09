@@ -9,6 +9,7 @@ import com.plot.core.model.Shape;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.modify.helper.ArrayHandler;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,20 +78,20 @@ public class ArrayStrategy implements IModifyStrategy {
      * 阵列类型枚举
      */
     public enum ArrayType {
-        RECTANGULAR("矩形阵列", "按行列排列图形"),
-        CIRCULAR("环形阵列", "按圆形排列图形"),
-        PATH("路径阵列", "沿指定路径排列图形");
-        
-        private final String displayName;
-        private final String description;
-        
-        ArrayType(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        RECTANGULAR("array.plot.rectangular", "array.plot.rectangular.desc"),
+        CIRCULAR("array.plot.polar", "array.plot.polar.desc"),
+        PATH("array.plot.path", "array.plot.path.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        ArrayType(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.tr(nameKey); }
+        public String getDescription() { return PlotI18n.tr(descKey); }
     }
     
     /**
@@ -291,7 +292,7 @@ public class ArrayStrategy implements IModifyStrategy {
         ArrayType newType = getArrayTypeFromKey(keyCode);
         if (newType != null) {
             setArrayType(newType);
-            context.setStatusMessage(String.format("已切换到%s模式", newType.getDisplayName()));
+            context.setStatusMessage(PlotI18n.status("status.plot.array.mode_switched", newType.getDisplayName()));
             return ModifyResult.CONTINUE;
         }
         
