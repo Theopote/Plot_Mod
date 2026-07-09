@@ -21,7 +21,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
     private final GridManager gridManager;
     
     public ToolSettingsGroup(AppState appState, EventBus eventBus) {
-        super("工具设置", appState, eventBus);
+        super("toolbar.plot.group.tool_settings", appState, eventBus);
         this.snapManager = SnapManager.getInstance();
         this.gridManager = GridManager.getInstance();
     }

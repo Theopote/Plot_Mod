@@ -18,7 +18,7 @@ public class ViewToolsGroup extends AbstractToolbarGroup {
     private final CameraSettingsManager cameraSettingsManager;
     
     public ViewToolsGroup(EventBus eventBus) {
-        super("视图工具", null, eventBus);
+        super("toolbar.plot.group.view_tools", null, eventBus);
         this.cameraSettingsManager = CameraSettingsManager.getInstance();
     }
     

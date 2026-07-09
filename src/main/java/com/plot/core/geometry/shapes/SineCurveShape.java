@@ -7,6 +7,7 @@ import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
@@ -86,19 +87,19 @@ public class SineCurveShape extends Shape implements IExtendableShape {
             
         // 参数验证
         if (startPoint == null) {
-            throw new IllegalArgumentException("起始点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.start_null"));
         }
         if (endPoint == null) {
-            throw new IllegalArgumentException("结束点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.end_null"));
         }
         if (Double.isNaN(amplitude) || Double.isInfinite(amplitude)) {
-            throw new IllegalArgumentException("振幅必须是有限数值");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.amplitude_finite"));
         }
         if (wavelength <= 0 || Double.isNaN(wavelength) || Double.isInfinite(wavelength)) {
-            throw new IllegalArgumentException("波长必须是大于0的有限数值");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.wavelength_positive"));
         }
         if (Double.isNaN(phase) || Double.isInfinite(phase)) {
-            throw new IllegalArgumentException("相位必须是有限数值");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.phase_finite"));
         }
         
         this.startPoint = startPoint;
@@ -116,7 +117,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     
     public void setStartPoint(Vec2d startPoint) {
         if (startPoint == null) {
-            throw new IllegalArgumentException("起始点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.start_null"));
         }
         if (!this.startPoint.equals(startPoint)) {
             this.startPoint = startPoint;
@@ -126,7 +127,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     
     public void setEndPoint(Vec2d endPoint) {
         if (endPoint == null) {
-            throw new IllegalArgumentException("结束点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.end_null"));
         }
         if (!this.endPoint.equals(endPoint)) {
             this.endPoint = endPoint;
@@ -136,7 +137,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     
     public void setPhase(double phase) {
         if (Double.isNaN(phase) || Double.isInfinite(phase)) {
-            throw new IllegalArgumentException("相位必须是有限数值");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.phase_finite"));
         }
         this.phase = normalizePhase(phase); // 规范化相位
         dirty = true;
@@ -506,7 +507,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
                 this.dirty = true;
             } catch (Exception ex) {
                 LOGGER.error("反序列化正弦曲线时发生错误: {}", ex.getMessage(), ex);
-                throw new RuntimeException("反序列化失败", ex);
+                throw new RuntimeException(PlotI18n.error("error.plot.shape.validation.deserialize_failed"), ex);
             }
         }
     }
@@ -675,10 +676,10 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     public Shape extend(Vec2d point, double distance) {
         // 参数验证
         if (point == null) {
-            throw new IllegalArgumentException("延伸点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.extend_point_null"));
         }
         if (distance < 0) {
-            throw new IllegalArgumentException("延伸距离不能为负");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.extend_distance_negative"));
         }
         if (distance == 0) {
             return clone(); // 距离为0时返回副本
@@ -742,10 +743,10 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     public Shape extend(Vec2d point, Vec2d toPoint) {
         // 参数验证
         if (point == null) {
-            throw new IllegalArgumentException("延伸点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.extend_point_null"));
         }
         if (toPoint == null) {
-            throw new IllegalArgumentException("目标点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.target_null"));
         }
         
         // 确定延伸方向：从起点还是终点延伸
@@ -854,13 +855,13 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     @Override
     public void setControlPoint(int index, Vec2d point) {
         if (point == null) {
-            throw new IllegalArgumentException("控制点不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.control_point_null"));
         }
         
         switch (index) {
             case 0 -> setStartPoint(point);  // 设置起点
             case 1 -> setEndPoint(point);    // 设置终点
-            default -> throw new IllegalArgumentException("无效的控制点索引: " + index);
+            default -> throw new IllegalArgumentException(PlotI18n.error("error.plot.sine.validation.invalid_control_index", index));
         }
     }
 

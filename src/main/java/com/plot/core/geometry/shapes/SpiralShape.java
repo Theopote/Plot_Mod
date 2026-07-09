@@ -11,6 +11,7 @@ import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
@@ -238,10 +239,10 @@ public class SpiralShape extends Shape implements IExtendableShape {
         super(center != null ? center : new Vec2d(0, 0));
         
         // 参数验证
-        if (radius < 0) throw new IllegalArgumentException("起始半径不能为负数: " + radius);
-        if (turns <= 0) throw new IllegalArgumentException("圈数必须大于0: " + turns);
-        if (spacing <= 0) throw new IllegalArgumentException("间距必须大于0: " + spacing);
-        if (type == null) throw new IllegalArgumentException("螺旋类型不能为null");
+        if (radius < 0) throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.negative_radius", radius));
+        if (turns <= 0) throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.positive_turns", turns));
+        if (spacing <= 0) throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.positive_spacing", spacing));
+        if (type == null) throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.type_null"));
         
         // 对可能影响性能的极值参数进行警告
         if (turns * DEFAULT_SEGMENTS_PER_TURN > MAX_TOTAL_SEGMENTS) {
@@ -300,7 +301,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
     public void setRadius(double radius) {
         if (this.radius != radius) {
             if (radius < 0) {
-                throw new IllegalArgumentException("起始半径不能为负数: " + radius);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.negative_radius", radius));
             }
             
             // 对极端值进行警告
@@ -331,7 +332,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
     public void setSpacing(double spacing) {
         if (this.spacing != spacing) {
             if (spacing <= 0) {
-                throw new IllegalArgumentException("间距必须大于0: " + spacing);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.positive_spacing", spacing));
             }
             
             // 对极端值进行警告
@@ -355,7 +356,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
     public void setType(SpiralType type) {
         if (this.type != type) {
             if (type == null) {
-                throw new IllegalArgumentException("螺旋类型不能为null");
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.type_null"));
             }
             
             // 根据新类型给出参数调整建议
@@ -1303,7 +1304,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
     private ClosestPointResult findClosestPointOnSegment(Vec2d point, Vec2d segStart, Vec2d segEnd) {
         // 添加空值检查
         if (segStart == null || segEnd == null) {
-            throw new NullPointerException("线段端点不能为null");
+            throw new NullPointerException(PlotI18n.error("error.plot.spiral.validation.null_segment_endpoint"));
         }
         
         if (point == null) {
@@ -1348,7 +1349,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
         if (this.spiralCoefficient != spiralCoefficient) {
             // 验证：确保系数为正数
             if (spiralCoefficient <= 0) {
-                throw new IllegalArgumentException("螺旋系数必须为正数: " + spiralCoefficient);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.positive_coefficient", spiralCoefficient));
             }
             
             // 对极值进行警告
@@ -1424,7 +1425,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
     public void setTurns(double turns) {
         if (this.turns != turns) {
             if (turns <= 0) {
-                throw new IllegalArgumentException("圈数必须大于0: " + turns);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.spiral.validation.positive_turns", turns));
             }
             
             // 对极端值进行警告

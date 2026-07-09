@@ -28,12 +28,12 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
     private static final long SYNC_INTERVAL_MS = 16; // 约60fps的同步频率
     
     public ControlSlidersGroup() {
-        super("控制滑动条");
+        super("toolbar.plot.group.control_sliders");
         initializeValues();
     }
     
     public ControlSlidersGroup(AppState appState, EventBus eventBus) {
-        super("控制滑动条", appState, eventBus);
+        super("toolbar.plot.group.control_sliders", appState, eventBus);
         initializeValues();
     }
     

@@ -7,6 +7,7 @@ import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
@@ -453,49 +454,50 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     private void validateConstructorParameters(List<Vec2d> anchorPoints, List<Vec2d[]> controls) {
         // 基本空值检查
         if (anchorPoints == null) {
-            throw new IllegalArgumentException("锚点列表不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.anchors_null"));
         }
         if (controls == null) {
-            throw new IllegalArgumentException("控制点列表不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.controls_null"));
         }
         
         // 大小检查
         if (anchorPoints.size() < 2) {
-            throw new IllegalArgumentException("锚点数量必须至少为2个");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.min_anchors"));
         }
         if (controls.size() != anchorPoints.size() - 1) {
-            throw new IllegalArgumentException("控制点对数量必须比锚点数量少1");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.control_pair_count"));
         }
         
         // 空元素检查
         for (int i = 0; i < anchorPoints.size(); i++) {
             if (anchorPoints.get(i) == null) {
-                throw new IllegalArgumentException("锚点不能为null，索引: " + i);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.null_anchor_index", i));
             }
         }
         
         for (int i = 0; i < controls.size(); i++) {
             Vec2d[] ctrl = controls.get(i);
             if (ctrl == null) {
-                throw new IllegalArgumentException("控制点数组不能为null，索引: " + i);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.null_control_array_index", i));
             }
             if (ctrl.length != 2) {
-                throw new IllegalArgumentException("每个控制点数组必须包含2个点，索引: " + i);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.control_array_size", i));
             }
             if (ctrl[0] == null || ctrl[1] == null) {
-                throw new IllegalArgumentException("控制点不能为null，索引: " + i);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.null_control_index", i));
             }
         }
         
         // NaN值检查
-        validatePointValues(anchorPoints, "锚点");
+        validatePointValues(anchorPoints, PlotI18n.error("error.plot.bezier.field.anchors"));
         for (int i = 0; i < controls.size(); i++) {
-            validatePointValues(java.util.Arrays.asList(controls.get(i)), "控制点[" + i + "]");
+            validatePointValues(java.util.Arrays.asList(controls.get(i)),
+                    PlotI18n.error("error.plot.bezier.field.controls_index", i));
         }
         
         // 闭合曲线特殊检查
         if (closed && anchorPoints.size() < 3) {
-            throw new IllegalArgumentException("闭合曲线至少需要3个锚点");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.min_closed_anchors"));
         }
     }
     
@@ -511,7 +513,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             if (Double.isNaN(point.x) || Double.isNaN(point.y) || 
                 Double.isInfinite(point.x) || Double.isInfinite(point.y)) {
                 throw new IllegalArgumentException(
-                    String.format("%s[%d]包含无效值: x=%f, y=%f", pointType, i, point.x, point.y));
+                    PlotI18n.error("error.plot.bezier.validation.invalid_point_values", pointType, i, point.x, point.y));
             }
         }
     }
@@ -1508,7 +1510,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             String[] parts = data.split("\\s+"); // 使用正则表达式分割空白字符
             
             if (parts.length < 3) {
-                throw new IllegalArgumentException("数据格式无效：缺少必要字段");
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.missing_fields"));
             }
             
             // 检查版本标识
@@ -1518,13 +1520,13 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
                     deserializeLegacy(data);
                     return;
                 } else {
-                    throw new IllegalArgumentException("不支持的序列化格式版本: " + parts[0]);
+                    throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.unsupported_version", parts[0]));
                 }
             }
             
             // 解析闭合状态
             if (!parts[1].equals("CLOSED") && !parts[1].equals("OPEN")) {
-                throw new IllegalArgumentException("无效的闭合状态: " + parts[1]);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.invalid_closed_state", parts[1]));
             }
             this.closed = parts[1].equals("CLOSED");
             
@@ -1533,11 +1535,11 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             try {
                 segmentCount = Integer.parseInt(parts[2]);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("无效的段数: " + parts[2]);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.invalid_segment_count", parts[2]));
             }
             
             if (segmentCount < 0) {
-                throw new IllegalArgumentException("段数不能为负数: " + segmentCount);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.negative_segment_count", segmentCount));
             }
             
             // 检查数据长度
@@ -1566,7 +1568,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             
         } catch (Exception e) {
             LOGGER.error("反序列化贝塞尔曲线时发生错误", e);
-            throw new IllegalArgumentException("反序列化失败: " + e.getMessage(), e);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.deserialize_failed", e.getMessage()), e);
         }
     }
     
@@ -1576,7 +1578,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
     private Vec2d parsePoint(String pointStr) {
         String[] coords = pointStr.split(",");
         if (coords.length != 2) {
-            throw new IllegalArgumentException("无效的点格式: " + pointStr);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.invalid_point_format", pointStr));
         }
         
         try {
@@ -1584,7 +1586,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             double y = Double.parseDouble(coords[1]);
             return new Vec2d(x, y);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("无效的坐标值: " + pointStr, e);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.invalid_coordinates", pointStr), e);
         }
     }
     
@@ -1596,7 +1598,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         
         String[] parts = data.split(" ");
         if (parts.length < 3 || !parts[0].equals("BEZIER")) {
-            throw new IllegalArgumentException("无效的旧格式数据");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.invalid_legacy_data"));
         }
         
         this.segments.clear();
@@ -1604,7 +1606,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
         int numPoints = parts.length - 2;
         
         if ((numPoints - 1) % 3 != 0) {
-            throw new IllegalArgumentException("旧格式数据中点数无效");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.bezier.validation.invalid_legacy_point_count"));
         }
         
         List<Vec2d> anchors = new ArrayList<>();

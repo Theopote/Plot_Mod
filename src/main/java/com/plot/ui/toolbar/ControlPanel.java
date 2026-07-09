@@ -424,7 +424,7 @@ public class ControlPanel implements UIComponent {
      * 显示警告对话框
      */
     private void showWarningDialog(String message) {
-        warningMessage = message == null ? "" : message;
+        warningMessage = PlotI18n.localizeMessage(message == null ? "" : message);
         warningPopupPending = true;
     }
     

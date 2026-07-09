@@ -77,10 +77,10 @@ public class RoadSystemConfig {
 
     private void initDefaultPresets() {
         presets = new ArrayList<>();
-        presets.add(new RoadPreset("city_main", "城市主干道", 7, true, 2));
-        presets.add(new RoadPreset("city_secondary", "城市次干道", 5, true, 1));
-        presets.add(new RoadPreset("country_road", "乡村公路", 3, false, 0));
-        presets.add(new RoadPreset("highway", "高速公路", 9, false, 0));
+        presets.add(new RoadPreset("city_main", "city_main", 7, true, 2));
+        presets.add(new RoadPreset("city_secondary", "city_secondary", 5, true, 1));
+        presets.add(new RoadPreset("country_road", "country_road", 3, false, 0));
+        presets.add(new RoadPreset("highway", "highway", 9, false, 0));
     }
 
     public int getRoadWidth() {

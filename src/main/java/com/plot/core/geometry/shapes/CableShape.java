@@ -9,6 +9,7 @@ import com.plot.core.geometry.AffineTransform;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
 
 import com.plot.core.graphics.DrawContext;
@@ -1156,7 +1157,7 @@ public class CableShape extends Shape implements IExtendableShape {
         // 简化的JSON解析（实际项目中应使用JSON库）
         data = data.trim();
         if (!data.startsWith("{") || !data.endsWith("}")) {
-            throw new IllegalArgumentException("无效的JSON格式");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.invalid_json"));
         }
         
         // 移除大括号
@@ -1230,7 +1231,7 @@ public class CableShape extends Shape implements IExtendableShape {
             
             invalidateCache();
         } else {
-            throw new IllegalArgumentException("旧格式数据不完整");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.legacy_data_incomplete"));
         }
     }
     
@@ -1261,7 +1262,7 @@ public class CableShape extends Shape implements IExtendableShape {
         int startIndex = field.indexOf('{');
         int endIndex = field.lastIndexOf('}');
         if (startIndex == -1 || endIndex == -1) {
-            throw new IllegalArgumentException("无效的点格式: " + field);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.invalid_point_field", field));
         }
         
         String pointData = field.substring(startIndex + 1, endIndex);
@@ -1286,7 +1287,7 @@ public class CableShape extends Shape implements IExtendableShape {
     private double parseDoubleFromJson(String field) {
         int colonIndex = field.indexOf(':');
         if (colonIndex == -1) {
-            throw new IllegalArgumentException("无效的数值格式: " + field);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.invalid_number_field", field));
         }
         
         String value = field.substring(colonIndex + 1).trim();
@@ -1299,7 +1300,7 @@ public class CableShape extends Shape implements IExtendableShape {
     private int parseIntFromJson(String field) {
         int colonIndex = field.indexOf(':');
         if (colonIndex == -1) {
-            throw new IllegalArgumentException("无效的整数格式: " + field);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.invalid_int_field", field));
         }
         
         String value = field.substring(colonIndex + 1).trim();
@@ -1312,7 +1313,7 @@ public class CableShape extends Shape implements IExtendableShape {
     private String parseStringFromJson(String field) {
         int colonIndex = field.indexOf(':');
         if (colonIndex == -1) {
-            throw new IllegalArgumentException("无效的字符串格式: " + field);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.invalid_string_field", field));
         }
         
         String value = field.substring(colonIndex + 1).trim();

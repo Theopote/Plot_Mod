@@ -1,5 +1,6 @@
 package com.plot.core.geometry;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 
 /**
@@ -82,7 +83,7 @@ public class Matrix2d {
     public Matrix2d inverse() {
         double det = determinant();
         if (Math.abs(det) < 1e-10) {
-            throw new IllegalStateException("矩阵不可逆");
+            throw new IllegalStateException(PlotI18n.error("error.plot.matrix.singular"));
         }
         return new Matrix2d(
             d / det, -b / det,

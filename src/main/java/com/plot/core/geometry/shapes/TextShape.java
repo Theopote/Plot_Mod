@@ -5,6 +5,7 @@ import com.plot.api.render.IRenderVisitor;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.style.TextStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
@@ -108,7 +109,7 @@ public class TextShape extends Shape {
      */
     private static Vec2d validatePosition(Vec2d position) {
         if (position == null) {
-            throw new IllegalArgumentException("位置不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.position_null"));
         }
         return position;
     }
@@ -116,7 +117,7 @@ public class TextShape extends Shape {
     @Override
     public void translate(Vec2d offset) {
         if (offset == null) {
-            throw new IllegalArgumentException("偏移量不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.offset_null"));
         }
         position = position.add(offset);
         boundsDirty = true;
@@ -125,7 +126,7 @@ public class TextShape extends Shape {
     @Override
     public void rotate(double angle, Vec2d center) {
         if (center == null) {
-            throw new IllegalArgumentException("旋转中心不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.rotation_center_null"));
         }
         // 正确的旋转：先平移到原点，旋转，再平移回原位置
         position = GeometryUtils.rotate(position.subtract(center), angle).add(center);
@@ -657,7 +658,7 @@ public class TextShape extends Shape {
     @Override
     public List<Vec2d> getExtensionIntersectionsWith(Shape other, Vec2d point, double maxDistance) {
         // 文本形状不支持延伸操作
-        throw new UnsupportedOperationException("文本形状不支持延伸交点计算");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_extend_intersection"));
     }
 
     @Override
@@ -669,7 +670,7 @@ public class TextShape extends Shape {
     @Override
     public Vec2d getTangentAt(Vec2d point) {
         // 文本形状不支持切线计算
-        throw new UnsupportedOperationException("文本形状不支持切线计算");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_tangent"));
     }
 
     @Override
@@ -681,31 +682,31 @@ public class TextShape extends Shape {
     @Override
     public List<Shape> split(List<Vec2d> points, Vec2d pickPoint) {
         // 文本形状不支持分割操作
-        throw new UnsupportedOperationException("文本形状不支持分割操作");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_split"));
     }
 
     @Override
     public Shape extend(Vec2d point, double distance) {
         // 文本形状不支持延伸操作
-        throw new UnsupportedOperationException("文本形状不支持延伸操作");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_extend"));
     }
 
     @Override
     public Shape extend(Vec2d point, Vec2d toPoint) {
         // 文本形状不支持延伸操作
-        throw new UnsupportedOperationException("文本形状不支持延伸操作");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_extend"));
     }
 
     @Override
     public Shape trimToPoint(Vec2d point) {
         // 文本形状不支持修剪操作
-        throw new UnsupportedOperationException("文本形状不支持修剪操作");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_trim"));
     }
 
     @Override
     public Shape createOffset(double distance) {
         // 文本形状不支持偏移操作
-        throw new UnsupportedOperationException("文本形状不支持偏移操作");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.text.no_offset"));
     }
 
     @Override
@@ -777,7 +778,7 @@ public class TextShape extends Shape {
     @Override
     public void deserialize(String data) {
         if (data == null || data.trim().isEmpty()) {
-            throw new IllegalArgumentException("序列化数据不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.empty_data"));
         }
         
         try {
@@ -815,11 +816,11 @@ public class TextShape extends Shape {
                 updateBounds();
             } catch (Exception ex) {
                 LOGGER.error("反序列化文本形状时发生错误: {}", ex.getMessage(), ex);
-                throw new RuntimeException("反序列化失败", ex);
+                throw new RuntimeException(PlotI18n.error("error.plot.shape.validation.deserialize_failed"), ex);
             }
         } catch (Exception e) {
             LOGGER.error("反序列化文本形状时发生错误: {}", e.getMessage(), e);
-            throw new RuntimeException("反序列化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.shape.validation.deserialize_failed"), e);
         }
     }
     
@@ -836,10 +837,10 @@ public class TextShape extends Shape {
                 );
                 text = parts[2];
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("反序列化失败：数值格式错误", e);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.deserialize_number_format"), e);
             }
         } else {
-            throw new IllegalArgumentException("序列化格式错误：需要3个部分，实际：" + parts.length);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.serialize_part_count", 3, parts.length));
         }
     }
     
@@ -891,7 +892,7 @@ public class TextShape extends Shape {
     @Override
     public void scale(Vec2d scale, Vec2d center) {
         if (scale == null || center == null) {
-            throw new IllegalArgumentException("缩放参数不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.scale_params_null"));
         }
         
         // 缩放位置

@@ -15,7 +15,7 @@ import com.plot.utils.PlotI18n;
 public class FileToolsGroup extends AbstractToolbarGroup {
 
     public FileToolsGroup(AppState appState, EventBus eventBus) {
-        super("文件工具", appState, eventBus);
+        super("toolbar.plot.group.file_tools", appState, eventBus);
     }
     
     @Override

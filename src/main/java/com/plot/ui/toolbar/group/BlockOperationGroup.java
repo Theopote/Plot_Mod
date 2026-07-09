@@ -35,7 +35,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
     public BlockOperationGroup(AppState appState, EventBus eventBus,
                                LineToBlockSettingsDialog lineToBlockSettingsDialog,
                                ProjectionSettingsDialog projectionSettingsDialog) {
-        super("方块操作", appState, eventBus);
+        super("toolbar.plot.group.block_ops", appState, eventBus);
         this.lineToBlockSettingsDialog = lineToBlockSettingsDialog;
         this.projectionSettingsDialog = projectionSettingsDialog;
     }

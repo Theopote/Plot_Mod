@@ -354,7 +354,7 @@ public class LayerPanel implements UIComponent {
                         return;
                     }
 
-                    DialogLayoutHelper.warningText(warningMessage);
+                    DialogLayoutHelper.warningText(PlotI18n.localizeMessage(warningMessage));
 
                     if (DialogLayoutHelper.isConfirmShortcutPressed() || DialogLayoutHelper.isCancelShortcutPressed()) {
                         ImGui.closeCurrentPopup();

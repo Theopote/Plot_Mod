@@ -15,11 +15,25 @@ public final class PlotI18n {
         return Text.translatable(key, args).getString();
     }
 
+    /** User-facing error message (keys use {@code error.plot.*}). */
+    public static String error(String key, Object... args) {
+        return tr(key, args);
+    }
+
     public static String localizeStatus(String message) {
+        return localizeMessage(message);
+    }
+
+    /** Localize a user-facing message when it uses a known translation key prefix. */
+    public static String localizeMessage(String message) {
         if (message == null || message.isBlank()) {
             return "";
         }
-        if (message.startsWith("status.plot.")) {
+        if (message.startsWith("status.plot.")
+                || message.startsWith("error.plot.")
+                || message.startsWith("dialog.plot.")
+                || message.startsWith("layer.plot.")
+                || message.startsWith("toolbar.plot.")) {
             return tr(message);
         }
         return message;

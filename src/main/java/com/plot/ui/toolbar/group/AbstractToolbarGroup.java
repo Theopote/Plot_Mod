@@ -2,6 +2,7 @@ package com.plot.ui.toolbar.group;
 
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
@@ -22,6 +23,14 @@ public abstract class AbstractToolbarGroup implements ToolbarGroup {
     protected final String groupName;
     protected boolean enabled = true;
     
+    @Override
+    public String getGroupName() {
+        if (groupName != null && groupName.startsWith("toolbar.plot.")) {
+            return PlotI18n.tr(groupName);
+        }
+        return groupName;
+    }
+    
     protected AbstractToolbarGroup(String groupName, AppState appState, EventBus eventBus) {
         this.groupName = groupName;
         this.appState = appState;
@@ -32,11 +41,6 @@ public abstract class AbstractToolbarGroup implements ToolbarGroup {
         this.groupName = groupName;
         this.appState = AppState.getInstance();
         this.eventBus = EventBus.getInstance();
-    }
-    
-    @Override
-    public String getGroupName() {
-        return groupName;
     }
     
     @Override

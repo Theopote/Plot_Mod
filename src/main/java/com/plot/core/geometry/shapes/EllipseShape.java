@@ -7,6 +7,7 @@ import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.Matrix2d;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
@@ -241,7 +242,7 @@ public class EllipseShape extends Shape {
         // 特征值
         double discriminant = trace * trace - 4 * det;
         if (discriminant < 0) {
-            throw new IllegalArgumentException("缩放后的二次型不是椭圆");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.ellipse.validation.not_ellipse_after_scale"));
         }
         
         double lambda1 = (trace + Math.sqrt(discriminant)) / 2.0;
