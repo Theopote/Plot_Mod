@@ -33,8 +33,7 @@ public class ArrayCommand extends ModifyCommand {
                 appState.addShape(shape);
             }
         } catch (Exception e) {
-            // 记录错误但继续执行
-            e.printStackTrace();
+            LOGGER.error("阵列命令执行失败", e);
         }
     }
     

@@ -121,7 +121,6 @@ public class CanvasEventHandler {
             }
         } catch (Exception e) {
             LOGGER.error("处理网格切换事件时发生错误", e);
-            e.printStackTrace();
         }
     }
 

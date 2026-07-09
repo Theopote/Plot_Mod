@@ -13,6 +13,9 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.geometry.RasterizationUtils;
 import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.Color;
 import java.util.List;
 import java.util.ArrayList;
@@ -23,6 +26,8 @@ import java.util.Collections;
  * 直线段形状
  */
 public class LineShape extends Shape implements IExtendableShape {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LineShape.class);
+
     // 浮点数精度常量
     private static final double EPSILON = 1e-10;
     
@@ -170,7 +175,7 @@ public class LineShape extends Shape implements IExtendableShape {
         double distance = point.distance(pb);
         
         // 添加调试日志
-        org.slf4j.LoggerFactory.getLogger(LineShape.class).debug("LineShape: 点 {} 到线段 ({} -> {}) 的距离为 {}，容差为 {}，结果: {}", point, start, end, distance, tolerance, distance <= tolerance);
+        LOGGER.debug("LineShape: 点 {} 到线段 ({} -> {}) 的距离为 {}，容差为 {}，结果: {}", point, start, end, distance, tolerance, distance <= tolerance);
         
         return distance <= tolerance;
     }
@@ -557,7 +562,7 @@ public class LineShape extends Shape implements IExtendableShape {
             }
             // 验证打断点的有效性
             if (lp1 == null) {
-                System.err.println("打断直线时发生错误: 第一个打断点为空");
+                LOGGER.warn("打断直线时发生错误: 第一个打断点为空");
                 return newShapes;
             }
             
@@ -585,10 +590,10 @@ public class LineShape extends Shape implements IExtendableShape {
                     
                     // 如果没有创建任何段，说明打断点太靠近端点
                     if (newShapes.isEmpty()) {
-                        System.err.println("打断点太靠近端点，无法创建有效段");
+                        LOGGER.warn("打断点太靠近端点，无法创建有效段");
                     }
                 } else {
-                    System.err.println("打断点不在直线上");
+                    LOGGER.warn("打断点不在直线上");
                 }
             } else if ("TWO_POINT".equals(breakMode) && lp2 != null) {
                 // 两点打断：移除两点间的部分
@@ -626,17 +631,15 @@ public class LineShape extends Shape implements IExtendableShape {
                     
                     // 如果没有创建任何段，说明两个打断点太靠近端点
                     if (newShapes.isEmpty()) {
-                        System.err.println("两个打断点太靠近端点，无法创建有效段");
+                        LOGGER.warn("两个打断点太靠近端点，无法创建有效段");
                     }
                 } else {
-                    System.err.println("一个或两个打断点不在直线上");
+                    LOGGER.warn("一个或两个打断点不在直线上");
                 }
             }
             
         } catch (Exception e) {
-            // 记录错误但不抛出异常，返回空列表
-            System.err.println("打断直线时发生错误: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("打断直线时发生错误", e);
         }
         
         return newShapes;
@@ -666,8 +669,7 @@ public class LineShape extends Shape implements IExtendableShape {
             );
             
         } catch (Exception e) {
-            // 记录错误但不抛出异常
-            System.err.println("渲染直线ImGui时发生错误: " + e.getMessage());
+            LOGGER.error("渲染直线ImGui时发生错误", e);
         }
     }
 }

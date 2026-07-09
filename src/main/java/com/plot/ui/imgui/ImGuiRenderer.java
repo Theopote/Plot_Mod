@@ -426,7 +426,6 @@ public class ImGuiRenderer {
                 }
             } catch (Exception e) {
                 LOGGER.error("Failed to render pending ImGui draw data", e);
-                e.printStackTrace();
             } finally {
                 drawDataReady = false;
                 // 关键：渲染完成后立即恢复其他模组上下文，确保 ChronoBlocks 等下次打开时不受影响

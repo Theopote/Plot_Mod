@@ -62,7 +62,6 @@ public class PlotItem extends Item {
                 return ActionResult.SUCCESS;
             } catch (Exception e) {
                 LOGGER.error("Failed to open Plot screen", e);
-                e.printStackTrace();
                 return ActionResult.FAIL;
             }
         }

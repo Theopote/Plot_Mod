@@ -5,6 +5,9 @@ import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.BoundingBox;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +18,8 @@ import java.util.Set;
  * 优化版：不再依赖已被移除的shapes字段，使用AppState的addShape/removeShape方法
  */
 public class ModifyCommand implements Command {
+    protected static final Logger LOGGER = LoggerFactory.getLogger(ModifyCommand.class);
+
     protected List<Shape> oldShapes;
     protected List<Shape> newShapes;
     protected AppState appState;
@@ -34,27 +39,23 @@ public class ModifyCommand implements Command {
     @Override
     public void execute() {
         try {
-            System.out.println("ModifyCommand.execute() - 开始执行修改命令");
-            System.out.println("ModifyCommand.execute() - 旧图形数量: " + oldShapes.size());
-            System.out.println("ModifyCommand.execute() - 新图形数量: " + newShapes.size());
-            
+            LOGGER.debug("开始执行修改命令，旧图形数量: {}，新图形数量: {}", oldShapes.size(), newShapes.size());
+
             // 移除旧图形
             for (Shape shape : oldShapes) {
-                System.out.println("ModifyCommand.execute() - 移除图形: " + shape.getId());
+                LOGGER.debug("移除图形: {}", shape.getId());
                 appState.removeShape(shape);
             }
-            
+
             // 添加新图形
             for (Shape shape : newShapes) {
-                System.out.println("ModifyCommand.execute() - 添加图形: " + shape.getId());
+                LOGGER.debug("添加图形: {}", shape.getId());
                 appState.addShape(shape);
             }
-            
-            System.out.println("ModifyCommand.execute() - 修改命令执行完成");
+
+            LOGGER.debug("修改命令执行完成");
         } catch (Exception e) {
-            // 记录错误但继续执行
-            System.err.println("ModifyCommand.execute() - 执行失败: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("修改命令执行失败", e);
         }
     }
     
