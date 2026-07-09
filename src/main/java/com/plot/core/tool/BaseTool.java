@@ -226,88 +226,14 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         setState(ToolState.INACTIVE);
     }
 
-    /**
-     * 完成绘制操作
-     * 由子类实现具体的绘制完成逻辑
-     */
-    protected void completeDrawing() {
-        // 默认实现为空，由子类根据需要重写
-        if (previewShape != null) {
-            // 如果有预览图形，尝试使用新的参数化方法
-            try {
-                // 使用反射调用子类可能实现的带参数的completeDrawing方法
-                java.lang.reflect.Method method = this.getClass().getDeclaredMethod("completeDrawing", Shape.class);
-                method.invoke(this, previewShape);
-                LOGGER.debug("使用参数化completeDrawing方法完成绘制");
-                return;
-            } catch (NoSuchMethodException e) {
-                // 子类没有实现带参数的方法，继续使用默认行为
-                LOGGER.debug("子类未实现参数化completeDrawing方法，使用默认行为");
-            } catch (Exception e) {
-                LOGGER.error("调用参数化completeDrawing方法失败", e);
-            }
-            
-                        // 默认行为：如果有活动图层，将预览图形添加到图层
-                        // 从 AppState 获取活动图层，确保使用最新的活动图层状态
-                        ILayer layer = appState.getActiveLayer();
-                        if (layer != null) {
-                try {
-                    Shape finalShape = previewShape.clone();
-                    
-                    // 设置样式
-                    IShapeStyle style = appState.getCurrentShapeStyle();
-                    if (style != null) {
-                        finalShape.setStyle(style.clone());
-                    } else {
-                        finalShape.setStyle(ShapeStyle.DEFAULT.clone());
-                    }
-                    
-                    // 添加到图层
-                    layer.addShape(finalShape);
-                                        LOGGER.info("图形已添加到图层: {}, 图层名称: {}", layer.getName(), layer.getName());
-                    
-                    // 确保图层可见
-                    if (!layer.isVisible()) {
-                        layer.setVisible(true);
-                    }
-                    
-                    // 标记为脏并刷新
-                    markDirty();
-                    
-                    // 通知AppState
-                    appState.addShape(finalShape);
-                    
-                    // 清理预览
-                    previewShape = null;
-                } catch (Exception e) {
-                    LOGGER.error("完成绘制时出错", e);
-                }
-            }
-        }
-    }
-
     @Override
     public void onComplete() {
-        // 记录调用以便追踪
-        LOGGER.debug("BaseTool.onComplete() 被调用");
-    
-        // 如果正在拖拽，先停止拖拽
         isDragging = false;
-        
-        // 检查是否有正在处理的操作
-        if (isActive) {
-            // 如果previewShape为空，说明可能已经处理过，则不再调用completeDrawing
-            if (previewShape != null) {
-                LOGGER.debug("BaseTool.onComplete: 执行completeDrawing");
-                completeDrawing();  // 调用完成绘制方法
-            } else {
-                LOGGER.debug("BaseTool.onComplete: previewShape已为空，跳过处理");
-            }
-        } else {
-            LOGGER.debug("BaseTool.onComplete: 工具未处于活动状态，跳过处理");
+
+        if (isActive && previewShape != null) {
+            commit();
         }
-        
-        // 无论如何，都设置为非活动状态
+
         setState(ToolState.INACTIVE);
     }
 
