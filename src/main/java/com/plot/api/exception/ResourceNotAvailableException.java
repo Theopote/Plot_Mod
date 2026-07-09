@@ -1,5 +1,7 @@
 package com.plot.api.exception;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 资源不可用异常
  * 
@@ -53,7 +55,7 @@ public class ResourceNotAvailableException extends ToolException {
     
     @Override
     public String getUserMessage() {
-        return "资源暂不可用，请重试";
+        return PlotI18n.status("status.plot.exception.resource_unavailable");
     }
     
     @Override

@@ -3,6 +3,7 @@ package com.plot.infrastructure.event.block;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.Events;
+import com.plot.utils.PlotI18n;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
@@ -125,7 +126,7 @@ public class BlockProjectionHandler {
     ) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.world == null) {
-            return new ProjectionResult(false, "Minecraft客户端未就绪", null, null, null);
+            return new ProjectionResult(false, PlotI18n.status("status.plot.projection.client_not_ready"), null, null, null);
         }
 
         PlayerEntity player = client.player;
@@ -139,7 +140,7 @@ public class BlockProjectionHandler {
         if (preview) {
             BlockPos previewPos = new BlockPos(x, y, z);
             LOGGER.info("预览方块: {} 在位置 {}", normalizedBlockId, previewPos);
-            return new ProjectionResult(true, "预览成功", previewPos, normalizedBlockId, null);
+            return new ProjectionResult(true, PlotI18n.status("status.plot.projection.preview_success"), previewPos, normalizedBlockId, null);
         }
 
         BlockProjectionEvent.ProjectionMode mode = projectionMode == null
@@ -163,13 +164,13 @@ public class BlockProjectionHandler {
         boolean placed = sendSetBlockCommand(client, finalPos, normalizedBlockId);
         if (!placed) {
             return new ProjectionResult(false,
-                    String.format("在位置 (%d, %d, %d) 放置方块失败", finalPos.getX(), finalPos.getY(), finalPos.getZ()),
+                    PlotI18n.status("status.plot.projection.place_failed", finalPos.getX(), finalPos.getY(), finalPos.getZ()),
                     finalPos,
                     normalizedBlockId,
                     previousBlockId);
         }
 
-        return new ProjectionResult(true, "投影成功", finalPos, normalizedBlockId, previousBlockId);
+        return new ProjectionResult(true, PlotI18n.status("status.plot.projection.success"), finalPos, normalizedBlockId, previousBlockId);
     }
 
     public boolean setBlockAt(BlockPos pos, String blockId) {
@@ -237,7 +238,7 @@ public class BlockProjectionHandler {
 
     private String validatePlacementContext(PlayerEntity player, World world, BlockPos finalPos) {
         if (player == null || world == null || finalPos == null) {
-            return "Minecraft客户端未就绪";
+            return PlotI18n.status("status.plot.projection.client_not_ready");
         }
 
         double distanceToPlayer = Math.sqrt(
@@ -246,19 +247,19 @@ public class BlockProjectionHandler {
         );
 
         if (distanceToPlayer > 256) {
-            return String.format("目标位置 (%d, %d, %d) 距离太远，请靠近后重试 (%.1f方块)",
+            return PlotI18n.status("status.plot.projection.too_far",
                     finalPos.getX(), finalPos.getY(), finalPos.getZ(), distanceToPlayer);
         }
 
         int chunkX = finalPos.getX() >> 4;
         int chunkZ = finalPos.getZ() >> 4;
         if (!world.isChunkLoaded(chunkX, chunkZ)) {
-            return String.format("目标位置 (%d, %d, %d) 尚未加载，请靠近后重试",
+            return PlotI18n.status("status.plot.projection.chunk_not_loaded",
                     finalPos.getX(), finalPos.getY(), finalPos.getZ());
         }
 
         if (!player.getAbilities().creativeMode) {
-            return "请切换到创造模式后再试";
+            return PlotI18n.status("status.plot.projection.creative_required");
         }
 
         return null;

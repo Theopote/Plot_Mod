@@ -1,5 +1,7 @@
 package com.plot.core.geometry.shapes;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 螺旋类型枚举 - 共享定义
  * 
@@ -10,20 +12,20 @@ package com.plot.core.geometry.shapes;
  * @version 1.0
  */
 public enum SpiralType {
-    LINEAR("线性螺旋"),
-    LOGARITHMIC("对数螺旋"), // 指数增长螺旋，使用生长因子控制增长速率
-    SEMICIRCLE("半圆螺旋"),
-    FERMAT("费马螺旋"),
-    FIBONACCI("斐波那契"),
-    POLYGON("多边形螺旋");
+    LINEAR("mode.plot.spiral.linear"),
+    LOGARITHMIC("mode.plot.spiral.logarithmic"),
+    SEMICIRCLE("mode.plot.spiral.semicircle"),
+    FERMAT("mode.plot.spiral.fermat"),
+    FIBONACCI("mode.plot.spiral.fibonacci"),
+    POLYGON("mode.plot.spiral.polygon");
 
-    private final String displayName;
+    private final String nameKey;
 
-    SpiralType(String displayName) {
-        this.displayName = displayName;
+    SpiralType(String nameKey) {
+        this.nameKey = nameKey;
     }
 
     public String getDisplayName() {
-        return displayName;
+        return PlotI18n.modeLabel(nameKey);
     }
-} 
+}

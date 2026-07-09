@@ -163,8 +163,8 @@ public class TextInputDialog {
                     float contentWidth = DialogStyleManager.getContentWidth();
 
                     DialogLayoutHelper.helpText(nativeInputSupported
-                            ? "已打开系统输入框，可输入中文；下方仅显示预览。 "
-                            : "当前环境不支持系统输入框，已回退到内置输入。 ");
+                            ? PlotI18n.tr("dialog.plot.text_input.native_hint")
+                            : PlotI18n.tr("dialog.plot.text_input.fallback_hint"));
                     boolean textEditorActive;
                     DialogLayoutHelper.DenseEditorStyleScope editorStyle = DialogLayoutHelper.pushDenseEditorStyle();
                     try {

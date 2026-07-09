@@ -1,5 +1,7 @@
 package com.plot.api.exception;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 工具状态异常
  * 
@@ -39,7 +41,7 @@ public class ToolStateException extends ToolException {
     
     @Override
     public String getUserMessage() {
-        return "工具状态异常，正在重置";
+        return PlotI18n.status("status.plot.exception.tool_state_reset");
     }
     
     @Override

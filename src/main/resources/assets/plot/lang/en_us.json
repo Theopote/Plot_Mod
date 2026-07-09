@@ -1616,5 +1616,22 @@
   "status.plot.control_point.hover": "Hovering control point; click and drag to edit",
   "status.plot.control_point.select": "Select a control point to edit",
   "status.plot.strategy.unknown_state": "Strategy state unknown",
-  "status.plot.draw.polyline.select_mode": "Select a valid draw mode"
+  "status.plot.draw.polyline.select_mode": "Select a valid draw mode",
+  "mode.plot.spiral.linear": "Linear Spiral",
+  "mode.plot.spiral.logarithmic": "Logarithmic Spiral",
+  "mode.plot.spiral.semicircle": "Semicircle Spiral",
+  "mode.plot.spiral.fermat": "Fermat Spiral",
+  "mode.plot.spiral.fibonacci": "Fibonacci Spiral",
+  "mode.plot.spiral.polygon": "Polygon Spiral",
+  "dialog.plot.text_input.native_hint": "System input is open; you can type Chinese. The box below is preview only. ",
+  "dialog.plot.text_input.fallback_hint": "Native input is unavailable; using built-in input instead. ",
+  "status.plot.exception.resource_unavailable": "Resource unavailable, please retry",
+  "status.plot.exception.tool_state_reset": "Tool state error, resetting",
+  "status.plot.projection.client_not_ready": "Minecraft client not ready",
+  "status.plot.projection.preview_success": "Preview successful",
+  "status.plot.projection.place_failed": "Failed to place block at (%d, %d, %d)",
+  "status.plot.projection.success": "Projection successful",
+  "status.plot.projection.too_far": "Target (%d, %d, %d) is too far; move closer and retry (%.1f blocks)",
+  "status.plot.projection.chunk_not_loaded": "Target (%d, %d, %d) is not loaded; move closer and retry",
+  "status.plot.projection.creative_required": "Switch to creative mode and try again"
 }

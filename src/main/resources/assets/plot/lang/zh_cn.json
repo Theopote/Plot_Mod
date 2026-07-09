@@ -1616,5 +1616,22 @@
   "status.plot.control_point.hover": "悬停在控制点上，点击拖拽进行编辑",
   "status.plot.control_point.select": "选择一个控制点进行编辑",
   "status.plot.strategy.unknown_state": "策略状态未知",
-  "status.plot.draw.polyline.select_mode": "请选择有效的绘制模式"
+  "status.plot.draw.polyline.select_mode": "请选择有效的绘制模式",
+  "mode.plot.spiral.linear": "线性螺旋",
+  "mode.plot.spiral.logarithmic": "对数螺旋",
+  "mode.plot.spiral.semicircle": "半圆螺旋",
+  "mode.plot.spiral.fermat": "费马螺旋",
+  "mode.plot.spiral.fibonacci": "斐波那契",
+  "mode.plot.spiral.polygon": "多边形螺旋",
+  "dialog.plot.text_input.native_hint": "已打开系统输入框，可输入中文；下方仅显示预览。 ",
+  "dialog.plot.text_input.fallback_hint": "当前环境不支持系统输入框，已回退到内置输入。 ",
+  "status.plot.exception.resource_unavailable": "资源暂不可用，请重试",
+  "status.plot.exception.tool_state_reset": "工具状态异常，正在重置",
+  "status.plot.projection.client_not_ready": "Minecraft客户端未就绪",
+  "status.plot.projection.preview_success": "预览成功",
+  "status.plot.projection.place_failed": "在位置 (%d, %d, %d) 放置方块失败",
+  "status.plot.projection.success": "投影成功",
+  "status.plot.projection.too_far": "目标位置 (%d, %d, %d) 距离太远，请靠近后重试 (%.1f方块)",
+  "status.plot.projection.chunk_not_loaded": "目标位置 (%d, %d, %d) 尚未加载，请靠近后重试",
+  "status.plot.projection.creative_required": "请切换到创造模式后再试"
 }

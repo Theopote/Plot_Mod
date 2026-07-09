@@ -38,48 +38,41 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     private final Map<ToolType, Float> toolPanelHeightCache = new EnumMap<>(ToolType.class);
 
     /**
-     * 工具类型枚举，定义所有支持的工具类型及其显示名称
+     * 工具类型枚举，用于面板布局与高度计算（显示名称由 {@link PlotI18n#toolLabel} 提供）。
      */
     private enum ToolType {
-        UNKNOWN("unknown", "未知工具"),
-        SELECT("select", "选择"),
-        LINE("line", "直线"),
-        CIRCLE("circle", "圆形"),
-        RECTANGLE("rectangle", "矩形"),
-        ELLIPSE("ellipse", "椭圆"),
-        ARC("arc", "圆弧"),
-        POLYGON("polygon", "多边形"),
-        POLYLINE("polyline", "多段线"),
-        SPLINE("spline", "样条曲线"),
-        CATENARY("catenary", "悬链线"),
-        FREE_DRAW("freedraw", "自由绘制"),
-        ERASER("eraser", "橡皮擦"),
-        SEMICIRCLE("semicircle", "半圆"),
-        STAR("star", "星形"),
-        SPIRAL("spiral", "螺旋线"),
-        SINE("sine", "正弦曲线"),
-        MOVE("move", "移动"),
-        ROTATE("rotate", "旋转"),
-        MIRROR("mirror", "镜像"),
-        SCALE("scale", "缩放"),
-        ALIGN("align", "对齐"),
-        ARRAY("array", "阵列"),
-        OFFSET("offset", "偏移"),
-        FILLET("fillet", "倒角"),
-        CHAMFER("chamfer", "倒角"),
-        TRANSFORM("transform", "变换"),
-
-        TRIM("trim", "修剪"),
-        EXTEND("extend", "延伸"),
-        BREAK("break", "打断"),
-        TEXT("text", "文本"),
-        ANNOTATION("annotation", "标注");
-
-        private final String displayName;
-
-        ToolType(String id, String displayName) {
-            this.displayName = displayName;
-        }
+        UNKNOWN,
+        SELECT,
+        LINE,
+        CIRCLE,
+        RECTANGLE,
+        ELLIPSE,
+        ARC,
+        POLYGON,
+        POLYLINE,
+        SPLINE,
+        CATENARY,
+        FREE_DRAW,
+        ERASER,
+        SEMICIRCLE,
+        STAR,
+        SPIRAL,
+        SINE,
+        MOVE,
+        ROTATE,
+        MIRROR,
+        SCALE,
+        ALIGN,
+        ARRAY,
+        OFFSET,
+        FILLET,
+        CHAMFER,
+        TRANSFORM,
+        TRIM,
+        EXTEND,
+        BREAK,
+        TEXT,
+        ANNOTATION;
 
         /**
          * 从字符串获取工具类型
