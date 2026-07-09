@@ -21,11 +21,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
+import net.minecraft.resource.SynchronousResourceReloader;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 public class PlotMod implements ModInitializer, ClientModInitializer {
     public static final String MOD_ID = "plot";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    private static final Identifier PLOT_TEXTURES_RELOADER_ID = Identifier.of(MOD_ID, "plot_textures");
 
     private static KeyBinding openScreenKey;
 
@@ -260,17 +261,18 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
     }
 
     private void registerTextureReloadListener() {
-        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(
-                new SimpleSynchronousResourceReloadListener() {
-                    @Override
-                    public Identifier getFabricId() {
-                        return Identifier.of(MOD_ID, "plot_textures");
-                    }
-
+        ResourceLoader.get(ResourceType.CLIENT_RESOURCES).registerReloader(
+                PLOT_TEXTURES_RELOADER_ID,
+                new SynchronousResourceReloader() {
                     @Override
                     public void reload(ResourceManager resourceManager) {
                         LOGGER.debug("资源包已重载，释放 Plot UI 纹理缓存");
                         PlotTextureLifecycle.disposeAll();
+                    }
+
+                    @Override
+                    public String getName() {
+                        return PLOT_TEXTURES_RELOADER_ID.toString();
                     }
                 }
         );
