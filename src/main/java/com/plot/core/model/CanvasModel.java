@@ -16,16 +16,25 @@ public class CanvasModel {
     private ILayer activeLayer;
 
     public CanvasModel(String name, int width, int height) {
-        this.id = UUID.randomUUID();
+        this(UUID.randomUUID(), name, width, height, true);
+    }
+
+    public CanvasModel(UUID id, String name, int width, int height) {
+        this(id, name, width, height, false);
+    }
+
+    private CanvasModel(UUID id, String name, int width, int height, boolean createDefaultLayer) {
+        this.id = id;
         this.name = name;
         this.width = width;
         this.height = height;
         this.layers = new ArrayList<>();
-        
-        // 创建默认图层
-        ILayer defaultLayer = new Layer("Default Layer");
-        this.layers.add(defaultLayer);
-        this.activeLayer = defaultLayer;
+
+        if (createDefaultLayer) {
+            ILayer defaultLayer = new Layer("Default Layer");
+            this.layers.add(defaultLayer);
+            this.activeLayer = defaultLayer;
+        }
     }
 
     public ILayer getActiveLayer() {

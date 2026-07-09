@@ -474,6 +474,10 @@ public class AppState implements IAppState {
         return currentProject;
     }
 
+    public void setCurrentProject(Project project) {
+        this.currentProject = project;
+    }
+
     // --- 图层相关 ---
 
     public void setActiveLayer(ILayer layer) {

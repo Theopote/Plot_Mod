@@ -43,7 +43,7 @@ public final class PathUtils {
         }
         
         if (pathPoints.size() == 1) {
-            return pathPoints.get(0);
+            return pathPoints.getFirst();
         }
         
         double currentLength = 0.0;
@@ -65,7 +65,7 @@ public final class PathUtils {
         }
         
         // 如果目标长度超出路径长度，返回最后一个点
-        return pathPoints.get(pathPoints.size() - 1);
+        return pathPoints.getLast();
     }
     
     /**
