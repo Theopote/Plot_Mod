@@ -412,7 +412,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
     private String generateStatusMessage(IModifyHandler.ModifyParameters parameters) {
         if (parameters instanceof ModifyParameters params) {
             double scaleFactor = params.getDouble("scaleFactor", 1.0);
-            return String.format("缩放比例: %.2fx", scaleFactor);
+            return PlotI18n.status("status.plot.scale.ratio", scaleFactor);
         }
         return "status.plot.transform.preview";
     }

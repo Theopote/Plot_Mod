@@ -846,6 +846,7 @@
   "status.plot.scale.initial_select": "Select shapes to scale first",
   "status.plot.scale.initial_center": "Selected %d shapes; click to set scale center",
   "status.plot.scale.move_finish": "Move mouse to scale; click to finish",
+  "status.plot.scale.ratio": "Scale ratio: %.2fx",
   "status.plot.align.initial_modes": "Choose align mode: Left(L), Right(R), Center(C), Top(T), Bottom(B), Middle(M)",
   "status.plot.align.initial_select": "Select shapes to align first",
   "status.plot.align.source1": "Source point 1 set; click target point 1 (anywhere)",

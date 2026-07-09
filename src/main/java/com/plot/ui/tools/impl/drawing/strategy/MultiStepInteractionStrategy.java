@@ -5,6 +5,8 @@ import com.plot.core.model.Shape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.plot.utils.PlotI18n;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -352,9 +354,9 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
     @Override
     public String getStrategyDescription() {
         if (maxSteps > 0) {
-            return String.format("status.plot.draw.multistep.max", maxSteps);
+            return PlotI18n.status("status.plot.draw.multistep.max", maxSteps);
         } else {
-            return "status.plot.draw.multistep.finish";
+            return PlotI18n.tr("status.plot.draw.multistep.finish");
         }
     }
     

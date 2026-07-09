@@ -846,6 +846,7 @@
   "status.plot.scale.initial_select": "请先选择要缩放的图形",
   "status.plot.scale.initial_center": "已选择 %d 个图形，点击设置缩放中心点",
   "status.plot.scale.move_finish": "移动鼠标缩放图形，点击完成",
+  "status.plot.scale.ratio": "缩放比例: %.2fx",
   "status.plot.align.initial_modes": "选择对齐方式：左对齐(L)、右对齐(R)、中心对齐(C)、顶部对齐(T)、底部对齐(B)、中间对齐(M)",
   "status.plot.align.initial_select": "请先选择要对齐的图形",
   "status.plot.align.source1": "已选源点1，点击目标点1（可以是任意位置）",
