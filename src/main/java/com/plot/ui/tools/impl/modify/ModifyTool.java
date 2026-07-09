@@ -168,14 +168,13 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     protected ModifyTool(String id, String name, Identifier icon, String description,
                         IAppState appState, ISnapManager snapManager,
                         EventBus eventBus, ShortcutManager shortcutManager) {
-        String localizedName = PlotI18n.toolLabel(id);
-        String localizedDescription = PlotI18n.toolDescription(id);
-        super(id, localizedDescription, icon, localizedName, appState, eventBus, shortcutManager);
+        super(id, PlotI18n.toolDescription(id), icon, PlotI18n.toolLabel(id),
+                appState, eventBus, shortcutManager);
 
         this.toolId = id;
-        this.toolName = localizedName;
+        this.toolName = this.name;
         this.toolIcon = icon;
-        this.toolDescription = localizedDescription;
+        this.toolDescription = this.description;
         this.concreteAppState = requireConcreteAppState(appState);
         this.snapManager = snapManager;
         this.previewStyle = ShapeStyle.PREVIEW;

@@ -190,14 +190,13 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
                          IAppState appState, ISnapManager snapManager,
                          EventBus eventBus, ShortcutManager shortcutManager,
                          InteractionType interactionType) {
-        String localizedName = PlotI18n.toolLabel(id);
-        String localizedDescription = PlotI18n.toolDescription(id);
-        super(id, localizedDescription, icon, localizedName, appState, eventBus, shortcutManager);
+        super(id, PlotI18n.toolDescription(id), icon, PlotI18n.toolLabel(id),
+                appState, eventBus, shortcutManager);
 
         this.toolId = id;
-        this.toolName = localizedName;
+        this.toolName = this.name;
         this.toolIcon = icon;
-        this.toolDescription = localizedDescription;
+        this.toolDescription = this.description;
         this.snapManager = snapManager;
         this.interactionType = Objects.requireNonNull(interactionType, PlotI18n.error("error.plot.validation.interaction_type_null"));
         this.toolStyle = new ToolStyle();

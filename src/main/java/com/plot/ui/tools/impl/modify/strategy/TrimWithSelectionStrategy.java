@@ -1213,9 +1213,9 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         
         // 添加持续模式标识
         if (isBoundaryModePersistent && trimState == TrimState.BOUNDARY_READY) {
-            return PlotI18n.modeLabel("strategy.plot.desc.with_persistent", baseDescription);
+            return PlotI18n.tr("strategy.plot.desc.with_persistent", baseDescription);
         } else if (isFenceModePersistent && trimState == TrimState.FENCE_READY) {
-            return PlotI18n.modeLabel("strategy.plot.desc.with_persistent", baseDescription);
+            return PlotI18n.tr("strategy.plot.desc.with_persistent", baseDescription);
         }
         
         return baseDescription;
