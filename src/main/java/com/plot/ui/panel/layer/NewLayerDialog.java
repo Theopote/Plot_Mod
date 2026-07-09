@@ -85,11 +85,11 @@ public class NewLayerDialog {
 
     private String generateDefaultName() {
         int layerCount = layerManager.getLayers().size() + 1;
-        String defaultName = "图层" + layerCount;
+        String defaultName = PlotI18n.tr("layer.plot.default_name", layerCount);
         int suffix = layerCount;
         synchronized (layerManager) {
             while (layerManager.isNameExists(defaultName)) {
-                defaultName = "图层" + (++suffix);
+                defaultName = PlotI18n.tr("layer.plot.default_name", ++suffix);
             }
         }
         return defaultName;
@@ -106,24 +106,24 @@ public class NewLayerDialog {
 
         // 验证名称
         if (name.isEmpty()) {
-            showWarningDialog.accept("图层名称不能为空");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_empty"));
             nameInputInvalid = true;
             return;
         }
         if (name.length() > MAX_NAME_LENGTH) {
-            showWarningDialog.accept("图层名称不能超过" + MAX_NAME_LENGTH + "个字符");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_too_long_max", MAX_NAME_LENGTH));
             nameInputInvalid = true;
             return;
         }
         if (!name.matches(LAYER_NAME_PATTERN)) {
-            showWarningDialog.accept("图层名称只能包含中文、字母、数字或下划线");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_invalid_chars"));
             nameInputInvalid = true;
             return;
         }
 
         synchronized (layerManager) {
             if (layerManager.isNameExists(name)) {
-                showWarningDialog.accept("图层名称已存在，请使用其他名称");
+                showWarningDialog.accept(PlotI18n.tr("layer.plot.name_exists_alt"));
                 nameInputInvalid = true;
                 return;
             }

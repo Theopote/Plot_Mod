@@ -138,8 +138,8 @@ public class LayerContextMenuRenderer {
                         mergeSelectedLayers();
                     }
                 } else {
-                    String disabledReason = selectedLayers.size() <= 1 ? 
-                                          "需要选择多个图层" : "选中的图层中包含锁定图层";
+                    String disabledReason = selectedLayers.size() <= 1 ?
+                                          PlotI18n.tr("layer.plot.merge_need_multiple_menu") : PlotI18n.tr("layer.plot.merge_has_locked_menu");
                     ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
                     ImGui.menuItem(PlotI18n.tr("layer.plot.merge_selected"), disabledReason, false, false);
                     ImGui.popStyleVar();
@@ -173,10 +173,10 @@ public class LayerContextMenuRenderer {
     private void duplicateLayer(Layer sourceLayer) {
         try {
             // 创建新的图层名称
-            String newName = sourceLayer.getName() + " 副本";
+            String newName = sourceLayer.getName() + PlotI18n.tr("layer.plot.copy_suffix");
             int suffix = 1;
             while (layerManager.isNameExists(newName)) {
-                newName = sourceLayer.getName() + " 副本 " + suffix++;
+                newName = sourceLayer.getName() + PlotI18n.tr("layer.plot.copy_suffix") + " " + suffix++;
             }
 
             // 创建新图层
@@ -219,11 +219,11 @@ public class LayerContextMenuRenderer {
                 // 关闭上下文菜单
                 ImGui.closeCurrentPopup();
             } else {
-                showWarningDialog.accept(result.getMessage() != null ? 
-                    result.getMessage() : "创建图层失败");
+                showWarningDialog.accept(result.getMessage() != null ?
+                    result.getMessage() : PlotI18n.tr("layer.plot.create_failed"));
             }
         } catch (Exception e) {
-            showWarningDialog.accept("复制图层失败：" + e.getMessage());
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.copy_failed", e.getMessage()));
         }
     }
     
@@ -233,13 +233,13 @@ public class LayerContextMenuRenderer {
     private void mergeSelectedLayers() {
         // 检查是否有足够的图层可以合并
         if (selectedLayers.size() <= 1) {
-            showWarningDialog.accept("需要选择至少两个图层才能合并");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_need_two"));
             return;
         }
-        
+
         // 检查是否包含锁定图层
         if (containsLockedLayer(selectedLayers)) {
-            showWarningDialog.accept("无法合并锁定的图层");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.cannot_merge_locked_ctx"));
             return;
         }
         
@@ -273,7 +273,7 @@ public class LayerContextMenuRenderer {
             layerManager.setActiveLayer(targetLayer);
             
         } catch (Exception e) {
-            showWarningDialog.accept("合并图层失败: " + e.getMessage());
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_failed", e.getMessage()));
         }
     }
 }
