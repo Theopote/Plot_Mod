@@ -20,6 +20,7 @@ import com.plot.ui.tools.event.SplineConfigChangedEvent;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
@@ -66,19 +67,19 @@ public class SplineTool extends DrawingTool {
     
     // 2. 统一模式枚举
     public enum SplineMode {
-        THROUGH_POINTS("through_points", "拟合", "曲线穿过所有点"),
-        CONTROL_POLYGON("control_polygon", "控制", "点作为控制多边形");
+        THROUGH_POINTS("through_points", "mode.plot.spline.fit_short", "mode.plot.spline_fit"),
+        CONTROL_POLYGON("control_polygon", "mode.plot.spline.control_short", "mode.plot.spline_control");
         private final String id;
-        private final String displayName;
-        private final String description;
-        SplineMode(String id, String displayName, String description) {
+        private final String nameKey;
+        private final String descKey;
+        SplineMode(String id, String nameKey, String descKey) {
             this.id = id;
-            this.displayName = displayName;
-            this.description = description;
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
         public String getId() { return id; }
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
         public static SplineMode fromId(String id) {
             for (SplineMode mode : values()) {
                 if (mode.id.equals(id)) return mode;

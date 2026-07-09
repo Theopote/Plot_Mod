@@ -1,31 +1,30 @@
 package com.plot.ui.tools.impl.modify.enums;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 变换状态枚举
  * 
  * <p>定义变换工具的不同工作状态</p>
- * 
- * @author Plot Team
- * @version 1.0 - 变换状态枚举
  */
 public enum TransformState {
-    IDLE("空闲", "等待开始变换"),
-    SHOWING_BOUNDING_BOX("显示包围盒", "显示包围盒和控制点"),
-    DRAGGING_CONTROL_POINT("拖拽控制点", "正在拖拽控制点进行变换");
+    IDLE("state.plot.transform.idle", "state.plot.transform.idle.desc"),
+    SHOWING_BOUNDING_BOX("state.plot.transform.bounding_box", "state.plot.transform.bounding_box.desc"),
+    DRAGGING_CONTROL_POINT("state.plot.transform.drag_control", "state.plot.transform.drag_control.desc");
 
-    private final String displayName;
-    private final String description;
+    private final String nameKey;
+    private final String descKey;
 
-    TransformState(String displayName, String description) {
-        this.displayName = displayName;
-        this.description = description;
+    TransformState(String nameKey, String descKey) {
+        this.nameKey = nameKey;
+        this.descKey = descKey;
     }
 
     public String getDisplayName() {
-        return displayName;
+        return PlotI18n.modeLabel(nameKey);
     }
 
     public String getDescription() {
-        return description;
+        return PlotI18n.modeLabel(descKey);
     }
 }

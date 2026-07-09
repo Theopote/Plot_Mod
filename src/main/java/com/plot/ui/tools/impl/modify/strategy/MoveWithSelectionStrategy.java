@@ -39,19 +39,19 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
     // 策略模式枚举
     public enum StrategyMode {
-        SELECTION("选择模式", "左键选择图形，右键完成选择"),
-        MOVE("移动模式", "拖拽移动或点击-移动-点击模式");
+        SELECTION("strategy.plot.mode.selection", "strategy.plot.mode.selection.desc"),
+        MOVE("strategy.plot.mode.move", "strategy.plot.mode.move.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        StrategyMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        StrategyMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 常量

@@ -41,19 +41,19 @@ public class ScaleStrategy implements IModifyStrategy {
     
     // 缩放模式枚举
     public enum ScaleMode {
-        UNIFORM("统一缩放", "保持宽高比的统一缩放"),
-        NON_UNIFORM("非统一缩放", "可以分别调整X和Y方向的缩放比例");
+        UNIFORM("mode.plot.scale.uniform", "mode.plot.scale.uniform.desc"),
+        NON_UNIFORM("mode.plot.scale.non_uniform", "mode.plot.scale.non_uniform.desc");
         
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
         
-        ScaleMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ScaleMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
         
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 缩放状态枚举

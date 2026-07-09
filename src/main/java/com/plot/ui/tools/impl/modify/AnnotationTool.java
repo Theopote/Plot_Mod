@@ -10,6 +10,7 @@ import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.component.ToolPanelIcons;
 import com.plot.ui.tools.impl.modify.strategy.AnnotationStrategy;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,17 +30,17 @@ public class AnnotationTool extends ModifyTool {
      * 标注模式枚举
      */
     public enum AnnotationMode {
-        DISTANCE("distance", "距离"),    // 两点距离
-        ANGLE("angle", "角度"),          // 角度
-        RADIUS("radius", "半径"),        // 半径
-        AREA("area", "面积");            // 面积（区域内方块数量）
+        DISTANCE("distance", "option.plot.annotation_distance"),
+        ANGLE("angle", "option.plot.annotation_angle"),
+        RADIUS("radius", "option.plot.annotation_radius"),
+        AREA("area", "option.plot.annotation_area");
         
         private final String id;
-        private final String displayName;
+        private final String nameKey;
         
-        AnnotationMode(String id, String displayName) {
+        AnnotationMode(String id, String nameKey) {
             this.id = id;
-            this.displayName = displayName;
+            this.nameKey = nameKey;
         }
         
         public String getId() {
@@ -47,7 +48,7 @@ public class AnnotationTool extends ModifyTool {
         }
         
         public String getDisplayName() {
-            return displayName;
+            return PlotI18n.tr(nameKey);
         }
         
         public static AnnotationMode fromId(String id) {

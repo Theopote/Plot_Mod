@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.enums;
 
+import com.plot.utils.PlotI18n;
 
 /**
  * 变换模式枚举
@@ -7,65 +8,34 @@ package com.plot.ui.tools.impl.modify.enums;
  */
 public enum TransformMode {
     
-    /**
-     * 自由变换 - 允许在所有方向进行变换
-     */
-    FREE("FREE", "自由变换", "允许在所有方向进行变换"),
-    
-    /**
-     * 水平变换 - 只允许水平方向变换
-     */
-    HORIZONTAL("HORIZONTAL", "水平变换", "只允许水平方向变换"),
-    
-    /**
-     * 垂直变换 - 只允许垂直方向变换
-     */
-    VERTICAL("VERTICAL", "垂直变换", "只允许垂直方向变换"),
-    
-    /**
-     * 等比变换 - 保持宽高比例进行变换
-     */
-    UNIFORM("UNIFORM", "等比变换", "保持宽高比例进行变换"),
-    
-    /**
-     * 旋转模式 - 旋转选中的图形
-     */
-    ROTATION("ROTATION", "旋转模式", "旋转选中的图形");
+    FREE("FREE", "mode.plot.transform.free", "mode.plot.transform.free.desc"),
+    HORIZONTAL("HORIZONTAL", "mode.plot.transform.horizontal", "mode.plot.transform.horizontal.desc"),
+    VERTICAL("VERTICAL", "mode.plot.transform.vertical", "mode.plot.transform.vertical.desc"),
+    UNIFORM("UNIFORM", "mode.plot.transform.uniform", "mode.plot.transform.uniform.desc"),
+    ROTATION("ROTATION", "mode.plot.transform.rotation", "mode.plot.transform.rotation.desc");
     
     private final String value;
-    private final String displayName;
-    private final String description;
+    private final String nameKey;
+    private final String descKey;
     
-    TransformMode(String value, String displayName, String description) {
+    TransformMode(String value, String nameKey, String descKey) {
         this.value = value;
-        this.displayName = displayName;
-        this.description = description;
+        this.nameKey = nameKey;
+        this.descKey = descKey;
     }
     
-    /**
-     * 获取模式值
-     */
     public String getValue() {
         return value;
     }
     
-    /**
-     * 获取显示名称
-     */
     public String getDisplayName() {
-        return displayName;
+        return PlotI18n.modeLabel(nameKey);
     }
     
-    /**
-     * 获取描述
-     */
     public String getDescription() {
-        return description;
+        return PlotI18n.modeLabel(descKey);
     }
 
-    /**
-     * 从值创建变换模式
-     */
     public static TransformMode fromValue(String value) {
         for (TransformMode mode : values()) {
             if (mode.value.equals(value)) {
@@ -77,6 +47,6 @@ public enum TransformMode {
     
     @Override
     public String toString() {
-        return displayName;
+        return getDisplayName();
     }
 }
