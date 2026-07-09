@@ -1412,5 +1412,6 @@
   "annotation.plot.degrees": "%.2f°",
   "status.plot.mirror.axis_handler_simple": "Axis symmetry%s",
   "status.plot.boundary.enclosed": "Enclosed region found; boundary coverage: %.1f%%",
-  "status.plot.boundary.not_enclosed": "Region not enclosed; coverage: %.1f%% (need at least %.1f%%)"
+  "status.plot.boundary.not_enclosed": "Region not enclosed; coverage: %.1f%% (need at least %.1f%%)",
+  "status.plot.draw.angle_label": "%.1f°"
 }

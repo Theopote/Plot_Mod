@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Set;
 import com.plot.core.state.AppState;
 // import com.plot.core.command.commands.DeleteShapesCommand;
-import com.plot.utils.PlotI18n; // 未使用
+import com.plot.utils.PlotI18n;
 
 /**
  * 选择策略实现 - 完整版本

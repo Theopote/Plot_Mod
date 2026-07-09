@@ -616,7 +616,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
                     centerPoint.x + textRadius * Math.cos(midAngle),
                     centerPoint.y + textRadius * Math.sin(midAngle)
                 );
-                context.drawText(String.format("%.1f°", angleDiff), textPos, angleColor);
+                context.drawText(PlotI18n.status("status.plot.draw.angle_label", angleDiff), textPos, angleColor);
             }
         }
     }

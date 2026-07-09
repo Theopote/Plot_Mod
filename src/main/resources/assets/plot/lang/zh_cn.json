@@ -1412,5 +1412,6 @@
   "annotation.plot.degrees": "%.2f°",
   "status.plot.mirror.axis_handler_simple": "轴对称%s",
   "status.plot.boundary.enclosed": "找到封闭区域，边界覆盖率: %.1f%%",
-  "status.plot.boundary.not_enclosed": "区域不封闭，边界覆盖率: %.1f%% (需要至少 %.1f%%)"
+  "status.plot.boundary.not_enclosed": "区域不封闭，边界覆盖率: %.1f%% (需要至少 %.1f%%)",
+  "status.plot.draw.angle_label": "%.1f°"
 }

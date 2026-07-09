@@ -225,6 +225,10 @@ KEYS = {
         "Axis symmetry%s: length=%.1f, angle=%.1f°%s",
         "轴对称%s: 轴长=%.1f, 角度=%.1f°%s",
     ),
+    "status.plot.mirror.axis_handler_simple": (
+        "Axis symmetry%s",
+        "轴对称%s",
+    ),
     "status.plot.mirror.constraint_horizontal": (
         " (horizontal)",
         " (水平)",

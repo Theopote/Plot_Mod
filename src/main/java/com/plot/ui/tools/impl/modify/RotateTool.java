@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.plot.ui.tools.impl.modify.strategy.RotateWithSelectionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 import com.plot.core.model.Shape;
@@ -266,7 +267,7 @@ public class RotateTool extends ModifyTool {
         while (angleDiff > 180) angleDiff -= 360;
         while (angleDiff < -180) angleDiff += 360;
         
-        context.drawText(String.format("%.1f°", angleDiff), textPos, arcColor);
+        context.drawText(PlotI18n.status("status.plot.draw.angle_label", angleDiff), textPos, arcColor);
     }
 
     @Override
