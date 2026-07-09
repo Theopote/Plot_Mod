@@ -259,7 +259,7 @@ public class FilletStrategy implements IModifyStrategy {
             updatePreviewWithDebounce(context);
         }
         
-        context.setStatusMessage(String.format("圆角半径: %.1f (滚轮调整)", radius));
+        context.setStatusMessage(PlotI18n.status("status.plot.fillet.radius_scroll", radius));
         return ModifyResult.CONTINUE;
     }
     
@@ -275,9 +275,9 @@ public class FilletStrategy implements IModifyStrategy {
     
     public String getStatusMessage() {
         return switch (currentState) {
-            case SELECT_FIRST_LINE -> String.format("选择第一条直线，按+/-调整半径(%.1f)，或按ESC取消", radius);
+            case SELECT_FIRST_LINE -> PlotI18n.status("status.plot.fillet.select_first_line", radius);
             case SELECT_SECOND_LINE -> FilletConstants.STATUS_SELECT_SECOND_LINE;
-            case READY_TO_APPLY -> String.format("按鼠标右键确认圆角(半径%.1f)，+/-调整半径，或ESC取消", radius);
+            case READY_TO_APPLY -> PlotI18n.status("status.plot.fillet.ready_confirm", radius);
         };
     }
     
@@ -407,7 +407,7 @@ public class FilletStrategy implements IModifyStrategy {
             updatePreviewWithContext(context);
             if (isReadyToApply()) {
                currentState = FilletState.READY_TO_APPLY;
-               context.setStatusMessage(String.format(FilletConstants.STATUS_READY_TEMPLATE, radius));
+               context.setStatusMessage(PlotI18n.status(FilletConstants.STATUS_READY_TEMPLATE, radius));
             }
             return ModifyResult.CONTINUE;
         }
@@ -462,7 +462,7 @@ public class FilletStrategy implements IModifyStrategy {
         // 在准备应用阶段，更新预览
         if (shape1 != null && shape2 != null) {
             updatePreviewWithShapes(shape1, shape2, context);
-            context.setStatusMessage(String.format("按鼠标右键确认圆角(半径:%.1f)，滚轮调整半径，或按ESC取消", radius));
+            context.setStatusMessage(PlotI18n.status("status.plot.fillet.confirm_scroll", radius));
             return ModifyResult.CONTINUE;
         }
         return ModifyResult.IGNORED;
@@ -479,7 +479,7 @@ public class FilletStrategy implements IModifyStrategy {
         if (isReadyToApply()) {
             updatePreviewWithContext(context); // 更新预览
         }
-        context.setStatusMessage(String.format("圆角半径: %.1f", radius));
+        context.setStatusMessage(PlotI18n.status("status.plot.fillet.radius_value", radius));
         return ModifyResult.CONTINUE;
     }
     
@@ -560,7 +560,7 @@ public class FilletStrategy implements IModifyStrategy {
         ModifyCommand command = handler.createModifyCommand(originalShapes, null, params);
         if (command != null) {
             context.executeModifyCommand(command);
-            context.setStatusMessage(String.format(FilletConstants.STATUS_COMPLETE_TEMPLATE, radius));
+            context.setStatusMessage(PlotI18n.status(FilletConstants.STATUS_COMPLETE_TEMPLATE, radius));
             reset();
             return ModifyResult.COMPLETE;
         } else {

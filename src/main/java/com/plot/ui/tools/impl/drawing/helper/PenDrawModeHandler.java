@@ -8,6 +8,7 @@ import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 import java.awt.Color;
@@ -351,14 +352,14 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 if (pathNodes.size() == 1) {
                     return PenConstants.MSG_FIRST_POINT;
                 } else {
-                    return String.format(PenConstants.MSG_ADDING_POINTS, pathNodes.size());
+                    return PlotI18n.status(PenConstants.MSG_ADDING_POINTS, pathNodes.size());
                 }
             case DEFINING_HANDLE:
                 return PenConstants.MSG_DRAG_FOR_CURVE;
             case COMPLETED:
-                return "绘制完成";
+                return "status.plot.pen.completed";
             default:
-                return "未知状态";
+                return "status.plot.common.unknown_state";
         }
     }
     

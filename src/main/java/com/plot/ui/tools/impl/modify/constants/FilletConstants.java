@@ -48,17 +48,17 @@ public final class FilletConstants {
     public static final double SELECTION_TOLERANCE = 5.0; // 选择容差
     
     // 状态消息模板
-    public static final String STATUS_SELECT_SECOND_LINE = "选择第二个图形，滚轮调整参数，或按ESC取消";
-    public static final String STATUS_READY_TEMPLATE = "按鼠标右键确认倒圆角(半径:%.1f)，滚轮调整半径，或按ESC取消";
-    public static final String STATUS_COMPLETE_TEMPLATE = "倒圆角完成 (半径: %.1f)";
-    public static final String STATUS_LINES_PARALLEL = "图形平行，无法进行倒角操作";
-    public static final String STATUS_ANGLE_TOO_SMALL = "图形夹角太小，无法进行倒角操作";
-    public static final String STATUS_ANGLE_TOO_LARGE = "图形夹角太大，无法进行倒角操作";
-    public static final String STATUS_RADIUS_TOO_LARGE = "倒角半径太大，无法进行倒角操作";
-    
+    public static final String STATUS_SELECT_SECOND_LINE = "status.plot.fillet.select_second_param";
+    public static final String STATUS_READY_TEMPLATE = "status.plot.fillet.ready_chamfer_template";
+    public static final String STATUS_COMPLETE_TEMPLATE = "status.plot.fillet.complete_template";
+    public static final String STATUS_LINES_PARALLEL = "status.plot.fillet.lines_parallel";
+    public static final String STATUS_ANGLE_TOO_SMALL = "status.plot.fillet.angle_too_small";
+    public static final String STATUS_ANGLE_TOO_LARGE = "status.plot.fillet.angle_too_large";
+    public static final String STATUS_RADIUS_TOO_LARGE = "status.plot.fillet.radius_too_large";
+
     // 错误消息
-    public static final String ERROR_INVALID_SHAPES = "倒角操作需要选择两个图形";
-    public static final String ERROR_INVALID_RADIUS = "倒角半径必须在 %.1f 到 %.1f 之间";
+    public static final String ERROR_INVALID_SHAPES = "status.plot.fillet.error_invalid_shapes";
+    public static final String ERROR_INVALID_RADIUS = "status.plot.fillet.error_invalid_radius";
     public static final String ERROR_COMMAND_CREATION_FAILED = "status.plot.chamfer.command_failed";
     
     // 私有构造函数防止实例化

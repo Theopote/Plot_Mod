@@ -18,6 +18,7 @@ import com.plot.core.geometry.shapes.CableShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.constants.FilletConstants;
+import com.plot.utils.PlotI18n;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,13 +79,13 @@ public class FilletHandler implements IModifyHandler {
         // 检查半径参数
         double radius = getRadiusFromParameters(parameters);
         if (radius < FilletConstants.MIN_RADIUS || radius > FilletConstants.MAX_RADIUS) {
-            return ValidationResult.invalid(String.format(FilletConstants.ERROR_INVALID_RADIUS, 
+            return ValidationResult.invalid(PlotI18n.status(FilletConstants.ERROR_INVALID_RADIUS,
                                                         FilletConstants.MIN_RADIUS, FilletConstants.MAX_RADIUS));
         }
         
         // 同图形模式：允许折线与多边形拐角圆角
         if (shape1 == shape2 && !(shape1 instanceof PolylineShape) && !(shape1 instanceof Polygon)) {
-            return ValidationResult.invalid("同一图形仅支持折线或多边形拐角圆角");
+            return ValidationResult.invalid("status.plot.fillet.error_same_shape_only");
         }
 
         if (shape1 == shape2) {
@@ -95,7 +96,7 @@ public class FilletHandler implements IModifyHandler {
                 singleShapeResult = calculateSinglePolygonFillet(polygon, radius, clickPoint1, clickPoint2);
             }
             return singleShapeResult == null || singleShapeResult.isEmpty()
-                    ? ValidationResult.invalid("无法在该图形拐角创建圆角")
+                    ? ValidationResult.invalid("status.plot.fillet.error_corner_failed")
                     : ValidationResult.valid();
         }
         
