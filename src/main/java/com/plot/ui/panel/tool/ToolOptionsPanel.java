@@ -12,6 +12,7 @@ import com.plot.ui.component.UIComponent;
 import com.plot.ui.panel.tool.renderer.ToolOptionRenderer;
 import com.plot.ui.panel.tool.renderer.ToolOptionRendererFactory;
 import com.plot.ui.theme.ThemeManager;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.*;
 
@@ -285,7 +286,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     }
 
     private void renderToolInfo(BaseTool tool) {
-        ImGui.text("当前工具: " + getToolDisplayName(tool));
+        ImGui.text(PlotI18n.tr("panel.plot.current_tool", getToolDisplayName(tool)));
         ImGui.textWrapped(getToolDescription(tool));
     }
 
@@ -296,7 +297,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
 
         // 显示当前工具的使用方法提示（实时消息优先，否则显示默认使用方法）
         if (!usageHint.isEmpty()) {
-            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, "使用方法:");
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, PlotI18n.tr("panel.plot.usage"));
             ImGui.textWrapped(usageHint);
         }
     }
@@ -305,84 +306,15 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         if (tool == null) {
             return "";
         }
-
-        return switch (ToolType.fromString(tool.getId())) {
-            case SELECT -> "左键单击选择图形，拖拽可框选；按住Shift可多选，按住Ctrl可取消选中。";
-            case LINE -> "左键依次指定起点和终点完成直线；按住Shift可约束到水平/垂直/45°。";
-            case CIRCLE -> "左键按当前模式确定圆心与半径或关键点；右键可取消当前步骤。";
-            case RECTANGLE -> "左键按当前模式依次指定角点或中心点；按住Shift可约束为正方形。";
-            case ELLIPSE -> "左键按当前模式依次指定主轴与副轴（或中心与轴点）；右键可取消当前步骤。";
-            case ARC -> "左键按当前模式依次指定圆弧关键点（如起点、终点、控制点/半径）完成绘制。";
-            case POLYGON -> "左键连续添加顶点，双击或按Enter完成多边形；右键可撤销当前步骤。";
-            case POLYLINE -> "左键连续添加节点形成多段线，双击或按Enter完成；右键可结束当前段。";
-            case SPLINE -> "左键依次添加控制点，按Enter或右键结束输入并生成样条曲线。";
-            case CATENARY -> "左键先指定两端点，再拖拽或输入参数调整垂度，确认后生成悬链线。";
-            case FREE_DRAW -> "按住左键拖动进行自由绘制，松开鼠标结束当前笔画。";
-            case ERASER -> "左键点击删除单个图形，按住左键拖动可连续擦除经过的图形。";
-            case SEMICIRCLE -> "左键按当前模式指定关键点生成半圆；右键可取消当前输入。";
-            case STAR -> "左键指定中心并拖拽确定外接半径，再确认角数/比例后完成星形。";
-            case SPIRAL -> "左键指定起点或中心后拖拽确定尺寸，按当前螺旋模式完成绘制。";
-            case SINE -> "左键指定基线范围，拖拽或在选项中调整振幅、波长和相位后完成。";
-            case MOVE -> "先选择图形，左键依次指定基点与目标点完成移动；Shift可正交约束，Esc/右键可取消当前操作。";
-            case ROTATE -> "先选择图形，左键指定旋转中心与参考方向，再确定目标角度完成旋转。";
-            case MIRROR -> "先选择图形，左键指定镜像轴的两个点完成镜像；可在选项中设置保留原图。";
-            case SCALE -> "先选择图形后进入缩放，按提示依次确定中心点与参考点完成缩放；Shift可保持比例，Esc可取消。";
-            case ALIGN -> "先选择多个图形，再选择对齐/分布方式执行；常用模式可配合快捷键快速切换。";
-            case ARRAY -> "先选择图形，再按阵列类型设置参数（矩形/环形/路径）并确认生成复制。";
-            case OFFSET -> "左键选择对象并在目标侧指定偏移方向；可启用多重偏移进行连续偏移。";
-            case FILLET -> "左键依次选择两条对象，按半径创建圆角过渡；右键确认，Esc可取消当前步骤。";
-            case CHAMFER -> "左键依次选择两条对象，按设定距离创建倒角连接；右键确认，Esc可取消当前步骤。";
-            case TRANSFORM -> "先选择图形，右键进入变换后拖拽控制点进行缩放/旋转；Shift可等比约束，Esc可返回。";
-            case TRIM -> "先选择边界后执行修剪；C/F可切换修剪模式，Shift可连续修剪，Esc可取消。";
-            case EXTEND -> "先选择边界，再点击要延伸的对象；工具自动选择合适延伸方式，Esc可取消。";
-            case BREAK -> "选择对象后按模式指定一个或两个打断点完成打断；Esc可取消当前打断流程。";
-            case TEXT -> "点击或拖拽放置文本对象并输入内容；可通过属性面板调整文本样式与输入方式。";
-            case ANNOTATION -> "先选择标注类型，再按提示点选几何对象或关键点完成标注。";
-            case UNKNOWN -> "按左键进行绘制或编辑，右键取消当前步骤。";
-        };
+        return PlotI18n.toolUsageHint(tool.getId());
     }
 
     private String getToolDisplayName(BaseTool tool) {
-        return ToolType.fromString(tool.getId()).displayName;
+        return PlotI18n.toolLabel(tool.getId());
     }
 
     private String getToolDescription(BaseTool tool) {
-        return switch (ToolType.fromString(tool.getId())) {
-            case SELECT -> "用于选择图形并进行后续编辑操作（如多选、移动、批量处理）。";
-            case LINE -> "用于绘制直线，支持吸附与角度约束等基础绘图能力。";
-            case CIRCLE -> "用于绘制圆形，支持多种常见圆定义方式。";
-            case RECTANGLE -> "用于绘制矩形，支持常见矩形输入方式与正方形约束。";
-            case ELLIPSE -> "用于绘制椭圆，支持不同椭圆构造模式。";
-            case ARC -> "用于绘制圆弧，支持多种圆弧构造方式。";
-            case POLYGON -> "用于绘制多边形，通过连续点位定义轮廓。";
-            case POLYLINE -> "用于绘制多段线与路径，可按模式生成折线或曲线段。";
-            case SPLINE -> "用于绘制样条曲线，支持拟合与控制点等曲线生成方式。";
-            case CATENARY -> "用于绘制悬链线形状，适合表达下垂弧线结构。";
-            case FREE_DRAW -> "用于自由手绘路径，快速记录不规则线条。";
-            case ERASER -> "用于删除图形，支持单个删除与连续擦除。";
-            case SEMICIRCLE -> "用于绘制半圆图形。";
-            case STAR -> "用于绘制星形图案，并可调整星形参数。";
-            case SPIRAL -> "用于绘制螺旋线，支持多种螺旋类型与参数。";
-            case SINE -> "用于绘制正弦曲线，并可调整振幅、波长等参数。";
-            case MOVE -> "用于移动已选图形到目标位置。";
-            case ROTATE -> "用于旋转已选图形。";
-            case MIRROR -> "用于对已选图形执行镜像操作。";
-            case SCALE -> "用于按比例缩放已选图形。";
-            case ALIGN -> "用于对多个图形执行对齐与分布。";
-            case ARRAY -> "用于生成图形阵列复制（如矩形阵列、环形阵列、路径阵列）。";
-            case OFFSET -> "用于对图形执行等距偏移。";
-            case FILLET -> "用于在对象之间创建圆角过渡。";
-            case CHAMFER -> "用于在对象之间创建倒角连接。";
-            case TRANSFORM -> "用于对已选图形执行综合变换操作。";
-
-            case TRIM -> "用于按边界修剪图形。";
-            case EXTEND -> "用于将图形延伸到指定边界。";
-            case BREAK -> "用于在指定点位打断图形。";
-            case TEXT -> "用于创建与编辑文本对象。";
-            case ANNOTATION -> "用于添加尺寸、角度、半径、面积等标注信息。";
-
-            case UNKNOWN -> "未知工具类型，请检查工具配置。";
-        };
+        return PlotI18n.toolDescription(tool.getId());
     }
 
     private float renderToolOptions() {

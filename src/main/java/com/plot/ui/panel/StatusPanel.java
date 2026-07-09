@@ -13,6 +13,7 @@ import com.plot.ui.grid.GridManager;
 import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.dialog.ProjectionSettingsDialog;
 import com.plot.camera.CameraManager;
+import com.plot.utils.PlotI18n;
 import net.minecraft.registry.Registries;
 import net.minecraft.block.Block;
 import net.minecraft.util.Identifier;
@@ -35,10 +36,10 @@ public class StatusPanel implements UIComponent {
     private boolean initialized = false;
     
     // 状态信息
-    private String currentToolName = "选择";
+    private String currentToolName;
     private float opacity = 100.0f;
     private String activeLayer;
-    private String status = "就绪";
+    private String status;
     
     // 事件监听器
     private final EventListener toolChangedListener;
@@ -48,6 +49,8 @@ public class StatusPanel implements UIComponent {
         this.appState = AppState.getInstance();
         this.eventBus = EventBus.getInstance();
         this.toolManager = ToolManager.getInstance();
+        this.currentToolName = PlotI18n.toolLabel("select");
+        this.status = PlotI18n.tr("status.plot.ready");
         
         // 初始化事件监听器
         this.toolChangedListener = event -> {
@@ -102,7 +105,7 @@ public class StatusPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
-        if (ImGui.collapsingHeader("状态属性", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("panel.plot.status_properties"), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.popStyleColor(4);
             
             // 设置边框样式 - 与HistoryPanel保持一致，使用统一的边距设置
@@ -133,71 +136,71 @@ public class StatusPanel implements UIComponent {
                             ImGuiTableFlags.SizingStretchProp | 
                             ImGuiTableFlags.Borders | 
                             ImGuiTableFlags.RowBg)) {
-                        ImGui.tableSetupColumn("属性", ImGuiTableColumnFlags.WidthFixed, 80.0f);
-                        ImGui.tableSetupColumn("值", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.tableSetupColumn(PlotI18n.tr("status.plot.attribute"), ImGuiTableColumnFlags.WidthFixed, 80.0f);
+                        ImGui.tableSetupColumn(PlotI18n.tr("status.plot.value"), ImGuiTableColumnFlags.WidthStretch);
                         // 显示表头行
                         ImGui.tableHeadersRow();
                         
                         // 当前工具
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "当前工具");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.current_tool"));
                         ImGui.tableNextColumn();
                         ImGui.text(currentToolName);
                         
                         // 视图状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "视图状态");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.view_status"));
                         ImGui.tableNextColumn();
                         ImGui.text(getViewStatus());
                         
                         // 画布透明度
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "画布透明度");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("panel.plot.canvas_opacity"));
                         ImGui.tableNextColumn();
                         ImGui.text(String.format("%.0f%%", opacity * 100.0f));
                         
                         // 图形数量
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "图形数量");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.shape_count"));
                         ImGui.tableNextColumn();
                         ImGui.text(String.valueOf(getTotalShapeCount()));
                         
                         // 图层数量
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "图层数量");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.layer_count"));
                         ImGui.tableNextColumn();
                         ImGui.text(String.valueOf(getLayerCount()));
                         
                         // 当前图层
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "当前图层");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.current_layer"));
                         ImGui.tableNextColumn();
-                        ImGui.text(activeLayer != null ? activeLayer : "无");
+                        ImGui.text(activeLayer != null ? activeLayer : PlotI18n.tr("status.plot.none"));
                         
                         // 网格状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "网格状态");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.grid_status"));
                         ImGui.tableNextColumn();
                         ImGui.text(getGridStatus());
                         
                         // 摄像机状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "摄像机状态");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.camera_status"));
                         ImGui.tableNextColumn();
                         ImGui.text(getCameraStatus());
                         
                         // 方块配置 - 使用 textWrapped 支持换行
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "方块配置");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.block_config"));
                         ImGui.tableNextColumn();
                         // 获取可用宽度以便文本换行（列宽度减去一些内边距）
                         float availableWidth = ImGui.getContentRegionAvailX();
@@ -212,16 +215,16 @@ public class StatusPanel implements UIComponent {
                         // 投影模式
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "投影模式");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.projection_mode"));
                         ImGui.tableNextColumn();
                         ImGui.text(getProjectionModeStatus());
                         
                         // 状态
                         ImGui.tableNextRow();
                         ImGui.tableNextColumn();
-                        ImGui.textColored(currentTheme.mutedText, "状态");
+                        ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.status"));
                         ImGui.tableNextColumn();
-                        ImGui.text(status != null ? status : "就绪");
+                        ImGui.text(status != null ? status : PlotI18n.tr("status.plot.ready"));
                         
                         ImGui.endTable();
                     }
@@ -241,12 +244,15 @@ public class StatusPanel implements UIComponent {
     private void updateStatus() {
         try {
             // 从AppState更新状态信息
-            int selectedCount = appState.getSelectedShapes().size();
             activeLayer = appState.getActiveLayerName();
             
             // 使用已初始化的 ToolManager
             com.plot.api.tool.ITool activeTool = toolManager.getActiveTool();
-            currentToolName = activeTool != null ? activeTool.getName() : "选择";
+            if (activeTool != null) {
+                currentToolName = PlotI18n.toolLabel(activeTool.getId());
+            } else {
+                currentToolName = PlotI18n.toolLabel("select");
+            }
             
             // 更新透明度
             opacity = appState.getOpacity();
@@ -259,19 +265,16 @@ public class StatusPanel implements UIComponent {
         try {
             CameraManager cameraManager = CameraManager.getInstance();
             if (cameraManager != null) {
-                // 获取视图锁定状态
                 com.plot.camera.OrthographicCamera orthoCamera = cameraManager.getOrthographicCamera();
                 boolean isLocked = orthoCamera != null && orthoCamera.isLocked();
-                
-                // 获取视图范围
                 float viewDistance = cameraManager.getViewDistance();
-                
-                return String.format("%s, 范围: %.1f", isLocked ? "锁定" : "未锁定", viewDistance);
+                String lockState = isLocked ? PlotI18n.tr("status.plot.locked") : PlotI18n.tr("status.plot.unlocked");
+                return String.format(PlotI18n.tr("status.plot.view_status_format"), lockState, viewDistance);
             }
         } catch (Exception e) {
             LOGGER.debug("获取视图状态失败: {}", e.getMessage());
         }
-        return "未知";
+        return PlotI18n.tr("status.plot.unknown");
     }
     
     private int getTotalShapeCount() {
@@ -296,10 +299,13 @@ public class StatusPanel implements UIComponent {
     private String getGridStatus() {
         try {
             GridManager gridManager = GridManager.getInstance();
-            return gridManager != null && gridManager.isEnabled() ? "启用" : "禁用";
+            if (gridManager != null && gridManager.isEnabled()) {
+                return PlotI18n.tr("status.plot.enabled");
+            }
+            return PlotI18n.tr("status.plot.disabled");
         } catch (Exception e) {
             LOGGER.debug("获取网格状态失败: {}", e.getMessage());
-            return "未知";
+            return PlotI18n.tr("status.plot.unknown");
         }
     }
     
@@ -308,48 +314,43 @@ public class StatusPanel implements UIComponent {
             CameraManager cameraManager = CameraManager.getInstance();
             if (cameraManager != null) {
                 boolean isOrthographic = cameraManager.isOrthographic();
-                return isOrthographic ? "正交相机" : "透视相机";
+                return isOrthographic ? PlotI18n.tr("status.plot.orthographic") : PlotI18n.tr("status.plot.perspective");
             }
         } catch (Exception e) {
             LOGGER.debug("获取摄像机状态失败: {}", e.getMessage());
         }
-        return "未知";
+        return PlotI18n.tr("status.plot.unknown");
     }
     
     private String getBlockConfigStatus() {
         try {
             BlockConfigManager manager = BlockConfigManager.getInstance();
             if (manager == null || !manager.hasSelectedBlocks()) {
-                return "未配置";
+                return PlotI18n.tr("status.plot.not_configured");
             }
             
-            // 获取选中的方块ID列表
             List<String> blockIds = manager.getSelectedBlockIds();
             if (blockIds == null || blockIds.isEmpty()) {
-                return "未配置";
+                return PlotI18n.tr("status.plot.not_configured");
             }
             
-            // 转换为方块名称列表
-            StringBuilder configInfo = new StringBuilder("已配置: ");
+            StringBuilder configInfo = new StringBuilder();
             try {
                 for (int i = 0; i < blockIds.size(); i++) {
                     if (i > 0) {
                         configInfo.append(", ");
                     }
-                    
                     String blockId = blockIds.get(i);
-                    String blockName = getBlockDisplayName(blockId);
-                    configInfo.append(blockName);
+                    configInfo.append(getBlockDisplayName(blockId));
                 }
+                return PlotI18n.tr("status.plot.configured", configInfo.toString());
             } catch (Exception e) {
                 LOGGER.debug("转换方块名称时出错: {}", e.getMessage());
-                return "已配置 (" + blockIds.size() + "个方块)";
+                return PlotI18n.tr("status.plot.configured_count", blockIds.size());
             }
-            
-            return configInfo.toString();
         } catch (Exception e) {
             LOGGER.debug("获取方块配置状态失败: {}", e.getMessage());
-            return "未知";
+            return PlotI18n.tr("status.plot.unknown");
         }
     }
     
@@ -362,7 +363,7 @@ public class StatusPanel implements UIComponent {
         } catch (Exception e) {
             LOGGER.debug("获取方块 {} 名称失败: {}", blockId, e.getMessage());
         }
-        return blockId; // 如果无法获取名称，返回ID
+        return blockId;
     }
     
     private String getProjectionModeStatus() {
@@ -371,16 +372,15 @@ public class StatusPanel implements UIComponent {
             if (dialog != null) {
                 ProjectionSettingsDialog.ProjectionMode mode = dialog.getProjectionMode();
                 if (mode == ProjectionSettingsDialog.ProjectionMode.GROUND) {
-                    return "投影到地面";
+                    return PlotI18n.tr("status.plot.projection_ground");
                 } else if (mode == ProjectionSettingsDialog.ProjectionMode.ELEVATION) {
-                    int elevation = dialog.getElevation();
-                    return String.format("投影到指定标高 (Y=%d)", elevation);
+                    return PlotI18n.tr("status.plot.projection_elevation", dialog.getElevation());
                 }
             }
         } catch (Exception e) {
             LOGGER.debug("获取投影模式状态失败: {}", e.getMessage());
         }
-        return "未知";
+        return PlotI18n.tr("status.plot.unknown");
     }
 
     @Override
@@ -388,7 +388,6 @@ public class StatusPanel implements UIComponent {
         try {
             LOGGER.debug("正在关闭StatusPanel...");
             
-            // 取消注册事件监听器
             if (eventBus != null) {
                 if (toolChangedListener != null) {
                     eventBus.unsubscribe(ToolChangedEvent.class, toolChangedListener);

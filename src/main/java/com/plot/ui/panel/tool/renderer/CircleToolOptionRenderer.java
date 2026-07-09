@@ -1,6 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
 import com.plot.utils.ImGuiUtils;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
@@ -48,7 +49,7 @@ public class CircleToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("绘制模式");
+            ImGui.text(PlotI18n.tr("option.plot.draw_mode"));
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();

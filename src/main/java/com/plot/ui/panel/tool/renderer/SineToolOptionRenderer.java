@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 /**
@@ -25,7 +26,7 @@ public class SineToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("相位");
+            ImGui.text(PlotI18n.tr("option.plot.phase"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);

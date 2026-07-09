@@ -11,6 +11,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.flag.ImGuiCond;
@@ -66,7 +67,7 @@ public class SnapManager implements ISnapManager {
                     ImGuiWindowFlags.NoNav |
                     ImGuiWindowFlags.AlwaysAutoResize;
 
-            boolean windowVisible = ImGui.begin("吸附设置##snap_settings", windowFlags);
+            boolean windowVisible = ImGui.begin(PlotI18n.tr("snap.plot.constraint_settings") + "##snap_settings", windowFlags);
             try {
                 if (windowVisible) {
                     if (DialogStyleManager.renderTopRightCloseButton("snap_settings")) {
@@ -75,42 +76,42 @@ public class SnapManager implements ISnapManager {
 
                     boolean settingsChanged = false;
 
-                    DialogLayoutHelper.helpText("按需启用吸附目标、约束与预览选项，修改会即时生效。按住 Alt 可切换半径单位。");
+                    DialogLayoutHelper.helpText(PlotI18n.tr("snap.plot.settings_help"));
 //                    DialogLayoutHelper.endSection();
 
-                    if (ImGui.collapsingHeader("几何特征吸附")) {
+                    if (ImGui.collapsingHeader(PlotI18n.tr("snap.plot.geom_features"))) {
                         ImGui.indent(10);
 
-                        settingsChanged |= ImGui.checkbox("端点吸附", settings.endPointSnap);
-                        settingsChanged |= ImGui.checkbox("中点吸附", settings.midPointSnap);
-                        settingsChanged |= ImGui.checkbox("圆心吸附", settings.centerPointSnap);
-                        settingsChanged |= ImGui.checkbox("中心点吸附", settings.centroidSnap);
-                        settingsChanged |= ImGui.checkbox("角点吸附", settings.vertexSnap);
-                        settingsChanged |= ImGui.checkbox("象限点吸附", settings.quadrantSnap);
-                        settingsChanged |= ImGui.checkbox("网格点吸附", settings.gridPointSnap);
-                        settingsChanged |= ImGui.checkbox("垂足吸附", settings.perpendicularSnap);
-                        settingsChanged |= ImGui.checkbox("交点吸附", settings.intersectionSnap);
-                        settingsChanged |= ImGui.checkbox("最近点吸附", settings.nearestPointSnap);
-                        settingsChanged |= ImGui.checkbox("控制点吸附", settings.controlPointSnap);
-                        settingsChanged |= ImGui.checkbox("切点吸附", settings.tangentPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.end_point"), settings.endPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.mid_point"), settings.midPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.circle_center"), settings.centerPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.center_point_geom"), settings.centroidSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.vertex"), settings.vertexSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.quadrant"), settings.quadrantSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.grid_point"), settings.gridPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.perpendicular"), settings.perpendicularSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.intersection"), settings.intersectionSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.nearest_point"), settings.nearestPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.control_point"), settings.controlPointSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.tangent_point"), settings.tangentPointSnap);
 
                         ImGui.unindent(10);
                     }
 
-                    if (ImGui.collapsingHeader("几何关系约束")) {
+                    if (ImGui.collapsingHeader(PlotI18n.tr("snap.plot.geom_relations"))) {
                         ImGui.indent(10);
-                        settingsChanged |= ImGui.checkbox("水平约束", settings.horizontalSnap);
-                        settingsChanged |= ImGui.checkbox("竖直约束", settings.verticalSnap);
-                        settingsChanged |= ImGui.checkbox("平行约束", settings.parallelSnap);
-                        settingsChanged |= ImGui.checkbox("延长线约束", settings.extensionSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.horizontal"), settings.horizontalSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.vertical"), settings.verticalSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.parallel"), settings.parallelSnap);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.extension"), settings.extensionSnap);
                         ImGui.unindent(10);
                     }
 
-                    if (ImGui.collapsingHeader("吸附设置")) {
+                    if (ImGui.collapsingHeader(PlotI18n.tr("snap.plot.constraint_settings"))) {
                         ImGui.indent(10);
 
                         if (DialogLayoutHelper.beginForm("##snap_settings_form")) {
-                            DialogLayoutHelper.formRowLabel("吸附半径");
+                            DialogLayoutHelper.formRowLabel(PlotI18n.tr("snap.plot.snap_radius"));
 
                             float[] snapRadius = settings.isPixelMode()
                                     ? new float[]{settings.getSnapRadiusInPixels()}
@@ -125,38 +126,47 @@ public class SnapManager implements ISnapManager {
                                 settingsChanged = true;
                             }
                             if (ImGui.isItemHovered()) {
-                                ImGui.setTooltip("按住Alt键切换单位\n当前单位: " +
-                                        (settings.isPixelMode() ? "像素" : "毫米"));
+                                ImGui.setTooltip(PlotI18n.tr("snap.plot.unit_toggle_tooltip",
+                                        settings.isPixelMode()
+                                                ? PlotI18n.tr("snap.plot.unit_pixel")
+                                                : PlotI18n.tr("snap.plot.unit_mm")));
                             }
                             if (ImGui.isItemActive() && ImGui.getIO().getKeyAlt()) {
                                 settings.toggleUnitMode();
                                 settingsChanged = true;
                             }
 
-                            DialogLayoutHelper.formRowLabel("标记大小");
+                            DialogLayoutHelper.formRowLabel(PlotI18n.tr("snap.plot.marker_size"));
                             float[] markerSize = new float[]{settings.getMarkerSize()};
                             if (ImGui.sliderFloat("##marker_size", markerSize, 2.0f, 10.0f, "%.1f px")) {
                                 settings.setMarkerSize(markerSize[0]);
                                 settingsChanged = true;
                             }
 
-                            DialogLayoutHelper.formRowLabel("吸附层级");
-                            String[] levels = {"全局", "当前工具", "当前图层"};
+                            DialogLayoutHelper.formRowLabel(PlotI18n.tr("snap.plot.snap_level"));
+                            String[] levels = {
+                                    PlotI18n.tr("snap.plot.level_global"),
+                                    PlotI18n.tr("snap.plot.level_tool"),
+                                    PlotI18n.tr("snap.plot.level_layer")
+                            };
                             settingsChanged |= ImGui.combo("##snap_level", settings.snapLevel, levels);
 
-                            DialogLayoutHelper.formRowLabel("优先策略");
-                            String[] priorities = {"类型优先", "距离优先"};
+                            DialogLayoutHelper.formRowLabel(PlotI18n.tr("snap.plot.priority_strategy"));
+                            String[] priorities = {
+                                    PlotI18n.tr("snap.plot.priority_type"),
+                                    PlotI18n.tr("snap.plot.priority_distance")
+                            };
                             settingsChanged |= ImGui.combo("##snap_priority", settings.snapPriority, priorities);
 
                             DialogLayoutHelper.endForm();
                         }
 
                         DialogLayoutHelper.rowGap();
-                        settingsChanged |= ImGui.checkbox("排除隐藏图层", settings.excludeHiddenLayers);
-                        settingsChanged |= ImGui.checkbox("临时禁用 (Shift)", settings.tempDisableWithShift);
-                        settingsChanged |= ImGui.checkbox("吸附标记预览", settings.showSnapMarkers);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.exclude_hidden_layers"), settings.excludeHiddenLayers);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.temp_disable_shift"), settings.tempDisableWithShift);
+                        settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.show_markers_preview"), settings.showSnapMarkers);
                         if (settings.showSnapMarkers.get()) {
-                            settingsChanged |= ImGui.checkbox("标记动画", settings.enableMarkerPulse);
+                            settingsChanged |= ImGui.checkbox(PlotI18n.tr("snap.plot.enable_marker_pulse"), settings.enableMarkerPulse);
                         }
 
                         ImGui.unindent(10);
@@ -454,7 +464,9 @@ public class SnapManager implements ISnapManager {
     private void renderButtons() {
         ImGui.separator();
         DialogLayoutHelper.FooterResult action =
-                DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
+                DialogLayoutHelper.footerConfirmCancelCentered(
+                        PlotI18n.tr("button.plot.reset"), PlotI18n.tr("button.plot.confirm"),
+                        DialogStyleManager.getContentWidth());
 
         if (action.confirmClicked()) {
             showSettings = false;

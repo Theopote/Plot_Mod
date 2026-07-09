@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import org.slf4j.Logger;
@@ -28,7 +29,7 @@ public class OffsetToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("多重偏移");
+            ImGui.text(PlotI18n.tr("option.plot.multiple_offset"));
 
             ImGui.tableNextColumn();
             if (ImGui.checkbox("##multiple_mode", multipleMode)) {

@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.core.geometry.shapes.SpiralType;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
@@ -106,7 +107,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("尖角样式");
+        ImGui.text(PlotI18n.tr("option.plot.sharp_style"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -155,7 +156,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("边数");
+        ImGui.text(PlotI18n.tr("option.plot.sides"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -173,7 +174,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("逆时针");
+        ImGui.text(PlotI18n.tr("option.plot.clockwise"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -254,7 +255,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         SpiralTool spiralTool = getCurrentSpiralTool();
         if (spiralTool == null) {
             // 如果当前工具不是SpiralTool，显示提示信息
-            ImGui.text("请选择螺旋线工具");
+            ImGui.text(PlotI18n.tr("option.plot.select_spiral_tool"));
             return ImGui.getFrameHeightWithSpacing();
         }
         
@@ -290,7 +291,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("螺旋类型");
+        ImGui.text(PlotI18n.tr("option.plot.spiral_type"));
         
         // 获取当前主题
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
@@ -416,7 +417,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("当前状态");
+            ImGui.text(PlotI18n.tr("option.plot.current_state"));
             
             ImGui.tableNextColumn();
             ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - 10);

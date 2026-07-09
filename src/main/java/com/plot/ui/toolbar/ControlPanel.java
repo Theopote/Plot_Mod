@@ -1,5 +1,6 @@
 package com.plot.ui.toolbar;
 
+import com.plot.utils.PlotI18n;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -458,7 +459,7 @@ public class ControlPanel implements UIComponent {
                     }
 
                     DialogLayoutHelper.beginFooter();
-                    if (DialogLayoutHelper.footerSingleCentered("确定", DialogStyleManager.getContentWidth())) {
+                    if (DialogLayoutHelper.footerSingleCentered(PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth())) {
                         ImGui.closeCurrentPopup();
                     }
                 } finally {

@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 // imports simplified: ScaleStrategy and theme utilities not required by simplified renderer
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
@@ -54,7 +55,7 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
      * 渲染使用说明
      */
     private void renderUsageInstructions() {
-        if (ImGui.collapsingHeader("使用说明", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("option.plot.usage_instructions"), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textWrapped("缩放工具使用步骤：");
             ImGui.spacing();
             

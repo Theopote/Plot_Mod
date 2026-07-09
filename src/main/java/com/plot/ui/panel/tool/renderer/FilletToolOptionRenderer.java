@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.impl.modify.constants.FilletConstants;
@@ -69,7 +70,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("半径");
+        ImGui.text(PlotI18n.tr("option.plot.radius"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(120.0f);

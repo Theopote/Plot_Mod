@@ -1,6 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
 import com.plot.utils.ImGuiUtils;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
@@ -48,7 +49,7 @@ public class SemicircleToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("绘制模式");
+            ImGui.text(PlotI18n.tr("option.plot.draw_mode"));
             
             // 设置按钮的圆角和样式，使用工具栏控件圆角
             // 已通过 pushStyleVar 在开头设置

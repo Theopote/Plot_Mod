@@ -8,6 +8,7 @@ import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.toolbar.ToolbarUIUtils;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -61,8 +62,8 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         }
         
         // 计算所有标签文本的宽度（用于布局计算，但标题和滑动条现在是分两行的）
-        float zoomLabelWidth = ImGui.calcTextSize("视图范围:").x;
-        float opacityLabelWidth = ImGui.calcTextSize("画布透明度:").x;
+        float zoomLabelWidth = ImGui.calcTextSize(PlotI18n.tr("panel.plot.view_range") + ":").x;
+        float opacityLabelWidth = ImGui.calcTextSize(PlotI18n.tr("panel.plot.canvas_opacity") + ":").x;
 
         // 找出最宽的标签宽度（虽然标题和滑动条分两行，但保留用于可能的布局计算）
         float maxLabelWidth = Math.max(zoomLabelWidth, opacityLabelWidth);
@@ -111,7 +112,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             boolean isLocked = CameraManager.getInstance().getOrthographicCamera().isLocked();
 
             // 视距
-            ImGui.text("视图范围");
+            ImGui.text(PlotI18n.tr("panel.plot.view_range"));
             ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
             ImGui.pushItemWidth(240.0f);
             try {
@@ -134,7 +135,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             }
             ToolbarUIUtils.renderInputPopup(
                 "视图范围输入_" + System.identityHashCode(viewDistanceValue),
-                "输入视图范围 (40-310)", viewDistanceValue[0], 40.0f, 310.0f,
+                PlotI18n.tr("toolbar.plot.input_view_range"), viewDistanceValue[0], 40.0f, 310.0f,
                 newValue -> {
                     viewDistanceValue[0] = newValue;
                     CameraManager.getInstance().setViewDistance(newValue);
@@ -144,7 +145,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING * 2.0f);
 
             // 透明
-            ImGui.text("画布透明度");
+            ImGui.text(PlotI18n.tr("panel.plot.canvas_opacity"));
             ImGui.sameLine(0, UILayout.Toolbar.ITEM_SPACING);
             ImGui.pushItemWidth(240.0f);
             try {
@@ -163,7 +164,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
             }
             ToolbarUIUtils.renderInputPopup(
                 "画布透明度输入_" + System.identityHashCode(opacityValue),
-                "输入画布透明度 (0-100)", opacityValue[0], 0.0f, 100.0f,
+                PlotI18n.tr("toolbar.plot.input_opacity"), opacityValue[0], 0.0f, 100.0f,
                 newValue -> {
                     opacityValue[0] = newValue;
                     float normalizedOpacity = newValue / 100.0f;
@@ -252,7 +253,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         // 第一个滑动条：视图范围
         // 第一行：标签
         ImGui.setCursorPos(startX, startY);
-        ImGui.text("视图范围:");
+        ImGui.text(PlotI18n.tr("panel.plot.view_range") + ":");
         
         // 第二行：滑动条
         // ImGui.text() 已经将光标移动到文本底部，所以只需要加上间距即可
@@ -279,7 +280,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         }
         // 渲染输入弹窗
         String uniquePopupTitle1 = "视图范围输入_" + System.identityHashCode(viewDistanceValue);
-        ToolbarUIUtils.renderInputPopup(uniquePopupTitle1, "输入视图范围 (40-310)", viewDistanceValue[0], 40.0f, 310.0f, newValue -> {
+        ToolbarUIUtils.renderInputPopup(uniquePopupTitle1, PlotI18n.tr("toolbar.plot.input_view_range"), viewDistanceValue[0], 40.0f, 310.0f, newValue -> {
             viewDistanceValue[0] = newValue;
             CameraManager.getInstance().setViewDistance(newValue);
         });
@@ -289,7 +290,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         
         // 第一行：标签
         ImGui.setCursorPos(secondX, startY);
-        ImGui.text("画布透明度:");
+        ImGui.text(PlotI18n.tr("panel.plot.canvas_opacity") + ":");
         
         // 第二行：滑动条
         // ImGui.text() 已经将光标移动到文本底部，所以只需要加上间距即可
@@ -312,7 +313,7 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         }
         // 渲染输入弹窗
         String uniquePopupTitle2 = "画布透明度输入_" + System.identityHashCode(opacityValue);
-        ToolbarUIUtils.renderInputPopup(uniquePopupTitle2, "输入画布透明度 (0-100)", opacityValue[0], 0.0f, 100.0f, newValue -> {
+        ToolbarUIUtils.renderInputPopup(uniquePopupTitle2, PlotI18n.tr("toolbar.plot.input_opacity"), opacityValue[0], 0.0f, 100.0f, newValue -> {
             opacityValue[0] = newValue;
             float normalizedOpacity = newValue / 100.0f;
             eventBus.publish(new OpacityChangeEvent(normalizedOpacity));
@@ -334,10 +335,10 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         // 第一个滑动条：视图范围（标题在上，滑动条在下）
         float startY = ImGui.getCursorPosY();
         ToolbarUIUtils.renderSliderTwoRowsWithInput(
-            "视图范围:", UILayout.Toolbar.SLIDER_WIDTH,
+            PlotI18n.tr("panel.plot.view_range") + ":", UILayout.Toolbar.SLIDER_WIDTH,
             viewDistanceValue, 40.0f, 310.0f, "%.0f", isLocked,
             () -> CameraManager.getInstance().setViewDistance(viewDistanceValue[0]),
-            "视图范围输入", "输入视图范围 (40-310)"
+            "view_range_input", PlotI18n.tr("toolbar.plot.input_view_range")
         );
         
         // 计算第一个滑动条的总高度（标签高度 + 间距 + 滑动条高度）
@@ -351,14 +352,14 @@ public class ControlSlidersGroup extends AbstractToolbarGroup {
         
         // 第二个滑动条：画布透明度（标题在上，滑动条在下）
         ToolbarUIUtils.renderSliderTwoRowsWithInput(
-                "画布透明度:", UILayout.Toolbar.SLIDER_WIDTH,
+                PlotI18n.tr("panel.plot.canvas_opacity") + ":", UILayout.Toolbar.SLIDER_WIDTH,
                 opacityValue, 0.0f, 100.0f, "%.0f%%", false,
                 () -> {
                     float normalizedOpacity = opacityValue[0] / 100.0f;
                     eventBus.publish(new OpacityChangeEvent(normalizedOpacity));
                     appState.setOpacity(normalizedOpacity);
                 },
-                "画布透明度输入", "输入画布透明度 (0-100)"
+                "opacity_input", PlotI18n.tr("toolbar.plot.input_opacity")
         );
     }
     

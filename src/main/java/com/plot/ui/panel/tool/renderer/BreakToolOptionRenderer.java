@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.BreakTool;
 import com.plot.ui.tools.impl.modify.strategy.BreakStrategy;
 import com.plot.ui.theme.ThemeManager;
@@ -107,7 +108,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("打断模式");
+        ImGui.text(PlotI18n.tr("option.plot.break_mode"));
 
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);

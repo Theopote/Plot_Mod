@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.drawing.LineTool;
 import com.plot.utils.ImGuiUtils;
@@ -50,7 +51,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("线型");
+            ImGui.text(PlotI18n.tr("option.plot.line_type"));
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();
@@ -145,7 +146,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.tableNextRow();
                 ImGui.tableNextColumn();
                 ImGui.alignTextToFramePadding();
-                ImGui.text("线条数量");
+                ImGui.text(PlotI18n.tr("option.plot.line_count"));
                 
                 ImGui.tableNextColumn();
                 ImGui.pushItemWidth(-1);
@@ -159,7 +160,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.tableNextRow();
                 ImGui.tableNextColumn();
                 ImGui.alignTextToFramePadding();
-                ImGui.text("线条间距");
+                ImGui.text(PlotI18n.tr("option.plot.line_spacing"));
                 
                 ImGui.tableNextColumn();
                 ImGui.pushItemWidth(-1);

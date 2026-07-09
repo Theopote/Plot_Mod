@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.graphics.style.TextStyle;
 import com.plot.core.graphics.style.TextAlignment;
@@ -121,7 +122,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("说明");
+        ImGui.text(PlotI18n.tr("option.plot.text_description"));
 
         ImGui.tableNextColumn();
         // 使用较淡的提示色
@@ -201,7 +202,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("字体大小");
+        ImGui.text(PlotI18n.tr("option.plot.font_size"));
         
         ImGui.tableNextColumn();
         
@@ -223,7 +224,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("样式");
+        ImGui.text(PlotI18n.tr("option.plot.style"));
         
         ImGui.tableNextColumn();
         
@@ -236,14 +237,14 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         
         // 粗体复选框
-        if (ImGui.checkbox("粗体##bold", tempBold)) {
+        if (ImGui.checkbox(PlotI18n.tr("option.plot.text_bold") + "##bold", tempBold)) {
             updateToolConfig(CONFIG_KEY_BOLD, String.valueOf(tempBold.get()));
         }
         
         ImGui.sameLine();
         
         // 斜体复选框
-        if (ImGui.checkbox("斜体##italic", tempItalic)) {
+        if (ImGui.checkbox(PlotI18n.tr("option.plot.text_italic") + "##italic", tempItalic)) {
             updateToolConfig(CONFIG_KEY_ITALIC, String.valueOf(tempItalic.get()));
         }
         
@@ -266,7 +267,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("对齐");
+        ImGui.text(PlotI18n.tr("option.plot.text_align"));
         
         ImGui.tableNextColumn();
         
@@ -293,7 +294,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("行高");
+        ImGui.text(PlotI18n.tr("option.plot.text_line_height"));
         
         ImGui.tableNextColumn();
         
@@ -314,7 +315,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("输入方式");
+        ImGui.text(PlotI18n.tr("option.plot.input_method"));
         
         ImGui.tableNextColumn();
         
@@ -327,7 +328,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         
         // 使用对话框选项
-        if (ImGui.checkbox("使用对话框##use_dialog", tempUseDialog)) {
+        if (ImGui.checkbox(PlotI18n.tr("option.plot.text_use_dialog") + "##use_dialog", tempUseDialog)) {
             LogManager.getInstance().debug("TextToolOptionRenderer: 用户切换对话框设置为 {}", tempUseDialog.get());
             updateToolConfig(CONFIG_KEY_USE_DIALOG, String.valueOf(tempUseDialog.get()));
         }
@@ -352,7 +353,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("操作");
+        ImGui.text(PlotI18n.tr("option.plot.text_operations"));
         
         ImGui.tableNextColumn();
         
@@ -365,7 +366,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
         
         // 重置大小按钮
-        if (ImGui.button("重置大小", 80, 20)) {
+        if (ImGui.button(PlotI18n.tr("button.plot.reset_size"), 80, 20)) {
             updateToolConfig(CONFIG_KEY_FONT_SIZE, String.valueOf(TextStyle.DEFAULT_FONT_SIZE));
         }
         if (ImGui.isItemHovered()) {
@@ -375,7 +376,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.sameLine();
         
         // 转换为图形按钮
-        if (ImGui.button("转换图形", 80, 20)) {
+        if (ImGui.button(PlotI18n.tr("button.plot.convert_shape"), 80, 20)) {
             updateToolConfig("convertSelected", "true");
         }
         if (ImGui.isItemHovered()) {

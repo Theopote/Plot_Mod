@@ -15,6 +15,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.tool.ToolChangedEvent;
 import com.plot.PlotMod;
 import com.plot.ui.component.UIComponent;
+import com.plot.utils.PlotI18n;
 
 /**
  * 属性面板，用于显示和编辑对象属性、工具属性和图层管理
@@ -129,7 +130,7 @@ public class PropertyPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
-        if (ImGui.collapsingHeader("工具属性", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("panel.plot.tool_properties"), ImGuiTreeNodeFlags.DefaultOpen)) {
             // 恢复标题颜色
             ImGui.popStyleColor(4);
             toolOptionsPanel.render();
@@ -147,7 +148,7 @@ public class PropertyPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
-        if (ImGui.collapsingHeader("图层", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("panel.plot.layers"), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.popStyleColor(4);
             layerPanel.render();
         } else {
@@ -164,7 +165,7 @@ public class PropertyPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
         
-        if (ImGui.collapsingHeader("历史记录", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("panel.plot.history"), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.popStyleColor(4);
             historyPanel.render();
         } else {

@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.ArrayTool;
 import com.plot.ui.tools.impl.modify.strategy.ArrayWithSelectionStrategy;
 import com.plot.ui.theme.ThemeManager;
@@ -128,7 +129,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("阵列类型");
+        ImGui.text(PlotI18n.tr("option.plot.array_type"));
         
         ImGui.tableNextColumn();
         
@@ -210,7 +211,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             String currentArrayTypeName = getCurrentArrayTypeName(currentTool);
             
             boolean isRectangularSelected = "RECTANGULAR".equals(currentArrayTypeName);
-            if (ImGui.button("矩形阵列", 80, 30)) {
+            if (ImGui.button(PlotI18n.tr("array.plot.rectangular"), 80, 30)) {
                 if (!isRectangularSelected) {
                     updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_RECTANGULAR);
                     LOGGER.debug("切换到矩形阵列模式");
@@ -219,7 +220,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.sameLine();
             
             boolean isCircularSelected = "CIRCULAR".equals(currentArrayTypeName);
-            if (ImGui.button("环形阵列", 80, 30)) {
+            if (ImGui.button(PlotI18n.tr("array.plot.polar"), 80, 30)) {
                 if (!isCircularSelected) {
                     updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_CIRCULAR);
                     LOGGER.debug("切换到环形阵列模式");
@@ -228,7 +229,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.sameLine();
             
             boolean isPathSelected = "PATH".equals(currentArrayTypeName);
-            if (ImGui.button("路径阵列", 80, 30)) {
+            if (ImGui.button(PlotI18n.tr("array.plot.path"), 80, 30)) {
                 if (!isPathSelected) {
                     updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_PATH);
                     LOGGER.debug("切换到路径阵列模式");
@@ -275,7 +276,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("行数");
+            ImGui.text(PlotI18n.tr("option.plot.row_count"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -290,7 +291,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("列数");
+            ImGui.text(PlotI18n.tr("option.plot.column_count"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -305,7 +306,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("行间距");
+            ImGui.text(PlotI18n.tr("option.plot.row_spacing"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -320,7 +321,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("列间距");
+            ImGui.text(PlotI18n.tr("option.plot.column_spacing"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -349,7 +350,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
             }
             
-            if (ImGui.button("完成", 80, 24)) {
+            if (ImGui.button(PlotI18n.tr("button.plot.done"), 80, 24)) {
                 if (canConfirm) {
                     updateToolConfig("confirm", "true");
                 }
@@ -405,7 +406,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("数量");
+            ImGui.text(PlotI18n.tr("option.plot.count"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -420,7 +421,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("半径");
+            ImGui.text(PlotI18n.tr("option.plot.radius"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -435,7 +436,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("角度间隔");
+            ImGui.text(PlotI18n.tr("option.plot.angle_interval"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -462,7 +463,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
             }
             
-            if (ImGui.button("完成", 80, 24)) {
+            if (ImGui.button(PlotI18n.tr("button.plot.done"), 80, 24)) {
                 if (canConfirm) {
                     updateToolConfig("confirm", "true");
                 }
@@ -509,7 +510,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("点位数");
+        ImGui.text(PlotI18n.tr("option.plot.point_count"));
         ImGui.tableNextColumn();
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, currentTheme.inputBackgroundHovered);
@@ -534,7 +535,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("路径长度");
+        ImGui.text(PlotI18n.tr("option.plot.path_length"));
         ImGui.tableNextColumn();
         if (pathLength > 0.0) {
             ImGui.text(String.format("%.2f", pathLength));
@@ -547,7 +548,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("等距步长");
+        ImGui.text(PlotI18n.tr("option.plot.step_distance"));
         ImGui.tableNextColumn();
         if (pathLength > 0.0 && count[0] >= 2) {
             double step = pathLength / (count[0] - 1);
@@ -572,7 +573,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, disabledColor);
         }
         
-        if (ImGui.button("完成", 90, 26)) {
+        if (ImGui.button(PlotI18n.tr("button.plot.done"), 90, 26)) {
             if (canConfirm) {
                 updateToolConfig("confirm", "true");
             }

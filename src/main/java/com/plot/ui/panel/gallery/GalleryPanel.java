@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import com.plot.ui.component.UIUtils;
 import com.plot.PlotMod;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,7 +213,7 @@ public class GalleryPanel implements UIComponent {
                 }
                 if (ImGui.isItemHovered()) {
                     ImGui.beginTooltip();
-                    ImGui.text("删除类别");
+                    ImGui.text(PlotI18n.tr("panel.plot.gallery_delete_category"));
                     ImGui.endTooltip();
                 }
                 ImGui.popStyleColor(2);
@@ -238,7 +239,7 @@ public class GalleryPanel implements UIComponent {
         }
 
         // 添加新类别的按钮
-        float addButtonWidth = getCompactCategoryButtonWidth("+ 添加类别", baseButtonWidth, availableWidth, false);
+        float addButtonWidth = getCompactCategoryButtonWidth(PlotI18n.tr("panel.plot.gallery_add_category"), baseButtonWidth, availableWidth, false);
         if (currentX + addButtonWidth <= startX + availableWidth) {
             ImGui.setCursorPosX(currentX);
             renderAddCategoryButton(addButtonWidth);
@@ -267,7 +268,7 @@ public class GalleryPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().tabHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, ThemeManager.getInstance().getCurrentTheme().tabActive);
         
-        if (ImGui.button("+ 添加类别##add_category", buttonWidth, 24)) {
+        if (ImGui.button(PlotI18n.tr("panel.plot.gallery_add_category") + "##add_category", buttonWidth, 24)) {
             ImGui.openPopup("添加类别");
         }
         
@@ -311,7 +312,7 @@ public class GalleryPanel implements UIComponent {
                     ImGui.endTable();
                 }
             } else {
-                ImGui.text("没有找到符合条件的图库项目");
+                ImGui.text(PlotI18n.tr("panel.plot.gallery_no_items"));
             }
         }
         ImGui.endChild();
@@ -333,7 +334,7 @@ public class GalleryPanel implements UIComponent {
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text("放置");
+            ImGui.text(PlotI18n.tr("button.plot.place"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
@@ -347,7 +348,7 @@ public class GalleryPanel implements UIComponent {
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text("编辑");
+            ImGui.text(PlotI18n.tr("button.plot.edit"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
@@ -361,7 +362,7 @@ public class GalleryPanel implements UIComponent {
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text("删除");
+            ImGui.text(PlotI18n.tr("button.plot.delete"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
@@ -375,7 +376,7 @@ public class GalleryPanel implements UIComponent {
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text("导入");
+            ImGui.text(PlotI18n.tr("button.plot.import"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
@@ -449,8 +450,8 @@ public class GalleryPanel implements UIComponent {
         try {
             if (ImGui.beginPopup("添加类别")) {
                 try {
-                    DialogLayoutHelper.beginSection("新建类别");
-                    DialogLayoutHelper.helpText("输入新的分类名称后确认即可添加。");
+                    DialogLayoutHelper.beginSection(PlotI18n.tr("dialog.plot.new_category"));
+                    DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.new_category_hint"));
                     DialogLayoutHelper.endSection();
 
                     ImGui.setNextItemWidth(-1.0f);
@@ -458,7 +459,7 @@ public class GalleryPanel implements UIComponent {
 
                     DialogLayoutHelper.beginFooter();
                     DialogLayoutHelper.FooterResult action =
-                            DialogLayoutHelper.footerConfirmCancelCentered("取消", "确定", DialogStyleManager.getContentWidth());
+                            DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth());
 
                     if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                         String categoryName = newCategoryName.get().trim();

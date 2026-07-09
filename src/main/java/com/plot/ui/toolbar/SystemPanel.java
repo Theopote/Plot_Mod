@@ -8,6 +8,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import com.plot.ui.screen.PlotScreen;
+import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,7 @@ public class SystemPanel implements UIComponent {
         
         try {
             ImGui.setNextItemWidth(120);
-            String[] themes = {"深色主题", "浅色主题"};
+            String[] themes = {PlotI18n.tr("toolbar.plot.theme_dark"), PlotI18n.tr("toolbar.plot.theme_light")};
             int currentThemeIndex = getCurrentThemeIndex();
             
             if (ImGui.beginCombo("##theme_selector", themes[currentThemeIndex])) {
@@ -129,7 +130,7 @@ public class SystemPanel implements UIComponent {
      */
     private void renderCloseButton() {
         if (ToolbarUIUtils.renderToolbarButton(
-                ControlPanelIcons.getIdentifier(ControlPanelIcons.CLOSE), "关闭")) {
+                ControlPanelIcons.getIdentifier(ControlPanelIcons.CLOSE), PlotI18n.tr("toolbar.plot.close_plot"))) {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.currentScreen instanceof PlotScreen mps) {
                 // 必须等本帧 ImGui.endFrame() 完成后再关屏；仅用 client.execute 时任务仍可能在
@@ -139,7 +140,7 @@ public class SystemPanel implements UIComponent {
         }
         
         if (ImGui.isItemHovered()) {
-            ToolbarUIUtils.renderThemedTooltip("关闭Plot");
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.close_plot_tooltip"));
         }
     }
     

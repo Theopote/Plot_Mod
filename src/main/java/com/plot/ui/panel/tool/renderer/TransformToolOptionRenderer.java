@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.TransformTool;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -62,7 +63,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
             if (currentTool == null) {
                 ImGui.tableNextRow();
                 ImGui.tableNextColumn();
-                ImGui.text("请选择变换工具");
+                ImGui.text(PlotI18n.tr("option.plot.select_transform_tool"));
                 return ImGui.getFrameHeightWithSpacing();
             }
             
@@ -94,7 +95,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("旋转功能");
+        ImGui.text(PlotI18n.tr("option.plot.rotation_feature"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);

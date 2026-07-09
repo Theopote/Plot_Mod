@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.config.ConfigManager;
 import com.plot.ui.tools.impl.drawing.PolygonTool;
@@ -74,7 +75,7 @@ public class PolygonToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("绘制模式");
+        ImGui.text(PlotI18n.tr("option.plot.draw_mode"));
         
         // 使用 pushStyleVar 临时设置圆角，避免永久修改共享 ImGui 样式
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
@@ -159,7 +160,7 @@ public class PolygonToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("边数");
+        ImGui.text(PlotI18n.tr("option.plot.sides"));
         
         // 应用控件样式
         ImGui.pushStyleColor(ImGuiCol.FrameBg, currentTheme.inputBackground);

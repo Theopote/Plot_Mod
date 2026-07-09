@@ -4,6 +4,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +71,7 @@ public class ProjectionSettingsDialog {
             ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0, ImGuiCond.Appearing);
             // 重要：无论 begin() 返回 true/false，都必须 end()，否则会触发 ImGui 的窗口栈断言
-            boolean windowVisible = ImGui.begin("方块投影设置", windowFlags);
+            boolean windowVisible = ImGui.begin(PlotI18n.tr("screen.plot.projection_settings"), windowFlags);
             try {
                 if (windowVisible) {
                     if (DialogStyleManager.renderTopRightCloseButton("projection_settings")) {
@@ -78,25 +79,25 @@ public class ProjectionSettingsDialog {
                     }
 
                     if (DialogLayoutHelper.beginForm("##projection_form")) {
-                        DialogLayoutHelper.formRowLabel("模式");
-                        String[] modes = {"投影到地面", "投影到指定标高"};
+                        DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.mode"));
+                        String[] modes = {PlotI18n.tr("dialog.plot.projection_mode_ground"), PlotI18n.tr("dialog.plot.projection_mode_elevation")};
                         ImInt currentMode = new ImInt(projectionMode == ProjectionMode.GROUND ? 0 : 1);
                         if (ImGui.combo("##projection_mode", currentMode, modes)) {
                             projectionMode = currentMode.get() == 0 ? ProjectionMode.GROUND : ProjectionMode.ELEVATION;
                             LOGGER.debug("投影模式已更改为: {}", projectionMode == ProjectionMode.GROUND ? "地面投影" : "指定标高");
                         }
                         DialogLayoutHelper.formRowHelp(projectionMode == ProjectionMode.GROUND
-                                ? "地面模式会按默认地表高度投影结果。"
-                                : "指定标高模式会将结果投影到手动设置的高度层。 ");
+                                ? PlotI18n.tr("dialog.plot.projection_ground_mode_detail")
+                                : PlotI18n.tr("dialog.plot.projection_elevation_mode_detail"));
 
                         if (projectionMode == ProjectionMode.ELEVATION) {
-                            DialogLayoutHelper.formRowLabel("标高");
+                            DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.elevation"));
                             int[] elevationValue = {elevation};
                             if (ImGui.sliderInt("##projection_elevation", elevationValue, MIN_ELEVATION, MAX_ELEVATION)) {
                                 elevation = elevationValue[0];
                                 LOGGER.debug("标高已更改为: {}", elevation);
                             }
-                            DialogLayoutHelper.formRowHelp(String.format("当前投影到 Y=%d，可在 -64 到 320 之间调整。", elevation));
+                            DialogLayoutHelper.formRowHelp(PlotI18n.tr("dialog.plot.projection_elevation_help", elevation));
                         }
 
                         DialogLayoutHelper.endForm();
@@ -105,7 +106,7 @@ public class ProjectionSettingsDialog {
 //                    DialogLayoutHelper.rowGap();
                     ImGui.separator();
                     DialogLayoutHelper.beginFooter();
-                    if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
+                    if (DialogLayoutHelper.footerSingleCentered(PlotI18n.tr("button.plot.close"), DialogStyleManager.getContentWidth())
                             || DialogLayoutHelper.isCancelShortcutPressed()) {
                         close();
                     }

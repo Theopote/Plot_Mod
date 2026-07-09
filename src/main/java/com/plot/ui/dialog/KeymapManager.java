@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import com.plot.api.shortcut.IShortcutListener;
 import com.plot.core.log.LogManager;
 import com.plot.core.shortcut.ShortcutManager;
+import com.plot.utils.PlotI18n;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -30,8 +31,10 @@ public class KeymapManager {
             this.category = category;
         }
         public String actionId() { return actionId; }
-        public String displayName() { return displayName; }
-        public String category() { return category; }
+        public String displayName() { return PlotI18n.tr(displayName); }
+        public String category() { return PlotI18n.tr(category); }
+        public String displayNameKey() { return displayName; }
+        public String categoryKey() { return category; }
     }
 
     private static final KeymapManager INSTANCE = new KeymapManager();
@@ -114,19 +117,19 @@ public class KeymapManager {
 
     private void defineActions() {
         // 工具切换
-        actions.add(new ActionDef("tool.select", "选择", "绘图工具"));
-        actions.add(new ActionDef("tool.eraser", "橡皮擦", "绘图工具"));
-        actions.add(new ActionDef("tool.line", "线段", "绘图工具"));
-        actions.add(new ActionDef("tool.free", "自由绘制", "绘图工具"));
-        actions.add(new ActionDef("tool.circle", "圆形", "绘图工具"));
-        actions.add(new ActionDef("tool.rectangle", "矩形", "绘图工具"));
-        actions.add(new ActionDef("tool.ellipse", "椭圆形", "绘图工具"));
-        actions.add(new ActionDef("tool.semicircle", "半圆", "绘图工具"));
-        actions.add(new ActionDef("tool.arc", "圆弧", "绘图工具"));
+        actions.add(new ActionDef("tool.select", "shortcut.plot.action.tool.select", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.eraser", "shortcut.plot.action.tool.eraser", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.line", "shortcut.plot.action.tool.line", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.free", "shortcut.plot.action.tool.free", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.circle", "shortcut.plot.action.tool.circle", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.rectangle", "shortcut.plot.action.tool.rectangle", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.ellipse", "shortcut.plot.action.tool.ellipse", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.semicircle", "shortcut.plot.action.tool.semicircle", "shortcut.plot.category.drawing"));
+        actions.add(new ActionDef("tool.arc", "shortcut.plot.action.tool.arc", "shortcut.plot.category.drawing"));
 
         // 全局编辑
-        actions.add(new ActionDef("edit.undo", "撤销", "编辑操作"));
-        actions.add(new ActionDef("edit.redo", "重做", "编辑操作"));
+        actions.add(new ActionDef("edit.undo", "shortcut.plot.action.edit.undo", "shortcut.plot.category.edit"));
+        actions.add(new ActionDef("edit.redo", "shortcut.plot.action.edit.redo", "shortcut.plot.category.edit"));
     }
 
     private void setDefaults() {

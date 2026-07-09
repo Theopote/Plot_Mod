@@ -5,6 +5,7 @@ import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -252,7 +253,7 @@ public class ToolbarUIUtils {
             if (ImGui.beginPopup(popupName)) {
                 try {
                     DialogLayoutHelper.beginSection(label);
-                    DialogLayoutHelper.helpText(String.format("请输入 %.2f - %.2f 范围内的数值。", minValue, maxValue));
+                    DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.value_range", minValue, maxValue));
                     DialogLayoutHelper.endSection();
 
                     ImFloat value = new ImFloat(currentValue);
@@ -263,7 +264,7 @@ public class ToolbarUIUtils {
 
                     DialogLayoutHelper.beginFooter();
                     DialogLayoutHelper.FooterResult action =
-                            DialogLayoutHelper.footerConfirmCancelCentered("取消", "确定", DialogStyleManager.getContentWidth());
+                            DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth());
 
                     if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                         onValueChanged.accept(value.get());

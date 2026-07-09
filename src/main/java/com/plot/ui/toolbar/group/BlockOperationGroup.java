@@ -15,6 +15,7 @@ import com.plot.ui.screen.PlotScreen;
 import com.plot.ui.screen.PlotScreenState;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.toolbar.ToolbarUIUtils;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import net.minecraft.client.MinecraftClient;
@@ -65,7 +66,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
     private void renderBlockConfigButton() {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.BLOCK_CONFIG),
-                "方块配置")) {
+                PlotI18n.tr("toolbar.plot.block_config"))) {
             try {
                 LOGGER.debug("方块配置按钮被点击，准备打开对话框...");
                 MinecraftClient client = MinecraftClient.getInstance();
@@ -104,7 +105,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.LINE_TO_BLOCK),
-                "线转方块", !lineToBlockEnabled, false)) {
+                PlotI18n.tr("toolbar.plot.line_to_block"), !lineToBlockEnabled, false)) {
             // 执行线转方块逻辑
             executeLineToBlock(shapes);
         }
@@ -122,7 +123,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                     LOGGER.error("线转方块设置对话框实例为null");
                 }
             }
-            ToolbarUIUtils.renderThemedTooltip("左键: 执行线转方块\n右键: 线转方块设置");
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.line_to_block_tooltip"));
         }
     }
     
@@ -132,7 +133,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
     private void renderProjectionButton() {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.PROJECTION),
-                "投影方块")) {
+                PlotI18n.tr("toolbar.plot.projection"))) {
             executeProjection();
         }
         
@@ -145,7 +146,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                     LOGGER.error("投影设置对话框实例为null");
                 }
             }
-            ToolbarUIUtils.renderThemedTooltip("左键: 执行投影\n右键: 投影设置");
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.projection_tooltip"));
         }
     }
     

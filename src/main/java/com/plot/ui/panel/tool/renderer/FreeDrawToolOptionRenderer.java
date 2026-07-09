@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 /**
@@ -24,7 +25,7 @@ public class FreeDrawToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("平滑度");
+            ImGui.text(PlotI18n.tr("option.plot.smoothing"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);

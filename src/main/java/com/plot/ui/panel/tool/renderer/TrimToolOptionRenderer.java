@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.TrimTool;
 import com.plot.ui.tools.impl.modify.strategy.TrimWithSelectionStrategy;
 import com.plot.ui.theme.ThemeManager;
@@ -125,7 +126,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("当前状态");
+            ImGui.text(PlotI18n.tr("option.plot.current_state"));
             
             ImGui.tableNextColumn();
             
@@ -133,19 +134,19 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             switch (trimState) {
                 case SELECTING_BOUNDARIES, SELECTING_TARGETS -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.successText);
-                    ImGui.text("选择模式");
+                    ImGui.text(PlotI18n.tr("option.plot.selection_mode"));
                 }
                 case WAITING_TRIM_CLICK, DRAWING_FENCE, BOUNDARY_READY, FENCE_READY -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.warningText);
-                    ImGui.text("修剪模式");
+                    ImGui.text(PlotI18n.tr("option.plot.trim_mode"));
                 }
                 case PROCESSING -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.errorText);
-                    ImGui.text("处理中");
+                    ImGui.text(PlotI18n.tr("option.plot.processing"));
                 }
                 default -> {
                     ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.mutedText);
-                    ImGui.text("未知状态");
+                    ImGui.text(PlotI18n.tr("option.plot.unknown_state"));
                 }
             }
             ImGui.popStyleColor();
@@ -200,7 +201,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("修剪模式");
+        ImGui.text(PlotI18n.tr("option.plot.trim_mode"));
         
         ImGui.tableNextColumn();
         
@@ -252,7 +253,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             LOGGER.warn("图标加载失败，使用文本按钮作为备用方案");
             
             boolean isBoundarySelected = currentTool.getTrimMode() == TrimWithSelectionStrategy.TrimMode.BOUNDARY;
-            if (ImGui.button("边界修剪", 80, 30)) {
+            if (ImGui.button(PlotI18n.tr("trim.plot.boundary"), 80, 30)) {
                 if (!isBoundarySelected) {
                     updateToolConfig(CONFIG_KEY_MODE, TRIM_MODE_BOUNDARY);
                     LOGGER.debug("切换到边界修剪模式");
@@ -261,7 +262,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.sameLine();
             
             boolean isFenceSelected = currentTool.getTrimMode() == TrimWithSelectionStrategy.TrimMode.FENCE;
-            if (ImGui.button("栅栏修剪", 80, 30)) {
+            if (ImGui.button(PlotI18n.tr("option.plot.fence_trim"), 80, 30)) {
                 if (!isFenceSelected) {
                     updateToolConfig(CONFIG_KEY_MODE, TRIM_MODE_FENCE);
                     LOGGER.debug("切换到栅栏修剪模式");
@@ -288,7 +289,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("栅栏类型");
+        ImGui.text(PlotI18n.tr("option.plot.fence_type"));
 
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -329,7 +330,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("边数");
+            ImGui.text(PlotI18n.tr("option.plot.sides"));
 
             ImGui.tableNextColumn();
             int[] sides = { currentTool.getFencePolygonSides() };
@@ -390,7 +391,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("修剪容差");
+            ImGui.text(PlotI18n.tr("option.plot.trim_tolerance"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);

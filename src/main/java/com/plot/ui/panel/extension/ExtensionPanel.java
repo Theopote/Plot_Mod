@@ -12,6 +12,7 @@ import com.plot.ui.component.UIUtils;
 import com.plot.PlotMod;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +61,7 @@ public class ExtensionPanel implements UIComponent {
             ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 8);
             
             // 插件列表
-            ImGui.text("已安装插件");
+            ImGui.text(PlotI18n.tr("panel.plot.extension_installed"));
             float listHeight = Math.max(100.0f, Math.min(200.0f, pluginManager.getPlugins().size() * 35.0f));
             ImGui.beginChild("##plugins_list", ImGui.getContentRegionAvailX(), listHeight, true);
             
@@ -125,7 +126,7 @@ public class ExtensionPanel implements UIComponent {
                 // 如果插件未启用，显示提示信息
                 if (!currentActivePlugin.isEnabled()) {
                     ImGui.textColored(theme.errorText, "插件未启用");
-                    ImGui.text("请先启用插件 '" + currentActivePlugin.getName() + "' 以使用其功能");
+                    ImGui.text(PlotI18n.tr("panel.plot.extension_enable_first", currentActivePlugin.getName()));
                 } else {
                     // 显示插件名称和描述
                     ImGui.pushStyleColor(ImGuiCol.Text, theme.infoText);

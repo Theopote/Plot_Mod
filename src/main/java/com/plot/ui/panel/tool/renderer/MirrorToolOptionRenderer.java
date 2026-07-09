@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -74,7 +75,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("对称模式");
+            ImGui.text(PlotI18n.tr("option.plot.symmetry_mode"));
             
             ImGui.tableNextColumn();
             float firstButtonX = ImGui.getCursorPosX();

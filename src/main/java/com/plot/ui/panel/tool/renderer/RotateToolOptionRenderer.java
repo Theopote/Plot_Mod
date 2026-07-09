@@ -14,6 +14,7 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import com.plot.PlotMod;
+import com.plot.utils.PlotI18n;
 
 /**
  * 旋转工具属性面板渲染器
@@ -42,7 +43,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
         RotateTool rotateTool = getCurrentTool();
         if (rotateTool == null) {
             // 如果当前工具不是RotateTool，显示提示信息
-            ImGui.text("请选择旋转工具");
+            ImGui.text(PlotI18n.tr("option.plot.select_rotate_tool"));
             return ImGui.getFrameHeightWithSpacing();
         }
         
@@ -62,7 +63,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("角度步长");
+            ImGui.text(PlotI18n.tr("option.plot.angle_step"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -90,7 +91,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("预设值");
+            ImGui.text(PlotI18n.tr("option.plot.preset_values"));
             
             ImGui.tableNextColumn();
             renderPresetButtons(new float[]{height});
@@ -101,7 +102,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("角度吸附");
+            ImGui.text(PlotI18n.tr("option.plot.angle_snap"));
             
             ImGui.tableNextColumn();
             // 设置复选框样式，参考其他工具的实现
@@ -296,8 +297,8 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
                         return;
                     }
 
-                    DialogLayoutHelper.beginSection("角度步长");
-                    DialogLayoutHelper.helpText("请输入 1 - 90 之间的整数，回车可直接确认，双击滑块也可再次打开此面板。");
+                    DialogLayoutHelper.beginSection(PlotI18n.tr("dialog.plot.angle_step_title"));
+                    DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.angle_step_help"));
                     DialogLayoutHelper.endSection();
 
                     ImInt tempInput = new ImInt(angleStep[0]);
@@ -320,7 +321,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
 
                     DialogLayoutHelper.beginFooter();
                     DialogLayoutHelper.FooterResult action =
-                            DialogLayoutHelper.footerConfirmCancelCentered("取消", "确定", DialogStyleManager.getContentWidth());
+                            DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth());
 
                     if (action.confirmClicked() || confirmWithEnter) {
                         applyAngleStepValue(tempInput.get(), action.confirmClicked() ? "确定按钮" : "回车键");

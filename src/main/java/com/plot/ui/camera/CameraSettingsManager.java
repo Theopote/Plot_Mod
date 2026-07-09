@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
@@ -47,7 +48,7 @@ public class CameraSettingsManager {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
-            boolean windowVisible = ImGui.begin("正交相机设置##CameraSettings",
+            boolean windowVisible = ImGui.begin(PlotI18n.tr("screen.plot.camera_settings") + "##CameraSettings",
                     ImGuiWindowFlags.NoCollapse
                             | ImGuiWindowFlags.NoResize
                             | ImGuiWindowFlags.NoScrollbar
@@ -64,28 +65,28 @@ public class CameraSettingsManager {
 
                     // 缩放比例设置
                     float[] scale = {camera.getScale()};
-                    if (ImGui.sliderFloat("缩放比例", scale, 0.1f, 10.0f, "%.1f")) {
+                    if (ImGui.sliderFloat(PlotI18n.tr("camera.plot.scale"), scale, 0.1f, 10.0f, "%.1f")) {
                         camera.setScale(scale[0]);
                         settingsChanged = true;
                     }
 
                     // 视野范围设置
                     float[] viewDistance = {camera.getViewDistance()};
-                    if (ImGui.sliderFloat("视野范围", viewDistance, 0.0f, 100.0f, "%.0f")) {
+                    if (ImGui.sliderFloat(PlotI18n.tr("camera.plot.view_distance"), viewDistance, 0.0f, 100.0f, "%.0f")) {
                         camera.setViewDistance(viewDistance[0]);
                         settingsChanged = true;
                     }
 
                     // 近平面设置
                     float[] near = {camera.getNear()};
-                    if (ImGui.sliderFloat("近平面", near, 0.01f, 10.0f, "%.2f")) {
+                    if (ImGui.sliderFloat(PlotI18n.tr("camera.plot.near_plane"), near, 0.01f, 10.0f, "%.2f")) {
                         camera.setNear(near[0]);
                         settingsChanged = true;
                     }
 
                     // 远平面设置
                     float[] far = {camera.getFar()};
-                    if (ImGui.sliderFloat("远平面", far, 100.0f, 2000.0f, "%.0f")) {
+                    if (ImGui.sliderFloat(PlotI18n.tr("camera.plot.far_plane"), far, 100.0f, 2000.0f, "%.0f")) {
                         camera.setFar(far[0]);
                         settingsChanged = true;
                     }
@@ -111,7 +112,7 @@ public class CameraSettingsManager {
     private void renderButtons() {
         ImGui.separator();
         DialogLayoutHelper.FooterResult action =
-                DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
+                DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.reset"), PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth());
 
         if (action.confirmClicked()) {
             showSettings = false;

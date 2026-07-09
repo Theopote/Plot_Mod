@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.impl.modify.ChamferTool;
@@ -102,7 +103,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("倒角距离");
+        ImGui.text(PlotI18n.tr("option.plot.chamfer_distance"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(120.0f);

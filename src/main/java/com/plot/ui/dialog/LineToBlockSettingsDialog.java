@@ -5,6 +5,7 @@ import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,8 +19,8 @@ public class LineToBlockSettingsDialog {
     private boolean fillClosedShapes = false;
 
     public enum ConversionMode {
-        FULL("完整转换"),
-        SIMPLIFIED("精简转换");
+        FULL("mode.plot.full_conversion"),
+        SIMPLIFIED("mode.plot.simplified_conversion");
 
         private final String displayName;
 
@@ -28,7 +29,7 @@ public class LineToBlockSettingsDialog {
         }
 
         public String getDisplayName() {
-            return displayName;
+            return PlotI18n.tr(displayName);
         }
     }
 
@@ -62,7 +63,7 @@ public class LineToBlockSettingsDialog {
                     | ImGuiWindowFlags.NoResize
                     | ImGuiWindowFlags.NoScrollbar
                     | ImGuiWindowFlags.NoSavedSettings;
-            boolean windowVisible = ImGui.begin("线转方块设置##LineToBlockSettings", windowFlags);
+            boolean windowVisible = ImGui.begin(PlotI18n.tr("screen.plot.line_to_block_settings") + "##LineToBlockSettings", windowFlags);
             try {
                 if (windowVisible) {
                     if (DialogStyleManager.renderTopRightCloseButton("line_to_block")) {
@@ -75,40 +76,40 @@ public class LineToBlockSettingsDialog {
                                 ConversionMode.SIMPLIFIED.getDisplayName()
                         };
 
-                        DialogLayoutHelper.formRowLabel("转换模式");
+                        DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.conversion_mode"));
                         ImInt currentMode = new ImInt(conversionMode.ordinal());
                         if (ImGui.combo("##conversion_mode", currentMode, modes)) {
                             conversionMode = ConversionMode.values()[currentMode.get()];
                         }
                         DialogLayoutHelper.formRowHelp(conversionMode == ConversionMode.FULL
-                                ? "完整转换会尽量保留图形覆盖到的所有方块。"
-                                : "精简转换会按覆盖阈值过滤细碎区域：线框看覆盖长度，填充看单元覆盖率。");
+                                ? PlotI18n.tr("dialog.plot.linetoblock_full_help")
+                                : PlotI18n.tr("dialog.plot.linetoblock_simplified_help"));
 
-                        DialogLayoutHelper.formRowLabel("封闭填充");
+                        DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.closed_fill"));
                         ImBoolean fillOption = new ImBoolean(fillClosedShapes);
                         if (ImGui.checkbox("##fill_closed_shapes", fillOption)) {
                             fillClosedShapes = fillOption.get();
                         }
                         DialogLayoutHelper.formRowHelp(fillClosedShapes
-                                ? "已启用封闭图形内部填充。"
-                                : "当前仅转换封闭图形的边缘轮廓。");
+                                ? PlotI18n.tr("dialog.plot.linetoblock_fill_enabled_help")
+                                : PlotI18n.tr("dialog.plot.linetoblock_fill_disabled_help"));
 
                         if (conversionMode == ConversionMode.SIMPLIFIED) {
-                            DialogLayoutHelper.formRowLabel("精简比率");
+                            DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.simplify_ratio"));
                             float[] ratio = new float[]{simplificationRatio};
                             if (ImGui.sliderFloat("##simplification_ratio", ratio, 0.1f, 1.0f, "%.2f")) {
                                 simplificationRatio = ratio[0];
                             }
                             DialogLayoutHelper.formRowHelp(fillClosedShapes
-                                    ? String.format("线框按覆盖长度过滤，填充区域按单元覆盖率过滤；当前阈值为 %.2f。", simplificationRatio)
-                                    : String.format("仅当线条覆盖长度超过 %.2f 倍方块边长时才转换。", simplificationRatio));
+                                    ? PlotI18n.tr("dialog.plot.linetoblock_simplify_threshold_fill", simplificationRatio)
+                                    : PlotI18n.tr("dialog.plot.linetoblock_simplify_threshold_line", simplificationRatio));
                         }
 
                         DialogLayoutHelper.endForm();
                     }
 
                     ImGui.separator();
-                    if (DialogLayoutHelper.footerSingleCentered("关闭", DialogStyleManager.getContentWidth())
+                    if (DialogLayoutHelper.footerSingleCentered(PlotI18n.tr("button.plot.close"), DialogStyleManager.getContentWidth())
                             || DialogLayoutHelper.isCancelShortcutPressed()
                             || DialogLayoutHelper.isConfirmShortcutPressed()) {
                         close();

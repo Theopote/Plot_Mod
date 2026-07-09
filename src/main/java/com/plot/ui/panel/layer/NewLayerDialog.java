@@ -8,6 +8,7 @@ import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.dialog.TextDialogUtil;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.utils.PlotI18n;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -32,7 +33,7 @@ public class NewLayerDialog {
     private static final Logger LOGGER = LogManager.getLogger("NewLayerDialog");
 
     // === 常量定义 ===
-    private static final String DIALOG_TITLE = "新建图层";
+    private static final String DIALOG_TITLE = PlotI18n.tr("screen.plot.new_layer");
     private static final String LAYER_NAME_PATTERN = "[a-zA-Z0-9_\u4E00-\u9FFF]+";
     private static final int MAX_NAME_LENGTH = 32;  // 最大名称长度（字符）
     private static final int MAX_BUFFER_SIZE = 512; // ImString 缓冲区大小（字节，足够支持长中文输入）
@@ -251,7 +252,7 @@ public class NewLayerDialog {
                 UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
 
                 if (DialogLayoutHelper.beginForm("##new_layer_form")) {
-                    DialogLayoutHelper.formRowLabel("名称");
+                    DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.name"));
 
                     if (nameInputInvalid) {
                         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
@@ -279,21 +280,21 @@ public class NewLayerDialog {
                     if (nameInputInvalid) {
                         ImGui.popStyleColor();
                         ImGui.popStyleVar();
-                        DialogLayoutHelper.errorText("请输入合法的图层名称（中文、字母、数字或下划线）。");
+                        DialogLayoutHelper.errorText(PlotI18n.tr("dialog.plot.layer_name_error"));
                     }
 
                     if (nativeInputSupported) {
-                        DialogLayoutHelper.beginSection("编辑");
-                        if (ImGui.button("重新编辑名称", 0, 0)) {
+                        DialogLayoutHelper.beginSection(PlotI18n.tr("dialog.plot.edit_section"));
+                        if (ImGui.button(PlotI18n.tr("button.plot.reedit_name"), 0, 0)) {
                             nativeInputRequested = false;
                             requestNativeNameInputIfNeeded();
                         }
                     }
 
-                    DialogLayoutHelper.formRowLabel("颜色");
+                    DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.color"));
                     ImGui.colorEdit4("##new_layer_color", layerColor);
 
-                    DialogLayoutHelper.formRowLabel("线型");
+                    DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.line_style"));
                     if (ImGui.beginCombo("##new_layer_line_type", lineType.toString())) {
                         for (LineStyle.LineType type : LineStyle.LineType.values()) {
                             if (ImGui.selectable(type.toString(), type == lineType)) {
@@ -303,7 +304,7 @@ public class NewLayerDialog {
                         ImGui.endCombo();
                     }
 
-                    DialogLayoutHelper.formRowLabel("线宽");
+                    DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.line_width"));
                     float[] tempLineWidth = {lineWidth};
                     if (ImGui.dragFloat("##new_layer_line_width", tempLineWidth,
                             0.1f, 0.1f, 5.0f, "%.1f")) {
@@ -316,7 +317,9 @@ public class NewLayerDialog {
                 ImGui.separator();
                 DialogLayoutHelper.beginFooter();
                 DialogLayoutHelper.FooterResult action =
-                        DialogLayoutHelper.footerConfirmCancelRight("取消", "创建", DialogStyleManager.getContentWidth());
+                        DialogLayoutHelper.footerConfirmCancelRight(
+                                PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.create"),
+                                DialogStyleManager.getContentWidth());
 
                 if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                     createNewLayer();

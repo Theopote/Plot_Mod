@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
@@ -78,7 +79,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("选择模式");
+            ImGui.text(PlotI18n.tr("option.plot.selection_mode"));
             
             // 使用 pushStyleVar 临时设置圆角，避免永久修改共享 ImGui 样式（影响其他模组）
             ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, BUTTON_CORNER_ROUNDING);

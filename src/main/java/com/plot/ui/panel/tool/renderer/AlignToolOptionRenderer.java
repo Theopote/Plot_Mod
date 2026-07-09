@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.AlignTool;
 import com.plot.ui.tools.impl.modify.strategy.AlignStrategy;
 import imgui.ImGui;
@@ -66,7 +67,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("对齐模式(已简化)");
+        ImGui.text(PlotI18n.tr("option.plot.align_mode"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -91,7 +92,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("参考模式(已简化)");
+        ImGui.text(PlotI18n.tr("option.plot.reference_mode"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -115,7 +116,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.text("缩放设置");
+        ImGui.text(PlotI18n.tr("option.plot.scale_settings"));
         
         ImGui.tableNextColumn();
         ImGui.pushItemWidth(-1);
@@ -132,7 +133,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
 
-        if (ImGui.checkbox("允许缩放", scaleEnabled)) {
+        if (ImGui.checkbox(PlotI18n.tr("option.plot.allow_scale"), scaleEnabled)) {
             updateToolConfig(CONFIG_KEY_SCALE_ENABLED, String.valueOf(scaleEnabled.get()));
         }
 

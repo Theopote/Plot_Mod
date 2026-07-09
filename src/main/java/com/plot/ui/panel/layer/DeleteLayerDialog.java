@@ -6,6 +6,7 @@ import com.plot.core.layer.LayerManager;
 import com.plot.core.state.AppState;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,20 +63,20 @@ public class DeleteLayerDialog {
     private String getDeletionBlockReason() {
         LayerManager layerManager = appState.getLayerManager();
         if (layerManager.getLayers().size() <= 1) {
-            return "不能删除仅有的图层";
+            return PlotI18n.tr("layer.plot.cannot_delete_only");
         }
 
         if (selectedLayers == null || selectedLayers.isEmpty()) {
-            return "请先选择要删除的图层";
+            return PlotI18n.tr("layer.plot.select_to_delete");
         }
 
         if (layerManager.getLayers().size() <= selectedLayers.size()) {
-            return "必须至少保留一个图层";
+            return PlotI18n.tr("layer.plot.must_keep_one");
         }
 
         for (ILayer layer : selectedLayers) {
             if (layer instanceof Layer && layer.isLocked()) {
-                return "无法删除锁定的图层: " + layer.getName() + "，请先解锁";
+                return PlotI18n.tr("layer.plot.cannot_delete_locked", layer.getName());
             }
         }
 
@@ -120,12 +121,12 @@ public class DeleteLayerDialog {
         if (!selectedLayers.isEmpty()) {
             if (selectedLayers.size() == 1) {
                 ILayer layer = selectedLayers.iterator().next();
-                ImGui.textWrapped("确定要删除图层 \"" + layer.getName() + "\" 吗？");
+                ImGui.textWrapped(PlotI18n.tr("layer.plot.delete_confirm_single", layer.getName()));
             } else {
-                ImGui.textWrapped("确定要删除选中的 " + selectedLayers.size() + " 个图层吗？");
+                ImGui.textWrapped(PlotI18n.tr("layer.plot.delete_confirm_multiple", selectedLayers.size()));
             }
 
-            DialogLayoutHelper.warningText("此操作不可撤销。");
+            DialogLayoutHelper.warningText(PlotI18n.tr("dialog.plot.delete_layer_warning"));
             DialogLayoutHelper.beginFooter();
             renderButtons();
         }
@@ -134,7 +135,7 @@ public class DeleteLayerDialog {
     private void renderButtons() {
         float contentWidth = DialogStyleManager.getContentWidth();
         DialogLayoutHelper.FooterResult action =
-                DialogLayoutHelper.footerConfirmCancelCentered("取消", "删除", contentWidth);
+                DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.delete"), contentWidth);
 
         if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
             try {
@@ -149,7 +150,7 @@ public class DeleteLayerDialog {
                 closePopup();
             } catch (Exception e) {
                 LOGGER.error("删除图层失败", e);
-                showWarningDialog.accept("删除图层失败，请重试");
+                showWarningDialog.accept(PlotI18n.tr("layer.plot.delete_failed"));
                 closePopup();
             }
         }

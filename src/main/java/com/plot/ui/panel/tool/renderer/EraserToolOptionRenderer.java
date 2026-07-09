@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
@@ -41,7 +42,7 @@ public class EraserToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("橡皮擦大小");
+            ImGui.text(PlotI18n.tr("option.plot.eraser_size"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);

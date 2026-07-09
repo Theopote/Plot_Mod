@@ -1,5 +1,6 @@
 package com.plot.ui.panel.layer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.model.ILayer;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
@@ -360,7 +361,7 @@ public class LayerPanel implements UIComponent {
                     }
 
                     DialogLayoutHelper.beginFooter();
-                    if (DialogLayoutHelper.footerSingleCentered("确定", DialogStyleManager.getContentWidth())) {
+                    if (DialogLayoutHelper.footerSingleCentered(PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth())) {
                         ImGui.closeCurrentPopup();
                     }
                 } finally {

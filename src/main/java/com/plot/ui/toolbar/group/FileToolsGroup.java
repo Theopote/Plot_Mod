@@ -6,6 +6,7 @@ import com.plot.infrastructure.event.tool.ToolEvent;
 import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.toolbar.ControlPanel;
 import com.plot.ui.toolbar.ToolbarUIUtils;
+import com.plot.utils.PlotI18n;
 
 /**
  * 文件工具组
@@ -26,7 +27,7 @@ public class FileToolsGroup extends AbstractToolbarGroup {
             boolean canUndo = appState.getCommandHistory().canUndo();
             if (ToolbarUIUtils.renderToolbarButton(
                     ControlPanelIcons.getIdentifier(ControlPanelIcons.UNDO),
-                    "撤销", !canUndo, false)) {
+                    PlotI18n.tr("toolbar.plot.undo"), !canUndo, false)) {
                 handleToolEvent("undo");
             }
             addButtonSpacing();
@@ -35,7 +36,7 @@ public class FileToolsGroup extends AbstractToolbarGroup {
             boolean canRedo = appState.getCommandHistory().canRedo();
             if (ToolbarUIUtils.renderToolbarButton(
                     ControlPanelIcons.getIdentifier(ControlPanelIcons.REDO),
-                    "重做", !canRedo, false)) {
+                    PlotI18n.tr("toolbar.plot.redo"), !canRedo, false)) {
                 handleToolEvent("redo");
             }
             

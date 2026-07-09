@@ -6,6 +6,7 @@ import com.plot.api.model.ILayer;
 import com.plot.core.layer.LayerManager;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.utils.PlotI18n;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -56,12 +57,12 @@ public class LayerContextMenuRenderer {
             try {
                 // 设置为活动图层选项 - 锁定图层不能设为活动图层
                 if (!layer.isLocked()) {
-                    if (ImGui.menuItem("设为活动图层", "", isActive)) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.set_active"), "", isActive)) {
                         layerManager.setActiveLayer(layer);
                     }
                 } else {
                     ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-                    ImGui.menuItem("设为活动图层", "图层已锁定", false, false);
+                    ImGui.menuItem(PlotI18n.tr("layer.plot.set_active"), PlotI18n.tr("layer.plot.locked"), false, false);
                     ImGui.popStyleVar();
                 }
                 
@@ -69,28 +70,28 @@ public class LayerContextMenuRenderer {
                 
                 // 重命名选项 - 锁定图层不能重命名
                 if (!layer.isLocked()) {
-                    if (ImGui.menuItem("重命名", "双击图层名称")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.rename"), PlotI18n.tr("layer.plot.rename_hint"))) {
                         layerNameRenderer.startEditing(layer);
                     }
                 } else {
                     ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-                    ImGui.menuItem("重命名", "图层已锁定", false, false);
+                    ImGui.menuItem(PlotI18n.tr("layer.plot.rename"), PlotI18n.tr("layer.plot.locked"), false, false);
                     ImGui.popStyleVar();
                 }
                 
                 // 复制图层选项 - 锁定图层可以复制
-                if (ImGui.menuItem("复制图层", "")) {
+                if (ImGui.menuItem(PlotI18n.tr("layer.plot.copy"), "")) {
                     duplicateLayer(layer);
                 }
                 
                 // 删除图层选项 - 锁定图层不能删除
                 if (!layer.isLocked()) {
-                    if (ImGui.menuItem("删除图层", "")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.delete"), "")) {
                         showDeleteLayerDialog.run();
                     }
                 } else {
                     ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-                    ImGui.menuItem("删除图层", "图层已锁定", false, false);
+                    ImGui.menuItem(PlotI18n.tr("layer.plot.delete"), PlotI18n.tr("layer.plot.locked"), false, false);
                     ImGui.popStyleVar();
                 }
                 
@@ -98,13 +99,13 @@ public class LayerContextMenuRenderer {
                 
                 // 锁定/解锁选项
                 if (layer.isLocked()) {
-                    if (ImGui.menuItem("解锁图层", "")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.unlock"), "")) {
                         layerManager.updateLayerProperty(layer, 
                             "locked", 
                             false);
                     }
                 } else {
-                    if (ImGui.menuItem("锁定图层", "")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.lock"), "")) {
                         layerManager.updateLayerProperty(layer, 
                             "locked", 
                             true);
@@ -113,13 +114,13 @@ public class LayerContextMenuRenderer {
                 
                 // 显示/隐藏选项
                 if (layer.isVisible()) {
-                    if (ImGui.menuItem("隐藏图层", "")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.hide"), "")) {
                         layerManager.updateLayerProperty(layer, 
                             "visible", 
                             false);
                     }
                 } else {
-                    if (ImGui.menuItem("显示图层", "")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.show"), "")) {
                         layerManager.updateLayerProperty(layer, 
                             "visible", 
                             true);
@@ -133,14 +134,14 @@ public class LayerContextMenuRenderer {
                                   !containsLockedLayer(selectedLayers);
                 
                 if (canMerge) {
-                    if (ImGui.menuItem("合并选中图层", "")) {
+                    if (ImGui.menuItem(PlotI18n.tr("layer.plot.merge_selected"), "")) {
                         mergeSelectedLayers();
                     }
                 } else {
                     String disabledReason = selectedLayers.size() <= 1 ? 
                                           "需要选择多个图层" : "选中的图层中包含锁定图层";
                     ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-                    ImGui.menuItem("合并选中图层", disabledReason, false, false);
+                    ImGui.menuItem(PlotI18n.tr("layer.plot.merge_selected"), disabledReason, false, false);
                     ImGui.popStyleVar();
                 }
             } finally {

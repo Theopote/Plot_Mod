@@ -8,6 +8,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.grid.GridManager;
 import com.plot.ui.toolbar.ToolbarUIUtils;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
 /**
@@ -55,7 +56,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
     private void renderSnapButton() {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.MAGNET),
-                "吸附", false, snapManager.isEnabled())) {
+                PlotI18n.tr("toolbar.plot.snap"), false, snapManager.isEnabled())) {
             snapManager.setEnabled(!snapManager.isEnabled());
         }
         
@@ -63,7 +64,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
             if (ImGui.isMouseClicked(1)) {
                 snapManager.toggleSettings();
             }
-            ToolbarUIUtils.renderThemedTooltip("左键: 开关吸附\n右键: 吸附设置");
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.snap_tooltip"));
         }
     }
     
@@ -74,7 +75,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
         boolean isGridEnabled = gridManager.isEnabled();
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.GRID),
-                "网格", false, isGridEnabled)) {
+                PlotI18n.tr("toolbar.plot.grid"), false, isGridEnabled)) {
             boolean newState = !isGridEnabled;
             
             LOGGER.debug("======= 网格按钮被点击 =======");
@@ -94,7 +95,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
                 LOGGER.debug("网格按钮被右键点击，打开设置窗口");
                 gridManager.toggleSettings();
             }
-            ToolbarUIUtils.renderThemedTooltip("左键: 开关网格\n右键: 网格设置");
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.grid_tooltip"));
         }
     }
     
@@ -104,7 +105,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
     private void renderClearButton() {
         if (ToolbarUIUtils.renderToolbarButton(
                 ControlPanelIcons.getIdentifier(ControlPanelIcons.CLEAR),
-                "清除绘图面板")) {
+                PlotI18n.tr("toolbar.plot.clear_canvas"))) {
             // 使用命令系统，支持撤销和重做
             ClearCanvasCommand command = new ClearCanvasCommand(appState);
             CommandHistory.getInstance().execute(command);

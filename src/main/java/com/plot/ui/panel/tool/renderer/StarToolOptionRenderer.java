@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import com.plot.ui.tools.impl.drawing.StarTool;
 
@@ -32,7 +33,7 @@ public class StarToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("顶点数量");
+            ImGui.text(PlotI18n.tr("option.plot.vertex_count"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -46,7 +47,7 @@ public class StarToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("内扭转");
+            ImGui.text(PlotI18n.tr("option.plot.inner_twist"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);
@@ -61,7 +62,7 @@ public class StarToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("外扭转");
+            ImGui.text(PlotI18n.tr("option.plot.outer_twist"));
             
             ImGui.tableNextColumn();
             ImGui.pushItemWidth(-1);

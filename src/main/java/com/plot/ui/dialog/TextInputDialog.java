@@ -2,6 +2,7 @@ package com.plot.ui.dialog;
 
 import com.plot.core.graphics.style.TextAlignment;
 import com.plot.core.graphics.style.TextStyle;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
@@ -19,7 +20,7 @@ import java.util.function.Consumer;
  * 用来规避 Windows IME 在 ImGui 文本框中的兼容性问题。</p>
  */
 public class TextInputDialog {
-    private static final String DIALOG_TITLE = "添加文字";
+    private static final String DIALOG_TITLE = PlotI18n.tr("screen.plot.add_text");
 
     private static final TextInputDialog INSTANCE = new TextInputDialog();
     
@@ -193,20 +194,20 @@ public class TextInputDialog {
                     }
 
                     if (nativeInputSupported) {
-                        DialogLayoutHelper.beginSection("编辑");
-                        if (ImGui.button("重新编辑", 0, 0)) {
+                        DialogLayoutHelper.beginSection(PlotI18n.tr("dialog.plot.edit_section"));
+                        if (ImGui.button(PlotI18n.tr("button.plot.reedit"), 0, 0)) {
                             nativeInputRequested = false;
                             requestNativeTextInputIfNeeded();
                         }
                     }
 
-                    DialogLayoutHelper.beginSection("文字样式");
+                    DialogLayoutHelper.beginSection(PlotI18n.tr("dialog.plot.text_style"));
                     renderStyleSection();
 
                     ImGui.separator();
                     DialogLayoutHelper.beginFooter();
                     DialogLayoutHelper.FooterResult action =
-                            DialogLayoutHelper.footerConfirmCancelRight("取消", "确定", contentWidth);
+                            DialogLayoutHelper.footerConfirmCancelRight(PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.confirm"), contentWidth);
                     if (action.cancelClicked() || DialogLayoutHelper.isCancelShortcutPressed()) {
                         cancelAndClose();
                     }
@@ -226,21 +227,21 @@ public class TextInputDialog {
 
     private void renderStyleSection() {
         if (DialogLayoutHelper.beginForm("##text_style_form")) {
-            DialogLayoutHelper.formRowLabel("字体大小");
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("option.plot.font_size"));
             float[] sizeArr = new float[]{fontSize};
             if (ImGui.sliderFloat("##font_size", sizeArr, 100.0f, 200.0f, "%.1f")) {
                 fontSize = sizeArr[0];
             }
 
-            DialogLayoutHelper.formRowLabel("行高");
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("option.plot.text_line_height"));
             float[] lineArr = new float[]{lineHeight};
             if (ImGui.sliderFloat("##line_height", lineArr, 0.5f, 3.0f, "%.2f")) {
                 lineHeight = lineArr[0];
             }
 
-            DialogLayoutHelper.formRowLabel("字形");
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.glyph"));
             DialogLayoutHelper.InlineToggleResult glyphAction =
-                    DialogLayoutHelper.formRowCheckboxPair("粗体##bold", bold, "斜体##italic", italic);
+                    DialogLayoutHelper.formRowCheckboxPair(PlotI18n.tr("option.plot.text_bold") + "##bold", bold, PlotI18n.tr("option.plot.text_italic") + "##italic", italic);
             if (glyphAction.firstClicked()) {
                 bold = !bold;
             }
@@ -248,7 +249,7 @@ public class TextInputDialog {
                 italic = !italic;
             }
 
-            DialogLayoutHelper.formRowLabel("水平对齐");
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.horizontal_align"));
             String currentH = getHorizontalAlignLabel(hAlign);
             if (ImGui.beginCombo("##h_align", currentH)) {
                 for (TextAlignment.Horizontal h : TextAlignment.Horizontal.values()) {
@@ -262,7 +263,7 @@ public class TextInputDialog {
                 ImGui.endCombo();
             }
 
-            DialogLayoutHelper.formRowLabel("垂直对齐");
+            DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.vertical_align"));
             String currentV = getVerticalAlignLabel(vAlign);
             if (ImGui.beginCombo("##v_align", currentV)) {
                 for (TextAlignment.Vertical v : TextAlignment.Vertical.values()) {
@@ -282,17 +283,17 @@ public class TextInputDialog {
 
     private String getHorizontalAlignLabel(TextAlignment.Horizontal align) {
         return switch (align) {
-            case LEFT -> "左对齐";
-            case CENTER -> "居中";
-            case RIGHT -> "右对齐";
+            case LEFT -> PlotI18n.tr("text.align.left");
+            case CENTER -> PlotI18n.tr("text.align.center");
+            case RIGHT -> PlotI18n.tr("text.align.right");
         };
     }
 
     private String getVerticalAlignLabel(TextAlignment.Vertical align) {
         return switch (align) {
-            case TOP -> "顶部";
-            case MIDDLE -> "居中";
-            case BOTTOM -> "底部";
+            case TOP -> PlotI18n.tr("text.align.top");
+            case MIDDLE -> PlotI18n.tr("text.align.middle");
+            case BOTTOM -> PlotI18n.tr("text.align.bottom");
         };
     }
 

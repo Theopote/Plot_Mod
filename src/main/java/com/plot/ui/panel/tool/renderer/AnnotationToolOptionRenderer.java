@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.AnnotationTool;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -63,7 +64,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("模式");
+            ImGui.text(PlotI18n.tr("option.plot.annotation_mode"));
             
             ImGui.tableNextColumn();
             
@@ -155,7 +156,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 // 距离模式按钮
                 boolean isDistanceSelected = currentMode == AnnotationTool.AnnotationMode.DISTANCE;
                 pushButtonStyle(currentTheme, isDistanceSelected);
-                if (ImGui.button("距离", BUTTON_SIZE, BUTTON_SIZE)) {
+                if (ImGui.button(PlotI18n.tr("option.plot.annotation_distance"), BUTTON_SIZE, BUTTON_SIZE)) {
                     if (!isDistanceSelected) {
                         currentMode = AnnotationTool.AnnotationMode.DISTANCE;
                         updateToolConfig(CONFIG_KEY_MODE, "distance");
@@ -171,7 +172,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 // 角度模式按钮
                 boolean isAngleSelected = currentMode == AnnotationTool.AnnotationMode.ANGLE;
                 pushButtonStyle(currentTheme, isAngleSelected);
-                if (ImGui.button("角度", BUTTON_SIZE, BUTTON_SIZE)) {
+                if (ImGui.button(PlotI18n.tr("option.plot.annotation_angle"), BUTTON_SIZE, BUTTON_SIZE)) {
                     if (!isAngleSelected) {
                         currentMode = AnnotationTool.AnnotationMode.ANGLE;
                         updateToolConfig(CONFIG_KEY_MODE, "angle");
@@ -187,7 +188,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 // 半径模式按钮
                 boolean isRadiusSelected = currentMode == AnnotationTool.AnnotationMode.RADIUS;
                 pushButtonStyle(currentTheme, isRadiusSelected);
-                if (ImGui.button("半径", BUTTON_SIZE, BUTTON_SIZE)) {
+                if (ImGui.button(PlotI18n.tr("option.plot.annotation_radius"), BUTTON_SIZE, BUTTON_SIZE)) {
                     if (!isRadiusSelected) {
                         currentMode = AnnotationTool.AnnotationMode.RADIUS;
                         updateToolConfig(CONFIG_KEY_MODE, "radius");
@@ -203,7 +204,7 @@ public class AnnotationToolOptionRenderer extends AbstractToolOptionRenderer {
                 // 面积模式按钮
                 boolean isAreaSelected = currentMode == AnnotationTool.AnnotationMode.AREA;
                 pushButtonStyle(currentTheme, isAreaSelected);
-                if (ImGui.button("面积", BUTTON_SIZE, BUTTON_SIZE)) {
+                if (ImGui.button(PlotI18n.tr("option.plot.annotation_area"), BUTTON_SIZE, BUTTON_SIZE)) {
                     if (!isAreaSelected) {
                         currentMode = AnnotationTool.AnnotationMode.AREA;
                         updateToolConfig(CONFIG_KEY_MODE, "area");

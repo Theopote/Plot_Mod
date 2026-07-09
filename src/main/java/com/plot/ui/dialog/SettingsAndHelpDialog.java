@@ -8,6 +8,7 @@ import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.snap.SnapVisualStyle;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
@@ -82,7 +83,7 @@ public class SettingsAndHelpDialog {
                     | ImGuiWindowFlags.NoSavedSettings
                     | ImGuiWindowFlags.NoScrollbar
                     | ImGuiWindowFlags.NoScrollWithMouse;
-            if (!ImGui.begin("设置与帮助", flags)) {
+            if (!ImGui.begin(PlotI18n.tr("screen.plot.settings_help"), flags)) {
                 ImGui.end();
                 return;
             }
@@ -100,15 +101,15 @@ public class SettingsAndHelpDialog {
             if (DialogLayoutHelper.beginSettingsPageBody("##settings_body_region", footerReservedHeight)) {
                 try {
                     if (ImGui.beginTabBar("##settings_tabs", ImGuiTabBarFlags.None)) {
-                        if (ImGui.beginTabItem("快捷键")) {
+                        if (ImGui.beginTabItem(PlotI18n.tr("settings.plot.shortcuts"))) {
                             renderShortcutsPage();
                             ImGui.endTabItem();
                         }
-                        if (ImGui.beginTabItem("吸附与反馈")) {
+                        if (ImGui.beginTabItem(PlotI18n.tr("settings.plot.feedback"))) {
                             renderDisplayPage();
                             ImGui.endTabItem();
                         }
-                        if (ImGui.beginTabItem("帮助与教程")) {
+                        if (ImGui.beginTabItem(PlotI18n.tr("settings.plot.help"))) {
                             renderHelpPage();
                             ImGui.endTabItem();
                         }
@@ -124,7 +125,7 @@ public class SettingsAndHelpDialog {
             boolean captureActiveNow = editingActionId != null;
             if (captureActiveNow) ImGui.beginDisabled();
             DialogLayoutHelper.FooterResult footerAction =
-                    DialogLayoutHelper.footerConfirmCancelCentered("返回", "完成", DialogStyleManager.getContentWidth());
+                    DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.back"), PlotI18n.tr("button.plot.done"), DialogStyleManager.getContentWidth());
             boolean suppressDialogHotkeys = DialogLayoutHelper.shouldSuppressDialogHotkeys(
                     captureActiveNow, suppressCloseHotkeysThisFrame);
             if (footerAction.confirmClicked()
@@ -161,7 +162,7 @@ public class SettingsAndHelpDialog {
 
     private void renderShortcutsPage() {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-        final String shortcutHintText = "说明：单键（如 L、P、C、R、E、S、A、Space）用于快速切换工具；组合键（如 Ctrl+Z/Y、Ctrl+N）用于全局操作。按住 Shift 在绘制或修改时启用正交/角度约束。";
+        final String shortcutHintText = PlotI18n.tr("settings.plot.shortcuts_hint");
         boolean captureActive = editingActionId != null;
         applyCaptureSuppression(captureActive);
 
@@ -178,13 +179,13 @@ public class SettingsAndHelpDialog {
                     false, ImGuiWindowFlags.NoScrollbar)) {
                 // 顶部工具行：搜索与重置默认
                 if (captureActive) ImGui.beginDisabled();
-                ImGui.text("搜索：");
+                ImGui.text(PlotI18n.tr("settings.plot.search"));
                 ImGui.sameLine();
                 ImGui.setNextItemWidth(240);
-                ImGui.inputTextWithHint("##shortcut_search", "搜索动作或按键...", searchText);
+                ImGui.inputTextWithHint("##shortcut_search", PlotI18n.tr("settings.plot.shortcuts_search_hint"), searchText);
 
                 ImGui.sameLine();
-                if (ImGui.button("重置为默认")) {
+                if (ImGui.button(PlotI18n.tr("button.plot.reset"))) {
                     KeymapManager.getInstance().resetToDefault();
                 }
                 if (captureActive) ImGui.endDisabled();
@@ -193,7 +194,7 @@ public class SettingsAndHelpDialog {
                     String actionName = KeymapManager.getInstance().getActionDisplayName(editingActionId);
                     ImGui.pushStyleColor(ImGuiCol.ChildBg, withAlpha(theme.accent, 56));
                     if (ImGui.beginChild("##shortcut_capture_notice", 0, 40, true)) {
-                        ImGui.textColored(theme.warningText, "正在录制快捷键：" + actionName + "（Backspace 清除，Esc 取消）");
+                        ImGui.textColored(theme.warningText, PlotI18n.tr("settings.plot.shortcuts_recording", actionName));
                     }
                     ImGui.endChild();
                     ImGui.popStyleColor();
@@ -216,9 +217,9 @@ public class SettingsAndHelpDialog {
                 }
 
                 if (filteredActions.isEmpty()) {
-                    ImGui.textDisabled("未找到相关动作");
+                    ImGui.textDisabled(PlotI18n.tr("settings.plot.shortcuts_no_results"));
                     ImGui.sameLine();
-                    if (ImGui.smallButton("清除搜索##clear_shortcut_search")) {
+                    if (ImGui.smallButton(PlotI18n.tr("settings.plot.shortcuts_clear_search") + "##clear_shortcut_search")) {
                         searchText.set("");
                     }
                 } else {
@@ -229,9 +230,9 @@ public class SettingsAndHelpDialog {
                             | ImGuiTableFlags.ScrollY
                             | ImGuiTableFlags.SizingStretchProp;
                     if (ImGui.beginTable("shortcut_table", 3, tableFlags, 0, tableHeight)) {
-                        ImGui.tableSetupColumn("动作", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.tableSetupColumn("当前快捷键", ImGuiTableColumnFlags.WidthFixed, 220.0f);
-                        ImGui.tableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, 210.0f);
+                        ImGui.tableSetupColumn(PlotI18n.tr("settings.plot.shortcuts_action"), ImGuiTableColumnFlags.WidthStretch, 1.0f);
+                        ImGui.tableSetupColumn(PlotI18n.tr("settings.plot.shortcuts_current"), ImGuiTableColumnFlags.WidthFixed, 220.0f);
+                        ImGui.tableSetupColumn(PlotI18n.tr("settings.plot.shortcuts_operations"), ImGuiTableColumnFlags.WidthFixed, 210.0f);
                         ImGui.tableHeadersRow();
 
                         String lastCategory = null;
@@ -264,7 +265,7 @@ public class SettingsAndHelpDialog {
                             ImGui.tableSetColumnIndex(1);
                             String current = KeymapManager.getInstance().getBindingDisplay(actionId);
                             if (isEditing) {
-                                ImGui.textColored(theme.warningText, "按下组合键...（Esc取消）");
+                                ImGui.textColored(theme.warningText, PlotI18n.tr("settings.plot.shortcuts_press_combo"));
                                 if (ImGui.isKeyPressed(ImGuiKey.Backspace)) {
                                     KeymapManager.getInstance().clearBinding(actionId);
                                     editingActionId = null;
@@ -274,34 +275,34 @@ public class SettingsAndHelpDialog {
                                         String conflicted = KeymapManager.getInstance().updateBindingAndGetConflict(actionId, captured);
                                         if (conflicted != null) {
                                             String conflictName = KeymapManager.getInstance().getActionDisplayName(conflicted);
-                                            shortcutConflictMessage = "快捷键 " + captured + " 与动作【" + conflictName + "】冲突，旧绑定已移除。";
+                                            shortcutConflictMessage = PlotI18n.tr("settings.plot.shortcuts_conflict", captured, conflictName);
                                             ImGui.openPopup("##shortcut_conflict_popup");
                                         }
                                         editingActionId = null;
                                     }
                                 }
                             } else {
-                                ImGui.text(current == null || current.isEmpty() ? "未绑定" : current);
+                                ImGui.text(current == null || current.isEmpty() ? PlotI18n.tr("settings.plot.shortcuts_unbound") : current);
                                 if (!captureActive && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
                                     editingActionId = actionId;
                                 }
                                 if (ImGui.isItemHovered()) {
-                                    ImGui.setTooltip("双击可进入快捷键录制");
+                                    ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_double_click_record"));
                                 }
                             }
 
                             ImGui.tableSetColumnIndex(2);
                             if (isEditing) {
-                                if (ImGui.button("取消##cancel_" + actionId)) {
+                                if (ImGui.button(PlotI18n.tr("button.plot.cancel") + "##cancel_" + actionId)) {
                                     editingActionId = null;
                                 }
                             } else {
                                 if (captureActive) ImGui.beginDisabled();
-                                if (ImGui.button("编辑##edit_" + actionId)) {
+                                if (ImGui.button(PlotI18n.tr("button.plot.edit") + "##edit_" + actionId)) {
                                     editingActionId = actionId;
                                 }
                                 ImGui.sameLine();
-                                if (ImGui.button("清除##clear_" + actionId)) {
+                                if (ImGui.button(PlotI18n.tr("button.plot.clear") + "##clear_" + actionId)) {
                                     KeymapManager.getInstance().clearBinding(actionId);
                                 }
                                 ImGui.sameLine();
@@ -316,7 +317,7 @@ public class SettingsAndHelpDialog {
                                     ImGui.pushStyleColor(ImGuiCol.ButtonHovered, withAlpha(theme.accent, 180));
                                     ImGui.pushStyleColor(ImGuiCol.ButtonActive, withAlpha(theme.accent, 220));
                                 }
-                                if (ImGui.smallButton("重置##reset_" + actionId)) {
+                                if (ImGui.smallButton(PlotI18n.tr("button.plot.reset") + "##reset_" + actionId)) {
                                     KeymapManager.getInstance().updateBinding(actionId, defaultKey);
                                 }
                                 if (canReset) {
@@ -324,11 +325,11 @@ public class SettingsAndHelpDialog {
                                 }
                                 if (ImGui.isItemHovered()) {
                                     if (canReset) {
-                                        ImGui.setTooltip("恢复默认：" + defaultKey);
+                                        ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_reset_default", defaultKey));
                                     } else if (!hasDefault) {
-                                        ImGui.setTooltip("该动作暂无预设默认快捷键");
+                                        ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_no_default"));
                                     } else {
-                                        ImGui.setTooltip("当前已是默认快捷键");
+                                        ImGui.setTooltip(PlotI18n.tr("settings.plot.shortcuts_already_default"));
                                     }
                                 }
                                 if (!canReset) ImGui.endDisabled();
@@ -340,8 +341,8 @@ public class SettingsAndHelpDialog {
                 }
 
                 if (ImGui.beginPopup("##shortcut_conflict_popup")) {
-                    ImGui.textWrapped(shortcutConflictMessage == null ? "检测到快捷键冲突。" : shortcutConflictMessage);
-                    if (ImGui.button("知道了", 90, 0)) {
+                    ImGui.textWrapped(shortcutConflictMessage == null ? PlotI18n.tr("settings.plot.shortcuts_conflict_generic") : shortcutConflictMessage);
+                    if (ImGui.button(PlotI18n.tr("button.plot.got_it"), 90, 0)) {
                         ImGui.closeCurrentPopup();
                     }
                     ImGui.endPopup();
@@ -355,14 +356,14 @@ public class SettingsAndHelpDialog {
     }
 
     private void renderHelpPage() {
-        ImGui.textDisabled("点击左侧条目查看对应教程");
+        ImGui.textDisabled(PlotI18n.tr("settings.plot.help_select_topic"));
 
         if (DialogLayoutHelper.beginSettingsPageBody("##help_scroll_region", 0.0f)) {
             if (ImGui.beginChild("##help_nav", 180, 0, true)) {
-                if (ImGui.selectable("基础操作", selectedHelpTopic == 0)) selectedHelpTopic = 0;
-                if (ImGui.selectable("高级技巧", selectedHelpTopic == 1)) selectedHelpTopic = 1;
-                if (ImGui.selectable("快捷键与排障", selectedHelpTopic == 2)) selectedHelpTopic = 2;
-                if (ImGui.selectable("更新日志", selectedHelpTopic == 3)) selectedHelpTopic = 3;
+                if (ImGui.selectable(PlotI18n.tr("settings.plot.basic_operations"), selectedHelpTopic == 0)) selectedHelpTopic = 0;
+                if (ImGui.selectable(PlotI18n.tr("settings.plot.advanced_tips"), selectedHelpTopic == 1)) selectedHelpTopic = 1;
+                if (ImGui.selectable(PlotI18n.tr("settings.plot.shortcuts_troubleshooting"), selectedHelpTopic == 2)) selectedHelpTopic = 2;
+                if (ImGui.selectable(PlotI18n.tr("settings.plot.changelog"), selectedHelpTopic == 3)) selectedHelpTopic = 3;
             }
             ImGui.endChild();
 
@@ -371,32 +372,32 @@ public class SettingsAndHelpDialog {
             if (ImGui.beginChild("##help_content", 0, 0, true)) {
                 switch (selectedHelpTopic) {
                     case 0 -> {
-                        ImGui.text("基础操作");
+                        ImGui.text(PlotI18n.tr("settings.plot.basic_operations"));
                         ImGui.separator();
-                        ImGui.bulletText("选择：Space 切换到选择工具。拖拽框选可一次选中多个图元。");
-                        ImGui.bulletText("移动：选中对象后直接拖拽，或输入精确位移值进行调整。");
-                        ImGui.bulletText("缩放视图：使用滚轮缩放，按住中键可平移画布。");
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_basic_select"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_basic_move"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_basic_zoom"));
                     }
                     case 1 -> {
-                        ImGui.text("高级技巧");
+                        ImGui.text(PlotI18n.tr("settings.plot.advanced_tips"));
                         ImGui.separator();
-                        ImGui.bulletText("按住 Shift：绘制或修改时启用正交/角度约束，快速得到规整图形。");
-                        ImGui.bulletText("吸附配合：开启端点/中点/垂足吸附可显著提高定位效率。");
-                        ImGui.bulletText("修改建议：先用选择工具定位，再切换编辑工具，减少误操作。");
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_advanced_shift"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_advanced_snap"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_advanced_edit"));
                     }
                     case 2 -> {
-                        ImGui.text("快捷键与排障");
+                        ImGui.text(PlotI18n.tr("settings.plot.shortcuts_troubleshooting"));
                         ImGui.separator();
-                        ImGui.bulletText("快捷键冲突时，系统会提示被占用动作并自动移除旧绑定。");
-                        ImGui.bulletText("若快捷键无效：先确认没有输入框焦点，再检查是否被其它模组拦截。");
-                        ImGui.bulletText("录制快捷键时按 Esc 可立即取消当前录制。");
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_troubleshoot_conflict"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_troubleshoot_invalid"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_troubleshoot_esc"));
                     }
                     case 3 -> {
-                        ImGui.text("更新日志");
+                        ImGui.text(PlotI18n.tr("settings.plot.changelog"));
                         ImGui.separator();
-                        ImGui.bulletText("设置页已迁移至 Table API，列表列宽更稳定，支持分组显示。");
-                        ImGui.bulletText("快捷键录制增强：支持冲突提示、录制状态高亮和清除按钮。");
-                        ImGui.bulletText("显示反馈页已拆分为基础设置与颜色自定义两个折叠区。");
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.changelog_table"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.changelog_recording"));
+                        ImGui.bulletText(PlotI18n.tr("settings.plot.changelog_display"));
                     }
                     default -> selectedHelpTopic = 0;
                 }
@@ -409,7 +410,7 @@ public class SettingsAndHelpDialog {
     private void renderDisplayPage() {
         SnapManager snapManager = SnapManager.getInstance();
         syncDisplayToggleStates(snapManager);
-        final String displayHintText = "提示：标记大小与颜色会同时影响绘制和修改工具中的吸附反馈。";
+        final String displayHintText = PlotI18n.tr("settings.plot.display_marker_hint");
 
         DialogLayoutHelper.helpText("Object Snap（OSnap）与反馈设置：控制端点/中点/重心等吸附提示及显示样式。");
 
@@ -419,37 +420,37 @@ public class SettingsAndHelpDialog {
             if (DialogLayoutHelper.beginRemainingChild("##display_scroll_region", hintReservedHeight, false,
                     ImGuiWindowFlags.NoScrollbar)) {
 
-                if (ImGui.treeNodeEx("基础设置##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.display_basic_settings") + "##display_basic", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                     ImGui.indent(10);
 
                     if (ImGui.beginTable("##osnap_toggle_grid", 2, ImGuiTableFlags.SizingStretchProp)) {
                         ImGui.tableNextRow();
                         ImGui.tableSetColumnIndex(0);
-                        if (ImGui.checkbox("显示吸附标记", showMarkersState)) {
+                        if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_snap_markers"), showMarkersState)) {
                             snapManager.setShowSnapMarkersEnabled(showMarkersState.get());
                         }
                         ImGui.tableSetColumnIndex(1);
-                        if (ImGui.checkbox("显示端点反馈", endPointState)) {
+                        if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_endpoint_feedback"), endPointState)) {
                             snapManager.setEndPointSnapEnabled(endPointState.get());
                         }
 
                         ImGui.tableNextRow();
                         ImGui.tableSetColumnIndex(0);
-                        if (ImGui.checkbox("显示中点反馈", midPointState)) {
+                        if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_midpoint_feedback"), midPointState)) {
                             snapManager.setMidPointSnapEnabled(midPointState.get());
                         }
                         ImGui.tableSetColumnIndex(1);
-                        if (ImGui.checkbox("显示圆心反馈", centerPointState)) {
+                        if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_center_feedback"), centerPointState)) {
                             snapManager.setCenterPointSnapEnabled(centerPointState.get());
                         }
-                        renderHelpMarkerInline("center_point", "圆心吸附：吸附到圆或圆弧的几何中心点。");
+                        renderHelpMarkerInline("center_point", PlotI18n.tr("settings.plot.snap_help_center_point"));
 
                         ImGui.tableNextRow();
                         ImGui.tableSetColumnIndex(0);
-                        if (ImGui.checkbox("显示中心点反馈", centroidState)) {
+                        if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_centroid_feedback"), centroidState)) {
                             snapManager.setCentroidSnapEnabled(centroidState.get());
                         }
-                        renderHelpMarkerInline("centroid", "重心吸附（Centroid）：吸附到闭合多边形的几何中心。\n对复杂图形可用于快速定位整体中心。");
+                        renderHelpMarkerInline("centroid", PlotI18n.tr("settings.plot.snap_help_centroid"));
                         ImGui.tableSetColumnIndex(1);
                         ImGui.textDisabled(" ");
 
@@ -459,17 +460,17 @@ public class SettingsAndHelpDialog {
                     DialogLayoutHelper.rowGap();
                     float[] markerSize = new float[] { snapManager.getMarkerSize() };
                     ImGui.setNextItemWidth(Math.min(220.0f, Math.max(160.0f, ImGui.getContentRegionAvailX() - 12.0f)));
-                    if (ImGui.sliderFloat("标记大小", markerSize, 2.0f, 10.0f, "%.1f px")) {
+                    if (ImGui.sliderFloat(PlotI18n.tr("snap.plot.marker_size"), markerSize, 2.0f, 10.0f, "%.1f px")) {
                         snapManager.setMarkerSize(markerSize[0]);
                     }
 
                     DialogLayoutHelper.rowGap();
-                    if (ImGui.checkbox("显示控制点", showControlPointsState)) {
+                    if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_control_points"), showControlPointsState)) {
                         ControlPointEditTool.setDisplayEnabled(showControlPointsState.get());
                     }
 
                     DialogLayoutHelper.rowGap();
-                    if (ImGui.checkbox("显示控制点编号", showPointIndexState)) {
+                    if (ImGui.checkbox(PlotI18n.tr("settings.plot.show_control_point_index"), showPointIndexState)) {
                         ControlPointEditTool.setShowPointIndex(showPointIndexState.get());
                     }
 
@@ -478,21 +479,21 @@ public class SettingsAndHelpDialog {
                 }
 
                 DialogLayoutHelper.subsectionGap();
-                if (ImGui.treeNodeEx("颜色自定义##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
+                if (ImGui.treeNodeEx(PlotI18n.tr("settings.plot.display_color_custom") + "##display_color", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
                     ImGui.indent(10);
-                    ImGui.textDisabled("不同吸附点可设置不同颜色，实时生效");
+                    ImGui.textDisabled(PlotI18n.tr("settings.plot.display_color_hint"));
                     DialogLayoutHelper.rowGap();
 
-                    renderSnapColorEditor("端点", SnapPriorityEvaluator.SnapType.END_POINT);
-                    renderSnapColorEditor("最近点", SnapPriorityEvaluator.SnapType.NEAREST_POINT);
-                    renderSnapColorEditor("中点", SnapPriorityEvaluator.SnapType.MID_POINT);
-                    renderSnapColorEditor("中心点", SnapPriorityEvaluator.SnapType.CENTER_POINT, "中心点颜色：用于圆心/中心点吸附提示。");
-                    renderSnapColorEditor("垂足", SnapPriorityEvaluator.SnapType.PERPENDICULAR, "垂足吸附：从当前点向目标线作垂线，吸附到垂足位置。");
-                    renderSnapColorEditor("切点", SnapPriorityEvaluator.SnapType.TANGENT, "切点吸附：吸附到与目标曲线相切的接触点。");
-                    renderSnapColorEditor("角点", SnapPriorityEvaluator.SnapType.VERTEX);
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_end_point"), SnapPriorityEvaluator.SnapType.END_POINT);
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_nearest"), SnapPriorityEvaluator.SnapType.NEAREST_POINT);
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_mid_point"), SnapPriorityEvaluator.SnapType.MID_POINT);
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_center"), SnapPriorityEvaluator.SnapType.CENTER_POINT, PlotI18n.tr("settings.plot.snap_help_center_color"));
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_perpendicular"), SnapPriorityEvaluator.SnapType.PERPENDICULAR, PlotI18n.tr("settings.plot.snap_help_perpendicular"));
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_tangent"), SnapPriorityEvaluator.SnapType.TANGENT, PlotI18n.tr("settings.plot.snap_help_tangent"));
+                    renderSnapColorEditor(PlotI18n.tr("settings.plot.snap_color_vertex"), SnapPriorityEvaluator.SnapType.VERTEX);
 
                     DialogLayoutHelper.rowGap();
-                    if (ImGui.button("重置全部吸附颜色")) {
+                    if (ImGui.button(PlotI18n.tr("button.plot.reset_all_snap_colors"))) {
                         SnapVisualStyle.resetCustomColors();
                     }
                     ImGui.unindent(10);
@@ -540,11 +541,11 @@ public class SettingsAndHelpDialog {
             ImGui.setTooltip(tooltip);
         }
         ImGui.sameLine();
-        if (ImGui.smallButton("重置##snap_reset_" + type.name())) {
+        if (ImGui.smallButton(PlotI18n.tr("button.plot.reset") + "##snap_reset_" + type.name())) {
             SnapVisualStyle.clearCustomColor(type);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("恢复该项默认颜色");
+            ImGui.setTooltip(PlotI18n.tr("settings.plot.snap_color_reset_tooltip"));
         }
     }
 

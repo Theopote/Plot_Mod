@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -73,7 +74,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.alignTextToFramePadding();
-            ImGui.text("绘制模式");
+            ImGui.text(PlotI18n.tr("option.plot.draw_mode"));
 
             ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, currentTheme.toolbarControlRounding);
             ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);

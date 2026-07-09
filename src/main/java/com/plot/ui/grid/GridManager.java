@@ -5,6 +5,7 @@ import com.plot.infrastructure.event.view.GridToggleEvent;
 import com.plot.infrastructure.event.view.GridColorChangedEvent;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
@@ -115,7 +116,7 @@ public class GridManager {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
             ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0, ImGuiCond.Appearing);
-            if (ImGui.begin("网格设置##GridSettings",
+            if (ImGui.begin(PlotI18n.tr("screen.plot.grid_settings") + "##GridSettings",
                     ImGuiWindowFlags.NoCollapse
                             | ImGuiWindowFlags.NoResize
                             | ImGuiWindowFlags.NoScrollbar
@@ -129,7 +130,7 @@ public class GridManager {
 
                 // 网格大小设置
                 float[] gridSize = {settings.getGridSize()};
-                if (ImGui.sliderFloat("网格大小", gridSize, 8.0f, 64.0f, "%.1f")) {
+                if (ImGui.sliderFloat(PlotI18n.tr("grid.plot.grid_size"), gridSize, 8.0f, 64.0f, "%.1f")) {
                     settings.setGridSize(gridSize[0]);
                     settingsChanged = true;
                     LOGGER.debug("网格大小已更改为: {}", gridSize[0]);
@@ -137,7 +138,7 @@ public class GridManager {
 
                 // 透明度设置
                 float[] opacity = {settings.getOpacity()};
-                if (ImGui.sliderFloat("透明度", opacity, 0.1f, 1.0f, "%.2f")) {
+                if (ImGui.sliderFloat(PlotI18n.tr("grid.plot.opacity"), opacity, 0.1f, 1.0f, "%.2f")) {
                     settings.setOpacity(opacity[0]);
                     settingsChanged = true;
                     LOGGER.debug("网格透明度已更改为: {}", opacity[0]);
@@ -145,7 +146,7 @@ public class GridManager {
 
                 // 线宽设置
                 float[] lineWidth = {settings.getLineWidth()};
-                if (ImGui.sliderFloat("线宽", lineWidth, 0.5f, 3.0f, "%.1f")) {
+                if (ImGui.sliderFloat(PlotI18n.tr("grid.plot.line_width"), lineWidth, 0.5f, 3.0f, "%.1f")) {
                     settings.setLineWidth(lineWidth[0]);
                     settingsChanged = true;
                     LOGGER.debug("网格线宽已更改为: {}", lineWidth[0]);
@@ -153,7 +154,7 @@ public class GridManager {
 
                 // 颜色设置
                 float[] color = settings.getColorComponents().clone();
-                if (ImGui.colorEdit4("颜色", color)) {
+                if (ImGui.colorEdit4(PlotI18n.tr("grid.plot.color"), color)) {
                     settings.setColorComponents(color[0], color[1], color[2]);
                     settingsChanged = true;
                     LOGGER.debug("网格颜色已更改为: R={}, G={}, B={}", color[0], color[1], color[2]);
@@ -191,7 +192,7 @@ public class GridManager {
         // 不额外添加 footer 留白，保持与上方滑动条一致的默认控件间距。
         ImGui.separator();
         DialogLayoutHelper.FooterResult action =
-                DialogLayoutHelper.footerConfirmCancelCentered("重置默认", "确定", DialogStyleManager.getContentWidth());
+                DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.reset"), PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth());
 
         if (action.confirmClicked()) {
             showSettings = false;
