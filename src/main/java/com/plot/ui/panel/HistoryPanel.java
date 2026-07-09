@@ -2,6 +2,7 @@ package com.plot.ui.panel;
 
 import com.plot.core.command.Command;
 import com.plot.core.command.CommandHistory;
+import com.plot.utils.PlotI18n;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.infrastructure.event.command.UndoEvent;
@@ -55,6 +56,10 @@ public class HistoryPanel implements UIComponent {
                 List<Command> history = commandHistory.getHistory();
                 int currentIndex = commandHistory.getCurrentIndex();
                 
+                if (history.isEmpty()) {
+                    ImGui.textDisabled(PlotI18n.tr("history.plot.empty"));
+                }
+
                 // 从最新的命令开始显示
                 for (int i = history.size() - 1; i >= 0 && i >= history.size() - MAX_HISTORY_ITEMS; i--) {
                     Command cmd = history.get(i);
@@ -70,7 +75,7 @@ public class HistoryPanel implements UIComponent {
                     String timestamp = recordedAt == null
                         ? "--:--:--"
                         : new java.text.SimpleDateFormat("HH:mm:ss").format(recordedAt);
-                    String label = String.format("%s (%s)##%d", cmd.getDescription(), timestamp, i);
+                    String label = String.format("%s (%s)##%d", PlotI18n.localizeStatus(cmd.getDescription()), timestamp, i);
                     
                     if (ImGui.selectable(label, isCurrent)) {
                         // 点击历史记录项时跳转到该状态
@@ -95,7 +100,7 @@ public class HistoryPanel implements UIComponent {
                         ImGui.pushStyleColor(ImGuiCol.PopupBg, currentTheme.tooltipBackground);
                         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.tooltipText);
                         ImGui.beginTooltip();
-                        ImGui.text(cmd.getDetailedDescription());
+                        ImGui.text(PlotI18n.localizeStatus(cmd.getDetailedDescription()));
                         ImGui.endTooltip();
                         ImGui.popStyleColor(2);
                     }

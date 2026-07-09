@@ -17,6 +17,8 @@ import imgui.ImDrawList;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.infrastructure.event.tool.ToolStatusEvent;
 import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.Events;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.api.model.IDirty;
@@ -478,9 +480,13 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
 
     protected void setStatusMessage(String message) {
         this.statusMessage = message != null ? message : "";
+        String display = PlotI18n.localizeStatus(this.statusMessage);
         try {
             if (eventBus != null) {
-                eventBus.publish(new ToolStatusEvent(toolId, this.statusMessage));
+                eventBus.publish(new ToolStatusEvent(toolId, display));
+                if (!display.isBlank()) {
+                    eventBus.publish(new Events.StatusMessageEvent(display));
+                }
             }
         } catch (Exception e) {
             LOGGER.error("工具 [{}] 发布状态消息时出错: {}", toolId, e.getMessage(), e);

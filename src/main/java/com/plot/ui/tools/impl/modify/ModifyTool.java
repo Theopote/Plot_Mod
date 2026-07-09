@@ -9,6 +9,7 @@ import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.core.selection.Selection;
 import com.plot.core.tool.BaseTool;
+import com.plot.utils.PlotI18n;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.state.AppState;
 import com.plot.core.shortcut.ShortcutManager;
@@ -452,7 +453,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
 
     @Override
     public void setStatusMessage(String message) {
-        updateStatusMessage(message);
+        updateStatusMessage(PlotI18n.localizeStatus(message));
     }
 
     @Override

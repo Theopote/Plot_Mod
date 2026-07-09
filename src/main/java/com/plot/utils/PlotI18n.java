@@ -15,6 +15,26 @@ public final class PlotI18n {
         return Text.translatable(key, args).getString();
     }
 
+    public static String localizeStatus(String message) {
+        if (message == null || message.isBlank()) {
+            return "";
+        }
+        if (message.startsWith("status.plot.")) {
+            return tr(message);
+        }
+        return message;
+    }
+
+    public static String operationName(String operationKey) {
+        if (operationKey == null || operationKey.isBlank()) {
+            return "";
+        }
+        if (operationKey.startsWith("history.plot.op.")) {
+            return tr(operationKey);
+        }
+        return operationKey;
+    }
+
     public static String lineTypeLabel(LineStyle.LineType type) {
         if (type == null) {
             return "";
@@ -72,7 +92,9 @@ public final class PlotI18n {
     }
 
     public static String toolUsageHint(String toolId) {
-        return tr(toolUsageHintKey(toolId));
+        String key = toolUsageHintKey(toolId);
+        String translated = tr(key);
+        return translated.equals(key) ? "" : translated;
     }
 
     private static String toolDescriptionKey(String toolId) {

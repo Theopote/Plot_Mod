@@ -307,7 +307,19 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
                 && "multi".equals(lineTool.getDrawingMode())) {
             return PlotI18n.tr("tool.plot.line.multi.hint");
         }
-        return getDefaultToolUsageHint(tool);
+
+        String staticHint = getDefaultToolUsageHint(tool);
+        if (!staticHint.isEmpty()) {
+            return staticHint;
+        }
+
+        BaseTool currentTool = appState.getCurrentTool();
+        if (currentTool != null
+                && currentTool.getId().equals(tool.getId())
+                && !currentToolStatusMessage.isBlank()) {
+            return currentToolStatusMessage;
+        }
+        return "";
     }
 
     private String getDefaultToolUsageHint(BaseTool tool) {
@@ -442,7 +454,7 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
             // 检查是否是当前工具的状态消息
             BaseTool currentTool = appState.getCurrentTool();
             if (currentTool != null && currentTool.getId().equals(event.getToolId())) {
-                currentToolStatusMessage = event.getMessage();
+                currentToolStatusMessage = PlotI18n.localizeStatus(event.getMessage());
                 PlotMod.LOGGER.debug("ToolOptionsPanel: 更新工具状态消息: {}", currentToolStatusMessage);
             }
         } catch (Exception e) {
