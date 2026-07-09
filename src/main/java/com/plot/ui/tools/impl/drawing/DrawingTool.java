@@ -386,7 +386,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
             LOGGER.error("工具 [{}] 提交图形失败: {}", toolId, e.getMessage(), e);
             // 失败也要重置状态，确保工具不会卡在异常状态
             resetDrawing("图形提交异常");
-            throw new RuntimeException("图形提交失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.draw.commit_failed"), e);
         }
     }
 
@@ -457,7 +457,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
             }
         } catch (Exception e) {
             LOGGER.error("工具 [{}] 提交图形失败: {}", toolId, e.getMessage(), e);
-            throw new RuntimeException("图形提交失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.draw.commit_failed"), e);
         }
     }
 

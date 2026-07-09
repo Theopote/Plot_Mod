@@ -44,8 +44,8 @@ public class TransformCommand extends ModifyCommand {
     
     public TransformCommand(List<Shape> originalShapes, TransformParams transformParams, AppState appState) {
         super(originalShapes, new ArrayList<>(), appState, "history.plot.op.transform");
-        this.originalShapes = Objects.requireNonNull(originalShapes, "原始图形列表不能为空");
-        this.transformParams = Objects.requireNonNull(transformParams, "变换参数不能为空");
+        this.originalShapes = Objects.requireNonNull(originalShapes, PlotI18n.error("error.plot.validation.shapes_null"));
+        this.transformParams = Objects.requireNonNull(transformParams, PlotI18n.error("error.plot.validation.transform_params_null"));
         this.originalShapeCopies = new ArrayList<>();
         this.transformedShapes = new ArrayList<>();
     }
@@ -69,7 +69,7 @@ public class TransformCommand extends ModifyCommand {
             
         } catch (Exception e) {
             LOGGER.error("执行变换命令失败: {}", e.getMessage(), e);
-            throw new RuntimeException("变换命令执行失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.transform_execute_failed"), e);
         }
     }
     
@@ -85,7 +85,7 @@ public class TransformCommand extends ModifyCommand {
             
         } catch (Exception e) {
             LOGGER.error("撤销变换命令失败: {}", e.getMessage(), e);
-            throw new RuntimeException("变换命令撤销失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.transform_undo_failed"), e);
         }
     }
     

@@ -53,8 +53,8 @@ public class TransformHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         try {
             // 使用Objects.requireNonNull进行空值检查
-            Objects.requireNonNull(shapes, "图形列表不能为空");
-            Objects.requireNonNull(parameters, "修改参数不能为空");
+            Objects.requireNonNull(shapes, PlotI18n.error("error.plot.validation.shapes_null"));
+            Objects.requireNonNull(parameters, PlotI18n.error("error.plot.validation.modify_params_null"));
             
             // 检查图形列表
             if (shapes.isEmpty()) {
@@ -63,7 +63,7 @@ public class TransformHandler implements IModifyHandler {
             
             // 检查图形对象
             for (Shape shape : shapes) {
-                Objects.requireNonNull(shape, "图形对象不能为空");
+                Objects.requireNonNull(shape, PlotI18n.error("error.plot.validation.shape_null"));
             }
             
             return ValidationResult.valid();
@@ -153,8 +153,8 @@ public class TransformHandler implements IModifyHandler {
                                            TransformParams transformParams) {
         try {
             // 使用Objects.requireNonNull进行空值检查
-            Objects.requireNonNull(originalShapes, "原始图形列表不能为空");
-            Objects.requireNonNull(transformParams, "变换参数不能为空");
+            Objects.requireNonNull(originalShapes, PlotI18n.error("error.plot.validation.shapes_null"));
+            Objects.requireNonNull(transformParams, PlotI18n.error("error.plot.validation.transform_params_null"));
             
             if (originalShapes.isEmpty()) {
                 throw new InvalidTransformException(
@@ -193,9 +193,9 @@ public class TransformHandler implements IModifyHandler {
     private boolean validateTransformParams(TransformParams params) {
         try {
             // 使用Objects.requireNonNull进行空值检查
-            Objects.requireNonNull(params, "变换参数不能为空");
-            Objects.requireNonNull(params.getDragVector(), "拖拽向量不能为空");
-            Objects.requireNonNull(params.getMode(), "变换模式不能为空");
+            Objects.requireNonNull(params, PlotI18n.error("error.plot.validation.transform_params_null"));
+            Objects.requireNonNull(params.getDragVector(), PlotI18n.error("error.plot.validation.drag_vector_null"));
+            Objects.requireNonNull(params.getMode(), PlotI18n.error("error.plot.validation.transform_mode_null"));
             
             // 验证拖拽向量
             Vec2d dragVector = params.getDragVector();

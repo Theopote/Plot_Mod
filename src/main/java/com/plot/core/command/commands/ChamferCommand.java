@@ -7,7 +7,6 @@ import com.plot.core.state.AppState;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +68,7 @@ public class ChamferCommand extends ModifyCommand {
             LOGGER.debug("倒角命令执行完成: 创建了 {} 个新图形", newShapes.size());
         } catch (Exception e) {
             LOGGER.error("执行倒角命令失败", e);
-            throw new RuntimeException("倒角操作失败: " + e.getMessage(), e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.chamfer_failed", e.getMessage()), e);
         }
     }
     

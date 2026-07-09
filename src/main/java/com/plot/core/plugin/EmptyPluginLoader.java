@@ -1,5 +1,6 @@
 package com.plot.core.plugin;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.plugin.IPlugin;
 import com.plot.api.plugin.IPluginLoader;
 import com.plot.api.plugin.IPluginDescription;
@@ -39,7 +40,7 @@ public class EmptyPluginLoader implements IPluginLoader {
     @Override
     public ClassLoader getPluginClassLoader(IPlugin plugin) {
         if (plugin == null) {
-            throw new IllegalArgumentException("插件实例不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.plugin_instance_null"));
         }
         return plugin.getClass().getClassLoader();
     }

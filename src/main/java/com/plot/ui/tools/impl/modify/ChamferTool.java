@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.snap.ISnapManager;
 import com.plot.api.state.IAppState;
 import com.plot.ui.component.Icons;
@@ -246,11 +247,11 @@ public class ChamferTool extends ModifyTool implements EventListener {
         try {
             double distance = Double.parseDouble(value);
             if (distance < MIN_DISTANCE || distance > MAX_DISTANCE) {
-                throw new IllegalArgumentException("距离值超出范围 [" + MIN_DISTANCE + ", " + MAX_DISTANCE + "]: " + distance);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.tool.chamfer.distance_out_of_range", MIN_DISTANCE, MAX_DISTANCE, distance));
             }
             return distance;
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("无效的距离值: " + value);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.tool.chamfer.invalid_distance", value));
         }
     }
     

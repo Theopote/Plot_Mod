@@ -1,5 +1,6 @@
 package com.plot.core.snap;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import java.util.EnumMap;
@@ -73,7 +74,7 @@ public class SnapPriorityEvaluator {
      */
     public void evaluateAndSort(List<SnapCandidate> candidates) {
         if (candidates == null) {
-            throw new IllegalArgumentException("候选点列表不能为 null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.snap.candidates_null"));
         }
 
         if (candidates.isEmpty()) {
@@ -85,7 +86,7 @@ public class SnapPriorityEvaluator {
                 // 类型优先策略：先按类型权重排序，同类型内按距离排序
                 candidates.sort((a, b) -> {
                     if (a == null || b == null) {
-                        throw new IllegalArgumentException("候选点不能为 null");
+                        throw new IllegalArgumentException(PlotI18n.error("error.plot.snap.candidate_null"));
                     }
                     int typeCompare = Integer.compare(
                             TYPE_WEIGHTS.getOrDefault(b.type, 0),
@@ -105,7 +106,7 @@ public class SnapPriorityEvaluator {
                 // 距离优先策略：先按距离排序，相同距离内按类型权重排序
                 candidates.sort((a, b) -> {
                     if (a == null || b == null) {
-                        throw new IllegalArgumentException("候选点不能为 null");
+                        throw new IllegalArgumentException(PlotI18n.error("error.plot.snap.candidate_null"));
                     }
                     int distCompare = Double.compare(a.distance, b.distance);
                     if (distCompare == 0) {

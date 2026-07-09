@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.snap.ISnapManager;
 import com.plot.api.state.IAppState;
 import com.plot.ui.component.Icons;
@@ -202,11 +203,11 @@ public class FilletTool extends ModifyTool implements EventListener {
         try {
             double radius = Double.parseDouble(value);
             if (radius < FilletConstants.MIN_RADIUS || radius > FilletConstants.MAX_RADIUS) {
-                throw new IllegalArgumentException("半径值超出范围 [" + FilletConstants.MIN_RADIUS + ", " + FilletConstants.MAX_RADIUS + "]: " + radius);
+                throw new IllegalArgumentException(PlotI18n.error("error.plot.tool.fillet.radius_out_of_range", FilletConstants.MIN_RADIUS, FilletConstants.MAX_RADIUS, radius));
             }
             return radius;
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("无效的半径值: " + value);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.tool.fillet.invalid_radius", value));
         }
     }
     

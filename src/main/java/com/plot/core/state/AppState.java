@@ -1,5 +1,6 @@
 package com.plot.core.state;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.ILayer;
 import com.plot.api.state.IAppState;
@@ -670,7 +671,7 @@ public class AppState implements IAppState {
      */
     public ScheduledFuture<?> scheduleDelayedTask(Runnable task, int delayMs) {
         if (task == null || delayMs < 0) {
-            throw new IllegalArgumentException("任务不能为null，延迟不能为负数");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.task_null_negative_delay"));
         }
         return DebouncedEventPublisher.scheduleDelayed(task, delayMs);
     }

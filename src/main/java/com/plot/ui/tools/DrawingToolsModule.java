@@ -200,7 +200,7 @@ public final class DrawingToolsModule {
             
         } catch (Exception e) {
             LOGGER.error("创建绘图工具时发生错误", e);
-            throw new RuntimeException("无法创建绘图工具: " + e.getMessage(), e);
+            throw new RuntimeException(PlotI18n.error("error.plot.tool.create_drawing_failed", e.getMessage()), e);
         }
         
         return tools;

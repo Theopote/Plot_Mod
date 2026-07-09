@@ -1,5 +1,6 @@
 package com.plot.api.geometry;
 
+import com.plot.utils.PlotI18n;
 import java.util.Objects;
 
 /**
@@ -45,7 +46,7 @@ public class Vec2d implements Cloneable {
     }
     
     public Vec2d divide(double scalar) {
-        if (scalar == 0) throw new IllegalArgumentException("除数不能为零");
+        if (scalar == 0) throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.divisor_zero"));
         return new Vec2d(x / scalar, y / scalar);
     }
     

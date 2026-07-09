@@ -763,7 +763,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
      * 设置变换模式
      */
     public void setTransformMode(TransformMode mode) {
-        this.transformMode = Objects.requireNonNull(mode, "变换模式不能为null");
+        this.transformMode = Objects.requireNonNull(mode, PlotI18n.error("error.plot.validation.transform_mode_null"));
         LOGGER.debug("变换模式设置为: {}", mode);
     }
 

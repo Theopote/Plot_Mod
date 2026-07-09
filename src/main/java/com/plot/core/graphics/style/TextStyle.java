@@ -1,5 +1,6 @@
 package com.plot.core.graphics.style;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.graphics.ITextStyle;
 import java.awt.Color;
 import java.util.Objects;
@@ -282,7 +283,7 @@ public class TextStyle implements ITextStyle, Cloneable {
      */
     public void deserialize(String data) {
         if (data == null || data.trim().isEmpty()) {
-            throw new IllegalArgumentException("序列化数据不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.empty_data"));
         }
         
         try {
@@ -293,7 +294,7 @@ public class TextStyle implements ITextStyle, Cloneable {
                 deserializeLegacy(data);
             }
         } catch (Exception e) {
-            throw new IllegalArgumentException("反序列化失败：" + e.getMessage(), e);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.shape.validation.deserialize_failed") + ": " + e.getMessage(), e);
         }
     }
 
@@ -319,7 +320,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     private void deserializeLegacy(String data) {
         String[] parts = data.split(",");
         if (parts.length < 7) {
-            throw new IllegalArgumentException("序列化格式错误：需要至少7个部分，实际：" + parts.length);
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.style.text.serialize_min_parts", parts.length));
         }
         
         // 由于字段不可变，这里仅用于兼容性

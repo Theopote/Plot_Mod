@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.drawing;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.render.IRenderVisitor;
 import com.plot.api.state.IAppState;
@@ -688,7 +689,7 @@ public class LineTool extends DrawingTool {
                             addShapeMethod.invoke(appState, line);
                         } catch (Exception reflectionEx) {
                             LOGGER.error("LineTool: 通过反射提交子线失败: {}", reflectionEx.getMessage(), reflectionEx);
-                            throw new RuntimeException("无法提交子线到AppState", reflectionEx);
+                            throw new RuntimeException(PlotI18n.error("error.plot.draw.submit_sub_line_failed"), reflectionEx);
                         }
                     }
                 } else {
@@ -706,7 +707,7 @@ public class LineTool extends DrawingTool {
             } catch (Exception e) {
                 LOGGER.error("LineTool: 提交多线时发生未知错误: {}", e.getMessage(), e);
                 resetDrawing("多线提交异常");
-                throw new RuntimeException("提交多线失败", e);
+                throw new RuntimeException(PlotI18n.error("error.plot.draw.multi_line_submit_failed"), e);
             }
         } else {
             super.commitShape(shape);

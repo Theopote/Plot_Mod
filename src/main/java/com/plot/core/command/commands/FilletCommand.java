@@ -82,7 +82,7 @@ public class FilletCommand extends ModifyCommand {
             
         } catch (Exception e) {
             LOGGER.error("执行圆角命令失败", e);
-            throw new RuntimeException("圆角操作失败: " + e.getMessage(), e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.fillet_failed", e.getMessage()), e);
         }
     }
     

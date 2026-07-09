@@ -46,7 +46,7 @@ public class ClearCanvasCommand implements Command {
             LOGGER.info("清除画布完成：删除了 {} 个图形", savedShapes.size());
         } catch (Exception e) {
             LOGGER.error("清除画布时发生错误", e);
-            throw new RuntimeException("清除画布失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.clear_canvas_failed"), e);
         }
     }
     
@@ -66,7 +66,7 @@ public class ClearCanvasCommand implements Command {
             LOGGER.info("撤销清除画布：恢复了 {} 个图形", savedShapes.size());
         } catch (Exception e) {
             LOGGER.error("撤销清除画布时发生错误", e);
-            throw new RuntimeException("撤销清除画布失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.clear_canvas_undo_failed"), e);
         }
     }
     
@@ -91,7 +91,7 @@ public class ClearCanvasCommand implements Command {
             LOGGER.info("重做清除画布：删除了 {} 个图形", currentShapes.size());
         } catch (Exception e) {
             LOGGER.error("重做清除画布时发生错误", e);
-            throw new RuntimeException("重做清除画布失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.command.clear_canvas_redo_failed"), e);
         }
     }
     
