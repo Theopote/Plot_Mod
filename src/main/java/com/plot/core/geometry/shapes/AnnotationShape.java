@@ -1,6 +1,7 @@
 package com.plot.core.geometry.shapes;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.graphics.ILineStyle;
 import com.plot.api.render.IRenderVisitor;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.geometry.BoundingBox;
@@ -119,10 +120,9 @@ public class AnnotationShape extends Shape {
         // 设置默认样式
         if (this.style == null) {
             ShapeStyle defaultStyle = new ShapeStyle();
-            com.plot.api.graphics.ILineStyle lineStyle = new LineStyle();
+            ILineStyle lineStyle = new LineStyle();
             lineStyle.setColor(DEFAULT_ANNOTATION_COLOR);
             lineStyle.setWidth(1.5f);
-            // 使用接口方法而不是已弃用的具体类型方法
             defaultStyle.setLineStyle(lineStyle);
             this.style = defaultStyle;
         }
@@ -1101,7 +1101,7 @@ public class AnnotationShape extends Shape {
 
             if (shapeData.lineColor != null || shapeData.lineWidth > 0) {
                 ShapeStyle shapeStyle = new ShapeStyle();
-                LineStyle lineStyle = new LineStyle();
+                ILineStyle lineStyle = new LineStyle();
                 if (shapeData.lineColor != null) {
                     lineStyle.setColor(shapeData.lineColor);
                 }
