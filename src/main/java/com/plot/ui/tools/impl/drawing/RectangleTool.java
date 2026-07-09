@@ -15,6 +15,7 @@ import com.plot.ui.theme.ThemeManager;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -52,20 +53,23 @@ public class RectangleTool extends DrawingTool {
 
     // 矩形绘制模式枚举
     public enum RectangleMode {
-        TWO_POINTS("two_points", "两点模式", "点击两个对角点创建矩形"),
-        THREE_POINTS("three_points", "三点模式", "底边两点+高度点创建矩形"),
-        CENTER_POINT("center_point", "中心点模式", "中心点+角点创建矩形"),
-        ROUNDED("rounded", "圆角模式", "前两点确定矩形，第三点确定圆角大小");
+        TWO_POINTS("two_points", "mode.plot.two_points", "mode.plot.rect.two_points.desc"),
+        THREE_POINTS("three_points", "mode.plot.three_points", "mode.plot.rect.three_points.desc"),
+        CENTER_POINT("center_point", "mode.plot.center_point", "mode.plot.rect.center_point.desc"),
+        ROUNDED("rounded", "mode.plot.rounded_corner", "mode.plot.rect.rounded.desc");
 
         public final String id;
-        public final String displayName;
-        public final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        RectangleMode(String id, String displayName, String description) {
+        RectangleMode(String id, String nameKey, String descKey) {
             this.id = id;
-            this.displayName = displayName;
-            this.description = description;
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
 
         public static RectangleMode fromId(String id) {
             for (RectangleMode mode : values()) {
@@ -100,7 +104,7 @@ public class RectangleTool extends DrawingTool {
         eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);
 
         initializeRectangleTool();
-        LOGGER.debug("矩形工具已初始化，当前模式: {}", currentMode.displayName);
+        LOGGER.debug("矩形工具已初始化，当前模式: {}", currentMode.getDisplayName());
     }
 
     /**
@@ -114,7 +118,7 @@ public class RectangleTool extends DrawingTool {
         eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);
 
         initializeRectangleTool();
-        LOGGER.debug("矩形工具已初始化（兼容模式），当前模式: {}", currentMode.displayName);
+        LOGGER.debug("矩形工具已初始化（兼容模式），当前模式: {}", currentMode.getDisplayName());
     }
 
     /**
@@ -159,7 +163,7 @@ public class RectangleTool extends DrawingTool {
             this.currentMode = mode;
             resetDrawingState();
             updateStatusMessage();
-            LOGGER.debug("矩形工具模式已切换为: {}", mode.displayName);
+            LOGGER.debug("矩形工具模式已切换为: {}", mode.getDisplayName());
         }
     }
 
@@ -197,14 +201,14 @@ public class RectangleTool extends DrawingTool {
                 case 0 -> "status.plot.draw.rect.click_base_first";
                 case 1 -> "status.plot.draw.rect.click_base_second";
                 case 2 -> "status.plot.draw.rect.click_height";
-                default -> currentMode.description;
+                default -> currentMode.getDescription();
             };
             case CENTER_POINT -> controlPoints.isEmpty() ? "status.plot.draw.rect.click_center" : "status.plot.draw.rect.click_corner";
             case ROUNDED -> switch (controlPoints.size()) {
                 case 0 -> "status.plot.draw.rect.click_first_corner";
                 case 1 -> "status.plot.draw.rect.click_second_corner";
                 case 2 -> "status.plot.draw.rect.drag_rounded";
-                default -> currentMode.description;
+                default -> currentMode.getDescription();
             };
         };
         setStatusMessage(message);
@@ -413,12 +417,12 @@ public class RectangleTool extends DrawingTool {
             // 确保图形不跟随图层样式，防止被图层覆盖
             if (shape.getStyle() instanceof ShapeStyle shapeStyle) {
                 shapeStyle.setFollowsLayerStyle(false);
-                LOGGER.debug("RectangleTool.createShape: 设置图形不跟随图层样式 - 模式: {}", currentMode.displayName);
+                LOGGER.debug("RectangleTool.createShape: 设置图形不跟随图层样式 - 模式: {}", currentMode.getDisplayName());
             }
         }
 
         LOGGER.debug("RectangleTool.createShape: 创建矩形 - 模式: {}, 图形类型: {}",
-                currentMode.displayName, shape != null ? shape.getClass().getSimpleName() : "null");
+                currentMode.getDisplayName(), shape != null ? shape.getClass().getSimpleName() : "null");
 
         return shape;
     }
@@ -844,7 +848,7 @@ public class RectangleTool extends DrawingTool {
                 }
 
                 LOGGER.debug("RectangleInteractionStrategy: 完成绘制 - 模式: {}, 控制点数: {}",
-                        currentMode.displayName, controlPoints.size());
+                        currentMode.getDisplayName(), controlPoints.size());
                 return InteractionResult.COMPLETE;
             } else {
                 updateStatusMessage();

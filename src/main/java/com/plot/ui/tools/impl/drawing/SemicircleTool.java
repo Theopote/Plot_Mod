@@ -20,8 +20,10 @@ import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.ArcShape;
 import java.util.Map;
+import com.plot.utils.PlotI18n;
 import java.lang.reflect.Field;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
+import com.plot.utils.PlotI18n;
 
 /**
  * 半圆工具 - 策略模式版本
@@ -55,19 +57,19 @@ public class SemicircleTool extends DrawingTool {
      * 半圆绘制模式
      */
     public enum SemicircleMode {
-        TWO_POINTS("两点模式", "第一点确定圆心，第二点确定半径和方向"),
-        THREE_POINTS("三点模式", "两点确定直径，第三点确定半圆方向");
+        TWO_POINTS("mode.plot.two_points", "mode.plot.semicircle.two_points.desc"),
+        THREE_POINTS("mode.plot.three_points", "mode.plot.semicircle.three_points.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        SemicircleMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        SemicircleMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // ====== 配置常量 ======
@@ -191,27 +193,27 @@ public class SemicircleTool extends DrawingTool {
             return baseMessage;
         }
 
-        StringBuilder enhanced = new StringBuilder(baseMessage);
+        StringBuilder enhanced = new StringBuilder(PlotI18n.localizeStatus(baseMessage));
 
         switch (currentMode) {
             case TWO_POINTS:
                 if (controlPoints.size() == 1) {
                     Vec2d center = controlPoints.getFirst();
                     double radius = center.distance(currentMousePoint);
-                    enhanced.append(String.format(" | 半径: %.2f", radius));
+                    return PlotI18n.status("status.plot.draw.preview.radius", PlotI18n.localizeStatus(baseMessage), radius);
                 }
                 break;
 
             case THREE_POINTS:
                 if (controlPoints.size() == 1) {
                     double distance = controlPoints.getFirst().distance(currentMousePoint);
-                    enhanced.append(String.format(" | 距离: %.2f", distance));
+                    return PlotI18n.status("status.plot.draw.preview.distance", PlotI18n.localizeStatus(baseMessage), distance);
                 } else if (controlPoints.size() == 2) {
                     Vec2d p1 = controlPoints.get(0);
                     Vec2d p2 = controlPoints.get(1);
                     Vec2d center = new Vec2d((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0);
                     double radius = center.distance(p1);
-                    enhanced.append(String.format(" | 半径: %.2f", radius));
+                    return PlotI18n.status("status.plot.draw.preview.radius", PlotI18n.localizeStatus(baseMessage), radius);
                 }
                 break;
         }
@@ -695,7 +697,7 @@ public class SemicircleTool extends DrawingTool {
 
             // 显示半径信息
             double radius = center.distance(currentMousePoint);
-            String info = String.format("半径: %.2f", radius);
+            String info = PlotI18n.status("status.plot.draw.preview.radius_value", radius);
             drawList.addText(
                 (float) screenCenter.x + 10, (float) screenCenter.y + 10,
                 theme.text, info
@@ -769,7 +771,7 @@ public class SemicircleTool extends DrawingTool {
 
                 // 显示半径信息
                 double radius = center.distance(p1);
-                String info = String.format("半径: %.2f", radius);
+                String info = PlotI18n.status("status.plot.draw.preview.radius_value", radius);
                 drawList.addText(
                     (float) screenCenter.x + 10, (float) screenCenter.y + 10,
                     theme.text, info

@@ -69,19 +69,19 @@ public class SelectionStrategy implements IModifyStrategy {
     
     // 选择模式枚举
     public enum SelectionMode {
-        NORMAL("普通选择", "点击选择图形，拖动框选多个图形"),
-        LASSO("套索选择", "按住鼠标绘制自由选择区域");
-        
-        private final String displayName;
-        private final String description;
-        
-        SelectionMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        NORMAL("mode.plot.select.normal", "mode.plot.select.normal.desc"),
+        LASSO("mode.plot.select.lasso", "mode.plot.select.lasso.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        SelectionMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 常量

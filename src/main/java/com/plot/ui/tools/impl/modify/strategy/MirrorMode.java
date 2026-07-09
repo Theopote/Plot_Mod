@@ -1,5 +1,7 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 镜像工具的几何模式（对称类型）。
  *
@@ -10,23 +12,22 @@ package com.plot.ui.tools.impl.modify.strategy;
  * </ul>
  */
 public enum MirrorMode {
-    AXIS_SYMMETRY("轴对称", "关于一条轴线做对称（两点定义轴）"),
-    CENTRAL_SYMMETRY("中心对称", "关于一个中心点做对称（等价于绕该点旋转180°）");
+    AXIS_SYMMETRY("mode.plot.mirror.axis_symmetry", "mode.plot.mirror.axis_symmetry.desc"),
+    CENTRAL_SYMMETRY("mode.plot.mirror.central_symmetry", "mode.plot.mirror.central_symmetry.desc");
 
-    private final String displayName;
-    private final String description;
+    private final String nameKey;
+    private final String descKey;
 
-    MirrorMode(String displayName, String description) {
-        this.displayName = displayName;
-        this.description = description;
+    MirrorMode(String nameKey, String descKey) {
+        this.nameKey = nameKey;
+        this.descKey = descKey;
     }
 
     public String getDisplayName() {
-        return displayName;
+        return PlotI18n.modeLabel(nameKey);
     }
 
     public String getDescription() {
-        return description;
+        return PlotI18n.modeLabel(descKey);
     }
 }
-

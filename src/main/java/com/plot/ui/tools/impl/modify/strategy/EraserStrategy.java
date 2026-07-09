@@ -52,19 +52,19 @@ public class EraserStrategy implements IModifyStrategy {
      * 橡皮擦模式枚举
      */
     public enum EraserMode {
-        CLICK_DELETE("点击删除", "点击图形直接删除"),
-        DRAG_DELETE("拖拽删除", "拖拽删除路径上的图形");
-        
-        private final String displayName;
-        private final String description;
-        
-        EraserMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        CLICK_DELETE("mode.plot.eraser.click", "mode.plot.eraser.click.desc"),
+        DRAG_DELETE("mode.plot.eraser.drag", "mode.plot.eraser.drag.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        EraserMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     /**

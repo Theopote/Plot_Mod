@@ -42,37 +42,37 @@ public class RotateStrategy implements IModifyStrategy {
     
     // 旋转模式枚举
     public enum RotateMode {
-        THREE_POINT("三点旋转", "设置中心点、参考点，然后旋转到目标角度"),
-        TWO_POINT("两点旋转", "设置中心点，然后直接旋转到目标角度");
-        
-        private final String displayName;
-        private final String description;
-        
-        RotateMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        THREE_POINT("mode.plot.rotate.three_point", "mode.plot.rotate.three_point.desc"),
+        TWO_POINT("mode.plot.rotate.two_point", "mode.plot.rotate.two_point.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        RotateMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
-    
+
     // 旋转中心模式枚举
     public enum CenterMode {
-        SELECTION("选择中心", "使用选择框的中心作为旋转中心"),
-        SHAPE("图形中心", "使用每个图形的中心作为旋转中心"),
-        CUSTOM("自定义点", "用户指定的点作为旋转中心");
-        
-        private final String displayName;
-        private final String description;
-        
-        CenterMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        SELECTION("mode.plot.rotate.center.selection", "mode.plot.rotate.center.selection.desc"),
+        SHAPE("mode.plot.rotate.center.shape", "mode.plot.rotate.center.shape.desc"),
+        CUSTOM("mode.plot.rotate.center.custom", "mode.plot.rotate.center.custom.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        CenterMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 旋转状态枚举

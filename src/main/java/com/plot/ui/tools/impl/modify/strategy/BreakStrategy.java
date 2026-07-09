@@ -45,37 +45,39 @@ public class BreakStrategy implements IModifyStrategy {
     
     // 打断模式枚举
     public enum BreakMode {
-        SINGLE_POINT("单点打断", "在指定点打断图形"),
-        TWO_POINT("两点打断", "在两点间移除图形部分");
-        
-        private final String displayName;
-        private final String description;
-        
-        BreakMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        SINGLE_POINT("mode.plot.break.single", "mode.plot.break.single.desc"),
+        TWO_POINT("mode.plot.break.two_point", "mode.plot.break.two_point.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        BreakMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
-    
+
     // 打断状态枚举
     public enum BreakState {
-        SELECTING_SHAPE("选择图形", "点击选择要打断的图形"),
-        SETTING_SECOND_POINT("设置第二点", "status.plot.break.click_second"),
-        PROCESSING("处理中", "正在执行打断操作");
-        
-        private final String displayName;
-        private final String description;
-        
-        BreakState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        SELECTING_SHAPE("mode.plot.break.select_shape", "mode.plot.break.select_shape.desc"),
+        SETTING_SECOND_POINT("mode.plot.break.set_second", "status.plot.break.click_second"),
+        PROCESSING("mode.plot.break.processing", "mode.plot.break.processing.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        BreakState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() {
+            return descKey.startsWith("status.plot.") ? PlotI18n.localizeStatus(descKey) : PlotI18n.modeLabel(descKey);
+        }
     }
     
     // 常量

@@ -16,11 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
 import imgui.ImColor;
+import com.plot.utils.PlotI18n;
 
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.plot.utils.PlotI18n;
 
 /**
  * 弧形工具 - 优化的策略模式版本
@@ -38,20 +40,20 @@ public class ArcTool extends DrawingTool {
 
     // ====== 绘制模式枚举 ======
     public enum ArcMode {
-        START_END_DIRECTION("起点-终点-圆弧点", "点击设置起点、终点、圆弧上的点"),
-        THROUGH_POINT("经过点", "点击设置起点、经过点、终点"),
-        CENTER_START_END("圆心-起点-终点", "点击设置圆心、起点、终点");
-        
-        private final String displayName;
-        private final String description;
-        
-        ArcMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        START_END_DIRECTION("mode.plot.start_end_arc", "mode.plot.start_end_arc.desc"),
+        THROUGH_POINT("mode.plot.through_point", "mode.plot.through_point.desc"),
+        CENTER_START_END("mode.plot.center_start_end", "mode.plot.center_start_end.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        ArcMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // ====== 配置常量 ======

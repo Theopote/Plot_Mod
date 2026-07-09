@@ -102,6 +102,11 @@ public final class PlotI18n {
         return translated.equals(key) ? "" : translated;
     }
 
+    /** Mode / enum display label (keys use {@code mode.plot.*}). */
+    public static String modeLabel(String key) {
+        return tr(key);
+    }
+
     private static String toolDescriptionKey(String toolId) {
         return "tool.plot." + normalizeToolId(toolId) + ".desc";
     }

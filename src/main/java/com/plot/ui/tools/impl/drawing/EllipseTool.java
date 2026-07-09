@@ -21,7 +21,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-// import removed: SnapEnhancer referenced via FQN
+import com.plot.utils.PlotI18n;
 
 /**
  * 椭圆工具 - 完整的策略模式实现
@@ -54,22 +54,23 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
     
     // ====== 绘制模式枚举 ======
     public enum EllipseMode {
-        THREE_POINTS_AXIS("three_points_axis", "三点-轴模式", "前两点确定长轴，第三点确定短半轴"),
-        THREE_POINTS_CENTER("three_points_center", "三点-中心点模式", "第一点确定中心点，第二点和第三点分别确定长半轴和短半轴"),
-        TWO_POINTS("two_points", "两点模式", "绘制矩形内切椭圆");
-        
+        THREE_POINTS_AXIS("three_points_axis", "mode.plot.three_point_axis", "mode.plot.ellipse.three_axis.desc"),
+        THREE_POINTS_CENTER("three_points_center", "mode.plot.three_point_center", "mode.plot.ellipse.three_center.desc"),
+        TWO_POINTS("two_points", "mode.plot.two_points", "mode.plot.ellipse.two_points.desc");
+
         private final String configValue;
-        private final String displayName;
-        private final String description;
-        
-        EllipseMode(String configValue, String displayName, String description) {
+        private final String nameKey;
+        private final String descKey;
+
+        EllipseMode(String configValue, String nameKey, String descKey) {
             this.configValue = configValue;
-            this.displayName = displayName;
-            this.description = description;
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getConfigValue() { return configValue; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
         
         public static EllipseMode fromConfigValue(String value) {
             for (EllipseMode mode : values()) {
@@ -423,11 +424,11 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         // 显示信息
         if (currentMousePoint != null) {
             Vec2d screenPos = camera.worldToScreen(currentMousePoint);
-            String info = String.format("长轴: %.2f, 短轴: %.2f", 
+            String info = PlotI18n.status("status.plot.draw.preview.major_minor",
                 majorRadius * 2, minorRadius * 2);
-            
+
             if (ellipseRotation != 0.0) {
-                info += String.format(", 旋转: %.1f°", Math.toDegrees(ellipseRotation));
+                info += PlotI18n.status("status.plot.draw.preview.rotation", Math.toDegrees(ellipseRotation));
             }
             
             drawList.addText(

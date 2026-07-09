@@ -21,6 +21,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
 
@@ -104,22 +105,22 @@ public class PolygonTool extends DrawingTool {
     
     // ====== 绘制模式枚举 ======
     public enum PolygonMode {
-        CENTER_RADIUS("center_radius", "中心-半径模式", "第一点为中心，第二点确定半径和起始顶点"),
-        CENTER_VERTEX("center_vertex", "中心-顶点模式", "第一点为中心，拖动确定外接圆半径");
-        
+        CENTER_RADIUS("center_radius", "mode.plot.polygon.center_radius_short", "mode.plot.polygon.center_radius.desc"),
+        CENTER_VERTEX("center_vertex", "mode.plot.polygon.center_vertex_short", "mode.plot.polygon.center_vertex.desc");
+
         private final String configValue;
-        private final String displayName;
-        private final String description;
-        
-        PolygonMode(String configValue, String displayName, String description) {
+        private final String nameKey;
+        private final String descKey;
+
+        PolygonMode(String configValue, String nameKey, String descKey) {
             this.configValue = configValue;
-            this.displayName = displayName;
-            this.description = description;
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
+
         public String getConfigValue() { return configValue; }
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
         
         public static PolygonMode fromConfigValue(String value) {
             for (PolygonMode mode : values()) {

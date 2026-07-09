@@ -34,19 +34,19 @@ public class OffsetStrategy implements IModifyStrategy {
     
     // 偏移模式枚举
     public enum OffsetMode {
-        DISTANCE("距离偏移", "指定偏移距离"),
-        THROUGH_POINT("穿点偏移", "通过点击确定偏移位置");
-        
-        private final String displayName;
-        private final String description;
-        
-        OffsetMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        DISTANCE("mode.plot.offset.distance", "mode.plot.offset.distance.desc"),
+        THROUGH_POINT("mode.plot.offset.through_point", "mode.plot.offset.through_point.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        OffsetMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 偏移状态枚举
