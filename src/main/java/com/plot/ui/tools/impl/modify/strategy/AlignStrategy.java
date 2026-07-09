@@ -39,46 +39,46 @@ public class AlignStrategy implements IModifyStrategy {
      * 对齐模式枚举
      */
     public enum AlignMode {
-        LEFT("左对齐", "将图形左边缘对齐"),
-        RIGHT("右对齐", "将图形右边缘对齐"),
-        CENTER("中心对齐", "将图形水平中心对齐"),
-        TOP("顶部对齐", "将图形顶部边缘对齐"),
-        BOTTOM("底部对齐", "将图形底部边缘对齐"),
-        MIDDLE("中间对齐", "将图形垂直中心对齐"),
-        DISTRIBUTE_H("水平分布", "在水平方向均匀分布图形"),
-        DISTRIBUTE_V("垂直分布", "在垂直方向均匀分布图形");
-        
-        private final String displayName;
-        private final String description;
-        
-        AlignMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        LEFT("align.plot.mode.left", "align.plot.mode.left.desc"),
+        RIGHT("align.plot.mode.right", "align.plot.mode.right.desc"),
+        CENTER("align.plot.mode.center", "align.plot.mode.center.desc"),
+        TOP("align.plot.mode.top", "align.plot.mode.top.desc"),
+        BOTTOM("align.plot.mode.bottom", "align.plot.mode.bottom.desc"),
+        MIDDLE("align.plot.mode.middle", "align.plot.mode.middle.desc"),
+        DISTRIBUTE_H("align.plot.mode.distribute_h", "align.plot.mode.distribute_h.desc"),
+        DISTRIBUTE_V("align.plot.mode.distribute_v", "align.plot.mode.distribute_v.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        AlignMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
-    
+
     /**
      * 参考模式枚举
      */
     public enum ReferenceMode {
-        SELECTION_BOUNDS("选择边界", "相对于所有选中图形的边界对齐"),
-        FIRST_SELECTED("第一个选中", "相对于第一个选中的图形对齐"),
-        LAST_SELECTED("最后选中", "相对于最后选中的图形对齐"),
-        LARGEST("最大图形", "相对于最大的图形对齐");
-        
-        private final String displayName;
-        private final String description;
-        
-        ReferenceMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        SELECTION_BOUNDS("align.plot.ref.selection_bounds", "align.plot.ref.selection_bounds.desc"),
+        FIRST_SELECTED("align.plot.ref.first_selected", "align.plot.ref.first_selected.desc"),
+        LAST_SELECTED("align.plot.ref.last_selected", "align.plot.ref.last_selected.desc"),
+        LARGEST("align.plot.ref.largest", "align.plot.ref.largest.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        ReferenceMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 旧模式（保留字段但不再用于交互式点对点对齐）
