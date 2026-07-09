@@ -179,7 +179,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                 };
                 
                 ImGui.textColored(currentTheme.successText, 
-                    PlotI18n.tr("trim.plot.selected_count", selectedCount, itemType);
+                    PlotI18n.tr("trim.plot.selected_count", selectedCount, itemType));
                 height += ImGui.getFrameHeightWithSpacing();
             }
             
@@ -191,7 +191,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                     ImGui.tableNextColumn();
                     ImGui.tableNextColumn();
                     ImGui.textColored(currentTheme.warningText, 
-                        PlotI18n.tr("trim.plot.fence_points", fencePointCount);
+                        PlotI18n.tr("trim.plot.fence_points", fencePointCount));
                     height += ImGui.getFrameHeightWithSpacing();
                 }
             }
