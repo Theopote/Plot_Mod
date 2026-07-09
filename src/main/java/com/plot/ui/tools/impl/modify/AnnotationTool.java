@@ -128,10 +128,10 @@ public class AnnotationTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         return switch (currentMode) {
-            case DISTANCE -> "距离模式：点击两点进行距离标注";
-            case ANGLE -> "角度模式：选择两条有夹角的直线，右键完成选中时自动标注角度";
-            case RADIUS -> "半径模式：点选或框选圆形、半圆、圆弧图形，右键完成选中时自动标注半径";
-            case AREA -> "面积模式：选择区域，右键完成选中时自动标注面积";
+            case DISTANCE -> PlotI18n.status("status.plot.annotation.distance_hint");
+            case ANGLE -> PlotI18n.status("status.plot.annotation.angle_hint");
+            case RADIUS -> PlotI18n.status("status.plot.annotation.radius_hint");
+            case AREA -> PlotI18n.status("status.plot.annotation.area_hint");
         };
     }
     

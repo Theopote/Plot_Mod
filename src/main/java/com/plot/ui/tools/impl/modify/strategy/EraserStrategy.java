@@ -71,16 +71,19 @@ public class EraserStrategy implements IModifyStrategy {
      * 橡皮擦状态枚举
      */
     private enum EraserState {
-        IDLE("空闲", "等待用户操作"),
-        ERASING("删除中", "正在删除图形");
-        
-        private final String displayName;
-        private final String description;
-        
-        EraserState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        IDLE("mode.plot.common.idle", "mode.plot.eraser.state.idle.desc"),
+        ERASING("mode.plot.eraser.state.erasing", "mode.plot.eraser.state.erasing.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        EraserState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 策略状态

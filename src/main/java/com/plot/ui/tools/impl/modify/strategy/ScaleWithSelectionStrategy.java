@@ -38,37 +38,37 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
     // 策略模式枚举
     public enum StrategyMode {
-        SELECTION("选择模式", "左键选择图形，右键完成选择"),
-        SCALE("缩放模式", "三点缩放：中心点-参考点-目标点");
+        SELECTION("strategy.plot.mode.selection", "strategy.plot.mode.selection.desc"),
+        SCALE("strategy.plot.mode.scale", "strategy.plot.mode.scale.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        StrategyMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        StrategyMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 缩放状态枚举
     public enum ScaleState {
-        IDLE("空闲", "等待设置缩放中心点"),
-        AWAITING_REFERENCE("等待参考点", "status.plot.common.click_reference"),
-        SCALING("缩放中", "移动鼠标缩放图形");
+        IDLE("mode.plot.common.idle", "mode.plot.scale.state.idle.desc"),
+        AWAITING_REFERENCE("mode.plot.rotate.state.setting_reference", "status.plot.common.click_reference"),
+        SCALING("mode.plot.scale.state.scaling", "mode.plot.scale.state.scaling.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        ScaleState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ScaleState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeOrStatus(descKey); }
     }
 
     // 常量

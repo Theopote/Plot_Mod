@@ -46,56 +46,56 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
     // 策略模式枚举
     public enum StrategyMode {
-        SELECTION("选择模式", "左键选择图形，右键完成选择"),
-        ARRAY("阵列模式", "设置阵列参数并预览");
+        SELECTION("strategy.plot.mode.selection", "strategy.plot.mode.selection.desc"),
+        ARRAY("strategy.plot.mode.array", "strategy.plot.mode.array.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        StrategyMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        StrategyMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 阵列类型枚举
     public enum ArrayType {
-        RECTANGULAR("矩形阵列", "按行列排列图形"),
-        CIRCULAR("环形阵列", "按圆形排列图形"),
-        PATH("路径阵列", "沿指定路径排列图形");
+        RECTANGULAR("array.plot.rectangular", "array.plot.rectangular.desc"),
+        CIRCULAR("array.plot.polar", "array.plot.polar.desc"),
+        PATH("array.plot.path", "array.plot.path.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        ArrayType(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ArrayType(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.tr(nameKey); }
+        public String getDescription() { return PlotI18n.tr(descKey); }
     }
 
     // 阵列状态枚举
     public enum ArrayState {
-        IDLE("空闲", "等待开始阵列"),
-        AWAIT_BASE_POINT("等待基准点", "status.plot.array.set_reference"),
-        AWAIT_PATH("等待路径", "选择路径对象"),
-        PREVIEWING("预览中", "调整参数并预览阵列效果");
+        IDLE("mode.plot.common.idle", "mode.plot.array.state.idle.desc"),
+        AWAIT_BASE_POINT("mode.plot.array.state.await_base_point", "status.plot.array.set_reference"),
+        AWAIT_PATH("mode.plot.array.state.await_path", "mode.plot.array.state.await_path.desc"),
+        PREVIEWING("mode.plot.array.state.previewing", "mode.plot.array.state.previewing.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        ArrayState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ArrayState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeOrStatus(descKey); }
     }
 
     // 常量

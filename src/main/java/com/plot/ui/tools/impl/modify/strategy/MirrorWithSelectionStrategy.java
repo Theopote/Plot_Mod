@@ -38,36 +38,36 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
 
     // 策略模式枚举
     public enum StrategyMode {
-        SELECTION("选择模式", "左键选择图形，右键完成选择"),
-        MIRROR("镜像模式", "两点定义镜像轴");
+        SELECTION("strategy.plot.mode.selection", "strategy.plot.mode.selection.desc"),
+        MIRROR("strategy.plot.mode.mirror", "strategy.plot.mode.mirror.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        StrategyMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        StrategyMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 镜像状态枚举
     public enum MirrorState {
-        IDLE("空闲", "等待设置镜像轴起点"),
-        SETTING_AXIS_END("设置终点", "点击设置镜像轴终点");
+        IDLE("mode.plot.common.idle", "mode.plot.mirror.state.idle.desc"),
+        SETTING_AXIS_END("mode.plot.mirror.state.setting_axis_end", "mode.plot.mirror.state.setting_axis_end.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        MirrorState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        MirrorState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 注意：镜像“模式”已改为几何对称类型（轴对称/中心对称），详见 {@link MirrorMode}

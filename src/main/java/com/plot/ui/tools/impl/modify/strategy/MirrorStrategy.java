@@ -43,19 +43,19 @@ public class MirrorStrategy implements IModifyStrategy {
     
     // 镜像状态枚举 - 简化状态机
     public enum MirrorState {
-        IDLE("空闲", "等待设置镜像轴起点"),
-        SETTING_AXIS_END("设置终点", "点击设置镜像轴终点");
-        
-        private final String displayName;
-        private final String description;
-        
-        MirrorState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        IDLE("mode.plot.common.idle", "mode.plot.mirror.state.idle.desc"),
+        SETTING_AXIS_END("mode.plot.mirror.state.setting_axis_end", "mode.plot.mirror.state.setting_axis_end.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        MirrorState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 常量

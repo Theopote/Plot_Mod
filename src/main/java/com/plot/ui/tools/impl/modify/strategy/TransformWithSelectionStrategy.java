@@ -46,16 +46,18 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
      * 交互模式枚举
      */
     private enum InteractionMode {
-        SELECTING("选择模式", "选择图形，右键确认进入变换"),
-        TRANSFORMING("变换模式", "拖拽控制点进行变换，右键返回选择");
-        
-        private final String displayName;
+        SELECTING("strategy.plot.mode.transform.select", "strategy.plot.mode.transform.select.desc"),
+        TRANSFORMING("strategy.plot.mode.transform.transform", "strategy.plot.mode.transform.transform.desc");
 
-        InteractionMode(String displayName, String description) {
-            this.displayName = displayName;
+        private final String nameKey;
+        private final String descKey;
+
+        InteractionMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
     }
     
     private static final Logger LOGGER = LoggerFactory.getLogger(TransformWithSelectionStrategy.class);

@@ -107,6 +107,17 @@ public final class PlotI18n {
         return tr(key);
     }
 
+    /** Mode description or status key (supports {@code mode.plot.*} and {@code status.plot.*}). */
+    public static String modeOrStatus(String key) {
+        if (key == null || key.isBlank()) {
+            return "";
+        }
+        if (key.startsWith("status.plot.")) {
+            return localizeStatus(key);
+        }
+        return modeLabel(key);
+    }
+
     private static String toolDescriptionKey(String toolId) {
         return "tool.plot." + normalizeToolId(toolId) + ".desc";
     }

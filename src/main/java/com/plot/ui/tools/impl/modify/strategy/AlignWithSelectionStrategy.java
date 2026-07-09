@@ -35,39 +35,39 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
 
     // 策略模式枚举
     public enum StrategyMode {
-        SELECTION("选择模式", "左键选择图形，右键完成选择"),
-        ALIGN("对齐模式", "四点对齐：S1 -> T1 -> S2 -> T2");
+        SELECTION("strategy.plot.mode.selection", "strategy.plot.mode.selection.desc"),
+        ALIGN("strategy.plot.mode.align", "strategy.plot.mode.align.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        StrategyMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        StrategyMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 对齐状态枚举（继承自原始AlignStrategy）
-    public enum AlignState { 
-        IDLE("空闲", "等待开始对齐"),
-        AWAIT_SOURCE1("等待源点1", "在选中图形上点击源点1"),
-        AWAIT_TARGET1("等待目标点1", "点击目标点1"),
-        AWAIT_SOURCE2("等待源点2", "在选中图形上点击源点2"),
-        AWAIT_TARGET2("等待目标点2", "点击目标点2完成对齐");
+    public enum AlignState {
+        IDLE("mode.plot.common.idle", "mode.plot.align.state.idle.desc"),
+        AWAIT_SOURCE1("mode.plot.align.state.await_source1", "mode.plot.align.state.await_source1.desc"),
+        AWAIT_TARGET1("mode.plot.align.state.await_target1", "mode.plot.align.state.await_target1.desc"),
+        AWAIT_SOURCE2("mode.plot.align.state.await_source2", "mode.plot.align.state.await_source2.desc"),
+        AWAIT_TARGET2("mode.plot.align.state.await_target2", "mode.plot.align.state.await_target2.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        AlignState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        AlignState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 常量

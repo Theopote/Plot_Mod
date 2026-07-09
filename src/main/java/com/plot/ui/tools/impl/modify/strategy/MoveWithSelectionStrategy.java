@@ -235,7 +235,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             previewShapes = moveHandler.createPreviewShapes(selectedShapes, constrainedParameters);
 
             // 更新状态消息
-            String statusMessage = String.format("移动距离: %.2f", moveVector.length());
+            String statusMessage = PlotI18n.status("status.plot.move.distance", moveVector.length());
             if (isShiftPressed) {
                 statusMessage += " (正交约束)";
             }

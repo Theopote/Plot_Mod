@@ -38,38 +38,38 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
     // 策略模式枚举
     public enum StrategyMode {
-        SELECTION("选择模式", "左键选择图形，右键完成选择"),
-        ROTATE("旋转模式", "三点旋转：中心点-参考点-目标点");
+        SELECTION("strategy.plot.mode.selection", "strategy.plot.mode.selection.desc"),
+        ROTATE("strategy.plot.mode.rotate", "strategy.plot.mode.rotate.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        StrategyMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        StrategyMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 旋转状态枚举
     public enum RotateState {
-        IDLE("空闲", "等待设置旋转中心点"),
-        SETTING_CENTER("设置中心", "status.plot.rotate.initial_center"),
-        SETTING_REFERENCE("设置参考", "status.plot.common.click_reference"),
-        ROTATING("旋转中", "移动鼠标旋转图形");
+        IDLE("mode.plot.common.idle", "mode.plot.rotate.state.idle.desc"),
+        SETTING_CENTER("mode.plot.rotate.state.setting_center", "mode.plot.rotate.state.setting_center.desc"),
+        SETTING_REFERENCE("mode.plot.rotate.state.setting_reference", "status.plot.common.click_reference"),
+        ROTATING("mode.plot.rotate.state.rotating", "mode.plot.rotate.state.rotating.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        RotateState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        RotateState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeOrStatus(descKey); }
     }
 
     // 常量

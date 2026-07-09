@@ -411,29 +411,29 @@ public class ScaleStrategy implements IModifyStrategy {
      */
     private String generateStatusMessage(IModifyHandler.ModifyParameters parameters) {
         if (!(parameters instanceof ModifyParameters modifyParams)) {
-            return "缩放中...";
+            return PlotI18n.status("status.plot.scale.in_progress");
         }
 
         Vec2d centerPoint = modifyParams.getVec2d(ModifyParameters.CENTER_POINT);
-        
+
         return switch (currentMode) {
             case UNIFORM -> {
                 double scaleFactor = modifyParams.getDouble(ModifyParameters.SCALE_FACTOR, 1.0);
                 if (centerPoint != null) {
-                    yield String.format("统一缩放: %.2fx (中心: %.1f, %.1f)", 
-                                       scaleFactor, centerPoint.x, centerPoint.y);
+                    yield PlotI18n.status("status.plot.scale.uniform_center",
+                            scaleFactor, centerPoint.x, centerPoint.y);
                 } else {
-                    yield String.format("统一缩放: %.2fx", scaleFactor);
+                    yield PlotI18n.status("status.plot.scale.uniform", scaleFactor);
                 }
             }
             case NON_UNIFORM -> {
                 double scaleX = modifyParams.getDouble(ModifyParameters.SCALE_X, 1.0);
                 double scaleY = modifyParams.getDouble(ModifyParameters.SCALE_Y, 1.0);
                 if (centerPoint != null) {
-                    yield String.format("非统一缩放: X=%.2f, Y=%.2f (中心: %.1f, %.1f)", 
-                                       scaleX, scaleY, centerPoint.x, centerPoint.y);
+                    yield PlotI18n.status("status.plot.scale.non_uniform_center",
+                            scaleX, scaleY, centerPoint.x, centerPoint.y);
                 } else {
-                    yield String.format("非统一缩放: X=%.2f, Y=%.2f", scaleX, scaleY);
+                    yield PlotI18n.status("status.plot.scale.non_uniform", scaleX, scaleY);
                 }
             }
         };

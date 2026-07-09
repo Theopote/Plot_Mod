@@ -42,36 +42,36 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
     // 延伸模式枚举（已弃用，保留以兼容性）
     @Deprecated
     public enum ExtendMode {
-        STANDARD("标准延伸", "延伸图形到拦截线，确保能碰到拦截线"),
-        PROJECT("投影延伸", "投影延伸图形到拦截线的延长线位置");
+        STANDARD("mode.plot.extend.mode.standard", "mode.plot.extend.mode.standard.desc"),
+        PROJECT("mode.plot.extend.mode.project", "mode.plot.extend.mode.project.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        ExtendMode(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ExtendMode(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 延伸状态枚举 - 简化状态机
     public enum ExtendState {
-        SELECTING_BOUNDARY("选择边界", "选择边界图形，右键确认"),
-        EXTENDING("延伸模式", "点击要延伸的图形端点执行延伸，ESC重新选择边界");
+        SELECTING_BOUNDARY("mode.plot.extend.state.selecting_boundary", "mode.plot.extend.state.selecting_boundary.desc"),
+        EXTENDING("mode.plot.extend.state.extending", "mode.plot.extend.state.extending.desc");
 
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
 
-        ExtendState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ExtendState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
 
     // 常量 - 使用KeyEvent常量替代硬编码值
