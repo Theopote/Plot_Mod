@@ -9,11 +9,11 @@ import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.tool.ToolGroupImpl;
 import com.plot.infrastructure.event.EventBus;
+import com.plot.ui.tools.impl.drawing.DrawingTool;
 import com.plot.ui.tools.impl.modify.TextTool;
 import com.plot.core.command.CommandManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.plot.core.state.AppState;
 
 /**
  * 绘图工具模块 - 负责创建和注册所有绘图工具
@@ -85,13 +85,15 @@ public final class DrawingToolsModule {
         }
         
         LOGGER.info("开始初始化绘图工具模块...");
+
+        DrawingTool.configureSharedDependencies(eventBus, com.plot.core.shortcut.ShortcutManager.getInstance());
         
         try {
             // 创建绘图工具组
             ToolGroup drawingGroup = createDrawingGroup(toolManager);
             
             // 创建所有绘图工具
-            List<BaseTool> tools = createAllDrawingTools(appState, snapManager, commandManager);
+            List<BaseTool> tools = createAllDrawingTools(appState, eventBus, snapManager, commandManager);
             
             // 注册工具到ToolManager和工具组
             registerTools(toolManager, drawingGroup, tools);
@@ -240,12 +242,6 @@ public final class DrawingToolsModule {
             if (lineTool != null) {
                 toolManager.setActiveTool(lineTool);
                 LOGGER.debug("默认工具设置成功: {}", lineTool.getName());
-                
-                // 修复：同时更新AppState的当前工具，确保CanvasInputHandler能正确获取
-                if (lineTool instanceof BaseTool baseTool) {
-                    AppState.getInstance().setCurrentTool(baseTool);
-                    LOGGER.debug("AppState的当前工具也已更新: {}", baseTool.getId());
-                }
             } else {
                 LOGGER.warn("未找到ID为'line'的工具，跳过默认工具设置");
             }

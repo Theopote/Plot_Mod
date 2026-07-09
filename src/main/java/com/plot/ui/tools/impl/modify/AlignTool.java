@@ -45,12 +45,12 @@ public class AlignTool extends ModifyTool {
      */
     public AlignTool(IAppState appState, ISnapManager snapManager) {
         super("align", "对齐", Icons.ALIGN_IDENTIFIER, "对齐选中的图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("AlignTool 已创建");
 
         // 订阅工具配置事件，使得右侧面板复选框即时生效
         try {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+            eventBus.subscribe(ToolConfigEvent.class, event -> {
                 if (event instanceof ToolConfigEvent cfg && "align".equals(cfg.getToolId())) {
                     try {
                         updateConfig(cfg.getConfigKey(), String.valueOf(cfg.getNewValue()));

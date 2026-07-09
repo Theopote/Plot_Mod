@@ -1,6 +1,7 @@
 package com.plot.core.tool;
 
 import com.plot.api.graphics.IShapeStyle;
+import com.plot.api.state.IAppState;
 import com.plot.api.tool.ITool;
 import com.plot.api.tool.IToolConfig;
 import com.plot.api.tool.ToolGroup;
@@ -21,6 +22,8 @@ import com.plot.core.graphics.style.ShapeStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * 基础工具类，实现了ITool接口的通用功能
  */
@@ -31,7 +34,7 @@ public abstract class BaseTool implements ITool, IShortcutListener {
     protected final String name;
     protected final String description;
     protected final Identifier icon;
-    protected final AppState appState;
+    protected final IAppState appState;
     protected final EventBus eventBus;
     protected final ShortcutManager shortcutManager;
     
@@ -52,7 +55,8 @@ public abstract class BaseTool implements ITool, IShortcutListener {
     protected boolean isDirty = false;
     protected Shape previewShape;
 
-    protected BaseTool(String id, String description, Identifier icon, String name) {
+    protected BaseTool(String id, String description, Identifier icon, String name,
+                       IAppState appState, EventBus eventBus, ShortcutManager shortcutManager) {
         this.id = id;
         this.name = name;
         this.icon = icon;
@@ -60,14 +64,21 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         this.state = ToolState.INACTIVE;
         this.config = new ToolConfig();
         this.priority = 0;
-        
-        // 获取单例实例
-        this.appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
-        this.shortcutManager = ShortcutManager.getInstance();
-        
-        // 注册为快捷键监听器
+
+        this.appState = Objects.requireNonNull(appState, "AppState 不能为空");
+        this.eventBus = Objects.requireNonNull(eventBus, "EventBus 不能为空");
+        this.shortcutManager = Objects.requireNonNull(shortcutManager, "ShortcutManager 不能为空");
+
         shortcutManager.addListener(this);
+    }
+
+    /**
+     * @deprecated 推荐使用带依赖参数的构造函数
+     */
+    @Deprecated
+    protected BaseTool(String id, String description, Identifier icon, String name) {
+        this(id, description, icon, name,
+                AppState.getInstance(), EventBus.getInstance(), ShortcutManager.getInstance());
     }
 
     // ITool 实现

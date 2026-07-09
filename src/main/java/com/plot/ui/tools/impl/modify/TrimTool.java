@@ -30,10 +30,10 @@ public class TrimTool extends ModifyTool {
 
     public TrimTool(IAppState appState, ISnapManager snapManager) {
         super("trim", "修剪", Icons.TRIM_IDENTIFIER, "修剪图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("TrimTool 已创建");
         // 订阅ToolConfigEvent
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
     }
 
     @Deprecated
@@ -41,7 +41,7 @@ public class TrimTool extends ModifyTool {
         super("trim", "修剪", Icons.TRIM_IDENTIFIER, "修剪图形");
         LOGGER.info("TrimTool 已创建（兼容模式）");
         // 订阅ToolConfigEvent
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
     }
 
     @Override
@@ -247,7 +247,7 @@ public class TrimTool extends ModifyTool {
     @Override
     public void dispose() {
         // 取消事件订阅，避免内存泄漏
-        EventBus.getInstance().unsubscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.unsubscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
         super.dispose();
         LOGGER.debug("TrimTool 已销毁，事件订阅已取消");
     }

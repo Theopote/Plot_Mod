@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.ICanvas;
 import com.plot.api.model.ILayer;
 import com.plot.api.graphics.IShapeStyle;
+import com.plot.api.state.IAppState;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.command.commands.TextEditCommand;
 import com.plot.core.geometry.shapes.TextShape;
@@ -11,6 +12,9 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.log.LogManager;
 import com.plot.core.tool.BaseTool;
+import com.plot.core.state.AppState;
+import com.plot.core.shortcut.ShortcutManager;
+import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.core.graphics.style.TextStyle;
@@ -114,7 +118,8 @@ public class TextTool extends BaseTool {
      * 构造函数 - 支持父组件注入，提高健壮性
      */
     public TextTool(ICanvas canvas, Component parentComponent) {
-        super(TOOL_ID, TOOL_DESCRIPTION, Icons.TEXT_IDENTIFIER, TOOL_NAME);
+        super(TOOL_ID, TOOL_DESCRIPTION, Icons.TEXT_IDENTIFIER, TOOL_NAME,
+                AppState.getInstance(), EventBus.getInstance(), ShortcutManager.getInstance());
         this.canvas = canvas;
         this.parentComponent = parentComponent;
         this.currentState = ToolState.IDLE;
@@ -729,7 +734,7 @@ public class TextTool extends BaseTool {
             if (text.isEmpty()) {
                 executeShapeReplaceCommand(List.of(activeText), List.of(), "删除空文字");
             } else if (editingOriginalText != null && !editingOriginalText.equals(activeText.getText())) {
-                appState.getCommandHistory().execute(new TextEditCommand(activeText, editingOriginalText, activeText.getText()));
+                requireAppState().getCommandHistory().execute(new TextEditCommand(activeText, editingOriginalText, activeText.getText()));
                 LogManager.getInstance().info("TextTool: 完成编辑文字: {}", text);
             } else {
                 LogManager.getInstance().info("TextTool: 完成编辑文字: {}", text);
@@ -933,10 +938,10 @@ public class TextTool extends BaseTool {
             ModifyCommand command = new ModifyCommand(
                 new ArrayList<>(oldShapes),
                 new ArrayList<>(newShapes),
-                appState,
+                requireAppState(),
                 actionName
             );
-            appState.getCommandHistory().execute(command);
+            requireAppState().getCommandHistory().execute(command);
             LogManager.getInstance().debug("TextTool: 命令已执行 - {}", actionName);
         } catch (Exception e) {
             LogManager.getInstance().error("TextTool: 执行命令失败 - {}", actionName, e);
@@ -1045,5 +1050,12 @@ public class TextTool extends BaseTool {
      */
     public ToolState getCurrentState() {
         return currentState;
+    }
+
+    private AppState requireAppState() {
+        if (appState instanceof AppState concreteAppState) {
+            return concreteAppState;
+        }
+        throw new IllegalStateException("TextTool requires AppState implementation");
     }
 }

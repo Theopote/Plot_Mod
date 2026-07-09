@@ -40,11 +40,11 @@ public class MirrorTool extends ModifyTool {
      */
     public MirrorTool(IAppState appState, ISnapManager snapManager) {
         super("mirror", "镜像", Icons.MIRROR_IDENTIFIER, "镜像选中的图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("MirrorTool 已创建");
         // 订阅工具配置事件，确保右侧面板修改即时生效
         try {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+            eventBus.subscribe(ToolConfigEvent.class, event -> {
                 if (event instanceof ToolConfigEvent cfg && "mirror".equals(cfg.getToolId())) {
                     try {
                         updateConfig(cfg.getConfigKey(), String.valueOf(cfg.getNewValue()));

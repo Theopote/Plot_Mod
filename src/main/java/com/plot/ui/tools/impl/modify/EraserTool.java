@@ -36,7 +36,7 @@ public class EraserTool extends ModifyTool {
      */
     public EraserTool(IAppState appState, ISnapManager snapManager) {
         super("eraser", "橡皮擦", Icons.ERASER_IDENTIFIER, "删除选中的图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("EraserTool 已创建");
     }
 

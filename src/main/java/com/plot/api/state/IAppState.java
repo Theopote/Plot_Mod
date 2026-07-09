@@ -2,6 +2,7 @@ package com.plot.api.state;
 
 import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.model.ILayer;
+import com.plot.core.model.Shape;
 import com.plot.ui.canvas.Canvas;
 import java.util.concurrent.ScheduledFuture;
 
@@ -54,4 +55,10 @@ public interface IAppState {
      * @return 版本号
      */
     long getStateVersion();
+
+    /**
+     * 将图形添加到当前活动图层
+     * @param shape 要添加的图形
+     */
+    void addShape(Shape shape);
 } 

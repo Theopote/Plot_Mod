@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.modify;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.ICanvas;
+import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.graphics.style.ShapeStyle;
@@ -9,8 +10,8 @@ import com.plot.core.model.Shape;
 import com.plot.core.selection.Selection;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.command.commands.ModifyCommand;
-import com.plot.core.command.CommandHistory;
 import com.plot.core.state.AppState;
+import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.graphics.DrawContext;
 import com.plot.ui.canvas.CanvasCamera;
@@ -64,6 +65,17 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     protected final com.plot.ui.tools.snap.SnapEnhancer snapEnhancer =
             new com.plot.ui.tools.snap.SnapEnhancer("ModifyTool");
     protected static final Logger LOGGER = LoggerFactory.getLogger(ModifyTool.class);
+
+    private static volatile EventBus sharedEventBus = EventBus.getInstance();
+    private static volatile ShortcutManager sharedShortcutManager = ShortcutManager.getInstance();
+
+    /**
+     * 在组合根配置共享依赖，避免各工具构造器内直接调用单例。
+     */
+    public static void configureSharedDependencies(EventBus eventBus, ShortcutManager shortcutManager) {
+        sharedEventBus = Objects.requireNonNull(eventBus, "EventBus 不能为空");
+        sharedShortcutManager = Objects.requireNonNull(shortcutManager, "ShortcutManager 不能为空");
+    }
     
     /**
      * 修改工具状态枚举
@@ -97,10 +109,8 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     protected final String toolName;
     protected final Identifier toolIcon;
     protected final String toolDescription;
-    protected final AppState appState;
+    protected final AppState concreteAppState;
     protected final ISnapManager snapManager;
-    protected final EventBus eventBus;
-    protected final CommandHistory commandHistory;
     
     // 策略模式组件
     protected IModifyStrategy modifyStrategy;
@@ -128,28 +138,29 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     /**
      * 构造函数（推荐方式 - 依赖注入）
      */
-    protected ModifyTool(String id, String name, Identifier icon, String description, 
-                        AppState appState, ISnapManager snapManager) {
-        super(id, name, icon, description);
-        
+    protected ModifyTool(String id, String name, Identifier icon, String description,
+                        IAppState appState, ISnapManager snapManager) {
+        this(id, name, icon, description, appState, snapManager,
+                sharedEventBus, sharedShortcutManager);
+    }
+
+    protected ModifyTool(String id, String name, Identifier icon, String description,
+                        IAppState appState, ISnapManager snapManager,
+                        EventBus eventBus, ShortcutManager shortcutManager) {
+        super(id, description, icon, name, appState, eventBus, shortcutManager);
+
         this.toolId = id;
         this.toolName = name;
         this.toolIcon = icon;
         this.toolDescription = description;
-        this.appState = Objects.requireNonNull(appState, "AppState 不能为空");
+        this.concreteAppState = requireConcreteAppState(appState);
         this.snapManager = snapManager;
-        this.eventBus = EventBus.getInstance();
-        this.commandHistory = appState.getCommandHistory();
         this.previewStyle = ShapeStyle.PREVIEW;
         this.options = new HashMap<>();
-        
-        // 初始化辅助类（复用绘制工具的辅助类）
+
         this.snapHandler = new SnapHandler(appState, snapManager, id);
         this.styleHandler = new StyleHandler(appState, id);
-        
-        // 不在构造时创建策略，使用懒加载避免构造函数执行顺序问题
-        // this.modifyStrategy = createStrategy();
-        
+
         LOGGER.debug("ModifyTool [{}] 初始化完成", id);
     }
     
@@ -333,9 +344,9 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
 
     @Override
     public void executeModifyCommand(ModifyCommand command) {
-        if (command != null && commandHistory != null) {
+        if (command != null) {
             try {
-                commandHistory.execute(command);
+                concreteAppState.getCommandHistory().execute(command);
                 LOGGER.debug("ModifyTool [{}] 执行修改命令: {}", toolId, command.getClass().getSimpleName());
                 
                 // 强制同步清理新旧图形的视觉状态：不选中、不高亮
@@ -453,41 +464,37 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
 
     @Override
     public void setSelectedShapes(List<Shape> shapes) {
-        if (appState != null) {
-            appState.setSelectedShapes(shapes);
-            selection = appState.getSelection();
-        }
+        concreteAppState.setSelectedShapes(shapes);
+        selection = concreteAppState.getSelection();
     }
 
     @Override
     public void addSelectedShape(Shape shape) {
-        if (appState != null && shape != null) {
-            appState.addSelectedShape(shape);
-            selection = appState.getSelection();
+        if (shape != null) {
+            concreteAppState.addSelectedShape(shape);
+            selection = concreteAppState.getSelection();
         }
     }
 
     @Override
     public void removeSelectedShape(Shape shape) {
-        if (appState != null && shape != null) {
-            appState.removeSelectedShape(shape);
-            selection = appState.getSelection();
+        if (shape != null) {
+            concreteAppState.removeSelectedShape(shape);
+            selection = concreteAppState.getSelection();
         }
     }
 
     @Override
     public void clearSelection() {
-        if (appState != null) {
-            appState.clearSelection();
-            selection = appState.getSelection();
-        }
+        concreteAppState.clearSelection();
+        selection = concreteAppState.getSelection();
     }
 
     @Override
     public Shape findShapeAt(Vec2d pos, double tolerance) {
         try {
             // 获取所有图层的图形
-            List<Shape> allShapes = appState.getShapes();
+            List<Shape> allShapes = concreteAppState.getShapes();
             if (allShapes.isEmpty()) {
                 LOGGER.debug("ModifyTool.findShapeAt: 没有图形可查找");
         return null;
@@ -558,7 +565,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     public List<Shape> findShapesInArea(Vec2d startPos, Vec2d endPos) {
         try {
             List<Shape> result = new ArrayList<>();
-            List<Shape> allShapes = appState.getShapes();
+            List<Shape> allShapes = concreteAppState.getShapes();
             
             if (allShapes.isEmpty()) {
                 LOGGER.debug("ModifyTool.findShapesInArea: 没有图形可查找");
@@ -672,7 +679,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     @Override
     public ControlPointEditTool getControlPointEditTool() {
         if (controlPointEditTool == null) {
-            controlPointEditTool = new ControlPointEditTool(appState, snapManager, canvas);
+            controlPointEditTool = new ControlPointEditTool(concreteAppState, snapManager, canvas);
         }
         return controlPointEditTool;
     }
@@ -682,13 +689,11 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     @Override
     public List<Shape> getAllShapesInActiveLayer() {
         try {
-            if (appState != null) {
-                var activeLayer = appState.getActiveLayer();
-                if (activeLayer != null) {
-                    return activeLayer.getShapes();
-                }
-                return appState.getShapes();
+            var activeLayer = concreteAppState.getActiveLayer();
+            if (activeLayer != null) {
+                return activeLayer.getShapes();
             }
+            return concreteAppState.getShapes();
         } catch (Exception e) {
             LOGGER.warn("获取活动图层图形失败: {}", e.getMessage());
         }
@@ -698,8 +703,8 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     @Override
     public List<Shape> getAllShapesInLayer(String layerId) {
         try {
-            if (appState != null && appState.getLayerManager() != null) {
-                var layer = appState.getLayerManager().getLayerById(layerId);
+            if (concreteAppState.getLayerManager() != null) {
+                var layer = concreteAppState.getLayerManager().getLayerById(layerId);
                 if (layer != null) {
                     return layer.getShapes();
                 }
@@ -715,7 +720,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     @Override
     public void onActivate() {
         super.onActivate();
-        selection = appState.getSelection();
+        selection = concreteAppState.getSelection();
         
         // 检查策略的选择要求
         IModifyStrategy strategy = getStrategy();
@@ -920,5 +925,13 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         int max = strategy.getMaximumSelectionCount();
         
         return count >= min && (max == -1 || count <= max);
+    }
+
+    private static AppState requireConcreteAppState(IAppState appState) {
+        if (appState instanceof AppState concreteAppState) {
+            return concreteAppState;
+        }
+        throw new IllegalArgumentException(
+                "ModifyTool requires AppState implementation, got: " + appState.getClass().getName());
     }
 } 

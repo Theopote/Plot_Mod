@@ -338,6 +338,7 @@ public class AppState implements IAppState {
 
     // --- 简化和修正后的核心方法 ---
 
+    @Override
     public void addShape(Shape shape) {
         if (shape == null) return;
         

@@ -41,11 +41,11 @@ public class ArrayTool extends ModifyTool {
      */
     public ArrayTool(IAppState appState, ISnapManager snapManager) {
         super("array", "阵列", Icons.ARRAY_IDENTIFIER, "创建图形的阵列复制",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("ArrayTool 已创建");
         
         // 订阅ToolConfigEvent
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
     }
 
     /**
@@ -58,7 +58,7 @@ public class ArrayTool extends ModifyTool {
         LOGGER.info("ArrayTool 已创建（兼容模式）");
         
         // 订阅ToolConfigEvent
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
     }
     
     /**

@@ -2,8 +2,8 @@ package com.plot.ui.tools.impl.modify;
 
 import com.plot.core.graphics.DrawContext;
 import com.plot.ui.component.Icons;
+import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
-import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.strategy.OffsetStrategy;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.plot.ui.tools.impl.modify.strategy.SimpleOffsetStrategy;
@@ -39,7 +39,7 @@ public class OffsetTool extends ModifyTool {
      * @param appState 应用状态管理器
      * @param snapManager 吸附管理器
      */
-    public OffsetTool(AppState appState, ISnapManager snapManager) {
+    public OffsetTool(IAppState appState, ISnapManager snapManager) {
         super("offset", "偏移", Icons.OFFSET_IDENTIFIER, 
               "创建偏移对象，支持距离偏移和穿点偏移",
               appState, snapManager);

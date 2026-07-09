@@ -88,7 +88,7 @@ public class ControlPointEditTool extends ModifyTool {
      */
     private void setupEventListeners() {
         // 监听工具配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
             ToolConfigEvent configEvent = (ToolConfigEvent) event;
             if ("control_point_edit".equals(configEvent.getToolId())) {
                 LOGGER.debug("ControlPointEditTool: 收到工具配置事件 key={}, value={}", 

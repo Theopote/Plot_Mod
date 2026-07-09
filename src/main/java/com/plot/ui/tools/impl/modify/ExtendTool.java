@@ -57,7 +57,7 @@ public class ExtendTool extends ModifyTool {
      * @param appState 应用状态管理器
      * @param snapManager 吸附管理器
      */
-    public ExtendTool(AppState appState, ISnapManager snapManager) {
+    public ExtendTool(IAppState appState, ISnapManager snapManager) {
         super("extend",
               "延伸",
               Icons.EXTEND_IDENTIFIER,
@@ -175,7 +175,7 @@ public class ExtendTool extends ModifyTool {
         
         // 在激活时订阅事件 - 使用原子操作确保线程安全
         if (eventSubscribed.compareAndSet(false, true)) {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, toolConfigListener);
+            eventBus.subscribe(ToolConfigEvent.class, toolConfigListener);
             LOGGER.debug("ExtendTool 已订阅 ToolConfigEvent");
         } else {
             LOGGER.debug("ExtendTool 已订阅 ToolConfigEvent，跳过重复订阅");
@@ -204,7 +204,7 @@ public class ExtendTool extends ModifyTool {
         
         // 在停用时取消订阅事件 - 使用原子操作确保线程安全
         if (eventSubscribed.compareAndSet(true, false)) {
-            EventBus.getInstance().unsubscribe(ToolConfigEvent.class, toolConfigListener);
+            eventBus.unsubscribe(ToolConfigEvent.class, toolConfigListener);
             LOGGER.debug("ExtendTool 已取消订阅 ToolConfigEvent");
         } else {
             LOGGER.debug("ExtendTool 未订阅 ToolConfigEvent，跳过取消订阅");

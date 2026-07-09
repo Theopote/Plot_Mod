@@ -89,7 +89,6 @@ public class ArcTool extends DrawingTool {
     private boolean clockwise = true;
     private boolean angleSnap = false;
     private float snapAngle = 45.0f;
-    private final EventBus eventBus = EventBus.getInstance();
     private Vec2d currentMousePoint; // 当前鼠标位置，用于辅助线渲染
 
     /**

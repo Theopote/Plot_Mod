@@ -111,9 +111,6 @@ public class SplineTool extends DrawingTool {
         "继续点击添加控制点，按C键封闭曲线，右键完成绘制"
     );
     
-    // 6. 事件总线引用
-    private final EventBus eventBus = EventBus.getInstance();
-    
     // ====== 构造函数 ======
     
     /**
@@ -126,7 +123,7 @@ public class SplineTool extends DrawingTool {
         updateGenerationStrategy();
         
         // 订阅配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);
         
         // 其他初始化
         updateStatusMessage();
@@ -141,8 +138,6 @@ public class SplineTool extends DrawingTool {
     @Deprecated
     public SplineTool() {
         this(null, null);
-        // 订阅配置事件（为兼容构造函数）
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleConfigEvent);
     }
     
     // ====== 状态管理方法 ======

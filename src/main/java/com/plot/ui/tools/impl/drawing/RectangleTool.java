@@ -97,7 +97,7 @@ public class RectangleTool extends DrawingTool {
                 appState, snapManager, InteractionType.CLICK_AND_CLICK);
 
         // 监听配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);
 
         initializeRectangleTool();
         LOGGER.debug("矩形工具已初始化，当前模式: {}", currentMode.displayName);
@@ -111,7 +111,7 @@ public class RectangleTool extends DrawingTool {
         super("rectangle", "矩形工具", Icons.RECTANGLE_IDENTIFIER, "绘制矩形");
 
         // 监听配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);
 
         initializeRectangleTool();
         LOGGER.debug("矩形工具已初始化（兼容模式），当前模式: {}", currentMode.displayName);

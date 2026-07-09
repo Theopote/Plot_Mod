@@ -1,7 +1,8 @@
 package com.plot.ui.tools.impl.modify;
 
 import com.plot.api.snap.ISnapManager;
-import com.plot.core.state.AppState;
+import com.plot.api.state.IAppState;
+import com.plot.core.shortcut.ShortcutManager;
 import com.plot.ui.component.Icons;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.plot.core.graphics.DrawContext;
@@ -77,10 +78,6 @@ public class TransformTool extends ModifyTool implements EventListener {
     // 默认模式
     public static final String DEFAULT_MODE = MODE_FREE;
     
-    // 依赖注入的组件
-    private final AppState appState;
-    private final EventBus eventBus;
-    
     // 策略实例引用（用于直接更新）
     private com.plot.ui.tools.impl.modify.strategy.TransformWithSelectionStrategy transformStrategy;
     
@@ -97,15 +94,11 @@ public class TransformTool extends ModifyTool implements EventListener {
      * @param snapManager 吸附管理器
      * @param eventBus 事件总线
      */
-    public TransformTool(AppState appState, ISnapManager snapManager, EventBus eventBus) {
-        super("transform", "变换工具", Icons.STRETCH_IDENTIFIER, "变换选中的图形", appState, snapManager);
-        this.appState = Objects.requireNonNull(appState, "AppState不能为空");
-        // 从父类继承，可能在其他地方使用
-        ISnapManager snapManager1 = Objects.requireNonNull(snapManager, "SnapManager不能为空");
-        this.eventBus = Objects.requireNonNull(eventBus, "EventBus不能为空");
-        
-        // 注册事件监听器
-        this.eventBus.subscribe(ToolConfigEvent.class, this);
+    public TransformTool(IAppState appState, ISnapManager snapManager, EventBus eventBus) {
+        super("transform", "变换工具", Icons.STRETCH_IDENTIFIER, "变换选中的图形",
+                appState, snapManager, eventBus, ShortcutManager.getInstance());
+
+        eventBus.subscribe(ToolConfigEvent.class, this);
         
         LOGGER.info("变换工具已初始化，支持中心缩放、旋转和数值输入");
     }
@@ -117,7 +110,7 @@ public class TransformTool extends ModifyTool implements EventListener {
     protected IModifyStrategy createStrategy() {
         // 创建变换策略所需的依赖
         com.plot.ui.tools.impl.modify.helper.TransformHandler transformHandler = 
-            new com.plot.ui.tools.impl.modify.helper.TransformHandler(appState);
+            new com.plot.ui.tools.impl.modify.helper.TransformHandler(concreteAppState);
         com.plot.ui.tools.impl.modify.helper.BoundingBoxControlManager controlManager = 
             new com.plot.ui.tools.impl.modify.helper.BoundingBoxControlManager();
         
@@ -290,9 +283,9 @@ public class TransformTool extends ModifyTool implements EventListener {
      */
     @Override
     public void executeModifyCommand(com.plot.core.command.commands.ModifyCommand command) {
-        if (command != null && commandHistory != null) {
+        if (command != null) {
             try {
-                commandHistory.execute(command);
+                concreteAppState.getCommandHistory().execute(command);
                 LOGGER.debug("TransformTool 执行修改命令: {}", command.getClass().getSimpleName());
                 
                 // 强制同步清理新旧图形的视觉状态：不选中、不高亮

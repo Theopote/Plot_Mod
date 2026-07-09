@@ -79,16 +79,13 @@ public class CatenaryLineTool extends DrawingTool {
      * 订阅配置事件
      */
     private void subscribeToConfigEvents() {
-        EventBus eventBus = EventBus.getInstance();
-        if (eventBus != null) {
-            eventBus.subscribe(ToolConfigEvent.class, event -> {
-                if (event instanceof ToolConfigEvent configEvent) {
-                    if (this.getId().equals(configEvent.getToolId())) {
-                        updateConfig(configEvent.getOptionName(), String.valueOf(configEvent.getValue()));
-                    }
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
+            if (event instanceof ToolConfigEvent configEvent) {
+                if (this.getId().equals(configEvent.getToolId())) {
+                    updateConfig(configEvent.getOptionName(), String.valueOf(configEvent.getValue()));
                 }
-            });
-        }
+            }
+        });
     }
 
     @Override

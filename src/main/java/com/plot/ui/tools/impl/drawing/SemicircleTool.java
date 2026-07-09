@@ -1,6 +1,8 @@
 package com.plot.ui.tools.impl.drawing;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.state.IAppState;
+import com.plot.api.snap.ISnapManager;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
@@ -13,12 +15,10 @@ import imgui.ImDrawList;
 import com.plot.ui.canvas.CanvasCamera;
 import java.util.List;
 import java.util.ArrayList;
-import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.ArcShape;
-import com.plot.core.snap.SnapManager;
 import java.util.Map;
 import java.lang.reflect.Field;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
@@ -114,7 +114,7 @@ public class SemicircleTool extends DrawingTool {
     /**
      * 依赖注入构造函数（推荐方式）
      */
-    public SemicircleTool(AppState appState, SnapManager snapManager) {
+    public SemicircleTool(IAppState appState, ISnapManager snapManager) {
         super("semicircle", "半圆", Icons.SEMICIRCLE_IDENTIFIER,
               "绘制半圆形状，支持多种绘制模式", appState, snapManager, InteractionType.CLICK_AND_CLICK);
 
@@ -150,7 +150,7 @@ public class SemicircleTool extends DrawingTool {
         }
 
         // 订阅配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
             if (event instanceof ToolConfigEvent toolConfigEvent &&
                 getId().equals(toolConfigEvent.getToolId())) {
                 updateConfig(toolConfigEvent.getOptionName(), String.valueOf(toolConfigEvent.getValue()));

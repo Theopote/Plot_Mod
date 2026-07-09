@@ -9,6 +9,7 @@ import com.plot.core.graphics.style.ToolStyle;
 import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.snap.SnapManager;
+import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.state.AppState;
 
 import net.minecraft.util.Identifier;
@@ -61,6 +62,17 @@ import com.plot.ui.tools.impl.drawing.helper.StyleHandler;
  */
 public abstract class DrawingTool extends BaseTool implements IDirty, IInteractionStrategy.DrawingToolContext {
     protected static final Logger LOGGER = LoggerFactory.getLogger(DrawingTool.class);
+
+    private static volatile EventBus sharedEventBus = EventBus.getInstance();
+    private static volatile ShortcutManager sharedShortcutManager = ShortcutManager.getInstance();
+
+    /**
+     * 在组合根配置共享依赖，避免各绘图工具构造器内直接调用单例。
+     */
+    public static void configureSharedDependencies(EventBus eventBus, ShortcutManager shortcutManager) {
+        sharedEventBus = Objects.requireNonNull(eventBus, "EventBus 不能为空");
+        sharedShortcutManager = Objects.requireNonNull(shortcutManager, "ShortcutManager 不能为空");
+    }
     
     /**
      * 绘图工具交互模式枚举
@@ -115,9 +127,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     protected final String toolName;
     protected final Identifier toolIcon;
     protected final String toolDescription;
-    protected final IAppState appState;
     protected final ISnapManager snapManager;
-    protected final EventBus eventBus;
     private final InteractionType interactionType;
     protected final ToolStyle toolStyle;
     
@@ -142,20 +152,26 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     /**
      * 构造函数（推荐方式 - 依赖注入 + 交互模式）
      */
-    protected DrawingTool(String id, String name, Identifier icon, String description, 
+    protected DrawingTool(String id, String name, Identifier icon, String description,
                          IAppState appState, ISnapManager snapManager, InteractionType interactionType) {
-        super(id, name, icon, description);
-        
+        this(id, name, icon, description, appState, snapManager,
+                sharedEventBus, sharedShortcutManager, interactionType);
+    }
+
+    protected DrawingTool(String id, String name, Identifier icon, String description,
+                         IAppState appState, ISnapManager snapManager,
+                         EventBus eventBus, ShortcutManager shortcutManager,
+                         InteractionType interactionType) {
+        super(id, description, icon, name, appState, eventBus, shortcutManager);
+
         this.toolId = id;
         this.toolName = name;
         this.toolIcon = icon;
         this.toolDescription = description;
-        this.appState = Objects.requireNonNull(appState, "AppState 不能为空");
         this.snapManager = snapManager;
         this.interactionType = Objects.requireNonNull(interactionType, "InteractionType 不能为空");
-        this.eventBus = EventBus.getInstance();
         this.toolStyle = new ToolStyle();
-        
+
         // 初始化辅助类
         this.snapHandler = new SnapHandler(appState, snapManager, id);
         this.styleHandler = new StyleHandler(appState, id);
@@ -405,20 +421,9 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
                 ModifyCommand command = new ModifyCommand(Collections.emptyList(), new ArrayList<>(List.of(shape)), concreteAppState);
                 concreteAppState.getCommandHistory().execute(command);
                 LOGGER.debug("工具 [{}] 成功提交图形 [{}] 到AppState", toolId, shape.getId());
-            } else if (appState != null) {
-                // 尝试使用反射调用addShape方法（兼容性处理）
-                try {
-                    java.lang.reflect.Method addShapeMethod = appState.getClass().getMethod("addShape", 
-                        com.plot.core.model.Shape.class);
-                    addShapeMethod.invoke(appState, shape);
-                    LOGGER.debug("工具 [{}] 通过反射成功提交图形 [{}]", toolId, shape.getId());
-                } catch (Exception reflectionEx) {
-                    LOGGER.error("工具 [{}] 无法通过反射添加图形: {}", toolId, reflectionEx.getMessage());
-                    throw new RuntimeException("无法提交图形到AppState", reflectionEx);
-                }
             } else {
-                LOGGER.error("工具 [{}] 无法提交图形，appState 为 null", toolId);
-                throw new IllegalStateException("AppState 不可用");
+                appState.addShape(shape);
+                LOGGER.debug("工具 [{}] 通过 IAppState 成功提交图形 [{}]", toolId, shape.getId());
             }
         } catch (Exception e) {
             LOGGER.error("工具 [{}] 提交图形失败: {}", toolId, e.getMessage(), e);

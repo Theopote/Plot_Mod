@@ -35,7 +35,7 @@ public class MoveTool extends ModifyTool {
      */
     public MoveTool(IAppState appState, ISnapManager snapManager) {
         super("move", "移动", Icons.MOVE_IDENTIFIER, "移动选中的图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("MoveTool 已创建");
     }
 

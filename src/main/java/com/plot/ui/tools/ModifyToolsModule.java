@@ -5,8 +5,7 @@ import java.util.ArrayList;
 
 import com.plot.api.tool.ToolGroup;
 import com.plot.api.state.IAppState;
-import com.plot.core.state.AppState;
-import com.plot.core.snap.SnapManager;
+import com.plot.api.snap.ISnapManager;
 import com.plot.core.command.CommandManager;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
@@ -68,7 +67,7 @@ public final class ModifyToolsModule {
             ToolManager toolManager, 
             IAppState appState, 
             EventBus eventBus,
-            SnapManager snapManager,
+            ISnapManager snapManager,
             CommandManager commandManager) {
         
         // 参数验证
@@ -89,6 +88,8 @@ public final class ModifyToolsModule {
         }
         
         LOGGER.info("开始初始化修改工具模块...");
+
+        ModifyTool.configureSharedDependencies(eventBus, com.plot.core.shortcut.ShortcutManager.getInstance());
         
         try {
             // 创建修改工具组
@@ -134,7 +135,7 @@ public final class ModifyToolsModule {
     private static List<BaseTool> createAllModifyTools(
             IAppState appState, 
             EventBus eventBus,
-            SnapManager snapManager,
+            ISnapManager snapManager,
             CommandManager commandManager) {
         
         LOGGER.debug("开始创建修改工具实例...");
@@ -159,15 +160,15 @@ public final class ModifyToolsModule {
             tools.add(new MirrorTool(appState, snapManager));  // 镜像工具（依赖注入）
             tools.add(new AlignTool(appState, snapManager));   // 对齐工具（依赖注入）
             tools.add(new ArrayTool(appState, snapManager));   // 阵列工具（依赖注入）
-            tools.add(new OffsetTool((AppState) appState, snapManager)); // 偏移工具（依赖注入）
+            tools.add(new OffsetTool(appState, snapManager));
             
             // 编辑工具 - 这些工具通常需要选中对象才能使用
-            tools.add(new BreakTool((AppState) appState, snapManager)); // 打断工具（依赖注入）
-            tools.add(new FilletTool((AppState) appState, snapManager)); // 圆角工具（依赖注入）
-            tools.add(new ChamferTool((AppState) appState, snapManager)); // 倒角工具（依赖注入）
-            tools.add(new ExtendTool((AppState) appState, snapManager)); // 延伸工具（依赖注入）
-            tools.add(new TrimTool(appState, snapManager)); // 修剪工具（依赖注入）
-            tools.add(new TransformTool((AppState) appState, snapManager, eventBus)); // 变换工具（依赖注入）
+            tools.add(new BreakTool(appState, snapManager));
+            tools.add(new FilletTool(appState, snapManager));
+            tools.add(new ChamferTool(appState, snapManager));
+            tools.add(new ExtendTool(appState, snapManager));
+            tools.add(new TrimTool(appState, snapManager));
+            tools.add(new TransformTool(appState, snapManager, eventBus));
             
             // 标注工具
             tools.add(new AnnotationTool(appState, snapManager)); // 标注工具（依赖注入）

@@ -177,7 +177,7 @@ public class PolygonTool extends DrawingTool {
         super("polygon", "多边形", Icons.POLYGON_IDENTIFIER, "绘制正多边形", appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         // 注册配置事件监听
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::onToolConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::onToolConfigEvent);
         
         // 使用反射设置正确的交互类型
         setInteractionTypeUsingReflection();

@@ -122,7 +122,7 @@ public class PolylineTool extends DrawingTool {
         this.currentModeHandler = modeHandlers.get(Constants.Modes.POLYLINE);
         
         // 注册配置事件监听
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, this::onToolConfigEvent);
+        eventBus.subscribe(ToolConfigEvent.class, this::onToolConfigEvent);
         
         // 修复：在模式处理器初始化后重新创建策略
         this.interactionStrategy = new PolylineInteractionStrategy();

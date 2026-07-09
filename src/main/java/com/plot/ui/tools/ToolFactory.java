@@ -2,11 +2,12 @@ package com.plot.ui.tools;
 
 import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
-import com.plot.core.state.AppState;
-import com.plot.core.snap.SnapManager;
 import com.plot.ui.tools.impl.drawing.*;
+import com.plot.ui.tools.impl.modify.TextTool;
 import com.plot.ui.canvas.Canvas;
 import com.plot.core.command.CommandManager;
+import com.plot.core.shortcut.ShortcutManager;
+import com.plot.infrastructure.event.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +89,7 @@ public class ToolFactory {
     
     public SemicircleTool createSemicircleTool() {
         LOGGER.debug("创建 SemicircleTool，使用依赖注入");
-        return new SemicircleTool((AppState) appState, (SnapManager) snapManager);
+        return new SemicircleTool(appState, snapManager);
     }
     
     public StarTool createStarTool() {
@@ -108,12 +109,12 @@ public class ToolFactory {
     
     public SineCurveTool createSineCurveTool() {
         LOGGER.debug("创建 SineCurveTool，使用依赖注入");
-        return new SineCurveTool((AppState) appState, (SnapManager) snapManager);
+        return new SineCurveTool(appState, snapManager);
     }
     
     public SpiralTool createSpiralTool() {
         LOGGER.debug("创建 SpiralTool，使用依赖注入");
-        return new SpiralTool((AppState) appState, (SnapManager) snapManager);
+        return new SpiralTool(appState, snapManager);
     }
     
     public SplineTool createSplineTool() {

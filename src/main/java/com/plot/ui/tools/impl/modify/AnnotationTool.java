@@ -70,7 +70,7 @@ public class AnnotationTool extends ModifyTool {
      */
     public AnnotationTool(IAppState appState, ISnapManager snapManager) {
         super(TOOL_ID, TOOL_NAME, ToolPanelIcons.ANNOTATION, TOOL_DESCRIPTION, 
-              (AppState) appState, snapManager);
+              appState, snapManager);
         
         // 监听工具配置事件
         eventBus.subscribe(ToolConfigEvent.class, new AnnotationToolConfigListener());

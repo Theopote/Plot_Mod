@@ -5,8 +5,9 @@ import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.api.state.IAppState;
+import com.plot.api.snap.ISnapManager;
 import com.plot.core.state.AppState;
-import com.plot.core.snap.SnapManager;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.component.Icons;
@@ -90,7 +91,7 @@ public class SineCurveTool extends DrawingTool {
     /**
      * 依赖注入构造函数（推荐方式）
      */
-    public SineCurveTool(AppState appState, SnapManager snapManager) {
+    public SineCurveTool(IAppState appState, ISnapManager snapManager) {
         super("sine", "正弦曲线", Icons.SINE_IDENTIFIER, 
               "绘制正弦波形，支持自定义波长、振幅和相位", appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
@@ -116,7 +117,7 @@ public class SineCurveTool extends DrawingTool {
      */
     private void initializeSineCurveTool() {
         // 订阅配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
             if (event instanceof ToolConfigEvent toolConfigEvent && 
                 getId().equals(toolConfigEvent.getToolId())) {
                 updateConfig(toolConfigEvent.getOptionName(), String.valueOf(toolConfigEvent.getValue()));

@@ -41,9 +41,8 @@ public class ScaleTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public ScaleTool(IAppState appState, ISnapManager snapManager) {
-        // 注意：这里的(AppState)转换是一个潜在的架构问题，表明父类可能依赖了具体实现而非接口
         super("scale", "缩放", Icons.SCALE_IDENTIFIER, "缩放选中的图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("ScaleTool 已创建");
     }
 

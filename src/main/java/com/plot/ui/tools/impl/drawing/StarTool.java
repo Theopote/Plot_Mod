@@ -110,7 +110,7 @@ public class StarTool extends DrawingTool {
      * 封装通用的初始化逻辑，如事件订阅
      */
     private void init() {
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
             if (event instanceof ToolConfigEvent toolConfigEvent &&
                     getId().equals(toolConfigEvent.getToolId())) {
                 updateConfig(toolConfigEvent.getOptionName(), String.valueOf(toolConfigEvent.getValue()));

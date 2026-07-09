@@ -73,7 +73,6 @@ public class CircleTool extends DrawingTool {
     private List<Vec2d> controlPoints = new ArrayList<>();
     private CircleShape previewCircle;
     private int segments = DEFAULT_SEGMENTS;
-    private final EventBus eventBus = EventBus.getInstance();
     private Vec2d currentMousePoint; // 当前鼠标位置，用于辅助线渲染
     
     // ====== 吸附状态 ======

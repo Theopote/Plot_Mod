@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.modify;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.snap.ISnapManager;
+import com.plot.api.state.IAppState;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -39,7 +40,7 @@ public class BreakTool extends ModifyTool {
      * @param appState 应用状态管理器
      * @param snapManager 吸附管理器
      */
-    public BreakTool(AppState appState, ISnapManager snapManager) {
+    public BreakTool(IAppState appState, ISnapManager snapManager) {
         super("break",
               "打断",
               Icons.BREAK_IDENTIFIER,
@@ -52,7 +53,7 @@ public class BreakTool extends ModifyTool {
     /**
      * 兼容性构造函数（已弃用）
      * 
-     * @deprecated 请使用依赖注入构造函数 {@link #BreakTool(AppState, ISnapManager)}
+     * @deprecated 请使用依赖注入构造函数
      */
     @Deprecated
     public BreakTool() {
@@ -109,7 +110,7 @@ public class BreakTool extends ModifyTool {
         
         // 在激活时订阅事件
         if (!eventSubscribed) {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+            eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
             eventSubscribed = true;
             LOGGER.debug("BreakTool 已订阅 ToolConfigEvent");
         }
@@ -124,7 +125,7 @@ public class BreakTool extends ModifyTool {
         
         // 在停用时取消订阅事件
         if (eventSubscribed) {
-            EventBus.getInstance().unsubscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+            eventBus.unsubscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
             eventSubscribed = false;
             LOGGER.debug("BreakTool 已取消订阅 ToolConfigEvent");
         }

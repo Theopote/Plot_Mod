@@ -2,9 +2,10 @@ package com.plot.ui.tools.impl.modify;
 
 import com.plot.api.model.ICanvas;
 import com.plot.api.snap.ISnapManager;
+import com.plot.api.state.IAppState;
 import com.plot.core.graphics.DrawContext;
-import com.plot.core.state.AppState;
 import com.plot.core.snap.SnapManager;
+import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.component.Icons;
@@ -53,8 +54,7 @@ public class SelectionTool extends ModifyTool {
     /**
      * 构造函数（依赖注入版本）
      */
-    public SelectionTool(AppState appState, ISnapManager snapManager, ICanvas canvas) {
-        // BaseTool(id, description, icon, name)
+    public SelectionTool(IAppState appState, ISnapManager snapManager, ICanvas canvas) {
         super("select", "选择和操作形状 (策略模式版)", Icons.SELECT_IDENTIFIER, "选择工具", 
               appState, snapManager);
         
@@ -79,7 +79,7 @@ public class SelectionTool extends ModifyTool {
      */
     private void setupEventListeners() {
         // 监听工具配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
             ToolConfigEvent configEvent = (ToolConfigEvent) event;
             if ("select".equals(configEvent.getToolId())) {
                 LOGGER.info("SelectionTool: 收到工具配置事件 key={}, value={}", configEvent.getConfigKey(), configEvent.getNewValue());

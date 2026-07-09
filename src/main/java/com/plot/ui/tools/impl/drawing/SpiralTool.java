@@ -5,8 +5,8 @@ import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.SpiralType;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
-import com.plot.core.state.AppState;
-import com.plot.core.snap.SnapManager;
+import com.plot.api.state.IAppState;
+import com.plot.api.snap.ISnapManager;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.component.Icons;
@@ -101,7 +101,7 @@ public class SpiralTool extends DrawingTool {
     /**
      * 依赖注入构造函数（推荐方式）
      */
-    public SpiralTool(AppState appState, SnapManager snapManager) {
+    public SpiralTool(IAppState appState, ISnapManager snapManager) {
         super("spiral", "螺旋线", Icons.SPIRAL_IDENTIFIER, 
               "绘制螺旋线，支持多种螺旋类型和参数", appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
@@ -140,7 +140,7 @@ public class SpiralTool extends DrawingTool {
         initializePreviewSpiral();
         
         // 订阅配置事件
-        EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+        eventBus.subscribe(ToolConfigEvent.class, event -> {
             if (event instanceof ToolConfigEvent toolConfigEvent && 
                 getId().equals(toolConfigEvent.getToolId())) {
                 configManager.handleToolConfig(toolConfigEvent);

@@ -1,7 +1,7 @@
 package com.plot.ui.tools.impl.modify;
 
 import com.plot.api.snap.ISnapManager;
-import com.plot.core.state.AppState;
+import com.plot.api.state.IAppState;
 import com.plot.ui.component.Icons;
 import com.plot.ui.tools.impl.modify.constants.FilletConstants;
 import com.plot.ui.tools.impl.modify.strategy.FilletStrategy;
@@ -48,7 +48,7 @@ public class FilletTool extends ModifyTool implements EventListener {
      * @param snapManager 吸附管理器，不能为空
      * @throws IllegalArgumentException 如果参数为空
      */
-    public FilletTool(AppState appState, ISnapManager snapManager) {
+    public FilletTool(IAppState appState, ISnapManager snapManager) {
         super("fillet", "圆角", Icons.FILLET_IDENTIFIER, "创建圆角", 
               Objects.requireNonNull(appState, "AppState 不能为空"), 
               Objects.requireNonNull(snapManager, "ISnapManager 不能为空"));
@@ -61,21 +61,8 @@ public class FilletTool extends ModifyTool implements EventListener {
     
     @Override
     protected IModifyStrategy createStrategy() {
-        // 优化：简化策略创建逻辑，直接使用父类方法
-        com.plot.api.state.IAppState iAppState = getAppState();
-        if (iAppState == null) {
-            LOGGER.error("AppState 不可用，无法创建 FilletStrategy");
-            return null;
-        }
-        
-        // 类型转换：从接口转换为具体实现
-        if (!(iAppState instanceof AppState appState)) {
-            LOGGER.error("AppState 类型不匹配，期望 AppState 但得到 {}", iAppState.getClass().getSimpleName());
-            return null;
-        }
-        
         try {
-            FilletStrategy strategy = new FilletStrategy(appState);
+            FilletStrategy strategy = new FilletStrategy(concreteAppState);
             LOGGER.debug("FilletStrategy 创建成功");
             return strategy;
         } catch (Exception e) {
@@ -173,7 +160,7 @@ public class FilletTool extends ModifyTool implements EventListener {
      */
     private void subscribeToEvents() {
         if (!isEventSubscribed) {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, this);
+            eventBus.subscribe(ToolConfigEvent.class, this);
             isEventSubscribed = true;
             LOGGER.debug("FilletTool 已订阅 ToolConfigEvent");
         }
@@ -184,7 +171,7 @@ public class FilletTool extends ModifyTool implements EventListener {
      */
     private void unsubscribeFromEvents() {
         if (isEventSubscribed) {
-            EventBus.getInstance().unsubscribe(ToolConfigEvent.class, this);
+            eventBus.unsubscribe(ToolConfigEvent.class, this);
             isEventSubscribed = false;
             LOGGER.debug("FilletTool 已取消订阅 ToolConfigEvent");
         }

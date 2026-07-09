@@ -66,7 +66,6 @@ public class FreeDrawTool extends DrawingTool {
               appState, snapManager, InteractionType.DRAG_AND_DROP);
         
         // 订阅工具配置事件
-        EventBus eventBus = EventBus.getInstance();
         eventBus.subscribe(ToolConfigEvent.class, event -> {
             ToolConfigEvent configEvent = (ToolConfigEvent) event;
             if (TOOL_ID.equals(configEvent.getToolId())) {

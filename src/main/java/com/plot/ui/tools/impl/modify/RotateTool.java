@@ -43,12 +43,12 @@ public class RotateTool extends ModifyTool {
      */
     public RotateTool(IAppState appState, ISnapManager snapManager) {
         super("rotate", "旋转", Icons.ROTATE_IDENTIFIER, "旋转选中的图形",
-              (AppState) appState, snapManager);
+              appState, snapManager);
         LOGGER.info("RotateTool 已创建");
         
         // 订阅工具配置事件，确保右侧面板修改即时生效
         try {
-            EventBus.getInstance().subscribe(ToolConfigEvent.class, event -> {
+            eventBus.subscribe(ToolConfigEvent.class, event -> {
                 if (event instanceof ToolConfigEvent cfg && "rotate".equals(cfg.getToolId())) {
                     try {
                         updateConfig(cfg.getConfigKey(), String.valueOf(cfg.getNewValue()));
