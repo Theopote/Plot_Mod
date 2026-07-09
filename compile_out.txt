@@ -1,0 +1,74 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.15.5
+
+> Task :compileJava
+.\gradlew.bat : C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\PlotMod.java:264: 璀﹀憡: [deprecation] 
+net.fabricmc.fabric.api.resource涓殑SimpleSynchronousResourceReloadListener宸茶繃鏃?                new SimpleSynchronousRes
+ourceReloadListener() {
+所在位置 C:\Users\navib\AppData\Local\Temp\ps-script-e7726b0c-07a5-4396-a5e3-71d48a1baf00.ps1:111 字符: 50
++ ... elopment\PL\plot"; .\gradlew.bat compileJava --no-daemon 2>&1 | Out-F ...
++                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\navib\...oadListener() {:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                    ^
+C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\PlotMod.java:263: 璀﹀憡: [deprecation] ResourceManagerH
+elper涓殑registerReloadListener(IdentifiableResourceReloadListener)宸茶繃鏃?        ResourceManagerHelper.get(ResourceType.C
+LIENT_RESOURCES).registerReloadListener(
+                                                                ^
+C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\ui\tools\impl\modify\ModifyTool.java:212: 閿欒: 鎵句笉鍒扮
+鍙?            return handleModifyResult(result, "榧犳爣绉诲姩");
+                                      ^
+  绗﹀彿:   鍙橀噺 result
+  浣嶇疆: 绫?ModifyTool
+C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\ui\tools\DrawingToolsModule.java:100: 閿欒: 鏃犳硶灏嗙被 Dra
+wingToolsModule涓殑鏂规硶 createAllDrawingTools搴旂敤鍒扮粰瀹氱被鍨?
+            List<BaseTool> tools = createAllDrawingTools(appState, eventBus, snapManager, commandManager);
+                                   ^
+  闇€瑕? IAppState,ISnapManager,CommandManager
+  鎵惧埌:    IAppState,EventBus,ISnapManager,CommandManager
+  鍘熷洜: 瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+2 涓敊璇?
+2 涓鍛?
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///C:/Users/navib/Desktop/development/PL/plot/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\ui\tools\DrawingToolsModule.java:100: 閿欒: 鏃犳硶灏嗙被 D
+rawingToolsModule涓殑鏂规硶 createAllDrawingTools搴旂敤鍒扮粰瀹氱被鍨?
+              List<BaseTool> tools = createAllDrawingTools(appState, eventBus, snapManager, commandManager);
+                                     ^
+    闇€瑕? IAppState,ISnapManager,CommandManager
+    鎵惧埌:    IAppState,EventBus,ISnapManager,CommandManager
+    鍘熷洜: 瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+  C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\PlotMod.java:264: 璀﹀憡: [deprecation] net.fabricmc.f
+abric.api.resource涓殑SimpleSynchronousResourceReloadListener宸茶繃鏃?                  new SimpleSynchronousResourceReloadL
+istener() {
+                      ^
+  C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\PlotMod.java:263: 璀﹀憡: [deprecation] ResourceManage
+rHelper涓殑registerReloadListener(IdentifiableResourceReloadListener)宸茶繃鏃?          ResourceManagerHelper.get(ResourceTy
+pe.CLIENT_RESOURCES).registerReloadListener(
+                                                                  ^
+  C:\Users\navib\Desktop\development\PL\plot\src\main\java\com\plot\ui\tools\impl\modify\ModifyTool.java:212: 閿欒: 鎵句笉鍒
+扮鍙?              return handleModifyResult(result, "榧犳爣绉诲姩");
+                                        ^
+    绗﹀彿:   鍙橀噺 result
+    浣嶇疆: 绫?ModifyTool
+  2 涓敊璇?
+  2 涓鍛?
+
+1 actionable task: 1 executed
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (powered by Develocity).
+
+BUILD FAILED in 13s
