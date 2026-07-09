@@ -2,6 +2,7 @@ package com.plot.ui.dialog.BlockConfigDialog;
 
 import com.plot.infrastructure.event.EventBus;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,25 +72,25 @@ public class BlockCategoryManager {
      * 科学划分Minecraft中的所有方块，确保分类清晰且全面覆盖
      */
     public enum BlockCategory {
-        BUILDING_BLOCKS("建筑方块"),        // 基础结构方块，无特殊功能，强调结构性和通用性
-        COLORED_BLOCKS("染色方块"),         // 具有16种颜色变体的方块，主要用于装饰和调色盘设计
-        NATURAL_TERRAIN("自然地形"),       // 在世界生成时自然出现的方块，通常未经加工
-        PLANTS_FOLIAGE("植物与树叶"),      // 与植物生长、农业或自然环境相关的方块
-        REDSTONE_MECHANISMS("红石与机械"),  // 用于红石电路、机械装置或自动化系统的方块
-        FUNCTIONAL_UTILITY("功能与设施"),   // 具有GUI或可通过玩家交互触发特定功能的方块
-        DECORATIVE_BLOCKS("装饰方块"),     // 主要用于美观，无结构或功能性用途的方块
-        LIGHT_SOURCES("光源方块"),         // 发出光照，用于照明或装饰，防止怪物生成
-        LIQUIDS_ENVIRONMENT("液体与环境"),  // 与液体或环境交互相关的方块，影响地形或机制
-        MISCELLANEOUS("杂项");            // 不适合以上类别的特殊、稀有或混合用途方块
-        
-        private final String displayName;
-        
-        BlockCategory(String displayName) {
-            this.displayName = displayName;
+        BUILDING_BLOCKS("block.plot.category.building_blocks"),
+        COLORED_BLOCKS("block.plot.category.colored_blocks"),
+        NATURAL_TERRAIN("block.plot.category.natural_terrain"),
+        PLANTS_FOLIAGE("block.plot.category.plants_foliage"),
+        REDSTONE_MECHANISMS("block.plot.category.redstone_mechanisms"),
+        FUNCTIONAL_UTILITY("block.plot.category.functional_utility"),
+        DECORATIVE_BLOCKS("block.plot.category.decorative_blocks"),
+        LIGHT_SOURCES("block.plot.category.light_sources"),
+        LIQUIDS_ENVIRONMENT("block.plot.category.liquids_environment"),
+        MISCELLANEOUS("block.plot.category.miscellaneous");
+
+        private final String i18nKey;
+
+        BlockCategory(String i18nKey) {
+            this.i18nKey = i18nKey;
         }
-        
+
         public String getDisplayName() {
-            return displayName;
+            return PlotI18n.tr(i18nKey);
         }
     }
     

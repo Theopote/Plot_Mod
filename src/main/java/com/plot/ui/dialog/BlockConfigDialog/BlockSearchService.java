@@ -1,5 +1,6 @@
 package com.plot.ui.dialog.BlockConfigDialog;
 
+import com.plot.utils.PlotI18n;
 import net.minecraft.block.Block;
 import net.minecraft.registry.Registries;
 import org.slf4j.Logger;
@@ -37,20 +38,20 @@ public class BlockSearchService {
     
     // 搜索范围枚举
     public enum SearchScope {
-        ALL("全部", block -> true),
-        NAME("名称", block -> true),
-        ID("ID", block -> true);
-        
-        private final String displayName;
+        ALL("block.plot.scope.all", block -> true),
+        NAME("block.plot.scope.name", block -> true),
+        ID("block.plot.scope.id", block -> true);
+
+        private final String i18nKey;
         private final Predicate<Block> filter;
-        
-        SearchScope(String displayName, Predicate<Block> filter) {
-            this.displayName = displayName;
+
+        SearchScope(String i18nKey, Predicate<Block> filter) {
+            this.i18nKey = i18nKey;
             this.filter = filter;
         }
-        
+
         public String getDisplayName() {
-            return displayName;
+            return PlotI18n.tr(i18nKey);
         }
 
         public Predicate<Block> getFilter() {

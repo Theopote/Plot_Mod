@@ -2,6 +2,7 @@ package com.plot.ui.dialog.BlockConfigDialog;
 
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -108,7 +109,7 @@ public class BlockSearchManager {
         if (searchBuffer.get().isEmpty()) {
             ImGui.pushStyleColor(ImGuiCol.Text, ImGui.getColorU32(ImGuiCol.TextDisabled));
             shouldPopColor = true;
-            ImGui.inputTextWithHint("##search", "搜索方块...", searchBuffer);
+            ImGui.inputTextWithHint("##search", PlotI18n.tr("block.plot.search_placeholder"), searchBuffer);
         } else {
             ImGui.inputText("##search", searchBuffer);
         }
@@ -172,7 +173,7 @@ public class BlockSearchManager {
     private void renderSearchHint() {
         if (isSearching) {
             ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
-            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, "搜索中...");
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().mutedText, PlotI18n.tr("block.plot.searching"));
             return;
         }
 
@@ -180,7 +181,7 @@ public class BlockSearchManager {
         if (!searchBuffer.get().isEmpty() && searchBuffer.get().trim().isEmpty()) {
             ImGui.sameLine(0, DialogStyleManager.ITEM_SPACING_H);
             ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText,
-                String.format("请输入至少 %d 个字符", MIN_SEARCH_CHARS));
+                PlotI18n.tr("block.plot.min_chars", MIN_SEARCH_CHARS));
         }
     }
     
@@ -236,7 +237,7 @@ public class BlockSearchManager {
         }
         
         // 显示方块数量信息
-        ImGui.text(String.format("显示 %d 个方块", displayBlocks.size()));
+        ImGui.text(PlotI18n.tr("block.plot.display_count", displayBlocks.size()));
         ImGui.separator();
         
         return displayBlocks;

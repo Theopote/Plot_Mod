@@ -87,6 +87,10 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                 // TODO: 显示警告消息
             }
         }
+
+        if (ImGui.isItemHovered()) {
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.block_config_tooltip"));
+        }
     }
     
     /**

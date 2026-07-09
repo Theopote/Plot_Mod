@@ -5,6 +5,7 @@ import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.imgui.ImGuiRenderer;
+import com.plot.utils.PlotI18n;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -180,7 +181,7 @@ public class BlockConfigNativeScreen extends Screen {
 
     // ─────────────────────────────────────────────────────────────────────────
     public BlockConfigNativeScreen(Screen parent) {
-        super(Text.of("方块配置"));
+        super(Text.translatable("block.plot.title"));
         this.configManager = BlockConfigManager.getInstance();
         this.parent = parent;
     }
@@ -257,9 +258,9 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 初始化搜索框 Widget
         if (searchBox == null) {
-            searchBox = new TextFieldWidget(this.textRenderer, searchX + 13, searchY + 2, contentW - 16, SEARCH_H - 4, Text.literal("搜索方块"));
+            searchBox = new TextFieldWidget(this.textRenderer, searchX + 13, searchY + 2, contentW - 16, SEARCH_H - 4, Text.translatable("block.plot.search"));
             searchBox.setMaxLength(128);
-            searchBox.setPlaceholder(Text.literal("搜索方块名称 / ID…"));
+            searchBox.setPlaceholder(Text.translatable("block.plot.search_hint"));
             searchBox.setChangedListener(text -> applySearchFilter());
         } else {
             // 调整位置
@@ -301,9 +302,9 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 底部按钮（宽度按文字自适应，保持按钮更紧凑）
         btnY = panelY + panelH - BOTTOM_MARGIN - BTN_H;
-        btnApplyW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth("✓ 应用") + BTN_TEXT_PAD_X * 2);
-        btnCancelW = Math.max(BTN_MIN_W, this.textRenderer.getWidth("取消") + BTN_TEXT_PAD_X * 2);
-        btnClearW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth("清空") + BTN_TEXT_PAD_X * 2);
+        btnApplyW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.apply")) + BTN_TEXT_PAD_X * 2);
+        btnCancelW = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.cancel")) + BTN_TEXT_PAD_X * 2);
+        btnClearW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.clear")) + BTN_TEXT_PAD_X * 2);
 
         // 三个按钮右对齐
         int totalBtnW = btnApplyW + btnCancelW + btnClearW + BTN_GAP * 2;
@@ -579,20 +580,20 @@ public class BlockConfigNativeScreen extends Screen {
         boolean canNext = page < totalPages - 1;
 
         // 上一页按钮
-        drawPagerButton(context, pagerPrevX, pagerY, "← 上页",
+        drawPagerButton(context, pagerPrevX, pagerY, PlotI18n.tr("block.plot.page_prev"),
                 mouseX, mouseY, canPrev);
 
         // 下一页按钮
-        drawPagerButton(context, pagerNextX, pagerY, "下页 →",
+        drawPagerButton(context, pagerNextX, pagerY, PlotI18n.tr("block.plot.page_next"),
                 mouseX, mouseY, canNext);
 
         // 页码居中显示
         String pageText;
         int totalInCategory = rawCategoryBlocks.size();
         if (totalPages <= 1 && filteredBlocks.isEmpty() && !searchBox.getText().isEmpty()) {
-            pageText = String.format("无结果（此分类总共：%d 方块）", totalInCategory);
+            pageText = PlotI18n.tr("block.plot.no_results", totalInCategory);
         } else {
-            pageText = String.format("%d / %d（此分类总共：%d 方块）", page + 1, totalPages, totalInCategory);
+            pageText = PlotI18n.tr("block.plot.page_info", page + 1, totalPages, totalInCategory);
         }
         int pw = this.textRenderer.getWidth(pageText);
         context.drawText(this.textRenderer, pageText,
@@ -621,11 +622,11 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 标签文字
         int labelY = paletteAreaY + SECTION_GAP;
-        context.drawText(this.textRenderer, Text.of("调色盘"),
+        context.drawText(this.textRenderer, Text.translatable("block.plot.palette"),
                 paletteX, labelY, 0xFFDDDDDD, false);
 
         // 操作提示（右对齐）
-        String hint = "左键添加 · 右键移除 · 左键换位";
+        String hint = PlotI18n.tr("block.plot.palette_hint");
         int hintW = this.textRenderer.getWidth(hint);
         context.drawText(this.textRenderer, hint,
                 panelX + panelW - MARGIN - hintW, labelY, COLOR_TEXT_HINT, false);
@@ -671,12 +672,12 @@ public class BlockConfigNativeScreen extends Screen {
         // 计数行
         int count = palette.size();
         boolean isFull = count >= MAX_PALETTE_SLOTS;
-        String countText = String.format("已选 %d / %d 个方块", count, MAX_PALETTE_SLOTS);
+        String countText = PlotI18n.tr("block.plot.selected_count", count, MAX_PALETTE_SLOTS);
         context.drawText(this.textRenderer, countText,
                 paletteX, paletteCountY,
                 isFull ? COLOR_TEXT_FULL : COLOR_TEXT_MUTED, false);
         if (isFull) {
-            String fullHint = "调色盘已满";
+            String fullHint = PlotI18n.tr("block.plot.palette_full");
             int fw = this.textRenderer.getWidth(fullHint);
             context.drawText(this.textRenderer, fullHint,
                     panelX + panelW - MARGIN - fw, paletteCountY,
@@ -686,9 +687,9 @@ public class BlockConfigNativeScreen extends Screen {
 
     /** 底部操作按钮。 */
     private void renderBottomButtons(DrawContext context, int mouseX, int mouseY) {
-        drawMainButton(context, btnApplyX,  btnY, btnApplyW, "✓ 应用", COLOR_BTN_APPLY,  mouseX, mouseY);
-        drawMainButton(context, btnCancelX, btnY, btnCancelW, "取消",   COLOR_BTN_CANCEL, mouseX, mouseY);
-        drawMainButton(context, btnClearX,  btnY, btnClearW, "清空",   COLOR_BTN_CLEAR,  mouseX, mouseY);
+        drawMainButton(context, btnApplyX,  btnY, btnApplyW, PlotI18n.tr("block.plot.apply"), COLOR_BTN_APPLY,  mouseX, mouseY);
+        drawMainButton(context, btnCancelX, btnY, btnCancelW, PlotI18n.tr("block.plot.cancel"),   COLOR_BTN_CANCEL, mouseX, mouseY);
+        drawMainButton(context, btnClearX,  btnY, btnClearW, PlotI18n.tr("block.plot.clear"),   COLOR_BTN_CLEAR,  mouseX, mouseY);
     }
 
     private void drawMainButton(DrawContext context, int x, int y, int w,

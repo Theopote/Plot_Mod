@@ -110,6 +110,10 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
             ClearCanvasCommand command = new ClearCanvasCommand(appState);
             CommandHistory.getInstance().execute(command);
         }
+
+        if (ImGui.isItemHovered()) {
+            ToolbarUIUtils.renderThemedTooltip(PlotI18n.tr("toolbar.plot.clear_canvas_tooltip"));
+        }
     }
     
     @Override
