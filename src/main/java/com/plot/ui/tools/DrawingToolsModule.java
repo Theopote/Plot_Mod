@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
  * @version 2.0 - 重构版：从管理器简化为初始化模块
  */
 public final class DrawingToolsModule {
+
+    public static final String DRAWING_GROUP_NAME = "Drawing Tools";
     
     private static final Logger LOGGER = LoggerFactory.getLogger(DrawingToolsModule.class);
     
@@ -89,8 +91,10 @@ public final class DrawingToolsModule {
         DrawingTool.configureSharedDependencies(eventBus, com.plot.core.shortcut.ShortcutManager.getInstance());
         
         try {
-            // 创建绘图工具组
-            ToolGroup drawingGroup = createDrawingGroup(toolManager);
+            boolean reinitializing = hasRegisteredDrawingTools(toolManager);
+
+            // 获取或创建绘图工具组；重初始化时先释放旧工具
+            ToolGroup drawingGroup = getOrCreateDrawingGroup(toolManager);
             
             // 创建所有绘图工具
             List<BaseTool> tools = createAllDrawingTools(appState, eventBus, snapManager, commandManager);
@@ -98,8 +102,10 @@ public final class DrawingToolsModule {
             // 注册工具到ToolManager和工具组
             registerTools(toolManager, drawingGroup, tools);
             
-            // 设置默认激活工具
-            setDefaultActiveTool(toolManager);
+            // 仅在首次初始化时设置默认激活工具
+            if (!reinitializing) {
+                setDefaultActiveTool(toolManager);
+            }
             
             LOGGER.info("绘图工具模块初始化完成，共注册 {} 个工具", tools.size());
             
@@ -110,12 +116,24 @@ public final class DrawingToolsModule {
         }
     }
     
+    private static boolean hasRegisteredDrawingTools(ToolManager toolManager) {
+        ToolGroup drawingGroup = toolManager.findGroupByName(DRAWING_GROUP_NAME);
+        return drawingGroup != null && !drawingGroup.getTools().isEmpty();
+    }
+
     /**
-     * 创建绘图工具组
+     * 获取或创建绘图工具组；若分组已存在则先注销并释放其中工具。
      */
-    private static ToolGroup createDrawingGroup(ToolManager toolManager) {
+    private static ToolGroup getOrCreateDrawingGroup(ToolManager toolManager) {
+        ToolGroup existingGroup = toolManager.findGroupByName(DRAWING_GROUP_NAME);
+        if (existingGroup != null) {
+            LOGGER.debug("释放现有绘图工具组中的工具: {}", DRAWING_GROUP_NAME);
+            toolManager.unregisterToolsInGroup(existingGroup);
+            return existingGroup;
+        }
+
         LOGGER.debug("创建绘图工具组");
-        ToolGroup drawingGroup = new ToolGroupImpl("Drawing Tools");
+        ToolGroup drawingGroup = new ToolGroupImpl(DRAWING_GROUP_NAME);
         toolManager.addGroup(drawingGroup);
         return drawingGroup;
     }
@@ -265,10 +283,7 @@ public final class DrawingToolsModule {
         
         try {
             // 检查是否有绘图工具组
-            ToolGroup drawingGroup = toolManager.getToolGroups().stream()
-                .filter(group -> "Drawing Tools".equals(group.getName()))
-                .findFirst()
-                .orElse(null);
+            ToolGroup drawingGroup = toolManager.findGroupByName(DRAWING_GROUP_NAME);
             
             if (drawingGroup == null) {
                 LOGGER.error("验证失败: 未找到绘图工具组");

@@ -586,10 +586,12 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
 
     // ====== 资源清理 ======
 
+    @Override
     public void dispose() {
         try {
             LOGGER.debug("DrawingTool [{}] 开始资源清理", toolId);
             resetDrawing("资源清理");
+            super.dispose();
             LOGGER.debug("DrawingTool [{}] 资源清理完成", toolId);
         } catch (Exception e) {
             LOGGER.error("DrawingTool [{}] 资源清理时出错: {}", toolId, e.getMessage(), e);

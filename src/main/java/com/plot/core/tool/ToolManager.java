@@ -87,14 +87,51 @@ public class ToolManager implements IToolManager {
             setActiveTool(null);
         }
 
-        ToolGroup group = tool.getGroup();
-        if (group != null) {
+        for (ToolGroup group : new ArrayList<>(groups.values())) {
             group.removeTool(tool);
         }
 
         tools.remove(tool.getId());
         notifyToolUnregistered(tool);
+        disposeTool(tool);
         LogManager.getInstance().debug("Unregistered tool: " + tool.getName());
+    }
+
+    /**
+     * 注销指定分组内的所有工具并释放其资源。
+     */
+    public void unregisterToolsInGroup(ToolGroup group) {
+        if (group == null) {
+            return;
+        }
+        for (ITool tool : new ArrayList<>(group.getTools())) {
+            unregisterTool(tool);
+        }
+    }
+
+    /**
+     * 按名称查找已注册的工具分组。
+     */
+    public ToolGroup findGroupByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        return groups.values().stream()
+                .filter(group -> name.equals(group.getName()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void disposeTool(ITool tool) {
+        if (tool == null) {
+            return;
+        }
+        try {
+            tool.dispose();
+            LogManager.getInstance().debug("Disposed tool: " + tool.getName());
+        } catch (Exception e) {
+            LogManager.getInstance().error("Error disposing tool: " + tool.getName(), e);
+        }
     }
 
     public ITool getTool(String toolId) {
@@ -258,6 +295,9 @@ public class ToolManager implements IToolManager {
 
     public void reset() {
         setActiveTool(null);
+        for (ITool tool : new ArrayList<>(tools.values())) {
+            disposeTool(tool);
+        }
         tools.clear();
         groups.clear();
         listeners.clear();
@@ -428,8 +468,13 @@ public class ToolManager implements IToolManager {
             // Deactivate current tool
             if (activeTool != null) {
                 activeTool.deactivate();
+                activeTool = null;
             }
-            
+
+            for (ITool tool : new ArrayList<>(tools.values())) {
+                disposeTool(tool);
+            }
+
             // Clear all tools and groups
             tools.clear();
             groups.clear();

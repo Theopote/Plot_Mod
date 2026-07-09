@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
  * @version 3.0 - 完全依赖注入版：消除所有单例依赖，实现最高内聚最低耦合
  */
 public final class ModifyToolsModule {
+
+    public static final String MODIFY_GROUP_NAME = "Modify Tools";
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ModifyToolsModule.class);
     
@@ -92,8 +94,8 @@ public final class ModifyToolsModule {
         ModifyTool.configureSharedDependencies(eventBus, com.plot.core.shortcut.ShortcutManager.getInstance());
         
         try {
-            // 创建修改工具组
-            ToolGroup modifyGroup = createModifyGroup(toolManager);
+            // 获取或创建修改工具组；重初始化时先释放旧工具
+            ToolGroup modifyGroup = getOrCreateModifyGroup(toolManager);
             
             // 创建所有修改工具
             List<BaseTool> tools = createAllModifyTools(appState, eventBus, snapManager, commandManager);
@@ -110,12 +112,16 @@ public final class ModifyToolsModule {
         }
     }
     
-    /**
-     * 创建修改工具组
-     */
-    private static ToolGroup createModifyGroup(ToolManager toolManager) {
+    private static ToolGroup getOrCreateModifyGroup(ToolManager toolManager) {
+        ToolGroup existingGroup = toolManager.findGroupByName(MODIFY_GROUP_NAME);
+        if (existingGroup != null) {
+            LOGGER.debug("释放现有修改工具组中的工具: {}", MODIFY_GROUP_NAME);
+            toolManager.unregisterToolsInGroup(existingGroup);
+            return existingGroup;
+        }
+
         LOGGER.debug("创建修改工具组");
-        ToolGroup modifyGroup = new ToolGroupImpl("Modify Tools");
+        ToolGroup modifyGroup = new ToolGroupImpl(MODIFY_GROUP_NAME);
         toolManager.addGroup(modifyGroup);
         return modifyGroup;
     }
@@ -240,10 +246,7 @@ public final class ModifyToolsModule {
         
         try {
             // 检查是否有修改工具组
-            ToolGroup modifyGroup = toolManager.getToolGroups().stream()
-                .filter(group -> "Modify Tools".equals(group.getName()))
-                .findFirst()
-                .orElse(null);
+            ToolGroup modifyGroup = toolManager.findGroupByName(MODIFY_GROUP_NAME);
             
             if (modifyGroup == null) {
                 LOGGER.error("验证失败: 未找到修改工具组");
