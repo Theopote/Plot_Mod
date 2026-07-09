@@ -414,7 +414,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
             double scaleFactor = params.getDouble("scaleFactor", 1.0);
             return String.format("缩放比例: %.2fx", scaleFactor);
         }
-        return "缩放预览中...";
+        return "status.plot.transform.preview";
     }
 
     /**
