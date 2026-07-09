@@ -54,7 +54,8 @@ public final class ShapeSerialization {
                 new SineCurveShape(ORIGIN, ORIGIN, 1, 1, 0), data));
         register("TextShape", data -> deserializeInto(new TextShape(ORIGIN, ""), data));
         register("CableShape", data -> deserializeInto(new CableShape(ORIGIN, ORIGIN, 0, 8), data));
-        register("AnnotationShape", data -> deserializeAnnotation(data));
+        register("AnnotationShape", data -> deserializeInto(
+                AnnotationShape.createDistanceAnnotation(ORIGIN, ORIGIN, ""), data));
     }
 
     private ShapeSerialization() {
@@ -101,17 +102,6 @@ public final class ShapeSerialization {
         return shape;
     }
 
-    private static Shape deserializeAnnotation(String data) {
-        try {
-            return deserializeInto(
-                    AnnotationShape.createDistanceAnnotation(ORIGIN, ORIGIN, ""),
-                    data);
-        } catch (UnsupportedOperationException ex) {
-            LOGGER.warn("标注图形暂不支持反序列化，已跳过");
-            return null;
-        }
-    }
-
     static String inferTypeFromData(String data) {
         String trimmed = data.trim();
         if (trimmed.startsWith("{")) {
@@ -133,7 +123,15 @@ public final class ShapeSerialization {
             if (trimmed.contains("\"center\"") && trimmed.contains("\"turns\"")) {
                 return "SpiralShape";
             }
-            if (trimmed.contains("\"type\":\"DISTANCE\"") || trimmed.contains("\"type\":\"ANGLE\"")) {
+            if (trimmed.contains("\"annotationType\":\"DISTANCE\"")
+                    || trimmed.contains("\"annotationType\":\"ANGLE\"")
+                    || trimmed.contains("\"annotationType\":\"RADIUS\"")
+                    || trimmed.contains("\"annotationType\":\"AREA\"")
+                    || trimmed.contains("\"type\":\"DISTANCE\"")
+                    || trimmed.contains("\"type\":\"ANGLE\"")
+                    || trimmed.contains("\"type\":\"RADIUS\"")
+                    || trimmed.contains("\"type\":\"AREA\"")
+                    || trimmed.contains("\"shapeType\":\"AnnotationShape\"")) {
                 return "AnnotationShape";
             }
             return null;

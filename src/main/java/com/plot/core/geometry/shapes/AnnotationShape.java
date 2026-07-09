@@ -11,7 +11,12 @@ import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import imgui.ImDrawList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -22,6 +27,8 @@ import java.util.List;
  * 用于在画布上显示标注信息（距离、角度、半径、面积）
  */
 public class AnnotationShape extends Shape {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AnnotationShape.class);
+    private static final Gson GSON = new GsonBuilder().create();
 
     /**
      * 标注类型
@@ -34,10 +41,10 @@ public class AnnotationShape extends Shape {
     }
     
     // 标注类型
-    private final AnnotationType annotationType;
+    private AnnotationType annotationType;
     
     // 标注文本
-    private final String annotationText;
+    private String annotationText;
     
     // 距离标注：两个点
     private Vec2d point1;
@@ -1035,14 +1042,168 @@ public class AnnotationShape extends Shape {
     
     @Override
     public String serialize() {
-        // 简化序列化实现
-        return String.format("{\"type\":\"%s\",\"text\":\"%s\"}", annotationType.name(), annotationText);
+        try {
+            AnnotationShapeData data = new AnnotationShapeData();
+            data.annotationType = annotationType.name();
+            data.text = annotationText;
+            data.textPosition = toPointData(textPosition);
+            data.point1 = toPointData(point1);
+            data.point2 = toPointData(point2);
+            data.angleVertex = toPointData(angleVertex);
+            data.anglePoint1 = toPointData(anglePoint1);
+            data.anglePoint2 = toPointData(anglePoint2);
+            data.center = toPointData(center);
+            data.radius = radius;
+            data.visible = visible;
+            if (style != null && style.getLineStyle() != null) {
+                data.lineColor = style.getLineStyle().getColor();
+                data.lineWidth = style.getLineStyle().getWidth();
+            }
+            return GSON.toJson(data);
+        } catch (Exception e) {
+            LOGGER.error("序列化标注图形时发生错误: {}", e.getMessage(), e);
+            throw new RuntimeException("标注图形序列化失败", e);
+        }
     }
     
     @Override
     public void deserialize(String data) {
-        // 标注图形不支持反序列化
-        throw new UnsupportedOperationException("标注图形不支持反序列化");
+        if (data == null || data.isBlank()) {
+            throw new IllegalArgumentException("序列化数据不能为空");
+        }
+
+        try {
+            AnnotationShapeData shapeData = GSON.fromJson(data.trim(), AnnotationShapeData.class);
+            if (shapeData == null) {
+                throw new IllegalArgumentException("无法解析标注数据");
+            }
+
+            String typeName = shapeData.annotationType != null ? shapeData.annotationType : shapeData.type;
+            if (typeName == null || typeName.isBlank()) {
+                throw new IllegalArgumentException("缺少标注类型");
+            }
+
+            AnnotationType restoredType = AnnotationType.valueOf(typeName);
+            validateGeometry(restoredType, shapeData);
+
+            annotationType = restoredType;
+            annotationText = shapeData.text != null ? shapeData.text : "";
+            point1 = fromPointData(shapeData.point1);
+            point2 = fromPointData(shapeData.point2);
+            angleVertex = fromPointData(shapeData.angleVertex);
+            anglePoint1 = fromPointData(shapeData.anglePoint1);
+            anglePoint2 = fromPointData(shapeData.anglePoint2);
+            center = fromPointData(shapeData.center);
+            radius = shapeData.radius;
+            textPosition = resolveTextPosition(restoredType, shapeData);
+            setPosition(textPosition);
+            setVisible(shapeData.visible);
+
+            if (shapeData.lineColor != null || shapeData.lineWidth > 0) {
+                ShapeStyle shapeStyle = new ShapeStyle();
+                LineStyle lineStyle = new LineStyle();
+                if (shapeData.lineColor != null) {
+                    lineStyle.setColor(shapeData.lineColor);
+                }
+                if (shapeData.lineWidth > 0) {
+                    lineStyle.setWidth(shapeData.lineWidth);
+                }
+                shapeStyle.setLineStyle(lineStyle);
+                setStyle(shapeStyle);
+            }
+        } catch (JsonSyntaxException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("标注图形反序列化失败: " + e.getMessage(), e);
+        }
+    }
+
+    private static void validateGeometry(AnnotationType type, AnnotationShapeData data) {
+        switch (type) {
+            case DISTANCE -> {
+                if (data.point1 == null || data.point2 == null) {
+                    throw new IllegalArgumentException("距离标注缺少端点数据");
+                }
+            }
+            case ANGLE -> {
+                if (data.angleVertex == null || data.anglePoint1 == null || data.anglePoint2 == null) {
+                    throw new IllegalArgumentException("角度标注缺少顶点数据");
+                }
+            }
+            case RADIUS -> {
+                if (data.center == null || data.radius <= 0) {
+                    throw new IllegalArgumentException("半径标注缺少圆心或半径");
+                }
+            }
+            case AREA -> {
+                if (data.textPosition == null && data.center == null) {
+                    throw new IllegalArgumentException("面积标注缺少位置数据");
+                }
+            }
+            default -> throw new IllegalArgumentException("未知标注类型: " + type);
+        }
+    }
+
+    private static Vec2d resolveTextPosition(AnnotationType type, AnnotationShapeData data) {
+        Vec2d resolved = fromPointData(data.textPosition);
+        if (resolved != null) {
+            return resolved;
+        }
+
+        return switch (type) {
+            case DISTANCE -> {
+                Vec2d p1 = fromPointData(data.point1);
+                Vec2d p2 = fromPointData(data.point2);
+                yield new Vec2d((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+            }
+            case ANGLE -> {
+                Vec2d vertex = fromPointData(data.angleVertex);
+                yield new Vec2d(vertex.x + 20, vertex.y - 20);
+            }
+            case RADIUS -> {
+                Vec2d centerPoint = fromPointData(data.center);
+                yield new Vec2d(centerPoint.x + data.radius + 10, centerPoint.y);
+            }
+            case AREA -> fromPointData(data.center);
+        };
+    }
+
+    private static PointData toPointData(Vec2d point) {
+        if (point == null) {
+            return null;
+        }
+        PointData data = new PointData();
+        data.x = point.x;
+        data.y = point.y;
+        return data;
+    }
+
+    private static Vec2d fromPointData(PointData point) {
+        if (point == null) {
+            return null;
+        }
+        return new Vec2d(point.x, point.y);
+    }
+
+    private static class PointData {
+        public double x;
+        public double y;
+    }
+
+    private static class AnnotationShapeData {
+        public String shapeType = "AnnotationShape";
+        public String annotationType;
+        public String type;
+        public String text;
+        public PointData textPosition;
+        public PointData point1;
+        public PointData point2;
+        public PointData angleVertex;
+        public PointData anglePoint1;
+        public PointData anglePoint2;
+        public PointData center;
+        public double radius;
+        public Color lineColor;
+        public float lineWidth;
+        public boolean visible = true;
     }
     
     @Override

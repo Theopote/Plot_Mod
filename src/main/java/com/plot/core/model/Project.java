@@ -10,6 +10,8 @@ import com.plot.core.layer.LayerManager;
 import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.model.serialization.ShapeSerialization;
 import com.plot.core.state.AppState;
+import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.Events;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -273,13 +275,20 @@ public class Project {
         project.canvasModel = fromCanvasSnapshot(snapshot.canvas);
 
         List<ILayer> restoredLayers = new ArrayList<>();
+        RestoreStats restoreStats = new RestoreStats();
         if (snapshot.layers != null) {
             for (ProjectSnapshot.LayerSnapshot layerSnapshot : snapshot.layers) {
-                Layer layer = fromLayerSnapshot(layerSnapshot);
+                Layer layer = fromLayerSnapshot(layerSnapshot, restoreStats);
                 if (layer != null) {
                     restoredLayers.add(layer);
                 }
             }
+        }
+
+        if (restoreStats.skippedShapes > 0) {
+            String message = buildRestoreWarningMessage(restoreStats);
+            LOGGER.warn(message);
+            EventBus.getInstance().publish(new Events.WarningEvent("Project", message));
         }
 
         if (restoredLayers.isEmpty()) {
@@ -339,7 +348,7 @@ public class Project {
         return snapshot;
     }
 
-    private static Layer fromLayerSnapshot(ProjectSnapshot.LayerSnapshot snapshot) {
+    private static Layer fromLayerSnapshot(ProjectSnapshot.LayerSnapshot snapshot, RestoreStats restoreStats) {
         if (snapshot == null) {
             return null;
         }
@@ -372,15 +381,36 @@ public class Project {
                 Shape shape = ShapeSerialization.deserialize(shapeSnapshot.type, shapeSnapshot.data);
                 if (shape != null) {
                     layer.addShape(shape);
+                } else if (restoreStats != null) {
+                    restoreStats.skippedShapes++;
+                    if ("AnnotationShape".equals(shapeSnapshot.type)) {
+                        restoreStats.skippedAnnotations++;
+                    }
                 }
             }
         }
         return layer;
     }
 
+    private static String buildRestoreWarningMessage(RestoreStats restoreStats) {
+        if (restoreStats.skippedAnnotations > 0 && restoreStats.skippedAnnotations == restoreStats.skippedShapes) {
+            return String.format("有 %d 个标注图形未能恢复，请重新创建。", restoreStats.skippedAnnotations);
+        }
+        if (restoreStats.skippedAnnotations > 0) {
+            return String.format("有 %d 个图形未能恢复（其中 %d 个为标注）。",
+                    restoreStats.skippedShapes, restoreStats.skippedAnnotations);
+        }
+        return String.format("有 %d 个图形未能恢复。", restoreStats.skippedShapes);
+    }
+
+    private static final class RestoreStats {
+        private int skippedShapes;
+        private int skippedAnnotations;
+    }
+
     private static Layer copyLayer(ILayer sourceLayer) {
         ProjectSnapshot.LayerSnapshot snapshot = toLayerSnapshot(sourceLayer);
-        return fromLayerSnapshot(snapshot);
+        return fromLayerSnapshot(snapshot, null);
     }
 
     private void replaceLayers(List<ILayer> newLayers, ILayer preferredActiveLayer) {
