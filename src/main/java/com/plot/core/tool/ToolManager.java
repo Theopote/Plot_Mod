@@ -7,8 +7,6 @@ import com.plot.core.log.LogManager;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolChangedEvent;
 import com.plot.infrastructure.event.tool.ToolEvent;
-import com.plot.infrastructure.event.selection.SelectionChangedEvent;
-import com.plot.infrastructure.event.EventListener;
 import com.plot.core.config.ConfigManager;
 import com.plot.core.state.AppState;
 
@@ -17,19 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 工具管理器 (最终修复版 V3 - 选择感知优化版)
+ * 工具管理器
  * <p>
- * 主要优化：
- * 1. 移除过时的setCanvas和initializeTools方法 - 工具注册现在由专门的模块负责
- * 2. 简化事件处理 - 专注于核心工具管理功能
- * 3. 通过AppState统一获取Canvas引用 - 确保数据一致性
- * 4. 清晰的职责分离 - ToolManager专注工具生命周期管理
- * 5. 新增选择感知功能 - 监听选择变更事件，自动更新选择感知工具的状态
- * <p>
- * <strong>选择感知设计：</strong>
- * ToolManager现在负责监听SelectionChangedEvent，并通知所有实现了
- * ISelectionAwareTool接口的工具更新其状态。这将之前在各个管理器中
- * 分散的updateForSelection逻辑统一到了ToolManager中。
+ * 负责工具注册、激活/停用、分组与配置持久化。
+ * 选择相关行为由 {@link com.plot.ui.tools.impl.modify.strategy.IModifyStrategy} 在策略层处理。
  */
 public class ToolManager implements IToolManager {
     private static ToolManager INSTANCE;
@@ -40,9 +29,6 @@ public class ToolManager implements IToolManager {
     private final List<IToolListener> listeners;
     private ITool activeTool;
     private final ToolGroup defaultGroup;
-    
-    // 选择感知功能
-    private final EventListener selectionChangedListener;
 
     private ToolManager(AppState appState) {
         if (appState == null) {
@@ -56,11 +42,6 @@ public class ToolManager implements IToolManager {
         // 创建默认工具组
         this.defaultGroup = new ToolGroupImpl("Default");
         addGroup(defaultGroup);
-        
-        // 初始化选择感知功能
-        this.selectionChangedListener = this::onSelectionChanged;
-        EventBus.getInstance().subscribe(SelectionChangedEvent.class, selectionChangedListener);
-        LogManager.getInstance().debug("ToolManager: 已注册选择变更监听器");
     }
 
     public static void initialize(AppState appState) {
@@ -416,12 +397,6 @@ public class ToolManager implements IToolManager {
             // Save configurations before disposing
             saveToolConfigs();
             
-            // 取消订阅选择变更事件
-            if (selectionChangedListener != null) {
-                EventBus.getInstance().unsubscribe(SelectionChangedEvent.class, selectionChangedListener);
-                LogManager.getInstance().debug("ToolManager: 已取消选择变更监听器");
-            }
-            
             // Deactivate current tool
             if (activeTool != null) {
                 activeTool.deactivate();
@@ -436,41 +411,5 @@ public class ToolManager implements IToolManager {
         } catch (Exception e) {
             LogManager.getInstance().error("Error disposing ToolManager", e);
         }
-    }
-    
-    /**
-     * 处理选择变更事件
-     * 
-     * <p>当选择状态发生变化时，此方法会被调用。它会遍历所有注册的工具，
-     * 对于实现了 ISelectionAwareTool 接口的工具，调用其 onSelectionChanged 方法。</p>
-     * 
-     * @param event 选择变更事件
-     */
-    private void onSelectionChanged(com.plot.infrastructure.event.base.Event event) {
-        if (!(event instanceof SelectionChangedEvent selectionEvent)) {
-            return;
-        }
-        
-        boolean hasSelection = !selectionEvent.getSelectedShapes().isEmpty();
-        int selectionCount = selectionEvent.getSelectedShapes().size();
-        
-        LogManager.getInstance().debug("ToolManager: 处理选择变更事件，选中对象数量: {}", selectionCount);
-        
-        // 通知所有选择感知工具
-        int notifiedCount = 0;
-        for (ITool tool : tools.values()) {
-            if (tool instanceof ISelectionAwareTool selectionAwareTool) {
-                try {
-                    selectionAwareTool.onSelectionChanged(hasSelection);
-                    notifiedCount++;
-                    
-                    LogManager.getInstance().debug("ToolManager: 已通知工具 '{}' 选择状态变更", tool.getName());
-                } catch (Exception e) {
-                    LogManager.getInstance().error("ToolManager: 通知工具 '{}' 选择状态变更时发生错误", tool.getName(), e);
-                }
-            }
-        }
-        
-        LogManager.getInstance().debug("ToolManager: 选择状态更新完成，通知了 {} 个选择感知工具", notifiedCount);
     }
 }
