@@ -8,6 +8,7 @@ import com.plot.core.state.AppState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,18 +36,18 @@ public class ScaleHandler implements IModifyHandler {
      * 缩放中心模式枚举
      */
     public enum ScaleCenterMode {
-        SHAPE("图形中心"),
-        SELECTION("选择中心"),
-        CUSTOM("自定义点");
+        SHAPE("mode.plot.scale.center.shape"),
+        SELECTION("mode.plot.scale.center.selection"),
+        CUSTOM("mode.plot.scale.center.custom");
 
-        private final String displayName;
+        private final String nameKey;
         
-        ScaleCenterMode(String displayName) { 
-            this.displayName = displayName; 
+        ScaleCenterMode(String nameKey) { 
+            this.nameKey = nameKey; 
         }
         
         public String getDisplayName() { 
-            return displayName; 
+            return PlotI18n.modeLabel(nameKey); 
         }
         
         /**

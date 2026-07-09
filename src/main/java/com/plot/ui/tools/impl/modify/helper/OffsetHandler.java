@@ -73,10 +73,10 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
      */
     private String checkOffsetCompatibility(Shape shape) {
         if (shape instanceof BezierCurveShape) {
-            return "样条曲线偏移可能不够准确，建议使用其他方法";
+            return PlotI18n.status("status.plot.offset.warn.bezier");
         }
         if (shape instanceof CableShape) {
-            return "悬链线偏移可能不够准确，建议使用其他方法";
+            return PlotI18n.status("status.plot.offset.warn.cable");
         }
         return null;
     }

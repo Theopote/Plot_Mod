@@ -1,5 +1,7 @@
 package com.plot.ui.tools.impl.modify.exception;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 阵列操作异常
  * 
@@ -14,46 +16,42 @@ public class ArrayOperationException extends RuntimeException {
      * 异常类型枚举
      */
     public enum ErrorType {
-        INVALID_SOURCE_SHAPE("无效的源图形"),
-        INVALID_BASE_POINT("无效的基准点"),
-        INVALID_PATH_POINTS("无效的路径点"),
-        CLONE_FAILED("图形克隆失败"),
-        INSUFFICIENT_PATH_POINTS("路径点不足"),
-        INVALID_ARRAY_PARAMETERS("无效的阵列参数"),
-        PREVIEW_CALCULATION_FAILED("预览计算失败");
+        INVALID_SOURCE_SHAPE("status.plot.array.error.invalid_source"),
+        INVALID_BASE_POINT("status.plot.array.error.invalid_base_point"),
+        INVALID_PATH_POINTS("status.plot.array.error.invalid_path_points"),
+        CLONE_FAILED("status.plot.array.error.clone_failed"),
+        INSUFFICIENT_PATH_POINTS("status.plot.array.error.insufficient_path_points"),
+        INVALID_ARRAY_PARAMETERS("status.plot.array.error.invalid_parameters"),
+        PREVIEW_CALCULATION_FAILED("status.plot.array.error.preview_failed");
         
-        private final String message;
+        private final String messageKey;
         
-        ErrorType(String message) {
-            this.message = message;
+        ErrorType(String messageKey) {
+            this.messageKey = messageKey;
         }
         
         public String getMessage() {
-            return message;
+            return PlotI18n.status(messageKey);
         }
     }
     
     private final ErrorType errorType;
 
-    /**
-     * 构造函数
-     * @param errorType 错误类型
-     * @param message 详细错误信息
-     */
-    public ArrayOperationException(ErrorType errorType, String message) {
-        super(String.format("%s: %s", errorType.getMessage(), message));
+    public ArrayOperationException(ErrorType errorType, String detailKey, Object... detailArgs) {
+        super(formatMessage(errorType, detailKey, detailArgs));
         this.errorType = errorType;
     }
 
-    /**
-     * 构造函数
-     * @param errorType 错误类型
-     * @param message 详细错误信息
-     * @param cause 原因异常
-     */
-    public ArrayOperationException(ErrorType errorType, String message, Throwable cause) {
-        super(String.format("%s: %s", errorType.getMessage(), message), cause);
+    public ArrayOperationException(ErrorType errorType, String detailKey, Throwable cause) {
+        super(formatMessage(errorType, detailKey), cause);
         this.errorType = errorType;
+    }
+
+    private static String formatMessage(ErrorType errorType, String detailKey, Object... detailArgs) {
+        String detail = detailKey != null && detailKey.startsWith("status.plot.")
+                ? PlotI18n.status(detailKey, detailArgs)
+                : (detailKey != null ? detailKey : "");
+        return PlotI18n.status("status.plot.array.error.combined", errorType.getMessage(), detail);
     }
 
 }

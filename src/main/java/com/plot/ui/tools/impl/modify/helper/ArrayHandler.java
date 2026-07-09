@@ -65,7 +65,7 @@ public class ArrayHandler implements IModifyHandler {
             // 检查图形列表
             if (shapes == null || shapes.isEmpty()) {
                 throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_SOURCE_SHAPE, 
-                    "没有选择要阵列的图形");
+                    "status.plot.array.no_selection");
             }
             
             // 使用模式匹配安全处理类型转换
@@ -80,7 +80,7 @@ public class ArrayHandler implements IModifyHandler {
                 String arrayType = params.getString("arrayType", "");
                 if (arrayType.isEmpty()) {
                     throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_ARRAY_PARAMETERS, 
-                        "阵列类型无效");
+                        "status.plot.array.invalid_type");
                 }
                 
                 // 非路径阵列要求基准点，路径阵列不依赖基准点
@@ -88,7 +88,7 @@ public class ArrayHandler implements IModifyHandler {
                     Vec2d basePoint = params.getVec2d("basePoint");
                     if (basePoint == null) {
                         throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_BASE_POINT,
-                            "阵列基准点无效");
+                            "status.plot.array.invalid_base_point_detail");
                     }
                 }
                 
@@ -271,15 +271,15 @@ public class ArrayHandler implements IModifyHandler {
         
         if (pathPoints == null || pathPoints.size() < 2) {
             throw new ArrayOperationException(ArrayOperationException.ErrorType.INSUFFICIENT_PATH_POINTS,
-                PlotI18n.status("status.plot.array.path_points_insufficient",
-                    pathPoints != null ? pathPoints.size() : 0));
+                "status.plot.array.path_points_insufficient",
+                pathPoints != null ? pathPoints.size() : 0);
         }
         
         // 计算路径总长度
         double totalLength = calculatePathLength(pathPoints);
         if (totalLength <= GEOMETRY_EPS) {
             throw new ArrayOperationException(ArrayOperationException.ErrorType.INVALID_ARRAY_PARAMETERS,
-                "路径长度为0，无法阵列");
+                "status.plot.array.path_zero_length");
         }
 
         double stepLength = totalLength / (count - 1);
@@ -314,14 +314,14 @@ public class ArrayHandler implements IModifyHandler {
                             arrayedShapes.add(arrayedShape);
                         } else {
                             throw new ArrayOperationException(ArrayOperationException.ErrorType.CLONE_FAILED, 
-                                "图形克隆返回null");
+                                "status.plot.array.clone_null");
                         }
                     } catch (Exception e) {
                         if (e instanceof ArrayOperationException) {
                             throw e;
                         }
-                        throw new ArrayOperationException(ArrayOperationException.ErrorType.CLONE_FAILED, 
-                            "克隆图形失败", e);
+                        throw new ArrayOperationException(ArrayOperationException.ErrorType.CLONE_FAILED,
+                            "status.plot.array.clone_failed_detail", e);
                     }
                 }
             }

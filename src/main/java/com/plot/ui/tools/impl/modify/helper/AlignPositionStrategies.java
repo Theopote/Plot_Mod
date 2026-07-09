@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.helper;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,12 +51,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "左对齐";
+            return PlotI18n.modeLabel("align.plot.mode.left");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "将图形左边缘对齐到参考边界";
+            return PlotI18n.modeLabel("align.plot.mode.left.desc");
         }
         
         @Override
@@ -88,12 +89,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "右对齐";
+            return PlotI18n.modeLabel("align.plot.mode.right");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "将图形右边缘对齐到参考边界";
+            return PlotI18n.modeLabel("align.plot.mode.right.desc");
         }
         
         @Override
@@ -128,12 +129,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "中心对齐";
+            return PlotI18n.modeLabel("align.plot.mode.center");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "将图形水平中心对齐到参考中心";
+            return PlotI18n.modeLabel("align.plot.mode.center.desc");
         }
         
         @Override
@@ -166,12 +167,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "顶部对齐";
+            return PlotI18n.modeLabel("align.plot.mode.top");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "将图形顶部边缘对齐到参考边界";
+            return PlotI18n.modeLabel("align.plot.mode.top.desc");
         }
         
         @Override
@@ -204,12 +205,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "底部对齐";
+            return PlotI18n.modeLabel("align.plot.mode.bottom");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "将图形底部边缘对齐到参考边界";
+            return PlotI18n.modeLabel("align.plot.mode.bottom.desc");
         }
         
         @Override
@@ -244,12 +245,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "中间对齐";
+            return PlotI18n.modeLabel("align.plot.mode.middle");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "将图形垂直中心对齐到参考中心";
+            return PlotI18n.modeLabel("align.plot.mode.middle.desc");
         }
         
         @Override
@@ -302,12 +303,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "水平分布";
+            return PlotI18n.modeLabel("align.plot.mode.distribute_h");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "在水平方向均匀分布图形";
+            return PlotI18n.modeLabel("align.plot.mode.distribute_h.desc");
         }
         
         @Override
@@ -360,12 +361,12 @@ public class AlignPositionStrategies {
         
         @Override
         public String getStrategyName() {
-            return "垂直分布";
+            return PlotI18n.modeLabel("align.plot.mode.distribute_v");
         }
         
         @Override
         public String getStrategyDescription() {
-            return "在垂直方向均匀分布图形";
+            return PlotI18n.modeLabel("align.plot.mode.distribute_v.desc");
         }
         
         @Override

@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.dto;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.modify.helper.IModifyHandler;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -56,19 +57,19 @@ public class ExtendParameters implements IModifyHandler.ModifyParameters {
     public ExtendParameters(Vec2d extendPoint, List<Shape> boundaryShapes, double tolerance, double endpointTolerance) {
         // 参数验证
         if (extendPoint == null) {
-            throw new IllegalArgumentException("延伸点不能为空");
+            throw new IllegalArgumentException(PlotI18n.status("status.plot.extend.point_required"));
         }
         if (boundaryShapes == null) {
-            throw new IllegalArgumentException("边界图形列表不能为空");
+            throw new IllegalArgumentException(PlotI18n.status("status.plot.extend.boundary_required"));
         }
         if (boundaryShapes.isEmpty()) {
-            throw new IllegalArgumentException("边界图形列表不能为空");
+            throw new IllegalArgumentException(PlotI18n.status("status.plot.extend.boundary_required"));
         }
         if (tolerance <= 0) {
-            throw new IllegalArgumentException("延伸容差必须大于0，当前值: " + tolerance);
+            throw new IllegalArgumentException(PlotI18n.status("status.plot.extend.tolerance_positive_value", tolerance));
         }
         if (endpointTolerance <= 0) {
-            throw new IllegalArgumentException("端点容差必须大于0，当前值: " + endpointTolerance);
+            throw new IllegalArgumentException(PlotI18n.status("status.plot.extend.endpoint_tolerance_positive_value", endpointTolerance));
         }
         
         // 防御性拷贝：创建不可修改的列表副本
@@ -161,16 +162,16 @@ public class ExtendParameters implements IModifyHandler.ModifyParameters {
      */
     public String getValidationErrorMessage() {
         if (extendPoint == null) {
-            return "延伸点不能为空";
+            return "status.plot.extend.point_required";
         }
         if (boundaryShapes == null || boundaryShapes.isEmpty()) {
-            return "边界图形列表不能为空";
+            return "status.plot.extend.boundary_required";
         }
         if (tolerance <= 0) {
-            return "延伸容差必须大于0";
+            return "status.plot.extend.tolerance_positive";
         }
         if (endpointTolerance <= 0) {
-            return "端点容差必须大于0";
+            return "status.plot.extend.endpoint_tolerance_positive";
         }
         return null;
     }
