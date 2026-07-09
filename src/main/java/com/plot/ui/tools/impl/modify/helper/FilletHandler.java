@@ -615,7 +615,7 @@ public class FilletHandler implements IModifyHandler {
                 LOGGER.warn("无法生成圆角结果图形");
                 return null;
             }
-            return new ModifyCommand(originalShapes, effectiveModifiedShapes, appState, "圆角");
+            return new ModifyCommand(originalShapes, effectiveModifiedShapes, appState, "history.plot.op.fillet");
         } catch (Exception e) {
             LOGGER.error("创建圆角命令失败", e);
             return null;

@@ -80,23 +80,23 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
      * 绘图工具交互模式枚举
      */
     protected enum InteractionType {
-        DRAG_AND_DROP("拖放模式", "按下鼠标拖动绘制，松开完成"),
-        CLICK_AND_CLICK("点击模式", "点击设置控制点，移动显示预览，再次点击完成");
-        
-        private final String displayName;
-        private final String description;
-        
-        InteractionType(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        DRAG_AND_DROP("mode.plot.interaction.drag_drop", "mode.plot.interaction.drag_drop.desc"),
+        CLICK_AND_CLICK("mode.plot.interaction.click_click", "mode.plot.interaction.click_click.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        InteractionType(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
-        
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
+
         @Override
         public String toString() {
-            return displayName + ": " + description;
+            return getDisplayName() + ": " + getDescription();
         }
     }
 
@@ -104,19 +104,19 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
      * 工具状态枚举
      */
     public enum ToolState {
-        IDLE("空闲", "工具处于空闲状态，等待用户操作"),
-        DRAWING("绘制中", "正在进行绘制操作，显示实时预览");
-        
-        private final String displayName;
-        private final String description;
-        
-        ToolState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        IDLE("mode.plot.common.idle", "mode.plot.eraser.state.idle.desc"),
+        DRAWING("mode.plot.draw.state.drawing", "mode.plot.draw.state.drawing.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        ToolState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 鼠标按键常量
@@ -477,6 +477,16 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     }
 
     // ====== 状态消息管理 ======
+
+    @Override
+    public String getName() {
+        return PlotI18n.toolLabel(toolId);
+    }
+
+    @Override
+    public String getDescription() {
+        return PlotI18n.toolDescription(toolId);
+    }
 
     protected void setStatusMessage(String message) {
         this.statusMessage = message != null ? message : "";

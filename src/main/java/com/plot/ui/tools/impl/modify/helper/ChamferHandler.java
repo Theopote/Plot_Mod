@@ -60,7 +60,7 @@ public class ChamferHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         // 检查图形列表
         if (shapes == null || shapes.size() != 2) {
-            return ValidationResult.invalid("倒角操作需要选择两个对象");
+            return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.need_two_objects"));
         }
 
         Shape shape1 = shapes.get(0);
@@ -79,21 +79,21 @@ public class ChamferHandler implements IModifyHandler {
             if (shape1 instanceof PolylineShape polyline) {
                 List<Shape> result = calculateSinglePolylineChamfer(polyline, distance, clickPoint1, clickPoint2);
                 return result.isEmpty()
-                        ? ValidationResult.invalid("无法在该折线拐角创建倒角")
+                        ? ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.polyline_corner_invalid"))
                         : ValidationResult.valid();
             }
             if (shape1 instanceof Polygon polygon) {
                 List<Shape> result = calculateSinglePolygonChamfer(polygon, distance, clickPoint1, clickPoint2);
                 return result.isEmpty()
-                        ? ValidationResult.invalid("无法在该多边形拐角创建倒角")
+                        ? ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.polygon_corner_invalid"))
                         : ValidationResult.valid();
             }
-            return ValidationResult.invalid("同一对象倒角仅支持折线与多边形");
+            return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.same_shape_unsupported"));
         }
 
         // 不同对象模式：当前仅支持两条直线
         if (!(shape1 instanceof LineShape line1) || !(shape2 instanceof LineShape line2)) {
-            return ValidationResult.invalid("不同对象倒角目前仅支持两条直线；折线/多边形请对同一对象选择两次");
+            return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.diff_lines_only"));
         }
         
         return validateLinePair(line1, line2, distance, clickPoint1, clickPoint2);
@@ -103,7 +103,7 @@ public class ChamferHandler implements IModifyHandler {
                                               Vec2d clickPoint1, Vec2d clickPoint2) {
         // 检查两条直线是否相交
         if (!linesIntersect(line1, line2)) {
-            return ValidationResult.invalid("两条直线必须相交才能进行倒角操作");
+            return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.lines_must_intersect"));
         }
         
         // 检查倒角距离是否超出选定保留端可用长度
@@ -263,7 +263,7 @@ public class ChamferHandler implements IModifyHandler {
             }
 
             List<Shape> uniqueOriginalShapes = uniqueByIdentity(originalShapes);
-            return new ModifyCommand(uniqueOriginalShapes, finalShapes, appState, "倒角");
+            return new ModifyCommand(uniqueOriginalShapes, finalShapes, appState, "history.plot.op.chamfer");
             
         } catch (Exception e) {
             LOGGER.error("status.plot.chamfer.command_failed", e);

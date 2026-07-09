@@ -83,21 +83,21 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
      * 修改工具状态枚举
      */
     public enum ToolState {
-        IDLE("空闲", "工具处于空闲状态，等待用户操作"),
-        SELECTING("选择中", "正在选择要修改的图形"),
-        MODIFYING("修改中", "正在修改选中的图形"),
-        PREVIEWING("预览中", "显示修改预览效果");
-        
-        private final String displayName;
-        private final String description;
-        
-        ToolState(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        IDLE("mode.plot.common.idle", "mode.plot.eraser.state.idle.desc"),
+        SELECTING("mode.plot.tool.state.selecting", "mode.plot.tool.state.selecting.desc"),
+        MODIFYING("mode.plot.tool.state.modifying", "mode.plot.tool.state.modifying.desc"),
+        PREVIEWING("mode.plot.array.state.previewing", "mode.plot.array.state.previewing.desc");
+
+        private final String nameKey;
+        private final String descKey;
+
+        ToolState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
-        
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 鼠标按键常量
@@ -449,6 +449,16 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     public void setModifyToolState(ToolState state) {
         this.currentState = state;
         LOGGER.trace("ModifyTool [{}] 内部状态变更: {}", toolId, state.getDisplayName());
+    }
+
+    @Override
+    public String getName() {
+        return PlotI18n.toolLabel(toolId);
+    }
+
+    @Override
+    public String getDescription() {
+        return PlotI18n.toolDescription(toolId);
     }
 
     @Override

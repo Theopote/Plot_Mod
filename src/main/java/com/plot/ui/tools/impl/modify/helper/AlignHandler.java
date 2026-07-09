@@ -209,7 +209,7 @@ public class AlignHandler implements IModifyHandler {
                 originalShapes,
                 modifiedShapes,
                 com.plot.core.state.AppState.getInstance(),
-                "对齐"
+                "history.plot.op.align"
             );
         } catch (Exception e) {
             LOGGER.error("创建对齐命令失败: {}", e.getMessage(), e);

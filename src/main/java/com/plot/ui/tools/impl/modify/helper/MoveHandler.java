@@ -183,7 +183,7 @@ public class MoveHandler implements IModifyHandler {
             return new CopyMoveCommand(originalShapes, modifiedShapes, appState);
         } else {
             // 移动模式：替换原图形
-            return new ModifyCommand(originalShapes, modifiedShapes, appState, "移动");
+            return new ModifyCommand(originalShapes, modifiedShapes, appState, "history.plot.op.move");
         }
     }
     

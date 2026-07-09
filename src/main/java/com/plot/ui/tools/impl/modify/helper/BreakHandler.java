@@ -131,7 +131,7 @@ public class BreakHandler implements IModifyHandler {
                 return null;
             }
             
-            ModifyCommand command = new ModifyCommand(originalShapes, modifiedShapes, appState, "打断");
+            ModifyCommand command = new ModifyCommand(originalShapes, modifiedShapes, appState, "history.plot.op.break");
             LOGGER.debug("成功创建打断命令");
             return command;
             
