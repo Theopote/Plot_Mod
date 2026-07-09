@@ -224,7 +224,7 @@ public class StatusPanel implements UIComponent {
                         ImGui.tableNextColumn();
                         ImGui.textColored(currentTheme.mutedText, PlotI18n.tr("status.plot.status"));
                         ImGui.tableNextColumn();
-                        ImGui.text(status != null ? status : PlotI18n.tr("status.plot.ready"));
+                        ImGui.text(status != null && !status.isBlank() ? status : PlotI18n.tr("status.plot.ready"));
                         
                         ImGui.endTable();
                     }

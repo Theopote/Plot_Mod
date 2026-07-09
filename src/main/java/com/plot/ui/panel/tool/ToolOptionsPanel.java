@@ -291,15 +291,23 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     }
 
     private void renderToolUsage(BaseTool tool) {
-        String usageHint = currentToolStatusMessage.isEmpty()
-            ? getDefaultToolUsageHint(tool)
-            : currentToolStatusMessage;
+        String usageHint = resolveToolUsageHint(tool);
 
-        // 显示当前工具的使用方法提示（实时消息优先，否则显示默认使用方法）
         if (!usageHint.isEmpty()) {
             ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, PlotI18n.tr("panel.plot.usage"));
             ImGui.textWrapped(usageHint);
         }
+    }
+
+    private String resolveToolUsageHint(BaseTool tool) {
+        if (tool == null) {
+            return "";
+        }
+        if (tool instanceof com.plot.ui.tools.impl.drawing.LineTool lineTool
+                && "multi".equals(lineTool.getDrawingMode())) {
+            return PlotI18n.tr("tool.plot.line.multi.hint");
+        }
+        return getDefaultToolUsageHint(tool);
     }
 
     private String getDefaultToolUsageHint(BaseTool tool) {

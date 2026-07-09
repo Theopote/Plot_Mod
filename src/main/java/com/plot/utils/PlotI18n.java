@@ -1,5 +1,6 @@
 package com.plot.utils;
 
+import com.plot.core.graphics.style.LineStyle;
 import net.minecraft.text.Text;
 
 /**
@@ -12,6 +13,45 @@ public final class PlotI18n {
 
     public static String tr(String key, Object... args) {
         return Text.translatable(key, args).getString();
+    }
+
+    public static String lineTypeLabel(LineStyle.LineType type) {
+        if (type == null) {
+            return "";
+        }
+        return tr("line.plot." + type.name().toLowerCase());
+    }
+
+    public static String shapeTypeLabel(String className) {
+        if (className == null || className.isBlank()) {
+            return tr("history.plot.shape.generic");
+        }
+        String key = "shape.plot." + shapeTypeKey(className);
+        String translated = tr(key);
+        return translated.equals(key) ? className : translated;
+    }
+
+    private static String shapeTypeKey(String className) {
+        return switch (className) {
+            case "LineShape" -> "line";
+            case "CircleShape" -> "circle";
+            case "ArcShape" -> "arc";
+            case "RectangleShape" -> "rectangle";
+            case "EllipseShape" -> "ellipse";
+            case "EllipticalArcShape" -> "elliptical_arc";
+            case "PolylineShape" -> "polyline";
+            case "BezierCurveShape" -> "bezier";
+            case "SineCurveShape" -> "sine";
+            case "SpiralShape" -> "spiral";
+            case "TextShape" -> "text";
+            case "AnnotationShape" -> "annotation";
+            case "CableShape" -> "cable";
+            case "Polygon" -> "polygon";
+            case "FreeDrawPath" -> "free_draw";
+            default -> className.endsWith("Shape")
+                    ? className.substring(0, className.length() - 5).toLowerCase()
+                    : className.toLowerCase();
+        };
     }
 
     public static String toolLabel(String toolId) {
