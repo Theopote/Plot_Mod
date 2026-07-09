@@ -206,6 +206,6 @@ public class ExtendParameters implements IModifyHandler.ModifyParameters {
     @Override
     public void setParameter(String key, Object value) {
         // ExtendParameters 是不可变的，不支持设置参数
-        throw new UnsupportedOperationException("ExtendParameters 是不可变的，不支持设置参数");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_extend_parameters"));
     }
 } 

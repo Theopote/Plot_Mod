@@ -128,7 +128,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     public void setFontName(String name) {
         // 由于字段不可变，此方法仅用于接口兼容性
         // 实际使用时应该通过Builder创建新实例
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -140,7 +140,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     public void setFontFamily(String family) {
         // 由于字段不可变，此方法仅用于接口兼容性
         // 实际使用时应该通过Builder创建新实例
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -151,7 +151,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     @Override
     public void setFontSize(float size) {
         // 由于字段不可变，此方法仅用于接口兼容性
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -162,7 +162,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     @Override
     public void setColor(Color color) {
         // 由于字段不可变，此方法仅用于接口兼容性
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -173,7 +173,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     @Override
     public void setBold(boolean bold) {
         // 由于字段不可变，此方法仅用于接口兼容性
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -184,7 +184,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     @Override
     public void setItalic(boolean italic) {
         // 由于字段不可变，此方法仅用于接口兼容性
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -195,7 +195,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     @Override
     public void setLineHeight(float height) {
         // 由于字段不可变，此方法仅用于接口兼容性
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     @Override
@@ -206,7 +206,7 @@ public class TextStyle implements ITextStyle, Cloneable {
     @Override
     public void setFontColor(int color) {
         // 由于字段不可变，此方法仅用于接口兼容性
-        throw new UnsupportedOperationException("TextStyle是不可变对象，请使用Builder创建新实例");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.immutable_text_style"));
     }
 
     public TextStyle withFontSize(float fontSize) {
