@@ -378,9 +378,9 @@ public class PolygonTool extends DrawingTool {
      */
     private String calculateInfoText() {
         if (previewGeometry.radius > 0) {
-            return String.format("%d边形, 半径: %.2f", sides, previewGeometry.radius);
+            return PlotI18n.status("status.plot.draw.polygon.sides_radius", sides, previewGeometry.radius);
         }
-        return String.format("%d边形", sides);
+        return PlotI18n.status("status.plot.draw.polygon.sides", sides);
     }
     
     // ====== 统一渲染方法 ======

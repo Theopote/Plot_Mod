@@ -439,7 +439,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                     Collections.emptyList(),
                     new ArrayList<>(List.of(annotationShape)),
                     appStateImpl,
-                    "添加标注"
+                    "history.plot.op.annotation"
                 );
                 context.executeModifyCommand(command);
                 LOGGER.debug("{}图形已添加到画布", annotationTypeName);

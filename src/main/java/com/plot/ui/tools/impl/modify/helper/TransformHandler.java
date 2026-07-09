@@ -10,6 +10,7 @@ import com.plot.ui.tools.impl.modify.exception.InvalidTransformException;
 import com.plot.ui.tools.impl.modify.helper.BoundingBoxControlManager.ControlPointType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +58,7 @@ public class TransformHandler implements IModifyHandler {
             
             // 检查图形列表
             if (shapes.isEmpty()) {
-                return ValidationResult.invalid("变换操作需要选择至少一个图形");
+                return ValidationResult.invalid(PlotI18n.status("status.plot.transform.need_shapes"));
             }
             
             // 检查图形对象
@@ -69,7 +70,7 @@ public class TransformHandler implements IModifyHandler {
             
         } catch (Exception e) {
             LOGGER.error("变换操作验证时发生错误: {}", e.getMessage(), e);
-            return ValidationResult.invalid("验证失败: " + e.getMessage());
+            return ValidationResult.invalid(PlotI18n.status("status.plot.transform.validation_failed", e.getMessage()));
         }
     }
     
@@ -157,7 +158,7 @@ public class TransformHandler implements IModifyHandler {
             
             if (originalShapes.isEmpty()) {
                 throw new InvalidTransformException(
-                    "变换命令需要至少一个图形，但提供了空列表",
+                    PlotI18n.status("status.plot.transform.empty_shapes"),
                     InvalidTransformException.ErrorCode.INVALID_SHAPE,
                     InvalidTransformException.Context.TRANSFORM_HANDLER
                 );
@@ -166,7 +167,7 @@ public class TransformHandler implements IModifyHandler {
             // 验证TransformParams参数
             if (!validateTransformParams(transformParams)) {
                 throw new InvalidTransformException(
-                    "变换参数验证失败",
+                    PlotI18n.status("status.plot.transform.params_invalid"),
                     InvalidTransformException.ErrorCode.INVALID_DRAG_VECTOR,
                     InvalidTransformException.Context.TRANSFORM_HANDLER
                 );
@@ -201,7 +202,7 @@ public class TransformHandler implements IModifyHandler {
             if (Double.isNaN(dragVector.x) || Double.isNaN(dragVector.y) ||
                 Double.isInfinite(dragVector.x) || Double.isInfinite(dragVector.y)) {
                 throw new InvalidTransformException(
-                    String.format("拖拽向量包含无效值: (%f, %f)", dragVector.x, dragVector.y),
+                    PlotI18n.status("status.plot.transform.invalid_drag_vector", dragVector.x, dragVector.y),
                     InvalidTransformException.ErrorCode.INVALID_DRAG_VECTOR,
                     InvalidTransformException.Context.TRANSFORM_HANDLER
                 );
@@ -212,7 +213,7 @@ public class TransformHandler implements IModifyHandler {
             int numControlPoints = ControlPointType.values().length;
             if (controlPointIndex < 0 || controlPointIndex >= numControlPoints) {
                 throw new InvalidTransformException(
-                    String.format("控制点索引超出范围: %d (有效范围: 0-%d)", 
+                    PlotI18n.status("status.plot.transform.invalid_control_index",
                         controlPointIndex, numControlPoints - 1),
                     InvalidTransformException.ErrorCode.INVALID_CONTROL_POINT_INDEX,
                     InvalidTransformException.Context.TRANSFORM_HANDLER
@@ -222,7 +223,7 @@ public class TransformHandler implements IModifyHandler {
             // 验证控制点类型
             if (params.getControlPointType() == null) {
                 throw new InvalidTransformException(
-                    "控制点类型不能为空",
+                    PlotI18n.status("status.plot.transform.control_type_required"),
                     InvalidTransformException.ErrorCode.INVALID_CONTROL_POINT,
                     InvalidTransformException.Context.TRANSFORM_HANDLER
                 );

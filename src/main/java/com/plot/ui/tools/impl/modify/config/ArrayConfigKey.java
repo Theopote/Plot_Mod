@@ -1,5 +1,7 @@
 package com.plot.ui.tools.impl.modify.config;
 
+import com.plot.utils.PlotI18n;
+
 /**
  * 阵列工具配置键枚举
  * 
@@ -97,7 +99,7 @@ public enum ArrayConfigKey {
         
         if (!isValueTypeValid(value)) {
             throw new IllegalArgumentException(
-                String.format("配置键 %s 期望类型 %s，但收到类型 %s", 
+                PlotI18n.status("status.plot.config.type_mismatch",
                     key, valueType.getSimpleName(), value.getClass().getSimpleName()));
         }
         

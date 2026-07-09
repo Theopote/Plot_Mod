@@ -14,6 +14,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.tools.impl.modify.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 /**
  * 修改工具模块 - 负责创建和注册所有修改/编辑工具
@@ -223,7 +224,7 @@ public final class ModifyToolsModule {
                 
             } catch (Exception e) {
                 // 激进策略：立即抛出异常，中断初始化过程
-                String errorMsg = String.format("注册修改工具 '%s' 失败，应用无法正常启动", tool.getName());
+                String errorMsg = PlotI18n.status("status.plot.module.register_modify_tool_failed", tool.getName());
                 LOGGER.error(errorMsg, e);
                 throw new RuntimeException(errorMsg, e);
             }

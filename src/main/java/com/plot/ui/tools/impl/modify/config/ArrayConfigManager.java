@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.config;
 import com.plot.ui.tools.impl.modify.strategy.ArrayStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -121,7 +122,7 @@ public class ArrayConfigManager {
             };
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
-                String.format("配置键 %s 的值 '%s' 无法转换为 %s 类型", 
+                PlotI18n.status("status.plot.config.convert_failed",
                     configKey.getKey(), value, configKey.getValueType().getSimpleName()));
         }
     }

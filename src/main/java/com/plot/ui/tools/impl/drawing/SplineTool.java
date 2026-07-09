@@ -156,17 +156,16 @@ public class SplineTool extends DrawingTool {
             index = 2; // 显示包含C键封闭提示的消息
         }
         
-        String baseMessage = STATUS_MESSAGES.get(index);
-        
-        StringBuilder message = new StringBuilder(baseMessage);
-        message.append(" (").append(config.getCurrentMode().getDisplayName()).append(")");
-        
-        if (!controlPoints.isEmpty()) {
-            message.append(" - 已添加 ").append(controlPoints.size()).append(" 个点");
+        String baseMessage = PlotI18n.status(STATUS_MESSAGES.get(index));
+        String modeName = config.getCurrentMode().getDisplayName();
+
+        if (controlPoints.isEmpty()) {
+            setStatusMessage(PlotI18n.status("status.plot.draw.spline.with_mode", baseMessage, modeName));
+        } else {
+            setStatusMessage(PlotI18n.status("status.plot.draw.spline.with_mode_points",
+                    baseMessage, modeName, controlPoints.size()));
         }
-        
-        setStatusMessage(message.toString());
-        LOGGER.debug("样条工具状态消息已更新: {}", message);
+        LOGGER.debug("样条工具状态消息已更新");
     }
     
     /**
@@ -445,11 +444,12 @@ public class SplineTool extends DrawingTool {
     private String buildTooltipMessage() {
         SplineMode currentMode = config.getCurrentMode();
 
-        return currentMode.getDisplayName() +
-                "\n控制点数: " + controlPoints.size() +
-                "\n类型: " + currentMode.getDescription() +
-                "\n张力: " + String.format("%.2f", config.getTension()) +
-                "\n采样段数: " + config.getSegments();
+        return PlotI18n.status("status.plot.draw.spline.tooltip",
+                currentMode.getDisplayName(),
+                controlPoints.size(),
+                currentMode.getDescription(),
+                config.getTension(),
+                config.getSegments());
     }
     
     // ====== 预览渲染方法 ======

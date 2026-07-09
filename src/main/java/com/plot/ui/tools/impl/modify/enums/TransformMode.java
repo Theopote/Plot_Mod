@@ -42,7 +42,7 @@ public enum TransformMode {
                 return mode;
             }
         }
-        throw new IllegalArgumentException("无效的变换模式: " + value);
+        throw new IllegalArgumentException(PlotI18n.status("status.plot.transform.invalid_mode", value));
     }
     
     @Override

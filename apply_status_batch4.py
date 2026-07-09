@@ -132,9 +132,13 @@ KEYS = {
         "Failed to register tool '%s'; application cannot start",
         "注册工具 '%s' 失败，应用无法正常启动",
     ),
-    "status.plot.module.register_modify_tool_failed": (
-        "Failed to register modify tool '%s'; application cannot start",
-        "注册修改工具 '%s' 失败，应用无法正常启动",
+    "status.plot.transform.validation_failed": (
+        "Validation failed: %s",
+        "验证失败: %s",
+    ),
+    "status.plot.transform.need_shapes": (
+        "Transform requires at least one selected shape",
+        "变换操作需要选择至少一个图形",
     ),
 }
 
