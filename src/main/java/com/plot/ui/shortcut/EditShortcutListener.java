@@ -4,6 +4,7 @@ import com.plot.api.shortcut.IShortcutListener;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.infrastructure.event.command.UndoEvent;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +58,6 @@ public class EditShortcutListener implements IShortcutListener {
     
     @Override
     public String getDescription() {
-        return "处理基本编辑操作（撤销、重做）的快捷键";
+        return PlotI18n.tr("shortcut.plot.edit.desc");
     }
 } 

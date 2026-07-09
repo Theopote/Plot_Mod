@@ -132,4 +132,38 @@ public final class PlotI18n {
         }
         return toolId.toLowerCase().trim();
     }
+
+    public static String defaultProjectName() {
+        return tr("project.plot.unnamed");
+    }
+
+    public static String defaultCanvasName() {
+        return tr("project.plot.default_canvas");
+    }
+
+    public static String defaultLayerName() {
+        return tr("layer.plot.initial_name");
+    }
+
+    public static String fallbackLayerName() {
+        return tr("layer.plot.fallback_name");
+    }
+
+    public static String layerPropertyLabel(String propertyName) {
+        if (propertyName == null || propertyName.isBlank()) {
+            return "";
+        }
+        String key = "layer.plot.property." + propertyName;
+        String translated = tr(key);
+        return translated.equals(key) ? propertyName : translated;
+    }
+
+    public static String layerContentChangeLabel(String changeType) {
+        if (changeType == null || changeType.isBlank()) {
+            return "";
+        }
+        String key = "layer.plot.event.content." + changeType;
+        String translated = tr(key);
+        return translated.equals(key) ? changeType : translated;
+    }
 }

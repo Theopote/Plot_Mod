@@ -44,12 +44,12 @@ public class Project {
 
     private Project(String id, String name, boolean initializeDefaults) {
         this.id = id;
-        this.name = name != null && !name.isBlank() ? name : "未命名项目";
+        this.name = name != null && !name.isBlank() ? name : PlotI18n.defaultProjectName();
         this.modified = false;
-        this.canvasModel = new CanvasModel("默认画布", 800, 600);
+        this.canvasModel = new CanvasModel(PlotI18n.defaultCanvasName(), 800, 600);
 
         if (initializeDefaults) {
-            ILayer defaultLayer = new Layer("默认图层");
+            ILayer defaultLayer = new Layer(PlotI18n.defaultLayerName());
             layers.add(defaultLayer);
             activeLayer = defaultLayer;
         }
@@ -128,11 +128,11 @@ public class Project {
      */
     public static Project captureFromAppState(AppState appState) {
         if (appState == null) {
-            return new Project("未命名项目");
+            return new Project(PlotI18n.defaultProjectName());
         }
 
         Project existing = appState.getCurrentProject();
-        String projectName = existing != null ? existing.getName() : "未命名项目";
+        String projectName = existing != null ? existing.getName() : PlotI18n.defaultProjectName();
         Project project = existing != null
                 ? new Project(existing.getId(), projectName, false)
                 : new Project(projectName);
@@ -223,19 +223,19 @@ public class Project {
     public static Project deserialize(String data) {
         if (data == null || data.isBlank()) {
             LOGGER.warn("项目反序列化失败：输入为空");
-            return new Project("未命名项目");
+            return new Project(PlotI18n.defaultProjectName());
         }
 
         try {
             ProjectSnapshot snapshot = GSON.fromJson(data, ProjectSnapshot.class);
             if (snapshot == null) {
                 LOGGER.warn("项目反序列化失败：JSON 解析结果为空");
-                return new Project("未命名项目");
+                return new Project(PlotI18n.defaultProjectName());
             }
             return fromSnapshot(snapshot);
         } catch (JsonSyntaxException e) {
             LOGGER.error("项目反序列化失败：JSON 格式无效", e);
-            return new Project("未命名项目");
+            return new Project(PlotI18n.defaultProjectName());
         }
     }
 
@@ -267,7 +267,7 @@ public class Project {
                 : UUID.randomUUID().toString();
         String projectName = snapshot.name != null && !snapshot.name.isBlank()
                 ? snapshot.name
-                : "未命名项目";
+                : PlotI18n.defaultProjectName();
 
         Project project = new Project(projectId, projectName, false);
         project.description = snapshot.description;
@@ -293,7 +293,7 @@ public class Project {
         }
 
         if (restoredLayers.isEmpty()) {
-            restoredLayers.add(new Layer("默认图层"));
+            restoredLayers.add(new Layer(PlotI18n.defaultLayerName()));
         }
 
         ILayer restoredActiveLayer = findLayerById(restoredLayers, snapshot.activeLayerId);
@@ -316,11 +316,11 @@ public class Project {
 
     private static CanvasModel fromCanvasSnapshot(ProjectSnapshot.CanvasSnapshot snapshot) {
         if (snapshot == null) {
-            return new CanvasModel("默认画布", 800, 600);
+            return new CanvasModel(PlotI18n.defaultCanvasName(), 800, 600);
         }
 
         UUID canvasId = snapshot.id != null ? UUID.fromString(snapshot.id) : UUID.randomUUID();
-        String canvasName = snapshot.name != null && !snapshot.name.isBlank() ? snapshot.name : "默认画布";
+        String canvasName = snapshot.name != null && !snapshot.name.isBlank() ? snapshot.name : PlotI18n.defaultCanvasName();
         int width = snapshot.width > 0 ? snapshot.width : 800;
         int height = snapshot.height > 0 ? snapshot.height : 600;
         return new CanvasModel(canvasId, canvasName, width, height);
@@ -359,7 +359,7 @@ public class Project {
                 : UUID.randomUUID().toString();
         String layerName = snapshot.name != null && !snapshot.name.isBlank()
                 ? snapshot.name
-                : "图层";
+                : PlotI18n.fallbackLayerName();
 
         Layer layer = new Layer(layerId, layerName);
         layer.setVisible(snapshot.visible);
@@ -421,7 +421,7 @@ public class Project {
         }
 
         if (layers.isEmpty()) {
-            ILayer defaultLayer = new Layer("默认图层");
+            ILayer defaultLayer = new Layer(PlotI18n.defaultLayerName());
             layers.add(defaultLayer);
             activeLayer = defaultLayer;
             return;

@@ -4,6 +4,7 @@ import com.plot.api.shortcut.IShortcutListener;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.infrastructure.event.block.GhostBlockManager;
+import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +100,7 @@ public class EscapeShortcutListener implements IShortcutListener {
     
     @Override
     public String getDescription() {
-        return "处理Escape键取消操作";
+        return PlotI18n.tr("shortcut.plot.escape.desc");
     }
     
     @Override

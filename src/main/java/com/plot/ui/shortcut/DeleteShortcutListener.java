@@ -1,6 +1,7 @@
 package com.plot.ui.shortcut;
 
 import com.plot.api.shortcut.IShortcutListener;
+import com.plot.utils.PlotI18n;
 import com.plot.core.state.AppState;
 import com.plot.core.model.Shape;
 import com.plot.core.command.CommandManager;
@@ -83,7 +84,7 @@ public class DeleteShortcutListener implements IShortcutListener {
     
     @Override
     public String getDescription() {
-        return "处理删除快捷键";
+        return PlotI18n.tr("shortcut.plot.delete.desc");
     }
     
     @Override

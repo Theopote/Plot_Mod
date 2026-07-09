@@ -4,6 +4,7 @@ import com.plot.api.event.EventType;
 import com.plot.api.model.ILayer;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +79,8 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            return String.format("图层 '%s' 已创建", layer != null ? layer.getName() : layerId);
+            return PlotI18n.tr("layer.plot.event.created",
+                    layer != null ? layer.getName() : layerId);
         }
     }
     
@@ -90,7 +92,7 @@ public class LayerEventSystem {
         
         public LayerRemovedEvent(String layerId, ILayer layer) {
             super(layerId, layer);
-            this.layerName = layer != null ? layer.getName() : "Unknown";
+            this.layerName = layer != null ? layer.getName() : PlotI18n.tr("status.plot.unknown");
         }
         
         @Override
@@ -98,7 +100,7 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            return String.format("图层 '%s' 已移除", layerName);
+            return PlotI18n.tr("layer.plot.event.removed", layerName);
         }
         
     }
@@ -124,8 +126,10 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            return String.format("图层 '%s' 的属性 '%s' 从 '%s' 变更为 '%s'", 
-                layer != null ? layer.getName() : layerId, propertyName, oldValue, newValue);
+            return PlotI18n.tr("layer.plot.event.property_changed",
+                    layer != null ? layer.getName() : layerId,
+                    PlotI18n.layerPropertyLabel(propertyName),
+                    oldValue, newValue);
         }
         
         public String getPropertyName() { return propertyName; }
@@ -149,8 +153,8 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            return String.format("图层 '%s' 从位置 %d 移动到位置 %d", 
-                layer != null ? layer.getName() : layerId, fromIndex, toIndex);
+            return PlotI18n.tr("layer.plot.event.order_changed",
+                    layer != null ? layer.getName() : layerId, fromIndex, toIndex);
         }
 
     }
@@ -171,9 +175,11 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            String prevName = previousActiveLayer != null ? previousActiveLayer.getName() : "无";
+            String prevName = previousActiveLayer != null
+                    ? previousActiveLayer.getName()
+                    : PlotI18n.tr("status.plot.none");
             String currentName = layer != null ? layer.getName() : layerId;
-            return String.format("活动图层从 '%s' 切换到 '%s'", prevName, currentName);
+            return PlotI18n.tr("layer.plot.event.activated", prevName, currentName);
         }
         
     }
@@ -194,8 +200,9 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            return String.format("图层 '%s' 的内容发生变更: %s", 
-                layer != null ? layer.getName() : layerId, changeType);
+            return PlotI18n.tr("layer.plot.event.content_changed",
+                    layer != null ? layer.getName() : layerId,
+                    PlotI18n.layerContentChangeLabel(changeType));
         }
     }
     
@@ -214,8 +221,8 @@ public class LayerEventSystem {
         
         @Override
         public String getDescription() {
-            return String.format("选择图层 '%s' 中的所有元素", 
-                layer != null ? layer.getName() : layerId);
+            return PlotI18n.tr("layer.plot.event.select_all",
+                    layer != null ? layer.getName() : layerId);
         }
     }
     
