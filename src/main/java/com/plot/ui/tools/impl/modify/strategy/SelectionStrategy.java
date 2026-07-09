@@ -364,7 +364,7 @@ public class SelectionStrategy implements IModifyStrategy {
                     updateShapeSelection(clickedShape, true, context);
                     LOGGER.debug("SelectionStrategy: 选中图形 {}", clickedShape.getId());
                 }
-                context.setStatusMessage(String.format("已选择 %d 个图形", selectedShapeIds.size()));
+                context.setStatusMessage(PlotI18n.status("status.plot.common.selected_count", selectedShapeIds.size()));
             }
         }
         // 普通点击不做任何处理，等待onMouseUp统一处理
@@ -654,7 +654,7 @@ public class SelectionStrategy implements IModifyStrategy {
         // 闭合套索
         if (lassoPoints.size() > 2) {
             performLassoContainmentSelection(context);
-            context.setStatusMessage(String.format("套索（完全包含）选择完成，已选择 %d 个图形", selectedShapeIds.size()));
+            context.setStatusMessage(PlotI18n.status("status.plot.select.lasso_done", selectedShapeIds.size()));
         }
     }
 
@@ -794,7 +794,7 @@ public class SelectionStrategy implements IModifyStrategy {
                 }
             }
 
-            context.setStatusMessage(String.format("已全选 %d 个图形", selectedShapeIds.size()));
+            context.setStatusMessage(PlotI18n.status("status.plot.select.select_all", selectedShapeIds.size()));
         } catch (Exception e) {
             LOGGER.error("执行全选时出错: {}", e.getMessage(), e);
             context.setStatusMessage(PlotI18n.status("status.plot.common.select_all_failed", e.getMessage()));
@@ -823,7 +823,7 @@ public class SelectionStrategy implements IModifyStrategy {
                     commandManager.executeCommand(deleteCommand);
                     
                     LOGGER.debug("SelectionStrategy: Delete命令执行成功");
-                    context.setStatusMessage(String.format("已删除 %d 个图形", selectedShapes.size()));
+                    context.setStatusMessage(PlotI18n.status("status.plot.common.deleted_count", selectedShapes.size()));
                 } else {
                     LOGGER.debug("SelectionStrategy: 没有选中的图形需要删除");
                     context.setStatusMessage("status.plot.common.no_selection_generic");

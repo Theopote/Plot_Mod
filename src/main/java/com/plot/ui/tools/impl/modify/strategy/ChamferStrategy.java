@@ -350,20 +350,19 @@ public class ChamferStrategy implements IModifyStrategy {
      */
     public String getStatusMessage() {
         return switch (currentState) {
-            case SELECT_FIRST_SHAPE -> String.format("选择第一个图形（线/折线/多边形），按+/-调整距离(%.1f)，或按ESC取消", distance);
-            case SELECT_SECOND_SHAPE -> "选择第二个图形（可再次点同一折线/多边形以倒角拐角）";
+            case SELECT_FIRST_SHAPE -> PlotI18n.status("status.plot.chamfer.select_first_with_distance", distance);
+            case SELECT_SECOND_SHAPE -> PlotI18n.status("status.plot.chamfer.select_second_corner");
             case READY_TO_APPLY -> {
-                // 检查验证结果，提供更准确的状态信息
                 if (shape1 != null && shape2 != null) {
                     ChamferParameters params = createModifyParameters();
                     IModifyHandler.ValidationResult validation = chamferHandler.validateModification(List.of(shape1, shape2), params);
                     if (validation.isValid()) {
-                        yield String.format("按鼠标右键确认倒角(距离%.1f)，滚轮/+/-调整距离，或ESC取消", distance);
+                        yield PlotI18n.status("status.plot.chamfer.confirm_right", distance);
                     } else {
                         yield validation.getErrorMessage();
                     }
                 } else {
-                    yield "准备就绪";
+                    yield PlotI18n.status("status.plot.chamfer.ready");
                 }
             }
         };
@@ -575,7 +574,7 @@ public class ChamferStrategy implements IModifyStrategy {
         ModifyCommand command = chamferHandler.createModifyCommand(originalShapes, null, params);
         if (command != null) {
             context.executeModifyCommand(command);
-            context.setStatusMessage(String.format("倒角完成 (距离: %.1f)", distance));
+            context.setStatusMessage(PlotI18n.status("status.plot.chamfer.complete_distance", distance));
             reset();
             return ModifyResult.COMPLETE;
         } else {
@@ -629,7 +628,7 @@ public class ChamferStrategy implements IModifyStrategy {
     private ModifyResult handleMouseMove_Ready(Vec2d snappedPoint, ModifyToolContext context) {
         if (shape1 != null && shape2 != null) {
             updatePreviewWithContext(context);
-            context.setStatusMessage(String.format("按鼠标右键确认倒角(距离:%.1f)，滚轮调整距离，或ESC取消", distance));
+            context.setStatusMessage(PlotI18n.status("status.plot.chamfer.confirm_right_scroll", distance));
             return ModifyResult.CONTINUE;
         }
         return ModifyResult.IGNORED;

@@ -51,13 +51,20 @@ public class OffsetStrategy implements IModifyStrategy {
     
     // 偏移状态枚举
     private enum OffsetState {
-        IDLE("空闲", "等待选择要偏移的图形"),
-        SELECTING("选择中", "已选择图形，等待确定偏移参数"),
-        OFFSETTING("偏移中", "正在执行偏移操作");
+        IDLE("mode.plot.common.idle", "mode.plot.offset.state.idle.desc"),
+        SELECTING("mode.plot.offset.state.selecting", "mode.plot.offset.state.selecting.desc"),
+        OFFSETTING("mode.plot.offset.state.offsetting", "mode.plot.offset.state.offsetting.desc");
 
-        OffsetState(String displayName, String description) {
+        private final String nameKey;
+        private final String descKey;
+
+        OffsetState(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
 
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     // 常量
@@ -239,7 +246,7 @@ public class OffsetStrategy implements IModifyStrategy {
                 if (currentState == OffsetState.IDLE) {
                     // 切换到距离模式
                     setCurrentMode(OffsetMode.DISTANCE);
-                    context.setStatusMessage(String.format("距离模式：偏移距离 %.2f，点击要偏移的对象，或按ESC取消", distance));
+                    context.setStatusMessage(PlotI18n.status("status.plot.offset.distance_mode", distance));
                     return ModifyResult.CONTINUE;
                 }
             }
@@ -248,20 +255,16 @@ public class OffsetStrategy implements IModifyStrategy {
                     // 切换偏移模式
                     OffsetMode newMode = (currentMode == OffsetMode.THROUGH_POINT) ? OffsetMode.DISTANCE : OffsetMode.THROUGH_POINT;
                     setCurrentMode(newMode);
-                    context.setStatusMessage(String.format(
-                        "%s模式：点击要偏移的对象，或按ESC取消",
-                        currentMode.getDisplayName()
-                    ));
+                    context.setStatusMessage(PlotI18n.status("status.plot.offset.mode_click",
+                            currentMode.getDisplayName()));
                     return ModifyResult.CONTINUE;
                 }
             }
             case M_KEY -> {
                 // 切换多重模式
                 setMultipleMode(!isMultipleMode);
-                context.setStatusMessage(String.format(
-                    "多重模式已%s，点击要偏移的对象，或按ESC取消",
-                    isMultipleMode ? "开启" : "关闭"
-                ));
+                context.setStatusMessage(PlotI18n.status(
+                        isMultipleMode ? "status.plot.offset.multiple_enabled" : "status.plot.offset.multiple_disabled"));
                 return ModifyResult.CONTINUE;
             }
             default -> {
@@ -312,10 +315,10 @@ public class OffsetStrategy implements IModifyStrategy {
             String statusMessage;
             if (!warnings.isEmpty()) {
                 String warningText = String.join("; ", warnings);
-                statusMessage = String.format("偏移完成（警告: %s）", warningText);
+                statusMessage = PlotI18n.status("status.plot.offset.complete_warning", warningText);
                 LOGGER.warn("偏移操作警告: {}", warningText);
             } else {
-                statusMessage = "偏移完成";
+                statusMessage = PlotI18n.status("status.plot.offset.complete");
             }
             
             // 创建偏移命令
@@ -327,10 +330,9 @@ public class OffsetStrategy implements IModifyStrategy {
                 if (!isMultipleMode) {
                     // 单次模式：重置状态
                     reset();
-                    String finalMessage = warnings.isEmpty() ? 
-                        String.format("点击要偏移的对象，按D设置偏移距离(%.2f)，按T切换穿点模式，按M切换多重模式，或按ESC取消", distance) :
-                        String.format("%s - 点击要偏移的对象，按D设置偏移距离(%.2f)，按T切换穿点模式，按M切换多重模式，或按ESC取消", 
-                                     statusMessage, distance);
+                    String finalMessage = warnings.isEmpty() ?
+                        PlotI18n.status("status.plot.offset.idle_hint", distance) :
+                        PlotI18n.status("status.plot.offset.idle_hint_with_status", statusMessage, distance);
                     context.setStatusMessage(finalMessage);
                     return ModifyResult.COMPLETE;
                 } else {
@@ -338,9 +340,9 @@ public class OffsetStrategy implements IModifyStrategy {
                     selectedShape = null;
                     startPoint = null;
                     currentState = OffsetState.IDLE;
-                    context.setStatusMessage(warnings.isEmpty() ? 
-                        "点击下一个要偏移的对象，或按ESC取消" :
-                        String.format("%s - 点击下一个要偏移的对象，或按ESC取消", statusMessage));
+                    context.setStatusMessage(warnings.isEmpty() ?
+                        PlotI18n.status("status.plot.offset.next_object") :
+                        PlotI18n.status("status.plot.offset.next_object_with_status", statusMessage));
                     return ModifyResult.CONTINUE;
                 }
             } else {
@@ -413,7 +415,7 @@ public class OffsetStrategy implements IModifyStrategy {
                 offsetDistance = calculateDistance(point);
             }
             selectedShape.setPreviewOffset(offsetDistance);
-            context.setStatusMessage(String.format("偏移距离: %.2f", Math.abs(offsetDistance)));
+            context.setStatusMessage(PlotI18n.status("status.plot.offset.distance_preview", Math.abs(offsetDistance)));
         }
     }
     

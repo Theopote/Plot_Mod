@@ -253,8 +253,7 @@ public class BreakStrategy implements IModifyStrategy {
                     BreakMode.TWO_POINT : BreakMode.SINGLE_POINT;
                 setBreakMode(newMode);
                 
-                String statusMessage = String.format("已切换到%s模式", newMode.getDisplayName());
-                context.setStatusMessage(statusMessage);
+                context.setStatusMessage(PlotI18n.status("status.plot.array.mode_switched", newMode.getDisplayName()));
                 return ModifyResult.CONTINUE;
             }
             default -> {
@@ -332,7 +331,7 @@ public class BreakStrategy implements IModifyStrategy {
             
             if (pendingCommand != null) {
                 LOGGER.debug("打断操作成功: 模式={}, 创建了命令", currentMode.getDisplayName());
-                context.setStatusMessage(String.format("%s完成", currentMode.getDisplayName()));
+                context.setStatusMessage(PlotI18n.status("status.plot.common.complete", currentMode.getDisplayName()));
 
                 // 设置断开瞬间的反馈位置（单点模式在第一点；两点模式暂取第一点）
                 try {
@@ -523,8 +522,7 @@ public class BreakStrategy implements IModifyStrategy {
     }
     
     private String getInitialStatusMessage() {
-        return String.format("选择要打断的对象，按T键切换模式（当前：%s）", 
-            currentMode.getDisplayName());
+        return PlotI18n.status("status.plot.break.select_hint", currentMode.getDisplayName());
     }
     
     @Override

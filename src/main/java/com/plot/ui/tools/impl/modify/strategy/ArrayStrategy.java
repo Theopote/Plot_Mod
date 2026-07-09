@@ -435,7 +435,7 @@ public class ArrayStrategy implements IModifyStrategy {
             currentState = ArrayState.PREVIEWING;
             updateArrayPreview();
             
-            context.setStatusMessage(String.format("矩形阵列: %dx%d, 行间距: %.1f, 列间距: %.1f，点完成", 
+            context.setStatusMessage(PlotI18n.status("status.plot.array.rect_params",
                 rowCount, columnCount, rowSpacing, spacing));
             return ModifyResult.CONTINUE;
         }
@@ -453,8 +453,7 @@ public class ArrayStrategy implements IModifyStrategy {
             currentState = ArrayState.PREVIEWING;
             updateArrayPreview();
             
-            context.setStatusMessage(String.format("环形阵列: %d个, 半径: %.1f, 点击确认", 
-                rowCount, radius));
+            context.setStatusMessage(PlotI18n.status("status.plot.array.polar_params", rowCount, radius));
             return ModifyResult.CONTINUE;
         }
         return ModifyResult.IGNORED;
@@ -474,7 +473,7 @@ public class ArrayStrategy implements IModifyStrategy {
         pendingCommand = createArrayCommand();
         
         if (pendingCommand != null) {
-            context.setStatusMessage(String.format("阵列创建完成，共 %d 个图形", 
+            context.setStatusMessage(PlotI18n.status("status.plot.array.created_count",
                 previewPositions.size()));
             return ModifyResult.COMPLETE;
         } else {
@@ -1088,15 +1087,15 @@ public class ArrayStrategy implements IModifyStrategy {
         }
         
         switch (currentType) {
-            case RECTANGULAR -> context.setStatusMessage(String.format("矩形阵列预览中：%dx%d，行间距%.1f，列间距%.1f",
+            case RECTANGULAR -> context.setStatusMessage(PlotI18n.status("status.plot.array.rect_preview_detail",
                 getRowCount(), getColumnCount(), getRowSpacing(), getSpacing()));
-            case CIRCULAR -> context.setStatusMessage(String.format("环形阵列预览中：%d个，半径%.1f",
+            case CIRCULAR -> context.setStatusMessage(PlotI18n.status("status.plot.array.polar_preview_detail",
                 getRowCount(), getRadius()));
             case PATH -> {
                 if (pathPoints.size() < 2) {
                     context.setStatusMessage("status.plot.array.use_panel_pick_path");
                 } else {
-                    context.setStatusMessage(String.format("路径阵列预览中：点位数%d（含起终点，沿路径等距），路径长度%.1f", 
+                    context.setStatusMessage(PlotI18n.status("status.plot.array.path_preview_detail",
                         getRowCount(), calculatePathLength()));
                 }
             }
