@@ -53,65 +53,11 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
 
     private static KeyBinding openScreenKey;
 
-    /**
-     * 预加载关键API类，防止NoClassDefFoundError
-     * 这个方法强制JVM加载所有关键的API接口，确保在使用时能找到它们
-     */
-    private void preloadAPIClasses() {
-        LOGGER.debug("预加载关键API类...");
-        
-        try {
-            // 强制加载关键的API接口类
-            // 核心状态和管理接口
-            Class.forName("com.plot.api.state.IAppState");
-            Class.forName("com.plot.api.shortcut.IShortcutListener");
-            Class.forName("com.plot.api.shortcut.IShortcutManager");
-            Class.forName("com.plot.api.snap.ISnapManager");
-            Class.forName("com.plot.api.resource.IDisposable");
-            
-            // 图形和样式接口
-            Class.forName("com.plot.api.graphics.IShapeStyle");
-            Class.forName("com.plot.api.graphics.ILineStyle");
-            Class.forName("com.plot.api.graphics.IFillStyle");
-            
-            // 模型和图层接口
-            Class.forName("com.plot.api.model.ILayer");
-            Class.forName("com.plot.api.model.ICanvas");
-            Class.forName("com.plot.api.model.IElement");
-            
-            // 工具相关接口
-            Class.forName("com.plot.api.tool.ITool");
-            Class.forName("com.plot.api.tool.IToolManager");
-            Class.forName("com.plot.api.tool.ISelectionAwareTool");
-            
-            // 命令和事件接口
-            Class.forName("com.plot.api.command.ICommand");
-            Class.forName("com.plot.api.command.ICommandManager");
-            Class.forName("com.plot.api.event.IEvent");
-            Class.forName("com.plot.api.event.IEventListener");
-            
-            // 工具工厂类（防止运行时 NoClassDefFoundError）
-            Class.forName("com.plot.ui.tools.ToolFactory");
-            
-            // 空间索引类（防止内部类 Entry/Node 加载失败）
-            Class.forName("com.plot.core.snap.SpatialIndex");
-            
-            LOGGER.debug("关键API类预加载完成 (已加载 {} 个接口、工具工厂和空间索引)", 20);
-            
-        } catch (ClassNotFoundException e) {
-            LOGGER.error("预加载API类失败: {}", e.getMessage(), e);
-            throw new RuntimeException("无法加载关键API类: " + e.getMessage(), e);
-        }
-    }
-
     @Override
     public void onInitialize() {
         LOGGER.info("初始化 Master Planner Mod (通用逻辑)...");
 
         try {
-            // 0. 预加载关键API类，确保类加载器能找到它们
-            preloadAPIClasses();
-            
             // 1. 获取 AppState 单例
             AppState appState = AppState.getInstance();
 
@@ -143,9 +89,6 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
         LOGGER.info("初始化 Master Planner Mod (客户端逻辑)...");
 
         try {
-            // 0. 额外确保API类已加载（双重保险）
-            preloadAPIClasses();
-            
             // 1. 获取已经部分初始化的 AppState
             LOGGER.debug("步骤1: 获取AppState实例");
             AppState appState = AppState.getInstance();

@@ -27,7 +27,7 @@ public class SnapCalculator {
     private final float snapRadius;
     private final BoundingBox viewBounds;
     private final SnapPriorityEvaluator priorityEvaluator;
-    private final SpatialIndex spatialIndex;
+    private final SnapSpatialIndex spatialIndex;
     private final List<Shape> selectedShapes;  // 当前选中的图形
     private final String currentLayerId;          // 当前图层ID
     private SnapPriorityEvaluator.SnapType lastSnapType = SnapPriorityEvaluator.SnapType.NONE;
@@ -50,7 +50,7 @@ public class SnapCalculator {
         this.currentLayerId = activeLayer != null ? activeLayer.getId() : null;
 
         // 构建空间索引
-        this.spatialIndex = new SpatialIndex();
+        this.spatialIndex = new SnapSpatialIndex();
         for (Shape shape : shapes) {
             if (isShapeVisible(shape)) {
                 spatialIndex.insert(shape);

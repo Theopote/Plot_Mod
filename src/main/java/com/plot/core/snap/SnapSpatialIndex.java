@@ -7,14 +7,14 @@ import com.plot.core.geometry.BoundingBox;
 import java.util.*;
 
 /**
- * 空间索引
- * 使用R树结构加速空间查询
+ * 吸附计算专用的 R-tree 空间索引。
+ * 与 {@link com.plot.core.spatial.SpatialIndex} 不同，仅服务于 SnapCalculator 的邻近查询。
  */
-public class SpatialIndex {
+public class SnapSpatialIndex {
     private static final int MAX_ENTRIES = 16;
     private final Node root;
 
-    public SpatialIndex() {
+    public SnapSpatialIndex() {
         root = new Node(null);
     }
 
@@ -43,7 +43,6 @@ public class SpatialIndex {
 
         Node(Node parent) {
             this.level = parent == null ? 0 : parent.level + 1;
-            // 创建一个空的边界框
             this.bounds = new BoundingBox(
                 new Vec2d(Double.MAX_VALUE, Double.MAX_VALUE),
                 new Vec2d(Double.MIN_VALUE, Double.MIN_VALUE)
@@ -53,7 +52,6 @@ public class SpatialIndex {
         void insert(Entry entry) {
             if (level == 0) {
                 entries.add(entry);
-                // 合并边界框
                 bounds = bounds.union(entry.bounds);
                 if (entries.size() > MAX_ENTRIES) {
                     splitNode();
@@ -61,7 +59,6 @@ public class SpatialIndex {
             } else {
                 Node child = chooseSubtree(entry.bounds);
                 child.insert(entry);
-                // 合并边界框
                 bounds = bounds.union(entry.bounds);
             }
         }
@@ -75,9 +72,7 @@ public class SpatialIndex {
             double minEnlargement = Double.MAX_VALUE;
 
             for (Node child : children) {
-                // 计算当前面积
                 double currentArea = child.bounds.getWidth() * child.bounds.getHeight();
-                // 计算合并后的面积
                 BoundingBox unionBox = child.bounds.union(entryBounds);
                 double newArea = unionBox.getWidth() * unionBox.getHeight();
                 double enlargement = newArea - currentArea;
@@ -108,9 +103,6 @@ public class SpatialIndex {
             }
         }
 
-        /**
-         * 将叶子节点分裂成四个子节点
-         */
         void splitNode() {
             if (level == 0 && entries.size() > MAX_ENTRIES) {
                 Vec2d boxCenter = bounds.getCenter();
@@ -129,7 +121,7 @@ public class SpatialIndex {
                     Vec2d entryCenter = entry.bounds.getCenter();
                     int index = (entryCenter.x > midX ? 1 : 0) + (entryCenter.y > midY ? 2 : 0);
                     newChildren.get(index).entries.add(entry);
-                    newChildren.get(index).bounds = 
+                    newChildren.get(index).bounds =
                             newChildren.get(index).bounds.union(entry.bounds);
                 }
 
@@ -147,4 +139,4 @@ public class SpatialIndex {
             this.shape = shape;
         }
     }
-} 
+}
