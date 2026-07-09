@@ -121,6 +121,7 @@
   "gallery.plot.item.triangle_block.desc": "三角形图块",
   "panel.plot.history": "历史记录",
   "panel.plot.layers": "图层",
+  "panel.plot.properties": "属性",
   "panel.plot.status_properties": "状态属性",
   "panel.plot.tool_properties": "工具属性",
   "panel.plot.usage": "使用方法:",

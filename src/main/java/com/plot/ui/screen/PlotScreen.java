@@ -41,6 +41,7 @@ import com.plot.ui.theme.ThemeManager;
 import com.plot.camera.CameraManager;
 import com.plot.PlotMod;
 import com.plot.core.tool.BaseTool;
+import com.plot.utils.PlotI18n;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.shortcut.KeyboardShortcutConverter;
 import com.plot.api.geometry.Vec2d;
@@ -81,7 +82,7 @@ public class PlotScreen extends Screen {
     private static final String WIN_TOP_SYSTEM = "SystemPanel##SystemPanel";
     private static final String WIN_LEFT = "ToolPanel##ToolPanel";
     // 右侧拆分为三个独立窗口，Dock 到同一个 right dock node 后会自动以 Tab 形式组合展示
-    private static final String WIN_RIGHT_PROPERTY = "属性##PropertyPanel";
+    private static final String WIN_RIGHT_PROPERTY_ID = "##PropertyPanel";
     private static final String WIN_RIGHT_EXTENSION = "扩展##ExtensionPanel";
 
     private int dockspaceId;
@@ -537,7 +538,7 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);  // 工具面板在左侧
         // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
         // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_PROPERTY, dockIdRight);
+        imgui.internal.ImGui.dockBuilderDockWindow(propertyPanelWindowTitle(), dockIdRight);
         // 暂时隐藏图库面板和扩展面板的UI（保留代码供后续开发）
         // imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_GALLERY, dockIdRight);
         // imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_EXTENSION, dockIdRight);
@@ -628,7 +629,7 @@ public class PlotScreen extends Screen {
                 if (firstRender) {
                     ImGui.setNextWindowFocus();
                 }
-                boolean propertyVisible = ImGui.begin(WIN_RIGHT_PROPERTY, DOCKABLE_WINDOW_FLAGS);
+                boolean propertyVisible = ImGui.begin(propertyPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
                 try {
                     if (propertyVisible) {
                         propertyPanel.render();
@@ -650,6 +651,10 @@ public class PlotScreen extends Screen {
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);
         }
+    }
+
+    private static String propertyPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.properties") + WIN_RIGHT_PROPERTY_ID;
     }
 
 

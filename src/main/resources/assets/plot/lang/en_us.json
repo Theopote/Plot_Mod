@@ -121,6 +121,7 @@
   "gallery.plot.item.triangle_block.desc": "Triangle block",
   "panel.plot.history": "History",
   "panel.plot.layers": "Layers",
+  "panel.plot.properties": "Properties",
   "panel.plot.status_properties": "Status Properties",
   "panel.plot.tool_properties": "Tool Properties",
   "panel.plot.usage": "Usage:",
