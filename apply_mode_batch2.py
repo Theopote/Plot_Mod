@@ -234,6 +234,32 @@ KEYS = {
         "Area mode: select region; right-click to annotate area",
         "面积模式：选择区域，右键完成选中时自动标注面积",
     ),
+    # rotate / mirror / array live preview
+    "status.plot.rotate.previewing": ("Rotating preview...", "旋转预览中..."),
+    "status.plot.common.copy_mode_suffix": (" (copy mode)", " (复制模式)"),
+    "status.plot.mirror.central_preview": (
+        "Central symmetry: center=(%.2f, %.2f)",
+        "中心对称：中心=(%.2f, %.2f)",
+    ),
+    "status.plot.mirror.axis_preview": (
+        "Axis symmetry: axis length=%.2f",
+        "轴对称：轴长=%.2f",
+    ),
+    "status.plot.common.orthogonal_suffix": (" (orthogonal constraint)", " (正交约束)"),
+    "status.plot.common.copy_suffix": (" (copy)", " (复制)"),
+    "status.plot.common.click_finish_dash": (" - click to finish", " - 点击完成"),
+    "status.plot.array.col_spacing_drag": (
+        "Column spacing: %.1f (drag to adjust, click to confirm)",
+        "列间距: %.1f（拖拽调整，单击确认）",
+    ),
+    "status.plot.array.row_spacing_drag": (
+        "Row spacing: %.1f (drag to adjust, click to confirm)",
+        "行间距: %.1f（拖拽调整，单击确认）",
+    ),
+    "status.plot.array.radius_drag": (
+        "Radius: %.1f (drag to adjust, click to confirm)",
+        "半径: %.1f（拖拽调整，单击确认）",
+    ),
 }
 
 for name in ("en_us.json", "zh_cn.json"):

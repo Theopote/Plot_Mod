@@ -385,14 +385,14 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     spacing = Math.max(1.0, Math.abs(currentPoint.x - basePoint.x));
                     updateArrayPreview();
                     context.setPreviewEnabled(true);
-                    context.setStatusMessage(String.format("列间距: %.1f（拖拽调整，单击确认）", spacing));
+                    context.setStatusMessage(PlotI18n.status("status.plot.array.col_spacing_drag", spacing));
                     return ModifyResult.CONTINUE;
                 }
                 if (dragHandle == DragHandle.ROW_SPACING) {
                     rowSpacing = Math.max(1.0, Math.abs(currentPoint.y - basePoint.y));
                     updateArrayPreview();
                     context.setPreviewEnabled(true);
-                    context.setStatusMessage(String.format("行间距: %.1f（拖拽调整，单击确认）", rowSpacing));
+                    context.setStatusMessage(PlotI18n.status("status.plot.array.row_spacing_drag", rowSpacing));
                     return ModifyResult.CONTINUE;
                 }
                 if (dragHandle == DragHandle.CIRCULAR_RADIUS) {
@@ -417,7 +417,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
                     updateArrayPreview();
                     context.setPreviewEnabled(true);
-                    context.setStatusMessage(String.format("半径: %.1f（拖拽调整，单击确认）", radius));
+                    context.setStatusMessage(PlotI18n.status("status.plot.array.radius_drag", radius));
                     return ModifyResult.CONTINUE;
                 }
             }

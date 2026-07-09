@@ -260,17 +260,19 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             // 更新状态消息
             String statusMessage;
             if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
-                statusMessage = String.format("中心对称：中心=(%.2f, %.2f)", axisStartPoint.x, axisStartPoint.y);
+                statusMessage = PlotI18n.status("status.plot.mirror.central_preview",
+                        axisStartPoint.x, axisStartPoint.y);
             } else {
-                statusMessage = String.format("轴对称：轴长=%.2f", axisStartPoint.distance(currentPoint));
+                statusMessage = PlotI18n.status("status.plot.mirror.axis_preview",
+                        axisStartPoint.distance(currentPoint));
                 if (isShiftPressed) {
-                    statusMessage += " (正交约束)";
+                    statusMessage += PlotI18n.status("status.plot.common.orthogonal_suffix");
                 }
             }
             if (isCtrlPressed) {
-                statusMessage += " (复制)";
+                statusMessage += PlotI18n.status("status.plot.common.copy_suffix");
             }
-            context.setStatusMessage(statusMessage + " - 点击完成");
+            context.setStatusMessage(statusMessage + PlotI18n.status("status.plot.common.click_finish_dash"));
 
             // 启用预览
             context.setPreviewEnabled(true);

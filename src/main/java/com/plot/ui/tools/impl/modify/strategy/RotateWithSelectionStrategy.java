@@ -270,10 +270,10 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             if (constrainedParameters instanceof ModifyParameters) {
                 statusMessage = rotateHandler.getStatusMessage((ModifyParameters) constrainedParameters);
             } else {
-                statusMessage = "旋转预览中...";
+                statusMessage = PlotI18n.status("status.plot.rotate.previewing");
             }
             if (isCtrlPressed) {
-                statusMessage += " (复制模式)";
+                statusMessage += PlotI18n.status("status.plot.common.copy_mode_suffix");
             }
             context.setStatusMessage(PlotI18n.status("status.plot.common.click_finish_suffix", PlotI18n.localizeStatus(statusMessage)));
 
