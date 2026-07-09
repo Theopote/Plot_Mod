@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.modify.dto;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.ui.tools.impl.modify.helper.IModifyHandler;
+import com.plot.utils.PlotI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -236,7 +237,8 @@ public class ModifyParameters implements IModifyHandler.ModifyParameters {
     public IModifyHandler.ValidationResult validateRequired(String... requiredKeys) {
         for (String key : requiredKeys) {
             if (!hasParameter(key)) {
-                return IModifyHandler.ValidationResult.invalid("缺少必需参数: " + key);
+                return IModifyHandler.ValidationResult.invalid(
+                    PlotI18n.status("status.plot.modify.missing_required_param", key));
             }
         }
         return IModifyHandler.ValidationResult.valid();

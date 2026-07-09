@@ -95,7 +95,7 @@ public class ArrayHandler implements IModifyHandler {
                 return ValidationResult.valid();
             }
             
-            return ValidationResult.invalid("参数类型不正确，期望 ModifyParameters");
+            return ValidationResult.invalid("status.plot.array.wrong_param_type");
             
         } catch (ArrayOperationException e) {
             LOGGER.warn("阵列验证失败: {}", e.getMessage());

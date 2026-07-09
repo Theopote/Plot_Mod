@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.helper;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -29,33 +30,33 @@ public interface IModifyHandler {
      * 修改操作类型枚举
      */
     enum ModifyType {
-        MOVE("移动", "平移图形位置"),
-        ROTATE("旋转", "围绕中心点旋转图形"),
-        SCALE("缩放", "改变图形大小"),
-        MIRROR("镜像", "沿轴线镜像图形"),
-        TRANSFORM("变换", "对图形进行综合变换操作"),
+        MOVE("modify.plot.type.move", "modify.plot.type.move.desc"),
+        ROTATE("modify.plot.type.rotate", "modify.plot.type.rotate.desc"),
+        SCALE("modify.plot.type.scale", "modify.plot.type.scale.desc"),
+        MIRROR("modify.plot.type.mirror", "modify.plot.type.mirror.desc"),
+        TRANSFORM("modify.plot.type.transform", "modify.plot.type.transform.desc"),
 
-        OFFSET("偏移", "创建偏移副本"),
-        ARRAY("阵列", "创建规律排列的副本"),
-        TRIM("修剪", "裁剪图形的一部分"),
-        EXTEND("延伸", "延长图形到边界"),
-        FILLET("圆角", "在交点创建圆角"),
-        CHAMFER("倒角", "在交点创建斜面"),
-        STRETCH("拉伸", "拉伸选中的图形"),
-        BREAK("打断", "在指定点打断图形"),
+        OFFSET("modify.plot.type.offset", "modify.plot.type.offset.desc"),
+        ARRAY("modify.plot.type.array", "modify.plot.type.array.desc"),
+        TRIM("modify.plot.type.trim", "modify.plot.type.trim.desc"),
+        EXTEND("modify.plot.type.extend", "modify.plot.type.extend.desc"),
+        FILLET("modify.plot.type.fillet", "modify.plot.type.fillet.desc"),
+        CHAMFER("modify.plot.type.chamfer", "modify.plot.type.chamfer.desc"),
+        STRETCH("modify.plot.type.stretch", "modify.plot.type.stretch.desc"),
+        BREAK("modify.plot.type.break", "modify.plot.type.break.desc"),
 
-        BOOLEAN("布尔运算", "执行布尔运算操作");
+        BOOLEAN("modify.plot.type.boolean", "modify.plot.type.boolean.desc");
         
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
         
-        ModifyType(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        ModifyType(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
         
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
     }
     
     /**
@@ -140,7 +141,7 @@ public interface IModifyHandler {
         // 验证修改操作
         ValidationResult validation = validateModification(shapes, parameters);
         if (!validation.isValid()) {
-            return ModifyResult.failure(validation.getErrorMessage());
+            return ModifyResult.failure(validation.getLocalizedErrorMessage());
         }
         
         try {
@@ -150,10 +151,10 @@ public interface IModifyHandler {
             // 创建修改命令
             ModifyCommand command = createModifyCommand(shapes, modifiedShapes, parameters);
             
-            return ModifyResult.success("修改操作完成", modifiedShapes, command);
+            return ModifyResult.success(PlotI18n.status("status.plot.modify.operation_complete"), modifiedShapes, command);
             
         } catch (Exception e) {
-            return ModifyResult.failure("修改操作失败: " + e.getMessage());
+            return ModifyResult.failure(PlotI18n.status("status.plot.modify.operation_failed", e.getMessage()));
         }
     }
     
@@ -196,6 +197,10 @@ public interface IModifyHandler {
         
         public boolean isValid() { return valid; }
         public String getErrorMessage() { return errorMessage; }
+
+        public String getLocalizedErrorMessage() {
+            return PlotI18n.localizeStatus(errorMessage);
+        }
         
         public static ValidationResult valid() {
             return new ValidationResult(true, null);

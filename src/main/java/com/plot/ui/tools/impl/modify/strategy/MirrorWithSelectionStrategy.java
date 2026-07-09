@@ -388,7 +388,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         // 验证镜像操作
         IModifyHandler.ValidationResult validation = mirrorHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage(PlotI18n.status("status.plot.mirror.invalid", validation.getErrorMessage()));
+            context.setStatusMessage(PlotI18n.status("status.plot.mirror.invalid", validation.getLocalizedErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 

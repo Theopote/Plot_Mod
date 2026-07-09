@@ -5,6 +5,7 @@ import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.modify.helper.IModifyHandler;
 import com.plot.ui.tools.impl.modify.constants.ModifyConstraints;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,7 +137,8 @@ public class ModifyAdapter {
             // 获取处理器
             IModifyHandler handler = getHandler(type);
             if (handler == null) {
-                return IModifyHandler.ModifyResult.failure("不支持的修改类型: " + type.getDisplayName());
+                return IModifyHandler.ModifyResult.failure(
+                    PlotI18n.status("status.plot.modify.unsupported_type", type.getDisplayName()));
             }
             
             // 应用约束
@@ -155,7 +157,8 @@ public class ModifyAdapter {
             
         } catch (Exception e) {
             LOGGER.error("修改操作失败: type={}, error={}", type.getDisplayName(), e.getMessage(), e);
-            return IModifyHandler.ModifyResult.failure("修改操作异常: " + e.getMessage());
+            return IModifyHandler.ModifyResult.failure(
+                PlotI18n.status("status.plot.modify.operation_exception", e.getMessage()));
         }
     }
     
@@ -172,14 +175,16 @@ public class ModifyAdapter {
         try {
             IModifyHandler handler = getHandler(type);
             if (handler == null) {
-                return IModifyHandler.ValidationResult.invalid("不支持的修改类型: " + type.getDisplayName());
+                return IModifyHandler.ValidationResult.invalid(
+                    PlotI18n.status("status.plot.modify.unsupported_type", type.getDisplayName()));
             }
             
             return handler.validateModification(shapes, parameters);
             
         } catch (Exception e) {
             LOGGER.error("修改验证失败: type={}, error={}", type.getDisplayName(), e.getMessage(), e);
-            return IModifyHandler.ValidationResult.invalid("验证异常: " + e.getMessage());
+            return IModifyHandler.ValidationResult.invalid(
+                PlotI18n.status("status.plot.modify.validation_exception", e.getMessage()));
         }
     }
     

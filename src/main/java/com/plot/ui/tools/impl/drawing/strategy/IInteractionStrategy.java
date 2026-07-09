@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.drawing.strategy;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.ui.tools.impl.drawing.DrawingTool;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -36,31 +37,31 @@ public interface IInteractionStrategy {
      */
     enum InteractionResult {
         /** 交互继续，需要更多输入 */
-        CONTINUE("继续", "交互正在进行中，等待更多用户输入"),
+        CONTINUE("mode.plot.interaction.continue", "mode.plot.interaction.continue.desc"),
         
         /** 交互完成，可以提交图形 */
-        COMPLETE("完成", "交互已完成，可以提交最终图形"),
+        COMPLETE("mode.plot.interaction.complete", "mode.plot.interaction.complete.desc"),
         
         /** 交互取消，需要重置状态 */
-        CANCEL("取消", "交互被取消，需要重置到初始状态"),
+        CANCEL("mode.plot.interaction.cancel", "mode.plot.interaction.cancel.desc"),
         
         /** 事件被忽略，不需要处理 */
-        IGNORED("忽略", "当前事件不适用于此策略状态");
+        IGNORED("mode.plot.interaction.ignored", "mode.plot.interaction.ignored.desc");
         
-        private final String displayName;
-        private final String description;
+        private final String nameKey;
+        private final String descKey;
         
-        InteractionResult(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
+        InteractionResult(String nameKey, String descKey) {
+            this.nameKey = nameKey;
+            this.descKey = descKey;
         }
         
-        public String getDisplayName() { return displayName; }
-        public String getDescription() { return description; }
+        public String getDisplayName() { return PlotI18n.modeLabel(nameKey); }
+        public String getDescription() { return PlotI18n.modeLabel(descKey); }
         
         @Override
         public String toString() {
-            return displayName + ": " + description;
+            return getDisplayName() + ": " + getDescription();
         }
     }
     

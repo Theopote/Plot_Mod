@@ -50,7 +50,7 @@ public class MoveHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         // 检查图形列表
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要移动的图形");
+            return ValidationResult.invalid("status.plot.move.no_selection");
         }
         
         // 检查必需参数
@@ -73,7 +73,7 @@ public class MoveHandler implements IModifyHandler {
         }
         
         if (startPoint == null || endPoint == null) {
-            return ValidationResult.invalid("移动起点或终点无效");
+            return ValidationResult.invalid("status.plot.move.invalid_points");
         }
         
         // 检查是否有实际移动

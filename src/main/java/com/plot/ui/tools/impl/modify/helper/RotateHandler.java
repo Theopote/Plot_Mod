@@ -54,7 +54,7 @@ public class RotateHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         // 检查图形列表
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要旋转的图形");
+            return ValidationResult.invalid("status.plot.rotate.no_selection");
         }
         
         // 使用模式匹配安全处理类型转换
@@ -68,19 +68,19 @@ public class RotateHandler implements IModifyHandler {
             // 检查旋转中心点
             Vec2d centerPoint = params.getVec2d("centerPoint");
             if (centerPoint == null) {
-                return ValidationResult.invalid("旋转中心点无效");
+                return ValidationResult.invalid("status.plot.rotate.invalid_center");
             }
             
             // 检查旋转角度
             double angle = params.getDouble("rotationAngle", 0.0);
             if (Math.abs(angle) < 0.001) {
-                return ValidationResult.invalid("旋转角度太小");
+                return ValidationResult.invalid("status.plot.rotate.angle_too_small");
             }
             
             return ValidationResult.valid();
         }
         
-        return ValidationResult.invalid("参数类型不正确，期望 ModifyParameters");
+        return ValidationResult.invalid("status.plot.rotate.wrong_param_type");
     }
     
     @Override

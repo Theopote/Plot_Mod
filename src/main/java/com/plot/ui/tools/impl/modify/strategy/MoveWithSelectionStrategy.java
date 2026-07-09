@@ -344,7 +344,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         // 验证移动操作
         IModifyHandler.ValidationResult validation = moveHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage(PlotI18n.status("status.plot.move.invalid", validation.getErrorMessage()));
+            context.setStatusMessage(PlotI18n.status("status.plot.move.invalid", validation.getLocalizedErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 

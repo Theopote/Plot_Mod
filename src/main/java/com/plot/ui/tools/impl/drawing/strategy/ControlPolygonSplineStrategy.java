@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.ui.tools.impl.drawing.SplineTool;
 import com.plot.ui.tools.impl.drawing.config.SplineConfig;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,12 +120,12 @@ public class ControlPolygonSplineStrategy implements ISplineGenerationStrategy {
     
     @Override
     public String getDisplayName() {
-        return "控制";
+        return PlotI18n.modeLabel("mode.plot.spline.control_short");
     }
     
     @Override
     public String getDescription() {
-        return "点作为控制多边形";
+        return PlotI18n.modeLabel("mode.plot.spline.control.desc_short");
     }
     
     @Override

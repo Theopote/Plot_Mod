@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.drawing.strategy;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.ui.tools.impl.drawing.config.SplineConfig;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,12 +49,12 @@ public class ThroughPointsSplineStrategy implements ISplineGenerationStrategy {
     
     @Override
     public String getDisplayName() {
-        return "拟合";
+        return PlotI18n.modeLabel("mode.plot.spline.fit_short");
     }
     
     @Override
     public String getDescription() {
-        return "曲线通过所有点";
+        return PlotI18n.modeLabel("mode.plot.spline.fit.desc_short");
     }
     
     @Override

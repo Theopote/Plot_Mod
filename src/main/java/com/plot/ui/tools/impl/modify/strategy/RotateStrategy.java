@@ -437,7 +437,7 @@ public class RotateStrategy implements IModifyStrategy {
         // 验证旋转操作
         IModifyHandler.ValidationResult validation = rotateHandler.validateModification(originalShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid", validation.getErrorMessage()));
+            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid", validation.getLocalizedErrorMessage()));
             return ModifyResult.CONTINUE;
         }
         

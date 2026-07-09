@@ -79,23 +79,23 @@ public class ScaleHandler implements IModifyHandler {
     @Override
     public IModifyHandler.ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         if (shapes == null || shapes.isEmpty()) {
-            return IModifyHandler.ValidationResult.invalid("没有可缩放的图形");
+            return IModifyHandler.ValidationResult.invalid("status.plot.scale.no_selection");
         }
         
         if (!(parameters instanceof com.plot.ui.tools.impl.modify.dto.ModifyParameters modifyParams)) {
-            return IModifyHandler.ValidationResult.invalid("参数类型错误");
+            return IModifyHandler.ValidationResult.invalid("status.plot.scale.wrong_param_type");
         }
 
         // 验证必需参数
         Vec2d centerPoint = modifyParams.getCenterPoint();
         if (centerPoint == null) {
-            return IModifyHandler.ValidationResult.invalid("缺少中心点参数");
+            return IModifyHandler.ValidationResult.invalid("status.plot.scale.missing_center");
         }
         
         if (modifyParams.isUniformScale()) {
             double scaleFactor = modifyParams.getScaleFactor();
             if (scaleFactor < MIN_SCALE || scaleFactor > MAX_SCALE) {
-                return IModifyHandler.ValidationResult.invalid("缩放因子超出有效范围");
+                return IModifyHandler.ValidationResult.invalid("status.plot.scale.factor_out_of_range");
             }
         } else {
             double scaleX = modifyParams.getScaleX();
@@ -103,7 +103,7 @@ public class ScaleHandler implements IModifyHandler {
             
             if (scaleX < MIN_SCALE || scaleX > MAX_SCALE ||
                     scaleY < MIN_SCALE || scaleY > MAX_SCALE) {
-                return IModifyHandler.ValidationResult.invalid("缩放系数超出有效范围");
+                return IModifyHandler.ValidationResult.invalid("status.plot.scale.ratio_out_of_range");
             }
         }
         

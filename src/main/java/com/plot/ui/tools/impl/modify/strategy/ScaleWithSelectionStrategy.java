@@ -374,7 +374,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
         // 验证缩放操作
         IModifyHandler.ValidationResult validation = scaleHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage(PlotI18n.status("status.plot.scale.invalid", validation.getErrorMessage()));
+            context.setStatusMessage(PlotI18n.status("status.plot.scale.invalid", validation.getLocalizedErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 

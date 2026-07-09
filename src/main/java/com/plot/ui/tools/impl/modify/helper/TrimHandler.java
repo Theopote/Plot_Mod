@@ -35,7 +35,7 @@ public class TrimHandler implements IModifyHandler {
     @Override
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要修剪的图形");
+            return ValidationResult.invalid("status.plot.trim.no_selection");
         }
         
         // 检查是否为栅栏模式
@@ -53,12 +53,12 @@ public class TrimHandler implements IModifyHandler {
             // 边界模式验证
             Object trimPointObj = parameters.getParameter("trimPoint");
             if (!(trimPointObj instanceof Vec2d)) {
-                return ValidationResult.invalid("修剪点无效");
+                return ValidationResult.invalid("status.plot.trim.invalid_point");
             }
             @SuppressWarnings("unchecked")
             List<Shape> boundaryShapes = (List<Shape>) parameters.getParameter("boundaryShapes");
             if (boundaryShapes == null || boundaryShapes.isEmpty()) {
-                return ValidationResult.invalid("没有找到边界图形");
+                return ValidationResult.invalid("status.plot.trim.no_boundary");
             }
         }
         

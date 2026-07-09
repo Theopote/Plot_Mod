@@ -297,7 +297,7 @@ public class OffsetStrategy implements IModifyStrategy {
             // 验证偏移操作
             IModifyHandler.ValidationResult validation = offsetHandler.validateModification(List.of(selectedShape), constrainedParameters);
             if (!validation.isValid()) {
-                context.setStatusMessage(PlotI18n.status("status.plot.offset.invalid", validation.getErrorMessage()));
+                context.setStatusMessage(PlotI18n.status("status.plot.offset.invalid", validation.getLocalizedErrorMessage()));
                 return ModifyResult.CONTINUE;
             }
             

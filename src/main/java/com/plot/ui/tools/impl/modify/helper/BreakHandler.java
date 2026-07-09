@@ -39,22 +39,22 @@ public class BreakHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, ModifyParameters parameters) {
         // 检查必需参数
         if (!parameters.hasParameter("targetShape")) {
-            return ValidationResult.invalid("缺少目标图形");
+            return ValidationResult.invalid("status.plot.break.missing_target");
         }
         
         if (!parameters.hasParameter("firstBreakPoint")) {
-            return ValidationResult.invalid("缺少第一个打断点");
+            return ValidationResult.invalid("status.plot.break.missing_first_point");
         }
         
         if (!parameters.hasParameter("breakMode")) {
-            return ValidationResult.invalid("缺少打断模式");
+            return ValidationResult.invalid("status.plot.break.missing_mode");
         }
         
         // 检查两点模式是否需要第二个打断点
         Object breakMode = parameters.getParameter("breakMode");
         if (breakMode != null && "TWO_POINT".equals(breakMode.toString())) {
             if (!parameters.hasParameter("secondBreakPoint")) {
-                return ValidationResult.invalid("两点打断模式需要第二个打断点");
+                return ValidationResult.invalid("status.plot.break.need_second_point");
             }
         }
         

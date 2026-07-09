@@ -83,12 +83,12 @@ public class ExtendHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, ModifyParameters parameters) {
         // 检查图形列表
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要延伸的图形");
+            return ValidationResult.invalid("status.plot.extend.no_selection");
         }
         
         // 检查参数类型
         if (!(parameters instanceof ExtendParameters extendParams)) {
-            return ValidationResult.invalid("参数类型错误，需要ExtendParameters");
+            return ValidationResult.invalid("status.plot.extend.wrong_param_type");
         }
 
         // 使用ExtendParameters的验证方法

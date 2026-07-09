@@ -89,7 +89,7 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
     @Override
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要偏移的图形");
+            return ValidationResult.invalid("status.plot.offset.no_selection");
         }
 
         double offsetDistance = 0.0;
@@ -103,15 +103,15 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         boolean hasOffsetDistance = Math.abs(offsetDistance) >= MIN_OFFSET_DISTANCE;
 
         if (!hasOffsetPoint && !hasOffsetDistance) {
-            return ValidationResult.invalid("请提供偏移距离或偏移点");
+            return ValidationResult.invalid("status.plot.offset.need_distance_or_point");
         }
 
         if (!hasOffsetPoint && Math.abs(offsetDistance) < MIN_OFFSET_DISTANCE) {
-            return ValidationResult.invalid("偏移距离太小");
+            return ValidationResult.invalid("status.plot.offset.distance_too_small");
         }
 
         if (hasOffsetDistance && Math.abs(offsetDistance) > MAX_OFFSET_DISTANCE) {
-            return ValidationResult.invalid("偏移距离太大");
+            return ValidationResult.invalid("status.plot.offset.distance_too_large");
         }
 
         return ValidationResult.valid();

@@ -65,21 +65,21 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
     public MultiStepInteractionStrategy(int maxSteps, boolean allowEarlyCompletion, String toolName) {
         this.maxSteps = maxSteps;
         this.allowEarlyCompletion = allowEarlyCompletion;
-        this.toolName = toolName != null ? toolName : "多步骤工具";
+        this.toolName = toolName != null ? toolName : PlotI18n.modeLabel("mode.plot.interaction.multi_step");
     }
     
     /**
      * 便利构造函数（直线工具专用：2步，不允许提前完成）
      */
     public static MultiStepInteractionStrategy forLineTool() {
-        return new MultiStepInteractionStrategy(2, false, "直线工具");
+        return new MultiStepInteractionStrategy(2, false, PlotI18n.toolLabel("line"));
     }
     
     /**
      * 便利构造函数（多边形工具专用：无限步，允许提前完成）
      */
     public static MultiStepInteractionStrategy forPolygonTool() {
-        return new MultiStepInteractionStrategy(-1, true, "多边形工具");
+        return new MultiStepInteractionStrategy(-1, true, PlotI18n.toolLabel("polygon"));
     }
     
     @Override
@@ -348,7 +348,7 @@ public class MultiStepInteractionStrategy implements IInteractionStrategy {
     
     @Override
     public String getStrategyName() {
-        return "多步骤模式";
+        return PlotI18n.modeLabel("mode.plot.interaction.multi_step");
     }
     
     @Override

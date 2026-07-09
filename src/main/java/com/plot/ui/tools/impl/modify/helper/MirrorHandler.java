@@ -67,7 +67,7 @@ public class MirrorHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         // 检查图形列表
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要镜像的图形");
+            return ValidationResult.invalid("status.plot.mirror.no_selection");
         }
         
         MirrorMode mode = getMirrorMode(parameters);
@@ -97,16 +97,16 @@ public class MirrorHandler implements IModifyHandler {
         }
         
         if (axisStart == null) {
-            return ValidationResult.invalid("镜像参数无效：缺少轴起点/中心点");
+            return ValidationResult.invalid("status.plot.mirror.missing_axis_start");
         }
         
         if (mode != MirrorMode.CENTRAL_SYMMETRY) {
             if (axisEnd == null) {
-                return ValidationResult.invalid("镜像轴终点无效");
+                return ValidationResult.invalid("status.plot.mirror.invalid_axis_end");
             }
             // 检查镜像轴长度
             if (axisStart.distance(axisEnd) < MIN_AXIS_LENGTH) {
-                return ValidationResult.invalid("镜像轴长度太短");
+                return ValidationResult.invalid("status.plot.mirror.axis_too_short");
             }
         }
         
