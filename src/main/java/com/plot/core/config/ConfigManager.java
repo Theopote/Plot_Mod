@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.plot.core.log.LogManager;
+import com.plot.utils.PlotI18n;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.FileReader;
@@ -48,7 +49,7 @@ public class ConfigManager {
             }
         } catch (IOException e) {
             LogManager.getInstance().error("初始化配置管理器失败", e);
-            throw new RuntimeException("初始化配置管理器失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.config_manager_failed"), e);
         }
     }
     

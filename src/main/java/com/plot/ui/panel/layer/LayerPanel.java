@@ -139,7 +139,7 @@ public class LayerPanel implements UIComponent {
             initializeComponents();
 
         } catch (Exception e) {
-            throw new RuntimeException("LayerPanel初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.layer_panel_failed"), e);
         }
     }
 
@@ -158,7 +158,7 @@ public class LayerPanel implements UIComponent {
             subscribeToEvents();
             initialized = true;
         } catch (Exception e) {
-            throw new RuntimeException("LayerPanel初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.layer_panel_failed"), e);
         }
     }
 
@@ -325,7 +325,7 @@ public class LayerPanel implements UIComponent {
                 ImGui.endChild(); // 结束整个面板
                 
             } catch (Exception e) {
-                throw new RuntimeException("渲染图层面板时发生错误", e);
+                throw new RuntimeException(PlotI18n.error("error.plot.init.layer_panel_render_failed"), e);
             }
         } finally {
             ImGui.popID();
@@ -419,7 +419,7 @@ public class LayerPanel implements UIComponent {
             }
             
         } catch (Exception e) {
-            throw new RuntimeException("LayerPanel关闭失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.layer_panel_close_failed"), e);
         }
     }
 
@@ -457,7 +457,7 @@ public class LayerPanel implements UIComponent {
                 
             } catch (Exception e) {
                 texturesInitialized = false;
-                throw new RuntimeException("加载图层控制按钮纹理失败", e);
+                throw new RuntimeException(PlotI18n.error("error.plot.init.layer_panel_texture_failed"), e);
             }
         }
     }

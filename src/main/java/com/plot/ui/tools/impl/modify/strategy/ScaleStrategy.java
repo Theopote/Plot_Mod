@@ -134,7 +134,7 @@ public class ScaleStrategy implements IModifyStrategy {
                 if (context.getAppState() instanceof com.plot.core.state.AppState) {
                     scaleHandler = new ScaleHandler((com.plot.core.state.AppState) context.getAppState());
                 } else {
-                    throw new IllegalStateException("AppState 类型不匹配");
+                    throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_type_mismatch"));
                 }
             }
             

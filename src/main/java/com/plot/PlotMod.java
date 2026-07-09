@@ -16,6 +16,7 @@ import com.plot.ui.shortcut.DeleteShortcutListener;
 import com.plot.ui.shortcut.EscapeShortcutListener;
 import com.plot.ui.imgui.ImGuiWorldRenderer;
 import com.plot.ui.utils.PlotTextureLifecycle;
+import com.plot.utils.PlotI18n;
 import com.plot.infrastructure.event.block.GhostBlockWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
@@ -81,7 +82,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             
         } catch (Exception e) {
             LOGGER.error("Master Planner Mod (通用逻辑) 初始化失败: {}", e.getMessage(), e);
-            throw new RuntimeException("模组初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.mod_failed"), e);
         }
     }
 
@@ -134,7 +135,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             
         } catch (Exception e) {
             LOGGER.error("Master Planner Mod (客户端逻辑) 初始化失败: {}", e.getMessage(), e);
-            throw new RuntimeException("客户端初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.client_failed"), e);
         }
     }
     
@@ -191,7 +192,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             
         } catch (Exception e) {
             LOGGER.error("初始化绘图工具模块失败: {}", e.getMessage(), e);
-            throw new RuntimeException("绘图工具初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.drawing_tools_failed"), e);
         }
     }
     
@@ -219,7 +220,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             
         } catch (Exception e) {
             LOGGER.error("初始化客户端事件系统失败: {}", e.getMessage(), e);
-            throw new RuntimeException("客户端事件系统初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.client_events_failed"), e);
         }
     }
     
@@ -306,7 +307,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             
         } catch (Exception e) {
             LOGGER.error("注册键绑定和事件失败: {}", e.getMessage(), e);
-            throw new RuntimeException("键绑定注册失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.keybindings_failed"), e);
         }
     }
 

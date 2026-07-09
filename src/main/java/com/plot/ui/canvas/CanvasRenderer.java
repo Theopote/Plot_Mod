@@ -12,6 +12,7 @@ import com.plot.infrastructure.event.base.Event;
 import com.plot.ui.tools.impl.modify.SelectionTool;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseCursor;
@@ -715,7 +716,7 @@ public class CanvasRenderer implements EventListener {
             LOGGER.debug("CanvasRenderer初始化成功");
         } catch (Exception e) {
             LOGGER.error("初始化CanvasRenderer失败", e);
-            throw new RuntimeException("初始化CanvasRenderer失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.canvas_renderer_failed"), e);
         }
     }
 

@@ -262,6 +262,7 @@
   "tool.plot.spline.hint": "Click to add control points, then press Enter or right-click to finish and generate the spline.",
   "tool.plot.star.hint": "Click the center and drag to set the outer radius, then confirm vertex count/ratio to finish the star.",
   "tool.plot.text.hint": "Click or drag to place a text object and enter content. Adjust text style and input mode in the property panel.",
+  "tool.plot.text.default_content": "Text",
   "tool.plot.transform.hint": "Select shapes first, right-click to enter transform mode, then drag control points to scale/rotate. Shift constrains proportionally; Esc exits.",
   "tool.plot.trim.hint": "Select a boundary first, then trim. C/F switch trim modes, Shift enables continuous trim, Esc cancels.",
   "tool.plot.unknown.hint": "Left-click to draw or edit. Right-click cancels the current step.",

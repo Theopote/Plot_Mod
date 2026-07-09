@@ -1,6 +1,7 @@
 package com.plot.ui.dialog.BlockConfigDialog;
 
 import com.plot.ui.component.BlockIconRenderer;
+import com.plot.utils.PlotI18n;
 import net.minecraft.block.Block;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +74,7 @@ public class BlockPreloadManager {
             
         } catch (Exception e) {
             LOGGER.error("BlockPreloadManager 构造函数失败: {}", e.getMessage(), e);
-            throw new RuntimeException("预加载管理器初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.block_preload_failed"), e);
         }
     }
     

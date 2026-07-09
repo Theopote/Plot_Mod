@@ -13,6 +13,7 @@ import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.OpacityChangeEvent;
 import com.plot.ui.theme.UITheme;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -677,7 +678,7 @@ public class CanvasCore implements ICanvas {
             LOGGER.debug("CanvasCore初始化成功");
         } catch (Exception e) {
             LOGGER.error("初始化CanvasCore失败", e);
-            throw new RuntimeException("初始化CanvasCore失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.canvas_core_failed"), e);
         }
     }
     

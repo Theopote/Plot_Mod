@@ -262,6 +262,7 @@
   "tool.plot.spline.hint": "左键依次添加控制点，按Enter或右键结束输入并生成样条曲线。",
   "tool.plot.star.hint": "左键指定中心并拖拽确定外接半径，再确认角数/比例后完成星形。",
   "tool.plot.text.hint": "点击或拖拽放置文本对象并输入内容；可通过属性面板调整文本样式与输入方式。",
+  "tool.plot.text.default_content": "文字",
   "tool.plot.transform.hint": "先选择图形，右键进入变换后拖拽控制点进行缩放/旋转；Shift可等比约束，Esc可返回。",
   "tool.plot.trim.hint": "先选择边界后执行修剪；C/F可切换修剪模式，Shift可连续修剪，Esc可取消。",
   "tool.plot.unknown.hint": "按左键进行绘制或编辑，右键取消当前步骤。",

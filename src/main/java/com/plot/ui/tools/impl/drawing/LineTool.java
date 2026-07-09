@@ -694,7 +694,7 @@ public class LineTool extends DrawingTool {
                     }
                 } else {
                     LOGGER.error("LineTool: 提交子线失败，appState 为 null");
-                    throw new IllegalStateException("AppState 不可用");
+                    throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_unavailable"));
                 }
 
                 // 所有子线提交完成后统一重置状态

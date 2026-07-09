@@ -2,6 +2,7 @@ package com.plot.ui.screen;
 
 import com.plot.ui.imgui.ImGuiRenderer;
 import com.plot.ui.utils.PlotTextureLifecycle;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.component.BlockIconRenderer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.minecraft.client.MinecraftClient;
@@ -121,7 +122,8 @@ public class PlotInitializer {
         try {
             // 验证线程状态
             if (!client.isOnThread()) {
-                throw new IllegalStateException("初始化必须在主线程中执行，当前线程: " + Thread.currentThread().getName());
+                throw new IllegalStateException(
+                        PlotI18n.error("error.plot.validation.main_thread_required", Thread.currentThread().getName()));
             }
             
             LOGGER.info("开始在主线程 [{}] 中初始化ImGui渲染器...", Thread.currentThread().getName());
@@ -153,7 +155,7 @@ public class PlotInitializer {
             // 考虑重试
             scheduleRetryIfNeeded(client);
             
-            throw new RuntimeException("初始化失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.plot_initializer_failed"), e);
         }
     }
     

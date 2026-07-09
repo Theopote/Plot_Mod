@@ -11,6 +11,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.ui.component.UIComponent;
+import com.plot.utils.PlotI18n;
 import com.plot.api.model.ICanvas;
 import com.plot.api.model.ILayer;
 
@@ -63,7 +64,7 @@ public class Canvas implements ICanvas, UIComponent {
             LOGGER.debug("Canvas基础初始化成功，OpenGL相关组件将延迟初始化");
         } catch (Exception e) {
             LOGGER.error("初始化Canvas失败", e);
-            throw new RuntimeException("初始化Canvas失败", e);
+            throw new RuntimeException(PlotI18n.error("error.plot.init.canvas_failed"), e);
         }
     }
 

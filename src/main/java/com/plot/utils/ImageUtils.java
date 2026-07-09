@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.io.IOException;
 import javax.imageio.ImageIO;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +80,7 @@ public class ImageUtils {
     public static BufferedImage readAndResizeImage(InputStream is) throws IOException {
         BufferedImage originalImage = ImageIO.read(is);
         if (originalImage == null) {
-            throw new IOException("无法读取图像");
+            throw new IOException(PlotI18n.error("error.plot.image.read_failed"));
         }
         
         return resizeToPowerOfTwo(originalImage);
