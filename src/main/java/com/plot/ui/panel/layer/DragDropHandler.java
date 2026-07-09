@@ -2,6 +2,7 @@ package com.plot.ui.panel.layer;
 
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
+import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
 import imgui.ImGui;
 
@@ -67,7 +68,7 @@ public class DragDropHandler {
                 layer.getName(), targetIndex);
         } catch (Exception e) {
             PlotMod.LOGGER.error("图层移动失败: {}", e.getMessage(), e);
-            showWarningDialog.accept("移动图层失败：" + e.getMessage());
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.move_failed", e.getMessage()));
         }
     }
     

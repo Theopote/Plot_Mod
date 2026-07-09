@@ -4,6 +4,7 @@ import com.plot.api.model.ILayer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -100,13 +101,13 @@ public class ToolbarRenderer {
             
             String deleteTooltip;
             if (!canDelete) {
-                deleteTooltip = "不能删除仅有的图层";
+                deleteTooltip = PlotI18n.tr("layer.plot.cannot_delete_only");
             } else if (hasLockedLayersInSelection) {
-                deleteTooltip = "无法删除锁定的图层: " + lockedLayerName;
+                deleteTooltip = PlotI18n.tr("layer.plot.cannot_delete_locked", lockedLayerName);
             } else if (selectedLayers.isEmpty()) {
-                deleteTooltip = "请先选择要删除的图层";
+                deleteTooltip = PlotI18n.tr("layer.plot.select_to_delete");
             } else {
-                deleteTooltip = "删除选中图层";
+                deleteTooltip = PlotI18n.tr("layer.plot.toolbar.delete_selected");
             }
             
             renderToolButton(
@@ -117,12 +118,12 @@ public class ToolbarRenderer {
                 () -> {
                     if (canDelete) {
                         if (selectedLayers.isEmpty()) {
-                            showWarningDialog.accept("请先选择要删除的图层");
+                            showWarningDialog.accept(PlotI18n.tr("layer.plot.select_to_delete"));
                         } else {
                             // 在回调内部重新检查是否有锁定的图层
                             boolean hasLockedLayer = selectedLayers.stream().anyMatch(ILayer::isLocked);
                             if (hasLockedLayer) {
-                                showWarningDialog.accept("无法删除锁定的图层，请先解锁");
+                                showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.delete_unlock_first"));
                             } else {
                                 showDeleteLayerDialog.run();
                             }
@@ -138,7 +139,7 @@ public class ToolbarRenderer {
             boolean canMerge = selectedLayers.size() >= 2;
             renderToolButton(
                 textureMergeLayers, 
-                canMerge ? "合并选中图层" : "请选择至少两个图层进行合并",
+                canMerge ? PlotI18n.tr("layer.plot.merge_selected") : PlotI18n.tr("layer.plot.toolbar.merge_need_two"),
                     false,
                 currentTheme,
                 () -> {
@@ -155,7 +156,7 @@ public class ToolbarRenderer {
             boolean canMoveUp = !selectedLayers.isEmpty();
             renderToolButton(
                 textureMoveUp, 
-                canMoveUp ? "上移选中图层" : "请先选择要移动的图层",
+                canMoveUp ? PlotI18n.tr("layer.plot.toolbar.move_up") : PlotI18n.tr("layer.plot.toolbar.select_to_move"),
                     false,
                 currentTheme,
                     this::moveSelectedLayersUp,
@@ -168,7 +169,7 @@ public class ToolbarRenderer {
             boolean canMoveDown = !selectedLayers.isEmpty();
             renderToolButton(
                 textureMoveDown, 
-                canMoveDown ? "下移选中图层" : "请先选择要移动的图层",
+                canMoveDown ? PlotI18n.tr("layer.plot.toolbar.move_down") : PlotI18n.tr("layer.plot.toolbar.select_to_move"),
                     false,
                 currentTheme,
                     this::moveSelectedLayersDown,
@@ -181,7 +182,7 @@ public class ToolbarRenderer {
             boolean hasActiveLayer = layerManager.getActiveLayer() != null;
             renderToolButton(
                 textureSelectAll, 
-                hasActiveLayer ? "选择当前图层的所有图元" : "没有活动图层",
+                hasActiveLayer ? PlotI18n.tr("layer.plot.toolbar.select_all_elements") : PlotI18n.tr("layer.plot.toolbar.no_active_layer"),
                     false,
                 currentTheme,
                 () -> {
@@ -270,7 +271,7 @@ public class ToolbarRenderer {
     private void renderToolButton(int textureId,
                                   UITheme.ThemeColors theme,
                                   Runnable onClick) {
-        renderToolButton(textureId, "新建图层", false, theme, onClick, false);
+        renderToolButton(textureId, PlotI18n.tr("layer.plot.toolbar.new_layer"), false, theme, onClick, false);
     }
 
     private void showThemedTooltip(UITheme.ThemeColors theme, String message) {
@@ -287,7 +288,7 @@ public class ToolbarRenderer {
      */
     private void moveSelectedLayersUp() {
         if (selectedLayers.isEmpty()) {
-            showWarningDialog.accept("请先选择要移动的图层");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.select_to_move"));
             return;
         }
 
@@ -310,7 +311,7 @@ public class ToolbarRenderer {
      */
     private void moveSelectedLayersDown() {
         if (selectedLayers.isEmpty()) {
-            showWarningDialog.accept("请先选择要移动的图层");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.select_to_move"));
             return;
         }
 
@@ -328,7 +329,7 @@ public class ToolbarRenderer {
      */
     private void mergeSelectedLayers() {
         if (selectedLayers.size() < 2) {
-            showWarningDialog.accept("请选择至少两个图层进行合并");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.merge_need_two"));
             return;
         }
 
@@ -341,24 +342,24 @@ public class ToolbarRenderer {
                 .map(ILayer::getName)
                 .collect(Collectors.joining(", "));
             
-            showWarningDialog.accept("无法合并锁定的图层: " + lockedLayerNames);
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.cannot_merge_locked", lockedLayerNames));
             return;
         }
 
         try {
             // 创建新图层名称
-            String mergedLayerName = "合并图层";
+            String mergedLayerName = PlotI18n.tr("layer.plot.merged_default_name");
             int suffix = 1;
             
             // 确保名称不重复
             while (layerManager.isNameExists(mergedLayerName)) {
-                mergedLayerName = "合并图层 " + suffix++;
+                mergedLayerName = PlotI18n.tr("layer.plot.merged_default_name") + " " + suffix++;
             }
             
             // 创建新图层
             LayerManager.LayerCreationResult result = layerManager.createLayer(mergedLayerName);
             if (!result.isSuccess()) {
-                showWarningDialog.accept("创建合并图层失败: " + result.getMessage());
+                showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_create_failed", result.getMessage()));
                 return;
             }
             
@@ -366,7 +367,7 @@ public class ToolbarRenderer {
             
             // 确保是 Layer 类型
             if (!(mergedLayer instanceof Layer concreteMergedLayer)) {
-                showWarningDialog.accept("创建的图层类型不正确");
+                showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_type_error"));
                 return;
             }
 
@@ -406,7 +407,7 @@ public class ToolbarRenderer {
             selectedLayers.add(mergedLayer);
             
         } catch (Exception e) {
-            showWarningDialog.accept("合并图层失败: " + e.getMessage());
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_failed", e.getMessage()));
         }
     }
 

@@ -2,6 +2,7 @@ package com.plot.ui.panel.layer;
 
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
@@ -346,7 +347,7 @@ public class LayerNameRenderer {
         
         // 如果图层被锁定，不允许编辑
         if (layer.isLocked()) {
-            showWarningDialog.accept("图层已锁定，无法编辑名称");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.locked_no_rename"));
             LOGGER.info("图层 '{}' 已锁定，无法编辑", layer.getName());
             return;
         }
@@ -385,7 +386,7 @@ public class LayerNameRenderer {
         
         // 检查名称是否为空
         if (newName.isEmpty()) {
-            showWarningDialog.accept("图层名称不能为空");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_empty"));
             nameBuffer.set(layer.getName());
             return;
         }
@@ -393,14 +394,14 @@ public class LayerNameRenderer {
         // 检查名称长度（中文字符按2个字符计算）
         int nameLength = calculateDisplayLength(newName);
         if (nameLength > 50) { // 限制显示长度
-            showWarningDialog.accept("图层名称过长，请使用较短的名称");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_too_long"));
             nameBuffer.set(layer.getName());
             return;
         }
         
         // 检查名称是否已存在（排除当前图层）
         if (!newName.equals(layer.getName()) && layerManager.isNameExists(newName)) {
-            showWarningDialog.accept("图层名称已存在");
+            showWarningDialog.accept(PlotI18n.tr("layer.plot.name_exists"));
             nameBuffer.set(layer.getName());
             return;
         }

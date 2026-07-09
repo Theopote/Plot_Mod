@@ -1,5 +1,6 @@
 package com.plot.ui.toolbar.group;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.component.ControlPanelIcons;
 import com.plot.ui.toolbar.ToolbarUIUtils;
 import com.plot.ui.layout.UILayout;
@@ -24,7 +25,7 @@ public class PlotLogo extends AbstractToolbarGroup {
             // 使用标准的工具栏按钮渲染方法，大小和样式与其他按钮一致
             if (ToolbarUIUtils.renderToolbarButton(
                     ControlPanelIcons.getIdentifier(ControlPanelIcons.LOGO),
-                    "Plot 设置与帮助")) {
+                    PlotI18n.tr("toolbar.plot.settings_help"))) {
                 com.plot.ui.dialog.SettingsAndHelpDialog.getInstance().open();
             }
         } catch (Exception e) {

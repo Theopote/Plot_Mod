@@ -4,6 +4,7 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.Layer;
 import com.plot.api.model.ILayer;
 import com.plot.core.layer.LayerManager;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import imgui.ImGui;
@@ -343,7 +344,7 @@ public class LayerItemRenderer {
         }
         
         if (isLocked && ImGui.isItemHovered()) {
-            showThemedTooltip("图层已锁定，无法修改线型");
+            showThemedTooltip(PlotI18n.tr("layer.plot.locked_no_line_style"));
         }
 
         // 线宽输入框（范围：0.1~5.0）
@@ -373,7 +374,7 @@ public class LayerItemRenderer {
         }
         
         if (isLocked && ImGui.isItemHovered()) {
-            showThemedTooltip("图层已锁定，无法修改线宽");
+            showThemedTooltip(PlotI18n.tr("layer.plot.locked_no_line_width"));
         }
 
         if (isLocked) {
@@ -415,7 +416,7 @@ public class LayerItemRenderer {
         }
 
         if (ImGui.isItemHovered()) {
-            showThemedTooltip(layer.isLocked() ? "解锁图层" : "锁定图层");
+            showThemedTooltip(layer.isLocked() ? PlotI18n.tr("layer.plot.unlock") : PlotI18n.tr("layer.plot.lock"));
         }
 
         ImGui.popStyleColor(4);
@@ -453,7 +454,7 @@ public class LayerItemRenderer {
         }
 
         if (ImGui.isItemHovered()) {
-            showThemedTooltip(layer.isVisible() ? "隐藏图层" : "显示图层");
+            showThemedTooltip(layer.isVisible() ? PlotI18n.tr("layer.plot.hide") : PlotI18n.tr("layer.plot.show"));
         }
 
         ImGui.popStyleColor(4);
@@ -514,7 +515,7 @@ public class LayerItemRenderer {
         }
 
         if (isLocked && ImGui.isItemHovered()) {
-            showThemedTooltip("图层已锁定，无法修改颜色");
+            showThemedTooltip(PlotI18n.tr("layer.plot.locked_no_color"));
         }
 
         if (isLocked) {

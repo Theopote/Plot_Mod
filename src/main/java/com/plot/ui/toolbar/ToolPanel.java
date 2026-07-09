@@ -16,6 +16,7 @@ import com.plot.ui.component.UIUtils;
 import com.plot.ui.component.ToolPanelIcons;
 import net.minecraft.util.Identifier;
 import net.minecraft.text.Text;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.tools.DrawingToolsModule;
 import com.plot.core.command.CommandManager;
@@ -351,14 +352,9 @@ public class ToolPanel implements UIComponent {
 
             try {
 
-                // 从工具实例获取 tooltip，如果没有则使用翻译的标签
-                String tooltip = Text.translatable(tool.label).getString();
-                ITool toolInstance = toolManager.getTool(tool.id);
-                if (toolInstance != null && toolInstance.getTooltip() != null && !toolInstance.getTooltip().isEmpty()) {
-                    tooltip = toolInstance.getTooltip();
-                }
+                String tooltip = PlotI18n.toolUsageHint(tool.id);
                 
-                if (UIUtils.imageButton(tool.icon, tooltip, 
+                if (UIUtils.imageButton(tool.icon, tooltip,
                     UILayout.Toolbar.LEFT_BUTTON_SIZE, isSelected)) {
                     LOGGER.debug("Tool button clicked: {}", tool.id);
                     handleToolSelect(tool.id);
