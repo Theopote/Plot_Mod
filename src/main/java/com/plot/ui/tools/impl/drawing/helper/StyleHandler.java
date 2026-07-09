@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.drawing.helper;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.state.IAppState;
 import com.plot.api.model.ILayer;
 import com.plot.core.model.Shape;
@@ -45,7 +46,7 @@ public class StyleHandler implements IStyleHandler {
      * @param toolId 工具ID（用于日志和默认样式）
      */
     public StyleHandler(IAppState appState, String toolId) {
-        this.appState = Objects.requireNonNull(appState, "AppState不能为空");
+        this.appState = Objects.requireNonNull(appState, PlotI18n.error("error.plot.validation.app_state_null"));
         this.toolId = toolId != null ? toolId : "未知工具";
         
         LOGGER.debug("StyleHandler [{}] 初始化完成", this.toolId);

@@ -95,9 +95,9 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     public TransformWithSelectionStrategy(TransformHandler transformHandler, 
                                        BoundingBoxControlManager controlManager,
                                        EventBus eventBus) {
-        this.transformHandler = Objects.requireNonNull(transformHandler, "TransformHandler不能为null");
-        this.controlManager = Objects.requireNonNull(controlManager, "BoundingBoxControlManager不能为null");
-        this.eventBus = Objects.requireNonNull(eventBus, "EventBus不能为null");
+        this.transformHandler = Objects.requireNonNull(transformHandler, PlotI18n.error("error.plot.validation.transform_handler_null"));
+        this.controlManager = Objects.requireNonNull(controlManager, PlotI18n.error("error.plot.validation.bounding_box_control_manager_null"));
+        this.eventBus = Objects.requireNonNull(eventBus, PlotI18n.error("error.plot.validation.event_bus_null"));
         
         LOGGER.info("变换策略初始化完成，当前模式: {}", currentMode.getDisplayName());
     }

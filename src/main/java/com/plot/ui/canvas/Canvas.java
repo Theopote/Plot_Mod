@@ -39,7 +39,7 @@ public class Canvas implements ICanvas, UIComponent {
 
     public Canvas(AppState appState) {
         if (appState == null || appState.getLayerManager() == null) {
-            throw new IllegalArgumentException("AppState 及其 LayerManager 必须在创建Canvas前初始化");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.canvas_prereq"));
         }
         LOGGER.debug("初始化 Canvas，使用 AppState 作为唯一数据源...");
         this.appState = appState;

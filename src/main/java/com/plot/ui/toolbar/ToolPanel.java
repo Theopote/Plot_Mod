@@ -59,7 +59,7 @@ public class ToolPanel implements UIComponent {
             }
             
             if (this.toolManager == null) {
-                throw new IllegalStateException("ToolManager初始化失败");
+                throw new IllegalStateException(PlotI18n.error("error.plot.validation.tool_manager_init_failed"));
             }
             
             LOGGER.debug("Setting up tool groups...");
@@ -441,7 +441,7 @@ public class ToolPanel implements UIComponent {
                 }
                 
                 if (toolManager == null) {
-                    throw new IllegalStateException("ToolManager初始化失败");
+                    throw new IllegalStateException(PlotI18n.error("error.plot.validation.tool_manager_init_failed"));
                 }
             }
             

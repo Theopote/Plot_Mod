@@ -1,5 +1,6 @@
 package com.plot.ui.tools.snap;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
@@ -33,7 +34,7 @@ public class SnapHandler implements ISnapHandler {
     private static final long CACHE_TIMEOUT = 2000; // 2秒
     
     public SnapHandler(IAppState appState, ISnapManager snapManager, String toolId) {
-        this.appState = Objects.requireNonNull(appState, "AppState不能为空");
+        this.appState = Objects.requireNonNull(appState, PlotI18n.error("error.plot.validation.app_state_null"));
         this.snapManager = snapManager;
         this.toolId = toolId != null ? toolId : "未知工具";
         LOGGER.debug("SnapHandler [{}] 初始化完成", this.toolId);

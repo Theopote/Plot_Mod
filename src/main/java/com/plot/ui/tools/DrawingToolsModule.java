@@ -48,7 +48,7 @@ public final class DrawingToolsModule {
     
     // 防止实例化
     private DrawingToolsModule() {
-        throw new UnsupportedOperationException("DrawingToolsModule是工具类，不能被实例化");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.utility_class"));
     }
     
     /**
@@ -72,19 +72,19 @@ public final class DrawingToolsModule {
             com.plot.core.command.CommandManager commandManager) {
         // 参数验证
         if (toolManager == null) {
-            throw new IllegalArgumentException("ToolManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.tool_manager_null"));
         }
         if (appState == null) {
-            throw new IllegalArgumentException("AppState不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_null"));
         }
         if (eventBus == null) {
-            throw new IllegalArgumentException("EventBus不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.event_bus_null"));
         }
         if (snapManager == null) {
-            throw new IllegalArgumentException("SnapManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.snap_manager_null"));
         }
         if (commandManager == null) {
-            throw new IllegalArgumentException("CommandManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.command_manager_null"));
         }
         
         LOGGER.info("开始初始化绘图工具模块...");

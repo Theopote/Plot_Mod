@@ -1,5 +1,6 @@
 package com.plot.core.tool;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.state.IAppState;
 import com.plot.api.tool.ITool;
@@ -65,9 +66,9 @@ public abstract class BaseTool implements ITool, IShortcutListener {
         this.config = new ToolConfig();
         this.priority = 0;
 
-        this.appState = Objects.requireNonNull(appState, "AppState 不能为空");
-        this.eventBus = Objects.requireNonNull(eventBus, "EventBus 不能为空");
-        this.shortcutManager = Objects.requireNonNull(shortcutManager, "ShortcutManager 不能为空");
+        this.appState = Objects.requireNonNull(appState, PlotI18n.error("error.plot.validation.app_state_null"));
+        this.eventBus = Objects.requireNonNull(eventBus, PlotI18n.error("error.plot.validation.event_bus_null"));
+        this.shortcutManager = Objects.requireNonNull(shortcutManager, PlotI18n.error("error.plot.validation.shortcut_manager_null"));
 
         shortcutManager.addListener(this);
     }

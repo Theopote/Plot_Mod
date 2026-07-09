@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.constants;
 
+import com.plot.utils.PlotI18n;
 /**
  * 倒圆角工具常量定义
  * 
@@ -63,6 +64,6 @@ public final class FilletConstants {
     
     // 私有构造函数防止实例化
     private FilletConstants() {
-        throw new UnsupportedOperationException("常量类不能实例化");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.constants_class"));
     }
 }

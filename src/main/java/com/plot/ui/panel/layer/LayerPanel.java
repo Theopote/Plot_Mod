@@ -101,19 +101,19 @@ public class LayerPanel implements UIComponent {
             // 确保AppState已初始化
             this.appState = AppState.getInstance();
             if (this.appState == null) {
-                throw new IllegalStateException("AppState未能正确初始化");
+                throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_init_failed"));
             }
 
             // 确保EventBus已初始化
             this.eventBus = EventBus.getInstance();
             if (this.eventBus == null) {
-                throw new IllegalStateException("EventBus未能正确初始化");
+                throw new IllegalStateException(PlotI18n.error("error.plot.validation.event_bus_init_failed"));
             }
 
             // 从AppState获取LayerManager
             this.layerManager = appState.getLayerManager();
             if (this.layerManager == null) {
-                throw new IllegalStateException("LayerManager未能正确初始化");
+                throw new IllegalStateException(PlotI18n.error("error.plot.validation.layer_manager_init_failed"));
             }
 
             // 初始化图层状态
@@ -168,13 +168,13 @@ public class LayerPanel implements UIComponent {
      */
     private void validateDependencies() {
         if (appState == null) {
-            throw new IllegalStateException("AppState未初始化");
+            throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_not_initialized"));
         }
         if (eventBus == null) {
-            throw new IllegalStateException("EventBus未初始化");
+            throw new IllegalStateException(PlotI18n.error("error.plot.validation.event_bus_not_initialized"));
         }
         if (layerManager == null) {
-            throw new IllegalStateException("LayerManager未初始化");
+            throw new IllegalStateException(PlotI18n.error("error.plot.validation.layer_manager_not_initialized"));
         }
     }
 

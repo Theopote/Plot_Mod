@@ -1,5 +1,6 @@
 package com.plot.ui.utils;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,7 @@ public class GeometryCalculationUtils {
      * 私有构造函数，防止实例化
      */
     private GeometryCalculationUtils() {
-        throw new UnsupportedOperationException("工具类不能实例化");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.utility_class"));
     }
     
     // ==================== 线段相交检测 ====================

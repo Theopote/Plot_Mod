@@ -72,8 +72,8 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
      * 在组合根配置共享依赖，避免各绘图工具构造器内直接调用单例。
      */
     public static void configureSharedDependencies(EventBus eventBus, ShortcutManager shortcutManager) {
-        sharedEventBus = Objects.requireNonNull(eventBus, "EventBus 不能为空");
-        sharedShortcutManager = Objects.requireNonNull(shortcutManager, "ShortcutManager 不能为空");
+        sharedEventBus = Objects.requireNonNull(eventBus, PlotI18n.error("error.plot.validation.event_bus_null"));
+        sharedShortcutManager = Objects.requireNonNull(shortcutManager, PlotI18n.error("error.plot.validation.shortcut_manager_null"));
     }
     
     /**
@@ -199,7 +199,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         this.toolIcon = icon;
         this.toolDescription = localizedDescription;
         this.snapManager = snapManager;
-        this.interactionType = Objects.requireNonNull(interactionType, "InteractionType 不能为空");
+        this.interactionType = Objects.requireNonNull(interactionType, PlotI18n.error("error.plot.validation.interaction_type_null"));
         this.toolStyle = new ToolStyle();
 
         // 初始化辅助类

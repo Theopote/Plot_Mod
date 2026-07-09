@@ -1,5 +1,6 @@
 package com.plot.core.tool;
 
+import com.plot.utils.PlotI18n;
 import com.plot.api.model.ICanvas;
 import com.plot.api.tool.*;
 import com.plot.api.event.IEvent;
@@ -33,7 +34,7 @@ public class ToolManager implements IToolManager {
 
     private ToolManager(AppState appState) {
         if (appState == null) {
-            throw new IllegalArgumentException("AppState 不能为空");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_null"));
         }
         this.appState = appState;
         this.tools = new ConcurrentHashMap<>();
@@ -53,7 +54,7 @@ public class ToolManager implements IToolManager {
 
     public static ToolManager getInstance() {
         if (INSTANCE == null) {
-            throw new IllegalStateException("ToolManager 必须先通过 initialize(appState) 初始化");
+            throw new IllegalStateException(PlotI18n.error("error.plot.validation.tool_manager_not_initialized"));
         }
         return INSTANCE;
     }

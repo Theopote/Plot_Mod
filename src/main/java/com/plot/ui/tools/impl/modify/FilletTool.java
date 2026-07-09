@@ -51,8 +51,8 @@ public class FilletTool extends ModifyTool implements EventListener {
      */
     public FilletTool(IAppState appState, ISnapManager snapManager) {
         super("fillet", Icons.FILLET_IDENTIFIER, 
-              Objects.requireNonNull(appState, "AppState 不能为空"), 
-              Objects.requireNonNull(snapManager, "ISnapManager 不能为空"));
+              Objects.requireNonNull(appState, PlotI18n.error("error.plot.validation.app_state_null")), 
+              Objects.requireNonNull(snapManager, PlotI18n.error("error.plot.validation.snap_manager_null")));
         
         LOGGER.info("FilletTool 已创建（依赖注入模式）");
         

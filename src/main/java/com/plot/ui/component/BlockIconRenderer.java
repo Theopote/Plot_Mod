@@ -1,5 +1,6 @@
 package com.plot.ui.component;
 
+import com.plot.utils.PlotI18n;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -278,7 +279,7 @@ public final class BlockIconRenderer implements AutoCloseable {
 
             drawVanillaGuiItemIntoCurrentFbo(stack);
             if (!hasVisiblePixels()) {
-                throw new IllegalStateException("离屏物品渲染结果为空（透明纹理）");
+                throw new IllegalStateException(PlotI18n.error("error.plot.render.offscreen_empty"));
             }
 
             // 解绑颜色附件，避免后续误写
@@ -321,7 +322,7 @@ public final class BlockIconRenderer implements AutoCloseable {
             scaleCompat(matrices, scale, scale);
 
             if (!drawItemWithoutEntityCompat(context, stack, 0, 0)) {
-                throw new IllegalStateException("DrawContext.drawItemWithoutEntity / drawItem 调用失败");
+                throw new IllegalStateException(PlotI18n.error("error.plot.render.draw_item_failed"));
             }
 
             flushDrawContextCompat(context);
@@ -479,7 +480,7 @@ public final class BlockIconRenderer implements AutoCloseable {
             field.setAccessible(true);
             return (GuiRenderState) field.get(gameRenderer);
         } catch (Throwable t) {
-            throw new IllegalStateException("无法获取 GameRenderer.guiState", t);
+            throw new IllegalStateException(PlotI18n.error("error.plot.render.gui_state_unavailable"), t);
         }
     }
 

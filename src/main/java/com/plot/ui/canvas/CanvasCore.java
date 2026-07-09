@@ -107,10 +107,10 @@ public class CanvasCore implements ICanvas {
      */
     public CanvasCore(AppState appState) {
         if (appState == null) {
-            throw new IllegalArgumentException("AppState不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_null"));
         }
         if (appState.getLayerManager() == null) {
-            throw new IllegalArgumentException("AppState中的LayerManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_layer_manager_null"));
         }
         
         this.eventBus = EventBus.getInstance();
@@ -148,7 +148,7 @@ public class CanvasCore implements ICanvas {
     @Deprecated
     public CanvasCore(LayerManager layerManager) {
         if (layerManager == null) {
-            throw new IllegalArgumentException("LayerManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.layer_manager_null"));
         }
         
         this.eventBus = EventBus.getInstance();
@@ -191,10 +191,10 @@ public class CanvasCore implements ICanvas {
     private static AppState getAppStateOrThrow() {
         AppState appState = AppState.getInstance();
         if (appState == null) {
-            throw new IllegalStateException("AppState必须在创建CanvasCore之前初始化");
+            throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_before_canvas_core"));
         }
         if (appState.getLayerManager() == null) {
-            throw new IllegalStateException("AppState中的LayerManager必须在创建CanvasCore之前初始化");
+            throw new IllegalStateException(PlotI18n.error("error.plot.validation.layer_manager_before_canvas_core"));
         }
         LOGGER.debug("CanvasCore: 使用AppState实例进行初始化");
         return appState;

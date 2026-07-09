@@ -49,7 +49,7 @@ public final class ModifyToolsModule {
     
     // 防止实例化
     private ModifyToolsModule() {
-        throw new UnsupportedOperationException("ModifyToolsModule是工具类，不能被实例化");
+        throw new UnsupportedOperationException(PlotI18n.error("error.plot.validation.utility_class"));
     }
     
     /**
@@ -75,19 +75,19 @@ public final class ModifyToolsModule {
         
         // 参数验证
         if (toolManager == null) {
-            throw new IllegalArgumentException("ToolManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.tool_manager_null"));
         }
         if (appState == null) {
-            throw new IllegalArgumentException("AppState不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_null"));
         }
         if (eventBus == null) {
-            throw new IllegalArgumentException("EventBus不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.event_bus_null"));
         }
         if (snapManager == null) {
-            throw new IllegalArgumentException("SnapManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.snap_manager_null"));
         }
         if (commandManager == null) {
-            throw new IllegalArgumentException("CommandManager不能为null");
+            throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.command_manager_null"));
         }
         
         LOGGER.info("开始初始化修改工具模块...");
@@ -153,7 +153,7 @@ public final class ModifyToolsModule {
             // 验证 AppState 状态并获取必要的依赖
             com.plot.api.model.ICanvas canvas = appState.getCanvas();
             if (canvas == null) {
-                throw new IllegalStateException("Canvas未在AppState中初始化");
+                throw new IllegalStateException(PlotI18n.error("error.plot.validation.canvas_not_in_app_state"));
             }
             
             // 基础工具 - 使用依赖注入构造函数

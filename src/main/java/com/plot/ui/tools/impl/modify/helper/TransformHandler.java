@@ -41,7 +41,7 @@ public class TransformHandler implements IModifyHandler {
      * @param appState 应用状态管理器
      */
     public TransformHandler(AppState appState) {
-        this.appState = Objects.requireNonNull(appState, "AppState不能为空");
+        this.appState = Objects.requireNonNull(appState, PlotI18n.error("error.plot.validation.app_state_null"));
     }
     
     @Override
