@@ -117,8 +117,7 @@ public class SemicircleTool extends DrawingTool {
      * 依赖注入构造函数（推荐方式）
      */
     public SemicircleTool(IAppState appState, ISnapManager snapManager) {
-        super("semicircle", "半圆", Icons.SEMICIRCLE_IDENTIFIER,
-              "绘制半圆形状，支持多种绘制模式", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("semicircle", Icons.SEMICIRCLE_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
 
         initializeSemicircleTool();
     }
@@ -129,8 +128,7 @@ public class SemicircleTool extends DrawingTool {
      */
     @Deprecated
     public SemicircleTool() {
-        super("semicircle", "半圆", Icons.SEMICIRCLE_IDENTIFIER,
-              "绘制半圆形状，支持多种绘制模式");
+        super("semicircle", Icons.SEMICIRCLE_IDENTIFIER);
 
         initializeSemicircleTool();
     }

@@ -41,7 +41,7 @@ public class ScaleTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public ScaleTool(IAppState appState, ISnapManager snapManager) {
-        super("scale", "缩放", Icons.SCALE_IDENTIFIER, "缩放选中的图形",
+        super("scale", Icons.SCALE_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("ScaleTool 已创建");
     }
@@ -52,7 +52,7 @@ public class ScaleTool extends ModifyTool {
      */
     @Deprecated
     public ScaleTool() {
-        super("scale", "缩放", Icons.SCALE_IDENTIFIER, "缩放选中的图形");
+        super("scale", Icons.SCALE_IDENTIFIER);
         LOGGER.info("ScaleTool 已创建（兼容模式）");
     }
 

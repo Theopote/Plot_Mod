@@ -140,6 +140,25 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     /**
      * 构造函数（推荐方式 - 依赖注入）
      */
+    protected ModifyTool(String id, Identifier icon,
+                        IAppState appState, ISnapManager snapManager,
+                        EventBus eventBus, ShortcutManager shortcutManager) {
+        this(id, id, icon, id, appState, snapManager, eventBus, shortcutManager);
+    }
+
+    protected ModifyTool(String id, Identifier icon,
+                        IAppState appState, ISnapManager snapManager) {
+        this(id, icon, appState, snapManager, sharedEventBus, sharedShortcutManager);
+    }
+
+    /**
+     * @deprecated 推荐使用 {@link #ModifyTool(String, Identifier, IAppState, ISnapManager)}
+     */
+    @Deprecated
+    protected ModifyTool(String id, Identifier icon) {
+        this(id, icon, AppState.getInstance(), SnapManager.getInstance());
+    }
+
     protected ModifyTool(String id, String name, Identifier icon, String description,
                         IAppState appState, ISnapManager snapManager) {
         this(id, name, icon, description, appState, snapManager,
@@ -149,12 +168,14 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     protected ModifyTool(String id, String name, Identifier icon, String description,
                         IAppState appState, ISnapManager snapManager,
                         EventBus eventBus, ShortcutManager shortcutManager) {
-        super(id, description, icon, name, appState, eventBus, shortcutManager);
+        String localizedName = PlotI18n.toolLabel(id);
+        String localizedDescription = PlotI18n.toolDescription(id);
+        super(id, localizedDescription, icon, localizedName, appState, eventBus, shortcutManager);
 
         this.toolId = id;
-        this.toolName = name;
+        this.toolName = localizedName;
         this.toolIcon = icon;
-        this.toolDescription = description;
+        this.toolDescription = localizedDescription;
         this.concreteAppState = requireConcreteAppState(appState);
         this.snapManager = snapManager;
         this.previewStyle = ShapeStyle.PREVIEW;

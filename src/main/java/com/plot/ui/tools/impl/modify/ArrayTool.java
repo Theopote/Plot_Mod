@@ -42,7 +42,7 @@ public class ArrayTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public ArrayTool(IAppState appState, ISnapManager snapManager) {
-        super("array", "阵列", Icons.ARRAY_IDENTIFIER, "创建图形的阵列复制",
+        super("array", Icons.ARRAY_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("ArrayTool 已创建");
         
@@ -56,7 +56,7 @@ public class ArrayTool extends ModifyTool {
      */
     @Deprecated
     public ArrayTool() {
-        super("array", "阵列", Icons.ARRAY_IDENTIFIER, "创建图形的阵列复制");
+        super("array", Icons.ARRAY_IDENTIFIER);
         LOGGER.info("ArrayTool 已创建（兼容模式）");
         
         // 订阅ToolConfigEvent

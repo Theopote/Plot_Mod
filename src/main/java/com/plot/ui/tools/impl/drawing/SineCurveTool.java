@@ -93,8 +93,7 @@ public class SineCurveTool extends DrawingTool {
      * 依赖注入构造函数（推荐方式）
      */
     public SineCurveTool(IAppState appState, ISnapManager snapManager) {
-        super("sine", "正弦曲线", Icons.SINE_IDENTIFIER, 
-              "绘制正弦波形，支持自定义波长、振幅和相位", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("sine", Icons.SINE_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         initializeSineCurveTool();
     }
@@ -105,8 +104,7 @@ public class SineCurveTool extends DrawingTool {
      */
     @Deprecated
     public SineCurveTool(AppState appState) {
-        super("sine", "正弦曲线", Icons.SINE_IDENTIFIER, 
-              "绘制正弦波形，支持自定义波长、振幅和相位");
+        super("sine", Icons.SINE_IDENTIFIER);
         
         initializeSineCurveTool();
     }

@@ -45,7 +45,7 @@ public class AlignTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public AlignTool(IAppState appState, ISnapManager snapManager) {
-        super("align", "对齐", Icons.ALIGN_IDENTIFIER, "对齐选中的图形",
+        super("align", Icons.ALIGN_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("AlignTool 已创建");
 
@@ -71,7 +71,7 @@ public class AlignTool extends ModifyTool {
      */
     @Deprecated
     public AlignTool() {
-        super("align", "对齐", Icons.ALIGN_IDENTIFIER, "对齐选中的图形");
+        super("align", Icons.ALIGN_IDENTIFIER);
         LOGGER.warn("AlignTool 使用已弃用的无参构造函数，请使用依赖注入构造函数");
     }
 

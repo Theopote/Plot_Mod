@@ -34,7 +34,7 @@ public class MoveTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public MoveTool(IAppState appState, ISnapManager snapManager) {
-        super("move", "移动", Icons.MOVE_IDENTIFIER, "移动选中的图形",
+        super("move", Icons.MOVE_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("MoveTool 已创建");
     }
@@ -45,7 +45,7 @@ public class MoveTool extends ModifyTool {
      */
     @Deprecated
     public MoveTool() {
-        super("move", "移动", Icons.MOVE_IDENTIFIER, "移动选中的图形");
+        super("move", Icons.MOVE_IDENTIFIER);
         LOGGER.info("MoveTool 已创建（兼容模式）");
     }
 

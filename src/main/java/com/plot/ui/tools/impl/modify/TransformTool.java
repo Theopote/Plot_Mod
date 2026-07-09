@@ -95,7 +95,7 @@ public class TransformTool extends ModifyTool implements EventListener {
      * @param eventBus 事件总线
      */
     public TransformTool(IAppState appState, ISnapManager snapManager, EventBus eventBus) {
-        super("transform", "变换工具", Icons.STRETCH_IDENTIFIER, "变换选中的图形",
+        super("transform", Icons.STRETCH_IDENTIFIER,
                 appState, snapManager, eventBus, ShortcutManager.getInstance());
 
         eventBus.subscribe(ToolConfigEvent.class, this);

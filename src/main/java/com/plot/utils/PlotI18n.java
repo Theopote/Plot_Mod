@@ -166,4 +166,13 @@ public final class PlotI18n {
         String translated = tr(key);
         return translated.equals(key) ? changeType : translated;
     }
+
+    public static String unsupportedShapeOperation(String operation) {
+        if (operation == null || operation.isBlank()) {
+            return tr("error.plot.shape.unsupported.generic");
+        }
+        String key = "error.plot.shape.unsupported." + operation;
+        String translated = tr(key);
+        return translated.equals(key) ? tr("error.plot.shape.unsupported.generic") : translated;
+    }
 }

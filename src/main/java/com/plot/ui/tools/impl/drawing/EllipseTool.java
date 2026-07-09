@@ -124,7 +124,7 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
     // ====== 构造函数 ======
 
     public EllipseTool(IAppState appState, ISnapManager snapManager) {
-        super("ellipse", "椭圆", Icons.ELLIPSE_IDENTIFIER, "绘制椭圆", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("ellipse", Icons.ELLIPSE_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         // 注册类型安全的配置事件监听
         eventBus.subscribe(ToolConfigEvent.class, this);

@@ -118,7 +118,7 @@ public class SplineTool extends DrawingTool {
      * 依赖注入构造函数（推荐）
      */
     public SplineTool(IAppState appState, ISnapManager snapManager) {
-        super("spline", "样条曲线", Icons.SPLINE_IDENTIFIER, "绘制样条曲线", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("spline", Icons.SPLINE_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         // 初始化策略
         updateGenerationStrategy();

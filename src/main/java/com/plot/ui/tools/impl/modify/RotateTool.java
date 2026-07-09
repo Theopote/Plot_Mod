@@ -43,7 +43,7 @@ public class RotateTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public RotateTool(IAppState appState, ISnapManager snapManager) {
-        super("rotate", "旋转", Icons.ROTATE_IDENTIFIER, "旋转选中的图形",
+        super("rotate", Icons.ROTATE_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("RotateTool 已创建");
         
@@ -69,7 +69,7 @@ public class RotateTool extends ModifyTool {
      */
     @Deprecated
     public RotateTool() {
-        super("rotate", "旋转", Icons.ROTATE_IDENTIFIER, "旋转选中的图形");
+        super("rotate", Icons.ROTATE_IDENTIFIER);
         LOGGER.info("RotateTool 已创建（兼容模式）");
     }
 

@@ -66,7 +66,7 @@ public class CatenaryLineTool extends DrawingTool {
     private final int segments = DEFAULT_SEGMENTS; // 固定为默认分段数
 
     public CatenaryLineTool(IAppState appState, ISnapManager snapManager) {
-        super("catenary", "悬链线", Icons.CATENARY_IDENTIFIER, "绘制悬链线",
+        super("catenary", Icons.CATENARY_IDENTIFIER,
                 appState, snapManager, InteractionType.CLICK_AND_CLICK);
 
         // 订阅配置事件

@@ -29,7 +29,7 @@ public class TrimTool extends ModifyTool {
     public static final String CONFIG_KEY_FENCE_POLYGON_SIDES = "fence_polygon_sides";
 
     public TrimTool(IAppState appState, ISnapManager snapManager) {
-        super("trim", "修剪", Icons.TRIM_IDENTIFIER, "修剪图形",
+        super("trim", Icons.TRIM_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("TrimTool 已创建");
         // 订阅ToolConfigEvent
@@ -38,7 +38,7 @@ public class TrimTool extends ModifyTool {
 
     @Deprecated
     public TrimTool() {
-        super("trim", "修剪", Icons.TRIM_IDENTIFIER, "修剪图形");
+        super("trim", Icons.TRIM_IDENTIFIER);
         LOGGER.info("TrimTool 已创建（兼容模式）");
         // 订阅ToolConfigEvent
         eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);

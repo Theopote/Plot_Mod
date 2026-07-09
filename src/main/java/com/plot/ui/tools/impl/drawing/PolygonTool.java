@@ -175,7 +175,7 @@ public class PolygonTool extends DrawingTool {
     // ====== 构造函数 ======
     
     public PolygonTool(IAppState appState, ISnapManager snapManager) {
-        super("polygon", "多边形", Icons.POLYGON_IDENTIFIER, "绘制正多边形", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("polygon", Icons.POLYGON_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         // 注册配置事件监听
         eventBus.subscribe(ToolConfigEvent.class, this::onToolConfigEvent);

@@ -21,6 +21,7 @@ import com.plot.core.graphics.style.TextStyle;
 import com.plot.utils.ExceptionDebug;
 import com.plot.core.graphics.style.TextAlignment;
 import com.plot.ui.dialog.TextInputDialog;
+import com.plot.utils.PlotI18n;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
@@ -48,9 +49,7 @@ public class TextTool extends BaseTool {
     
     // ---- 工具标识 ----
     private static final String TOOL_ID = "text";
-    private static final String TOOL_NAME = "文字";
-    private static final String TOOL_DESCRIPTION = "添加多行文字";
-    private static final String DEFAULT_TEXT = "文字";
+    private static final String DEFAULT_TEXT = PlotI18n.tr("tool.plot.text.default_content");
     
     // ---- 光标定义 ----
     private static final String CURSOR_TEXT = "text";
@@ -119,15 +118,15 @@ public class TextTool extends BaseTool {
      * 构造函数 - 支持父组件注入，提高健壮性
      */
     public TextTool(ICanvas canvas, Component parentComponent) {
-        super(TOOL_ID, TOOL_DESCRIPTION, Icons.TEXT_IDENTIFIER, TOOL_NAME,
+        super(TOOL_ID, PlotI18n.toolDescription(TOOL_ID), Icons.TEXT_IDENTIFIER, PlotI18n.toolLabel(TOOL_ID),
                 AppState.getInstance(), EventBus.getInstance(), ShortcutManager.getInstance());
         this.canvas = canvas;
         this.parentComponent = parentComponent;
         this.currentState = ToolState.IDLE;
 
         // 配置工具
-        config.setDescription("Add multi-line text");
-        config.setTooltip("Click to add text, double-click to edit");
+        config.setDescription(PlotI18n.toolDescription(TOOL_ID));
+        config.setTooltip(PlotI18n.toolUsageHint(TOOL_ID));
         config.setIcon(Icons.TEXT);
         config.setShortcutKey("T");
         config.setPriority(50);
@@ -1051,6 +1050,16 @@ public class TextTool extends BaseTool {
      */
     public ToolState getCurrentState() {
         return currentState;
+    }
+
+    @Override
+    public String getName() {
+        return PlotI18n.toolLabel(TOOL_ID);
+    }
+
+    @Override
+    public String getDescription() {
+        return PlotI18n.toolDescription(TOOL_ID);
     }
 
     private AppState requireAppState() {

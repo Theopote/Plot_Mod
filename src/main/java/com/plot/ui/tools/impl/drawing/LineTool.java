@@ -76,7 +76,7 @@ public class LineTool extends DrawingTool {
      * @param snapManager 吸附管理器
      */
     public LineTool(IAppState appState, ISnapManager snapManager) {
-        super("line", "直线", Icons.LINE_IDENTIFIER, "绘制直线", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("line", Icons.LINE_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         subscribeToEvents();
     }
     

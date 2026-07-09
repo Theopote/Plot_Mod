@@ -154,6 +154,32 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     /**
      * 构造函数（推荐方式 - 依赖注入 + 交互模式）
      */
+    protected DrawingTool(String id, Identifier icon,
+                         IAppState appState, ISnapManager snapManager,
+                         EventBus eventBus, ShortcutManager shortcutManager,
+                         InteractionType interactionType) {
+        this(id, id, icon, id, appState, snapManager, eventBus, shortcutManager, interactionType);
+    }
+
+    protected DrawingTool(String id, Identifier icon,
+                         IAppState appState, ISnapManager snapManager,
+                         InteractionType interactionType) {
+        this(id, icon, appState, snapManager, sharedEventBus, sharedShortcutManager, interactionType);
+    }
+
+    protected DrawingTool(String id, Identifier icon,
+                         IAppState appState, ISnapManager snapManager) {
+        this(id, icon, appState, snapManager, InteractionType.DRAG_AND_DROP);
+    }
+
+    /**
+     * @deprecated 推荐使用 {@link #DrawingTool(String, Identifier, IAppState, ISnapManager, InteractionType)}
+     */
+    @Deprecated
+    protected DrawingTool(String id, Identifier icon) {
+        this(id, icon, AppState.getInstance(), SnapManager.getInstance());
+    }
+
     protected DrawingTool(String id, String name, Identifier icon, String description,
                          IAppState appState, ISnapManager snapManager, InteractionType interactionType) {
         this(id, name, icon, description, appState, snapManager,
@@ -164,12 +190,14 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
                          IAppState appState, ISnapManager snapManager,
                          EventBus eventBus, ShortcutManager shortcutManager,
                          InteractionType interactionType) {
-        super(id, description, icon, name, appState, eventBus, shortcutManager);
+        String localizedName = PlotI18n.toolLabel(id);
+        String localizedDescription = PlotI18n.toolDescription(id);
+        super(id, localizedDescription, icon, localizedName, appState, eventBus, shortcutManager);
 
         this.toolId = id;
-        this.toolName = name;
+        this.toolName = localizedName;
         this.toolIcon = icon;
-        this.toolDescription = description;
+        this.toolDescription = localizedDescription;
         this.snapManager = snapManager;
         this.interactionType = Objects.requireNonNull(interactionType, "InteractionType 不能为空");
         this.toolStyle = new ToolStyle();

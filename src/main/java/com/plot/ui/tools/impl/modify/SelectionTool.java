@@ -55,7 +55,7 @@ public class SelectionTool extends ModifyTool {
      * 构造函数（依赖注入版本）
      */
     public SelectionTool(IAppState appState, ISnapManager snapManager, ICanvas canvas) {
-        super("select", "选择和操作形状 (策略模式版)", Icons.SELECT_IDENTIFIER, "选择工具", 
+        super("select", Icons.SELECT_IDENTIFIER, 
               appState, snapManager);
         
         // 设置画布引用

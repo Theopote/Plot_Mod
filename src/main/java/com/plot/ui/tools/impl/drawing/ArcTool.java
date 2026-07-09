@@ -97,7 +97,7 @@ public class ArcTool extends DrawingTool {
      * 依赖注入构造函数（推荐）
      */
     public ArcTool(IAppState appState, ISnapManager snapManager) {
-        super("arc", "弧形", Icons.ARC_IDENTIFIER, "绘制弧形", 
+        super("arc", Icons.ARC_IDENTIFIER, 
               appState, snapManager, InteractionType.CLICK_AND_CLICK);
         initializeArcTool();
     }
@@ -108,7 +108,7 @@ public class ArcTool extends DrawingTool {
      */
     @Deprecated
     public ArcTool() {
-        super("arc", "弧形", Icons.ARC_IDENTIFIER, "绘制弧形");
+        super("arc", Icons.ARC_IDENTIFIER);
         initializeArcTool();
     }
     

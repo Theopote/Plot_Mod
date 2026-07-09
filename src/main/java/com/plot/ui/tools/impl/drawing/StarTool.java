@@ -96,13 +96,13 @@ public class StarTool extends DrawingTool {
 
     // ====== 构造函数 ======
     public StarTool(IAppState appState, ISnapManager snapManager) {
-        super("star", "星形", Icons.STAR_IDENTIFIER, "绘制星形 (三点式)", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("star", Icons.STAR_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         init(); // 调用初始化方法
     }
 
     @Deprecated
     public StarTool() {
-        super("star", "星形", Icons.STAR_IDENTIFIER, "绘制星形 (三点式)");
+        super("star", Icons.STAR_IDENTIFIER);
         init(); // 调用初始化方法
     }
 

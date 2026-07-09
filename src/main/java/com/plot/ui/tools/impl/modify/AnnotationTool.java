@@ -23,8 +23,6 @@ public class AnnotationTool extends ModifyTool {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnnotationTool.class);
     
     private static final String TOOL_ID = "annotation";
-    private static final String TOOL_NAME = "标注";
-    private static final String TOOL_DESCRIPTION = "标注距离、角度、半径和面积";
     
     /**
      * 标注模式枚举
@@ -70,7 +68,7 @@ public class AnnotationTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public AnnotationTool(IAppState appState, ISnapManager snapManager) {
-        super(TOOL_ID, TOOL_NAME, ToolPanelIcons.ANNOTATION, TOOL_DESCRIPTION, 
+        super(TOOL_ID, ToolPanelIcons.ANNOTATION,
               appState, snapManager);
         
         // 监听工具配置事件

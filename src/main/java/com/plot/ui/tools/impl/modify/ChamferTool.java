@@ -59,7 +59,7 @@ public class ChamferTool extends ModifyTool implements EventListener {
      * @throws IllegalArgumentException 如果参数为空
      */
     public ChamferTool(IAppState appState, ISnapManager snapManager) {
-        super("chamfer", "倒角", Icons.CHAMFER_IDENTIFIER, "创建斜面倒角", 
+        super("chamfer", Icons.CHAMFER_IDENTIFIER, 
               Objects.requireNonNull(appState, "AppState 不能为空"), 
               Objects.requireNonNull(snapManager, "ISnapManager 不能为空"));
         
@@ -77,7 +77,7 @@ public class ChamferTool extends ModifyTool implements EventListener {
      */
     @Deprecated
     public ChamferTool() {
-        super("chamfer", "倒角", Icons.CHAMFER_IDENTIFIER, "创建斜面倒角");
+        super("chamfer", Icons.CHAMFER_IDENTIFIER);
         
         LOGGER.warn("ChamferTool 使用已弃用的无参构造函数，将在下一版本移除");
         throw new UnsupportedOperationException(

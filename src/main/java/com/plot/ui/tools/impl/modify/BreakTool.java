@@ -41,10 +41,7 @@ public class BreakTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public BreakTool(IAppState appState, ISnapManager snapManager) {
-        super("break",
-              "打断",
-              Icons.BREAK_IDENTIFIER,
-              "在指定点将对象分割成两部分",
+        super("break", Icons.BREAK_IDENTIFIER,
               appState,
               snapManager);
         this.breakStrategy = new BreakStrategy();
@@ -57,10 +54,7 @@ public class BreakTool extends ModifyTool {
      */
     @Deprecated
     public BreakTool() {
-        super("break",
-              "打断",
-              Icons.BREAK_IDENTIFIER,
-              "在指定点将对象分割成两部分");
+        super("break", Icons.BREAK_IDENTIFIER);
         this.breakStrategy = new BreakStrategy();
     }
     

@@ -103,8 +103,7 @@ public class SpiralTool extends DrawingTool {
      * 依赖注入构造函数（推荐方式）
      */
     public SpiralTool(IAppState appState, ISnapManager snapManager) {
-        super("spiral", "螺旋线", Icons.SPIRAL_IDENTIFIER, 
-              "绘制螺旋线，支持多种螺旋类型和参数", appState, snapManager, InteractionType.CLICK_AND_CLICK);
+        super("spiral", Icons.SPIRAL_IDENTIFIER, appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         // 初始化组件
         this.configManager = new SpiralConfigManager();
@@ -120,8 +119,7 @@ public class SpiralTool extends DrawingTool {
      */
     @Deprecated
     public SpiralTool() {
-        super("spiral", "螺旋线", Icons.SPIRAL_IDENTIFIER, 
-              "绘制螺旋线，支持多种螺旋类型和参数");
+        super("spiral", Icons.SPIRAL_IDENTIFIER);
         
         // 初始化组件
         this.configManager = new SpiralConfigManager();

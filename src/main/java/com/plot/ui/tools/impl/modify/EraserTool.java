@@ -35,7 +35,7 @@ public class EraserTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public EraserTool(IAppState appState, ISnapManager snapManager) {
-        super("eraser", "橡皮擦", Icons.ERASER_IDENTIFIER, "删除选中的图形",
+        super("eraser", Icons.ERASER_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("EraserTool 已创建");
     }
@@ -46,7 +46,7 @@ public class EraserTool extends ModifyTool {
      */
     @Deprecated
     public EraserTool() {
-        super("eraser", "橡皮擦", Icons.ERASER_IDENTIFIER, "删除选中的图形");
+        super("eraser", Icons.ERASER_IDENTIFIER);
         LOGGER.info("EraserTool 已创建（兼容模式）");
     }
 

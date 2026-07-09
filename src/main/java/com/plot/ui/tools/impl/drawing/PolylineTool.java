@@ -108,7 +108,7 @@ public class PolylineTool extends DrawingTool {
      * @param snapManager 吸附管理器
      */
     public PolylineTool(IAppState appState, ISnapManager snapManager) {
-        super("polyline", "多段线", Icons.POLYLINE_IDENTIFIER, "绘制多段线和贝塞尔曲线", 
+        super("polyline", Icons.POLYLINE_IDENTIFIER, 
               appState, snapManager, InteractionType.CLICK_AND_CLICK);
         
         // 初始化模式处理器（在super()调用之后，确保基类已初始化）

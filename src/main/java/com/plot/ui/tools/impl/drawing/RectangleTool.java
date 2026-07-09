@@ -97,7 +97,7 @@ public class RectangleTool extends DrawingTool {
      * 推荐构造函数（依赖注入）
      */
     public RectangleTool(IAppState appState, ISnapManager snapManager) {
-        super("rectangle", "矩形工具", Icons.RECTANGLE_IDENTIFIER, "绘制矩形",
+        super("rectangle", Icons.RECTANGLE_IDENTIFIER,
                 appState, snapManager, InteractionType.CLICK_AND_CLICK);
 
         // 监听配置事件
@@ -112,7 +112,7 @@ public class RectangleTool extends DrawingTool {
      */
     @Deprecated
     public RectangleTool() {
-        super("rectangle", "矩形工具", Icons.RECTANGLE_IDENTIFIER, "绘制矩形");
+        super("rectangle", Icons.RECTANGLE_IDENTIFIER);
 
         // 监听配置事件
         eventBus.subscribe(ToolConfigEvent.class, this::handleConfigEvent);

@@ -49,7 +49,7 @@ public class FilletTool extends ModifyTool implements EventListener {
      * @throws IllegalArgumentException 如果参数为空
      */
     public FilletTool(IAppState appState, ISnapManager snapManager) {
-        super("fillet", "圆角", Icons.FILLET_IDENTIFIER, "创建圆角", 
+        super("fillet", Icons.FILLET_IDENTIFIER, 
               Objects.requireNonNull(appState, "AppState 不能为空"), 
               Objects.requireNonNull(snapManager, "ISnapManager 不能为空"));
         

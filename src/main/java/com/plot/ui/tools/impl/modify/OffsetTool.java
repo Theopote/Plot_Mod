@@ -40,8 +40,7 @@ public class OffsetTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public OffsetTool(IAppState appState, ISnapManager snapManager) {
-        super("offset", "偏移", Icons.OFFSET_IDENTIFIER, 
-              "创建偏移对象，支持距离偏移和穿点偏移",
+        super("offset", Icons.OFFSET_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("OffsetTool 已创建");
     }
@@ -52,8 +51,7 @@ public class OffsetTool extends ModifyTool {
      */
     @Deprecated
     public OffsetTool() {
-        super("offset", "偏移", Icons.OFFSET_IDENTIFIER, 
-              "创建偏移对象，支持距离偏移和穿点偏移");
+        super("offset", Icons.OFFSET_IDENTIFIER);
         LOGGER.info("OffsetTool 已创建（兼容模式）");
     }
 

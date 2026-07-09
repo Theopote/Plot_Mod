@@ -59,10 +59,7 @@ public class ExtendTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public ExtendTool(IAppState appState, ISnapManager snapManager) {
-        super("extend",
-              "延伸",
-              Icons.EXTEND_IDENTIFIER,
-              "CAD风格延伸工具 - 延伸对象到边界图形",
+        super("extend", Icons.EXTEND_IDENTIFIER,
               appState,
               snapManager);
         LOGGER.debug("ExtendTool 已创建（依赖注入模式）");
@@ -75,10 +72,7 @@ public class ExtendTool extends ModifyTool {
      */
     @Deprecated
     public ExtendTool() {
-        super("extend",
-              "延伸",
-              Icons.EXTEND_IDENTIFIER,
-              "CAD风格延伸工具");
+        super("extend", Icons.EXTEND_IDENTIFIER);
         LOGGER.debug("ExtendTool 已创建（兼容性模式）");
     }
     

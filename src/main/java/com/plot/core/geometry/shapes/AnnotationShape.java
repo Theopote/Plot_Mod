@@ -10,6 +10,7 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
 import com.google.gson.Gson;
@@ -496,13 +497,13 @@ public class AnnotationShape extends Shape {
     @Override
     public void rotate(double angle, Vec2d center) {
         // 标注图形不支持旋转
-        throw new UnsupportedOperationException("标注图形不支持旋转操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_rotate"));
     }
     
     @Override
     public Shape transform(AffineTransform transformMatrix) {
         // 标注图形不支持变换
-        throw new UnsupportedOperationException("标注图形不支持变换操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_transform"));
     }
     
     @Override
@@ -794,7 +795,7 @@ public class AnnotationShape extends Shape {
     @Override
     public List<Vec2d> getExtensionIntersectionsWith(Shape other, Vec2d point, double maxDistance) {
         // 标注图形不支持延伸操作
-        throw new UnsupportedOperationException("标注图形不支持延伸交点计算");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_extend_intersection"));
     }
     
     @Override
@@ -829,7 +830,7 @@ public class AnnotationShape extends Shape {
     @Override
     public Vec2d getTangentAt(Vec2d point) {
         // 标注图形不支持切线计算
-        throw new UnsupportedOperationException("标注图形不支持切线计算");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_tangent"));
     }
     
     @Override
@@ -986,31 +987,31 @@ public class AnnotationShape extends Shape {
     @Override
     public List<Shape> split(List<Vec2d> points, Vec2d pickPoint) {
         // 标注图形不支持分割操作
-        throw new UnsupportedOperationException("标注图形不支持分割操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_split"));
     }
     
     @Override
     public Shape extend(Vec2d point, double distance) {
         // 标注图形不支持延伸操作
-        throw new UnsupportedOperationException("标注图形不支持延伸操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_extend"));
     }
     
     @Override
     public Shape extend(Vec2d point, Vec2d toPoint) {
         // 标注图形不支持延伸操作
-        throw new UnsupportedOperationException("标注图形不支持延伸操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_extend"));
     }
     
     @Override
     public Shape trimToPoint(Vec2d point) {
         // 标注图形不支持修剪操作
-        throw new UnsupportedOperationException("标注图形不支持修剪操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_trim"));
     }
     
     @Override
     public Shape createOffset(double distance) {
         // 标注图形不支持偏移操作
-        throw new UnsupportedOperationException("标注图形不支持偏移操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_offset"));
     }
     
     @Override
@@ -1037,7 +1038,7 @@ public class AnnotationShape extends Shape {
     @Override
     public List<Shape> breakShape(Vec2d firstBreakPoint, Vec2d secondBreakPoint, String breakMode) {
         // 标注图形不支持打断操作
-        throw new UnsupportedOperationException("标注图形不支持打断操作");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_break"));
     }
     
     @Override
@@ -1062,25 +1063,25 @@ public class AnnotationShape extends Shape {
             return GSON.toJson(data);
         } catch (Exception e) {
             LOGGER.error("序列化标注图形时发生错误: {}", e.getMessage(), e);
-            throw new RuntimeException("标注图形序列化失败", e);
+            throw new RuntimeException(PlotI18n.tr("error.plot.annotation.serialize_failed"), e);
         }
     }
     
     @Override
     public void deserialize(String data) {
         if (data == null || data.isBlank()) {
-            throw new IllegalArgumentException("序列化数据不能为空");
+            throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.empty_data"));
         }
 
         try {
             AnnotationShapeData shapeData = GSON.fromJson(data.trim(), AnnotationShapeData.class);
             if (shapeData == null) {
-                throw new IllegalArgumentException("无法解析标注数据");
+                throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.parse_failed"));
             }
 
             String typeName = shapeData.annotationType;
             if (typeName == null || typeName.isBlank()) {
-                throw new IllegalArgumentException("缺少标注类型");
+                throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.missing_type"));
             }
 
             AnnotationType restoredType = AnnotationType.valueOf(typeName);
@@ -1112,7 +1113,7 @@ public class AnnotationShape extends Shape {
                 setStyle(shapeStyle);
             }
         } catch (JsonSyntaxException | IllegalArgumentException e) {
-            throw new IllegalArgumentException("标注图形反序列化失败: " + e.getMessage(), e);
+            throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.deserialize_failed", e.getMessage()), e);
         }
     }
 
@@ -1120,25 +1121,25 @@ public class AnnotationShape extends Shape {
         switch (type) {
             case DISTANCE -> {
                 if (data.point1 == null || data.point2 == null) {
-                    throw new IllegalArgumentException("距离标注缺少端点数据");
+                    throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.distance_missing_points"));
                 }
             }
             case ANGLE -> {
                 if (data.angleVertex == null || data.anglePoint1 == null || data.anglePoint2 == null) {
-                    throw new IllegalArgumentException("角度标注缺少顶点数据");
+                    throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.angle_missing_vertex"));
                 }
             }
             case RADIUS -> {
                 if (data.center == null || data.radius <= 0) {
-                    throw new IllegalArgumentException("半径标注缺少圆心或半径");
+                    throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.radius_missing_data"));
                 }
             }
             case AREA -> {
                 if (data.textPosition == null && data.center == null) {
-                    throw new IllegalArgumentException("面积标注缺少位置数据");
+                    throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.area_missing_position"));
                 }
             }
-            default -> throw new IllegalArgumentException("未知标注类型: " + type);
+            default -> throw new IllegalArgumentException(PlotI18n.tr("error.plot.annotation.unknown_type", type));
         }
     }
 
@@ -1213,7 +1214,7 @@ public class AnnotationShape extends Shape {
     @Override
     public Shape accept(IShapeVisitor visitor) {
         // 标注图形不支持访问者模式
-        throw new UnsupportedOperationException("标注图形不支持访问者模式");
+        throw new UnsupportedOperationException(PlotI18n.tr("error.plot.annotation.no_visitor"));
     }
     
     @Override

@@ -39,7 +39,7 @@ public class MirrorTool extends ModifyTool {
      * @param snapManager 吸附管理器
      */
     public MirrorTool(IAppState appState, ISnapManager snapManager) {
-        super("mirror", "镜像", Icons.MIRROR_IDENTIFIER, "镜像选中的图形",
+        super("mirror", Icons.MIRROR_IDENTIFIER,
               appState, snapManager);
         LOGGER.info("MirrorTool 已创建");
         // 订阅工具配置事件，确保右侧面板修改即时生效
@@ -64,7 +64,7 @@ public class MirrorTool extends ModifyTool {
      */
     @Deprecated
     public MirrorTool() {
-        super("mirror", "镜像", Icons.MIRROR_IDENTIFIER, "镜像选中的图形");
+        super("mirror", Icons.MIRROR_IDENTIFIER);
         LOGGER.warn("MirrorTool 使用兼容构造函数，建议使用依赖注入构造函数");
         // 不抛出异常，保持向后兼容性，但记录警告
     }

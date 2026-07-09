@@ -71,7 +71,7 @@ public class ControlPointEditTool extends ModifyTool {
      * 构造函数（依赖注入版本）
      */
     public ControlPointEditTool(AppState appState, ISnapManager snapManager, ICanvas canvas) {
-        super("control_point_edit", "控制点编辑", Icons.SELECT_IDENTIFIER, "编辑图形控制点", 
+        super("control_point_edit", Icons.SELECT_IDENTIFIER, 
               appState, snapManager);
         
         // 设置画布引用

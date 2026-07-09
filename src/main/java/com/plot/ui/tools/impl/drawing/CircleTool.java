@@ -89,7 +89,7 @@ public class CircleTool extends DrawingTool {
      * 依赖注入构造函数（推荐）
      */
     public CircleTool(IAppState appState, ISnapManager snapManager) {
-        super("circle", "圆形", Icons.CIRCLE_IDENTIFIER, "绘制圆形", 
+        super("circle", Icons.CIRCLE_IDENTIFIER, 
               appState, snapManager, InteractionType.CLICK_AND_CLICK);
         initializeCircleTool();
     }
@@ -100,7 +100,7 @@ public class CircleTool extends DrawingTool {
      */
     @Deprecated
     public CircleTool() {
-        super("circle", "圆形", Icons.CIRCLE_IDENTIFIER, "绘制圆形");
+        super("circle", Icons.CIRCLE_IDENTIFIER);
         initializeCircleTool();
     }
     

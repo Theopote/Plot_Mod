@@ -64,7 +64,7 @@ public class FreeDrawTool extends DrawingTool {
      * 依赖注入构造函数（推荐）
      */
     public FreeDrawTool(IAppState appState, ISnapManager snapManager) {
-        super("freedraw", "自由绘制", Icons.FREEDRAW_IDENTIFIER, "自由绘制路径", 
+        super("freedraw", Icons.FREEDRAW_IDENTIFIER, 
               appState, snapManager, InteractionType.DRAG_AND_DROP);
         
         // 订阅工具配置事件
