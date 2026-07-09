@@ -88,7 +88,7 @@ public class ProjectGhostBlocksCommand implements Command {
         projectedCount = successCount;
         LOGGER.info("重做投影完成: {}/{}", successCount, projectedRecords.size());
         eventBus.publish(new Events.WarningEvent("ProjectGhostBlocksCommand",
-                String.format("已重做投影 %d 个方块", successCount)));
+                PlotI18n.status("status.plot.projection.redo", successCount)));
     }
 
     @Override
@@ -103,7 +103,7 @@ public class ProjectGhostBlocksCommand implements Command {
 
         LOGGER.info("撤销投影完成: {}/{}", restoredCount, projectedRecords.size());
         eventBus.publish(new Events.WarningEvent("ProjectGhostBlocksCommand",
-                String.format("已撤销投影 %d 个方块", restoredCount)));
+                PlotI18n.status("status.plot.projection.undo", restoredCount)));
     }
 
     @Override
@@ -168,12 +168,12 @@ public class ProjectGhostBlocksCommand implements Command {
         projectedCount = projectedRecords.size();
 
         if (projectedCount == 0) {
-            throw new IllegalStateException("没有可投影的幽灵方块（可能距离过远、区块未加载或不在创造模式）");
+            throw new IllegalStateException(PlotI18n.status("status.plot.projection.no_ghost_blocks"));
         }
 
         LOGGER.info("投影命令执行完成: 成功 {}, 跳过 {}", projectedCount, skippedCount);
         eventBus.publish(new Events.WarningEvent("ProjectGhostBlocksCommand",
-                String.format("已成功投影 %d 个方块，跳过 %d 个", projectedCount, skippedCount)));
+                PlotI18n.status("status.plot.projection.completed", projectedCount, skippedCount)));
     }
 
     private static class GhostSnapshot {

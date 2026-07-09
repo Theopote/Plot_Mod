@@ -219,7 +219,7 @@ public class LineToBlockHandler {
 
         // 【新增】发布开始处理事件
         eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler",
-                String.format("开始处理 %d 个图形...", totalShapes)));
+                PlotI18n.status("status.plot.line_to_block.processing_start", totalShapes)));
 
         for (Shape shape : shapes) {
             LOGGER.debug("处理图形: {} ({}/{})", shape.getClass().getSimpleName(), processedShapes + 1, totalShapes);
@@ -236,7 +236,7 @@ public class LineToBlockHandler {
             // 【新增】发布图形处理进度
             if (totalShapes > 5) { // 只有图形数量较多时才发布进度
                 eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler",
-                        String.format("处理图形 %d/%d: 生成 %d 个方块",
+                        PlotI18n.status("status.plot.line_to_block.shape_progress",
                                 processedShapes + 1, totalShapes, blockPositions.size())));
             }
 
@@ -256,7 +256,7 @@ public class LineToBlockHandler {
         // 【新增】发布完成事件
         if (totalShapes > 5) {
             eventBus.publish(new Events.StatusMessageEvent("LineToBlockHandler",
-                    String.format("处理完成: %d 个图形，共生成 %d 个方块", totalShapes, totalBlocks)));
+                    PlotI18n.status("status.plot.line_to_block.processing_done", totalShapes, totalBlocks)));
         }
 
         return totalBlocks;

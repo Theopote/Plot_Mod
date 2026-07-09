@@ -12,6 +12,7 @@ import com.plot.core.model.serialization.ShapeSerialization;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -394,13 +395,13 @@ public class Project {
 
     private static String buildRestoreWarningMessage(RestoreStats restoreStats) {
         if (restoreStats.skippedAnnotations > 0 && restoreStats.skippedAnnotations == restoreStats.skippedShapes) {
-            return String.format("有 %d 个标注图形未能恢复，请重新创建。", restoreStats.skippedAnnotations);
+            return PlotI18n.status("status.plot.project.restore.annotations_only", restoreStats.skippedAnnotations);
         }
         if (restoreStats.skippedAnnotations > 0) {
-            return String.format("有 %d 个图形未能恢复（其中 %d 个为标注）。",
+            return PlotI18n.status("status.plot.project.restore.with_annotations",
                     restoreStats.skippedShapes, restoreStats.skippedAnnotations);
         }
-        return String.format("有 %d 个图形未能恢复。", restoreStats.skippedShapes);
+        return PlotI18n.status("status.plot.project.restore.generic", restoreStats.skippedShapes);
     }
 
     private static final class RestoreStats {

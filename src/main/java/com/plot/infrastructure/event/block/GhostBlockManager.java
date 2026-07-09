@@ -3,6 +3,7 @@ package com.plot.infrastructure.event.block;
 import com.plot.api.geometry.Vec2d;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
+import com.plot.utils.PlotI18n;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
@@ -125,9 +126,9 @@ public class GhostBlockManager {
         LOGGER.debug("添加幽灵方块: {}", ghostBlock);
         
         // 发布幽灵方块添加事件
-        eventBus.publish(new Events.WarningEvent("GhostBlockManager", 
-            String.format("已添加幽灵方块: %s 在位置 (%.2f, %.2f, %.2f)", 
-            blockType, position.x, height, position.y)));
+        eventBus.publish(new Events.WarningEvent("GhostBlockManager",
+                PlotI18n.status("status.plot.ghost.added",
+                        blockType, position.x, height, position.y)));
 
     }
     
@@ -174,7 +175,7 @@ public class GhostBlockManager {
         // 发布清理事件（best-effort，绝不向外抛异常）
         try {
             eventBus.publish(new Events.WarningEvent("GhostBlockManager",
-                    String.format("已清理 %d 个幽灵方块", count)));
+                    PlotI18n.status("status.plot.ghost.cleared", count)));
         } catch (Throwable t) {
             LOGGER.error("发布幽灵方块清理事件失败", t);
         }
