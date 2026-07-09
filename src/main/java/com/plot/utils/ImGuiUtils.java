@@ -121,6 +121,21 @@ public class ImGuiUtils {
     }
     
     /**
+     * 释放 ImGui 纹理缓存；默认纹理会在此处删除，其余纹理由 TextureManager 统一释放。
+     */
+    public static void disposeAllTextures() {
+        textureCache.clear();
+        if (defaultTextureId > 0) {
+            try {
+                GlStateManager._deleteTexture(defaultTextureId);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to delete default ImGui texture: {}", e.getMessage());
+            }
+            defaultTextureId = 0;
+        }
+    }
+
+    /**
      * 删除纹理资源
      * @param textureId 要删除的纹理ID
      */
@@ -128,8 +143,8 @@ public class ImGuiUtils {
         if (textureId <= 0) return;
         
         try {
-            // 从缓存中移除
             textureCache.values().removeIf(id -> id == textureId);
+            TextureManager.getInstance().evict(textureId);
             
             // 1.21.11：RenderSystem#recordRenderCall 变更，这里不再强制切线程，调用方应在渲染线程删除
             GlStateManager._deleteTexture(textureId);

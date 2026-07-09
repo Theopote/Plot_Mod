@@ -1,6 +1,8 @@
 package com.plot.ui.screen;
 
 import com.plot.ui.imgui.ImGuiRenderer;
+import com.plot.ui.utils.PlotTextureLifecycle;
+import com.plot.ui.component.BlockIconRenderer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
@@ -205,6 +207,12 @@ public class PlotInitializer {
                 synchronized (INIT_LOCK) {
                     if (initialized) {
                         ImGuiRenderer.getInstance().dispose();
+                        PlotTextureLifecycle.disposeAll();
+                        try {
+                            BlockIconRenderer.getInstance().close();
+                        } catch (Exception e) {
+                            LOGGER.warn("关闭 BlockIconRenderer 失败: {}", e.getMessage());
+                        }
                         initialized = false;
                         initializing = false;
                         initializationThread = null;

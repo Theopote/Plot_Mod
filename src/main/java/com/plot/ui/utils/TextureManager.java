@@ -120,15 +120,32 @@ public class TextureManager {
     }
 
     /**
+     * 从缓存中移除指定纹理 ID（不删除 GL 对象）。
+     */
+    public void evict(int textureId) {
+        if (textureId <= 0) {
+            return;
+        }
+        textureCache.entrySet().removeIf(entry -> entry.getValue() == textureId);
+    }
+
+    /**
      * 清理所有纹理
      */
     public void dispose() {
+        if (textureCache.isEmpty()) {
+            return;
+        }
+
+        int released = 0;
         for (int textureId : textureCache.values()) {
             if (textureId > 0) {
                 GL11.glDeleteTextures(textureId);
+                released++;
             }
         }
         textureCache.clear();
+        LOGGER.debug("Released {} cached UI texture(s)", released);
     }
 
     private record ResolvedResource(Identifier identifier, Resource resource) {

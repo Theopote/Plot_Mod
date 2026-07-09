@@ -35,6 +35,7 @@ import net.minecraft.client.MinecraftClient;
 import imgui.flag.ImGuiStyleVar;
 import net.minecraft.client.util.Window;
 import com.plot.ui.container.UIContainer;
+import com.plot.ui.utils.PlotTextureLifecycle;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.camera.CameraManager;
 import com.plot.PlotMod;
@@ -760,6 +761,13 @@ public class PlotScreen extends Screen {
 
         // 恢复 Plot 屏幕状态（恢复云渲染和雾渲染）
         PlotScreenState.setPlotScreenOpen(false);
+
+        try {
+            UIContainer.getInstance().dispose();
+        } catch (Exception e) {
+            LOGGER.error("释放 Plot UI 组件资源失败", e);
+        }
+        PlotTextureLifecycle.disposeAll();
         
         // 恢复相机状态（包括 HUD 状态）
         CameraManager.getInstance().setToPerspective();

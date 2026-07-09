@@ -15,12 +15,18 @@ import com.plot.ui.shortcut.EditShortcutListener;
 import com.plot.ui.shortcut.DeleteShortcutListener;
 import com.plot.ui.shortcut.EscapeShortcutListener;
 import com.plot.ui.imgui.ImGuiWorldRenderer;
+import com.plot.ui.utils.PlotTextureLifecycle;
 import com.plot.infrastructure.event.block.GhostBlockWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -178,6 +184,8 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             LOGGER.debug("步骤9: 注册BlockIconRenderer延迟初始化");
             registerDelayedBlockIconRendererInitialization();
 
+            registerTextureReloadListener();
+
             LOGGER.info("Master Planner Mod (客户端逻辑) 初始化完成");
             
         } catch (Exception e) {
@@ -304,6 +312,23 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             }
         });
         LOGGER.info("BlockIconRenderer：END_MAIN 预加载（world 非空时）已注册");
+    }
+
+    private void registerTextureReloadListener() {
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(
+                new SimpleSynchronousResourceReloadListener() {
+                    @Override
+                    public Identifier getFabricId() {
+                        return Identifier.of(MOD_ID, "plot_textures");
+                    }
+
+                    @Override
+                    public void reload(ResourceManager resourceManager) {
+                        LOGGER.debug("资源包已重载，释放 Plot UI 纹理缓存");
+                        PlotTextureLifecycle.disposeAll();
+                    }
+                }
+        );
     }
 
     /**

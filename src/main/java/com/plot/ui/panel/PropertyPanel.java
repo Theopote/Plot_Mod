@@ -191,6 +191,7 @@ public class PropertyPanel implements UIComponent {
             layerPanel.close();
             historyPanel.close();
             statusPanel.close();
+            toolOptionsPanel.close();
             PlotMod.LOGGER.debug("PropertyPanel关闭完成");
         } catch (Exception e) {
             PlotMod.LOGGER.error("PropertyPanel关闭失败: {}", e.getMessage(), e);

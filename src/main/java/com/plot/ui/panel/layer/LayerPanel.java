@@ -76,7 +76,7 @@ public class LayerPanel implements UIComponent {
     /** 选择所有图元图标纹理ID */
     private static int TEXTURE_SELECT_ALL;
     /** 纹理是否已初始化 */
-    private boolean texturesInitialized = false;
+    private static boolean texturesInitialized = false;
 
     // === 子组件 ===
     /** 图层项渲染器 */
@@ -379,6 +379,23 @@ public class LayerPanel implements UIComponent {
     private void showWarningDialog(String message) {
         ImGui.openPopup("##warning_dialog");
         warningMessage = message;
+    }
+
+    /**
+     * 重置图层按钮纹理缓存，供界面关闭或资源包重载后重新加载。
+     */
+    public static void resetTextures() {
+        texturesInitialized = false;
+        TEXTURE_LOCK = 0;
+        TEXTURE_UNLOCK = 0;
+        TEXTURE_EYE = 0;
+        TEXTURE_EYE_SLASH = 0;
+        TEXTURE_NEW_LAYER = 0;
+        TEXTURE_DELETE_LAYER = 0;
+        TEXTURE_MERGE_LAYERS = 0;
+        TEXTURE_MOVE_UP = 0;
+        TEXTURE_MOVE_DOWN = 0;
+        TEXTURE_SELECT_ALL = 0;
     }
 
     /**
