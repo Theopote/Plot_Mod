@@ -106,7 +106,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         } catch (Exception e) {
             PlotMod.LOGGER.error("TextToolOptionRenderer 渲染失败: {}", e.getMessage(), e);
             hasError = true;
-            errorMessage = "渲染失败: " + e.getMessage();
+            errorMessage = PlotI18n.tr("error.plot.text.render_failed", e.getMessage());
         } finally {
             ImGui.popID();
         }
@@ -127,7 +127,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextColumn();
         // 使用较淡的提示色
         ImGui.textColored(theme.mutedText,
-                PlotI18n.tr("hint.plot.text.moved_to_dialog");
+                PlotI18n.tr("hint.plot.text.moved_to_dialog"));
 
         height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
         return height;
@@ -170,7 +170,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         } catch (Exception e) {
             PlotMod.LOGGER.error("同步文字工具状态失败: {}", e.getMessage());
             hasError = true;
-            errorMessage = "状态同步失败: " + e.getMessage();
+            errorMessage = PlotI18n.tr("error.plot.text.sync_failed", e.getMessage());
         }
     }
     
@@ -481,13 +481,16 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
                 case CONFIG_KEY_FONT_SIZE:
                     float fontSize = Float.parseFloat(value);
                     if (fontSize < TextStyle.MIN_FONT_SIZE || fontSize > TextStyle.MAX_FONT_SIZE) {
-                        throw new IllegalArgumentException("字体大小必须在" + TextStyle.MIN_FONT_SIZE + "到" + TextStyle.MAX_FONT_SIZE + "之间");
+                        throw new IllegalArgumentException(PlotI18n.tr(
+                                "error.plot.text.font_size_range",
+                                TextStyle.MIN_FONT_SIZE,
+                                TextStyle.MAX_FONT_SIZE));
                     }
                     break;
                 case CONFIG_KEY_LINE_HEIGHT:
                     float lineHeight = Float.parseFloat(value);
                     if (lineHeight < 0.5f || lineHeight > 3.0f) {
-                        throw new IllegalArgumentException("行高必须在0.5到3.0之间");
+                        throw new IllegalArgumentException(PlotI18n.tr("error.plot.text.line_height_range"));
                     }
                     break;
             }

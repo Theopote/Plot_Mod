@@ -678,5 +678,9 @@
   "preset.image.low_contrast": "低对比度",
   "option.plot.tension": "张力",
   "option.plot.sample_segments": "采样段数",
-  "hint.plot.trim.hold_shift": "(按住Shift连续)"
+  "hint.plot.trim.hold_shift": "(按住Shift连续)",
+  "error.plot.text.render_failed": "渲染失败: %s",
+  "error.plot.text.sync_failed": "状态同步失败: %s",
+  "error.plot.text.font_size_range": "字体大小必须在%s到%s之间",
+  "error.plot.text.line_height_range": "行高必须在0.5到3.0之间"
 }

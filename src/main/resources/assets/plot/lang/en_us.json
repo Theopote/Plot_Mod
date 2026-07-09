@@ -678,5 +678,9 @@
   "preset.image.low_contrast": "Low Contrast",
   "option.plot.tension": "Tension",
   "option.plot.sample_segments": "Sample Segments",
-  "hint.plot.trim.hold_shift": "(Hold Shift for continuous)"
+  "hint.plot.trim.hold_shift": "(Hold Shift for continuous)",
+  "error.plot.text.render_failed": "Render failed: %s",
+  "error.plot.text.sync_failed": "State sync failed: %s",
+  "error.plot.text.font_size_range": "Font size must be between %s and %s",
+  "error.plot.text.line_height_range": "Line height must be between 0.5 and 3.0"
 }
