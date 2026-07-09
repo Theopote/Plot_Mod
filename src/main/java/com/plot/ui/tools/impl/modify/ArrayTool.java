@@ -13,6 +13,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 /**
  * 阵列工具 - 策略模式版本
@@ -87,7 +88,7 @@ public class ArrayTool extends ModifyTool {
 
     @Override
     protected String getInitialStatusMessage() {
-        return "点击选择要阵列的图形 → 选择阵列类型(R/C/P) → 设置参数";
+        return "status.plot.array.initial";
     }
 
     @Override
@@ -147,7 +148,7 @@ public class ArrayTool extends ModifyTool {
                 ArrayWithSelectionStrategy.ArrayType newType = ArrayWithSelectionStrategy.ArrayType.valueOf(value);
                 arrayStrategy.setArrayType(newType);
                 LOGGER.debug("阵列类型已更新为: {}", newType.getDisplayName());
-                updateStatusMessage("已切换到" + newType.getDisplayName() + "模式");
+                updateStatusMessage(PlotI18n.status("status.plot.array.mode_switched", newType.getDisplayName()));
             }
             case "confirm" -> {
                 if (canConfirmArray()) {
@@ -172,8 +173,8 @@ public class ArrayTool extends ModifyTool {
      */
     private void updateStatusMessageForConfigChange(String key) {
         switch (key) {
-            case "beginPickPath" -> updateStatusMessage("在画布上点击路径对象进行拾取");
-            case "beginPickObjects" -> updateStatusMessage("在画布上点击要阵列的物件");
+            case "beginPickPath" -> updateStatusMessage("status.plot.array.pick_path");
+            case "beginPickObjects" -> updateStatusMessage("status.plot.array.pick_objects");
             case "arrayType" -> {
                 ArrayStrategy.ArrayType type = getArrayType();
                 updateStatusMessage(String.format("已切换到%s模式", type.getDisplayName()));

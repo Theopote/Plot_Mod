@@ -13,6 +13,7 @@ import com.plot.utils.ExceptionDebug;
 import java.util.*;
 import java.util.List;
 import java.util.Collections;
+import com.plot.utils.PlotI18n;
 
 /**
  * 对齐策略实现 - 重构版本
@@ -125,7 +126,7 @@ public class AlignStrategy implements IModifyStrategy {
             if (button == AlignConstants.MOUSE_RIGHT) {
                 // 右键取消当前操作
                 reset();
-                context.setStatusMessage("对齐已取消");
+                context.setStatusMessage("status.plot.align.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -140,7 +141,7 @@ public class AlignStrategy implements IModifyStrategy {
                     // 第一步：检查是否有选中的图形，并锁定要移动的图形
                     List<Shape> shapes = context.getSelectedShapes();
                     if (shapes == null || shapes.isEmpty()) {
-                        context.setStatusMessage("请先选择要移动的图形");
+                        context.setStatusMessage("status.plot.move.initial_select");
                         return ModifyResult.NEED_SELECTION;
                     }
                     
@@ -151,7 +152,7 @@ public class AlignStrategy implements IModifyStrategy {
                     // 在选中的图形上选择第一个源点
                     sourcePoint1 = projectToSelection(snapped, shapesToMove);
                     alignState = AlignState.AWAIT_TARGET1;
-                    context.setStatusMessage("已选源点1，点击目标点1");
+                    context.setStatusMessage("status.plot.align.source1_short");
                     updatePreviewGuides();
                     return ModifyResult.CONTINUE;
                 }
@@ -159,7 +160,7 @@ public class AlignStrategy implements IModifyStrategy {
                     // 第二步：选择第一个目标点（任意位置）
                     targetPoint1 = snapped;
                     alignState = AlignState.AWAIT_SOURCE2;
-                    context.setStatusMessage("已选目标点1，点击源点2");
+                    context.setStatusMessage("status.plot.align.target1_source2");
                     updatePreviewGuides();
                     return ModifyResult.CONTINUE;
                 }
@@ -167,7 +168,7 @@ public class AlignStrategy implements IModifyStrategy {
                     // 第三步：在要移动的图形上选择第二个源点
                     sourcePoint2 = projectToSelection(snapped, shapesToMove);
                     alignState = AlignState.AWAIT_TARGET2;
-                    context.setStatusMessage("已选源点2，点击目标点2以完成");
+                    context.setStatusMessage("status.plot.align.source2_short");
                     updatePreviewGuides();
                     return ModifyResult.CONTINUE;
                 }
@@ -219,7 +220,7 @@ public class AlignStrategy implements IModifyStrategy {
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
         if (keyCode == AlignConstants.ESC_KEY) {
             reset();
-            context.setStatusMessage("对齐已取消");
+            context.setStatusMessage("status.plot.align.cancelled");
             return ModifyResult.CANCEL;
         }
         return ModifyResult.IGNORED;
@@ -267,7 +268,7 @@ public class AlignStrategy implements IModifyStrategy {
             pendingCommand = alignHandler.createModifyCommand(shapes, modified, parameters);
             if (pendingCommand != null) {
                 // 完成
-                context.setStatusMessage("对齐完成");
+                context.setStatusMessage("status.plot.align.complete");
                 // 即时清空预览辅助线，避免保留在屏幕上
                 if (previewGuides != null) previewGuides.clear();
                 previewShapes = null;
@@ -276,11 +277,11 @@ public class AlignStrategy implements IModifyStrategy {
                 sourcePoint1 = targetPoint1 = sourcePoint2 = targetPoint2 = null;
                 return ModifyResult.COMPLETE;
             }
-            context.setStatusMessage("创建对齐命令失败");
+            context.setStatusMessage("status.plot.align.command_failed");
             return ModifyResult.CANCEL;
         } catch (Exception e) {
             LOGGER.error("点对点对齐失败: {}", e.getMessage(), e);
-            context.setStatusMessage("对齐失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.common.failed", PlotI18n.tr("tool.plot.align"), e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }

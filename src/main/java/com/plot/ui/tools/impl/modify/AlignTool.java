@@ -83,9 +83,9 @@ public class AlignTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         if (hasSelection()) {
-            return "选择对齐方式：左对齐(L)、右对齐(R)、中心对齐(C)、顶部对齐(T)、底部对齐(B)、中间对齐(M)";
+            return "status.plot.align.initial_modes";
         } else {
-            return "请先选择要对齐的图形";
+            return "status.plot.align.initial_select";
         }
     }
 

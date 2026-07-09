@@ -23,6 +23,7 @@ import com.plot.utils.ExceptionDebug;
 // import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 简化版偏移策略：
@@ -60,12 +61,12 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
                 boolean nearOutline = isNearOutline(shape, snapped);
                 boolean inside = isInsideClosedShapeIgnoringStyle(shape, snapped);
                 if (!nearOutline && !inside) {
-                    context.setStatusMessage("请点击图形轮廓或内部");
+                    context.setStatusMessage("status.plot.offset.click_inside");
                     return ModifyResult.CONTINUE;
                 }
             }
             if (!isLineLike(shape)) {
-                context.setStatusMessage("未找到可偏移的线类图形");
+                context.setStatusMessage("status.plot.offset.no_linear");
                 return ModifyResult.CONTINUE;
             }
             targetShape = shape;
@@ -82,7 +83,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             // 记录第一参考点
             firstPoint = snapped;
             state = State.FIRST_POINT_SET;
-            context.setStatusMessage("已选择图形并记录参考点，请在目标侧点击第二点");
+            context.setStatusMessage("status.plot.offset.reference_set");
             return ModifyResult.CONTINUE;
         }
 
@@ -105,7 +106,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             List<Shape> originals = List.of(targetShape);
             List<Shape> modified = handler.calculateModifiedShapes(originals, params);
             if (modified == null || modified.isEmpty() || containsOriginalReference(originals, modified)) {
-                context.setStatusMessage("偏移失败：无法生成偏移图形");
+                context.setStatusMessage("status.plot.offset.generate_failed");
                 reset();
                 return ModifyResult.CANCEL;
             }
@@ -126,7 +127,7 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
             }
             if (multipleMode) {
                 reset();
-                context.setStatusMessage(String.format("偏移完成（距离 %.2f），请继续选择下一条线", Math.abs(signedDistance)));
+                context.setStatusMessage(PlotI18n.status("status.plot.offset.complete_continue", Math.abs(signedDistance)));
                 return ModifyResult.CONTINUE;
             }
 

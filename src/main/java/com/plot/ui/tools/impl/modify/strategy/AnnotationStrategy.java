@@ -73,7 +73,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             // 开始新的测量
             firstPoint = snappedPoint;
             isMeasuringDistance = true;
-            context.setStatusMessage("点击第二点完成距离标注");
+            context.setStatusMessage("status.plot.select.click_second_distance");
             LOGGER.debug("开始距离测量，第一点: {}", firstPoint);
             return ModifyResult.CONTINUE;
         } else {
@@ -81,7 +81,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             secondPoint = snappedPoint;
             createDistanceAnnotation(context);
             resetMeasurement();
-            context.setStatusMessage("距离标注已创建");
+            context.setStatusMessage("status.plot.select.distance_created");
             return ModifyResult.COMPLETE;
         }
     }
@@ -91,7 +91,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             // 距离模式下右键取消测量
             if (isMeasuringDistance) {
                 resetMeasurement();
-                context.setStatusMessage("已取消距离测量");
+                context.setStatusMessage("status.plot.select.distance_cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -101,7 +101,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         List<Shape> selected = getSelectedShapesFromIds(context);
         
         if (selected.isEmpty()) {
-            context.setStatusMessage("请先选择图形");
+            context.setStatusMessage("status.plot.select.select_first");
             return ModifyResult.IGNORED;
         }
         
@@ -111,24 +111,24 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
                         && selected.get(0) instanceof LineShape
                         && selected.get(1) instanceof LineShape) {
                     createAngleAnnotation(selected, context);
-                    context.setStatusMessage("角度标注已创建");
+                    context.setStatusMessage("status.plot.select.angle_created");
                     return ModifyResult.COMPLETE;
                 } else if (selected.size() == 1
                         && (selected.get(0) instanceof PolylineShape || selected.get(0) instanceof Polygon)) {
                     createShapeInteriorAngleAnnotations(selected.getFirst(), context);
-                    context.setStatusMessage("内角标注已创建");
+                    context.setStatusMessage("status.plot.select.inner_angle_created");
                     return ModifyResult.COMPLETE;
                 } else {
-                    context.setStatusMessage("角度标注：可选两条直线，或单条折线/多边形");
+                    context.setStatusMessage("status.plot.select.angle_hint");
                     return ModifyResult.IGNORED;
                 }
             case RADIUS:
                 createRadiusAnnotation(selected, context);
-                context.setStatusMessage("半径标注已创建");
+                context.setStatusMessage("status.plot.select.radius_created");
                 return ModifyResult.COMPLETE;
             case AREA:
                 createAreaAnnotation(selected, context);
-                context.setStatusMessage("面积标注已创建");
+                context.setStatusMessage("status.plot.select.area_created");
                 return ModifyResult.COMPLETE;
             default:
                 return ModifyResult.IGNORED;
@@ -385,7 +385,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             if (!isClosedShape(shape)) {
                 LOGGER.warn("面积标注需要闭合图形（多边形、矩形、圆形、椭圆或闭合折线），当前选中: {}", 
                     shape.getClass().getSimpleName());
-                context.setStatusMessage("面积标注需要闭合图形（多边形、矩形、圆形、椭圆或闭合折线）");
+                context.setStatusMessage("status.plot.select.area_closed_required");
                 continue;
             }
             

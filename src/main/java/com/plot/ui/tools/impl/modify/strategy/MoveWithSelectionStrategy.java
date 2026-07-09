@@ -19,6 +19,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 移动工具与选择功能结合策略
@@ -111,18 +112,18 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (!selectedShapeIds.isEmpty()) {
                 currentMode = StrategyMode.MOVE;
                 selectedShapes = getSelectedShapesFromIds(context);
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置移动基点");
+                context.setStatusMessage(PlotI18n.status("status.plot.move.initial_base", selectedShapeIds.size()));
                 LOGGER.info("切换到移动模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择要移动的图形");
+                context.setStatusMessage("status.plot.move.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
         } else {
             // 在移动模式下右键：取消移动，返回选择模式
             resetMoveState();
             currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("移动已取消");
+            context.setStatusMessage("status.plot.move.cancelled");
             LOGGER.info("从移动模式返回选择模式");
             return ModifyResult.CANCEL;
         }
@@ -145,7 +146,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private ModifyResult handleMoveMouseDown(Vec2d pos, ModifyToolContext context) {
         if (selectedShapes == null || selectedShapes.isEmpty()) {
-            context.setStatusMessage("没有选中的图形可以移动");
+            context.setStatusMessage("status.plot.move.no_selection");
             return ModifyResult.NEED_SELECTION;
         }
 
@@ -153,7 +154,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         if (moveHandler == null) {
             AppState appState = AppState.getInstance();
             if (appState == null) {
-                context.setStatusMessage("无法获取应用状态");
+                context.setStatusMessage("status.plot.common.no_app_state");
                 return ModifyResult.CANCEL;
             }
             moveHandler = new MoveHandler(appState);
@@ -177,7 +178,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             moveParameters.setStartPoint(moveStartPoint);
             moveParameters.setEndPoint(moveCurrentPoint);
 
-            context.setStatusMessage("已设置基点，移动鼠标到目标位置，点击完成移动");
+            context.setStatusMessage("status.plot.move.base_set");
             LOGGER.debug("设置移动基点: {}", moveStartPoint);
             return ModifyResult.CONTINUE;
         } else {
@@ -241,7 +242,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (isCtrlPressed) {
                 statusMessage += " (复制模式)";
             }
-            context.setStatusMessage(statusMessage + " - 点击完成移动");
+            context.setStatusMessage(PlotI18n.status("status.plot.common.click_finish_suffix", PlotI18n.localizeStatus(statusMessage)));
 
             // 启用预览
             context.setPreviewEnabled(true);
@@ -294,7 +295,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
             }
             case ESC_KEY -> {
                 reset();
-                context.setStatusMessage("操作已取消");
+                context.setStatusMessage("status.plot.common.operation_cancelled");
                 return ModifyResult.CANCEL;
             }
             default -> {
@@ -326,7 +327,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         // 检查最小移动距离
         if (finalMoveVector.length() < MIN_MOVE_DISTANCE) {
             LOGGER.debug("移动距离太小，忽略此次移动");
-            context.setStatusMessage("移动距离太小");
+            context.setStatusMessage("status.plot.move.too_small");
             return ModifyResult.COMPLETE; // 仍然返回完成，但重置工具状态
         }
 
@@ -343,7 +344,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         // 验证移动操作
         IModifyHandler.ValidationResult validation = moveHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("移动无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.move.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 
@@ -353,11 +354,11 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
         if (pendingCommand != null) {
             LOGGER.debug("移动操作完成，向量: {}", finalMoveVector);
-            context.setStatusMessage("移动完成");
+            context.setStatusMessage("status.plot.move.complete");
             return ModifyResult.COMPLETE;
         }
 
-        context.setStatusMessage("创建移动命令失败");
+        context.setStatusMessage("status.plot.move.command_failed");
         return ModifyResult.CANCEL;
     }
 
@@ -461,9 +462,9 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
         if (result == ModifyResult.COMPLETE) {
             int count = getSelectedCount();
             if (count > 0) {
-                context.setStatusMessage("已选择 " + count + " 个图形，右键开始移动");
+                context.setStatusMessage(PlotI18n.status("status.plot.common.selected_right_click", count, PlotI18n.tr("tool.plot.move")));
             } else {
-                context.setStatusMessage("请选择要移动的图形");
+                context.setStatusMessage("status.plot.move.select_shapes");
             }
         }
         

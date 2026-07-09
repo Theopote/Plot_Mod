@@ -47,7 +47,7 @@ public class TrimHandler implements IModifyHandler {
             @SuppressWarnings("unchecked")
             List<Vec2d> fencePoints = (List<Vec2d>) parameters.getParameter("fencePoints");
             if (fencePoints == null || fencePoints.size() < 3) {
-                return ValidationResult.invalid("栅栏至少需要3个点");
+                return ValidationResult.invalid("status.plot.trim.fence_min_points");
             }
         } else {
             // 边界模式验证

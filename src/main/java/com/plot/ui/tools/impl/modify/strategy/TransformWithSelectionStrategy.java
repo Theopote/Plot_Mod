@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import com.plot.utils.PlotI18n;
 
 /**
  * 变换策略 - 双模式交互设计
@@ -151,13 +152,13 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
                 currentMode = InteractionMode.SELECTING;
                 transformState = TransformState.IDLE;
                 clearControlsAndPreview();
-                context.setStatusMessage("已返回选择模式");
+                context.setStatusMessage("status.plot.transform.back_selection");
                 LOGGER.info("ESC键按下，从变换模式返回选择模式");
             } else {
                 // 在选择模式下按ESC，清除所有选择
                 reset();
                 context.clearSelection();
-                context.setStatusMessage("选择已取消");
+                context.setStatusMessage("status.plot.transform.selection_cancelled");
                 LOGGER.info("ESC键按下，清除所有选择");
             }
             return ModifyResult.CANCEL;
@@ -190,16 +191,16 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
                     // 计算并显示变换框
                     recalculateBoundingBoxAndControls();
                     
-                    context.setStatusMessage("进入变换模式，拖拽控制点进行操作，右键返回选择。");
+                    context.setStatusMessage("status.plot.transform.enter_mode");
                     LOGGER.info("切换到变换模式，选中了 {} 个图形", selectedShapes.size());
                     return ModifyResult.CONTINUE;
                 } else {
-                    context.setStatusMessage("选中的图形无效，请重新选择。");
+                    context.setStatusMessage("status.plot.transform.invalid_selection");
                     clearSelection(context);
                     return ModifyResult.IGNORED;
                 }
             } else {
-                context.setStatusMessage("请先选择图形，然后右键确认。");
+                context.setStatusMessage("status.plot.transform.select_then_confirm");
                 return ModifyResult.IGNORED;
             }
         } else { // TRANSFORMING
@@ -210,7 +211,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
             // 隐藏变换框
             clearControlsAndPreview();
             
-            context.setStatusMessage("返回选择模式，当前已选择 " + selectedShapeIds.size() + " 个图形。");
+            context.setStatusMessage(PlotI18n.status("status.plot.transform.back_with_count", selectedShapeIds.size()));
             LOGGER.info("从变换模式返回选择模式。");
             return ModifyResult.CANCEL; // 使用CANCEL可以很好地结束任何正在进行的预览
         }
@@ -323,7 +324,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
             updateTransformPreview(initialParams, context);
         }
         
-        context.setStatusMessage("拖拽控制点进行变换");
+        context.setStatusMessage("status.plot.transform.drag_control");
         return ModifyResult.CONTINUE;
     }
     
@@ -344,7 +345,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         previewEnabled = true;
         hideSelectedShapesForPreview();
         
-        context.setStatusMessage("拖拽移动选择集");
+        context.setStatusMessage("status.plot.transform.drag_move");
         return ModifyResult.CONTINUE;
     }
     
@@ -366,7 +367,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
             // 更新预览
             updateTransformPreview(params, context);
             
-            context.setStatusMessage("变换预览中...");
+            context.setStatusMessage("status.plot.transform.preview");
             return ModifyResult.CONTINUE;
         }
         
@@ -408,7 +409,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
             previewEnabled = false;
             controlManager.clearPreviewState();
             
-            context.setStatusMessage("变换完成，变换框继续显示");
+            context.setStatusMessage("status.plot.transform.done_keep_box");
             return result;
         }
         
@@ -423,7 +424,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         previewEnabled = false;
         controlManager.clearPreviewState();
         
-        context.setStatusMessage("变换完成，变换框继续显示");
+        context.setStatusMessage("status.plot.transform.done_keep_box");
         return ModifyResult.CONTINUE;
     }
     
@@ -657,7 +658,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
             }
         } catch (Exception e) {
             LOGGER.error("变换执行失败: {}", e.getMessage(), e);
-            context.setStatusMessage("变换执行失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.transform.exec_failed", e.getMessage()));
         }
         
         return ModifyResult.IGNORED;

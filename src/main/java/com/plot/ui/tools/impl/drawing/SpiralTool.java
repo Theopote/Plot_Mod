@@ -21,6 +21,7 @@ import com.plot.ui.canvas.CanvasCamera;
 
 import java.util.List;
 import java.util.ArrayList;
+import com.plot.utils.PlotI18n;
 
 /**
  * 螺旋线工具 - 状态中心版本
@@ -201,7 +202,7 @@ public class SpiralTool extends DrawingTool {
         if (button != 0) { // 非左键
             if (button == 1) { // 右键取消
                 resetDrawingState();
-                setStatusMessage("绘制已取消");
+                setStatusMessage("status.plot.common.draw_cancelled");
                 return;
             }
             return;
@@ -383,7 +384,7 @@ public class SpiralTool extends DrawingTool {
                         currentSpiralCoefficient, newSpiralCoefficient, adjustment);
                     
                     configManager.updateConfig("spiralCoefficient", String.valueOf(newSpiralCoefficient));
-                    setStatusMessage(String.format("螺旋系数: %.2f (滚轮调整)", newSpiralCoefficient));
+                    setStatusMessage(PlotI18n.status("status.plot.spiral.coefficient", newSpiralCoefficient));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 处理完成，新螺旋系数={}", newSpiralCoefficient);
                 } else if (configManager.getCurrentType() == SpiralType.LOGARITHMIC) {
@@ -397,7 +398,7 @@ public class SpiralTool extends DrawingTool {
                         currentGrowthFactor, newGrowthFactor, adjustment);
                     
                     configManager.updateConfig("growthFactor", String.valueOf(newGrowthFactor));
-                    setStatusMessage(String.format("生长因子: %.2f (滚轮调整)", newGrowthFactor));
+                    setStatusMessage(PlotI18n.status("status.plot.spiral.growth", newGrowthFactor));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 处理完成，新生长因子={}", newGrowthFactor);
                 } else if (configManager.getCurrentType() == SpiralType.SEMICIRCLE) {
@@ -410,7 +411,7 @@ public class SpiralTool extends DrawingTool {
                         currentExpansionRate, newExpansionRate, adjustment);
                     
                     configManager.updateConfig("expansionRate", String.valueOf(newExpansionRate));
-                    setStatusMessage(String.format("扩张率: %.2f (滚轮调整)", newExpansionRate));
+                    setStatusMessage(PlotI18n.status("status.plot.spiral.expansion", newExpansionRate));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 处理完成，新扩张率={}", newExpansionRate);
                 } else if (configManager.getCurrentType() == SpiralType.FERMAT) {
@@ -423,7 +424,7 @@ public class SpiralTool extends DrawingTool {
                         currentSpiralCoefficient, newSpiralCoefficient, adjustment);
                     
                     configManager.updateConfig("spiralCoefficient", String.valueOf(newSpiralCoefficient));
-                    setStatusMessage(String.format("螺旋系数: %.2f (滚轮调整)", newSpiralCoefficient));
+                    setStatusMessage(PlotI18n.status("status.plot.spiral.coefficient", newSpiralCoefficient));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 处理完成，新螺旋系数={}", newSpiralCoefficient);
                 } else if (configManager.getCurrentType() == SpiralType.POLYGON) {
@@ -436,7 +437,7 @@ public class SpiralTool extends DrawingTool {
                         currentSpacing, newSpacing, adjustment);
                     
                     configManager.updateConfig("spacing", String.valueOf(newSpacing));
-                    setStatusMessage(String.format("螺距: %.1f (滚轮调整)", newSpacing));
+                    setStatusMessage(PlotI18n.status("status.plot.spiral.pitch", newSpacing));
                     
                     LOGGER.debug("SpiralTool.onMouseWheel: 处理完成，新螺距={}", newSpacing);
                 }

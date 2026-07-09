@@ -179,7 +179,7 @@ public class SemicircleTool extends DrawingTool {
             setStatusMessage(enhancedMessage);
             LOGGER.debug("半圆工具状态消息已更新: {}", enhancedMessage);
         } else {
-            setStatusMessage("半圆工具就绪");
+            setStatusMessage("status.plot.draw.semicircle_ready");
         }
     }
 

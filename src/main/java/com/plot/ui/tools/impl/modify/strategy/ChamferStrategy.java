@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.event.KeyEvent;
 import java.awt.Color;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 倒角策略 - 控制器版本
@@ -130,7 +131,7 @@ public class ChamferStrategy implements IModifyStrategy {
      * 完成框选选择
      */
     private void finalizeBoxSelection(ModifyToolContext context) {
-        context.setStatusMessage(String.format("框选完成，已选择 %d 个图形", boxSelectedShapes.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.trim.box_select_done", boxSelectedShapes.size()));
     }
     
     /**
@@ -151,7 +152,7 @@ public class ChamferStrategy implements IModifyStrategy {
         shape1 = shape;
         clickPoint1 = clickPoint;
         currentState = ChamferState.SELECT_SECOND_SHAPE;
-        context.setStatusMessage("选择第二个图形");
+        context.setStatusMessage("status.plot.chamfer.select_second");
         return ModifyResult.CONTINUE;
     }
     
@@ -169,7 +170,7 @@ public class ChamferStrategy implements IModifyStrategy {
 
         boolean sameShapeCornerMode = shape == shape1 && (shape instanceof PolylineShape || shape instanceof Polygon);
         if (shape == shape1 && !sameShapeCornerMode) {
-            context.setStatusMessage("请选择不同图形（折线/多边形可点同一对象不同邻边）");
+            context.setStatusMessage("status.plot.chamfer.select_different_edge");
             return ModifyResult.IGNORED;
         }
 
@@ -578,7 +579,7 @@ public class ChamferStrategy implements IModifyStrategy {
             reset();
             return ModifyResult.COMPLETE;
         } else {
-            context.setStatusMessage("创建倒角命令失败");
+            context.setStatusMessage("status.plot.chamfer.command_failed");
             return ModifyResult.IGNORED;
         }
     }
@@ -594,11 +595,11 @@ public class ChamferStrategy implements IModifyStrategy {
         Shape shape = findShapeAtPoint(snappedPoint, context);
         if (isChamferableShape(shape)) {
             updateHighlight(shape);
-            context.setStatusMessage("点击选择第一个图形，或按ESC取消");
+            context.setStatusMessage("status.plot.fillet.select_first");
             return ModifyResult.CONTINUE;
         } else {
             clearHighlight();
-            context.setStatusMessage("请选择一个可倒角的图形");
+            context.setStatusMessage("status.plot.chamfer.select_valid");
             return ModifyResult.IGNORED;
         }
     }
@@ -610,17 +611,17 @@ public class ChamferStrategy implements IModifyStrategy {
         if (isChamferableShape(shape) && (shape != shape1 || sameShapeCornerMode)) {
             updateHighlight(shape);
             updatePreviewWithShapes(shape1, shape, snappedPoint, context);
-            context.setStatusMessage("点击选择第二个图形，滚轮调整距离，或按ESC取消");
+            context.setStatusMessage("status.plot.chamfer.select_second_scroll");
             return ModifyResult.CONTINUE;
         } else if (shape == shape1) {
             clearHighlight();
             clearPreview();
-            context.setStatusMessage("请选择不同图形（折线/多边形可点同一对象不同邻边）");
+            context.setStatusMessage("status.plot.chamfer.select_different_edge");
             return ModifyResult.IGNORED;
         } else {
             clearHighlight();
             clearPreview();
-            context.setStatusMessage("请选择第二个可倒角图形");
+            context.setStatusMessage("status.plot.chamfer.select_second_valid");
             return ModifyResult.IGNORED;
         }
     }

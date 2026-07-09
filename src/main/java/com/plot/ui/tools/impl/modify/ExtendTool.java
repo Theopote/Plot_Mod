@@ -182,7 +182,7 @@ public class ExtendTool extends ModifyTool {
         }
         
         LOGGER.debug("CAD风格延伸工具已激活");
-        updateStatusMessage("请左键选择边界图形，右键确认选择，然后左键点击要延伸的图形端点");
+        updateStatusMessage("status.plot.extend.initial");
     }
 
     @Override
@@ -367,7 +367,7 @@ public class ExtendTool extends ModifyTool {
     
     @Override
     protected String getInitialStatusMessage() {
-        return "请左键选择边界图形，右键确认选择，然后左键点击要延伸的图形端点";
+        return "status.plot.extend.initial";
     }
     
     @Override

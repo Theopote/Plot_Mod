@@ -64,14 +64,14 @@ public class ScaleTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         if (!hasSelection()) {
-            return "请先选择要缩放的图形";
+            return "status.plot.scale.initial_select";
         }
 
         // === 优化：使用更简洁的逻辑判断和 Optional 链式调用 ===
         return getScaleStrategy()
             .map(ScaleStrategy::getScaleCenterMode)
             .filter(mode -> mode != ScaleHandler.ScaleCenterMode.CUSTOM)
-            .map(mode -> "点击设置参考点")
+            .map(mode -> "status.plot.common.click_reference")
             .orElse("点击设置缩放中心点");
     }
 

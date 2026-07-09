@@ -134,7 +134,7 @@ public class FilletTool extends ModifyTool implements EventListener {
     
     @Override
     protected String getInitialStatusMessage() {
-        return "选择要圆角的第一条边";
+        return "status.plot.fillet.initial";
     }
     
     // ====== 生命周期管理 ======

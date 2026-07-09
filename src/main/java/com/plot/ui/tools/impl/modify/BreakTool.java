@@ -115,7 +115,7 @@ public class BreakTool extends ModifyTool {
         }
         
         LOGGER.debug("打断工具已激活");
-        updateStatusMessage("选择要打断的对象，按T键切换模式");
+        updateStatusMessage("status.plot.break.initial");
     }
 
     @Override
@@ -175,7 +175,7 @@ public class BreakTool extends ModifyTool {
     
     @Override
     protected String getInitialStatusMessage() {
-        return "选择要打断的对象，按T键切换模式";
+        return "status.plot.break.initial";
     }
     
     @Override

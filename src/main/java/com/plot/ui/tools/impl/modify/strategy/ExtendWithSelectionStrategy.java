@@ -17,6 +17,7 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
+import com.plot.utils.PlotI18n;
 
 /**
  * 延伸工具与选择功能结合策略 - 优化版本
@@ -466,7 +467,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 LOGGER.info("右键确认边界选择，进入延伸模式，边界图形数量: {}", boundaryShapes.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择边界图形（当前未选择任何图形）");
+                context.setStatusMessage("status.plot.extend.select_boundary_empty");
                 return ModifyResult.NEED_SELECTION;
             }
         } else if (extendState == ExtendState.EXTENDING) {
@@ -620,7 +621,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
         if (boundaryShapes.isEmpty()) {
             LOGGER.warn("边界图形列表为空");
-            context.setStatusMessage("请先选择边界图形");
+            context.setStatusMessage("status.plot.extend.select_boundary");
             return ModifyResult.IGNORED;
         }
 
@@ -661,7 +662,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             // 只有当存在预览时才允许执行延伸操作
             if (previewShapes == null || previewShapes.isEmpty() || extendPoint == null) {
                 LOGGER.debug("没有预览图形，不允许执行延伸操作");
-                context.setStatusMessage("请将鼠标移动到要延伸的图形上");
+                context.setStatusMessage("status.plot.extend.hover_shape");
                 return ModifyResult.CONTINUE;
             }
 
@@ -680,12 +681,12 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 return result;
             } else {
                 LOGGER.debug("未找到可延伸的目标，点击位置: {}", snappedPoint);
-                context.setStatusMessage("请将鼠标移动到要延伸的图形上并点击");
+                context.setStatusMessage("status.plot.extend.hover_and_click");
                 return ModifyResult.CONTINUE;
             }
         } catch (Exception e) {
             LOGGER.error("延伸操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("延伸操作失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.extend.failed", e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }
@@ -698,7 +699,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             LOGGER.debug("处理延伸框选，框选图形数量: {}", boxSelectedShapes.size());
 
             if (boxSelectedShapes.isEmpty()) {
-                context.setStatusMessage("框选区域内没有找到可延伸的图形");
+                context.setStatusMessage("status.plot.extend.box_no_shapes");
                 return ModifyResult.CONTINUE;
             }
 
@@ -732,12 +733,12 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                 LOGGER.debug("延伸框选完成，工具已重置，准备下一次延伸");
                 return ModifyResult.COMPLETE;
             } else {
-                context.setStatusMessage("框选区域内没有找到可延伸的图形端点");
+                context.setStatusMessage("status.plot.extend.box_no_endpoints");
                 return ModifyResult.CONTINUE;
             }
         } catch (Exception e) {
             LOGGER.error("延伸框选操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("延伸框选操作失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.extend.box_failed", e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }
@@ -790,7 +791,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             return handleBoundaryShapeSelection(clickedShape, context);
         } else {
             LOGGER.debug("点选失败，未找到图形，位置: {}", snappedPoint);
-            context.setStatusMessage("未找到图形，请选择边界图形");
+            context.setStatusMessage("status.plot.extend.shape_not_found");
             return ModifyResult.CONTINUE;
         }
     }
@@ -921,7 +922,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                     return ModifyResult.COMPLETE;
                 } else {
                     LOGGER.warn("创建延伸命令失败");
-                    context.setStatusMessage("延伸操作失败：无法创建修改命令");
+                    context.setStatusMessage("status.plot.extend.command_failed");
                     return ModifyResult.CANCEL;
                 }
             } else {
@@ -966,7 +967,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
             reset();
             
             // 设置初始状态消息（与工具激活时的消息一致）
-            context.setStatusMessage("请左键选择边界图形，右键确认选择，然后左键点击要延伸的图形端点");
+            context.setStatusMessage("status.plot.extend.initial");
             
             return ModifyResult.CANCEL;
         }
@@ -1731,7 +1732,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
                         count);
                     context.setStatusMessage(selectionMessage);
                 } else {
-                    context.setStatusMessage("请选择边界图形（当前未选择任何图形）");
+                    context.setStatusMessage("status.plot.extend.select_boundary_required");
                 }
             }
 

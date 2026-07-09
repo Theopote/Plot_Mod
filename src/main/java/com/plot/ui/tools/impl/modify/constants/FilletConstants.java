@@ -59,7 +59,7 @@ public final class FilletConstants {
     // 错误消息
     public static final String ERROR_INVALID_SHAPES = "倒角操作需要选择两个图形";
     public static final String ERROR_INVALID_RADIUS = "倒角半径必须在 %.1f 到 %.1f 之间";
-    public static final String ERROR_COMMAND_CREATION_FAILED = "创建倒角命令失败";
+    public static final String ERROR_COMMAND_CREATION_FAILED = "status.plot.chamfer.command_failed";
     
     // 私有构造函数防止实例化
     private FilletConstants() {

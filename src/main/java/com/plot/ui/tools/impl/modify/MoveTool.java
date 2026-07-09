@@ -56,7 +56,7 @@ public class MoveTool extends ModifyTool {
 
     @Override
     protected String getInitialStatusMessage() {
-        return "左键选择图形，右键完成选择并进入移动模式";
+        return "status.plot.move.initial";
     }
     
 

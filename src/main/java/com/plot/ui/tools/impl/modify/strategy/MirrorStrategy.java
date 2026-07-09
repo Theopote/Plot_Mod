@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.ArrayList;
+import com.plot.utils.PlotI18n;
 
 /**
  * 镜像策略实现 - 策略模式版本
@@ -121,7 +122,7 @@ public class MirrorStrategy implements IModifyStrategy {
             if (button == MOUSE_RIGHT && currentState != MirrorState.IDLE) {
                 // 右键取消镜像
                 reset();
-                context.setStatusMessage("镜像已取消");
+                context.setStatusMessage("status.plot.mirror.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -136,7 +137,7 @@ public class MirrorStrategy implements IModifyStrategy {
             // 获取选中的图形
             selectedShapes = context.getSelectedShapes();
             if (selectedShapes.isEmpty()) {
-                context.setStatusMessage("请先选择要镜像的图形");
+                context.setStatusMessage("status.plot.mirror.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
             
@@ -152,17 +153,17 @@ public class MirrorStrategy implements IModifyStrategy {
         } catch (NullPointerException e) {
             LOGGER.error("空指针异常: {}", e.getMessage(), e);
             reset();
-            context.setStatusMessage("镜像操作失败：缺少必要参数");
+            context.setStatusMessage("status.plot.mirror.failed_missing");
             return ModifyResult.CANCEL;
         } catch (IllegalStateException e) {
             LOGGER.error("非法状态异常: {}", e.getMessage(), e);
             reset();
-            context.setStatusMessage("镜像操作失败：无效状态");
+            context.setStatusMessage("status.plot.mirror.failed_invalid_state");
             return ModifyResult.CANCEL;
         } catch (IllegalArgumentException e) {
             LOGGER.error("参数异常: {}", e.getMessage(), e);
             reset();
-            context.setStatusMessage("镜像操作失败：参数无效");
+            context.setStatusMessage("status.plot.mirror.failed_invalid_params");
             return ModifyResult.CANCEL;
         } catch (Exception e) {
             LOGGER.error("镜像策略鼠标按下处理失败: {}", e.getMessage(), e);
@@ -251,7 +252,7 @@ public class MirrorStrategy implements IModifyStrategy {
             case ESC_KEY -> {
                 if (currentState != MirrorState.IDLE) {
                     reset();
-                    context.setStatusMessage("镜像已取消");
+                    context.setStatusMessage("status.plot.mirror.cancelled");
                     return ModifyResult.CANCEL;
                 }
                 return ModifyResult.IGNORED;
@@ -321,7 +322,7 @@ public class MirrorStrategy implements IModifyStrategy {
         // 验证镜像操作
         IModifyHandler.ValidationResult validation = mirrorHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("镜像无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.mirror.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
         
@@ -332,15 +333,15 @@ public class MirrorStrategy implements IModifyStrategy {
             
             if (pendingCommand != null) {
                 LOGGER.debug("镜像操作完成");
-                context.setStatusMessage("镜像完成");
+                context.setStatusMessage("status.plot.mirror.complete");
                 return ModifyResult.COMPLETE;
             } else {
-                context.setStatusMessage("创建镜像命令失败");
+                context.setStatusMessage("status.plot.mirror.command_failed");
                 return ModifyResult.CANCEL;
             }
         } catch (RuntimeException e) {
             LOGGER.error("镜像操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("镜像失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.mirror.failed", e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }

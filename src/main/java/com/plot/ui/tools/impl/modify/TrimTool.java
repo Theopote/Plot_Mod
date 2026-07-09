@@ -64,12 +64,12 @@ public class TrimTool extends ModifyTool {
     protected String getInitialStatusMessage() {
         if (modifyStrategy instanceof TrimWithSelectionStrategy trimStrategy) {
             if (trimStrategy.getTrimType() == TrimWithSelectionStrategy.TrimType.BOUNDARY) {
-                return "选择边界图形，右键完成选择";
+                return "status.plot.trim.boundary_select";
             } else {
-                return "选择要修剪的图形，右键完成选择";
+                return "status.plot.trim.target_select";
             }
         }
-        return "选择图形开始修剪";
+        return "status.plot.trim.initial";
     }
 
     @Override

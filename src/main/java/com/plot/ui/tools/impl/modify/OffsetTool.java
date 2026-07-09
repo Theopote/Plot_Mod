@@ -65,7 +65,7 @@ public class OffsetTool extends ModifyTool {
 
     @Override
     protected String getInitialStatusMessage() {
-        return "点击线类图形确定参考点 → 在目标侧点击第二点，完成偏移复制";
+        return "status.plot.offset.initial";
     }
 
     @Override

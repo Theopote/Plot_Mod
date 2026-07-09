@@ -154,7 +154,7 @@ public class ArcTool extends DrawingTool {
             setStatusMessage(message);
             LOGGER.debug("弧形工具状态消息已更新: {}", message);
         } else {
-            setStatusMessage("弧形工具就绪");
+            setStatusMessage("status.plot.draw.arc_ready");
         }
     }
     

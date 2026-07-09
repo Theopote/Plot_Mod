@@ -77,7 +77,7 @@ public class MoveHandler implements IModifyHandler {
         // 检查是否有实际移动
         Vec2d offset = endPoint.subtract(startPoint);
         if (offset.length() < 0.001) {
-            return ValidationResult.invalid("移动距离太小");
+            return ValidationResult.invalid("status.plot.move.too_small");
         }
         
         return ValidationResult.valid();

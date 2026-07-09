@@ -18,6 +18,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 旋转工具与选择功能结合策略
@@ -55,8 +56,8 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     // 旋转状态枚举
     public enum RotateState {
         IDLE("空闲", "等待设置旋转中心点"),
-        SETTING_CENTER("设置中心", "点击设置旋转中心点"),
-        SETTING_REFERENCE("设置参考", "点击设置参考点"),
+        SETTING_CENTER("设置中心", "status.plot.rotate.initial_center"),
+        SETTING_REFERENCE("设置参考", "status.plot.common.click_reference"),
         ROTATING("旋转中", "移动鼠标旋转图形");
 
         private final String displayName;
@@ -133,18 +134,18 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             if (!selectedShapeIds.isEmpty()) {
                 currentMode = StrategyMode.ROTATE;
                 selectedShapes = getSelectedShapesFromIds(context);
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置旋转中心点");
+                context.setStatusMessage(PlotI18n.status("status.plot.common.selected_suffix", selectedShapeIds.size(), PlotI18n.status("status.plot.rotate.initial_center")));
                 LOGGER.info("切换到旋转模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择要旋转的图形");
+                context.setStatusMessage("status.plot.rotate.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
         } else {
             // 在旋转模式下右键：取消旋转，返回选择模式
             resetRotateState();
             currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("旋转已取消");
+            context.setStatusMessage("status.plot.rotate.cancelled");
             LOGGER.info("从旋转模式返回选择模式");
             return ModifyResult.CANCEL;
         }
@@ -167,7 +168,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     private ModifyResult handleRotateMouseDown(Vec2d pos, ModifyToolContext context) {
         if (selectedShapes == null || selectedShapes.isEmpty()) {
-            context.setStatusMessage("没有选中的图形可以旋转");
+            context.setStatusMessage("status.plot.rotate.no_selection");
             return ModifyResult.NEED_SELECTION;
         }
 
@@ -224,7 +225,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
             if (currentState == RotateState.SETTING_REFERENCE) {
                 // 在设置参考点时，显示从中心点到当前点的预览线
-                context.setStatusMessage("点击设置参考点，移动鼠标查看预览");
+                context.setStatusMessage("status.plot.common.click_reference_preview");
                 // 启用预览以显示从中心点到当前点的虚线
                 context.setPreviewEnabled(true);
                 return ModifyResult.CONTINUE;
@@ -274,7 +275,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             if (isCtrlPressed) {
                 statusMessage += " (复制模式)";
             }
-            context.setStatusMessage(statusMessage + " - 点击完成旋转");
+            context.setStatusMessage(PlotI18n.status("status.plot.common.click_finish_suffix", PlotI18n.localizeStatus(statusMessage)));
 
             // 启用预览
             context.setPreviewEnabled(true);
@@ -329,7 +330,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
             }
             case ESC_KEY -> {
                 reset();
-                context.setStatusMessage("操作已取消");
+                context.setStatusMessage("status.plot.common.operation_cancelled");
                 return ModifyResult.CANCEL;
             }
             default -> {
@@ -361,7 +362,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
     private ModifyResult setCenterPoint(Vec2d point, ModifyToolContext context) {
         centerPoint = point;
         currentState = RotateState.SETTING_REFERENCE;
-        context.setStatusMessage("点击设置参考点");
+        context.setStatusMessage("status.plot.common.click_reference");
         LOGGER.debug("设置旋转中心点: {}", centerPoint);
         return ModifyResult.CONTINUE;
     }
@@ -373,7 +374,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         referencePoint = point;
         baseAngle = rotateHandler.calculateAngle(centerPoint, referencePoint);
         currentState = RotateState.ROTATING;
-        context.setStatusMessage("移动鼠标旋转图形，点击完成");
+        context.setStatusMessage("status.plot.rotate.move_finish");
 
         LOGGER.debug("设置参考点: {}, 基准角度: {}°", referencePoint, Math.toDegrees(baseAngle));
         return ModifyResult.CONTINUE;
@@ -402,7 +403,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
         // 验证旋转操作
         IModifyHandler.ValidationResult validation = rotateHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("旋转无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 
@@ -412,11 +413,11 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
         if (pendingCommand != null) {
             LOGGER.debug("旋转操作完成，角度: {}°", Math.toDegrees(rotationAngle));
-            context.setStatusMessage("旋转完成");
+            context.setStatusMessage("status.plot.rotate.complete");
             return ModifyResult.COMPLETE;
         }
 
-        context.setStatusMessage("创建旋转命令失败");
+        context.setStatusMessage("status.plot.rotate.command_failed");
         return ModifyResult.CANCEL;
     }
 

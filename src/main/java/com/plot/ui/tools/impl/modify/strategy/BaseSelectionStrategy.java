@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import com.plot.utils.PlotI18n;
 
 /**
  * 基础选择策略 - 通用选择逻辑
@@ -97,7 +98,7 @@ public abstract class BaseSelectionStrategy {
                     updateShapeSelection(clickedShape, true, context);
                     LOGGER.debug("选中图形 {}", clickedShape.getId());
                 }
-                context.setStatusMessage(String.format("已选择 %d 个图形，右键开始操作", selectedShapeIds.size()));
+                context.setStatusMessage(PlotI18n.status("status.plot.common.selected_right_click_op", selectedShapeIds.size()));
             }
         }
 
@@ -164,12 +165,12 @@ public abstract class BaseSelectionStrategy {
             // 如果是Ctrl模式，由于MouseDown已经处理了，这里不需要做任何事
             
             LOGGER.debug("完成点选，选中 {} 个形状", selectedShapeIds.size());
-            context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，右键开始操作");
+            context.setStatusMessage(PlotI18n.status("status.plot.common.selected_right_click_op", selectedShapeIds.size()));
         } else {
             // 框选模式：在finalizeBoxSelection中处理选择清除逻辑
             finalizeBoxSelection(context);
             LOGGER.debug("完成框选，选中 {} 个形状", selectedShapeIds.size());
-            context.setStatusMessage("框选完成，已选择 " + selectedShapeIds.size() + " 个图形，右键开始操作");
+            context.setStatusMessage(PlotI18n.status("status.plot.common.box_select_done", selectedShapeIds.size()));
         }
 
         // 重置选择状态

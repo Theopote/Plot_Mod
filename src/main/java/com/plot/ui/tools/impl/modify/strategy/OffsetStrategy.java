@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.beans.PropertyChangeSupport;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 偏移策略实现 - 策略模式版本
@@ -153,7 +154,7 @@ public class OffsetStrategy implements IModifyStrategy {
             if (button == MOUSE_RIGHT) {
                 // 右键取消操作
                 reset();
-                context.setStatusMessage("偏移操作已取消");
+                context.setStatusMessage("status.plot.offset.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -168,7 +169,7 @@ public class OffsetStrategy implements IModifyStrategy {
                 Shape targetShape = findShapeAtPoint(snappedPoint, context);
                 
                 if (targetShape == null) {
-                    context.setStatusMessage("点击位置没有找到可偏移的图形");
+                    context.setStatusMessage("status.plot.offset.no_shape_at_click");
                     return ModifyResult.CONTINUE;
                 }
                 
@@ -178,9 +179,9 @@ public class OffsetStrategy implements IModifyStrategy {
                 currentState = OffsetState.SELECTING;
                 
                 if (currentMode == OffsetMode.THROUGH_POINT) {
-                    context.setStatusMessage("点击指定偏移点，或按ESC取消");
+                    context.setStatusMessage("status.plot.offset.click_point");
                 } else {
-                    context.setStatusMessage("点击指定偏移方向和距离，或按ESC取消");
+                    context.setStatusMessage("status.plot.offset.click_direction");
                 }
                 return ModifyResult.CONTINUE;
                 
@@ -293,7 +294,7 @@ public class OffsetStrategy implements IModifyStrategy {
             // 验证偏移操作
             IModifyHandler.ValidationResult validation = offsetHandler.validateModification(List.of(selectedShape), constrainedParameters);
             if (!validation.isValid()) {
-                context.setStatusMessage("偏移无效: " + validation.getErrorMessage());
+                context.setStatusMessage(PlotI18n.status("status.plot.offset.invalid", validation.getErrorMessage()));
                 return ModifyResult.CONTINUE;
             }
             
@@ -302,7 +303,7 @@ public class OffsetStrategy implements IModifyStrategy {
             
             // 检查偏移操作是否成功
             if (modifiedShapes == null || modifiedShapes.isEmpty()) {
-                context.setStatusMessage("偏移操作失败，请重试");
+                context.setStatusMessage("status.plot.offset.retry");
                 return ModifyResult.CANCEL;
             }
             
@@ -343,13 +344,13 @@ public class OffsetStrategy implements IModifyStrategy {
                     return ModifyResult.CONTINUE;
                 }
             } else {
-                context.setStatusMessage("创建偏移命令失败");
+                context.setStatusMessage("status.plot.offset.command_failed");
                 return ModifyResult.CANCEL;
             }
             
         } catch (Exception e) {
             LOGGER.error("执行偏移操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("偏移操作失败");
+            context.setStatusMessage("status.plot.offset.failed");
             return ModifyResult.CANCEL;
         }
     }
@@ -359,7 +360,7 @@ public class OffsetStrategy implements IModifyStrategy {
      */
     private ModifyResult handleEscapeKey(ModifyToolContext context) {
         reset();
-        context.setStatusMessage("偏移操作已取消");
+        context.setStatusMessage("status.plot.offset.cancelled");
         return ModifyResult.CANCEL;
     }
     

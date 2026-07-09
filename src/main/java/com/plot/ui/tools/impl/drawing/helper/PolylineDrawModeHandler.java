@@ -72,7 +72,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             points.clear();
             points.add(worldPoint);
             isDrawing = true;
-            context.updateStatusMessage("点击添加下一个顶点，右键或Esc键结束绘制");
+            context.updateStatusMessage("status.plot.draw.polyline_add_vertex");
             LOGGER.debug("折线模式：开始新的折线");
             
             // 通知工具更新预览
@@ -97,7 +97,7 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             }
             points.add(worldPoint);
             LOGGER.debug("折线模式：添加新顶点，当前点数：{}", points.size());
-            context.updateStatusMessage("点击添加下一个顶点，右键或Esc键结束绘制");
+            context.updateStatusMessage("status.plot.draw.polyline_add_vertex");
             
             // 通知工具更新预览
             notifyPreviewUpdate(context);

@@ -15,6 +15,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.util.List;
 import java.util.ArrayList;
+import com.plot.utils.PlotI18n;
 
 /**
  * 对齐工具与选择功能结合策略
@@ -121,18 +122,18 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 currentMode = StrategyMode.ALIGN;
                 selectedShapes = getSelectedShapesFromIds(context);
                 alignState = AlignState.AWAIT_SOURCE1;
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击源点1");
+                context.setStatusMessage(PlotI18n.status("status.plot.align.initial_source1", selectedShapeIds.size()));
                 LOGGER.info("切换到对齐模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择要对齐的图形");
+                context.setStatusMessage("status.plot.align.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
         } else {
             // 在对齐模式下右键：取消对齐，返回选择模式
             resetAlignState();
             currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("对齐已取消");
+            context.setStatusMessage("status.plot.align.cancelled");
             LOGGER.info("从对齐模式返回选择模式");
             return ModifyResult.CANCEL;
         }
@@ -155,7 +156,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     private ModifyResult handleAlignMouseDown(Vec2d pos, ModifyToolContext context) {
         if (selectedShapes == null || selectedShapes.isEmpty()) {
-            context.setStatusMessage("没有选中的图形可以对齐");
+            context.setStatusMessage("status.plot.align.no_selection");
             return ModifyResult.NEED_SELECTION;
         }
 
@@ -168,7 +169,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                     // 第一步：在选中的图形上选择第一个源点
                     sourcePoint1 = projectToSelection(snapped, selectedShapes);
                     alignState = AlignState.AWAIT_TARGET1;
-                    context.setStatusMessage("已选源点1，点击目标点1（可以是任意位置）");
+                    context.setStatusMessage("status.plot.align.source1");
                     updatePreviewGuides();
                     return ModifyResult.CONTINUE;
                 }
@@ -176,7 +177,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                     // 第二步：选择第一个目标点（任意位置，可以是网格点、空白处等）
                     targetPoint1 = snapped;
                     alignState = AlignState.AWAIT_SOURCE2;
-                    context.setStatusMessage("已选目标点1，点击源点2");
+                    context.setStatusMessage("status.plot.align.target1_source2");
                     updatePreviewGuides();
                     return ModifyResult.CONTINUE;
                 }
@@ -184,7 +185,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                     // 第三步：在要移动的图形上选择第二个源点
                     sourcePoint2 = projectToSelection(snapped, selectedShapes);
                     alignState = AlignState.AWAIT_TARGET2;
-                    context.setStatusMessage("已选源点2，点击目标点2以完成（可以是任意位置）");
+                    context.setStatusMessage("status.plot.align.source2_target2");
                     updatePreviewGuides();
                     return ModifyResult.CONTINUE;
                 }
@@ -271,7 +272,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
         if (keyCode == ESC_KEY) {
             reset();
-            context.setStatusMessage("操作已取消");
+            context.setStatusMessage("status.plot.common.operation_cancelled");
             return ModifyResult.CANCEL;
         }
         return ModifyResult.IGNORED;
@@ -297,7 +298,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
             pendingCommand = alignHandler.createModifyCommand(shapes, modified, parameters);
             if (pendingCommand != null) {
                 // 完成
-                context.setStatusMessage("对齐完成");
+                context.setStatusMessage("status.plot.align.complete");
                 // 即时清空预览辅助线，避免保留在屏幕上
                 if (previewGuides != null) previewGuides.clear();
                 previewShapes = null;
@@ -306,11 +307,11 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
                 sourcePoint1 = targetPoint1 = sourcePoint2 = targetPoint2 = null;
                 return ModifyResult.COMPLETE;
             }
-            context.setStatusMessage("创建对齐命令失败");
+            context.setStatusMessage("status.plot.align.command_failed");
             return ModifyResult.CANCEL;
         } catch (Exception e) {
             LOGGER.error("点对点对齐失败: {}", e.getMessage(), e);
-            context.setStatusMessage("对齐失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.common.failed", PlotI18n.tr("tool.plot.align"), e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }
@@ -555,9 +556,9 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
         if (result == ModifyResult.COMPLETE) {
             int count = getSelectedCount();
             if (count > 0) {
-                context.setStatusMessage("已选择 " + count + " 个图形，右键开始四点对齐");
+                context.setStatusMessage(PlotI18n.status("status.plot.align.four_point", count));
             } else {
-                context.setStatusMessage("请选择要对齐的图形");
+                context.setStatusMessage("status.plot.align.select_shapes");
             }
         }
         

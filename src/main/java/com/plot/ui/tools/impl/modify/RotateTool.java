@@ -81,9 +81,9 @@ public class RotateTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         if (hasSelection()) {
-            return "点击设置旋转中心点";
+            return "status.plot.rotate.initial_center";
         } else {
-            return "请先选择要旋转的图形";
+            return "status.plot.rotate.initial_select";
         }
     }
 

@@ -18,6 +18,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 镜像工具与选择功能结合策略
@@ -144,19 +145,19 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             if (!selectedShapeIds.isEmpty()) {
                 currentMode = StrategyMode.MIRROR;
                 selectedShapes = getSelectedShapesFromIds(context);
-                String hint = (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) ? "点击设置对称中心" : "点击设置镜像轴起点";
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，" + hint);
+                String hint = (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) ? "status.plot.mirror.initial_center" : "status.plot.mirror.initial_axis";
+                context.setStatusMessage(PlotI18n.status("status.plot.common.selected_suffix", selectedShapeIds.size(), PlotI18n.localizeStatus(hint)));
                 LOGGER.info("切换到镜像模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择要镜像的图形");
+                context.setStatusMessage("status.plot.mirror.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
         } else {
             // 在镜像模式下右键：取消镜像，返回选择模式
             resetMirrorState();
             currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("镜像已取消");
+            context.setStatusMessage("status.plot.mirror.cancelled");
             LOGGER.info("从镜像模式返回选择模式");
             return ModifyResult.CANCEL;
         }
@@ -179,7 +180,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
      */
     private ModifyResult handleMirrorMouseDown(Vec2d pos, ModifyToolContext context) {
         if (selectedShapes == null || selectedShapes.isEmpty()) {
-            context.setStatusMessage("没有选中的图形可以镜像");
+            context.setStatusMessage("status.plot.mirror.no_selection");
             return ModifyResult.NEED_SELECTION;
         }
 
@@ -324,7 +325,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
             }
             case ESC_KEY -> {
                 reset();
-                context.setStatusMessage("操作已取消");
+                context.setStatusMessage("status.plot.common.operation_cancelled");
                 return ModifyResult.CANCEL;
             }
             default -> {
@@ -357,9 +358,9 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         axisStartPoint = point;
         currentState = MirrorState.SETTING_AXIS_END;
         if (mirrorMode == MirrorMode.CENTRAL_SYMMETRY) {
-            context.setStatusMessage("已设置对称中心，点击确认完成 (按住Ctrl可复制)");
+            context.setStatusMessage("status.plot.mirror.center_confirm");
         } else {
-            context.setStatusMessage("移动鼠标设置镜像轴终点，点击完成 (按住Shift正交，按住Ctrl复制)");
+            context.setStatusMessage("status.plot.mirror.axis_drag");
         }
         LOGGER.debug("设置镜像轴起点: {}", axisStartPoint);
         return ModifyResult.CONTINUE;
@@ -385,7 +386,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
         // 验证镜像操作
         IModifyHandler.ValidationResult validation = mirrorHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("镜像无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.mirror.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 
@@ -395,11 +396,11 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
 
         if (pendingCommand != null) {
             LOGGER.debug("镜像操作完成");
-            context.setStatusMessage("镜像完成");
+            context.setStatusMessage("status.plot.mirror.complete");
             return ModifyResult.COMPLETE;
         }
 
-        context.setStatusMessage("创建镜像命令失败");
+        context.setStatusMessage("status.plot.mirror.command_failed");
         return ModifyResult.CANCEL;
     }
 

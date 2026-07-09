@@ -329,7 +329,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
                 return true;
             }
             case NEED_SELECTION -> {
-                setStatusMessage("请先选择要修改的图形");
+                setStatusMessage("status.plot.common.select_modify_first");
                 return true;
             }
             case IGNORED -> {
@@ -728,7 +728,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         IModifyStrategy strategy = getStrategy();
         if (strategy != null && strategy.requiresSelection() && 
             (selection == null || selection.isEmpty())) {
-            setStatusMessage("请先选择要修改的图形");
+            setStatusMessage("status.plot.common.select_modify_first");
         } else {
             setStatusMessage(getInitialStatusMessage());
         }

@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 橡皮擦策略实现 - 策略模式版本
@@ -114,7 +115,7 @@ public class EraserStrategy implements IModifyStrategy {
             if (button == MOUSE_RIGHT && currentState != EraserState.IDLE) {
                 // 右键取消删除
                 reset();
-                context.setStatusMessage("删除已取消");
+                context.setStatusMessage("status.plot.eraser.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -190,7 +191,7 @@ public class EraserStrategy implements IModifyStrategy {
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
         if (keyCode == ESC_KEY) {
             reset();
-            context.setStatusMessage("删除已取消");
+            context.setStatusMessage("status.plot.eraser.cancelled");
             return ModifyResult.CANCEL;
         }
         return ModifyResult.IGNORED;
@@ -204,7 +205,7 @@ public class EraserStrategy implements IModifyStrategy {
         Set<Shape> shapesInRange = findShapesInEraserArea(point, context);
         
         if (shapesInRange.isEmpty()) {
-            context.setStatusMessage("没有找到要删除的图形");
+            context.setStatusMessage("status.plot.eraser.not_found");
             return ModifyResult.CONTINUE;
         }
         
@@ -213,7 +214,7 @@ public class EraserStrategy implements IModifyStrategy {
         shapesToDelete.addAll(shapesInRange);
         pendingCommand = new DeleteShapesCommand(new ArrayList<>(shapesToDelete));
         
-        context.setStatusMessage(String.format("删除了 %d 个图形", shapesToDelete.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.common.deleted_count", shapesToDelete.size()));
         return ModifyResult.COMPLETE;
     }
     
@@ -233,7 +234,7 @@ public class EraserStrategy implements IModifyStrategy {
         shapesToDelete.clear();
         shapesToDelete.addAll(shapesInRange);
         
-        context.setStatusMessage("拖拽删除中...");
+        context.setStatusMessage("status.plot.eraser.dragging");
         context.setPreviewEnabled(true);
         
         return ModifyResult.CONTINUE;
@@ -253,7 +254,7 @@ public class EraserStrategy implements IModifyStrategy {
         Set<Shape> shapesInRange = findShapesAlongPath(dragPath, context);
         shapesToDelete.addAll(shapesInRange);
         
-        context.setStatusMessage(String.format("拖拽删除中... 已选中 %d 个图形", shapesToDelete.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.common.drag_delete_count", shapesToDelete.size()));
         
         return ModifyResult.CONTINUE;
     }
@@ -266,7 +267,7 @@ public class EraserStrategy implements IModifyStrategy {
         currentState = EraserState.IDLE;
         
         if (shapesToDelete.isEmpty()) {
-            context.setStatusMessage("没有找到要删除的图形");
+            context.setStatusMessage("status.plot.eraser.not_found");
             reset();
             return ModifyResult.CANCEL;
         }
@@ -274,7 +275,7 @@ public class EraserStrategy implements IModifyStrategy {
         // 创建删除命令
         pendingCommand = new DeleteShapesCommand(new ArrayList<>(shapesToDelete));
         
-        context.setStatusMessage(String.format("删除了 %d 个图形", shapesToDelete.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.common.deleted_count", shapesToDelete.size()));
         return ModifyResult.COMPLETE;
     }
     

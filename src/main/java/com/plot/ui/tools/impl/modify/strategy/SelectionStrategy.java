@@ -19,7 +19,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import com.plot.core.state.AppState;
-// import com.plot.core.command.commands.DeleteShapesCommand; // 未使用
+// import com.plot.core.command.commands.DeleteShapesCommand;
+import com.plot.utils.PlotI18n; // 未使用
 
 /**
  * 选择策略实现 - 完整版本
@@ -306,7 +307,7 @@ public class SelectionStrategy implements IModifyStrategy {
             case 27 -> { // Esc键
                 reset();
                 context.clearSelection();
-                context.setStatusMessage("选择已取消");
+                context.setStatusMessage("status.plot.transform.selection_cancelled");
                 LOGGER.debug("SelectionStrategy: Esc键按下，取消选择");
                 return ModifyResult.CANCEL;
             }
@@ -493,7 +494,7 @@ public class SelectionStrategy implements IModifyStrategy {
                 List<Vec2d> controlPoints = shape.getControlPoints();
                 if (controlPoints != null && !controlPoints.isEmpty()) {
                     editTool.activate(shape);
-                    context.setStatusMessage("已进入控制点编辑模式，拖拽控制点调整图形");
+                    context.setStatusMessage("status.plot.control_point.entered");
                     LOGGER.debug("SelectionStrategy: 激活控制点编辑模式，图形: {}", shape.getClass().getSimpleName());
                 } else {
                     LOGGER.debug("SelectionStrategy: 图形没有控制点，跳过控制点编辑模式");
@@ -529,7 +530,7 @@ public class SelectionStrategy implements IModifyStrategy {
         LOGGER.debug("SelectionStrategy: 已清除所有选择");
         
         // 更新状态消息
-        context.setStatusMessage("已取消所有选择");
+        context.setStatusMessage("status.plot.common.selection_cleared");
     }
     
     /**
@@ -643,7 +644,7 @@ public class SelectionStrategy implements IModifyStrategy {
             }
         }
         
-        context.setStatusMessage(String.format("框选完成，已选择 %d 个图形", selectedShapeIds.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.trim.box_select_done", selectedShapeIds.size()));
     }
     
     /**
@@ -796,7 +797,7 @@ public class SelectionStrategy implements IModifyStrategy {
             context.setStatusMessage(String.format("已全选 %d 个图形", selectedShapeIds.size()));
         } catch (Exception e) {
             LOGGER.error("执行全选时出错: {}", e.getMessage(), e);
-            context.setStatusMessage("全选失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.common.select_all_failed", e.getMessage()));
         }
     }
     
@@ -825,12 +826,12 @@ public class SelectionStrategy implements IModifyStrategy {
                     context.setStatusMessage(String.format("已删除 %d 个图形", selectedShapes.size()));
                 } else {
                     LOGGER.debug("SelectionStrategy: 没有选中的图形需要删除");
-                    context.setStatusMessage("没有选中的图形");
+                    context.setStatusMessage("status.plot.common.no_selection_generic");
                 }
                 
             } catch (Exception e) {
                 LOGGER.error("SelectionStrategy: 执行删除命令时出错: {}", e.getMessage(), e);
-                context.setStatusMessage("删除失败: " + e.getMessage());
+                context.setStatusMessage(PlotI18n.status("status.plot.common.delete_failed", e.getMessage()));
             }
             
             // 清空选择状态
@@ -838,7 +839,7 @@ public class SelectionStrategy implements IModifyStrategy {
             context.clearSelection();
         } else {
             LOGGER.debug("SelectionStrategy: 没有选中的图形");
-            context.setStatusMessage("没有选中的图形");
+            context.setStatusMessage("status.plot.common.no_selection_generic");
         }
     }
     

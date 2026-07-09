@@ -29,6 +29,7 @@ import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.CableShape;
+import com.plot.utils.PlotI18n;
 
 /**
  * 圆角策略 - 控制器版本
@@ -421,11 +422,11 @@ public class FilletStrategy implements IModifyStrategy {
         Shape shape = findShapeAtPoint(snappedPoint, context);
         if (isFilletableShape(shape)) {
             updateHighlight(shape);
-            context.setStatusMessage("点击选择第一个图形，或按ESC取消");
+            context.setStatusMessage("status.plot.fillet.select_first");
             return ModifyResult.CONTINUE;
         } else {
             clearHighlight();
-            context.setStatusMessage("请选择一个可圆角的图形");
+            context.setStatusMessage("status.plot.fillet.select_valid");
             return ModifyResult.IGNORED;
         }
     }
@@ -440,16 +441,16 @@ public class FilletStrategy implements IModifyStrategy {
             updateHighlight(shape);
             // 临时设置第二个图形进行预览
             updatePreviewWithShapes(shape1, shape, context);
-            context.setStatusMessage("点击选择第二个图形，滚轮调整半径，或按ESC取消");
+            context.setStatusMessage("status.plot.fillet.select_second");
             return ModifyResult.CONTINUE;
         } else if (shape == shape1) {
             clearHighlight();
-            context.setStatusMessage("请选择不同的图形");
+            context.setStatusMessage("status.plot.fillet.select_different");
             return ModifyResult.IGNORED;
         } else {
             clearHighlight();
             clearPreview();
-            context.setStatusMessage("请选择第二个可圆角的图形");
+            context.setStatusMessage("status.plot.fillet.select_second_valid");
             return ModifyResult.IGNORED;
         }
     }
@@ -541,7 +542,7 @@ public class FilletStrategy implements IModifyStrategy {
         
         IModifyHandler handler = getCurrentHandler();
         if (handler == null) {
-            context.setStatusMessage("无效模式");
+            context.setStatusMessage("status.plot.fillet.invalid_mode");
             return ModifyResult.IGNORED;
         }
 
@@ -730,7 +731,7 @@ public class FilletStrategy implements IModifyStrategy {
      * 完成框选选择
      */
     private void finalizeBoxSelection(ModifyToolContext context) {
-        context.setStatusMessage(String.format("框选完成，已选择 %d 个图形", boxSelectedShapes.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.trim.box_select_done", boxSelectedShapes.size()));
     }
     
     /**

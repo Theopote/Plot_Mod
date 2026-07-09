@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 阵列工具与选择功能结合策略
@@ -81,7 +82,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     // 阵列状态枚举
     public enum ArrayState {
         IDLE("空闲", "等待开始阵列"),
-        AWAIT_BASE_POINT("等待基准点", "点击设置阵列基准点"),
+        AWAIT_BASE_POINT("等待基准点", "status.plot.array.set_reference"),
         AWAIT_PATH("等待路径", "选择路径对象"),
         PREVIEWING("预览中", "调整参数并预览阵列效果");
 
@@ -190,23 +191,23 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     arrayState = ArrayState.PREVIEWING;
                     updateArrayPreview();
                     context.setPreviewEnabled(true);
-                    context.setStatusMessage("矩形阵列预览：已自动生成 3×3，可拖拽间距锚点或在面板调整，点击“完成”确认");
+                    context.setStatusMessage("status.plot.array.rect_preview_auto");
                 } else if (arrayType == ArrayType.CIRCULAR) {
                     rowCount = 6; // 作为“数量（含原图）”
                     arrayState = ArrayState.AWAIT_BASE_POINT;
-                    context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置环形阵列中心（默认 6 个）");
+                    context.setStatusMessage(PlotI18n.status("status.plot.array.polar_center", selectedShapeIds.size()));
                 } else {
                     // PATH
                     pathCount = Math.max(pathCount, 2);
                     basePoint = getShapeCenter(selectedShapes.getFirst()); // 满足 handler 校验需要
                     arrayState = ArrayState.AWAIT_PATH;
-                    context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，左键点击选择路径（数量=路径等距点位数，含起终点）");
+                    context.setStatusMessage(PlotI18n.status("status.plot.array.path_pick", selectedShapeIds.size()));
                 }
 
                 LOGGER.info("切换到阵列模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择要阵列的图形");
+                context.setStatusMessage("status.plot.array.select_first");
                 return ModifyResult.NEED_SELECTION;
             }
         } else {
@@ -214,7 +215,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
             // 右键统一作为“取消”，完成请使用面板按钮
             resetArrayState();
             currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("阵列已取消");
+            context.setStatusMessage("status.plot.array.cancelled");
             LOGGER.info("从阵列模式返回选择模式");
             return ModifyResult.CANCEL;
         }
@@ -237,7 +238,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     private ModifyResult handleArrayMouseDown(Vec2d pos, ModifyToolContext context) {
         if (selectedShapes == null || selectedShapes.isEmpty()) {
-            context.setStatusMessage("没有选中的图形可以阵列");
+            context.setStatusMessage("status.plot.array.no_selection");
             return ModifyResult.NEED_SELECTION;
         }
 
@@ -259,7 +260,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 if (isDraggingSpacing) {
                     isDraggingSpacing = false;
                     dragHandle = DragHandle.NONE;
-                    context.setStatusMessage("参数已确认：可继续拖拽其他锚点，或点击“完成”确认阵列");
+                    context.setStatusMessage("status.plot.array.params_confirmed");
                     return ModifyResult.CONTINUE;
                 }
 
@@ -272,13 +273,13 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     if (snapped.distance(colHandle) <= tol) {
                         dragHandle = DragHandle.COLUMN_SPACING;
                         isDraggingSpacing = true;
-                        context.setStatusMessage("正在拖拽列间距：移动鼠标调整，单击确认");
+                        context.setStatusMessage("status.plot.array.drag_col_spacing");
                         return ModifyResult.CONTINUE;
                     }
                     if (snapped.distance(rowHandle) <= tol) {
                         dragHandle = DragHandle.ROW_SPACING;
                         isDraggingSpacing = true;
-                        context.setStatusMessage("正在拖拽行间距：移动鼠标调整，单击确认");
+                        context.setStatusMessage("status.plot.array.drag_row_spacing");
                         return ModifyResult.CONTINUE;
                     }
                 }
@@ -291,7 +292,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     if (snapped.distance(radiusHandle) <= tol) {
                         dragHandle = DragHandle.CIRCULAR_RADIUS;
                         isDraggingSpacing = true;
-                        context.setStatusMessage("正在拖拽半径：移动鼠标调整，单击确认");
+                        context.setStatusMessage("status.plot.array.drag_radius");
                         return ModifyResult.CONTINUE;
                     }
                 }
@@ -306,7 +307,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         arrayState = ArrayState.PREVIEWING;
                         updateArrayPreview();
                         context.setPreviewEnabled(true);
-                        context.setStatusMessage("矩形阵列预览中：可拖拽间距锚点或在面板调整，点击“完成”确认");
+                        context.setStatusMessage("status.plot.array.rect_preview");
                     } else if (arrayType == ArrayType.CIRCULAR) {
                         // 环形阵列：点中心后立即预览（默认半径=中心到源图形距离）
                         if (selectedShapes != null) {
@@ -315,11 +316,11 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         arrayState = ArrayState.PREVIEWING;
                         updateArrayPreview();
                         context.setPreviewEnabled(true);
-                        context.setStatusMessage("环形阵列预览中：默认 6 个，可在面板调整数量/半径，点击“完成”确认");
+                        context.setStatusMessage("status.plot.array.polar_preview");
                     } else if (arrayType == ArrayType.PATH) {
                         // 路径阵列：需要选择路径对象
                         arrayState = ArrayState.AWAIT_PATH;
-                        context.setStatusMessage("点击选择路径对象");
+                        context.setStatusMessage("status.plot.array.pick_path_object");
                     }
                     return ModifyResult.CONTINUE;
                 }
@@ -335,15 +336,15 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                                 arrayState = ArrayState.PREVIEWING;
                                 updateArrayPreview();
                                 context.setPreviewEnabled(true);
-                                context.setStatusMessage("已选择路径：可在面板调整点位数（含起终点，沿路径等距），点击“完成”确认");
+                                context.setStatusMessage("status.plot.array.path_selected");
                             } else {
-                                context.setStatusMessage("所选对象无法作为路径（点数不足）");
+                                context.setStatusMessage("status.plot.array.path_invalid");
                             }
                         } catch (Exception e) {
-                            context.setStatusMessage("无法获取路径点");
+                            context.setStatusMessage("status.plot.array.path_points_failed");
                         }
                     } else {
-                        context.setStatusMessage("未选中路径对象");
+                        context.setStatusMessage("status.plot.array.path_not_selected");
                     }
                     return ModifyResult.CONTINUE;
                 }
@@ -449,7 +450,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
         if (keyCode == ESC_KEY) {
             reset();
-            context.setStatusMessage("操作已取消");
+            context.setStatusMessage("status.plot.common.operation_cancelled");
             return ModifyResult.CANCEL;
         }
 
@@ -472,7 +473,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 if (arrayState == ArrayState.PREVIEWING) {
                     updateArrayPreview();
                 }
-                context.setStatusMessage("切换到矩形阵列模式");
+                context.setStatusMessage("status.plot.array.mode_rect");
                 return ModifyResult.CONTINUE;
             }
             case C_KEY -> {
@@ -481,7 +482,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 if (arrayState == ArrayState.PREVIEWING) {
                     updateArrayPreview();
                 }
-                context.setStatusMessage("切换到环形阵列模式");
+                context.setStatusMessage("status.plot.array.mode_polar");
                 return ModifyResult.CONTINUE;
             }
             case P_KEY -> {
@@ -490,7 +491,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 if (arrayState == ArrayState.PREVIEWING) {
                     updateArrayPreview();
                 }
-                context.setStatusMessage("切换到路径阵列模式");
+                context.setStatusMessage("status.plot.array.mode_path");
                 return ModifyResult.CONTINUE;
             }
             case UP_KEY -> {
@@ -500,11 +501,11 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         // 上箭头：增加行间距
                         rowSpacing = Math.min(rowSpacing + 5.0, 500.0);
                         updateArrayPreview();
-                        context.setStatusMessage("行间距: " + String.format("%.1f", rowSpacing));
+                        context.setStatusMessage(PlotI18n.status("status.plot.array.row_spacing", String.format("%.1f", rowSpacing)));
                     } else if (arrayType == ArrayType.PATH) {
                         pathCount = Math.min(pathCount + 1, 100);
                         updateArrayPreview();
-                        context.setStatusMessage("数量: " + pathCount);
+                        context.setStatusMessage(PlotI18n.status("status.plot.array.path_count", pathCount));
                     }
                 }
                 return ModifyResult.CONTINUE;
@@ -516,11 +517,11 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         // 下箭头：减少行间距
                         rowSpacing = Math.max(rowSpacing - 5.0, 1.0);
                         updateArrayPreview();
-                        context.setStatusMessage("行间距: " + String.format("%.1f", rowSpacing));
+                        context.setStatusMessage(PlotI18n.status("status.plot.array.row_spacing", String.format("%.1f", rowSpacing)));
                     } else if (arrayType == ArrayType.PATH) {
                         pathCount = Math.max(pathCount - 1, 2);
                         updateArrayPreview();
-                        context.setStatusMessage("数量: " + pathCount);
+                        context.setStatusMessage(PlotI18n.status("status.plot.array.path_count", pathCount));
                     }
                 }
                 return ModifyResult.CONTINUE;
@@ -532,7 +533,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         // 左箭头：减少列间距
                         spacing = Math.max(spacing - 5.0, 1.0);
                         updateArrayPreview();
-                        context.setStatusMessage("列间距: " + String.format("%.1f", spacing));
+                        context.setStatusMessage(PlotI18n.status("status.plot.array.col_spacing", String.format("%.1f", spacing)));
                     }
                 }
                 return ModifyResult.CONTINUE;
@@ -544,7 +545,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                         // 右箭头：增加列间距
                         spacing = Math.min(spacing + 5.0, 500.0);
                         updateArrayPreview();
-                        context.setStatusMessage("列间距: " + String.format("%.1f", spacing));
+                        context.setStatusMessage(PlotI18n.status("status.plot.array.col_spacing", String.format("%.1f", spacing)));
                     }
                 }
                 return ModifyResult.CONTINUE;
@@ -964,9 +965,9 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
         if (result == ModifyResult.COMPLETE) {
             int count = getSelectedCount();
             if (count > 0) {
-                context.setStatusMessage("已选择 " + count + " 个图形，右键开始阵列操作");
+                context.setStatusMessage(PlotI18n.status("status.plot.common.selected_right_click", count, PlotI18n.tr("tool.plot.array")));
             } else {
-                context.setStatusMessage("请选择要阵列的图形");
+                context.setStatusMessage("status.plot.array.select_shapes");
             }
         }
 

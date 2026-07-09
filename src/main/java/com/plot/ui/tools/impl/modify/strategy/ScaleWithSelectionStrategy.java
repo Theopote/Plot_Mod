@@ -18,6 +18,7 @@ import com.plot.utils.ExceptionDebug;
 
 import java.awt.Color;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 缩放工具与选择功能结合策略
@@ -55,7 +56,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
     // 缩放状态枚举
     public enum ScaleState {
         IDLE("空闲", "等待设置缩放中心点"),
-        AWAITING_REFERENCE("等待参考点", "点击设置参考点"),
+        AWAITING_REFERENCE("等待参考点", "status.plot.common.click_reference"),
         SCALING("缩放中", "移动鼠标缩放图形");
 
         private final String displayName;
@@ -129,18 +130,18 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
             if (!selectedShapeIds.isEmpty()) {
                 currentMode = StrategyMode.SCALE;
                 selectedShapes = getSelectedShapesFromIds(context);
-                context.setStatusMessage("已选择 " + selectedShapeIds.size() + " 个图形，点击设置缩放中心点");
+                context.setStatusMessage(PlotI18n.status("status.plot.scale.initial_center", selectedShapeIds.size()));
                 LOGGER.info("切换到缩放模式，已选择 {} 个图形", selectedShapeIds.size());
                 return ModifyResult.CONTINUE;
             } else {
-                context.setStatusMessage("请先选择要缩放的图形");
+                context.setStatusMessage("status.plot.scale.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
         } else {
             // 在缩放模式下右键：取消缩放，返回选择模式
             resetScaleState();
             currentMode = StrategyMode.SELECTION;
-            context.setStatusMessage("缩放已取消");
+            context.setStatusMessage("status.plot.scale.cancelled");
             LOGGER.info("从缩放模式返回选择模式");
             return ModifyResult.CANCEL;
         }
@@ -163,7 +164,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
      */
     private ModifyResult handleScaleMouseDown(Vec2d pos, ModifyToolContext context) {
         if (selectedShapes == null || selectedShapes.isEmpty()) {
-            context.setStatusMessage("没有选中的图形可以缩放");
+            context.setStatusMessage("status.plot.scale.no_selection");
             return ModifyResult.NEED_SELECTION;
         }
 
@@ -219,7 +220,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
             if (currentState == ScaleState.AWAITING_REFERENCE) {
                 // 在设置参考点时，显示从中心点到当前点的预览线
-                context.setStatusMessage("点击设置参考点，移动鼠标查看预览");
+                context.setStatusMessage("status.plot.common.click_reference_preview");
                 // 启用预览以显示从中心点到当前点的虚线
                 context.setPreviewEnabled(true);
                 return ModifyResult.CONTINUE;
@@ -245,7 +246,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
             if (isCtrlPressed) {
                 statusMessage += " (复制模式)";
             }
-            context.setStatusMessage(statusMessage + " - 点击完成缩放");
+            context.setStatusMessage(PlotI18n.status("status.plot.common.click_finish_suffix", PlotI18n.localizeStatus(statusMessage)));
 
             // 启用预览
             context.setPreviewEnabled(true);
@@ -300,7 +301,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
             }
             case ESC_KEY -> {
                 reset();
-                context.setStatusMessage("操作已取消");
+                context.setStatusMessage("status.plot.common.operation_cancelled");
                 return ModifyResult.CANCEL;
             }
             default -> {
@@ -332,7 +333,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
     private ModifyResult setCenterPoint(Vec2d point, ModifyToolContext context) {
         centerPoint = point;
         currentState = ScaleState.AWAITING_REFERENCE;
-        context.setStatusMessage("点击设置参考点");
+        context.setStatusMessage("status.plot.common.click_reference");
         LOGGER.debug("设置缩放中心点: {}", centerPoint);
         return ModifyResult.CONTINUE;
     }
@@ -344,7 +345,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
         referencePoint = point;
         baseDistance = centerPoint.distance(referencePoint);
         currentState = ScaleState.SCALING;
-        context.setStatusMessage("移动鼠标缩放图形，点击完成");
+        context.setStatusMessage("status.plot.scale.move_finish");
 
         LOGGER.debug("设置参考点: {}, 基准距离: {}", referencePoint, baseDistance);
         return ModifyResult.CONTINUE;
@@ -373,7 +374,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
         // 验证缩放操作
         IModifyHandler.ValidationResult validation = scaleHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("缩放无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.scale.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
 
@@ -383,11 +384,11 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
         if (pendingCommand != null) {
             LOGGER.debug("缩放操作完成");
-            context.setStatusMessage("缩放完成");
+            context.setStatusMessage("status.plot.scale.complete");
             return ModifyResult.COMPLETE;
         }
 
-        context.setStatusMessage("创建缩放命令失败");
+        context.setStatusMessage("status.plot.scale.command_failed");
         return ModifyResult.CANCEL;
     }
 

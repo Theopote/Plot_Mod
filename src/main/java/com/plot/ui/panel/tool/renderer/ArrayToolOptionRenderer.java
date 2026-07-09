@@ -191,17 +191,17 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (rectangularClicked && !isRectangularSelected) {
                 LOGGER.debug("矩形阵列按钮被点击，发送配置更新事件");
                 updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_RECTANGULAR);
-                LOGGER.debug("切换到矩形阵列模式");
+                LOGGER.debug("status.plot.array.mode_rect");
             }
             if (circularClicked && !isCircularSelected) {
                 LOGGER.debug("环形阵列按钮被点击，发送配置更新事件");
                 updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_CIRCULAR);
-                LOGGER.debug("切换到环形阵列模式");
+                LOGGER.debug("status.plot.array.mode_polar");
             }
             if (pathClicked && !isPathSelected) {
                 LOGGER.debug("路径阵列按钮被点击，发送配置更新事件");
                 updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_PATH);
-                LOGGER.debug("切换到路径阵列模式");
+                LOGGER.debug("status.plot.array.mode_path");
             }
         } else {
             // 使用文本按钮作为备用方案
@@ -214,7 +214,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (ImGui.button(PlotI18n.tr("array.plot.rectangular"), 80, 30)) {
                 if (!isRectangularSelected) {
                     updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_RECTANGULAR);
-                    LOGGER.debug("切换到矩形阵列模式");
+                    LOGGER.debug("status.plot.array.mode_rect");
                 }
             }
             ImGui.sameLine();
@@ -223,7 +223,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (ImGui.button(PlotI18n.tr("array.plot.polar"), 80, 30)) {
                 if (!isCircularSelected) {
                     updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_CIRCULAR);
-                    LOGGER.debug("切换到环形阵列模式");
+                    LOGGER.debug("status.plot.array.mode_polar");
                 }
             }
             ImGui.sameLine();
@@ -232,7 +232,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (ImGui.button(PlotI18n.tr("array.plot.path"), 80, 30)) {
                 if (!isPathSelected) {
                     updateToolConfig(CONFIG_KEY_ARRAY_TYPE, ARRAY_TYPE_PATH);
-                    LOGGER.debug("切换到路径阵列模式");
+                    LOGGER.debug("status.plot.array.mode_path");
                 }
             }
         }

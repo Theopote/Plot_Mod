@@ -105,9 +105,9 @@ public class ControlPointEditTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         if (!isActive) {
-            return "选择一个图形来编辑其控制点";
+            return "status.plot.control_point.inactive";
         } else {
-            return "拖拽控制点来调整图形形状，ESC键退出编辑模式";
+            return "status.plot.control_point.active";
         }
     }
 

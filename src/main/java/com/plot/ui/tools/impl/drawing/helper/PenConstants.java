@@ -26,7 +26,7 @@ public final class PenConstants {
     
     // 错误消息常量
     public static final String ERROR_INSUFFICIENT_POINTS = "点数不足，无法完成绘制";
-    public static final String ERROR_CANCELLED = "绘制已取消";
+    public static final String ERROR_CANCELLED = "status.plot.common.draw_cancelled";
     
     private PenConstants() {
         // 防止实例化

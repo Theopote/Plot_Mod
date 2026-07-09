@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.ArrayList;
+import com.plot.utils.PlotI18n;
 
 /**
  * 旋转策略实现 - 策略模式版本
@@ -77,8 +78,8 @@ public class RotateStrategy implements IModifyStrategy {
     // 旋转状态枚举
     public enum RotateState {
         IDLE("空闲", "等待设置旋转中心点"),
-        SETTING_CENTER("设置中心", "点击设置旋转中心点"),
-        SETTING_REFERENCE("设置参考", "点击设置参考点"),
+        SETTING_CENTER("设置中心", "status.plot.rotate.initial_center"),
+        SETTING_REFERENCE("设置参考", "status.plot.common.click_reference"),
         ROTATING("旋转中", "移动鼠标旋转图形");
         
         private final String displayName;
@@ -174,7 +175,7 @@ public class RotateStrategy implements IModifyStrategy {
             if (button == MOUSE_RIGHT && currentState != RotateState.IDLE) {
                 // 右键取消旋转
                 reset();
-                context.setStatusMessage("旋转已取消");
+                context.setStatusMessage("status.plot.rotate.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -184,7 +185,7 @@ public class RotateStrategy implements IModifyStrategy {
             // 获取选中的图形
             selectedShapes = context.getSelectedShapes();
             if (selectedShapes.isEmpty()) {
-                context.setStatusMessage("请先选择要旋转的图形");
+                context.setStatusMessage("status.plot.rotate.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
             
@@ -198,12 +199,12 @@ public class RotateStrategy implements IModifyStrategy {
                             originalShapes.add(originalCopy);
                         } else {
                             LOGGER.error("无法克隆图形: {}", shape);
-                            context.setStatusMessage("无法处理选中的图形，请重试");
+                            context.setStatusMessage("status.plot.rotate.process_failed");
                             return ModifyResult.CANCEL;
                         }
                     } catch (Exception e) {
                         LOGGER.error("克隆图形失败: {}", e.getMessage(), e);
-                        context.setStatusMessage("无法处理选中的图形，请重试");
+                        context.setStatusMessage("status.plot.rotate.process_failed");
                         return ModifyResult.CANCEL;
                     }
                 }
@@ -320,7 +321,7 @@ public class RotateStrategy implements IModifyStrategy {
             case ESC_KEY -> {
                 if (currentState != RotateState.IDLE) {
                     reset();
-                    context.setStatusMessage("旋转已取消");
+                    context.setStatusMessage("status.plot.rotate.cancelled");
                     return ModifyResult.CANCEL;
                 }
                 return ModifyResult.IGNORED;
@@ -386,7 +387,7 @@ public class RotateStrategy implements IModifyStrategy {
         switch (currentMode) {
             case THREE_POINT -> {
                 currentState = RotateState.SETTING_REFERENCE;
-                context.setStatusMessage("点击设置参考点");
+                context.setStatusMessage("status.plot.common.click_reference");
             }
             case TWO_POINT -> {
                 // 两点模式：直接初始化参考点和基准角度
@@ -394,7 +395,7 @@ public class RotateStrategy implements IModifyStrategy {
                 this.baseAngle = rotateHandler.calculateAngle(centerPoint, this.referencePoint);
                 LOGGER.debug("两点模式初始化参考点: {}, 基准角度: {}°", referencePoint, Math.toDegrees(baseAngle));
                 currentState = RotateState.ROTATING;
-                context.setStatusMessage("移动鼠标旋转图形，点击完成");
+                context.setStatusMessage("status.plot.rotate.move_finish");
             }
         }
         
@@ -408,7 +409,7 @@ public class RotateStrategy implements IModifyStrategy {
         referencePoint = point;
         baseAngle = rotateHandler.calculateAngle(centerPoint, referencePoint);
         currentState = RotateState.ROTATING;
-        context.setStatusMessage("移动鼠标旋转图形，点击完成");
+        context.setStatusMessage("status.plot.rotate.move_finish");
         
         LOGGER.debug("设置参考点: {}, 基准角度: {}°", referencePoint, Math.toDegrees(baseAngle));
         return ModifyResult.CONTINUE;
@@ -436,7 +437,7 @@ public class RotateStrategy implements IModifyStrategy {
         // 验证旋转操作
         IModifyHandler.ValidationResult validation = rotateHandler.validateModification(originalShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("旋转无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.rotate.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
         
@@ -445,7 +446,7 @@ public class RotateStrategy implements IModifyStrategy {
         
         // 检查旋转操作是否成功
         if (modifiedShapes == null) {
-            context.setStatusMessage("旋转操作失败，请重试");
+            context.setStatusMessage("status.plot.rotate.retry");
             return ModifyResult.CANCEL;
         }
         
@@ -460,10 +461,10 @@ public class RotateStrategy implements IModifyStrategy {
                         .getDouble(ModifyParameters.ROTATION_ANGLE, 0.0);
                 }
                 LOGGER.debug("复制旋转操作完成，角度: {}°", Math.toDegrees(finalAngle));
-                context.setStatusMessage("复制旋转完成");
+                context.setStatusMessage("status.plot.rotate.copy_complete");
                 return ModifyResult.COMPLETE;
             } else {
-                context.setStatusMessage("创建复制旋转命令失败");
+                context.setStatusMessage("status.plot.rotate.copy_command_failed");
                 return ModifyResult.CANCEL;
             }
         } else {
@@ -477,10 +478,10 @@ public class RotateStrategy implements IModifyStrategy {
                         .getDouble(ModifyParameters.ROTATION_ANGLE, 0.0);
                 }
                 LOGGER.debug("旋转操作完成，角度: {}°", Math.toDegrees(finalAngle));
-                context.setStatusMessage("旋转完成");
+                context.setStatusMessage("status.plot.rotate.complete");
                 return ModifyResult.COMPLETE;
             } else {
-                context.setStatusMessage("创建旋转命令失败");
+                context.setStatusMessage("status.plot.rotate.command_failed");
                 return ModifyResult.CANCEL;
             }
         }

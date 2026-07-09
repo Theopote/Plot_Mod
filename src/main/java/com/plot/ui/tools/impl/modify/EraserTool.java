@@ -57,7 +57,7 @@ public class EraserTool extends ModifyTool {
 
     @Override
     protected String getInitialStatusMessage() {
-        return "点击或拖拽删除图形，ESC键取消";
+        return "status.plot.eraser.initial";
     }
 
     @Override

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.awt.Color;
 import java.util.List;
 import java.util.ArrayList;
+import com.plot.utils.PlotI18n;
 
 /**
  * 修剪工具策略 - 重新设计版本
@@ -288,7 +289,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             case SELECTING_BOUNDARIES -> {
                 // 点击修剪：完成边界选择
                 if (boundaryShapes.isEmpty()) {
-                    context.setStatusMessage("请先选择边界图形");
+                    context.setStatusMessage("status.plot.extend.select_boundary");
                     return ModifyResult.CONTINUE;
                 }
 
@@ -296,11 +297,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     // 记住边界状态，进入持续模式
                     rememberState();
                     trimState = TrimState.BOUNDARY_READY;
-                    context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧（持续模式）");
+                    context.setStatusMessage(PlotI18n.status("status.plot.trim.boundary_click_side_continuous", boundaryShapes.size()));
                     LOGGER.debug("完成边界选择，进入持续模式");
                 } else {
                     trimState = TrimState.WAITING_TRIM_CLICK;
-                    context.setStatusMessage("已选择 " + boundaryShapes.size() + " 个边界图形，点击要修剪的图形一侧");
+                    context.setStatusMessage(PlotI18n.status("status.plot.trim.boundary_click_side", boundaryShapes.size()));
                     LOGGER.debug("完成边界选择，进入单次修剪模式");
                 }
                 return ModifyResult.CONTINUE;
@@ -309,7 +310,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             case SELECTING_TARGETS -> {
                 // 栅栏修剪：完成目标图形选择
                 if (targetShapes.isEmpty()) {
-                    context.setStatusMessage("请先选择要修剪的图形");
+                    context.setStatusMessage("status.plot.trim.select_target_first");
                     return ModifyResult.CONTINUE;
                 }
 
@@ -317,13 +318,13 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                     // 记住目标状态，进入持续模式
                     rememberState();
                     trimState = TrimState.FENCE_READY;
-                    context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，可以继续使用栅栏修剪（持续模式）");
+                    context.setStatusMessage(PlotI18n.status("status.plot.trim.fence_continue", targetShapes.size()));
                     LOGGER.debug("完成目标图形选择，进入持续模式");
                 } else {
                     fencePoints.clear();
                     fenceAnchorPoint = null;
                     trimState = TrimState.DRAWING_FENCE;
-                    context.setStatusMessage("已选择 " + targetShapes.size() + " 个图形，开始绘制栅栏");
+                    context.setStatusMessage(PlotI18n.status("status.plot.trim.fence_start", targetShapes.size()));
                     LOGGER.debug("完成目标图形选择，进入单次栅栏绘制模式");
                 }
                 return ModifyResult.CONTINUE;
@@ -332,13 +333,13 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             case DRAWING_FENCE -> {
                 // 栅栏修剪：完成栅栏绘制并执行修剪
                 if (fencePoints.size() < 3) {
-                    context.setStatusMessage("栅栏至少需要3个点");
+                    context.setStatusMessage("status.plot.trim.fence_min_points");
                     return ModifyResult.CONTINUE;
                 }
 
                 normalizeFencePoints();
                 if (fencePoints.size() < 4) {
-                    context.setStatusMessage("栅栏点无效，请重新绘制");
+                    context.setStatusMessage("status.plot.trim.fence_invalid_points");
                     return ModifyResult.CONTINUE;
                 }
                 
@@ -350,7 +351,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 if (isFenceModePersistent) {
                     clearRememberedState();
                     reset();
-                    context.setStatusMessage("栅栏持续模式已取消");
+                    context.setStatusMessage("status.plot.trim.fence_continuous_cancelled");
                     LOGGER.debug("用户右键取消栅栏持续模式");
                     return ModifyResult.CANCEL;
                 }
@@ -360,7 +361,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             case WAITING_TRIM_CLICK -> {
                 // 点击修剪：取消修剪，返回边界选择
                 resetClickTrimState();
-                context.setStatusMessage("修剪已取消，重新选择边界图形");
+                context.setStatusMessage("status.plot.trim.cancelled_reselect_boundary");
                 return ModifyResult.CANCEL;
             }
             
@@ -369,7 +370,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 if (isBoundaryModePersistent) {
                     clearRememberedState();
                     reset();
-                    context.setStatusMessage("边界持续模式已取消");
+                    context.setStatusMessage("status.plot.trim.boundary_continuous_cancelled");
                     LOGGER.debug("用户右键取消边界持续模式");
                     return ModifyResult.CANCEL;
                 }
@@ -420,7 +421,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 fencePoints.clear();
                 fenceAnchorPoint = null;
                 trimState = TrimState.DRAWING_FENCE;
-                context.setStatusMessage("开始绘制栅栏区域，左键添加点，右键完成");
+                context.setStatusMessage("status.plot.trim.fence_draw_start");
                 LOGGER.debug("从持续模式开始绘制栅栏");
                 return ModifyResult.CONTINUE;
             }
@@ -444,7 +445,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 return ModifyResult.CONTINUE;
             }
             fencePoints.add(pos);
-            context.setStatusMessage("栅栏点 " + fencePoints.size() + " 个，右键完成栅栏绘制");
+            context.setStatusMessage(PlotI18n.status("status.plot.trim.fence_point_count", fencePoints.size()));
             LOGGER.debug("添加栅栏点: {}", pos);
             return ModifyResult.CONTINUE;
         } catch (Exception e) {
@@ -458,19 +459,19 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             fenceAnchorPoint = pos;
             fencePoints.clear();
             fencePoints.add(pos);
-            context.setStatusMessage("已设置栅栏基点，左键设置第二点，右键完成");
+            context.setStatusMessage("status.plot.trim.fence_base_set");
             return ModifyResult.CONTINUE;
         }
 
         List<Vec2d> generated = buildFencePointsByType(fenceAnchorPoint, pos);
         if (generated.size() < 4) {
-            context.setStatusMessage("栅栏范围过小，请重新设置第二点");
+            context.setStatusMessage("status.plot.trim.fence_too_small");
             return ModifyResult.CONTINUE;
         }
 
         fencePoints.clear();
         fencePoints.addAll(generated);
-        context.setStatusMessage("已生成" + fenceType.getDisplayName() + "栅栏，右键执行修剪（左键可重设）");
+        context.setStatusMessage(PlotI18n.status("status.plot.trim.fence_generated", fenceType.getDisplayName()));
         return ModifyResult.CONTINUE;
     }
     
@@ -648,7 +649,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                             if (boundaryShapes.contains(clickedShape)) {
                                 boundaryShapes.remove(clickedShape);
                                 clickedShape.setSelected(false);
-                                context.setStatusMessage(String.format("已取消 1 个边界图形，当前 %d 个", boundaryShapes.size()));
+                                context.setStatusMessage(PlotI18n.status("status.plot.trim.boundary_deselected", boundaryShapes.size()));
                                 return ModifyResult.CONTINUE;
                             }
                             boxSelectedShapes.add(clickedShape);
@@ -657,7 +658,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                             if (targetShapes.contains(clickedShape)) {
                                 targetShapes.remove(clickedShape);
                                 clickedShape.setSelected(false);
-                                context.setStatusMessage(String.format("已取消 1 个目标图形，当前 %d 个", targetShapes.size()));
+                                context.setStatusMessage(PlotI18n.status("status.plot.trim.target_deselected", targetShapes.size()));
                                 return ModifyResult.CONTINUE;
                             }
                             boxSelectedShapes.add(clickedShape);
@@ -694,11 +695,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (isBoundaryModePersistent || isFenceModePersistent) {
                 clearRememberedState();
                 reset();
-                context.setStatusMessage("持续模式已取消");
+                context.setStatusMessage("status.plot.common.continuous_cancelled");
                 LOGGER.debug("用户按Esc键取消持续模式");
             } else {
                 reset();
-                context.setStatusMessage("操作已取消");
+                context.setStatusMessage("status.plot.common.operation_cancelled");
             }
             return ModifyResult.CANCEL;
         }
@@ -716,7 +717,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 if (trimType != TrimType.BOUNDARY) {
                     trimType = TrimType.BOUNDARY;
                     initializeState();
-                    context.setStatusMessage("切换到边界修剪模式");
+                    context.setStatusMessage("status.plot.trim.mode_boundary");
                 }
                 return ModifyResult.CONTINUE;
             }
@@ -724,7 +725,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 if (trimType != TrimType.FENCE) {
                     trimType = TrimType.FENCE;
                     initializeState();
-                    context.setStatusMessage("切换到栅栏修剪模式");
+                    context.setStatusMessage("status.plot.trim.mode_fence");
                 }
                 return ModifyResult.CONTINUE;
             }
@@ -750,14 +751,14 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             Shape targetShape = findShapeAtPoint(clickPos, allShapes, context);
             
             if (targetShape == null) {
-                LOGGER.debug("未找到要修剪的图形");
-                context.setStatusMessage("未找到要修剪的图形");
+                LOGGER.debug("status.plot.trim.not_found");
+                context.setStatusMessage("status.plot.trim.not_found");
                 return ModifyResult.CONTINUE;
             }
 
             if (boundaryShapes.contains(targetShape)) {
                 LOGGER.debug("点击的是边界图形，忽略修剪");
-                context.setStatusMessage("请选择非边界图形进行修剪");
+                context.setStatusMessage("status.plot.trim.non_boundary_only");
                 return ModifyResult.CONTINUE;
             }
             
@@ -775,14 +776,14 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             LOGGER.debug("calculateTrimmedShapes返回结果，图形数量: {}", trimmedShapes.size());
             
             if (trimmedShapes.isEmpty()) {
-                LOGGER.debug("修剪失败：无法生成修剪图形");
-                context.setStatusMessage("修剪失败：无法生成修剪图形");
+                LOGGER.debug("status.plot.trim.generate_failed");
+                context.setStatusMessage("status.plot.trim.generate_failed");
                 return ModifyResult.CONTINUE;
             }
 
             if (isTrimResultUnchanged(targetShape, trimmedShapes)) {
                 LOGGER.debug("修剪结果未发生变化，取消提交命令");
-                context.setStatusMessage("修剪结果无变化，请点击要删除的一侧");
+                context.setStatusMessage("status.plot.trim.no_change");
                 return ModifyResult.CONTINUE;
             }
             
@@ -793,12 +794,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 LOGGER.debug("修剪命令创建成功，开始执行");
                 // 执行命令
                 context.executeModifyCommand(pendingCommand);
-                context.setStatusMessage("修剪完成");
+                context.setStatusMessage("status.plot.trim.complete");
                 
                 // 如果处于持续模式，回到持续状态；否则重置
                 if (isBoundaryModePersistent) {
                     trimState = TrimState.BOUNDARY_READY;
-                    context.setStatusMessage("修剪完成，可以继续修剪其他图形（持续模式）");
+                    context.setStatusMessage("status.plot.trim.complete_continuous");
                     LOGGER.debug("修剪完成，回到持续模式");
                 } else {
                     resetClickTrimState();
@@ -806,12 +807,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 return ModifyResult.CONTINUE;
             }
             
-            LOGGER.error("创建修剪命令失败");
-            context.setStatusMessage("创建修剪命令失败");
+            LOGGER.error("status.plot.trim.command_failed");
+            context.setStatusMessage("status.plot.trim.command_failed");
             return ModifyResult.CANCEL;
         } catch (Exception e) {
             LOGGER.error("点击修剪操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("修剪失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.trim.failed", e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }
@@ -847,7 +848,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             LOGGER.debug("TrimHandler返回修剪结果，图形数量: {}", trimmedShapes.size());
             
             if (trimmedShapes.isEmpty()) {
-                context.setStatusMessage("栅栏修剪失败：无法生成修剪图形");
+                context.setStatusMessage("status.plot.trim.fence_generate_failed");
                 return ModifyResult.CANCEL;
             }
 
@@ -858,12 +859,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 LOGGER.debug("修剪命令创建成功，开始执行");
                 // 执行命令
                 context.executeModifyCommand(pendingCommand);
-                context.setStatusMessage("栅栏修剪完成");
+                context.setStatusMessage("status.plot.trim.fence_complete");
                 
                 // 如果处于持续模式，回到持续状态；否则重置
                 if (isFenceModePersistent) {
                     trimState = TrimState.FENCE_READY;
-                    context.setStatusMessage("栅栏修剪完成，可以继续使用栅栏修剪（持续模式）");
+                    context.setStatusMessage("status.plot.trim.fence_complete_continuous");
                     LOGGER.debug("栅栏修剪完成，回到持续模式");
                 } else {
                     initializeState();
@@ -871,11 +872,11 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                 return ModifyResult.CONTINUE;
             }
 
-            context.setStatusMessage("创建栅栏修剪命令失败");
+            context.setStatusMessage("status.plot.trim.fence_command_failed");
             return ModifyResult.CANCEL;
         } catch (Exception e) {
             LOGGER.error("栅栏修剪操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("栅栏修剪失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.trim.fence_failed", e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }
@@ -1032,7 +1033,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private void completeTrimBoxSelection(ModifyToolContext context) {
         updateBoxSelection(context);
-        context.setStatusMessage(String.format("框选完成，已选择 %d 个图形", boxSelectedShapes.size()));
+        context.setStatusMessage(PlotI18n.status("status.plot.trim.box_select_done", boxSelectedShapes.size()));
     }
     
     /**
@@ -1048,7 +1049,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                         shape.setSelected(true);
                     }
                 }
-                context.setStatusMessage(String.format("已选择 %d 个边界图形，右键确认或继续选择", boundaryShapes.size()));
+                context.setStatusMessage(PlotI18n.status("status.plot.trim.boundary_selected", boundaryShapes.size()));
                 return ModifyResult.CONTINUE;
             }
             case SELECTING_TARGETS -> {
@@ -1059,12 +1060,12 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
                         shape.setSelected(true);
                     }
                 }
-                context.setStatusMessage(String.format("已选择 %d 个目标图形，右键确认或继续选择", targetShapes.size()));
+                context.setStatusMessage(PlotI18n.status("status.plot.trim.target_selected", targetShapes.size()));
                 return ModifyResult.CONTINUE;
             }
             case WAITING_TRIM_CLICK -> {
                 // 在修剪阶段，框选通常不适用，因为需要精确选择修剪位置
-                context.setStatusMessage("请点击要修剪的图形位置");
+                context.setStatusMessage("status.plot.trim.click_position");
                 return ModifyResult.CONTINUE;
             }
             default -> {
@@ -1284,9 +1285,9 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
      */
     private String getInitialStatusMessage() {
         if (trimType == TrimType.BOUNDARY) {
-            return "选择边界图形，右键完成选择";
+            return "status.plot.trim.boundary_select";
         } else {
-            return "选择要修剪的图形，右键完成选择";
+            return "status.plot.trim.target_select";
         }
     }
 

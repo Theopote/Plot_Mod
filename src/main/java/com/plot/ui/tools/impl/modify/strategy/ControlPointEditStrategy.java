@@ -66,12 +66,12 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             editTool.startDrag(controlPointIndex, snappedPos);
             
             LOGGER.debug("开始拖拽控制点 {}，位置: {}", controlPointIndex, snappedPos);
-            context.setStatusMessage("拖拽控制点调整图形形状");
+            context.setStatusMessage("status.plot.control_point.drag");
 
         } else {
             // 点击在其他位置，退出编辑模式
             editTool.deactivate();
-            context.setStatusMessage("已退出控制点编辑模式");
+            context.setStatusMessage("status.plot.control_point.exited");
         }
         return ModifyResult.CONTINUE;
     }
@@ -94,9 +94,9 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             editTool.setHoveredControlPointIndex(hoveredIndex);
             
             if (hoveredIndex >= 0) {
-                context.setStatusMessage("点击并拖拽控制点来调整图形");
+                context.setStatusMessage("status.plot.control_point.click_drag");
             } else {
-                context.setStatusMessage("拖拽控制点来调整图形形状，点击空白处退出编辑");
+                context.setStatusMessage("status.plot.control_point.drag_exit");
             }
 
         }
@@ -118,7 +118,7 @@ public class ControlPointEditStrategy implements IModifyStrategy {
             editTool.endDrag();
             
             LOGGER.debug("结束控制点拖拽");
-            context.setStatusMessage("控制点编辑完成");
+            context.setStatusMessage("status.plot.control_point.complete");
             
             return ModifyResult.CONTINUE;
         }
@@ -135,7 +135,7 @@ public class ControlPointEditStrategy implements IModifyStrategy {
         // ESC键退出编辑模式
         if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
             editTool.deactivate();
-            context.setStatusMessage("已退出控制点编辑模式");
+            context.setStatusMessage("status.plot.control_point.exited");
             return ModifyResult.CONTINUE;
         }
         

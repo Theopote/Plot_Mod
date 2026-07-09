@@ -249,12 +249,12 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             if (boundaryClicked && !isBoundarySelected) {
                 LOGGER.debug("边界修剪按钮被点击，发送配置更新事件");
                 updateToolConfig(CONFIG_KEY_MODE, TRIM_MODE_BOUNDARY);
-                LOGGER.debug("切换到边界修剪模式");
+                LOGGER.debug("status.plot.trim.mode_boundary");
             }
             if (fenceClicked && !isFenceSelected) {
                 LOGGER.debug("栅栏修剪按钮被点击，发送配置更新事件");
                 updateToolConfig(CONFIG_KEY_MODE, TRIM_MODE_FENCE);
-                LOGGER.debug("切换到栅栏修剪模式");
+                LOGGER.debug("status.plot.trim.mode_fence");
             }
         } else {
             // 使用文本按钮作为备用方案
@@ -264,7 +264,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             if (ImGui.button(PlotI18n.tr("trim.plot.boundary"), 80, 30)) {
                 if (!isBoundarySelected) {
                     updateToolConfig(CONFIG_KEY_MODE, TRIM_MODE_BOUNDARY);
-                    LOGGER.debug("切换到边界修剪模式");
+                    LOGGER.debug("status.plot.trim.mode_boundary");
                 }
             }
             ImGui.sameLine();
@@ -273,7 +273,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             if (ImGui.button(PlotI18n.tr("option.plot.fence_trim"), 80, 30)) {
                 if (!isFenceSelected) {
                     updateToolConfig(CONFIG_KEY_MODE, TRIM_MODE_FENCE);
-                    LOGGER.debug("切换到栅栏修剪模式");
+                    LOGGER.debug("status.plot.trim.mode_fence");
                 }
             }
         }

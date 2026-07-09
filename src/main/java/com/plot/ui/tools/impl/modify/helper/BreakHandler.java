@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 打断处理器 - 专门处理图形打断操作
@@ -70,7 +71,7 @@ public class BreakHandler implements IModifyHandler {
             Object breakMode = parameters.getParameter("breakMode");
             
             if (targetShape == null || firstBreakPoint == null) {
-                LOGGER.warn("打断操作参数不完整");
+                LOGGER.warn("status.plot.break.incomplete_params");
                 return new ArrayList<>();
             }
             
@@ -115,7 +116,7 @@ public class BreakHandler implements IModifyHandler {
                 // 新增：增强反馈，如果有上下文
                 Object context = parameters.getParameter("context");
                 if (context instanceof ModifyToolContext) {
-                    ((ModifyToolContext) context).setStatusMessage("打断操作失败：系统状态错误");
+                    ((ModifyToolContext) context).setStatusMessage("status.plot.break.system_error");
                 }
                 return null;
             }
@@ -125,7 +126,7 @@ public class BreakHandler implements IModifyHandler {
                 // 新增：增强反馈
                 Object context = parameters.getParameter("context");
                 if (context instanceof ModifyToolContext) {
-                    ((ModifyToolContext) context).setStatusMessage("打断操作失败：无法生成新图形");
+                    ((ModifyToolContext) context).setStatusMessage("status.plot.break.generate_failed");
                 }
                 return null;
             }
@@ -139,7 +140,7 @@ public class BreakHandler implements IModifyHandler {
             // 新增：增强错误反馈
             Object context = parameters.getParameter("context");
             if (context instanceof ModifyToolContext) {
-                ((ModifyToolContext) context).setStatusMessage("打断命令创建失败: " + e.getMessage());
+                ((ModifyToolContext) context).setStatusMessage(PlotI18n.status("status.plot.break.create_failed", e.getMessage()));
             }
             return null;
         }

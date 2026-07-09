@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -62,7 +63,7 @@ public class BreakStrategy implements IModifyStrategy {
     // 打断状态枚举
     public enum BreakState {
         SELECTING_SHAPE("选择图形", "点击选择要打断的图形"),
-        SETTING_SECOND_POINT("设置第二点", "点击设置第二个打断点"),
+        SETTING_SECOND_POINT("设置第二点", "status.plot.break.click_second"),
         PROCESSING("处理中", "正在执行打断操作");
         
         private final String displayName;
@@ -134,7 +135,7 @@ public class BreakStrategy implements IModifyStrategy {
                 // 直接点选形状，无框选
                 Shape clickedShape = findShapeAtPoint(worldPos, context);
                 if (clickedShape == null) {
-                    context.setStatusMessage("未找到可打断对象");
+                    context.setStatusMessage("status.plot.break.not_found");
                     return ModifyResult.IGNORED;
                 }
                 
@@ -152,7 +153,7 @@ public class BreakStrategy implements IModifyStrategy {
                         firstBreakPoint = projectedPoint;
                         return performBreakOperation(context);
                     } else {
-                        context.setStatusMessage("点击位置无效，请重新选择");
+                        context.setStatusMessage("status.plot.break.invalid_click");
                         return ModifyResult.CONTINUE;
                     }
                 } else {
@@ -160,10 +161,10 @@ public class BreakStrategy implements IModifyStrategy {
                     if (isValidBreakPoint(projectedPoint, targetShape, context)) {
                         firstBreakPoint = projectedPoint;
                         currentState = BreakState.SETTING_SECOND_POINT;
-                        context.setStatusMessage("点击设置第二个打断点");
+                        context.setStatusMessage("status.plot.break.click_second");
                         LOGGER.debug("两点模式：已设置第一点 {}，等待第二点", firstBreakPoint);
                     } else {
-                        context.setStatusMessage("第一个点击位置无效，请重新选择");
+                        context.setStatusMessage("status.plot.break.invalid_first");
                     }
                     return ModifyResult.CONTINUE;
                 }
@@ -279,11 +280,11 @@ public class BreakStrategy implements IModifyStrategy {
                     projectedSecondPoint = closestPoint;
                     LOGGER.debug("两点模式：使用最近点作为第二个断点 {}", closestPoint);
                 } else {
-                    context.setStatusMessage("请点击更靠近线条的位置设置第二个打断点");
+                    context.setStatusMessage("status.plot.break.click_closer");
                     return ModifyResult.CONTINUE;
                 }
             } else {
-                context.setStatusMessage("请在同一图形上点击设置第二个打断点");
+                context.setStatusMessage("status.plot.break.same_shape");
                 return ModifyResult.CONTINUE;
             }
         }
@@ -292,7 +293,7 @@ public class BreakStrategy implements IModifyStrategy {
         
         // 两点过近保护（使用更合理的最小距离）
         if (areBreakPointsTooClose(firstBreakPoint, secondBreakPoint, context)) {
-            context.setStatusMessage("两个打断点太近，请选择更远的第二个点");
+            context.setStatusMessage("status.plot.break.too_close");
             return ModifyResult.CONTINUE;
         }
         
@@ -303,12 +304,12 @@ public class BreakStrategy implements IModifyStrategy {
     
     private ModifyResult performBreakOperation(ModifyToolContext context) {
         if (targetShape == null || firstBreakPoint == null) {
-            context.setStatusMessage("打断操作参数不完整");
+            context.setStatusMessage("status.plot.break.incomplete_params");
             return ModifyResult.CANCEL;
         }
         
         if (currentMode == BreakMode.TWO_POINT && secondBreakPoint == null) {
-            context.setStatusMessage("两点打断模式需要设置第二个打断点");
+            context.setStatusMessage("status.plot.break.need_second_point");
             return ModifyResult.CANCEL;
         }
         
@@ -346,13 +347,13 @@ public class BreakStrategy implements IModifyStrategy {
                 return ModifyResult.COMPLETE;
             } else {
                 LOGGER.warn("创建打断命令失败");
-                context.setStatusMessage("创建打断命令失败，请重试");
+                context.setStatusMessage("status.plot.break.command_failed");
                 return ModifyResult.CANCEL;
             }
             
         } catch (Exception e) {
             LOGGER.error("执行打断操作失败: {}", e.getMessage(), e);
-            context.setStatusMessage("打断操作执行失败: " + e.getMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.break.exec_failed", e.getMessage()));
             return ModifyResult.CANCEL;
         }
     }

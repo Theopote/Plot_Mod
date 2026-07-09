@@ -161,7 +161,7 @@ public class ArrayStrategy implements IModifyStrategy {
             if (button == MOUSE_RIGHT && currentState != ArrayState.IDLE) {
                 // 右键取消阵列
                 reset();
-                context.setStatusMessage("阵列已取消");
+                context.setStatusMessage("status.plot.array.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -185,17 +185,17 @@ public class ArrayStrategy implements IModifyStrategy {
                                 currentState = ArrayState.PREVIEWING;
                                 updateArrayPreview();
                                 context.setPreviewEnabled(true);
-                                context.setStatusMessage("已拾取路径，调整点位数（含起终点，沿路径等距）后点击完成");
+                                context.setStatusMessage("status.plot.array.path_picked");
                             } else {
-                                context.setStatusMessage("所选对象无法作为路径（点数不足）");
+                                context.setStatusMessage("status.plot.array.path_invalid");
                             }
                             return ModifyResult.CONTINUE;
                         } catch (Exception e) {
-                            context.setStatusMessage("无法获取路径点");
+                            context.setStatusMessage("status.plot.array.path_points_failed");
                             return ModifyResult.CONTINUE;
                         }
                     } else {
-                        context.setStatusMessage("未选中路径对象");
+                        context.setStatusMessage("status.plot.array.path_not_selected");
                         return ModifyResult.CONTINUE;
                     }
                 }
@@ -209,7 +209,7 @@ public class ArrayStrategy implements IModifyStrategy {
                             updateArrayPreview();
                         }
                         context.setPreviewEnabled(true);
-                        context.setStatusMessage("已拾取物件，调整点位数（含起终点，沿路径等距）后点击完成");
+                        context.setStatusMessage("status.plot.array.objects_picked");
                     }
                     return ModifyResult.CONTINUE;
                 }
@@ -283,7 +283,7 @@ public class ArrayStrategy implements IModifyStrategy {
     public ModifyResult onKeyDown(int keyCode, ModifyToolContext context) {
         if (keyCode == ESC_KEY) {
             reset();
-            context.setStatusMessage("阵列已取消");
+            context.setStatusMessage("status.plot.array.cancelled");
             return ModifyResult.CANCEL;
         }
         
@@ -300,28 +300,28 @@ public class ArrayStrategy implements IModifyStrategy {
             case UP_KEY -> {
                 if (currentType == ArrayType.RECTANGULAR) {
                     setRowCount(getRowCount() + 1);
-                    context.setStatusMessage("行数已增加");
+                    context.setStatusMessage("status.plot.array.rows_increased");
                     return ModifyResult.CONTINUE;
                 }
             }
             case DOWN_KEY -> {
                 if (currentType == ArrayType.RECTANGULAR) {
                     setRowCount(Math.max(1, getRowCount() - 1));
-                    context.setStatusMessage("行数已减少");
+                    context.setStatusMessage("status.plot.array.rows_decreased");
                     return ModifyResult.CONTINUE;
                 }
             }
             case LEFT_KEY -> {
                 if (currentType == ArrayType.RECTANGULAR) {
                     setColumnCount(Math.max(1, getColumnCount() - 1));
-                    context.setStatusMessage("列数已减少");
+                    context.setStatusMessage("status.plot.array.cols_decreased");
                     return ModifyResult.CONTINUE;
                 }
             }
             case RIGHT_KEY -> {
                 if (currentType == ArrayType.RECTANGULAR) {
                     setColumnCount(getColumnCount() + 1);
-                    context.setStatusMessage("列数已增加");
+                    context.setStatusMessage("status.plot.array.cols_increased");
                     return ModifyResult.CONTINUE;
                 }
             }
@@ -349,7 +349,7 @@ public class ArrayStrategy implements IModifyStrategy {
         // 查找点击位置的图形
         Shape clickedShape = context.findShapeAt(point, SELECTION_TOLERANCE);
         if (clickedShape == null) {
-            context.setStatusMessage("请点击要创建阵列的图形");
+            context.setStatusMessage("status.plot.array.click_shapes");
             return ModifyResult.CONTINUE;
         }
 
@@ -359,7 +359,7 @@ public class ArrayStrategy implements IModifyStrategy {
         // 对于矩形/环形：允许在图形外任何位置设基点
         // 因此状态转为 SOURCE_SELECTED，等待用户点任意位置作为 basePoint
         currentState = ArrayState.SOURCE_SELECTED;
-        context.setStatusMessage("点击任意位置设置阵列基准/中心点");
+        context.setStatusMessage("status.plot.array.set_base");
         return ModifyResult.CONTINUE;
     }
     
@@ -412,7 +412,7 @@ public class ArrayStrategy implements IModifyStrategy {
             }
             case PATH -> {
                 // 路径阵列由“拾取路径/拾取物件”按钮驱动，此处不再通过点击加点
-                context.setStatusMessage("请使用面板按钮拾取路径与物件，然后按路径等距点位数量点击完成");
+                context.setStatusMessage("status.plot.array.use_panel_path");
                 return ModifyResult.CONTINUE;
             }
             default -> {
@@ -465,7 +465,7 @@ public class ArrayStrategy implements IModifyStrategy {
     private ModifyResult confirmArray(ModifyToolContext context) {
         // 检查是否可以确认阵列
         if (!canConfirmArray()) {
-            context.setStatusMessage("无法确认阵列：缺少必要条件");
+            context.setStatusMessage("status.plot.array.confirm_failed");
             return ModifyResult.CONTINUE;
         }
         
@@ -477,7 +477,7 @@ public class ArrayStrategy implements IModifyStrategy {
                 previewPositions.size()));
             return ModifyResult.COMPLETE;
         } else {
-            context.setStatusMessage("创建阵列命令失败");
+            context.setStatusMessage("status.plot.array.command_failed");
             return ModifyResult.CANCEL;
         }
     }
@@ -1077,12 +1077,12 @@ public class ArrayStrategy implements IModifyStrategy {
         if (context == null) return;
         
         if (sourceShape == null) {
-            context.setStatusMessage("点击选择要阵列的图形");
+            context.setStatusMessage("status.plot.array.click_select");
             return;
         }
         
         if (currentType != ArrayType.PATH && basePoint == null) {
-            context.setStatusMessage("点击设置阵列基准点");
+            context.setStatusMessage("status.plot.array.set_reference");
             return;
         }
         
@@ -1093,7 +1093,7 @@ public class ArrayStrategy implements IModifyStrategy {
                 getRowCount(), getRadius()));
             case PATH -> {
                 if (pathPoints.size() < 2) {
-                    context.setStatusMessage("请使用面板拾取路径对象");
+                    context.setStatusMessage("status.plot.array.use_panel_pick_path");
                 } else {
                     context.setStatusMessage(String.format("路径阵列预览中：点位数%d（含起终点，沿路径等距），路径长度%.1f", 
                         getRowCount(), calculatePathLength()));

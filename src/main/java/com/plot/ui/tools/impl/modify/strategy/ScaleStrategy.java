@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import com.plot.utils.PlotI18n;
 
 /**
  * 缩放策略实现 - 策略模式版本
@@ -120,7 +121,7 @@ public class ScaleStrategy implements IModifyStrategy {
             if (button == MOUSE_RIGHT && currentState != ScaleState.IDLE) {
                 // 右键取消缩放
                 reset();
-                context.setStatusMessage("缩放已取消");
+                context.setStatusMessage("status.plot.scale.cancelled");
                 return ModifyResult.CANCEL;
             }
             return ModifyResult.IGNORED;
@@ -140,7 +141,7 @@ public class ScaleStrategy implements IModifyStrategy {
             // 获取选中的图形
             selectedShapes = context.getSelectedShapes();
             if (selectedShapes.isEmpty()) {
-                context.setStatusMessage("请先选择要缩放的图形");
+                context.setStatusMessage("status.plot.scale.initial_select");
                 return ModifyResult.NEED_SELECTION;
             }
             
@@ -154,7 +155,7 @@ public class ScaleStrategy implements IModifyStrategy {
                         // 自定义中心模式：设置中心点，并等待参考点
                         this.centerPoint = snappedPoint; // 直接设置中心点
                         this.currentState = ScaleState.AWAITING_REFERENCE; // 更新状态
-                        context.setStatusMessage("点击设置参考点");
+                        context.setStatusMessage("status.plot.common.click_reference");
                         LOGGER.debug("自定义缩放中心已设置: {}", centerPoint);
                         return ModifyResult.CONTINUE;
                     } else {
@@ -195,7 +196,7 @@ public class ScaleStrategy implements IModifyStrategy {
             
             if (currentState == ScaleState.AWAITING_REFERENCE) {
                 // 在设置参考点时，显示从中心点到当前点的预览线
-                context.setStatusMessage("点击设置参考点，移动鼠标查看预览");
+                context.setStatusMessage("status.plot.common.click_reference_preview");
                 return ModifyResult.CONTINUE;
             }
             
@@ -255,7 +256,7 @@ public class ScaleStrategy implements IModifyStrategy {
             case ESC_KEY -> {
                 if (currentState != ScaleState.IDLE) {
                     reset();
-                    context.setStatusMessage("缩放已取消");
+                    context.setStatusMessage("status.plot.scale.cancelled");
                     return ModifyResult.CANCEL;
                 }
                 return ModifyResult.IGNORED;
@@ -290,7 +291,7 @@ public class ScaleStrategy implements IModifyStrategy {
         this.referencePoint = reference;
         this.baseDistance = centerPoint.distance(referencePoint);
         this.currentState = ScaleState.SCALING;
-        context.setStatusMessage("移动鼠标缩放图形，点击完成");
+        context.setStatusMessage("status.plot.scale.move_finish");
         
         LOGGER.debug("设置参考点: {}, 基准距离: {}", referencePoint, baseDistance);
         return ModifyResult.CONTINUE;
@@ -341,7 +342,7 @@ public class ScaleStrategy implements IModifyStrategy {
         // 验证缩放操作
         IModifyHandler.ValidationResult validation = scaleHandler.validateModification(selectedShapes, constrainedParameters);
         if (!validation.isValid()) {
-            context.setStatusMessage("缩放无效: " + validation.getErrorMessage());
+            context.setStatusMessage(PlotI18n.status("status.plot.scale.invalid", validation.getErrorMessage()));
             return ModifyResult.CONTINUE;
         }
         
@@ -351,10 +352,10 @@ public class ScaleStrategy implements IModifyStrategy {
         
         if (pendingCommand != null) {
             LOGGER.debug("缩放操作完成");
-            context.setStatusMessage("缩放完成");
+            context.setStatusMessage("status.plot.scale.complete");
             return ModifyResult.COMPLETE;
         } else {
-            context.setStatusMessage("创建缩放命令失败");
+            context.setStatusMessage("status.plot.scale.command_failed");
             return ModifyResult.CANCEL;
         }
     }

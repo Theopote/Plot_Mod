@@ -265,7 +265,7 @@ public class ChamferHandler implements IModifyHandler {
             return new ModifyCommand(uniqueOriginalShapes, finalShapes, appState, "倒角");
             
         } catch (Exception e) {
-            LOGGER.error("创建倒角命令失败", e);
+            LOGGER.error("status.plot.chamfer.command_failed", e);
             return null;
         }
     }

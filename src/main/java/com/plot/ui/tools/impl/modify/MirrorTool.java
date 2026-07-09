@@ -78,9 +78,9 @@ public class MirrorTool extends ModifyTool {
     protected String getInitialStatusMessage() {
         if (hasSelection()) {
             MirrorMode mode = getMirrorMode();
-            return (mode == MirrorMode.CENTRAL_SYMMETRY) ? "点击设置对称中心" : "点击设置镜像轴起点";
+            return (mode == MirrorMode.CENTRAL_SYMMETRY) ? "status.plot.mirror.initial_center" : "status.plot.mirror.initial_axis";
         } else {
-            return "请先选择要镜像的图形";
+            return "status.plot.mirror.initial_select";
         }
     }
 

@@ -389,7 +389,7 @@ public class TransformTool extends ModifyTool implements EventListener {
      */
     @Override
     public String getInitialStatusMessage() {
-        return "选择要变换的图形，右键开始变换";
+        return "status.plot.transform.initial";
     }
     
     /**

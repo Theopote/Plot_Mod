@@ -178,7 +178,7 @@ public class ChamferTool extends ModifyTool implements EventListener {
     
     @Override
     protected String getInitialStatusMessage() {
-        return "选择要倒角的第一条边";
+        return "status.plot.chamfer.initial";
     }
     
     // ====== 生命周期管理 ======

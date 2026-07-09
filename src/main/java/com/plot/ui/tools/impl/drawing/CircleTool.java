@@ -147,7 +147,7 @@ public class CircleTool extends DrawingTool {
             setStatusMessage(message);
             LOGGER.debug("圆形工具状态消息已更新: {}", message);
         } else {
-            setStatusMessage("圆形工具就绪");
+            setStatusMessage("status.plot.draw.circle_ready");
         }
     }
     
@@ -965,7 +965,7 @@ public class CircleTool extends DrawingTool {
                                 return InteractionResult.COMPLETE;
                                                          } else {
                                  // 三点共线，重置
-                                 setStatusMessage("三点共线，无法绘制圆形。请重新选择三个不共线的点。");
+                                 setStatusMessage("status.plot.draw.circle_collinear");
                                  resetDrawingState();
                                  context.resetDrawing("三点共线");
                                  return InteractionResult.CANCEL;
