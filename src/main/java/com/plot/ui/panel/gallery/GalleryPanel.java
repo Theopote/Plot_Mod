@@ -27,9 +27,10 @@ import org.slf4j.LoggerFactory;
  */
 public class GalleryPanel implements UIComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GalleryPanel");
+    private static final String ADD_CATEGORY_POPUP_ID = "##plot_add_category_popup";
 
     private final ImString searchText;
-    private String selectedCategory = CategoryType.BUILDING.name;
+    private String selectedCategory = CategoryType.BUILDING.name();
     private boolean initialized = false;
 
     // 添加自定义类别列表
@@ -37,15 +38,35 @@ public class GalleryPanel implements UIComponent {
 
     // 使用枚举表示分类
     private enum CategoryType {
-        ALL("全部"),
-        BUILDING("建筑"),
-        LANDSCAPE("景观"),
-        SYMBOL("符号");
+        ALL("gallery.plot.category.all"),
+        BUILDING("gallery.plot.category.building"),
+        LANDSCAPE("gallery.plot.category.landscape"),
+        SYMBOL("gallery.plot.category.symbol");
 
-        public final String name;
+        private final String i18nKey;
 
-        CategoryType(String name) {
-            this.name = name;
+        CategoryType(String i18nKey) {
+            this.i18nKey = i18nKey;
+        }
+
+        public String getDisplayName() {
+            return PlotI18n.tr(i18nKey);
+        }
+
+        static CategoryType fromId(String id) {
+            if (id == null) {
+                return null;
+            }
+            try {
+                return CategoryType.valueOf(id);
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+
+        static String getDisplayNameForId(String categoryId) {
+            CategoryType preset = fromId(categoryId);
+            return preset != null ? preset.getDisplayName() : categoryId;
         }
     }
 
@@ -56,9 +77,6 @@ public class GalleryPanel implements UIComponent {
         AppState.getInstance();
         EventBus.getInstance();
         this.searchText = new ImString(256);
-        
-        // 添加一些示例自定义类别
-        customCategories.add("规划");
     }
 
     @Override
@@ -131,7 +149,7 @@ public class GalleryPanel implements UIComponent {
         ImGui.setNextItemWidth(availableWidth);
 
         // 渲染搜索输入框
-        if (UIUtils.iconInput("##search", Icons.SEARCH, "搜索...", searchText)) {
+        if (UIUtils.iconInput("##search", Icons.SEARCH, PlotI18n.tr("panel.plot.gallery_search_placeholder"), searchText)) {
             // 处理搜索文本变化
             filterGalleryItems(searchText.get());
         }
@@ -146,15 +164,15 @@ public class GalleryPanel implements UIComponent {
         ImGui.spacing();
 
         // 获取所有类别（预设 + 自定义）
-        List<String> allCategories = new ArrayList<>();
-        for (CategoryType category : CategoryType.values()) {
-            allCategories.add(category.name);
-        }
-        allCategories.addAll(customCategories);
+        List<String> presetCategoryIds = Arrays.stream(CategoryType.values())
+                .map(Enum::name)
+                .toList();
+        List<String> allCategoryIds = new ArrayList<>(presetCategoryIds);
+        allCategoryIds.addAll(customCategories);
 
         float availableWidth = ImGui.getContentRegionAvailX() - 16;
         float baseButtonWidth = Math.max(56.0f,
-                Math.min(84.0f, (availableWidth / Math.max(1, Math.min(allCategories.size(), 5))) - 4.0f));
+                Math.min(84.0f, (availableWidth / Math.max(1, Math.min(allCategoryIds.size(), 5))) - 4.0f));
 
         // 渲染所有类别按钮
         float startX = ImGui.getCursorPosX();
@@ -166,10 +184,11 @@ public class GalleryPanel implements UIComponent {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 12);
 
-        for (String category : allCategories) {
-            boolean isCustomCategory = customCategories.contains(category);
+        for (String categoryId : allCategoryIds) {
+            boolean isCustomCategory = customCategories.contains(categoryId);
+            String categoryLabel = CategoryType.getDisplayNameForId(categoryId);
             float categoryButtonWidth = getCompactCategoryButtonWidth(
-                    category, baseButtonWidth, availableWidth, isCustomCategory);
+                    categoryLabel, baseButtonWidth, availableWidth, isCustomCategory);
 
             // 检查是否需要换行
             if (currentX + categoryButtonWidth > startX + availableWidth) {
@@ -180,14 +199,13 @@ public class GalleryPanel implements UIComponent {
             ImGui.setCursorPosX(currentX);
 
             // 设置标签颜色
-            boolean isPresetCategory = Arrays.stream(CategoryType.values())
-                    .anyMatch(c -> c.name.equals(category));
+            boolean isPresetCategory = presetCategoryIds.contains(categoryId);
 
             int normalColor = isPresetCategory ? theme.tabNormal : theme.buttonNormal;
             int hoveredColor = isPresetCategory ? theme.tabHovered : theme.buttonHovered;
             int activeColor = isPresetCategory ? theme.tabActive : theme.buttonActive;
 
-            if (category.equals(selectedCategory)) {
+            if (categoryId.equals(selectedCategory)) {
                 normalColor = theme.buttonSelected;
                 hoveredColor = theme.buttonSelectedHovered;
                 activeColor = theme.buttonSelectedActive;
@@ -198,8 +216,8 @@ public class GalleryPanel implements UIComponent {
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
 
             // 渲染带文字的按钮
-            if (ImGui.button(category + "##" + category, categoryButtonWidth, 24)) {
-                selectedCategory = category;
+            if (ImGui.button(categoryLabel + "##" + categoryId, categoryButtonWidth, 24)) {
+                selectedCategory = categoryId;
             }
 
             // 如果是自定义类别，添加删除按钮
@@ -208,8 +226,8 @@ public class GalleryPanel implements UIComponent {
                 ImGui.setCursorPosX(ImGui.getCursorPosX() - 20);
                 ImGui.pushStyleColor(ImGuiCol.Button, theme.panelBackground);
                 ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-                if (ImGui.button("×##delete" + category, 16, 16)) {
-                    categoryToRemove = category;
+                if (ImGui.button("×##delete" + categoryId, 16, 16)) {
+                    categoryToRemove = categoryId;
                 }
                 if (ImGui.isItemHovered()) {
                     ImGui.beginTooltip();
@@ -234,7 +252,7 @@ public class GalleryPanel implements UIComponent {
         if (categoryToRemove != null) {
             customCategories.remove(categoryToRemove);
             if (selectedCategory.equals(categoryToRemove)) {
-                selectedCategory = CategoryType.ALL.name;
+                selectedCategory = CategoryType.ALL.name();
             }
         }
 
@@ -269,7 +287,7 @@ public class GalleryPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, ThemeManager.getInstance().getCurrentTheme().tabActive);
         
         if (ImGui.button(PlotI18n.tr("panel.plot.gallery_add_category") + "##add_category", buttonWidth, 24)) {
-            ImGui.openPopup("添加类别");
+            ImGui.openPopup(ADD_CATEGORY_POPUP_ID);
         }
         
         ImGui.popStyleColor(3);
@@ -288,9 +306,9 @@ public class GalleryPanel implements UIComponent {
                 // 设置表格列
                 if (ImGui.beginTable("gallery_table", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg)) {
                     // 设置列宽
-                    ImGui.tableSetupColumn("名称", ImGuiTableColumnFlags.WidthFixed, 120);
-                    ImGui.tableSetupColumn("描述", ImGuiTableColumnFlags.WidthStretch);
-                    ImGui.tableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, 160);
+                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_name"), ImGuiTableColumnFlags.WidthFixed, 120);
+                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_description"), ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_actions"), ImGuiTableColumnFlags.WidthFixed, 160);
                     ImGui.tableHeadersRow();
 
                     // 渲染每一行
@@ -426,7 +444,7 @@ public class GalleryPanel implements UIComponent {
     private List<GalleryItem> getFilteredItems() {
         List<GalleryItem> filteredItems = new ArrayList<>(galleryManager.galleryItems);
 
-        if (!CategoryType.ALL.name.equals(selectedCategory)) {
+        if (!CategoryType.ALL.name().equals(selectedCategory)) {
             filteredItems.removeIf(item -> !item.getCategory().equals(selectedCategory));
         }
 
@@ -448,7 +466,7 @@ public class GalleryPanel implements UIComponent {
     private void renderAddCategoryPopup() {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
-            if (ImGui.beginPopup("添加类别")) {
+            if (ImGui.beginPopup(ADD_CATEGORY_POPUP_ID)) {
                 try {
                     DialogLayoutHelper.beginSection(PlotI18n.tr("dialog.plot.new_category"));
                     DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.new_category_hint"));
@@ -554,27 +572,27 @@ public class GalleryPanel implements UIComponent {
                 
                 // 添加示例图库项目
                 galleryItems.add(new GalleryItem(
-                    "rect_block", 
-                    "矩形块", 
-                    "基础矩形图块", 
-                    CategoryType.BUILDING.name, 
-                    BLOCK, 
-                    Arrays.asList("基础", "矩形")
+                    "rect_block",
+                    PlotI18n.tr("gallery.plot.item.rect_block.name"),
+                    PlotI18n.tr("gallery.plot.item.rect_block.desc"),
+                    CategoryType.BUILDING.name(),
+                    BLOCK,
+                    Arrays.asList("basic", "rectangle")
                 ));
-                
+
                 galleryItems.add(new GalleryItem(
-                    "circle_block", 
-                    "圆形块", 
-                    "基础圆形图块", 
-                    CategoryType.LANDSCAPE.name, 
+                    "circle_block",
+                    PlotI18n.tr("gallery.plot.item.circle_block.name"),
+                    PlotI18n.tr("gallery.plot.item.circle_block.desc"),
+                    CategoryType.LANDSCAPE.name(),
                     BLOCK
                 ));
-                
+
                 galleryItems.add(new GalleryItem(
-                    "triangle_block", 
-                    "三角形", 
-                    "三角形图块", 
-                    CategoryType.SYMBOL.name, 
+                    "triangle_block",
+                    PlotI18n.tr("gallery.plot.item.triangle_block.name"),
+                    PlotI18n.tr("gallery.plot.item.triangle_block.desc"),
+                    CategoryType.SYMBOL.name(),
                     BLOCK
                 ));
 
@@ -609,7 +627,7 @@ public class GalleryPanel implements UIComponent {
 
             // 重置状态
             initialized = false;
-            selectedCategory = CategoryType.ALL.name;
+            selectedCategory = CategoryType.ALL.name();
             
             LOGGER.debug("GalleryPanel资源清理完成");
         } catch (Exception e) {
