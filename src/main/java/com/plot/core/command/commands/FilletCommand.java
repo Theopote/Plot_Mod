@@ -8,7 +8,6 @@ import com.plot.core.state.AppState;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
