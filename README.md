@@ -76,6 +76,8 @@
 
 ## 快速开始 / Quick Start
 
+📖 **完整用户文档 / Full user guide:** [docs/README.md](docs/README.md)
+
 1. 进入任意世界后，按 **`P`** 键打开 Plot 设计器
 2. 在左侧工具栏选择绘图工具，在画布上绘制图形
 3. 使用选择工具选中图形，通过变换工具进行调整
