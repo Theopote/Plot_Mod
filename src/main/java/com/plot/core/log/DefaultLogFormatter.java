@@ -3,14 +3,19 @@ package com.plot.core.log;
 import com.plot.api.log.ILogFormatter;
 import com.plot.api.log.LogRecord;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 /**
- * 默认日志格式化器
+ * 默认日志格式化器（项目内唯一实现）。
  */
 public class DefaultLogFormatter implements ILogFormatter {
-    private String dateTimeFormat = "yyyy-MM-dd HH:mm:ss.SSS";
+    private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
+    private static final ZoneId ZONE_ID = ZoneId.systemDefault();
+
+    private String dateTimeFormat = DEFAULT_DATE_FORMAT;
+    private DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT);
     private boolean includeTimestamp = true;
     private boolean includeLevel = true;
     private boolean includeSource = true;
@@ -19,54 +24,56 @@ public class DefaultLogFormatter implements ILogFormatter {
     @Override
     public String format(LogRecord record) {
         StringBuilder sb = new StringBuilder();
-        
-        // 添加时间戳
+
         if (includeTimestamp) {
-            SimpleDateFormat sdf = new SimpleDateFormat(dateTimeFormat);
-            sb.append('[').append(sdf.format(new Date(record.getTimestamp()))).append("] ");
+            sb.append('[')
+              .append(Instant.ofEpochMilli(record.getTimestamp()).atZone(ZONE_ID).format(dateFormatter))
+              .append("] ");
         }
-        
-        // 添加日志级别
+
         if (includeLevel) {
             sb.append('[').append(record.getLevel().getName()).append("] ");
         }
-        
-        // 添加线程信息
+
         if (includeThread) {
             sb.append('[').append(record.getThread().getName()).append("] ");
         }
-        
-        // 添加源信息
+
         if (includeSource && record.getSourceClassName() != null) {
-            String className = record.getSourceClassName();
-            String methodName = record.getSourceMethodName();
-            sb.append('[').append(className);
-            if (methodName != null) {
-                sb.append('.').append(methodName);
+            sb.append('[').append(record.getSourceClassName());
+            if (record.getSourceMethodName() != null) {
+                sb.append('.').append(record.getSourceMethodName());
             }
             sb.append("] ");
         }
-        
-        // 添加消息
-        sb.append(record.getMessage());
-        
-        // 添加参数
-        if (record.getParameters() != null) {
-            for (Object param : record.getParameters()) {
-                sb.append(" ").append(param);
-            }
+
+        String message = record.getMessage();
+        Object[] parameters = record.getParameters();
+        if (parameters != null && parameters.length > 0) {
+            message = String.format(message, parameters);
         }
-        
-        // 添加异常信息
+        sb.append(message);
+
         if (record.getThrowable() != null) {
-            sb.append('\n');
-            Throwable t = record.getThrowable();
-            sb.append(t.toString());
-            for (StackTraceElement element : t.getStackTrace()) {
-                sb.append("\n    at ").append(element.toString());
-            }
+            sb.append('\n').append(formatThrowable(record.getThrowable()));
         }
-        
+
+        return sb.toString();
+    }
+
+    private String formatThrowable(Throwable thrown) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(thrown);
+
+        for (StackTraceElement element : thrown.getStackTrace()) {
+            sb.append("\n    at ").append(element);
+        }
+
+        Throwable cause = thrown.getCause();
+        if (cause != null) {
+            sb.append("\nCaused by: ").append(formatThrowable(cause));
+        }
+
         return sb.toString();
     }
 
@@ -78,6 +85,7 @@ public class DefaultLogFormatter implements ILogFormatter {
     @Override
     public void setDateTimeFormat(String format) {
         this.dateTimeFormat = format;
+        this.dateFormatter = DateTimeFormatter.ofPattern(format);
     }
 
     @Override
