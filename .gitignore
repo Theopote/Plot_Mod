@@ -38,3 +38,11 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# Bytecode must never live under src/ (Gradle uses build/, but IDE/manual javac may emit beside .java)
+*.class
+
+# IDE compiler output outside Gradle build/
+**/bin/
+**/out/
+**/classes/
