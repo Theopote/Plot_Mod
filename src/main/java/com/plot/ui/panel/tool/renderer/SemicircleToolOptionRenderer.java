@@ -69,7 +69,7 @@ public class SemicircleToolOptionRenderer extends AbstractToolOptionRenderer {
             // 渲染两个模式按钮
             String[] modes = {MODE_TWO_POINTS, MODE_THREE_POINTS};
             int[] icons = {semicircleTwoPointsIconId, semicircleThreePointsIconId};
-            String[] tooltips = {"两点模式", "三点模式"};
+            String[] tooltips = {PlotI18n.tr("mode.plot.two_points"), PlotI18n.tr("mode.plot.three_points")};
             
             for (int i = 0; i < modes.length; i++) {
                 if (i > 0) {

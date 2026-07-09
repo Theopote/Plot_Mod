@@ -127,7 +127,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextColumn();
         // 使用较淡的提示色
         ImGui.textColored(theme.mutedText,
-                "样式、字号、对齐已移动到文字输入对话框中设置");
+                PlotI18n.tr("hint.plot.text.moved_to_dialog");
 
         height += ImGui.getTextLineHeight() + ImGui.getStyle().getItemSpacing().y;
         return height;
@@ -333,7 +333,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(CONFIG_KEY_USE_DIALOG, String.valueOf(tempUseDialog.get()));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("点击时弹出对话框输入文字");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.dialog_input"));
         }
         
         // 恢复样式
@@ -370,7 +370,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(CONFIG_KEY_FONT_SIZE, String.valueOf(TextStyle.DEFAULT_FONT_SIZE));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将字体大小重置为默认值");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.reset_font"));
         }
         
         ImGui.sameLine();
@@ -380,7 +380,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig("convertSelected", "true");
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将选中的文字转换为图形");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.convert_shape"));
         }
         
         // 恢复样式
@@ -424,7 +424,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(configKey, String.valueOf(newValue));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("快速减小值");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.decrease"));
         }
         
         ImGui.sameLine();
@@ -433,7 +433,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
             updateToolConfig(configKey, String.valueOf(newValue));
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("快速增大值");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.text.increase"));
         }
     }
     

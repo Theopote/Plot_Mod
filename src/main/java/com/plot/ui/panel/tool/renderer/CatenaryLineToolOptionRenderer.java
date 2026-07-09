@@ -94,7 +94,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("标准模式：曲线对称，第三点控制弧垂深度");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.catenary.standard"));
             }
             ImGui.popStyleColor(4);
 
@@ -113,7 +113,7 @@ public class CatenaryLineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("样条插值模式：非对称曲线，第三点为控制点，可拖拽至任意位置");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.catenary.spline"));
             }
             ImGui.popStyleColor(4);
             ImGui.popStyleVar(2);

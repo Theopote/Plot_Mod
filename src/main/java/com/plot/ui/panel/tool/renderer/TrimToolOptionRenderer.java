@@ -40,7 +40,15 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
     // 修剪模式常量
     private static final String TRIM_MODE_BOUNDARY = "BOUNDARY";
     private static final String TRIM_MODE_FENCE = "FENCE";
-    private static final String[] FENCE_TYPE_LABELS = {"Polyline", "矩形", "圆形", "椭圆", "正多边形"};
+    private String[] getFenceTypeLabels() {
+        return new String[] {
+            PlotI18n.tr("fence.plot.polyline"),
+            PlotI18n.tr("fence.plot.rectangle"),
+            PlotI18n.tr("fence.plot.circle"),
+            PlotI18n.tr("fence.plot.ellipse"),
+            PlotI18n.tr("fence.plot.polygon")
+        };
+    }
     private static final TrimWithSelectionStrategy.FenceType[] FENCE_TYPE_VALUES = {
         TrimWithSelectionStrategy.FenceType.POLYLINE,
         TrimWithSelectionStrategy.FenceType.RECTANGLE,
@@ -165,13 +173,13 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                 ImGui.tableNextColumn();
                 
                 String itemType = switch (trimState) {
-                    case SELECTING_BOUNDARIES, WAITING_TRIM_CLICK, BOUNDARY_READY -> "边界图形";
-                    case SELECTING_TARGETS, DRAWING_FENCE, FENCE_READY -> "目标图形";
-                    default -> "图形";
+                    case SELECTING_BOUNDARIES, WAITING_TRIM_CLICK, BOUNDARY_READY -> PlotI18n.tr("trim.plot.item.boundary");
+                    case SELECTING_TARGETS, DRAWING_FENCE, FENCE_READY -> PlotI18n.tr("trim.plot.item.target");
+                    default -> PlotI18n.tr("trim.plot.item.shape");
                 };
                 
                 ImGui.textColored(currentTheme.successText, 
-                    "已选择 " + selectedCount + " 个" + itemType);
+                    PlotI18n.tr("trim.plot.selected_count", selectedCount, itemType);
                 height += ImGui.getFrameHeightWithSpacing();
             }
             
@@ -183,7 +191,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                     ImGui.tableNextColumn();
                     ImGui.tableNextColumn();
                     ImGui.textColored(currentTheme.warningText, 
-                        "栅栏点数: " + fencePointCount);
+                        PlotI18n.tr("trim.plot.fence_points", fencePointCount);
                     height += ImGui.getFrameHeightWithSpacing();
                 }
             }
@@ -218,7 +226,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean boundaryClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(boundaryTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("边界修剪：选择边界图形，然后点击要修剪的图形一侧");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.boundary"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("边界修剪按钮渲染完成，选中: {}, 点击: {}", isBoundarySelected, boundaryClicked);
@@ -232,7 +240,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean fenceClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(fenceTrimIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("栅栏修剪：定义栅栏线进行批量修剪");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.fence"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("栅栏修剪按钮渲染完成，选中: {}, 点击: {}", isFenceSelected, fenceClicked);
@@ -270,7 +278,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             }
         }
         ImGui.sameLine();
-        ImGui.textDisabled("(按住Shift连续)");
+        ImGui.textDisabled(PlotI18n.tr("hint.plot.trim.hold_shift"));
 
         height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
 
@@ -306,7 +314,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         if (ImGui.beginCombo("##fence_type", previewLabel)) {
             for (int i = 0; i < FENCE_TYPE_VALUES.length; i++) {
                 boolean selected = FENCE_TYPE_VALUES[i] == currentType;
-                if (ImGui.selectable(FENCE_TYPE_LABELS[i], selected)) {
+                if (ImGui.selectable(getFenceTypeLabels()[i], selected)) {
                     updateToolConfig(CONFIG_KEY_FENCE_TYPE, FENCE_TYPE_VALUES[i].name());
                     LOGGER.debug("栅栏类型切换为: {}", FENCE_TYPE_VALUES[i]);
                 }
@@ -318,7 +326,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
         }
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("设置栅栏修剪边界类型");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.fence_type"));
         }
 
         ImGui.popStyleVar();
@@ -349,7 +357,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
                 LOGGER.debug("正多边形边数更新为: {}", sides[0]);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("设置正多边形栅栏的边数");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.fence_sides"));
             }
 
             ImGui.popStyleVar(2);
@@ -367,7 +375,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
     private float renderTrimParameters(TrimTool currentTool, UITheme.ThemeColors currentTheme) {
         float height = 0;
         
-        if (ImGui.treeNodeEx("修剪参数", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.treeNodeEx(PlotI18n.tr("trim.plot.params"), ImGuiTreeNodeFlags.DefaultOpen)) {
             height += 20;
             
             // 获取当前配置状态
@@ -403,7 +411,7 @@ public class TrimToolOptionRenderer extends AbstractToolOptionRenderer {
             height += ImGui.getFrameHeightWithSpacing();
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("修剪操作的容差范围，影响修剪点的检测精度");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.trim.tolerance"));
             }
             
             ImGui.popStyleVar(2);

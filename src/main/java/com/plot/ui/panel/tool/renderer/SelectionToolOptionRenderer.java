@@ -104,7 +104,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("普通选择模式");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.select.normal"));
             }
             
             if (isNormalMode) {
@@ -131,7 +131,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("套索选择模式");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.select.lasso"));
             }
             
             if (isLassoMode) {

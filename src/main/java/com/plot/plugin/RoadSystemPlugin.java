@@ -1,5 +1,6 @@
 package com.plot.plugin;
 
+import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 
@@ -53,8 +54,8 @@ public class RoadSystemPlugin extends Plugin {
     public RoadSystemPlugin() {
         super(
             "road_system",
-            "道路系统",
-            "用于规划和建造各种类型的道路",
+            "plugin.road_system.name",
+            "plugin.road_system.desc",
             Icons.ROAD
         );
     }
@@ -92,12 +93,12 @@ public class RoadSystemPlugin extends Plugin {
         if (config == null) return;
         
         // ========== 预设选择 ==========
-        ImGui.text("道路预设");
+        ImGui.text(PlotI18n.tr("plugin.road.road_presets"));
         ImGui.beginChild("road_presets", 0, 100, true);
         ImGui.columns(2, "presets_columns", false);
         for (RoadPreset preset : config.getPresets()) {
             boolean isSelected = preset.id.equals(config.getSelectedPreset());
-            if (UIUtils.selectableCard(preset.name, isSelected, 150, 40)) {
+            if (UIUtils.selectableCard(PlotI18n.tr("preset.road." + preset.id), isSelected, 150, 40)) {
                 if (isSelected) {
                     config.setSelectedPreset("");
                 } else {
@@ -115,7 +116,7 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
         
         // ========== 路径信息 ==========
-        ImGui.text("路径信息");
+        ImGui.text(PlotI18n.tr("plugin.road.path_info"));
         
         // 尝试从选中的图形中获取路径
         updateSelectedPath();
@@ -123,10 +124,10 @@ public class RoadSystemPlugin extends Plugin {
         if (selectedPath != null) {
             double pathLength = calculatePathLength(selectedPath);
             config.setPathLength(pathLength);
-            ImGui.text(String.format("已选择路径: %.1f 米", pathLength));
-            ImGui.textColored((int) 0xFF4080FFFFL, "路径类型: " + getPathTypeName(selectedPath));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"), pathLength));
+            ImGui.textColored((int) 0xFF4080FFFFL, PlotI18n.tr("plugin.road.path_type", getPathTypeName(selectedPath)));
             
-            if (ImGui.button("编辑路径", ImGui.getContentRegionAvailX(), 0)) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.edit_path"), ImGui.getContentRegionAvailX(), 0)) {
                 // 选中路径并激活修改工具
                 selectPathForEditing();
             }
@@ -134,12 +135,12 @@ public class RoadSystemPlugin extends Plugin {
             // 检查是否有路径可用
             List<Shape> availablePaths = findAvailablePaths();
             if (!availablePaths.isEmpty()) {
-                ImGui.textColored((int) 0xFFFFAA00FFL, String.format("找到 %d 个可用路径", availablePaths.size()));
-                ImGui.text("请选择一个路径图形以用于道路生成");
+                ImGui.textColored((int) 0xFFFFAA00FFL, PlotI18n.tr("plugin.road.paths_found", availablePaths.size()));
+                ImGui.text(PlotI18n.tr("plugin.road.select_path_hint"));
                 
-                if (ImGui.beginCombo("##select_path", "选择路径...")) {
+                if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
                     for (Shape path : availablePaths) {
-                        String label = String.format("%s (%.1f米)", getPathTypeName(path), calculatePathLength(path));
+                        String label = String.format(PlotI18n.tr("plugin.road.path_combo_item"), getPathTypeName(path), calculatePathLength(path));
                         if (ImGui.selectable(label, path == selectedPath)) {
                             selectedPath = path;
                             AppState.getInstance().setSelectedShapes(List.of(path));
@@ -148,8 +149,8 @@ public class RoadSystemPlugin extends Plugin {
                     ImGui.endCombo();
                 }
             } else {
-                ImGui.textColored((int) 0xFF808080FFL, "未找到路径");
-                ImGui.text("请使用绘图工具绘制路径（折线、自由绘制或贝塞尔曲线）");
+                ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_path_found"));
+                ImGui.text(PlotI18n.tr("plugin.road.draw_path_hint"));
             }
         }
         
@@ -158,23 +159,25 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
         
         // ========== 基本参数 ==========
-        ImGui.text("基本参数");
+        ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
         
         // 道路宽度
-        ImGui.text("道路宽度: " + config.getRoadWidth() + " 方块");
+        ImGui.text(PlotI18n.tr("plugin.road.road_width", config.getRoadWidth()));
         int[] roadWidth = {config.getRoadWidth()};
         if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, "")) {
             config.setRoadWidth(roadWidth[0]);
         }
         
         // 道路材质
-        ImGui.text("道路材质");
-        if (ImGui.beginCombo("##road_material", config.getSelectedMaterial())) {
-            String[] materials = {"混凝土", "石头", "砂砾", "木板"};
-            for (String material : materials) {
-                boolean isSelected = material.equals(config.getSelectedMaterial());
-                if (ImGui.selectable(material, isSelected)) {
-                    config.setSelectedMaterial(material);
+        ImGui.text(PlotI18n.tr("plugin.road.material"));
+        if (ImGui.beginCombo("##road_material", getMaterialLabel(config.getSelectedMaterial()))) {
+            String[] materialKeys = {"material.plot.concrete", "material.plot.stone", "material.plot.gravel", "material.plot.planks"};
+            for (String materialKey : materialKeys) {
+                String materialLabel = PlotI18n.tr(materialKey);
+                boolean isSelected = materialKey.equals(config.getSelectedMaterial())
+                        || materialLabel.equals(config.getSelectedMaterial());
+                if (ImGui.selectable(materialLabel, isSelected)) {
+                    config.setSelectedMaterial(materialKey);
                 }
                 if (isSelected) {
                     ImGui.setItemDefaultFocus();
@@ -186,24 +189,24 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
         
         // ========== 坡度与地形适应 ==========
-        ImGui.text("坡度与地形适应");
+        ImGui.text(PlotI18n.tr("plugin.road.slope_adaptation"));
         
         // 最大坡度
-        ImGui.text(String.format("最大坡度: %.1f%%", config.getMaxSlope()));
+        ImGui.text(String.format(PlotI18n.tr("plugin.road.max_slope"), config.getMaxSlope()));
         float[] maxSlope = {config.getMaxSlope()};
         if (ImGui.sliderFloat("##max_slope", maxSlope, 0.0f, 45.0f, "%.1f%%")) {
             config.setMaxSlope(maxSlope[0]);
         }
         
         // 桥阈值
-        ImGui.text("桥阈值: " + config.getBridgeThreshold() + " 方块");
+        ImGui.text(PlotI18n.tr("plugin.road.bridge_threshold", config.getBridgeThreshold()));
         int[] bridgeThresh = {config.getBridgeThreshold()};
         if (ImGui.sliderInt("##bridge_thresh", bridgeThresh, 1, 20, "")) {
             config.setBridgeThreshold(bridgeThresh[0]);
         }
         
         // 隧道阈值
-        ImGui.text("隧道阈值: " + config.getTunnelThreshold() + " 方块");
+        ImGui.text(PlotI18n.tr("plugin.road.tunnel_threshold", config.getTunnelThreshold()));
         int[] tunnelThresh = {config.getTunnelThreshold()};
         if (ImGui.sliderInt("##tunnel_thresh", tunnelThresh, 1, 30, "")) {
             config.setTunnelThreshold(tunnelThresh[0]);
@@ -212,17 +215,17 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
         
         // ========== 附加设施 ==========
-        ImGui.text("附加设施");
+        ImGui.text(PlotI18n.tr("plugin.road.extra_facilities"));
         
         // 人行道
         includeSidewalkRef.set(config.isIncludeSidewalk());
-        if (ImGui.checkbox("包含人行道", includeSidewalkRef)) {
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
             config.setIncludeSidewalk(includeSidewalkRef.get());
         }
         
         if (config.isIncludeSidewalk()) {
             ImGui.indent(20);
-            ImGui.text("人行道宽度: " + config.getSidewalkWidth() + " 方块");
+            ImGui.text(PlotI18n.tr("plugin.road.sidewalk_width", config.getSidewalkWidth()));
             int[] sidewalkWidth = {config.getSidewalkWidth()};
             if (ImGui.sliderInt("##sidewalk_width", sidewalkWidth, 1, 3, "")) {
                 config.setSidewalkWidth(sidewalkWidth[0]);
@@ -232,13 +235,13 @@ public class RoadSystemPlugin extends Plugin {
         
         // 路肩
         includeShoulderRef.set(config.isIncludeShoulder());
-        if (ImGui.checkbox("包含路肩", includeShoulderRef)) {
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), includeShoulderRef)) {
             config.setIncludeShoulder(includeShoulderRef.get());
         }
         
         if (config.isIncludeShoulder()) {
             ImGui.indent(20);
-            ImGui.text("路肩宽度: " + config.getShoulderWidth() + " 方块");
+            ImGui.text(PlotI18n.tr("plugin.road.shoulder_width", config.getShoulderWidth()));
             int[] shoulderWidth = {config.getShoulderWidth()};
             if (ImGui.sliderInt("##shoulder_width", shoulderWidth, 1, 3, "")) {
                 config.setShoulderWidth(shoulderWidth[0]);
@@ -248,7 +251,7 @@ public class RoadSystemPlugin extends Plugin {
         
         // 排水沟
         includeDrainageRef.set(config.isIncludeDrainage());
-        if (ImGui.checkbox("包含排水沟", includeDrainageRef)) {
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), includeDrainageRef)) {
             config.setIncludeDrainage(includeDrainageRef.get());
         }
         
@@ -257,12 +260,12 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
         
         // ========== 操作按钮 ==========
-        ImGui.text("操作");
+        ImGui.text(PlotI18n.tr("plugin.road.operations"));
         ImGui.beginGroup();
         
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         
-        if (ImGui.button("绘制路径", buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), buttonWidth, 0)) {
             activatePathDrawingTool();
         }
         
@@ -271,7 +274,7 @@ public class RoadSystemPlugin extends Plugin {
         if (!canPreview) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button("计算预览", buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), buttonWidth, 0)) {
             calculatePreview();
         }
         if (!canPreview) {
@@ -285,12 +288,12 @@ public class RoadSystemPlugin extends Plugin {
         if (!canProject) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button("投影参考", buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.projection_ref"), buttonWidth, 0)) {
             projectRoadPreview();
         }
         
         ImGui.sameLine();
-        if (ImGui.button("实际构建", buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.build"), buttonWidth, 0)) {
             buildRoadInWorld();
         }
         
@@ -305,28 +308,28 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
         
         // ========== 计算结果 ==========
-        ImGui.text("计算结果");
+        ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
         if (cutVolume > 0 || fillVolume > 0 || bridgeCount > 0 || tunnelCount > 0) {
             ImGui.columns(2, "results_columns", false);
             
-            ImGui.text("挖方量:");
+            ImGui.text(PlotI18n.tr("plugin.road.cut_volume"));
             ImGui.nextColumn();
-            ImGui.text(String.format("%d 方块", cutVolume));
-            ImGui.nextColumn();
-            
-            ImGui.text("填方量:");
-            ImGui.nextColumn();
-            ImGui.text(String.format("%d 方块", fillVolume));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.blocks_count"), cutVolume));
             ImGui.nextColumn();
             
-            ImGui.text("桥梁数量:");
+            ImGui.text(PlotI18n.tr("plugin.road.fill_volume"));
             ImGui.nextColumn();
-            ImGui.text(String.format("%d 座", bridgeCount));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.blocks_count"), fillVolume));
             ImGui.nextColumn();
             
-            ImGui.text("隧道数量:");
+            ImGui.text(PlotI18n.tr("plugin.road.bridge_count"));
             ImGui.nextColumn();
-            ImGui.text(String.format("%d 段", tunnelCount));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.bridges_count"), bridgeCount));
+            ImGui.nextColumn();
+            
+            ImGui.text(PlotI18n.tr("plugin.road.tunnel_count"));
+            ImGui.nextColumn();
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.tunnels_count"), tunnelCount));
             ImGui.nextColumn();
             
             ImGui.columns(1);
@@ -336,10 +339,10 @@ public class RoadSystemPlugin extends Plugin {
             if (totalVolume > 0) {
                 int imbalance = Math.abs(cutVolume - fillVolume);
                 float balancePercent = (1.0f - (float) imbalance / totalVolume) * 100.0f;
-                ImGui.text(String.format("平衡度: %.1f%%", balancePercent));
+                ImGui.text(String.format(PlotI18n.tr("plugin.road.balance_percent"), balancePercent));
             }
         } else {
-            ImGui.textColored((int) 0xFF808080FFL, "请先绘制路径并计算预览");
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_first"));
         }
     }
     
@@ -404,13 +407,13 @@ public class RoadSystemPlugin extends Plugin {
      */
     private String getPathTypeName(Shape shape) {
         if (shape instanceof PolylineShape) {
-            return "折线";
+            return PlotI18n.tr("path.plot.polyline");
         } else if (shape instanceof FreeDrawPath) {
-            return "自由绘制";
+            return PlotI18n.tr("path.plot.freedraw");
         } else if (shape instanceof BezierCurveShape) {
-            return "贝塞尔曲线";
+            return PlotI18n.tr("path.plot.bezier");
         }
-        return "未知";
+        return PlotI18n.tr("path.plot.unknown");
     }
     
     /**
@@ -674,13 +677,30 @@ public class RoadSystemPlugin extends Plugin {
     }
     
     /**
+     * 解析道路材质显示名称（兼容旧版中文配置）
+     */
+    private String getMaterialLabel(String material) {
+        if (material.startsWith("material.plot.")) {
+            return PlotI18n.tr(material);
+        }
+        return switch (material) {
+            case "混凝土" -> PlotI18n.tr("material.plot.concrete");
+            case "石头" -> PlotI18n.tr("material.plot.stone");
+            case "砂砾" -> PlotI18n.tr("material.plot.gravel");
+            case "木板" -> PlotI18n.tr("material.plot.planks");
+            default -> material;
+        };
+    }
+
+    /**
      * 从材质名称获取方块ID
      */
     private String getBlockIdFromMaterial(String material) {
         return switch (material) {
-            case "混凝土" -> "minecraft:white_concrete";
-            case "砂砾" -> "minecraft:gravel";
-            case "木板" -> "minecraft:oak_planks";
+            case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
+            case "material.plot.gravel", "砂砾" -> "minecraft:gravel";
+            case "material.plot.planks", "木板" -> "minecraft:oak_planks";
+            case "material.plot.stone", "石头" -> "minecraft:stone";
             default -> "minecraft:stone";
         };
     }

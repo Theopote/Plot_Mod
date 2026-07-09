@@ -63,7 +63,7 @@ public class EraserToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.tableNextRow();
             ImGui.tableNextColumn();
             ImGui.tableNextColumn();
-            ImGui.textWrapped("调整橡皮擦大小，数值越大擦除范围越大");
+            ImGui.textWrapped(PlotI18n.tr("hint.plot.eraser.size"));
             height += ImGui.getTextLineHeightWithSpacing() * 2;
             
         } finally {

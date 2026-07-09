@@ -116,7 +116,7 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("设置倒角斜面的距离大小");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.chamfer.distance"));
         }
         
         ImGui.popItemWidth();
@@ -135,10 +135,10 @@ public class ChamferToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(theme.errorText, "错误");
+        ImGui.textColored(theme.errorText, PlotI18n.tr("status.plot.error"));
         
         ImGui.tableNextColumn();
-        ImGui.textColored(theme.errorText, "渲染倒角工具选项时发生错误");
+        ImGui.textColored(theme.errorText, PlotI18n.tr("error.plot.chamfer_render"));
         
         height += ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingY();
         

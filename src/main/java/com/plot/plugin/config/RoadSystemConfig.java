@@ -18,7 +18,7 @@ public class RoadSystemConfig {
     private int roadWidth = 5;
     private boolean includeSidewalk = true;
     private int sidewalkWidth = 1;
-    private String selectedMaterial = "混凝土";
+    private String selectedMaterial = "material.plot.concrete";
     private String selectedPreset = "";
     private List<RoadPreset> presets;
     

@@ -149,7 +149,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
             // 渲染两个模式按钮，使用SplineTool的模式ID
             String[] modes = {SplineTool.SplineMode.THROUGH_POINTS.getId(), SplineTool.SplineMode.CONTROL_POLYGON.getId()};
             int[] icons = {splineFitIconId, splineControlIconId};
-            String[] tooltips = {"拟合模式：曲线通过所有点", "控制点模式：点影响曲线形状"};
+            String[] tooltips = {PlotI18n.tr("mode.plot.spline_fit"), PlotI18n.tr("mode.plot.spline_control")};
             String currentModeId = localConfig.getCurrentMode().getId();
             
             for (int i = 0; i < modes.length; i++) {
@@ -202,7 +202,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
             // —— 模式参数显示修正 ——
             if (localConfig.getCurrentMode() == SplineTool.SplineMode.THROUGH_POINTS) {
                 // 只显示"张力"
-                SliderRenderHelper.renderFloatSlider("张力", SplineTool.CONFIG_KEY_TENSION, 
+                SliderRenderHelper.renderFloatSlider(PlotI18n.tr("option.plot.tension"), SplineTool.CONFIG_KEY_TENSION,
                     tensionArray, 0.0f, 1.0f, "%.2f", currentTheme, 
                     key -> updateToolConfig(key, String.valueOf(tensionArray[0])));
             } else {
@@ -210,7 +210,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
             }
             height += ImGui.getFrameHeightWithSpacing();
             // "采样段数"始终显示
-            SliderRenderHelper.renderIntSlider("采样段数", SplineTool.CONFIG_KEY_SEGMENTS, 
+            SliderRenderHelper.renderIntSlider(PlotI18n.tr("option.plot.sample_segments"), SplineTool.CONFIG_KEY_SEGMENTS,
                 segmentsArray, 10, 200, "%d", currentTheme, 
                 key -> updateToolConfig(key, String.valueOf(segmentsArray[0])));
             height += ImGui.getFrameHeightWithSpacing();

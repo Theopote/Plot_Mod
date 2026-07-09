@@ -121,7 +121,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("启用后，可以在角点外侧拖拽进行旋转");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.transform.rotation_drag"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();

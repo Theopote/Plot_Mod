@@ -79,7 +79,12 @@ public class RectangleToolOptionRenderer extends AbstractToolOptionRenderer {
             String[] modes = {"two_points", "three_points", "center_point", "rounded"}; // 修正ID
             int[] icons = {rectangleTwoPointsIconId, rectangleThreePointsIconId, 
                           rectangleCenterIconId, rectangleRoundedIconId};
-            String[] tooltips = {"两点模式", "三点模式", "中心点模式", "圆角模式"};
+            String[] tooltips = {
+                PlotI18n.tr("mode.plot.two_points"),
+                PlotI18n.tr("mode.plot.three_points"),
+                PlotI18n.tr("mode.plot.center_point"),
+                PlotI18n.tr("mode.plot.rounded_corner")
+            };
             
             for (int i = 0; i < modes.length; i++) {
                 if (i > 0) {

@@ -125,7 +125,7 @@ public class ExtensionPanel implements UIComponent {
             if (currentActivePlugin != null) {
                 // 如果插件未启用，显示提示信息
                 if (!currentActivePlugin.isEnabled()) {
-                    ImGui.textColored(theme.errorText, "插件未启用");
+                    ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_disabled"));
                     ImGui.text(PlotI18n.tr("panel.plot.extension_enable_first", currentActivePlugin.getName()));
                 } else {
                     // 显示插件名称和描述
@@ -153,7 +153,7 @@ public class ExtensionPanel implements UIComponent {
                             currentActivePlugin.render();
                         } catch (Exception e) {
                             PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
-                            ImGui.textColored(theme.errorText, "渲染错误: " + e.getMessage());
+                            ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
                         }
                         
                         ImGui.endChild();
@@ -161,8 +161,8 @@ public class ExtensionPanel implements UIComponent {
                 }
             } else {
                 // 没有激活的插件，显示提示信息
-                ImGui.textColored(theme.mutedText, "请选择一个插件");
-                ImGui.textWrapped("从上方列表中选择一个插件以查看和配置其参数");
+                ImGui.textColored(theme.mutedText, PlotI18n.tr("panel.plot.extension_select_plugin"));
+                ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_hint"));
             }
             
             // 恢复样式

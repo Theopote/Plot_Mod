@@ -98,7 +98,7 @@ public class PolygonToolOptionRenderer extends AbstractToolOptionRenderer {
             PolygonTool.PolygonMode.CENTER_RADIUS.getConfigValue()
         };
         int[] icons = {centerVertexIconId, centerRadiusIconId};
-        String[] tooltips = {"中心-顶点模式", "中心-半径模式"};
+        String[] tooltips = {PlotI18n.tr("mode.plot.polygon.center_vertex_short"), PlotI18n.tr("mode.plot.polygon.center_radius_short")};
         String currentModeId = currentMode.getConfigValue();
         
         for (int i = 0; i < modes.length; i++) {

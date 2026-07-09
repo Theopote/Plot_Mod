@@ -70,7 +70,11 @@ public class EllipseToolOptionRenderer extends AbstractToolOptionRenderer {
             // 渲染三个模式按钮
             String[] modes = {CONFIG_VALUE_THREE_POINTS_AXIS, CONFIG_VALUE_THREE_POINTS_CENTER, CONFIG_VALUE_TWO_POINTS};
             int[] icons = {ellipseThreePointsAxisIconId, ellipseThreePointsCenterIconId, ellipseTwoPointsIconId};
-            String[] tooltips = {"三点轴模式", "三点中心模式", "两点模式"};
+            String[] tooltips = {
+                PlotI18n.tr("mode.plot.three_point_axis"),
+                PlotI18n.tr("mode.plot.three_point_center"),
+                PlotI18n.tr("mode.plot.two_points")
+            };
             
             for (int i = 0; i < modes.length; i++) {
                 if (i > 0) {

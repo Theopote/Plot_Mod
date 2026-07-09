@@ -134,7 +134,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         ImGui.popID();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("单点打断：在任何图形的轮廓上点击，图形会从点击位置一分为二");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.break.single"));
         }
         if (pushedColorCountSingle > 0) { ImGui.popStyleColor(pushedColorCountSingle); }
 
@@ -159,7 +159,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         ImGui.popID();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("两点打断：在同一条线上点击两点，删除两点之间的图形部分");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.break.two_point"));
         }
         if (pushedColorCountTwo > 0) { ImGui.popStyleColor(pushedColorCountTwo); }
 

@@ -87,7 +87,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("单线模式");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.line.single"));
             }
             
             if (isSingleSelected) {
@@ -128,7 +128,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("多线模式");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.line.multi"));
             }
             
             if (isMultiSelected) {

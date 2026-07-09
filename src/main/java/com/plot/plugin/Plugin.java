@@ -2,6 +2,7 @@ package com.plot.plugin;
 
 import com.plot.api.plugin.*;
 import com.plot.core.plugin.PluginConfig;
+import com.plot.utils.PlotI18n;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -36,7 +37,7 @@ public abstract class Plugin implements IPlugin {
     
     @Override
     public String getName() {
-        return name;
+        return name.startsWith("plugin.") ? PlotI18n.tr(name) : name;
     }
     
     @Override
@@ -46,7 +47,7 @@ public abstract class Plugin implements IPlugin {
     
     @Override
     public String getDescription() {
-        return description;
+        return description.startsWith("plugin.") ? PlotI18n.tr(description) : description;
     }
     
     @Override

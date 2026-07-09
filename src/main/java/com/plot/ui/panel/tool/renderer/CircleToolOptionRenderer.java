@@ -63,11 +63,11 @@ public class CircleToolOptionRenderer extends AbstractToolOptionRenderer {
             // 不使用pushStyleColor，每个按钮会使用默认的Button样式
             
             // 渲染三个模式按钮
-            renderModeButton(circleRadiusIconId, MODE_RADIUS, "圆心-半径模式", startX);
+            renderModeButton(circleRadiusIconId, MODE_RADIUS, PlotI18n.tr("mode.plot.center_radius"), startX);
             ImGui.sameLine(0, BUTTON_SPACING);
-            renderModeButton(circleTwoPointsIconId, MODE_TWO_POINTS, "两点模式", ImGui.getCursorPosX());
+            renderModeButton(circleTwoPointsIconId, MODE_TWO_POINTS, PlotI18n.tr("mode.plot.two_points"), ImGui.getCursorPosX());
             ImGui.sameLine(0, BUTTON_SPACING);
-            renderModeButton(circleThreePointsIconId, MODE_THREE_POINTS, "三点模式", ImGui.getCursorPosX());
+            renderModeButton(circleThreePointsIconId, MODE_THREE_POINTS, PlotI18n.tr("mode.plot.three_points"), ImGui.getCursorPosX());
 
             height += BUTTON_SIZE + ImGui.getStyle().getFramePadding().y * 2;
             

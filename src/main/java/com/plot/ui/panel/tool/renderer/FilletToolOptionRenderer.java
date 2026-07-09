@@ -87,7 +87,7 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(String.format("设置圆角圆弧的半径大小\n当前步长: %.1f", step));
+            ImGui.setTooltip(String.format(PlotI18n.tr("hint.plot.fillet.radius"), step));
         }
         
         ImGui.popItemWidth();
@@ -118,10 +118,10 @@ public class FilletToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.tableNextRow();
         ImGui.tableNextColumn();
         ImGui.alignTextToFramePadding();
-        ImGui.textColored(theme.errorText, "错误");
+        ImGui.textColored(theme.errorText, PlotI18n.tr("status.plot.error"));
         
         ImGui.tableNextColumn();
-        ImGui.textColored(theme.errorText, "渲染圆角工具选项时发生错误");
+        ImGui.textColored(theme.errorText, PlotI18n.tr("error.plot.fillet_render"));
         
         height += ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingY();
         

@@ -92,7 +92,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("轴对称：关于一条轴线做对称（两点定义轴）");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.mirror.axis"));
             }
             ImGui.popStyleColor(4);
             
@@ -111,7 +111,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
             }
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("中心对称：关于一个中心点做对称（等价于绕该点旋转180°）");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.mirror.center"));
             }
             ImGui.popStyleColor(4);
             ImGui.popStyleVar();

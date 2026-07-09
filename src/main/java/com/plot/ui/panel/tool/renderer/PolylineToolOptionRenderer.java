@@ -71,7 +71,7 @@ public class PolylineToolOptionRenderer extends AbstractToolOptionRenderer {
             // 渲染两个模式按钮
             String[] modes = {MODE_POLYLINE, MODE_PEN};
             int[] icons = {polylineModeIconId, penModeIconId};
-            String[] tooltips = {"折线模式 - 点击添加直线段", "钢笔模式 - 点击创建锚点，拖动创建曲线控制点"};
+            String[] tooltips = {PlotI18n.tr("mode.plot.polyline"), PlotI18n.tr("mode.plot.pen")};
 
             for (int i = 0; i < modes.length; i++) {
                 if (i > 0) {

@@ -73,11 +73,11 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushItemWidth(-1);
         
         float height = 0;
-        ImGui.textDisabled("通过点对点交互完成对齐，无需选择模式");
+        ImGui.textDisabled(PlotI18n.tr("hint.plot.align.no_mode_needed"));
         ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("选择对齐方式，快捷键可直接切换");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.align.select_mode"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();
@@ -98,11 +98,11 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.pushItemWidth(-1);
         
         float height = 0;
-        ImGui.textDisabled("以点对点选择为参考，无需选择参考模式");
+        ImGui.textDisabled(PlotI18n.tr("hint.plot.align.no_reference_needed"));
         ImGui.popItemWidth();
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("选择对齐的参考对象");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.align.select_reference"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();
@@ -141,7 +141,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.popStyleColor(5);
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("开启后将对齐时进行缩放以精确匹配目标尺寸");
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.align.scale_on_align"));
         }
         
         height += ImGui.getFrameHeightWithSpacing();
@@ -157,14 +157,14 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
     @SuppressWarnings("unused")
     private String getModeLabelWithShortcut(AlignStrategy.AlignMode mode) {
         return switch (mode) {
-            case LEFT -> "左对齐 (L)";
-            case RIGHT -> "右对齐 (R)";
-            case CENTER -> "中心对齐 (C)";
-            case TOP -> "顶部对齐 (T)";
-            case BOTTOM -> "底部对齐 (B)";
-            case MIDDLE -> "中间对齐 (M)";
-            case DISTRIBUTE_H -> "水平分布";
-            case DISTRIBUTE_V -> "垂直分布";
+            case LEFT -> PlotI18n.tr("align.plot.mode.left");
+            case RIGHT -> PlotI18n.tr("align.plot.mode.right");
+            case CENTER -> PlotI18n.tr("align.plot.mode.center");
+            case TOP -> PlotI18n.tr("align.plot.mode.top");
+            case BOTTOM -> PlotI18n.tr("align.plot.mode.bottom");
+            case MIDDLE -> PlotI18n.tr("align.plot.mode.middle");
+            case DISTRIBUTE_H -> PlotI18n.tr("align.plot.mode.distribute_h");
+            case DISTRIBUTE_V -> PlotI18n.tr("align.plot.mode.distribute_v");
         };
     }
     
@@ -174,10 +174,10 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
     @SuppressWarnings("unused")
     private String getReferenceModeLabel(AlignStrategy.ReferenceMode mode) {
         return switch (mode) {
-            case SELECTION_BOUNDS -> "选择边界";
-            case FIRST_SELECTED -> "第一个选中";
-            case LAST_SELECTED -> "最后选中";
-            case LARGEST -> "最大图形";
+            case SELECTION_BOUNDS -> PlotI18n.tr("align.plot.ref.selection_bounds");
+            case FIRST_SELECTED -> PlotI18n.tr("align.plot.ref.first_selected");
+            case LAST_SELECTED -> PlotI18n.tr("align.plot.ref.last_selected");
+            case LARGEST -> PlotI18n.tr("align.plot.ref.largest");
         };
     }
     

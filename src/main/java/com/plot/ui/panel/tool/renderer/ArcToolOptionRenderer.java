@@ -66,7 +66,11 @@ public class ArcToolOptionRenderer extends AbstractToolOptionRenderer {
             // 渲染三个模式按钮
             String[] modes = {ArcTool.CONFIG_MODE_START_END_DIRECTION, ArcTool.CONFIG_MODE_THROUGH_POINT, ArcTool.CONFIG_MODE_CENTER_START_END};
             int[] icons = {startEndDirectionIconId, throughPointIconId, centerStartEndIconId};
-            String[] tooltips = {"起点终点圆弧点模式", "经过点模式", "中心起点终点模式"};
+            String[] tooltips = {
+                PlotI18n.tr("mode.plot.start_end_arc"),
+                PlotI18n.tr("mode.plot.through_point"),
+                PlotI18n.tr("mode.plot.center_start_end")
+            };
             
             for (int i = 0; i < modes.length; i++) {
                 if (i > 0) {

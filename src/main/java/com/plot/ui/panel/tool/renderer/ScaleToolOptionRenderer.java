@@ -56,17 +56,17 @@ public class ScaleToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderUsageInstructions() {
         if (ImGui.collapsingHeader(PlotI18n.tr("option.plot.usage_instructions"), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("缩放工具使用步骤：");
+            ImGui.textWrapped(PlotI18n.tr("hint.plot.scale.usage_title"));
             ImGui.spacing();
             
-            ImGui.bulletText("1. 使用选择工具选择要缩放的图形");
-            ImGui.bulletText("2. 切换到缩放工具");
+            ImGui.bulletText(PlotI18n.tr("hint.plot.scale.step1"));
+            ImGui.bulletText(PlotI18n.tr("hint.plot.scale.step2"));
             
             // 使用说明（简化）：缩放中心由交互时确定，默认交互流程如下
-            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, "交互流程：");
-            ImGui.bulletText("1. 使用选择工具选择图形");
-            ImGui.bulletText("2. 切换到缩放工具，第一次点击或以选择框中心确定中心点");
-            ImGui.bulletText("3. 第二次点击或拖动设置参考点并缩放，点击完成");
+            ImGui.textColored(ThemeManager.getInstance().getCurrentTheme().warningText, PlotI18n.tr("hint.plot.scale.workflow"));
+            ImGui.bulletText(PlotI18n.tr("hint.plot.scale.step3"));
+            ImGui.bulletText(PlotI18n.tr("hint.plot.scale.step4"));
+            ImGui.bulletText(PlotI18n.tr("hint.plot.scale.step5"));
 
         }
     }

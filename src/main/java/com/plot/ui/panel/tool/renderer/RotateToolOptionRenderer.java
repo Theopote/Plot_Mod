@@ -82,7 +82,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popItemWidth();
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("按住Shift键时的角度对齐步长（1°-90°）\n双击可手动输入数值");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_step"));
             }
             
             height += ImGui.getFrameHeightWithSpacing();
@@ -123,7 +123,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popStyleColor(5);
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("启用后旋转时会自动吸附到指定角度");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.angle_snap"));
             }
             
             height += ImGui.getFrameHeightWithSpacing();
@@ -261,7 +261,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             ImGui.popStyleColor(4);
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("设置为 " + presetValue + "° 角度步长");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.rotate.preset_step", presetValue));
             }
         }
         

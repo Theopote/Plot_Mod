@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.impl.modify.ExtendTool;
@@ -96,7 +97,7 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
                 if (boundaryCount > 0) {
                     // 显示边界图形数量
                     ImGui.textColored(theme.successText, 
-                        String.format("已选择 %d 个边界图形", boundaryCount));
+                        String.format(PlotI18n.tr("hint.plot.extend.boundaries_selected"), boundaryCount));
                     height += 20;
                     
                     // 显示边界缓存状态
@@ -106,28 +107,28 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
                     
                     // 显示当前延伸状态
                     String stateDescription = toolState.currentState().getDescription();
-                    ImGui.textColored(theme.infoText, "状态: " + stateDescription);
+                    ImGui.textColored(theme.infoText, PlotI18n.tr("hint.plot.extend.status", stateDescription));
                     height += 20;
                     
                     // 显示当前延伸模式（自动模式）
-                    ImGui.textColored(theme.warningText, "模式: 自动延伸");
+                    ImGui.textColored(theme.warningText, PlotI18n.tr("hint.plot.extend.mode_auto"));
                     height += 20;
                     
                     // 显示操作提示
                     String operationHint = getOperationHint(toolState.currentState(), boundaryCount);
-                    ImGui.textColored(theme.mutedText, "提示: " + operationHint);
+                    ImGui.textColored(theme.mutedText, PlotI18n.tr("hint.plot.extend.hint", operationHint));
                     
                     // 如果是延伸模式，显示连续延伸提示
                     if (toolState.currentState() == ExtendWithSelectionStrategy.ExtendState.EXTENDING) {
-                        ImGui.textColored(theme.warningText, "✓ 延伸模式已激活，可连续延伸多个图形");
+                        ImGui.textColored(theme.warningText, PlotI18n.tr("hint.plot.extend.continuous_active"));
                         height += 20;
                     }
                 } else {
                     // 没有选择边界图形时的提示
-                    ImGui.textColored(theme.errorText, "未选择边界图形");
+                    ImGui.textColored(theme.errorText, PlotI18n.tr("hint.plot.extend.no_boundary"));
                     height += 20;
                     
-                    ImGui.textColored(theme.mutedText, "提示: 请先选择边界图形，然后右键确认");
+                    ImGui.textColored(theme.mutedText, PlotI18n.tr("hint.plot.extend.select_boundary_first"));
                 }
                 height += 20;
             }
@@ -136,8 +137,8 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         // 模式选择已移除，现在显示自动模式信息
-        ImGui.textColored(theme.successText, "自动延伸模式");
-        ImGui.textWrapped("工具会自动选择最佳延伸方式：先尝试标准延伸，如果没有交点则自动使用投影延伸。");
+        ImGui.textColored(theme.successText, PlotI18n.tr("hint.plot.extend.auto_mode_title"));
+        ImGui.textWrapped(PlotI18n.tr("hint.plot.extend.auto_mode_desc"));
         height += 60;
         
         return height;
@@ -203,14 +204,14 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
         switch (currentState) {
             case SELECTING_BOUNDARY:
                 if (boundaryCount > 0) {
-                    return String.format("已选择 %d 个边界图形，右键确认边界选择", boundaryCount);
+                    return String.format(PlotI18n.tr("hint.plot.extend.boundary_confirmed"), boundaryCount);
                 } else {
-                    return "请选择边界图形，支持点选和框选";
+                    return PlotI18n.tr("hint.plot.extend.select_boundary_hint");
                 }
             case EXTENDING:
-                return String.format("延伸模式已激活，点击要延伸的图形端点执行延伸（当前边界数: %d）", boundaryCount);
+                return String.format(PlotI18n.tr("hint.plot.extend.extending"), boundaryCount);
             default:
-                return "请按照提示进行操作";
+                return PlotI18n.tr("hint.plot.extend.follow_prompt");
         }
     }
 } 

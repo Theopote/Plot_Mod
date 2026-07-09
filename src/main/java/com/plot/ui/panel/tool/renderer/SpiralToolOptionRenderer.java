@@ -424,16 +424,16 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
             var theme = ThemeManager.getInstance().getCurrentTheme();
             
             if (!controlPoints.isEmpty()) {
-                ImGui.textColored(theme.successText, "✓ 已确定中心点");
+                ImGui.textColored(theme.successText, PlotI18n.tr("hint.plot.spiral.center_set"));
             }
             if (controlPoints.size() >= 2) {
-                ImGui.textColored(theme.successText, "✓ 已确定螺旋起点");
+                ImGui.textColored(theme.successText, PlotI18n.tr("hint.plot.spiral.start_set"));
             }
             if (controlPoints.size() >= 3) {
-                ImGui.textColored(theme.successText, "✓ 已确定螺距");
+                ImGui.textColored(theme.successText, PlotI18n.tr("hint.plot.spiral.pitch_set"));
             }
             if (controlPoints.size() >= 4) {
-                ImGui.textColored(theme.successText, "✓ 已确定最外圈");
+                ImGui.textColored(theme.successText, PlotI18n.tr("hint.plot.spiral.outer_set"));
             }
             
             ImGui.popTextWrapPos();
@@ -446,7 +446,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderLogarithmicSpiralOptions(SpiralTool spiralTool, float[] height) {
         // 对数螺旋的起始半径由用户点击的第一点和第二点之间的距离决定，不需要滑动条
-        renderFloatSlider("生长因子", CONFIG_KEY_GROWTH_FACTOR, tempGrowthFactorArray, 0.1f, 0.99f, "%.2f", height);
+        renderFloatSlider(PlotI18n.tr("option.plot.growth_factor"), CONFIG_KEY_GROWTH_FACTOR, tempGrowthFactorArray, 0.1f, 0.99f, "%.2f", height);
         renderCheckbox(tempClockwise, height);
     }
     
@@ -455,7 +455,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderSemicircleSpiralOptions(SpiralTool spiralTool, float[] height) {
         // 半圆螺旋的起始半径由用户点击的第一点和第二点之间的距离决定，不需要滑动条
-        renderFloatSlider("扩张率", CONFIG_KEY_EXPANSION_RATE, tempExpansionRateArray, 0.0f, 5.0f, "%.2f", height);
+        renderFloatSlider(PlotI18n.tr("option.plot.expansion_rate"), CONFIG_KEY_EXPANSION_RATE, tempExpansionRateArray, 0.0f, 5.0f, "%.2f", height);
         renderCheckbox(tempClockwise, height);
     }
     
@@ -463,7 +463,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      * 渲染费马螺旋选项
      */
     private void renderFermatSpiralOptions(SpiralTool spiralTool, float[] height) {
-        renderFloatSlider("螺旋系数", CONFIG_KEY_SPIRAL_COEFFICIENT, tempSpiralCoefficientArray, 0.5f, 8.0f, "%.2f", height);
+        renderFloatSlider(PlotI18n.tr("option.plot.spiral_coefficient"), CONFIG_KEY_SPIRAL_COEFFICIENT, tempSpiralCoefficientArray, 0.5f, 8.0f, "%.2f", height);
         renderCheckbox(tempClockwise, height);
     }
     
@@ -472,7 +472,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void renderFibonacciSpiralOptions(SpiralTool spiralTool, float[] height) {
         // 斐波那契螺旋的起始半径由用户点击的第一点和第二点之间的距离决定，不需要滑动条
-        renderFloatSlider("螺旋系数", CONFIG_KEY_SPIRAL_COEFFICIENT, tempSpiralCoefficientArray, 0.1f, 5.0f, "%.2f", height);
+        renderFloatSlider(PlotI18n.tr("option.plot.spiral_coefficient"), CONFIG_KEY_SPIRAL_COEFFICIENT, tempSpiralCoefficientArray, 0.1f, 5.0f, "%.2f", height);
         renderCheckbox(tempClockwise, height);
     }
     
@@ -494,7 +494,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         // 仅在需要螺距参数的类型下显示滑块：线性与多边形
         SpiralType currentType = spiralTool.getCurrentType();
         if (currentType == SpiralType.LINEAR || currentType == SpiralType.POLYGON) {
-            renderFloatSlider("螺距", CONFIG_KEY_SPACING, tempSpacingArray, 10.0f, 200.0f, "%.1f", height);
+            renderFloatSlider(PlotI18n.tr("option.plot.pitch"), CONFIG_KEY_SPACING, tempSpacingArray, 10.0f, 200.0f, "%.1f", height);
         }
     }
     

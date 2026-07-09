@@ -7,6 +7,7 @@ import com.plot.ui.component.Icons;
 import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.ImageToolsConfig;
 import com.plot.plugin.config.ImageToolsConfig.*;
+import com.plot.utils.PlotI18n;
 
 public class ImageToolsPlugin extends Plugin {
     private ImageToolsConfig config;
@@ -15,8 +16,8 @@ public class ImageToolsPlugin extends Plugin {
     public ImageToolsPlugin() {
         super(
             "image_tools",
-            "图片工具",
-            "用于导入和编辑图片",
+            "plugin.image_tools.name",
+            "plugin.image_tools.desc",
             Icons.IMAGE
         );
     }
@@ -44,18 +45,19 @@ public class ImageToolsPlugin extends Plugin {
         if (config == null) return;
         
         // 图片操作按钮
-        ImGui.text("图片操作");
+        ImGui.text(PlotI18n.tr("plugin.image.image_operations"));
         ImGui.beginChild("image_operations", 0, 80, true);
-        String[][] operations = {
-            {Icons.IMAGE_PLUS, "导入图片"},
-            {Icons.CROP, "裁剪"},
-            {Icons.FLIP_HORIZONTAL, "翻转"},
-            {Icons.ARROWS_MAXIMIZE, "拉伸"}
+        String[] opIcons = {Icons.IMAGE_PLUS, Icons.CROP, Icons.FLIP_HORIZONTAL, Icons.ARROWS_MAXIMIZE};
+        String[] opLabels = {
+                PlotI18n.tr("plugin.image.import"),
+                PlotI18n.tr("plugin.image.crop"),
+                PlotI18n.tr("plugin.image.flip"),
+                PlotI18n.tr("plugin.image.stretch")
         };
         int columns = 2;
         ImGui.columns(columns, "operations_columns", false);
-        for (String[] op : operations) {
-            if (UIUtils.iconButton(op[0], op[1], false)) {
+        for (int oi = 0; oi < opIcons.length; oi++) {
+            if (UIUtils.iconButton(opIcons[oi], opLabels[oi], false)) {
                 // 执行相应操作
             }
             ImGui.nextColumn();
@@ -64,14 +66,14 @@ public class ImageToolsPlugin extends Plugin {
         ImGui.endChild();
         
         // 亮度调节
-        ImGui.text(String.format("亮度: %.0f%%", config.getBrightness()));
+        ImGui.text(String.format(PlotI18n.tr("plugin.image.brightness"), config.getBrightness()));
         float[] brightness = {config.getBrightness()};
         if (ImGui.sliderFloat("##brightness", brightness, 0, 200, "")) {
             config.setBrightness(brightness[0]);
         }
         
         // 对比度调节
-        ImGui.text(String.format("对比度: %.0f%%", config.getContrast()));
+        ImGui.text(String.format(PlotI18n.tr("plugin.image.contrast"), config.getContrast()));
         float[] contrast = {config.getContrast()};
         if (ImGui.sliderFloat("##contrast", contrast, 0, 200, "")) {
             config.setContrast(contrast[0]);
@@ -79,7 +81,7 @@ public class ImageToolsPlugin extends Plugin {
         
         // 保持宽高比
         ImGui.beginGroup();
-        ImGui.text("保持宽高比");
+        ImGui.text(PlotI18n.tr("plugin.image.aspect_ratio"));
         ImGui.sameLine(ImGui.getWindowWidth() - 60);
         keepAspectRatioRef.set(config.isKeepAspectRatio());
         if (ImGui.checkbox("##keep_aspect_ratio", keepAspectRatioRef)) {
@@ -88,25 +90,25 @@ public class ImageToolsPlugin extends Plugin {
         ImGui.endGroup();
         
         // 缩放调节
-        ImGui.text(String.format("缩放: %.0f%%", config.getScale()));
+        ImGui.text(String.format(PlotI18n.tr("plugin.image.scale"), config.getScale()));
         float[] scale = {config.getScale()};
         if (ImGui.sliderFloat("##scale", scale, 10, 200, "")) {
             config.setScale(scale[0]);
         }
         
         // 旋转调节
-        ImGui.text(String.format("旋转: %.0f°", config.getRotation()));
+        ImGui.text(String.format(PlotI18n.tr("plugin.image.rotation"), config.getRotation()));
         float[] rotation = {config.getRotation()};
         if (ImGui.sliderFloat("##rotation", rotation, 0, 360, "")) {
             config.setRotation(rotation[0]);
         }
         
         // 图片预设
-        ImGui.text("图片预设");
+        ImGui.text(PlotI18n.tr("plugin.image.image_presets"));
         ImGui.beginChild("image_presets", 0, 120, true);
         ImGui.columns(2, "preset_columns", false);
         for (ImagePreset preset : config.getPresets()) {
-            if (UIUtils.selectableCard(preset.name, false, 180, 40)) {
+            if (UIUtils.selectableCard(PlotI18n.tr("preset.image." + preset.id), false, 180, 40)) {
                 // 应用预设效果
                 config.setBrightness(preset.effect.brightness);
                 config.setContrast(preset.effect.contrast);
@@ -117,13 +119,13 @@ public class ImageToolsPlugin extends Plugin {
         ImGui.endChild();
         
         // 工具按钮
-        ImGui.text("工具");
+        ImGui.text(PlotI18n.tr("plugin.image.tools"));
         ImGui.beginGroup();
-        if (UIUtils.iconButton(Icons.CONTRAST, "自动增强", false)) {
+        if (UIUtils.iconButton(Icons.CONTRAST, PlotI18n.tr("plugin.image.auto_enhance"), false)) {
             // 自动增强
         }
         ImGui.sameLine();
-        if (UIUtils.iconButton(Icons.MAXIMIZE, "适应画布", false)) {
+        if (UIUtils.iconButton(Icons.MAXIMIZE, PlotI18n.tr("plugin.image.fit_canvas"), false)) {
             // 适应画布
         }
         ImGui.endGroup();
@@ -131,7 +133,7 @@ public class ImageToolsPlugin extends Plugin {
         // 显示最近使用的图片
         if (!config.getRecentImages().isEmpty()) {
             ImGui.separator();
-            ImGui.text("最近使用");
+            ImGui.text(PlotI18n.tr("plugin.image.recently_used"));
             ImGui.beginChild("recent_images", 0, 80, true);
             for (RecentImage image : config.getRecentImages()) {
                 if (ImGui.selectable(image.path)) {

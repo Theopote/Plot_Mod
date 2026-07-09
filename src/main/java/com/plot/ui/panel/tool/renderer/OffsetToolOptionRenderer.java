@@ -36,7 +36,7 @@ public class OffsetToolOptionRenderer extends AbstractToolOptionRenderer {
                 updateToolConfig("multipleMode", String.valueOf(multipleMode.get()));
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("启用后可以连续偏移多个对象");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.offset.multiple"));
             }
             height += ImGui.getFrameHeightWithSpacing();
         } finally {

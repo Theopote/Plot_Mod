@@ -154,7 +154,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean rectangularClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(rectangularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("矩形阵列：按行列排列图形");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.rectangular"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("矩形阵列按钮渲染完成，选中: {}, 点击: {}", isRectangularSelected, rectangularClicked);
@@ -168,7 +168,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean circularClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(circularArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("环形阵列：按圆形排列图形");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.polar"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("环形阵列按钮渲染完成，选中: {}, 点击: {}", isCircularSelected, circularClicked);
@@ -182,7 +182,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             boolean pathClicked = com.plot.ui.component.UIUtils.imageButtonNoPadding(pathArrayIconId, BUTTON_SIZE, BUTTON_SIZE);
             ImGui.popID();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("路径阵列：沿路径等距分配（数量=点位数，含起点与终点）");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.path"));
             }
             ImGui.popStyleColor(4);
             LOGGER.debug("路径阵列按钮渲染完成，选中: {}, 点击: {}", isPathSelected, pathClicked);
@@ -249,7 +249,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
     private float renderRectangularArrayOptions(ArrayTool currentTool) {
         float height = 0;
         
-        if (ImGui.treeNodeEx("矩形阵列参数", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.treeNodeEx(PlotI18n.tr("array.plot.rectangular_params"), ImGuiTreeNodeFlags.DefaultOpen)) {
             height += 20;
             
             // 获取当前主题
@@ -359,11 +359,11 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (!canConfirm) {
                 ImGui.popStyleColor(3);
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("请先选择源图形和设置基准点");
+                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.select_source_first"));
                 }
             } else {
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("确认创建矩形阵列");
+                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.confirm_rectangular"));
                 }
             }
             
@@ -381,7 +381,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
     private float renderCircularArrayOptions(ArrayTool currentTool) {
         float height = 0;
         
-        if (ImGui.treeNodeEx("环形阵列参数", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.treeNodeEx(PlotI18n.tr("array.plot.polar_params"), ImGuiTreeNodeFlags.DefaultOpen)) {
             height += 20;
             
             // 获取当前主题
@@ -472,11 +472,11 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
             if (!canConfirm) {
                 ImGui.popStyleColor(3);
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("请先选择源图形和设置基准点");
+                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.select_source_first"));
                 }
             } else {
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("确认创建环形阵列");
+                    ImGui.setTooltip(PlotI18n.tr("hint.plot.array.confirm_polar"));
                 }
             }
             
@@ -502,7 +502,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         ImGui.alignTextToFramePadding();
         ImGui.text("");
         ImGui.tableNextColumn();
-        ImGui.textWrapped("操作：右键确认选中后，在画布左键点击一条路径；数量表示路径上的等距点位数（含起点与终点）");
+        ImGui.textWrapped(PlotI18n.tr("hint.plot.array.path_instructions"));
         height += ImGui.getFrameHeightWithSpacing();
 
         // 行2：数量滑动条
@@ -540,7 +540,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         if (pathLength > 0.0) {
             ImGui.text(String.format("%.2f", pathLength));
         } else {
-            ImGui.textDisabled("未拾取路径");
+            ImGui.textDisabled(PlotI18n.tr("hint.plot.array.no_path_picked"));
         }
         height += ImGui.getFrameHeightWithSpacing();
 
@@ -582,11 +582,11 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
         if (!canConfirm) {
             ImGui.popStyleColor(3);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("请先选择源图形和拾取路径");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.select_source_and_path"));
             }
         } else {
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("确认创建路径阵列");
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.array.confirm_path"));
             }
         }
         
