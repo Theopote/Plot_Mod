@@ -18,6 +18,7 @@ import com.plot.core.geometry.shapes.CableShape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -446,9 +447,9 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
         }
         
         if (offsetPoint != null) {
-            return String.format("穿点偏移: 点(%.1f, %.1f)", offsetPoint.x, offsetPoint.y);
+            return PlotI18n.status("status.plot.offset.through_point_handler", offsetPoint.x, offsetPoint.y);
         } else {
-            return String.format("距离偏移: %.1f", distance);
+            return PlotI18n.status("status.plot.offset.distance_handler", distance);
         }
     }
     

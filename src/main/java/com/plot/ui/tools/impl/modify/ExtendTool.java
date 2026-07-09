@@ -14,6 +14,7 @@ import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -258,10 +259,10 @@ public class ExtendTool extends ModifyTool {
         if (currentStrategy instanceof ExtendWithSelectionStrategy extendStrategy) {
             List<Shape> boundaries = extendStrategy.getBoundaryShapes();
             if (boundaries != null && !boundaries.isEmpty()) {
-                return String.format("已缓存 %d 个边界图形", boundaries.size());
+                return PlotI18n.status("status.plot.extend.boundaries_cached", boundaries.size());
             }
         }
-        return "未缓存边界图形";
+        return PlotI18n.status("status.plot.extend.no_boundary_cache");
     }
 
     // ====== 兼容性方法 - 委托给getToolState() ======

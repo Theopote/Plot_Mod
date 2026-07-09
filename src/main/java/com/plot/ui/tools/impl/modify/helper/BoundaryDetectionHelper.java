@@ -13,6 +13,7 @@ import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.RectangleShape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -105,7 +106,7 @@ public class BoundaryDetectionHelper {
         
         public static BoundaryDetectionResult closed(List<Shape> shapes, double coverage) {
             return new BoundaryDetectionResult(shapes, true,
-                    String.format("找到封闭区域，边界覆盖率: %.1f%%", coverage * 100));
+                    PlotI18n.status("status.plot.boundary.enclosed", coverage * 100));
         }
         
         public static BoundaryDetectionResult notClosed(String reason) {
@@ -210,7 +211,7 @@ public class BoundaryDetectionHelper {
                 LOGGER.debug("边界检测失败，只有 {} 个方向有边界，覆盖率: {:.1f}%", 
                            boundaryShapes.size(), coverage * 100);
                 return BoundaryDetectionResult.notClosed(
-                    String.format("区域不封闭，边界覆盖率: %.1f%% (需要至少 %.1f%%)", 
+                    PlotI18n.status("status.plot.boundary.not_enclosed",
                                 coverage * 100, MIN_BOUNDARY_COVERAGE * 100));
             }
             

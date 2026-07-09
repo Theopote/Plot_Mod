@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
 
+import com.plot.utils.PlotI18n;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -260,7 +262,7 @@ public class MoveHandler implements IModifyHandler {
         double distance = moveVector.length();
         double angle = Math.toDegrees(calculateMoveAngle(parameters));
         
-        return String.format("移动: dx=%.1f, dy=%.1f, 距离=%.1f, 角度=%.1f°", 
-                           moveVector.x, moveVector.y, distance, angle);
+        return PlotI18n.status("status.plot.move.handler",
+                moveVector.x, moveVector.y, distance, angle);
     }
 }

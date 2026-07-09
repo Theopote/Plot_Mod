@@ -466,7 +466,7 @@ public class RectangleTool extends DrawingTool {
 
             // 绘制圆角半径文本
             double radius = calculateCornerRadiusFromThirdPoint(p1, p2, currentMousePoint);
-            context.drawText(String.format("半径: %.1f", radius), currentMousePoint, toColor(theme.warningText, 230));
+            context.drawText(PlotI18n.status("status.plot.draw.radius_label", radius), currentMousePoint, toColor(theme.warningText, 230));
         }
 
         if (previewShape != null) {

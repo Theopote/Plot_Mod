@@ -10,6 +10,7 @@ import com.plot.ui.tools.impl.modify.strategy.BreakStrategy;
 import com.plot.ui.tools.impl.modify.strategy.IModifyStrategy;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,9 +141,8 @@ public class BreakTool extends ModifyTool {
     public void setBreakMode(BreakStrategy.BreakMode mode) {
         if (breakStrategy != null) {
             breakStrategy.setBreakMode(mode);
-            String message = String.format("打断模式已切换为: %s", mode.getDisplayName());
-            updateStatusMessage(message);
-            LOGGER.debug(message);
+            updateStatusMessage(PlotI18n.status("status.plot.array.mode_switched", mode.getDisplayName()));
+            LOGGER.debug("Break mode switched to: {}", mode.getDisplayName());
         }
     }
 

@@ -10,6 +10,7 @@ import com.plot.ui.tools.impl.modify.exception.ArrayOperationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -269,8 +270,9 @@ public class ArrayHandler implements IModifyHandler {
         List<Vec2d> pathPoints = (List<Vec2d>) params.getParameter("pathPoints");
         
         if (pathPoints == null || pathPoints.size() < 2) {
-            throw new ArrayOperationException(ArrayOperationException.ErrorType.INSUFFICIENT_PATH_POINTS, 
-                String.format("路径点不足，需要至少2个点，当前只有%d个", pathPoints != null ? pathPoints.size() : 0));
+            throw new ArrayOperationException(ArrayOperationException.ErrorType.INSUFFICIENT_PATH_POINTS,
+                PlotI18n.status("status.plot.array.path_points_insufficient",
+                    pathPoints != null ? pathPoints.size() : 0));
         }
         
         // 计算路径总长度
@@ -491,10 +493,10 @@ public class ArrayHandler implements IModifyHandler {
         int count = parameters.getInt("rowCount", 0);
         
         return switch (arrayType) {
-            case "RECTANGULAR" -> String.format("矩形阵列: %d 个图形", count);
-            case "CIRCULAR" -> String.format("环形阵列: %d 个图形", count);
-            case "PATH" -> String.format("路径阵列: %d 个图形", count);
-            default -> "阵列预览中...";
+            case "RECTANGULAR" -> PlotI18n.status("status.plot.array.count_rectangular", count);
+            case "CIRCULAR" -> PlotI18n.status("status.plot.array.count_polar", count);
+            case "PATH" -> PlotI18n.status("status.plot.array.count_path", count);
+            default -> PlotI18n.status("status.plot.array.rect_preview");
         };
     }
 } 

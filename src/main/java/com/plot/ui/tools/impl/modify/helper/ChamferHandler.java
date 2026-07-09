@@ -11,6 +11,7 @@ import com.plot.ui.tools.impl.modify.ChamferTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +71,7 @@ public class ChamferHandler implements IModifyHandler {
         // 检查距离参数
         double distance = getDistanceFromParameters(parameters);
         if (distance < MIN_DISTANCE) {
-            return ValidationResult.invalid(String.format("倒角距离必须 >= %.1f", MIN_DISTANCE));
+            return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.distance_min", MIN_DISTANCE));
         }
 
         // 同图形拐角倒角：支持折线、多边形（包含星形）
@@ -112,14 +113,14 @@ public class ChamferHandler implements IModifyHandler {
             Vec2d selectedEnd2 = chooseEndpointForTrim(line2, intersection, clickPoint2, distance);
 
             if (selectedEnd1 == null || selectedEnd2 == null) {
-                return ValidationResult.invalid(String.format("倒角距离 %.1f 过大，超出线段范围", distance));
+                return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.distance_too_large", distance));
             }
 
             double available1 = distance(intersection, selectedEnd1);
             double available2 = distance(intersection, selectedEnd2);
 
             if (distance > available1 || distance > available2) {
-                return ValidationResult.invalid(String.format("倒角距离 %.1f 过大，超出线段范围", distance));
+                return ValidationResult.invalid(PlotI18n.status("status.plot.chamfer.distance_too_large", distance));
             }
         }
         

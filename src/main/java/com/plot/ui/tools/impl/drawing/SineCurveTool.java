@@ -22,6 +22,7 @@ import com.plot.ui.tools.snap.SnapEnhancer;
 import java.util.List;
 import java.util.ArrayList;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
+import com.plot.utils.PlotI18n;
 
 /**
  * 正弦曲线工具 - 策略模式版本
@@ -608,22 +609,22 @@ public class SineCurveTool extends DrawingTool {
             String info = "";
             if (controlPoints.size() >= 2) {
                 double wavelength = controlPoints.get(0).distance(controlPoints.get(1));
-                info += String.format("波长: %.1f  ", wavelength);
+                info += PlotI18n.status("status.plot.draw.sine.wavelength", wavelength);
             }
             
             if (controlPoints.size() >= 3) {
                 double totalLength = controlPoints.get(0).distance(controlPoints.get(2));
-                info += String.format("长度: %.1f  ", totalLength);
+                info += PlotI18n.status("status.plot.draw.sine.length", totalLength);
             }
             
             if (controlPoints.size() >= 3) {
                 Vec2d lengthPoint = controlPoints.size() >= 4 ? controlPoints.get(2) : currentMousePoint;
                 double actualAmplitude = calculateActualAmplitude(
                     controlPoints.get(0), lengthPoint, displayPoint);
-                info += String.format("振幅: %.1f  ", actualAmplitude);
+                info += PlotI18n.status("status.plot.draw.sine.amplitude", actualAmplitude);
             }
             
-            info += String.format("相位: %.1f°", Math.toDegrees(phase));
+            info += PlotI18n.status("status.plot.draw.sine.phase", Math.toDegrees(phase));
             
             drawList.addText(
                 (float) screenPoint.x + 15, (float) screenPoint.y - 20,

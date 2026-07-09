@@ -8,6 +8,7 @@ import com.plot.core.geometry.BoundingBox;
 import com.plot.ui.tools.impl.modify.constants.AlignConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,13 +87,13 @@ public class AlignHandler implements IModifyHandler {
     public ValidationResult validateModification(List<Shape> shapes, IModifyHandler.ModifyParameters parameters) {
         // 检查图形列表
         if (shapes == null || shapes.isEmpty()) {
-            return ValidationResult.invalid("没有选择要对齐的图形");
+            return ValidationResult.invalid(PlotI18n.status("status.plot.align.no_selection"));
         }
         
         // 检查最小选择数量
         int minCount = getMinimumSelectionCount(parameters);
         if (shapes.size() < minCount) {
-            return ValidationResult.invalid(String.format("至少需要选择 %d 个图形", minCount));
+            return ValidationResult.invalid(PlotI18n.status("status.plot.align.min_count", minCount));
         }
         
         // 检查必需参数

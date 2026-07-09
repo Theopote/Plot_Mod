@@ -8,6 +8,7 @@ import com.plot.core.state.AppState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -324,9 +325,9 @@ public class RotateHandler implements IModifyHandler {
         
         Vec2d centerPoint = parameters.getVec2d("centerPoint");
         if (centerPoint != null) {
-            return String.format("旋转: %.1f° (中心: %.1f, %.1f)", degrees, centerPoint.x, centerPoint.y);
+            return PlotI18n.status("status.plot.rotate.handler_center", degrees, centerPoint.x, centerPoint.y);
         } else {
-            return String.format("旋转: %.1f°", degrees);
+            return PlotI18n.status("status.plot.rotate.handler", degrees);
         }
     }
     

@@ -20,6 +20,7 @@ import com.plot.ui.tools.impl.modify.strategy.MirrorMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -592,12 +593,13 @@ public class MirrorHandler implements IModifyHandler {
             copyMode = concreteParams.getBoolean(com.plot.ui.tools.impl.modify.dto.ModifyParameters.COPY_MODE, false);
         }
 
-        String copyText = copyMode ? " (复制)" : "";
+        String copyText = copyMode ? PlotI18n.status("status.plot.common.copy_suffix") : "";
         if (mode == MirrorMode.CENTRAL_SYMMETRY) {
             if (axisStart != null) {
-                return String.format("中心对称%s: 中心=(%.1f, %.1f)", copyText, axisStart.x, axisStart.y);
+                return PlotI18n.status("status.plot.mirror.central_handler",
+                        copyText, axisStart.x, axisStart.y);
             }
-            return "中心对称" + copyText;
+            return PlotI18n.status("status.plot.mirror.central_handler_simple", copyText);
         }
 
         // 轴对称
@@ -608,15 +610,16 @@ public class MirrorHandler implements IModifyHandler {
             String constraintText = "";
             if (isOrthogonalAxis(axisStart, axisEnd)) {
                 if (Math.abs(angle) < 45 || Math.abs(angle - 180) < 45) {
-                    constraintText = " (水平)";
+                    constraintText = PlotI18n.status("status.plot.mirror.constraint_horizontal");
                 } else {
-                    constraintText = " (垂直)";
+                    constraintText = PlotI18n.status("status.plot.mirror.constraint_vertical");
                 }
             }
 
-            return String.format("轴对称%s: 轴长=%.1f, 角度=%.1f°%s", copyText, length, angle, constraintText);
+            return PlotI18n.status("status.plot.mirror.axis_handler",
+                    copyText, length, angle, constraintText);
         }
-        return "轴对称" + copyText;
+        return PlotI18n.status("status.plot.mirror.axis_handler_simple", copyText);
     }
 
 }

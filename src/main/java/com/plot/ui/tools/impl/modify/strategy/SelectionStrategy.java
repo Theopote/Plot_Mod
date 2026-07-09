@@ -381,9 +381,9 @@ public class SelectionStrategy implements IModifyStrategy {
                 // true = 左到右（窗口选择，完全包含），false = 右到左（交叉选择，相交即选）
                 isLeftToRight = pos.x >= startPoint.x;
                 
-                context.setStatusMessage(isLeftToRight ? 
-                    "从左到右选择：只选择完全包含的图形" : 
-                    "从右到左选择：选择相交的图形");
+                context.setStatusMessage(isLeftToRight ?
+                    PlotI18n.status("status.plot.select.box_left_to_right") :
+                    PlotI18n.status("status.plot.select.box_right_to_left"));
                 
                 updateTemporarySelection(context);
                 LOGGER.trace("SelectionStrategy: 框选方向 {}", isLeftToRight ? "左到右" : "右到左");

@@ -11,6 +11,7 @@ import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.modify.AnnotationTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -400,9 +401,9 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             // 格式化面积文本，如果面积是整数则显示整数，否则显示小数
             String areaText;
             if (Math.abs(blockArea - Math.round(blockArea)) < 0.001) {
-                areaText = String.format("%d 方块", Math.round(blockArea));
+                areaText = PlotI18n.status("annotation.plot.blocks_int", Math.round(blockArea));
             } else {
-                areaText = String.format("%.2f 方块", blockArea);
+                areaText = PlotI18n.status("annotation.plot.blocks_float", blockArea);
             }
             LOGGER.info("创建面积标注: {}", areaText);
             
@@ -680,13 +681,13 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
             double dx = p2.x - p1.x;
             double dy = p2.y - p1.y;
             double distance = Math.sqrt(dx * dx + dy * dy);
-            return String.format("%.2f 方块", distance);
+            return formatBlocks(distance);
         }
         
         double dx = world2.x - world1.x;
         double dz = world2.y - world1.y;
         double distance = Math.sqrt(dx * dx + dz * dz);
-        return String.format("%.2f 方块", distance);
+        return formatBlocks(distance);
     }
     
     private String calculateAngle(LineShape line1, LineShape line2) {
@@ -729,7 +730,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         }
         
         double angleDeg = Math.toDegrees(angleDiff);
-        return String.format("%.2f°", angleDeg);
+        return formatDegrees(angleDeg);
     }
     
     private String calculateRadius(CircleShape circle) {
@@ -744,7 +745,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         
         if (worldCenter == null || worldCirclePoint == null) {
             // 如果转换失败，使用原始半径值
-            return String.format("%.2f 方块", radius);
+            return formatBlocks(radius);
         }
         
         // 计算Minecraft世界中的半径
@@ -752,7 +753,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         double dz = worldCirclePoint.y - worldCenter.y;
         double worldRadius = Math.sqrt(dx * dx + dz * dz);
         
-        return String.format("%.2f 方块", worldRadius);
+        return formatBlocks(worldRadius);
     }
     
     private String calculateRadius(ArcShape arc) {
@@ -766,7 +767,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         
         if (worldCenter == null || worldCirclePoint == null) {
             // 如果转换失败，使用原始半径值
-            return String.format("%.2f 方块", radius);
+            return formatBlocks(radius);
         }
         
         // 计算Minecraft世界中的半径
@@ -774,7 +775,7 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         double dz = worldCirclePoint.y - worldCenter.y;
         double worldRadius = Math.sqrt(dx * dx + dz * dz);
         
-        return String.format("%.2f 方块", worldRadius);
+        return formatBlocks(worldRadius);
     }
 
     private String calculateRadius(Vec2d center, double radius) {
@@ -783,13 +784,13 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         Vec2d worldCirclePoint = coordinateTransformer.canvasToMinecraftWorld(circlePoint);
 
         if (worldCenter == null || worldCirclePoint == null) {
-            return String.format("%.2f 方块", radius);
+            return formatBlocks(radius);
         }
 
         double dx = worldCirclePoint.x - worldCenter.x;
         double dz = worldCirclePoint.y - worldCenter.y;
         double worldRadius = Math.sqrt(dx * dx + dz * dz);
-        return String.format("%.2f 方块", worldRadius);
+        return formatBlocks(worldRadius);
     }
 
     private String calculateAngleFromThreePoints(Vec2d prev, Vec2d vertex, Vec2d next) {
@@ -799,13 +800,24 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
         double mag1 = v1.length();
         double mag2 = v2.length();
         if (mag1 < 1e-10 || mag2 < 1e-10) {
-            return "0°";
+            return formatDegrees(0);
         }
 
         double dot = (v1.x * v2.x + v1.y * v2.y) / (mag1 * mag2);
         dot = Math.max(-1.0, Math.min(1.0, dot));
         double angleDeg = Math.toDegrees(Math.acos(dot));
-        return String.format("%.2f°", angleDeg);
+        return formatDegrees(angleDeg);
+    }
+
+    private static String formatBlocks(double value) {
+        if (Math.abs(value - Math.round(value)) < 0.001) {
+            return PlotI18n.status("annotation.plot.blocks_int", Math.round(value));
+        }
+        return PlotI18n.status("annotation.plot.blocks_float", value);
+    }
+
+    private static String formatDegrees(double degrees) {
+        return PlotI18n.status("annotation.plot.degrees", degrees);
     }
     
     @Override

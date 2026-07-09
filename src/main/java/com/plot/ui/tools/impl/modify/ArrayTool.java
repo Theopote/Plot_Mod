@@ -14,6 +14,7 @@ import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.PlotI18n;
+import com.plot.utils.PlotI18n;
 
 /**
  * 阵列工具 - 策略模式版本
@@ -177,7 +178,7 @@ public class ArrayTool extends ModifyTool {
             case "beginPickObjects" -> updateStatusMessage("status.plot.array.pick_objects");
             case "arrayType" -> {
                 ArrayStrategy.ArrayType type = getArrayType();
-                updateStatusMessage(String.format("已切换到%s模式", type.getDisplayName()));
+                updateStatusMessage(PlotI18n.status("status.plot.array.mode_switched", type.getDisplayName()));
             }
             default -> {
                 // 其他配置变更不需要特殊的状态消息更新
