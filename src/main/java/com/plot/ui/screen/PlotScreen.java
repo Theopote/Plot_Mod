@@ -763,6 +763,12 @@ public class PlotScreen extends Screen {
         PlotScreenState.setPlotScreenOpen(false);
 
         try {
+            com.plot.core.tool.ToolManager.getInstance().saveToolConfigs();
+        } catch (Exception e) {
+            LOGGER.warn("保存工具配置失败: {}", e.getMessage());
+        }
+
+        try {
             UIContainer.getInstance().dispose();
         } catch (Exception e) {
             LOGGER.error("释放 Plot UI 组件资源失败", e);

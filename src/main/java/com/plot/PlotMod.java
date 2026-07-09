@@ -185,6 +185,8 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
                     LOGGER.warn("修改工具模块初始化可能不完整，请检查日志");
                 }
             }
+
+            toolManager.loadToolConfigs();
             
         } catch (Exception e) {
             LOGGER.error("初始化绘图工具模块失败: {}", e.getMessage(), e);

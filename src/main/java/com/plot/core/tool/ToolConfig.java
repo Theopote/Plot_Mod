@@ -1,6 +1,11 @@
 package com.plot.core.tool;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.plot.api.tool.IToolConfig;
+import com.plot.core.log.LogManager;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,6 +13,8 @@ import java.util.Map;
  * 工具配置实现类
  */
 public class ToolConfig implements IToolConfig {
+    private static final Gson GSON = new GsonBuilder().create();
+
     private final Map<String, Object> config;
     private boolean enabled;
     private String shortcutKey;
@@ -22,12 +29,10 @@ public class ToolConfig implements IToolConfig {
         this.priority = 0;
     }
 
-    //@Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
 
-    //@Override
     public boolean isEnabled() {
         return enabled;
     }
@@ -123,12 +128,52 @@ public class ToolConfig implements IToolConfig {
 
     @Override
     public String saveToJson() {
-        // TODO: 实现配置保存到JSON的逻辑
-        return "{}"; // 临时返回空的JSON对象字符串
+        ConfigSnapshot snapshot = new ConfigSnapshot();
+        snapshot.enabled = enabled;
+        snapshot.shortcutKey = shortcutKey;
+        snapshot.icon = icon;
+        snapshot.description = description;
+        snapshot.tooltip = tooltip;
+        snapshot.priority = priority;
+        snapshot.values = new HashMap<>(config);
+        return GSON.toJson(snapshot);
     }
 
     @Override
     public void loadFromJson(String json) {
-        // TODO: 实现从JSON加载配置的逻辑
+        if (json == null || json.isBlank()) {
+            return;
+        }
+
+        try {
+            ConfigSnapshot snapshot = GSON.fromJson(json, ConfigSnapshot.class);
+            if (snapshot == null) {
+                return;
+            }
+
+            enabled = snapshot.enabled;
+            shortcutKey = snapshot.shortcutKey;
+            icon = snapshot.icon;
+            description = snapshot.description;
+            tooltip = snapshot.tooltip;
+            priority = snapshot.priority;
+
+            config.clear();
+            if (snapshot.values != null) {
+                config.putAll(snapshot.values);
+            }
+        } catch (JsonSyntaxException e) {
+            LogManager.getInstance().warn("Failed to parse tool config JSON: {}", e.getMessage());
+        }
+    }
+
+    private static final class ConfigSnapshot {
+        private boolean enabled = true;
+        private String shortcutKey;
+        private String icon;
+        private String description;
+        private String tooltip;
+        private int priority;
+        private Map<String, Object> values;
     }
 }

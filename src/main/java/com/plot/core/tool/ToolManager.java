@@ -6,6 +6,7 @@ import com.plot.api.event.IEvent;
 import com.plot.core.log.LogManager;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolChangedEvent;
+import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.infrastructure.event.tool.ToolEvent;
 import com.plot.core.config.ConfigManager;
 import com.plot.core.state.AppState;
@@ -309,20 +310,23 @@ public class ToolManager implements IToolManager {
     public void loadToolConfigs() {
         try {
             LogManager.getInstance().debug("Loading tool configurations...");
-            
+
             for (ITool tool : tools.values()) {
-                if (tool instanceof BaseTool) {
-                    // Load tool-specific configuration
-                    String configData = ConfigManager.getInstance().getString("tool." + tool.getId() + ".config", "");
-                    
-                    if (!configData.isEmpty()) {
-                    // Parse and apply configuration（预留扩展点）
-                    LogManager.getInstance().debug("Loaded config for tool: {}", tool.getName());
-                    }
+                IToolConfig toolConfig = tool.getConfig();
+                if (toolConfig == null) {
+                    continue;
                 }
+
+                String configData = ConfigManager.getInstance().getString(configKeyFor(tool.getId()), "");
+                if (configData.isEmpty()) {
+                    continue;
+                }
+
+                toolConfig.loadFromJson(configData);
+                publishLoadedConfig(tool);
+                LogManager.getInstance().debug("Loaded config for tool: {}", tool.getName());
             }
-            
-            // Load active tool
+
             String activeToolId = ConfigManager.getInstance().getString("tool.active", "");
             if (!activeToolId.isEmpty()) {
                 ITool tool = getTool(activeToolId);
@@ -331,7 +335,7 @@ public class ToolManager implements IToolManager {
                     LogManager.getInstance().debug("Restored active tool: " + tool.getName());
                 }
             }
-            
+
             LogManager.getInstance().debug("Tool configurations loaded successfully");
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to load tool configurations", e);
@@ -342,23 +346,47 @@ public class ToolManager implements IToolManager {
     public void saveToolConfigs() {
         try {
             LogManager.getInstance().debug("Saving tool configurations...");
-            
+
             for (ITool tool : tools.values()) {
-                if (tool instanceof BaseTool) {
-                    // Save tool-specific configuration（预留扩展点）
-                    LogManager.getInstance().debug("Saved config for tool: " + tool.getName());
+                IToolConfig toolConfig = tool.getConfig();
+                if (toolConfig == null) {
+                    continue;
                 }
+
+                String json = toolConfig.saveToJson();
+                if (json == null || json.isBlank()) {
+                    continue;
+                }
+
+                ConfigManager.getInstance().setString(configKeyFor(tool.getId()), json);
+                LogManager.getInstance().debug("Saved config for tool: {}", tool.getName());
             }
-            
-            // Save active tool
+
             if (activeTool != null) {
                 ConfigManager.getInstance().setString("tool.active", activeTool.getId());
             }
-            
+
             ConfigManager.getInstance().saveConfig();
             LogManager.getInstance().debug("Tool configurations saved successfully");
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to save tool configurations", e);
+        }
+    }
+
+    private static String configKeyFor(String toolId) {
+        return "tool." + toolId + ".config";
+    }
+
+    private void publishLoadedConfig(ITool tool) {
+        IToolConfig toolConfig = tool.getConfig();
+        if (toolConfig == null) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry : toolConfig.getAllValues().entrySet()) {
+            EventBus.getInstance().publish(
+                    new ToolConfigEvent("ToolManager", tool.getId(), entry.getKey(), null, entry.getValue())
+            );
         }
     }
 
