@@ -470,7 +470,7 @@ public class AnnotationShape extends Shape {
             annotationType, annotationText, point1, point2,
             angleVertex, anglePoint1, anglePoint2, center, radius, textPosition
         );
-        cloned.setStyle(style != null ? (ShapeStyle) style.clone() : null);
+        cloned.setStyle(style != null ? style.clone() : null);
         cloned.setSelected(selected);
         cloned.setVisible(visible);
         cloned.setHighlighted(highlighted);
