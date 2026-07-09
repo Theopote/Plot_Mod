@@ -3,6 +3,7 @@ package com.plot.core.command.commands;
 import com.plot.core.command.Command;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,12 +97,12 @@ public class ClearCanvasCommand implements Command {
     
     @Override
     public String getDescription() {
-        return "清除画布";
+        return PlotI18n.tr("history.plot.clear_canvas");
     }
-    
+
     @Override
     public String getDetailedDescription() {
         int shapeCount = savedShapes != null ? savedShapes.size() : 0;
-        return String.format("清除了 %d 个图形", shapeCount);
+        return PlotI18n.tr("history.plot.clear_canvas.detail", shapeCount);
     }
 }

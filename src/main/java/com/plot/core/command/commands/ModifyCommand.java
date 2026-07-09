@@ -4,6 +4,7 @@ import com.plot.core.command.Command;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.BoundingBox;
+import com.plot.utils.PlotI18n;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,59 +93,53 @@ public class ModifyCommand implements Command {
         String operationType = resolveOperationType(oldCount, newCount);
 
         if (oldCount == 0 && newCount > 0) {
-            return String.format("%s %d 个%s", operationType, newCount, summarizeShapeTypes(newShapes));
+            return PlotI18n.tr("history.plot.modify.draw", newCount, summarizeShapeTypes(newShapes));
         }
 
         if (oldCount > 0 && newCount == 0) {
-            return String.format("%s %d 个%s", operationType, oldCount, summarizeShapeTypes(oldShapes));
+            return PlotI18n.tr("history.plot.modify.delete", oldCount, summarizeShapeTypes(oldShapes));
         }
 
         if (oldCount == newCount && oldCount > 0) {
-            return String.format("%s %d 个%s", operationType, oldCount, summarizeShapeTypes(newShapes));
+            return PlotI18n.tr("history.plot.modify.modify", oldCount, summarizeShapeTypes(newShapes));
         }
 
         if (oldCount > 0 && newCount > 0) {
-            return String.format("%s 图形 %d→%d", operationType, oldCount, newCount);
+            return PlotI18n.tr("history.plot.modify.change", operationType, oldCount, newCount);
         }
 
-        return operationType + "图形";
+        return PlotI18n.tr("history.plot.modify.generic", operationType);
     }
-    
+
     @Override
     public String getDetailedDescription() {
-        StringBuilder details = new StringBuilder();
         int oldCount = oldShapes.size();
         int newCount = newShapes.size();
+        String operationType = resolveOperationType(oldCount, newCount);
+        String shapeSummary = oldCount == 0 ? summarizeShapeTypes(newShapes) : summarizeShapeTypes(oldShapes);
 
-        details.append(String.format(
-                """
-                        修改操作
-                操作类型: %s
-                对象数量: %d → %d
-                图形类型: %s
-                        所在图层: %s""",
-            resolveOperationType(oldCount, newCount),
-            oldCount,
-            newCount,
-            oldCount == 0 ? summarizeShapeTypes(newShapes) : summarizeShapeTypes(oldShapes),
-            appState.getActiveLayer().getName()
-        ));
+        StringBuilder details = new StringBuilder(PlotI18n.tr(
+                "history.plot.modify.detail_header",
+                operationType,
+                oldCount,
+                newCount,
+                shapeSummary,
+                appState.getActiveLayer().getName()));
 
-        // 添加修改前后的对象类型统计
         if (!oldShapes.isEmpty()) {
-            details.append("\n原始对象类型:");
+            details.append('\n').append(PlotI18n.tr("history.plot.modify.original_types"));
             oldShapes.stream()
                 .map(shape -> shape.getClass().getSimpleName())
                 .distinct()
-                .forEach(type -> details.append("\n- ").append(type));
+                .forEach(type -> details.append('\n').append("- ").append(PlotI18n.shapeTypeLabel(type)));
         }
 
         if (!newShapes.isEmpty()) {
-            details.append("\n修改后对象类型:");
+            details.append('\n').append(PlotI18n.tr("history.plot.modify.result_types"));
             newShapes.stream()
                 .map(shape -> shape.getClass().getSimpleName())
                 .distinct()
-                .forEach(type -> details.append("\n- ").append(type));
+                .forEach(type -> details.append('\n').append("- ").append(PlotI18n.shapeTypeLabel(type)));
         }
 
         // 添加修改前后的边界框变化
@@ -153,19 +148,12 @@ public class ModifyCommand implements Command {
             BoundingBox newBounds = calculateCombinedBounds(newShapes);
             
             if (oldBounds != null && newBounds != null) {
-                details.append(String.format(
-                        """
-                                
-                                边界框变化:\
-                                
-                                - 原始: (%.2f, %.2f) → (%.2f, %.2f)\
-                                
-                                - 修改后: (%.2f, %.2f) → (%.2f, %.2f)""",
-                    oldBounds.getMinX(), oldBounds.getMinY(),
-                    oldBounds.getMaxX(), oldBounds.getMaxY(),
-                    newBounds.getMinX(), newBounds.getMinY(),
-                    newBounds.getMaxX(), newBounds.getMaxY()
-                ));
+                details.append('\n').append(PlotI18n.tr(
+                        "history.plot.modify.bounds_change",
+                        oldBounds.getMinX(), oldBounds.getMinY(),
+                        oldBounds.getMaxX(), oldBounds.getMaxY(),
+                        newBounds.getMinX(), newBounds.getMinY(),
+                        newBounds.getMaxX(), newBounds.getMaxY()));
             }
         }
 
@@ -230,27 +218,27 @@ public class ModifyCommand implements Command {
 
     private String resolveOperationType(int oldCount, int newCount) {
         if (operationName != null && !operationName.isBlank()) {
-            return operationName;
+            return PlotI18n.operationName(operationName);
         }
 
         if (oldCount == 0 && newCount > 0) {
-            return "绘制";
+            return PlotI18n.tr("history.plot.op.draw");
         }
         if (oldCount > 0 && newCount == 0) {
-            return "删除";
+            return PlotI18n.tr("history.plot.op.delete");
         }
         if (oldCount == newCount && oldCount > 0) {
-            return "修改";
+            return PlotI18n.tr("history.plot.op.modify");
         }
         if (oldCount > 0 && newCount > 0) {
-            return "变更";
+            return PlotI18n.tr("history.plot.op.change");
         }
-        return "未知";
+        return PlotI18n.tr("history.plot.op.unknown");
     }
 
     private String summarizeShapeTypes(List<Shape> shapes) {
         if (shapes == null || shapes.isEmpty()) {
-            return "图形";
+            return PlotI18n.tr("history.plot.shape.generic");
         }
 
         Set<String> uniqueTypes = new LinkedHashSet<>();
@@ -258,11 +246,11 @@ public class ModifyCommand implements Command {
             if (shape == null) {
                 continue;
             }
-            uniqueTypes.add(toDisplayShapeType(shape.getClass().getSimpleName()));
+            uniqueTypes.add(PlotI18n.shapeTypeLabel(shape.getClass().getSimpleName()));
         }
 
         if (uniqueTypes.isEmpty()) {
-            return "图形";
+            return PlotI18n.tr("history.plot.shape.generic");
         }
 
         if (uniqueTypes.size() == 1) {
@@ -271,31 +259,8 @@ public class ModifyCommand implements Command {
 
         List<String> typeList = new ArrayList<>(uniqueTypes);
         if (typeList.size() <= 3) {
-            return String.join("、", typeList);
+            return String.join(PlotI18n.tr("history.plot.list_separator"), typeList);
         }
-        return String.format("%s、%s、%s等%d类图形", typeList.get(0), typeList.get(1), typeList.get(2), typeList.size());
-    }
-
-    private String toDisplayShapeType(String className) {
-        return switch (className) {
-            case "LineShape" -> "直线";
-            case "CircleShape" -> "圆";
-            case "ArcShape" -> "圆弧";
-            case "RectangleShape" -> "矩形";
-            case "EllipseShape" -> "椭圆";
-            case "EllipticalArcShape" -> "椭圆弧";
-            case "PolylineShape" -> "多段线";
-            case "BezierCurveShape" -> "贝塞尔曲线";
-            case "SineCurveShape" -> "正弦曲线";
-            case "SpiralShape" -> "螺旋线";
-            case "TextShape" -> "文字";
-            case "AnnotationShape" -> "标注";
-            case "CableShape" -> "电缆";
-            case "Polygon" -> "多边形";
-            case "FreeDrawPath" -> "自由绘制路径";
-            default -> className.endsWith("Shape")
-                    ? className.substring(0, className.length() - "Shape".length())
-                    : className;
-        };
+        return PlotI18n.tr("history.plot.shape.mixed", typeList.get(0), typeList.get(1), typeList.get(2), typeList.size());
     }
 }

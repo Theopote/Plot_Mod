@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,11 +48,11 @@ public class DeleteShapesCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return "删除图形";
+        return PlotI18n.tr("history.plot.delete_shapes");
     }
-    
+
     @Override
     public String getDetailedDescription() {
-        return String.format("删除了 %d 个图形", shapesToDelete.size());
+        return PlotI18n.tr("history.plot.delete_shapes.detail", shapesToDelete.size());
     }
 } 

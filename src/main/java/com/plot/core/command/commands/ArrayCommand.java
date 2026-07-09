@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -22,7 +23,7 @@ public class ArrayCommand extends ModifyCommand {
      * @param appState 应用状态
      */
     public ArrayCommand(List<Shape> originalShapes, List<Shape> arrayedShapes, AppState appState) {
-        super(originalShapes, arrayedShapes, appState, "阵列");
+        super(originalShapes, arrayedShapes, appState, "history.plot.op.array");
     }
     
     @Override
@@ -55,12 +56,11 @@ public class ArrayCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format("阵列 %d 个图形", newShapes.size());
+        return PlotI18n.tr("history.plot.array", newShapes.size());
     }
-    
+
     @Override
     public String getDetailedDescription() {
-        return String.format("阵列操作：选中 %d 个图形，生成 %d 个新图形", 
-            oldShapes.size(), newShapes.size());
+        return PlotI18n.tr("history.plot.array.detail", oldShapes.size(), newShapes.size());
     }
 } 
