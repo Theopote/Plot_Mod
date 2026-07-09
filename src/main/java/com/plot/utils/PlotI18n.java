@@ -25,6 +25,11 @@ public final class PlotI18n {
         return message;
     }
 
+    /** 状态栏 / 工具 Usage 专用翻译（键必须以 {@code status.plot.} 开头）。 */
+    public static String status(String key, Object... args) {
+        return tr(key, args);
+    }
+
     public static String operationName(String operationKey) {
         if (operationKey == null || operationKey.isBlank()) {
             return "";
