@@ -2168,7 +2168,7 @@ public class SpiralShape extends Shape implements IExtendableShape {
             
         } catch (Exception e) {
             // 记录错误但不抛出异常
-            System.err.println("渲染螺旋线ImGui时发生错误: " + e.getMessage());
+            LOGGER.error("渲染螺旋线ImGui时发生错误", e);
         }
     }
 

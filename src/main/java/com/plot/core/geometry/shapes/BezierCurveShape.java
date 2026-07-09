@@ -2307,7 +2307,7 @@ public class BezierCurveShape extends Shape implements IExtendableShape {
             // 注意：getControlPoints()和getCurvePoints()已经应用了变换，所以这里不需要再次应用
             
         } catch (Exception e) {
-            System.err.println("获取贝塞尔曲线关键点时发生错误: " + e.getMessage());
+            LOGGER.error("获取贝塞尔曲线关键点时发生错误", e);
             return super.getKeyPoints();
         }
         

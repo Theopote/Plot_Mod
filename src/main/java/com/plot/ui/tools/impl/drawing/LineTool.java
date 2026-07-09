@@ -1141,7 +1141,7 @@ public class LineTool extends DrawingTool {
                 }
             } catch (Exception e) {
                 // 记录错误但不抛出异常
-                System.err.println("渲染多线ImGui时发生错误: " + e.getMessage());
+                LOGGER.error("LineTool: 渲染多线ImGui时发生错误", e);
             }
         }
     }

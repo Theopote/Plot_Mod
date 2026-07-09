@@ -778,7 +778,7 @@ public class RectangleShape extends Shape {
             
         } catch (Exception e) {
             // 记录错误但不抛出异常，返回空列表
-            System.err.println("打断矩形时发生错误: " + e.getMessage());
+            LOGGER.error("打断矩形时发生错误", e);
         }
         
         return newShapes;
@@ -791,7 +791,7 @@ public class RectangleShape extends Shape {
             return GeometryUtils.getDistanceToRectangle(bbox.getMin(), bbox.getMax(), point);
         } catch (Exception e) {
             // 记录错误但不抛出异常，返回最大距离
-            System.err.println("计算矩形距离时发生错误: " + e.getMessage());
+            LOGGER.error("计算矩形距离时发生错误", e);
             return Double.MAX_VALUE;
         }
     }

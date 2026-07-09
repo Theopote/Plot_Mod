@@ -1559,7 +1559,7 @@ public class CableShape extends Shape implements IExtendableShape {
             // 注意：getControlPoints()和getPoints()已经应用了变换，所以这里不需要再次应用
             
         } catch (Exception e) {
-            System.err.println("获取悬链线关键点时发生错误: " + e.getMessage());
+            LOGGER.warn("获取悬链线关键点时发生错误: {}", e.getMessage(), e);
             return super.getKeyPoints();
         }
         
