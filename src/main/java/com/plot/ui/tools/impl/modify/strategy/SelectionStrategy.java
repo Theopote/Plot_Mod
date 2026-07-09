@@ -876,7 +876,7 @@ public class SelectionStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "选择策略";
+        return PlotI18n.modeLabel("strategy.plot.name.selection");
     }
     
     @Override

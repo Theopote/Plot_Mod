@@ -458,7 +458,7 @@ public class MirrorWithSelectionStrategy extends BaseSelectionStrategy implement
 
     @Override
     public String getStrategyName() {
-        return "镜像选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.mirror_with_selection");
     }
 
     @Override

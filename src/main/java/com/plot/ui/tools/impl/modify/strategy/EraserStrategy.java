@@ -365,12 +365,12 @@ public class EraserStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "橡皮擦策略";
+        return PlotI18n.modeLabel("strategy.plot.name.eraser");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "用于删除图形的策略，支持点击删除和拖拽删除模式";
+        return PlotI18n.modeLabel("strategy.plot.desc.eraser");
     }
     
     @Override

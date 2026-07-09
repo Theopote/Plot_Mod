@@ -924,7 +924,7 @@ public class EllipseTool extends DrawingTool implements com.plot.infrastructure.
         
         @Override
         public String getStrategyDescription() {
-            return "椭圆工具多点点击交互策略，支持三种绘制模式";
+            return PlotI18n.modeLabel("strategy.plot.draw.ellipse");
         }
         
         @Override

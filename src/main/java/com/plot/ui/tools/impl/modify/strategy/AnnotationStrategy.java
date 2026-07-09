@@ -845,12 +845,12 @@ public class AnnotationStrategy extends BaseSelectionStrategy implements IModify
     
     @Override
     public String getStrategyName() {
-        return "AnnotationStrategy";
+        return PlotI18n.modeLabel("strategy.plot.name.annotation");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "标注工具策略，支持距离、角度、半径和面积标注";
+        return PlotI18n.modeLabel("strategy.plot.desc.annotation");
     }
     
     @Override

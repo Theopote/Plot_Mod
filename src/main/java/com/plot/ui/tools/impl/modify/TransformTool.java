@@ -229,14 +229,6 @@ public class TransformTool extends ModifyTool implements EventListener {
     public String getMode() {
         return currentMode;
     }
-    
-    /**
-     * 获取工具描述
-     */
-    @Override
-    public String getDescription() {
-        return "专业的图形变换工具，支持缩放、旋转和精确数值输入";
-    }
 
     /**
      * 检查是否支持旋转

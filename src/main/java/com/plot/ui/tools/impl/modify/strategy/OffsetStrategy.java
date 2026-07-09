@@ -497,7 +497,7 @@ public class OffsetStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "偏移策略";
+        return PlotI18n.modeLabel("strategy.plot.name.offset");
     }
     
     @Override

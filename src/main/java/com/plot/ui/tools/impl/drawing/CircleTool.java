@@ -13,6 +13,7 @@ import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.utils.PlotI18n;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1093,7 +1094,7 @@ public class CircleTool extends DrawingTool {
         
         @Override
         public String getStrategyDescription() {
-            return "圆形工具多点点击交互策略，支持三种绘制模式";
+            return PlotI18n.modeLabel("strategy.plot.draw.circle");
         }
         
         @Override

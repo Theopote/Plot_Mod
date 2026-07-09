@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.drawing.strategy;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.drawing.SpiralTool;
+import com.plot.utils.PlotI18n;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +113,7 @@ public class SpiralInteractionStrategy implements IInteractionStrategy {
     
     @Override
     public String getStrategyDescription() {
-        return "螺旋线工具协作式交互策略 - 通过上下文调用工具方法";
+        return PlotI18n.modeLabel("strategy.plot.draw.spiral");
     }
     
     @Override

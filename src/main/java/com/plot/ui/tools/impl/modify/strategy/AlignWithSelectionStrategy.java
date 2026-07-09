@@ -499,7 +499,7 @@ public class AlignWithSelectionStrategy extends BaseSelectionStrategy implements
 
     @Override
     public String getStrategyName() {
-        return "对齐选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.align_with_selection");
     }
 
     @Override

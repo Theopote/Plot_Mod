@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
 import com.plot.ui.tools.snap.SnapEnhancer;
+import com.plot.utils.PlotI18n;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -564,7 +565,7 @@ public class CatenaryLineTool extends DrawingTool {
 
         @Override
         public String getStrategyDescription() {
-            return "悬链线工具三点绘制交互策略";
+            return PlotI18n.modeLabel("strategy.plot.draw.catenary");
         }
         
         @Override

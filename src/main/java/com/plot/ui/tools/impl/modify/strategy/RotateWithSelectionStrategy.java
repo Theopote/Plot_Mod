@@ -480,7 +480,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
     @Override
     public String getStrategyName() {
-        return "旋转选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.rotate_with_selection");
     }
 
     @Override

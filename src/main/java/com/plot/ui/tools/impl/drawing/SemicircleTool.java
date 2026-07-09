@@ -1073,7 +1073,7 @@ public class SemicircleTool extends DrawingTool {
 
         @Override
         public String getStrategyDescription() {
-            return "半圆工具多点点击交互策略，支持两种绘制模式";
+            return PlotI18n.modeLabel("strategy.plot.draw.semicircle");
         }
 
         @Override

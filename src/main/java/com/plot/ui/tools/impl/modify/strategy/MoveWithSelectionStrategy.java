@@ -414,7 +414,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
     @Override
     public String getStrategyName() {
-        return "移动选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.move_with_selection");
     }
 
     @Override

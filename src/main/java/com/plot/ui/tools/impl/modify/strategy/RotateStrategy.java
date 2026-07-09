@@ -529,7 +529,7 @@ public class RotateStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "旋转策略";
+        return PlotI18n.modeLabel("strategy.plot.name.rotate");
     }
     
     @Override

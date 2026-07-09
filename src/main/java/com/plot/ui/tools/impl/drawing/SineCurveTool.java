@@ -746,7 +746,7 @@ public class SineCurveTool extends DrawingTool {
         
         @Override
         public String getStrategyDescription() {
-            return "正弦曲线工具三点点击交互策略";
+            return PlotI18n.modeLabel("strategy.plot.draw.sine");
         }
         
         @Override

@@ -1204,7 +1204,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
 
     @Override
     public String getStrategyName() {
-        return "修剪选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.trim_with_selection");
     }
 
     @Override
@@ -1213,9 +1213,9 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         
         // 添加持续模式标识
         if (isBoundaryModePersistent && trimState == TrimState.BOUNDARY_READY) {
-            return baseDescription + "（持续模式）";
+            return PlotI18n.modeLabel("strategy.plot.desc.with_persistent", baseDescription);
         } else if (isFenceModePersistent && trimState == TrimState.FENCE_READY) {
-            return baseDescription + "（持续模式）";
+            return PlotI18n.modeLabel("strategy.plot.desc.with_persistent", baseDescription);
         }
         
         return baseDescription;

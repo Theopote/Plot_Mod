@@ -743,12 +743,12 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
     
     @Override
     public String getStrategyName() {
-        return "变换策略";
+        return PlotI18n.modeLabel("strategy.plot.name.transform");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "双模式变换策略 - 支持选择和变换两种交互模式";
+        return PlotI18n.modeLabel("strategy.plot.desc.transform");
     }
     
     @Override

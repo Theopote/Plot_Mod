@@ -738,7 +738,7 @@ public class SplineTool extends DrawingTool {
         @Override
         public String getStrategyName() { return "SplineInteractionStrategy"; }
         @Override
-        public String getStrategyDescription() { return "样条工具多点点击交互策略"; }
+        public String getStrategyDescription() { return PlotI18n.modeLabel("strategy.plot.draw.spline"); }
         /**
          * 【已修正】重置逻辑完全委托给外部工具类
          */

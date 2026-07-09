@@ -404,12 +404,12 @@ public class AlignStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "对齐策略";
+        return PlotI18n.modeLabel("strategy.plot.name.align");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "用于对齐图形的策略，支持多种对齐模式和参考方式";
+        return PlotI18n.modeLabel("strategy.plot.desc.align");
     }
     
     @Override

@@ -905,7 +905,7 @@ public class ArcTool extends DrawingTool {
         
         @Override
         public String getStrategyDescription() {
-            return "弧形工具多点点击交互策略，支持三种绘制模式";
+            return PlotI18n.modeLabel("strategy.plot.draw.arc");
         }
         
         @Override

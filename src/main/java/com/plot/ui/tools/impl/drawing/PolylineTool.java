@@ -17,6 +17,7 @@ import com.plot.ui.tools.impl.drawing.helper.IModeHandler;
 import com.plot.ui.tools.impl.drawing.helper.PolylineDrawModeHandler;
 import com.plot.ui.tools.impl.drawing.helper.PenDrawModeHandler;
 import com.plot.ui.tools.impl.drawing.helper.EditModeHandler;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
@@ -343,7 +344,7 @@ public class PolylineTool extends DrawingTool {
     private void updateStatusMessageForCurrentMode() {
         String message = currentModeHandler != null ? 
             currentModeHandler.getStatusMessage() : 
-            "请选择有效的绘制模式";
+            PlotI18n.status("status.plot.draw.polyline.select_mode");
         updateStatusMessage(message);
     }
 
@@ -422,7 +423,7 @@ public class PolylineTool extends DrawingTool {
         
         @Override
         public String getStrategyDescription() {
-            return "多段线工具交互策略，委托给当前模式处理器";
+            return PlotI18n.modeLabel("strategy.plot.draw.polyline");
         }
         
         @Override

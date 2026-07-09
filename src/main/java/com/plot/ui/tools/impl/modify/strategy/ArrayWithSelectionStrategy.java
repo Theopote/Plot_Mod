@@ -760,7 +760,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
 
     @Override
     public String getStrategyName() {
-        return "阵列选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.array_with_selection");
     }
 
     @Override

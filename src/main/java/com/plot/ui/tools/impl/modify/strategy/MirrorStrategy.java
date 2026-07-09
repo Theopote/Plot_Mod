@@ -376,7 +376,7 @@ public class MirrorStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "镜像策略";
+        return PlotI18n.modeLabel("strategy.plot.name.mirror");
     }
     
     @Override

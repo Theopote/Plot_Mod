@@ -558,7 +558,7 @@ public class BreakStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "打断策略";
+        return PlotI18n.modeLabel("strategy.plot.name.break");
     }
     
     @Override

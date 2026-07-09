@@ -163,12 +163,12 @@ public class SimpleOffsetStrategy implements IModifyStrategy {
 
     @Override
     public String getStrategyName() {
-        return "简化偏移";
+        return PlotI18n.modeLabel("strategy.plot.name.simple_offset");
     }
 
     @Override
     public String getStrategyDescription() {
-        return "在线类图形上：先选图形参考点，再点击目标侧第二点，按目标侧生成偏移副本";
+        return PlotI18n.modeLabel("strategy.plot.desc.simple_offset");
     }
 
     @Override

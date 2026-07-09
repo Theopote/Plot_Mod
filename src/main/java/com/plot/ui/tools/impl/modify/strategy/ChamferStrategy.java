@@ -337,12 +337,12 @@ public class ChamferStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "ChamferStrategy";
+        return PlotI18n.modeLabel("strategy.plot.name.chamfer");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "倒角策略 - 在两条直线之间创建斜面";
+        return PlotI18n.modeLabel("strategy.plot.desc.chamfer");
     }
     
     /**

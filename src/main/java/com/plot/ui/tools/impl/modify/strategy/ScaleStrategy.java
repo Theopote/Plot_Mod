@@ -464,7 +464,7 @@ public class ScaleStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "缩放策略";
+        return PlotI18n.modeLabel("strategy.plot.name.scale");
     }
     
     @Override

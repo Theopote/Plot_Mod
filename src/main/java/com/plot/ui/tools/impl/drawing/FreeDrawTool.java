@@ -15,6 +15,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.tools.snap.SnapEnhancer;
 import com.plot.utils.ExceptionDebug;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import imgui.ImDrawList;
@@ -491,12 +492,12 @@ public class FreeDrawTool extends DrawingTool {
 
         @Override
         public String getStrategyName() {
-            return "自由绘制模式";
+            return PlotI18n.modeLabel("strategy.plot.draw.free_draw.name");
         }
-    
-    @Override
+
+        @Override
         public String getStrategyDescription() {
-            return "自由绘制工具拖放交互策略";
+            return PlotI18n.modeLabel("strategy.plot.draw.free_draw");
         }
         
         @Override

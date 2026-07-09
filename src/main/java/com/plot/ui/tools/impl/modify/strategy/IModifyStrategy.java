@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.tool.ToolState;
 import com.plot.core.model.Shape;
 import com.plot.core.command.commands.ModifyCommand;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -208,7 +209,7 @@ public interface IModifyStrategy {
      * @return 当前状态消息
      */
     default String getStatusMessage() {
-        return "策略状态未知";
+        return PlotI18n.status("status.plot.strategy.unknown_state");
     }
     
     /**

@@ -1587,7 +1587,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
 
     @Override
     public String getStrategyName() {
-        return "延伸选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.extend_with_selection");
     }
 
     @Override

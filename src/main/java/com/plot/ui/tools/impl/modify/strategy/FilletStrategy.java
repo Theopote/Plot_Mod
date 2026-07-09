@@ -265,12 +265,12 @@ public class FilletStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "FilletStrategy";
+        return PlotI18n.modeLabel("strategy.plot.name.fillet");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "圆角策略 - 在两条直线之间创建圆角";
+        return PlotI18n.modeLabel("strategy.plot.desc.fillet");
     }
     
     public String getStatusMessage() {

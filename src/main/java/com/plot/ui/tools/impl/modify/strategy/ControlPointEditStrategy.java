@@ -5,6 +5,7 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
+import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -341,28 +342,28 @@ public class ControlPointEditStrategy implements IModifyStrategy {
     @Override
     public String getStatusMessage() {
         if (!editTool.isActive()) {
-            return "控制点编辑未激活";
+            return PlotI18n.status("status.plot.control_point.inactive");
         }
         
         if (editTool.isDragging()) {
-            return "正在拖拽控制点";
+            return PlotI18n.status("status.plot.control_point.dragging");
         }
         
         if (editTool.getHoveredControlPointIndex() >= 0) {
-            return "悬停在控制点上，点击拖拽进行编辑";
+            return PlotI18n.status("status.plot.control_point.hover");
         }
         
-        return "选择一个控制点进行编辑";
+        return PlotI18n.status("status.plot.control_point.select");
     }
 
     @Override
     public String getStrategyName() {
-        return "控制点编辑策略";
+        return PlotI18n.modeLabel("strategy.plot.name.control_point_edit");
     }
     
     @Override
     public String getStrategyDescription() {
-        return "拖拽控制点来调整图形形状";
+        return PlotI18n.modeLabel("strategy.plot.desc.control_point_edit");
     }
     
     @Override

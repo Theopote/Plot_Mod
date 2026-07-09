@@ -793,7 +793,7 @@ public class RectangleTool extends DrawingTool {
         public String getStrategyName() { return "RectangleInteractionStrategy"; }
 
         @Override
-        public String getStrategyDescription() { return "处理所有矩形绘制模式的交互策略"; }
+        public String getStrategyDescription() { return PlotI18n.modeLabel("strategy.plot.draw.rectangle"); }
 
         @Override
         public void reset() {

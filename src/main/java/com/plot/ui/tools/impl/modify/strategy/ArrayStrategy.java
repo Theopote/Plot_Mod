@@ -783,12 +783,12 @@ public class ArrayStrategy implements IModifyStrategy {
     
     @Override
     public String getStrategyName() {
-        return "阵列策略";
+        return PlotI18n.modeLabel("strategy.plot.name.array");
     }
-    
+
     @Override
     public String getStrategyDescription() {
-        return "用于创建图形阵列复制的策略，支持多种阵列类型";
+        return PlotI18n.modeLabel("strategy.plot.desc.array");
     }
     
     @Override

@@ -461,7 +461,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
     @Override
     public String getStrategyName() {
-        return "缩放选择结合策略";
+        return PlotI18n.modeLabel("strategy.plot.name.scale_with_selection");
     }
 
     @Override
