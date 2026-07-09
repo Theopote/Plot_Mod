@@ -7,6 +7,7 @@ import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.base.Event;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.dialog.LineToBlockSettingsDialog.ConversionMode;
 import com.plot.ui.canvas.Canvas;
@@ -104,7 +105,8 @@ public class LineToBlockHandler {
 
         if (shapes.isEmpty()) {
             LOGGER.warn("没有选中的图形，无法执行操作");
-            eventBus.publish(new Events.WarningEvent("LineToBlockHandler", "请选择需要转换的图形！"));
+            eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
+                    PlotI18n.status("status.plot.line_to_block.no_selection")));
             return;
         }
 
@@ -112,7 +114,8 @@ public class LineToBlockHandler {
         List<String> paletteBlocks = getPaletteBlockTypes();
         if (paletteBlocks.isEmpty()) {
             LOGGER.warn("方块配置无效或为空");
-            eventBus.publish(new Events.WarningEvent("LineToBlockHandler", "请先在方块配置中选择要使用的方块！"));
+            eventBus.publish(new Events.WarningEvent("LineToBlockHandler",
+                    PlotI18n.status("status.plot.line_to_block.no_palette")));
             return;
         }
 
@@ -165,8 +168,11 @@ public class LineToBlockHandler {
         }
 
         // 发布成功事件
-        String message = String.format("已生成 %d 个%s，使用 %d 种方块，标高=%.0f",
-                totalBlocks, isPreview ? "幽灵方块" : "真实方块", paletteBlocks.size(), targetYLevel);
+        String blockKind = isPreview
+                ? PlotI18n.status("status.plot.line_to_block.block_kind.ghost")
+                : PlotI18n.status("status.plot.line_to_block.block_kind.real");
+        String message = PlotI18n.status("status.plot.line_to_block.result",
+                totalBlocks, blockKind, paletteBlocks.size(), targetYLevel);
         eventBus.publish(new Events.WarningEvent("LineToBlockHandler", message));
     }
 

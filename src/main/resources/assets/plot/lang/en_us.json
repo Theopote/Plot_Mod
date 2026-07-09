@@ -1633,5 +1633,10 @@
   "status.plot.projection.success": "Projection successful",
   "status.plot.projection.too_far": "Target (%d, %d, %d) is too far; move closer and retry (%.1f blocks)",
   "status.plot.projection.chunk_not_loaded": "Target (%d, %d, %d) is not loaded; move closer and retry",
-  "status.plot.projection.creative_required": "Switch to creative mode and try again"
+    "status.plot.projection.creative_required": "Switch to creative mode and try again",
+    "status.plot.line_to_block.no_selection": "Select shapes to convert first!",
+    "status.plot.line_to_block.no_palette": "Select blocks in block configuration first!",
+    "status.plot.line_to_block.block_kind.ghost": "ghost blocks",
+    "status.plot.line_to_block.block_kind.real": "real blocks",
+    "status.plot.line_to_block.result": "Generated %d %s using %d block types at elevation %.0f"
 }

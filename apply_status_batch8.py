@@ -55,6 +55,20 @@ KEYS = {
         "Switch to creative mode and try again",
         "请切换到创造模式后再试",
     ),
+    "status.plot.line_to_block.no_selection": (
+        "Select shapes to convert first!",
+        "请选择需要转换的图形！",
+    ),
+    "status.plot.line_to_block.no_palette": (
+        "Select blocks in block configuration first!",
+        "请先在方块配置中选择要使用的方块！",
+    ),
+    "status.plot.line_to_block.block_kind.ghost": ("ghost blocks", "幽灵方块"),
+    "status.plot.line_to_block.block_kind.real": ("real blocks", "真实方块"),
+    "status.plot.line_to_block.result": (
+        "Generated %d %s using %d block types at elevation %.0f",
+        "已生成 %d 个%s，使用 %d 种方块，标高=%.0f",
+    ),
 }
 
 

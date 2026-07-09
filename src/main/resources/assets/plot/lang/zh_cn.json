@@ -1633,5 +1633,10 @@
   "status.plot.projection.success": "投影成功",
   "status.plot.projection.too_far": "目标位置 (%d, %d, %d) 距离太远，请靠近后重试 (%.1f方块)",
   "status.plot.projection.chunk_not_loaded": "目标位置 (%d, %d, %d) 尚未加载，请靠近后重试",
-  "status.plot.projection.creative_required": "请切换到创造模式后再试"
+    "status.plot.projection.creative_required": "请切换到创造模式后再试",
+    "status.plot.line_to_block.no_selection": "请选择需要转换的图形！",
+    "status.plot.line_to_block.no_palette": "请先在方块配置中选择要使用的方块！",
+    "status.plot.line_to_block.block_kind.ghost": "幽灵方块",
+    "status.plot.line_to_block.block_kind.real": "真实方块",
+    "status.plot.line_to_block.result": "已生成 %d 个%s，使用 %d 种方块，标高=%.0f"
 }
