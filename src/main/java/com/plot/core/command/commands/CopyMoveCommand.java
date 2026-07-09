@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
 public class CopyMoveCommand extends ModifyCommand {
 
     public CopyMoveCommand(List<Shape> originalShapes, List<Shape> movedCopies, AppState appState) {
-        super(originalShapes, movedCopies, appState, "复制移动");
+        super(originalShapes, movedCopies, appState, "history.plot.op.copy_move");
     }
 
     @Override
@@ -42,7 +43,7 @@ public class CopyMoveCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制移动 %d 个图形", newShapes.size());
+        return PlotI18n.tr("history.plot.copy_move", newShapes.size());
     }
 }
 

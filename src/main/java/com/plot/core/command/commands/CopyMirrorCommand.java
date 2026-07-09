@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
 public class CopyMirrorCommand extends ModifyCommand {
 
     public CopyMirrorCommand(List<Shape> originalShapes, List<Shape> mirroredCopies, AppState appState) {
-        super(originalShapes, mirroredCopies, appState, "复制镜像");
+        super(originalShapes, mirroredCopies, appState, "history.plot.op.copy_mirror");
     }
 
     @Override
@@ -42,6 +43,6 @@ public class CopyMirrorCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制镜像 %d 个图形", newShapes.size());
+        return PlotI18n.tr("history.plot.copy_mirror", newShapes.size());
     }
 }

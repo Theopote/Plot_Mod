@@ -765,48 +765,14 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         try { snapEnhancer.renderSnapIndicator(drawList, camera); } catch (Exception e) { ExceptionDebug.log("ModifyTool: render snap indicator overlay", e); }
     }
 
-    // ====== 选项管理 ======
-
-    public void setOption(String name, Object value) {
-        options.put(name, value);
-    }
-
-    public Object getOption(String name) {
-        return options.get(name);
-    }
-
-    public Object getOption(String name, Object defaultValue) {
-        return options.getOrDefault(name, defaultValue);
-    }
-
-    public boolean hasOption(String name) {
-        return options.containsKey(name);
-    }
-
-    public void removeOption(String name) {
-        options.remove(name);
-    }
-
     public void clearOptions() {
         options.clear();
-    }
-
-    public Map<String, Object> getAllOptions() {
-        return new HashMap<>(options);
     }
 
     // ====== 状态访问器 ======
 
     protected ToolState getCurrentState() {
         return currentState;
-    }
-
-    protected boolean isInState(ToolState state) {
-        return currentState == state;
-    }
-
-    protected boolean isPreviewEnabled() {
-        return isPreviewEnabled.get();
     }
 
     // ====== 设置方法 ======
@@ -906,27 +872,6 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
      */
     protected boolean hasSelection() {
         return selection != null && !selection.isEmpty();
-    }
-
-    /**
-     * 获取选择的图形数量
-     */
-    protected int getSelectionCount() {
-        return selection != null ? selection.getShapes().size() : 0;
-    }
-
-    /**
-     * 检查选择数量是否满足策略要求
-     */
-    protected boolean isSelectionValid() {
-        IModifyStrategy strategy = getStrategy();
-        if (strategy == null) return true;
-        
-        int count = getSelectionCount();
-        int min = strategy.getMinimumSelectionCount();
-        int max = strategy.getMaximumSelectionCount();
-        
-        return count >= min && (max == -1 || count <= max);
     }
 
     private static AppState requireConcreteAppState(IAppState appState) {

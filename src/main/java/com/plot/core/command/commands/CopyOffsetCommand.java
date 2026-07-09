@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -11,7 +12,7 @@ import java.util.List;
 public class CopyOffsetCommand extends ModifyCommand {
 
     public CopyOffsetCommand(List<Shape> originalShapes, List<Shape> offsetCopies, AppState appState) {
-        super(originalShapes, offsetCopies, appState, "复制偏移");
+        super(originalShapes, offsetCopies, appState, "history.plot.op.copy_offset");
     }
 
     @Override
@@ -40,7 +41,7 @@ public class CopyOffsetCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制偏移 %d 个图形", newShapes.size());
+        return PlotI18n.tr("history.plot.copy_offset", newShapes.size());
     }
 }
 

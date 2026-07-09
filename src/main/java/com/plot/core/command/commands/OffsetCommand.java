@@ -3,6 +3,7 @@ package com.plot.core.command.commands;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +41,6 @@ public class OffsetCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return "偏移图形";
+        return PlotI18n.tr("history.plot.offset");
     }
 }

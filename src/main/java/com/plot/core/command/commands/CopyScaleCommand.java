@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
 public class CopyScaleCommand extends ModifyCommand {
 
     public CopyScaleCommand(List<Shape> originalShapes, List<Shape> scaledCopies, AppState appState) {
-        super(originalShapes, scaledCopies, appState, "复制缩放");
+        super(originalShapes, scaledCopies, appState, "history.plot.op.copy_scale");
     }
 
     @Override
@@ -42,6 +43,6 @@ public class CopyScaleCommand extends ModifyCommand {
 
     @Override
     public String getDescription() {
-        return String.format("复制缩放 %d 个图形", newShapes.size());
+        return PlotI18n.tr("history.plot.copy_scale", newShapes.size());
     }
 }

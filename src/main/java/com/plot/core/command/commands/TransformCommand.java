@@ -8,6 +8,7 @@ import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.dto.TransformParams;
 import com.plot.ui.tools.impl.modify.enums.TransformMode;
 import com.plot.ui.tools.impl.modify.helper.BoundingBoxControlManager.ControlPointType;
@@ -42,7 +43,7 @@ public class TransformCommand extends ModifyCommand {
     private List<Shape> transformedShapes;
     
     public TransformCommand(List<Shape> originalShapes, TransformParams transformParams, AppState appState) {
-        super(originalShapes, new ArrayList<>(), appState, "变换");
+        super(originalShapes, new ArrayList<>(), appState, "history.plot.op.transform");
         this.originalShapes = Objects.requireNonNull(originalShapes, "原始图形列表不能为空");
         this.transformParams = Objects.requireNonNull(transformParams, "变换参数不能为空");
         this.originalShapeCopies = new ArrayList<>();
@@ -888,6 +889,6 @@ public class TransformCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format("变换 %d 个图形", originalShapes.size());
+        return PlotI18n.tr("history.plot.transform", originalShapes.size());
     }
 }

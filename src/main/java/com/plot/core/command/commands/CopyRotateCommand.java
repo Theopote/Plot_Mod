@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 
@@ -22,7 +23,7 @@ public class CopyRotateCommand extends ModifyCommand {
      * @param appState 应用状态
      */
     public CopyRotateCommand(List<Shape> originalShapes, List<Shape> rotatedShapes, AppState appState) {
-        super(originalShapes, rotatedShapes, appState, "复制旋转");
+        super(originalShapes, rotatedShapes, appState, "history.plot.op.copy_rotate");
     }
     
     @Override
@@ -55,40 +56,12 @@ public class CopyRotateCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format("复制旋转 %d 个图形", newShapes.size());
+        return PlotI18n.tr("history.plot.copy_rotate", newShapes.size());
     }
-    
+
     @Override
     public String getDetailedDescription() {
-        StringBuilder details = new StringBuilder();
-        details.append(String.format(
-                """
-                        复制旋转操作
-                        原始图形数量: %d
-                        旋转后图形数量: %d
-                        所在图层: %s""",
-            oldShapes.size(),
-            newShapes.size(),
-            appState.getActiveLayer().getName()
-        ));
-
-        // 添加图形类型统计
-        if (!oldShapes.isEmpty()) {
-            details.append("\n原始图形类型:");
-            oldShapes.stream()
-                .map(shape -> shape.getClass().getSimpleName())
-                .distinct()
-                .forEach(type -> details.append("\n- ").append(type));
-        }
-
-        if (!newShapes.isEmpty()) {
-            details.append("\n旋转后图形类型:");
-            newShapes.stream()
-                .map(shape -> shape.getClass().getSimpleName())
-                .distinct()
-                .forEach(type -> details.append("\n- ").append(type));
-        }
-
-        return details.toString();
+        return PlotI18n.tr("history.plot.copy_rotate.detail",
+                oldShapes.size(), newShapes.size(), appState.getActiveLayer().getName());
     }
 } 

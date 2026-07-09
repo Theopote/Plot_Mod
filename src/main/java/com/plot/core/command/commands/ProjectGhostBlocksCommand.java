@@ -7,6 +7,7 @@ import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.block.BlockProjectionEvent;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.infrastructure.event.block.GhostBlockManager;
+import com.plot.utils.PlotI18n;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,14 +113,14 @@ public class ProjectGhostBlocksCommand implements Command {
 
     @Override
     public String getDescription() {
-        return String.format("投影方块 (%d)", projectedCount);
+        return PlotI18n.tr("history.plot.project_blocks", projectedCount);
     }
 
     @Override
     public String getDetailedDescription() {
-        return String.format("投影模式: %s, 标高: %s, 成功投影: %d/%d",
+        return PlotI18n.tr("history.plot.project_blocks.detail",
                 projectionMode,
-                elevation == null ? "自动" : elevation,
+                elevation == null ? PlotI18n.tr("history.plot.auto") : elevation,
                 projectedCount,
                 sourceGhostBlocks.size());
     }

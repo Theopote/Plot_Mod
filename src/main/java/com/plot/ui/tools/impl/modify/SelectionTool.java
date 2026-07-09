@@ -98,8 +98,8 @@ public class SelectionTool extends ModifyTool {
     @Override
     protected String getInitialStatusMessage() {
         return switch (currentMode) {
-            case NORMAL -> "点击选择图形，拖动框选多个图形，按住Ctrl键添加到选择";
-            case LASSO -> "按住鼠标左键绘制套索选择区域，松开鼠标自动闭合";
+            case NORMAL -> "status.plot.select.normal";
+            case LASSO -> "status.plot.select.lasso";
         };
     }
 

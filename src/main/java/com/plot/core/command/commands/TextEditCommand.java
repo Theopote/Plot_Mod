@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.command.Command;
 import com.plot.core.geometry.shapes.TextShape;
+import com.plot.utils.PlotI18n;
 
 public class TextEditCommand implements Command {
     private final TextShape target;
@@ -35,11 +36,11 @@ public class TextEditCommand implements Command {
 
     @Override
     public String getDescription() {
-        return "编辑文字";
+        return PlotI18n.tr("history.plot.text_edit");
     }
 
     @Override
     public String getDetailedDescription() {
-        return String.format("编辑文字: \"%s\" -> \"%s\"", oldText, newText);
+        return PlotI18n.tr("history.plot.text_edit.detail", oldText, newText);
     }
 }

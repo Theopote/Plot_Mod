@@ -544,7 +544,7 @@ public class LineTool extends DrawingTool {
 
             // 按模式更新使用方法提示，避免模式切换后残留旧提示
             if (MODE_MULTI.equals(mode)) {
-                setStatusMessage("左键依次点击起点和终点，滚轮调整线条间距");
+                setStatusMessage("status.plot.line.multi_click");
             } else {
                 setStatusMessage("");
             }
@@ -637,7 +637,7 @@ public class LineTool extends DrawingTool {
             float newSpacing = Math.max(0.1f, Math.min(1000f, lineSpacing + adjustment));
             boolean changed = setLineSpacing(newSpacing);
             if (changed) {
-                setStatusMessage("左键依次点击起点和终点，滚轮调整线条间距");
+                setStatusMessage("status.plot.line.multi_click");
                 // 立即更新预览以反映变化
                 updatePreviewImmediately();
                 return true;

@@ -5,7 +5,9 @@ import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -130,7 +132,7 @@ public class FilletCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format("圆角 (半径: %.2f)", radius);
+        return PlotI18n.tr("history.plot.fillet", radius);
     }
     
     /**

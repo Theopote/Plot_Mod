@@ -3,6 +3,7 @@ package com.plot.core.command.commands;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -45,10 +46,6 @@ public class TrimCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format(
-            "修剪对象 (%.2f, %.2f)",
-            point.x,
-            point.y
-        );
+        return PlotI18n.tr("history.plot.trim", point.x, point.y);
     }
 }

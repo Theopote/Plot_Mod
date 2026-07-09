@@ -4,7 +4,9 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -83,7 +85,7 @@ public class ChamferCommand extends ModifyCommand {
     
     @Override
     public String getDescription() {
-        return String.format("倒角 (距离: %.2f)", distance);
+        return PlotI18n.tr("history.plot.chamfer", distance);
     }
     
 } 
