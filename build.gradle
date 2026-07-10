@@ -66,6 +66,7 @@ dependencies {
 	}
 
 	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 // 防止 jar-in-jar 误打包 MC 自带的 LWJGL（尤其 lwjgl-stb）

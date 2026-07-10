@@ -196,7 +196,7 @@ public class RoadNetworkBuilder {
         double totalLength = edge.getLength();
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
 
-        network.removeEdge(edgeId);
+        network.detachEdge(edgeId);
         RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart);
         RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart);
         copyProperties(edge, firstEdge);

@@ -59,6 +59,14 @@ public class RoadNetwork {
     }
 
     public void removeEdge(String edgeId) {
+        detachEdge(edgeId);
+        cleanupIsolatedNodes();
+    }
+
+    /**
+     * 仅断开边连接，不清理孤立节点（供打断求交等需要立即复用端点的场景）
+     */
+    public void detachEdge(String edgeId) {
         RoadEdge edge = edges.remove(edgeId);
         if (edge == null) {
             return;
@@ -72,8 +80,6 @@ public class RoadNetwork {
         if (end != null) {
             end.removeEdge(edgeId);
         }
-
-        cleanupIsolatedNodes();
     }
 
     public void removeNode(String nodeId) {

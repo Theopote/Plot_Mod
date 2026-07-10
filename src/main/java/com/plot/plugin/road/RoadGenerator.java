@@ -235,7 +235,7 @@ public class RoadGenerator {
         if (max - min > 2) {
             LOGGER.warn("路口节点 {} 汇聚道路高度不一致 {}，使用平均值拼接", node.getId(), heights);
         }
-        return (int) Math.round(heights.stream().mapToInt(Integer::intValue).average().orElse(min));
+        return RoadSlopeUtils.averageJunctionHeight(heights);
     }
 
     /**
@@ -386,7 +386,6 @@ public class RoadGenerator {
         int currentHeight = getTopHeight(world, firstBlockPos);
         
         double maxSlopePercent = config.getMaxSlope();
-        double maxSlopeRatio = maxSlopePercent / 100.0; // 转换为比率
         
         for (PathSegment segment : segments) {
             // 获取起始和结束的地面高度
@@ -396,29 +395,11 @@ public class RoadGenerator {
             int groundStart = getTopHeight(world, startBlockPos);
             int groundEnd = getTopHeight(world, endBlockPos);
             
-            // 计算最大允许高度差（基于坡度和距离）
-            double maxRise = segment.distance * maxSlopeRatio;
-            int idealRise = groundEnd - groundStart;
-            
-            // 计算目标高度（应用坡度限制）
             int targetStart = currentHeight;
-            int targetEnd;
-            
-            if (Math.abs(idealRise) <= maxRise) {
-                // 坡度在限制内，使用地面高度
-                targetEnd = groundEnd;
-            } else {
-                // 坡度超过限制，按最大坡度调整
-                if (idealRise > 0) {
-                    targetEnd = targetStart + (int) maxRise;
-                } else {
-                    targetEnd = targetStart - (int) maxRise;
-                }
-            }
-            
-            // 计算实际坡度
-            double actualSlope = segment.distance > 0 ? 
-                Math.abs(targetEnd - targetStart) / segment.distance * 100.0 : 0;
+            int targetEnd = RoadSlopeUtils.computeTargetEndHeight(
+                targetStart, groundStart, groundEnd, segment.distance, (float) maxSlopePercent);
+            double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
+                targetStart, targetEnd, segment.distance);
             
             heightInfos.add(new SegmentHeightInfo(segment, groundStart, groundEnd, targetStart, targetEnd, actualSlope));
             
@@ -447,29 +428,17 @@ public class RoadGenerator {
         double accumulatedDistance = 0.0;
         for (PathSegment segment : segments) {
             float maxSlopePercent = edge.getEffectiveMaxSlope(accumulatedDistance, config);
-            double maxSlopeRatio = maxSlopePercent / 100.0;
 
             BlockPos startBlockPos = canvasToBlockPos(segment.start);
             BlockPos endBlockPos = canvasToBlockPos(segment.end);
             int groundStart = getTopHeight(world, startBlockPos);
             int groundEnd = getTopHeight(world, endBlockPos);
 
-            double maxRise = segment.distance * maxSlopeRatio;
-            int idealRise = groundEnd - groundStart;
             int targetStart = currentHeight;
-            int targetEnd;
-
-            if (Math.abs(idealRise) <= maxRise) {
-                targetEnd = groundEnd;
-            } else if (idealRise > 0) {
-                targetEnd = targetStart + (int) maxRise;
-            } else {
-                targetEnd = targetStart - (int) maxRise;
-            }
-
-            double actualSlope = segment.distance > 0
-                ? Math.abs(targetEnd - targetStart) / segment.distance * 100.0
-                : 0;
+            int targetEnd = RoadSlopeUtils.computeTargetEndHeight(
+                targetStart, groundStart, groundEnd, segment.distance, maxSlopePercent);
+            double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
+                targetStart, targetEnd, segment.distance);
             heightInfos.add(new SegmentHeightInfo(
                 segment, groundStart, groundEnd, targetStart, targetEnd, actualSlope));
             currentHeight = targetEnd;
