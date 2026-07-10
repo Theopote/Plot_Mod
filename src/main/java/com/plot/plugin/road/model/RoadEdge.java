@@ -183,7 +183,7 @@ public class RoadEdge {
         if (sidewalkMaterial != null) {
             return sidewalkMaterial;
         }
-        return defaults.getSelectedMaterial();
+        return defaults.getSelectedSidewalkMaterial();
     }
 
     public float getEffectiveMaxSlope(RoadSystemConfig defaults) {

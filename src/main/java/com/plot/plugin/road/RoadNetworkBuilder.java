@@ -57,6 +57,7 @@ public class RoadNetworkBuilder {
             edge.setMaterial(defaults.getSelectedMaterial());
             edge.setIncludeSidewalk(defaults.isIncludeSidewalk());
             edge.setSidewalkWidth(defaults.getSidewalkWidth());
+            edge.setSidewalkMaterial(defaults.getSelectedSidewalkMaterial());
             edge.setMaxSlope(defaults.getMaxSlope());
         }
 

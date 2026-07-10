@@ -18,9 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 道路生成器
@@ -695,16 +697,25 @@ public class RoadGenerator {
             int targetY,
             String blockId,
             BlockProjectionHandler projectionHandler) {
-        double span = left.distance(right);
-        int steps = Math.max(1, (int) Math.ceil(span * 2.0));
-        for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
-            Vec2d sample = left.lerp(right, t);
-            BlockPos samplePos = canvasToBlockPos(sample);
-            BlockPos pos = new BlockPos(samplePos.getX(), targetY, samplePos.getZ());
+        for (BlockPos pos : rasterizeSpan(left, right, targetY)) {
             recordBlock(result, pos, blockId, projectionHandler);
             result.roadBlocks.add(pos);
         }
+    }
+
+    static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y) {
+        if (left == null || right == null) {
+            return List.of();
+        }
+        double span = left.distance(right);
+        int steps = Math.max(1, (int) Math.ceil(span * 2.0));
+        Set<BlockPos> unique = new LinkedHashSet<>();
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            Vec2d sample = left.lerp(right, t);
+            unique.add(new BlockPos((int) sample.x, y, (int) sample.y));
+        }
+        return new ArrayList<>(unique);
     }
 
     private void placeSidewalkStrip(

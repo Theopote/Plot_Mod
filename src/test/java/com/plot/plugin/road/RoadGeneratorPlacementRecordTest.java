@@ -1,10 +1,14 @@
 package com.plot.plugin.road;
 
+import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadGeneratorPlacementRecordTest {
 
@@ -36,5 +40,33 @@ class RoadGeneratorPlacementRecordTest {
 
         assertEquals(1, result.placementRecords.size());
         assertEquals("minecraft:stone", result.placementRecords.get(overlap).newBlockId);
+    }
+
+    @Test
+    void rasterizeSpanDiagonalProducesThinLineInsteadOfBoundingBox() {
+        List<BlockPos> positions = RoadGenerator.rasterizeSpan(
+            new Vec2d(0, 0),
+            new Vec2d(3, 3),
+            64
+        );
+
+        assertTrue(positions.size() <= 6,
+            "diagonal span should not expand to a dense bbox-like fill");
+        assertTrue(positions.stream().anyMatch(pos -> pos.getX() == 0 && pos.getZ() == 0));
+        assertTrue(positions.stream().anyMatch(pos -> pos.getX() == 3 && pos.getZ() == 3));
+    }
+
+    @Test
+    void rasterizeSpanHorizontalCoversEndpoints() {
+        List<BlockPos> positions = RoadGenerator.rasterizeSpan(
+            new Vec2d(2, 5),
+            new Vec2d(6, 5),
+            70
+        );
+
+        assertTrue(positions.stream().anyMatch(pos -> pos.getX() == 2 && pos.getZ() == 5));
+        assertTrue(positions.stream().anyMatch(pos -> pos.getX() == 6 && pos.getZ() == 5));
+        assertTrue(positions.size() >= 5,
+            "horizontal span should cover intermediate points along the strip");
     }
 }

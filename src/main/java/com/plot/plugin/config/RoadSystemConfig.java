@@ -19,6 +19,7 @@ public class RoadSystemConfig {
     private boolean includeSidewalk = true;
     private int sidewalkWidth = 1;
     private String selectedMaterial = "material.plot.concrete";
+    private String selectedSidewalkMaterial = "material.plot.concrete";
     private String selectedPreset = "";
     private List<RoadPreset> presets;
     
@@ -131,6 +132,14 @@ public class RoadSystemConfig {
 
     public void setSelectedMaterial(String selectedMaterial) {
         this.selectedMaterial = selectedMaterial;
+    }
+
+    public String getSelectedSidewalkMaterial() {
+        return selectedSidewalkMaterial != null ? selectedSidewalkMaterial : selectedMaterial;
+    }
+
+    public void setSelectedSidewalkMaterial(String selectedSidewalkMaterial) {
+        this.selectedSidewalkMaterial = selectedSidewalkMaterial;
     }
 
     public String getSelectedPreset() {

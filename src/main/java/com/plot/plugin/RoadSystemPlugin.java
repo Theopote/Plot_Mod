@@ -617,6 +617,41 @@ public class RoadSystemPlugin extends Plugin {
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
             config.setIncludeSidewalk(includeSidewalkRef.get());
         }
+
+        renderConfigMaterialCombo(
+            "##default_road_material",
+            PlotI18n.tr("plugin.road.material"),
+            config.getSelectedMaterial(),
+            config::setSelectedMaterial
+        );
+
+        if (config.isIncludeSidewalk()) {
+            renderConfigMaterialCombo(
+                "##default_sidewalk_material",
+                PlotI18n.tr("plugin.road.sidewalk_material"),
+                config.getSelectedSidewalkMaterial(),
+                config::setSelectedSidewalkMaterial
+            );
+        }
+    }
+
+    private void renderConfigMaterialCombo(
+            String comboId,
+            String label,
+            String currentValue,
+            MaterialSetter setter) {
+        String preview = PlotI18n.tr(currentValue);
+        if (ImGui.beginCombo(comboId, preview)) {
+            for (String material : MATERIAL_OPTIONS) {
+                boolean selected = material.equals(currentValue);
+                if (ImGui.selectable(PlotI18n.tr(material), selected)) {
+                    setter.set(material);
+                }
+            }
+            ImGui.endCombo();
+        }
+        ImGui.sameLine();
+        ImGui.textColored((int) 0xFF808080FFL, label);
     }
 
     private void adoptSelectedShape() {
