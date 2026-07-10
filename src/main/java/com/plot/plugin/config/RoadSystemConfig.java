@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class RoadSystemConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private final Path configPath;
+    private String pluginId;
 
     private int roadWidth = 5;
     private boolean includeSidewalk = true;
@@ -32,8 +32,12 @@ public class RoadSystemConfig {
     private double pathLength = 0.0; // 当前路径长度（米）
 
     public RoadSystemConfig(String pluginId) {
-        this.configPath = getConfigDirectory().resolve(pluginId + ".json");
+        this.pluginId = pluginId;
         initDefaultPresets();
+    }
+
+    private Path resolveConfigPath() {
+        return getConfigDirectory().resolve(pluginId + ".json");
     }
 
     private static Path getConfigDirectory() {
@@ -54,7 +58,11 @@ public class RoadSystemConfig {
         if (Files.exists(configPath)) {
             try {
                 String json = Files.readString(configPath);
-                return GSON.fromJson(json, configClass);
+                T config = GSON.fromJson(json, configClass);
+                if (config != null) {
+                    applyLoadedState(config, pluginId);
+                }
+                return config;
             } catch (IOException e) {
                 LogManager.getInstance().error("Failed to load config: " + configPath, e);
             }
@@ -62,16 +70,26 @@ public class RoadSystemConfig {
         return null;
     }
 
+    private static void applyLoadedState(RoadSystemConfig config, String pluginId) {
+        if (config.pluginId == null) {
+            config.pluginId = pluginId;
+        }
+        if (config.presets == null) {
+            config.initDefaultPresets();
+        }
+    }
+
     /**
      * 保存配置
      */
     public void save() {
         try {
+            Path configPath = resolveConfigPath();
             Files.createDirectories(configPath.getParent());
             String json = GSON.toJson(this);
             Files.writeString(configPath, json);
         } catch (IOException e) {
-            LogManager.getInstance().error("Failed to save config: " + configPath, e);
+            LogManager.getInstance().error("Failed to save config: " + resolveConfigPath(), e);
         }
     }
 

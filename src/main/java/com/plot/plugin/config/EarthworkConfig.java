@@ -13,7 +13,6 @@ import java.nio.file.*;
 public class EarthworkConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final String pluginId;
-    private final Path configPath;
 
     // 网格设置
     private int gridSize = 5;
@@ -30,7 +29,10 @@ public class EarthworkConfig {
 
     public EarthworkConfig(String pluginId) {
         this.pluginId = pluginId;
-        this.configPath = getConfigDirectory().resolve(pluginId + ".json");
+    }
+
+    private Path resolveConfigPath() {
+        return getConfigDirectory().resolve(pluginId + ".json");
     }
 
     private static Path getConfigDirectory() {
@@ -64,11 +66,12 @@ public class EarthworkConfig {
      */
     public void save() {
         try {
+            Path configPath = resolveConfigPath();
             Files.createDirectories(configPath.getParent());
             String json = GSON.toJson(this);
             Files.write(configPath, json.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            LogManager.getInstance().error("Failed to save config: " + configPath, e);
+            LogManager.getInstance().error("Failed to save config: " + resolveConfigPath(), e);
         }
     }
 

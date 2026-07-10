@@ -14,7 +14,6 @@ import java.util.*;
 public class ImageToolsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final String pluginId;
-    private final Path configPath;
 
     // 图片设置
     private float brightness = 100.0f;
@@ -29,8 +28,11 @@ public class ImageToolsConfig {
 
     public ImageToolsConfig(String pluginId) {
         this.pluginId = pluginId;
-        this.configPath = getConfigDirectory().resolve(pluginId + ".json");
         initDefaultPresets();
+    }
+
+    private Path resolveConfigPath() {
+        return getConfigDirectory().resolve(pluginId + ".json");
     }
 
     private void initDefaultPresets() {
@@ -75,11 +77,12 @@ public class ImageToolsConfig {
      */
     public void save() {
         try {
+            Path configPath = resolveConfigPath();
             Files.createDirectories(configPath.getParent());
             String json = GSON.toJson(this);
             Files.write(configPath, json.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            LogManager.getInstance().error("Failed to save config: " + configPath, e);
+            LogManager.getInstance().error("Failed to save config: " + resolveConfigPath(), e);
         }
     }
 

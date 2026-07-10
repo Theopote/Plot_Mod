@@ -18,12 +18,7 @@ import com.plot.ui.panel.extension.ExtensionPanel;
 import com.plot.ui.panel.gallery.GalleryPanel;
 import imgui.ImGui;
 import imgui.ImGuiStyle;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiCond;
-import imgui.flag.ImGuiDir;
-import imgui.flag.ImGuiDockNodeFlags;
-import imgui.flag.ImGuiMouseCursor;
-import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.*;
 import imgui.type.ImInt;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -35,7 +30,6 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import net.minecraft.client.MinecraftClient;
-import imgui.flag.ImGuiStyleVar;
 import net.minecraft.client.util.Window;
 import com.plot.ui.container.UIContainer;
 import com.plot.ui.utils.PlotTextureLifecycle;
@@ -83,9 +77,10 @@ public class PlotScreen extends Screen {
     private static final String WIN_TOP_ID = "##ControlPanel";
     private static final String WIN_TOP_SYSTEM_ID = "##SystemPanel";
     private static final String WIN_LEFT_ID = "##ToolPanel";
-    // 右侧拆分为三个独立窗口，Dock 到同一个 right dock node 后会自动以 Tab 形式组合展示
-    private static final String WIN_RIGHT_PROPERTY_ID = "##PropertyPanel";
-    private static final String WIN_RIGHT_EXTENSION = "扩展##ExtensionPanel";
+    // 右侧面板：属性 + 扩展，在同一窗口内用 Tab 切换
+    private static final String WIN_RIGHT_SIDE_ID = "##RightSidePanel";
+    /** 递增以在布局结构变化时强制重建 Dock（例如重新启用扩展面板） */
+    private static final int DOCK_LAYOUT_VERSION = 2;
 
     private int dockspaceId;
     private int dockIdTopLeft;  // 顶部左侧（ControlPanel）
@@ -93,6 +88,7 @@ public class PlotScreen extends Screen {
     private int dockIdLeft;
     private int dockIdRight;
     private boolean dockLayoutBuilt;
+    private int appliedDockLayoutVersion = 0;
     private int lastDockW;
     private int lastDockH;
     private boolean firstRender = true; // 跟踪首次渲染，用于设置默认激活的标签
@@ -199,8 +195,7 @@ public class PlotScreen extends Screen {
             toolPanel.init();
         }
         if (propertyPanel != null) propertyPanel.init();
-        // 暂时隐藏扩展面板的初始化（保留代码供后续开发）
-        // if (extensionPanel != null) extensionPanel.init();
+        if (extensionPanel != null) extensionPanel.init();
         if (canvas != null) {
             // 修复：确保Canvas被正确初始化，包括CanvasCore的camera
             canvas.init();
@@ -498,7 +493,7 @@ public class PlotScreen extends Screen {
         int w = Math.max(1, Math.round(displayWidth));
         int h = Math.max(1, Math.round(displayHeight));
         boolean sizeChanged = (w != lastDockW) || (h != lastDockH);
-        if (dockLayoutBuilt && !sizeChanged) {
+        if (dockLayoutBuilt && !sizeChanged && appliedDockLayoutVersion == DOCK_LAYOUT_VERSION) {
             return;
         }
         lastDockW = w;
@@ -559,16 +554,12 @@ public class PlotScreen extends Screen {
         // 停靠窗口到对应的dock节点
         imgui.internal.ImGui.dockBuilderDockWindow(controlPanelWindowTitle(), dockIdTopLeft);  // 控制面板在顶部左侧
         imgui.internal.ImGui.dockBuilderDockWindow(systemPanelWindowTitle(), dockIdTopRight);  // 系统面板在顶部右侧
-        imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindowTitle(), dockIdLeft);  // 工具面板在左侧
-        // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
-        // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
-        imgui.internal.ImGui.dockBuilderDockWindow(propertyPanelWindowTitle(), dockIdRight);
-        // 暂时隐藏图库面板和扩展面板的UI（保留代码供后续开发）
-        // imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_GALLERY, dockIdRight);
-        // imgui.internal.ImGui.dockBuilderDockWindow(WIN_RIGHT_EXTENSION, dockIdRight);
+        imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindowTitle(), dockIdLeft);
+        imgui.internal.ImGui.dockBuilderDockWindow(rightSidePanelWindowTitle(), dockIdRight);
         // 关键：中央节点不 dock 任何窗口，配合 PassthruCentralNode 让中央区域天然留空且透明（参考 ChronoBlocks）
 
         imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
+        appliedDockLayoutVersion = DOCK_LAYOUT_VERSION;
         dockLayoutBuilt = true;
     }
 
@@ -645,40 +636,43 @@ public class PlotScreen extends Screen {
     }
 
     private void renderDockedRightPanels(PropertyPanel propertyPanel, GalleryPanel galleryPanel, ExtensionPanel extensionPanel) {
-        // 右侧三个窗口共用同一套样式，并依赖 Docking 自动变成 Tab
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, UILayout.CONTENT_PADDING, UILayout.CONTENT_PADDING);
         ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
 
         try {
-            // 属性面板（第一个渲染，确保在最前面且默认打开）
-            if (propertyPanel != null) {
-                if (firstRender) {
-                    ImGui.setNextWindowFocus();
-                }
-                boolean propertyVisible = ImGui.begin(propertyPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
-                try {
-                    if (propertyVisible) {
-                        propertyPanel.render();
-                        recordCurrentWindowLeftEdge();
-                    }
-                } finally {
-                    ImGui.end();
-                }
+            if (firstRender) {
+                ImGui.setNextWindowFocus();
             }
-
-            // 扩展
-            // if (extensionPanel != null) {
-            //     ImGui.setNextWindowPos(x, y, ImGuiCond.FirstUseEver);
-            //     ImGui.setNextWindowSize(w, h, ImGuiCond.FirstUseEver);
-            //     ImGui.begin(WIN_RIGHT_EXTENSION, DOCKABLE_WINDOW_FLAGS);
-            //     extensionPanel.render();
-            //     ImGui.end();
-            // }
+            boolean sidePanelVisible = ImGui.begin(rightSidePanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            try {
+                if (sidePanelVisible) {
+                    if (ImGui.beginTabBar("##right_side_tabs", ImGuiTabBarFlags.None)) {
+                        // 属性标签在前，默认展开
+                        if (ImGui.beginTabItem(PlotI18n.tr("panel.plot.properties") + "##property_tab")) {
+                            if (propertyPanel != null) {
+                                propertyPanel.render();
+                            }
+                            ImGui.endTabItem();
+                        }
+                        // 扩展标签在后
+                        if (ImGui.beginTabItem(PlotI18n.tr("panel.plot.extension") + "##extension_tab")) {
+                            if (extensionPanel != null) {
+                                extensionPanel.render();
+                            }
+                            ImGui.endTabItem();
+                        }
+                        ImGui.endTabBar();
+                    }
+                    recordCurrentWindowLeftEdge();
+                }
+            } finally {
+                ImGui.end();
+            }
         } finally {
-        ImGui.popStyleColor(2);
-        ImGui.popStyleVar(2);
+            ImGui.popStyleColor(2);
+            ImGui.popStyleVar(2);
         }
     }
 
@@ -694,8 +688,8 @@ public class PlotScreen extends Screen {
         return PlotI18n.tr("panel.plot.tool_panel") + WIN_LEFT_ID;
     }
 
-    private static String propertyPanelWindowTitle() {
-        return PlotI18n.tr("panel.plot.properties") + WIN_RIGHT_PROPERTY_ID;
+    private static String rightSidePanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.properties") + WIN_RIGHT_SIDE_ID;
     }
 
     private void recordCurrentWindowRightEdge() {
