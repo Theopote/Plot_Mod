@@ -1139,4 +1139,49 @@ public class OffsetHandler implements IModifyHandler, IShapeVisitor {
     public List<String> getWarningMessages() {
         return new ArrayList<>(warningMessages);
     }
+
+    /**
+     * 纯折线偏移（不依赖 Shape / 图层上下文），供道路系统等插件调用。
+     * 正距离沿行进方向左侧偏移，负距离为右侧。
+     */
+    public static List<Vec2d> offsetPolyline(List<Vec2d> points, double distance) {
+        if (points == null || points.size() < 2) {
+            return new ArrayList<>();
+        }
+
+        int n = points.size();
+        List<LineShape> offsetSegments = new ArrayList<>();
+        for (int i = 0; i < n - 1; i++) {
+            Vec2d p1 = points.get(i);
+            Vec2d p2 = points.get(i + 1);
+            Vec2d direction = p2.subtract(p1);
+            double length = direction.length();
+            if (length < 1e-8) {
+                continue;
+            }
+            Vec2d normal = new Vec2d(-direction.y, direction.x).normalize();
+            Vec2d offset = normal.multiply(distance);
+            offsetSegments.add(new LineShape(p1.add(offset), p2.add(offset)));
+        }
+
+        List<Vec2d> offsetPoints = new ArrayList<>();
+        for (int i = 0; i < offsetSegments.size(); i++) {
+            LineShape seg1 = offsetSegments.get(i);
+            LineShape seg2 = offsetSegments.get(Math.min(i + 1, offsetSegments.size() - 1));
+            if (i < offsetSegments.size() - 1) {
+                List<Vec2d> intersections = seg1.getIntersectionPoints(seg2);
+                if (!intersections.isEmpty()) {
+                    offsetPoints.add(intersections.getFirst());
+                } else {
+                    offsetPoints.add(seg1.getEnd());
+                }
+            }
+        }
+
+        if (!offsetSegments.isEmpty()) {
+            offsetPoints.addFirst(offsetSegments.getFirst().getStart());
+            offsetPoints.add(offsetSegments.getLast().getEnd());
+        }
+        return offsetPoints;
+    }
 }

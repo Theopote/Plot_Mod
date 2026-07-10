@@ -2,12 +2,14 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
-import com.plot.core.geometry.shapes.PolylineShape;
-import com.plot.core.geometry.shapes.FreeDrawPath;
-import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.client.MinecraftClient;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNode;
+import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
+import com.plot.core.command.commands.GenerateRoadCommand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.Heightmap;
@@ -15,7 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 道路生成器
@@ -33,6 +37,10 @@ public class RoadGenerator {
     private final RoadSystemConfig config;
     private final CoordinateTransformer coordinateTransformer;
     
+    public RoadSystemConfig getConfig() {
+        return config;
+    }
+
     public RoadGenerator(RoadSystemConfig config, CoordinateTransformer coordinateTransformer) {
         this.config = config;
         this.coordinateTransformer = coordinateTransformer;
@@ -43,13 +51,17 @@ public class RoadGenerator {
      */
     public static class RoadGenerationResult {
         public final List<BlockPos> roadBlocks = new ArrayList<>();
+        public final List<BlockPos> sidewalkBlocks = new ArrayList<>();
         public final List<BlockPos> bridgeBlocks = new ArrayList<>();
         public final List<BlockPos> tunnelBlocks = new ArrayList<>();
-        public int cutVolume;      // 挖方量（方块数）
-        public int fillVolume;     // 填方量（方块数）
-        public int bridgeCount;    // 桥梁数量
-        public int tunnelCount;    // 隧道数量
-        public double pathLength;  // 路径长度（米）
+        public final List<BlockPos> streetlightBlocks = new ArrayList<>();
+        public final Map<BlockPos, GenerateRoadCommand.BlockRecord> placementRecords = new LinkedHashMap<>();
+        public int cutVolume;
+        public int fillVolume;
+        public int bridgeCount;
+        public int tunnelCount;
+        public int streetlightCount;
+        public double pathLength;
         
         public RoadGenerationResult(double pathLength) {
             this.pathLength = pathLength;
@@ -111,43 +123,80 @@ public class RoadGenerator {
         }
     }
     
-    /**
-     * 从路径图形中提取点列表
-     */
     private List<Vec2d> extractPathPoints(Shape path) {
-        if (path instanceof PolylineShape) {
-            return path.getPoints();
-        } else if (path instanceof FreeDrawPath) {
-            return path.getPoints();
-        } else if (path instanceof BezierCurveShape) {
-            // 贝塞尔曲线需要采样
-            return sampleBezierCurve((BezierCurveShape) path, 20);
-        }
-        return null;
+        return RoadGeometryUtils.extractShapePoints(path);
     }
     
     /**
-     * 采样贝塞尔曲线
+     * 基于路网边生成道路（不依赖 Shape）
      */
-    private List<Vec2d> sampleBezierCurve(BezierCurveShape curve, int samples) {
-        List<Vec2d> points = new ArrayList<>();
-        List<Vec2d> controlPoints = curve.getControlPoints();
-        if (controlPoints == null || controlPoints.size() < 2) {
-            return points;
+    public RoadGenerationResult generateEdge(RoadEdge edge, RoadNode startNode, RoadNode endNode, World world) {
+        if (edge == null || world == null) {
+            LOGGER.warn("道路边或世界为空，无法生成");
+            return new RoadGenerationResult(0);
         }
-        
-        // 简化实现：使用控制点线性插值（实际应该使用贝塞尔曲线公式）
-        for (int i = 0; i < controlPoints.size() - 1; i++) {
-            Vec2d p1 = controlPoints.get(i);
-            Vec2d p2 = controlPoints.get(i + 1);
-            for (int j = 0; j < samples; j++) {
-                double t = (double) j / samples;
-                points.add(p1.lerp(p2, t));
+
+        List<Vec2d> pathPoints = edge.getCenterlinePoints();
+        if (pathPoints.size() < 2) {
+            LOGGER.warn("道路中心线点数不足");
+            return new RoadGenerationResult(0);
+        }
+
+        try {
+            List<PathSegment> segments = samplePath(pathPoints);
+            List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
+                segments, world, edge, startNode);
+            List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
+            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, world);
+
+            double halfWidth = edge.getEffectiveWidth(config) / 2.0;
+            List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
+            List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfWidth);
+
+            RoadGenerationResult result = generateRoadBlocksFromBoundaries(
+                segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, world,
+                getBlockIdFromMaterial(edge.getEffectiveMaterial(config)));
+
+            if (edge.getEffectiveIncludeSidewalk(config)) {
+                double sidewalkOffset = halfWidth + edge.getEffectiveSidewalkWidth(config) / 2.0;
+                List<Vec2d> leftSidewalk = OffsetHandler.offsetPolyline(pathPoints, sidewalkOffset);
+                List<Vec2d> rightSidewalk = OffsetHandler.offsetPolyline(pathPoints, -sidewalkOffset);
+                generateSidewalkBlocks(result, segments, heightInfos, leftSidewalk, rightSidewalk,
+                    edge.getEffectiveSidewalkWidth(config), world,
+                    getBlockIdFromMaterial(edge.getEffectiveSidewalkMaterial(config)));
             }
+
+            Integer spacing = edge.getStreetlightSpacing();
+            if (spacing != null && spacing > 0) {
+                generateStreetlights(result, pathPoints, edge, world);
+            }
+
+            result.pathLength = edge.getLength();
+            return result;
+        } catch (Exception e) {
+            LOGGER.error("生成道路边失败: {}", e.getMessage(), e);
+            return new RoadGenerationResult(0);
         }
-        return points;
     }
-    
+
+    public void mergeResult(RoadGenerationResult target, RoadGenerationResult source) {
+        if (target == null || source == null) {
+            return;
+        }
+        target.roadBlocks.addAll(source.roadBlocks);
+        target.sidewalkBlocks.addAll(source.sidewalkBlocks);
+        target.bridgeBlocks.addAll(source.bridgeBlocks);
+        target.tunnelBlocks.addAll(source.tunnelBlocks);
+        target.streetlightBlocks.addAll(source.streetlightBlocks);
+        target.placementRecords.putAll(source.placementRecords);
+        target.cutVolume += source.cutVolume;
+        target.fillVolume += source.fillVolume;
+        target.bridgeCount += source.bridgeCount;
+        target.tunnelCount += source.tunnelCount;
+        target.streetlightCount += source.streetlightCount;
+        target.pathLength += source.pathLength;
+    }
+
     /**
      * 路径分段
      */
@@ -302,6 +351,55 @@ public class RoadGenerator {
         
         return heightInfos;
     }
+
+    private List<SegmentHeightInfo> calculateSegmentHeightsForEdge(
+            List<PathSegment> segments, World world, RoadEdge edge, RoadNode startNode) {
+        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
+        if (segments.isEmpty()) {
+            return heightInfos;
+        }
+
+        int currentHeight;
+        if (startNode != null && startNode.getManualElevation() != null) {
+            currentHeight = startNode.getManualElevation().intValue();
+        } else {
+            Vec2d firstPoint = segments.getFirst().start;
+            currentHeight = getTopHeight(world, canvasToBlockPos(firstPoint));
+        }
+
+        double accumulatedDistance = 0.0;
+        for (PathSegment segment : segments) {
+            float maxSlopePercent = edge.getEffectiveMaxSlope(accumulatedDistance, config);
+            double maxSlopeRatio = maxSlopePercent / 100.0;
+
+            BlockPos startBlockPos = canvasToBlockPos(segment.start);
+            BlockPos endBlockPos = canvasToBlockPos(segment.end);
+            int groundStart = getTopHeight(world, startBlockPos);
+            int groundEnd = getTopHeight(world, endBlockPos);
+
+            double maxRise = segment.distance * maxSlopeRatio;
+            int idealRise = groundEnd - groundStart;
+            int targetStart = currentHeight;
+            int targetEnd;
+
+            if (Math.abs(idealRise) <= maxRise) {
+                targetEnd = groundEnd;
+            } else if (idealRise > 0) {
+                targetEnd = targetStart + (int) maxRise;
+            } else {
+                targetEnd = targetStart - (int) maxRise;
+            }
+
+            double actualSlope = segment.distance > 0
+                ? Math.abs(targetEnd - targetStart) / segment.distance * 100.0
+                : 0;
+            heightInfos.add(new SegmentHeightInfo(
+                segment, groundStart, groundEnd, targetStart, targetEnd, actualSlope));
+            currentHeight = targetEnd;
+            accumulatedDistance += segment.distance;
+        }
+        return heightInfos;
+    }
     
     /**
      * 检测桥需求
@@ -407,6 +505,182 @@ public class RoadGenerator {
         result.fillVolume = fillVolume;
         
         return result;
+    }
+
+    private RoadGenerationResult generateRoadBlocksFromBoundaries(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            List<BridgeSegment> bridges,
+            List<TunnelSegment> tunnels,
+            World world,
+            String blockId) {
+        RoadGenerationResult result = new RoadGenerationResult(
+            segments.stream().mapToDouble(s -> s.distance).sum());
+        result.bridgeCount = bridges.size();
+        result.tunnelCount = tunnels.size();
+
+        int cutVolume = 0;
+        int fillVolume = 0;
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            PathSegment segment = segments.get(i);
+            SegmentHeightInfo info = heightInfos.get(i);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                Vec2d point = segment.start.lerp(segment.end, t);
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+
+                Vec2d left = interpolateBoundary(leftBoundary, t, i, segments.size());
+                Vec2d right = interpolateBoundary(rightBoundary, t, i, segments.size());
+                fillBetweenPoints(result, point, left, right, targetY, world, blockId, projectionHandler);
+
+                int groundY = getTopHeight(world, canvasToBlockPos(point));
+                if (targetY < groundY) {
+                    cutVolume += (groundY - targetY);
+                } else if (targetY > groundY) {
+                    fillVolume += (targetY - groundY);
+                }
+            }
+        }
+
+        result.cutVolume = cutVolume;
+        result.fillVolume = fillVolume;
+        return result;
+    }
+
+    private void generateSidewalkBlocks(
+            RoadGenerationResult result,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            int sidewalkWidth,
+            World world,
+            String blockId) {
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            PathSegment segment = segments.get(i);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                Vec2d left = interpolateBoundary(leftBoundary, t, i, segments.size());
+                Vec2d right = interpolateBoundary(rightBoundary, t, i, segments.size());
+                placeSidewalkStrip(result, left, sidewalkWidth, targetY, world, blockId, projectionHandler);
+                placeSidewalkStrip(result, right, sidewalkWidth, targetY, world, blockId, projectionHandler);
+            }
+        }
+    }
+
+    private void generateStreetlights(RoadGenerationResult result, List<Vec2d> pathPoints,
+                                      RoadEdge edge, World world) {
+        int spacing = edge.getStreetlightSpacing();
+        double skipDistance = edge.getEffectiveWidth(config);
+        double offset = edge.getEffectiveWidth(config) / 2.0
+            + (edge.getEffectiveIncludeSidewalk(config) ? edge.getEffectiveSidewalkWidth(config) : 0)
+            + 0.5;
+
+        List<Vec2d> samples = RoadGeometryUtils.sampleAlongPath(pathPoints, spacing, skipDistance);
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        boolean placeLeft = true;
+
+        for (Vec2d sample : samples) {
+            int index = Math.max(0, Math.min(pathPoints.size() - 2,
+                RoadGeometryUtils.findNearestSegmentIndex(pathPoints, sample)));
+            Vec2d direction = pathPoints.get(index + 1).subtract(pathPoints.get(index)).normalize();
+            Vec2d normal = new Vec2d(-direction.y, direction.x);
+            double side = placeLeft ? offset : -offset;
+            Vec2d lightPos = sample.add(normal.multiply(side));
+            BlockPos blockPos = canvasToBlockPos(lightPos);
+            int groundY = getTopHeight(world, blockPos);
+            BlockPos finalPos = new BlockPos(blockPos.getX(), groundY + 1, blockPos.getZ());
+            recordBlock(result, finalPos, "minecraft:lantern", projectionHandler);
+            result.streetlightBlocks.add(finalPos);
+            placeLeft = !placeLeft;
+        }
+        result.streetlightCount = result.streetlightBlocks.size();
+    }
+
+    private Vec2d interpolateBoundary(List<Vec2d> boundary, double t, int segmentIndex, int totalSegments) {
+        if (boundary == null || boundary.isEmpty()) {
+            return new Vec2d(0, 0);
+        }
+        int index = Math.min(
+            boundary.size() - 1,
+            Math.max(0, (int) Math.round((segmentIndex + t) / Math.max(1, totalSegments) * (boundary.size() - 1)))
+        );
+        return boundary.get(index);
+    }
+
+    private void fillBetweenPoints(
+            RoadGenerationResult result,
+            Vec2d center,
+            Vec2d left,
+            Vec2d right,
+            int targetY,
+            World world,
+            String blockId,
+            BlockProjectionHandler projectionHandler) {
+        BlockPos leftPos = canvasToBlockPos(left);
+        BlockPos rightPos = canvasToBlockPos(right);
+        int minX = Math.min(leftPos.getX(), rightPos.getX());
+        int maxX = Math.max(leftPos.getX(), rightPos.getX());
+        int minZ = Math.min(leftPos.getZ(), rightPos.getZ());
+        int maxZ = Math.max(leftPos.getZ(), rightPos.getZ());
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                BlockPos pos = new BlockPos(x, targetY, z);
+                recordBlock(result, pos, blockId, projectionHandler);
+                result.roadBlocks.add(pos);
+            }
+        }
+    }
+
+    private void placeSidewalkStrip(
+            RoadGenerationResult result,
+            Vec2d center,
+            int width,
+            int targetY,
+            World world,
+            String blockId,
+            BlockProjectionHandler projectionHandler) {
+        BlockPos centerPos = canvasToBlockPos(center);
+        int half = Math.max(0, width / 2);
+        for (int dx = -half; dx <= half; dx++) {
+            for (int dz = -half; dz <= half; dz++) {
+                BlockPos pos = new BlockPos(centerPos.getX() + dx, targetY, centerPos.getZ() + dz);
+                recordBlock(result, pos, blockId, projectionHandler);
+                result.sidewalkBlocks.add(pos);
+            }
+        }
+    }
+
+    private void recordBlock(
+            RoadGenerationResult result,
+            BlockPos pos,
+            String newBlockId,
+            BlockProjectionHandler projectionHandler) {
+        if (!result.placementRecords.containsKey(pos)) {
+            String previous = projectionHandler.getBlockIdAt(pos);
+            result.placementRecords.put(pos, new GenerateRoadCommand.BlockRecord(pos, previous, newBlockId));
+        }
+    }
+
+    private String getBlockIdFromMaterial(String material) {
+        return switch (material) {
+            case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
+            case "material.plot.gravel", "砂砾" -> "minecraft:gravel";
+            case "material.plot.planks", "木板" -> "minecraft:oak_planks";
+            case "material.plot.stone", "石头" -> "minecraft:stone";
+            default -> "minecraft:stone";
+        };
     }
     
     /**

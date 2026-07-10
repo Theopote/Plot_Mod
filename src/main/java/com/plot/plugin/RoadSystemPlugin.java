@@ -2,12 +2,11 @@ package com.plot.plugin;
 
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiTabBarFlags;
 import imgui.type.ImBoolean;
 
 import com.plot.ui.component.Icons;
-import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.config.RoadSystemConfig.RoadPreset;
 import com.plot.core.state.AppState;
 import com.plot.core.model.Shape;
 import com.plot.core.geometry.shapes.PolylineShape;
@@ -16,41 +15,67 @@ import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.tool.BaseTool;
+import com.plot.core.command.CommandManager;
+import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNetworkHistory;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.GhostBlockManager;
-import com.plot.infrastructure.event.block.BlockProjectionEvent;
 import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.EventListener;
+import com.plot.infrastructure.event.project.ProjectLoadedEvent;
+import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
 
 public class RoadSystemPlugin extends Plugin {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadSystemPlugin");
-    
+    private static final String DEFAULT_NETWORK_FILE = "default.json";
+
     private RoadSystemConfig config;
+    private RoadNetwork network = new RoadNetwork();
+    private final RoadNetworkHistory networkHistory = new RoadNetworkHistory();
+    private final RoadNetworkBuilder networkBuilder = new RoadNetworkBuilder();
+
+    private RoadGenerator roadGenerator;
+    private RoadNetworkGenerator networkGenerator;
+
     private final ImBoolean includeSidewalkRef = new ImBoolean(false);
-    private final ImBoolean includeShoulderRef = new ImBoolean(false);
-    private final ImBoolean includeDrainageRef = new ImBoolean(false);
-    
-    // 当前选择的路径
     private Shape selectedPath = null;
-    
-    // 道路生成器
-    private RoadGenerator roadGenerator = null;
-    
-    // 统计结果（从RoadGenerator获取）
-    private int cutVolume = 0;
-    private int fillVolume = 0;
-    private int bridgeCount = 0;
-    private int tunnelCount = 0;
-    
-    // 道路生成结果（用于预览）
+    private String selectedEdgeId = "";
+    private String projectStatus = "";
+
     private RoadGenerator.RoadGenerationResult lastGenerationResult = null;
-    
+    private String currentNetworkFile = DEFAULT_NETWORK_FILE;
+
+    private final EventListener projectLoadedListener = event -> {
+        if (event instanceof ProjectLoadedEvent loaded) {
+            onProjectLoaded(loaded.getFilePath());
+        }
+    };
+    private final EventListener projectSavedListener = event -> {
+        if (event instanceof ProjectSavedEvent saved) {
+            onProjectSaved(saved.getFilePath());
+        }
+    };
+
     public RoadSystemPlugin() {
         super(
             "road_system",
@@ -59,88 +84,144 @@ public class RoadSystemPlugin extends Plugin {
             Icons.ROAD
         );
     }
-    
+
     @Override
     public void onEnable() {
-        // 加载配置
         config = RoadSystemConfig.load(RoadSystemConfig.class, getId());
         if (config == null) {
             config = new RoadSystemConfig(getId());
         }
         includeSidewalkRef.set(config.isIncludeSidewalk());
-        includeShoulderRef.set(config.isIncludeShoulder());
-        includeDrainageRef.set(config.isIncludeDrainage());
-        
-        // 初始化道路生成器
+
         try {
             CoordinateTransformer transformer = CoordinateTransformer.getInstance();
             roadGenerator = new RoadGenerator(config, transformer);
+            networkGenerator = new RoadNetworkGenerator(roadGenerator);
         } catch (Exception e) {
             LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
         }
+
+        EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
+        EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
+        loadNetworkFile(getNetworksDir().resolve(DEFAULT_NETWORK_FILE));
+        projectStatus = PlotI18n.tr("plugin.road.network.default_loaded");
     }
-    
+
     @Override
     public void onDisable() {
-        // 保存配置
+        saveNetworkFile(getNetworksDir().resolve(currentNetworkFile));
+
+        EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
+        EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+
         if (config != null) {
             config.save();
         }
     }
-    
+
     @Override
     public void render() {
-        if (config == null) return;
-        
-        // ========== 预设选择 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.road_presets"));
-        ImGui.beginChild("road_presets", 0, 100, true);
-        ImGui.columns(2, "presets_columns", false);
-        for (RoadPreset preset : config.getPresets()) {
-            boolean isSelected = preset.id.equals(config.getSelectedPreset());
-            if (UIUtils.selectableCard(PlotI18n.tr("preset.road." + preset.id), isSelected, 150, 40)) {
-                if (isSelected) {
-                    config.setSelectedPreset("");
-                } else {
-                    config.setSelectedPreset(preset.id);
-                    config.applyPreset(preset);
+        if (config == null) {
+            return;
+        }
+
+        renderToolbar();
+
+        if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
+            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.overview"))) {
+                renderOverviewTab();
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.adopt"))) {
+                renderAdoptTab();
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.edit"))) {
+                renderEditTab();
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.generate"))) {
+                renderGenerateTab();
+                ImGui.endTabItem();
+            }
+            ImGui.endTabBar();
+        }
+    }
+
+    private void renderToolbar() {
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.undo"), buttonWidth, 0)) {
+            network = networkHistory.undo(network);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.redo"), buttonWidth, 0)) {
+            network = networkHistory.redo(network);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.save_network"), buttonWidth, 0)) {
+            saveCurrentNetwork();
+        }
+
+        if (!projectStatus.isEmpty()) {
+            ImGui.textColored((int) 0xFF80FF80FFL, projectStatus);
+        }
+        ImGui.separator();
+    }
+
+    private void renderOverviewTab() {
+        ImGui.text(PlotI18n.tr("plugin.road.network_stats",
+            network.getNodes().size(),
+            network.getEdges().size(),
+            network.getJunctionCount(),
+            String.format("%.1f", network.getTotalLength())));
+
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
+        ImGui.beginChild("edge_list", 0, 180, true);
+        for (RoadEdge edge : network.getEdges().values()) {
+            RoadNode start = network.getNode(edge.getStartNodeId());
+            RoadNode end = network.getNode(edge.getEndNodeId());
+            String label = String.format("(%.0f,%.0f) -> (%.0f,%.0f), %.1fm",
+                start != null ? start.getPosition().x : 0,
+                start != null ? start.getPosition().y : 0,
+                end != null ? end.getPosition().x : 0,
+                end != null ? end.getPosition().y : 0,
+                edge.getLength());
+
+            boolean selected = edge.getId().equals(selectedEdgeId);
+            if (ImGui.selectable(label + "##" + edge.getId(), selected)) {
+                selectedEdgeId = edge.getId();
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##del_" + edge.getId())) {
+                networkHistory.push(network);
+                network.removeEdge(edge.getId());
+                if (edge.getId().equals(selectedEdgeId)) {
+                    selectedEdgeId = "";
                 }
             }
-            ImGui.nextColumn();
         }
-        ImGui.columns(1);
         ImGui.endChild();
-        
+    }
+
+    private void renderAdoptTab() {
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.adopt_hint"));
         ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
-        
-        // ========== 路径信息 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.path_info"));
-        
-        // 尝试从选中的图形中获取路径
+
         updateSelectedPath();
-        
         if (selectedPath != null) {
-            double pathLength = calculatePathLength(selectedPath);
-            config.setPathLength(pathLength);
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"), pathLength));
-            ImGui.textColored((int) 0xFF4080FFFFL, PlotI18n.tr("plugin.road.path_type", getPathTypeName(selectedPath)));
-            
-            if (ImGui.button(PlotI18n.tr("plugin.road.edit_path"), ImGui.getContentRegionAvailX(), 0)) {
-                // 选中路径并激活修改工具
-                selectPathForEditing();
-            }
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"),
+                calculatePathLength(selectedPath)));
+            ImGui.textColored((int) 0xFF4080FFFFL,
+                PlotI18n.tr("plugin.road.path_type", getPathTypeName(selectedPath)));
         } else {
-            // 检查是否有路径可用
             List<Shape> availablePaths = findAvailablePaths();
             if (!availablePaths.isEmpty()) {
-                ImGui.textColored((int) 0xFFFFAA00FFL, PlotI18n.tr("plugin.road.paths_found", availablePaths.size()));
-                ImGui.text(PlotI18n.tr("plugin.road.select_path_hint"));
-                
                 if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
                     for (Shape path : availablePaths) {
-                        String label = String.format(PlotI18n.tr("plugin.road.path_combo_item"), getPathTypeName(path), calculatePathLength(path));
+                        String label = String.format(PlotI18n.tr("plugin.road.path_combo_item"),
+                            getPathTypeName(path), calculatePathLength(path));
                         if (ImGui.selectable(label, path == selectedPath)) {
                             selectedPath = path;
                             AppState.getInstance().setSelectedShapes(List.of(path));
@@ -153,258 +234,351 @@ public class RoadSystemPlugin extends Plugin {
                 ImGui.text(PlotI18n.tr("plugin.road.draw_path_hint"));
             }
         }
-        
-        ImGui.spacing();
+
         ImGui.separator();
-        ImGui.spacing();
-        
-        // ========== 基本参数 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
-        
-        // 道路宽度
-        ImGui.text(PlotI18n.tr("plugin.road.road_width", config.getRoadWidth()));
-        int[] roadWidth = {config.getRoadWidth()};
-        if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, "")) {
-            config.setRoadWidth(roadWidth[0]);
+        renderDefaultParams();
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), ImGui.getContentRegionAvailX() * 0.48f, 0)) {
+            activatePathDrawingTool();
         }
-        
-        // 道路材质
-        ImGui.text(PlotI18n.tr("plugin.road.material"));
-        if (ImGui.beginCombo("##road_material", getMaterialLabel(config.getSelectedMaterial()))) {
-            String[] materialKeys = {"material.plot.concrete", "material.plot.stone", "material.plot.gravel", "material.plot.planks"};
-            for (String materialKey : materialKeys) {
-                String materialLabel = PlotI18n.tr(materialKey);
-                boolean isSelected = materialKey.equals(config.getSelectedMaterial())
-                        || materialLabel.equals(config.getSelectedMaterial());
-                if (ImGui.selectable(materialLabel, isSelected)) {
-                    config.setSelectedMaterial(materialKey);
-                }
-                if (isSelected) {
-                    ImGui.setItemDefaultFocus();
+        ImGui.sameLine();
+        boolean canAdopt = selectedPath != null;
+        if (!canAdopt) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.adopt_as_road"), ImGui.getContentRegionAvailX(), 0)) {
+            adoptSelectedShape();
+        }
+        if (!canAdopt) {
+            ImGui.endDisabled();
+        }
+    }
+
+    private void renderEditTab() {
+        List<RoadEdge> edges = new ArrayList<>(network.getEdges().values());
+        if (edges.isEmpty()) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_edges"));
+            return;
+        }
+
+        if (selectedEdgeId.isEmpty() || network.getEdge(selectedEdgeId) == null) {
+            selectedEdgeId = edges.getFirst().getId();
+        }
+
+        String preview = PlotI18n.tr("plugin.road.select_edge");
+        RoadEdge current = network.getEdge(selectedEdgeId);
+        if (current != null) {
+            preview = String.format("%.1fm##%s", current.getLength(), current.getId());
+        }
+
+        if (ImGui.beginCombo("##edge_select", preview)) {
+            for (RoadEdge edge : edges) {
+                RoadNode start = network.getNode(edge.getStartNodeId());
+                RoadNode end = network.getNode(edge.getEndNodeId());
+                String label = String.format("(%.0f,%.0f)->(%.0f,%.0f) %.1fm",
+                    start.getPosition().x, start.getPosition().y,
+                    end.getPosition().x, end.getPosition().y,
+                    edge.getLength());
+                if (ImGui.selectable(label, edge.getId().equals(selectedEdgeId))) {
+                    selectedEdgeId = edge.getId();
                 }
             }
             ImGui.endCombo();
         }
-        
-        ImGui.spacing();
-        
-        // ========== 坡度与地形适应 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.slope_adaptation"));
-        
-        // 最大坡度
-        ImGui.text(String.format(PlotI18n.tr("plugin.road.max_slope"), config.getMaxSlope()));
+
+        if (current == null) {
+            return;
+        }
+
+        int[] width = {current.getWidth() != null ? current.getWidth() : config.getRoadWidth()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##edge_width", width, 3, 20, "")) {
+            current.setWidth(width[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            networkHistory.push(network);
+        }
+
+        includeSidewalkRef.set(current.getIncludeSidewalk() != null ? current.getIncludeSidewalk() : config.isIncludeSidewalk());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
+            networkHistory.push(network);
+            current.setIncludeSidewalk(includeSidewalkRef.get());
+        }
+
+        if (current.getEffectiveIncludeSidewalk(config)) {
+            int[] sidewalkWidth = {current.getSidewalkWidth() != null ? current.getSidewalkWidth() : config.getSidewalkWidth()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##sw", sidewalkWidth, 1, 3, "")) {
+                current.setSidewalkWidth(sidewalkWidth[0]);
+            }
+            if (ImGui.isItemActivated()) {
+                networkHistory.push(network);
+            }
+        }
+
+        float[] maxSlope = {current.getMaxSlope() != null ? current.getMaxSlope() : config.getMaxSlope()};
+        if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.max_slope", maxSlope[0]) + "##edge_slope", maxSlope, 0.0f, 45.0f, "%.1f%%")) {
+            current.setMaxSlope(maxSlope[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            networkHistory.push(network);
+        }
+
+        int[] lightSpacing = {current.getStreetlightSpacing() != null ? current.getStreetlightSpacing() : 0};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.streetlight_spacing") + "##lights", lightSpacing, 0, 50, "%dm")) {
+            current.setStreetlightSpacing(lightSpacing[0] > 0 ? lightSpacing[0] : null);
+        }
+        if (ImGui.isItemActivated()) {
+            networkHistory.push(network);
+        }
+
+        renderSlopeOverrides(current);
+    }
+
+    private void renderSlopeOverrides(RoadEdge edge) {
+        ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
+        List<RoadEdge.SlopeOverride> overrides = new ArrayList<>(edge.getSlopeOverrides());
+
+        for (int i = 0; i < overrides.size(); i++) {
+            RoadEdge.SlopeOverride override = overrides.get(i);
+            float[] start = {(float) override.startDistance};
+            float[] end = {(float) override.endDistance};
+            float[] slope = {override.maxSlope};
+            ImGui.pushID(i);
+            ImGui.sliderFloat("start##s", start, 0, (float) edge.getLength(), "%.1fm");
+            ImGui.sameLine();
+            ImGui.sliderFloat("end##e", end, 0, (float) edge.getLength(), "%.1fm");
+            ImGui.sameLine();
+            ImGui.sliderFloat("slope##sl", slope, 0, 45, "%.1f%%");
+            override.startDistance = start[0];
+            override.endDistance = end[0];
+            override.maxSlope = slope[0];
+            ImGui.popID();
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.add_slope_override"))) {
+            overrides.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
+            edge.setSlopeOverrides(overrides);
+        }
+    }
+
+    private void renderGenerateTab() {
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        boolean hasNetwork = !network.getEdges().isEmpty();
+
+        if (!hasNetwork) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
+            calculateNetworkPreview();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.clear_preview"), half, 0)) {
+            clearPreview();
+        }
+        if (!hasNetwork) {
+            ImGui.endDisabled();
+        }
+
+        if (lastGenerationResult != null) {
+            ImGui.separator();
+            ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.cut_volume") + ": %d", lastGenerationResult.cutVolume));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.fill_volume") + ": %d", lastGenerationResult.fillVolume));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.bridge_count") + ": %d", lastGenerationResult.bridgeCount));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.tunnel_count") + ": %d", lastGenerationResult.tunnelCount));
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.streetlight_count") + ": %d",
+                lastGenerationResult.streetlightCount));
+
+            if (ImGui.button(PlotI18n.tr("plugin.road.projection_ref"), half, 0)) {
+                projectRoadPreview();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.road.build"), half, 0)) {
+                buildRoadInWorld();
+            }
+        }
+    }
+
+    private void renderDefaultParams() {
+        ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
+        int[] roadWidth = {config.getRoadWidth()};
+        if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, PlotI18n.tr("plugin.road.road_width", roadWidth[0]))) {
+            config.setRoadWidth(roadWidth[0]);
+        }
+
         float[] maxSlope = {config.getMaxSlope()};
-        if (ImGui.sliderFloat("##max_slope", maxSlope, 0.0f, 45.0f, "%.1f%%")) {
+        if (ImGui.sliderFloat("##max_slope", maxSlope, 0.0f, 45.0f, PlotI18n.tr("plugin.road.max_slope", maxSlope[0]))) {
             config.setMaxSlope(maxSlope[0]);
         }
-        
-        // 桥阈值
-        ImGui.text(PlotI18n.tr("plugin.road.bridge_threshold", config.getBridgeThreshold()));
-        int[] bridgeThresh = {config.getBridgeThreshold()};
-        if (ImGui.sliderInt("##bridge_thresh", bridgeThresh, 1, 20, "")) {
-            config.setBridgeThreshold(bridgeThresh[0]);
-        }
-        
-        // 隧道阈值
-        ImGui.text(PlotI18n.tr("plugin.road.tunnel_threshold", config.getTunnelThreshold()));
-        int[] tunnelThresh = {config.getTunnelThreshold()};
-        if (ImGui.sliderInt("##tunnel_thresh", tunnelThresh, 1, 30, "")) {
-            config.setTunnelThreshold(tunnelThresh[0]);
-        }
-        
-        ImGui.spacing();
-        
-        // ========== 附加设施 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.extra_facilities"));
-        
-        // 人行道
+
         includeSidewalkRef.set(config.isIncludeSidewalk());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
             config.setIncludeSidewalk(includeSidewalkRef.get());
         }
-        
-        if (config.isIncludeSidewalk()) {
-            ImGui.indent(20);
-            ImGui.text(PlotI18n.tr("plugin.road.sidewalk_width", config.getSidewalkWidth()));
-            int[] sidewalkWidth = {config.getSidewalkWidth()};
-            if (ImGui.sliderInt("##sidewalk_width", sidewalkWidth, 1, 3, "")) {
-                config.setSidewalkWidth(sidewalkWidth[0]);
-            }
-            ImGui.unindent(20);
+    }
+
+    private void adoptSelectedShape() {
+        if (selectedPath == null) {
+            return;
         }
-        
-        // 路肩
-        includeShoulderRef.set(config.isIncludeShoulder());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), includeShoulderRef)) {
-            config.setIncludeShoulder(includeShoulderRef.get());
-        }
-        
-        if (config.isIncludeShoulder()) {
-            ImGui.indent(20);
-            ImGui.text(PlotI18n.tr("plugin.road.shoulder_width", config.getShoulderWidth()));
-            int[] shoulderWidth = {config.getShoulderWidth()};
-            if (ImGui.sliderInt("##shoulder_width", shoulderWidth, 1, 3, "")) {
-                config.setShoulderWidth(shoulderWidth[0]);
-            }
-            ImGui.unindent(20);
-        }
-        
-        // 排水沟
-        includeDrainageRef.set(config.isIncludeDrainage());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), includeDrainageRef)) {
-            config.setIncludeDrainage(includeDrainageRef.get());
-        }
-        
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
-        
-        // ========== 操作按钮 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.operations"));
-        ImGui.beginGroup();
-        
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        
-        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), buttonWidth, 0)) {
-            activatePathDrawingTool();
-        }
-        
-        ImGui.sameLine();
-        boolean canPreview = selectedPath != null;
-        if (!canPreview) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), buttonWidth, 0)) {
-            calculatePreview();
-        }
-        if (!canPreview) {
-            ImGui.endDisabled();
-        }
-        
-        ImGui.endGroup();
-        
-        ImGui.beginGroup();
-        boolean canProject = lastGenerationResult != null && !lastGenerationResult.roadBlocks.isEmpty();
-        if (!canProject) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.projection_ref"), buttonWidth, 0)) {
-            projectRoadPreview();
-        }
-        
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.build"), buttonWidth, 0)) {
-            buildRoadInWorld();
-        }
-        
-        if (!canProject) {
-            ImGui.endDisabled();
-        }
-        
-        ImGui.endGroup();
-        
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
-        
-        // ========== 计算结果 ==========
-        ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
-        if (cutVolume > 0 || fillVolume > 0 || bridgeCount > 0 || tunnelCount > 0) {
-            ImGui.columns(2, "results_columns", false);
-            
-            ImGui.text(PlotI18n.tr("plugin.road.cut_volume"));
-            ImGui.nextColumn();
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.blocks_count"), cutVolume));
-            ImGui.nextColumn();
-            
-            ImGui.text(PlotI18n.tr("plugin.road.fill_volume"));
-            ImGui.nextColumn();
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.blocks_count"), fillVolume));
-            ImGui.nextColumn();
-            
-            ImGui.text(PlotI18n.tr("plugin.road.bridge_count"));
-            ImGui.nextColumn();
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.bridges_count"), bridgeCount));
-            ImGui.nextColumn();
-            
-            ImGui.text(PlotI18n.tr("plugin.road.tunnel_count"));
-            ImGui.nextColumn();
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.tunnels_count"), tunnelCount));
-            ImGui.nextColumn();
-            
-            ImGui.columns(1);
-            
-            // 平衡度计算
-            int totalVolume = cutVolume + fillVolume;
-            if (totalVolume > 0) {
-                int imbalance = Math.abs(cutVolume - fillVolume);
-                float balancePercent = (1.0f - (float) imbalance / totalVolume) * 100.0f;
-                ImGui.text(String.format(PlotI18n.tr("plugin.road.balance_percent"), balancePercent));
-            }
-        } else {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_first"));
+        try {
+            networkHistory.push(network);
+            RoadEdge edge = networkBuilder.adoptShape(network, selectedPath, config);
+            selectedEdgeId = edge.getId();
+            projectStatus = PlotI18n.tr("plugin.road.adopt_success");
+            LOGGER.info("认领道路成功: {}", edge.getId());
+        } catch (Exception e) {
+            LOGGER.error("认领道路失败: {}", e.getMessage(), e);
+            projectStatus = PlotI18n.tr("plugin.road.adopt_failed");
         }
     }
-    
-    /**
-     * 更新选中的路径（从AppState的选中图形中获取）
-     */
+
+    private void calculateNetworkPreview() {
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null || networkGenerator == null) {
+            LOGGER.warn("世界或生成器未就绪");
+            return;
+        }
+        lastGenerationResult = networkGenerator.generateAggregated(network, world);
+        LOGGER.info("路网预览: 挖{} 填{} 路灯{}",
+            lastGenerationResult.cutVolume, lastGenerationResult.fillVolume,
+            lastGenerationResult.streetlightCount);
+    }
+
+    private void projectRoadPreview() {
+        if (lastGenerationResult == null) {
+            return;
+        }
+        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        if (ghostBlockManager == null) {
+            return;
+        }
+
+        String roadBlock = getBlockIdFromMaterial(config.getSelectedMaterial());
+        for (BlockPos pos : lastGenerationResult.roadBlocks) {
+            ghostBlockManager.addGhostBlock(pos, roadBlock);
+        }
+        for (BlockPos pos : lastGenerationResult.sidewalkBlocks) {
+            ghostBlockManager.addGhostBlock(pos, roadBlock);
+        }
+        for (BlockPos pos : lastGenerationResult.bridgeBlocks) {
+            ghostBlockManager.addGhostBlock(pos, "minecraft:stone_bricks");
+        }
+        for (BlockPos pos : lastGenerationResult.tunnelBlocks) {
+            ghostBlockManager.addGhostBlock(pos, "minecraft:deepslate");
+        }
+        for (BlockPos pos : lastGenerationResult.streetlightBlocks) {
+            ghostBlockManager.addGhostBlock(pos, "minecraft:lantern");
+        }
+    }
+
+    private void clearPreview() {
+        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearAllGhostBlocks();
+        }
+        lastGenerationResult = null;
+    }
+
+    private void buildRoadInWorld() {
+        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+            return;
+        }
+        List<GenerateRoadCommand.BlockRecord> records =
+            new ArrayList<>(lastGenerationResult.placementRecords.values());
+        GenerateRoadCommand command = new GenerateRoadCommand(records);
+        CommandManager.getInstance().executeCommand(command);
+        clearPreview();
+        projectStatus = PlotI18n.tr("plugin.road.build_success");
+    }
+
+    private void onProjectLoaded(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+        currentNetworkFile = hashPath(filePath) + ".json";
+        loadNetworkFile(getNetworksDir().resolve(currentNetworkFile));
+        projectStatus = PlotI18n.tr("plugin.road.network.loaded", filePath);
+    }
+
+    private void onProjectSaved(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+        currentNetworkFile = hashPath(filePath) + ".json";
+        saveNetworkFile(getNetworksDir().resolve(currentNetworkFile));
+        projectStatus = PlotI18n.tr("plugin.road.network.saved", filePath);
+    }
+
+    private void saveCurrentNetwork() {
+        saveNetworkFile(getNetworksDir().resolve(currentNetworkFile));
+        projectStatus = PlotI18n.tr("plugin.road.network.manual_saved");
+    }
+
+    private void loadNetworkFile(Path file) {
+        try {
+            network = RoadNetwork.loadFrom(file);
+            networkHistory.clear();
+            selectedEdgeId = "";
+        } catch (IOException e) {
+            LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
+        }
+    }
+
+    private void saveNetworkFile(Path file) {
+        try {
+            network.saveTo(file);
+        } catch (IOException e) {
+            LOGGER.error("保存道路网络失败: {}", e.getMessage(), e);
+        }
+    }
+
+    private Path getNetworksDir() {
+        return getDataFolder().toPath().resolve("networks");
+    }
+
+    private String hashPath(String filePath) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(filePath.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash).substring(0, 16);
+        } catch (NoSuchAlgorithmException e) {
+            return DEFAULT_NETWORK_FILE.replace(".json", "");
+        }
+    }
+
     private void updateSelectedPath() {
         try {
-            AppState appState = AppState.getInstance();
-            List<Shape> selectedShapes = appState.getSelectedShapes();
-            
-            if (!selectedShapes.isEmpty()) {
-                // 优先使用第一个选中的路径类型图形
-                for (Shape shape : selectedShapes) {
-                    if (isPathShape(shape)) {
-                        selectedPath = shape;
-                        return;
-                    }
+            List<Shape> selectedShapes = AppState.getInstance().getSelectedShapes();
+            for (Shape shape : selectedShapes) {
+                if (isPathShape(shape)) {
+                    selectedPath = shape;
+                    return;
                 }
             }
-            
-            // 如果没有选中路径类型图形，清空选择
-            if (selectedPath != null && !appState.getSelectedShapes().contains(selectedPath)) {
+            if (selectedPath != null && !selectedShapes.contains(selectedPath)) {
                 selectedPath = null;
             }
         } catch (Exception e) {
             LOGGER.error("更新选中路径失败: {}", e.getMessage(), e);
         }
     }
-    
-    /**
-     * 查找可用的路径图形
-     */
+
     private List<Shape> findAvailablePaths() {
         List<Shape> paths = new ArrayList<>();
-        try {
-            AppState appState = AppState.getInstance();
-            List<Shape> allShapes = appState.getShapes();
-            
-            for (Shape shape : allShapes) {
-                if (isPathShape(shape)) {
-                    paths.add(shape);
-                }
+        for (Shape shape : AppState.getInstance().getShapes()) {
+            if (isPathShape(shape)) {
+                paths.add(shape);
             }
-        } catch (Exception e) {
-            LOGGER.error("查找可用路径失败: {}", e.getMessage(), e);
         }
         return paths;
     }
-    
-    /**
-     * 判断图形是否为路径类型
-     */
+
     private boolean isPathShape(Shape shape) {
-        return shape instanceof PolylineShape || 
-               shape instanceof FreeDrawPath || 
-               shape instanceof BezierCurveShape;
+        return shape instanceof PolylineShape
+            || shape instanceof FreeDrawPath
+            || shape instanceof BezierCurveShape;
     }
-    
-    /**
-     * 获取路径类型名称
-     */
+
     private String getPathTypeName(Shape shape) {
         if (shape instanceof PolylineShape) {
             return PlotI18n.tr("path.plot.polyline");
@@ -415,286 +589,21 @@ public class RoadSystemPlugin extends Plugin {
         }
         return PlotI18n.tr("path.plot.unknown");
     }
-    
-    /**
-     * 计算路径长度（米）
-     */
+
     private double calculatePathLength(Shape path) {
-        try {
-            List<Vec2d> points = getPathPoints(path);
-            if (points == null || points.size() < 2) {
-                return 0.0;
-            }
-            
-            double totalLength = 0.0;
-            for (int i = 0; i < points.size() - 1; i++) {
-                Vec2d p1 = points.get(i);
-                Vec2d p2 = points.get(i + 1);
-                totalLength += p1.distance(p2);
-            }
-            
-            // 转换为米（假设1世界单位 = 1米）
-            return totalLength;
-        } catch (Exception e) {
-            LOGGER.error("计算路径长度失败: {}", e.getMessage(), e);
-            return 0.0;
-        }
-    }
-    
-    /**
-     * 获取路径的点列表
-     */
-    private List<Vec2d> getPathPoints(Shape path) {
-        if (path instanceof PolylineShape) {
-            return path.getPoints();
-        } else if (path instanceof FreeDrawPath) {
-            return path.getPoints();
-        } else if (path instanceof BezierCurveShape) {
-            // 贝塞尔曲线需要采样点（简化实现）
-            return sampleBezierCurve((BezierCurveShape) path, 20);
-        }
-        return null;
-    }
-    
-    /**
-     * 采样贝塞尔曲线的点
-     */
-    private List<Vec2d> sampleBezierCurve(BezierCurveShape curve, int samples) {
-        List<Vec2d> points = new ArrayList<>();
-        // 简化实现：从控制点计算（实际应该使用贝塞尔曲线公式）
-        List<Vec2d> controlPoints = curve.getControlPoints();
-        if (controlPoints != null && !controlPoints.isEmpty()) {
-            points.addAll(controlPoints);
-        }
-        return points;
-    }
-    
-    /**
-     * 选择路径用于编辑
-     */
-    private void selectPathForEditing() {
-        if (selectedPath != null) {
-            try {
-                AppState appState = AppState.getInstance();
-                appState.setSelectedShapes(List.of(selectedPath));
-                // TODO: 激活修改工具
-            } catch (Exception e) {
-                LOGGER.error("选择路径用于编辑失败: {}", e.getMessage(), e);
-            }
-        }
-    }
-    
-    /**
-     * 激活路径绘制工具
-     */
-    private void activatePathDrawingTool() {
-        try {
-            ToolManager toolManager = ToolManager.getInstance();
-            if (toolManager != null) {
-                // 查找PolylineTool
-                var polylineTool = toolManager.getTool("polyline");
-                if (polylineTool instanceof BaseTool) {
-                    AppState.getInstance().setCurrentTool((BaseTool) polylineTool);
-                    LOGGER.info("已激活折线工具用于绘制路径");
-                } else {
-                    LOGGER.warn("未找到折线工具或工具类型不兼容");
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.error("激活路径绘制工具失败: {}", e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * 计算道路预览
-     */
-    private void calculatePreview() {
-        if (selectedPath == null) {
-            LOGGER.warn("未选择路径，无法计算预览");
-            return;
-        }
-        
-        if (roadGenerator == null) {
-            LOGGER.warn("道路生成器未初始化");
-            return;
-        }
-        
-        try {
-            // 使用RoadGenerator计算道路预览
-            lastGenerationResult = roadGenerator.generateRoad(selectedPath);
-            
-            if (lastGenerationResult != null) {
-                cutVolume = lastGenerationResult.cutVolume;
-                fillVolume = lastGenerationResult.fillVolume;
-                bridgeCount = lastGenerationResult.bridgeCount;
-                tunnelCount = lastGenerationResult.tunnelCount;
-                
-                // 更新路径长度
-                config.setPathLength(lastGenerationResult.pathLength);
-                
-                LOGGER.info("道路预览计算完成: 挖{} 填{} 桥{}座 隧道{}段 长度{}米", 
-                    cutVolume, fillVolume, bridgeCount, tunnelCount, lastGenerationResult.pathLength);
-            } else {
-                LOGGER.warn("道路生成结果为空");
-                cutVolume = 0;
-                fillVolume = 0;
-                bridgeCount = 0;
-                tunnelCount = 0;
-            }
-        } catch (Exception e) {
-            LOGGER.error("计算道路预览失败: {}", e.getMessage(), e);
-            cutVolume = 0;
-            fillVolume = 0;
-            bridgeCount = 0;
-            tunnelCount = 0;
-        }
-    }
-    
-    /**
-     * 投影道路预览（幽灵方块）
-     * 在画布上显示道路的半透明预览
-     */
-    private void projectRoadPreview() {
-        if (lastGenerationResult == null || lastGenerationResult.roadBlocks.isEmpty()) {
-            LOGGER.warn("没有生成结果，无法投影预览");
-            return;
-        }
-        
-        try {
-            GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
-            if (ghostBlockManager == null) {
-                LOGGER.error("幽灵方块管理器未初始化");
-                return;
-            }
-            
-            // 获取道路材质对应的方块ID
-            String blockId = getBlockIdFromMaterial(config.getSelectedMaterial());
-            
-            // 添加道路方块为幽灵方块
-            int previewCount = 0;
-            for (BlockPos pos : lastGenerationResult.roadBlocks) {
-                ghostBlockManager.addGhostBlock(pos, blockId);
-                previewCount++;
-            }
-            
-            // 添加桥方块（使用不同材质）
-            for (BlockPos pos : lastGenerationResult.bridgeBlocks) {
-                ghostBlockManager.addGhostBlock(pos, "minecraft:stone_bricks");
-                previewCount++;
-            }
-            
-            // 添加隧道方块（使用不同材质）
-            for (BlockPos pos : lastGenerationResult.tunnelBlocks) {
-                ghostBlockManager.addGhostBlock(pos, "minecraft:deepslate");
-                previewCount++;
-            }
-            
-            LOGGER.info("已投影 {} 个道路预览方块", previewCount);
-            
-        } catch (Exception e) {
-            LOGGER.error("投影道路预览失败: {}", e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * 实际构建道路到Minecraft世界
-     * 将道路方块真实放置到世界中（可撤销的命令）
-     */
-    private void buildRoadInWorld() {
-        if (lastGenerationResult == null || lastGenerationResult.roadBlocks.isEmpty()) {
-            LOGGER.warn("没有生成结果，无法构建道路");
-            return;
-        }
-        
-        try {
-            EventBus eventBus = EventBus.getInstance();
-            if (eventBus == null) {
-                LOGGER.error("事件总线未初始化");
-                return;
-            }
-            
-            // 获取道路材质对应的方块ID
-            String blockId = getBlockIdFromMaterial(config.getSelectedMaterial());
-            
-            // 发布方块投影事件（实际模式）
-            int buildCount = 0;
-            for (BlockPos pos : lastGenerationResult.roadBlocks) {
-                eventBus.publish(new BlockProjectionEvent(
-                    blockId,
-                    pos.getX(),
-                    pos.getY(),
-                    pos.getZ(),
-                    0.0f,
-                    false, // 非预览模式，实际放置方块
-                    BlockProjectionEvent.ProjectionMode.ELEVATION,
-                    pos.getY()
-                ));
-                buildCount++;
-            }
-            
-            // 构建桥梁（使用石头砖）
-            for (BlockPos pos : lastGenerationResult.bridgeBlocks) {
-                eventBus.publish(new BlockProjectionEvent(
-                    "minecraft:stone_bricks",
-                    pos.getX(),
-                    pos.getY(),
-                    pos.getZ(),
-                    0.0f,
-                    false,
-                    BlockProjectionEvent.ProjectionMode.ELEVATION,
-                    pos.getY()
-                ));
-                buildCount++;
-            }
-            
-            // 构建隧道（使用深板岩）
-            for (BlockPos pos : lastGenerationResult.tunnelBlocks) {
-                eventBus.publish(new BlockProjectionEvent(
-                    "minecraft:deepslate",
-                    pos.getX(),
-                    pos.getY(),
-                    pos.getZ(),
-                    0.0f,
-                    false,
-                    BlockProjectionEvent.ProjectionMode.ELEVATION,
-                    pos.getY()
-                ));
-                buildCount++;
-            }
-            
-            LOGGER.info("已构建 {} 个道路方块到Minecraft世界", buildCount);
-            
-            // 清空生成结果（避免重复构建）
-            lastGenerationResult = null;
-            cutVolume = 0;
-            fillVolume = 0;
-            bridgeCount = 0;
-            tunnelCount = 0;
-            
-        } catch (Exception e) {
-            LOGGER.error("构建道路失败: {}", e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * 解析道路材质显示名称（兼容旧版中文配置）
-     */
-    private String getMaterialLabel(String material) {
-        if (material.startsWith("material.plot.")) {
-            return PlotI18n.tr(material);
-        }
-        return switch (material) {
-            case "混凝土" -> PlotI18n.tr("material.plot.concrete");
-            case "石头" -> PlotI18n.tr("material.plot.stone");
-            case "砂砾" -> PlotI18n.tr("material.plot.gravel");
-            case "木板" -> PlotI18n.tr("material.plot.planks");
-            default -> material;
-        };
+        return RoadGeometryUtils.calculatePathLength(RoadGeometryUtils.extractShapePoints(path));
     }
 
-    /**
-     * 从材质名称获取方块ID
-     */
+    private void activatePathDrawingTool() {
+        ToolManager toolManager = ToolManager.getInstance();
+        if (toolManager != null) {
+            var polylineTool = toolManager.getTool("polyline");
+            if (polylineTool instanceof BaseTool baseTool) {
+                AppState.getInstance().setCurrentTool(baseTool);
+            }
+        }
+    }
+
     private String getBlockIdFromMaterial(String material) {
         return switch (material) {
             case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";

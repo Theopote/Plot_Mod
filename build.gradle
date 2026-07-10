@@ -64,6 +64,8 @@ dependencies {
 	implementation('org.apache.xmlgraphics:batik-transcoder:1.18') {
 		exclude group: 'xml-apis', module: 'xml-apis'
 	}
+
+	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
 }
 
 // 防止 jar-in-jar 误打包 MC 自带的 LWJGL（尤其 lwjgl-stb）
@@ -98,6 +100,10 @@ java {
 
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.test {
+	useJUnitPlatform()
 }
 
 jar {
