@@ -48,7 +48,15 @@ public final class RoadJunctionGeometry {
         List<Vec2d> sorted = sortVerticesByPolarAngle(corners, center);
         if (!isSimplePolygon(sorted)) {
             List<Vec2d> hull = convexHull(corners);
-            return hull.size() >= 3 ? sortVerticesByPolarAngle(hull, center) : sorted;
+            sorted = hull.size() >= 3 ? sortVerticesByPolarAngle(hull, center) : sorted;
+        }
+        if (!RoadGeometryUtils.pointInPolygon(center, sorted)) {
+            List<Vec2d> withCenter = new ArrayList<>(corners);
+            withCenter.add(center);
+            List<Vec2d> hull = convexHull(withCenter);
+            if (hull.size() >= 3) {
+                sorted = sortVerticesByPolarAngle(hull, center);
+            }
         }
         return sorted;
     }

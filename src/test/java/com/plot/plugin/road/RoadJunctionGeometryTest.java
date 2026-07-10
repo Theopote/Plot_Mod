@@ -177,8 +177,8 @@ class RoadJunctionGeometryTest {
         );
 
         assertEquals(4, sorted.size());
-        assertTrue(sorted.getFirst().x >= 0.9);
-        assertTrue(sorted.get(1).y >= 0.9);
+        assertTrue(sorted.getFirst().y <= -0.9, "polar sort starts at the lowest angle (-Y)");
+        assertTrue(sorted.get(1).x >= 0.9, "then proceeds counter-clockwise through +X");
     }
 
     private static List<RoadEdge> tJunctionEdges() {
