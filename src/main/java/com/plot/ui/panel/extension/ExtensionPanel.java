@@ -8,8 +8,8 @@ import imgui.flag.*;
 import imgui.type.ImBoolean;
 
 import com.plot.ui.component.Icons;
-import com.plot.ui.component.UIUtils;
 import com.plot.PlotMod;
+import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.PlotI18n;
@@ -62,7 +62,9 @@ public class ExtensionPanel implements UIComponent {
             
             // 插件列表
             ImGui.text(PlotI18n.tr("panel.plot.extension_installed"));
-            float listHeight = Math.max(100.0f, Math.min(200.0f, pluginManager.getPlugins().size() * 35.0f));
+            float buttonSize = UILayout.Toolbar.LEFT_BUTTON_SIZE;
+            float rowHeight = buttonSize + ImGui.getStyle().getItemSpacingY();
+            float listHeight = Math.max(100.0f, Math.min(240.0f, pluginManager.getPlugins().size() * rowHeight));
             ImGui.beginChild("##plugins_list", ImGui.getContentRegionAvailX(), listHeight, true);
             
             IPlugin activePlugin = pluginManager.getActivePlugin();
@@ -72,8 +74,6 @@ public class ExtensionPanel implements UIComponent {
                 
                 ImGui.pushID(plugin.getId());
                 
-                // 插件选择按钮（支持单选模式）
-                String buttonText = plugin.getName();
                 // 获取插件图标（如果Plugin子类实现了getIcon方法）
                 String icon = Icons.PLUGIN;
                 if (plugin instanceof com.plot.plugin.Plugin pluginImpl) {
@@ -82,13 +82,29 @@ public class ExtensionPanel implements UIComponent {
                         icon = pluginIcon;
                     }
                 }
-                if (UIUtils.iconButton(icon, buttonText, isActive)) {
+
+                if (isActive) {
+                    ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
+                    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+                    ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
+                }
+
+                if (ImGui.button(icon + "##plugin_icon", buttonSize, buttonSize)) {
                     // 如果当前插件已激活，则取消激活；否则激活该插件
                     pluginManager.setActivePlugin(isActive ? null : plugin);
                 }
+
+                if (isActive) {
+                    ImGui.popStyleColor(3);
+                }
+
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip(plugin.getName());
+                }
                 
                 // 启用/禁用开关
-                ImGui.sameLine(ImGui.getWindowWidth() - 60);
+                ImGui.sameLine();
+                ImGui.setCursorPosX(ImGui.getWindowWidth() - 60);
                 boolean enabled = plugin.isEnabled();
                 ImGui.pushStyleColor(ImGuiCol.Text, enabled ? theme.successText : theme.mutedText);
                 ImBoolean enabledRef = new ImBoolean(enabled);
