@@ -352,7 +352,7 @@ public class ToolPanel implements UIComponent {
 
             try {
 
-                String tooltip = PlotI18n.toolUsageHint(tool.id);
+                String tooltip = PlotI18n.toolLabel(tool.id);
                 
                 if (UIUtils.imageButton(tool.icon, tooltip,
                     UILayout.Toolbar.LEFT_BUTTON_SIZE, isSelected)) {
