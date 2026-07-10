@@ -386,6 +386,9 @@ public class PluginManager implements IPluginManager {
      * 设置当前激活的插件
      */
     public void setActivePlugin(IPlugin plugin) {
+        if (plugin != null) {
+            enablePlugin(plugin);
+        }
         if (activePlugin != null) {
             activePlugin.onDeactivate();
         }

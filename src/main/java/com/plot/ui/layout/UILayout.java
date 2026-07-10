@@ -49,6 +49,9 @@ public class UILayout {
     // 右侧工具栏
     public static final float RIGHT_PANEL_DEFAULT_WIDTH = 300.0f;
 
+    /** 右侧属性面板占右栏高度比例（其余为扩展面板） */
+    public static final float RIGHT_PROPERTY_PANEL_RATIO = 0.55f;
+
     // 状态栏
     public static final float STATUS_BAR_HEIGHT = 24.0f;
 

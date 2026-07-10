@@ -5,7 +5,6 @@ import com.plot.api.plugin.IPlugin;
 import com.plot.ui.component.UIComponent;
 import imgui.ImGui;
 import imgui.flag.*;
-import imgui.type.ImBoolean;
 
 import com.plot.ui.component.Icons;
 import com.plot.PlotMod;
@@ -77,10 +76,9 @@ public class ExtensionPanel implements UIComponent {
             int index = 0;
             for (IPlugin plugin : pluginManager.getPlugins()) {
                 boolean isActive = activePlugin != null && plugin.getId().equals(activePlugin.getId());
-                boolean isEnabled = plugin.isEnabled();
-                
+
                 ImGui.pushID(plugin.getId());
-                
+
                 // 获取插件图标（如果Plugin子类实现了getIcon方法）
                 String icon = Icons.PLUGIN;
                 if (plugin instanceof com.plot.plugin.Plugin pluginImpl) {
@@ -90,10 +88,6 @@ public class ExtensionPanel implements UIComponent {
                     }
                 }
 
-                if (!isEnabled) {
-                    ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.55f);
-                }
-
                 if (isActive) {
                     ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
                     ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
@@ -101,7 +95,6 @@ public class ExtensionPanel implements UIComponent {
                 }
 
                 if (ImGui.button(icon + "##plugin_icon", buttonSize, buttonSize)) {
-                    // 如果当前插件已激活，则取消激活；否则激活该插件
                     pluginManager.setActivePlugin(isActive ? null : plugin);
                 }
 
@@ -109,16 +102,8 @@ public class ExtensionPanel implements UIComponent {
                     ImGui.popStyleColor(3);
                 }
 
-                if (!isEnabled) {
-                    ImGui.popStyleVar();
-                }
-
                 if (ImGui.isItemHovered()) {
-                    String tooltip = plugin.getName();
-                    if (!isEnabled) {
-                        tooltip = tooltip + "\n" + PlotI18n.tr("panel.plot.extension_disabled");
-                    }
-                    ImGui.setTooltip(tooltip);
+                    ImGui.setTooltip(plugin.getName());
                 }
                 
                 ImGui.popID();
@@ -138,50 +123,33 @@ public class ExtensionPanel implements UIComponent {
             // 显示当前激活的插件参数面板
             IPlugin currentActivePlugin = pluginManager.getActivePlugin();
             if (currentActivePlugin != null) {
-                ImBoolean enabledRef = new ImBoolean(currentActivePlugin.isEnabled());
-                if (ImGui.checkbox(PlotI18n.tr("panel.plot.extension_enabled"), enabledRef)) {
-                    if (enabledRef.get()) {
-                        pluginManager.enablePlugin(currentActivePlugin);
-                    } else {
-                        pluginManager.disablePlugin(currentActivePlugin);
-                    }
+                ImGui.pushStyleColor(ImGuiCol.Text, theme.infoText);
+                ImGui.text(currentActivePlugin.getName());
+                ImGui.popStyleColor();
+
+                if (currentActivePlugin.getDescription() != null && !currentActivePlugin.getDescription().isEmpty()) {
+                    ImGui.textWrapped(currentActivePlugin.getDescription());
                 }
 
-                // 如果插件未启用，显示提示信息
-                if (!currentActivePlugin.isEnabled()) {
-                    ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_disabled"));
-                    ImGui.text(PlotI18n.tr("panel.plot.extension_enable_first", currentActivePlugin.getName()));
-                } else {
-                    // 显示插件名称和描述
-                    ImGui.pushStyleColor(ImGuiCol.Text, theme.infoText);
-                    ImGui.text(currentActivePlugin.getName());
-                    ImGui.popStyleColor();
-                    
-                    if (currentActivePlugin.getDescription() != null && !currentActivePlugin.getDescription().isEmpty()) {
-                        ImGui.textWrapped(currentActivePlugin.getDescription());
+                ImGui.separator();
+                ImGui.spacing();
+
+                float contentHeight = ImGui.getContentRegionAvailY();
+                if (contentHeight > 0) {
+                    ImGui.beginChild("##plugin_content",
+                        ImGui.getContentRegionAvailX(),
+                        contentHeight,
+                        false,
+                        ImGuiWindowFlags.HorizontalScrollbar);
+
+                    try {
+                        currentActivePlugin.render();
+                    } catch (Exception e) {
+                        PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
+                        ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
                     }
-                    
-                    ImGui.separator();
-                    ImGui.spacing();
-                    
-                    // 创建滚动区域来显示插件参数面板
-                    float contentHeight = ImGui.getContentRegionAvailY();
-                    if (contentHeight > 0) {
-                        ImGui.beginChild("##plugin_content", 
-                            ImGui.getContentRegionAvailX(), 
-                            contentHeight, 
-                            false,
-                            ImGuiWindowFlags.HorizontalScrollbar);
-                        
-                        try {
-                            currentActivePlugin.render();
-                        } catch (Exception e) {
-                            PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
-                            ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
-                        }
-                        
-                        ImGui.endChild();
-                    }
+
+                    ImGui.endChild();
                 }
             } else {
                 // 没有激活的插件，显示提示信息

@@ -77,10 +77,10 @@ public class PlotScreen extends Screen {
     private static final String WIN_TOP_ID = "##ControlPanel";
     private static final String WIN_TOP_SYSTEM_ID = "##SystemPanel";
     private static final String WIN_LEFT_ID = "##ToolPanel";
-    // 右侧面板：属性 + 扩展，在同一窗口内用 Tab 切换
-    private static final String WIN_RIGHT_SIDE_ID = "##RightSidePanel";
-    /** 递增以在布局结构变化时强制重建 Dock（例如重新启用扩展面板） */
-    private static final int DOCK_LAYOUT_VERSION = 2;
+    private static final String WIN_PROPERTY_ID = "##PropertyPanel";
+    private static final String WIN_EXTENSION_ID = "##ExtensionPanel";
+    /** 递增以在布局结构变化时强制重建 Dock（例如拆分属性/扩展为独立面板） */
+    private static final int DOCK_LAYOUT_VERSION = 4;
 
     private int dockspaceId;
     private int dockIdTopLeft;  // 顶部左侧（ControlPanel）
@@ -384,7 +384,6 @@ public class PlotScreen extends Screen {
         SystemPanel systemPanel = uiContainer.get(SystemPanel.class);
         ToolPanel toolPanel = uiContainer.get(ToolPanel.class);
         PropertyPanel propertyPanel = uiContainer.get(PropertyPanel.class);
-        GalleryPanel galleryPanel = uiContainer.get(GalleryPanel.class);
         ExtensionPanel extensionPanel = uiContainer.get(ExtensionPanel.class);
         Canvas canvas = uiContainer.get(Canvas.class);
 
@@ -408,7 +407,7 @@ public class PlotScreen extends Screen {
             }
 
             // 再渲染 DockSpace 与面板窗口（位于画布之上）
-            renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, systemPanel, toolPanel, propertyPanel, galleryPanel, extensionPanel);
+            renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, systemPanel, toolPanel, propertyPanel, extensionPanel);
             
             // 首次渲染完成后，标记为已完成
             if (firstRender) {
@@ -427,7 +426,6 @@ public class PlotScreen extends Screen {
                                        SystemPanel systemPanel,
                                        ToolPanel toolPanel,
                                        PropertyPanel propertyPanel,
-                                       GalleryPanel galleryPanel,
                                        ExtensionPanel extensionPanel) {
         // 1) 创建全屏 DockSpace 宿主窗口
         final int hostFlags =
@@ -467,7 +465,8 @@ public class PlotScreen extends Screen {
         renderDockedControlPanel(controlPanel);
         renderDockedSystemPanel(systemPanel);
         renderDockedToolPanel(toolPanel);
-        renderDockedRightPanels(propertyPanel, galleryPanel, extensionPanel);
+        renderDockedPropertyPanel(propertyPanel);
+        renderDockedExtensionPanel(extensionPanel);
 
         // 顶部栏与主内容区之间的全宽水平分割条
         panelEdgeCursorHelper.addHorizontalEdge(getTopBarHeight(), 0.0f, displayWidth);
@@ -508,7 +507,9 @@ public class PlotScreen extends Screen {
         ImInt dockTopLeft = new ImInt();     // 顶部左侧（控制面板）
         ImInt dockTopRight = new ImInt();    // 顶部右侧（系统面板）
         ImInt dockBottomLeft = new ImInt();  // 左侧底部（工具面板）
-        ImInt dockBottomRight = new ImInt(); // 右侧底部（属性面板）
+        ImInt dockBottomRight = new ImInt(); // 右侧栏（属性 + 扩展）
+        ImInt dockRightProperty = new ImInt(); // 右侧上部：属性面板
+        ImInt dockRightExtension = new ImInt(); // 右侧下部：扩展面板
         ImInt dockBottomMain = new ImInt();  // 底部中间（画布）
 
         float leftDockWidth = UILayout.Toolbar.PANEL_WIDTH;
@@ -532,15 +533,33 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderSetNodePos(dockTopRight.get(), displayWidth - rightDockWidth, 0.0f);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockTopLeft.get(), 0.0f, 0.0f);
 
-        // 底部内容区再分割左右：左为工具面板，右为属性面板，中间为画布
+        // 底部内容区再分割左右：左为工具面板，右为属性/扩展面板，中间为画布
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockBottomLeft, dockBottomMain);
         imgui.internal.ImGui.dockBuilderSplitNode(dockBottomMain.get(), ImGuiDir.Right, rightRatio, dockBottomRight, dockBottomMain);
 
-        // 固定底部节点尺寸，使属性面板与系统面板右侧对齐且宽度一致
         float bottomContentHeight = Math.max(0.0f, displayHeight - topBarHeight);
         float canvasWidth = Math.max(0.0f, displayWidth - leftDockWidth - rightDockWidth);
         imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomRight.get(), rightDockWidth, bottomContentHeight);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomRight.get(), displayWidth - rightDockWidth, topBarHeight);
+
+        // 右侧栏再上下分割：上为属性面板，下为扩展面板
+        imgui.internal.ImGui.dockBuilderSplitNode(
+            dockBottomRight.get(),
+            ImGuiDir.Up,
+            UILayout.RIGHT_PROPERTY_PANEL_RATIO,
+            dockRightProperty,
+            dockRightExtension
+        );
+
+        float propertyHeight = bottomContentHeight * UILayout.RIGHT_PROPERTY_PANEL_RATIO;
+        float extensionHeight = Math.max(0.0f, bottomContentHeight - propertyHeight);
+        float rightX = displayWidth - rightDockWidth;
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockRightProperty.get(), rightDockWidth, propertyHeight);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockRightProperty.get(), rightX, topBarHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockRightExtension.get(), rightDockWidth, extensionHeight);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockRightExtension.get(), rightX, topBarHeight + propertyHeight);
+
+        // 固定其余底部节点尺寸
         imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomLeft.get(), leftDockWidth, bottomContentHeight);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomLeft.get(), 0.0f, topBarHeight);
         imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomMain.get(), canvasWidth, bottomContentHeight);
@@ -549,13 +568,14 @@ public class PlotScreen extends Screen {
         dockIdTopLeft = dockTopLeft.get();
         dockIdTopRight = dockTopRight.get();
         dockIdLeft = dockBottomLeft.get();
-        dockIdRight = dockBottomRight.get();
+        dockIdRight = dockRightExtension.get();
 
         // 停靠窗口到对应的dock节点
         imgui.internal.ImGui.dockBuilderDockWindow(controlPanelWindowTitle(), dockIdTopLeft);  // 控制面板在顶部左侧
         imgui.internal.ImGui.dockBuilderDockWindow(systemPanelWindowTitle(), dockIdTopRight);  // 系统面板在顶部右侧
         imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindowTitle(), dockIdLeft);
-        imgui.internal.ImGui.dockBuilderDockWindow(rightSidePanelWindowTitle(), dockIdRight);
+        imgui.internal.ImGui.dockBuilderDockWindow(propertyPanelWindowTitle(), dockRightProperty.get());
+        imgui.internal.ImGui.dockBuilderDockWindow(extensionPanelWindowTitle(), dockRightExtension.get());
         // 关键：中央节点不 dock 任何窗口，配合 PassthruCentralNode 让中央区域天然留空且透明（参考 ChronoBlocks）
 
         imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
@@ -635,37 +655,69 @@ public class PlotScreen extends Screen {
         ImGui.popStyleVar(2);
     }
 
-    private void renderDockedRightPanels(PropertyPanel propertyPanel, GalleryPanel galleryPanel, ExtensionPanel extensionPanel) {
+    private void renderDockedPropertyPanel(PropertyPanel propertyPanel) {
+        if (propertyPanel == null) {
+            return;
+        }
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, UILayout.CONTENT_PADDING, UILayout.CONTENT_PADDING);
         ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
 
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
+        float displayHeight = ImGui.getIO().getDisplaySizeY();
+        float topBarHeight = getTopBarHeight();
+        float rightWidth = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
+        float bottomHeight = Math.max(0.0f, displayHeight - topBarHeight);
+        float propertyHeight = bottomHeight * UILayout.RIGHT_PROPERTY_PANEL_RATIO;
+        ImGui.setNextWindowPos(displayWidth - rightWidth, topBarHeight, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(rightWidth, propertyHeight, ImGuiCond.FirstUseEver);
+
         try {
             if (firstRender) {
                 ImGui.setNextWindowFocus();
             }
-            boolean sidePanelVisible = ImGui.begin(rightSidePanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            boolean visible = ImGui.begin(propertyPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
             try {
-                if (sidePanelVisible) {
-                    if (ImGui.beginTabBar("##right_side_tabs", ImGuiTabBarFlags.None)) {
-                        // 属性标签在前，默认展开
-                        if (ImGui.beginTabItem(PlotI18n.tr("panel.plot.properties") + "##property_tab")) {
-                            if (propertyPanel != null) {
-                                propertyPanel.render();
-                            }
-                            ImGui.endTabItem();
-                        }
-                        // 扩展标签在后
-                        if (ImGui.beginTabItem(PlotI18n.tr("panel.plot.extension") + "##extension_tab")) {
-                            if (extensionPanel != null) {
-                                extensionPanel.render();
-                            }
-                            ImGui.endTabItem();
-                        }
-                        ImGui.endTabBar();
-                    }
+                if (visible) {
+                    propertyPanel.render();
                     recordCurrentWindowLeftEdge();
+                    recordCurrentWindowBottomEdge();
+                }
+            } finally {
+                ImGui.end();
+            }
+        } finally {
+            ImGui.popStyleColor(2);
+            ImGui.popStyleVar(2);
+        }
+    }
+
+    private void renderDockedExtensionPanel(ExtensionPanel extensionPanel) {
+        if (extensionPanel == null) {
+            return;
+        }
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, UILayout.CONTENT_PADDING, UILayout.CONTENT_PADDING);
+        ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
+
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
+        float displayHeight = ImGui.getIO().getDisplaySizeY();
+        float topBarHeight = getTopBarHeight();
+        float rightWidth = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
+        float bottomHeight = Math.max(0.0f, displayHeight - topBarHeight);
+        float propertyHeight = bottomHeight * UILayout.RIGHT_PROPERTY_PANEL_RATIO;
+        ImGui.setNextWindowPos(displayWidth - rightWidth, topBarHeight + propertyHeight, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(rightWidth, bottomHeight - propertyHeight, ImGuiCond.FirstUseEver);
+
+        try {
+            boolean visible = ImGui.begin(extensionPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            try {
+                if (visible) {
+                    extensionPanel.render();
+                    recordCurrentWindowLeftEdge();
+                    recordCurrentWindowTopEdge();
                 }
             } finally {
                 ImGui.end();
@@ -688,8 +740,12 @@ public class PlotScreen extends Screen {
         return PlotI18n.tr("panel.plot.tool_panel") + WIN_LEFT_ID;
     }
 
-    private static String rightSidePanelWindowTitle() {
-        return PlotI18n.tr("panel.plot.properties") + WIN_RIGHT_SIDE_ID;
+    private static String propertyPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.properties") + WIN_PROPERTY_ID;
+    }
+
+    private static String extensionPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.extension") + WIN_EXTENSION_ID;
     }
 
     private void recordCurrentWindowRightEdge() {
@@ -708,6 +764,13 @@ public class PlotScreen extends Screen {
 
     private void recordCurrentWindowBottomEdge() {
         float y = ImGui.getWindowPosY() + ImGui.getWindowHeight();
+        float xStart = ImGui.getWindowPosX();
+        float xEnd = xStart + ImGui.getWindowWidth();
+        panelEdgeCursorHelper.addHorizontalEdge(y, xStart, xEnd);
+    }
+
+    private void recordCurrentWindowTopEdge() {
+        float y = ImGui.getWindowPosY();
         float xStart = ImGui.getWindowPosX();
         float xEnd = xStart + ImGui.getWindowWidth();
         panelEdgeCursorHelper.addHorizontalEdge(y, xStart, xEnd);
