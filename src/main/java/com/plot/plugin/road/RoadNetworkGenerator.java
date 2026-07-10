@@ -45,7 +45,7 @@ public class RoadNetworkGenerator {
                 continue;
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                junctionGenerator.generateJunction(node, network, roadGenerator);
+                junctionGenerator.generateJunction(node, network, world);
             RoadGenerator.RoadGenerationResult first = results.values().stream().findFirst().orElse(null);
             if (first != null) {
                 for (BlockPos pos : junctionBlocks.roadBlocks) {

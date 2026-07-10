@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,9 +25,15 @@ public class RoadJunctionGenerator {
         public final List<BlockPos> sidewalkBlocks = new ArrayList<>();
     }
 
-    public JunctionBlocks generateJunction(RoadNode node, RoadNetwork network, RoadGenerator generator) {
+    private final RoadGenerator generator;
+
+    public RoadJunctionGenerator(RoadGenerator generator) {
+        this.generator = generator;
+    }
+
+    public JunctionBlocks generateJunction(RoadNode node, RoadNetwork network, World world) {
         JunctionBlocks blocks = new JunctionBlocks();
-        if (node == null || network == null || generator == null) {
+        if (node == null || network == null || generator == null || world == null) {
             return blocks;
         }
 
@@ -35,6 +42,7 @@ public class RoadJunctionGenerator {
             return blocks;
         }
 
+        int junctionY = generator.computeJunctionTargetHeight(node, network, world);
         Vec2d center = node.getPosition();
         List<RoadEdge> connectedEdges = new ArrayList<>();
         for (String edgeId : node.getConnectedEdgeIds()) {
@@ -46,11 +54,11 @@ public class RoadJunctionGenerator {
 
         if (degree >= 5) {
             LOGGER.warn("复杂路口（{}条道路汇聚）暂不支持精细造型，已用简化处理", degree);
-            generateSimpleEnvelope(blocks, center, connectedEdges, network);
+            generateSimpleEnvelope(blocks, center, connectedEdges, junctionY);
             return blocks;
         }
 
-        generatePolygonJunction(blocks, node, connectedEdges, network);
+        generatePolygonJunction(blocks, node, connectedEdges, network, junctionY);
         return blocks;
     }
 
@@ -58,13 +66,13 @@ public class RoadJunctionGenerator {
             JunctionBlocks blocks,
             RoadNode node,
             List<RoadEdge> edges,
-            RoadNetwork network) {
+            RoadNetwork network,
+            int junctionY) {
         Vec2d center = node.getPosition();
         List<Vec2d> polygon = new ArrayList<>();
 
-        for (int i = 0; i < edges.size(); i++) {
-            RoadEdge edge = edges.get(i);
-            List<Vec2d> nearSegment = extractNearNodeSegment(edge, node, network);
+        for (RoadEdge edge : edges) {
+            List<Vec2d> nearSegment = extractNearNodeSegment(edge, node);
             if (nearSegment.size() < 2) {
                 continue;
             }
@@ -76,14 +84,14 @@ public class RoadJunctionGenerator {
         }
 
         if (polygon.size() < 3) {
-            generateSimpleEnvelope(blocks, center, edges, network);
+            generateSimpleEnvelope(blocks, center, edges, junctionY);
             return;
         }
 
-        fillPolygon(blocks, polygon, center);
+        fillPolygon(blocks, polygon, center, junctionY);
     }
 
-    private List<Vec2d> extractNearNodeSegment(RoadEdge edge, RoadNode node, RoadNetwork network) {
+    private List<Vec2d> extractNearNodeSegment(RoadEdge edge, RoadNode node) {
         List<Vec2d> points = edge.getCenterlinePoints();
         if (points.size() < 2) {
             return List.of();
@@ -130,26 +138,27 @@ public class RoadJunctionGenerator {
             JunctionBlocks blocks,
             Vec2d center,
             List<RoadEdge> edges,
-            RoadNetwork network) {
+            int junctionY) {
         int maxWidth = edges.stream()
             .mapToInt(edge -> edge.getEffectiveWidth(generator.getConfig()))
             .max()
             .orElse(5);
         int radius = maxWidth + 2;
+        BlockPos centerWorld = generator.toBlockPos(center, junctionY);
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 if (dx * dx + dz * dz <= radius * radius) {
                     blocks.roadBlocks.add(new BlockPos(
-                        (int) Math.round(center.x) + dx,
-                        0,
-                        (int) Math.round(center.y) + dz
+                        centerWorld.getX() + dx,
+                        junctionY,
+                        centerWorld.getZ() + dz
                     ));
                 }
             }
         }
     }
 
-    private void fillPolygon(JunctionBlocks blocks, List<Vec2d> polygon, Vec2d center) {
+    private void fillPolygon(JunctionBlocks blocks, List<Vec2d> polygon, Vec2d center, int junctionY) {
         double minX = polygon.stream().mapToDouble(p -> p.x).min().orElse(center.x);
         double maxX = polygon.stream().mapToDouble(p -> p.x).max().orElse(center.x);
         double minY = polygon.stream().mapToDouble(p -> p.y).min().orElse(center.y);
@@ -159,7 +168,7 @@ public class RoadJunctionGenerator {
             for (int z = (int) Math.floor(minY); z <= (int) Math.ceil(maxY); z++) {
                 Vec2d point = new Vec2d(x, z);
                 if (pointInPolygon(point, polygon)) {
-                    blocks.roadBlocks.add(new BlockPos(x, 0, z));
+                    blocks.roadBlocks.add(generator.toBlockPos(point, junctionY));
                 }
             }
         }
@@ -177,11 +186,5 @@ public class RoadJunctionGenerator {
             }
         }
         return inside;
-    }
-
-    private final RoadGenerator generator;
-
-    public RoadJunctionGenerator(RoadGenerator generator) {
-        this.generator = generator;
     }
 }

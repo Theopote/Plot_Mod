@@ -7,6 +7,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.client.MinecraftClient;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.core.command.commands.GenerateRoadCommand;
@@ -195,6 +196,74 @@ public class RoadGenerator {
         target.tunnelCount += source.tunnelCount;
         target.streetlightCount += source.streetlightCount;
         target.pathLength += source.pathLength;
+    }
+
+    /**
+     * 计算路口节点处的目标路面高度（汇聚各相连边在节点处的高度均值）
+     */
+    public int computeJunctionTargetHeight(RoadNode node, RoadNetwork network, World world) {
+        if (node == null || network == null || world == null) {
+            return 64;
+        }
+        if (node.getManualElevation() != null) {
+            return node.getManualElevation().intValue();
+        }
+
+        List<Integer> heights = new ArrayList<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            heights.add(getTargetHeightAtNode(edge, node, network, world));
+        }
+
+        if (heights.isEmpty()) {
+            return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+        }
+
+        int min = heights.stream().mapToInt(Integer::intValue).min().orElse(64);
+        int max = heights.stream().mapToInt(Integer::intValue).max().orElse(64);
+        if (max - min > 2) {
+            LOGGER.warn("路口节点 {} 汇聚道路高度不一致 {}，使用平均值拼接", node.getId(), heights);
+        }
+        return (int) Math.round(heights.stream().mapToInt(Integer::intValue).average().orElse(min));
+    }
+
+    /**
+     * 获取单条边在指定节点处的目标路面高度
+     */
+    public int getTargetHeightAtNode(RoadEdge edge, RoadNode node, RoadNetwork network, World world) {
+        if (edge == null || node == null || world == null) {
+            return 64;
+        }
+        if (node.getManualElevation() != null) {
+            return node.getManualElevation().intValue();
+        }
+
+        RoadNode startNode = network != null ? network.getNode(edge.getStartNodeId()) : null;
+        List<PathSegment> segments = samplePath(edge.getCenterlinePoints());
+        if (segments.isEmpty()) {
+            return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+        }
+
+        List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(segments, world, edge, startNode);
+        if (heightInfos.isEmpty()) {
+            return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+        }
+
+        if (edge.getStartNodeId().equals(node.getId())) {
+            return heightInfos.getFirst().targetStart;
+        }
+        if (edge.getEndNodeId().equals(node.getId())) {
+            return heightInfos.getLast().targetEnd;
+        }
+        return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+    }
+
+    public BlockPos toBlockPos(Vec2d canvasPos, int y) {
+        BlockPos base = canvasToBlockPos(canvasPos);
+        return new BlockPos(base.getX(), y, base.getZ());
     }
 
     /**
