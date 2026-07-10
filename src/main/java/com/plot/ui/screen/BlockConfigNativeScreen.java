@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
  *   └──────────────────────────────────────────┘
  * <p>
  * 优化要点：
- *  1. 左侧固定宽度分类侧边栏，消除换行布局的不确定性；
+ *  1. 左侧分类侧边栏宽度随最宽标签文字自适应；
  *  2. 搜索栏实时过滤方块（支持名称 / 命名空间 ID 模糊匹配）；
  *  3. 调色盘操作提示文字、已选计数及满员红字提示；
  *  4. 网格中已在调色盘的方块显示高亮边框+对勾标记；
@@ -69,9 +69,10 @@ public class BlockConfigNativeScreen extends Screen {
     private static final int SECTION_GAP  = 3;   // 区块之间的垂直间隔
 
     // ── 分类侧边栏 ──────────────────────────────────────────────────────────
-    private static final int SIDEBAR_W    = 56;  // 固定宽度
-    private static final int TAB_H        = 14;  // 每个分类按钮的高度（略微减小）
-    private static final int TAB_GAP      = 1;   // 分类按钮间间距
+    private static final int SIDEBAR_MIN_W  = 40;  // 侧边栏最小宽度
+    private static final int TAB_TEXT_PAD_X = 8;   // 标签左右文字留白
+    private static final int TAB_H          = 14;  // 每个分类按钮的高度（略微减小）
+    private static final int TAB_GAP        = 1;   // 分类按钮间间距
 
     // ── 搜索栏 ──────────────────────────────────────────────────────────────
     private static final int SEARCH_H     = 14;  // 搜索栏高度
@@ -150,7 +151,7 @@ public class BlockConfigNativeScreen extends Screen {
     private int slotSize, slotInset;
 
     // 侧边栏区域
-    private int sidebarX, sidebarY, sidebarH;
+    private int sidebarW, sidebarX, sidebarY, sidebarH;
     // 右侧内容区
     private int contentX, contentW;
     // 搜索栏
@@ -210,9 +211,10 @@ public class BlockConfigNativeScreen extends Screen {
         slotSize  = Math.max(18, Math.min(36, byHeight));
         slotInset = Math.max(1, (slotSize - 16) / 2);
 
-        // 3. 面板宽度：侧边栏 + 网格
+        // 3. 面板宽度：侧边栏（随最宽标签自适应）+ 网格
+        sidebarW = computeSidebarWidth();
         int gridW = GRID_COLS * slotSize + (GRID_COLS - 1) * SLOT_GAP;
-        panelW = MARGIN + SIDEBAR_W + MARGIN + gridW + MARGIN;
+        panelW = MARGIN + sidebarW + MARGIN + gridW + MARGIN;
         panelW = Math.min(panelW, this.width - 16);
 
         // 4. 面板高度（自顶向下推算后确定）
@@ -237,8 +239,8 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 6. 侧边栏 / 内容区 X 坐标
         sidebarX = panelX + MARGIN;
-        contentX = sidebarX + SIDEBAR_W + MARGIN;
-        contentW = panelW - MARGIN - SIDEBAR_W - MARGIN - MARGIN;
+        contentX = sidebarX + sidebarW + MARGIN;
+        contentW = panelW - MARGIN - sidebarW - MARGIN - MARGIN;
         // 实际内容区宽度与网格宽对齐
         // (contentW may be slightly wider if panelW was clamped; grid stays left-aligned)
 
@@ -356,7 +358,18 @@ public class BlockConfigNativeScreen extends Screen {
     }
 
     /**
-     * 计算分类侧边栏每个标签的固定位置（竖向排列，固定宽度），并应用滚动偏移。
+     * 根据所有分类标签中最宽的文字计算侧边栏宽度。
+     */
+    private int computeSidebarWidth() {
+        int maxTextW = 0;
+        for (BlockCategory cat : configManager.getAvailableCategories()) {
+            maxTextW = Math.max(maxTextW, this.textRenderer.getWidth(cat.getDisplayName()));
+        }
+        return Math.max(SIDEBAR_MIN_W, maxTextW + TAB_TEXT_PAD_X * 2);
+    }
+
+    /**
+     * 计算分类侧边栏每个标签的位置（竖向排列，宽度与侧边栏一致），并应用滚动偏移。
      */
     private void buildCategoryTabLayouts() {
         categoryTabLayouts.clear();
@@ -365,7 +378,7 @@ public class BlockConfigNativeScreen extends Screen {
         int x = sidebarX;
         int y = sidebarY + sidebarScroll;  // 应用滚动偏移
         for (BlockCategory cat : categories) {
-            categoryTabLayouts.add(new CategoryTabLayout(cat, x, y, SIDEBAR_W, TAB_H));
+            categoryTabLayouts.add(new CategoryTabLayout(cat, x, y, sidebarW, TAB_H));
             y += TAB_H + TAB_GAP;
         }
     }
@@ -474,9 +487,9 @@ public class BlockConfigNativeScreen extends Screen {
     /** 左侧分类侧边栏（支持滚动）。 */
     private void renderSidebar(DrawContext context, int mouseX, int mouseY) {
         // 侧边栏背景
-        context.fill(sidebarX, sidebarY, sidebarX + SIDEBAR_W, sidebarY + sidebarH, COLOR_SIDEBAR_BG);
+        context.fill(sidebarX, sidebarY, sidebarX + sidebarW, sidebarY + sidebarH, COLOR_SIDEBAR_BG);
         // 侧边栏边框
-        drawBorder(context, sidebarX, sidebarY, SIDEBAR_W, sidebarH, 0xFF505050);
+        drawBorder(context, sidebarX, sidebarY, sidebarW, sidebarH, 0xFF505050);
 
         // 在侧边栏区域内裁剪，避免分类项溢出
         // 为了兼容性，这里采用简单做法：检查 Y 是否在范围内即可
@@ -507,11 +520,6 @@ public class BlockConfigNativeScreen extends Screen {
 
             String text = layout.category.getDisplayName();
             int tw = this.textRenderer.getWidth(text);
-            // 侧边栏较窄，文字超长时截断显示省略号
-            if (tw > tabW - 4) {
-                text = truncateText(text, tabW - 4 - this.textRenderer.getWidth("..")) + "..";
-                tw   = this.textRenderer.getWidth(text);
-            }
             int tx = tabX + (tabW - tw) / 2;
             int ty = layout.y + (layout.h - this.textRenderer.fontHeight) / 2;
             context.drawText(this.textRenderer, text, tx, ty,
@@ -876,7 +884,7 @@ public class BlockConfigNativeScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         // 优先：鼠标在侧边栏上时滚动分类栏
-        boolean overSidebar = mouseX >= sidebarX && mouseX < sidebarX + SIDEBAR_W
+        boolean overSidebar = mouseX >= sidebarX && mouseX < sidebarX + sidebarW
                 && mouseY >= sidebarY && mouseY < sidebarY + sidebarH;
         
         if (overSidebar) {
@@ -1039,14 +1047,6 @@ public class BlockConfigNativeScreen extends Screen {
      */
     private boolean isInside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
-
-    /** 截断文字到目标像素宽度，返回截断后的字符串（不含省略号）。 */
-    private String truncateText(String text, int maxWidth) {
-        while (!text.isEmpty() && this.textRenderer.getWidth(text) > maxWidth) {
-            text = text.substring(0, text.length() - 1);
-        }
-        return text;
     }
 
     private int brighten(int color) {
