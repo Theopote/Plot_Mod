@@ -2,7 +2,9 @@ package com.plot.plugin;
 
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTabBarFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 import com.plot.ui.component.Icons;
@@ -41,6 +43,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 
@@ -63,6 +66,10 @@ public class RoadSystemPlugin extends Plugin {
 
     private RoadGenerator.RoadGenerationResult lastGenerationResult = null;
     private String currentNetworkFile = DEFAULT_NETWORK_FILE;
+
+    private String pendingDeleteEdgeId = "";
+    private boolean deleteConfirmPending = false;
+    private boolean buildConfirmPending = false;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -193,15 +200,46 @@ public class RoadSystemPlugin extends Plugin {
                 selectedEdgeId = edge.getId();
             }
             ImGui.sameLine();
+            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF3030A0FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF4040B0FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF202090FFL);
             if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##del_" + edge.getId())) {
-                networkHistory.push(network);
-                network.removeEdge(edge.getId());
-                if (edge.getId().equals(selectedEdgeId)) {
-                    selectedEdgeId = "";
-                }
+                pendingDeleteEdgeId = edge.getId();
+                deleteConfirmPending = true;
             }
+            ImGui.popStyleColor(3);
         }
         ImGui.endChild();
+        renderDeleteConfirmPopup();
+    }
+
+    private void renderDeleteConfirmPopup() {
+        if (deleteConfirmPending) {
+            ImGui.openPopup("##road_delete_confirm");
+            deleteConfirmPending = false;
+        }
+
+        if (ImGui.beginPopupModal("##road_delete_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text(PlotI18n.tr("plugin.road.delete_confirm"));
+            ImGui.separator();
+            if (ImGui.button(PlotI18n.tr("plugin.road.delete"), 100, 0)) {
+                if (!pendingDeleteEdgeId.isEmpty()) {
+                    networkHistory.push(network);
+                    network.removeEdge(pendingDeleteEdgeId);
+                    if (pendingDeleteEdgeId.equals(selectedEdgeId)) {
+                        selectedEdgeId = "";
+                    }
+                }
+                pendingDeleteEdgeId = "";
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 100, 0)) {
+                pendingDeleteEdgeId = "";
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     private void renderAdoptTab() {
@@ -237,7 +275,8 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.separator();
         renderDefaultParams();
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), ImGui.getContentRegionAvailX() * 0.48f, 0)) {
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), half, 0)) {
             activatePathDrawingTool();
         }
         ImGui.sameLine();
@@ -245,7 +284,7 @@ public class RoadSystemPlugin extends Plugin {
         if (!canAdopt) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.adopt_as_road"), ImGui.getContentRegionAvailX(), 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.adopt_as_road"), half, 0)) {
             adoptSelectedShape();
         }
         if (!canAdopt) {
@@ -290,7 +329,7 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         int[] width = {current.getWidth() != null ? current.getWidth() : config.getRoadWidth()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##edge_width", width, 3, 20, "")) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##edge_width", width, 3, 20, "%d")) {
             current.setWidth(width[0]);
         }
         if (ImGui.isItemActivated()) {
@@ -305,7 +344,7 @@ public class RoadSystemPlugin extends Plugin {
 
         if (current.getEffectiveIncludeSidewalk(config)) {
             int[] sidewalkWidth = {current.getSidewalkWidth() != null ? current.getSidewalkWidth() : config.getSidewalkWidth()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##sw", sidewalkWidth, 1, 3, "")) {
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##sw", sidewalkWidth, 1, 3, "%d")) {
                 current.setSidewalkWidth(sidewalkWidth[0]);
             }
             if (ImGui.isItemActivated()) {
@@ -334,7 +373,9 @@ public class RoadSystemPlugin extends Plugin {
 
     private void renderSlopeOverrides(RoadEdge edge) {
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.slope_override_hint"));
         List<RoadEdge.SlopeOverride> overrides = new ArrayList<>(edge.getSlopeOverrides());
+        boolean overridesChanged = false;
 
         for (int i = 0; i < overrides.size(); i++) {
             RoadEdge.SlopeOverride override = overrides.get(i);
@@ -342,21 +383,84 @@ public class RoadSystemPlugin extends Plugin {
             float[] end = {(float) override.endDistance};
             float[] slope = {override.maxSlope};
             ImGui.pushID(i);
-            ImGui.sliderFloat("start##s", start, 0, (float) edge.getLength(), "%.1fm");
-            ImGui.sameLine();
-            ImGui.sliderFloat("end##e", end, 0, (float) edge.getLength(), "%.1fm");
-            ImGui.sameLine();
-            ImGui.sliderFloat("slope##sl", slope, 0, 45, "%.1f%%");
+
+            ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, (float) edge.getLength(), "%.1fm");
+            if (ImGui.isItemActivated()) {
+                networkHistory.push(network);
+            }
             override.startDistance = start[0];
+            if (override.startDistance > override.endDistance) {
+                override.endDistance = override.startDistance;
+                end[0] = (float) override.endDistance;
+            }
+
+            ImGui.sameLine();
+            ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], (float) edge.getLength(), "%.1fm");
+            if (ImGui.isItemActivated()) {
+                networkHistory.push(network);
+            }
             override.endDistance = end[0];
+
+            ImGui.sameLine();
+            ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_value") + "##sl", slope, 0, 45, "%.1f%%");
+            if (ImGui.isItemActivated()) {
+                networkHistory.push(network);
+            }
             override.maxSlope = slope[0];
+
+            ImGui.sameLine();
+            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF3030A0FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF4040B0FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF202090FFL);
+            if (ImGui.button(Icons.PLUGIN_REMOVE + "##rm")) {
+                networkHistory.push(network);
+                overrides.remove(i);
+                overridesChanged = true;
+                ImGui.popStyleColor(3);
+                ImGui.popID();
+                break;
+            }
+            ImGui.popStyleColor(3);
+
+            if (override.startDistance > override.endDistance) {
+                ImGui.textColored((int) 0xFF4040FFFFL, PlotI18n.tr("plugin.road.slope_range_invalid"));
+            } else if (hasOverlappingOverride(overrides, i)) {
+                ImGui.textColored((int) 0xFFFF8040FFL, PlotI18n.tr("plugin.road.slope_range_overlap"));
+            }
+
+            overridesChanged = true;
             ImGui.popID();
         }
 
+        if (overridesChanged) {
+            edge.setSlopeOverrides(overrides);
+        }
+
         if (ImGui.button(PlotI18n.tr("plugin.road.add_slope_override"))) {
+            networkHistory.push(network);
             overrides.add(new RoadEdge.SlopeOverride(0, (float) edge.getLength(), config.getMaxSlope()));
             edge.setSlopeOverrides(overrides);
         }
+    }
+
+    private boolean hasOverlappingOverride(List<RoadEdge.SlopeOverride> overrides, int index) {
+        RoadEdge.SlopeOverride current = overrides.get(index);
+        if (current.startDistance > current.endDistance) {
+            return false;
+        }
+        for (int i = 0; i < overrides.size(); i++) {
+            if (i == index) {
+                continue;
+            }
+            RoadEdge.SlopeOverride other = overrides.get(i);
+            if (other.startDistance > other.endDistance) {
+                continue;
+            }
+            if (current.startDistance < other.endDistance && current.endDistance > other.startDistance) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void renderGenerateTab() {
@@ -379,6 +483,7 @@ public class RoadSystemPlugin extends Plugin {
 
         if (lastGenerationResult != null) {
             ImGui.separator();
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
             ImGui.text(String.format(PlotI18n.tr("plugin.road.cut_volume") + ": %d", lastGenerationResult.cutVolume));
             ImGui.text(String.format(PlotI18n.tr("plugin.road.fill_volume") + ": %d", lastGenerationResult.fillVolume));
@@ -392,8 +497,31 @@ public class RoadSystemPlugin extends Plugin {
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.build"), half, 0)) {
-                buildRoadInWorld();
+                buildConfirmPending = true;
             }
+            renderBuildConfirmPopup();
+        }
+    }
+
+    private void renderBuildConfirmPopup() {
+        if (buildConfirmPending) {
+            ImGui.openPopup("##road_build_confirm");
+            buildConfirmPending = false;
+        }
+
+        if (ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+            int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
+            ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
+            ImGui.separator();
+            if (ImGui.button(PlotI18n.tr("plugin.road.build"), 120, 0)) {
+                buildRoadInWorld();
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
         }
     }
 
@@ -421,14 +549,45 @@ public class RoadSystemPlugin extends Plugin {
         }
         try {
             networkHistory.push(network);
-            RoadEdge edge = networkBuilder.adoptShape(network, selectedPath, config);
-            selectedEdgeId = edge.getId();
-            projectStatus = PlotI18n.tr("plugin.road.adopt_success");
-            LOGGER.info("认领道路成功: {}", edge.getId());
+            RoadNetworkBuilder.AdoptResult result =
+                networkBuilder.adoptShape(network, selectedPath, config);
+            Vec2d startPoint = resolvePathStartPoint(selectedPath);
+            RoadEdge selected = result.edges().stream()
+                .min(Comparator.comparingDouble(edge -> distanceToStart(edge, startPoint)))
+                .orElse(result.edges().getFirst());
+            selectedEdgeId = selected.getId();
+            if (result.junctionCount() > 0) {
+                projectStatus = String.format(
+                    PlotI18n.tr("plugin.road.adopt_success_junction"),
+                    result.junctionCount());
+            } else {
+                projectStatus = PlotI18n.tr("plugin.road.adopt_success");
+            }
+            LOGGER.info("认领道路成功: {} ({} 段)", selected.getId(), result.edges().size());
         } catch (Exception e) {
             LOGGER.error("认领道路失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.road.adopt_failed");
         }
+    }
+
+    private Vec2d resolvePathStartPoint(Shape shape) {
+        List<Vec2d> endpoints = shape.getEndpoints();
+        if (endpoints != null && !endpoints.isEmpty()) {
+            return endpoints.getFirst();
+        }
+        List<Vec2d> points = RoadGeometryUtils.extractShapePoints(shape);
+        if (points.isEmpty()) {
+            throw new IllegalArgumentException("Shape has no points");
+        }
+        return points.getFirst();
+    }
+
+    private double distanceToStart(RoadEdge edge, Vec2d startPoint) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points.isEmpty()) {
+            return Double.MAX_VALUE;
+        }
+        return points.getFirst().distance(startPoint);
     }
 
     private void calculateNetworkPreview() {

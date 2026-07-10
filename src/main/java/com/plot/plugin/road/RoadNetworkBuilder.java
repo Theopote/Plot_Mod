@@ -9,7 +9,10 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * 道路网络拓扑构建（认领、求交打断、路口分类）
@@ -25,7 +28,13 @@ public class RoadNetworkBuilder {
         COMPLEX
     }
 
-    public RoadEdge adoptShape(RoadNetwork network, Shape shape, RoadSystemConfig defaults) {
+    public record AdoptResult(List<RoadEdge> edges, int junctionCount) {
+        public AdoptResult {
+            edges = List.copyOf(edges);
+        }
+    }
+
+    public AdoptResult adoptShape(RoadNetwork network, Shape shape, RoadSystemConfig defaults) {
         List<Vec2d> points = RoadGeometryUtils.extractShapePoints(shape);
         if (points.size() < 2) {
             throw new IllegalArgumentException("Shape must have at least 2 points");
@@ -51,11 +60,26 @@ public class RoadNetworkBuilder {
             edge.setMaxSlope(defaults.getMaxSlope());
         }
 
-        detectAndSplitIntersections(network);
-        return network.getEdge(edge.getId());
+        Set<String> adoptedEdgeIds = new HashSet<>();
+        adoptedEdgeIds.add(edge.getId());
+        detectAndSplitIntersections(network, adoptedEdgeIds);
+
+        List<RoadEdge> producedEdges = adoptedEdgeIds.stream()
+            .map(network::getEdge)
+            .filter(Objects::nonNull)
+            .toList();
+        if (producedEdges.isEmpty()) {
+            throw new IllegalStateException("Adopted road produced no edges after intersection processing");
+        }
+        int junctionCount = Math.max(0, producedEdges.size() - 1);
+        return new AdoptResult(producedEdges, junctionCount);
     }
 
     public void detectAndSplitIntersections(RoadNetwork network) {
+        detectAndSplitIntersections(network, null);
+    }
+
+    public void detectAndSplitIntersections(RoadNetwork network, Set<String> trackedEdgeIds) {
         boolean changed = true;
         int safety = 0;
         while (changed && safety++ < 100) {
@@ -80,8 +104,8 @@ public class RoadNetworkBuilder {
                         }
 
                         RoadNode junctionNode = findOrCreateNode(network, intersection);
-                        boolean splitA = splitEdgeAtNode(network, edgeA.getId(), junctionNode.getId(), intersection);
-                        boolean splitB = splitEdgeAtNode(network, edgeB.getId(), junctionNode.getId(), intersection);
+                        boolean splitA = splitEdgeAtNode(network, edgeA.getId(), junctionNode.getId(), intersection, trackedEdgeIds);
+                        boolean splitB = splitEdgeAtNode(network, edgeB.getId(), junctionNode.getId(), intersection, trackedEdgeIds);
                         if (splitA || splitB) {
                             changed = true;
                         }
@@ -166,7 +190,12 @@ public class RoadNetworkBuilder {
         return null;
     }
 
-    private boolean splitEdgeAtNode(RoadNetwork network, String edgeId, String nodeId, Vec2d splitPoint) {
+    private boolean splitEdgeAtNode(
+            RoadNetwork network,
+            String edgeId,
+            String nodeId,
+            Vec2d splitPoint,
+            Set<String> trackedEdgeIds) {
         RoadEdge edge = network.getEdge(edgeId);
         if (edge == null) {
             return false;
@@ -195,6 +224,7 @@ public class RoadNetworkBuilder {
         double splitDistance = RoadGeometryUtils.calculatePathLength(firstPart);
         double totalLength = edge.getLength();
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
+        boolean tracked = trackedEdgeIds != null && trackedEdgeIds.remove(edgeId);
 
         network.detachEdge(edgeId);
         RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart);
@@ -203,6 +233,11 @@ public class RoadNetworkBuilder {
         copyProperties(edge, secondEdge);
         firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
         secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
+
+        if (tracked) {
+            trackedEdgeIds.add(firstEdge.getId());
+            trackedEdgeIds.add(secondEdge.getId());
+        }
         return true;
     }
 

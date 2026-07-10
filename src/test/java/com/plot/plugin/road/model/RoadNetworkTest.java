@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class RoadNetworkTest {
 
@@ -24,10 +26,31 @@ class RoadNetworkTest {
             new Vec2d(20, 0)
         ), false);
 
-        builder.adoptShape(network, shape, config);
+        RoadNetworkBuilder.AdoptResult result = builder.adoptShape(network, shape, config);
 
         assertEquals(2, network.getNodes().size());
         assertEquals(1, network.getEdges().size());
+        assertEquals(1, result.edges().size());
+        assertEquals(0, result.junctionCount());
+    }
+
+    @Test
+    void adoptCrossingRoadReturnsProducedSegments() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+        PolylineShape a = new PolylineShape(List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false);
+        PolylineShape b = new PolylineShape(List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false);
+
+        builder.adoptShape(network, a, config);
+        RoadNetworkBuilder.AdoptResult result = builder.adoptShape(network, b, config);
+
+        assertEquals(4, network.getEdges().size());
+        assertEquals(2, result.edges().size());
+        assertEquals(1, result.junctionCount());
+        assertNotNull(result.edges().getFirst());
+        assertFalse(result.edges().stream().anyMatch(edge -> network.getEdge(edge.getId()) == null));
     }
 
     @Test
