@@ -51,9 +51,7 @@ public class RoadJunctionGenerator {
         }
 
         if (degree >= 5) {
-            LOGGER.warn("复杂路口（{}条道路汇聚）暂不支持精细造型，已用简化处理", degree);
-            generateSimpleEnvelope(blocks, center, connectedEdges, junctionY);
-            return blocks;
+            LOGGER.debug("复杂路口（{}条道路汇聚），使用多边形填充（必要时回退凸包）", degree);
         }
 
         generatePolygonJunction(blocks, node, connectedEdges, junctionY);
@@ -66,11 +64,16 @@ public class RoadJunctionGenerator {
             List<RoadEdge> edges,
             int junctionY) {
         Vec2d center = node.getPosition();
+        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            edges,
+            edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+        );
         List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
             node.getId(),
             edges,
             edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+            junctionRadius
         );
 
         if (polygon.size() < 3) {
