@@ -11,6 +11,7 @@ import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.Icons;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.core.state.AppState;
+import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
@@ -66,7 +67,7 @@ public class RoadSystemPlugin extends Plugin {
     private RoadGenerator roadGenerator;
     private RoadNetworkGenerator networkGenerator;
 
-    private final ImBoolean includeSidewalkRef = new ImBoolean(false);
+    private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
     private Shape selectedPath = null;
     private String selectedEdgeId = "";
     private String projectStatus = "";
@@ -104,7 +105,7 @@ public class RoadSystemPlugin extends Plugin {
         if (config == null) {
             config = new RoadSystemConfig(getId());
         }
-        includeSidewalkRef.set(config.isIncludeSidewalk());
+        adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
 
         try {
             CoordinateTransformer transformer = CoordinateTransformer.getInstance();
@@ -116,8 +117,7 @@ public class RoadSystemPlugin extends Plugin {
 
         EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
-        loadNetworkFile(getNetworksDir().resolve(DEFAULT_NETWORK_FILE));
-        projectStatus = PlotI18n.tr("plugin.road.network.default_loaded");
+        loadNetworkForCurrentProject();
     }
 
     @Override
@@ -164,12 +164,24 @@ public class RoadSystemPlugin extends Plugin {
     private void renderToolbar() {
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
 
+        if (!networkHistory.canUndo()) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.undo"), buttonWidth, 0)) {
             network = networkHistory.undo(network);
         }
+        if (!networkHistory.canUndo()) {
+            ImGui.endDisabled();
+        }
         ImGui.sameLine();
+        if (!networkHistory.canRedo()) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.redo"), buttonWidth, 0)) {
             network = networkHistory.redo(network);
+        }
+        if (!networkHistory.canRedo()) {
+            ImGui.endDisabled();
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.save_network"), buttonWidth, 0)) {
@@ -377,6 +389,9 @@ public class RoadSystemPlugin extends Plugin {
             for (RoadEdge edge : edges) {
                 RoadNode start = network.getNode(edge.getStartNodeId());
                 RoadNode end = network.getNode(edge.getEndNodeId());
+                if (start == null || end == null) {
+                    continue;
+                }
                 String label = String.format("(%.0f,%.0f)->(%.0f,%.0f) %.1fm",
                     start.getPosition().x, start.getPosition().y,
                     end.getPosition().x, end.getPosition().y,
@@ -408,10 +423,10 @@ public class RoadSystemPlugin extends Plugin {
             material -> current.setMaterial(material)
         );
 
-        includeSidewalkRef.set(current.getIncludeSidewalk() != null ? current.getIncludeSidewalk() : config.isIncludeSidewalk());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
+        ImBoolean edgeSidewalkRef = new ImBoolean(current.getEffectiveIncludeSidewalk(config));
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), edgeSidewalkRef)) {
             networkHistory.push(network);
-            current.setIncludeSidewalk(includeSidewalkRef.get());
+            current.setIncludeSidewalk(edgeSidewalkRef.get());
         }
 
         if (current.getEffectiveIncludeSidewalk(config)) {
@@ -455,7 +470,7 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
         ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.slope_override_hint"));
         List<RoadEdge.SlopeOverride> overrides = new ArrayList<>(edge.getSlopeOverrides());
-        boolean overridesChanged = false;
+        List<RoadEdge.SlopeOverride> originalOverrides = snapshotSlopeOverrides(overrides);
 
         for (int i = 0; i < overrides.size(); i++) {
             RoadEdge.SlopeOverride override = overrides.get(i);
@@ -495,10 +510,10 @@ public class RoadSystemPlugin extends Plugin {
             if (ImGui.button(Icons.PLUGIN_REMOVE + "##rm")) {
                 networkHistory.push(network);
                 overrides.remove(i);
-                overridesChanged = true;
+                edge.setSlopeOverrides(overrides);
                 ImGui.popStyleColor(3);
                 ImGui.popID();
-                break;
+                return;
             }
             ImGui.popStyleColor(3);
 
@@ -508,11 +523,10 @@ public class RoadSystemPlugin extends Plugin {
                 ImGui.textColored((int) 0xFFFF8040FFL, PlotI18n.tr("plugin.road.slope_range_overlap"));
             }
 
-            overridesChanged = true;
             ImGui.popID();
         }
 
-        if (overridesChanged) {
+        if (!slopeOverridesEqual(overrides, originalOverrides)) {
             edge.setSlopeOverrides(overrides);
         }
 
@@ -596,10 +610,16 @@ public class RoadSystemPlugin extends Plugin {
             ImGui.endDisabled();
         }
 
+        if (!hasNetwork) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
             if (calculateNetworkPreview()) {
                 buildConfirmPending = true;
             }
+        }
+        if (!hasNetwork) {
+            ImGui.endDisabled();
         }
 
         if (!hasNetwork) {
@@ -610,12 +630,13 @@ public class RoadSystemPlugin extends Plugin {
             ImGui.separator();
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.cut_volume") + ": %d", lastGenerationResult.cutVolume));
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.fill_volume") + ": %d", lastGenerationResult.fillVolume));
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.bridge_count") + ": %d", lastGenerationResult.bridgeCount));
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.tunnel_count") + ": %d", lastGenerationResult.tunnelCount));
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.streetlight_count") + ": %d",
-                lastGenerationResult.streetlightCount));
+            ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
+            ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
+            ImGui.text(PlotI18n.tr("plugin.road.bridge_count_result",
+                lastGenerationResult.bridgeCount, lastGenerationResult.bridgeBlocks.size()));
+            ImGui.text(PlotI18n.tr("plugin.road.tunnel_count_result",
+                lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
+            ImGui.text(PlotI18n.tr("plugin.road.streetlight_count_result", lastGenerationResult.streetlightCount));
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
@@ -660,6 +681,7 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private void renderDefaultParams() {
+        renderPresetSelector();
         ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
         int[] roadWidth = {config.getRoadWidth()};
         if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, PlotI18n.tr("plugin.road.road_width", roadWidth[0]))) {
@@ -671,9 +693,9 @@ public class RoadSystemPlugin extends Plugin {
             config.setMaxSlope(maxSlope[0]);
         }
 
-        includeSidewalkRef.set(config.isIncludeSidewalk());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
-            config.setIncludeSidewalk(includeSidewalkRef.get());
+        adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), adoptIncludeSidewalkRef)) {
+            config.setIncludeSidewalk(adoptIncludeSidewalkRef.get());
         }
 
         renderConfigMaterialCombo(
@@ -693,6 +715,30 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         renderAdvancedEngineeringSettings();
+    }
+
+    private void renderPresetSelector() {
+        ImGui.text(PlotI18n.tr("plugin.road.road_presets"));
+        String selectedId = config.getSelectedPreset();
+        boolean customSelected = selectedId == null || selectedId.isBlank();
+        String preview = customSelected
+            ? PlotI18n.tr("plugin.road.preset_custom")
+            : PlotI18n.tr("preset.road." + selectedId);
+
+        if (ImGui.beginCombo("##road_preset", preview)) {
+            if (ImGui.selectable(PlotI18n.tr("plugin.road.preset_custom"), customSelected)) {
+                config.setSelectedPreset("");
+            }
+            for (RoadSystemConfig.RoadPreset preset : config.getPresets()) {
+                boolean selected = preset.id.equals(selectedId);
+                if (ImGui.selectable(PlotI18n.tr("preset.road." + preset.id), selected)) {
+                    config.applyPreset(preset);
+                    adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
+                }
+            }
+            ImGui.endCombo();
+        }
+        ImGui.spacing();
     }
 
     private void renderAdvancedEngineeringSettings() {
@@ -910,7 +956,46 @@ public class RoadSystemPlugin extends Plugin {
             selectedEdgeId = "";
         } catch (IOException e) {
             LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
+            projectStatus = PlotI18n.tr("plugin.road.network.load_failed", file.getFileName());
         }
+    }
+
+    private void loadNetworkForCurrentProject() {
+        Project project = AppState.getInstance().getCurrentProject();
+        if (project != null && project.getFilePath() != null && !project.getFilePath().isBlank()) {
+            onProjectLoaded(project.getFilePath());
+            return;
+        }
+        currentNetworkFile = DEFAULT_NETWORK_FILE;
+        loadNetworkFile(getNetworksDir().resolve(currentNetworkFile));
+        projectStatus = PlotI18n.tr("plugin.road.network.default_loaded");
+    }
+
+    private static List<RoadEdge.SlopeOverride> snapshotSlopeOverrides(List<RoadEdge.SlopeOverride> overrides) {
+        List<RoadEdge.SlopeOverride> copy = new ArrayList<>(overrides.size());
+        for (RoadEdge.SlopeOverride override : overrides) {
+            copy.add(new RoadEdge.SlopeOverride(
+                override.startDistance, override.endDistance, override.maxSlope));
+        }
+        return copy;
+    }
+
+    private static boolean slopeOverridesEqual(
+            List<RoadEdge.SlopeOverride> left,
+            List<RoadEdge.SlopeOverride> right) {
+        if (left.size() != right.size()) {
+            return false;
+        }
+        for (int i = 0; i < left.size(); i++) {
+            RoadEdge.SlopeOverride a = left.get(i);
+            RoadEdge.SlopeOverride b = right.get(i);
+            if (a.startDistance != b.startDistance
+                || a.endDistance != b.endDistance
+                || a.maxSlope != b.maxSlope) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void saveNetworkFile(Path file) {

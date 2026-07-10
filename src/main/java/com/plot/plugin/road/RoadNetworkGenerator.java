@@ -1,5 +1,6 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -79,18 +80,54 @@ public class RoadNetworkGenerator {
     public RoadGenerator.RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
         NetworkGenerationResult networkResult = generateAll(network, world);
         RoadGenerator.RoadGenerationResult aggregate = new RoadGenerator.RoadGenerationResult(0);
+        RoadSystemConfig config = roadGenerator.getConfig();
         for (RoadGenerator.RoadGenerationResult edgeResult : networkResult.getEdgeResults().values()) {
             roadGenerator.mergeResult(aggregate, edgeResult);
         }
-        for (RoadJunctionGenerator.JunctionBlocks junctionBlocks : networkResult.getJunctionResults().values()) {
+        for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry
+                : networkResult.getJunctionResults().entrySet()) {
+            RoadNode node = network.getNode(entry.getKey());
+            String roadMaterial = resolveJunctionMaterial(node, network, config, false);
+            String sidewalkMaterial = resolveJunctionMaterial(node, network, config, true);
             roadGenerator.mergeJunctionBlocks(
                 aggregate,
-                junctionBlocks,
-                roadGenerator.getBlockIdFromMaterial(roadGenerator.getConfig().getSelectedMaterial()),
-                roadGenerator.getBlockIdFromMaterial(roadGenerator.getConfig().getSelectedMaterial())
+                entry.getValue(),
+                roadGenerator.getBlockIdFromMaterial(roadMaterial),
+                roadGenerator.getBlockIdFromMaterial(sidewalkMaterial)
             );
         }
         return aggregate;
+    }
+
+    static String resolveJunctionMaterial(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            boolean sidewalk) {
+        String fallback = sidewalk ? config.getSelectedSidewalkMaterial() : config.getSelectedMaterial();
+        if (node == null || network == null) {
+            return fallback;
+        }
+
+        String selectedMaterial = null;
+        int widestRoad = -1;
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            if (sidewalk && !edge.getEffectiveIncludeSidewalk(config)) {
+                continue;
+            }
+            int width = edge.getEffectiveWidth(config);
+            if (width >= widestRoad) {
+                widestRoad = width;
+                selectedMaterial = sidewalk
+                    ? edge.getEffectiveSidewalkMaterial(config)
+                    : edge.getEffectiveMaterial(config);
+            }
+        }
+        return selectedMaterial != null ? selectedMaterial : fallback;
     }
 
     public static World getClientWorld() {

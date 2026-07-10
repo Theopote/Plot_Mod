@@ -127,6 +127,26 @@ class RoadGeometryUtilsTest {
     }
 
     @Test
+    void interpolatePolylineByNormalizedDistanceUsesArcLength() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10)
+        );
+
+        Vec2d quarter = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(path, 0.25);
+        Vec2d midpoint = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(path, 0.5);
+        Vec2d end = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(path, 1.0);
+
+        assertEquals(5, quarter.x, 1e-6);
+        assertEquals(0, quarter.y, 1e-6);
+        assertEquals(10, midpoint.x, 1e-6);
+        assertEquals(0, midpoint.y, 1e-6);
+        assertEquals(10, end.x, 1e-6);
+        assertEquals(10, end.y, 1e-6);
+    }
+
+    @Test
     void canvasToBlockXZFallsBackToOneToOneMapping() {
         BlockPos pos = RoadGeometryUtils.canvasToBlockXZ(new Vec2d(12.7, -3.2), null);
 

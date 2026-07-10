@@ -12,11 +12,17 @@ import com.plot.core.model.serialization.ShapeSerialization;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
+import com.plot.infrastructure.event.project.ProjectLoadedEvent;
+import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -173,6 +179,38 @@ public class Project {
             }
         }
         setModified(false);
+    }
+
+    /**
+     * 从磁盘加载项目并应用到运行时状态，同时发布 {@link ProjectLoadedEvent}。
+     */
+    public static Project loadFromFile(AppState appState, Path filePath) throws IOException {
+        if (filePath == null) {
+            throw new IllegalArgumentException("filePath must not be null");
+        }
+        String data = Files.readString(filePath, StandardCharsets.UTF_8);
+        Project project = deserialize(data);
+        project.setFilePath(filePath.toString());
+        project.applyToAppState(appState);
+        EventBus.getInstance().publish(new ProjectLoadedEvent(project.getId(), project.getFilePath()));
+        LOGGER.info("项目已加载: {}", filePath);
+        return project;
+    }
+
+    /**
+     * 捕获当前运行时状态并保存到磁盘，同时发布 {@link ProjectSavedEvent}。
+     */
+    public static void saveToFile(AppState appState, Path filePath) throws IOException {
+        if (filePath == null) {
+            throw new IllegalArgumentException("filePath must not be null");
+        }
+        Project project = captureFromAppState(appState);
+        project.setFilePath(filePath.toString());
+        Files.writeString(filePath, project.serialize(), StandardCharsets.UTF_8);
+        project.setModified(false);
+        appState.setCurrentProject(project);
+        EventBus.getInstance().publish(new ProjectSavedEvent(project.getId(), project.getFilePath()));
+        LOGGER.info("项目已保存: {}", filePath);
     }
 
     /**

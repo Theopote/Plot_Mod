@@ -104,6 +104,25 @@ public final class RoadGeometryUtils {
     }
 
     /**
+     * 按归一化弧长（0~1）在折线上插值取点
+     */
+    public static Vec2d interpolatePolylineByNormalizedDistance(List<Vec2d> polyline, double normalizedDistance) {
+        if (polyline == null || polyline.isEmpty()) {
+            return new Vec2d(0, 0);
+        }
+        if (polyline.size() == 1) {
+            return polyline.getFirst().copy();
+        }
+        double clamped = Math.max(0.0, Math.min(1.0, normalizedDistance));
+        double totalLength = calculatePathLength(polyline);
+        if (totalLength <= 1e-9) {
+            return polyline.getFirst().copy();
+        }
+        Vec2d point = pointAtDistance(polyline, clamped * totalLength);
+        return point != null ? point : polyline.getLast().copy();
+    }
+
+    /**
      * 在折线上找到距给定点最近的索引位置（用于打断）
      */
     public static int findNearestSegmentIndex(List<Vec2d> points, Vec2d target) {

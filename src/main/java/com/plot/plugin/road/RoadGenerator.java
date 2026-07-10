@@ -148,7 +148,7 @@ public class RoadGenerator {
         try {
             List<PathSegment> segments = samplePath(pathPoints);
             List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
-                segments, world, edge, startNode);
+                segments, world, edge, startNode, endNode);
             List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
             List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, world);
 
@@ -160,8 +160,17 @@ public class RoadGenerator {
                 segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, world,
                 getBlockIdFromMaterial(edge.getEffectiveMaterial(config)));
 
+            int shoulderWidth = config.isIncludeShoulder() ? config.getShoulderWidth() : 0;
+            if (config.isIncludeShoulder()) {
+                double shoulderOffset = halfWidth + shoulderWidth / 2.0;
+                List<Vec2d> leftShoulder = OffsetHandler.offsetPolyline(pathPoints, shoulderOffset);
+                List<Vec2d> rightShoulder = OffsetHandler.offsetPolyline(pathPoints, -shoulderOffset);
+                generateShoulderBlocks(result, segments, heightInfos, leftShoulder, rightShoulder,
+                    shoulderWidth, getBlockIdFromMaterial("material.plot.gravel"));
+            }
+
             if (edge.getEffectiveIncludeSidewalk(config)) {
-                double sidewalkOffset = halfWidth + edge.getEffectiveSidewalkWidth(config) / 2.0;
+                double sidewalkOffset = halfWidth + shoulderWidth + edge.getEffectiveSidewalkWidth(config) / 2.0;
                 List<Vec2d> leftSidewalk = OffsetHandler.offsetPolyline(pathPoints, sidewalkOffset);
                 List<Vec2d> rightSidewalk = OffsetHandler.offsetPolyline(pathPoints, -sidewalkOffset);
                 generateSidewalkBlocks(result, segments, heightInfos, leftSidewalk, rightSidewalk,
@@ -169,9 +178,17 @@ public class RoadGenerator {
                     getBlockIdFromMaterial(edge.getEffectiveSidewalkMaterial(config)));
             }
 
+            if (config.isIncludeDrainage()) {
+                double drainageOffset = halfWidth + shoulderWidth + 0.5;
+                List<Vec2d> leftDrainage = OffsetHandler.offsetPolyline(pathPoints, drainageOffset);
+                List<Vec2d> rightDrainage = OffsetHandler.offsetPolyline(pathPoints, -drainageOffset);
+                generateDrainageChannels(result, segments, heightInfos, leftDrainage, rightDrainage,
+                    getBlockIdFromMaterial("material.plot.gravel"));
+            }
+
             Integer spacing = edge.getStreetlightSpacing();
             if (spacing != null && spacing > 0) {
-                generateStreetlights(result, pathPoints, edge, world);
+                generateStreetlights(result, pathPoints, edge, world, shoulderWidth);
             }
 
             result.pathLength = edge.getLength();
@@ -281,7 +298,7 @@ public class RoadGenerator {
             return getTopHeight(world, canvasToBlockPos(node.getPosition()));
         }
 
-        List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(segments, world, edge, startNode);
+        List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(segments, world, edge, startNode, node);
         if (heightInfos.isEmpty()) {
             return getTopHeight(world, canvasToBlockPos(node.getPosition()));
         }
@@ -437,7 +454,8 @@ public class RoadGenerator {
     }
 
     private List<SegmentHeightInfo> calculateSegmentHeightsForEdge(
-            List<PathSegment> segments, World world, RoadEdge edge, RoadNode startNode) {
+            List<PathSegment> segments, World world, RoadEdge edge,
+            RoadNode startNode, RoadNode endNode) {
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
         if (segments.isEmpty()) {
             return heightInfos;
@@ -470,7 +488,39 @@ public class RoadGenerator {
             currentHeight = targetEnd;
             accumulatedDistance += segment.distance;
         }
+
+        if (endNode != null && endNode.getManualElevation() != null && !heightInfos.isEmpty()) {
+            applyManualEndHeight(heightInfos, edge, endNode.getManualElevation().intValue(), accumulatedDistance);
+        }
         return heightInfos;
+    }
+
+    private void applyManualEndHeight(
+            List<SegmentHeightInfo> heightInfos,
+            RoadEdge edge,
+            int desiredEndHeight,
+            double totalDistance) {
+        int lastIndex = heightInfos.size() - 1;
+        SegmentHeightInfo last = heightInfos.get(lastIndex);
+        double lastSegmentStartDistance = Math.max(0.0, totalDistance - last.segment.distance);
+        float maxSlopePercent = edge.getEffectiveMaxSlope(lastSegmentStartDistance, config);
+        int clampedEnd = clampTowardTarget(last.targetStart, desiredEndHeight, last.segment.distance, maxSlopePercent);
+        if (clampedEnd == last.targetEnd) {
+            return;
+        }
+        double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
+            last.targetStart, clampedEnd, last.segment.distance);
+        heightInfos.set(lastIndex, new SegmentHeightInfo(
+            last.segment, last.groundStart, last.groundEnd, last.targetStart, clampedEnd, actualSlope));
+    }
+
+    private static int clampTowardTarget(int fromHeight, int targetHeight, double distance, float maxSlopePercent) {
+        double maxRise = distance * maxSlopePercent / 100.0;
+        int delta = targetHeight - fromHeight;
+        if (Math.abs(delta) <= maxRise) {
+            return targetHeight;
+        }
+        return fromHeight + (int) (delta > 0 ? maxRise : -maxRise);
     }
     
     /**
@@ -596,6 +646,8 @@ public class RoadGenerator {
         int cutVolume = 0;
         int fillVolume = 0;
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
 
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
@@ -607,8 +659,11 @@ public class RoadGenerator {
                 Vec2d point = segment.start.lerp(segment.end, t);
                 int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
 
-                Vec2d left = interpolateBoundary(leftBoundary, t, i, segments.size());
-                Vec2d right = interpolateBoundary(rightBoundary, t, i, segments.size());
+                double normalized = totalLength > 1e-9
+                    ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                    : 0.0;
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
                 fillBetweenPoints(result, left, right, targetY, blockId, projectionHandler);
 
                 int groundY = getTopHeight(world, canvasToBlockPos(point));
@@ -618,11 +673,213 @@ public class RoadGenerator {
                     fillVolume += (targetY - groundY);
                 }
             }
+            accumulatedSegmentStart += segment.distance;
         }
+
+        generateBridgeStructures(result, bridges, segments, heightInfos, leftBoundary, rightBoundary, world);
+        generateTunnelStructures(result, tunnels, segments, heightInfos, leftBoundary, rightBoundary, world);
 
         result.cutVolume = cutVolume;
         result.fillVolume = fillVolume;
         return result;
+    }
+
+    private void generateShoulderBlocks(
+            RoadGenerationResult result,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            int shoulderWidth,
+            String blockId) {
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
+
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            PathSegment segment = segments.get(i);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                double normalized = totalLength > 1e-9
+                    ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                    : 0.0;
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
+                placeSidewalkStrip(result, left, shoulderWidth, targetY, blockId, projectionHandler);
+                placeSidewalkStrip(result, right, shoulderWidth, targetY, blockId, projectionHandler);
+            }
+            accumulatedSegmentStart += segment.distance;
+        }
+    }
+
+    private void generateDrainageChannels(
+            RoadGenerationResult result,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            String blockId) {
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
+
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            PathSegment segment = segments.get(i);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t) - 1;
+                double normalized = totalLength > 1e-9
+                    ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                    : 0.0;
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
+                placeSidewalkStrip(result, left, 1, targetY, blockId, projectionHandler);
+                placeSidewalkStrip(result, right, 1, targetY, blockId, projectionHandler);
+            }
+            accumulatedSegmentStart += segment.distance;
+        }
+    }
+
+    private void generateBridgeStructures(
+            RoadGenerationResult result,
+            List<BridgeSegment> bridges,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            World world) {
+        if (bridges.isEmpty()) {
+            return;
+        }
+        String pillarBlockId = getBlockIdFromMaterial("material.plot.stone");
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+
+        for (BridgeSegment bridge : bridges) {
+            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, bridge.segment);
+            if (info == null) {
+                continue;
+            }
+            int samples = Math.max(2, (int) Math.ceil(bridge.segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                if (j % 4 != 0 && j != samples) {
+                    continue;
+                }
+                double t = (double) j / samples;
+                double normalized = findNormalizedDistance(segments, bridge.segment, t, totalLength);
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                Vec2d center = bridge.segment.start.lerp(bridge.segment.end, t);
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
+                placeBridgePillars(result, center, targetY, world, pillarBlockId, projectionHandler);
+                placeBridgePillars(result, left, targetY, world, pillarBlockId, projectionHandler);
+                placeBridgePillars(result, right, targetY, world, pillarBlockId, projectionHandler);
+            }
+        }
+    }
+
+    private void generateTunnelStructures(
+            RoadGenerationResult result,
+            List<TunnelSegment> tunnels,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            World world) {
+        if (tunnels.isEmpty()) {
+            return;
+        }
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+
+        for (TunnelSegment tunnel : tunnels) {
+            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, tunnel.segment);
+            if (info == null) {
+                continue;
+            }
+            int headroom = Math.max(3, Math.min(6, tunnel.tunnelDepth + 1));
+            int samples = Math.max(2, (int) Math.ceil(tunnel.segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                double normalized = findNormalizedDistance(segments, tunnel.segment, t, totalLength);
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
+                for (int y = targetY + 1; y <= targetY + headroom; y++) {
+                    carveBetweenPoints(result, left, right, y, projectionHandler);
+                }
+            }
+        }
+    }
+
+    private void placeBridgePillars(
+            RoadGenerationResult result,
+            Vec2d canvasPos,
+            int deckY,
+            World world,
+            String blockId,
+            BlockProjectionHandler projectionHandler) {
+        BlockPos base = canvasToBlockPos(canvasPos);
+        int groundY = getTopHeight(world, base);
+        if (deckY - groundY <= config.getBridgeThreshold()) {
+            return;
+        }
+        for (int y = groundY + 1; y < deckY; y++) {
+            BlockPos pillarPos = new BlockPos(base.getX(), y, base.getZ());
+            recordBlock(result, pillarPos, blockId, projectionHandler);
+            result.bridgeBlocks.add(pillarPos);
+        }
+    }
+
+    private void carveBetweenPoints(
+            RoadGenerationResult result,
+            Vec2d left,
+            Vec2d right,
+            int y,
+            BlockProjectionHandler projectionHandler) {
+        for (BlockPos pos : rasterizeSpan(left, right, y, coordinateTransformer)) {
+            recordBlock(result, pos, "minecraft:air", projectionHandler);
+            result.tunnelBlocks.add(pos);
+        }
+    }
+
+    private static SegmentHeightInfo findHeightInfo(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            PathSegment target) {
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            if (sameSegment(segments.get(i), target)) {
+                return heightInfos.get(i);
+            }
+        }
+        return null;
+    }
+
+    private static double findNormalizedDistance(
+            List<PathSegment> segments,
+            PathSegment target,
+            double segmentT,
+            double totalLength) {
+        if (totalLength <= 1e-9) {
+            return 0.0;
+        }
+        double accumulated = 0.0;
+        for (PathSegment segment : segments) {
+            if (sameSegment(segment, target)) {
+                return (accumulated + segmentT * segment.distance) / totalLength;
+            }
+            accumulated += segment.distance;
+        }
+        return 0.0;
+    }
+
+    private static boolean sameSegment(PathSegment a, PathSegment b) {
+        return a.start.distance(b.start) < 1e-3 && a.end.distance(b.end) < 1e-3;
     }
 
     private void generateSidewalkBlocks(
@@ -635,6 +892,8 @@ public class RoadGenerator {
             World world,
             String blockId) {
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
             PathSegment segment = segments.get(i);
@@ -642,19 +901,24 @@ public class RoadGenerator {
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                Vec2d left = interpolateBoundary(leftBoundary, t, i, segments.size());
-                Vec2d right = interpolateBoundary(rightBoundary, t, i, segments.size());
+                double normalized = totalLength > 1e-9
+                    ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                    : 0.0;
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
                 placeSidewalkStrip(result, left, sidewalkWidth, targetY, blockId, projectionHandler);
                 placeSidewalkStrip(result, right, sidewalkWidth, targetY, blockId, projectionHandler);
             }
+            accumulatedSegmentStart += segment.distance;
         }
     }
 
     private void generateStreetlights(RoadGenerationResult result, List<Vec2d> pathPoints,
-                                      RoadEdge edge, World world) {
+                                      RoadEdge edge, World world, double shoulderWidth) {
         int spacing = edge.getStreetlightSpacing();
         double skipDistance = edge.getEffectiveWidth(config);
         double offset = edge.getEffectiveWidth(config) / 2.0
+            + shoulderWidth
             + (edge.getEffectiveIncludeSidewalk(config) ? edge.getEffectiveSidewalkWidth(config) : 0)
             + 0.5;
 
@@ -679,17 +943,6 @@ public class RoadGenerator {
         result.streetlightCount = result.streetlightBlocks.size();
     }
 
-    private Vec2d interpolateBoundary(List<Vec2d> boundary, double t, int segmentIndex, int totalSegments) {
-        if (boundary == null || boundary.isEmpty()) {
-            return new Vec2d(0, 0);
-        }
-        int index = Math.min(
-            boundary.size() - 1,
-            Math.max(0, (int) Math.round((segmentIndex + t) / Math.max(1, totalSegments) * (boundary.size() - 1)))
-        );
-        return boundary.get(index);
-    }
-
     private void fillBetweenPoints(
             RoadGenerationResult result,
             Vec2d left,
@@ -697,13 +950,17 @@ public class RoadGenerator {
             int targetY,
             String blockId,
             BlockProjectionHandler projectionHandler) {
-        for (BlockPos pos : rasterizeSpan(left, right, targetY)) {
+        for (BlockPos pos : rasterizeSpan(left, right, targetY, coordinateTransformer)) {
             recordBlock(result, pos, blockId, projectionHandler);
             result.roadBlocks.add(pos);
         }
     }
 
     static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y) {
+        return rasterizeSpan(left, right, y, null);
+    }
+
+    static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y, CoordinateTransformer transformer) {
         if (left == null || right == null) {
             return List.of();
         }
@@ -713,7 +970,8 @@ public class RoadGenerator {
         for (int i = 0; i <= steps; i++) {
             double t = (double) i / steps;
             Vec2d sample = left.lerp(right, t);
-            unique.add(new BlockPos((int) sample.x, y, (int) sample.y));
+            BlockPos base = RoadGeometryUtils.canvasToBlockXZ(sample, transformer);
+            unique.add(new BlockPos(base.getX(), y, base.getZ()));
         }
         return new ArrayList<>(unique);
     }
