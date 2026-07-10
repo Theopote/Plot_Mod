@@ -17,6 +17,7 @@ import net.minecraft.client.input.KeyInput;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
+import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,6 +87,9 @@ public class BlockConfigNativeScreen extends Screen {
     private static final int BTN_TEXT_PAD_X = 8; // 按钮左右文字留白
     private static final int BTN_GAP      = 2;
     private static final int BOTTOM_MARGIN = 4;
+    private static final int PAGER_TEXT_GAP = 4;   // 页码文字与两侧按钮的间距
+    private static final float PAGER_SCROLL_SPEED = 28f; // 页码滚动速度（像素/秒）
+    private static final long PAGER_SCROLL_PAUSE_MS = 1500L; // 滚动到端点后的停顿时间
 
     // ── 颜色常量 ─────────────────────────────────────────────────────────────
     private static final int COLOR_PANEL_BG      = 0xEE1A1A1A;
@@ -145,6 +149,12 @@ public class BlockConfigNativeScreen extends Screen {
     /** 侧边栏垂直滚动位置（像素）。为负时表示向上滚了一些 */
     private int sidebarScroll = 0;
 
+    // ── 分页文字滚动 ──────────────────────────────────────────────────────────────
+    private float pagerScrollOffset = 0f;
+    private long pagerScrollPauseUntil = 0L;
+    private boolean pagerScrollIncreasing = true;
+    private String pagerScrollTextKey = "";
+
     // ── 布局坐标（init() 中计算） ──────────────────────────────────────────────
     private int panelX, panelY, panelW, panelH;
     private int slotSize, slotInset;
@@ -158,7 +168,8 @@ public class BlockConfigNativeScreen extends Screen {
     // 网格
     private int gridX, gridY;
     // 分页
-    private int pagerY, pagerPrevX, pagerPrevW, pagerNextX, pagerNextW, pagerTextX;
+    private int pagerY, pagerPrevX, pagerPrevW, pagerNextX, pagerNextW;
+    private int pagerTextAreaX, pagerTextAreaW;
     // 调色盘
     private int paletteAreaY;   // 从分隔线开始的 Y
     private int paletteX, paletteY;
@@ -283,8 +294,9 @@ public class BlockConfigNativeScreen extends Screen {
         pagerPrevX  = contentX;
         pagerPrevW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.page_prev")) + BTN_TEXT_PAD_X * 2);
         pagerNextW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.page_next")) + BTN_TEXT_PAD_X * 2);
-        pagerNextX  = contentX + contentW - pagerNextW;
-        pagerTextX  = contentX + contentW / 2;
+        pagerNextX     = contentX + contentW - pagerNextW;
+        pagerTextAreaX = pagerPrevX + pagerPrevW + PAGER_TEXT_GAP;
+        pagerTextAreaW = Math.max(0, pagerNextX - PAGER_TEXT_GAP - pagerTextAreaX);
         cy += BTN_H + SECTION_GAP;
 
         // 侧边栏总高度（覆盖搜索+网格+分页）
@@ -411,7 +423,7 @@ public class BlockConfigNativeScreen extends Screen {
         renderSidebar(context, mouseX, mouseY);
         renderSearchDecoration(context);
         renderGrid(context, mouseX, mouseY);
-        renderPager(context, mouseX, mouseY);
+        renderPager(context, mouseX, mouseY, delta);
         renderPalette(context, mouseX, mouseY);
         renderBottomButtons(context, mouseX, mouseY);
         renderHoverTooltip(context, mouseX, mouseY);
@@ -583,20 +595,11 @@ public class BlockConfigNativeScreen extends Screen {
     }
 
     /** 分页控件（始终占位，无数据时置灰）。 */
-    private void renderPager(DrawContext context, int mouseX, int mouseY) {
+    private void renderPager(DrawContext context, int mouseX, int mouseY, float delta) {
         int totalPages = getTotalPages();
         boolean canPrev = page > 0;
         boolean canNext = page < totalPages - 1;
 
-        // 上一页按钮
-        drawPagerButton(context, pagerPrevX, pagerY, pagerPrevW, PlotI18n.tr("block.plot.page_prev"),
-                mouseX, mouseY, canPrev);
-
-        // 下一页按钮
-        drawPagerButton(context, pagerNextX, pagerY, pagerNextW, PlotI18n.tr("block.plot.page_next"),
-                mouseX, mouseY, canNext);
-
-        // 页码居中显示
         String pageText;
         int totalInCategory = rawCategoryBlocks.size();
         if (totalPages <= 1 && filteredBlocks.isEmpty() && !searchBox.getText().isEmpty()) {
@@ -604,10 +607,66 @@ public class BlockConfigNativeScreen extends Screen {
         } else {
             pageText = PlotI18n.tr("block.plot.page_info", page + 1, totalPages, totalInCategory);
         }
-        int pw = this.textRenderer.getWidth(pageText);
-        context.drawText(this.textRenderer, pageText,
-                pagerTextX - pw / 2, pagerY + (BTN_H - this.textRenderer.fontHeight) / 2,
-                totalPages > 1 ? COLOR_TEXT_NORMAL : COLOR_TEXT_MUTED, false);
+        int textW = this.textRenderer.getWidth(pageText);
+        int textColor = totalPages > 1 ? COLOR_TEXT_NORMAL : COLOR_TEXT_MUTED;
+
+        updatePagerTextScroll(pageText, textW, pagerTextAreaW, delta);
+        renderPagerText(context, pageText, textW, textColor);
+
+        // 按钮绘制在文字之上，避免页码文字遮挡按钮
+        drawPagerButton(context, pagerPrevX, pagerY, pagerPrevW, PlotI18n.tr("block.plot.page_prev"),
+                mouseX, mouseY, canPrev);
+        drawPagerButton(context, pagerNextX, pagerY, pagerNextW, PlotI18n.tr("block.plot.page_next"),
+                mouseX, mouseY, canNext);
+    }
+
+    /**
+     * 在两页按钮之间的裁剪区域内绘制页码文字；宽度不足时水平滚动。
+     */
+    private void renderPagerText(DrawContext context, String pageText, int textW, int textColor) {
+        if (pagerTextAreaW <= 0) return;
+
+        int textY = pagerY + (BTN_H - this.textRenderer.fontHeight) / 2;
+        int textX;
+        if (textW <= pagerTextAreaW) {
+            textX = pagerTextAreaX + (pagerTextAreaW - textW) / 2;
+        } else {
+            textX = pagerTextAreaX - Math.round(pagerScrollOffset);
+        }
+
+        context.enableScissor(pagerTextAreaX, pagerY, pagerTextAreaX + pagerTextAreaW, pagerY + BTN_H);
+        context.drawText(this.textRenderer, pageText, textX, textY, textColor, false);
+        context.disableScissor();
+    }
+
+    private void updatePagerTextScroll(String pageText, int textW, int areaW, float delta) {
+        if (!pageText.equals(pagerScrollTextKey)) {
+            pagerScrollTextKey = pageText;
+            pagerScrollOffset = 0f;
+            pagerScrollIncreasing = true;
+            pagerScrollPauseUntil = Util.getMeasuringTimeMs() + PAGER_SCROLL_PAUSE_MS;
+        }
+        if (textW <= areaW || areaW <= 0) {
+            pagerScrollOffset = 0f;
+            return;
+        }
+
+        float maxScroll = textW - areaW;
+        long now = Util.getMeasuringTimeMs();
+        if (now < pagerScrollPauseUntil) {
+            return;
+        }
+
+        pagerScrollOffset += delta * PAGER_SCROLL_SPEED * (pagerScrollIncreasing ? 1f : -1f);
+        if (pagerScrollOffset >= maxScroll) {
+            pagerScrollOffset = maxScroll;
+            pagerScrollIncreasing = false;
+            pagerScrollPauseUntil = now + PAGER_SCROLL_PAUSE_MS;
+        } else if (pagerScrollOffset <= 0f) {
+            pagerScrollOffset = 0f;
+            pagerScrollIncreasing = true;
+            pagerScrollPauseUntil = now + PAGER_SCROLL_PAUSE_MS;
+        }
     }
 
     private void drawPagerButton(DrawContext context, int x, int y, int w,
