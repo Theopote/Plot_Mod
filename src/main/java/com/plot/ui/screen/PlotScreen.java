@@ -483,7 +483,7 @@ public class PlotScreen extends Screen {
 
     /**
      * 默认 Dock 布局：不需要用户首次手动拖拽。
-     *
+     * <p>
      * 注意：imgui-java 的 DockBuilder API 在 internal 包中。
      */
     private void ensureDockLayout(float displayWidth, float displayHeight) {
