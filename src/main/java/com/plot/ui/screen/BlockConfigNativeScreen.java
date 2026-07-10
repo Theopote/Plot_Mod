@@ -81,7 +81,6 @@ public class BlockConfigNativeScreen extends Screen {
     private static final int TITLE_HEIGHT = 12;  // 略微减小
 
     // ── 分页 / 底部按钮 ──────────────────────────────────────────────────────
-    private static final int PAGER_BTN_W  = 36;
     private static final int BTN_H        = 12;  // 略微减小
     private static final int BTN_MIN_W    = 34;  // 按钮最小宽度，保证大于文字宽度
     private static final int BTN_TEXT_PAD_X = 8; // 按钮左右文字留白
@@ -159,7 +158,7 @@ public class BlockConfigNativeScreen extends Screen {
     // 网格
     private int gridX, gridY;
     // 分页
-    private int pagerY, pagerPrevX, pagerNextX, pagerTextX;
+    private int pagerY, pagerPrevX, pagerPrevW, pagerNextX, pagerNextW, pagerTextX;
     // 调色盘
     private int paletteAreaY;   // 从分隔线开始的 Y
     private int paletteX, paletteY;
@@ -279,10 +278,12 @@ public class BlockConfigNativeScreen extends Screen {
         gridY = cy;
         cy += gridH + SECTION_GAP;
 
-        // 分页
-        pagerY     = cy;
-        pagerPrevX = contentX;
-        pagerNextX = contentX + contentW - PAGER_BTN_W;
+        // 分页（按钮宽度按文字自适应）
+        pagerY      = cy;
+        pagerPrevX  = contentX;
+        pagerPrevW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.page_prev")) + BTN_TEXT_PAD_X * 2);
+        pagerNextW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.page_next")) + BTN_TEXT_PAD_X * 2);
+        pagerNextX  = contentX + contentW - pagerNextW;
         pagerTextX  = contentX + contentW / 2;
         cy += BTN_H + SECTION_GAP;
 
@@ -588,11 +589,11 @@ public class BlockConfigNativeScreen extends Screen {
         boolean canNext = page < totalPages - 1;
 
         // 上一页按钮
-        drawPagerButton(context, pagerPrevX, pagerY, PlotI18n.tr("block.plot.page_prev"),
+        drawPagerButton(context, pagerPrevX, pagerY, pagerPrevW, PlotI18n.tr("block.plot.page_prev"),
                 mouseX, mouseY, canPrev);
 
         // 下一页按钮
-        drawPagerButton(context, pagerNextX, pagerY, PlotI18n.tr("block.plot.page_next"),
+        drawPagerButton(context, pagerNextX, pagerY, pagerNextW, PlotI18n.tr("block.plot.page_next"),
                 mouseX, mouseY, canNext);
 
         // 页码居中显示
@@ -609,14 +610,14 @@ public class BlockConfigNativeScreen extends Screen {
                 totalPages > 1 ? COLOR_TEXT_NORMAL : COLOR_TEXT_MUTED, false);
     }
 
-    private void drawPagerButton(DrawContext context, int x, int y,
+    private void drawPagerButton(DrawContext context, int x, int y, int w,
                                  String text, int mouseX, int mouseY, boolean enabled) {
-        boolean hover = enabled && isInside(mouseX, mouseY, x, y, BlockConfigNativeScreen.PAGER_BTN_W, BlockConfigNativeScreen.BTN_H);
+        boolean hover = enabled && isInside(mouseX, mouseY, x, y, w, BlockConfigNativeScreen.BTN_H);
         int bg = !enabled ? COLOR_PAGER_DISABLED : (hover ? brighten(COLOR_PAGER_ACTIVE) : COLOR_PAGER_ACTIVE);
-        context.fill(x, y, x + BlockConfigNativeScreen.PAGER_BTN_W, y + BlockConfigNativeScreen.BTN_H, bg);
-        drawBorder(context, x, y, BlockConfigNativeScreen.PAGER_BTN_W, BlockConfigNativeScreen.BTN_H, enabled ? 0xFF606060 : 0xFF3A3A3A);
+        context.fill(x, y, x + w, y + BlockConfigNativeScreen.BTN_H, bg);
+        drawBorder(context, x, y, w, BlockConfigNativeScreen.BTN_H, enabled ? 0xFF606060 : 0xFF3A3A3A);
         int tw = this.textRenderer.getWidth(text);
-        int tx = x + (BlockConfigNativeScreen.PAGER_BTN_W - tw) / 2;
+        int tx = x + (w - tw) / 2;
         int ty = y + (BlockConfigNativeScreen.BTN_H - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, text, tx, ty,
                 enabled ? (hover ? 0xFFFFFFFF : 0xFFCCCCCC) : COLOR_TEXT_HINT, false);
@@ -836,11 +837,11 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 分页
         int totalPages = getTotalPages();
-        if (btn == 0 && isInside(mx, my, pagerPrevX, pagerY, PAGER_BTN_W, BTN_H) && page > 0) {
+        if (btn == 0 && isInside(mx, my, pagerPrevX, pagerY, pagerPrevW, BTN_H) && page > 0) {
             page--;
             return true;
         }
-        if (btn == 0 && isInside(mx, my, pagerNextX, pagerY, PAGER_BTN_W, BTN_H) && page < totalPages - 1) {
+        if (btn == 0 && isInside(mx, my, pagerNextX, pagerY, pagerNextW, BTN_H) && page < totalPages - 1) {
             page++;
             return true;
         }
