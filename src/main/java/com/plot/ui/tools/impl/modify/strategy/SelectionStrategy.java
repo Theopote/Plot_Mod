@@ -5,14 +5,13 @@ import com.plot.core.model.Shape;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.graphics.DrawContext;
-import com.plot.core.geometry.shapes.PolylineShape;
-import com.plot.core.geometry.shapes.FreeDrawPath;
-import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.PathShapeUtils;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.tools.impl.modify.helper.GeometricSelectionHelper;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.road.RoadPathPickedEvent;
+import com.plot.infrastructure.event.road.RoadPathPickFailedEvent;
 import imgui.ImColor;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
@@ -505,9 +504,14 @@ public class SelectionStrategy implements IModifyStrategy {
     // ====== 辅助方法 ======
 
     private ModifyResult completeRoadPathPick(ModifyToolContext context) {
-        Shape path = findFirstAdoptablePath(context.getSelectedShapes());
+        List<Shape> candidates = collectPickCandidates(context);
+        Shape path = PathShapeUtils.findFirstAdoptablePath(candidates);
         if (path == null) {
-            context.setStatusMessage("status.plot.road.pick_path_no_valid");
+            String failKey = candidates.isEmpty()
+                ? "status.plot.road.pick_path_need_selection"
+                : "status.plot.road.pick_path_no_valid";
+            context.setStatusMessage(failKey);
+            EventBus.getInstance().publish(new RoadPathPickFailedEvent(failKey));
             return ModifyResult.CONTINUE;
         }
 
@@ -519,33 +523,39 @@ public class SelectionStrategy implements IModifyStrategy {
         return ModifyResult.COMPLETE;
     }
 
+    private List<Shape> collectPickCandidates(ModifyToolContext context) {
+        List<Shape> candidates = new ArrayList<>(context.getSelectedShapes());
+        if (!candidates.isEmpty()) {
+            return candidates;
+        }
+
+        candidates = new ArrayList<>(AppState.getInstance().getSelectedShapes());
+        if (!candidates.isEmpty()) {
+            return candidates;
+        }
+
+        if (selectedShapeIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Shape> resolved = new ArrayList<>();
+        for (Shape shape : AppState.getInstance().getShapes()) {
+            if (shape != null && selectedShapeIds.contains(shape.getId())) {
+                resolved.add(shape);
+            }
+        }
+        return resolved;
+    }
+
     private void updateRoadPathPickStatus(ModifyToolContext context) {
-        Shape path = findFirstAdoptablePath(context.getSelectedShapes());
+        Shape path = PathShapeUtils.findFirstAdoptablePath(collectPickCandidates(context));
         if (path != null) {
             context.setStatusMessage("status.plot.road.pick_path_right_click");
-        } else if (selectedShapeIds.isEmpty()) {
-            context.setStatusMessage("plugin.road.pick_path_hint");
+        } else if (selectedShapeIds.isEmpty() && AppState.getInstance().getSelectedShapes().isEmpty()) {
+            context.setStatusMessage("status.plot.road.pick_path_active");
         } else {
             context.setStatusMessage("status.plot.road.pick_path_no_valid");
         }
-    }
-
-    private Shape findFirstAdoptablePath(List<Shape> shapes) {
-        if (shapes == null) {
-            return null;
-        }
-        for (Shape shape : shapes) {
-            if (isAdoptablePathShape(shape)) {
-                return shape;
-            }
-        }
-        return null;
-    }
-
-    private boolean isAdoptablePathShape(Shape shape) {
-        return shape instanceof PolylineShape
-            || shape instanceof FreeDrawPath
-            || shape instanceof BezierCurveShape;
     }
     
     

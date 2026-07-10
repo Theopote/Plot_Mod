@@ -488,10 +488,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
 
     @Override
     public List<Shape> getSelectedShapes() {
-        if (selection != null) {
-            return selection.getShapes();
-        }
-        return List.of();
+        return concreteAppState.getSelectedShapes();
     }
 
     @Override

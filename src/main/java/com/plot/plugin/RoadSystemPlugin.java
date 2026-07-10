@@ -13,9 +13,11 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.core.state.AppState;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
+import com.plot.core.geometry.PathShapeUtils;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.LineShape;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.tool.BaseTool;
@@ -36,6 +38,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.infrastructure.event.road.RoadPathPickedEvent;
+import com.plot.infrastructure.event.road.RoadPathPickFailedEvent;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +100,11 @@ public class RoadSystemPlugin extends Plugin {
                 calculatePathLength(selectedPath));
         }
     };
+    private final EventListener roadPathPickFailedListener = event -> {
+        if (event instanceof RoadPathPickFailedEvent failed) {
+            projectStatus = PlotI18n.status(failed.getMessageKey());
+        }
+    };
 
     public RoadSystemPlugin() {
         super(
@@ -126,6 +134,7 @@ public class RoadSystemPlugin extends Plugin {
         EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
         EventBus.getInstance().subscribe(RoadPathPickedEvent.class, roadPathPickedListener);
+        EventBus.getInstance().subscribe(RoadPathPickFailedEvent.class, roadPathPickFailedListener);
         loadNetworkForCurrentProject();
     }
 
@@ -137,6 +146,7 @@ public class RoadSystemPlugin extends Plugin {
         EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
         EventBus.getInstance().unsubscribe(RoadPathPickedEvent.class, roadPathPickedListener);
+        EventBus.getInstance().unsubscribe(RoadPathPickFailedEvent.class, roadPathPickFailedListener);
 
         if (config != null) {
             config.save();
@@ -1062,9 +1072,7 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private boolean isPathShape(Shape shape) {
-        return shape instanceof PolylineShape
-            || shape instanceof FreeDrawPath
-            || shape instanceof BezierCurveShape;
+        return PathShapeUtils.isAdoptablePath(shape);
     }
 
     private String getPathTypeName(Shape shape) {
@@ -1074,6 +1082,8 @@ public class RoadSystemPlugin extends Plugin {
             return PlotI18n.tr("path.plot.freedraw");
         } else if (shape instanceof BezierCurveShape) {
             return PlotI18n.tr("path.plot.bezier");
+        } else if (shape instanceof LineShape) {
+            return PlotI18n.tr("path.plot.line");
         }
         return PlotI18n.tr("path.plot.unknown");
     }
@@ -1094,13 +1104,23 @@ public class RoadSystemPlugin extends Plugin {
 
     private void activatePathPickTool() {
         ToolManager toolManager = ToolManager.getInstance();
-        if (toolManager != null) {
-            var selectTool = toolManager.getTool("select");
-            if (selectTool instanceof BaseTool baseTool) {
-                AppState.getInstance().beginRoadPathPick();
-                AppState.getInstance().setCurrentTool(baseTool);
-                projectStatus = PlotI18n.tr("plugin.road.pick_path_hint");
-            }
+        if (toolManager == null) {
+            return;
         }
+        var selectTool = toolManager.getTool("select");
+        if (!(selectTool instanceof BaseTool baseTool)) {
+            return;
+        }
+
+        AppState appState = AppState.getInstance();
+        appState.beginRoadPathPick();
+        selectedPath = null;
+        toolManager.setActiveTool(selectTool);
+        appState.setCurrentTool(baseTool);
+
+        if (baseTool instanceof com.plot.ui.tools.impl.modify.ModifyTool modifyTool) {
+            modifyTool.setStatusMessage("status.plot.road.pick_path_active");
+        }
+        projectStatus = PlotI18n.tr("plugin.road.pick_path_hint");
     }
 }

@@ -5,7 +5,13 @@ import com.plot.api.model.ILayer;
 import com.plot.camera.CameraManager;
 import com.plot.core.command.CommandManager;
 import com.plot.core.command.commands.DeleteShapesCommand;
+import com.plot.core.geometry.PathShapeUtils;
 import com.plot.core.model.Shape;
+import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.Events;
+import com.plot.infrastructure.event.road.RoadPathPickedEvent;
+import com.plot.infrastructure.event.road.RoadPathPickFailedEvent;
+import com.plot.utils.PlotI18n;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 // import com.plot.infrastructure.event.mouse.KeyEvent; // 未使用
@@ -329,9 +335,37 @@ public class CanvasInputHandler {
     private void handleRightClick(Vec2d worldPos, BaseTool currentTool) {
         LOGGER.debug("鼠标右键点击: 世界坐标=({}, {}), 当前工具={}", 
             worldPos.x, worldPos.y, currentTool.getId());
+
+        if (appState.isRoadPathPickActive() && !"select".equals(currentTool.getId())) {
+            completeRoadPathPickFallback(currentTool);
+            core.markDirty(CanvasCore.DirtyType.CONTENT);
+            return;
+        }
         
         currentTool.onMouseDown(worldPos, 1);
         core.markDirty(CanvasCore.DirtyType.CONTENT);
+    }
+
+    private void completeRoadPathPickFallback(BaseTool currentTool) {
+        List<Shape> selected = appState.getSelectedShapes();
+        Shape path = PathShapeUtils.findFirstAdoptablePath(selected);
+        if (path != null) {
+            appState.endRoadPathPick();
+            appState.setSelectedShapes(List.of(path));
+            EventBus.getInstance().publish(new RoadPathPickedEvent("CanvasInputHandler", path));
+            publishPickStatus("status.plot.road.pick_path_completed");
+            return;
+        }
+
+        String failKey = selected.isEmpty()
+            ? "status.plot.road.pick_path_need_selection"
+            : "status.plot.road.pick_path_no_valid";
+        EventBus.getInstance().publish(new RoadPathPickFailedEvent("CanvasInputHandler", failKey));
+        publishPickStatus(failKey);
+    }
+
+    private void publishPickStatus(String messageKey) {
+        EventBus.getInstance().publish(new Events.StatusMessageEvent(PlotI18n.status(messageKey)));
     }
 
     /**
