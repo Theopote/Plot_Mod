@@ -200,9 +200,9 @@ public class RoadSystemPlugin extends Plugin {
                 selectedEdgeId = edge.getId();
             }
             ImGui.sameLine();
-            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF3030A0FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF4040B0FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF202090FFL);
+            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
             if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##del_" + edge.getId())) {
                 pendingDeleteEdgeId = edge.getId();
                 deleteConfirmPending = true;
@@ -409,9 +409,9 @@ public class RoadSystemPlugin extends Plugin {
             override.maxSlope = slope[0];
 
             ImGui.sameLine();
-            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF3030A0FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF4040B0FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF202090FFL);
+            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
             if (ImGui.button(Icons.PLUGIN_REMOVE + "##rm")) {
                 networkHistory.push(network);
                 overrides.remove(i);
