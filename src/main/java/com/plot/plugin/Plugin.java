@@ -3,6 +3,7 @@ package com.plot.plugin;
 import com.plot.api.plugin.*;
 import com.plot.core.plugin.PluginConfig;
 import com.plot.utils.PlotI18n;
+import net.minecraft.util.Identifier;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -15,12 +16,12 @@ public abstract class Plugin implements IPlugin {
     private final String id;
     private final String name;
     private final String description;
-    private final String icon;
+    private final Identifier icon;
     private boolean enabled;
     private IPluginConfig config;
     private PluginState state;
     
-    public Plugin(String id, String name, String description, String icon) {
+    public Plugin(String id, String name, String description, Identifier icon) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -162,7 +163,7 @@ public abstract class Plugin implements IPlugin {
     public abstract void onEnable();
     public abstract void onDisable();
     
-    public String getIcon() {
+    public Identifier getIcon() {
         return icon;
     }
 }

@@ -3,6 +3,7 @@ package com.plot.plugin;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 
+import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.Icons;
 import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.ImageToolsConfig;
@@ -18,7 +19,7 @@ public class ImageToolsPlugin extends Plugin {
             "image_tools",
             "plugin.image_tools.name",
             "plugin.image_tools.desc",
-            Icons.IMAGE
+            ExtensionPanelIcons.IMAGE_TOOLS
         );
     }
     

@@ -7,6 +7,7 @@ import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.Icons;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.core.state.AppState;
@@ -93,7 +94,7 @@ public class RoadSystemPlugin extends Plugin {
             "road_system",
             "plugin.road_system.name",
             "plugin.road_system.desc",
-            Icons.ROAD
+            ExtensionPanelIcons.ROAD_SYSTEM
         );
     }
 

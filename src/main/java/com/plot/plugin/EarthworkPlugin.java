@@ -4,6 +4,7 @@ import imgui.ImGui;
 
 import imgui.type.ImBoolean;
 
+import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.Icons;
 import com.plot.ui.component.UIUtils;
 import com.plot.plugin.config.EarthworkConfig;
@@ -23,7 +24,7 @@ public class EarthworkPlugin extends Plugin {
             "earthwork_balance",
             "plugin.earthwork_balance.name",
             "plugin.earthwork_balance.desc",
-            Icons.TERRAIN
+            ExtensionPanelIcons.EARTHWORK
         );
     }
     

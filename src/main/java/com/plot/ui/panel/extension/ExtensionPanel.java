@@ -6,14 +6,18 @@ import com.plot.ui.component.UIComponent;
 import imgui.ImGui;
 import imgui.flag.*;
 
-import com.plot.ui.component.Icons;
+import com.plot.ui.component.ExtensionPanelIcons;
+import com.plot.ui.component.UIUtils;
 import com.plot.PlotMod;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.PlotI18n;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * 扩展面板，用于管理和显示插件
@@ -55,67 +59,12 @@ public class ExtensionPanel implements UIComponent {
 
         try {
             UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
-            // 设置基本样式
             ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 14.0f);
-            ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 8);
             
-            // 插件列表
+            // 插件图标列表
             ImGui.text(PlotI18n.tr("panel.plot.extension_installed"));
-            float buttonSize = UILayout.Toolbar.LEFT_BUTTON_SIZE;
-            float spacingX = ImGui.getStyle().getItemSpacingX();
-            float spacingY = ImGui.getStyle().getItemSpacingY();
-            float contentWidth = ImGui.getContentRegionAvailX();
-            int columns = Math.max(1, (int) Math.floor((contentWidth + spacingX) / (buttonSize + spacingX)));
-            int rows = (int) Math.ceil(pluginManager.getPlugins().size() / (double) columns);
-            float rowHeight = buttonSize + spacingY;
-            float listHeight = Math.max(100.0f, Math.min(240.0f, rows * rowHeight + 8.0f));
-            ImGui.beginChild("##plugins_list", ImGui.getContentRegionAvailX(), listHeight, true);
-            
-            IPlugin activePlugin = pluginManager.getActivePlugin();
+            renderPluginIcons(theme);
 
-            int index = 0;
-            for (IPlugin plugin : pluginManager.getPlugins()) {
-                boolean isActive = activePlugin != null && plugin.getId().equals(activePlugin.getId());
-
-                ImGui.pushID(plugin.getId());
-
-                // 获取插件图标（如果Plugin子类实现了getIcon方法）
-                String icon = Icons.PLUGIN;
-                if (plugin instanceof com.plot.plugin.Plugin pluginImpl) {
-                    String pluginIcon = pluginImpl.getIcon();
-                    if (pluginIcon != null && !pluginIcon.isEmpty()) {
-                        icon = pluginIcon;
-                    }
-                }
-
-                if (isActive) {
-                    ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
-                    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
-                    ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonSelectedActive);
-                }
-
-                if (ImGui.button(icon + "##plugin_icon", buttonSize, buttonSize)) {
-                    pluginManager.setActivePlugin(isActive ? null : plugin);
-                }
-
-                if (isActive) {
-                    ImGui.popStyleColor(3);
-                }
-
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(plugin.getName());
-                }
-                
-                ImGui.popID();
-
-                index++;
-                if (index % columns != 0) {
-                    ImGui.sameLine();
-                }
-            }
-            
-            ImGui.endChild();
-            
             ImGui.spacing();
             ImGui.separator();
             ImGui.spacing();
@@ -157,12 +106,66 @@ public class ExtensionPanel implements UIComponent {
                 ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_hint"));
             }
             
-            // 恢复样式
-            ImGui.popStyleVar(2);
+            ImGui.popStyleVar();
             
         } catch (Exception e) {
             PlotMod.LOGGER.error("ExtensionPanel渲染失败: {}", e.getMessage(), e);
         }
+    }
+
+    private void renderPluginIcons(UITheme.ThemeColors theme) {
+        List<IPlugin> plugins = pluginManager.getPlugins();
+        if (plugins.isEmpty()) {
+            return;
+        }
+
+        float buttonSize = UILayout.Toolbar.LEFT_BUTTON_SIZE;
+        float buttonSpacing = UILayout.Toolbar.LEFT_BUTTON_SPACING;
+        float contentWidth = ImGui.getContentRegionAvailX();
+        int buttonsPerRow = calculateButtonsPerRow(contentWidth);
+        IPlugin activePlugin = pluginManager.getActivePlugin();
+
+        for (int i = 0; i < plugins.size(); i++) {
+            IPlugin plugin = plugins.get(i);
+            boolean isActive = activePlugin != null && plugin.getId().equals(activePlugin.getId());
+            Identifier icon = resolvePluginIcon(plugin);
+
+            ImGui.pushID(plugin.getId());
+
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+            try {
+                if (UIUtils.imageButton(icon, plugin.getName(), buttonSize, isActive)) {
+                    pluginManager.setActivePlugin(isActive ? null : plugin);
+                }
+            } finally {
+                ImGui.popStyleColor();
+                ImGui.popStyleVar();
+            }
+
+            ImGui.popID();
+
+            if ((i + 1) % buttonsPerRow != 0 && i < plugins.size() - 1) {
+                ImGui.sameLine(0, buttonSpacing);
+            }
+        }
+    }
+
+    private static Identifier resolvePluginIcon(IPlugin plugin) {
+        if (plugin instanceof com.plot.plugin.Plugin pluginImpl) {
+            Identifier pluginIcon = pluginImpl.getIcon();
+            if (pluginIcon != null) {
+                return pluginIcon;
+            }
+        }
+        return ExtensionPanelIcons.DEFAULT;
+    }
+
+    private static int calculateButtonsPerRow(float contentWidth) {
+        float buttonSize = UILayout.Toolbar.LEFT_BUTTON_SIZE;
+        float buttonSpacing = UILayout.Toolbar.LEFT_BUTTON_SPACING;
+        float calculated = (contentWidth + buttonSpacing) / (buttonSize + buttonSpacing);
+        return Math.max(1, (int) Math.floor(calculated));
     }
     
     public void dispose() {
