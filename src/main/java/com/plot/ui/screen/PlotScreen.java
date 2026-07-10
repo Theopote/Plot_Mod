@@ -22,6 +22,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiDir;
 import imgui.flag.ImGuiDockNodeFlags;
+import imgui.flag.ImGuiMouseCursor;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 import net.minecraft.client.gui.Click;
@@ -292,6 +293,7 @@ public class PlotScreen extends Screen {
             // 结束 ImGui 帧并在后续的 swapBuffers 前由 mixin 渲染 ImGui draw data，
             // 本方法负责在 ImGui frame 结束后使用 DrawContext 绘制覆盖图标。
             imGuiRenderer.endFrame();
+            imGuiRenderer.syncMouseCursor();
             GuiOverlayRenderer.setPendingDrawContext(context);
             imguiFrameEnded = true;
             
@@ -472,7 +474,13 @@ public class PlotScreen extends Screen {
         renderDockedToolPanel(toolPanel);
         renderDockedRightPanels(propertyPanel, galleryPanel, extensionPanel);
 
-        panelEdgeCursorHelper.applyIfNearEdge();
+        // 顶部栏与主内容区之间的全宽水平分割条
+        panelEdgeCursorHelper.addHorizontalEdge(getTopBarHeight(), 0.0f, displayWidth);
+
+        int edgeCursor = panelEdgeCursorHelper.resolveCursorNearEdge();
+        if (edgeCursor != ImGuiMouseCursor.Arrow) {
+            imGuiRenderer.setFrameCursorOverride(edgeCursor);
+        }
     }
 
     private float getTopBarHeight() {

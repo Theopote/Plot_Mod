@@ -53,6 +53,9 @@ public class ImGuiRenderer {
     private boolean inputSuppressed;
     /** GLFW 标准鼠标光标映射，用于将 ImGui 光标状态同步到系统光标 */
     private long[] mouseCursors;
+    /** 本帧面板边缘检测指定的光标（优先于 ImGui.getMouseCursor()） */
+    private int frameCursorOverride = ImGuiMouseCursor.Arrow;
+    private boolean hasFrameCursorOverride;
 
     private ImGuiRenderer() {}
 
@@ -358,6 +361,8 @@ public class ImGuiRenderer {
                 }
                 updateDisplaySize();
                 updateFrameInputs();
+                hasFrameCursorOverride = false;
+                frameCursorOverride = ImGuiMouseCursor.Arrow;
                 ImGui.newFrame();
                 frameInProgress = true;
             } catch (Exception e) {
@@ -555,6 +560,23 @@ public class ImGuiRenderer {
         resetMouseCursorToDefault();
     }
 
+    /** 由面板边缘检测设置本帧 resize 光标，将在 {@link #syncMouseCursor()} 中同步到 GLFW。 */
+    public void setFrameCursorOverride(int imguiCursor) {
+        if (imguiCursor != ImGuiMouseCursor.Arrow) {
+            frameCursorOverride = imguiCursor;
+            hasFrameCursorOverride = true;
+            ImGui.setMouseCursor(imguiCursor);
+        }
+    }
+
+    /** 将 ImGui 光标状态同步到系统（GLFW）光标，应在 ImGui 帧结束后调用。 */
+    public void syncMouseCursor() {
+        if (ourContext != null) {
+            ImGui.setCurrentContext(ourContext);
+        }
+        updateMouseCursor();
+    }
+
     /**
      * 创建 GLFW 标准光标，供 ImGui 面板分割条、窗口边缘等交互使用。
      * 本项目未使用 ImGuiImplGlfw，需手动同步 ImGui.getMouseCursor() 到系统光标。
@@ -606,7 +628,7 @@ public class ImGuiRenderer {
                 return;
             }
 
-            int imguiCursor = ImGui.getMouseCursor();
+            int imguiCursor = hasFrameCursorOverride ? frameCursorOverride : ImGui.getMouseCursor();
             if (imguiCursor == ImGuiMouseCursor.None || io.getMouseDrawCursor()) {
                 GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
                 return;

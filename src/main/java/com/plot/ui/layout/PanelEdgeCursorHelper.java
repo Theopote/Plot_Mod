@@ -12,7 +12,7 @@ import java.util.List;
  */
 public final class PanelEdgeCursorHelper {
 
-    private static final float SPLITTER_HIT_PX = 6.0f;
+    private static final float SPLITTER_HIT_PX = 8.0f;
 
     private final List<VerticalEdge> verticalEdges = new ArrayList<>();
     private final List<HorizontalEdge> horizontalEdges = new ArrayList<>();
@@ -38,7 +38,10 @@ public final class PanelEdgeCursorHelper {
         horizontalEdges.add(new HorizontalEdge(y, xStart, xEnd));
     }
 
-    public void applyIfNearEdge() {
+    /**
+     * @return 应显示的光标类型；若不在边缘则返回 {@link ImGuiMouseCursor#Arrow}
+     */
+    public int resolveCursorNearEdge() {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
 
@@ -46,8 +49,7 @@ public final class PanelEdgeCursorHelper {
             if (Math.abs(mouseX - edge.x) <= SPLITTER_HIT_PX
                     && mouseY >= edge.yStart
                     && mouseY <= edge.yEnd) {
-                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
-                return;
+                return ImGuiMouseCursor.ResizeEW;
             }
         }
 
@@ -55,9 +57,17 @@ public final class PanelEdgeCursorHelper {
             if (Math.abs(mouseY - edge.y) <= SPLITTER_HIT_PX
                     && mouseX >= edge.xStart
                     && mouseX <= edge.xEnd) {
-                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeNS);
-                return;
+                return ImGuiMouseCursor.ResizeNS;
             }
+        }
+
+        return ImGuiMouseCursor.Arrow;
+    }
+
+    public void applyIfNearEdge() {
+        int cursor = resolveCursorNearEdge();
+        if (cursor != ImGuiMouseCursor.Arrow) {
+            ImGui.setMouseCursor(cursor);
         }
     }
 
