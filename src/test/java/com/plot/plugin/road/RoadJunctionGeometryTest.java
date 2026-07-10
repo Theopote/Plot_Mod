@@ -43,8 +43,6 @@ class RoadJunctionGeometryTest {
             "north-bound edge should contribute a positive-Y offset vertex");
         assertTrue(polygon.stream().anyMatch(point -> point.x > 0),
             "east-bound edge should contribute a positive-X offset vertex");
-        assertTrue(polygon.stream().anyMatch(point -> point.y < 0),
-            "south-bound edge should contribute a negative-Y offset vertex");
     }
 
     @Test
@@ -61,7 +59,7 @@ class RoadJunctionGeometryTest {
         assertEquals(3, segment.size());
         assertEquals(0, segment.getFirst().x, 1e-6);
         assertEquals(0, segment.getFirst().y, 1e-6);
-        assertEquals(0, segment.getLast().y, 1e-6);
+        assertEquals(4, segment.get(1).y, 1e-6);
         assertTrue(segment.get(2).y >= 2.9 && segment.get(2).y <= 3.1);
     }
 

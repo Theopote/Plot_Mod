@@ -31,7 +31,6 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -438,6 +437,10 @@ public class RoadSystemPlugin extends Plugin {
             LOGGER.warn("世界或生成器未就绪");
             return;
         }
+        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearAllGhostBlocks();
+        }
         lastGenerationResult = networkGenerator.generateAggregated(network, world);
         LOGGER.info("路网预览: 挖{} 填{} 路灯{}",
             lastGenerationResult.cutVolume, lastGenerationResult.fillVolume,
@@ -453,21 +456,9 @@ public class RoadSystemPlugin extends Plugin {
             return;
         }
 
-        String roadBlock = getBlockIdFromMaterial(config.getSelectedMaterial());
-        for (BlockPos pos : lastGenerationResult.roadBlocks) {
-            ghostBlockManager.addGhostBlock(pos, roadBlock);
-        }
-        for (BlockPos pos : lastGenerationResult.sidewalkBlocks) {
-            ghostBlockManager.addGhostBlock(pos, roadBlock);
-        }
-        for (BlockPos pos : lastGenerationResult.bridgeBlocks) {
-            ghostBlockManager.addGhostBlock(pos, "minecraft:stone_bricks");
-        }
-        for (BlockPos pos : lastGenerationResult.tunnelBlocks) {
-            ghostBlockManager.addGhostBlock(pos, "minecraft:deepslate");
-        }
-        for (BlockPos pos : lastGenerationResult.streetlightBlocks) {
-            ghostBlockManager.addGhostBlock(pos, "minecraft:lantern");
+        ghostBlockManager.clearAllGhostBlocks();
+        for (GenerateRoadCommand.BlockRecord record : lastGenerationResult.placementRecords.values()) {
+            ghostBlockManager.addGhostBlock(record.pos, record.newBlockId);
         }
     }
 
@@ -602,15 +593,5 @@ public class RoadSystemPlugin extends Plugin {
                 AppState.getInstance().setCurrentTool(baseTool);
             }
         }
-    }
-
-    private String getBlockIdFromMaterial(String material) {
-        return switch (material) {
-            case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
-            case "material.plot.gravel", "砂砾" -> "minecraft:gravel";
-            case "material.plot.planks", "木板" -> "minecraft:oak_planks";
-            case "material.plot.stone", "石头" -> "minecraft:stone";
-            default -> "minecraft:stone";
-        };
     }
 }
