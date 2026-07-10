@@ -198,12 +198,36 @@ public class RoadGenerator {
         target.pathLength += source.pathLength;
     }
 
-    public void mergeJunctionBlocks(RoadGenerationResult target, RoadJunctionGenerator.JunctionBlocks junction) {
+    public void mergeJunctionBlocks(
+            RoadGenerationResult target,
+            RoadJunctionGenerator.JunctionBlocks junction,
+            String roadBlockId,
+            String sidewalkBlockId) {
         if (target == null || junction == null) {
             return;
         }
-        target.roadBlocks.addAll(junction.roadBlocks);
-        target.sidewalkBlocks.addAll(junction.sidewalkBlocks);
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        for (BlockPos pos : junction.roadBlocks) {
+            target.roadBlocks.add(pos);
+            recordBlock(target, pos, roadBlockId, projectionHandler);
+        }
+        for (BlockPos pos : junction.sidewalkBlocks) {
+            target.sidewalkBlocks.add(pos);
+            recordBlock(target, pos, sidewalkBlockId, projectionHandler);
+        }
+    }
+
+    /**
+     * @deprecated 使用带材质参数的 {@link #mergeJunctionBlocks(RoadGenerationResult, JunctionBlocks, String, String)}
+     */
+    @Deprecated
+    public void mergeJunctionBlocks(RoadGenerationResult target, RoadJunctionGenerator.JunctionBlocks junction) {
+        mergeJunctionBlocks(
+            target,
+            junction,
+            getBlockIdFromMaterial(config.getSelectedMaterial()),
+            getBlockIdFromMaterial(config.getSelectedMaterial())
+        );
     }
 
     /**
@@ -270,7 +294,7 @@ public class RoadGenerator {
     }
 
     public BlockPos toBlockPos(Vec2d canvasPos, int y) {
-        BlockPos base = canvasToBlockPos(canvasPos);
+        BlockPos base = RoadGeometryUtils.canvasToBlockXZ(canvasPos, coordinateTransformer);
         return new BlockPos(base.getX(), y, base.getZ());
     }
 
@@ -719,7 +743,7 @@ public class RoadGenerator {
         }
     }
 
-    private String getBlockIdFromMaterial(String material) {
+    public String getBlockIdFromMaterial(String material) {
         return switch (material) {
             case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
             case "material.plot.gravel", "砂砾" -> "minecraft:gravel";
@@ -733,14 +757,7 @@ public class RoadGenerator {
      * 将画布坐标转换为BlockPos（XZ平面）
      */
     private BlockPos canvasToBlockPos(Vec2d canvasPos) {
-        if (coordinateTransformer != null) {
-            Vec2d worldPos = coordinateTransformer.canvasToMinecraftWorld(canvasPos);
-            if (worldPos != null) {
-                return new BlockPos((int) worldPos.x, 0, (int) worldPos.y);
-            }
-        }
-        // 回退：直接使用画布坐标（假设1:1映射）
-        return new BlockPos((int) canvasPos.x, 0, (int) canvasPos.y);
+        return RoadGeometryUtils.canvasToBlockXZ(canvasPos, coordinateTransformer);
     }
     
     /**

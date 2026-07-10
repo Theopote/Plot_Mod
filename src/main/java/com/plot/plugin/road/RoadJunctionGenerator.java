@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -18,7 +17,6 @@ import java.util.List;
  */
 public class RoadJunctionGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadJunctionGenerator");
-    private static final double JUNCTION_RADIUS = 3.0;
 
     public static class JunctionBlocks {
         public final List<BlockPos> roadBlocks = new ArrayList<>();
@@ -58,7 +56,7 @@ public class RoadJunctionGenerator {
             return blocks;
         }
 
-        generatePolygonJunction(blocks, node, connectedEdges, network, junctionY);
+        generatePolygonJunction(blocks, node, connectedEdges, junctionY);
         return blocks;
     }
 
@@ -66,22 +64,14 @@ public class RoadJunctionGenerator {
             JunctionBlocks blocks,
             RoadNode node,
             List<RoadEdge> edges,
-            RoadNetwork network,
             int junctionY) {
         Vec2d center = node.getPosition();
-        List<Vec2d> polygon = new ArrayList<>();
-
-        for (RoadEdge edge : edges) {
-            List<Vec2d> nearSegment = extractNearNodeSegment(edge, node);
-            if (nearSegment.size() < 2) {
-                continue;
-            }
-            double halfWidth = edge.getEffectiveWidth(generator.getConfig()) / 2.0;
-            List<Vec2d> offset = OffsetHandler.offsetPolyline(nearSegment, halfWidth);
-            if (!offset.isEmpty()) {
-                polygon.add(offset.getLast());
-            }
-        }
+        List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
+            node.getId(),
+            edges,
+            edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+        );
 
         if (polygon.size() < 3) {
             generateSimpleEnvelope(blocks, center, edges, junctionY);
@@ -89,49 +79,6 @@ public class RoadJunctionGenerator {
         }
 
         fillPolygon(blocks, polygon, center, junctionY);
-    }
-
-    private List<Vec2d> extractNearNodeSegment(RoadEdge edge, RoadNode node) {
-        List<Vec2d> points = edge.getCenterlinePoints();
-        if (points.size() < 2) {
-            return List.of();
-        }
-
-        boolean atStart = edge.getStartNodeId().equals(node.getId());
-        List<Vec2d> segment = new ArrayList<>();
-        if (atStart) {
-            segment.add(points.getFirst());
-            segment.add(points.get(Math.min(1, points.size() - 1)));
-            if (points.size() > 2) {
-                segment.add(clampDistance(points.getFirst(), points, JUNCTION_RADIUS));
-            }
-        } else {
-            segment.add(clampDistance(points.getLast(), reverse(points), JUNCTION_RADIUS));
-            segment.add(points.get(Math.max(0, points.size() - 2)));
-            segment.add(points.getLast());
-        }
-        return segment;
-    }
-
-    private Vec2d clampDistance(Vec2d from, List<Vec2d> points, double maxDistance) {
-        double accumulated = 0.0;
-        for (int i = 0; i < points.size() - 1; i++) {
-            Vec2d a = points.get(i);
-            Vec2d b = points.get(i + 1);
-            double segLen = a.distance(b);
-            if (accumulated + segLen >= maxDistance) {
-                double t = (maxDistance - accumulated) / Math.max(segLen, 1e-6);
-                return a.lerp(b, t);
-            }
-            accumulated += segLen;
-        }
-        return points.getLast().copy();
-    }
-
-    private List<Vec2d> reverse(List<Vec2d> points) {
-        List<Vec2d> reversed = new ArrayList<>(points);
-        java.util.Collections.reverse(reversed);
-        return reversed;
     }
 
     private void generateSimpleEnvelope(
@@ -144,17 +91,8 @@ public class RoadJunctionGenerator {
             .max()
             .orElse(5);
         int radius = maxWidth + 2;
-        BlockPos centerWorld = generator.toBlockPos(center, junctionY);
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (dx * dx + dz * dz <= radius * radius) {
-                    blocks.roadBlocks.add(new BlockPos(
-                        centerWorld.getX() + dx,
-                        junctionY,
-                        centerWorld.getZ() + dz
-                    ));
-                }
-            }
+        for (Vec2d point : RoadJunctionGeometry.collectSimpleEnvelopePoints(center, radius)) {
+            blocks.roadBlocks.add(generator.toBlockPos(point, junctionY));
         }
     }
 
@@ -167,24 +105,10 @@ public class RoadJunctionGenerator {
         for (int x = (int) Math.floor(minX); x <= (int) Math.ceil(maxX); x++) {
             for (int z = (int) Math.floor(minY); z <= (int) Math.ceil(maxY); z++) {
                 Vec2d point = new Vec2d(x, z);
-                if (pointInPolygon(point, polygon)) {
+                if (RoadGeometryUtils.pointInPolygon(point, polygon)) {
                     blocks.roadBlocks.add(generator.toBlockPos(point, junctionY));
                 }
             }
         }
-    }
-
-    private boolean pointInPolygon(Vec2d point, List<Vec2d> polygon) {
-        boolean inside = false;
-        for (int i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
-            Vec2d pi = polygon.get(i);
-            Vec2d pj = polygon.get(j);
-            boolean intersect = ((pi.y > point.y) != (pj.y > point.y))
-                && (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y + 1e-9) + pi.x);
-            if (intersect) {
-                inside = !inside;
-            }
-        }
-        return inside;
     }
 }

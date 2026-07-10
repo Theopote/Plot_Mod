@@ -83,7 +83,12 @@ public class RoadNetworkGenerator {
             roadGenerator.mergeResult(aggregate, edgeResult);
         }
         for (RoadJunctionGenerator.JunctionBlocks junctionBlocks : networkResult.getJunctionResults().values()) {
-            roadGenerator.mergeJunctionBlocks(aggregate, junctionBlocks);
+            roadGenerator.mergeJunctionBlocks(
+                aggregate,
+                junctionBlocks,
+                roadGenerator.getBlockIdFromMaterial(roadGenerator.getConfig().getSelectedMaterial()),
+                roadGenerator.getBlockIdFromMaterial(roadGenerator.getConfig().getSelectedMaterial())
+            );
         }
         return aggregate;
     }

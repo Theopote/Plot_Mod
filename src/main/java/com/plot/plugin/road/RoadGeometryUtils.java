@@ -5,6 +5,8 @@ import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
+import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -183,6 +185,65 @@ public final class RoadGeometryUtils {
 
     public static boolean pointsNear(Vec2d a, Vec2d b, double tolerance) {
         return a != null && b != null && a.distance(b) <= tolerance;
+    }
+
+    /**
+     * 从折线某一端出发，沿弧长前进指定距离
+     */
+    public static Vec2d pointAlongPolylineFrom(Vec2d from, List<Vec2d> points, double maxDistance) {
+        if (from == null || points == null || points.size() < 2 || maxDistance <= 0) {
+            return from != null ? from.copy() : new Vec2d(0, 0);
+        }
+
+        double accumulated = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d a = points.get(i);
+            Vec2d b = points.get(i + 1);
+            double segLen = a.distance(b);
+            if (segLen < 1e-9) {
+                continue;
+            }
+            if (accumulated + segLen >= maxDistance) {
+                double t = (maxDistance - accumulated) / segLen;
+                return a.lerp(b, t);
+            }
+            accumulated += segLen;
+        }
+        return points.getLast().copy();
+    }
+
+    public static boolean pointInPolygon(Vec2d point, List<Vec2d> polygon) {
+        if (point == null || polygon == null || polygon.size() < 3) {
+            return false;
+        }
+
+        boolean inside = false;
+        for (int i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
+            Vec2d pi = polygon.get(i);
+            Vec2d pj = polygon.get(j);
+            boolean intersect = ((pi.y > point.y) != (pj.y > point.y))
+                && (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y + 1e-9) + pi.x);
+            if (intersect) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    /**
+     * 画布坐标转 Minecraft 方块 XZ（Y 由调用方指定）
+     */
+    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, CoordinateTransformer transformer) {
+        if (canvasPos == null) {
+            return BlockPos.ORIGIN;
+        }
+        if (transformer != null) {
+            Vec2d worldPos = transformer.canvasToMinecraftWorld(canvasPos);
+            if (worldPos != null) {
+                return new BlockPos((int) worldPos.x, 0, (int) worldPos.y);
+            }
+        }
+        return new BlockPos((int) canvasPos.x, 0, (int) canvasPos.y);
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {

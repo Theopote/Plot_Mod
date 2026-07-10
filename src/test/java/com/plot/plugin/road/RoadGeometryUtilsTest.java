@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.ui.tools.impl.drawing.helper.BezierUtils;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -96,5 +97,40 @@ class RoadGeometryUtilsTest {
         assertEquals(10, samples.size());
         assertEquals(5, samples.getFirst().x, 1e-6);
         assertEquals(95, samples.getLast().x, 1e-6);
+    }
+
+    @Test
+    void pointInPolygonDetectsInsideAndOutside() {
+        List<Vec2d> square = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(4, 0),
+            new Vec2d(4, 4),
+            new Vec2d(0, 4)
+        );
+
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(2, 2), square));
+        assertFalse(RoadGeometryUtils.pointInPolygon(new Vec2d(5, 2), square));
+    }
+
+    @Test
+    void pointAlongPolylineFromRespectsMaxDistance() {
+        List<Vec2d> path = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(0, 5),
+            new Vec2d(0, 12)
+        );
+
+        Vec2d point = RoadGeometryUtils.pointAlongPolylineFrom(path.getFirst(), path, 7.0);
+
+        assertEquals(0, point.x, 1e-6);
+        assertEquals(7, point.y, 1e-6);
+    }
+
+    @Test
+    void canvasToBlockXZFallsBackToOneToOneMapping() {
+        BlockPos pos = RoadGeometryUtils.canvasToBlockXZ(new Vec2d(12.7, -3.2), null);
+
+        assertEquals(12, pos.getX());
+        assertEquals(-3, pos.getZ());
     }
 }
