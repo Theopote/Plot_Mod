@@ -198,6 +198,14 @@ public class RoadGenerator {
         target.pathLength += source.pathLength;
     }
 
+    public void mergeJunctionBlocks(RoadGenerationResult target, RoadJunctionGenerator.JunctionBlocks junction) {
+        if (target == null || junction == null) {
+            return;
+        }
+        target.roadBlocks.addAll(junction.roadBlocks);
+        target.sidewalkBlocks.addAll(junction.sidewalkBlocks);
+    }
+
     /**
      * 计算路口节点处的目标路面高度（汇聚各相连边在节点处的高度均值）
      */

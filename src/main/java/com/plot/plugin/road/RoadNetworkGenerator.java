@@ -4,11 +4,11 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -18,6 +18,26 @@ import java.util.Map;
 public class RoadNetworkGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadNetworkGenerator");
 
+    /**
+     * 路网生成结果：边与路口分域存储
+     */
+    public static class NetworkGenerationResult {
+        private final Map<String, RoadGenerator.RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        private final Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
+
+        public Map<String, RoadGenerator.RoadGenerationResult> getEdgeResults() {
+            return Collections.unmodifiableMap(edgeResults);
+        }
+
+        public Map<String, RoadJunctionGenerator.JunctionBlocks> getJunctionResults() {
+            return Collections.unmodifiableMap(junctionResults);
+        }
+
+        public boolean isEmpty() {
+            return edgeResults.isEmpty() && junctionResults.isEmpty();
+        }
+    }
+
     private final RoadGenerator roadGenerator;
     private final RoadJunctionGenerator junctionGenerator;
 
@@ -26,10 +46,10 @@ public class RoadNetworkGenerator {
         this.junctionGenerator = new RoadJunctionGenerator(roadGenerator);
     }
 
-    public Map<String, RoadGenerator.RoadGenerationResult> generateAll(RoadNetwork network, World world) {
-        Map<String, RoadGenerator.RoadGenerationResult> results = new LinkedHashMap<>();
+    public NetworkGenerationResult generateAll(RoadNetwork network, World world) {
+        NetworkGenerationResult networkResult = new NetworkGenerationResult();
         if (network == null || world == null) {
-            return results;
+            return networkResult;
         }
 
         for (RoadEdge edge : network.getEdges().values()) {
@@ -37,7 +57,7 @@ public class RoadNetworkGenerator {
             RoadNode end = network.getNode(edge.getEndNodeId());
             RoadGenerator.RoadGenerationResult edgeResult =
                 roadGenerator.generateEdge(edge, start, end, world);
-            results.put(edge.getId(), edgeResult);
+            networkResult.edgeResults.put(edge.getId(), edgeResult);
         }
 
         for (RoadNode node : network.getNodes().values()) {
@@ -46,26 +66,24 @@ public class RoadNetworkGenerator {
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
                 junctionGenerator.generateJunction(node, network, world);
-            RoadGenerator.RoadGenerationResult first = results.values().stream().findFirst().orElse(null);
-            if (first != null) {
-                for (BlockPos pos : junctionBlocks.roadBlocks) {
-                    first.roadBlocks.add(pos);
-                }
-                for (BlockPos pos : junctionBlocks.sidewalkBlocks) {
-                    first.sidewalkBlocks.add(pos);
-                }
+            if (!junctionBlocks.roadBlocks.isEmpty() || !junctionBlocks.sidewalkBlocks.isEmpty()) {
+                networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
         }
 
-        LOGGER.info("路网生成完成: {} 条边", results.size());
-        return results;
+        LOGGER.info("路网生成完成: {} 条边, {} 个路口",
+            networkResult.edgeResults.size(), networkResult.junctionResults.size());
+        return networkResult;
     }
 
     public RoadGenerator.RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
-        Map<String, RoadGenerator.RoadGenerationResult> edgeResults = generateAll(network, world);
+        NetworkGenerationResult networkResult = generateAll(network, world);
         RoadGenerator.RoadGenerationResult aggregate = new RoadGenerator.RoadGenerationResult(0);
-        for (RoadGenerator.RoadGenerationResult result : edgeResults.values()) {
-            roadGenerator.mergeResult(aggregate, result);
+        for (RoadGenerator.RoadGenerationResult edgeResult : networkResult.getEdgeResults().values()) {
+            roadGenerator.mergeResult(aggregate, edgeResult);
+        }
+        for (RoadJunctionGenerator.JunctionBlocks junctionBlocks : networkResult.getJunctionResults().values()) {
+            roadGenerator.mergeJunctionBlocks(aggregate, junctionBlocks);
         }
         return aggregate;
     }
