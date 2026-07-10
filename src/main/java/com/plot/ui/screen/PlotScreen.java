@@ -11,6 +11,7 @@ import com.plot.ui.toolbar.SystemPanel;
 import com.plot.ui.toolbar.ToolPanel;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.layout.UILayout;
+import com.plot.ui.layout.PanelEdgeCursorHelper;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.panel.PropertyPanel;
 import com.plot.ui.panel.extension.ExtensionPanel;
@@ -94,6 +95,7 @@ public class PlotScreen extends Screen {
     private int lastDockW;
     private int lastDockH;
     private boolean firstRender = true; // 跟踪首次渲染，用于设置默认激活的标签
+    private final PanelEdgeCursorHelper panelEdgeCursorHelper = new PanelEdgeCursorHelper();
 
     /** 是否正在执行 render()，用于避免 removed() 在渲染中被调用时切换 ImGui 上下文导致崩溃 */
     private volatile boolean renderInProgress = false;
@@ -462,11 +464,15 @@ public class PlotScreen extends Screen {
         }
         ImGui.popStyleVar(3);
 
+        panelEdgeCursorHelper.clear();
+
         // 2) 渲染可停靠面板窗口（不再 setNextWindowPos/Size）
         renderDockedControlPanel(controlPanel);
         renderDockedSystemPanel(systemPanel);
         renderDockedToolPanel(toolPanel);
         renderDockedRightPanels(propertyPanel, galleryPanel, extensionPanel);
+
+        panelEdgeCursorHelper.applyIfNearEdge();
     }
 
     private float getTopBarHeight() {
@@ -564,6 +570,8 @@ public class PlotScreen extends Screen {
         try {
             if (controlVisible) {
                 controlPanel.renderInCurrentWindow();
+                recordCurrentWindowBottomEdge();
+                recordCurrentWindowRightEdge();
             }
         } finally {
             ImGui.end();
@@ -584,6 +592,7 @@ public class PlotScreen extends Screen {
         try {
             if (systemVisible) {
                 systemPanel.render();
+                recordCurrentWindowLeftEdge();
             }
         } finally {
             ImGui.end();
@@ -608,6 +617,7 @@ public class PlotScreen extends Screen {
         try {
             if (toolDockVisible) {
                 toolPanel.renderInCurrentWindow();
+                recordCurrentWindowRightEdge();
             }
         } finally {
             ImGui.end();
@@ -633,6 +643,7 @@ public class PlotScreen extends Screen {
                 try {
                     if (propertyVisible) {
                         propertyPanel.render();
+                        recordCurrentWindowLeftEdge();
                     }
                 } finally {
                     ImGui.end();
@@ -655,6 +666,27 @@ public class PlotScreen extends Screen {
 
     private static String propertyPanelWindowTitle() {
         return PlotI18n.tr("panel.plot.properties") + WIN_RIGHT_PROPERTY_ID;
+    }
+
+    private void recordCurrentWindowRightEdge() {
+        float x = ImGui.getWindowPosX() + ImGui.getWindowWidth();
+        float yStart = ImGui.getWindowPosY();
+        float yEnd = yStart + ImGui.getWindowHeight();
+        panelEdgeCursorHelper.addVerticalEdge(x, yStart, yEnd);
+    }
+
+    private void recordCurrentWindowLeftEdge() {
+        float x = ImGui.getWindowPosX();
+        float yStart = ImGui.getWindowPosY();
+        float yEnd = yStart + ImGui.getWindowHeight();
+        panelEdgeCursorHelper.addVerticalEdge(x, yStart, yEnd);
+    }
+
+    private void recordCurrentWindowBottomEdge() {
+        float y = ImGui.getWindowPosY() + ImGui.getWindowHeight();
+        float xStart = ImGui.getWindowPosX();
+        float xEnd = xStart + ImGui.getWindowWidth();
+        panelEdgeCursorHelper.addHorizontalEdge(y, xStart, xEnd);
     }
 
 
@@ -757,8 +789,12 @@ public class PlotScreen extends Screen {
         // 否则后续 ImGui.end() 会在错误上下文上执行，导致 "g.CurrentWindowStack.Size > 0" 断言崩溃。
         // 若正在渲染，则延迟到下一 tick 再恢复，确保本帧 ImGui Begin/End 配对完成。
         if (renderInProgress) {
-            MinecraftClient.getInstance().execute(() -> ImGuiRenderer.getInstance().restorePreviousContext());
+            MinecraftClient.getInstance().execute(() -> {
+                ImGuiRenderer.getInstance().releaseMouseCursorOnScreenClose();
+                ImGuiRenderer.getInstance().restorePreviousContext();
+            });
         } else {
+            ImGuiRenderer.getInstance().releaseMouseCursorOnScreenClose();
             ImGuiRenderer.getInstance().restorePreviousContext();
         }
 

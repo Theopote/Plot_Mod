@@ -4,14 +4,17 @@ import imgui.ImFontConfig;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.internal.ImGuiContext;
+import imgui.flag.ImGuiBackendFlags;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiMouseCursor;
 import imgui.gl3.ImGuiImplGl3;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.plot.ui.imgui.gl.ImGuiGLStateGuard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL12;
@@ -48,6 +51,8 @@ public class ImGuiRenderer {
     private float pendingMouseWheel;
     /** 作为背景层补绘 Plot UI 时，禁止 ImGui 读取真实鼠标/修饰键输入，避免点击穿透到底层面板。 */
     private boolean inputSuppressed;
+    /** GLFW 标准鼠标光标映射，用于将 ImGui 光标状态同步到系统光标 */
+    private long[] mouseCursors;
 
     private ImGuiRenderer() {}
 
@@ -103,7 +108,9 @@ public class ImGuiRenderer {
             ImGuiIO io = ImGui.getIO();
             io.setIniFilename(null);
             io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);
+            io.addBackendFlags(ImGuiBackendFlags.HasMouseCursors);
             initializeFonts(io);
+            createMouseCursors();
             // 设置 KeyMap，NavEnableKeyboard 要求映射 ImGuiKey_Space 等，否则 NewFrame 断言失败
             setupKeyMap(io);
             // 不在此处设置样式；PlotStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
@@ -399,6 +406,11 @@ public class ImGuiRenderer {
             try {
                 RenderSystem.assertOnRenderThread();
 
+                if (ourContext != null) {
+                    ImGui.setCurrentContext(ourContext);
+                }
+                updateMouseCursor();
+
                 // 1.21.x 常见坑：某些 pass 会关掉颜色写入，导致“画了但全黑”
                 // 1.21.x 另一个高频坑：当前绑定的不是默认 framebuffer（0），导致 ImGui 画到了离屏目标上
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
@@ -452,6 +464,8 @@ public class ImGuiRenderer {
                     imGuiGl3.dispose();
                     imGuiGl3 = null;
                 }
+                destroyMouseCursors();
+                resetMouseCursorToDefault();
                 if (ourContext != null) {
                     // 必须在销毁前切换 current，否则 destroyContext 可能导致 GImGui 变为 null。
                     // 游戏退出时其他模组（如 ChronoBlocks）可能已先清理其上下文，savedPreviousContext
@@ -533,6 +547,90 @@ public class ImGuiRenderer {
         if (savedPreviousContext != null) {
             ImGui.setCurrentContext(savedPreviousContext);
             LOGGER.debug("已恢复此前 ImGui 上下文");
+        }
+    }
+
+    /** Plot 界面关闭时恢复系统默认鼠标光标。 */
+    public void releaseMouseCursorOnScreenClose() {
+        resetMouseCursorToDefault();
+    }
+
+    /**
+     * 创建 GLFW 标准光标，供 ImGui 面板分割条、窗口边缘等交互使用。
+     * 本项目未使用 ImGuiImplGlfw，需手动同步 ImGui.getMouseCursor() 到系统光标。
+     */
+    private void createMouseCursors() {
+        if (mouseCursors != null) {
+            return;
+        }
+        mouseCursors = new long[ImGuiMouseCursor.COUNT];
+        GLFWErrorCallback prevErrorCallback = GLFW.glfwSetErrorCallback(null);
+        try {
+            mouseCursors[ImGuiMouseCursor.Arrow] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
+            mouseCursors[ImGuiMouseCursor.TextInput] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
+            mouseCursors[ImGuiMouseCursor.ResizeAll] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
+            mouseCursors[ImGuiMouseCursor.ResizeNS] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_VRESIZE_CURSOR);
+            mouseCursors[ImGuiMouseCursor.ResizeEW] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HRESIZE_CURSOR);
+            mouseCursors[ImGuiMouseCursor.ResizeNESW] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
+            mouseCursors[ImGuiMouseCursor.ResizeNWSE] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
+            mouseCursors[ImGuiMouseCursor.Hand] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_HAND_CURSOR);
+            mouseCursors[ImGuiMouseCursor.NotAllowed] = GLFW.glfwCreateStandardCursor(GLFW.GLFW_ARROW_CURSOR);
+        } finally {
+            GLFW.glfwSetErrorCallback(prevErrorCallback);
+        }
+    }
+
+    private void destroyMouseCursors() {
+        if (mouseCursors == null) {
+            return;
+        }
+        for (int i = 0; i < ImGuiMouseCursor.COUNT; i++) {
+            if (mouseCursors[i] != 0) {
+                GLFW.glfwDestroyCursor(mouseCursors[i]);
+                mouseCursors[i] = 0;
+            }
+        }
+        mouseCursors = null;
+    }
+
+    private void updateMouseCursor() {
+        if (mouseCursors == null || windowHandle == 0 || inputSuppressed) {
+            return;
+        }
+        try {
+            ImGuiIO io = ImGui.getIO();
+            if (io.hasConfigFlags(ImGuiConfigFlags.NoMouseCursorChange)) {
+                return;
+            }
+            if (GLFW.glfwGetInputMode(windowHandle, GLFW.GLFW_CURSOR) == GLFW.GLFW_CURSOR_DISABLED) {
+                return;
+            }
+
+            int imguiCursor = ImGui.getMouseCursor();
+            if (imguiCursor == ImGuiMouseCursor.None || io.getMouseDrawCursor()) {
+                GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
+                return;
+            }
+
+            long cursor = mouseCursors[imguiCursor];
+            if (cursor == 0) {
+                cursor = mouseCursors[ImGuiMouseCursor.Arrow];
+            }
+            GLFW.glfwSetCursor(windowHandle, cursor);
+            GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+        } catch (Exception e) {
+            LOGGER.debug("updateMouseCursor failed", e);
+        }
+    }
+
+    private void resetMouseCursorToDefault() {
+        if (windowHandle == 0) {
+            return;
+        }
+        try {
+            GLFW.glfwSetCursor(windowHandle, 0);
+            GLFW.glfwSetInputMode(windowHandle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+        } catch (Exception ignored) {
         }
     }
 }
