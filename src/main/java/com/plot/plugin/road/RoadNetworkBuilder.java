@@ -192,13 +192,55 @@ public class RoadNetworkBuilder {
 
         String startNodeId = edge.getStartNodeId();
         String endNodeId = edge.getEndNodeId();
+        double splitDistance = RoadGeometryUtils.calculatePathLength(firstPart);
+        double totalLength = edge.getLength();
+        List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
 
         network.removeEdge(edgeId);
         RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart);
         RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart);
         copyProperties(edge, firstEdge);
         copyProperties(edge, secondEdge);
+        firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
+        secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
         return true;
+    }
+
+    static List<RoadEdge.SlopeOverride> splitSlopeOverrides(
+            List<RoadEdge.SlopeOverride> overrides,
+            double splitDistance,
+            double totalLength,
+            boolean firstPart) {
+        if (overrides == null || overrides.isEmpty()) {
+            return List.of();
+        }
+
+        List<RoadEdge.SlopeOverride> result = new ArrayList<>();
+        for (RoadEdge.SlopeOverride override : overrides) {
+            double start = override.startDistance;
+            double end = override.endDistance;
+            if (firstPart) {
+                if (end <= 0 || start >= splitDistance) {
+                    continue;
+                }
+                double newStart = Math.max(0, start);
+                double newEnd = Math.min(splitDistance, end);
+                if (newEnd > newStart) {
+                    result.add(new RoadEdge.SlopeOverride(newStart, newEnd, override.maxSlope));
+                }
+            } else {
+                double secondLength = Math.max(0, totalLength - splitDistance);
+                if (secondLength <= 0 || end <= splitDistance || start >= totalLength) {
+                    continue;
+                }
+                double newStart = Math.max(splitDistance, start) - splitDistance;
+                double newEnd = Math.min(totalLength, end) - splitDistance;
+                if (newEnd > newStart) {
+                    result.add(new RoadEdge.SlopeOverride(newStart, newEnd, override.maxSlope));
+                }
+            }
+        }
+        return result;
     }
 
     private void copyProperties(RoadEdge source, RoadEdge target) {
@@ -209,6 +251,5 @@ public class RoadNetworkBuilder {
         target.setSidewalkMaterial(source.getSidewalkMaterial());
         target.setStreetlightSpacing(source.getStreetlightSpacing());
         target.setMaxSlope(source.getMaxSlope());
-        target.setSlopeOverrides(source.getSlopeOverrides());
     }
 }
