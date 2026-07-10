@@ -350,6 +350,7 @@
   "plugin.road.include_shoulder": "包含路肩",
   "plugin.road.include_sidewalk": "包含人行道",
   "plugin.road.material": "道路材质",
+  "plugin.road.sidewalk_material": "人行道材质",
   "plugin.road.operations": "操作",
   "plugin.road.path_info": "路径信息",
   "plugin.road.projection_ref": "投影参考",

@@ -350,6 +350,7 @@
   "plugin.road.include_shoulder": "Include Shoulder",
   "plugin.road.include_sidewalk": "Include Sidewalk",
   "plugin.road.material": "Road Material",
+  "plugin.road.sidewalk_material": "Sidewalk Material",
   "plugin.road.operations": "Operations",
   "plugin.road.path_info": "Path Information",
   "plugin.road.projection_ref": "Projection Reference",

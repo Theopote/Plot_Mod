@@ -607,7 +607,7 @@ public class RoadGenerator {
 
                 Vec2d left = interpolateBoundary(leftBoundary, t, i, segments.size());
                 Vec2d right = interpolateBoundary(rightBoundary, t, i, segments.size());
-                fillBetweenPoints(result, point, left, right, targetY, world, blockId, projectionHandler);
+                fillBetweenPoints(result, left, right, targetY, blockId, projectionHandler);
 
                 int groundY = getTopHeight(world, canvasToBlockPos(point));
                 if (targetY < groundY) {
@@ -642,8 +642,8 @@ public class RoadGenerator {
                 int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
                 Vec2d left = interpolateBoundary(leftBoundary, t, i, segments.size());
                 Vec2d right = interpolateBoundary(rightBoundary, t, i, segments.size());
-                placeSidewalkStrip(result, left, sidewalkWidth, targetY, world, blockId, projectionHandler);
-                placeSidewalkStrip(result, right, sidewalkWidth, targetY, world, blockId, projectionHandler);
+                placeSidewalkStrip(result, left, sidewalkWidth, targetY, blockId, projectionHandler);
+                placeSidewalkStrip(result, right, sidewalkWidth, targetY, blockId, projectionHandler);
             }
         }
     }
@@ -690,26 +690,20 @@ public class RoadGenerator {
 
     private void fillBetweenPoints(
             RoadGenerationResult result,
-            Vec2d center,
             Vec2d left,
             Vec2d right,
             int targetY,
-            World world,
             String blockId,
             BlockProjectionHandler projectionHandler) {
-        BlockPos leftPos = canvasToBlockPos(left);
-        BlockPos rightPos = canvasToBlockPos(right);
-        int minX = Math.min(leftPos.getX(), rightPos.getX());
-        int maxX = Math.max(leftPos.getX(), rightPos.getX());
-        int minZ = Math.min(leftPos.getZ(), rightPos.getZ());
-        int maxZ = Math.max(leftPos.getZ(), rightPos.getZ());
-
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                BlockPos pos = new BlockPos(x, targetY, z);
-                recordBlock(result, pos, blockId, projectionHandler);
-                result.roadBlocks.add(pos);
-            }
+        double span = left.distance(right);
+        int steps = Math.max(1, (int) Math.ceil(span * 2.0));
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            Vec2d sample = left.lerp(right, t);
+            BlockPos samplePos = canvasToBlockPos(sample);
+            BlockPos pos = new BlockPos(samplePos.getX(), targetY, samplePos.getZ());
+            recordBlock(result, pos, blockId, projectionHandler);
+            result.roadBlocks.add(pos);
         }
     }
 
@@ -718,13 +712,16 @@ public class RoadGenerator {
             Vec2d center,
             int width,
             int targetY,
-            World world,
             String blockId,
             BlockProjectionHandler projectionHandler) {
         BlockPos centerPos = canvasToBlockPos(center);
-        int half = Math.max(0, width / 2);
+        int half = Math.max(0, (int) Math.ceil(width / 2.0));
+        double radiusSquared = Math.max(0.25, width * width / 4.0);
         for (int dx = -half; dx <= half; dx++) {
             for (int dz = -half; dz <= half; dz++) {
+                if ((dx * dx + dz * dz) > radiusSquared) {
+                    continue;
+                }
                 BlockPos pos = new BlockPos(centerPos.getX() + dx, targetY, centerPos.getZ() + dz);
                 recordBlock(result, pos, blockId, projectionHandler);
                 result.sidewalkBlocks.add(pos);

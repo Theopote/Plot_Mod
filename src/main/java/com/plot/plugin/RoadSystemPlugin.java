@@ -50,6 +50,12 @@ import java.util.List;
 public class RoadSystemPlugin extends Plugin {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadSystemPlugin");
     private static final String DEFAULT_NETWORK_FILE = "default.json";
+    private static final List<String> MATERIAL_OPTIONS = List.of(
+        "material.plot.concrete",
+        "material.plot.stone",
+        "material.plot.gravel",
+        "material.plot.planks"
+    );
 
     private RoadSystemConfig config;
     private RoadNetwork network = new RoadNetwork();
@@ -336,6 +342,14 @@ public class RoadSystemPlugin extends Plugin {
             networkHistory.push(network);
         }
 
+        renderMaterialCombo(
+            "##edge_road_material",
+            PlotI18n.tr("plugin.road.material"),
+            current.getMaterial(),
+            config.getSelectedMaterial(),
+            material -> current.setMaterial(material)
+        );
+
         includeSidewalkRef.set(current.getIncludeSidewalk() != null ? current.getIncludeSidewalk() : config.isIncludeSidewalk());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), includeSidewalkRef)) {
             networkHistory.push(network);
@@ -350,6 +364,14 @@ public class RoadSystemPlugin extends Plugin {
             if (ImGui.isItemActivated()) {
                 networkHistory.push(network);
             }
+
+            renderMaterialCombo(
+                "##edge_sidewalk_material",
+                PlotI18n.tr("plugin.road.sidewalk_material"),
+                current.getSidewalkMaterial(),
+                config.getSelectedMaterial(),
+                material -> current.setSidewalkMaterial(material)
+            );
         }
 
         float[] maxSlope = {current.getMaxSlope() != null ? current.getMaxSlope() : config.getMaxSlope()};
@@ -461,6 +483,32 @@ public class RoadSystemPlugin extends Plugin {
             }
         }
         return false;
+    }
+
+    private interface MaterialSetter {
+        void set(String material);
+    }
+
+    private void renderMaterialCombo(
+            String comboId,
+            String label,
+            String currentValue,
+            String fallbackValue,
+            MaterialSetter setter) {
+        String effectiveMaterial = currentValue != null ? currentValue : fallbackValue;
+        String preview = PlotI18n.tr(effectiveMaterial);
+        if (ImGui.beginCombo(comboId, preview)) {
+            for (String material : MATERIAL_OPTIONS) {
+                boolean selected = material.equals(effectiveMaterial);
+                if (ImGui.selectable(PlotI18n.tr(material), selected)) {
+                    networkHistory.push(network);
+                    setter.set(material);
+                }
+            }
+            ImGui.endCombo();
+        }
+        ImGui.sameLine();
+        ImGui.textColored((int) 0xFF808080FFL, label);
     }
 
     private void renderGenerateTab() {
