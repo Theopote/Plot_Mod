@@ -48,9 +48,14 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	// ImGui dependencies - 1.86.12 修复了 #253（createContext 覆盖先前上下文 ptr 的 bug），避免与其他 ImGui 模组冲突
+	// 注意：imgui-java-lwjgl3 会传递依赖 org.lwjgl 3.3.4，若一并 jar-in-jar 进 mod，
+	// 会覆盖 MC 1.21.10 自带的 lwjgl-stb（3.3.4-snapshot），导致 NativeImage 报
+	// STBImageResize.nstbir_resize_uint8 NoSuchMethodError。只打包 imgui 自身，LWJGL 交给 MC。
 	def imguiVersion = '1.86.12'
 	implementation include("io.github.spair:imgui-java-binding:${imguiVersion}")
-	implementation include("io.github.spair:imgui-java-lwjgl3:${imguiVersion}")
+	implementation(include("io.github.spair:imgui-java-lwjgl3:${imguiVersion}")) {
+		transitive = false
+	}
 	implementation include("io.github.spair:imgui-java-natives-windows:${imguiVersion}")
 	implementation include("io.github.spair:imgui-java-natives-linux:${imguiVersion}")
 	implementation include("io.github.spair:imgui-java-natives-macos:${imguiVersion}")
@@ -59,6 +64,17 @@ dependencies {
 	implementation('org.apache.xmlgraphics:batik-transcoder:1.18') {
 		exclude group: 'xml-apis', module: 'xml-apis'
 	}
+}
+
+// 防止 jar-in-jar 误打包 MC 自带的 LWJGL（尤其 lwjgl-stb）
+configurations.include {
+	exclude group: 'org.lwjgl', module: 'lwjgl'
+	exclude group: 'org.lwjgl', module: 'lwjgl-glfw'
+	exclude group: 'org.lwjgl', module: 'lwjgl-opengl'
+	exclude group: 'org.lwjgl', module: 'lwjgl-stb'
+	exclude group: 'org.lwjgl', module: 'lwjgl-jemalloc'
+	exclude group: 'org.lwjgl', module: 'lwjgl-openal'
+	exclude group: 'org.lwjgl', module: 'lwjgl-tinyfd'
 }
 
 processResources {
