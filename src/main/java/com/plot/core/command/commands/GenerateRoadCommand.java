@@ -31,19 +31,28 @@ public class GenerateRoadCommand implements Command {
 
     private final List<BlockRecord> records;
     private final Date timestamp;
-    private final BlockProjectionHandler projectionHandler;
+    private final BlockWriter blockWriter;
+
+    @FunctionalInterface
+    interface BlockWriter {
+        boolean setBlockAt(BlockPos pos, String blockId);
+    }
 
     public GenerateRoadCommand(List<BlockRecord> records) {
+        this(records, BlockProjectionHandler.getInstance()::setBlockAt);
+    }
+
+    GenerateRoadCommand(List<BlockRecord> records, BlockWriter blockWriter) {
         this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
         this.timestamp = new Date();
-        this.projectionHandler = BlockProjectionHandler.getInstance();
+        this.blockWriter = blockWriter;
     }
 
     @Override
     public void execute() {
         int success = 0;
         for (BlockRecord record : records) {
-            if (projectionHandler.setBlockAt(record.pos, record.newBlockId)) {
+            if (blockWriter.setBlockAt(record.pos, record.newBlockId)) {
                 success++;
             }
         }
@@ -55,7 +64,7 @@ public class GenerateRoadCommand implements Command {
         int restored = 0;
         for (int i = records.size() - 1; i >= 0; i--) {
             BlockRecord record = records.get(i);
-            if (projectionHandler.setBlockAt(record.pos, record.previousBlockId)) {
+            if (blockWriter.setBlockAt(record.pos, record.previousBlockId)) {
                 restored++;
             }
         }

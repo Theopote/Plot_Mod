@@ -737,9 +737,16 @@ public class RoadGenerator {
             BlockPos pos,
             String newBlockId,
             BlockProjectionHandler projectionHandler) {
+        recordPlacementIfAbsent(result, pos, projectionHandler.getBlockIdAt(pos), newBlockId);
+    }
+
+    static void recordPlacementIfAbsent(
+            RoadGenerationResult result,
+            BlockPos pos,
+            String previousBlockId,
+            String newBlockId) {
         if (!result.placementRecords.containsKey(pos)) {
-            String previous = projectionHandler.getBlockIdAt(pos);
-            result.placementRecords.put(pos, new GenerateRoadCommand.BlockRecord(pos, previous, newBlockId));
+            result.placementRecords.put(pos, new GenerateRoadCommand.BlockRecord(pos, previousBlockId, newBlockId));
         }
     }
 
