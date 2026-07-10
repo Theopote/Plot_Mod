@@ -63,14 +63,21 @@ public class ExtensionPanel implements UIComponent {
             // 插件列表
             ImGui.text(PlotI18n.tr("panel.plot.extension_installed"));
             float buttonSize = UILayout.Toolbar.LEFT_BUTTON_SIZE;
-            float rowHeight = buttonSize + ImGui.getStyle().getItemSpacingY();
-            float listHeight = Math.max(100.0f, Math.min(240.0f, pluginManager.getPlugins().size() * rowHeight));
+            float spacingX = ImGui.getStyle().getItemSpacingX();
+            float spacingY = ImGui.getStyle().getItemSpacingY();
+            float contentWidth = ImGui.getContentRegionAvailX();
+            int columns = Math.max(1, (int) Math.floor((contentWidth + spacingX) / (buttonSize + spacingX)));
+            int rows = (int) Math.ceil(pluginManager.getPlugins().size() / (double) columns);
+            float rowHeight = buttonSize + spacingY;
+            float listHeight = Math.max(100.0f, Math.min(240.0f, rows * rowHeight + 8.0f));
             ImGui.beginChild("##plugins_list", ImGui.getContentRegionAvailX(), listHeight, true);
             
             IPlugin activePlugin = pluginManager.getActivePlugin();
-            
+
+            int index = 0;
             for (IPlugin plugin : pluginManager.getPlugins()) {
                 boolean isActive = activePlugin != null && plugin.getId().equals(activePlugin.getId());
+                boolean isEnabled = plugin.isEnabled();
                 
                 ImGui.pushID(plugin.getId());
                 
@@ -81,6 +88,10 @@ public class ExtensionPanel implements UIComponent {
                     if (pluginIcon != null && !pluginIcon.isEmpty()) {
                         icon = pluginIcon;
                     }
+                }
+
+                if (!isEnabled) {
+                    ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.55f);
                 }
 
                 if (isActive) {
@@ -98,36 +109,24 @@ public class ExtensionPanel implements UIComponent {
                     ImGui.popStyleColor(3);
                 }
 
+                if (!isEnabled) {
+                    ImGui.popStyleVar();
+                }
+
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(plugin.getName());
-                }
-                
-                // 启用/禁用开关
-                ImGui.sameLine();
-                ImGui.setCursorPosX(ImGui.getWindowWidth() - 60);
-                boolean enabled = plugin.isEnabled();
-                ImGui.pushStyleColor(ImGuiCol.Text, enabled ? theme.successText : theme.mutedText);
-                ImBoolean enabledRef = new ImBoolean(enabled);
-                if (ImGui.checkbox("##enabled", enabledRef)) {
-                    // enabledRef.get() 是点击后的新状态
-                    if (enabledRef.get()) {
-                        // 复选框被勾选，启用插件
-                        pluginManager.enablePlugin(plugin);
-                    } else {
-                        // 复选框被取消勾选，禁用插件
-                        pluginManager.disablePlugin(plugin);
-                        // 如果禁用的是当前激活的插件，取消激活
-                        if (isActive) {
-                            pluginManager.setActivePlugin(null);
-                        }
+                    String tooltip = plugin.getName();
+                    if (!isEnabled) {
+                        tooltip = tooltip + "\n" + PlotI18n.tr("panel.plot.extension_disabled");
                     }
+                    ImGui.setTooltip(tooltip);
                 }
-                ImGui.popStyleColor();
                 
                 ImGui.popID();
-                
-                // 添加一些间距
-                ImGui.spacing();
+
+                index++;
+                if (index % columns != 0) {
+                    ImGui.sameLine();
+                }
             }
             
             ImGui.endChild();
@@ -139,6 +138,15 @@ public class ExtensionPanel implements UIComponent {
             // 显示当前激活的插件参数面板
             IPlugin currentActivePlugin = pluginManager.getActivePlugin();
             if (currentActivePlugin != null) {
+                ImBoolean enabledRef = new ImBoolean(currentActivePlugin.isEnabled());
+                if (ImGui.checkbox(PlotI18n.tr("panel.plot.extension_enabled"), enabledRef)) {
+                    if (enabledRef.get()) {
+                        pluginManager.enablePlugin(currentActivePlugin);
+                    } else {
+                        pluginManager.disablePlugin(currentActivePlugin);
+                    }
+                }
+
                 // 如果插件未启用，显示提示信息
                 if (!currentActivePlugin.isEnabled()) {
                     ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_disabled"));

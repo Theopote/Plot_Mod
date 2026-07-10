@@ -535,6 +535,7 @@
   "toolbar.plot.close_plot_tooltip": "Close Plot",
   "status.plot.error": "Error",
   "panel.plot.extension_disabled": "Plugin Disabled",
+  "panel.plot.extension_enabled": "Enable Plugin",
   "panel.plot.extension_render_error": "Render error: %s",
   "panel.plot.extension_select_plugin": "Select a plugin",
   "panel.plot.extension_select_hint": "Choose a plugin from the list above to view and configure its settings.",

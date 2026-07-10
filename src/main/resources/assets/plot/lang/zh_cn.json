@@ -535,6 +535,7 @@
   "toolbar.plot.close_plot_tooltip": "关闭 Plot",
   "status.plot.error": "错误",
   "panel.plot.extension_disabled": "插件未启用",
+  "panel.plot.extension_enabled": "启用插件",
   "panel.plot.extension_render_error": "渲染错误: %s",
   "panel.plot.extension_select_plugin": "请选择一个插件",
   "panel.plot.extension_select_hint": "从上方列表中选择一个插件以查看和配置其参数",
