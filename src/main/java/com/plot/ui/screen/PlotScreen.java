@@ -80,9 +80,9 @@ public class PlotScreen extends Screen {
     private static final int GLFW_KEY_RIGHT_SHIFT = 344;
     private static final int LEGACY_SHIFT_KEY = 16;
 
-    private static final String WIN_TOP = "ControlPanel##ControlPanel";
-    private static final String WIN_TOP_SYSTEM = "SystemPanel##SystemPanel";
-    private static final String WIN_LEFT = "ToolPanel##ToolPanel";
+    private static final String WIN_TOP_ID = "##ControlPanel";
+    private static final String WIN_TOP_SYSTEM_ID = "##SystemPanel";
+    private static final String WIN_LEFT_ID = "##ToolPanel";
     // 右侧拆分为三个独立窗口，Dock 到同一个 right dock node 后会自动以 Tab 形式组合展示
     private static final String WIN_RIGHT_PROPERTY_ID = "##PropertyPanel";
     private static final String WIN_RIGHT_EXTENSION = "扩展##ExtensionPanel";
@@ -547,9 +547,9 @@ public class PlotScreen extends Screen {
         dockIdRight = dockBottomRight.get();
 
         // 停靠窗口到对应的dock节点
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP, dockIdTopLeft);  // 控制面板在顶部左侧
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_TOP_SYSTEM, dockIdTopRight);  // 系统面板在顶部右侧
-        imgui.internal.ImGui.dockBuilderDockWindow(WIN_LEFT, dockIdLeft);  // 工具面板在左侧
+        imgui.internal.ImGui.dockBuilderDockWindow(controlPanelWindowTitle(), dockIdTopLeft);  // 控制面板在顶部左侧
+        imgui.internal.ImGui.dockBuilderDockWindow(systemPanelWindowTitle(), dockIdTopRight);  // 系统面板在顶部右侧
+        imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindowTitle(), dockIdLeft);  // 工具面板在左侧
         // 关键：确保属性面板第一个 dock 到右侧节点，这样它会成为默认激活的标签
         // ImGui 的 docking 系统中，第一个 dock 的窗口会默认激活并显示在最前面
         imgui.internal.ImGui.dockBuilderDockWindow(propertyPanelWindowTitle(), dockIdRight);
@@ -574,7 +574,7 @@ public class PlotScreen extends Screen {
         float controlPanelWidth = Math.max(0.0f, displayWidth - UILayout.RIGHT_PANEL_DEFAULT_WIDTH);
         ImGui.setNextWindowPos(0.0f, 0.0f, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(controlPanelWidth, topBarHeight, ImGuiCond.FirstUseEver);
-        boolean controlVisible = ImGui.begin(WIN_TOP, DOCKABLE_WINDOW_FLAGS);
+        boolean controlVisible = ImGui.begin(controlPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
         try {
             if (controlVisible) {
                 controlPanel.renderInCurrentWindow();
@@ -596,7 +596,7 @@ public class PlotScreen extends Screen {
         ImGui.pushStyleColor(ImGuiCol.Border, currentTheme.border);
         ImGui.pushStyleColor(ImGuiCol.WindowBg, currentTheme.toolbarBackground);
         // 只用DockSpace窗口，不再setNextWindowPos/Size，保证可停靠
-        boolean systemVisible = ImGui.begin(WIN_TOP_SYSTEM, DOCKABLE_WINDOW_FLAGS);
+        boolean systemVisible = ImGui.begin(systemPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
         try {
             if (systemVisible) {
                 systemPanel.render();
@@ -621,7 +621,7 @@ public class PlotScreen extends Screen {
         float toolPanelWidth = UILayout.Toolbar.PANEL_WIDTH;
         ImGui.setNextWindowPos(0.0f, topBarHeight, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowSize(toolPanelWidth, displayHeight - topBarHeight, ImGuiCond.FirstUseEver);
-        boolean toolDockVisible = ImGui.begin(WIN_LEFT, DOCKABLE_WINDOW_FLAGS);
+        boolean toolDockVisible = ImGui.begin(toolPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
         try {
             if (toolDockVisible) {
                 toolPanel.renderInCurrentWindow();
@@ -670,6 +670,18 @@ public class PlotScreen extends Screen {
         ImGui.popStyleColor(2);
         ImGui.popStyleVar(2);
         }
+    }
+
+    private static String controlPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.control_panel") + WIN_TOP_ID;
+    }
+
+    private static String systemPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.system_panel") + WIN_TOP_SYSTEM_ID;
+    }
+
+    private static String toolPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.tool_panel") + WIN_LEFT_ID;
     }
 
     private static String propertyPanelWindowTitle() {
