@@ -188,6 +188,8 @@ public class RoadSystemPlugin extends Plugin {
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
 
+        renderNodeElevationEditor();
+
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
         ImGui.beginChild("edge_list", 0, 180, true);
@@ -217,6 +219,56 @@ public class RoadSystemPlugin extends Plugin {
         }
         ImGui.endChild();
         renderDeleteConfirmPopup();
+    }
+
+    private void renderNodeElevationEditor() {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.node_elevation_settings"))) {
+            return;
+        }
+
+        List<RoadNode> nodes = new ArrayList<>(network.getNodes().values());
+        if (nodes.isEmpty()) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_nodes"));
+            return;
+        }
+
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.node_elevation_hint"));
+        ImGui.beginChild("node_elevation_list", 0, 120, true);
+        for (RoadNode node : nodes) {
+            ImGui.pushID(node.getId());
+            Vec2d pos = node.getPosition();
+            String label = String.format("(%.0f, %.0f) deg=%d", pos.x, pos.y, node.getDegree());
+            ImGui.text(label);
+            ImGui.sameLine();
+
+            boolean autoMode = node.getManualElevation() == null;
+            ImBoolean autoRef = new ImBoolean(autoMode);
+            if (ImGui.checkbox(PlotI18n.tr("plugin.road.node_elevation_auto") + "##auto", autoRef)) {
+                networkHistory.push(network);
+                if (autoRef.get()) {
+                    node.setManualElevation(null);
+                } else {
+                    node.setManualElevation(64.0);
+                }
+            }
+
+            if (!autoRef.get()) {
+                ImGui.sameLine();
+                int initial = node.getManualElevation() != null
+                    ? (int) Math.round(node.getManualElevation())
+                    : 64;
+                int[] elevation = {initial};
+                if (ImGui.sliderInt("##elevation", elevation, -64, 320, "Y=%d")) {
+                    node.setManualElevation((double) elevation[0]);
+                }
+                if (ImGui.isItemActivated()) {
+                    networkHistory.push(network);
+                }
+            }
+
+            ImGui.popID();
+        }
+        ImGui.endChild();
     }
 
     private void renderDeleteConfirmPopup() {
@@ -281,16 +333,21 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.separator();
         renderDefaultParams();
 
-        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
-        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), half, 0)) {
+        float itemSpacing = ImGui.getStyle().getItemSpacingX();
+        float third = (ImGui.getContentRegionAvailX() - itemSpacing * 2.0f) / 3.0f;
+        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), third, 0)) {
             activatePathDrawingTool();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.pick_path"), third, 0)) {
+            activatePathPickTool();
         }
         ImGui.sameLine();
         boolean canAdopt = selectedPath != null;
         if (!canAdopt) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.adopt_as_road"), half, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.adopt_as_road"), third, 0)) {
             adoptSelectedShape();
         }
         if (!canAdopt) {
@@ -633,6 +690,59 @@ public class RoadSystemPlugin extends Plugin {
                 config::setSelectedSidewalkMaterial
             );
         }
+
+        renderAdvancedEngineeringSettings();
+    }
+
+    private void renderAdvancedEngineeringSettings() {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.advanced_settings"))) {
+            return;
+        }
+
+        int[] bridgeThreshold = {config.getBridgeThreshold()};
+        if (ImGui.sliderInt(
+            "##road_bridge_threshold",
+            bridgeThreshold,
+            1,
+            20,
+            PlotI18n.tr("plugin.road.bridge_threshold", bridgeThreshold[0])
+        )) {
+            config.setBridgeThreshold(bridgeThreshold[0]);
+        }
+
+        int[] tunnelThreshold = {config.getTunnelThreshold()};
+        if (ImGui.sliderInt(
+            "##road_tunnel_threshold",
+            tunnelThreshold,
+            1,
+            30,
+            PlotI18n.tr("plugin.road.tunnel_threshold", tunnelThreshold[0])
+        )) {
+            config.setTunnelThreshold(tunnelThreshold[0]);
+        }
+
+        ImBoolean shoulderRef = new ImBoolean(config.isIncludeShoulder());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), shoulderRef)) {
+            config.setIncludeShoulder(shoulderRef.get());
+        }
+
+        if (config.isIncludeShoulder()) {
+            int[] shoulderWidth = {config.getShoulderWidth()};
+            if (ImGui.sliderInt(
+                "##road_shoulder_width",
+                shoulderWidth,
+                0,
+                3,
+                PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0])
+            )) {
+                config.setShoulderWidth(shoulderWidth[0]);
+            }
+        }
+
+        ImBoolean drainageRef = new ImBoolean(config.isIncludeDrainage());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), drainageRef)) {
+            config.setIncludeDrainage(drainageRef.get());
+        }
     }
 
     private void renderConfigMaterialCombo(
@@ -878,6 +988,17 @@ public class RoadSystemPlugin extends Plugin {
             var polylineTool = toolManager.getTool("polyline");
             if (polylineTool instanceof BaseTool baseTool) {
                 AppState.getInstance().setCurrentTool(baseTool);
+            }
+        }
+    }
+
+    private void activatePathPickTool() {
+        ToolManager toolManager = ToolManager.getInstance();
+        if (toolManager != null) {
+            var selectTool = toolManager.getTool("select");
+            if (selectTool instanceof BaseTool baseTool) {
+                AppState.getInstance().setCurrentTool(baseTool);
+                projectStatus = PlotI18n.tr("plugin.road.pick_path_hint");
             }
         }
     }
