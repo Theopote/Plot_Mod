@@ -468,17 +468,36 @@ public class RoadSystemPlugin extends Plugin {
         boolean hasNetwork = !network.getEdges().isEmpty();
 
         if (!hasNetwork) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_edges"));
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
             calculateNetworkPreview();
         }
+        if (!hasNetwork) {
+            ImGui.endDisabled();
+        }
+
         ImGui.sameLine();
+        boolean hasPreview = lastGenerationResult != null;
+        if (!hasPreview) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.road.clear_preview"), half, 0)) {
             clearPreview();
         }
-        if (!hasNetwork) {
+        if (!hasPreview) {
             ImGui.endDisabled();
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
+            if (calculateNetworkPreview()) {
+                buildConfirmPending = true;
+            }
+        }
+
+        if (!hasNetwork) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.draw_path_hint"));
         }
 
         if (lastGenerationResult != null) {
@@ -492,12 +511,21 @@ public class RoadSystemPlugin extends Plugin {
             ImGui.text(String.format(PlotI18n.tr("plugin.road.streetlight_count") + ": %d",
                 lastGenerationResult.streetlightCount));
 
+            boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
+            if (!hasPlacements) {
+                ImGui.textColored((int) 0xFFFFB060FFL, PlotI18n.tr("plugin.road.generate_empty_result"));
+                ImGui.beginDisabled();
+            }
+
             if (ImGui.button(PlotI18n.tr("plugin.road.projection_ref"), half, 0)) {
                 projectRoadPreview();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.road.build"), half, 0)) {
                 buildConfirmPending = true;
+            }
+            if (!hasPlacements) {
+                ImGui.endDisabled();
             }
             renderBuildConfirmPopup();
         }
@@ -590,20 +618,36 @@ public class RoadSystemPlugin extends Plugin {
         return points.getFirst().distance(startPoint);
     }
 
-    private void calculateNetworkPreview() {
+    private boolean calculateNetworkPreview() {
+        if (network.getEdges().isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.road.no_edges");
+            return false;
+        }
+
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null || networkGenerator == null) {
             LOGGER.warn("世界或生成器未就绪");
-            return;
+            projectStatus = PlotI18n.tr("plugin.road.generate_world_unavailable");
+            return false;
         }
+
         GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
         lastGenerationResult = networkGenerator.generateAggregated(network, world);
+
+        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.road.generate_empty_result");
+            LOGGER.warn("路网预览未产生可投影方块");
+            return false;
+        }
+
         LOGGER.info("路网预览: 挖{} 填{} 路灯{}",
             lastGenerationResult.cutVolume, lastGenerationResult.fillVolume,
             lastGenerationResult.streetlightCount);
+        projectStatus = PlotI18n.tr("plugin.road.generate_preview_ready");
+        return true;
     }
 
     private void projectRoadPreview() {
@@ -631,6 +675,7 @@ public class RoadSystemPlugin extends Plugin {
 
     private void buildRoadInWorld() {
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.road.build_no_blocks");
             return;
         }
         List<GenerateRoadCommand.BlockRecord> records =
