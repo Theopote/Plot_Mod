@@ -13,8 +13,6 @@ import java.util.List;
  * 道路几何工具（与 Shape / RoadGenerator 解耦的纯几何运算）
  */
 public final class RoadGeometryUtils {
-    private static final double DEFAULT_BEZIER_SAMPLES = 20;
-
     private RoadGeometryUtils() {
     }
 
@@ -26,30 +24,20 @@ public final class RoadGeometryUtils {
             return shape.getPoints();
         }
         if (shape instanceof BezierCurveShape bezier) {
-            return sampleBezierCurve(bezier, (int) DEFAULT_BEZIER_SAMPLES);
+            return sampleBezierCurve(bezier);
         }
         List<Vec2d> endpoints = shape.getEndpoints();
         return endpoints != null ? new ArrayList<>(endpoints) : List.of();
     }
 
-    public static List<Vec2d> sampleBezierCurve(BezierCurveShape curve, int samplesPerSegment) {
-        List<Vec2d> points = new ArrayList<>();
-        List<Vec2d> controlPoints = curve.getControlPoints();
-        if (controlPoints == null || controlPoints.size() < 2) {
-            return points;
+    /**
+     * 获取贝塞尔曲线上的采样点（使用 {@link BezierCurveShape#getCurvePoints()}，而非控制手柄序列）
+     */
+    public static List<Vec2d> sampleBezierCurve(BezierCurveShape curve) {
+        if (curve == null) {
+            return List.of();
         }
-
-        int samples = Math.max(2, samplesPerSegment);
-        for (int i = 0; i < controlPoints.size() - 1; i++) {
-            Vec2d p1 = controlPoints.get(i);
-            Vec2d p2 = controlPoints.get(i + 1);
-            for (int j = 0; j < samples; j++) {
-                double t = (double) j / samples;
-                points.add(p1.lerp(p2, t));
-            }
-        }
-        points.add(controlPoints.getLast());
-        return points;
+        return new ArrayList<>(curve.getCurvePoints());
     }
 
     public static double calculatePathLength(List<Vec2d> points) {
