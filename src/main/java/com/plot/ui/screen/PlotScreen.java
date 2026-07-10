@@ -77,9 +77,10 @@ public class PlotScreen extends Screen {
     private static final String WIN_TOP_ID = "##ControlPanel";
     private static final String WIN_TOP_SYSTEM_ID = "##SystemPanel";
     private static final String WIN_LEFT_ID = "##ToolPanel";
-    private static final String WIN_RIGHT_SIDE_ID = "##RightSidePanel";
-    /** 递增以在布局结构变化时强制重建 Dock（例如属性/扩展改为 Tab 组合） */
-    private static final int DOCK_LAYOUT_VERSION = 5;
+    private static final String WIN_PROPERTY_ID = "##PropertyPanel";
+    private static final String WIN_EXTENSION_ID = "##ExtensionPanel";
+    /** 递增以在布局结构变化时强制重建 Dock（例如属性/扩展改为 Dock Tab） */
+    private static final int DOCK_LAYOUT_VERSION = 6;
 
     private int dockspaceId;
     private int dockIdTopLeft;  // 顶部左侧（ControlPanel）
@@ -464,7 +465,8 @@ public class PlotScreen extends Screen {
         renderDockedControlPanel(controlPanel);
         renderDockedSystemPanel(systemPanel);
         renderDockedToolPanel(toolPanel);
-        renderDockedRightSidePanel(propertyPanel, extensionPanel);
+        renderDockedPropertyPanel(propertyPanel);
+        renderDockedExtensionPanel(extensionPanel);
 
         // 顶部栏与主内容区之间的全宽水平分割条
         panelEdgeCursorHelper.addHorizontalEdge(getTopBarHeight(), 0.0f, displayWidth);
@@ -505,7 +507,7 @@ public class PlotScreen extends Screen {
         ImInt dockTopLeft = new ImInt();     // 顶部左侧（控制面板）
         ImInt dockTopRight = new ImInt();    // 顶部右侧（系统面板）
         ImInt dockBottomLeft = new ImInt();  // 左侧底部（工具面板）
-        ImInt dockBottomRight = new ImInt(); // 右侧栏（属性 / 扩展 Tab）
+        ImInt dockBottomRight = new ImInt(); // 右侧栏（属性 / 扩展 Dock Tab）
         ImInt dockBottomMain = new ImInt();  // 底部中间（画布）
 
         float leftDockWidth = UILayout.Toolbar.PANEL_WIDTH;
@@ -553,7 +555,8 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderDockWindow(controlPanelWindowTitle(), dockIdTopLeft);  // 控制面板在顶部左侧
         imgui.internal.ImGui.dockBuilderDockWindow(systemPanelWindowTitle(), dockIdTopRight);  // 系统面板在顶部右侧
         imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindowTitle(), dockIdLeft);
-        imgui.internal.ImGui.dockBuilderDockWindow(rightSidePanelWindowTitle(), dockIdRight);
+        imgui.internal.ImGui.dockBuilderDockWindow(propertyPanelWindowTitle(), dockIdRight);
+        imgui.internal.ImGui.dockBuilderDockWindow(extensionPanelWindowTitle(), dockIdRight);
         // 关键：中央节点不 dock 任何窗口，配合 PassthruCentralNode 让中央区域天然留空且透明（参考 ChronoBlocks）
 
         imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
@@ -633,8 +636,8 @@ public class PlotScreen extends Screen {
         ImGui.popStyleVar(2);
     }
 
-    private void renderDockedRightSidePanel(PropertyPanel propertyPanel, ExtensionPanel extensionPanel) {
-        if (propertyPanel == null && extensionPanel == null) {
+    private void renderDockedPropertyPanel(PropertyPanel propertyPanel) {
+        if (propertyPanel == null) {
             return;
         }
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
@@ -654,24 +657,43 @@ public class PlotScreen extends Screen {
             if (firstRender) {
                 ImGui.setNextWindowFocus();
             }
-            boolean visible = ImGui.begin(rightSidePanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            boolean visible = ImGui.begin(propertyPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
             try {
                 if (visible) {
-                    if (ImGui.beginTabBar("##right_side_tabs", ImGuiTabBarFlags.None)) {
-                        if (ImGui.beginTabItem(PlotI18n.tr("panel.plot.properties") + "##property_tab")) {
-                            if (propertyPanel != null) {
-                                propertyPanel.render();
-                            }
-                            ImGui.endTabItem();
-                        }
-                        if (ImGui.beginTabItem(PlotI18n.tr("panel.plot.extension") + "##extension_tab")) {
-                            if (extensionPanel != null) {
-                                extensionPanel.render();
-                            }
-                            ImGui.endTabItem();
-                        }
-                        ImGui.endTabBar();
-                    }
+                    propertyPanel.render();
+                    recordCurrentWindowLeftEdge();
+                }
+            } finally {
+                ImGui.end();
+            }
+        } finally {
+            ImGui.popStyleColor(2);
+            ImGui.popStyleVar(2);
+        }
+    }
+
+    private void renderDockedExtensionPanel(ExtensionPanel extensionPanel) {
+        if (extensionPanel == null) {
+            return;
+        }
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, UILayout.CONTENT_PADDING, UILayout.CONTENT_PADDING);
+        ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
+
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
+        float displayHeight = ImGui.getIO().getDisplaySizeY();
+        float topBarHeight = getTopBarHeight();
+        float rightWidth = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
+        float bottomHeight = Math.max(0.0f, displayHeight - topBarHeight);
+        ImGui.setNextWindowPos(displayWidth - rightWidth, topBarHeight, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(rightWidth, bottomHeight, ImGuiCond.FirstUseEver);
+
+        try {
+            boolean visible = ImGui.begin(extensionPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            try {
+                if (visible) {
+                    extensionPanel.render();
                     recordCurrentWindowLeftEdge();
                 }
             } finally {
@@ -695,8 +717,12 @@ public class PlotScreen extends Screen {
         return PlotI18n.tr("panel.plot.tool_panel") + WIN_LEFT_ID;
     }
 
-    private static String rightSidePanelWindowTitle() {
-        return PlotI18n.tr("panel.plot.properties") + WIN_RIGHT_SIDE_ID;
+    private static String propertyPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.properties") + WIN_PROPERTY_ID;
+    }
+
+    private static String extensionPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.extension") + WIN_EXTENSION_ID;
     }
 
     private void recordCurrentWindowRightEdge() {
