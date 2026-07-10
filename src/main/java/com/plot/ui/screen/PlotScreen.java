@@ -541,6 +541,16 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockBottomLeft, dockBottomMain);
         imgui.internal.ImGui.dockBuilderSplitNode(dockBottomMain.get(), ImGuiDir.Right, rightRatio, dockBottomRight, dockBottomMain);
 
+        // 固定底部节点尺寸，使属性面板与系统面板右侧对齐且宽度一致
+        float bottomContentHeight = Math.max(0.0f, displayHeight - topBarHeight);
+        float canvasWidth = Math.max(0.0f, displayWidth - leftDockWidth - rightDockWidth);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomRight.get(), rightDockWidth, bottomContentHeight);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomRight.get(), displayWidth - rightDockWidth, topBarHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomLeft.get(), leftDockWidth, bottomContentHeight);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomLeft.get(), 0.0f, topBarHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomMain.get(), canvasWidth, bottomContentHeight);
+        imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomMain.get(), leftDockWidth, topBarHeight);
+
         dockIdTopLeft = dockTopLeft.get();
         dockIdTopRight = dockTopRight.get();
         dockIdLeft = dockBottomLeft.get();

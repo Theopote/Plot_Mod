@@ -142,7 +142,7 @@ public class LayerNameRenderer {
             handleCustomEditing(layer, textScreenX, textScreenY, availableTextWidth, textHeight);
         } else {
             // 显示图层名称
-            String displayName = layer.getName();
+            String displayName = PlotI18n.layerDisplayName(layer.getName());
             
             // 如果名称过长，截断并添加省略号
             float textWidth = ImGui.calcTextSize(displayName).x;

@@ -159,6 +159,20 @@ public final class PlotI18n {
         return tr("layer.plot.initial_name");
     }
 
+    /** Resolve a stored layer name when it was saved as a translation key. */
+    public static String layerDisplayName(String storedName) {
+        if (storedName == null || storedName.isBlank()) {
+            return "";
+        }
+        if (storedName.startsWith("layer.plot.")) {
+            String translated = tr(storedName);
+            if (!translated.equals(storedName)) {
+                return translated;
+            }
+        }
+        return storedName;
+    }
+
     public static String fallbackLayerName() {
         return tr("layer.plot.fallback_name");
     }

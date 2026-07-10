@@ -94,6 +94,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             // 1. 获取已经部分初始化的 AppState
             LOGGER.debug("步骤1: 获取AppState实例");
             AppState appState = AppState.getInstance();
+            appState.ensureDefaultLayer();
 
             // 2. ImGui 改为延迟初始化：在用户首次打开 Plot 界面时再初始化
             //    避免在模组启动阶段初始化时 OpenGL 上下文未就绪导致的 "GImGui != NULL" 断言失败

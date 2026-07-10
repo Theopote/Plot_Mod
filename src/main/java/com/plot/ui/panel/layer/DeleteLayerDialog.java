@@ -76,7 +76,7 @@ public class DeleteLayerDialog {
 
         for (ILayer layer : selectedLayers) {
             if (layer instanceof Layer && layer.isLocked()) {
-                return PlotI18n.tr("layer.plot.cannot_delete_locked", layer.getName());
+                return PlotI18n.tr("layer.plot.cannot_delete_locked", PlotI18n.layerDisplayName(layer.getName()));
             }
         }
 
@@ -121,7 +121,7 @@ public class DeleteLayerDialog {
         if (!selectedLayers.isEmpty()) {
             if (selectedLayers.size() == 1) {
                 ILayer layer = selectedLayers.iterator().next();
-                ImGui.textWrapped(PlotI18n.tr("layer.plot.delete_confirm_single", layer.getName()));
+                ImGui.textWrapped(PlotI18n.tr("layer.plot.delete_confirm_single", PlotI18n.layerDisplayName(layer.getName())));
             } else {
                 ImGui.textWrapped(PlotI18n.tr("layer.plot.delete_confirm_multiple", selectedLayers.size()));
             }

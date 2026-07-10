@@ -1,5 +1,6 @@
 package com.plot.core.model;
 
+import com.plot.utils.PlotI18n;
 import com.plot.core.layer.Layer;
 import com.plot.api.model.ILayer;
 
@@ -31,7 +32,7 @@ public class CanvasModel {
         this.layers = new ArrayList<>();
 
         if (createDefaultLayer) {
-            ILayer defaultLayer = new Layer("Default Layer");
+            ILayer defaultLayer = new Layer(PlotI18n.defaultLayerName());
             this.layers.add(defaultLayer);
             this.activeLayer = defaultLayer;
         }

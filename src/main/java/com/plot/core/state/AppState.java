@@ -302,10 +302,37 @@ public class AppState implements IAppState {
         if (this.layerManager == null) {
             LOGGER.info("初始化 Layer 系统...");
             this.layerManager = LayerManager.create();
-            if (this.layerManager.getLayerCount() == 0) {
-                this.layerManager.createLayer("默认图层");
-            }
+        }
+    }
+
+    /**
+     * 确保存在默认图层。须在客户端语言资源就绪后调用，避免图层名存成未解析的翻译键。
+     */
+    public void ensureDefaultLayer() {
+        if (this.layerManager == null) {
+            initializeLayerSystem();
+        }
+        if (this.layerManager.getLayerCount() == 0) {
+            this.layerManager.createLayer(PlotI18n.defaultLayerName());
+        } else {
+            resolveStoredLayerNameKeys();
+        }
+        if (this.activeLayer.get() == null) {
             this.activeLayer.set(this.layerManager.getActiveLayer());
+        }
+    }
+
+    private void resolveStoredLayerNameKeys() {
+        for (ILayer layer : this.layerManager.getLayers()) {
+            String storedName = layer.getName();
+            if (storedName == null || !storedName.startsWith("layer.plot.")) {
+                continue;
+            }
+            String resolvedName = PlotI18n.tr(storedName);
+            if (resolvedName.equals(storedName) || layerManager.isNameExists(resolvedName)) {
+                continue;
+            }
+            layerManager.updateLayerProperty(layer, "name", resolvedName);
         }
     }
     
@@ -510,7 +537,7 @@ public class AppState implements IAppState {
 
     public String getActiveLayerName() {
         ILayer layer = getActiveLayer();
-        return layer != null ? layer.getName() : "无图层";
+        return layer != null ? PlotI18n.layerDisplayName(layer.getName()) : "无图层";
     }
 
     public Selection getSelection() {
