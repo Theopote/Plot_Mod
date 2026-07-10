@@ -35,6 +35,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.infrastructure.event.road.RoadPathPickedEvent;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,13 @@ public class RoadSystemPlugin extends Plugin {
             onProjectSaved(saved.getFilePath());
         }
     };
+    private final EventListener roadPathPickedListener = event -> {
+        if (event instanceof RoadPathPickedEvent picked && picked.getPath() != null) {
+            selectedPath = picked.getPath();
+            projectStatus = String.format(PlotI18n.tr("plugin.road.path_selected"),
+                calculatePathLength(selectedPath));
+        }
+    };
 
     public RoadSystemPlugin() {
         super(
@@ -117,15 +125,18 @@ public class RoadSystemPlugin extends Plugin {
 
         EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
+        EventBus.getInstance().subscribe(RoadPathPickedEvent.class, roadPathPickedListener);
         loadNetworkForCurrentProject();
     }
 
     @Override
     public void onDisable() {
         saveNetworkFile(getNetworksDir().resolve(currentNetworkFile));
+        AppState.getInstance().endRoadPathPick();
 
         EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+        EventBus.getInstance().unsubscribe(RoadPathPickedEvent.class, roadPathPickedListener);
 
         if (config != null) {
             config.save();
@@ -1021,6 +1032,9 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private void updateSelectedPath() {
+        if (AppState.getInstance().isRoadPathPickActive()) {
+            return;
+        }
         try {
             List<Shape> selectedShapes = AppState.getInstance().getSelectedShapes();
             for (Shape shape : selectedShapes) {
@@ -1083,6 +1097,7 @@ public class RoadSystemPlugin extends Plugin {
         if (toolManager != null) {
             var selectTool = toolManager.getTool("select");
             if (selectTool instanceof BaseTool baseTool) {
+                AppState.getInstance().beginRoadPathPick();
                 AppState.getInstance().setCurrentTool(baseTool);
                 projectStatus = PlotI18n.tr("plugin.road.pick_path_hint");
             }

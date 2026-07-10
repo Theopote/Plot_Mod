@@ -86,6 +86,7 @@ public class AppState implements IAppState {
 
     // ====== 工具状态 ======
     private BaseTool currentTool;           // 当前工具
+    private volatile boolean roadPathPickActive;
     private boolean isSnappingEnabled; // 是否启用捕捉
     private Vec2d mousePosition = new Vec2d(0, 0);  // 鼠标位置
     private Vec2d cursorPosition = new Vec2d(0, 0); // 光标位置
@@ -880,5 +881,17 @@ public class AppState implements IAppState {
                 }
             }
         }
+    }
+
+    public boolean isRoadPathPickActive() {
+        return roadPathPickActive;
+    }
+
+    public void beginRoadPathPick() {
+        roadPathPickActive = true;
+    }
+
+    public void endRoadPathPick() {
+        roadPathPickActive = false;
     }
 }
