@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
+import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
@@ -16,6 +17,25 @@ import java.util.List;
  */
 public final class RoadGeometryUtils {
     private RoadGeometryUtils() {
+    }
+
+    public static boolean isAdoptablePath(Shape shape) {
+        return shape instanceof PolylineShape
+            || shape instanceof FreeDrawPath
+            || shape instanceof BezierCurveShape
+            || shape instanceof LineShape;
+    }
+
+    public static Shape findFirstAdoptablePath(List<Shape> shapes) {
+        if (shapes == null) {
+            return null;
+        }
+        for (Shape shape : shapes) {
+            if (isAdoptablePath(shape)) {
+                return shape;
+            }
+        }
+        return null;
     }
 
     public static List<Vec2d> extractShapePoints(Shape shape) {

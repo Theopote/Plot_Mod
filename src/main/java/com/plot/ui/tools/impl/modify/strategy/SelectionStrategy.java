@@ -5,13 +5,9 @@ import com.plot.core.model.Shape;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.graphics.DrawContext;
-import com.plot.core.geometry.PathShapeUtils;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.tools.impl.modify.helper.GeometricSelectionHelper;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
-import com.plot.infrastructure.event.EventBus;
-import com.plot.infrastructure.event.road.RoadPathPickedEvent;
-import com.plot.infrastructure.event.road.RoadPathPickFailedEvent;
 import imgui.ImColor;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
@@ -92,8 +88,6 @@ public class SelectionStrategy implements IModifyStrategy {
     private static final double SELECTION_TOLERANCE = 5.0;
     private static final double DRAG_THRESHOLD = 4.0; // 拖动阈值，小于此值视为点选
     private static final double LASSO_MIN_DISTANCE = 3.0; // 套索点最小间距
-    private static final int MOUSE_LEFT = 0;
-    private static final int MOUSE_RIGHT = 1;
     
     // 渲染常量（画布固定色，与UI主题解耦）
     private static final int SELECTION_ALPHA = 255;
@@ -154,10 +148,7 @@ public class SelectionStrategy implements IModifyStrategy {
     
     @Override
     public ModifyResult onMouseDown(Vec2d pos, int button, ModifyToolContext context) {
-        if (button == MOUSE_RIGHT && AppState.getInstance().isRoadPathPickActive()) {
-            return completeRoadPathPick(context);
-        }
-        if (button != MOUSE_LEFT) {
+        if (button != 0) { // 只处理左键
             return ModifyResult.IGNORED;
         }
         
@@ -314,14 +305,6 @@ public class SelectionStrategy implements IModifyStrategy {
                 return ModifyResult.CONTINUE;
             }
             case 27 -> { // Esc键
-                if (AppState.getInstance().isRoadPathPickActive()) {
-                    AppState.getInstance().endRoadPathPick();
-                    reset();
-                    context.clearSelection();
-                    context.setStatusMessage("status.plot.road.pick_path_cancelled");
-                    LOGGER.debug("SelectionStrategy: Esc键按下，取消道路路径拾取");
-                    return ModifyResult.CANCEL;
-                }
                 reset();
                 context.clearSelection();
                 context.setStatusMessage("status.plot.transform.selection_cancelled");
@@ -414,8 +397,6 @@ public class SelectionStrategy implements IModifyStrategy {
     }
     
     private ModifyResult handleNormalModeMouseUp(Vec2d pos, ModifyToolContext context) {
-        boolean roadPathPickActive = AppState.getInstance().isRoadPathPickActive();
-
         if (isPointSelecting) {
             // 优化：点选模式的最终处理，统一处理所有点选逻辑
             if (!isCtrlPressed) {
@@ -429,9 +410,8 @@ public class SelectionStrategy implements IModifyStrategy {
                     updateShapeSelection(clickedShape, true, context);
                     LOGGER.debug("SelectionStrategy: 完成点选，选中图形 {}", clickedShape.getId());
                     
-                    if (!roadPathPickActive) {
-                        activateControlPointEdit(clickedShape, context);
-                    }
+                    // 激活控制点编辑模式
+                    activateControlPointEdit(clickedShape, context);
                 } else {
                     // 如果点在空白处，选择集已在上面被清空
                     LOGGER.debug("SelectionStrategy: 点击空白区域，清除所有选择");
@@ -446,7 +426,7 @@ public class SelectionStrategy implements IModifyStrategy {
             LOGGER.debug("SelectionStrategy: 完成框选，选中 {} 个形状", selectedShapeIds.size());
             
             // 如果框选只选中了一个图形，也激活控制点编辑模式
-            if (!roadPathPickActive && selectedShapeIds.size() == 1) {
+            if (selectedShapeIds.size() == 1) {
                 context.getSelectedShapes().stream().findFirst().ifPresent(selectedShape -> activateControlPointEdit(selectedShape, context));
             }
         }
@@ -455,10 +435,6 @@ public class SelectionStrategy implements IModifyStrategy {
         isSelecting = false;
         isPointSelecting = false;
         clearTemporarySelection(context);
-
-        if (roadPathPickActive) {
-            updateRoadPathPickStatus(context);
-        }
         
         return ModifyResult.COMPLETE;
     }
@@ -502,62 +478,6 @@ public class SelectionStrategy implements IModifyStrategy {
     }
     
     // ====== 辅助方法 ======
-
-    private ModifyResult completeRoadPathPick(ModifyToolContext context) {
-        List<Shape> candidates = collectPickCandidates(context);
-        Shape path = PathShapeUtils.findFirstAdoptablePath(candidates);
-        if (path == null) {
-            String failKey = candidates.isEmpty()
-                ? "status.plot.road.pick_path_need_selection"
-                : "status.plot.road.pick_path_no_valid";
-            context.setStatusMessage(failKey);
-            EventBus.getInstance().publish(new RoadPathPickFailedEvent(failKey));
-            return ModifyResult.CONTINUE;
-        }
-
-        AppState.getInstance().endRoadPathPick();
-        context.setSelectedShapes(List.of(path));
-        EventBus.getInstance().publish(new RoadPathPickedEvent(path));
-        context.setStatusMessage("status.plot.road.pick_path_completed");
-        LOGGER.info("SelectionStrategy: 道路路径拾取完成，路径: {}", path.getId());
-        return ModifyResult.COMPLETE;
-    }
-
-    private List<Shape> collectPickCandidates(ModifyToolContext context) {
-        List<Shape> candidates = new ArrayList<>(context.getSelectedShapes());
-        if (!candidates.isEmpty()) {
-            return candidates;
-        }
-
-        candidates = new ArrayList<>(AppState.getInstance().getSelectedShapes());
-        if (!candidates.isEmpty()) {
-            return candidates;
-        }
-
-        if (selectedShapeIds.isEmpty()) {
-            return List.of();
-        }
-
-        List<Shape> resolved = new ArrayList<>();
-        for (Shape shape : AppState.getInstance().getShapes()) {
-            if (shape != null && selectedShapeIds.contains(shape.getId())) {
-                resolved.add(shape);
-            }
-        }
-        return resolved;
-    }
-
-    private void updateRoadPathPickStatus(ModifyToolContext context) {
-        Shape path = PathShapeUtils.findFirstAdoptablePath(collectPickCandidates(context));
-        if (path != null) {
-            context.setStatusMessage("status.plot.road.pick_path_right_click");
-        } else if (selectedShapeIds.isEmpty() && AppState.getInstance().getSelectedShapes().isEmpty()) {
-            context.setStatusMessage("status.plot.road.pick_path_active");
-        } else {
-            context.setStatusMessage("status.plot.road.pick_path_no_valid");
-        }
-    }
-    
     
     /**
      * 激活控制点编辑模式

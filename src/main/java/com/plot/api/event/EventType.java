@@ -65,7 +65,6 @@ public enum EventType {
     
     // === 选择事件 ===
     SELECTION_CHANGED,
-    ROAD_PATH_PICKED,
     
     // === 命令事件 ===
     COMMAND_EXECUTED,

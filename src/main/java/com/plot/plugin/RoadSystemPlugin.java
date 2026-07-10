@@ -13,7 +13,6 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.core.state.AppState;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
-import com.plot.core.geometry.PathShapeUtils;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.BezierCurveShape;
@@ -25,6 +24,7 @@ import com.plot.core.command.CommandManager;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.RoadPathPickSession;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.RoadEdge;
@@ -37,8 +37,6 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import com.plot.infrastructure.event.road.RoadPathPickedEvent;
-import com.plot.infrastructure.event.road.RoadPathPickFailedEvent;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +70,7 @@ public class RoadSystemPlugin extends Plugin {
     private RoadNetworkGenerator networkGenerator;
 
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
+    private final RoadPathPickSession pathPickSession = new RoadPathPickSession();
     private Shape selectedPath = null;
     private String selectedEdgeId = "";
     private String projectStatus = "";
@@ -91,18 +90,6 @@ public class RoadSystemPlugin extends Plugin {
     private final EventListener projectSavedListener = event -> {
         if (event instanceof ProjectSavedEvent saved) {
             onProjectSaved(saved.getFilePath());
-        }
-    };
-    private final EventListener roadPathPickedListener = event -> {
-        if (event instanceof RoadPathPickedEvent picked && picked.getPath() != null) {
-            selectedPath = picked.getPath();
-            projectStatus = String.format(PlotI18n.tr("plugin.road.path_selected"),
-                calculatePathLength(selectedPath));
-        }
-    };
-    private final EventListener roadPathPickFailedListener = event -> {
-        if (event instanceof RoadPathPickFailedEvent failed) {
-            projectStatus = PlotI18n.status(failed.getMessageKey());
         }
     };
 
@@ -133,20 +120,16 @@ public class RoadSystemPlugin extends Plugin {
 
         EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
-        EventBus.getInstance().subscribe(RoadPathPickedEvent.class, roadPathPickedListener);
-        EventBus.getInstance().subscribe(RoadPathPickFailedEvent.class, roadPathPickFailedListener);
         loadNetworkForCurrentProject();
     }
 
     @Override
     public void onDisable() {
         saveNetworkFile(getNetworksDir().resolve(currentNetworkFile));
-        AppState.getInstance().endRoadPathPick();
+        pathPickSession.cancel();
 
         EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
         EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
-        EventBus.getInstance().unsubscribe(RoadPathPickedEvent.class, roadPathPickedListener);
-        EventBus.getInstance().unsubscribe(RoadPathPickFailedEvent.class, roadPathPickFailedListener);
 
         if (config != null) {
             config.save();
@@ -157,6 +140,10 @@ public class RoadSystemPlugin extends Plugin {
     public void render() {
         if (config == null) {
             return;
+        }
+
+        if (pathPickSession.isActive()) {
+            handlePathPickSessionTick();
         }
 
         renderToolbar();
@@ -338,7 +325,12 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.adopt_hint"));
         ImGui.spacing();
 
-        updateSelectedPath();
+        if (pathPickSession.isActive()) {
+            // 拾取进行中：等待右键确认，不自动同步 selectedPath
+        } else {
+            updateSelectedPath();
+        }
+
         if (selectedPath != null) {
             ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"),
                 calculatePathLength(selectedPath)));
@@ -1042,9 +1034,6 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private void updateSelectedPath() {
-        if (AppState.getInstance().isRoadPathPickActive()) {
-            return;
-        }
         try {
             List<Shape> selectedShapes = AppState.getInstance().getSelectedShapes();
             for (Shape shape : selectedShapes) {
@@ -1072,7 +1061,7 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private boolean isPathShape(Shape shape) {
-        return PathShapeUtils.isAdoptablePath(shape);
+        return RoadGeometryUtils.isAdoptablePath(shape);
     }
 
     private String getPathTypeName(Shape shape) {
@@ -1112,15 +1101,34 @@ public class RoadSystemPlugin extends Plugin {
             return;
         }
 
-        AppState appState = AppState.getInstance();
-        appState.beginRoadPathPick();
         selectedPath = null;
+        pathPickSession.begin();
         toolManager.setActiveTool(selectTool);
-        appState.setCurrentTool(baseTool);
-
-        if (baseTool instanceof com.plot.ui.tools.impl.modify.ModifyTool modifyTool) {
-            modifyTool.setStatusMessage("status.plot.road.pick_path_active");
-        }
+        AppState.getInstance().setCurrentTool(baseTool);
         projectStatus = PlotI18n.tr("plugin.road.pick_path_hint");
+    }
+
+    private void handlePathPickSessionTick() {
+        RoadPathPickSession.Outcome outcome = pathPickSession.tick(AppState.getInstance());
+        applyPathPickOutcome(outcome);
+
+        if (pathPickSession.isActive()) {
+            String hintKey = RoadPathPickSession.hintForSelection(AppState.getInstance().getSelectedShapes());
+            projectStatus = PlotI18n.status(hintKey);
+        }
+    }
+
+    private void applyPathPickOutcome(RoadPathPickSession.Outcome outcome) {
+        switch (outcome.getResult()) {
+            case SUCCESS -> {
+                selectedPath = outcome.getPath();
+                projectStatus = String.format(PlotI18n.tr("plugin.road.path_selected"),
+                    calculatePathLength(selectedPath));
+            }
+            case NEED_SELECTION -> projectStatus = PlotI18n.status("status.plot.road.pick_path_need_selection");
+            case NO_VALID -> projectStatus = PlotI18n.status("status.plot.road.pick_path_no_valid");
+            case CANCELLED -> projectStatus = PlotI18n.status("status.plot.road.pick_path_cancelled");
+            default -> { }
+        }
     }
 }
