@@ -2,13 +2,12 @@ package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -22,87 +21,73 @@ public final class BuildingRoofGenerator {
             BuildingGenerator.BuildingGenerationResult result,
             BuildingFootprint footprint,
             List<Vec2d> outerPoints,
-            World world,
-            int baseElevation,
             int topFloorY,
             String roofBlockId,
             BuildingFootprint.RoofType roofType,
             CoordinateTransformer transformer,
             BlockProjectionHandler projectionHandler) {
-        BuildingGeometryUtils.RectBounds bounds = BuildingGeometryUtils.computeBounds(outerPoints);
+        Polygon roofPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
+        BuildingGeometryUtils.RectBounds bounds = BuildingGeometryUtils.normalizedRectBounds(outerPoints);
         int pitch = Math.max(1, footprint.getRoofPitchRatio());
-
-        int minBlockX = (int) Math.floor(bounds.minX());
-        int maxBlockX = (int) Math.ceil(bounds.maxX());
-        int minBlockZ = (int) Math.floor(bounds.minZ());
-        int maxBlockZ = (int) Math.ceil(bounds.maxZ());
-
         boolean ridgeAlongX = bounds.width() >= bounds.depth();
-        double ridgeCoord = ridgeAlongX ? bounds.center().y : bounds.center().x;
 
-        for (int x = minBlockX; x <= maxBlockX; x++) {
-            for (int z = minBlockZ; z <= maxBlockZ; z++) {
-                Vec2d center = new Vec2d(x + 0.5, z + 0.5);
-                if (!BuildingGeometryUtils.toPolygon(outerPoints).contains(center)) {
-                    continue;
-                }
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(outerPoints)) {
+            if (!roofPolygon.contains(center)) {
+                continue;
+            }
 
-                int rise = switch (roofType) {
-                    case GABLE -> computeGableRise(x + 0.5, z + 0.5, bounds, ridgeAlongX, ridgeCoord, pitch);
-                    case HIP -> computeHipRise(x + 0.5, z + 0.5, bounds, ridgeAlongX, ridgeCoord, pitch);
-                    default -> 0;
-                };
+            int rise = switch (roofType) {
+                case GABLE -> computeGableRise(center.x, center.y, bounds, ridgeAlongX, pitch);
+                case HIP -> computeHipRise(center.x, center.y, bounds, pitch);
+                default -> 0;
+            };
 
-                if (rise <= 0) {
-                    continue;
-                }
+            if (rise <= 0) {
+                continue;
+            }
 
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, transformer);
-                for (int layer = 1; layer <= rise; layer++) {
-                    BlockPos pos = new BlockPos(column.getX(), topFloorY + layer, column.getZ());
-                    recordBlock(result, pos, roofBlockId, projectionHandler);
-                }
+            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, transformer);
+            for (int layer = 1; layer <= rise; layer++) {
+                BlockPos pos = new BlockPos(column.getX(), topFloorY + layer, column.getZ());
+                recordBlock(result, pos, roofBlockId, projectionHandler);
             }
         }
     }
 
+    /**
+     * 双坡顶：檐口 rise=0，屋脊 rise 最大。坡度按垂直于屋脊方向的檐口距离计算。
+     */
     static int computeGableRise(
             double x,
             double z,
             BuildingGeometryUtils.RectBounds bounds,
             boolean ridgeAlongX,
-            double ridgeCoord,
             int pitch) {
-        double distanceToRidge = ridgeAlongX
-            ? Math.abs(z - ridgeCoord)
-            : Math.abs(x - ridgeCoord);
-        return (int) Math.floor(distanceToRidge / pitch);
+        double distToEave = ridgeAlongX
+            ? Math.min(z - bounds.minZ(), bounds.maxZ() - z)
+            : Math.min(x - bounds.minX(), bounds.maxX() - x);
+        return riseFromEaveDistance(distToEave, pitch);
     }
 
+    /**
+     * 四坡顶：四角檐口 rise=0，中心屋脊/屋脊线 rise 最大。取到四条边最近距离控制坡度。
+     */
     static int computeHipRise(
             double x,
             double z,
             BuildingGeometryUtils.RectBounds bounds,
-            boolean ridgeAlongX,
-            double ridgeCoord,
             int pitch) {
-        double distToRidge = ridgeAlongX
-            ? Math.abs(z - ridgeCoord)
-            : Math.abs(x - ridgeCoord);
+        double distToEdge = Math.min(
+            Math.min(x - bounds.minX(), bounds.maxX() - x),
+            Math.min(z - bounds.minZ(), bounds.maxZ() - z));
+        return riseFromEaveDistance(distToEdge, pitch);
+    }
 
-        double distToShortEdge;
-        if (ridgeAlongX) {
-            distToShortEdge = Math.min(
-                Math.abs(x - bounds.minX()),
-                Math.abs(bounds.maxX() - x));
-        } else {
-            distToShortEdge = Math.min(
-                Math.abs(z - bounds.minZ()),
-                Math.abs(bounds.maxZ() - z));
+    static int riseFromEaveDistance(double distToEave, int pitch) {
+        if (distToEave <= 0.0) {
+            return 0;
         }
-
-        double controllingDistance = Math.min(distToRidge, distToShortEdge);
-        return (int) Math.floor(controllingDistance / pitch);
+        return (int) Math.floor(distToEave / pitch);
     }
 
     private static void recordBlock(

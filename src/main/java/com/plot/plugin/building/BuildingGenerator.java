@@ -87,8 +87,9 @@ public class BuildingGenerator {
         if (roofType == BuildingFootprint.RoofType.FLAT) {
             replaceTopFloorMaterial(result, innerPolygon, world, topFloorY, roofBlock, projectionHandler);
         } else {
+            replaceTopFloorMaterial(result, innerPolygon, world, topFloorY, roofBlock, projectionHandler);
             BuildingRoofGenerator.generate(
-                result, footprint, outerPoints, world, baseElevation, topFloorY,
+                result, footprint, outerPoints, topFloorY,
                 roofBlock, roofType, coordinateTransformer, projectionHandler);
         }
 
@@ -317,19 +318,10 @@ public class BuildingGenerator {
     }
 
     private List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon) {
-        BuildingGeometryUtils.RectBounds bounds = BuildingGeometryUtils.computeBounds(points);
         List<GridCell> cells = new ArrayList<>();
-        int minX = (int) Math.floor(bounds.minX());
-        int maxX = (int) Math.ceil(bounds.maxX());
-        int minZ = (int) Math.floor(bounds.minZ());
-        int maxZ = (int) Math.ceil(bounds.maxZ());
-
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                Vec2d center = new Vec2d(x + 0.5, z + 0.5);
-                if (polygon.contains(center)) {
-                    cells.add(new GridCell(center));
-                }
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(points)) {
+            if (polygon.contains(center)) {
+                cells.add(new GridCell(center));
             }
         }
         return cells;

@@ -290,6 +290,36 @@ public final class BuildingGeometryUtils {
         return copy;
     }
 
+    /**
+     * 收集多边形轮廓内的整数格点（中心点采样，用于楼板/屋顶填充）
+     */
+    public static List<Vec2d> collectFootprintCellCenters(List<Vec2d> points) {
+        if (points == null || points.size() < 3) {
+            return List.of();
+        }
+        Polygon polygon = toPolygon(points);
+        RectBounds bounds = computeBounds(points);
+        List<Vec2d> centers = new ArrayList<>();
+        int minX = (int) Math.floor(bounds.minX());
+        int maxX = (int) Math.ceil(bounds.maxX());
+        int minZ = (int) Math.floor(bounds.minZ());
+        int maxZ = (int) Math.ceil(bounds.maxZ());
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                Vec2d center = new Vec2d(x + 0.5, z + 0.5);
+                if (polygon.contains(center)) {
+                    centers.add(center);
+                }
+            }
+        }
+        return centers;
+    }
+
+    public static RectBounds normalizedRectBounds(List<Vec2d> points) {
+        return computeBounds(points);
+    }
+
     public record WallSample(int segmentIndex, Vec2d point, Vec2d tangent, Vec2d inwardNormal) {
     }
 

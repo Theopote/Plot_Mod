@@ -1,10 +1,17 @@
 package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.BlockRecord;
+import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.plugin.building.model.BuildingFootprint;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -62,11 +69,29 @@ class BuildingGeometryUtilsTest {
     }
 
     @Test
-    void gableRiseIsSymmetric() {
+    void gableRidgeIsHighestAndEavesAreZero() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
-        int left = BuildingRoofGenerator.computeGableRise(5, 2, bounds, true, 5, 2);
-        int right = BuildingRoofGenerator.computeGableRise(5, 8, bounds, true, 5, 2);
-        assertEquals(left, right);
-        assertEquals(1, left);
+        int ridge = BuildingRoofGenerator.computeGableRise(10, 5, bounds, true, 2);
+        int eave = BuildingRoofGenerator.computeGableRise(10, 0, bounds, true, 2);
+        assertEquals(0, eave, "Eave should have zero rise");
+        assertEquals(5, ridge, "Ridge center should have max rise for 10-block depth and pitch 2");
+    }
+
+    @Test
+    void gableRiseIsSymmetricAcrossRidge() {
+        BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
+        int north = BuildingRoofGenerator.computeGableRise(10, 2, bounds, true, 2);
+        int south = BuildingRoofGenerator.computeGableRise(10, 8, bounds, true, 2);
+        assertEquals(north, south);
+    }
+
+    @Test
+    void hipCenterHigherThanCorners() {
+        BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
+        int center = BuildingRoofGenerator.computeHipRise(10, 5, bounds, 2);
+        int corner = BuildingRoofGenerator.computeHipRise(0, 0, bounds, 2);
+        assertEquals(0, corner);
+        assertTrue(center > corner, "Hip roof center should rise above corners");
+        assertEquals(5, center);
     }
 }
