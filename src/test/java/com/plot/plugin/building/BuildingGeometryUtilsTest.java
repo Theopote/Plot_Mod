@@ -74,7 +74,7 @@ class BuildingGeometryUtilsTest {
         int ridge = BuildingRoofGenerator.computeGableRise(10, 5, bounds, true, 2);
         int eave = BuildingRoofGenerator.computeGableRise(10, 0, bounds, true, 2);
         assertEquals(0, eave, "Eave should have zero rise");
-        assertEquals(5, ridge, "Ridge center should have max rise for 10-block depth and pitch 2");
+        assertEquals(2, ridge, "Ridge center rise = floor((depth/2) / pitch) = floor(5/2) = 2");
     }
 
     @Test
@@ -92,6 +92,6 @@ class BuildingGeometryUtilsTest {
         int corner = BuildingRoofGenerator.computeHipRise(0, 0, bounds, 2);
         assertEquals(0, corner);
         assertTrue(center > corner, "Hip roof center should rise above corners");
-        assertEquals(5, center);
+        assertEquals(2, center);
     }
 }

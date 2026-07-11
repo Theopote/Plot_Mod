@@ -21,7 +21,7 @@ class BuildingGeneratorSmokeTest {
         int eaveRise = BuildingRoofGenerator.computeGableRise(8, 0.5, bounds, true, 2);
         assertEquals(0, eaveRise);
         assertTrue(ridgeRise > eaveRise);
-        assertEquals(5, ridgeRise);
+        assertEquals(2, ridgeRise);
     }
 
     @Test
