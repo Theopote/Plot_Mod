@@ -186,6 +186,7 @@ public class RoadNetwork {
         Integer streetlightSpacing;
         Float maxSlope;
         List<SlopeOverrideData> slopeOverrides = new ArrayList<>();
+        String sourceRoadId;
     }
 
     static class NetworkData {
@@ -219,6 +220,7 @@ public class RoadNetwork {
                 edgeData.sidewalkMaterial = edge.getSidewalkMaterial();
                 edgeData.streetlightSpacing = edge.getStreetlightSpacing();
                 edgeData.maxSlope = edge.getMaxSlope();
+                edgeData.sourceRoadId = edge.getSourceRoadId();
                 for (RoadEdge.SlopeOverride override : edge.getSlopeOverrides()) {
                     SlopeOverrideData overrideData = new SlopeOverrideData();
                     overrideData.startDistance = override.startDistance;
@@ -283,6 +285,7 @@ public class RoadNetwork {
                     edgeData.maxSlope,
                     overrides
                 );
+                edge.setSourceRoadId(edgeData.sourceRoadId);
                 network.edges.put(edge.getId(), edge);
             }
 

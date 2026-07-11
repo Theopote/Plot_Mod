@@ -99,6 +99,93 @@ class RoadNetworkTest {
     }
 
     @Test
+    void jsonRoundTripPreservesSourceRoadId() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)
+        ));
+        edge.setSourceRoadId("adopt-group-123");
+
+        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadEdge restoredEdge = restored.getEdges().values().iterator().next();
+
+        assertEquals("adopt-group-123", restoredEdge.getSourceRoadId());
+    }
+
+    @Test
+    void adoptShapeAssignsSourceRoadId() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+        PolylineShape shape = new PolylineShape(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0)
+        ), false);
+
+        builder.adoptShape(network, shape, config);
+        RoadEdge edge = network.getEdges().values().iterator().next();
+
+        assertNotNull(edge.getSourceRoadId());
+        assertFalse(edge.getSourceRoadId().isBlank());
+    }
+
+    @Test
+    void sameSourceRoadIdSkipsIntersectionSplit() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        String sourceId = "same-adopt-group";
+
+        RoadNode a1 = network.createNode(new Vec2d(0, 0));
+        RoadNode a2 = network.createNode(new Vec2d(20, 0));
+        RoadNode b1 = network.createNode(new Vec2d(10, -10));
+        RoadNode b2 = network.createNode(new Vec2d(10, 10));
+
+        RoadEdge horizontal = network.createEdge(a1.getId(), a2.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(20, 0)
+        ));
+        horizontal.setSourceRoadId(sourceId);
+        RoadEdge vertical = network.createEdge(b1.getId(), b2.getId(), List.of(
+            new Vec2d(10, -10), new Vec2d(10, 10)
+        ));
+        vertical.setSourceRoadId(sourceId);
+
+        int nodesBefore = network.getNodes().size();
+        int edgesBefore = network.getEdges().size();
+        builder.detectAndSplitIntersections(network);
+
+        assertEquals(nodesBefore, network.getNodes().size());
+        assertEquals(edgesBefore, network.getEdges().size());
+    }
+
+    @Test
+    void differentSourceRoadIdStillSplitsAtIntersection() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+
+        RoadNode a1 = network.createNode(new Vec2d(0, 5));
+        RoadNode a2 = network.createNode(new Vec2d(10, 5));
+        RoadNode b1 = network.createNode(new Vec2d(5, 0));
+        RoadNode b2 = network.createNode(new Vec2d(5, 10));
+
+        RoadEdge horizontal = network.createEdge(a1.getId(), a2.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)
+        ));
+        horizontal.setSourceRoadId("road-a");
+        RoadEdge vertical = network.createEdge(b1.getId(), b2.getId(), List.of(
+            new Vec2d(5, 0), new Vec2d(5, 10)
+        ));
+        vertical.setSourceRoadId("road-b");
+
+        builder.detectAndSplitIntersections(network);
+
+        assertEquals(4, network.getEdges().size());
+        assertEquals(5, network.getNodes().size());
+    }
+
+    @Test
     void classifyJunctionTypes() {
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
         RoadNetwork network = new RoadNetwork();

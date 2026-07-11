@@ -167,6 +167,8 @@ public class RoadGenerator {
                 List<Vec2d> rightShoulder = OffsetHandler.offsetPolyline(pathPoints, -shoulderOffset);
                 generateShoulderBlocks(result, segments, heightInfos, leftShoulder, rightShoulder,
                     shoulderWidth, getBlockIdFromMaterial("material.plot.gravel"));
+                generateSlopeBatterBlocks(result, segments, heightInfos, leftShoulder, rightShoulder,
+                    shoulderWidth, pathPoints, world);
             }
 
             if (edge.getEffectiveIncludeSidewalk(config)) {
@@ -461,32 +463,51 @@ public class RoadGenerator {
             return heightInfos;
         }
 
-        int currentHeight;
-        if (startNode != null && startNode.getManualElevation() != null) {
-            currentHeight = startNode.getManualElevation().intValue();
-        } else {
-            Vec2d firstPoint = segments.getFirst().start;
-            currentHeight = getTopHeight(world, canvasToBlockPos(firstPoint));
-        }
+        Integer manualStartHeight = startNode != null && startNode.getManualElevation() != null
+            ? startNode.getManualElevation().intValue()
+            : null;
 
+        List<Double> distances = new ArrayList<>();
+        List<Integer> groundStarts = new ArrayList<>();
+        List<Integer> groundEnds = new ArrayList<>();
+        List<Float> maxSlopes = new ArrayList<>();
         double accumulatedDistance = 0.0;
-        for (PathSegment segment : segments) {
-            float maxSlopePercent = edge.getEffectiveMaxSlope(accumulatedDistance, config);
 
+        for (PathSegment segment : segments) {
             BlockPos startBlockPos = canvasToBlockPos(segment.start);
             BlockPos endBlockPos = canvasToBlockPos(segment.end);
-            int groundStart = getTopHeight(world, startBlockPos);
-            int groundEnd = getTopHeight(world, endBlockPos);
+            distances.add(segment.distance);
+            groundStarts.add(getTopHeight(world, startBlockPos));
+            groundEnds.add(getTopHeight(world, endBlockPos));
+            maxSlopes.add(edge.getEffectiveMaxSlope(accumulatedDistance, config));
+            accumulatedDistance += segment.distance;
+        }
 
+        List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
+            distances,
+            groundStarts,
+            groundEnds,
+            maxSlopes,
+            manualStartHeight,
+            config.getMaxContinuousSlopeLength(),
+            config.getRelaxedSlopeLength(),
+            config.getRelaxedSlopePercent()
+        );
+
+        int currentHeight = manualStartHeight != null
+            ? manualStartHeight
+            : groundStarts.getFirst();
+
+        for (int i = 0; i < segments.size(); i++) {
+            PathSegment segment = segments.get(i);
             int targetStart = currentHeight;
-            int targetEnd = RoadSlopeUtils.computeTargetEndHeight(
-                targetStart, groundStart, groundEnd, segment.distance, maxSlopePercent);
+            int targetEnd = targetEnds.get(i);
             double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
                 targetStart, targetEnd, segment.distance);
             heightInfos.add(new SegmentHeightInfo(
-                segment, groundStart, groundEnd, targetStart, targetEnd, actualSlope));
+                segment, groundStarts.get(i), groundEnds.get(i),
+                targetStart, targetEnd, actualSlope));
             currentHeight = targetEnd;
-            accumulatedDistance += segment.distance;
         }
 
         if (endNode != null && endNode.getManualElevation() != null && !heightInfos.isEmpty()) {
@@ -712,6 +733,119 @@ public class RoadGenerator {
                 placeSidewalkStrip(result, right, shoulderWidth, targetY, blockId, projectionHandler);
             }
             accumulatedSegmentStart += segment.distance;
+        }
+    }
+
+    private void generateSlopeBatterBlocks(
+            RoadGenerationResult result,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftShoulder,
+            List<Vec2d> rightShoulder,
+            int shoulderWidth,
+            List<Vec2d> pathPoints,
+            World world) {
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        String fillBlockId = getBlockIdFromMaterial(config.getFillSlopeMaterial());
+        String cutBlockId = config.getCutSlopeMaterial().isBlank()
+            ? null
+            : getBlockIdFromMaterial(config.getCutSlopeMaterial());
+        float fillRatio = config.getFillSlopeRatio();
+        float cutRatio = config.getCutSlopeRatio();
+        int maxHorizontalRun = 32;
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
+        double outerOffset = shoulderWidth / 2.0;
+
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            PathSegment segment = segments.get(i);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                double normalized = totalLength > 1e-9
+                    ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                    : 0.0;
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftShoulder, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightShoulder, normalized);
+                placeSlopeBatterAtPoint(result, left, targetY, outerOffset, pathPoints, world,
+                    fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun, 1, projectionHandler);
+                placeSlopeBatterAtPoint(result, right, targetY, outerOffset, pathPoints, world,
+                    fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun, -1, projectionHandler);
+            }
+            accumulatedSegmentStart += segment.distance;
+        }
+    }
+
+    private void placeSlopeBatterAtPoint(
+            RoadGenerationResult result,
+            Vec2d shoulderCenter,
+            int targetY,
+            double outerOffset,
+            List<Vec2d> pathPoints,
+            World world,
+            float fillRatio,
+            float cutRatio,
+            String fillBlockId,
+            String cutBlockId,
+            int maxHorizontalRun,
+            int sideSign,
+            BlockProjectionHandler projectionHandler) {
+        int pathIndex = Math.max(0, Math.min(pathPoints.size() - 2,
+            RoadGeometryUtils.findNearestSegmentIndex(pathPoints, shoulderCenter)));
+        Vec2d direction = pathPoints.get(pathIndex + 1).subtract(pathPoints.get(pathIndex)).normalize();
+        Vec2d normal = new Vec2d(-direction.y, direction.x).multiply(sideSign);
+        Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
+
+        BlockPos outerPos = canvasToBlockPos(outerEdge);
+        int groundAtEdge = getTopHeight(world, outerPos);
+        if (targetY == groundAtEdge) {
+            return;
+        }
+
+        boolean isFill = targetY > groundAtEdge;
+        int profileDirection = isFill ? -1 : 1;
+        float slopeRatio = isFill ? fillRatio : cutRatio;
+        String surfaceBlockId = isFill ? fillBlockId : cutBlockId;
+
+        List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
+            targetY,
+            profileDirection,
+            horizontalOffset -> {
+                Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset));
+                return getTopHeight(world, canvasToBlockPos(sample));
+            },
+            slopeRatio,
+            maxHorizontalRun
+        );
+
+        for (int step = 1; step < profile.size(); step++) {
+            int[] point = profile.get(step);
+            int horizontalOffset = point[0];
+            int slopeHeight = point[1];
+            Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset));
+            BlockPos columnBase = canvasToBlockPos(sample);
+            int groundY = getTopHeight(world, columnBase);
+
+            if (isFill) {
+                for (int y = groundY + 1; y <= slopeHeight; y++) {
+                    BlockPos pos = new BlockPos(columnBase.getX(), y, columnBase.getZ());
+                    recordBlock(result, pos, fillBlockId, projectionHandler);
+                    result.sidewalkBlocks.add(pos);
+                }
+            } else {
+                for (int y = targetY + 1; y <= groundY; y++) {
+                    BlockPos pos = new BlockPos(columnBase.getX(), y, columnBase.getZ());
+                    recordBlock(result, pos, "minecraft:air", projectionHandler);
+                    result.sidewalkBlocks.add(pos);
+                }
+                if (cutBlockId != null) {
+                    BlockPos facePos = new BlockPos(columnBase.getX(), slopeHeight, columnBase.getZ());
+                    recordBlock(result, facePos, surfaceBlockId, projectionHandler);
+                    result.sidewalkBlocks.add(facePos);
+                }
+            }
         }
     }
 

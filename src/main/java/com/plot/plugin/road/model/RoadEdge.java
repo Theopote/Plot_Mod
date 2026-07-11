@@ -24,6 +24,7 @@ public class RoadEdge {
     private Integer streetlightSpacing;
     private Float maxSlope;
     private List<SlopeOverride> slopeOverrides;
+    private String sourceRoadId;
 
     public static class SlopeOverride {
         public double startDistance;
@@ -163,6 +164,14 @@ public class RoadEdge {
             : new ArrayList<>();
     }
 
+    public String getSourceRoadId() {
+        return sourceRoadId;
+    }
+
+    public void setSourceRoadId(String sourceRoadId) {
+        this.sourceRoadId = sourceRoadId;
+    }
+
     public int getEffectiveWidth(RoadSystemConfig defaults) {
         return width != null ? width : defaults.getRoadWidth();
     }
@@ -213,9 +222,11 @@ public class RoadEdge {
     }
 
     RoadEdge copy() {
-        return new RoadEdge(id, startNodeId, endNodeId, centerlinePoints,
+        RoadEdge copy = new RoadEdge(id, startNodeId, endNodeId, centerlinePoints,
             width, material, includeSidewalk, sidewalkWidth, sidewalkMaterial,
             streetlightSpacing, maxSlope, slopeOverrides);
+        copy.setSourceRoadId(sourceRoadId);
+        return copy;
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {

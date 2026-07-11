@@ -715,6 +715,39 @@ public class RoadSystemPlugin extends Plugin {
             config.setMaxSlope(maxSlope[0]);
         }
 
+        float[] maxContinuousLength = {(float) config.getMaxContinuousSlopeLength()};
+        if (ImGui.sliderFloat(
+            "##max_continuous_slope_length",
+            maxContinuousLength,
+            5.0f,
+            100.0f,
+            PlotI18n.tr("plugin.road.max_continuous_slope_length", maxContinuousLength[0])
+        )) {
+            config.setMaxContinuousSlopeLength(maxContinuousLength[0]);
+        }
+
+        float[] relaxedLength = {(float) config.getRelaxedSlopeLength()};
+        if (ImGui.sliderFloat(
+            "##relaxed_slope_length",
+            relaxedLength,
+            1.0f,
+            30.0f,
+            PlotI18n.tr("plugin.road.relaxed_slope_length", relaxedLength[0])
+        )) {
+            config.setRelaxedSlopeLength(relaxedLength[0]);
+        }
+
+        float[] relaxedSlope = {config.getRelaxedSlopePercent()};
+        if (ImGui.sliderFloat(
+            "##relaxed_slope_percent",
+            relaxedSlope,
+            0.1f,
+            Math.max(0.2f, config.getMaxSlope() - 0.1f),
+            PlotI18n.tr("plugin.road.relaxed_slope_percent", relaxedSlope[0])
+        )) {
+            config.setRelaxedSlopePercent(relaxedSlope[0]);
+        }
+
         adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), adoptIncludeSidewalkRef)) {
             config.setIncludeSidewalk(adoptIncludeSidewalkRef.get());
@@ -812,6 +845,48 @@ public class RoadSystemPlugin extends Plugin {
                 config.setShoulderWidth(shoulderWidth[0]);
             }
             renderEngineeringTooltip("hint.plot.road.shoulder_width");
+
+            float[] fillSlopeRatio = {config.getFillSlopeRatio()};
+            if (ImGui.sliderFloat(
+                "##road_fill_slope_ratio",
+                fillSlopeRatio,
+                0.5f,
+                5.0f,
+                PlotI18n.tr("plugin.road.fill_slope_ratio", fillSlopeRatio[0])
+            )) {
+                config.setFillSlopeRatio(fillSlopeRatio[0]);
+            }
+            renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+
+            float[] cutSlopeRatio = {config.getCutSlopeRatio()};
+            if (ImGui.sliderFloat(
+                "##road_cut_slope_ratio",
+                cutSlopeRatio,
+                0.5f,
+                5.0f,
+                PlotI18n.tr("plugin.road.cut_slope_ratio", cutSlopeRatio[0])
+            )) {
+                config.setCutSlopeRatio(cutSlopeRatio[0]);
+            }
+            renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+
+            renderBlockMaterialPicker(
+                "##fill_slope_material",
+                PlotI18n.tr("plugin.road.fill_slope_material"),
+                config.getFillSlopeMaterial(),
+                config::setFillSlopeMaterial,
+                false
+            );
+
+            renderBlockMaterialPicker(
+                "##cut_slope_material",
+                PlotI18n.tr("plugin.road.cut_slope_material"),
+                config.getCutSlopeMaterial().isBlank()
+                    ? config.getFillSlopeMaterial()
+                    : config.getCutSlopeMaterial(),
+                material -> config.setCutSlopeMaterial(material),
+                false
+            );
         }
 
         ImBoolean drainageRef = new ImBoolean(config.isIncludeDrainage());

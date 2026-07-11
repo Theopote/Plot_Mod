@@ -33,6 +33,14 @@ public class RoadSystemConfig {
     private boolean includeDrainage = false; // 是否包含排水沟
     private double pathLength = 0.0; // 当前路径长度（米）
 
+    private float fillSlopeRatio = 1.5f;
+    private float cutSlopeRatio = 1.0f;
+    private String fillSlopeMaterial = "material.plot.gravel";
+    private String cutSlopeMaterial = "";
+    private double maxContinuousSlopeLength = 30.0;
+    private double relaxedSlopeLength = 5.0;
+    private float relaxedSlopePercent = 1.0f;
+
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
         initDefaultPresets();
@@ -217,6 +225,66 @@ public class RoadSystemConfig {
     
     public void setPathLength(double pathLength) {
         this.pathLength = Math.max(0.0, pathLength);
+    }
+
+    public float getFillSlopeRatio() {
+        return fillSlopeRatio;
+    }
+
+    public void setFillSlopeRatio(float fillSlopeRatio) {
+        this.fillSlopeRatio = Math.max(0.5f, Math.min(5.0f, fillSlopeRatio));
+    }
+
+    public float getCutSlopeRatio() {
+        return cutSlopeRatio;
+    }
+
+    public void setCutSlopeRatio(float cutSlopeRatio) {
+        this.cutSlopeRatio = Math.max(0.5f, Math.min(5.0f, cutSlopeRatio));
+    }
+
+    public String getFillSlopeMaterial() {
+        return fillSlopeMaterial;
+    }
+
+    public void setFillSlopeMaterial(String fillSlopeMaterial) {
+        this.fillSlopeMaterial = fillSlopeMaterial != null ? fillSlopeMaterial : "";
+    }
+
+    public String getCutSlopeMaterial() {
+        return cutSlopeMaterial;
+    }
+
+    public void setCutSlopeMaterial(String cutSlopeMaterial) {
+        this.cutSlopeMaterial = cutSlopeMaterial != null ? cutSlopeMaterial : "";
+    }
+
+    public double getMaxContinuousSlopeLength() {
+        return maxContinuousSlopeLength;
+    }
+
+    public void setMaxContinuousSlopeLength(double maxContinuousSlopeLength) {
+        this.maxContinuousSlopeLength = Math.max(0.0, maxContinuousSlopeLength);
+    }
+
+    public double getRelaxedSlopeLength() {
+        return relaxedSlopeLength;
+    }
+
+    public void setRelaxedSlopeLength(double relaxedSlopeLength) {
+        this.relaxedSlopeLength = Math.max(0.0, relaxedSlopeLength);
+    }
+
+    public float getRelaxedSlopePercent() {
+        return relaxedSlopePercent;
+    }
+
+    public void setRelaxedSlopePercent(float relaxedSlopePercent) {
+        float upperBound = maxSlope > 0 ? maxSlope : 45.0f;
+        if (relaxedSlopePercent >= upperBound) {
+            relaxedSlopePercent = upperBound / 2.0f;
+        }
+        this.relaxedSlopePercent = Math.max(0.0f, relaxedSlopePercent);
     }
     
     /**
