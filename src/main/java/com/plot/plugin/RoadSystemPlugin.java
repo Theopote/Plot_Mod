@@ -424,7 +424,7 @@ public class RoadSystemPlugin extends Plugin {
             "##edge_road_material",
             PlotI18n.tr("plugin.road.material"),
             current.getMaterial() != null ? current.getMaterial() : config.getSelectedMaterial(),
-            material -> current.setMaterial(material),
+                current::setMaterial,
             true
         );
 
@@ -449,7 +449,7 @@ public class RoadSystemPlugin extends Plugin {
                 current.getSidewalkMaterial() != null
                     ? current.getSidewalkMaterial()
                     : config.getSelectedSidewalkMaterial(),
-                material -> current.setSidewalkMaterial(material),
+                    current::setSidewalkMaterial,
                 true
             );
         }
@@ -1048,7 +1048,7 @@ public class RoadSystemPlugin extends Plugin {
             return lastSelectedEdgeId;
         }
         if (!selectedEdgeIds.isEmpty()) {
-            return selectedEdgeIds.iterator().next();
+            return selectedEdgeIds.getFirst();
         }
         return "";
     }
