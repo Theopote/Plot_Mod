@@ -10,6 +10,7 @@ import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -169,6 +170,37 @@ public final class RoadGeometryUtils {
             }
         }
         return bestIndex;
+    }
+
+    /**
+     * 路径切向量的左法向（单位向量，用于横断面采样）
+     */
+    public static Vec2d leftNormal(Vec2d direction) {
+        if (direction == null || direction.lengthSquared() < 1e-12) {
+            return new Vec2d(0, 1);
+        }
+        Vec2d unit = direction.normalize();
+        return new Vec2d(-unit.y, unit.x);
+    }
+
+    /**
+     * 横断面采样偏移量（沿法向，单位：米/格），覆盖 [-halfWidth, +halfWidth]
+     */
+    public static List<Integer> crossSectionSampleOffsets(double halfWidth) {
+        if (halfWidth <= 0) {
+            return List.of(0);
+        }
+
+        LinkedHashSet<Integer> offsets = new LinkedHashSet<>();
+        offsets.add(0);
+        offsets.add((int) Math.round(-halfWidth));
+        offsets.add((int) Math.round(halfWidth));
+        int min = (int) Math.floor(-halfWidth);
+        int max = (int) Math.ceil(halfWidth);
+        for (int offset = min; offset <= max; offset++) {
+            offsets.add(offset);
+        }
+        return new ArrayList<>(offsets);
     }
 
     public static Vec2d projectPointOnSegment(Vec2d start, Vec2d end, Vec2d point) {

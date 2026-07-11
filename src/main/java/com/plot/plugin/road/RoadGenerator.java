@@ -272,7 +272,7 @@ public class RoadGenerator {
         }
 
         if (heights.isEmpty()) {
-            return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+            return getGroundHeightAtNode(world, node, network);
         }
 
         int min = heights.stream().mapToInt(Integer::intValue).min().orElse(64);
@@ -297,12 +297,12 @@ public class RoadGenerator {
         RoadNode startNode = network != null ? network.getNode(edge.getStartNodeId()) : null;
         List<PathSegment> segments = samplePath(edge.getCenterlinePoints());
         if (segments.isEmpty()) {
-            return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+            return getGroundHeightAtNode(world, node, network);
         }
 
         List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(segments, world, edge, startNode, node);
         if (heightInfos.isEmpty()) {
-            return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+            return getGroundHeightAtNode(world, node, network);
         }
 
         if (edge.getStartNodeId().equals(node.getId())) {
@@ -311,7 +311,7 @@ public class RoadGenerator {
         if (edge.getEndNodeId().equals(node.getId())) {
             return heightInfos.getLast().targetEnd;
         }
-        return getTopHeight(world, canvasToBlockPos(node.getPosition()));
+        return getGroundHeightAtNode(world, node, network);
     }
 
     public BlockPos toBlockPos(Vec2d canvasPos, int y) {
@@ -425,20 +425,19 @@ public class RoadGenerator {
             return heightInfos;
         }
         
-        // 获取第一个点的地面高度
+        // 获取第一个点的横断面平均地面高度
         Vec2d firstPoint = segments.getFirst().start;
-        BlockPos firstBlockPos = canvasToBlockPos(firstPoint);
-        int currentHeight = getTopHeight(world, firstBlockPos);
+        PathSegment firstSegment = segments.getFirst();
+        Vec2d firstTangent = firstSegment.end.subtract(firstSegment.start);
+        double halfWidth = config.getRoadWidth() / 2.0;
+        int currentHeight = getGroundHeightAtPoint(world, firstPoint, firstTangent, halfWidth);
         
         double maxSlopePercent = config.getMaxSlope();
         
         for (PathSegment segment : segments) {
-            // 获取起始和结束的地面高度
-            BlockPos startBlockPos = canvasToBlockPos(segment.start);
-            BlockPos endBlockPos = canvasToBlockPos(segment.end);
-            
-            int groundStart = getTopHeight(world, startBlockPos);
-            int groundEnd = getTopHeight(world, endBlockPos);
+            Vec2d tangent = segment.end.subtract(segment.start);
+            int groundStart = getGroundHeightAtPoint(world, segment.start, tangent, halfWidth);
+            int groundEnd = getGroundHeightAtPoint(world, segment.end, tangent, halfWidth);
             
             int targetStart = currentHeight;
             int targetEnd = RoadSlopeUtils.computeTargetEndHeight(
@@ -467,6 +466,7 @@ public class RoadGenerator {
             ? startNode.getManualElevation().intValue()
             : null;
 
+        double halfWidth = edge.getEffectiveWidth(config) / 2.0;
         List<Double> distances = new ArrayList<>();
         List<Integer> groundStarts = new ArrayList<>();
         List<Integer> groundEnds = new ArrayList<>();
@@ -474,11 +474,10 @@ public class RoadGenerator {
         double accumulatedDistance = 0.0;
 
         for (PathSegment segment : segments) {
-            BlockPos startBlockPos = canvasToBlockPos(segment.start);
-            BlockPos endBlockPos = canvasToBlockPos(segment.end);
+            Vec2d tangent = segment.end.subtract(segment.start);
             distances.add(segment.distance);
-            groundStarts.add(getTopHeight(world, startBlockPos));
-            groundEnds.add(getTopHeight(world, endBlockPos));
+            groundStarts.add(getGroundHeightAtPoint(world, segment.start, tangent, halfWidth));
+            groundEnds.add(getGroundHeightAtPoint(world, segment.end, tangent, halfWidth));
             maxSlopes.add(edge.getEffectiveMaxSlope(accumulatedDistance, config));
             accumulatedDistance += segment.distance;
         }
@@ -1173,6 +1172,85 @@ public class RoadGenerator {
             LOGGER.warn("获取地形高度失败 ({}, {}): {}", pos.getX(), pos.getZ(), e.getMessage());
             return 64; // 默认海平面
         }
+    }
+
+    /**
+     * 沿道路横断面采样地面高度并取平均（覆盖 [-halfWidth, +halfWidth]）
+     */
+    private int getGroundHeightAtPoint(World world, Vec2d center, Vec2d tangent, double halfWidth) {
+        if (world == null || center == null || halfWidth <= 0) {
+            return getTopHeight(world, canvasToBlockPos(center));
+        }
+
+        Vec2d normal = RoadGeometryUtils.leftNormal(tangent);
+        List<Integer> heights = new ArrayList<>();
+        for (int offset : RoadGeometryUtils.crossSectionSampleOffsets(halfWidth)) {
+            Vec2d samplePos = center.add(normal.multiply(offset));
+            heights.add(getTopHeight(world, canvasToBlockPos(samplePos)));
+        }
+        return RoadSlopeUtils.averageGroundHeight(heights);
+    }
+
+    private int getGroundHeightAtNode(World world, RoadNode node, RoadNetwork network) {
+        if (node == null) {
+            return 64;
+        }
+        return getGroundHeightAtPoint(
+            world,
+            node.getPosition(),
+            resolveNodeTangent(node, network),
+            resolveNodeHalfWidth(node, network)
+        );
+    }
+
+    private Vec2d resolveNodeTangent(RoadNode node, RoadNetwork network) {
+        if (node == null || network == null) {
+            return null;
+        }
+
+        RoadEdge widestEdge = null;
+        double widest = -1.0;
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            double width = edge.getEffectiveWidth(config);
+            if (width > widest) {
+                widest = width;
+                widestEdge = edge;
+            }
+        }
+        if (widestEdge == null) {
+            return null;
+        }
+
+        List<Vec2d> points = widestEdge.getCenterlinePoints();
+        if (points.size() < 2) {
+            return null;
+        }
+        if (widestEdge.getStartNodeId().equals(node.getId())) {
+            return points.get(1).subtract(points.get(0));
+        }
+        if (widestEdge.getEndNodeId().equals(node.getId())) {
+            return points.get(points.size() - 2).subtract(points.getLast());
+        }
+        return null;
+    }
+
+    private double resolveNodeHalfWidth(RoadNode node, RoadNetwork network) {
+        double halfWidth = config.getRoadWidth() / 2.0;
+        if (node == null || network == null) {
+            return halfWidth;
+        }
+
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null) {
+                halfWidth = Math.max(halfWidth, edge.getEffectiveWidth(config) / 2.0);
+            }
+        }
+        return halfWidth;
     }
     
     /**

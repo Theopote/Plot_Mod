@@ -147,6 +147,26 @@ class RoadGeometryUtilsTest {
     }
 
     @Test
+    void leftNormalRotatesTangentCounterClockwise() {
+        Vec2d tangent = new Vec2d(1, 0);
+        Vec2d normal = RoadGeometryUtils.leftNormal(tangent);
+
+        assertEquals(0, normal.x, 1e-6);
+        assertEquals(1, normal.y, 1e-6);
+        assertEquals(1.0, normal.length(), 1e-6);
+    }
+
+    @Test
+    void crossSectionSampleOffsetsCoverRoadWidth() {
+        List<Integer> offsets = RoadGeometryUtils.crossSectionSampleOffsets(2.5);
+
+        assertTrue(offsets.contains(0));
+        assertTrue(offsets.contains(-2));
+        assertTrue(offsets.contains(2));
+        assertTrue(offsets.stream().allMatch(offset -> offset >= -3 && offset <= 3));
+    }
+
+    @Test
     void canvasToBlockXZFallsBackToOneToOneMapping() {
         BlockPos pos = RoadGeometryUtils.canvasToBlockXZ(new Vec2d(12.7, -3.2), null);
 

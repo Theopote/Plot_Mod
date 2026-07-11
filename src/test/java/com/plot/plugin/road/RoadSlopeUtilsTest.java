@@ -92,6 +92,12 @@ class RoadSlopeUtilsTest {
     }
 
     @Test
+    void averageGroundHeightUsesArithmeticMean() {
+        assertEquals(66, RoadSlopeUtils.averageGroundHeight(List.of(64, 66, 68)));
+        assertEquals(64, RoadSlopeUtils.averageGroundHeight(List.of()));
+    }
+
+    @Test
     void averageJunctionHeightUsesMeanOfConnectedEdges() {
         assertEquals(66, RoadSlopeUtils.averageJunctionHeight(List.of(64, 66, 68)));
         assertEquals(64, RoadSlopeUtils.averageJunctionHeight(List.of()));

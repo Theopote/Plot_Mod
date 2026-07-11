@@ -240,6 +240,13 @@ public final class RoadSlopeUtils {
     }
 
     /**
+     * 横断面地面高度：取多个采样点高度的算术平均（四舍五入）
+     */
+    public static int averageGroundHeight(List<Integer> sampledHeights) {
+        return averageJunctionHeight(sampledHeights);
+    }
+
+    /**
      * 路口汇聚高度：取各相连边在节点处高度的平均值
      */
     public static int averageJunctionHeight(List<Integer> connectedEdgeHeights) {
