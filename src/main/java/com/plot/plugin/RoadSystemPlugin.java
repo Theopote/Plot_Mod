@@ -1171,13 +1171,19 @@ public class RoadSystemPlugin extends Plugin {
         if (selectedPaths.isEmpty()) {
             return;
         }
-        try {
-            networkHistory.push(network);
-            int adoptedCount = 0;
-            int totalJunctions = 0;
-            selectedEdgeIds.clear();
 
-            for (Shape path : selectedPaths) {
+        int adoptedCount = 0;
+        int failedCount = 0;
+        int totalJunctions = 0;
+        boolean historyPushed = false;
+        selectedEdgeIds.clear();
+
+        for (Shape path : selectedPaths) {
+            try {
+                if (!historyPushed) {
+                    networkHistory.push(network);
+                    historyPushed = true;
+                }
                 RoadNetworkBuilder.AdoptResult result =
                     networkBuilder.adoptShape(network, path, config);
                 adoptedCount++;
@@ -1188,25 +1194,36 @@ public class RoadSystemPlugin extends Plugin {
                 if (!result.edges().isEmpty()) {
                     lastSelectedEdgeId = result.edges().getFirst().getId();
                 }
+            } catch (Exception e) {
+                failedCount++;
+                LOGGER.warn("认领单条道路失败: {}", e.getMessage(), e);
             }
-
-            if (adoptedCount > 1) {
-                projectStatus = String.format(
-                    PlotI18n.tr("plugin.road.adopt_success_batch"),
-                    adoptedCount,
-                    totalJunctions);
-            } else if (totalJunctions > 0) {
-                projectStatus = String.format(
-                    PlotI18n.tr("plugin.road.adopt_success_junction"),
-                    totalJunctions);
-            } else {
-                projectStatus = PlotI18n.tr("plugin.road.adopt_success");
-            }
-            LOGGER.info("认领道路成功: {} 条路径 ({} 段边)", adoptedCount, selectedEdgeIds.size());
-        } catch (Exception e) {
-            LOGGER.error("认领道路失败: {}", e.getMessage(), e);
-            projectStatus = PlotI18n.tr("plugin.road.adopt_failed");
         }
+
+        if (adoptedCount == 0) {
+            projectStatus = PlotI18n.tr("plugin.road.adopt_failed");
+            return;
+        }
+
+        if (failedCount > 0) {
+            projectStatus = String.format(
+                PlotI18n.tr("plugin.road.adopt_partial_success"),
+                adoptedCount,
+                failedCount);
+        } else if (adoptedCount > 1) {
+            projectStatus = String.format(
+                PlotI18n.tr("plugin.road.adopt_success_batch"),
+                adoptedCount,
+                totalJunctions);
+        } else if (totalJunctions > 0) {
+            projectStatus = String.format(
+                PlotI18n.tr("plugin.road.adopt_success_junction"),
+                totalJunctions);
+        } else {
+            projectStatus = PlotI18n.tr("plugin.road.adopt_success");
+        }
+        LOGGER.info("认领道路完成: 成功 {} 条, 失败 {} 条 ({} 段边)",
+            adoptedCount, failedCount, selectedEdgeIds.size());
     }
 
     private Vec2d resolvePathStartPoint(Shape shape) {

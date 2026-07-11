@@ -634,6 +634,7 @@
   "plugin.road.adopt_as_road": "Adopt as Road",
   "plugin.road.adopt_success": "Road adopted successfully",
   "plugin.road.adopt_success_batch": "Adopted %d roads; connected at %d junction(s)",
+  "plugin.road.adopt_partial_success": "Adopted %d road(s), %d failed",
   "plugin.road.adopt_success_junction": "Road adopted; connected at %d junction(s)",
   "plugin.road.adopt_failed": "Failed to adopt road",
   "plugin.road.no_edges": "No adopted roads yet",

@@ -633,6 +633,8 @@
   "plugin.road.adopt_hint": "请先用画图工具画出道路走向，然后在此选择图形认领",
   "plugin.road.adopt_as_road": "认领为新道路",
   "plugin.road.adopt_success": "道路认领成功",
+  "plugin.road.adopt_success_batch": "已认领 %d 条道路，与 %d 处路口相接",
+  "plugin.road.adopt_partial_success": "成功认领 %d 条，%d 条失败",
   "plugin.road.adopt_success_junction": "道路认领成功，已与 %d 处路口相接",
   "plugin.road.adopt_failed": "道路认领失败",
   "plugin.road.no_edges": "尚无已认领道路",
