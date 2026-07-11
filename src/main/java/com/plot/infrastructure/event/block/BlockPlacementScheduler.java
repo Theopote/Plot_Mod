@@ -20,21 +20,38 @@ public final class BlockPlacementScheduler {
 
     private static BlockPlacementScheduler instance;
 
+    @FunctionalInterface
+    interface BlockWriter {
+        boolean setBlockAt(BlockPos pos, String blockId);
+    }
+
     private final Deque<PlacementJob> jobQueue = new ArrayDeque<>();
     private PlacementJob activeJob;
     private boolean tickRegistered;
+    private BlockWriter blockWriter = (pos, blockId) -> BlockProjectionHandler.getInstance().setBlockAt(pos, blockId);
 
     public record BlockWrite(BlockPos pos, String blockId) {
     }
 
-    public record ExecutionResult(int success, int failed, int total) {
+    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+        public ExecutionResult(int success, int failed, int total) {
+            this(success, failed, total, false);
+        }
+
+        public static ExecutionResult cancelled(int success, int failed, int total) {
+            return new ExecutionResult(success, failed, total, true);
+        }
+
         public boolean isFullSuccess() {
-            return total > 0 && failed == 0 && success == total;
+            return !cancelled && total > 0 && failed == 0 && success == total;
         }
 
         public boolean isTotalFailure() {
-            return total > 0 && success == 0;
+            return !cancelled && total > 0 && success == 0;
         }
+    }
+
+    public record ProgressSnapshot(int processed, int total, int success, int failed) {
     }
 
     public static BlockPlacementScheduler getInstance() {
@@ -48,6 +65,22 @@ public final class BlockPlacementScheduler {
         return activeJob != null || !jobQueue.isEmpty();
     }
 
+    public ProgressSnapshot getProgressSnapshot() {
+        if (activeJob != null) {
+            return new ProgressSnapshot(
+                activeJob.index,
+                activeJob.writes.size(),
+                activeJob.success,
+                activeJob.failed
+            );
+        }
+        PlacementJob queued = jobQueue.peekFirst();
+        if (queued != null) {
+            return new ProgressSnapshot(0, queued.writes.size(), 0, 0);
+        }
+        return null;
+    }
+
     public void enqueue(List<BlockWrite> writes, Consumer<ExecutionResult> onComplete) {
         if (writes == null || writes.isEmpty()) {
             if (onComplete != null) {
@@ -58,6 +91,32 @@ public final class BlockPlacementScheduler {
 
         jobQueue.addLast(new PlacementJob(new ArrayList<>(writes), onComplete));
         ensureTickRegistered();
+    }
+
+    /**
+     * 取消当前任务及队列中所有待处理任务。
+     *
+     * @return 是否取消了至少一个任务
+     */
+    public boolean cancelAll() {
+        if (!isBusy()) {
+            return false;
+        }
+
+        int cancelledJobs = 0;
+        if (activeJob != null) {
+            completeJob(activeJob, true);
+            activeJob = null;
+            cancelledJobs++;
+        }
+
+        while (!jobQueue.isEmpty()) {
+            completeJob(jobQueue.pollFirst(), true);
+            cancelledJobs++;
+        }
+
+        LOGGER.info("已取消 {} 个方块放置任务", cancelledJobs);
+        return cancelledJobs > 0;
     }
 
     private void ensureTickRegistered() {
@@ -76,11 +135,10 @@ public final class BlockPlacementScheduler {
             }
         }
 
-        BlockProjectionHandler handler = BlockProjectionHandler.getInstance();
         int budget = BLOCKS_PER_TICK;
         while (budget > 0 && activeJob.hasNext()) {
             BlockWrite write = activeJob.next();
-            if (handler.setBlockAt(write.pos(), write.blockId())) {
+            if (blockWriter.setBlockAt(write.pos(), write.blockId())) {
                 activeJob.success++;
             } else {
                 activeJob.failed++;
@@ -89,19 +147,41 @@ public final class BlockPlacementScheduler {
         }
 
         if (!activeJob.hasNext()) {
-            ExecutionResult result = new ExecutionResult(
-                activeJob.success,
-                activeJob.failed,
-                activeJob.writes.size()
-            );
+            completeJob(activeJob, false);
+            activeJob = null;
+        }
+    }
+
+    private void completeJob(PlacementJob job, boolean cancelled) {
+        ExecutionResult result = cancelled
+            ? ExecutionResult.cancelled(job.success, job.failed, job.writes.size())
+            : new ExecutionResult(job.success, job.failed, job.writes.size());
+        if (!cancelled) {
             LOGGER.info("方块放置批次完成: {}/{} 成功, {} 失败",
                 result.success(), result.total(), result.failed());
-            Consumer<ExecutionResult> callback = activeJob.onComplete;
-            activeJob = null;
-            if (callback != null) {
-                callback.accept(result);
-            }
+        } else {
+            LOGGER.info("方块放置批次已取消: 已发送 {}/{}，失败 {}",
+                result.success(), result.total(), result.failed());
         }
+        if (job.onComplete != null) {
+            job.onComplete.accept(result);
+        }
+    }
+
+    void setBlockWriterForTest(BlockWriter writer) {
+        this.blockWriter = writer != null
+            ? writer
+            : (pos, blockId) -> BlockProjectionHandler.getInstance().setBlockAt(pos, blockId);
+    }
+
+    void resetForTest() {
+        activeJob = null;
+        jobQueue.clear();
+        blockWriter = (pos, blockId) -> BlockProjectionHandler.getInstance().setBlockAt(pos, blockId);
+    }
+
+    void tickForTest() {
+        tick();
     }
 
     private static final class PlacementJob {

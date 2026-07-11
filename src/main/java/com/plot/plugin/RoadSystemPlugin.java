@@ -175,6 +175,8 @@ public class RoadSystemPlugin extends Plugin {
 
         renderToolbar();
 
+        renderActivePlacementControls();
+
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
             if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.overview"))) {
                 renderOverviewTab();
@@ -229,6 +231,26 @@ public class RoadSystemPlugin extends Plugin {
 
         if (!projectStatus.isEmpty()) {
             ImGui.textColored((int) 0xFF80FF80FFL, projectStatus);
+        }
+        ImGui.separator();
+    }
+
+    private void renderActivePlacementControls() {
+        BlockPlacementScheduler scheduler = BlockPlacementScheduler.getInstance();
+        if (!scheduler.isBusy()) {
+            return;
+        }
+
+        BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
+        if (progress != null) {
+            ImGui.textColored((int) 0xFF80C0FFFFL,
+                PlotI18n.tr("plugin.road.placement_progress", progress.processed(), progress.total()));
+        } else {
+            ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.road.build_in_progress_hint"));
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.cancel_placement"), 0, 0)) {
+            scheduler.cancelAll();
         }
         ImGui.separator();
     }
@@ -676,10 +698,6 @@ public class RoadSystemPlugin extends Plugin {
 
         if (!hasNetwork) {
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.draw_path_hint"));
-        }
-
-        if (BlockPlacementScheduler.getInstance().isBusy()) {
-            ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.road.build_in_progress_hint"));
         }
 
         BlockProjectionHandler.PlacementReadiness buildReadiness =
@@ -1473,8 +1491,13 @@ public class RoadSystemPlugin extends Plugin {
         GenerateRoadCommand command = new GenerateRoadCommand(records);
         projectStatus = PlotI18n.tr("plugin.road.build_in_progress", records.size());
         command.executeScheduled(() -> {
+            GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
+            if (result != null && result.cancelled()) {
+                projectStatus = PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total());
+                return;
+            }
             CommandManager.getInstance().pushExecuted(command);
-            applyBuildResultStatus(command.getLastExecutionResult());
+            applyBuildResultStatus(result);
             clearPreview();
         });
     }
@@ -1482,6 +1505,10 @@ public class RoadSystemPlugin extends Plugin {
     private void applyBuildResultStatus(GenerateRoadCommand.ExecutionResult result) {
         if (result == null || result.total() == 0) {
             projectStatus = PlotI18n.tr("plugin.road.build_no_blocks");
+            return;
+        }
+        if (result.cancelled()) {
+            projectStatus = PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total());
             return;
         }
         if (result.isFullSuccess()) {

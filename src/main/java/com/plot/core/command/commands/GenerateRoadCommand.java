@@ -30,13 +30,17 @@ public class GenerateRoadCommand implements Command {
         }
     }
 
-    public record ExecutionResult(int success, int failed, int total) {
+    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+        public ExecutionResult(int success, int failed, int total) {
+            this(success, failed, total, false);
+        }
+
         public boolean isFullSuccess() {
-            return total > 0 && failed == 0 && success == total;
+            return !cancelled && total > 0 && failed == 0 && success == total;
         }
 
         public boolean isTotalFailure() {
-            return total > 0 && success == 0;
+            return !cancelled && total > 0 && success == 0;
         }
     }
 
@@ -208,6 +212,11 @@ public class GenerateRoadCommand implements Command {
     }
 
     private static ExecutionResult toExecutionResult(BlockPlacementScheduler.ExecutionResult result) {
-        return new ExecutionResult(result.success(), result.failed(), result.total());
+        return new ExecutionResult(
+            result.success(),
+            result.failed(),
+            result.total(),
+            result.cancelled()
+        );
     }
 }
