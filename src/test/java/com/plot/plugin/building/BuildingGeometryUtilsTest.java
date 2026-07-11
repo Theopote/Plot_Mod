@@ -33,6 +33,18 @@ class BuildingGeometryUtilsTest {
     }
 
     @Test
+    void rotatedRectangleIsNotSlopedRoofEligible() {
+        List<Vec2d> diamond = List.of(
+            new Vec2d(10, 5),
+            new Vec2d(15, 10),
+            new Vec2d(10, 15),
+            new Vec2d(5, 10)
+        );
+        assertFalse(BuildingGeometryUtils.isSlopedRoofEligible(diamond));
+        assertFalse(BuildingGeometryUtils.isAxisAlignedRectangle(diamond, 1e-3));
+    }
+
+    @Test
     void detectRectangularFootprint() {
         List<Vec2d> rect = List.of(
             new Vec2d(0, 0),

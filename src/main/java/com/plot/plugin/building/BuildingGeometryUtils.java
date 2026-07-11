@@ -56,6 +56,13 @@ public final class BuildingGeometryUtils {
         return isAxisAlignedRectangle(points, TOLERANCE);
     }
 
+    /**
+     * 是否满足坡屋顶生成前提：4 点且边与世界坐标轴平行（旋转矩形返回 false）。
+     */
+    public static boolean isSlopedRoofEligible(List<Vec2d> points) {
+        return isAxisAlignedRectangle(points, TOLERANCE);
+    }
+
     public static boolean isAxisAlignedRectangle(List<Vec2d> points, double tolerance) {
         if (points == null || points.size() != 4) {
             return false;

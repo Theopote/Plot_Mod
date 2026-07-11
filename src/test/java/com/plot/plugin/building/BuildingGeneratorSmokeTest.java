@@ -34,6 +34,24 @@ class BuildingGeneratorSmokeTest {
     }
 
     @Test
+    void rotatedRectangleFootprintDowngradesRoofWithWarning() {
+        List<Vec2d> diamond = List.of(
+            new Vec2d(10, 5),
+            new Vec2d(15, 10),
+            new Vec2d(10, 15),
+            new Vec2d(5, 10)
+        );
+        BuildingFootprint footprint = new BuildingFootprint(diamond, false);
+        footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
+
+        BuildingGenerator.BuildingGenerationResult result = new BuildingGenerator.BuildingGenerationResult();
+        BuildingFootprint.RoofType effective = resolveRoofTypeForTest(footprint, result);
+
+        assertEquals(BuildingFootprint.RoofType.FLAT, effective);
+        assertTrue(result.warnings.contains("plugin.building.warn.roof_downgrade"));
+    }
+
+    @Test
     void nonRectangularFootprintDowngradesRoofWithWarning() {
         List<Vec2d> pentagon = List.of(
             new Vec2d(0, 0),
@@ -80,7 +98,7 @@ class BuildingGeneratorSmokeTest {
         if (requested == BuildingFootprint.RoofType.FLAT) {
             return BuildingFootprint.RoofType.FLAT;
         }
-        if (footprint.isRectangular() || BuildingGeometryUtils.detectRectangular(footprint.getOuterPoints())) {
+        if (BuildingGeometryUtils.isSlopedRoofEligible(footprint.getOuterPoints())) {
             return requested;
         }
         result.warnings.add("plugin.building.warn.roof_downgrade");

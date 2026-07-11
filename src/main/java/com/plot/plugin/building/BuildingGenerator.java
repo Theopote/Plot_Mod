@@ -107,7 +107,7 @@ public class BuildingGenerator {
         if (requested == BuildingFootprint.RoofType.FLAT) {
             return BuildingFootprint.RoofType.FLAT;
         }
-        if (footprint.isRectangular() || BuildingGeometryUtils.detectRectangular(footprint.getOuterPoints())) {
+        if (BuildingGeometryUtils.isSlopedRoofEligible(footprint.getOuterPoints())) {
             return requested;
         }
         result.warnings.add("plugin.building.warn.roof_downgrade");

@@ -5,7 +5,6 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.command.CommandManager;
 import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -231,7 +230,7 @@ public class BuildingPlugin extends Plugin {
                 "plugin.building.overview_item",
                 String.format("%.1f", building.computeArea()),
                 building.getFloors(),
-                building.isRectangular()
+                BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())
                     ? PlotI18n.tr("plugin.building.shape_rect")
                     : PlotI18n.tr("plugin.building.shape_polygon")));
 
@@ -414,7 +413,7 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
             building.setRoofType(BuildingFootprint.RoofType.values()[roofTypeIndex.get()]);
         }
-        if (!building.isRectangular()) {
+        if (!BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())) {
             ImGui.textColored((int) 0xFFFFA060FFL, PlotI18n.tr("plugin.building.roof_rect_hint"));
         }
     }
@@ -699,8 +698,7 @@ public class BuildingPlugin extends Plugin {
             if (points.size() < 3) {
                 continue;
             }
-            boolean rectangular = shape instanceof RectangleShape
-                || BuildingGeometryUtils.detectRectangular(points);
+            boolean rectangular = BuildingGeometryUtils.isSlopedRoofEligible(points);
             BuildingFootprint footprint = new BuildingFootprint(points, rectangular);
             footprint.setName(PlotI18n.tr("plugin.building.default_name", adopted + 1));
             project.addBuilding(footprint);
