@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -58,7 +59,7 @@ public class RoadGenerator {
         public final List<BlockPos> bridgeBlocks = new ArrayList<>();
         public final List<BlockPos> tunnelBlocks = new ArrayList<>();
         public final List<BlockPos> streetlightBlocks = new ArrayList<>();
-        public final Map<BlockPos, GenerateRoadCommand.BlockRecord> placementRecords = new LinkedHashMap<>();
+        public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
         public int cutVolume;
         public int fillVolume;
         public int bridgeCount;
@@ -1146,7 +1147,7 @@ public class RoadGenerator {
             String previousBlockId,
             String newBlockId) {
         if (!result.placementRecords.containsKey(pos)) {
-            result.placementRecords.put(pos, new GenerateRoadCommand.BlockRecord(pos, previousBlockId, newBlockId));
+            result.placementRecords.put(pos, new BlockRecord(pos, previousBlockId, newBlockId));
         }
     }
 

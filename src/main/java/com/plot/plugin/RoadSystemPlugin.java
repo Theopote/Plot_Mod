@@ -24,6 +24,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.command.CommandManager;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
@@ -1476,7 +1477,7 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         ghostBlockManager.clearAllGhostBlocks();
-        for (GenerateRoadCommand.BlockRecord record : lastGenerationResult.placementRecords.values()) {
+        for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
             ghostBlockManager.addGhostBlock(record.pos, record.newBlockId);
         }
     }
@@ -1512,7 +1513,7 @@ public class RoadSystemPlugin extends Plugin {
             LOGGER.warn("道路落地范围超出当前摄像机视野: {}", visibility.status());
         }
 
-        List<GenerateRoadCommand.BlockRecord> records =
+        List<BlockRecord> records =
             new ArrayList<>(lastGenerationResult.placementRecords.values());
         GenerateRoadCommand command = new GenerateRoadCommand(records);
         projectStatus = PlotI18n.tr("plugin.road.build_in_progress", records.size());

@@ -2,7 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.plugin.road.RoadGenerator.RoadGenerationResult;
-import com.plot.core.command.commands.GenerateRoadCommand;
+import com.plot.core.command.BlockRecord;
 import com.plot.utils.PlotI18n;
 import net.minecraft.util.math.BlockPos;
 
@@ -67,7 +67,7 @@ public final class RoadPlacementVisibility {
         int maxX = Integer.MIN_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxZ = Integer.MIN_VALUE;
-        for (GenerateRoadCommand.BlockRecord record : result.placementRecords.values()) {
+        for (BlockRecord record : result.placementRecords.values()) {
             BlockPos pos = record.pos;
             minX = Math.min(minX, pos.getX());
             maxX = Math.max(maxX, pos.getX());

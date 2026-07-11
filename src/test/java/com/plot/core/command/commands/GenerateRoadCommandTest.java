@@ -1,5 +1,6 @@
 package com.plot.core.command.commands;
 
+import com.plot.core.command.BlockRecord;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -20,9 +21,9 @@ class GenerateRoadCommandTest {
         writer.seed(road, "minecraft:grass_block");
         writer.seed(sidewalk, "minecraft:dirt");
 
-        List<GenerateRoadCommand.BlockRecord> records = List.of(
-            new GenerateRoadCommand.BlockRecord(road, "minecraft:grass_block", "minecraft:stone"),
-            new GenerateRoadCommand.BlockRecord(sidewalk, "minecraft:dirt", "minecraft:oak_planks")
+        List<BlockRecord> records = List.of(
+            new BlockRecord(road, "minecraft:grass_block", "minecraft:stone"),
+            new BlockRecord(sidewalk, "minecraft:dirt", "minecraft:oak_planks")
         );
 
         GenerateRoadCommand command = new GenerateRoadCommand(records, writer);
@@ -44,7 +45,7 @@ class GenerateRoadCommandTest {
         writer.seed(pos, "minecraft:air");
 
         GenerateRoadCommand command = new GenerateRoadCommand(
-            List.of(new GenerateRoadCommand.BlockRecord(pos, "minecraft:air", "minecraft:gravel")),
+            List.of(new BlockRecord(pos, "minecraft:air", "minecraft:gravel")),
             writer
         );
 
@@ -63,10 +64,10 @@ class GenerateRoadCommandTest {
             return true;
         };
 
-        List<GenerateRoadCommand.BlockRecord> records = List.of(
-            new GenerateRoadCommand.BlockRecord(new BlockPos(0, 64, 0), "minecraft:a", "minecraft:new_a"),
-            new GenerateRoadCommand.BlockRecord(new BlockPos(1, 64, 0), "minecraft:b", "minecraft:new_b"),
-            new GenerateRoadCommand.BlockRecord(new BlockPos(2, 64, 0), "minecraft:c", "minecraft:new_c")
+        List<BlockRecord> records = List.of(
+            new BlockRecord(new BlockPos(0, 64, 0), "minecraft:a", "minecraft:new_a"),
+            new BlockRecord(new BlockPos(1, 64, 0), "minecraft:b", "minecraft:new_b"),
+            new BlockRecord(new BlockPos(2, 64, 0), "minecraft:c", "minecraft:new_c")
         );
 
         new GenerateRoadCommand(records, writer).undo();
@@ -84,9 +85,9 @@ class GenerateRoadCommandTest {
         BlockPos overlap = new BlockPos(5, 64, 5);
         writer.seed(overlap, "minecraft:grass_block");
 
-        List<GenerateRoadCommand.BlockRecord> records = List.of(
-            new GenerateRoadCommand.BlockRecord(overlap, "minecraft:grass_block", "minecraft:stone"),
-            new GenerateRoadCommand.BlockRecord(overlap, "minecraft:dirt", "minecraft:gravel")
+        List<BlockRecord> records = List.of(
+            new BlockRecord(overlap, "minecraft:grass_block", "minecraft:stone"),
+            new BlockRecord(overlap, "minecraft:dirt", "minecraft:gravel")
         );
 
         GenerateRoadCommand command = new GenerateRoadCommand(records, writer);
@@ -104,8 +105,8 @@ class GenerateRoadCommandTest {
         BlockPos overlap = new BlockPos(8, 64, 8);
         writer.seed(overlap, "minecraft:grass_block");
 
-        List<GenerateRoadCommand.BlockRecord> records = List.of(
-            new GenerateRoadCommand.BlockRecord(overlap, "minecraft:grass_block", "minecraft:stone")
+        List<BlockRecord> records = List.of(
+            new BlockRecord(overlap, "minecraft:grass_block", "minecraft:stone")
         );
 
         GenerateRoadCommand command = new GenerateRoadCommand(records, writer);

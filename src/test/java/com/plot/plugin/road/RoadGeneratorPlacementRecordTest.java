@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class RoadGeneratorPlacementRecordTest {
             result, overlap, "minecraft:dirt", "minecraft:gravel");
 
         assertEquals(1, result.placementRecords.size());
-        GenerateRoadCommand.BlockRecord record = result.placementRecords.get(overlap);
+        BlockRecord record = result.placementRecords.get(overlap);
         assertEquals("minecraft:grass_block", record.previousBlockId);
         assertEquals("minecraft:stone", record.newBlockId);
     }

@@ -5,7 +5,6 @@ import com.plot.core.command.Command;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.utils.PlotI18n;
-import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,10 +13,10 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 道路落地命令（支持撤销/重做）
+ * 建筑落地命令（支持撤销/重做）
  */
-public class GenerateRoadCommand implements Command {
-    private static final Logger LOGGER = LoggerFactory.getLogger(GenerateRoadCommand.class);
+public class BuildingGenerateCommand implements Command {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BuildingGenerateCommand.class);
 
     public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
         public ExecutionResult(int success, int failed, int total) {
@@ -33,26 +32,26 @@ public class GenerateRoadCommand implements Command {
         }
     }
 
+    @FunctionalInterface
+    interface BlockWriter {
+        boolean setBlockAt(net.minecraft.util.math.BlockPos pos, String blockId);
+    }
+
     private final List<BlockRecord> records;
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final boolean schedulePlacement;
     private ExecutionResult lastExecutionResult;
 
-    @FunctionalInterface
-    interface BlockWriter {
-        boolean setBlockAt(BlockPos pos, String blockId);
-    }
-
-    public GenerateRoadCommand(List<BlockRecord> records) {
+    public BuildingGenerateCommand(List<BlockRecord> records) {
         this(records, BlockProjectionHandler.getInstance()::setBlockAt, true);
     }
 
-    GenerateRoadCommand(List<BlockRecord> records, BlockWriter blockWriter) {
+    BuildingGenerateCommand(List<BlockRecord> records, BlockWriter blockWriter) {
         this(records, blockWriter, false);
     }
 
-    GenerateRoadCommand(List<BlockRecord> records, BlockWriter blockWriter, boolean schedulePlacement) {
+    BuildingGenerateCommand(List<BlockRecord> records, BlockWriter blockWriter, boolean schedulePlacement) {
         this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
         this.timestamp = new Date();
         this.blockWriter = blockWriter;
@@ -82,7 +81,7 @@ public class GenerateRoadCommand implements Command {
             return;
         }
         lastExecutionResult = applySync(records, true);
-        LOGGER.info("道路落地完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
+        LOGGER.info("建筑落地完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
@@ -92,7 +91,7 @@ public class GenerateRoadCommand implements Command {
             return;
         }
         lastExecutionResult = applySyncUndo(records);
-        LOGGER.info("道路撤销完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
+        LOGGER.info("建筑撤销完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
@@ -102,12 +101,12 @@ public class GenerateRoadCommand implements Command {
 
     @Override
     public String getDescription() {
-        return PlotI18n.tr("plugin.road.history.generate", records.size());
+        return PlotI18n.tr("plugin.building.history.generate", records.size());
     }
 
     @Override
     public String getDetailedDescription() {
-        return PlotI18n.tr("plugin.road.history.generate.detail", records.size());
+        return PlotI18n.tr("plugin.building.history.generate.detail", records.size());
     }
 
     @Override
@@ -123,7 +122,10 @@ public class GenerateRoadCommand implements Command {
         return lastExecutionResult;
     }
 
-    private void enqueueWrites(List<BlockRecord> source, boolean applyNewBlocks, java.util.function.Consumer<ExecutionResult> onComplete) {
+    private void enqueueWrites(
+            List<BlockRecord> source,
+            boolean applyNewBlocks,
+            java.util.function.Consumer<ExecutionResult> onComplete) {
         List<BlockPlacementScheduler.BlockWrite> writes = new ArrayList<>(source.size());
         for (BlockRecord record : source) {
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
@@ -133,7 +135,7 @@ public class GenerateRoadCommand implements Command {
         if (schedulePlacement) {
             BlockPlacementScheduler.getInstance().enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
-                LOGGER.info("道路{}完成: {}/{} 成功, {} 失败",
+                LOGGER.info("建筑{}完成: {}/{} 成功, {} 失败",
                     applyNewBlocks ? "落地" : "撤销",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
@@ -151,7 +153,9 @@ public class GenerateRoadCommand implements Command {
         }
     }
 
-    private void enqueueWritesReverse(List<BlockRecord> source, java.util.function.Consumer<ExecutionResult> onComplete) {
+    private void enqueueWritesReverse(
+            List<BlockRecord> source,
+            java.util.function.Consumer<ExecutionResult> onComplete) {
         List<BlockPlacementScheduler.BlockWrite> writes = new ArrayList<>(source.size());
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
@@ -161,7 +165,7 @@ public class GenerateRoadCommand implements Command {
         if (schedulePlacement) {
             BlockPlacementScheduler.getInstance().enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
-                LOGGER.info("道路撤销完成: {}/{} 成功, {} 失败",
+                LOGGER.info("建筑撤销完成: {}/{} 成功, {} 失败",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
                     lastExecutionResult.failed());

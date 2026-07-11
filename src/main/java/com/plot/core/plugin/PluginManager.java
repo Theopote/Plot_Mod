@@ -69,6 +69,10 @@ public class PluginManager implements IPluginManager {
             // 注册道路系统插件
             com.plot.plugin.RoadSystemPlugin roadSystemPlugin = new com.plot.plugin.RoadSystemPlugin();
             registerBuiltinPlugin(roadSystemPlugin);
+
+            // 注册建筑轮廓生成器插件
+            com.plot.plugin.BuildingPlugin buildingPlugin = new com.plot.plugin.BuildingPlugin();
+            registerBuiltinPlugin(buildingPlugin);
             
             LogManager.getInstance().info("Registered {} builtin plugins", plugins.size());
         } catch (Exception e) {
