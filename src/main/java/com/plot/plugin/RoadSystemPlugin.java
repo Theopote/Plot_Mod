@@ -192,6 +192,8 @@ public class RoadSystemPlugin extends Plugin {
             }
             ImGui.endTabBar();
         }
+
+        renderDeleteConfirmPopup();
     }
 
     private void renderToolbar() {
@@ -249,7 +251,6 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
         renderEdgeListToolbar("##overview");
         renderFilteredEdgeList(180, true, "edge_list");
-        renderDeleteConfirmPopup();
     }
 
     private void renderNodeElevationEditor() {
@@ -425,7 +426,7 @@ public class RoadSystemPlugin extends Plugin {
         ensureSelectionValid();
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
         renderEdgeListToolbar("##edit");
-        renderFilteredEdgeList(120, false, "edit_edge_list");
+        renderFilteredEdgeList(120, true, "edit_edge_list");
 
         renderBatchEditPanel();
 
@@ -1074,27 +1075,39 @@ public class RoadSystemPlugin extends Plugin {
     private void renderFilteredEdgeList(float height, boolean showDelete, String childId) {
         ensureSelectionValid();
         List<RoadEdge> edges = filteredEdges();
+        String deleteLabel = PlotI18n.tr("plugin.road.delete");
+        float deleteButtonWidth = showDelete
+            ? ImGui.calcTextSize(deleteLabel).x + ImGui.getStyle().getFramePaddingX() * 2.0f + 8.0f
+            : 0.0f;
+
         ImGui.beginChild(childId, 0, height, true);
         if (edges.isEmpty()) {
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_empty"));
         }
         for (RoadEdge edge : edges) {
+            ImGui.pushID(edge.getId());
             String label = RoadEdgeListHelper.formatEdgeLabel(network, edge);
             boolean selected = selectedEdgeIds.contains(edge.getId());
-            if (ImGui.selectable(label + "##" + edge.getId(), selected)) {
+
+            float rowWidth = ImGui.getContentRegionAvail().x;
+            float selectableWidth = showDelete
+                ? Math.max(0.0f, rowWidth - deleteButtonWidth - ImGui.getStyle().getItemSpacingX())
+                : rowWidth;
+            if (ImGui.selectable(label + "##sel", selected, 0, selectableWidth, 0.0f)) {
                 handleEdgeSelect(edge.getId());
             }
             if (showDelete) {
-                ImGui.sameLine();
+                ImGui.sameLine(0.0f, ImGui.getStyle().getItemSpacingX());
                 ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
                 ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
                 ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
-                if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##del_" + edge.getId())) {
+                if (ImGui.smallButton(deleteLabel + "##del")) {
                     pendingDeleteEdgeId = edge.getId();
                     deleteConfirmPending = true;
                 }
                 ImGui.popStyleColor(3);
             }
+            ImGui.popID();
         }
         ImGui.endChild();
     }
