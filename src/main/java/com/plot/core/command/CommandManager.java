@@ -54,15 +54,24 @@ public class CommandManager {
         try {
             LOGGER.debug("执行命令: {}", command.getDescription());
             command.execute();
-            undoStack.push(command);
-            redoStack.clear(); // 清空重做栈
+            pushExecuted(command);
+        } catch (Exception e) {
+            LOGGER.error("执行命令时发生错误: {}", e.getMessage(), e);
+        }
+    }
 
-            // 如果历史记录超过最大值，移除最早的记录
+    /**
+     * 将已执行完毕的命令推入撤销栈（用于异步落地完成后登记历史）
+     */
+    public void pushExecuted(Command command) {
+        try {
+            undoStack.push(command);
+            redoStack.clear();
             if (undoStack.size() > MAX_HISTORY_SIZE) {
                 undoStack.removeFirst();
             }
         } catch (Exception e) {
-            LOGGER.error("执行命令时发生错误: {}", e.getMessage(), e);
+            LOGGER.error("登记命令历史时发生错误: {}", e.getMessage(), e);
         }
     }
 

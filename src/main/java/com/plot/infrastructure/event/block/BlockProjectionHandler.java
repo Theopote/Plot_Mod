@@ -8,6 +8,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
@@ -60,6 +61,57 @@ public class BlockProjectionHandler {
         public String getPreviousBlockId() {
             return previousBlockId;
         }
+    }
+
+    /**
+     * 世界修改前置检查结果（创造模式 + /setblock 权限）
+     */
+    public record PlacementReadiness(boolean ready, String message) {
+        public static PlacementReadiness ok() {
+            return new PlacementReadiness(true, "");
+        }
+
+        public static PlacementReadiness fail(String message) {
+            return new PlacementReadiness(false, message != null ? message : "");
+        }
+    }
+
+    /**
+     * 检查当前客户端是否具备通过 /setblock 修改世界的前置条件
+     */
+    public PlacementReadiness checkWorldModificationReadiness() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) {
+            return PlacementReadiness.fail(PlotI18n.status("status.plot.projection.client_not_ready"));
+        }
+
+        PlayerEntity player = client.player;
+        if (!player.getAbilities().creativeMode) {
+            return PlacementReadiness.fail(PlotI18n.status("status.plot.projection.creative_required"));
+        }
+
+        if (!hasSetblockCommandPermission(client, player)) {
+            return PlacementReadiness.fail(PlotI18n.status("status.plot.projection.command_permission_required"));
+        }
+
+        return PlacementReadiness.ok();
+    }
+
+    static boolean hasSetblockCommandPermission(MinecraftClient client, PlayerEntity player) {
+        if (player.hasPermissionLevel(2)) {
+            return true;
+        }
+
+        MinecraftServer server = client.getServer();
+        if (server == null) {
+            return false;
+        }
+
+        if (server.isDedicated()) {
+            return false;
+        }
+
+        return server.getSaveProperties().areCommandsAllowed();
     }
 
     /**

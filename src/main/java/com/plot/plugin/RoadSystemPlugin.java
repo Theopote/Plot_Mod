@@ -25,6 +25,8 @@ import com.plot.core.tool.ToolManager;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.command.CommandManager;
 import com.plot.core.command.commands.GenerateRoadCommand;
+import com.plot.infrastructure.event.block.BlockPlacementScheduler;
+import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadPathPickSession;
@@ -676,6 +678,16 @@ public class RoadSystemPlugin extends Plugin {
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.draw_path_hint"));
         }
 
+        if (BlockPlacementScheduler.getInstance().isBusy()) {
+            ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.road.build_in_progress_hint"));
+        }
+
+        BlockProjectionHandler.PlacementReadiness buildReadiness =
+            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+        if (!buildReadiness.ready()) {
+            ImGui.textColored((int) 0xFFFF8080FFL, buildReadiness.message());
+        }
+
         if (lastGenerationResult != null) {
             ImGui.separator();
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_projection_hint"));
@@ -691,17 +703,29 @@ public class RoadSystemPlugin extends Plugin {
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
                 ImGui.textColored((int) 0xFFFFB060FFL, PlotI18n.tr("plugin.road.generate_empty_result"));
-                ImGui.beginDisabled();
             }
 
+            if (!hasPlacements) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("plugin.road.projection_ref"), half, 0)) {
                 projectRoadPreview();
             }
+            if (!hasPlacements) {
+                ImGui.endDisabled();
+            }
+
             ImGui.sameLine();
+            boolean buildDisabled = !hasPlacements
+                || !buildReadiness.ready()
+                || BlockPlacementScheduler.getInstance().isBusy();
+            if (buildDisabled) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("plugin.road.build"), half, 0)) {
                 buildConfirmPending = true;
             }
-            if (!hasPlacements) {
+            if (buildDisabled) {
                 ImGui.endDisabled();
             }
             renderBuildConfirmPopup();
@@ -717,10 +741,24 @@ public class RoadSystemPlugin extends Plugin {
         if (ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
             ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
+
+            BlockProjectionHandler.PlacementReadiness readiness =
+                BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            if (!readiness.ready()) {
+                ImGui.textColored((int) 0xFFFF6060FFL, readiness.message());
+            }
+
             ImGui.separator();
+            boolean canBuild = readiness.ready() && !BlockPlacementScheduler.getInstance().isBusy();
+            if (!canBuild) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("plugin.road.build"), 120, 0)) {
                 buildRoadInWorld();
                 ImGui.closeCurrentPopup();
+            }
+            if (!canBuild) {
+                ImGui.endDisabled();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
@@ -1417,12 +1455,48 @@ public class RoadSystemPlugin extends Plugin {
             projectStatus = PlotI18n.tr("plugin.road.build_no_blocks");
             return;
         }
+
+        BlockProjectionHandler.PlacementReadiness readiness =
+            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+        if (!readiness.ready()) {
+            projectStatus = readiness.message();
+            return;
+        }
+
+        if (BlockPlacementScheduler.getInstance().isBusy()) {
+            projectStatus = PlotI18n.tr("plugin.road.build_in_progress_wait");
+            return;
+        }
+
         List<GenerateRoadCommand.BlockRecord> records =
             new ArrayList<>(lastGenerationResult.placementRecords.values());
         GenerateRoadCommand command = new GenerateRoadCommand(records);
-        CommandManager.getInstance().executeCommand(command);
-        clearPreview();
-        projectStatus = PlotI18n.tr("plugin.road.build_success");
+        projectStatus = PlotI18n.tr("plugin.road.build_in_progress", records.size());
+        command.executeScheduled(() -> {
+            CommandManager.getInstance().pushExecuted(command);
+            applyBuildResultStatus(command.getLastExecutionResult());
+            clearPreview();
+        });
+    }
+
+    private void applyBuildResultStatus(GenerateRoadCommand.ExecutionResult result) {
+        if (result == null || result.total() == 0) {
+            projectStatus = PlotI18n.tr("plugin.road.build_no_blocks");
+            return;
+        }
+        if (result.isFullSuccess()) {
+            projectStatus = PlotI18n.tr("plugin.road.build_success", result.success());
+            return;
+        }
+        if (result.isTotalFailure()) {
+            projectStatus = PlotI18n.tr("plugin.road.build_failed", result.total());
+            return;
+        }
+        projectStatus = PlotI18n.tr(
+            "plugin.road.build_partial",
+            result.success(),
+            result.total(),
+            result.failed());
     }
 
     private void onProjectLoaded(String filePath) {
