@@ -3,6 +3,7 @@ package com.plot.plugin.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
+import com.plot.plugin.road.RoadMaterialUtils;
 import java.io.*;
 import java.nio.file.*;
 import java.util.ArrayList;
@@ -18,8 +19,8 @@ public class RoadSystemConfig {
     private int roadWidth = 5;
     private boolean includeSidewalk = true;
     private int sidewalkWidth = 1;
-    private String selectedMaterial = "material.plot.concrete";
-    private String selectedSidewalkMaterial = "material.plot.concrete";
+    private String selectedMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private String selectedSidewalkMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String selectedPreset = "";
     private List<RoadPreset> presets;
     
@@ -78,6 +79,14 @@ public class RoadSystemConfig {
         if (config.presets == null) {
             config.initDefaultPresets();
         }
+        String normalizedMaterial = RoadMaterialUtils.normalizeStoredMaterial(config.selectedMaterial);
+        config.selectedMaterial = normalizedMaterial != null
+            ? normalizedMaterial
+            : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+        String normalizedSidewalk = RoadMaterialUtils.normalizeStoredMaterial(config.selectedSidewalkMaterial);
+        config.selectedSidewalkMaterial = normalizedSidewalk != null
+            ? normalizedSidewalk
+            : config.selectedMaterial;
     }
 
     /**

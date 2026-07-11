@@ -1017,13 +1017,7 @@ public class RoadGenerator {
     }
 
     public String getBlockIdFromMaterial(String material) {
-        return switch (material) {
-            case "material.plot.concrete", "混凝土" -> "minecraft:white_concrete";
-            case "material.plot.gravel", "砂砾" -> "minecraft:gravel";
-            case "material.plot.planks", "木板" -> "minecraft:oak_planks";
-            case "material.plot.stone", "石头" -> "minecraft:stone";
-            default -> "minecraft:stone";
-        };
+        return RoadMaterialUtils.resolveBlockId(material);
     }
     
     /**

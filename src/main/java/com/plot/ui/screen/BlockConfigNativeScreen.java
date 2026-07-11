@@ -1,6 +1,7 @@
 package com.plot.ui.screen;
 
 import com.plot.ui.component.BlockIconRenderer;
+import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.imgui.GuiOverlayRenderer;
@@ -22,6 +23,7 @@ import net.minecraft.util.Util;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -55,6 +57,13 @@ import java.util.stream.Collectors;
  *  8. 标题栏右侧 × 关闭按钮。
  */
 public class BlockConfigNativeScreen extends Screen {
+
+    public enum SelectionMode {
+        /** 多选调色盘（线转方块等工具使用） */
+        PALETTE,
+        /** 单选方块（道路材质等场景） */
+        SINGLE
+    }
 
     // ── 调色盘 ──────────────────────────────────────────────────────────────
     private static final int MAX_PALETTE_SLOTS = 14;
@@ -126,6 +135,9 @@ public class BlockConfigNativeScreen extends Screen {
     // ── 状态 ─────────────────────────────────────────────────────────────────
     private final BlockConfigManager configManager;
     private final Screen parent;
+    private final SelectionMode selectionMode;
+    private final Consumer<String> onBlockSelected;
+    private Block highlightedBlock;
 
     private BlockCategory currentCategory = BlockCategory.BUILDING_BLOCKS;
     /** 当前分类经过搜索过滤后的方块列表 */
@@ -192,9 +204,35 @@ public class BlockConfigNativeScreen extends Screen {
 
     // ─────────────────────────────────────────────────────────────────────────
     public BlockConfigNativeScreen(Screen parent) {
-        super(Text.translatable("block.plot.title"));
+        this(parent, SelectionMode.PALETTE, null, null);
+    }
+
+    public static BlockConfigNativeScreen forSingleSelection(
+            Screen parent,
+            String initialBlockId,
+            Consumer<String> onSelected) {
+        return new BlockConfigNativeScreen(parent, SelectionMode.SINGLE, initialBlockId, onSelected);
+    }
+
+    private BlockConfigNativeScreen(
+            Screen parent,
+            SelectionMode selectionMode,
+            String initialBlockId,
+            Consumer<String> onSelected) {
+        super(selectionMode == SelectionMode.SINGLE
+            ? Text.translatable("block.plot.single_select_title")
+            : Text.translatable("block.plot.title"));
         this.configManager = BlockConfigManager.getInstance();
         this.parent = parent;
+        this.selectionMode = selectionMode;
+        this.onBlockSelected = onSelected;
+        this.highlightedBlock = initialBlockId != null
+            ? RoadMaterialUtils.resolveBlock(initialBlockId)
+            : null;
+    }
+
+    private boolean isSingleSelectMode() {
+        return selectionMode == SelectionMode.SINGLE;
     }
 
     // =========================================================================
@@ -210,12 +248,14 @@ public class BlockConfigNativeScreen extends Screen {
 
         // 2. 确定 slotSize（先估算面板高度）
         int availH = Math.min(780, this.height - 20);
+        int paletteReserved = isSingleSelectMode() ? 0 : 60;
         // 预留：标题(14) + 搜索(14) + 分页(14) + 调色盘区(约60) + 按钮(14) + 各种间距(约60)
         int reservedH = TITLE_HEIGHT + SECTION_GAP
                 + SEARCH_H + SECTION_GAP
                 + BTN_H + SECTION_GAP   // 分页
-                + 60                     // 调色盘 + 计数 + 按钮 + margins
-                + BOTTOM_MARGIN;
+                + paletteReserved
+                + BTN_H + BOTTOM_MARGIN
+                + SECTION_GAP;
         int gridAreaH = availH - reservedH;
         int byHeight  = gridAreaH / GRID_ROWS;
         slotSize  = Math.max(18, Math.min(36, byHeight));
@@ -230,17 +270,26 @@ public class BlockConfigNativeScreen extends Screen {
         // 4. 面板高度（自顶向下推算后确定）
         int gridH     = GRID_ROWS * slotSize + (GRID_ROWS - 1) * SLOT_GAP;
         int paletteRowH = slotSize;
-        // 各区高度总和
-        panelH = TITLE_HEIGHT + SECTION_GAP          // 标题
-                + SEARCH_H + SECTION_GAP              // 搜索
-                + gridH + SECTION_GAP                 // 网格
-                + BTN_H + SECTION_GAP                 // 分页
-                + 2 + SECTION_GAP                     // 分隔线
-                + 9 + 2                               // 调色盘标签行（文字+提示）
-                + paletteRowH + SECTION_GAP           // 调色盘槽位
-                + 9 + SECTION_GAP                     // 计数行
-                + BTN_H                               // 底部按钮
-                + BOTTOM_MARGIN;
+        if (isSingleSelectMode()) {
+            panelH = TITLE_HEIGHT + SECTION_GAP
+                    + SEARCH_H + SECTION_GAP
+                    + gridH + SECTION_GAP
+                    + BTN_H + SECTION_GAP
+                    + BTN_H
+                    + BOTTOM_MARGIN;
+        } else {
+            // 各区高度总和
+            panelH = TITLE_HEIGHT + SECTION_GAP          // 标题
+                    + SEARCH_H + SECTION_GAP              // 搜索
+                    + gridH + SECTION_GAP                 // 网格
+                    + BTN_H + SECTION_GAP                 // 分页
+                    + 2 + SECTION_GAP                     // 分隔线
+                    + 9 + 2                               // 调色盘标签行（文字+提示）
+                    + paletteRowH + SECTION_GAP           // 调色盘槽位
+                    + 9 + SECTION_GAP                     // 计数行
+                    + BTN_H                               // 底部按钮
+                    + BOTTOM_MARGIN;
+        }
         panelH = Math.min(panelH, this.height - 16);
 
         // 5. 居中放置面板
@@ -302,30 +351,40 @@ public class BlockConfigNativeScreen extends Screen {
         // 侧边栏总高度（覆盖搜索+网格+分页）
         sidebarH = cy - sidebarY - SECTION_GAP;
 
-        // 分隔线 / 调色盘标签
-        paletteAreaY = cy;
-        cy += 2 + SECTION_GAP; // 分隔线本身占2px
+        if (!isSingleSelectMode()) {
+            // 分隔线 / 调色盘标签
+            paletteAreaY = cy;
+            cy += 2 + SECTION_GAP; // 分隔线本身占2px
 
-        // 调色盘标签文字在 renderPalette 中相对 paletteY 计算：使用字体高度控制与槽位间距
-        cy += this.textRenderer.fontHeight + 1;
-        paletteX = panelX + MARGIN;
-        paletteY = cy;
-        cy += paletteRowH + SECTION_GAP;
+            // 调色盘标签文字在 renderPalette 中相对 paletteY 计算：使用字体高度控制与槽位间距
+            cy += this.textRenderer.fontHeight + 1;
+            paletteX = panelX + MARGIN;
+            paletteY = cy;
+            cy += paletteRowH + SECTION_GAP;
 
-        // 计数行
-        paletteCountY = cy;
+            // 计数行
+            paletteCountY = cy;
+        }
 
         // 底部按钮（宽度按文字自适应，保持按钮更紧凑）
         btnY = panelY + panelH - BOTTOM_MARGIN - BTN_H;
-        btnApplyW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.apply")) + BTN_TEXT_PAD_X * 2);
         btnCancelW = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.cancel")) + BTN_TEXT_PAD_X * 2);
-        btnClearW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.clear")) + BTN_TEXT_PAD_X * 2);
+        if (isSingleSelectMode()) {
+            btnCancelX = panelX + panelW - MARGIN - btnCancelW;
+            btnApplyW = 0;
+            btnClearW = 0;
+            btnApplyX = btnCancelX;
+            btnClearX = btnCancelX;
+        } else {
+            btnApplyW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.apply")) + BTN_TEXT_PAD_X * 2);
+            btnClearW  = Math.max(BTN_MIN_W, this.textRenderer.getWidth(PlotI18n.tr("block.plot.clear")) + BTN_TEXT_PAD_X * 2);
 
-        // 三个按钮右对齐
-        int totalBtnW = btnApplyW + btnCancelW + btnClearW + BTN_GAP * 2;
-        btnApplyX  = panelX + panelW - MARGIN - totalBtnW;
-        btnCancelX = btnApplyX + btnApplyW + BTN_GAP;
-        btnClearX  = btnCancelX + btnCancelW + BTN_GAP;
+            // 三个按钮右对齐
+            int totalBtnW = btnApplyW + btnCancelW + btnClearW + BTN_GAP * 2;
+            btnApplyX  = panelX + panelW - MARGIN - totalBtnW;
+            btnCancelX = btnApplyX + btnApplyW + BTN_GAP;
+            btnClearX  = btnCancelX + btnCancelW + BTN_GAP;
+        }
 
         // 标题栏关闭按钮
         closeBtnW = 18;
@@ -337,8 +396,10 @@ public class BlockConfigNativeScreen extends Screen {
         buildCategoryTabLayouts();
 
         // 9. 同步调色盘数据
-        palette.clear();
-        palette.addAll(configManager.getPaletteBlocksSnapshot());
+        if (!isSingleSelectMode()) {
+            palette.clear();
+            palette.addAll(configManager.getPaletteBlocksSnapshot());
+        }
 
         // 10. 应用搜索过滤
         applySearchFilter();
@@ -424,8 +485,12 @@ public class BlockConfigNativeScreen extends Screen {
         renderSearchDecoration(context);
         renderGrid(context, mouseX, mouseY);
         renderPager(context, mouseX, mouseY, delta);
-        renderPalette(context, mouseX, mouseY);
-        renderBottomButtons(context, mouseX, mouseY);
+        if (isSingleSelectMode()) {
+            renderSingleSelectFooter(context, mouseX, mouseY);
+        } else {
+            renderPalette(context, mouseX, mouseY);
+            renderBottomButtons(context, mouseX, mouseY);
+        }
         renderHoverTooltip(context, mouseX, mouseY);
 
         if (dragIndex >= 0) {
@@ -563,27 +628,29 @@ public class BlockConfigNativeScreen extends Screen {
 
             boolean hover      = isInside(mouseX, mouseY, x, y, slotSize, slotSize);
             boolean hasBlock   = idx < filteredBlocks.size();
-            boolean inPalette  = hasBlock && palette.contains(filteredBlocks.get(idx));
+            Block block = hasBlock ? filteredBlocks.get(idx) : null;
+            boolean inPalette  = !isSingleSelectMode() && hasBlock && palette.contains(block);
+            boolean selected   = isSingleSelectMode() && hasBlock
+                && highlightedBlock != null && block.equals(highlightedBlock);
 
             // 背景色
-            int bg = inPalette ? COLOR_SLOT_SELECTED
+            int bg = (inPalette || selected) ? COLOR_SLOT_SELECTED
                     : (hover && hasBlock ? COLOR_SLOT_HOVER : COLOR_SLOT_NORMAL);
             context.fill(x, y, x + slotSize, y + slotSize, bg);
 
             // 边框（已选中用绿色边框）
             drawBorder(context, x, y, slotSize, slotSize,
-                    inPalette ? COLOR_SEL_BORDER : COLOR_SLOT_BORDER);
+                    (inPalette || selected) ? COLOR_SEL_BORDER : COLOR_SLOT_BORDER);
 
             if (!hasBlock) continue;
 
-            Block block = filteredBlocks.get(idx);
             ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
             if (!stack.isEmpty()) {
                 BlockIconRenderer.tryDrawItem(context, stack, x + slotInset, y + slotInset);
             }
 
             // 已在调色盘：右下角绘制小对勾
-            if (inPalette) {
+            if (inPalette || selected) {
                 int cx = x + slotSize - 5;
                 int cy = y + slotSize - 5;
                 context.fill(cx,     cy + 2, cx + 1, cy + 3, 0xFF80DD80);
@@ -680,6 +747,15 @@ public class BlockConfigNativeScreen extends Screen {
         int ty = y + (BlockConfigNativeScreen.BTN_H - this.textRenderer.fontHeight) / 2 + 1;
         context.drawText(this.textRenderer, text, tx, ty,
                 enabled ? (hover ? 0xFFFFFFFF : 0xFFCCCCCC) : COLOR_TEXT_HINT, false);
+    }
+
+    /** 单选模式底部提示与取消按钮。 */
+    private void renderSingleSelectFooter(DrawContext context, int mouseX, int mouseY) {
+        String hint = PlotI18n.tr("block.plot.single_select_hint");
+        int hintY = pagerY + BTN_H + SECTION_GAP;
+        context.drawText(this.textRenderer, hint, contentX, hintY, COLOR_TEXT_HINT, false);
+        drawMainButton(context, btnCancelX, btnY, btnCancelW, PlotI18n.tr("block.plot.cancel"),
+                COLOR_BTN_CANCEL, mouseX, mouseY);
     }
 
     /** 调色盘区（含标签/操作提示/槽位/计数）。 */
@@ -877,7 +953,7 @@ public class BlockConfigNativeScreen extends Screen {
         if (handleGridClick(mx, my, btn)) return true;
 
         // 调色盘（拖拽起点）
-        if (btn == 0 && isInside(mx, my, paletteX, paletteY,
+        if (!isSingleSelectMode() && btn == 0 && isInside(mx, my, paletteX, paletteY,
                 MAX_PALETTE_SLOTS * (slotSize + SLOT_GAP), slotSize)) {
             int idx = getHoveredPaletteIndex(mx, my);
             if (idx >= 0 && idx < palette.size()) {
@@ -885,7 +961,7 @@ public class BlockConfigNativeScreen extends Screen {
                 return true;
             }
         }
-        if (btn == 1) {
+        if (!isSingleSelectMode() && btn == 1) {
             // 右键直接移除
             int idx = getHoveredPaletteIndex(mx, my);
             if (idx >= 0 && idx < palette.size()) {
@@ -906,9 +982,16 @@ public class BlockConfigNativeScreen extends Screen {
         }
 
         // 底部按钮
-        if (btn == 0 && isInside(mx, my, btnApplyX,  btnY, btnApplyW,  BTN_H)) { applyAndClose(); return true; }
-        if (btn == 0 && isInside(mx, my, btnCancelX, btnY, btnCancelW, BTN_H)) { close();         return true; }
-        if (btn == 0 && isInside(mx, my, btnClearX,  btnY, btnClearW,  BTN_H)) { palette.clear(); return true; }
+        if (isSingleSelectMode()) {
+            if (btn == 0 && isInside(mx, my, btnCancelX, btnY, btnCancelW, BTN_H)) {
+                close();
+                return true;
+            }
+        } else {
+            if (btn == 0 && isInside(mx, my, btnApplyX,  btnY, btnApplyW,  BTN_H)) { applyAndClose(); return true; }
+            if (btn == 0 && isInside(mx, my, btnCancelX, btnY, btnCancelW, BTN_H)) { close();         return true; }
+            if (btn == 0 && isInside(mx, my, btnClearX,  btnY, btnClearW,  BTN_H)) { palette.clear(); return true; }
+        }
 
         return super.mouseClicked(click, handled);
     }
@@ -1060,6 +1143,14 @@ public class BlockConfigNativeScreen extends Screen {
             if (!isInside(mx, my, x, y, slotSize, slotSize)) continue;
 
             Block block = filteredBlocks.get(idx);
+            if (isSingleSelectMode()) {
+                highlightedBlock = block;
+                if (onBlockSelected != null) {
+                    onBlockSelected.accept(Registries.BLOCK.getId(block).toString());
+                }
+                close();
+                return true;
+            }
             if (palette.contains(block)) {
                 // 已在调色盘，点击不重复添加（高亮已表示选中）
                 return true;

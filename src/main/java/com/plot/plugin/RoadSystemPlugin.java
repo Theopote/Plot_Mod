@@ -37,6 +37,11 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.ui.screen.BlockConfigNativeScreen;
+import com.plot.ui.screen.PlotScreen;
+import com.plot.ui.screen.PlotScreenState;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,16 +55,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class RoadSystemPlugin extends Plugin {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadSystemPlugin");
     private static final String DEFAULT_NETWORK_FILE = "default.json";
-    private static final List<String> MATERIAL_OPTIONS = List.of(
-        "material.plot.concrete",
-        "material.plot.stone",
-        "material.plot.gravel",
-        "material.plot.planks"
-    );
 
     private RoadSystemConfig config;
     private RoadNetwork network = new RoadNetwork();
@@ -428,12 +428,12 @@ public class RoadSystemPlugin extends Plugin {
             networkHistory.push(network);
         }
 
-        renderMaterialCombo(
+        renderBlockMaterialPicker(
             "##edge_road_material",
             PlotI18n.tr("plugin.road.material"),
-            current.getMaterial(),
-            config.getSelectedMaterial(),
-            material -> current.setMaterial(material)
+            current.getMaterial() != null ? current.getMaterial() : config.getSelectedMaterial(),
+            material -> current.setMaterial(material),
+            true
         );
 
         ImBoolean edgeSidewalkRef = new ImBoolean(current.getEffectiveIncludeSidewalk(config));
@@ -451,12 +451,14 @@ public class RoadSystemPlugin extends Plugin {
                 networkHistory.push(network);
             }
 
-            renderMaterialCombo(
+            renderBlockMaterialPicker(
                 "##edge_sidewalk_material",
                 PlotI18n.tr("plugin.road.sidewalk_material"),
-                current.getSidewalkMaterial(),
-                config.getSelectedMaterial(),
-                material -> current.setSidewalkMaterial(material)
+                current.getSidewalkMaterial() != null
+                    ? current.getSidewalkMaterial()
+                    : config.getSelectedSidewalkMaterial(),
+                material -> current.setSidewalkMaterial(material),
+                true
             );
         }
 
@@ -574,26 +576,41 @@ public class RoadSystemPlugin extends Plugin {
         void set(String material);
     }
 
-    private void renderMaterialCombo(
-            String comboId,
+    private void renderBlockMaterialPicker(
+            String buttonId,
             String label,
             String currentValue,
-            String fallbackValue,
-            MaterialSetter setter) {
-        String effectiveMaterial = currentValue != null ? currentValue : fallbackValue;
-        String preview = PlotI18n.tr(effectiveMaterial);
-        if (ImGui.beginCombo(comboId, preview)) {
-            for (String material : MATERIAL_OPTIONS) {
-                boolean selected = material.equals(effectiveMaterial);
-                if (ImGui.selectable(PlotI18n.tr(material), selected)) {
+            MaterialSetter setter,
+            boolean pushHistoryOnChange) {
+        String displayName = RoadMaterialUtils.getDisplayName(currentValue);
+        if (ImGui.button(displayName + buttonId, ImGui.getContentRegionAvailX() * 0.55f, 0)) {
+            openBlockPicker(currentValue, blockId -> {
+                if (pushHistoryOnChange) {
                     networkHistory.push(network);
-                    setter.set(material);
                 }
-            }
-            ImGui.endCombo();
+                setter.set(blockId);
+            });
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
         ImGui.sameLine();
         ImGui.textColored((int) 0xFF808080FFL, label);
+    }
+
+    private void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            LOGGER.warn("MinecraftClient 不可用，无法打开方块选择器");
+            return;
+        }
+        client.execute(() -> {
+            if (client.currentScreen instanceof PlotScreen) {
+                PlotScreenState.markSwitchingToPlotSubScreen();
+            }
+            client.setScreen(BlockConfigNativeScreen.forSingleSelection(
+                client.currentScreen, currentBlockId, onSelected));
+        });
     }
 
     private void renderGenerateTab() {
@@ -711,19 +728,21 @@ public class RoadSystemPlugin extends Plugin {
             config.setIncludeSidewalk(adoptIncludeSidewalkRef.get());
         }
 
-        renderConfigMaterialCombo(
+        renderBlockMaterialPicker(
             "##default_road_material",
             PlotI18n.tr("plugin.road.material"),
             config.getSelectedMaterial(),
-            config::setSelectedMaterial
+            config::setSelectedMaterial,
+            false
         );
 
         if (config.isIncludeSidewalk()) {
-            renderConfigMaterialCombo(
+            renderBlockMaterialPicker(
                 "##default_sidewalk_material",
                 PlotI18n.tr("plugin.road.sidewalk_material"),
                 config.getSelectedSidewalkMaterial(),
-                config::setSelectedSidewalkMaterial
+                config::setSelectedSidewalkMaterial,
+                false
             );
         }
 
@@ -803,25 +822,6 @@ public class RoadSystemPlugin extends Plugin {
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), drainageRef)) {
             config.setIncludeDrainage(drainageRef.get());
         }
-    }
-
-    private void renderConfigMaterialCombo(
-            String comboId,
-            String label,
-            String currentValue,
-            MaterialSetter setter) {
-        String preview = PlotI18n.tr(currentValue);
-        if (ImGui.beginCombo(comboId, preview)) {
-            for (String material : MATERIAL_OPTIONS) {
-                boolean selected = material.equals(currentValue);
-                if (ImGui.selectable(PlotI18n.tr(material), selected)) {
-                    setter.set(material);
-                }
-            }
-            ImGui.endCombo();
-        }
-        ImGui.sameLine();
-        ImGui.textColored((int) 0xFF808080FFL, label);
     }
 
     private void adoptSelectedShape() {

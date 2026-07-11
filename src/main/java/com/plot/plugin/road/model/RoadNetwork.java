@@ -3,6 +3,7 @@ package com.plot.plugin.road.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadMaterialUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -274,10 +275,10 @@ public class RoadNetwork {
                     edgeData.endNodeId,
                     points,
                     edgeData.width,
-                    edgeData.material,
+                    RoadMaterialUtils.normalizeStoredMaterial(edgeData.material),
                     edgeData.includeSidewalk,
                     edgeData.sidewalkWidth,
-                    edgeData.sidewalkMaterial,
+                    RoadMaterialUtils.normalizeStoredMaterial(edgeData.sidewalkMaterial),
                     edgeData.streetlightSpacing,
                     edgeData.maxSlope,
                     overrides
