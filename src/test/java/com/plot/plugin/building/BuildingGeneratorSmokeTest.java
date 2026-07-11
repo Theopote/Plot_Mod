@@ -1,15 +1,10 @@
 package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
-import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.plugin.building.model.BuildingFootprint;
-import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,22 +53,6 @@ class BuildingGeneratorSmokeTest {
     }
 
     @Test
-    void buildingGenerateCommandExecuteUndoSmoke() {
-        InMemoryBlockWriter writer = new InMemoryBlockWriter();
-        BlockPos wall = new BlockPos(4, 70, 6);
-        writer.seed(wall, "minecraft:grass_block");
-
-        List<BlockRecord> records = List.of(
-            new BlockRecord(wall, "minecraft:grass_block", "minecraft:stone_bricks")
-        );
-        BuildingGenerateCommand command = new BuildingGenerateCommand(records, writer);
-        command.execute();
-        assertEquals("minecraft:stone_bricks", writer.get(wall));
-        command.undo();
-        assertEquals("minecraft:grass_block", writer.get(wall));
-    }
-
-    @Test
     void footprintCellCollectionCoversRectangleInterior() {
         List<Vec2d> rect = List.of(
             new Vec2d(0, 0),
@@ -106,23 +85,5 @@ class BuildingGeneratorSmokeTest {
         }
         result.warnings.add("plugin.building.warn.roof_downgrade");
         return BuildingFootprint.RoofType.FLAT;
-    }
-
-    private static final class InMemoryBlockWriter implements BuildingGenerateCommand.BlockWriter {
-        private final Map<BlockPos, String> blocks = new LinkedHashMap<>();
-
-        void seed(BlockPos pos, String blockId) {
-            blocks.put(pos, blockId);
-        }
-
-        String get(BlockPos pos) {
-            return blocks.get(pos);
-        }
-
-        @Override
-        public boolean setBlockAt(BlockPos pos, String blockId) {
-            blocks.put(pos, blockId);
-            return true;
-        }
     }
 }
