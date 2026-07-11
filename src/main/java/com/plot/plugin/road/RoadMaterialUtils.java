@@ -26,18 +26,24 @@ public final class RoadMaterialUtils {
         if (legacy != null) {
             return legacy;
         }
-        return toValidBlockId(material);
+        if (looksLikeBlockId(material)) {
+            return material;
+        }
+        return null;
     }
 
     /**
      * 解析为可用于生成的 block ID，无效时回退到默认石头。
      */
     public static String resolveBlockId(String material) {
-        if (material == null || material.isBlank()) {
+        String normalized = normalizeStoredMaterial(material);
+        if (normalized == null) {
             return DEFAULT_FALLBACK_BLOCK;
         }
-        String normalized = normalizeStoredMaterial(material);
-        if (normalized != null && isRegisteredBlock(normalized)) {
+        if (isRegisteredBlock(normalized)) {
+            return normalized;
+        }
+        if (looksLikeBlockId(normalized)) {
             return normalized;
         }
         return DEFAULT_FALLBACK_BLOCK;
@@ -83,22 +89,6 @@ public final class RoadMaterialUtils {
         };
     }
 
-    private static String toValidBlockId(String material) {
-        if (isRegisteredBlock(material)) {
-            return material;
-        }
-        if (!material.contains(":")) {
-            String namespaced = "minecraft:" + material;
-            if (isRegisteredBlock(namespaced)) {
-                return namespaced;
-            }
-        }
-        if (looksLikeBlockId(material)) {
-            return material;
-        }
-        return material;
-    }
-
     private static boolean looksLikeBlockId(String blockId) {
         if (blockId == null || blockId.isBlank()) {
             return false;
@@ -108,12 +98,13 @@ public final class RoadMaterialUtils {
     }
 
     private static boolean isRegisteredBlock(String blockId) {
+        if (!looksLikeBlockId(blockId)) {
+            return false;
+        }
         try {
-            Identifier id = Identifier.of(blockId);
-            return Registries.BLOCK.containsId(id);
+            return Registries.BLOCK.containsId(Identifier.of(blockId));
         } catch (Throwable e) {
-            // 单元测试或非游戏环境：注册表未初始化时，按 ID 格式接受
-            return looksLikeBlockId(blockId);
+            return false;
         }
     }
 }
