@@ -1,6 +1,7 @@
 package com.plot;
 
 import com.plot.core.command.CommandManager;
+import com.plot.core.plugin.PluginManager;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
 import com.plot.ui.canvas.Canvas;
@@ -20,6 +21,7 @@ import com.plot.utils.PlotI18n;
 import com.plot.infrastructure.event.block.GhostBlockWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
@@ -125,6 +127,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             // 8. 注册键绑定和客户端事件
             LOGGER.debug("步骤8: 注册键绑定和事件");
             registerKeyBindingsAndEvents();
+            registerClientShutdownHooks();
             
             // 9. 延迟初始化方块图标渲染器（等待客户端完全启动）
             LOGGER.debug("步骤9: 注册BlockIconRenderer延迟初始化");
@@ -310,6 +313,20 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             LOGGER.error("注册键绑定和事件失败: {}", e.getMessage(), e);
             throw new RuntimeException(PlotI18n.error("error.plot.init.keybindings_failed"), e);
         }
+    }
+
+    /**
+     * 客户端退出时卸载插件，触发 onDisable 以持久化各插件配置。
+     */
+    private void registerClientShutdownHooks() {
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            try {
+                LOGGER.info("客户端关闭，卸载插件并保存配置...");
+                PluginManager.getInstance().unloadAll();
+            } catch (Exception e) {
+                LOGGER.error("插件卸载失败: {}", e.getMessage(), e);
+            }
+        });
     }
 
     /**
