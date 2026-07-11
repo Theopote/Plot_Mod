@@ -310,6 +310,12 @@ public class RoadSystemConfig {
         if (preset == null) {
             return;
         }
+        String resolvedRoadMaterial = preset.roadMaterial != null && !preset.roadMaterial.isBlank()
+            ? preset.roadMaterial
+            : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+        String resolvedSidewalkMaterial = preset.sidewalkMaterial != null && !preset.sidewalkMaterial.isBlank()
+            ? preset.sidewalkMaterial
+            : resolvedRoadMaterial;
         this.roadWidth = preset.width;
         this.includeSidewalk = preset.hasSidewalk;
         this.sidewalkWidth = preset.hasSidewalk ? Math.max(1, preset.sidewalkWidth) : sidewalkWidth;
@@ -319,12 +325,8 @@ public class RoadSystemConfig {
         if (preset.maxSlope > 0f) {
             this.maxSlope = preset.maxSlope;
         }
-        if (preset.roadMaterial != null && !preset.roadMaterial.isBlank()) {
-            this.selectedMaterial = preset.roadMaterial;
-        }
-        if (preset.sidewalkMaterial != null && !preset.sidewalkMaterial.isBlank()) {
-            this.selectedSidewalkMaterial = preset.sidewalkMaterial;
-        }
+        this.selectedMaterial = resolvedRoadMaterial;
+        this.selectedSidewalkMaterial = resolvedSidewalkMaterial;
         this.selectedPreset = preset.id;
     }
 
