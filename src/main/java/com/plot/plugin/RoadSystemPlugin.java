@@ -6,6 +6,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
+import imgui.type.ImString;
 
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.Icons;
@@ -37,6 +38,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
 import com.plot.ui.screen.BlockConfigNativeScreen;
@@ -55,7 +57,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class RoadSystemPlugin extends Plugin {
@@ -73,8 +77,26 @@ public class RoadSystemPlugin extends Plugin {
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
     private final RoadPathPickSession pathPickSession = new RoadPathPickSession();
     private Shape selectedPath = null;
-    private String selectedEdgeId = "";
+    private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
+    private String lastSelectedEdgeId = "";
     private String projectStatus = "";
+
+    private final ImString edgeSearchBuffer = new ImString(128);
+    private RoadEdgeListHelper.SortMode edgeSortMode = RoadEdgeListHelper.SortMode.INSERTION;
+    private boolean coordFilterEnabled = false;
+    private final float[] coordMinX = {0f};
+    private final float[] coordMaxX = {100f};
+    private final float[] coordMinY = {0f};
+    private final float[] coordMaxY = {100f};
+
+    private int lastBatchSelectionSize = -1;
+    private int batchEditWidth = 5;
+    private String batchEditMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private String batchEditSidewalkMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private final ImBoolean batchIncludeSidewalkRef = new ImBoolean(true);
+    private boolean batchIncludeSidewalk = true;
+    private int batchEditSidewalkWidth = 1;
+    private float batchEditMaxSlope = 10f;
 
     private RoadGenerator.RoadGenerationResult lastGenerationResult = null;
     private String currentNetworkFile = DEFAULT_NETWORK_FILE;
@@ -213,40 +235,16 @@ public class RoadSystemPlugin extends Plugin {
         RoadNetworkOverviewRenderer.render(
             network,
             networkBuilder,
-            selectedEdgeId,
-            edgeId -> selectedEdgeId = edgeId
+            selectedEdgeIds,
+            this::handleEdgeSelect
         );
 
         renderNodeElevationEditor();
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
-        ImGui.beginChild("edge_list", 0, 180, true);
-        for (RoadEdge edge : network.getEdges().values()) {
-            RoadNode start = network.getNode(edge.getStartNodeId());
-            RoadNode end = network.getNode(edge.getEndNodeId());
-            String label = String.format("(%.0f,%.0f) -> (%.0f,%.0f), %.1fm",
-                start != null ? start.getPosition().x : 0,
-                start != null ? start.getPosition().y : 0,
-                end != null ? end.getPosition().x : 0,
-                end != null ? end.getPosition().y : 0,
-                edge.getLength());
-
-            boolean selected = edge.getId().equals(selectedEdgeId);
-            if (ImGui.selectable(label + "##" + edge.getId(), selected)) {
-                selectedEdgeId = edge.getId();
-            }
-            ImGui.sameLine();
-            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
-            if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##del_" + edge.getId())) {
-                pendingDeleteEdgeId = edge.getId();
-                deleteConfirmPending = true;
-            }
-            ImGui.popStyleColor(3);
-        }
-        ImGui.endChild();
+        renderEdgeListToolbar("##overview");
+        renderFilteredEdgeList(180, true, "edge_list");
         renderDeleteConfirmPopup();
     }
 
@@ -313,8 +311,9 @@ public class RoadSystemPlugin extends Plugin {
                 if (!pendingDeleteEdgeId.isEmpty()) {
                     networkHistory.push(network);
                     network.removeEdge(pendingDeleteEdgeId);
-                    if (pendingDeleteEdgeId.equals(selectedEdgeId)) {
-                        selectedEdgeId = "";
+                    selectedEdgeIds.remove(pendingDeleteEdgeId);
+                    if (pendingDeleteEdgeId.equals(lastSelectedEdgeId)) {
+                        lastSelectedEdgeId = getPrimarySelectedEdgeId();
                     }
                 }
                 pendingDeleteEdgeId = "";
@@ -390,43 +389,28 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private void renderEditTab() {
-        List<RoadEdge> edges = new ArrayList<>(network.getEdges().values());
-        if (edges.isEmpty()) {
+        List<RoadEdge> allEdges = new ArrayList<>(network.getEdges().values());
+        if (allEdges.isEmpty()) {
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_edges"));
             return;
         }
 
-        if (selectedEdgeId.isEmpty() || network.getEdge(selectedEdgeId) == null) {
-            selectedEdgeId = edges.getFirst().getId();
-        }
+        ensureSelectionValid();
+        ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
+        renderEdgeListToolbar("##edit");
+        renderFilteredEdgeList(120, false, "edit_edge_list");
 
-        String preview = PlotI18n.tr("plugin.road.select_edge");
-        RoadEdge current = network.getEdge(selectedEdgeId);
-        if (current != null) {
-            preview = String.format("%.1fm##%s", current.getLength(), current.getId());
-        }
+        renderBatchEditPanel();
 
-        if (ImGui.beginCombo("##edge_select", preview)) {
-            for (RoadEdge edge : edges) {
-                RoadNode start = network.getNode(edge.getStartNodeId());
-                RoadNode end = network.getNode(edge.getEndNodeId());
-                if (start == null || end == null) {
-                    continue;
-                }
-                String label = String.format("(%.0f,%.0f)->(%.0f,%.0f) %.1fm",
-                    start.getPosition().x, start.getPosition().y,
-                    end.getPosition().x, end.getPosition().y,
-                    edge.getLength());
-                if (ImGui.selectable(label, edge.getId().equals(selectedEdgeId))) {
-                    selectedEdgeId = edge.getId();
-                }
-            }
-            ImGui.endCombo();
-        }
-
+        ImGui.separator();
+        String primaryId = getPrimarySelectedEdgeId();
+        RoadEdge current = network.getEdge(primaryId);
         if (current == null) {
             return;
         }
+
+        ImGui.text(PlotI18n.tr("plugin.road.single_edge_edit",
+            RoadEdgeListHelper.formatEdgeLabel(network, current)));
 
         int[] width = {current.getWidth() != null ? current.getWidth() : config.getRoadWidth()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##edge_width", width, 3, 20, "%d")) {
@@ -796,6 +780,7 @@ public class RoadSystemPlugin extends Plugin {
         )) {
             config.setBridgeThreshold(bridgeThreshold[0]);
         }
+        renderEngineeringTooltip("hint.plot.road.bridge_threshold");
 
         int[] tunnelThreshold = {config.getTunnelThreshold()};
         if (ImGui.sliderInt(
@@ -807,11 +792,13 @@ public class RoadSystemPlugin extends Plugin {
         )) {
             config.setTunnelThreshold(tunnelThreshold[0]);
         }
+        renderEngineeringTooltip("hint.plot.road.tunnel_threshold");
 
         ImBoolean shoulderRef = new ImBoolean(config.isIncludeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), shoulderRef)) {
             config.setIncludeShoulder(shoulderRef.get());
         }
+        renderEngineeringTooltip("hint.plot.road.include_shoulder");
 
         if (config.isIncludeShoulder()) {
             int[] shoulderWidth = {config.getShoulderWidth()};
@@ -824,12 +811,263 @@ public class RoadSystemPlugin extends Plugin {
             )) {
                 config.setShoulderWidth(shoulderWidth[0]);
             }
+            renderEngineeringTooltip("hint.plot.road.shoulder_width");
         }
 
         ImBoolean drainageRef = new ImBoolean(config.isIncludeDrainage());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), drainageRef)) {
             config.setIncludeDrainage(drainageRef.get());
         }
+        renderEngineeringTooltip("hint.plot.road.include_drainage");
+    }
+
+    private void renderEngineeringTooltip(String i18nKey) {
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(i18nKey));
+        }
+    }
+
+    private void renderEdgeListToolbar(String idPrefix) {
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.62f);
+        ImGui.inputTextWithHint(
+            idPrefix + "_edge_search",
+            PlotI18n.tr("plugin.road.edge_search_hint"),
+            edgeSearchBuffer);
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo(idPrefix + "_edge_sort", edgeSortMode.label())) {
+            for (RoadEdgeListHelper.SortMode mode : RoadEdgeListHelper.SortMode.values()) {
+                boolean selected = mode == edgeSortMode;
+                if (ImGui.selectable(mode.label(), selected)) {
+                    edgeSortMode = mode;
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        ImBoolean coordFilterRef = new ImBoolean(coordFilterEnabled);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.coord_filter"), coordFilterRef)) {
+            coordFilterEnabled = coordFilterRef.get();
+        }
+        if (coordFilterEnabled) {
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.24f);
+            ImGui.dragFloat(idPrefix + "_min_x", coordMinX, 1f, -100000f, 100000f, "X>=%.0f");
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.24f);
+            ImGui.dragFloat(idPrefix + "_max_x", coordMaxX, 1f, -100000f, 100000f, "X<=%.0f");
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.24f);
+            ImGui.dragFloat(idPrefix + "_min_y", coordMinY, 1f, -100000f, 100000f, "Y>=%.0f");
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            ImGui.dragFloat(idPrefix + "_max_y", coordMaxY, 1f, -100000f, 100000f, "Y<=%.0f");
+        }
+
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.select_all_edges") + idPrefix)) {
+            selectedEdgeIds.clear();
+            selectedEdgeIds.addAll(network.getEdges().keySet());
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.clear_selection") + idPrefix)) {
+            selectedEdgeIds.clear();
+            lastSelectedEdgeId = "";
+            ensureSelectionValid();
+        }
+        ImGui.sameLine();
+        ImGui.textColored((int) 0xFF808080FFL,
+            PlotI18n.tr("plugin.road.selection_count", selectedEdgeIds.size(), filteredEdges().size()));
+    }
+
+    private void renderFilteredEdgeList(float height, boolean showDelete, String childId) {
+        ensureSelectionValid();
+        List<RoadEdge> edges = filteredEdges();
+        ImGui.beginChild(childId, 0, height, true);
+        if (edges.isEmpty()) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_empty"));
+        }
+        for (RoadEdge edge : edges) {
+            String label = RoadEdgeListHelper.formatEdgeLabel(network, edge);
+            boolean selected = selectedEdgeIds.contains(edge.getId());
+            if (ImGui.selectable(label + "##" + edge.getId(), selected)) {
+                handleEdgeSelect(edge.getId());
+            }
+            if (showDelete) {
+                ImGui.sameLine();
+                ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
+                ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
+                if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##del_" + edge.getId())) {
+                    pendingDeleteEdgeId = edge.getId();
+                    deleteConfirmPending = true;
+                }
+                ImGui.popStyleColor(3);
+            }
+        }
+        ImGui.endChild();
+    }
+
+    private void renderBatchEditPanel() {
+        if (selectedEdgeIds.isEmpty()) {
+            return;
+        }
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.batch_edit"))) {
+            return;
+        }
+
+        syncBatchEditDefaults();
+        ImGui.textColored((int) 0xFF808080FFL,
+            PlotI18n.tr("plugin.road.batch_edit_hint", selectedEdgeIds.size()));
+
+        int[] width = {batchEditWidth};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##batch_width", width, 3, 20, "%d")) {
+            batchEditWidth = width[0];
+        }
+
+        renderBlockMaterialPicker(
+            "##batch_road_material",
+            PlotI18n.tr("plugin.road.material"),
+            batchEditMaterial,
+            material -> batchEditMaterial = material,
+            false
+        );
+
+        batchIncludeSidewalkRef.set(batchIncludeSidewalk);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##batch_sw", batchIncludeSidewalkRef)) {
+            batchIncludeSidewalk = batchIncludeSidewalkRef.get();
+        }
+
+        if (batchIncludeSidewalk) {
+            int[] sidewalkWidth = {batchEditSidewalkWidth};
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##batch_sw_w",
+                sidewalkWidth, 1, 3, "%d")) {
+                batchEditSidewalkWidth = sidewalkWidth[0];
+            }
+
+            renderBlockMaterialPicker(
+                "##batch_sidewalk_material",
+                PlotI18n.tr("plugin.road.sidewalk_material"),
+                batchEditSidewalkMaterial,
+                material -> batchEditSidewalkMaterial = material,
+                false
+            );
+        }
+
+        float[] maxSlope = {batchEditMaxSlope};
+        if (ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.max_slope", maxSlope[0]) + "##batch_slope",
+            maxSlope, 0.0f, 45.0f, "%.1f%%")) {
+            batchEditMaxSlope = maxSlope[0];
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {
+            applyBatchEdit();
+        }
+    }
+
+    private void syncBatchEditDefaults() {
+        if (selectedEdgeIds.size() == lastBatchSelectionSize) {
+            return;
+        }
+        lastBatchSelectionSize = selectedEdgeIds.size();
+        RoadEdge primary = network.getEdge(getPrimarySelectedEdgeId());
+        if (primary == null) {
+            return;
+        }
+        batchEditWidth = primary.getWidth() != null ? primary.getWidth() : config.getRoadWidth();
+        batchEditMaterial = primary.getMaterial() != null
+            ? primary.getMaterial()
+            : config.getSelectedMaterial();
+        batchIncludeSidewalk = primary.getEffectiveIncludeSidewalk(config);
+        batchIncludeSidewalkRef.set(batchIncludeSidewalk);
+        batchEditSidewalkWidth = primary.getSidewalkWidth() != null
+            ? primary.getSidewalkWidth()
+            : config.getSidewalkWidth();
+        batchEditSidewalkMaterial = primary.getSidewalkMaterial() != null
+            ? primary.getSidewalkMaterial()
+            : config.getSelectedSidewalkMaterial();
+        batchEditMaxSlope = primary.getMaxSlope() != null ? primary.getMaxSlope() : config.getMaxSlope();
+    }
+
+    private void applyBatchEdit() {
+        if (selectedEdgeIds.isEmpty()) {
+            return;
+        }
+        networkHistory.push(network);
+        for (String edgeId : selectedEdgeIds) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            edge.setWidth(batchEditWidth);
+            edge.setMaterial(batchEditMaterial);
+            edge.setIncludeSidewalk(batchIncludeSidewalk);
+            if (batchIncludeSidewalk) {
+                edge.setSidewalkWidth(batchEditSidewalkWidth);
+                edge.setSidewalkMaterial(batchEditSidewalkMaterial);
+            }
+            edge.setMaxSlope(batchEditMaxSlope);
+        }
+        projectStatus = PlotI18n.tr("plugin.road.batch_applied", selectedEdgeIds.size());
+    }
+
+    private void handleEdgeSelect(String edgeId) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return;
+        }
+        boolean multi = ImGui.getIO().getKeyCtrl();
+        if (multi) {
+            if (selectedEdgeIds.contains(edgeId)) {
+                selectedEdgeIds.remove(edgeId);
+            } else {
+                selectedEdgeIds.add(edgeId);
+                lastSelectedEdgeId = edgeId;
+            }
+        } else {
+            selectedEdgeIds.clear();
+            selectedEdgeIds.add(edgeId);
+            lastSelectedEdgeId = edgeId;
+        }
+        ensureSelectionValid();
+    }
+
+    private void ensureSelectionValid() {
+        selectedEdgeIds.removeIf(id -> network.getEdge(id) == null);
+        if (selectedEdgeIds.isEmpty() && !network.getEdges().isEmpty()) {
+            String firstId = network.getEdges().values().iterator().next().getId();
+            selectedEdgeIds.add(firstId);
+            lastSelectedEdgeId = firstId;
+        }
+        if (!lastSelectedEdgeId.isEmpty() && network.getEdge(lastSelectedEdgeId) == null) {
+            lastSelectedEdgeId = getPrimarySelectedEdgeId();
+        }
+    }
+
+    private String getPrimarySelectedEdgeId() {
+        if (!lastSelectedEdgeId.isEmpty() && network.getEdge(lastSelectedEdgeId) != null) {
+            return lastSelectedEdgeId;
+        }
+        if (!selectedEdgeIds.isEmpty()) {
+            return selectedEdgeIds.iterator().next();
+        }
+        return "";
+    }
+
+    private List<RoadEdge> filteredEdges() {
+        return RoadEdgeListHelper.filterAndSort(
+            network,
+            new ArrayList<>(network.getEdges().values()),
+            edgeSearchBuffer.get(),
+            edgeSortMode,
+            currentCoordFilter());
+    }
+
+    private RoadEdgeListHelper.CoordFilter currentCoordFilter() {
+        double minX = Math.min(coordMinX[0], coordMaxX[0]);
+        double maxX = Math.max(coordMinX[0], coordMaxX[0]);
+        double minY = Math.min(coordMinY[0], coordMaxY[0]);
+        double maxY = Math.max(coordMinY[0], coordMaxY[0]);
+        return new RoadEdgeListHelper.CoordFilter(coordFilterEnabled, minX, maxX, minY, maxY);
     }
 
     private void adoptSelectedShape() {
@@ -844,7 +1082,11 @@ public class RoadSystemPlugin extends Plugin {
             RoadEdge selected = result.edges().stream()
                 .min(Comparator.comparingDouble(edge -> distanceToStart(edge, startPoint)))
                 .orElse(result.edges().getFirst());
-            selectedEdgeId = selected.getId();
+            selectedEdgeIds.clear();
+            for (RoadEdge edge : result.edges()) {
+                selectedEdgeIds.add(edge.getId());
+            }
+            lastSelectedEdgeId = selected.getId();
             if (result.junctionCount() > 0) {
                 projectStatus = String.format(
                     PlotI18n.tr("plugin.road.adopt_success_junction"),
@@ -974,7 +1216,8 @@ public class RoadSystemPlugin extends Plugin {
         try {
             network = RoadNetwork.loadFrom(file);
             networkHistory.clear();
-            selectedEdgeId = "";
+            selectedEdgeIds.clear();
+            lastSelectedEdgeId = "";
         } catch (IOException e) {
             LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.road.network.load_failed", file.getFileName());

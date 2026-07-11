@@ -10,6 +10,7 @@ import imgui.ImGui;
 import imgui.ImVec2;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -38,7 +39,7 @@ public final class RoadNetworkOverviewRenderer {
     public static void render(
             RoadNetwork network,
             RoadNetworkBuilder networkBuilder,
-            String selectedEdgeId,
+            Set<String> selectedEdgeIds,
             Consumer<String> onEdgeSelected) {
         ImGui.text(PlotI18n.tr("plugin.road.network_map"));
         ImGui.beginChild("road_network_map", 0, MAP_HEIGHT, true);
@@ -67,7 +68,7 @@ public final class RoadNetworkOverviewRenderer {
         }
 
         Bounds bounds = computeBounds(network);
-        drawEdges(drawList, network, bounds, originX, originY, width, height, selectedEdgeId);
+        drawEdges(drawList, network, bounds, originX, originY, width, height, selectedEdgeIds);
         drawNodes(drawList, network, networkBuilder, bounds, originX, originY, width, height);
 
         ImGui.invisibleButton("##road_map_hit", width, height);
@@ -130,13 +131,13 @@ public final class RoadNetworkOverviewRenderer {
             float originY,
             float width,
             float height,
-            String selectedEdgeId) {
+            Set<String> selectedEdgeIds) {
         for (RoadEdge edge : network.getEdges().values()) {
             List<Vec2d> points = edge.getCenterlinePoints();
             if (points.size() < 2) {
                 continue;
             }
-            boolean selected = edge.getId().equals(selectedEdgeId);
+            boolean selected = selectedEdgeIds != null && selectedEdgeIds.contains(edge.getId());
             int color = selected ? COLOR_EDGE_SELECTED : COLOR_EDGE;
             float thickness = selected ? SELECTED_EDGE_THICKNESS : EDGE_THICKNESS;
             for (int i = 0; i < points.size() - 1; i++) {
