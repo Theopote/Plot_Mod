@@ -366,6 +366,8 @@
   "plugin.road.path_info": "Path Information",
   "plugin.road.projection_ref": "Projection Reference",
   "plugin.road.road_presets": "Road Presets",
+  "plugin.road.cross_section_preview": "Cross-section Preview",
+  "plugin.road.cross_section_scale": "Total width ~%d blocks",
   "plugin.road.road_width": "Road Width: %s blocks",
   "plugin.road.select_path_hint": "Select a path shape for road generation",
   "plugin.road.shoulder_width": "Shoulder Width: %s blocks",

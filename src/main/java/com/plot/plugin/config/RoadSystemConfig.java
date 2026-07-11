@@ -113,10 +113,22 @@ public class RoadSystemConfig {
 
     private void initDefaultPresets() {
         presets = new ArrayList<>();
-        presets.add(new RoadPreset("city_main", "city_main", 7, true, 2));
-        presets.add(new RoadPreset("city_secondary", "city_secondary", 5, true, 1));
-        presets.add(new RoadPreset("country_road", "country_road", 3, false, 0));
-        presets.add(new RoadPreset("highway", "highway", 9, false, 0));
+        presets.add(new RoadPreset(
+            "city_main", 7, true, 2,
+            false, 0, false, 8.0f,
+            "minecraft:white_concrete", "minecraft:smooth_stone"));
+        presets.add(new RoadPreset(
+            "city_secondary", 5, true, 1,
+            false, 0, false, 10.0f,
+            "minecraft:gray_concrete", "minecraft:stone"));
+        presets.add(new RoadPreset(
+            "country_road", 5, false, 0,
+            true, 1, false, 12.0f,
+            "minecraft:gravel", null));
+        presets.add(new RoadPreset(
+            "highway", 9, false, 0,
+            true, 2, true, 6.0f,
+            "minecraft:black_concrete", null));
     }
 
     public int getRoadWidth() {
@@ -164,7 +176,11 @@ public class RoadSystemConfig {
     }
 
     public void setSelectedPreset(String selectedPreset) {
-        this.selectedPreset = selectedPreset;
+        this.selectedPreset = selectedPreset != null ? selectedPreset : "";
+    }
+
+    public void markCustom() {
+        this.selectedPreset = "";
     }
 
     public List<RoadPreset> getPresets() {
@@ -291,10 +307,24 @@ public class RoadSystemConfig {
      * 应用预设配置
      */
     public void applyPreset(RoadPreset preset) {
-        if (preset == null) return;
+        if (preset == null) {
+            return;
+        }
         this.roadWidth = preset.width;
         this.includeSidewalk = preset.hasSidewalk;
-        this.sidewalkWidth = preset.sidewalkWidth;
+        this.sidewalkWidth = preset.hasSidewalk ? Math.max(1, preset.sidewalkWidth) : sidewalkWidth;
+        this.includeShoulder = preset.includeShoulder;
+        this.shoulderWidth = preset.shoulderWidth;
+        this.includeDrainage = preset.includeDrainage;
+        if (preset.maxSlope > 0f) {
+            this.maxSlope = preset.maxSlope;
+        }
+        if (preset.roadMaterial != null && !preset.roadMaterial.isBlank()) {
+            this.selectedMaterial = preset.roadMaterial;
+        }
+        if (preset.sidewalkMaterial != null && !preset.sidewalkMaterial.isBlank()) {
+            this.selectedSidewalkMaterial = preset.sidewalkMaterial;
+        }
         this.selectedPreset = preset.id;
     }
 
@@ -302,18 +332,47 @@ public class RoadSystemConfig {
      * 道路预设
      */
     public static class RoadPreset {
-        public final String id;
-        public final String name;
-        public final int width;
-        public final boolean hasSidewalk;
-        public final int sidewalkWidth;
+        public String id;
+        public String name;
+        public int width;
+        public boolean hasSidewalk;
+        public int sidewalkWidth;
+        public boolean includeShoulder;
+        public int shoulderWidth;
+        public boolean includeDrainage;
+        public float maxSlope;
+        public String roadMaterial;
+        public String sidewalkMaterial;
 
-        public RoadPreset(String id, String name, int width, boolean hasSidewalk, int sidewalkWidth) {
+        public RoadPreset(
+                String id,
+                int width,
+                boolean hasSidewalk,
+                int sidewalkWidth,
+                boolean includeShoulder,
+                int shoulderWidth,
+                boolean includeDrainage,
+                float maxSlope,
+                String roadMaterial,
+                String sidewalkMaterial) {
             this.id = id;
-            this.name = name;
+            this.name = id;
             this.width = width;
             this.hasSidewalk = hasSidewalk;
             this.sidewalkWidth = sidewalkWidth;
+            this.includeShoulder = includeShoulder;
+            this.shoulderWidth = shoulderWidth;
+            this.includeDrainage = includeDrainage;
+            this.maxSlope = maxSlope;
+            this.roadMaterial = roadMaterial;
+            this.sidewalkMaterial = sidewalkMaterial;
+        }
+
+        /** @deprecated Gson 反序列化兼容 */
+        @Deprecated
+        public RoadPreset(String id, String name, int width, boolean hasSidewalk, int sidewalkWidth) {
+            this(id, width, hasSidewalk, sidewalkWidth, false, 0, false, 10.0f, null, null);
+            this.name = name;
         }
     }
 }

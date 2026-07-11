@@ -2,6 +2,8 @@ package com.plot.plugin;
 
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.ImDrawList;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiWindowFlags;
@@ -38,6 +40,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
@@ -726,15 +729,22 @@ public class RoadSystemPlugin extends Plugin {
 
     private void renderDefaultParams() {
         renderPresetSelector();
+        RoadCrossSectionPreviewRenderer.render(config);
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+
         ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
         int[] roadWidth = {config.getRoadWidth()};
         if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, PlotI18n.tr("plugin.road.road_width", roadWidth[0]))) {
             config.setRoadWidth(roadWidth[0]);
+            markDefaultParamsCustom();
         }
 
         float[] maxSlope = {config.getMaxSlope()};
         if (ImGui.sliderFloat("##max_slope", maxSlope, 0.0f, 45.0f, PlotI18n.tr("plugin.road.max_slope", maxSlope[0]))) {
             config.setMaxSlope(maxSlope[0]);
+            markDefaultParamsCustom();
         }
 
         float[] maxContinuousLength = {(float) config.getMaxContinuousSlopeLength()};
@@ -746,6 +756,7 @@ public class RoadSystemPlugin extends Plugin {
             PlotI18n.tr("plugin.road.max_continuous_slope_length", maxContinuousLength[0])
         )) {
             config.setMaxContinuousSlopeLength(maxContinuousLength[0]);
+            markDefaultParamsCustom();
         }
 
         float[] relaxedLength = {(float) config.getRelaxedSlopeLength()};
@@ -757,6 +768,7 @@ public class RoadSystemPlugin extends Plugin {
             PlotI18n.tr("plugin.road.relaxed_slope_length", relaxedLength[0])
         )) {
             config.setRelaxedSlopeLength(relaxedLength[0]);
+            markDefaultParamsCustom();
         }
 
         float[] relaxedSlope = {config.getRelaxedSlopePercent()};
@@ -768,18 +780,37 @@ public class RoadSystemPlugin extends Plugin {
             PlotI18n.tr("plugin.road.relaxed_slope_percent", relaxedSlope[0])
         )) {
             config.setRelaxedSlopePercent(relaxedSlope[0]);
+            markDefaultParamsCustom();
         }
 
         adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), adoptIncludeSidewalkRef)) {
             config.setIncludeSidewalk(adoptIncludeSidewalkRef.get());
+            markDefaultParamsCustom();
+        }
+
+        if (config.isIncludeSidewalk()) {
+            int[] sidewalkWidth = {config.getSidewalkWidth()};
+            if (ImGui.sliderInt(
+                "##default_sidewalk_width",
+                sidewalkWidth,
+                1,
+                3,
+                PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0])
+            )) {
+                config.setSidewalkWidth(sidewalkWidth[0]);
+                markDefaultParamsCustom();
+            }
         }
 
         renderBlockMaterialPicker(
             "##default_road_material",
             PlotI18n.tr("plugin.road.material"),
             config.getSelectedMaterial(),
-            config::setSelectedMaterial,
+            blockId -> {
+                config.setSelectedMaterial(blockId);
+                markDefaultParamsCustom();
+            },
             false
         );
 
@@ -788,7 +819,10 @@ public class RoadSystemPlugin extends Plugin {
                 "##default_sidewalk_material",
                 PlotI18n.tr("plugin.road.sidewalk_material"),
                 config.getSelectedSidewalkMaterial(),
-                config::setSelectedSidewalkMaterial,
+                blockId -> {
+                    config.setSelectedSidewalkMaterial(blockId);
+                    markDefaultParamsCustom();
+                },
                 false
             );
         }
@@ -796,28 +830,75 @@ public class RoadSystemPlugin extends Plugin {
         renderAdvancedEngineeringSettings();
     }
 
+    private void markDefaultParamsCustom() {
+        config.markCustom();
+    }
+
     private void renderPresetSelector() {
         ImGui.text(PlotI18n.tr("plugin.road.road_presets"));
         String selectedId = config.getSelectedPreset();
         boolean customSelected = selectedId == null || selectedId.isBlank();
-        String preview = customSelected
-            ? PlotI18n.tr("plugin.road.preset_custom")
-            : PlotI18n.tr("preset.road." + selectedId);
 
-        if (ImGui.beginCombo("##road_preset", preview)) {
-            if (ImGui.selectable(PlotI18n.tr("plugin.road.preset_custom"), customSelected)) {
-                config.setSelectedPreset("");
+        float gap = ImGui.getStyle().getItemSpacingX();
+        float cardWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
+        float cardHeight = 54f;
+        int column = 0;
+        for (RoadSystemConfig.RoadPreset preset : config.getPresets()) {
+            if (column > 0) {
+                ImGui.sameLine(0, gap);
             }
-            for (RoadSystemConfig.RoadPreset preset : config.getPresets()) {
-                boolean selected = preset.id.equals(selectedId);
-                if (ImGui.selectable(PlotI18n.tr("preset.road." + preset.id), selected)) {
-                    config.applyPreset(preset);
-                    adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
-                }
+            if (renderPresetCard(preset, cardWidth, cardHeight, preset.id.equals(selectedId))) {
+                config.applyPreset(preset);
+                adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
             }
-            ImGui.endCombo();
+            column = (column + 1) % 2;
+        }
+
+        ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.road.preset_custom") + "##road_preset_custom")) {
+            config.markCustom();
+        }
+        if (customSelected) {
+            ImGui.sameLine();
+            ImGui.textColored((int) 0xFF4DA6FFFFL, "●");
+        } else if (!selectedId.isBlank()) {
+            ImGui.sameLine();
+            ImGui.textColored((int) 0xFF808080FFL,
+                PlotI18n.tr("preset.road." + selectedId));
         }
         ImGui.spacing();
+    }
+
+    private boolean renderPresetCard(
+            RoadSystemConfig.RoadPreset preset,
+            float width,
+            float height,
+            boolean selected) {
+        ImGui.pushID(preset.id);
+        if (selected) {
+            ImGui.pushStyleColor(ImGuiCol.Border, (int) 0xFF4DA6FFFFL);
+        }
+        ImGui.beginChild("##preset_card", width, height, true);
+        ImVec2 pos = ImGui.getCursorScreenPos();
+        float labelH = ImGui.getTextLineHeightWithSpacing();
+        float previewH = Math.max(18f, height - labelH - 4f);
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        RoadCrossSectionPreviewRenderer.renderMini(
+            drawList,
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromPreset(preset),
+            pos.x + 3f,
+            pos.y + 2f,
+            width - 6f,
+            previewH);
+        ImGui.dummy(width - 6f, previewH);
+        ImGui.text(PlotI18n.tr("preset.road." + preset.id));
+        boolean clicked = ImGui.isWindowHovered() && ImGui.isMouseClicked(0);
+        ImGui.endChild();
+        if (selected) {
+            ImGui.popStyleColor();
+        }
+        ImGui.popID();
+        return clicked;
     }
 
     private void renderAdvancedEngineeringSettings() {
@@ -834,6 +915,7 @@ public class RoadSystemPlugin extends Plugin {
             PlotI18n.tr("plugin.road.bridge_threshold", bridgeThreshold[0])
         )) {
             config.setBridgeThreshold(bridgeThreshold[0]);
+            markDefaultParamsCustom();
         }
         renderEngineeringTooltip("hint.plot.road.bridge_threshold");
 
@@ -846,12 +928,14 @@ public class RoadSystemPlugin extends Plugin {
             PlotI18n.tr("plugin.road.tunnel_threshold", tunnelThreshold[0])
         )) {
             config.setTunnelThreshold(tunnelThreshold[0]);
+            markDefaultParamsCustom();
         }
         renderEngineeringTooltip("hint.plot.road.tunnel_threshold");
 
         ImBoolean shoulderRef = new ImBoolean(config.isIncludeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), shoulderRef)) {
             config.setIncludeShoulder(shoulderRef.get());
+            markDefaultParamsCustom();
         }
         renderEngineeringTooltip("hint.plot.road.include_shoulder");
 
@@ -865,6 +949,7 @@ public class RoadSystemPlugin extends Plugin {
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0])
             )) {
                 config.setShoulderWidth(shoulderWidth[0]);
+                markDefaultParamsCustom();
             }
             renderEngineeringTooltip("hint.plot.road.shoulder_width");
 
@@ -877,6 +962,7 @@ public class RoadSystemPlugin extends Plugin {
                 PlotI18n.tr("plugin.road.fill_slope_ratio", fillSlopeRatio[0])
             )) {
                 config.setFillSlopeRatio(fillSlopeRatio[0]);
+                markDefaultParamsCustom();
             }
             renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
 
@@ -889,6 +975,7 @@ public class RoadSystemPlugin extends Plugin {
                 PlotI18n.tr("plugin.road.cut_slope_ratio", cutSlopeRatio[0])
             )) {
                 config.setCutSlopeRatio(cutSlopeRatio[0]);
+                markDefaultParamsCustom();
             }
             renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
 
@@ -896,7 +983,10 @@ public class RoadSystemPlugin extends Plugin {
                 "##fill_slope_material",
                 PlotI18n.tr("plugin.road.fill_slope_material"),
                 config.getFillSlopeMaterial(),
-                config::setFillSlopeMaterial,
+                blockId -> {
+                    config.setFillSlopeMaterial(blockId);
+                    markDefaultParamsCustom();
+                },
                 false
             );
 
@@ -906,7 +996,10 @@ public class RoadSystemPlugin extends Plugin {
                 config.getCutSlopeMaterial().isBlank()
                     ? config.getFillSlopeMaterial()
                     : config.getCutSlopeMaterial(),
-                material -> config.setCutSlopeMaterial(material),
+                blockId -> {
+                    config.setCutSlopeMaterial(blockId);
+                    markDefaultParamsCustom();
+                },
                 false
             );
         }
@@ -914,6 +1007,7 @@ public class RoadSystemPlugin extends Plugin {
         ImBoolean drainageRef = new ImBoolean(config.isIncludeDrainage());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), drainageRef)) {
             config.setIncludeDrainage(drainageRef.get());
+            markDefaultParamsCustom();
         }
         renderEngineeringTooltip("hint.plot.road.include_drainage");
     }

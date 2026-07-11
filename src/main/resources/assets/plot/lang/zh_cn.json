@@ -366,6 +366,8 @@
   "plugin.road.path_info": "路径信息",
   "plugin.road.projection_ref": "投影参考",
   "plugin.road.road_presets": "道路预设",
+  "plugin.road.cross_section_preview": "横断面预览",
+  "plugin.road.cross_section_scale": "总宽约 %d 格",
   "plugin.road.road_width": "道路宽度: %s 方块",
   "plugin.road.select_path_hint": "请选择一个路径图形以用于道路生成",
   "plugin.road.shoulder_width": "路肩宽度: %s 方块",
