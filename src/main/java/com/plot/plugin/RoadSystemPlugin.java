@@ -75,7 +75,7 @@ public class RoadSystemPlugin extends Plugin {
 
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
     private final RoadPathPickSession pathPickSession = new RoadPathPickSession();
-    private Shape selectedPath = null;
+    private final List<Shape> selectedPaths = new ArrayList<>();
     private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
     private String lastSelectedEdgeId = "";
     private String projectStatus = "";
@@ -332,16 +332,37 @@ public class RoadSystemPlugin extends Plugin {
         ImGui.spacing();
 
         if (pathPickSession.isActive()) {
-            // 拾取进行中：等待右键确认，不自动同步 selectedPath
+            int pickingCount = pathPickSession.getAccumulatedCount();
+            if (pickingCount > 0) {
+                double totalLength = AppState.getInstance().getSelectedShapes().stream()
+                    .filter(this::isPathShape)
+                    .mapToDouble(this::calculatePathLength)
+                    .sum();
+                ImGui.text(String.format(
+                    PlotI18n.tr("plugin.road.paths_selected"),
+                    pickingCount,
+                    totalLength));
+            }
         } else {
-            updateSelectedPath();
+            updateSelectedPaths();
         }
 
-        if (selectedPath != null) {
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"),
-                calculatePathLength(selectedPath)));
-            ImGui.textColored((int) 0xFF4080FFFFL,
-                PlotI18n.tr("plugin.road.path_type", getPathTypeName(selectedPath)));
+        if (!selectedPaths.isEmpty()) {
+            if (selectedPaths.size() == 1) {
+                Shape path = selectedPaths.getFirst();
+                ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"),
+                    calculatePathLength(path)));
+                ImGui.textColored((int) 0xFF4080FFFFL,
+                    PlotI18n.tr("plugin.road.path_type", getPathTypeName(path)));
+            } else {
+                double totalLength = selectedPaths.stream()
+                    .mapToDouble(this::calculatePathLength)
+                    .sum();
+                ImGui.text(String.format(
+                    PlotI18n.tr("plugin.road.paths_selected"),
+                    selectedPaths.size(),
+                    totalLength));
+            }
         } else {
             List<Shape> availablePaths = findAvailablePaths();
             if (!availablePaths.isEmpty()) {
@@ -349,8 +370,10 @@ public class RoadSystemPlugin extends Plugin {
                     for (Shape path : availablePaths) {
                         String label = String.format(PlotI18n.tr("plugin.road.path_combo_item"),
                             getPathTypeName(path), calculatePathLength(path));
-                        if (ImGui.selectable(label, path == selectedPath)) {
-                            selectedPath = path;
+                        boolean selected = selectedPaths.size() == 1 && path == selectedPaths.getFirst();
+                        if (ImGui.selectable(label, selected)) {
+                            selectedPaths.clear();
+                            selectedPaths.add(path);
                             AppState.getInstance().setSelectedShapes(List.of(path));
                         }
                     }
@@ -375,7 +398,7 @@ public class RoadSystemPlugin extends Plugin {
             activatePathPickTool();
         }
         ImGui.sameLine();
-        boolean canAdopt = selectedPath != null;
+        boolean canAdopt = !selectedPaths.isEmpty();
         if (!canAdopt) {
             ImGui.beginDisabled();
         }
@@ -1145,30 +1168,41 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private void adoptSelectedShape() {
-        if (selectedPath == null) {
+        if (selectedPaths.isEmpty()) {
             return;
         }
         try {
             networkHistory.push(network);
-            RoadNetworkBuilder.AdoptResult result =
-                networkBuilder.adoptShape(network, selectedPath, config);
-            Vec2d startPoint = resolvePathStartPoint(selectedPath);
-            RoadEdge selected = result.edges().stream()
-                .min(Comparator.comparingDouble(edge -> distanceToStart(edge, startPoint)))
-                .orElse(result.edges().getFirst());
+            int adoptedCount = 0;
+            int totalJunctions = 0;
             selectedEdgeIds.clear();
-            for (RoadEdge edge : result.edges()) {
-                selectedEdgeIds.add(edge.getId());
+
+            for (Shape path : selectedPaths) {
+                RoadNetworkBuilder.AdoptResult result =
+                    networkBuilder.adoptShape(network, path, config);
+                adoptedCount++;
+                totalJunctions += result.junctionCount();
+                for (RoadEdge edge : result.edges()) {
+                    selectedEdgeIds.add(edge.getId());
+                }
+                if (!result.edges().isEmpty()) {
+                    lastSelectedEdgeId = result.edges().getFirst().getId();
+                }
             }
-            lastSelectedEdgeId = selected.getId();
-            if (result.junctionCount() > 0) {
+
+            if (adoptedCount > 1) {
+                projectStatus = String.format(
+                    PlotI18n.tr("plugin.road.adopt_success_batch"),
+                    adoptedCount,
+                    totalJunctions);
+            } else if (totalJunctions > 0) {
                 projectStatus = String.format(
                     PlotI18n.tr("plugin.road.adopt_success_junction"),
-                    result.junctionCount());
+                    totalJunctions);
             } else {
                 projectStatus = PlotI18n.tr("plugin.road.adopt_success");
             }
-            LOGGER.info("认领道路成功: {} ({} 段)", selected.getId(), result.edges().size());
+            LOGGER.info("认领道路成功: {} 条路径 ({} 段边)", adoptedCount, selectedEdgeIds.size());
         } catch (Exception e) {
             LOGGER.error("认领道路失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.road.adopt_failed");
@@ -1358,18 +1392,12 @@ public class RoadSystemPlugin extends Plugin {
         }
     }
 
-    private void updateSelectedPath() {
+    private void updateSelectedPaths() {
         try {
-            List<Shape> selectedShapes = AppState.getInstance().getSelectedShapes();
-            for (Shape shape : selectedShapes) {
-                if (isPathShape(shape)) {
-                    selectedPath = shape;
-                    return;
-                }
-            }
-            if (selectedPath != null && !selectedShapes.contains(selectedPath)) {
-                selectedPath = null;
-            }
+            selectedPaths.clear();
+            selectedPaths.addAll(
+                RoadGeometryUtils.findAdoptablePaths(AppState.getInstance().getSelectedShapes())
+            );
         } catch (Exception e) {
             LOGGER.error("更新选中路径失败: {}", e.getMessage(), e);
         }
@@ -1426,7 +1454,7 @@ public class RoadSystemPlugin extends Plugin {
             return;
         }
 
-        selectedPath = null;
+        selectedPaths.clear();
         pathPickSession.begin();
         toolManager.setActiveTool(selectTool);
         AppState.getInstance().setCurrentTool(baseTool);
@@ -1438,17 +1466,33 @@ public class RoadSystemPlugin extends Plugin {
         applyPathPickOutcome(outcome);
 
         if (pathPickSession.isActive()) {
-            String hintKey = RoadPathPickSession.hintForSelection(AppState.getInstance().getSelectedShapes());
-            projectStatus = PlotI18n.status(hintKey);
+            List<Shape> selected = AppState.getInstance().getSelectedShapes();
+            String hintKey = pathPickSession.hintKeyForCurrentSelection(selected);
+            if ("status.plot.road.pick_path_right_click_multi".equals(hintKey)) {
+                projectStatus = PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount());
+            } else {
+                projectStatus = PlotI18n.status(hintKey);
+            }
         }
     }
 
     private void applyPathPickOutcome(RoadPathPickSession.Outcome outcome) {
         switch (outcome.getResult()) {
             case SUCCESS -> {
-                selectedPath = outcome.getPath();
-                projectStatus = String.format(PlotI18n.tr("plugin.road.path_selected"),
-                    calculatePathLength(selectedPath));
+                selectedPaths.clear();
+                selectedPaths.addAll(outcome.getPaths());
+                if (selectedPaths.size() == 1) {
+                    projectStatus = String.format(PlotI18n.tr("plugin.road.path_selected"),
+                        calculatePathLength(selectedPaths.getFirst()));
+                } else {
+                    double totalLength = selectedPaths.stream()
+                        .mapToDouble(this::calculatePathLength)
+                        .sum();
+                    projectStatus = String.format(
+                        PlotI18n.tr("plugin.road.paths_selected"),
+                        selectedPaths.size(),
+                        totalLength);
+                }
             }
             case NEED_SELECTION -> projectStatus = PlotI18n.status("status.plot.road.pick_path_need_selection");
             case NO_VALID -> projectStatus = PlotI18n.status("status.plot.road.pick_path_no_valid");

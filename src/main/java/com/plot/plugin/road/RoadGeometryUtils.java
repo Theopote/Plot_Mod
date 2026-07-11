@@ -27,15 +27,21 @@ public final class RoadGeometryUtils {
     }
 
     public static Shape findFirstAdoptablePath(List<Shape> shapes) {
-        if (shapes == null) {
-            return null;
+        List<Shape> paths = findAdoptablePaths(shapes);
+        return paths.isEmpty() ? null : paths.getFirst();
+    }
+
+    public static List<Shape> findAdoptablePaths(List<Shape> shapes) {
+        if (shapes == null || shapes.isEmpty()) {
+            return List.of();
         }
+        List<Shape> paths = new ArrayList<>();
         for (Shape shape : shapes) {
             if (isAdoptablePath(shape)) {
-                return shape;
+                paths.add(shape);
             }
         }
-        return null;
+        return paths;
     }
 
     public static List<Vec2d> extractShapePoints(Shape shape) {
