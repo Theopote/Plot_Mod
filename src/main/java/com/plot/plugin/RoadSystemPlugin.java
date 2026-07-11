@@ -38,6 +38,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.RoadNetworkOverviewRenderer;
 import com.plot.ui.screen.BlockConfigNativeScreen;
 import com.plot.ui.screen.PlotScreen;
 import com.plot.ui.screen.PlotScreenState;
@@ -208,6 +209,13 @@ public class RoadSystemPlugin extends Plugin {
             network.getEdges().size(),
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
+
+        RoadNetworkOverviewRenderer.render(
+            network,
+            networkBuilder,
+            selectedEdgeId,
+            edgeId -> selectedEdgeId = edgeId
+        );
 
         renderNodeElevationEditor();
 
