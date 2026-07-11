@@ -181,7 +181,8 @@ public class RoadGenerator {
             }
 
             if (config.isIncludeDrainage()) {
-                double drainageOffset = halfWidth + shoulderWidth + 0.5;
+                double sidewalkOffset = edge.getEffectiveIncludeSidewalk(config) ? edge.getEffectiveSidewalkWidth(config) : 0;
+                double drainageOffset = halfWidth + shoulderWidth + sidewalkOffset + 0.5;
                 List<Vec2d> leftDrainage = OffsetHandler.offsetPolyline(pathPoints, drainageOffset);
                 List<Vec2d> rightDrainage = OffsetHandler.offsetPolyline(pathPoints, -drainageOffset);
                 generateDrainageChannels(result, segments, heightInfos, leftDrainage, rightDrainage,
@@ -834,7 +835,7 @@ public class RoadGenerator {
                     result.sidewalkBlocks.add(pos);
                 }
             } else {
-                for (int y = targetY + 1; y <= groundY; y++) {
+                for (int y = slopeHeight + 1; y <= groundY; y++) {
                     BlockPos pos = new BlockPos(columnBase.getX(), y, columnBase.getZ());
                     recordBlock(result, pos, "minecraft:air", projectionHandler);
                     result.sidewalkBlocks.add(pos);

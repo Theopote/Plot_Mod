@@ -197,23 +197,25 @@ public class RoadSystemPlugin extends Plugin {
     private void renderToolbar() {
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
 
-        if (!networkHistory.canUndo()) {
+        boolean undoDisabled = !networkHistory.canUndo();
+        if (undoDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.undo"), buttonWidth, 0)) {
             network = networkHistory.undo(network);
         }
-        if (!networkHistory.canUndo()) {
+        if (undoDisabled) {
             ImGui.endDisabled();
         }
         ImGui.sameLine();
-        if (!networkHistory.canRedo()) {
+        boolean redoDisabled = !networkHistory.canRedo();
+        if (redoDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.redo"), buttonWidth, 0)) {
             network = networkHistory.redo(network);
         }
-        if (!networkHistory.canRedo()) {
+        if (redoDisabled) {
             ImGui.endDisabled();
         }
         ImGui.sameLine();
@@ -1157,9 +1159,11 @@ public class RoadSystemPlugin extends Plugin {
     }
 
     private void syncBatchEditDefaults() {
-        if (selectedEdgeIds.size() == lastBatchSelectionSize) {
+        String primaryId = getPrimarySelectedEdgeId();
+        if (selectedEdgeIds.size() == lastBatchSelectionSize && primaryId.equals(lastSelectedEdgeId)) {
             return;
         }
+        lastSelectedEdgeId = primaryId;
         lastBatchSelectionSize = selectedEdgeIds.size();
         RoadEdge primary = network.getEdge(getPrimarySelectedEdgeId());
         if (primary == null) {

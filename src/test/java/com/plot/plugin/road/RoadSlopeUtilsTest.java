@@ -119,13 +119,17 @@ class RoadSlopeUtilsTest {
             32
         );
 
-        assertEquals(3, profile.size());
+        assertEquals(5, profile.size());
         assertEquals(0, profile.getFirst()[0]);
         assertEquals(70, profile.getFirst()[1]);
-        assertEquals(2, profile.get(1)[0]);
+        assertEquals(1, profile.get(1)[0]);
         assertEquals(69, profile.get(1)[1]);
-        assertEquals(4, profile.get(2)[0]);
-        assertEquals(68, profile.get(2)[1]);
+        assertEquals(2, profile.get(2)[0]);
+        assertEquals(69, profile.get(2)[1]);
+        assertEquals(3, profile.get(3)[0]);
+        assertEquals(68, profile.get(3)[1]);
+        assertEquals(4, profile.get(4)[0]);
+        assertEquals(68, profile.get(4)[1]);
     }
 
     @Test

@@ -204,19 +204,11 @@ public final class RoadSlopeUtils {
             return profile;
         }
 
-        float horizontalStep = Math.max(0.5f, slopeRatio);
-        int stepIndex = 0;
-        double horizontalOffset = 0.0;
-
-        while (horizontalOffset < maxHorizontalRun) {
-            horizontalOffset += horizontalStep;
-            if (horizontalOffset > maxHorizontalRun) {
-                horizontalOffset = maxHorizontalRun;
-            }
-            stepIndex++;
-            int slopeHeight = shoulderEdgeHeight + direction * stepIndex;
-            int groundHeight = groundHeightAtOffset.applyAsInt((int) Math.round(horizontalOffset));
-            profile.add(new int[]{(int) Math.round(horizontalOffset), slopeHeight});
+        for (int offset = 1; offset <= maxHorizontalRun; offset++) {
+            int verticalChange = (int) Math.round(offset / slopeRatio);
+            int slopeHeight = shoulderEdgeHeight + direction * verticalChange;
+            int groundHeight = groundHeightAtOffset.applyAsInt(offset);
+            profile.add(new int[]{offset, slopeHeight});
 
             if (direction > 0) {
                 if (slopeHeight >= groundHeight) {
@@ -226,10 +218,6 @@ public final class RoadSlopeUtils {
                 if (slopeHeight <= groundHeight) {
                     break;
                 }
-            }
-
-            if (horizontalOffset >= maxHorizontalRun) {
-                break;
             }
         }
         return profile;
