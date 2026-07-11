@@ -13,6 +13,7 @@ import com.plot.ui.layout.UILayout;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.utils.PlotI18n;
+import imgui.type.ImBoolean;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +77,19 @@ public class ExtensionPanel implements UIComponent {
                 ImGui.text(currentActivePlugin.getName());
                 ImGui.popStyleColor();
 
+                ImGui.sameLine();
+                ImBoolean enabledRef = new ImBoolean(currentActivePlugin.isEnabled());
+                if (ImGui.checkbox(
+                    PlotI18n.tr("panel.plot.extension_enabled") + "##plugin_enabled",
+                    enabledRef
+                )) {
+                    if (enabledRef.get()) {
+                        pluginManager.enablePlugin(currentActivePlugin);
+                    } else {
+                        pluginManager.disablePlugin(currentActivePlugin);
+                    }
+                }
+
                 if (currentActivePlugin.getDescription() != null && !currentActivePlugin.getDescription().isEmpty()) {
                     ImGui.textWrapped(currentActivePlugin.getDescription());
                 }
@@ -92,7 +106,14 @@ public class ExtensionPanel implements UIComponent {
                         ImGuiWindowFlags.HorizontalScrollbar);
 
                     try {
-                        currentActivePlugin.render();
+                        if (currentActivePlugin.isEnabled()) {
+                            currentActivePlugin.render();
+                        } else {
+                            ImGui.textColored(
+                                theme.mutedText,
+                                PlotI18n.tr("panel.plot.extension_enable_first", currentActivePlugin.getName())
+                            );
+                        }
                     } catch (Exception e) {
                         PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
                         ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));

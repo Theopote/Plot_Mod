@@ -244,9 +244,6 @@ public class PluginManager implements IPluginManager {
         }
 
         try {
-            if (plugin == activePlugin) {
-                setActivePlugin(null);
-            }
             plugin.disable();
             notifyListeners(plugin, PluginState.DISABLED);
             LogManager.getInstance().info("Disabled plugin: " + plugin.getId());
@@ -386,9 +383,6 @@ public class PluginManager implements IPluginManager {
      * 设置当前激活的插件
      */
     public void setActivePlugin(IPlugin plugin) {
-        if (plugin != null) {
-            enablePlugin(plugin);
-        }
         if (activePlugin != null) {
             activePlugin.onDeactivate();
         }
