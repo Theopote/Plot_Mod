@@ -29,7 +29,7 @@ import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.RoadPathPickSession;
+import com.plot.plugin.road.RoadPlacementVisibility;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.model.RoadEdge;
@@ -46,6 +46,7 @@ import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
+import com.plot.plugin.road.RoadPathPickSession;
 import com.plot.ui.screen.BlockConfigNativeScreen;
 import com.plot.ui.screen.PlotScreen;
 import com.plot.ui.screen.PlotScreenState;
@@ -705,6 +706,7 @@ public class RoadSystemPlugin extends Plugin {
         if (!buildReadiness.ready()) {
             ImGui.textColored((int) 0xFFFF8080FFL, buildReadiness.message());
         }
+        renderRoadVisibilityWarning();
 
         if (lastGenerationResult != null) {
             ImGui.separator();
@@ -765,6 +767,7 @@ public class RoadSystemPlugin extends Plugin {
             if (!readiness.ready()) {
                 ImGui.textColored((int) 0xFFFF6060FFL, readiness.message());
             }
+            renderRoadVisibilityWarning();
 
             ImGui.separator();
             boolean canBuild = readiness.ready() && !BlockPlacementScheduler.getInstance().isBusy();
@@ -1441,8 +1444,26 @@ public class RoadSystemPlugin extends Plugin {
         LOGGER.info("路网预览: 挖{} 填{} 路灯{}",
             lastGenerationResult.cutVolume, lastGenerationResult.fillVolume,
             lastGenerationResult.streetlightCount);
-        projectStatus = PlotI18n.tr("plugin.road.generate_preview_ready");
+        applyPreviewReadyStatus();
         return true;
+    }
+
+    private void applyPreviewReadyStatus() {
+        RoadPlacementVisibility.Analysis visibility = analyzeRoadVisibility();
+        if (visibility != null && visibility.requiresWarning()) {
+            projectStatus = PlotI18n.tr("plugin.road.generate_preview_ready")
+                + " — "
+                + RoadPlacementVisibility.formatWarningMessage(visibility);
+            return;
+        }
+        projectStatus = PlotI18n.tr("plugin.road.generate_preview_ready");
+    }
+
+    private RoadPlacementVisibility.Analysis analyzeRoadVisibility() {
+        if (lastGenerationResult == null) {
+            return null;
+        }
+        return RoadPlacementVisibility.analyze(lastGenerationResult, CoordinateTransformer.getInstance());
     }
 
     private void projectRoadPreview() {
@@ -1486,6 +1507,11 @@ public class RoadSystemPlugin extends Plugin {
             return;
         }
 
+        RoadPlacementVisibility.Analysis visibility = analyzeRoadVisibility();
+        if (visibility != null && visibility.requiresWarning()) {
+            LOGGER.warn("道路落地范围超出当前摄像机视野: {}", visibility.status());
+        }
+
         List<GenerateRoadCommand.BlockRecord> records =
             new ArrayList<>(lastGenerationResult.placementRecords.values());
         GenerateRoadCommand command = new GenerateRoadCommand(records);
@@ -1500,6 +1526,13 @@ public class RoadSystemPlugin extends Plugin {
             applyBuildResultStatus(result);
             clearPreview();
         });
+    }
+
+    private void renderRoadVisibilityWarning() {
+        String message = RoadPlacementVisibility.formatWarningMessage(analyzeRoadVisibility());
+        if (!message.isBlank()) {
+            ImGui.textColored((int) 0xFFFFA060FFL, message);
+        }
     }
 
     private void applyBuildResultStatus(GenerateRoadCommand.ExecutionResult result) {

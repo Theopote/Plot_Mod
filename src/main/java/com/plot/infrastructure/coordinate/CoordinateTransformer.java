@@ -65,7 +65,7 @@ public class CoordinateTransformer {
      * 【修复】视图范围变化时的缓存管理
      * @return 相机视野范围信息，如果获取失败返回null
      */
-    private CameraViewBounds getCameraViewBounds() {
+    public CameraViewBounds getCameraViewBounds() {
         try {
             // 【优化】获取当前视图范围用于缓存键
             CameraManager cameraManager = CameraManager.getInstance();
@@ -431,6 +431,30 @@ public class CoordinateTransformer {
     }
 
     /**
+     * 当前正交相机在 Minecraft 世界 XZ 平面上的可见范围（以玩家位置为原点叠加相机偏移）
+     */
+    public WorldViewBounds getMinecraftWorldViewBounds() {
+        CameraViewBounds relative = getCameraViewBounds();
+        if (relative == null) {
+            return null;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null) {
+            return null;
+        }
+
+        double playerX = client.player.getX();
+        double playerZ = client.player.getZ();
+        return new WorldViewBounds(
+            playerX + relative.left,
+            playerX + relative.right,
+            playerZ + relative.bottom,
+            playerZ + relative.top
+        );
+    }
+
+    /**
      * 【新增】清理缓存
      */
     public void clearCache() {
@@ -440,11 +464,11 @@ public class CoordinateTransformer {
     }
 
     /**
-     * 相机视野范围类
+     * 相机视野范围（相对玩家位置的 XZ 偏移）
      */
-    private static class CameraViewBounds {
-        final float left, right, bottom, top;
-        final float viewDistance, scale;
+    public static class CameraViewBounds {
+        public final float left, right, bottom, top;
+        public final float viewDistance, scale;
         
         CameraViewBounds(float left, float right, float bottom, float top, float viewDistance, float scale) {
             this.left = left;
@@ -459,6 +483,19 @@ public class CoordinateTransformer {
         public String toString() {
             return String.format("CameraViewBounds[left=%.1f, right=%.1f, bottom=%.1f, top=%.1f, viewDistance=%.1f, scale=%.1f]",
                     left, right, bottom, top, viewDistance, scale);
+        }
+    }
+
+    /**
+     * Minecraft 世界 XZ 可见范围
+     */
+    public record WorldViewBounds(double minX, double maxX, double minZ, double maxZ) {
+        public boolean containsBox(int boxMinX, int boxMaxX, int boxMinZ, int boxMaxZ) {
+            return boxMinX >= minX && boxMaxX <= maxX && boxMinZ >= minZ && boxMaxZ <= maxZ;
+        }
+
+        public boolean intersectsBox(int boxMinX, int boxMaxX, int boxMinZ, int boxMaxZ) {
+            return !(boxMaxX < minX || boxMinX > maxX || boxMaxZ < minZ || boxMinZ > maxZ);
         }
     }
 
