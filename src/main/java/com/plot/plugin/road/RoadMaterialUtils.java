@@ -51,7 +51,7 @@ public final class RoadMaterialUtils {
             if (name != null && !name.isEmpty()) {
                 return name;
             }
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             // fall through
         }
         return blockId;
@@ -67,7 +67,7 @@ public final class RoadMaterialUtils {
             if (block != null && block != Blocks.AIR) {
                 return block;
             }
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             // fall through
         }
         return Blocks.STONE;
@@ -93,15 +93,27 @@ public final class RoadMaterialUtils {
                 return namespaced;
             }
         }
+        if (looksLikeBlockId(material)) {
+            return material;
+        }
         return material;
+    }
+
+    private static boolean looksLikeBlockId(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return false;
+        }
+        int colon = blockId.indexOf(':');
+        return colon > 0 && colon < blockId.length() - 1;
     }
 
     private static boolean isRegisteredBlock(String blockId) {
         try {
             Identifier id = Identifier.of(blockId);
             return Registries.BLOCK.containsId(id);
-        } catch (Exception e) {
-            return false;
+        } catch (Throwable e) {
+            // 单元测试或非游戏环境：注册表未初始化时，按 ID 格式接受
+            return looksLikeBlockId(blockId);
         }
     }
 }

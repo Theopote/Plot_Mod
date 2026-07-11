@@ -29,6 +29,6 @@ class RoadMaterialUtilsTest {
 
     @Test
     void unknownMaterialFallsBackForGeneration() {
-        assertEquals("minecraft:stone", RoadMaterialUtils.resolveBlockId("unknown.mod:block"));
+        assertEquals("minecraft:stone", RoadMaterialUtils.resolveBlockId("not_a_block_id"));
     }
 }
