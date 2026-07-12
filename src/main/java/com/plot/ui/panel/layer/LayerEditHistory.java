@@ -3,6 +3,7 @@ package com.plot.ui.panel.layer;
 import com.plot.core.command.commands.LayerColorEditCommand;
 import com.plot.core.command.commands.LayerLineStyleEditCommand;
 import com.plot.core.command.commands.LayerPropertyEditCommand;
+import com.plot.core.command.commands.LayerStructureEditCommand;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.layer.Layer;
@@ -79,6 +80,17 @@ public final class LayerEditHistory {
         }
         AppState.getInstance().getCommandHistory().execute(
                 new LayerPropertyEditCommand(layerId, property, before, after));
+    }
+
+    public static void commitStructureEdit(
+            LayerStructureSnapshot before,
+            LayerStructureSnapshot after,
+            String operationKey) {
+        if (before == null || after == null || before.sameStructureAs(after)) {
+            return;
+        }
+        AppState.getInstance().getCommandHistory().execute(
+                new LayerStructureEditCommand(before, after, operationKey));
     }
 
     private static boolean statesEqual(LayerColorState before, LayerColorState after) {

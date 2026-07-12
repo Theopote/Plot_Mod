@@ -63,7 +63,12 @@ public class DragDropHandler {
     
     private void handleLayerMove(Layer layer, int targetIndex) {
         try {
+            LayerStructureSnapshot before = LayerStructureSnapshot.capture();
             layerManager.moveLayer(layer.getId(), targetIndex);
+            LayerEditHistory.commitStructureEdit(
+                    before,
+                    LayerStructureSnapshot.capture(),
+                    "history.plot.layer_structure.reorder");
             PlotMod.LOGGER.debug("图层移动: {} -> 位置 {}",
                 layer.getName(), targetIndex);
         } catch (Exception e) {

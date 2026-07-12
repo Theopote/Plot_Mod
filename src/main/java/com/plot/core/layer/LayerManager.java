@@ -315,6 +315,29 @@ public class LayerManager {
         }
     }
 
+    /**
+     * 恢复图层顺序（用于撤销/重做）。
+     */
+    public void restoreLayerOrder(List<ILayer> orderedLayers) {
+        if (orderedLayers == null || orderedLayers.isEmpty()) {
+            return;
+        }
+
+        lock.writeLock().lock();
+        try {
+            layers.clear();
+            for (ILayer layer : orderedLayers) {
+                if (layer != null) {
+                    layers.add(layer);
+                }
+            }
+            updateZOrders();
+            markIndexDirty();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     // === 图层属性管理 ===
     
     /**

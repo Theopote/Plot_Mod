@@ -161,6 +161,8 @@ public class DeleteLayerDialog {
     }
 
     private void deleteSelectedLayers() {
+        LayerStructureSnapshot before = LayerStructureSnapshot.capture();
+
         // 通过 AppState 获取 LayerManager
         LayerManager layerManager = appState.getLayerManager();
         
@@ -188,6 +190,11 @@ public class DeleteLayerDialog {
                 layerManager.setActiveLayer(lastLayer);
             }
         }
+
+        LayerEditHistory.commitStructureEdit(
+                before,
+                LayerStructureSnapshot.capture(),
+                "history.plot.layer_structure.delete");
     }
 
     public boolean isVisible() {

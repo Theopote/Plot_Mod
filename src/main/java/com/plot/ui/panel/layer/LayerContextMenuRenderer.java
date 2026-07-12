@@ -168,6 +168,8 @@ public class LayerContextMenuRenderer {
      */
     private void duplicateLayer(Layer sourceLayer) {
         try {
+            LayerStructureSnapshot before = LayerStructureSnapshot.capture();
+
             // 创建新的图层名称
             String newName = sourceLayer.getName() + PlotI18n.tr("layer.plot.copy_suffix");
             int suffix = 1;
@@ -211,6 +213,11 @@ public class LayerContextMenuRenderer {
                 
                 // 设置为活动图层
                 layerManager.setActiveLayer(newLayer);
+
+                LayerEditHistory.commitStructureEdit(
+                        before,
+                        LayerStructureSnapshot.capture(),
+                        "history.plot.layer_structure.duplicate");
                 
                 // 关闭上下文菜单
                 ImGui.closeCurrentPopup();
@@ -241,6 +248,8 @@ public class LayerContextMenuRenderer {
         
         // 执行合并操作
         try {
+            LayerStructureSnapshot before = LayerStructureSnapshot.capture();
+
             // 直接从选中的图层中选择第一个作为目标图层
             ILayer targetLayer = selectedLayers.iterator().next();
             
@@ -267,6 +276,11 @@ public class LayerContextMenuRenderer {
             
             // 设置目标图层为活动图层
             layerManager.setActiveLayer(targetLayer);
+
+            LayerEditHistory.commitStructureEdit(
+                    before,
+                    LayerStructureSnapshot.capture(),
+                    "history.plot.layer_structure.merge");
             
         } catch (Exception e) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_failed", e.getMessage()));

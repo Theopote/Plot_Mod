@@ -824,6 +824,26 @@ public class AppState implements IAppState {
     }
     
     /**
+     * 重建图形到图层的映射（用于图层结构撤销/重做）。
+     */
+    public void rebuildShapeToLayerMap() {
+        shapeToLayerMap.clear();
+        if (layerManager == null) {
+            return;
+        }
+        for (ILayer layer : layerManager.getLayers()) {
+            if (!(layer instanceof com.plot.core.layer.Layer concreteLayer)) {
+                continue;
+            }
+            for (Shape shape : concreteLayer.getShapes()) {
+                if (shape != null) {
+                    shapeToLayerMap.put(shape, layer);
+                }
+            }
+        }
+    }
+
+    /**
      * 重建空间索引
      */
     public void rebuildSpatialIndex() {

@@ -128,6 +128,8 @@ public class NewLayerDialog {
                 return;
             }
 
+            LayerStructureSnapshot before = LayerStructureSnapshot.capture();
+
             // 创建图层
             LayerManager.LayerCreationResult result = layerManager.createLayer(name);
 
@@ -149,6 +151,11 @@ public class NewLayerDialog {
                 
                 LOGGER.info("图层创建成功 - 名称: '{}', 字节长度: {}, 字符长度: {}",
                         createdLayer.getName(), createdLayer.getName().getBytes().length, createdLayer.getName().length());
+
+                LayerEditHistory.commitStructureEdit(
+                        before,
+                        LayerStructureSnapshot.capture(),
+                        "history.plot.layer_structure.create");
 
                 // 清空输入框
                 layerName.set("");

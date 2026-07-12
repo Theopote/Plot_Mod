@@ -292,6 +292,7 @@ public class ToolbarRenderer {
             return;
         }
 
+        LayerStructureSnapshot before = LayerStructureSnapshot.capture();
         List<ILayer> allLayers = layerManager.getLayers();
         int size = allLayers.size();
         
@@ -303,6 +304,11 @@ public class ToolbarRenderer {
                 }
             }
         }
+
+        LayerEditHistory.commitStructureEdit(
+                before,
+                LayerStructureSnapshot.capture(),
+                "history.plot.layer_structure.reorder");
     }
 
     /**
@@ -315,6 +321,7 @@ public class ToolbarRenderer {
             return;
         }
 
+        LayerStructureSnapshot before = LayerStructureSnapshot.capture();
         List<ILayer> allLayers = layerManager.getLayers();
         for (ILayer layer : selectedLayers) {
             int index = allLayers.indexOf(layer);
@@ -322,6 +329,11 @@ public class ToolbarRenderer {
                 layerManager.moveLayer(layer.getId(), index - 1);
             }
         }
+
+        LayerEditHistory.commitStructureEdit(
+                before,
+                LayerStructureSnapshot.capture(),
+                "history.plot.layer_structure.reorder");
     }
     
     /**
@@ -347,6 +359,8 @@ public class ToolbarRenderer {
         }
 
         try {
+            LayerStructureSnapshot before = LayerStructureSnapshot.capture();
+
             // 创建新图层名称
             String mergedLayerName = PlotI18n.tr("layer.plot.merged_default_name");
             int suffix = 1;
@@ -405,6 +419,11 @@ public class ToolbarRenderer {
             // 清除选择并选中新图层
             selectedLayers.clear();
             selectedLayers.add(mergedLayer);
+
+            LayerEditHistory.commitStructureEdit(
+                    before,
+                    LayerStructureSnapshot.capture(),
+                    "history.plot.layer_structure.merge");
             
         } catch (Exception e) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.merge_failed", e.getMessage()));

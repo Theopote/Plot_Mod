@@ -11,9 +11,9 @@ class ControlPointEditCommandTest {
     @Test
     void undoAndRedoRestoreLineEndpoints() {
         LineShape line = new LineShape(new Vec2d(0, 0), new Vec2d(10, 0));
-        LineShape before = (LineShape) line.clone();
+        LineShape before = line.clone();
         line.setEnd(new Vec2d(20, 5));
-        LineShape after = (LineShape) line.clone();
+        LineShape after = line.clone();
 
         ControlPointEditCommand command = new ControlPointEditCommand(line, before, after);
 
