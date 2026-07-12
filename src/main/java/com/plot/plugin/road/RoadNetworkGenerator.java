@@ -91,18 +91,13 @@ public class RoadNetworkGenerator {
             RoadNode node = network.getNode(entry.getKey());
             String roadMaterial = resolveJunctionMaterial(node, network, config, false);
             String sidewalkMaterial = resolveJunctionMaterial(node, network, config, true);
-            roadGenerator.mergeJunctionBlocks(
+            String markingMaterial = resolveJunctionMarkingMaterial(node, network, config);
+            roadGenerator.mergeJunction(
                 aggregate,
                 entry.getValue(),
                 roadGenerator.getBlockIdFromMaterial(roadMaterial),
-                roadGenerator.getBlockIdFromMaterial(sidewalkMaterial)
-            );
-            String markingMaterial = resolveJunctionMarkingMaterial(node, network, config);
-            roadGenerator.mergeJunctionMarkings(
-                aggregate,
-                entry.getValue(),
-                roadGenerator.getBlockIdFromMaterial(markingMaterial)
-            );
+                roadGenerator.getBlockIdFromMaterial(sidewalkMaterial),
+                roadGenerator.getBlockIdFromMaterial(markingMaterial));
         }
         return aggregate;
     }

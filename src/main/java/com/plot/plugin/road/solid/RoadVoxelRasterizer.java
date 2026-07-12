@@ -1,7 +1,6 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.RoadGenerator;
@@ -11,7 +10,6 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Set;
 
 /**
@@ -74,21 +72,71 @@ public final class RoadVoxelRasterizer {
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
         for (RoadSolidPrimitive primitive : solids.primitives()) {
             BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
-            switch (primitive.layer()) {
-                case ROAD, MEDIAN, MARKING -> result.roadBlocks.add(pos);
-                case SIDEWALK, SHOULDER, DRAIN -> result.sidewalkBlocks.add(pos);
-                case BRIDGE -> result.bridgeBlocks.add(pos);
-                case TUNNEL -> result.tunnelBlocks.add(pos);
-                case STREETLIGHT -> result.streetlightBlocks.add(pos);
-            }
+            appendToResultBucket(result, primitive.layer(), pos);
             if (primitive.materialId() != null) {
-                RoadGenerator.recordPlacementIfAbsent(
-                    result,
+                RoadPlacementRecorder.recordIfAbsent(
+                    result.placementRecords,
                     pos,
                     projectionHandler.getBlockIdAt(pos),
                     primitive.materialId());
             }
         }
         result.streetlightCount = result.streetlightBlocks.size();
+    }
+
+    /**
+     * 路口 solids 落地：按层应用材质覆盖并写入 placement（override 语义）。
+     */
+    public static void flushJunctionSolids(
+            RoadGenerator.RoadGenerationResult result,
+            RoadSolidModel solids,
+            CoordinateTransformer transformer,
+            String roadBlockId,
+            String sidewalkBlockId,
+            String markingBlockId) {
+        if (result == null || solids == null || solids.isEmpty()) {
+            return;
+        }
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        for (RoadSolidPrimitive primitive : solids.primitives()) {
+            String overrideBlockId = resolveJunctionMaterialOverride(
+                primitive.layer(), roadBlockId, sidewalkBlockId, markingBlockId);
+            if (overrideBlockId == null) {
+                continue;
+            }
+            BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
+            appendToResultBucket(result, primitive.layer(), pos);
+            RoadPlacementRecorder.recordOverride(
+                result.placementRecords,
+                pos,
+                projectionHandler.getBlockIdAt(pos),
+                overrideBlockId);
+        }
+    }
+
+    private static String resolveJunctionMaterialOverride(
+            RoadSolidLayer layer,
+            String roadBlockId,
+            String sidewalkBlockId,
+            String markingBlockId) {
+        return switch (layer) {
+            case ROAD -> roadBlockId;
+            case SIDEWALK -> sidewalkBlockId;
+            case MARKING -> markingBlockId;
+            default -> null;
+        };
+    }
+
+    private static void appendToResultBucket(
+            RoadGenerator.RoadGenerationResult result,
+            RoadSolidLayer layer,
+            BlockPos pos) {
+        switch (layer) {
+            case ROAD, MEDIAN, MARKING -> result.roadBlocks.add(pos);
+            case SIDEWALK, SHOULDER, DRAIN -> result.sidewalkBlocks.add(pos);
+            case BRIDGE -> result.bridgeBlocks.add(pos);
+            case TUNNEL -> result.tunnelBlocks.add(pos);
+            case STREETLIGHT -> result.streetlightBlocks.add(pos);
+        }
     }
 }

@@ -2,7 +2,6 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.model.Shape;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.client.MinecraftClient;
@@ -14,6 +13,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.solid.RoadPlacementRecorder;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
@@ -285,25 +285,30 @@ public class RoadGenerator {
         target.pathLength += source.pathLength;
     }
 
+    public void mergeJunction(
+            RoadGenerationResult target,
+            RoadJunctionGenerator.JunctionBlocks junction,
+            String roadBlockId,
+            String sidewalkBlockId,
+            String markingBlockId) {
+        if (target == null || junction == null) {
+            return;
+        }
+        RoadVoxelRasterizer.flushJunctionSolids(
+            target,
+            junction.getSolids(),
+            coordinateTransformer,
+            roadBlockId,
+            sidewalkBlockId,
+            markingBlockId);
+    }
+
     public void mergeJunctionBlocks(
             RoadGenerationResult target,
             RoadJunctionGenerator.JunctionBlocks junction,
             String roadBlockId,
             String sidewalkBlockId) {
-        if (target == null || junction == null) {
-            return;
-        }
-        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
-        for (BlockPos pos : RoadVoxelRasterizer.rasterize(
-            junction.getSolids().byLayer(RoadSolidLayer.ROAD), coordinateTransformer)) {
-            target.roadBlocks.add(pos);
-            recordBlockOverride(target, pos, roadBlockId, projectionHandler);
-        }
-        for (BlockPos pos : RoadVoxelRasterizer.rasterize(
-            junction.getSolids().byLayer(RoadSolidLayer.SIDEWALK), coordinateTransformer)) {
-            target.sidewalkBlocks.add(pos);
-            recordBlockOverride(target, pos, sidewalkBlockId, projectionHandler);
-        }
+        mergeJunction(target, junction, roadBlockId, sidewalkBlockId, null);
     }
 
     public void mergeJunctionMarkings(
@@ -313,23 +318,13 @@ public class RoadGenerator {
         if (target == null || junction == null || markingBlockId == null) {
             return;
         }
-        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
-        for (BlockPos pos : RoadVoxelRasterizer.rasterize(
-            junction.getSolids().byLayer(RoadSolidLayer.MARKING), coordinateTransformer)) {
-            target.roadBlocks.add(pos);
-            recordBlockOverride(target, pos, markingBlockId, projectionHandler);
-        }
-    }
-
-    private void recordBlockOverride(
-            RoadGenerationResult result,
-            BlockPos pos,
-            String newBlockId,
-            BlockProjectionHandler projectionHandler) {
-        String previousBlockId = result.placementRecords.containsKey(pos)
-            ? result.placementRecords.get(pos).previousBlockId
-            : projectionHandler.getBlockIdAt(pos);
-        result.placementRecords.put(pos, new BlockRecord(pos, previousBlockId, newBlockId));
+        RoadVoxelRasterizer.flushJunctionSolids(
+            target,
+            junction.getSolids(),
+            coordinateTransformer,
+            null,
+            null,
+            markingBlockId);
     }
 
     /**
@@ -1173,9 +1168,10 @@ public class RoadGenerator {
             BlockPos pos,
             String previousBlockId,
             String newBlockId) {
-        if (!result.placementRecords.containsKey(pos)) {
-            result.placementRecords.put(pos, new BlockRecord(pos, previousBlockId, newBlockId));
+        if (result == null) {
+            return;
         }
+        RoadPlacementRecorder.recordIfAbsent(result.placementRecords, pos, previousBlockId, newBlockId);
     }
 
     public String getBlockIdFromMaterial(String material) {
