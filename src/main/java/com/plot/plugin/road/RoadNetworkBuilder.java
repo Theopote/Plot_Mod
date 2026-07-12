@@ -4,7 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -197,91 +198,27 @@ public class RoadNetworkBuilder {
             String nodeId,
             Vec2d splitPoint,
             Set<String> trackedEdgeIds) {
-        RoadEdge edge = network.getEdge(edgeId);
-        if (edge == null) {
+        boolean tracked = trackedEdgeIds != null && trackedEdgeIds.contains(edgeId);
+        Optional<RoadGraphEdits.SplitResult> result = RoadGraphEdits.of(network)
+            .splitEdgeAtNode(edgeId, nodeId, splitPoint, NODE_TOLERANCE);
+        if (result.isEmpty()) {
             return false;
         }
-        if (edge.getStartNodeId().equals(nodeId) || edge.getEndNodeId().equals(nodeId)) {
-            return false;
-        }
-
-        List<List<Vec2d>> parts = RoadGeometryUtils.splitPolylineAt(
-            edge.getCenterlinePoints(),
-            splitPoint,
-            NODE_TOLERANCE
-        );
-        if (parts.size() != 2) {
-            return false;
-        }
-
-        List<Vec2d> firstPart = parts.get(0);
-        List<Vec2d> secondPart = parts.get(1);
-        if (firstPart.size() < 2 || secondPart.size() < 2) {
-            return false;
-        }
-
-        String startNodeId = edge.getStartNodeId();
-        String endNodeId = edge.getEndNodeId();
-        double splitDistance = RoadGeometryUtils.calculatePathLength(firstPart);
-        double totalLength = edge.getLength();
-        List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
-        String roadId = edge.getRoadId();
-        boolean tracked = trackedEdgeIds != null && trackedEdgeIds.remove(edgeId);
-
-        network.detachEdge(edgeId);
-        if (roadId != null) {
-            Road road = network.getRoad(roadId);
-            if (road != null) {
-                road.removeSegment(edgeId);
-            }
-        }
-
-        RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
-        RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
-        firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
-        secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
-
         if (tracked) {
-            trackedEdgeIds.add(firstEdge.getId());
-            trackedEdgeIds.add(secondEdge.getId());
+            trackedEdgeIds.remove(edgeId);
+            trackedEdgeIds.add(result.get().firstEdgeId());
+            trackedEdgeIds.add(result.get().secondEdgeId());
         }
         return true;
     }
 
+    /** @deprecated 使用 {@link RoadGraphEdits#splitSlopeOverrides} */
+    @Deprecated
     static List<RoadEdge.SlopeOverride> splitSlopeOverrides(
             List<RoadEdge.SlopeOverride> overrides,
             double splitDistance,
             double totalLength,
             boolean firstPart) {
-        if (overrides == null || overrides.isEmpty()) {
-            return List.of();
-        }
-
-        List<RoadEdge.SlopeOverride> result = new ArrayList<>();
-        for (RoadEdge.SlopeOverride override : overrides) {
-            double start = override.startDistance;
-            double end = override.endDistance;
-            if (firstPart) {
-                if (end <= 0 || start >= splitDistance) {
-                    continue;
-                }
-                double newStart = Math.max(0, start);
-                double newEnd = Math.min(splitDistance, end);
-                if (newEnd > newStart) {
-                    result.add(new RoadEdge.SlopeOverride(newStart, newEnd, override.maxSlope));
-                }
-            } else {
-                double secondLength = Math.max(0, totalLength - splitDistance);
-                if (secondLength <= 0 || end <= splitDistance || start >= totalLength) {
-                    continue;
-                }
-                double newStart = Math.max(splitDistance, start) - splitDistance;
-                double newEnd = Math.min(totalLength, end) - splitDistance;
-                if (newEnd > newStart) {
-                    result.add(new RoadEdge.SlopeOverride(newStart, newEnd, override.maxSlope));
-                }
-            }
-        }
-        return result;
+        return RoadGraphEdits.splitSlopeOverrides(overrides, splitDistance, totalLength, firstPart);
     }
 }
