@@ -5,6 +5,7 @@ import com.plot.plugin.road.SlopeFormatUtils.DisplayFormat;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
+import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.HashMap;
@@ -50,10 +51,10 @@ public final class EngineeringSlopeInput {
             PlotI18n.tr("plugin.road.slope_format_percent"),
             PlotI18n.tr("plugin.road.slope_format_ratio")
         };
-        int[] formatIndex = {format == DisplayFormat.RATIO ? 1 : 0};
+        ImInt formatIndex = new ImInt(format == DisplayFormat.RATIO ? 1 : 0);
         ImGui.setNextItemWidth(72f);
         if (ImGui.combo("##format", formatIndex, formatLabels)) {
-            format = formatIndex[0] == 1 ? DisplayFormat.RATIO : DisplayFormat.PERCENT;
+            format = formatIndex.get() == 1 ? DisplayFormat.RATIO : DisplayFormat.PERCENT;
             FORMAT_PREFS.put(id, format);
             syncTextBuffer(id, value[0], kind, format);
         }
