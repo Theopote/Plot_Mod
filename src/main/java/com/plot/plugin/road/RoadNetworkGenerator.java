@@ -69,9 +69,7 @@ public class RoadNetworkGenerator {
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
                 junctionGenerator.generateJunction(node, network, world);
-            if (!junctionBlocks.roadBlocks.isEmpty()
-                || !junctionBlocks.sidewalkBlocks.isEmpty()
-                || !junctionBlocks.markingBlocks.isEmpty()) {
+            if (!junctionBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
         }

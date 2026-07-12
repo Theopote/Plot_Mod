@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -60,8 +61,8 @@ class RoadJunctionMarkingGeneratorTest {
         markingGenerator.generateStopLines(blocks, junction, network, edges, 64);
         markingGenerator.generateMarkings(blocks, junction, network, edges, polygon, 64);
 
-        assertFalse(blocks.markingBlocks.isEmpty(), "stop lines should be generated");
-        assertTrue(blocks.markingBlocks.size() >= 12,
+        assertFalse(blocks.getSolids().isEmpty(), "stop lines should be generated");
+        assertTrue(blocks.getSolids().count(RoadSolidLayer.MARKING) >= 12,
             "crosswalk stripes and continued centerline should add marking blocks");
     }
 
@@ -96,7 +97,7 @@ class RoadJunctionMarkingGeneratorTest {
         markingGenerator.generateMarkings(
             blocks, junction, network, edges, List.of(), 64);
 
-        assertTrue(blocks.markingBlocks.size() >= 12,
+        assertTrue(blocks.getSolids().count(RoadSolidLayer.MARKING) >= 12,
             "turn arrows add four blocks per approach at a T-junction");
     }
 
@@ -144,7 +145,8 @@ class RoadJunctionMarkingGeneratorTest {
         markingGenerator.generateStopLines(enabledBlocks, junction, network, edges, 64);
         markingGenerator.generateMarkings(enabledBlocks, junction, network, edges, List.of(), 64);
 
-        assertTrue(enabledBlocks.markingBlocks.size() > fullBlocks.markingBlocks.size(),
+        assertTrue(enabledBlocks.getSolids().count(RoadSolidLayer.MARKING)
+                > fullBlocks.getSolids().count(RoadSolidLayer.MARKING),
             "forcing markings on should add more blocks than when stop lines, crosswalks and arrows are off");
     }
 }

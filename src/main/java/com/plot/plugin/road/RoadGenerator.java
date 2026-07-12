@@ -12,6 +12,8 @@ import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.core.command.BlockRecord;
 import net.minecraft.util.math.BlockPos;
@@ -250,11 +252,13 @@ public class RoadGenerator {
             return;
         }
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
-        for (BlockPos pos : junction.roadBlocks) {
+        for (BlockPos pos : RoadVoxelRasterizer.rasterize(
+            junction.getSolids().byLayer(RoadSolidLayer.ROAD), coordinateTransformer)) {
             target.roadBlocks.add(pos);
             recordBlockOverride(target, pos, roadBlockId, projectionHandler);
         }
-        for (BlockPos pos : junction.sidewalkBlocks) {
+        for (BlockPos pos : RoadVoxelRasterizer.rasterize(
+            junction.getSolids().byLayer(RoadSolidLayer.SIDEWALK), coordinateTransformer)) {
             target.sidewalkBlocks.add(pos);
             recordBlockOverride(target, pos, sidewalkBlockId, projectionHandler);
         }
@@ -268,7 +272,8 @@ public class RoadGenerator {
             return;
         }
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
-        for (BlockPos pos : junction.markingBlocks) {
+        for (BlockPos pos : RoadVoxelRasterizer.rasterize(
+            junction.getSolids().byLayer(RoadSolidLayer.MARKING), coordinateTransformer)) {
             target.roadBlocks.add(pos);
             recordBlockOverride(target, pos, markingBlockId, projectionHandler);
         }
@@ -363,8 +368,7 @@ public class RoadGenerator {
     }
 
     public BlockPos toBlockPos(Vec2d canvasPos, int y) {
-        BlockPos base = RoadGeometryUtils.canvasToBlockXZ(canvasPos, coordinateTransformer);
-        return new BlockPos(base.getX(), y, base.getZ());
+        return RoadVoxelRasterizer.toBlockPos(canvasPos, y, coordinateTransformer);
     }
 
     /**

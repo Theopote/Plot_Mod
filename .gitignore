@@ -46,3 +46,4 @@ replay_*.log
 **/bin/
 **/out/
 **/classes/
+/logs/latest.log

@@ -5,8 +5,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.model.section.ResolvedCrossSection;
-import net.minecraft.util.math.BlockPos;
+import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.solid.RoadSolidModel;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,10 +20,19 @@ import java.util.List;
 public class RoadJunctionGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadJunctionGenerator");
 
+    /**
+     * 路口实体蓝图（平面坐标 + 标高 + 层），落地前不含 BlockPos。
+     */
     public static class JunctionBlocks {
-        public final List<BlockPos> roadBlocks = new ArrayList<>();
-        public final List<BlockPos> sidewalkBlocks = new ArrayList<>();
-        public final List<BlockPos> markingBlocks = new ArrayList<>();
+        private final RoadSolidModel solids = new RoadSolidModel();
+
+        public RoadSolidModel getSolids() {
+            return solids;
+        }
+
+        public boolean isEmpty() {
+            return solids.isEmpty();
+        }
     }
 
     private final RoadGenerator generator;
@@ -106,7 +115,7 @@ public class RoadJunctionGenerator {
             .orElse(5);
         int radius = maxWidth + 2;
         for (Vec2d point : RoadJunctionGeometry.collectSimpleEnvelopePoints(center, radius)) {
-            blocks.roadBlocks.add(generator.toBlockPos(point, junctionY));
+            blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
         }
     }
 
@@ -120,7 +129,7 @@ public class RoadJunctionGenerator {
             for (int z = (int) Math.floor(minY); z <= (int) Math.ceil(maxY); z++) {
                 Vec2d point = new Vec2d(x, z);
                 if (RoadGeometryUtils.pointInPolygon(point, polygon)) {
-                    blocks.roadBlocks.add(generator.toBlockPos(point, junctionY));
+                    blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
                 }
             }
         }

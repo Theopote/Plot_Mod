@@ -6,8 +6,8 @@ import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -105,7 +105,7 @@ public final class RoadJunctionMarkingGenerator {
                     && !RoadGeometryUtils.pointInPolygon(point, junctionPolygon)) {
                     continue;
                 }
-                addMarkingBlock(blocks, point, junctionY);
+                addMarking(blocks, point, junctionY);
             }
         }
     }
@@ -128,7 +128,7 @@ public final class RoadJunctionMarkingGenerator {
             double along = (stripe - (CROSSWALK_STRIPE_COUNT - 1) / 2.0) * 0.85;
             Vec2d stripeOrigin = crosswalkCenter.add(unit.multiply(along));
             for (int lateral = (int) Math.floor(-totalHalf); lateral <= (int) Math.ceil(totalHalf); lateral++) {
-                addMarkingBlock(blocks, stripeOrigin.add(perpendicular.multiply(lateral)), junctionY);
+                addMarking(blocks, stripeOrigin.add(perpendicular.multiply(lateral)), junctionY);
             }
         }
     }
@@ -147,10 +147,10 @@ public final class RoadJunctionMarkingGenerator {
         Vec2d wingRight = arrowBase.subtract(perpendicular.multiply(0.6));
         Vec2d tail = arrowBase.add(unit.multiply(1.5));
 
-        addMarkingBlock(blocks, arrowTip, junctionY);
-        addMarkingBlock(blocks, wingLeft, junctionY);
-        addMarkingBlock(blocks, wingRight, junctionY);
-        addMarkingBlock(blocks, tail, junctionY);
+        addMarking(blocks, arrowTip, junctionY);
+        addMarking(blocks, wingLeft, junctionY);
+        addMarking(blocks, wingRight, junctionY);
+        addMarking(blocks, tail, junctionY);
     }
 
     void generateStopLines(
@@ -187,15 +187,12 @@ public final class RoadJunctionMarkingGenerator {
             Vec2d stopCenter = center.add(unit.multiply(junctionRadius * STOP_LINE_INSET_RATIO));
 
             for (int offset = -(int) Math.ceil(halfWidth); offset <= (int) Math.ceil(halfWidth); offset++) {
-                addMarkingBlock(blocks, stopCenter.add(perpendicular.multiply(offset)), junctionY);
+                addMarking(blocks, stopCenter.add(perpendicular.multiply(offset)), junctionY);
             }
         }
     }
 
-    private void addMarkingBlock(RoadJunctionGenerator.JunctionBlocks blocks, Vec2d point, int junctionY) {
-        BlockPos pos = generator.toBlockPos(point, junctionY);
-        if (!blocks.markingBlocks.contains(pos)) {
-            blocks.markingBlocks.add(pos);
-        }
+    private void addMarking(RoadJunctionGenerator.JunctionBlocks blocks, Vec2d point, int junctionY) {
+        blocks.getSolids().add(point, junctionY, RoadSolidLayer.MARKING);
     }
 }
