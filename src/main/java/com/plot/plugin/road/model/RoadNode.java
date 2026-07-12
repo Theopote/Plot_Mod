@@ -20,6 +20,10 @@ public class RoadNode {
     private Double manualElevation;
     /** 路缘石圆角半径（格），null 表示使用网络默认值 */
     private Double cornerRadius;
+    private JunctionMarkingSetting stopLines = JunctionMarkingSetting.AUTO;
+    private JunctionMarkingSetting continuedMarkings = JunctionMarkingSetting.AUTO;
+    private JunctionMarkingSetting crosswalks = JunctionMarkingSetting.AUTO;
+    private JunctionMarkingSetting turnArrows = JunctionMarkingSetting.AUTO;
     private final Set<String> connectedEdgeIds;
 
     public RoadNode(Vec2d position) {
@@ -77,6 +81,38 @@ public class RoadNode {
         return cornerRadius != null ? cornerRadius : networkDefault;
     }
 
+    public JunctionMarkingSetting getStopLines() {
+        return stopLines;
+    }
+
+    public void setStopLines(JunctionMarkingSetting stopLines) {
+        this.stopLines = stopLines != null ? stopLines : JunctionMarkingSetting.AUTO;
+    }
+
+    public JunctionMarkingSetting getContinuedMarkings() {
+        return continuedMarkings;
+    }
+
+    public void setContinuedMarkings(JunctionMarkingSetting continuedMarkings) {
+        this.continuedMarkings = continuedMarkings != null ? continuedMarkings : JunctionMarkingSetting.AUTO;
+    }
+
+    public JunctionMarkingSetting getCrosswalks() {
+        return crosswalks;
+    }
+
+    public void setCrosswalks(JunctionMarkingSetting crosswalks) {
+        this.crosswalks = crosswalks != null ? crosswalks : JunctionMarkingSetting.AUTO;
+    }
+
+    public JunctionMarkingSetting getTurnArrows() {
+        return turnArrows;
+    }
+
+    public void setTurnArrows(JunctionMarkingSetting turnArrows) {
+        this.turnArrows = turnArrows != null ? turnArrows : JunctionMarkingSetting.AUTO;
+    }
+
     public boolean isJunction() {
         return getDegree() >= 3;
     }
@@ -100,7 +136,12 @@ public class RoadNode {
     }
 
     RoadNode copy() {
-        return new RoadNode(id, position, manualElevation, cornerRadius, connectedEdgeIds);
+        RoadNode copy = new RoadNode(id, position, manualElevation, cornerRadius, connectedEdgeIds);
+        copy.stopLines = stopLines;
+        copy.continuedMarkings = continuedMarkings;
+        copy.crosswalks = crosswalks;
+        copy.turnArrows = turnArrows;
+        return copy;
     }
 
     private static Double clampCornerRadius(Double radius) {

@@ -39,6 +39,7 @@ public final class RoadJunctionMarkingGenerator {
             return;
         }
 
+        int junctionDegree = edges.size();
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
@@ -59,11 +60,12 @@ public final class RoadJunctionMarkingGenerator {
             }
 
             generateContinuedMarkings(
-                blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection);
-            if (crossSection.includeSidewalk) {
+                blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection,
+                node.getContinuedMarkings().resolve(true));
+            if (node.getCrosswalks().resolve(crossSection.includeSidewalk)) {
                 generateCrosswalk(blocks, center, direction, junctionRadius, junctionY, crossSection);
             }
-            if (crossSection.laneCount >= 1 && edges.size() >= 3) {
+            if (node.getTurnArrows().resolve(crossSection.laneCount >= 1 && junctionDegree >= 3)) {
                 generateTurnArrow(blocks, center, direction, junctionRadius, junctionY);
             }
         }
@@ -76,7 +78,11 @@ public final class RoadJunctionMarkingGenerator {
             List<Vec2d> junctionPolygon,
             int junctionY,
             double junctionRadius,
-            ResolvedCrossSection crossSection) {
+            ResolvedCrossSection crossSection,
+            boolean enabled) {
+        if (!enabled) {
+            return;
+        }
         List<Vec2d> outward = RoadJunctionGeometry.extractApproachCenterline(
             edge, nodeId, junctionRadius * 1.35);
         if (outward.size() < 2) {
@@ -153,6 +159,9 @@ public final class RoadJunctionMarkingGenerator {
             RoadNetwork network,
             List<RoadEdge> edges,
             int junctionY) {
+        if (!node.getStopLines().resolve(true)) {
+            return;
+        }
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,

@@ -243,6 +243,10 @@ public class RoadNetwork {
         Vec2dData position;
         Double manualElevation;
         Double cornerRadius;
+        String stopLines;
+        String continuedMarkings;
+        String crosswalks;
+        String turnArrows;
         List<String> connectedEdgeIds = new ArrayList<>();
     }
 
@@ -488,6 +492,18 @@ public class RoadNetwork {
                 nodeData.position = new Vec2dData(node.getPosition());
                 nodeData.manualElevation = node.getManualElevation();
                 nodeData.cornerRadius = node.getCornerRadius();
+                if (node.getStopLines() != JunctionMarkingSetting.AUTO) {
+                    nodeData.stopLines = node.getStopLines().name();
+                }
+                if (node.getContinuedMarkings() != JunctionMarkingSetting.AUTO) {
+                    nodeData.continuedMarkings = node.getContinuedMarkings().name();
+                }
+                if (node.getCrosswalks() != JunctionMarkingSetting.AUTO) {
+                    nodeData.crosswalks = node.getCrosswalks().name();
+                }
+                if (node.getTurnArrows() != JunctionMarkingSetting.AUTO) {
+                    nodeData.turnArrows = node.getTurnArrows().name();
+                }
                 nodeData.connectedEdgeIds = new ArrayList<>(node.getConnectedEdgeIds());
                 data.nodes.add(nodeData);
             }
@@ -535,6 +551,10 @@ public class RoadNetwork {
                     nodeData.cornerRadius,
                     null
                 );
+                node.setStopLines(JunctionMarkingSetting.fromString(nodeData.stopLines));
+                node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
+                node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));
+                node.setTurnArrows(JunctionMarkingSetting.fromString(nodeData.turnArrows));
                 if (nodeData.connectedEdgeIds != null) {
                     for (String edgeId : nodeData.connectedEdgeIds) {
                         node.addEdge(edgeId);
