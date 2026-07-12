@@ -1,6 +1,7 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.state.AppState;
 import com.plot.core.graphics.DrawContext;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
@@ -115,12 +116,16 @@ public class ControlPointEditStrategy implements IModifyStrategy {
         }
         
         if (editTool.isDragging()) {
-            // 结束拖拽
-            editTool.endDrag();
-            
-            LOGGER.debug("结束控制点拖拽");
-            context.setStatusMessage("status.plot.control_point.complete");
-            
+            AppState appState = context.getAppState() instanceof AppState concreteAppState
+                    ? concreteAppState
+                    : null;
+            boolean recorded = editTool.commitDrag(appState);
+
+            LOGGER.debug("结束控制点拖拽，已记录历史: {}", recorded);
+            context.setStatusMessage(recorded
+                    ? "status.plot.control_point.complete"
+                    : "status.plot.control_point.no_change");
+
             return ModifyResult.CONTINUE;
         }
         
@@ -368,7 +373,7 @@ public class ControlPointEditStrategy implements IModifyStrategy {
     
     @Override
     public com.plot.core.command.commands.ModifyCommand getModifyCommand() {
-        // 控制点编辑通常不产生修改命令，而是直接修改图形
+        // 控制点编辑在 commitDrag 中直接写入 CommandHistory
         return null;
     }
 }

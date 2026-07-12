@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.ICanvas;
 import com.plot.api.snap.ISnapManager;
+import com.plot.core.command.commands.ControlPointEditCommand;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -55,6 +56,7 @@ public class ControlPointEditTool extends ModifyTool {
     private static final float ANCHOR_POINT_HOVER_SIZE = 5.0f;
     private static final float ANCHOR_POINT_ACTIVE_SIZE = 6.0f;
     private static final float CONTROL_POINT_BORDER_WIDTH = 2.0f;
+    private static final double GEOMETRY_EPSILON = 1e-6;
 
     private static boolean displayEnabled = true;
     private static boolean showPointIndex = true;
@@ -66,6 +68,7 @@ public class ControlPointEditTool extends ModifyTool {
     private int activeControlPointIndex = -1;
     private Vec2d dragStartPosition = null;
     private Vec2d originalControlPointPosition = null;
+    private Shape preEditSnapshot = null;
     
     /**
      * 构造函数（依赖注入版本）
@@ -292,6 +295,7 @@ public class ControlPointEditTool extends ModifyTool {
         this.activeControlPointIndex = -1;
         this.dragStartPosition = null;
         this.originalControlPointPosition = null;
+        this.preEditSnapshot = null;
         
         LOGGER.debug("控制点编辑模式已激活，目标图形: {}", shape.getClass().getSimpleName());
         setStatusMessage(getInitialStatusMessage());
@@ -311,6 +315,7 @@ public class ControlPointEditTool extends ModifyTool {
         this.activeControlPointIndex = -1;
         this.dragStartPosition = null;
         this.originalControlPointPosition = null;
+        this.preEditSnapshot = null;
         
         LOGGER.debug("控制点编辑模式已停用");
     }
@@ -375,6 +380,7 @@ public class ControlPointEditTool extends ModifyTool {
         this.activeControlPointIndex = controlPointIndex;
         this.dragStartPosition = mousePosition;
         this.originalControlPointPosition = controlPoints.get(controlPointIndex);
+        this.preEditSnapshot = targetShape.clone();
         
         LOGGER.debug("开始拖拽控制点 {}，位置: {}", controlPointIndex, originalControlPointPosition);
     }
@@ -411,20 +417,72 @@ public class ControlPointEditTool extends ModifyTool {
     }
     
     /**
-     * 结束拖拽控制点
+     * 结束拖拽控制点，并在几何发生变化时写入撤销/重做历史。
+     *
+     * @param appState 应用状态
+     * @return 是否记录了可撤销的修改
+     */
+    public boolean commitDrag(AppState appState) {
+        if (!isDragging() || targetShape == null || preEditSnapshot == null || appState == null) {
+            clearDragState();
+            return false;
+        }
+
+        Shape afterSnapshot = targetShape.clone();
+        boolean changed = hasGeometryChanged(preEditSnapshot, afterSnapshot);
+        if (changed) {
+            ControlPointEditCommand command = new ControlPointEditCommand(
+                    targetShape,
+                    preEditSnapshot,
+                    afterSnapshot
+            );
+            appState.getCommandHistory().execute(command);
+            LOGGER.debug("控制点编辑已记录到撤销历史");
+        }
+
+        clearDragState();
+        return changed;
+    }
+
+    /**
+     * 结束拖拽控制点（不写入历史）
      */
     public void endDrag() {
-        if (!isDragging()) {
-            return;
-        }
-        
-        LOGGER.debug("结束拖拽控制点 {}", activeControlPointIndex);
-        
+        clearDragState();
+    }
+
+    private void clearDragState() {
         this.activeControlPointIndex = -1;
         this.dragStartPosition = null;
         this.originalControlPointPosition = null;
+        this.preEditSnapshot = null;
     }
-    
+
+    private static boolean hasGeometryChanged(Shape before, Shape after) {
+        List<Vec2d> beforePoints = before.getControlPoints();
+        List<Vec2d> afterPoints = after.getControlPoints();
+        if (beforePoints == null || afterPoints == null) {
+            return beforePoints != afterPoints;
+        }
+        if (beforePoints.size() != afterPoints.size()) {
+            return true;
+        }
+        for (int i = 0; i < beforePoints.size(); i++) {
+            Vec2d a = beforePoints.get(i);
+            Vec2d b = afterPoints.get(i);
+            if (a == null || b == null) {
+                if (a != b) {
+                    return true;
+                }
+                continue;
+            }
+            if (a.distance(b) > GEOMETRY_EPSILON) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * 检查是否正在拖拽
      */
