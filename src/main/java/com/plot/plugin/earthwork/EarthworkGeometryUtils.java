@@ -1,13 +1,13 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.EllipseShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.util.math.BlockPos;
 
@@ -54,15 +54,15 @@ public final class EarthworkGeometryUtils {
         if (points == null || points.size() < 3) {
             return List.of();
         }
-        return BuildingGeometryUtils.copyPoints(points);
+        return PolygonRegionUtils.copyPoints(points);
     }
 
     public static Polygon toPolygon(List<Vec2d> points) {
-        return BuildingGeometryUtils.toPolygon(points);
+        return PolygonRegionUtils.toPolygon(points);
     }
 
     public static List<Vec2d> collectFootprintCellCenters(List<Vec2d> points) {
-        return BuildingGeometryUtils.collectFootprintCellCenters(points);
+        return PolygonRegionUtils.collectFootprintCellCenters(points);
     }
 
     public static List<Vec2d> collectSampleCenters(List<Vec2d> points, int gridSize) {
@@ -83,7 +83,7 @@ public final class EarthworkGeometryUtils {
     }
 
     public static BlockPos canvasToBlockXZ(Vec2d canvasPos, CoordinateTransformer transformer) {
-        return BuildingGeometryUtils.canvasToBlockXZ(canvasPos, transformer);
+        return PolygonRegionUtils.canvasToBlockXZ(canvasPos, transformer);
     }
 
     public static String resolveFillBlockId(String material) {
@@ -100,11 +100,11 @@ public final class EarthworkGeometryUtils {
         return material.trim();
     }
 
-    public static BuildingGeometryUtils.RectBounds computeBounds(List<Vec2d> points) {
-        return BuildingGeometryUtils.normalizedRectBounds(points);
+    public static PolygonRegionUtils.RectBounds computeBounds(List<Vec2d> points) {
+        return PolygonRegionUtils.computeBounds(points);
     }
 
     public static Vec2d computeCentroid(List<Vec2d> points) {
-        return BuildingGeometryUtils.computeCentroid(points);
+        return PolygonRegionUtils.computeCentroid(points);
     }
 }

@@ -7,6 +7,7 @@ import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
@@ -15,7 +16,6 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.infrastructure.event.block.GhostBlockManager;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
-import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
@@ -458,7 +458,7 @@ public class EarthworkPlugin extends Plugin {
             return;
         }
 
-        BuildingGeometryUtils.RectBounds bounds = EarthworkGeometryUtils.computeBounds(points);
+        PolygonRegionUtils.RectBounds bounds = EarthworkGeometryUtils.computeBounds(points);
         float availWidth = ImGui.getContentRegionAvailX();
         float previewHeight = 140.0f;
         float originX = ImGui.getCursorScreenPosX();
