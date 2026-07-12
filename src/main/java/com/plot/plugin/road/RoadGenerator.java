@@ -193,6 +193,23 @@ public class RoadGenerator {
                     getBlockIdFromMaterial("material.plot.gravel"));
             }
 
+            if (crossSection.includeMedian && crossSection.medianWidth > 0) {
+                double halfMedian = crossSection.medianWidth / 2.0;
+                List<Vec2d> leftMedian = OffsetHandler.offsetPolyline(pathPoints, -halfMedian);
+                List<Vec2d> rightMedian = OffsetHandler.offsetPolyline(pathPoints, halfMedian);
+                generateMedianBlocks(
+                    result,
+                    segments,
+                    heightInfos,
+                    leftMedian,
+                    rightMedian,
+                    getBlockIdFromMaterial(crossSection.medianMaterial));
+            }
+
+            if (crossSection.laneDividers || crossSection.centerLine) {
+                generateLaneMarkings(result, segments, heightInfos, pathPoints, crossSection);
+            }
+
             Integer spacing = crossSection.streetlightSpacing;
             if (spacing != null && spacing > 0) {
                 generateStreetlights(result, pathPoints, network, edge, world, shoulderWidth);
@@ -1065,6 +1082,82 @@ public class RoadGenerator {
         }
     }
 
+    private void generateMedianBlocks(
+            RoadGenerationResult result,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            String blockId) {
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
+
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            SegmentHeightInfo info = heightInfos.get(i);
+            PathSegment segment = segments.get(i);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                double normalized = totalLength > 1e-9
+                    ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                    : 0.0;
+                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
+                fillBetweenPoints(result, left, right, targetY, blockId, projectionHandler);
+            }
+            accumulatedSegmentStart += segment.distance;
+        }
+    }
+
+    private void generateLaneMarkings(
+            RoadGenerationResult result,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            List<Vec2d> pathPoints,
+            ResolvedCrossSection crossSection) {
+        String blockId = getBlockIdFromMaterial(crossSection.markingMaterial);
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        double accumulatedSegmentStart = 0.0;
+
+        List<Double> offsets = new ArrayList<>();
+        if (crossSection.centerLine) {
+            offsets.add(0.0);
+        }
+        if (crossSection.laneDividers) {
+            for (Double offset : crossSection.laneDividerOffsets) {
+                if (offset != null && Math.abs(offset) > 1e-6) {
+                    offsets.add(offset);
+                }
+            }
+        }
+
+        for (Double offset : offsets) {
+            List<Vec2d> markingLine = OffsetHandler.offsetPolyline(pathPoints, offset);
+            accumulatedSegmentStart = 0.0;
+            for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+                SegmentHeightInfo info = heightInfos.get(i);
+                PathSegment segment = segments.get(i);
+                int samples = Math.max(2, (int) Math.ceil(segment.distance));
+                for (int j = 0; j <= samples; j++) {
+                    if (j % 2 != 0) {
+                        continue;
+                    }
+                    double t = (double) j / samples;
+                    int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                    double normalized = totalLength > 1e-9
+                        ? (accumulatedSegmentStart + t * segment.distance) / totalLength
+                        : 0.0;
+                    Vec2d point = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(markingLine, normalized);
+                    placeMarkingStrip(result, point, targetY, blockId, projectionHandler);
+                }
+                accumulatedSegmentStart += segment.distance;
+            }
+        }
+    }
+
     private void generateStreetlights(RoadGenerationResult result, List<Vec2d> pathPoints,
                                       RoadNetwork network, RoadEdge edge, World world, double shoulderWidth) {
         Integer spacingValue = RoadModelUtils.getStreetlightSpacing(network, edge);
@@ -1128,6 +1221,18 @@ public class RoadGenerator {
             unique.add(new BlockPos(base.getX(), y, base.getZ()));
         }
         return new ArrayList<>(unique);
+    }
+
+    private void placeMarkingStrip(
+            RoadGenerationResult result,
+            Vec2d center,
+            int targetY,
+            String blockId,
+            BlockProjectionHandler projectionHandler) {
+        BlockPos centerPos = canvasToBlockPos(center);
+        BlockPos pos = new BlockPos(centerPos.getX(), targetY, centerPos.getZ());
+        recordBlock(result, pos, blockId, projectionHandler);
+        result.roadBlocks.add(pos);
     }
 
     private void placeSidewalkStrip(
