@@ -3,7 +3,7 @@ package com.plot.ui.panel;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.plugin.PluginManager;
 import com.plot.api.plugin.IPlugin;
-import com.plot.plugin.RoadSystemPlugin;
+import com.plot.plugin.road.manager.RoadJunctionPropertyProvider;
 import com.plot.ui.panel.layer.LayerPanel;
 import com.plot.ui.panel.tool.ToolOptionsPanel;
 import com.plot.ui.theme.ThemeManager;
@@ -189,7 +189,8 @@ public class PropertyPanel implements UIComponent {
         if (activePlugin == null || !"road_system".equals(activePlugin.getId())) {
             return;
         }
-        if (!(activePlugin instanceof RoadSystemPlugin roadPlugin) || !roadPlugin.hasJunctionPropertyContent()) {
+        if (!(activePlugin instanceof RoadJunctionPropertyProvider roadPlugin)
+                || !roadPlugin.hasJunctionPropertyContent()) {
             return;
         }
 
