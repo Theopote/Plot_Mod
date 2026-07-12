@@ -86,10 +86,39 @@ public final class RoadCrossSectionPreviewRenderer {
         drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
 
         if (layout.includeShoulder && layout.shoulderBlocks > 0) {
-            drawSimpleBatter(drawList, x0 + width * 0.5f - layout.centerOffsetBlocks(scale) - layout.leftShoulderBlocks * scale,
-                deckY + deckH, groundY, -layout.leftShoulderBlocks * scale, layout.shoulderColor);
-            drawSimpleBatter(drawList, x0 + width * 0.5f + layout.centerOffsetBlocks(scale) + layout.roadBlocks * scale + layout.rightShoulderBlocks * scale,
-                deckY + deckH, groundY, layout.rightShoulderBlocks * scale, layout.shoulderColor);
+            float leftShoulderOuterX = x0 + width * 0.5f - layout.centerOffsetBlocks(scale)
+                - layout.leftShoulderBlocks * scale;
+            float rightShoulderOuterX = x0 + width * 0.5f + layout.centerOffsetBlocks(scale)
+                + layout.roadBlocks * scale + layout.rightShoulderBlocks * scale;
+
+            drawBatterSlope(
+                drawList,
+                leftShoulderOuterX,
+                deckY + deckH,
+                groundY,
+                -1,
+                layout.fillSlopeRatio,
+                layout.shoulderColor,
+                layout.fillSlopeRatio > 0f
+            );
+            drawBatterSlope(
+                drawList,
+                rightShoulderOuterX,
+                deckY + deckH,
+                deckY - Math.max(10f, (groundY - deckY - deckH) * 0.5f),
+                1,
+                layout.cutSlopeRatio,
+                layout.shoulderColor,
+                layout.cutSlopeRatio > 0f
+            );
+        }
+
+        if (layout.maxSlopePercent > 0f) {
+            String gradeLabel = PlotI18n.tr(
+                "plugin.road.cross_section_grade",
+                SlopeFormatUtils.formatPercent(layout.maxSlopePercent)
+            );
+            drawList.addText(x0 + width - padding - 72f, y0 + padding * 0.5f, COLOR_LABEL, gradeLabel);
         }
 
         String label = PlotI18n.tr("plugin.road.cross_section_scale", (int) Math.round(totalBlocks));
@@ -113,18 +142,31 @@ public final class RoadCrossSectionPreviewRenderer {
         return x + w;
     }
 
-    private static void drawSimpleBatter(
+    private static void drawBatterSlope(
             ImDrawList drawList,
             float edgeX,
             float deckBottom,
             float groundY,
-            float run,
-            int color) {
-        if (Math.abs(run) < 1f || groundY <= deckBottom) {
+            int horizontalSign,
+            float slopeRatio,
+            int color,
+            boolean enabled) {
+        if (!enabled || slopeRatio <= 0f) {
             return;
         }
-        float endX = edgeX + run * 0.6f;
-        drawList.addTriangleFilled(edgeX, deckBottom, endX, groundY, edgeX, groundY, color);
+        float verticalDrop = Math.abs(groundY - deckBottom);
+        if (verticalDrop < 1f) {
+            return;
+        }
+        float horizontalRun = verticalDrop * slopeRatio * horizontalSign;
+        float endX = edgeX + horizontalRun;
+        float endY = groundY;
+        drawList.addTriangleFilled(edgeX, deckBottom, endX, endY, edgeX, endY, color);
+        drawList.addLine(edgeX, deckBottom, endX, endY, COLOR_BORDER, 1.2f);
+
+        String label = SlopeFormatUtils.formatRatio(slopeRatio);
+        float labelX = horizontalSign < 0 ? endX + 2f : edgeX + 2f;
+        drawList.addText(labelX, deckBottom + 2f, COLOR_LABEL, label);
     }
 
     public static final class CrossSectionLayout {
@@ -136,6 +178,9 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float drainageBlocks;
         public final boolean includeShoulder;
         public final float shoulderBlocks;
+        public final float fillSlopeRatio;
+        public final float cutSlopeRatio;
+        public final float maxSlopePercent;
         public final int roadColor;
         public final int sidewalkColor;
         public final int shoulderColor;
@@ -149,6 +194,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 float drainageBlocks,
                 boolean includeShoulder,
                 float shoulderBlocks,
+                float fillSlopeRatio,
+                float cutSlopeRatio,
+                float maxSlopePercent,
                 int roadColor,
                 int sidewalkColor,
                 int shoulderColor) {
@@ -160,6 +208,9 @@ public final class RoadCrossSectionPreviewRenderer {
             this.drainageBlocks = drainageBlocks;
             this.includeShoulder = includeShoulder;
             this.shoulderBlocks = shoulderBlocks;
+            this.fillSlopeRatio = fillSlopeRatio;
+            this.cutSlopeRatio = cutSlopeRatio;
+            this.maxSlopePercent = maxSlopePercent;
             this.roadColor = roadColor;
             this.sidewalkColor = sidewalkColor;
             this.shoulderColor = shoulderColor;
@@ -177,6 +228,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 drainage,
                 config.isIncludeShoulder(),
                 shoulder,
+                config.isIncludeShoulder() ? config.getFillSlopeRatio() : 0f,
+                config.isIncludeShoulder() ? config.getCutSlopeRatio() : 0f,
+                config.getMaxSlope(),
                 colorForMaterial(config.getSelectedMaterial(), 0xFF707070),
                 colorForMaterial(config.getSelectedSidewalkMaterial(), 0xFF989898),
                 colorForMaterial(config.getFillSlopeMaterial(), 0xFFB8A070)
@@ -197,6 +251,9 @@ public final class RoadCrossSectionPreviewRenderer {
                 drainage,
                 preset.includeShoulder,
                 shoulder,
+                preset.includeShoulder ? 1.5f : 0f,
+                preset.includeShoulder ? 1.0f : 0f,
+                10.0f,
                 colorForMaterial(roadMat, 0xFF707070),
                 colorForMaterial(swMat, 0xFF989898),
                 colorForMaterial("material.plot.gravel", 0xFFB8A070)

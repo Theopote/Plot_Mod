@@ -10,6 +10,7 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
+import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.Icons;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -509,10 +510,13 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         float[] maxSlope = {current.getMaxSlope() != null ? current.getMaxSlope() : config.getMaxSlope()};
-        if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.max_slope", maxSlope[0]) + "##edge_slope", maxSlope, 0.0f, 45.0f, "%.1f%%")) {
+        if (EngineeringSlopeInput.render(
+            "edge_max_slope",
+            PlotI18n.tr("plugin.road.max_slope_label"),
+            maxSlope,
+            EngineeringSlopeInput.ValueKind.GRADE
+        )) {
             current.setMaxSlope(maxSlope[0]);
-        }
-        if (ImGui.isItemActivated()) {
             networkHistory.push(network);
         }
 
@@ -558,13 +562,6 @@ public class RoadSystemPlugin extends Plugin {
             override.endDistance = end[0];
 
             ImGui.sameLine();
-            ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_value") + "##sl", slope, 0, 45, "%.1f%%");
-            if (ImGui.isItemActivated()) {
-                networkHistory.push(network);
-            }
-            override.maxSlope = slope[0];
-
-            ImGui.sameLine();
             ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
@@ -577,6 +574,16 @@ public class RoadSystemPlugin extends Plugin {
                 return;
             }
             ImGui.popStyleColor(3);
+
+            if (EngineeringSlopeInput.render(
+                "slope_override_" + i,
+                PlotI18n.tr("plugin.road.slope_value"),
+                slope,
+                EngineeringSlopeInput.ValueKind.GRADE
+            )) {
+                networkHistory.push(network);
+            }
+            override.maxSlope = slope[0];
 
             if (override.startDistance > override.endDistance) {
                 ImGui.textColored((int) 0xFF4040FFFFL, PlotI18n.tr("plugin.road.slope_range_invalid"));
@@ -805,10 +812,16 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         float[] maxSlope = {config.getMaxSlope()};
-        if (ImGui.sliderFloat("##max_slope", maxSlope, 0.0f, 45.0f, PlotI18n.tr("plugin.road.max_slope", maxSlope[0]))) {
+        if (EngineeringSlopeInput.render(
+            "default_max_slope",
+            PlotI18n.tr("plugin.road.max_slope_label"),
+            maxSlope,
+            EngineeringSlopeInput.ValueKind.GRADE
+        )) {
             config.setMaxSlope(maxSlope[0]);
             markDefaultParamsCustom();
         }
+        renderEngineeringTooltip("hint.plot.road.max_slope");
 
         float[] maxContinuousLength = {(float) config.getMaxContinuousSlopeLength()};
         if (ImGui.sliderFloat(
@@ -835,16 +848,16 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         float[] relaxedSlope = {config.getRelaxedSlopePercent()};
-        if (ImGui.sliderFloat(
-            "##relaxed_slope_percent",
+        if (EngineeringSlopeInput.render(
+            "default_relaxed_slope",
+            PlotI18n.tr("plugin.road.relaxed_slope_percent_label"),
             relaxedSlope,
-            0.1f,
-            Math.max(0.2f, config.getMaxSlope() - 0.1f),
-            PlotI18n.tr("plugin.road.relaxed_slope_percent", relaxedSlope[0])
+            EngineeringSlopeInput.ValueKind.GRADE
         )) {
             config.setRelaxedSlopePercent(relaxedSlope[0]);
             markDefaultParamsCustom();
         }
+        renderEngineeringTooltip("hint.plot.road.relaxed_slope_percent");
 
         adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), adoptIncludeSidewalkRef)) {
@@ -1017,12 +1030,11 @@ public class RoadSystemPlugin extends Plugin {
             renderEngineeringTooltip("hint.plot.road.shoulder_width");
 
             float[] fillSlopeRatio = {config.getFillSlopeRatio()};
-            if (ImGui.sliderFloat(
-                "##road_fill_slope_ratio",
+            if (EngineeringSlopeInput.render(
+                "fill_slope_ratio",
+                PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
                 fillSlopeRatio,
-                0.5f,
-                5.0f,
-                PlotI18n.tr("plugin.road.fill_slope_ratio", fillSlopeRatio[0])
+                EngineeringSlopeInput.ValueKind.BATTER
             )) {
                 config.setFillSlopeRatio(fillSlopeRatio[0]);
                 markDefaultParamsCustom();
@@ -1030,12 +1042,11 @@ public class RoadSystemPlugin extends Plugin {
             renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
 
             float[] cutSlopeRatio = {config.getCutSlopeRatio()};
-            if (ImGui.sliderFloat(
-                "##road_cut_slope_ratio",
+            if (EngineeringSlopeInput.render(
+                "cut_slope_ratio",
+                PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
                 cutSlopeRatio,
-                0.5f,
-                5.0f,
-                PlotI18n.tr("plugin.road.cut_slope_ratio", cutSlopeRatio[0])
+                EngineeringSlopeInput.ValueKind.BATTER
             )) {
                 config.setCutSlopeRatio(cutSlopeRatio[0]);
                 markDefaultParamsCustom();
@@ -1220,9 +1231,12 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         float[] maxSlope = {batchEditMaxSlope};
-        if (ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.max_slope", maxSlope[0]) + "##batch_slope",
-            maxSlope, 0.0f, 45.0f, "%.1f%%")) {
+        if (EngineeringSlopeInput.render(
+            "batch_max_slope",
+            PlotI18n.tr("plugin.road.max_slope_label"),
+            maxSlope,
+            EngineeringSlopeInput.ValueKind.GRADE
+        )) {
             batchEditMaxSlope = maxSlope[0];
         }
 
