@@ -8,6 +8,7 @@ import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.infrastructure.event.block.GhostBlockManager;
 import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadPlacementVisibility;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -27,7 +28,7 @@ public final class RoadPreviewManager {
 
     private final RoadProjectStatus status;
     private RoadNetworkGenerator networkGenerator;
-    private RoadGenerator.RoadGenerationResult lastGenerationResult;
+    private RoadGenerationResult lastGenerationResult;
 
     public RoadPreviewManager(RoadProjectStatus status) {
         this.status = status;
@@ -37,7 +38,7 @@ public final class RoadPreviewManager {
         this.networkGenerator = networkGenerator;
     }
 
-    public RoadGenerator.RoadGenerationResult getLastGenerationResult() {
+    public RoadGenerationResult getLastGenerationResult() {
         return lastGenerationResult;
     }
 

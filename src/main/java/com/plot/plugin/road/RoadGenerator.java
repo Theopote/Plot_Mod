@@ -13,12 +13,12 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadPlacementRecorder;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
-import com.plot.core.command.BlockRecord;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -60,22 +60,13 @@ public class RoadGenerator {
         this.coordinateTransformer = coordinateTransformer;
     }
     
-    public static class RoadGenerationResult {
-        public final List<BlockPos> roadBlocks = new ArrayList<>();
-        public final List<BlockPos> sidewalkBlocks = new ArrayList<>();
-        public final List<BlockPos> bridgeBlocks = new ArrayList<>();
-        public final List<BlockPos> tunnelBlocks = new ArrayList<>();
-        public final List<BlockPos> streetlightBlocks = new ArrayList<>();
-        public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
-        public int cutVolume;
-        public int fillVolume;
-        public int bridgeCount;
-        public int tunnelCount;
-        public int streetlightCount;
-        public double pathLength;
-        
+    /**
+     * @deprecated 使用 {@link RoadGenerationResult}
+     */
+    @Deprecated
+    public static class RoadGenerationResult extends com.plot.plugin.road.solid.RoadGenerationResult {
         public RoadGenerationResult(double pathLength) {
-            this.pathLength = pathLength;
+            super(pathLength);
         }
     }
 
@@ -268,21 +259,9 @@ public class RoadGenerator {
     }
 
     public void mergeResult(RoadGenerationResult target, RoadGenerationResult source) {
-        if (target == null || source == null) {
-            return;
+        if (target != null) {
+            target.mergeFrom(source);
         }
-        target.roadBlocks.addAll(source.roadBlocks);
-        target.sidewalkBlocks.addAll(source.sidewalkBlocks);
-        target.bridgeBlocks.addAll(source.bridgeBlocks);
-        target.tunnelBlocks.addAll(source.tunnelBlocks);
-        target.streetlightBlocks.addAll(source.streetlightBlocks);
-        target.placementRecords.putAll(source.placementRecords);
-        target.cutVolume += source.cutVolume;
-        target.fillVolume += source.fillVolume;
-        target.bridgeCount += source.bridgeCount;
-        target.tunnelCount += source.tunnelCount;
-        target.streetlightCount += source.streetlightCount;
-        target.pathLength += source.pathLength;
     }
 
     public void mergeJunction(
@@ -536,6 +515,7 @@ public class RoadGenerator {
         int currentHeight = terrain.sampleCrossSectionGroundY(firstPoint, firstTangent, halfWidth);
         
         double maxSlopePercent = config.getMaxSlope();
+        RoadSlopeUtils.ElevationAccumulator elevationAccumulator = new RoadSlopeUtils.ElevationAccumulator();
         
         for (PathSegment segment : segments) {
             Vec2d tangent = segment.end.subtract(segment.start);
@@ -544,7 +524,7 @@ public class RoadGenerator {
             
             int targetStart = currentHeight;
             int targetEnd = RoadSlopeUtils.computeTargetEndHeight(
-                targetStart, groundStart, groundEnd, segment.distance, (float) maxSlopePercent);
+                targetStart, groundStart, groundEnd, segment.distance, (float) maxSlopePercent, elevationAccumulator);
             double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
                 targetStart, targetEnd, segment.distance);
             
@@ -629,7 +609,8 @@ public class RoadGenerator {
         double lastSegmentStartDistance = Math.max(0.0, totalDistance - last.segment.distance);
         float maxSlopePercent = RoadModelUtils.getEffectiveMaxSlope(
             network, edge, config, lastSegmentStartDistance);
-        int clampedEnd = clampTowardTarget(last.targetStart, desiredEndHeight, last.segment.distance, maxSlopePercent);
+        int clampedEnd = RoadSlopeUtils.clampTowardTarget(
+            last.targetStart, desiredEndHeight, last.segment.distance, maxSlopePercent);
         if (clampedEnd == last.targetEnd) {
             return;
         }
@@ -637,15 +618,6 @@ public class RoadGenerator {
             last.targetStart, clampedEnd, last.segment.distance);
         heightInfos.set(lastIndex, new SegmentHeightInfo(
             last.segment, last.groundStart, last.groundEnd, last.targetStart, clampedEnd, actualSlope));
-    }
-
-    private static int clampTowardTarget(int fromHeight, int targetHeight, double distance, float maxSlopePercent) {
-        double maxRise = distance * maxSlopePercent / 100.0;
-        int delta = targetHeight - fromHeight;
-        if (Math.abs(delta) <= maxRise) {
-            return targetHeight;
-        }
-        return fromHeight + (int) (delta > 0 ? maxRise : -maxRise);
     }
     
     /**
@@ -1168,10 +1140,9 @@ public class RoadGenerator {
             BlockPos pos,
             String previousBlockId,
             String newBlockId) {
-        if (result == null) {
-            return;
+        if (result != null) {
+            result.recordPlacementIfAbsent(pos, previousBlockId, newBlockId);
         }
-        RoadPlacementRecorder.recordIfAbsent(result.placementRecords, pos, previousBlockId, newBlockId);
     }
 
     public String getBlockIdFromMaterial(String material) {

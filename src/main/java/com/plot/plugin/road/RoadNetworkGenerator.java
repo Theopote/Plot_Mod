@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -25,10 +26,10 @@ public class RoadNetworkGenerator {
      * 路网生成结果：边与路口分域存储
      */
     public static class NetworkGenerationResult {
-        private final Map<String, RoadGenerator.RoadGenerationResult> edgeResults = new LinkedHashMap<>();
+        private final Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         private final Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
 
-        public Map<String, RoadGenerator.RoadGenerationResult> getEdgeResults() {
+        public Map<String, RoadGenerationResult> getEdgeResults() {
             return Collections.unmodifiableMap(edgeResults);
         }
 
@@ -58,7 +59,7 @@ public class RoadNetworkGenerator {
         for (RoadEdge edge : network.getEdges().values()) {
             RoadNode start = network.getNode(edge.getStartNodeId());
             RoadNode end = network.getNode(edge.getEndNodeId());
-            RoadGenerator.RoadGenerationResult edgeResult =
+            RoadGenerationResult edgeResult =
                 roadGenerator.generateEdge(network, edge, start, end, world);
             networkResult.edgeResults.put(edge.getId(), edgeResult);
         }
@@ -79,11 +80,11 @@ public class RoadNetworkGenerator {
         return networkResult;
     }
 
-    public RoadGenerator.RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
+    public RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
         NetworkGenerationResult networkResult = generateAll(network, world);
-        RoadGenerator.RoadGenerationResult aggregate = new RoadGenerator.RoadGenerationResult(0);
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
         RoadSystemConfig config = roadGenerator.getConfig();
-        for (RoadGenerator.RoadGenerationResult edgeResult : networkResult.getEdgeResults().values()) {
+        for (RoadGenerationResult edgeResult : networkResult.getEdgeResults().values()) {
             roadGenerator.mergeResult(aggregate, edgeResult);
         }
         for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry

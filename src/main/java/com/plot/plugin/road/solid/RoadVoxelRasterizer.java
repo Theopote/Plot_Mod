@@ -2,8 +2,8 @@ package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
-import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadGeometryUtils;
 import net.minecraft.util.math.BlockPos;
 

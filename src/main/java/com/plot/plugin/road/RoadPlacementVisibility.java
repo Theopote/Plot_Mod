@@ -1,7 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.plugin.road.RoadGenerator.RoadGenerationResult;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.command.BlockRecord;
 import com.plot.utils.PlotI18n;
 import net.minecraft.util.math.BlockPos;

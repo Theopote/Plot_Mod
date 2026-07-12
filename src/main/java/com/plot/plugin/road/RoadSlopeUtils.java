@@ -12,6 +12,26 @@ public final class RoadSlopeUtils {
     }
 
     /**
+     * 跨分段累积 fractional 高程变化，避免短分段上 (int) maxRise 截断为 0。
+     */
+    public static final class ElevationAccumulator {
+        private double remainder;
+
+        public int advance(int currentHeight, double continuousDelta) {
+            remainder += continuousDelta;
+            int step = (int) Math.trunc(remainder);
+            if (step != 0) {
+                remainder -= step;
+            }
+            return currentHeight + step;
+        }
+
+        double remainderForTests() {
+            return remainder;
+        }
+    }
+
+    /**
      * 根据坡度限制，计算单段路径的目标终点高度
      */
     public static int computeTargetEndHeight(
@@ -20,17 +40,64 @@ public final class RoadSlopeUtils {
             int groundEnd,
             double segmentDistance,
             float maxSlopePercent) {
-        double maxSlopeRatio = maxSlopePercent / 100.0;
-        double maxRise = segmentDistance * maxSlopeRatio;
+        return computeTargetEndHeight(
+            currentHeight, groundStart, groundEnd, segmentDistance, maxSlopePercent, null);
+    }
+
+    public static int computeTargetEndHeight(
+            int currentHeight,
+            int groundStart,
+            int groundEnd,
+            double segmentDistance,
+            float maxSlopePercent,
+            ElevationAccumulator accumulator) {
+        double maxRise = segmentDistance * maxSlopePercent / 100.0;
         int idealRise = groundEnd - groundStart;
 
-        if (Math.abs(idealRise) <= maxRise) {
+        if (Math.abs(idealRise) <= maxRise + 1e-9) {
+            int deltaToGround = groundEnd - currentHeight;
+            if (accumulator != null) {
+                return accumulator.advance(currentHeight, deltaToGround);
+            }
             return groundEnd;
         }
-        if (idealRise > 0) {
-            return currentHeight + (int) maxRise;
+        double continuousStep = idealRise > 0 ? maxRise : -maxRise;
+        if (accumulator != null) {
+            return accumulator.advance(currentHeight, continuousStep);
         }
-        return currentHeight - (int) maxRise;
+        return currentHeight + (int) Math.trunc(continuousStep);
+    }
+
+    /**
+     * 将目标高度向 fromHeight 拉近，并遵守坡度限制（用于手动标高修正）。
+     */
+    public static int clampTowardTarget(
+            int fromHeight,
+            int targetHeight,
+            double distance,
+            float maxSlopePercent) {
+        return clampTowardTarget(fromHeight, targetHeight, distance, maxSlopePercent, null);
+    }
+
+    public static int clampTowardTarget(
+            int fromHeight,
+            int targetHeight,
+            double distance,
+            float maxSlopePercent,
+            ElevationAccumulator accumulator) {
+        double maxRise = distance * maxSlopePercent / 100.0;
+        int delta = targetHeight - fromHeight;
+        if (Math.abs(delta) <= maxRise + 1e-9) {
+            if (accumulator != null) {
+                return accumulator.advance(fromHeight, delta);
+            }
+            return targetHeight;
+        }
+        double continuousStep = delta > 0 ? maxRise : -maxRise;
+        if (accumulator != null) {
+            return accumulator.advance(fromHeight, continuousStep);
+        }
+        return fromHeight + (int) Math.trunc(continuousStep);
     }
 
     public static double computeActualSlopePercent(int targetStart, int targetEnd, double segmentDistance) {
@@ -87,6 +154,7 @@ public final class RoadSlopeUtils {
         int currentHeight = manualStartHeight != null
             ? manualStartHeight
             : groundStarts.getFirst();
+        ElevationAccumulator elevationAccumulator = new ElevationAccumulator();
 
         int continuousDirection = 0;
         double continuousRunLength = 0.0;
@@ -124,7 +192,8 @@ public final class RoadSlopeUtils {
                     provisionalGroundStart,
                     provisionalGroundEnd,
                     chunkDistance,
-                    effectiveSlope
+                    effectiveSlope,
+                    elevationAccumulator
                 );
                 int provisionalDirection = provisionalTargetEnd > currentHeight
                     ? 1
@@ -151,7 +220,8 @@ public final class RoadSlopeUtils {
                     chunkGroundStart,
                     chunkGroundEnd,
                     chunkDistance,
-                    effectiveSlope
+                    effectiveSlope,
+                    elevationAccumulator
                 );
 
                 int delta = chunkTargetEnd - currentHeight;
