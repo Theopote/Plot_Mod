@@ -51,6 +51,10 @@ public class RoadGenerator {
         return config;
     }
 
+    public TerrainSampler createTerrainSampler(World world) {
+        return MinecraftTerrainSampler.of(world, coordinateTransformer);
+    }
+
     public RoadGenerator(RoadSystemConfig config, CoordinateTransformer coordinateTransformer) {
         this.config = config;
         this.coordinateTransformer = coordinateTransformer;
@@ -119,13 +123,12 @@ public class RoadGenerator {
             
             // 4. 计算每个分段的目标高度（考虑坡度限制）
             List<SegmentHeightInfo> heightInfos = calculateSegmentHeights(segments, terrain);
-            
-            // 5. 检测桥和隧道需求
-            List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
-            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, terrain);
-            
-            // 6. 生成道路方块（挖填）
-            RoadGenerationResult result = generateRoadBlocks(segments, heightInfos, bridges, tunnels, terrain);
+            double pathLength = segments.stream().mapToDouble(s -> s.distance).sum();
+            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+
+            // 5–6. 检测桥/隧道并生成 solids
+            RoadGenerationResult result = buildFromCenterline(
+                pathPoints, terrain, crossSection, heightInfos, pathLength);
             
             LOGGER.info("道路生成完成: 挖{} 填{} 桥{}座 隧道{}段", 
                 result.cutVolume, result.fillVolume, result.bridgeCount, result.tunnelCount);
@@ -164,80 +167,104 @@ public class RoadGenerator {
             List<PathSegment> segments = samplePath(pathPoints);
             List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
                 segments, terrain, network, edge, startNode, endNode);
-            List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
-            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, terrain);
-
-            double halfWidth = crossSection.carriagewayHalfWidth();
-            List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
-            List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfWidth);
-
-            RoadSolidModel solids = new RoadSolidModel();
-            EdgeBuildMetrics metrics = new EdgeBuildMetrics();
-            generateRoadBlocksFromBoundaries(
-                solids, metrics, segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, terrain,
-                getBlockIdFromMaterial(crossSection.carriagewayMaterial));
-
-            int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
-            if (crossSection.includeShoulder && shoulderWidth > 0) {
-                double shoulderOffset = halfWidth + shoulderWidth / 2.0;
-                List<Vec2d> leftShoulder = OffsetHandler.offsetPolyline(pathPoints, shoulderOffset);
-                List<Vec2d> rightShoulder = OffsetHandler.offsetPolyline(pathPoints, -shoulderOffset);
-                generateShoulderBlocks(solids, segments, heightInfos, leftShoulder, rightShoulder,
-                    shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial));
-                generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, leftShoulder, rightShoulder,
-                    shoulderWidth, pathPoints, terrain);
-            }
-
-            if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
-                double sidewalkOffset = halfWidth + shoulderWidth + crossSection.sidewalkWidth / 2.0;
-                List<Vec2d> leftSidewalk = OffsetHandler.offsetPolyline(pathPoints, sidewalkOffset);
-                List<Vec2d> rightSidewalk = OffsetHandler.offsetPolyline(pathPoints, -sidewalkOffset);
-                generateSidewalkBlocks(solids, segments, heightInfos, leftSidewalk, rightSidewalk,
-                    crossSection.sidewalkWidth,
-                    getBlockIdFromMaterial(crossSection.sidewalkMaterial));
-            }
-
-            if (crossSection.includeDrain) {
-                double drainageOffset = crossSection.outerDrainageOffset();
-                List<Vec2d> leftDrainage = OffsetHandler.offsetPolyline(pathPoints, drainageOffset);
-                List<Vec2d> rightDrainage = OffsetHandler.offsetPolyline(pathPoints, -drainageOffset);
-                generateDrainageChannels(solids, segments, heightInfos, leftDrainage, rightDrainage,
-                    getBlockIdFromMaterial("material.plot.gravel"));
-            }
-
-            if (crossSection.includeMedian && crossSection.medianWidth > 0) {
-                double halfMedian = crossSection.medianWidth / 2.0;
-                List<Vec2d> leftMedian = OffsetHandler.offsetPolyline(pathPoints, -halfMedian);
-                List<Vec2d> rightMedian = OffsetHandler.offsetPolyline(pathPoints, halfMedian);
-                generateMedianBlocks(
-                    solids,
-                    segments,
-                    heightInfos,
-                    leftMedian,
-                    rightMedian,
-                    getBlockIdFromMaterial(crossSection.medianMaterial));
-            }
-
-            if (crossSection.laneDividers || crossSection.centerLineStyle != CenterLineStyle.NONE) {
-                generateLaneMarkings(solids, segments, heightInfos, pathPoints, crossSection);
-            }
-
-            Integer spacing = crossSection.streetlightSpacing;
-            if (spacing != null && spacing > 0) {
-                generateStreetlights(solids, pathPoints, network, edge, terrain, shoulderWidth);
-            }
-
-            RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
-            result.cutVolume = metrics.cutVolume;
-            result.fillVolume = metrics.fillVolume;
-            result.bridgeCount = metrics.bridgeCount;
-            result.tunnelCount = metrics.tunnelCount;
-            RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer);
-            return result;
+            return buildFromCenterline(pathPoints, terrain, crossSection, heightInfos, edge.getLength());
         } catch (Exception e) {
             LOGGER.error("生成道路边失败: {}", e.getMessage(), e);
             return new RoadGenerationResult(0);
         }
+    }
+
+    /**
+     * 基于中心线与横断面生成道路（测试用，不依赖 Minecraft World）。
+     */
+    RoadGenerationResult generateFromPathPoints(List<Vec2d> pathPoints, TerrainSampler terrain) {
+        if (pathPoints == null || pathPoints.size() < 2 || terrain == null) {
+            return new RoadGenerationResult(0);
+        }
+        List<PathSegment> segments = samplePath(pathPoints);
+        List<SegmentHeightInfo> heightInfos = calculateSegmentHeights(segments, terrain);
+        double pathLength = segments.stream().mapToDouble(s -> s.distance).sum();
+        ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
+        return buildFromCenterline(pathPoints, terrain, crossSection, heightInfos, pathLength);
+    }
+
+    private RoadGenerationResult buildFromCenterline(
+            List<Vec2d> pathPoints,
+            TerrainSampler terrain,
+            ResolvedCrossSection crossSection,
+            List<SegmentHeightInfo> heightInfos,
+            double pathLength) {
+        List<PathSegment> segments = samplePath(pathPoints);
+        List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
+        List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, terrain);
+
+        double halfWidth = crossSection.carriagewayHalfWidth();
+        List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
+        List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfWidth);
+
+        RoadSolidModel solids = new RoadSolidModel();
+        EdgeBuildMetrics metrics = new EdgeBuildMetrics();
+        generateRoadBlocksFromBoundaries(
+            solids, metrics, segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, terrain,
+            getBlockIdFromMaterial(crossSection.carriagewayMaterial));
+
+        int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
+        if (crossSection.includeShoulder && shoulderWidth > 0) {
+            double shoulderOffset = halfWidth + shoulderWidth / 2.0;
+            List<Vec2d> leftShoulder = OffsetHandler.offsetPolyline(pathPoints, shoulderOffset);
+            List<Vec2d> rightShoulder = OffsetHandler.offsetPolyline(pathPoints, -shoulderOffset);
+            generateShoulderBlocks(solids, segments, heightInfos, leftShoulder, rightShoulder,
+                shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial));
+            generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, leftShoulder, rightShoulder,
+                shoulderWidth, pathPoints, terrain);
+        }
+
+        if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
+            double sidewalkOffset = halfWidth + shoulderWidth + crossSection.sidewalkWidth / 2.0;
+            List<Vec2d> leftSidewalk = OffsetHandler.offsetPolyline(pathPoints, sidewalkOffset);
+            List<Vec2d> rightSidewalk = OffsetHandler.offsetPolyline(pathPoints, -sidewalkOffset);
+            generateSidewalkBlocks(solids, segments, heightInfos, leftSidewalk, rightSidewalk,
+                crossSection.sidewalkWidth,
+                getBlockIdFromMaterial(crossSection.sidewalkMaterial));
+        }
+
+        if (crossSection.includeDrain) {
+            double drainageOffset = crossSection.outerDrainageOffset();
+            List<Vec2d> leftDrainage = OffsetHandler.offsetPolyline(pathPoints, drainageOffset);
+            List<Vec2d> rightDrainage = OffsetHandler.offsetPolyline(pathPoints, -drainageOffset);
+            generateDrainageChannels(solids, segments, heightInfos, leftDrainage, rightDrainage,
+                getBlockIdFromMaterial("material.plot.gravel"));
+        }
+
+        if (crossSection.includeMedian && crossSection.medianWidth > 0) {
+            double halfMedian = crossSection.medianWidth / 2.0;
+            List<Vec2d> leftMedian = OffsetHandler.offsetPolyline(pathPoints, -halfMedian);
+            List<Vec2d> rightMedian = OffsetHandler.offsetPolyline(pathPoints, halfMedian);
+            generateMedianBlocks(
+                solids,
+                segments,
+                heightInfos,
+                leftMedian,
+                rightMedian,
+                getBlockIdFromMaterial(crossSection.medianMaterial));
+        }
+
+        if (crossSection.laneDividers || crossSection.centerLineStyle != CenterLineStyle.NONE) {
+            generateLaneMarkings(solids, segments, heightInfos, pathPoints, crossSection);
+        }
+
+        Integer spacing = crossSection.streetlightSpacing;
+        if (spacing != null && spacing > 0) {
+            generateStreetlights(solids, pathPoints, terrain, crossSection);
+        }
+
+        RoadGenerationResult result = new RoadGenerationResult(pathLength);
+        result.cutVolume = metrics.cutVolume;
+        result.fillVolume = metrics.fillVolume;
+        result.bridgeCount = metrics.bridgeCount;
+        result.tunnelCount = metrics.tunnelCount;
+        RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer);
+        return result;
     }
 
     public void mergeResult(RoadGenerationResult target, RoadGenerationResult source) {
@@ -325,7 +352,13 @@ public class RoadGenerator {
         if (node == null || network == null || world == null) {
             return TerrainSampler.DEFAULT_SEA_LEVEL;
         }
-        TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
+        return computeJunctionTargetHeight(node, network, MinecraftTerrainSampler.of(world, coordinateTransformer));
+    }
+
+    public int computeJunctionTargetHeight(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
+        if (node == null || network == null || terrain == null) {
+            return TerrainSampler.DEFAULT_SEA_LEVEL;
+        }
         if (node.getManualElevation() != null) {
             return node.getManualElevation().intValue();
         }
@@ -663,68 +696,6 @@ public class RoadGenerator {
         return tunnels;
     }
     
-    /**
-     * 生成道路方块
-     */
-    private RoadGenerationResult generateRoadBlocks(List<PathSegment> segments, 
-                                                     List<SegmentHeightInfo> heightInfos,
-                                                     List<BridgeSegment> bridges,
-                                                     List<TunnelSegment> tunnels,
-                                                     TerrainSampler terrain) {
-        RoadGenerationResult result = new RoadGenerationResult(
-            segments.stream().mapToDouble(s -> s.distance).sum());
-        result.bridgeCount = bridges.size();
-        result.tunnelCount = tunnels.size();
-        
-        int roadWidth = config.getRoadWidth();
-        int cutVolume = 0;
-        int fillVolume = 0;
-        
-        // 生成道路方块
-        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-            PathSegment segment = segments.get(i);
-            SegmentHeightInfo info = heightInfos.get(i);
-            
-            // 采样分段上的点
-            int samples = Math.max(2, (int) Math.ceil(segment.distance));
-            for (int j = 0; j <= samples; j++) {
-                double t = (double) j / samples;
-                Vec2d point = segment.start.lerp(segment.end, t);
-                
-                // 计算目标高度（线性插值）
-                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                
-                // 生成道路宽度的方块
-                for (int offsetX = -roadWidth / 2; offsetX <= roadWidth / 2; offsetX++) {
-                    for (int offsetZ = -roadWidth / 2; offsetZ <= roadWidth / 2; offsetZ++) {
-                        Vec2d roadPoint = point.add(new Vec2d(offsetX, offsetZ));
-                        BlockPos roadBlockPos = canvasToBlockPos(roadPoint);
-                        roadBlockPos = new BlockPos(roadBlockPos.getX(), targetY, roadBlockPos.getZ());
-                        
-                        // 获取地面高度
-                        int groundY = terrain.sampleSurfaceY(roadPoint);
-                        
-                        // 计算挖填方
-                        if (targetY < groundY) {
-                            cutVolume += (groundY - targetY);
-                            result.roadBlocks.add(roadBlockPos);
-                        } else if (targetY > groundY) {
-                            fillVolume += (targetY - groundY);
-                            result.roadBlocks.add(roadBlockPos);
-                        } else {
-                            result.roadBlocks.add(roadBlockPos);
-                        }
-                    }
-                }
-            }
-        }
-        
-        result.cutVolume = cutVolume;
-        result.fillVolume = fillVolume;
-        
-        return result;
-    }
-
     private void generateRoadBlocksFromBoundaries(
             RoadSolidModel solids,
             EdgeBuildMetrics metrics,
@@ -1159,17 +1130,18 @@ public class RoadGenerator {
     private void generateStreetlights(
             RoadSolidModel solids,
             List<Vec2d> pathPoints,
-            RoadNetwork network,
-            RoadEdge edge,
             TerrainSampler terrain,
-            double shoulderWidth) {
-        Integer spacingValue = RoadModelUtils.getStreetlightSpacing(network, edge);
+            ResolvedCrossSection crossSection) {
+        Integer spacingValue = crossSection.streetlightSpacing;
         int spacing = spacingValue != null ? spacingValue : 0;
-        double skipDistance = RoadModelUtils.getEffectiveWidth(network, edge, config);
-        double offset = RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0
+        if (spacing <= 0) {
+            return;
+        }
+        int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
+        double skipDistance = crossSection.carriagewayWidth;
+        double offset = crossSection.carriagewayWidth / 2.0
             + shoulderWidth
-            + (RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)
-                ? RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config) : 0)
+            + (crossSection.includeSidewalk ? crossSection.sidewalkWidth : 0)
             + 0.5;
 
         List<Vec2d> samples = RoadGeometryUtils.sampleAlongPath(pathPoints, spacing, skipDistance);

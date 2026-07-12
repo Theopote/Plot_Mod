@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
+import com.plot.plugin.road.terrain.TerrainSampler;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +45,15 @@ public class RoadJunctionGenerator {
     }
 
     public JunctionBlocks generateJunction(RoadNode node, RoadNetwork network, World world) {
-        JunctionBlocks blocks = new JunctionBlocks();
         if (node == null || network == null || generator == null || world == null) {
+            return new JunctionBlocks();
+        }
+        return generateJunction(node, network, generator.createTerrainSampler(world));
+    }
+
+    public JunctionBlocks generateJunction(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
+        JunctionBlocks blocks = new JunctionBlocks();
+        if (node == null || network == null || generator == null || terrain == null) {
             return blocks;
         }
 
@@ -54,7 +62,7 @@ public class RoadJunctionGenerator {
             return blocks;
         }
 
-        int junctionY = generator.computeJunctionTargetHeight(node, network, world);
+        int junctionY = generator.computeJunctionTargetHeight(node, network, terrain);
         List<RoadEdge> connectedEdges = new ArrayList<>();
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
