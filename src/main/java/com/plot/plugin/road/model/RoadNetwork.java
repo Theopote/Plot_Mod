@@ -5,6 +5,12 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.model.section.Drain;
+import com.plot.plugin.road.model.section.LaneGroup;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.Shoulder;
+import com.plot.plugin.road.model.section.Sidewalk;
+import com.plot.plugin.road.model.section.StreetFurniture;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -261,14 +267,129 @@ public class RoadNetwork {
         String sourceRoadId;
     }
 
+    static class LaneGroupData {
+        Integer laneCount;
+        Integer width;
+        String material;
+    }
+
+    static class ShoulderData {
+        Boolean enabled;
+        Integer width;
+        String material;
+    }
+
+    static class SidewalkData {
+        Boolean enabled;
+        Integer width;
+        String material;
+    }
+
+    static class DrainData {
+        Boolean enabled;
+    }
+
+    static class StreetFurnitureData {
+        Integer streetlightSpacing;
+    }
+
+    static class CrossSectionData {
+        LaneGroupData carriageway;
+        ShoulderData shoulder;
+        SidewalkData sidewalk;
+        DrainData drain;
+        StreetFurnitureData streetFurniture;
+
+        static CrossSectionData from(RoadCrossSection section) {
+            CrossSectionData data = new CrossSectionData();
+            if (section == null) {
+                return data;
+            }
+            LaneGroup carriageway = section.getCarriageway();
+            if (carriageway != null) {
+                data.carriageway = new LaneGroupData();
+                data.carriageway.laneCount = carriageway.getLaneCount();
+                data.carriageway.width = carriageway.getWidth();
+                data.carriageway.material = carriageway.getMaterial();
+            }
+            Shoulder shoulder = section.getShoulder();
+            if (shoulder != null) {
+                data.shoulder = new ShoulderData();
+                data.shoulder.enabled = shoulder.getEnabled();
+                data.shoulder.width = shoulder.getWidth();
+                data.shoulder.material = shoulder.getMaterial();
+            }
+            Sidewalk sidewalk = section.getSidewalk();
+            if (sidewalk != null) {
+                data.sidewalk = new SidewalkData();
+                data.sidewalk.enabled = sidewalk.getEnabled();
+                data.sidewalk.width = sidewalk.getWidth();
+                data.sidewalk.material = sidewalk.getMaterial();
+            }
+            Drain drain = section.getDrain();
+            if (drain != null) {
+                data.drain = new DrainData();
+                data.drain.enabled = drain.getEnabled();
+            }
+            StreetFurniture furniture = section.getStreetFurniture();
+            if (furniture != null) {
+                data.streetFurniture = new StreetFurnitureData();
+                data.streetFurniture.streetlightSpacing = furniture.getStreetlightSpacing();
+            }
+            return data;
+        }
+
+        RoadCrossSection toCrossSection() {
+            RoadCrossSection section = new RoadCrossSection();
+            if (carriageway != null) {
+                LaneGroup laneGroup = new LaneGroup();
+                laneGroup.setLaneCount(carriageway.laneCount);
+                laneGroup.setWidth(carriageway.width);
+                laneGroup.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(carriageway.material));
+                section.setCarriageway(laneGroup);
+            }
+            if (shoulder != null) {
+                Shoulder shoulderComponent = new Shoulder();
+                shoulderComponent.setEnabled(shoulder.enabled);
+                shoulderComponent.setWidth(shoulder.width);
+                shoulderComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(shoulder.material));
+                section.setShoulder(shoulderComponent);
+            }
+            if (sidewalk != null) {
+                Sidewalk sidewalkComponent = new Sidewalk();
+                sidewalkComponent.setEnabled(sidewalk.enabled);
+                sidewalkComponent.setWidth(sidewalk.width);
+                sidewalkComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(sidewalk.material));
+                section.setSidewalk(sidewalkComponent);
+            }
+            if (drain != null) {
+                Drain drainComponent = new Drain();
+                drainComponent.setEnabled(drain.enabled);
+                section.setDrain(drainComponent);
+            }
+            if (streetFurniture != null) {
+                StreetFurniture furniture = new StreetFurniture();
+                furniture.setStreetlightSpacing(streetFurniture.streetlightSpacing);
+                section.setStreetFurniture(furniture);
+            }
+            return section;
+        }
+    }
+
     static class RoadData {
         String id;
         String name;
+        CrossSectionData crossSection;
+        // Legacy flat fields (v1) — read for migration, not written on save
         Integer width;
         String material;
         Boolean includeSidewalk;
         Integer sidewalkWidth;
         String sidewalkMaterial;
+        Boolean includeShoulder;
+        Integer shoulderWidth;
+        String shoulderMaterial;
+        Boolean includeDrainage;
         Integer streetlightSpacing;
         Float maxSlope;
         List<String> segmentIds = new ArrayList<>();
@@ -296,12 +417,7 @@ public class RoadNetwork {
                 RoadData roadData = new RoadData();
                 roadData.id = road.getId();
                 roadData.name = road.getName();
-                roadData.width = road.getWidth();
-                roadData.material = road.getMaterial();
-                roadData.includeSidewalk = road.getIncludeSidewalk();
-                roadData.sidewalkWidth = road.getSidewalkWidth();
-                roadData.sidewalkMaterial = road.getSidewalkMaterial();
-                roadData.streetlightSpacing = road.getStreetlightSpacing();
+                roadData.crossSection = CrossSectionData.from(road.getCrossSection());
                 roadData.maxSlope = road.getMaxSlope();
                 roadData.segmentIds = new ArrayList<>(road.getSegmentIds());
                 data.roads.add(roadData);
@@ -351,15 +467,33 @@ public class RoadNetwork {
             boolean hasRoadData = roads != null && !roads.isEmpty();
             if (hasRoadData) {
                 for (RoadData roadData : roads) {
+                    RoadCrossSection crossSection = roadData.crossSection != null
+                        ? roadData.crossSection.toCrossSection()
+                        : RoadCrossSection.fromLegacy(
+                            roadData.width,
+                            RoadMaterialUtils.normalizeStoredMaterial(roadData.material),
+                            roadData.includeSidewalk,
+                            roadData.sidewalkWidth,
+                            RoadMaterialUtils.normalizeStoredMaterial(roadData.sidewalkMaterial),
+                            roadData.streetlightSpacing
+                        );
+                    RoadCrossSection.mergeLegacyFlatFields(
+                        crossSection,
+                        roadData.width,
+                        roadData.material,
+                        roadData.includeSidewalk,
+                        roadData.sidewalkWidth,
+                        roadData.sidewalkMaterial,
+                        roadData.includeShoulder,
+                        roadData.shoulderWidth,
+                        roadData.shoulderMaterial,
+                        roadData.includeDrainage,
+                        roadData.streetlightSpacing
+                    );
                     Road road = new Road(
                         roadData.id,
                         roadData.name,
-                        roadData.width,
-                        RoadMaterialUtils.normalizeStoredMaterial(roadData.material),
-                        roadData.includeSidewalk,
-                        roadData.sidewalkWidth,
-                        RoadMaterialUtils.normalizeStoredMaterial(roadData.sidewalkMaterial),
-                        roadData.streetlightSpacing,
+                        crossSection,
                         roadData.maxSlope,
                         roadData.segmentIds != null ? new java.util.LinkedHashSet<>(roadData.segmentIds) : java.util.Set.of()
                     );

@@ -9,6 +9,7 @@ import net.minecraft.client.MinecraftClient;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.core.command.BlockRecord;
@@ -149,51 +150,50 @@ public class RoadGenerator {
         }
 
         try {
+            ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
             List<PathSegment> segments = samplePath(pathPoints);
             List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
                 segments, world, network, edge, startNode, endNode);
             List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
             List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, world);
 
-            double halfWidth = RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0;
+            double halfWidth = crossSection.carriagewayHalfWidth();
             List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
             List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfWidth);
 
             RoadGenerationResult result = generateRoadBlocksFromBoundaries(
                 segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, world,
-                getBlockIdFromMaterial(RoadModelUtils.getEffectiveMaterial(network, edge, config)));
+                getBlockIdFromMaterial(crossSection.carriagewayMaterial));
 
-            int shoulderWidth = config.isIncludeShoulder() ? config.getShoulderWidth() : 0;
-            if (config.isIncludeShoulder()) {
+            int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
+            if (crossSection.includeShoulder && shoulderWidth > 0) {
                 double shoulderOffset = halfWidth + shoulderWidth / 2.0;
                 List<Vec2d> leftShoulder = OffsetHandler.offsetPolyline(pathPoints, shoulderOffset);
                 List<Vec2d> rightShoulder = OffsetHandler.offsetPolyline(pathPoints, -shoulderOffset);
                 generateShoulderBlocks(result, segments, heightInfos, leftShoulder, rightShoulder,
-                    shoulderWidth, getBlockIdFromMaterial("material.plot.gravel"));
+                    shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial));
                 generateSlopeBatterBlocks(result, segments, heightInfos, leftShoulder, rightShoulder,
                     shoulderWidth, pathPoints, world);
             }
 
-            if (RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)) {
-                double sidewalkOffset = halfWidth + shoulderWidth + RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config) / 2.0;
+            if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
+                double sidewalkOffset = halfWidth + shoulderWidth + crossSection.sidewalkWidth / 2.0;
                 List<Vec2d> leftSidewalk = OffsetHandler.offsetPolyline(pathPoints, sidewalkOffset);
                 List<Vec2d> rightSidewalk = OffsetHandler.offsetPolyline(pathPoints, -sidewalkOffset);
                 generateSidewalkBlocks(result, segments, heightInfos, leftSidewalk, rightSidewalk,
-                    RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config), world,
-                    getBlockIdFromMaterial(RoadModelUtils.getEffectiveSidewalkMaterial(network, edge, config)));
+                    crossSection.sidewalkWidth, world,
+                    getBlockIdFromMaterial(crossSection.sidewalkMaterial));
             }
 
-            if (config.isIncludeDrainage()) {
-                double sidewalkOffset = RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)
-                    ? RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config) : 0;
-                double drainageOffset = halfWidth + shoulderWidth + sidewalkOffset + 0.5;
+            if (crossSection.includeDrain) {
+                double drainageOffset = crossSection.outerDrainageOffset();
                 List<Vec2d> leftDrainage = OffsetHandler.offsetPolyline(pathPoints, drainageOffset);
                 List<Vec2d> rightDrainage = OffsetHandler.offsetPolyline(pathPoints, -drainageOffset);
                 generateDrainageChannels(result, segments, heightInfos, leftDrainage, rightDrainage,
                     getBlockIdFromMaterial("material.plot.gravel"));
             }
 
-            Integer spacing = RoadModelUtils.getStreetlightSpacing(network, edge);
+            Integer spacing = crossSection.streetlightSpacing;
             if (spacing != null && spacing > 0) {
                 generateStreetlights(result, pathPoints, network, edge, world, shoulderWidth);
             }

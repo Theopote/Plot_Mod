@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -214,6 +215,27 @@ public final class RoadCrossSectionPreviewRenderer {
             this.roadColor = roadColor;
             this.sidewalkColor = sidewalkColor;
             this.shoulderColor = shoulderColor;
+        }
+
+        public static CrossSectionLayout fromResolved(ResolvedCrossSection section, float maxSlopePercent) {
+            float road = Math.max(1, section.carriagewayWidth);
+            float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
+            float sidewalk = section.includeSidewalk ? Math.max(0, section.sidewalkWidth) : 0f;
+            float drainage = section.includeDrain ? 0.5f : 0f;
+            return new CrossSectionLayout(
+                road,
+                shoulder, shoulder,
+                sidewalk, sidewalk,
+                drainage,
+                section.includeShoulder,
+                shoulder,
+                section.fillSlopeRatio,
+                section.cutSlopeRatio,
+                maxSlopePercent,
+                colorForMaterial(section.carriagewayMaterial, 0xFF707070),
+                colorForMaterial(section.sidewalkMaterial, 0xFF989898),
+                colorForMaterial(section.shoulderMaterial, 0xFFB8A070)
+            );
         }
 
         public static CrossSectionLayout fromConfig(RoadSystemConfig config) {

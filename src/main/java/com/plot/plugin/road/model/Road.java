@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.RoadCrossSection;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -12,12 +13,7 @@ import java.util.UUID;
 public class Road {
     private final String id;
     private String name;
-    private Integer width;
-    private String material;
-    private Boolean includeSidewalk;
-    private Integer sidewalkWidth;
-    private String sidewalkMaterial;
-    private Integer streetlightSpacing;
+    private RoadCrossSection crossSection = new RoadCrossSection();
     private Float maxSlope;
     private final Set<String> segmentIds = new LinkedHashSet<>();
 
@@ -40,14 +36,22 @@ public class Road {
             Integer streetlightSpacing,
             Float maxSlope,
             Set<String> segmentIds) {
+        this(id, name, RoadCrossSection.fromLegacy(
+            width, material, includeSidewalk, sidewalkWidth, sidewalkMaterial, streetlightSpacing
+        ), maxSlope, segmentIds);
+    }
+
+    public Road(
+            String id,
+            String name,
+            RoadCrossSection crossSection,
+            Float maxSlope,
+            Set<String> segmentIds) {
         this.id = id;
         this.name = name;
-        this.width = width;
-        this.material = material;
-        this.includeSidewalk = includeSidewalk;
-        this.sidewalkWidth = sidewalkWidth;
-        this.sidewalkMaterial = sidewalkMaterial;
-        this.streetlightSpacing = streetlightSpacing;
+        if (crossSection != null) {
+            this.crossSection = crossSection;
+        }
         this.maxSlope = maxSlope;
         if (segmentIds != null) {
             this.segmentIds.addAll(segmentIds);
@@ -58,11 +62,7 @@ public class Road {
         if (defaults == null) {
             return;
         }
-        width = defaults.getRoadWidth();
-        material = defaults.getSelectedMaterial();
-        includeSidewalk = defaults.isIncludeSidewalk();
-        sidewalkWidth = defaults.getSidewalkWidth();
-        sidewalkMaterial = defaults.getSelectedSidewalkMaterial();
+        crossSection.applyDefaults(defaults);
         maxSlope = defaults.getMaxSlope();
     }
 
@@ -78,52 +78,92 @@ public class Road {
         this.name = name;
     }
 
+    public RoadCrossSection getCrossSection() {
+        return crossSection;
+    }
+
+    public void setCrossSection(RoadCrossSection crossSection) {
+        this.crossSection = crossSection != null ? crossSection : new RoadCrossSection();
+    }
+
     public Integer getWidth() {
-        return width;
+        return crossSection.getCarriageway().getWidth();
     }
 
     public void setWidth(Integer width) {
-        this.width = width;
+        crossSection.getCarriageway().setWidth(width);
     }
 
     public String getMaterial() {
-        return material;
+        return crossSection.getCarriageway().getMaterial();
     }
 
     public void setMaterial(String material) {
-        this.material = material;
+        crossSection.getCarriageway().setMaterial(material);
     }
 
     public Boolean getIncludeSidewalk() {
-        return includeSidewalk;
+        return crossSection.getSidewalk().getEnabled();
     }
 
     public void setIncludeSidewalk(Boolean includeSidewalk) {
-        this.includeSidewalk = includeSidewalk;
+        crossSection.getSidewalk().setEnabled(includeSidewalk);
     }
 
     public Integer getSidewalkWidth() {
-        return sidewalkWidth;
+        return crossSection.getSidewalk().getWidth();
     }
 
     public void setSidewalkWidth(Integer sidewalkWidth) {
-        this.sidewalkWidth = sidewalkWidth;
+        crossSection.getSidewalk().setWidth(sidewalkWidth);
     }
 
     public String getSidewalkMaterial() {
-        return sidewalkMaterial;
+        return crossSection.getSidewalk().getMaterial();
     }
 
     public void setSidewalkMaterial(String sidewalkMaterial) {
-        this.sidewalkMaterial = sidewalkMaterial;
+        crossSection.getSidewalk().setMaterial(sidewalkMaterial);
+    }
+
+    public Boolean getIncludeShoulder() {
+        return crossSection.getShoulder().getEnabled();
+    }
+
+    public void setIncludeShoulder(Boolean includeShoulder) {
+        crossSection.getShoulder().setEnabled(includeShoulder);
+    }
+
+    public Integer getShoulderWidth() {
+        return crossSection.getShoulder().getWidth();
+    }
+
+    public void setShoulderWidth(Integer shoulderWidth) {
+        crossSection.getShoulder().setWidth(shoulderWidth);
+    }
+
+    public String getShoulderMaterial() {
+        return crossSection.getShoulder().getMaterial();
+    }
+
+    public void setShoulderMaterial(String shoulderMaterial) {
+        crossSection.getShoulder().setMaterial(shoulderMaterial);
+    }
+
+    public Boolean getIncludeDrainage() {
+        return crossSection.getDrain().getEnabled();
+    }
+
+    public void setIncludeDrainage(Boolean includeDrainage) {
+        crossSection.getDrain().setEnabled(includeDrainage);
     }
 
     public Integer getStreetlightSpacing() {
-        return streetlightSpacing;
+        return crossSection.getStreetFurniture().getStreetlightSpacing();
     }
 
     public void setStreetlightSpacing(Integer streetlightSpacing) {
-        this.streetlightSpacing = streetlightSpacing;
+        crossSection.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
     }
 
     public Float getMaxSlope() {
@@ -149,26 +189,39 @@ public class Road {
     }
 
     public int getEffectiveWidth(RoadSystemConfig defaults) {
-        return width != null ? width : defaults.getRoadWidth();
+        return crossSection.resolve(defaults).carriagewayWidth;
     }
 
     public String getEffectiveMaterial(RoadSystemConfig defaults) {
-        return material != null ? material : defaults.getSelectedMaterial();
+        return crossSection.resolve(defaults).carriagewayMaterial;
     }
 
     public boolean getEffectiveIncludeSidewalk(RoadSystemConfig defaults) {
-        return includeSidewalk != null ? includeSidewalk : defaults.isIncludeSidewalk();
+        return crossSection.resolve(defaults).includeSidewalk;
     }
 
     public int getEffectiveSidewalkWidth(RoadSystemConfig defaults) {
-        return sidewalkWidth != null ? sidewalkWidth : defaults.getSidewalkWidth();
+        return crossSection.resolve(defaults).sidewalkWidth;
     }
 
     public String getEffectiveSidewalkMaterial(RoadSystemConfig defaults) {
-        if (sidewalkMaterial != null) {
-            return sidewalkMaterial;
-        }
-        return defaults.getSelectedSidewalkMaterial();
+        return crossSection.resolve(defaults).sidewalkMaterial;
+    }
+
+    public boolean getEffectiveIncludeShoulder(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).includeShoulder;
+    }
+
+    public int getEffectiveShoulderWidth(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).shoulderWidth;
+    }
+
+    public String getEffectiveShoulderMaterial(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).shoulderMaterial;
+    }
+
+    public boolean getEffectiveIncludeDrainage(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).includeDrain;
     }
 
     public float getEffectiveMaxSlope(RoadSystemConfig defaults) {
@@ -176,8 +229,6 @@ public class Road {
     }
 
     Road copy() {
-        return new Road(
-            id, name, width, material, includeSidewalk, sidewalkWidth,
-            sidewalkMaterial, streetlightSpacing, maxSlope, segmentIds);
+        return new Road(id, name, crossSection.copy(), maxSlope, segmentIds);
     }
 }

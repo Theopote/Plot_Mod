@@ -225,6 +225,78 @@ class RoadNetworkTest {
     }
 
     @Test
+    void jsonRoundTripPreservesCrossSection() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        Road road = network.createRoad();
+        road.setWidth(7);
+        road.setIncludeShoulder(true);
+        road.setShoulderWidth(2);
+        road.setIncludeDrainage(true);
+        road.setStreetlightSpacing(12);
+        road.getCrossSection().getCarriageway().setLaneCount(2);
+        network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)
+        ), road.getId());
+
+        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        Road restoredRoad = restored.getRoad(road.getId());
+
+        assertNotNull(restoredRoad);
+        assertEquals(7, restoredRoad.getWidth());
+        assertEquals(2, restoredRoad.getCrossSection().getCarriageway().getLaneCount());
+        assertEquals(true, restoredRoad.getIncludeShoulder());
+        assertEquals(2, restoredRoad.getShoulderWidth());
+        assertEquals(true, restoredRoad.getIncludeDrainage());
+        assertEquals(12, restoredRoad.getStreetlightSpacing());
+    }
+
+    @Test
+    void legacyFlatRoadJsonMigratesIntoCrossSection() {
+        String legacyJson = """
+            {
+              "nodes": [
+                {"id":"n1","position":{"x":0,"y":0},"connectedEdgeIds":["e1"]},
+                {"id":"n2","position":{"x":10,"y":0},"connectedEdgeIds":["e1"]}
+              ],
+              "edges": [
+                {
+                  "id":"e1",
+                  "startNodeId":"n1",
+                  "endNodeId":"n2",
+                  "centerlinePoints":[{"x":0,"y":0},{"x":10,"y":0}],
+                  "roadId":"r1"
+                }
+              ],
+              "roads": [
+                {
+                  "id":"r1",
+                  "width":8,
+                  "includeSidewalk":true,
+                  "sidewalkWidth":2,
+                  "includeShoulder":true,
+                  "shoulderWidth":1,
+                  "includeDrainage":false,
+                  "segmentIds":["e1"]
+                }
+              ]
+            }
+            """;
+
+        RoadNetwork restored = RoadNetwork.fromJson(legacyJson);
+        Road road = restored.getRoad("r1");
+
+        assertNotNull(road);
+        assertEquals(8, road.getWidth());
+        assertEquals(true, road.getIncludeSidewalk());
+        assertEquals(2, road.getSidewalkWidth());
+        assertEquals(true, road.getIncludeShoulder());
+        assertEquals(1, road.getShoulderWidth());
+        assertEquals(false, road.getIncludeDrainage());
+    }
+
+    @Test
     void jsonRoundTripPreservesCornerRadius() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(0, 0));
