@@ -20,7 +20,7 @@ public final class ResolvedCrossSection {
     public final int medianWidth;
     public final String medianMaterial;
     public final boolean laneDividers;
-    public final boolean centerLine;
+    public final CenterLineStyle centerLineStyle;
     public final String markingMaterial;
     public final boolean includeShoulder;
     public final int shoulderWidth;
@@ -43,7 +43,7 @@ public final class ResolvedCrossSection {
             int medianWidth,
             String medianMaterial,
             boolean laneDividers,
-            boolean centerLine,
+            CenterLineStyle centerLineStyle,
             String markingMaterial,
             boolean includeShoulder,
             int shoulderWidth,
@@ -64,7 +64,7 @@ public final class ResolvedCrossSection {
         this.medianWidth = medianWidth;
         this.medianMaterial = medianMaterial;
         this.laneDividers = laneDividers;
-        this.centerLine = centerLine;
+        this.centerLineStyle = centerLineStyle != null ? centerLineStyle : CenterLineStyle.NONE;
         this.markingMaterial = markingMaterial;
         this.includeShoulder = includeShoulder;
         this.shoulderWidth = shoulderWidth;
@@ -111,10 +111,8 @@ public final class ResolvedCrossSection {
             ? median.getMaterial()
             : "material.plot.grass_block";
 
-        boolean laneDividers = markings.getLaneDividers() != null
-            ? markings.getLaneDividers()
-            : laneCount > 1;
-        boolean centerLine = markings.getCenterLine() != null && markings.getCenterLine();
+        boolean laneDividers = MarkingRules.resolveLaneDividers(markings, laneCount);
+        CenterLineStyle centerLineStyle = MarkingRules.resolveCenterLineStyle(markings, config);
         String markingMaterial = markings.getMaterial() != null
             ? markings.getMaterial()
             : DEFAULT_MARKING_MATERIAL;
@@ -149,7 +147,7 @@ public final class ResolvedCrossSection {
             medianWidth,
             RoadMaterialUtils.normalizeStoredMaterial(medianMaterial),
             laneDividers,
-            centerLine,
+            centerLineStyle,
             RoadMaterialUtils.normalizeStoredMaterial(markingMaterial),
             includeShoulder,
             Math.max(0, shoulderWidth),

@@ -2,6 +2,7 @@ package com.plot.plugin.road.model;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -148,6 +149,22 @@ public class Road {
 
     public void setLaneDividers(Boolean laneDividers) {
         crossSection.getMarkings().setLaneDividers(laneDividers);
+    }
+
+    public CenterLineStyle getCenterLineStyle() {
+        return crossSection.getMarkings().getCenterLineStyle();
+    }
+
+    public void setCenterLineStyle(CenterLineStyle centerLineStyle) {
+        crossSection.getMarkings().setCenterLineStyle(centerLineStyle);
+    }
+
+    public String getMarkingMaterial() {
+        return crossSection.getMarkings().getMaterial();
+    }
+
+    public void setMarkingMaterial(String markingMaterial) {
+        crossSection.getMarkings().setMaterial(markingMaterial);
     }
 
     public Boolean getIncludeSidewalk() {

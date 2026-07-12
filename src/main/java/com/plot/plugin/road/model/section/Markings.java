@@ -6,6 +6,7 @@ package com.plot.plugin.road.model.section;
 public class Markings {
     private Boolean laneDividers;
     private Boolean centerLine;
+    private CenterLineStyle centerLineStyle;
     private String material;
 
     public Markings() {
@@ -31,6 +32,22 @@ public class Markings {
 
     public void setCenterLine(Boolean centerLine) {
         this.centerLine = centerLine;
+        if (centerLine != null) {
+            centerLineStyle = centerLine ? CenterLineStyle.SINGLE_DASHED : CenterLineStyle.NONE;
+        }
+    }
+
+    public CenterLineStyle getCenterLineStyle() {
+        return centerLineStyle;
+    }
+
+    public void setCenterLineStyle(CenterLineStyle centerLineStyle) {
+        this.centerLineStyle = centerLineStyle;
+        if (centerLineStyle == CenterLineStyle.NONE) {
+            centerLine = false;
+        } else if (centerLineStyle != null) {
+            centerLine = true;
+        }
     }
 
     public String getMaterial() {
@@ -42,6 +59,8 @@ public class Markings {
     }
 
     Markings copy() {
-        return new Markings(laneDividers, centerLine, material);
+        Markings copy = new Markings(laneDividers, centerLine, material);
+        copy.centerLineStyle = centerLineStyle;
+        return copy;
     }
 }

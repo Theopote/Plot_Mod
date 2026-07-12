@@ -9,6 +9,7 @@ import net.minecraft.client.MinecraftClient;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
@@ -206,7 +207,7 @@ public class RoadGenerator {
                     getBlockIdFromMaterial(crossSection.medianMaterial));
             }
 
-            if (crossSection.laneDividers || crossSection.centerLine) {
+            if (crossSection.laneDividers || crossSection.centerLineStyle != CenterLineStyle.NONE) {
                 generateLaneMarkings(result, segments, heightInfos, pathPoints, crossSection);
             }
 
@@ -1122,27 +1123,33 @@ public class RoadGenerator {
         double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
         double accumulatedSegmentStart = 0.0;
 
-        List<Double> offsets = new ArrayList<>();
-        if (crossSection.centerLine) {
-            offsets.add(0.0);
+        List<MarkingPass> passes = new ArrayList<>();
+        switch (crossSection.centerLineStyle) {
+            case SINGLE_DASHED -> passes.add(new MarkingPass(0.0, false));
+            case DOUBLE_SOLID -> {
+                passes.add(new MarkingPass(-0.3, true));
+                passes.add(new MarkingPass(0.3, true));
+            }
+            default -> {
+            }
         }
         if (crossSection.laneDividers) {
             for (Double offset : crossSection.laneDividerOffsets) {
                 if (offset != null && Math.abs(offset) > 1e-6) {
-                    offsets.add(offset);
+                    passes.add(new MarkingPass(offset, false));
                 }
             }
         }
 
-        for (Double offset : offsets) {
-            List<Vec2d> markingLine = OffsetHandler.offsetPolyline(pathPoints, offset);
+        for (MarkingPass pass : passes) {
+            List<Vec2d> markingLine = OffsetHandler.offsetPolyline(pathPoints, pass.offset());
             accumulatedSegmentStart = 0.0;
             for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
                 SegmentHeightInfo info = heightInfos.get(i);
                 PathSegment segment = segments.get(i);
                 int samples = Math.max(2, (int) Math.ceil(segment.distance));
                 for (int j = 0; j <= samples; j++) {
-                    if (j % 2 != 0) {
+                    if (!pass.solid() && j % 2 != 0) {
                         continue;
                     }
                     double t = (double) j / samples;
@@ -1156,6 +1163,9 @@ public class RoadGenerator {
                 accumulatedSegmentStart += segment.distance;
             }
         }
+    }
+
+    private record MarkingPass(double offset, boolean solid) {
     }
 
     private void generateStreetlights(RoadGenerationResult result, List<Vec2d> pathPoints,

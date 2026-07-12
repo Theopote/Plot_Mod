@@ -8,6 +8,7 @@ import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.section.Drain;
 import com.plot.plugin.road.model.section.Lane;
 import com.plot.plugin.road.model.section.LaneGroup;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.Markings;
 import com.plot.plugin.road.model.section.Median;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -291,6 +292,7 @@ public class RoadNetwork {
     static class MarkingsData {
         Boolean laneDividers;
         Boolean centerLine;
+        String centerLineStyle;
         String material;
     }
 
@@ -353,6 +355,9 @@ public class RoadNetwork {
                 data.markings = new MarkingsData();
                 data.markings.laneDividers = markings.getLaneDividers();
                 data.markings.centerLine = markings.getCenterLine();
+                data.markings.centerLineStyle = markings.getCenterLineStyle() != null
+                    ? markings.getCenterLineStyle().name()
+                    : null;
                 data.markings.material = markings.getMaterial();
             }
             Shoulder shoulder = section.getShoulder();
@@ -412,6 +417,13 @@ public class RoadNetwork {
                 Markings markingsComponent = new Markings();
                 markingsComponent.setLaneDividers(markings.laneDividers);
                 markingsComponent.setCenterLine(markings.centerLine);
+                if (markings.centerLineStyle != null && !markings.centerLineStyle.isBlank()) {
+                    try {
+                        markingsComponent.setCenterLineStyle(CenterLineStyle.valueOf(markings.centerLineStyle));
+                    } catch (IllegalArgumentException ignored) {
+                        markingsComponent.setCenterLineStyle(CenterLineStyle.NONE);
+                    }
+                }
                 markingsComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(markings.material));
                 section.setMarkings(markingsComponent);
             }
