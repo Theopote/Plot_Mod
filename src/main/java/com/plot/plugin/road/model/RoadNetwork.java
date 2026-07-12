@@ -316,6 +316,20 @@ public class RoadNetwork {
         Boolean enabled;
     }
 
+    static class BikeLaneData {
+        Boolean enabled;
+        Integer width;
+        String material;
+    }
+
+    static class SlopeBatterData {
+        Boolean enabled;
+        Float fillRatio;
+        Float cutRatio;
+        String fillMaterial;
+        String cutMaterial;
+    }
+
     static class StreetFurnitureData {
         Integer streetlightSpacing;
     }
@@ -325,8 +339,10 @@ public class RoadNetwork {
         MedianData median;
         MarkingsData markings;
         ShoulderData shoulder;
+        BikeLaneData bikeLane;
         SidewalkData sidewalk;
         DrainData drain;
+        SlopeBatterData slopeBatter;
         StreetFurnitureData streetFurniture;
 
         static CrossSectionData from(RoadCrossSection section) {
@@ -371,6 +387,13 @@ public class RoadNetwork {
                 data.shoulder.width = shoulder.getWidth();
                 data.shoulder.material = shoulder.getMaterial();
             }
+            BikeLane bikeLane = section.getBikeLane();
+            if (bikeLane != null) {
+                data.bikeLane = new BikeLaneData();
+                data.bikeLane.enabled = bikeLane.getEnabled();
+                data.bikeLane.width = bikeLane.getWidth();
+                data.bikeLane.material = bikeLane.getMaterial();
+            }
             Sidewalk sidewalk = section.getSidewalk();
             if (sidewalk != null) {
                 data.sidewalk = new SidewalkData();
@@ -382,6 +405,15 @@ public class RoadNetwork {
             if (drain != null) {
                 data.drain = new DrainData();
                 data.drain.enabled = drain.getEnabled();
+            }
+            SlopeBatter slopeBatter = section.getSlopeBatter();
+            if (slopeBatter != null) {
+                data.slopeBatter = new SlopeBatterData();
+                data.slopeBatter.enabled = slopeBatter.getEnabled();
+                data.slopeBatter.fillRatio = slopeBatter.getFillRatio();
+                data.slopeBatter.cutRatio = slopeBatter.getCutRatio();
+                data.slopeBatter.fillMaterial = slopeBatter.getFillMaterial();
+                data.slopeBatter.cutMaterial = slopeBatter.getCutMaterial();
             }
             StreetFurniture furniture = section.getStreetFurniture();
             if (furniture != null) {
@@ -438,6 +470,13 @@ public class RoadNetwork {
                 shoulderComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(shoulder.material));
                 section.setShoulder(shoulderComponent);
             }
+            if (bikeLane != null) {
+                BikeLane bikeLaneComponent = new BikeLane();
+                bikeLaneComponent.setEnabled(bikeLane.enabled);
+                bikeLaneComponent.setWidth(bikeLane.width);
+                bikeLaneComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(bikeLane.material));
+                section.setBikeLane(bikeLaneComponent);
+            }
             if (sidewalk != null) {
                 Sidewalk sidewalkComponent = new Sidewalk();
                 sidewalkComponent.setEnabled(sidewalk.enabled);
@@ -449,6 +488,15 @@ public class RoadNetwork {
                 Drain drainComponent = new Drain();
                 drainComponent.setEnabled(drain.enabled);
                 section.setDrain(drainComponent);
+            }
+            if (slopeBatter != null) {
+                SlopeBatter slopeComponent = new SlopeBatter();
+                slopeComponent.setEnabled(slopeBatter.enabled);
+                slopeComponent.setFillRatio(slopeBatter.fillRatio);
+                slopeComponent.setCutRatio(slopeBatter.cutRatio);
+                slopeComponent.setFillMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.fillMaterial));
+                slopeComponent.setCutMaterial(RoadMaterialUtils.normalizeStoredMaterial(slopeBatter.cutMaterial));
+                section.setSlopeBatter(slopeComponent);
             }
             if (streetFurniture != null) {
                 StreetFurniture furniture = new StreetFurniture();

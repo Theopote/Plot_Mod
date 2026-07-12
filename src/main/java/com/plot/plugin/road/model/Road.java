@@ -215,6 +215,30 @@ public class Road {
         crossSection.getShoulder().setMaterial(shoulderMaterial);
     }
 
+    public Boolean getIncludeBikeLane() {
+        return crossSection.getBikeLane().getEnabled();
+    }
+
+    public void setIncludeBikeLane(Boolean includeBikeLane) {
+        crossSection.getBikeLane().setEnabled(includeBikeLane);
+    }
+
+    public Integer getBikeLaneWidth() {
+        return crossSection.getBikeLane().getWidth();
+    }
+
+    public void setBikeLaneWidth(Integer bikeLaneWidth) {
+        crossSection.getBikeLane().setWidth(bikeLaneWidth);
+    }
+
+    public String getBikeLaneMaterial() {
+        return crossSection.getBikeLane().getMaterial();
+    }
+
+    public void setBikeLaneMaterial(String bikeLaneMaterial) {
+        crossSection.getBikeLane().setMaterial(bikeLaneMaterial);
+    }
+
     public Boolean getIncludeDrainage() {
         return crossSection.getDrain().getEnabled();
     }
@@ -275,6 +299,14 @@ public class Road {
 
     public boolean getEffectiveIncludeShoulder(RoadSystemConfig defaults) {
         return crossSection.resolve(defaults).includeShoulder;
+    }
+
+    public boolean getEffectiveIncludeBikeLane(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).includeBikeLane;
+    }
+
+    public int getEffectiveBikeLaneWidth(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).bikeLaneWidth;
     }
 
     public int getEffectiveShoulderWidth(RoadSystemConfig defaults) {

@@ -151,6 +151,27 @@ public final class RoadCrossSectionEditor {
             }
         }
 
+        ImBoolean bikeLaneRef = new ImBoolean(road.getEffectiveIncludeBikeLane(config));
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_bike_lane") + "##bike_lane", bikeLaneRef)) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.setIncludeBikeLane(bikeLaneRef.get());
+        }
+        if (road.getEffectiveIncludeBikeLane(config)) {
+            int[] bikeWidth = {
+                road.getBikeLaneWidth() != null ? road.getBikeLaneWidth() : 1
+            };
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.bike_lane_width", bikeWidth[0]) + "##bike_w",
+                bikeWidth, 1, 3, "%d")) {
+                road.setBikeLaneWidth(bikeWidth[0]);
+            }
+            if (ImGui.isItemActivated() && onHistory != null) {
+                onHistory.run();
+            }
+        }
+
         ImBoolean sidewalkRef = new ImBoolean(road.getEffectiveIncludeSidewalk(config));
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##sidewalk", sidewalkRef)) {
             if (onHistory != null) {

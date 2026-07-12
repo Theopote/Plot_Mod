@@ -358,6 +358,8 @@
   "plugin.road.fill_volume": "Fill Volume:",
   "plugin.road.include_drainage": "Include Drainage",
   "plugin.road.include_shoulder": "Include Shoulder",
+  "plugin.road.include_bike_lane": "Include Bike Lane",
+  "plugin.road.bike_lane_width": "Bike lane width %d",
   "plugin.road.include_sidewalk": "Include Sidewalk",
   "plugin.road.material": "Road Material",
   "plugin.road.sidewalk_material": "Sidewalk Material",

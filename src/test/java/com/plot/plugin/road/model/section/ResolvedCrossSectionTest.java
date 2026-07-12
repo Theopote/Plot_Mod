@@ -32,6 +32,30 @@ class ResolvedCrossSectionTest {
     }
 
     @Test
+    void slopeAndBikeLaneResolveFromSection() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setFillSlopeRatio(2.0f);
+        config.setCutSlopeRatio(1.5f);
+
+        RoadCrossSection section = new RoadCrossSection();
+        section.getShoulder().setEnabled(true);
+        section.getSlopeBatter().setFillRatio(1.2f);
+        section.getSlopeBatter().setCutRatio(0.8f);
+        section.getSlopeBatter().setFillMaterial("minecraft:gravel");
+        section.getBikeLane().setEnabled(true);
+        section.getBikeLane().setWidth(2);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+
+        assertTrue(resolved.includeSlopeBatter);
+        assertEquals(1.2f, resolved.fillSlopeRatio, 1e-3);
+        assertEquals(0.8f, resolved.cutSlopeRatio, 1e-3);
+        assertTrue(resolved.includeBikeLane);
+        assertEquals(2, resolved.bikeLaneWidth);
+        assertEquals("minecraft:gravel", resolved.fillSlopeMaterial);
+    }
+
+    @Test
     void nullRoadFieldsFallBackToConfig() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);

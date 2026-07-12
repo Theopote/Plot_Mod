@@ -7,6 +7,7 @@ public enum RoadSolidLayer {
     ROAD,
     SIDEWALK,
     MARKING,
+    BIKE_LANE,
     SHOULDER,
     MEDIAN,
     DRAIN,

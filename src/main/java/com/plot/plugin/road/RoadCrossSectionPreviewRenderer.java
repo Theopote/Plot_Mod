@@ -44,7 +44,9 @@ public final class RoadCrossSectionPreviewRenderer {
         drawList.addRectFilled(x0, y0, x1, y1, COLOR_BG);
         drawList.addRect(x0, y0, x1, y1, COLOR_BORDER);
 
-        CrossSectionLayout layout = CrossSectionLayout.fromConfig(config);
+        CrossSectionLayout layout = CrossSectionLayout.fromResolved(
+            ResolvedCrossSection.fromConfig(config),
+            config.getMaxSlope());
         drawCrossSection(drawList, layout, x0, y0, width, PREVIEW_HEIGHT);
 
         ImGui.dummy(width, PREVIEW_HEIGHT);
@@ -85,12 +87,14 @@ public final class RoadCrossSectionPreviewRenderer {
 
         cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
         cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
+        cursorX = drawBand(drawList, layout.leftBikeBlocks, cursorX, deckY, deckY + deckH, scale, layout.bikeColor);
         cursorX = drawBand(drawList, layout.leftShoulderBlocks, cursorX, deckY, deckY + deckH, scale, layout.shoulderColor);
         float roadStartX = cursorX;
         cursorX = drawBand(drawList, layout.roadBlocks, cursorX, deckY, deckY + deckH, scale, layout.roadColor);
         float roadWidthPx = layout.roadBlocks * scale;
         drawRoadMarkings(drawList, layout, roadStartX, roadWidthPx, deckY, deckH);
         cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckY + deckH, scale, layout.shoulderColor);
+        cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckY + deckH, scale, layout.bikeColor);
         cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
         drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
 
@@ -209,6 +213,8 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float rightShoulderBlocks;
         public final float leftSidewalkBlocks;
         public final float rightSidewalkBlocks;
+        public final float leftBikeBlocks;
+        public final float rightBikeBlocks;
         public final float drainageBlocks;
         public final boolean includeShoulder;
         public final float shoulderBlocks;
@@ -217,6 +223,7 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float maxSlopePercent;
         public final int roadColor;
         public final int sidewalkColor;
+        public final int bikeColor;
         public final int shoulderColor;
         public final float medianBlocks;
         public final int medianColor;
@@ -229,6 +236,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 float rightShoulderBlocks,
                 float leftSidewalkBlocks,
                 float rightSidewalkBlocks,
+                float leftBikeBlocks,
+                float rightBikeBlocks,
                 float drainageBlocks,
                 boolean includeShoulder,
                 float shoulderBlocks,
@@ -237,6 +246,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 float maxSlopePercent,
                 int roadColor,
                 int sidewalkColor,
+                int bikeColor,
                 int shoulderColor,
                 float medianBlocks,
                 int medianColor,
@@ -247,6 +257,8 @@ public final class RoadCrossSectionPreviewRenderer {
             this.rightShoulderBlocks = rightShoulderBlocks;
             this.leftSidewalkBlocks = leftSidewalkBlocks;
             this.rightSidewalkBlocks = rightSidewalkBlocks;
+            this.leftBikeBlocks = leftBikeBlocks;
+            this.rightBikeBlocks = rightBikeBlocks;
             this.drainageBlocks = drainageBlocks;
             this.includeShoulder = includeShoulder;
             this.shoulderBlocks = shoulderBlocks;
@@ -255,6 +267,7 @@ public final class RoadCrossSectionPreviewRenderer {
             this.maxSlopePercent = maxSlopePercent;
             this.roadColor = roadColor;
             this.sidewalkColor = sidewalkColor;
+            this.bikeColor = bikeColor;
             this.shoulderColor = shoulderColor;
             this.medianBlocks = medianBlocks;
             this.medianColor = medianColor;
@@ -268,6 +281,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 float rightShoulderBlocks,
                 float leftSidewalkBlocks,
                 float rightSidewalkBlocks,
+                float leftBikeBlocks,
+                float rightBikeBlocks,
                 float drainageBlocks,
                 boolean includeShoulder,
                 float shoulderBlocks,
@@ -276,6 +291,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 float maxSlopePercent,
                 int roadColor,
                 int sidewalkColor,
+                int bikeColor,
                 int shoulderColor) {
             return new CrossSectionLayout(
                 roadBlocks,
@@ -283,6 +299,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 rightShoulderBlocks,
                 leftSidewalkBlocks,
                 rightSidewalkBlocks,
+                leftBikeBlocks,
+                rightBikeBlocks,
                 drainageBlocks,
                 includeShoulder,
                 shoulderBlocks,
@@ -291,6 +309,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 maxSlopePercent,
                 roadColor,
                 sidewalkColor,
+                bikeColor,
                 shoulderColor,
                 0f,
                 0,
@@ -302,6 +321,7 @@ public final class RoadCrossSectionPreviewRenderer {
         public static CrossSectionLayout fromResolved(ResolvedCrossSection section, float maxSlopePercent) {
             float road = Math.max(1, section.carriagewayWidth);
             float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
+            float bike = section.includeBikeLane ? Math.max(0, section.bikeLaneWidth) : 0f;
             float sidewalk = section.includeSidewalk ? Math.max(0, section.sidewalkWidth) : 0f;
             float drainage = section.includeDrain ? 0.5f : 0f;
             List<Float> markingRatios = buildMarkingRatios(section, road);
@@ -309,6 +329,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 road,
                 shoulder, shoulder,
                 sidewalk, sidewalk,
+                bike, bike,
                 drainage,
                 section.includeShoulder,
                 shoulder,
@@ -317,6 +338,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 maxSlopePercent,
                 colorForMaterial(section.carriagewayMaterial, 0xFF707070),
                 colorForMaterial(section.sidewalkMaterial, 0xFF989898),
+                colorForMaterial(section.bikeLaneMaterial, 0xFF6FA8D8),
                 colorForMaterial(section.shoulderMaterial, 0xFFB8A070),
                 section.includeMedian ? section.medianWidth : 0f,
                 colorForMaterial(section.medianMaterial, 0xFF6FA856),
@@ -345,24 +367,7 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static CrossSectionLayout fromConfig(RoadSystemConfig config) {
-            float road = Math.max(1, config.getRoadWidth());
-            float shoulder = config.isIncludeShoulder() ? Math.max(0, config.getShoulderWidth()) : 0f;
-            float sidewalk = config.isIncludeSidewalk() ? Math.max(0, config.getSidewalkWidth()) : 0f;
-            float drainage = config.isIncludeDrainage() ? 0.5f : 0f;
-            return create(
-                road,
-                shoulder, shoulder,
-                sidewalk, sidewalk,
-                drainage,
-                config.isIncludeShoulder(),
-                shoulder,
-                config.isIncludeShoulder() ? config.getFillSlopeRatio() : 0f,
-                config.isIncludeShoulder() ? config.getCutSlopeRatio() : 0f,
-                config.getMaxSlope(),
-                colorForMaterial(config.getSelectedMaterial(), 0xFF707070),
-                colorForMaterial(config.getSelectedSidewalkMaterial(), 0xFF989898),
-                colorForMaterial(config.getFillSlopeMaterial(), 0xFFB8A070)
-            );
+            return fromResolved(ResolvedCrossSection.fromConfig(config), config.getMaxSlope());
         }
 
         public static CrossSectionLayout fromPreset(RoadSystemConfig.RoadPreset preset) {
@@ -376,6 +381,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 road,
                 shoulder, shoulder,
                 sidewalk, sidewalk,
+                0f, 0f,
                 drainage,
                 preset.includeShoulder,
                 shoulder,
@@ -384,6 +390,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 10.0f,
                 colorForMaterial(roadMat, 0xFF707070),
                 colorForMaterial(swMat, 0xFF989898),
+                colorForMaterial(ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL, 0xFF6FA8D8),
                 colorForMaterial("material.plot.gravel", 0xFFB8A070)
             );
         }
@@ -391,12 +398,13 @@ public final class RoadCrossSectionPreviewRenderer {
         public float totalWidthBlocks() {
             return roadBlocks
                 + leftShoulderBlocks + rightShoulderBlocks
+                + leftBikeBlocks + rightBikeBlocks
                 + leftSidewalkBlocks + rightSidewalkBlocks
                 + drainageBlocks * 2f;
         }
 
         public float centerOffsetBlocks(float scale) {
-            float left = drainageBlocks + leftSidewalkBlocks + leftShoulderBlocks;
+            float left = drainageBlocks + leftSidewalkBlocks + leftBikeBlocks + leftShoulderBlocks;
             return left * scale;
         }
 

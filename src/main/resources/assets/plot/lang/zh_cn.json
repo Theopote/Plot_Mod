@@ -358,6 +358,8 @@
   "plugin.road.fill_volume": "填方量:",
   "plugin.road.include_drainage": "包含排水沟",
   "plugin.road.include_shoulder": "包含路肩",
+  "plugin.road.include_bike_lane": "包含自行车道",
+  "plugin.road.bike_lane_width": "自行车道宽度 %d",
   "plugin.road.include_sidewalk": "包含人行道",
   "plugin.road.material": "道路材质",
   "plugin.road.sidewalk_material": "人行道材质",

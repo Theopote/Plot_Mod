@@ -12,8 +12,10 @@ public class RoadCrossSection {
     private Median median = new Median();
     private Markings markings = new Markings();
     private Shoulder shoulder = new Shoulder();
+    private BikeLane bikeLane = new BikeLane();
     private Sidewalk sidewalk = new Sidewalk();
     private Drain drain = new Drain();
+    private SlopeBatter slopeBatter = new SlopeBatter();
     private StreetFurniture streetFurniture = new StreetFurniture();
 
     public RoadCrossSection() {
@@ -30,6 +32,10 @@ public class RoadCrossSection {
         section.shoulder.setEnabled(defaults.isIncludeShoulder());
         section.shoulder.setWidth(defaults.getShoulderWidth());
         section.shoulder.setMaterial(defaults.getFillSlopeMaterial());
+        section.slopeBatter.setFillRatio(defaults.getFillSlopeRatio());
+        section.slopeBatter.setCutRatio(defaults.getCutSlopeRatio());
+        section.slopeBatter.setFillMaterial(defaults.getFillSlopeMaterial());
+        section.slopeBatter.setCutMaterial(defaults.getCutSlopeMaterial());
         section.sidewalk.setEnabled(defaults.isIncludeSidewalk());
         section.sidewalk.setWidth(defaults.getSidewalkWidth());
         section.sidewalk.setMaterial(defaults.getSelectedSidewalkMaterial());
@@ -122,6 +128,14 @@ public class RoadCrossSection {
         this.shoulder = shoulder != null ? shoulder : new Shoulder();
     }
 
+    public BikeLane getBikeLane() {
+        return bikeLane;
+    }
+
+    public void setBikeLane(BikeLane bikeLane) {
+        this.bikeLane = bikeLane != null ? bikeLane : new BikeLane();
+    }
+
     public Sidewalk getSidewalk() {
         return sidewalk;
     }
@@ -136,6 +150,14 @@ public class RoadCrossSection {
 
     public void setDrain(Drain drain) {
         this.drain = drain != null ? drain : new Drain();
+    }
+
+    public SlopeBatter getSlopeBatter() {
+        return slopeBatter;
+    }
+
+    public void setSlopeBatter(SlopeBatter slopeBatter) {
+        this.slopeBatter = slopeBatter != null ? slopeBatter : new SlopeBatter();
     }
 
     public StreetFurniture getStreetFurniture() {
@@ -167,8 +189,10 @@ public class RoadCrossSection {
         copy.median = median.copy();
         copy.markings = markings.copy();
         copy.shoulder = shoulder.copy();
+        copy.bikeLane = bikeLane.copy();
         copy.sidewalk = sidewalk.copy();
         copy.drain = drain.copy();
+        copy.slopeBatter = slopeBatter.copy();
         copy.streetFurniture = streetFurniture.copy();
         return copy;
     }
