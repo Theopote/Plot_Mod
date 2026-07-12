@@ -19,7 +19,9 @@ public final class RoadSlopeUtils {
 
         public int advance(int currentHeight, double continuousDelta) {
             remainder += continuousDelta;
-            int step = (int) Math.trunc(remainder);
+            int step = remainder >= 0
+                ? (int) Math.floor(remainder + 1e-9)
+                : (int) Math.ceil(remainder - 1e-9);
             if (step != 0) {
                 remainder -= step;
             }
@@ -65,7 +67,7 @@ public final class RoadSlopeUtils {
         if (accumulator != null) {
             return accumulator.advance(currentHeight, continuousStep);
         }
-        return currentHeight + (int) Math.trunc(continuousStep);
+        return currentHeight + (int) continuousStep;
     }
 
     /**
@@ -97,7 +99,7 @@ public final class RoadSlopeUtils {
         if (accumulator != null) {
             return accumulator.advance(fromHeight, continuousStep);
         }
-        return fromHeight + (int) Math.trunc(continuousStep);
+        return fromHeight + (int) continuousStep;
     }
 
     public static double computeActualSlopePercent(int targetStart, int targetEnd, double segmentDistance) {
@@ -159,18 +161,24 @@ public final class RoadSlopeUtils {
         int continuousDirection = 0;
         double continuousRunLength = 0.0;
         double relaxedRemaining = 0.0;
+        Float previousSegmentSlope = null;
 
         for (int i = 0; i < size; i++) {
             double segmentDistance = segmentDistances.get(i);
             int groundStart = groundStarts.get(i);
             int groundEnd = groundEnds.get(i);
             float maxSlopePercent = maxSlopePercents.get(i);
+            if (previousSegmentSlope != null && previousSegmentSlope != maxSlopePercent) {
+                elevationAccumulator = new ElevationAccumulator();
+            }
+            previousSegmentSlope = maxSlopePercent;
 
             double processedInSegment = 0.0;
             while (processedInSegment < segmentDistance - 1e-9) {
                 double remainingInSegment = segmentDistance - processedInSegment;
                 float effectiveSlope = maxSlopePercent;
                 double chunkDistance = remainingInSegment;
+                boolean enteringRelaxedSlope = false;
 
                 if (slopeLengthLimitEnabled) {
                     if (relaxedRemaining > 0.0) {
@@ -180,7 +188,12 @@ public final class RoadSlopeUtils {
                         relaxedRemaining = relaxedSlopeLength;
                         effectiveSlope = relaxedSlopePercent;
                         chunkDistance = Math.min(remainingInSegment, relaxedRemaining);
+                        enteringRelaxedSlope = true;
                     }
+                }
+
+                if (enteringRelaxedSlope) {
+                    elevationAccumulator = new ElevationAccumulator();
                 }
 
                 double chunkStartT = processedInSegment / segmentDistance;

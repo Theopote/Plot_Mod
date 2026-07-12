@@ -92,8 +92,8 @@ class RoadSlopeUtilsTest {
             64
         );
 
-        assertEquals(64, targetEnds.get(0), "5% slope over 10 blocks allows only 0.5 block rise");
-        assertEquals(65, targetEnds.get(1), "10% slope over 10 blocks allows 1 block rise after steep segment");
+        assertEquals(65, targetEnds.get(0), "5% slope accumulates fractional rise over 10m");
+        assertEquals(66, targetEnds.get(1), "10% slope continues climbing on the second segment");
     }
 
     @Test
@@ -176,9 +176,9 @@ class RoadSlopeUtilsTest {
 
     @Test
     void longContinuousClimbInsertsRelaxedSlopeSegment() {
-        List<Double> distances = List.of(50.0);
+        List<Double> distances = List.of(100.0);
         List<Integer> groundStarts = List.of(64);
-        List<Integer> groundEnds = List.of(114);
+        List<Integer> groundEnds = List.of(164);
         List<Float> slopes = List.of(10.0f);
 
         List<Integer> steepOnly = RoadSlopeUtils.computeChainedTargetHeights(
@@ -189,7 +189,31 @@ class RoadSlopeUtilsTest {
             30.0, 5.0, 1.0f
         );
 
-        assertEquals(69, steepOnly.getFirst());
+        assertEquals(74, steepOnly.getFirst());
         assertTrue(withRelax.getFirst() < steepOnly.getFirst());
+    }
+
+    @Test
+    void elevationAccumulatorClimbsAfterFractionalRemainderBuildsUp() {
+        RoadSlopeUtils.ElevationAccumulator accumulator = new RoadSlopeUtils.ElevationAccumulator();
+        int height = 64;
+        for (int i = 0; i < 10; i++) {
+            height = RoadSlopeUtils.computeTargetEndHeight(
+                height, 64, 80, 1.0, 10.0f, accumulator);
+        }
+        assertEquals(65, height);
+    }
+
+    @Test
+    void chainedHeightsAccumulateFractionalRiseAcrossShortSegments() {
+        List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
+            List.of(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+            List.of(64, 64, 64, 64, 64, 64, 64, 64, 64, 64),
+            List.of(80, 80, 80, 80, 80, 80, 80, 80, 80, 80),
+            List.of(10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f),
+            64
+        );
+
+        assertEquals(66, targetEnds.getLast());
     }
 }

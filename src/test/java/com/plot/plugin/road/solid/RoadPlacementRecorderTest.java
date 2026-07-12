@@ -1,7 +1,6 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
-import com.plot.plugin.road.RoadGenerator;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +38,7 @@ class RoadPlacementRecorderTest {
 
     @Test
     void flushJunctionSolidsAppliesLayerMaterialOverrides() {
-        RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
+        RoadGenerationResult result = new RoadGenerationResult(0);
         RoadSolidModel solids = new RoadSolidModel();
         solids.add(new com.plot.api.geometry.Vec2d(0, 0), 64, RoadSolidLayer.ROAD);
         solids.add(new com.plot.api.geometry.Vec2d(1, 0), 64, RoadSolidLayer.SIDEWALK);

@@ -2,7 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.plugin.road.RoadGenerator.RoadGenerationResult;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 

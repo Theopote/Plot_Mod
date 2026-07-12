@@ -2,7 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
-import com.plot.core.command.commands.GenerateRoadCommand;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +15,7 @@ class RoadGeneratorPlacementRecordTest {
 
     @Test
     void recordPlacementIfAbsentKeepsFirstClaimAtSamePosition() {
-        RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
+        RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos overlap = new BlockPos(3, 64, 7);
 
         RoadGenerator.recordPlacementIfAbsent(
@@ -31,7 +31,7 @@ class RoadGeneratorPlacementRecordTest {
 
     @Test
     void junctionRoadOverrideReplacesEdgePlacement() {
-        RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
+        RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos overlap = new BlockPos(12, 65, 18);
 
         RoadGenerator.recordPlacementIfAbsent(
@@ -49,7 +49,7 @@ class RoadGeneratorPlacementRecordTest {
 
     @Test
     void junctionRoadThenSidewalkOverlapKeepsRoadMaterial() {
-        RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
+        RoadGenerationResult result = new RoadGenerationResult(0);
         BlockPos overlap = new BlockPos(12, 65, 18);
 
         RoadGenerator.recordPlacementIfAbsent(

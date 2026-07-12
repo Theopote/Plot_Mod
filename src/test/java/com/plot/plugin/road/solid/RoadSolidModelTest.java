@@ -1,7 +1,6 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.road.RoadGenerator;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +30,7 @@ class RoadSolidModelTest {
 
     @Test
     void flushEdgeSolidsPopulatesResultBucketsAndPlacementRecords() {
-        RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
+        RoadGenerationResult result = new RoadGenerationResult(0);
         RoadSolidModel solids = new RoadSolidModel();
         solids.add(new Vec2d(1, 2), 64, RoadSolidLayer.ROAD, "minecraft:stone");
         solids.add(new Vec2d(3, 2), 64, RoadSolidLayer.SIDEWALK, "minecraft:oak_planks");

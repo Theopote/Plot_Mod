@@ -33,6 +33,10 @@ public class RoadGenerationResult {
         RoadPlacementRecorder.recordIfAbsent(placementRecords, pos, previousBlockId, newBlockId);
     }
 
+    public void recordPlacementOverride(BlockPos pos, String previousBlockId, String newBlockId) {
+        RoadPlacementRecorder.recordOverride(placementRecords, pos, previousBlockId, newBlockId);
+    }
+
     public void mergeFrom(RoadGenerationResult source) {
         if (source == null) {
             return;

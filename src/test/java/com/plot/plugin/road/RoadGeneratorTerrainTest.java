@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
@@ -71,7 +72,7 @@ class RoadGeneratorTerrainTest {
         config.setIncludeSidewalk(false);
         RoadGenerator generator = new RoadGenerator(config, null);
 
-        RoadGenerator.RoadGenerationResult result = generator.generateFromPathPoints(
+        RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(8, 0)),
             new FlatTerrainSampler(64));
 

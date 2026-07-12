@@ -60,16 +60,6 @@ public class RoadGenerator {
         this.coordinateTransformer = coordinateTransformer;
     }
     
-    /**
-     * @deprecated 使用 {@link RoadGenerationResult}
-     */
-    @Deprecated
-    public static class RoadGenerationResult extends com.plot.plugin.road.solid.RoadGenerationResult {
-        public RoadGenerationResult(double pathLength) {
-            super(pathLength);
-        }
-    }
-
     private static final class EdgeBuildMetrics {
         int cutVolume;
         int fillVolume;

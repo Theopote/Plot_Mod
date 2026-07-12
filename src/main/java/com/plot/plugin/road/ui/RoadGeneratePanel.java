@@ -2,7 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
-import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -69,7 +69,7 @@ public final class RoadGeneratePanel {
         }
         RoadUiWidgets.renderRoadVisibilityWarning(ctx);
 
-        RoadGenerator.RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
         if (lastGenerationResult != null) {
             ImGui.separator();
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_projection_hint"));
@@ -120,7 +120,7 @@ public final class RoadGeneratePanel {
             ctx.clearBuildConfirmPending();
         }
 
-        RoadGenerator.RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+        RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
         if (ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
             ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));

@@ -2,7 +2,6 @@ package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.RoadGeometryUtils;
 import net.minecraft.util.math.BlockPos;
@@ -63,7 +62,7 @@ public final class RoadVoxelRasterizer {
     }
 
     public static void flushEdgeSolids(
-            RoadGenerator.RoadGenerationResult result,
+            RoadGenerationResult result,
             RoadSolidModel solids,
             CoordinateTransformer transformer) {
         if (result == null || solids == null || solids.isEmpty()) {
@@ -74,8 +73,7 @@ public final class RoadVoxelRasterizer {
             BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
             appendToResultBucket(result, primitive.layer(), pos);
             if (primitive.materialId() != null) {
-                RoadPlacementRecorder.recordIfAbsent(
-                    result.placementRecords,
+                result.recordPlacementIfAbsent(
                     pos,
                     projectionHandler.getBlockIdAt(pos),
                     primitive.materialId());
@@ -88,7 +86,7 @@ public final class RoadVoxelRasterizer {
      * 路口 solids 落地：按层应用材质覆盖并写入 placement（override 语义）。
      */
     public static void flushJunctionSolids(
-            RoadGenerator.RoadGenerationResult result,
+            RoadGenerationResult result,
             RoadSolidModel solids,
             CoordinateTransformer transformer,
             String roadBlockId,
@@ -106,8 +104,7 @@ public final class RoadVoxelRasterizer {
             }
             BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
             appendToResultBucket(result, primitive.layer(), pos);
-            RoadPlacementRecorder.recordOverride(
-                result.placementRecords,
+            result.recordPlacementOverride(
                 pos,
                 projectionHandler.getBlockIdAt(pos),
                 overrideBlockId);
@@ -128,7 +125,7 @@ public final class RoadVoxelRasterizer {
     }
 
     private static void appendToResultBucket(
-            RoadGenerator.RoadGenerationResult result,
+            RoadGenerationResult result,
             RoadSolidLayer layer,
             BlockPos pos) {
         switch (layer) {
