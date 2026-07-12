@@ -6,5 +6,11 @@ package com.plot.plugin.road.solid;
 public enum RoadSolidLayer {
     ROAD,
     SIDEWALK,
-    MARKING
+    MARKING,
+    SHOULDER,
+    MEDIAN,
+    DRAIN,
+    BRIDGE,
+    TUNNEL,
+    STREETLIGHT
 }
