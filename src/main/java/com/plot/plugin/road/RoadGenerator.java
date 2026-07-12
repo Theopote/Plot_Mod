@@ -14,7 +14,6 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.core.command.BlockRecord;
-import com.plot.core.command.commands.GenerateRoadCommand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.Heightmap;
