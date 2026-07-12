@@ -9,6 +9,8 @@ import com.plot.plugin.road.RoadMaterialUtils;
  */
 public class RoadCrossSection {
     private LaneGroup carriageway = new LaneGroup();
+    private Median median = new Median();
+    private Markings markings = new Markings();
     private Shoulder shoulder = new Shoulder();
     private Sidewalk sidewalk = new Sidewalk();
     private Drain drain = new Drain();
@@ -32,6 +34,39 @@ public class RoadCrossSection {
         section.sidewalk.setWidth(defaults.getSidewalkWidth());
         section.sidewalk.setMaterial(defaults.getSelectedSidewalkMaterial());
         section.drain.setEnabled(defaults.isIncludeDrainage());
+        section.markings.setLaneDividers(true);
+        section.markings.setCenterLine(false);
+        section.markings.setMaterial("material.plot.white_concrete");
+        return section;
+    }
+
+    public static RoadCrossSection fromPreset(RoadSystemConfig.RoadPreset preset) {
+        if (preset == null) {
+            return new RoadCrossSection();
+        }
+        String roadMaterial = preset.roadMaterial != null && !preset.roadMaterial.isBlank()
+            ? preset.roadMaterial
+            : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+        String sidewalkMaterial = preset.sidewalkMaterial != null && !preset.sidewalkMaterial.isBlank()
+            ? preset.sidewalkMaterial
+            : roadMaterial;
+
+        RoadCrossSection section = new RoadCrossSection();
+        int laneCount = preset.width >= 7 ? 2 : 1;
+        section.carriageway.setLaneCount(laneCount);
+        section.carriageway.setWidth(preset.width);
+        section.carriageway.setMaterial(roadMaterial);
+        section.carriageway.syncLaneCount(laneCount);
+        section.shoulder.setEnabled(preset.includeShoulder);
+        section.shoulder.setWidth(preset.shoulderWidth);
+        section.shoulder.setMaterial("material.plot.gravel");
+        section.sidewalk.setEnabled(preset.hasSidewalk);
+        section.sidewalk.setWidth(preset.hasSidewalk ? Math.max(1, preset.sidewalkWidth) : 0);
+        section.sidewalk.setMaterial(sidewalkMaterial);
+        section.drain.setEnabled(preset.includeDrainage);
+        section.markings.setLaneDividers(laneCount > 1);
+        section.markings.setCenterLine(false);
+        section.markings.setMaterial("material.plot.white_concrete");
         return section;
     }
 
@@ -61,6 +96,22 @@ public class RoadCrossSection {
 
     public void setCarriageway(LaneGroup carriageway) {
         this.carriageway = carriageway != null ? carriageway : new LaneGroup();
+    }
+
+    public Median getMedian() {
+        return median;
+    }
+
+    public void setMedian(Median median) {
+        this.median = median != null ? median : new Median();
+    }
+
+    public Markings getMarkings() {
+        return markings;
+    }
+
+    public void setMarkings(Markings markings) {
+        this.markings = markings != null ? markings : new Markings();
     }
 
     public Shoulder getShoulder() {
@@ -110,9 +161,11 @@ public class RoadCrossSection {
         return ResolvedCrossSection.resolve(this, defaults);
     }
 
-    RoadCrossSection copy() {
+    public RoadCrossSection copy() {
         RoadCrossSection copy = new RoadCrossSection();
         copy.carriageway = carriageway.copy();
+        copy.median = median.copy();
+        copy.markings = markings.copy();
         copy.shoulder = shoulder.copy();
         copy.sidewalk = sidewalk.copy();
         copy.drain = drain.copy();

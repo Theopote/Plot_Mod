@@ -66,6 +66,16 @@ public class Road {
         maxSlope = defaults.getMaxSlope();
     }
 
+    public void applyPreset(RoadSystemConfig.RoadPreset preset) {
+        if (preset == null) {
+            return;
+        }
+        crossSection = RoadCrossSection.fromPreset(preset);
+        if (preset.maxSlope > 0f) {
+            maxSlope = preset.maxSlope;
+        }
+    }
+
     public String getId() {
         return id;
     }
@@ -100,6 +110,44 @@ public class Road {
 
     public void setMaterial(String material) {
         crossSection.getCarriageway().setMaterial(material);
+    }
+
+    public Integer getLaneCount() {
+        return crossSection.getCarriageway().getLaneCount();
+    }
+
+    public void setLaneCount(Integer laneCount) {
+        if (laneCount == null || laneCount < 1) {
+            return;
+        }
+        crossSection.getCarriageway().syncLaneCount(laneCount);
+        if (crossSection.getMarkings().getLaneDividers() == null) {
+            crossSection.getMarkings().setLaneDividers(laneCount > 1);
+        }
+    }
+
+    public Boolean getIncludeMedian() {
+        return crossSection.getMedian().getEnabled();
+    }
+
+    public void setIncludeMedian(Boolean includeMedian) {
+        crossSection.getMedian().setEnabled(includeMedian);
+    }
+
+    public Integer getMedianWidth() {
+        return crossSection.getMedian().getWidth();
+    }
+
+    public void setMedianWidth(Integer medianWidth) {
+        crossSection.getMedian().setWidth(medianWidth);
+    }
+
+    public Boolean getLaneDividers() {
+        return crossSection.getMarkings().getLaneDividers();
+    }
+
+    public void setLaneDividers(Boolean laneDividers) {
+        crossSection.getMarkings().setLaneDividers(laneDividers);
     }
 
     public Boolean getIncludeSidewalk() {

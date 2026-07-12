@@ -6,7 +6,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.section.Drain;
+import com.plot.plugin.road.model.section.Lane;
 import com.plot.plugin.road.model.section.LaneGroup;
+import com.plot.plugin.road.model.section.Markings;
+import com.plot.plugin.road.model.section.Median;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.Shoulder;
 import com.plot.plugin.road.model.section.Sidewalk;
@@ -267,9 +270,27 @@ public class RoadNetwork {
         String sourceRoadId;
     }
 
+    static class LaneData {
+        Integer width;
+        String material;
+    }
+
     static class LaneGroupData {
         Integer laneCount;
         Integer width;
+        String material;
+        List<LaneData> lanes = new ArrayList<>();
+    }
+
+    static class MedianData {
+        Boolean enabled;
+        Integer width;
+        String material;
+    }
+
+    static class MarkingsData {
+        Boolean laneDividers;
+        Boolean centerLine;
         String material;
     }
 
@@ -295,6 +316,8 @@ public class RoadNetwork {
 
     static class CrossSectionData {
         LaneGroupData carriageway;
+        MedianData median;
+        MarkingsData markings;
         ShoulderData shoulder;
         SidewalkData sidewalk;
         DrainData drain;
@@ -311,6 +334,26 @@ public class RoadNetwork {
                 data.carriageway.laneCount = carriageway.getLaneCount();
                 data.carriageway.width = carriageway.getWidth();
                 data.carriageway.material = carriageway.getMaterial();
+                for (Lane lane : carriageway.getLanes()) {
+                    LaneData laneData = new LaneData();
+                    laneData.width = lane.getWidth();
+                    laneData.material = lane.getMaterial();
+                    data.carriageway.lanes.add(laneData);
+                }
+            }
+            Median median = section.getMedian();
+            if (median != null) {
+                data.median = new MedianData();
+                data.median.enabled = median.getEnabled();
+                data.median.width = median.getWidth();
+                data.median.material = median.getMaterial();
+            }
+            Markings markings = section.getMarkings();
+            if (markings != null) {
+                data.markings = new MarkingsData();
+                data.markings.laneDividers = markings.getLaneDividers();
+                data.markings.centerLine = markings.getCenterLine();
+                data.markings.material = markings.getMaterial();
             }
             Shoulder shoulder = section.getShoulder();
             if (shoulder != null) {
@@ -346,7 +389,31 @@ public class RoadNetwork {
                 laneGroup.setLaneCount(carriageway.laneCount);
                 laneGroup.setWidth(carriageway.width);
                 laneGroup.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(carriageway.material));
+                if (carriageway.lanes != null) {
+                    List<Lane> lanes = new ArrayList<>();
+                    for (LaneData laneData : carriageway.lanes) {
+                        Lane lane = new Lane();
+                        lane.setWidth(laneData.width);
+                        lane.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(laneData.material));
+                        lanes.add(lane);
+                    }
+                    laneGroup.setLanes(lanes);
+                }
                 section.setCarriageway(laneGroup);
+            }
+            if (median != null) {
+                Median medianComponent = new Median();
+                medianComponent.setEnabled(median.enabled);
+                medianComponent.setWidth(median.width);
+                medianComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(median.material));
+                section.setMedian(medianComponent);
+            }
+            if (markings != null) {
+                Markings markingsComponent = new Markings();
+                markingsComponent.setLaneDividers(markings.laneDividers);
+                markingsComponent.setCenterLine(markings.centerLine);
+                markingsComponent.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(markings.material));
+                section.setMarkings(markingsComponent);
             }
             if (shoulder != null) {
                 Shoulder shoulderComponent = new Shoulder();
