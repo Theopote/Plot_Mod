@@ -82,6 +82,24 @@ class RoadNetworkTest {
     }
 
     @Test
+    void jsonRoundTripPreservesJunctionMarkingSettings() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setStopLines(JunctionMarkingSetting.OFF);
+        junction.setContinuedMarkings(JunctionMarkingSetting.ON);
+        junction.setCrosswalks(JunctionMarkingSetting.ON);
+        junction.setTurnArrows(JunctionMarkingSetting.OFF);
+
+        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNode restoredNode = restored.getNode(junction.getId());
+
+        assertEquals(JunctionMarkingSetting.OFF, restoredNode.getStopLines());
+        assertEquals(JunctionMarkingSetting.ON, restoredNode.getContinuedMarkings());
+        assertEquals(JunctionMarkingSetting.ON, restoredNode.getCrosswalks());
+        assertEquals(JunctionMarkingSetting.OFF, restoredNode.getTurnArrows());
+    }
+
+    @Test
     void jsonRoundTripPreservesRoadProperties() {
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));

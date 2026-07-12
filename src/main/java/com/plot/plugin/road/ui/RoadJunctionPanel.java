@@ -4,9 +4,11 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.model.JunctionMarkingSetting;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.type.ImInt;
 
 /**
  * 交叉口属性编辑（概览/编辑 Tab 与 PropertyPanel 共用）。
@@ -80,6 +82,52 @@ public final class RoadJunctionPanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
             ctx.networkManager().setSelectedNodeId("");
+        }
+
+        ImGui.spacing();
+        if (!compact) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_markings_hint"));
+        }
+        renderMarkingSetting("stop_lines", PlotI18n.tr("plugin.road.junction_stop_lines"), node.getStopLines(),
+            value -> node.setStopLines(value));
+        renderMarkingSetting("continued_markings", PlotI18n.tr("plugin.road.junction_continued_markings"),
+            node.getContinuedMarkings(), value -> node.setContinuedMarkings(value));
+        renderMarkingSetting("crosswalks", PlotI18n.tr("plugin.road.junction_crosswalks"), node.getCrosswalks(),
+            value -> node.setCrosswalks(value));
+        renderMarkingSetting("turn_arrows", PlotI18n.tr("plugin.road.junction_turn_arrows"), node.getTurnArrows(),
+            value -> node.setTurnArrows(value));
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_reset_markings"))) {
+            ctx.networkManager().pushHistory();
+            node.setStopLines(JunctionMarkingSetting.AUTO);
+            node.setContinuedMarkings(JunctionMarkingSetting.AUTO);
+            node.setCrosswalks(JunctionMarkingSetting.AUTO);
+            node.setTurnArrows(JunctionMarkingSetting.AUTO);
+        }
+    }
+
+    private void renderMarkingSetting(
+            String id,
+            String label,
+            JunctionMarkingSetting current,
+            java.util.function.Consumer<JunctionMarkingSetting> onChange) {
+        String[] labels = {
+            PlotI18n.tr("plugin.road.junction_marking.auto"),
+            PlotI18n.tr("plugin.road.junction_marking.on"),
+            PlotI18n.tr("plugin.road.junction_marking.off")
+        };
+        ImInt index = new ImInt(switch (current) {
+            case ON -> 1;
+            case OFF -> 2;
+            default -> 0;
+        });
+        if (ImGui.combo(label + "##junction_marking_" + id, index, labels)) {
+            ctx.networkManager().pushHistory();
+            onChange.accept(switch (index.get()) {
+                case 1 -> JunctionMarkingSetting.ON;
+                case 2 -> JunctionMarkingSetting.OFF;
+                default -> JunctionMarkingSetting.AUTO;
+            });
         }
     }
 }
