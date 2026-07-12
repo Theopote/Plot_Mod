@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.style.RoadStyle;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -370,29 +371,21 @@ public final class RoadCrossSectionPreviewRenderer {
             return fromResolved(ResolvedCrossSection.fromConfig(config), config.getMaxSlope());
         }
 
-        public static CrossSectionLayout fromPreset(RoadSystemConfig.RoadPreset preset) {
-            float road = Math.max(1, preset.width);
-            float shoulder = preset.includeShoulder ? Math.max(0, preset.shoulderWidth) : 0f;
-            float sidewalk = preset.hasSidewalk ? Math.max(0, preset.sidewalkWidth) : 0f;
-            float drainage = preset.includeDrainage ? 0.5f : 0f;
-            String roadMat = preset.roadMaterial != null ? preset.roadMaterial : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
-            String swMat = preset.sidewalkMaterial != null ? preset.sidewalkMaterial : roadMat;
-            return create(
-                road,
-                shoulder, shoulder,
-                sidewalk, sidewalk,
-                0f, 0f,
-                drainage,
-                preset.includeShoulder,
-                shoulder,
-                preset.includeShoulder ? 1.5f : 0f,
-                preset.includeShoulder ? 1.0f : 0f,
-                10.0f,
-                colorForMaterial(roadMat, 0xFF707070),
-                colorForMaterial(swMat, 0xFF989898),
-                colorForMaterial(ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL, 0xFF6FA8D8),
-                colorForMaterial("material.plot.gravel", 0xFFB8A070)
+        public static CrossSectionLayout fromStyle(RoadStyle style) {
+            if (style == null) {
+                return fromResolved(ResolvedCrossSection.fromConfig(new RoadSystemConfig("preview")), 10.0f);
+            }
+            RoadSystemConfig defaults = new RoadSystemConfig("preview");
+            return fromResolved(
+                ResolvedCrossSection.resolve(style.toCrossSection(), defaults),
+                style.maxSlope > 0f ? style.maxSlope : defaults.getMaxSlope()
             );
+        }
+
+        /** @deprecated 使用 {@link #fromStyle(RoadStyle)} */
+        @Deprecated
+        public static CrossSectionLayout fromPreset(RoadStyle preset) {
+            return fromStyle(preset);
         }
 
         public float totalWidthBlocks() {

@@ -512,6 +512,7 @@ public class RoadNetwork {
     static class RoadData {
         String id;
         String name;
+        String styleId;
         CrossSectionData crossSection;
         // Legacy flat fields (v1) — read for migration, not written on save
         Integer width;
@@ -562,6 +563,7 @@ public class RoadNetwork {
                 RoadData roadData = new RoadData();
                 roadData.id = road.getId();
                 roadData.name = road.getName();
+                roadData.styleId = road.getStyleId();
                 roadData.crossSection = CrossSectionData.from(road.getCrossSection());
                 roadData.maxSlope = road.getMaxSlope();
                 roadData.segmentIds = new ArrayList<>(road.getSegmentIds());
@@ -646,6 +648,7 @@ public class RoadNetwork {
                         roadData.maxSlope,
                         roadData.segmentIds != null ? new java.util.LinkedHashSet<>(roadData.segmentIds) : java.util.Set.of()
                     );
+                    road.setStyleId(roadData.styleId);
                     network.roads.put(road.getId(), road);
                 }
             }

@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.Lane;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.style.RoadStyle;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -59,13 +60,13 @@ public final class RoadCrossSectionEditor {
         float gap = ImGui.getStyle().getItemSpacingX();
         float buttonWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
         int column = 0;
-        for (RoadSystemConfig.RoadPreset preset : config.getPresets()) {
+        for (RoadStyle style : config.getStyles()) {
             if (column > 0) {
                 ImGui.sameLine(0, gap);
             }
-            if (ImGui.button(PlotI18n.tr("preset.road." + preset.id) + "##road_preset_" + preset.id, buttonWidth, 0)) {
+            if (ImGui.button(PlotI18n.tr("preset.road." + style.id) + "##road_style_" + style.id, buttonWidth, 0)) {
                 ctx.networkManager().pushHistory();
-                road.applyPreset(preset);
+                road.applyStyle(style);
                 if (onChanged != null) {
                     onChanged.run();
                 }

@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.style.RoadStyle;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -165,12 +166,12 @@ public final class RoadDefaultParamsPanel {
         float cardWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
         float cardHeight = 54f;
         int column = 0;
-        for (RoadSystemConfig.RoadPreset preset : config.getPresets()) {
+        for (RoadStyle style : config.getStyles()) {
             if (column > 0) {
                 ImGui.sameLine(0, gap);
             }
-            if (renderPresetCard(preset, cardWidth, cardHeight, preset.id.equals(selectedId))) {
-                config.applyPreset(preset);
+            if (renderPresetCard(style, cardWidth, cardHeight, style.id.equals(selectedId))) {
+                config.applyStyle(style);
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
             }
             column = (column + 1) % 2;
@@ -192,11 +193,11 @@ public final class RoadDefaultParamsPanel {
     }
 
     private boolean renderPresetCard(
-            RoadSystemConfig.RoadPreset preset,
+            RoadStyle style,
             float width,
             float height,
             boolean selected) {
-        ImGui.pushID(preset.id);
+        ImGui.pushID(style.id);
         if (selected) {
             ImGui.pushStyleColor(ImGuiCol.Border, (int) 0xFF4DA6FFFFL);
         }
@@ -207,13 +208,13 @@ public final class RoadDefaultParamsPanel {
         ImDrawList drawList = ImGui.getWindowDrawList();
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromPreset(preset),
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style),
             pos.x + 3f,
             pos.y + 2f,
             width - 6f,
             previewH);
         ImGui.dummy(width - 6f, previewH);
-        ImGui.text(PlotI18n.tr("preset.road." + preset.id));
+        ImGui.text(PlotI18n.tr("preset.road." + style.id));
         boolean clicked = ImGui.isWindowHovered() && ImGui.isMouseClicked(0);
         ImGui.endChild();
         if (selected) {
