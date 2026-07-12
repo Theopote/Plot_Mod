@@ -5,6 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.style.RoadStyleCatalog;
 import java.io.*;
 import java.nio.file.*;
 import java.util.ArrayList;
@@ -23,7 +25,7 @@ public class RoadSystemConfig {
     private String selectedMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String selectedSidewalkMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String selectedPreset = "";
-    private List<RoadPreset> presets;
+    private List<RoadStyle> presets;
     
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
@@ -88,6 +90,8 @@ public class RoadSystemConfig {
         }
         if (config.presets == null) {
             config.initDefaultPresets();
+        } else {
+            mergeMissingBuiltinStyles(config);
         }
         String normalizedMaterial = RoadMaterialUtils.normalizeStoredMaterial(config.selectedMaterial);
         config.selectedMaterial = normalizedMaterial != null
@@ -97,6 +101,15 @@ public class RoadSystemConfig {
         config.selectedSidewalkMaterial = normalizedSidewalk != null
             ? normalizedSidewalk
             : config.selectedMaterial;
+    }
+
+    private static void mergeMissingBuiltinStyles(RoadSystemConfig config) {
+        Map<String, RoadStyle> existing = RoadStyleCatalog.indexById(config.presets);
+        for (RoadStyle builtin : RoadStyleCatalog.defaultStyles()) {
+            if (!existing.containsKey(builtin.id)) {
+                config.presets.add(builtin);
+            }
+        }
     }
 
     /**
@@ -114,23 +127,7 @@ public class RoadSystemConfig {
     }
 
     private void initDefaultPresets() {
-        presets = new ArrayList<>();
-        presets.add(new RoadPreset(
-            "city_main", 7, true, 2,
-            false, 0, false, 8.0f,
-            "minecraft:white_concrete", "minecraft:smooth_stone"));
-        presets.add(new RoadPreset(
-            "city_secondary", 5, true, 1,
-            false, 0, false, 10.0f,
-            "minecraft:gray_concrete", "minecraft:stone"));
-        presets.add(new RoadPreset(
-            "country_road", 5, false, 0,
-            true, 1, false, 12.0f,
-            "minecraft:gravel", null));
-        presets.add(new RoadPreset(
-            "highway", 9, false, 0,
-            true, 2, true, 6.0f,
-            "minecraft:black_concrete", null));
+        presets = new ArrayList<>(RoadStyleCatalog.defaultStyles());
     }
 
     public int getRoadWidth() {
@@ -185,7 +182,17 @@ public class RoadSystemConfig {
         this.selectedPreset = "";
     }
 
-    public List<RoadPreset> getPresets() {
+    public List<RoadStyle> getStyles() {
+        return presets;
+    }
+
+    public RoadStyle findStyle(String styleId) {
+        return RoadStyleCatalog.findById(this, styleId);
+    }
+
+    /** @deprecated 使用 {@link #getStyles()} */
+    @Deprecated
+    public List<RoadStyle> getPresets() {
         return presets;
     }
     
@@ -317,48 +324,52 @@ public class RoadSystemConfig {
     }
     
     /**
-     * 应用预设配置
+     * 应用道路风格到全局默认参数。
      */
-    public void applyPreset(RoadPreset preset) {
-        if (preset == null) {
+    public void applyStyle(RoadStyle style) {
+        if (style == null) {
             return;
         }
-        String resolvedRoadMaterial = preset.roadMaterial != null && !preset.roadMaterial.isBlank()
-            ? preset.roadMaterial
+        String resolvedRoadMaterial = style.roadMaterial != null && !style.roadMaterial.isBlank()
+            ? style.roadMaterial
             : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
-        String resolvedSidewalkMaterial = preset.sidewalkMaterial != null && !preset.sidewalkMaterial.isBlank()
-            ? preset.sidewalkMaterial
+        String resolvedSidewalkMaterial = style.sidewalkMaterial != null && !style.sidewalkMaterial.isBlank()
+            ? style.sidewalkMaterial
             : resolvedRoadMaterial;
-        this.roadWidth = preset.width;
-        this.includeSidewalk = preset.hasSidewalk;
-        this.sidewalkWidth = preset.hasSidewalk ? Math.max(1, preset.sidewalkWidth) : sidewalkWidth;
-        this.includeShoulder = preset.includeShoulder;
-        this.shoulderWidth = preset.shoulderWidth;
-        this.includeDrainage = preset.includeDrainage;
-        if (preset.maxSlope > 0f) {
-            this.maxSlope = preset.maxSlope;
+        this.roadWidth = style.width;
+        this.includeSidewalk = style.hasSidewalk;
+        this.sidewalkWidth = style.hasSidewalk ? Math.max(1, style.sidewalkWidth) : sidewalkWidth;
+        this.includeShoulder = style.includeShoulder;
+        this.shoulderWidth = style.shoulderWidth;
+        this.includeDrainage = style.includeDrainage;
+        if (style.maxSlope > 0f) {
+            this.maxSlope = style.maxSlope;
+        }
+        if (style.fillSlopeRatio > 0f) {
+            this.fillSlopeRatio = style.fillSlopeRatio;
+        }
+        if (style.cutSlopeRatio > 0f) {
+            this.cutSlopeRatio = style.cutSlopeRatio;
+        }
+        if (style.fillSlopeMaterial != null && !style.fillSlopeMaterial.isBlank()) {
+            this.fillSlopeMaterial = style.fillSlopeMaterial;
         }
         this.selectedMaterial = resolvedRoadMaterial;
         this.selectedSidewalkMaterial = resolvedSidewalkMaterial;
-        this.selectedPreset = preset.id;
+        this.selectedPreset = style.id;
+    }
+
+    /** @deprecated 使用 {@link #applyStyle(RoadStyle)} */
+    @Deprecated
+    public void applyPreset(RoadStyle style) {
+        applyStyle(style);
     }
 
     /**
-     * 道路预设
+     * @deprecated Gson 兼容；新代码请使用 {@link RoadStyle}。
      */
-    public static class RoadPreset {
-        public String id;
-        public String name;
-        public int width;
-        public boolean hasSidewalk;
-        public int sidewalkWidth;
-        public boolean includeShoulder;
-        public int shoulderWidth;
-        public boolean includeDrainage;
-        public float maxSlope;
-        public String roadMaterial;
-        public String sidewalkMaterial;
-
+    @Deprecated
+    public static class RoadPreset extends RoadStyle {
         public RoadPreset(
                 String id,
                 int width,

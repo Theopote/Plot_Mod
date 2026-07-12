@@ -3,6 +3,8 @@ package com.plot.plugin.road.model;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.style.RoadStyleCatalog;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -15,6 +17,7 @@ public class Road {
     private final String id;
     private String name;
     private RoadCrossSection crossSection = new RoadCrossSection();
+    private String styleId;
     private Float maxSlope;
     private final Set<String> segmentIds = new LinkedHashSet<>();
 
@@ -67,14 +70,36 @@ public class Road {
         maxSlope = defaults.getMaxSlope();
     }
 
-    public void applyPreset(RoadSystemConfig.RoadPreset preset) {
-        if (preset == null) {
+    public void applyStyle(RoadStyle style) {
+        if (style == null) {
             return;
         }
-        crossSection = RoadCrossSection.fromPreset(preset);
-        if (preset.maxSlope > 0f) {
-            maxSlope = preset.maxSlope;
+        style.applyTo(this);
+    }
+
+    public void applyStyle(String styleId, RoadSystemConfig defaults) {
+        RoadStyle style = RoadStyleCatalog.findById(defaults, styleId);
+        if (style != null) {
+            applyStyle(style);
         }
+    }
+
+    /** @deprecated 使用 {@link #applyStyle(RoadStyle)} */
+    @Deprecated
+    public void applyPreset(RoadStyle preset) {
+        applyStyle(preset);
+    }
+
+    public String getStyleId() {
+        return styleId;
+    }
+
+    public void setStyleId(String styleId) {
+        this.styleId = styleId != null && !styleId.isBlank() ? styleId : null;
+    }
+
+    public void clearStyleId() {
+        this.styleId = null;
     }
 
     public String getId() {
@@ -326,6 +351,8 @@ public class Road {
     }
 
     Road copy() {
-        return new Road(id, name, crossSection.copy(), maxSlope, segmentIds);
+        Road copy = new Road(id, name, crossSection.copy(), maxSlope, segmentIds);
+        copy.styleId = styleId;
+        return copy;
     }
 }

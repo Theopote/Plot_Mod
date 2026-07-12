@@ -2,6 +2,7 @@ package com.plot.plugin.road.model.section;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.style.RoadStyle;
 
 /**
  * 道路横断面模板，挂在 {@link com.plot.plugin.road.model.Road} 上。
@@ -46,34 +47,17 @@ public class RoadCrossSection {
         return section;
     }
 
-    public static RoadCrossSection fromPreset(RoadSystemConfig.RoadPreset preset) {
-        if (preset == null) {
+    public static RoadCrossSection fromStyle(RoadStyle style) {
+        if (style == null) {
             return new RoadCrossSection();
         }
-        String roadMaterial = preset.roadMaterial != null && !preset.roadMaterial.isBlank()
-            ? preset.roadMaterial
-            : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
-        String sidewalkMaterial = preset.sidewalkMaterial != null && !preset.sidewalkMaterial.isBlank()
-            ? preset.sidewalkMaterial
-            : roadMaterial;
+        return style.toCrossSection();
+    }
 
-        RoadCrossSection section = new RoadCrossSection();
-        int laneCount = preset.width >= 7 ? 2 : 1;
-        section.carriageway.setLaneCount(laneCount);
-        section.carriageway.setWidth(preset.width);
-        section.carriageway.setMaterial(roadMaterial);
-        section.carriageway.syncLaneCount(laneCount);
-        section.shoulder.setEnabled(preset.includeShoulder);
-        section.shoulder.setWidth(preset.shoulderWidth);
-        section.shoulder.setMaterial("material.plot.gravel");
-        section.sidewalk.setEnabled(preset.hasSidewalk);
-        section.sidewalk.setWidth(preset.hasSidewalk ? Math.max(1, preset.sidewalkWidth) : 0);
-        section.sidewalk.setMaterial(sidewalkMaterial);
-        section.drain.setEnabled(preset.includeDrainage);
-        section.markings.setLaneDividers(laneCount > 1);
-        section.markings.setCenterLine(false);
-        section.markings.setMaterial("material.plot.white_concrete");
-        return section;
+    /** @deprecated 使用 {@link #fromStyle(RoadStyle)} */
+    @Deprecated
+    public static RoadCrossSection fromPreset(RoadStyle preset) {
+        return fromStyle(preset);
     }
 
     public static RoadCrossSection fromLegacy(
