@@ -1,6 +1,9 @@
 package com.plot.ui.panel;
 
 import com.plot.core.tool.ToolManager;
+import com.plot.core.plugin.PluginManager;
+import com.plot.api.plugin.IPlugin;
+import com.plot.plugin.RoadSystemPlugin;
 import com.plot.ui.panel.layer.LayerPanel;
 import com.plot.ui.panel.tool.ToolOptionsPanel;
 import com.plot.ui.theme.ThemeManager;
@@ -110,6 +113,9 @@ public class PropertyPanel implements UIComponent {
             // ====== 历史记录部分 ======
             renderHistorySection();
 
+            // ====== 道路交叉口属性（道路插件激活且选中路口时） ======
+            renderRoadJunctionSection();
+
             // ====== 状态属性部分 ======
             renderStatusSection();
 
@@ -175,6 +181,30 @@ public class PropertyPanel implements UIComponent {
 
     private void renderStatusSection() {
         statusPanel.render();
+    }
+
+    private void renderRoadJunctionSection() {
+        PluginManager pluginManager = PluginManager.getInstance();
+        IPlugin activePlugin = pluginManager.getActivePlugin();
+        if (activePlugin == null || !"road_system".equals(activePlugin.getId())) {
+            return;
+        }
+        if (!(activePlugin instanceof RoadSystemPlugin roadPlugin) || !roadPlugin.hasJunctionPropertyContent()) {
+            return;
+        }
+
+        UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(ImGuiCol.Header, currentTheme.tabNormal);
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, currentTheme.tabHovered);
+        ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
+        ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
+
+        if (ImGui.collapsingHeader(PlotI18n.tr("panel.plot.road_junction"), ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.popStyleColor(4);
+            roadPlugin.renderJunctionPropertySection();
+        } else {
+            ImGui.popStyleColor(4);
+        }
     }
 
     @Override

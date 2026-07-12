@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.model.RoadNode;
 import java.io.*;
 import java.nio.file.*;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public class RoadSystemConfig {
     private double maxContinuousSlopeLength = 30.0;
     private double relaxedSlopeLength = 5.0;
     private float relaxedSlopePercent = 1.0f;
+    private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -301,6 +303,17 @@ public class RoadSystemConfig {
             relaxedSlopePercent = upperBound / 2.0f;
         }
         this.relaxedSlopePercent = Math.max(0.0f, relaxedSlopePercent);
+    }
+
+    public float getDefaultCornerRadius() {
+        return defaultCornerRadius;
+    }
+
+    public void setDefaultCornerRadius(float defaultCornerRadius) {
+        this.defaultCornerRadius = (float) Math.max(
+            RoadNode.MIN_CORNER_RADIUS,
+            Math.min(RoadNode.MAX_CORNER_RADIUS, defaultCornerRadius)
+        );
     }
     
     /**

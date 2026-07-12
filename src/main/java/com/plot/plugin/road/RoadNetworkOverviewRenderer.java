@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -9,9 +10,11 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.ToDoubleFunction;
 
 /**
  * 路网概览缩略图：在 ImGui 面板内绘制节点/边的俯视图。
@@ -20,6 +23,7 @@ public final class RoadNetworkOverviewRenderer {
     private static final float MAP_HEIGHT = 180f;
     private static final float PADDING = 10f;
     private static final float NODE_RADIUS = 4f;
+    private static final float SELECTED_NODE_RADIUS = 6f;
     private static final float EDGE_THICKNESS = 1.5f;
     private static final float SELECTED_EDGE_THICKNESS = 2.5f;
 
@@ -32,6 +36,9 @@ public final class RoadNetworkOverviewRenderer {
     private static final int COLOR_T_JUNCTION = 0xFFFFCC44;
     private static final int COLOR_CROSSROAD = 0xFFFF6666;
     private static final int COLOR_COMPLEX = 0xFFCC66FF;
+    private static final int COLOR_NODE_SELECTED_RING = 0xFFFFFFFF;
+    private static final int COLOR_JUNCTION_PREVIEW_FILL = 0x334DA6FF;
+    private static final int COLOR_JUNCTION_PREVIEW_BORDER = 0xCC4DA6FF;
 
     private RoadNetworkOverviewRenderer() {
     }
@@ -39,8 +46,11 @@ public final class RoadNetworkOverviewRenderer {
     public static void render(
             RoadNetwork network,
             RoadNetworkBuilder networkBuilder,
+            RoadSystemConfig config,
             Set<String> selectedEdgeIds,
-            Consumer<String> onEdgeSelected) {
+            String selectedNodeId,
+            Consumer<String> onEdgeSelected,
+            Consumer<String> onNodeSelected) {
         ImGui.text(PlotI18n.tr("plugin.road.network_map"));
         ImGui.beginChild("road_network_map", 0, MAP_HEIGHT, true);
 
@@ -69,24 +79,95 @@ public final class RoadNetworkOverviewRenderer {
 
         Bounds bounds = computeBounds(network);
         drawEdges(drawList, network, bounds, originX, originY, width, height, selectedEdgeIds);
-        drawNodes(drawList, network, networkBuilder, bounds, originX, originY, width, height);
+        drawSelectedJunctionPreview(
+            drawList, network, config, bounds, originX, originY, width, height, selectedNodeId);
+        drawNodes(
+            drawList, network, networkBuilder, bounds, originX, originY, width, height, selectedNodeId);
 
         ImGui.invisibleButton("##road_map_hit", width, height);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.network_map_hint"));
         }
-        if (ImGui.isItemHovered() && ImGui.isMouseClicked(0) && onEdgeSelected != null) {
+        if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
             ImVec2 mouse = ImGui.getMousePos();
             double worldX = toWorldX(mouse.x, bounds, originX, width);
             double worldY = toWorldY(mouse.y, bounds, originY, height);
-            String hit = hitTestEdge(network, worldX, worldY, bounds.hitThreshold());
-            if (hit != null) {
-                onEdgeSelected.accept(hit);
+
+            String nodeHit = hitTestNode(network, worldX, worldY, bounds.hitThreshold() * 0.55);
+            if (nodeHit != null && onNodeSelected != null) {
+                onNodeSelected.accept(nodeHit);
+            } else if (onEdgeSelected != null) {
+                String edgeHit = hitTestEdge(network, worldX, worldY, bounds.hitThreshold());
+                if (edgeHit != null) {
+                    onEdgeSelected.accept(edgeHit);
+                }
             }
         }
 
         ImGui.endChild();
         renderLegend();
+    }
+
+    private static void drawSelectedJunctionPreview(
+            ImDrawList drawList,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            Bounds bounds,
+            float originX,
+            float originY,
+            float width,
+            float height,
+            String selectedNodeId) {
+        if (selectedNodeId == null || selectedNodeId.isBlank() || config == null) {
+            return;
+        }
+        RoadNode node = network.getNode(selectedNodeId);
+        if (node == null || !node.isJunction()) {
+            return;
+        }
+
+        List<RoadEdge> edges = new ArrayList<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null) {
+                edges.add(edge);
+            }
+        }
+        if (edges.isEmpty()) {
+            return;
+        }
+
+        ToDoubleFunction<RoadEdge> halfWidthResolver = edge -> edge.getEffectiveWidth(config) / 2.0;
+        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
+            edges,
+            halfWidthResolver,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+        );
+        double cornerRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
+            node.getId(),
+            edges,
+            halfWidthResolver,
+            junctionRadius,
+            cornerRadius
+        );
+        if (polygon.size() < 3) {
+            return;
+        }
+
+        ImVec2[] screenPoints = new ImVec2[polygon.size()];
+        for (int i = 0; i < polygon.size(); i++) {
+            screenPoints[i] = new ImVec2(
+                toScreenX(polygon.get(i).x, bounds, originX, width),
+                toScreenY(polygon.get(i).y, bounds, originY, height)
+            );
+        }
+        drawList.addConvexPolyFilled(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL);
+        for (int i = 0; i < screenPoints.length; i++) {
+            ImVec2 a = screenPoints[i];
+            ImVec2 b = screenPoints[(i + 1) % screenPoints.length];
+            drawList.addLine(a.x, a.y, b.x, b.y, COLOR_JUNCTION_PREVIEW_BORDER, 1.5f);
+        }
     }
 
     private static void renderLegend() {
@@ -163,14 +244,20 @@ public final class RoadNetworkOverviewRenderer {
             float originX,
             float originY,
             float width,
-            float height) {
+            float height,
+            String selectedNodeId) {
         for (RoadNode node : network.getNodes().values()) {
             Vec2d pos = node.getPosition();
+            boolean selected = node.getId().equals(selectedNodeId);
             int color = junctionColor(networkBuilder.classify(node));
             float sx = toScreenX(pos.x, bounds, originX, width);
             float sy = toScreenY(pos.y, bounds, originY, height);
-            drawList.addCircleFilled(sx, sy, NODE_RADIUS, color);
-            drawList.addCircle(sx, sy, NODE_RADIUS + 0.5f, (int) 0xFF202020FFL, 12, 1f);
+            float radius = selected ? SELECTED_NODE_RADIUS : NODE_RADIUS;
+            drawList.addCircleFilled(sx, sy, radius, color);
+            drawList.addCircle(sx, sy, radius + 0.5f, (int) 0xFF202020FFL, 12, 1f);
+            if (selected) {
+                drawList.addCircle(sx, sy, radius + 2.5f, COLOR_NODE_SELECTED_RING, 16, 1.5f);
+            }
         }
     }
 
@@ -260,6 +347,20 @@ public final class RoadNetworkOverviewRenderer {
                     closestDist = dist;
                     closestId = edge.getId();
                 }
+            }
+        }
+        return closestId;
+    }
+
+    static String hitTestNode(RoadNetwork network, double wx, double wy, double threshold) {
+        String closestId = null;
+        double closestDist = threshold;
+        for (RoadNode node : network.getNodes().values()) {
+            Vec2d pos = node.getPosition();
+            double dist = Math.hypot(wx - pos.x, wy - pos.y);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestId = node.getId();
             }
         }
         return closestId;

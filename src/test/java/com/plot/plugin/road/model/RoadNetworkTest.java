@@ -186,6 +186,21 @@ class RoadNetworkTest {
     }
 
     @Test
+    void jsonRoundTripPreservesCornerRadius() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        junction.setCornerRadius(3.5);
+        junction.addEdge("e1");
+        junction.addEdge("e2");
+        junction.addEdge("e3");
+
+        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNode restoredNode = restored.getNode(junction.getId());
+
+        assertEquals(3.5, restoredNode.getCornerRadius());
+    }
+
+    @Test
     void classifyJunctionTypes() {
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
         RoadNetwork network = new RoadNetwork();

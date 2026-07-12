@@ -69,11 +69,13 @@ public class RoadJunctionGenerator {
             edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
-        List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
+        double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
+        List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             edges,
             edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
-            junctionRadius
+            junctionRadius,
+            cornerRadius
         );
 
         if (polygon.size() < 3) {

@@ -232,12 +232,23 @@ public class RoadGenerator {
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
         for (BlockPos pos : junction.roadBlocks) {
             target.roadBlocks.add(pos);
-            recordBlock(target, pos, roadBlockId, projectionHandler);
+            recordBlockOverride(target, pos, roadBlockId, projectionHandler);
         }
         for (BlockPos pos : junction.sidewalkBlocks) {
             target.sidewalkBlocks.add(pos);
-            recordBlock(target, pos, sidewalkBlockId, projectionHandler);
+            recordBlockOverride(target, pos, sidewalkBlockId, projectionHandler);
         }
+    }
+
+    private void recordBlockOverride(
+            RoadGenerationResult result,
+            BlockPos pos,
+            String newBlockId,
+            BlockProjectionHandler projectionHandler) {
+        String previousBlockId = result.placementRecords.containsKey(pos)
+            ? result.placementRecords.get(pos).previousBlockId
+            : projectionHandler.getBlockIdAt(pos);
+        result.placementRecords.put(pos, new BlockRecord(pos, previousBlockId, newBlockId));
     }
 
     /**

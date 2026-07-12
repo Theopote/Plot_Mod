@@ -3,6 +3,8 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -179,6 +181,39 @@ class RoadJunctionGeometryTest {
         assertEquals(4, sorted.size());
         assertTrue(sorted.getFirst().y <= -0.9, "polar sort starts at the lowest angle (-Y)");
         assertTrue(sorted.get(1).x >= 0.9, "then proceeds counter-clockwise through +X");
+    }
+
+    @Test
+    void applyCornerFilletsIncreasesVertexCountForTJunction() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setRoadWidth(6);
+
+        List<Vec2d> sharp = RoadJunctionGeometry.collectPolygonVertices(
+            "junction",
+            tJunctionEdges(),
+            edge -> edge.getEffectiveWidth(config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
+        );
+        List<Vec2d> filleted = RoadJunctionGeometry.buildJunctionFillPolygon(
+            "junction",
+            tJunctionEdges(),
+            edge -> edge.getEffectiveWidth(config) / 2.0,
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            2.0
+        );
+
+        assertTrue(filleted.size() > sharp.size());
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), filleted));
+    }
+
+    @Test
+    void hitTestNodeFindsNearestJunction() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode far = network.createNode(new Vec2d(100, 100));
+
+        String hit = RoadNetworkOverviewRenderer.hitTestNode(network, 0.2, 0.1, 1.0);
+        assertEquals(junction.getId(), hit);
     }
 
     private static List<RoadEdge> tJunctionEdges() {

@@ -85,6 +85,7 @@ public class RoadSystemPlugin extends Plugin {
     private final RoadPathPickSession pathPickSession = new RoadPathPickSession();
     private final List<Shape> selectedPaths = new ArrayList<>();
     private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
+    private String selectedNodeId = "";
     private String lastSelectedEdgeId = "";
     private String projectStatus = "";
 
@@ -268,10 +269,14 @@ public class RoadSystemPlugin extends Plugin {
         RoadNetworkOverviewRenderer.render(
             network,
             networkBuilder,
+            config,
             selectedEdgeIds,
-            this::handleEdgeSelect
+            selectedNodeId,
+            this::handleEdgeSelect,
+            this::handleNodeSelect
         );
 
+        renderSelectedJunctionSummary();
         renderNodeElevationEditor();
 
         ImGui.spacing();
@@ -456,6 +461,7 @@ public class RoadSystemPlugin extends Plugin {
         renderFilteredEdgeList(120, true, "edit_edge_list");
 
         renderBatchEditPanel();
+        renderSelectedJunctionEditor();
 
         ImGui.separator();
         String primaryId = getPrimarySelectedEdgeId();
@@ -859,6 +865,8 @@ public class RoadSystemPlugin extends Plugin {
         }
         renderEngineeringTooltip("hint.plot.road.relaxed_slope_percent");
 
+        renderDefaultJunctionSettings();
+
         adoptIncludeSidewalkRef.set(config.isIncludeSidewalk());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), adoptIncludeSidewalkRef)) {
             config.setIncludeSidewalk(adoptIncludeSidewalkRef.get());
@@ -904,6 +912,21 @@ public class RoadSystemPlugin extends Plugin {
         }
 
         renderAdvancedEngineeringSettings();
+    }
+
+    private void renderDefaultJunctionSettings() {
+        float[] defaultRadius = {config.getDefaultCornerRadius()};
+        if (ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.default_corner_radius", defaultRadius[0]),
+            defaultRadius,
+            0.0f,
+            (float) RoadNode.MAX_CORNER_RADIUS,
+            "%.1f m"
+        )) {
+            config.setDefaultCornerRadius(defaultRadius[0]);
+            markDefaultParamsCustom();
+        }
+        renderEngineeringTooltip("hint.plot.road.default_corner_radius");
     }
 
     private void markDefaultParamsCustom() {
@@ -1293,6 +1316,111 @@ public class RoadSystemPlugin extends Plugin {
         projectStatus = PlotI18n.tr("plugin.road.batch_applied", selectedEdgeIds.size());
     }
 
+    /**
+     * 供 PropertyPanel 调用的交叉口属性区。
+     */
+    public boolean hasJunctionPropertyContent() {
+        return getSelectedJunctionNode() != null;
+    }
+
+    public void renderJunctionPropertySection() {
+        RoadNode node = getSelectedJunctionNode();
+        if (node == null) {
+            return;
+        }
+        renderJunctionPropertyControls(node, true);
+    }
+
+    private RoadNode getSelectedJunctionNode() {
+        if (selectedNodeId == null || selectedNodeId.isBlank()) {
+            return null;
+        }
+        RoadNode node = network.getNode(selectedNodeId);
+        if (node == null || !node.isJunction()) {
+            return null;
+        }
+        return node;
+    }
+
+    private void renderSelectedJunctionSummary() {
+        RoadNode node = getSelectedJunctionNode();
+        if (node == null) {
+            return;
+        }
+        ImGui.spacing();
+        renderJunctionPropertyControls(node, false);
+    }
+
+    private void renderSelectedJunctionEditor() {
+        RoadNode node = getSelectedJunctionNode();
+        if (node == null) {
+            return;
+        }
+        ImGui.separator();
+        renderJunctionPropertyControls(node, false);
+    }
+
+    private void renderJunctionPropertyControls(RoadNode node, boolean compact) {
+        RoadNetworkBuilder.JunctionType type = networkBuilder.classify(node);
+        Vec2d pos = node.getPosition();
+        ImGui.text(PlotI18n.tr("plugin.road.junction_selected",
+            junctionTypeLabel(type), pos.x, pos.y, node.getDegree()));
+
+        if (!compact) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_corner_hint"));
+        }
+
+        double effectiveRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
+        float[] cornerRadius = {(float) (node.getCornerRadius() != null
+            ? node.getCornerRadius()
+            : config.getDefaultCornerRadius())};
+        if (ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.junction_corner_radius", effectiveRadius),
+            cornerRadius,
+            0.0f,
+            (float) RoadNode.MAX_CORNER_RADIUS,
+            "%.1f m"
+        )) {
+            networkHistory.push(network);
+            node.setCornerRadius((double) cornerRadius[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_apply_default_radius"))) {
+            networkHistory.push(network);
+            node.setCornerRadius(null);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
+            selectedNodeId = "";
+        }
+    }
+
+    private static String junctionTypeLabel(RoadNetworkBuilder.JunctionType type) {
+        return switch (type) {
+            case ENDPOINT -> PlotI18n.tr("plugin.road.legend.endpoint");
+            case THROUGH -> PlotI18n.tr("plugin.road.legend.through");
+            case T_JUNCTION -> PlotI18n.tr("plugin.road.legend.t_junction");
+            case CROSSROAD -> PlotI18n.tr("plugin.road.legend.crossroad");
+            case COMPLEX -> PlotI18n.tr("plugin.road.legend.complex");
+        };
+    }
+
+    private void handleNodeSelect(String nodeId) {
+        if (nodeId == null || nodeId.isBlank()) {
+            return;
+        }
+        RoadNode node = network.getNode(nodeId);
+        if (node == null) {
+            return;
+        }
+        selectedNodeId = nodeId;
+        selectedEdgeIds.clear();
+        lastSelectedEdgeId = "";
+    }
+
     private void handleEdgeSelect(String edgeId) {
         if (edgeId == null || edgeId.isBlank()) {
             return;
@@ -1310,6 +1438,7 @@ public class RoadSystemPlugin extends Plugin {
             selectedEdgeIds.add(edgeId);
             lastSelectedEdgeId = edgeId;
         }
+        selectedNodeId = "";
         ensureSelectionValid();
     }
 

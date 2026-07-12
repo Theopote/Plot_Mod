@@ -164,6 +164,7 @@ public class RoadNetwork {
         String id;
         Vec2dData position;
         Double manualElevation;
+        Double cornerRadius;
         List<String> connectedEdgeIds = new ArrayList<>();
     }
 
@@ -201,6 +202,7 @@ public class RoadNetwork {
                 nodeData.id = node.getId();
                 nodeData.position = new Vec2dData(node.getPosition());
                 nodeData.manualElevation = node.getManualElevation();
+                nodeData.cornerRadius = node.getCornerRadius();
                 nodeData.connectedEdgeIds = new ArrayList<>(node.getConnectedEdgeIds());
                 data.nodes.add(nodeData);
             }
@@ -242,6 +244,7 @@ public class RoadNetwork {
                     nodeData.id,
                     nodeData.position != null ? nodeData.position.toVec2d() : new Vec2d(0, 0),
                     nodeData.manualElevation,
+                    nodeData.cornerRadius,
                     null
                 );
                 if (nodeData.connectedEdgeIds != null) {

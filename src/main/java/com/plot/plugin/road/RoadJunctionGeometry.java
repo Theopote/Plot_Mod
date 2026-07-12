@@ -61,6 +61,130 @@ public final class RoadJunctionGeometry {
         return sorted;
     }
 
+    /**
+     * 构建路口铺装多边形：先收集边界角点，再按路缘石圆角半径统一倒圆角。
+     */
+    public static List<Vec2d> buildJunctionFillPolygon(
+            String nodeId,
+            List<RoadEdge> edges,
+            ToDoubleFunction<RoadEdge> halfWidthResolver,
+            double junctionRadius,
+            double cornerRadius) {
+        List<Vec2d> polygon = collectPolygonVertices(nodeId, edges, halfWidthResolver, junctionRadius);
+        if (polygon.size() < 3 || cornerRadius <= 1e-6) {
+            return polygon;
+        }
+        return applyCornerFillets(polygon, cornerRadius);
+    }
+
+    /**
+     * 对多边形外凸角施加统一路缘石圆角，替代手动 CAD 倒角。
+     */
+    public static List<Vec2d> applyCornerFillets(List<Vec2d> polygon, double radius) {
+        return applyCornerFillets(polygon, radius, 6);
+    }
+
+    static List<Vec2d> applyCornerFillets(List<Vec2d> polygon, double radius, int arcSegments) {
+        if (polygon == null || polygon.size() < 3 || radius <= 1e-6) {
+            return polygon == null ? List.of() : new ArrayList<>(polygon);
+        }
+
+        int count = polygon.size();
+        List<Vec2d> result = new ArrayList<>();
+        int segments = Math.max(2, arcSegments);
+
+        for (int i = 0; i < count; i++) {
+            Vec2d prev = polygon.get((i - 1 + count) % count);
+            Vec2d curr = polygon.get(i);
+            Vec2d next = polygon.get((i + 1) % count);
+
+            Vec2d toPrev = prev.subtract(curr);
+            Vec2d toNext = next.subtract(curr);
+            double lenPrev = toPrev.length();
+            double lenNext = toNext.length();
+            if (lenPrev < 1e-6 || lenNext < 1e-6) {
+                result.add(curr);
+                continue;
+            }
+
+            Vec2d dirPrev = toPrev.multiply(1.0 / lenPrev);
+            Vec2d dirNext = toNext.multiply(1.0 / lenNext);
+            double cosAngle = clamp(dirPrev.dot(dirNext), -1.0, 1.0);
+            double angle = Math.acos(cosAngle);
+            if (angle < 0.12 || angle > Math.PI - 0.12) {
+                result.add(curr);
+                continue;
+            }
+
+            double cross = dirPrev.x * dirNext.y - dirPrev.y * dirNext.x;
+            if (cross >= 0) {
+                result.add(curr);
+                continue;
+            }
+
+            double tanHalf = Math.tan(angle / 2.0);
+            if (tanHalf < 1e-6) {
+                result.add(curr);
+                continue;
+            }
+
+            double tangentDist = radius / tanHalf;
+            tangentDist = Math.min(tangentDist, lenPrev * 0.49);
+            tangentDist = Math.min(tangentDist, lenNext * 0.49);
+            double effectiveRadius = tangentDist * tanHalf;
+            if (effectiveRadius < 0.1) {
+                result.add(curr);
+                continue;
+            }
+
+            Vec2d tangentStart = curr.add(dirPrev.multiply(tangentDist));
+            Vec2d tangentEnd = curr.add(dirNext.multiply(tangentDist));
+            Vec2d outward = dirPrev.add(dirNext);
+            if (outward.lengthSquared() < 1e-12) {
+                result.add(curr);
+                continue;
+            }
+            outward = outward.normalize().multiply(-1.0);
+            double centerDistance = effectiveRadius / Math.sin(angle / 2.0);
+            Vec2d center = curr.add(outward.multiply(centerDistance));
+
+            result.add(tangentStart);
+            appendArcPoints(result, center, tangentStart, tangentEnd, effectiveRadius, segments);
+            result.add(tangentEnd);
+        }
+        return result;
+    }
+
+    private static void appendArcPoints(
+            List<Vec2d> out,
+            Vec2d center,
+            Vec2d start,
+            Vec2d end,
+            double radius,
+            int segments) {
+        double startAngle = Math.atan2(start.y - center.y, start.x - center.x);
+        double endAngle = Math.atan2(end.y - center.y, end.x - center.x);
+        double sweep = endAngle - startAngle;
+        while (sweep <= 0) {
+            sweep += Math.PI * 2.0;
+        }
+        while (sweep > Math.PI * 2.0) {
+            sweep -= Math.PI * 2.0;
+        }
+        for (int i = 1; i < segments; i++) {
+            double t = (double) i / segments;
+            double angle = startAngle + sweep * t;
+            out.add(new Vec2d(
+                center.x + Math.cos(angle) * radius,
+                center.y + Math.sin(angle) * radius
+            ));
+        }
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     static void collectApproachCorners(
             String nodeId,
             Vec2d center,

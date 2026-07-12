@@ -30,6 +30,24 @@ class RoadGeneratorPlacementRecordTest {
     }
 
     @Test
+    void junctionRoadOverrideReplacesEdgePlacement() {
+        RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
+        BlockPos overlap = new BlockPos(12, 65, 18);
+
+        RoadGenerator.recordPlacementIfAbsent(
+            result, overlap, "minecraft:grass_block", "minecraft:stone");
+        RoadGenerator.recordPlacementIfAbsent(
+            result, overlap, "minecraft:grass_block", "minecraft:gravel");
+
+        assertEquals("minecraft:stone", result.placementRecords.get(overlap).newBlockId);
+
+        String previous = result.placementRecords.get(overlap).previousBlockId;
+        result.placementRecords.put(overlap, new BlockRecord(overlap, previous, "minecraft:black_concrete"));
+
+        assertEquals("minecraft:black_concrete", result.placementRecords.get(overlap).newBlockId);
+    }
+
+    @Test
     void junctionRoadThenSidewalkOverlapKeepsRoadMaterial() {
         RoadGenerator.RoadGenerationResult result = new RoadGenerator.RoadGenerationResult(0);
         BlockPos overlap = new BlockPos(12, 65, 18);
