@@ -291,7 +291,7 @@ public class RoadGenerator {
     }
 
     /**
-     * @deprecated 使用带材质参数的 {@link #mergeJunctionBlocks(RoadGenerationResult, JunctionBlocks, String, String)}
+     * @deprecated 使用带材质参数的 {@link #mergeJunctionBlocks(RoadGenerationResult, RoadJunctionGenerator.JunctionBlocks, String, String)}
      */
     @Deprecated
     public void mergeJunctionBlocks(RoadGenerationResult target, RoadJunctionGenerator.JunctionBlocks junction) {
