@@ -6,7 +6,9 @@ import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
 import com.plot.ui.canvas.CanvasCamera;
+import com.plot.ui.tools.impl.modify.helper.GeometricSelectionHelper;
 import com.plot.ui.theme.ThemeManager;
+import com.plot.utils.ExceptionDebug;
 import imgui.ImDrawList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -283,28 +285,47 @@ public class EraserStrategy implements IModifyStrategy {
     }
     
     /**
-     * 查找橡皮擦区域内的图形
+     * 查找橡皮擦区域内的图形（仅命中线条轮廓，不命中填充内部）
      */
     private Set<Shape> findShapesInEraserArea(Vec2d point, ModifyToolContext context) {
         Set<Shape> result = new HashSet<>();
-        
-        // 从所有图层获取图形
         List<Shape> allShapes = getAllShapes(context);
-        
+        double worldEraserRadius = toWorldDistance(context, eraserRadius);
+
         for (Shape shape : allShapes) {
-            if (shape == null) continue;
-            
+            if (shape == null) {
+                continue;
+            }
+
             try {
-                double distance = shape.distanceTo(point);
-                if (distance <= eraserRadius) {
+                double dynamicTolerance = toWorldDistance(
+                    context, GeometricSelectionHelper.getDynamicTolerance(shape));
+                double tolerance = Math.max(worldEraserRadius, dynamicTolerance);
+
+                if (GeometricSelectionHelper.isPointNearShapeOutline(shape, point, tolerance)) {
                     result.add(shape);
                 }
             } catch (Exception e) {
-                LOGGER.warn("计算图形距离失败: {}", e.getMessage());
+                LOGGER.warn("橡皮擦命中检测失败: {}", e.getMessage());
             }
         }
-        
+
         return result;
+    }
+
+    private static double toWorldDistance(ModifyToolContext context, double pixelDistance) {
+        try {
+            CanvasCamera camera = context.getCamera();
+            if (camera != null) {
+                return camera.screenToWorldDistance(pixelDistance);
+            }
+            if (context.getCanvas() != null && context.getCanvas().getScale() > 0) {
+                return pixelDistance / context.getCanvas().getScale();
+            }
+        } catch (Exception e) {
+            ExceptionDebug.log("EraserStrategy: convert tolerance to world distance", e);
+        }
+        return pixelDistance;
     }
     
     /**

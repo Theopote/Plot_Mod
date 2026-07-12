@@ -344,7 +344,22 @@ public class EllipseShape extends Shape {
         Vec2d local = toLocal(point);
         double x = local.x / radiusX;
         double y = local.y / radiusY;
-        return Math.abs(x * x + y * y - 1) <= tolerance;
+
+        boolean hasFill = false;
+        double lineWidth = 1.0;
+        if (getStyle() instanceof ShapeStyle shapeStyle) {
+            hasFill = shapeStyle.getFillStyle() != null && shapeStyle.getFillStyle().isVisible();
+            if (shapeStyle.getLineStyle() != null) {
+                lineWidth = shapeStyle.getLineStyle().getWidth();
+            }
+        }
+
+        if (hasFill) {
+            return x * x + y * y <= 1;
+        }
+
+        Vec2d closestPoint = getClosestPoint(point);
+        return closestPoint != null && point.distance(closestPoint) <= Math.max(tolerance, lineWidth / 2);
     }
     
     @Override

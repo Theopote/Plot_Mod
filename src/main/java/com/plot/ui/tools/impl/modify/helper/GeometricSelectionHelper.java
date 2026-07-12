@@ -38,103 +38,169 @@ public class GeometricSelectionHelper {
      * @return 是否应该选中该图形
      */
     public static boolean isPointOnShape(Shape shape, Vec2d point, double tolerance) {
+        tolerance = Math.max(MIN_TOLERANCE, Math.min(MAX_TOLERANCE, tolerance));
+
+        if (hasVisibleFill(shape)) {
+            try {
+                if (shape.contains(point) || shape.containsPoint(point, tolerance)) {
+                    return true;
+                }
+            } catch (Exception e) {
+                LOGGER.debug("填充图形内部检测失败，回退到轮廓检测: {}", e.getMessage());
+            }
+        }
+
+        return isPointNearShapeOutline(shape, point, tolerance);
+    }
+
+    /**
+     * 检测点是否靠近图形轮廓（仅线条命中，忽略填充内部）。
+     * 与 {@link #isPointOnShape} 使用相同的几何检测逻辑，但不限制最大容差，
+     * 适用于橡皮擦等需要较大命中范围的场景。
+     */
+    public static boolean isPointNearShapeOutline(Shape shape, Vec2d point, double tolerance) {
         if (shape == null || point == null) {
             return false;
         }
-        
-        // 限制容差范围
-        tolerance = Math.max(MIN_TOLERANCE, Math.min(MAX_TOLERANCE, tolerance));
-        
+
+        tolerance = Math.max(MIN_TOLERANCE, tolerance);
+
         try {
-            // 首先检查是否在包围框的扩展范围内（快速排除）
             BoundingBox bounds = shape.getBoundingBox();
             if (bounds == null) {
                 return false;
             }
-            
-            // 扩展包围框进行快速排除检查
+
             double expandedMinX = bounds.getMinX() - tolerance;
             double expandedMinY = bounds.getMinY() - tolerance;
             double expandedMaxX = bounds.getMaxX() + tolerance;
             double expandedMaxY = bounds.getMaxY() + tolerance;
-            
-            if (point.x < expandedMinX || point.x > expandedMaxX || 
+
+            if (point.x < expandedMinX || point.x > expandedMaxX ||
                 point.y < expandedMinY || point.y > expandedMaxY) {
-                return false; // 不在扩展包围框内，快速排除
+                return false;
             }
-            
-            // 使用图形的精确几何检测方法：仅按线条命中，不允许填充内点命中
+
             return useGeometricPointDetection(shape, point, tolerance);
-            
+
         } catch (Exception e) {
-            LOGGER.warn("精确点选择检测失败: {}", e.getMessage());
+            LOGGER.warn("轮廓邻近检测失败: {}", e.getMessage());
             return false;
         }
     }
     
     /**
-     * 使用几何方法进行精确点检测
+     * 使用几何方法进行轮廓邻近检测（仅线条命中，忽略填充内部）。
      */
     private static boolean useGeometricPointDetection(Shape shape, Vec2d point, double tolerance) {
-        // 仅在无填充或看作线框的情况下，才尝试使用 containsPoint
-        // 对于有填充的形状，containsPoint 往往表示"内部包含"，会导致点击内部即可选中
-        boolean hasFill = false;
         try {
-            if (shape.getStyle() instanceof ShapeStyle style &&
-                style.getFillStyle() != null && style.getFillStyle().isVisible()) {
-                hasFill = true;
-            }
-        } catch (Exception e) { ExceptionDebug.log("GeometricSelectionHelper: detect shape fill visibility", e); }
-
-        // 首先尝试在"无填充"情况下使用 containsPoint（多数实现基于轮廓距离）
-        if (!hasFill) {
-            try {
-                if (shape.containsPoint(point, tolerance)) {
-                    return true;
-                }
-            } catch (Exception e) {
-                LOGGER.debug("containsPoint 方法失败，尝试其他方法: {}", e.getMessage());
-            }
-        }
-
-        // 预先计算最近点距离（对有填充形状为主要依据；对部分形状也用于校验有符号距离）
-        Double closestDistance = null;
-        try {
-            Vec2d closestPoint = shape.getClosestPoint(point);
-            if (closestPoint != null) {
-                closestDistance = point.distance(closestPoint);
-                if (closestDistance <= tolerance) {
-                    LOGGER.debug("图形 {} 通过最近点距离检测选中，距离: {}", shape.getClass().getSimpleName(), closestDistance);
-                    return true;
-                }
+            double outlineDistance = getDistanceToOutline(shape, point);
+            if (outlineDistance <= tolerance) {
+                LOGGER.debug("图形 {} 通过轮廓距离检测命中，距离: {}",
+                    shape.getClass().getSimpleName(), outlineDistance);
+                return true;
             }
         } catch (Exception e) {
-            LOGGER.debug("最近点方法失败: {}", e.getMessage());
-        }
-
-        // 仅在无填充时使用有符号距离；并用最近点距离进行保守校验，避免错误实现（如恒为0）导致误选
-        if (!hasFill) {
-            try {
-                double distance = Math.abs(shape.getSignedDistance(point));
-                if (distance <= tolerance) {
-                    if (closestDistance == null) {
-                        try {
-                            Vec2d cp = shape.getClosestPoint(point);
-                            if (cp != null) {
-                                closestDistance = point.distance(cp);
-                            }
-                        } catch (Exception e) { ExceptionDebug.log("GeometricSelectionHelper: get closest point for hit test", e); }
-                    }
-                    if (closestDistance != null && closestDistance <= tolerance) {
-                        return true;
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.debug("有符号距离方法失败: {}", e.getMessage());
-            }
+            LOGGER.debug("轮廓距离检测失败: {}", e.getMessage());
         }
 
         return false;
+    }
+
+    private static boolean hasVisibleFill(Shape shape) {
+        try {
+            if (shape.getStyle() instanceof ShapeStyle style &&
+                style.getFillStyle() != null && style.getFillStyle().isVisible()) {
+                return true;
+            }
+        } catch (Exception e) {
+            ExceptionDebug.log("GeometricSelectionHelper: detect shape fill visibility", e);
+        }
+        return false;
+    }
+
+    /**
+     * 计算点到图形轮廓的最短距离。
+     */
+    private static double getDistanceToOutline(Shape shape, Vec2d point) {
+        if (shape instanceof CircleShape circle) {
+            return Math.abs(point.distance(circle.getCenter()) - circle.getRadius());
+        }
+
+        if (shape instanceof EllipseShape ellipse) {
+            Vec2d closestPoint = ellipse.getClosestPoint(point);
+            if (closestPoint != null) {
+                return point.distance(closestPoint);
+            }
+        }
+
+        if (shape instanceof RectangleShape rectangle) {
+            return getPolylineOutlineDistance(rectangle.getPoints(), true, point);
+        }
+
+        if (shape instanceof FreeDrawPath path) {
+            return getPolylineOutlineDistance(path.getPoints(), false, point);
+        }
+
+        if (shape instanceof PolylineShape polyline) {
+            return getPolylineOutlineDistance(polyline.getPoints(), polyline.isClosed(), point);
+        }
+
+        if (shape instanceof Polygon polygon) {
+            return getPolylineOutlineDistance(polygon.getPoints(), true, point);
+        }
+
+        if (shape instanceof ArcShape arc) {
+            return getPolylineOutlineDistance(arc.getPoints(), false, point);
+        }
+
+        if (shape instanceof BezierCurveShape bezier) {
+            List<Vec2d> curvePoints = bezier.getCurvePoints();
+            if (curvePoints != null && curvePoints.size() >= 2) {
+                return getPolylineOutlineDistance(curvePoints, false, point);
+            }
+        }
+
+        try {
+            Vec2d closestPoint = shape.getClosestPoint(point);
+            if (closestPoint != null) {
+                return point.distance(closestPoint);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("最近点距离计算失败: {}", e.getMessage());
+        }
+
+        List<Vec2d> points = shape.getPoints();
+        if (points != null && points.size() >= 2) {
+            return getPolylineOutlineDistance(points, isShapeClosed(shape), point);
+        }
+
+        return Double.POSITIVE_INFINITY;
+    }
+
+    private static double getPolylineOutlineDistance(List<Vec2d> points, boolean closed, Vec2d point) {
+        if (points == null || points.size() < 2) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        double minDistance = Double.POSITIVE_INFINITY;
+        int segmentCount = points.size() - 1 + (closed ? 1 : 0);
+
+        for (int i = 0; i < segmentCount; i++) {
+            Vec2d start = points.get(i);
+            Vec2d end = points.get((i + 1) % points.size());
+            LineShape segment = new LineShape(start, end);
+            try {
+                Vec2d closestPoint = segment.getClosestPoint(point);
+                if (closestPoint != null) {
+                    minDistance = Math.min(minDistance, point.distance(closestPoint));
+                }
+            } catch (Exception e) {
+                ExceptionDebug.log("GeometricSelectionHelper: distance to polyline segment", e);
+            }
+        }
+
+        return minDistance;
     }
     
     /**
