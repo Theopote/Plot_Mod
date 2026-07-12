@@ -3,6 +3,7 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.ui.component.EngineeringSlopeInput;
@@ -52,13 +53,17 @@ public final class RoadEditPanel {
         if (current == null) {
             return;
         }
+        Road road = ctx.networkManager().getRoadForEdge(current);
+        if (road == null) {
+            return;
+        }
 
         ImGui.text(PlotI18n.tr("plugin.road.single_edge_edit",
             RoadEdgeListHelper.formatEdgeLabel(network, current)));
 
-        int[] width = {current.getWidth() != null ? current.getWidth() : config.getRoadWidth()};
+        int[] width = {road.getWidth() != null ? road.getWidth() : config.getRoadWidth()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##edge_width", width, 3, 20, "%d")) {
-            current.setWidth(width[0]);
+            road.setWidth(width[0]);
         }
         if (ImGui.isItemActivated()) {
             ctx.networkManager().pushHistory();
@@ -68,21 +73,21 @@ public final class RoadEditPanel {
             ctx,
             "##edge_road_material",
             PlotI18n.tr("plugin.road.material"),
-            current.getMaterial() != null ? current.getMaterial() : config.getSelectedMaterial(),
-            current::setMaterial,
+            road.getMaterial() != null ? road.getMaterial() : config.getSelectedMaterial(),
+            road::setMaterial,
             true
         );
 
-        ImBoolean edgeSidewalkRef = new ImBoolean(current.getEffectiveIncludeSidewalk(config));
+        ImBoolean edgeSidewalkRef = new ImBoolean(road.getEffectiveIncludeSidewalk(config));
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), edgeSidewalkRef)) {
             ctx.networkManager().pushHistory();
-            current.setIncludeSidewalk(edgeSidewalkRef.get());
+            road.setIncludeSidewalk(edgeSidewalkRef.get());
         }
 
-        if (current.getEffectiveIncludeSidewalk(config)) {
-            int[] sidewalkWidth = {current.getSidewalkWidth() != null ? current.getSidewalkWidth() : config.getSidewalkWidth()};
+        if (road.getEffectiveIncludeSidewalk(config)) {
+            int[] sidewalkWidth = {road.getSidewalkWidth() != null ? road.getSidewalkWidth() : config.getSidewalkWidth()};
             if (ImGui.sliderInt(PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##sw", sidewalkWidth, 1, 3, "%d")) {
-                current.setSidewalkWidth(sidewalkWidth[0]);
+                road.setSidewalkWidth(sidewalkWidth[0]);
             }
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
@@ -92,28 +97,28 @@ public final class RoadEditPanel {
                 ctx,
                 "##edge_sidewalk_material",
                 PlotI18n.tr("plugin.road.sidewalk_material"),
-                current.getSidewalkMaterial() != null
-                    ? current.getSidewalkMaterial()
+                road.getSidewalkMaterial() != null
+                    ? road.getSidewalkMaterial()
                     : config.getSelectedSidewalkMaterial(),
-                current::setSidewalkMaterial,
+                road::setSidewalkMaterial,
                 true
             );
         }
 
-        float[] maxSlope = {current.getMaxSlope() != null ? current.getMaxSlope() : config.getMaxSlope()};
+        float[] maxSlope = {road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope()};
         if (EngineeringSlopeInput.render(
             "edge_max_slope",
             PlotI18n.tr("plugin.road.max_slope_label"),
             maxSlope,
             EngineeringSlopeInput.ValueKind.GRADE
         )) {
-            current.setMaxSlope(maxSlope[0]);
+            road.setMaxSlope(maxSlope[0]);
             ctx.networkManager().pushHistory();
         }
 
-        int[] lightSpacing = {current.getStreetlightSpacing() != null ? current.getStreetlightSpacing() : 0};
+        int[] lightSpacing = {road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.streetlight_spacing") + "##lights", lightSpacing, 0, 50, "%dm")) {
-            current.setStreetlightSpacing(lightSpacing[0] > 0 ? lightSpacing[0] : null);
+            road.setStreetlightSpacing(lightSpacing[0] > 0 ? lightSpacing[0] : null);
         }
         if (ImGui.isItemActivated()) {
             ctx.networkManager().pushHistory();

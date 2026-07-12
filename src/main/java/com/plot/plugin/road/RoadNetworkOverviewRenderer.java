@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -137,7 +138,8 @@ public final class RoadNetworkOverviewRenderer {
             return;
         }
 
-        ToDoubleFunction<RoadEdge> halfWidthResolver = edge -> edge.getEffectiveWidth(config) / 2.0;
+        ToDoubleFunction<RoadEdge> halfWidthResolver =
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0;
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
             halfWidthResolver,

@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import net.minecraft.client.MinecraftClient;
@@ -57,7 +58,7 @@ public class RoadNetworkGenerator {
             RoadNode start = network.getNode(edge.getStartNodeId());
             RoadNode end = network.getNode(edge.getEndNodeId());
             RoadGenerator.RoadGenerationResult edgeResult =
-                roadGenerator.generateEdge(edge, start, end, world);
+                roadGenerator.generateEdge(network, edge, start, end, world);
             networkResult.edgeResults.put(edge.getId(), edgeResult);
         }
 
@@ -116,15 +117,15 @@ public class RoadNetworkGenerator {
             if (edge == null) {
                 continue;
             }
-            if (sidewalk && !edge.getEffectiveIncludeSidewalk(config)) {
+            if (sidewalk && !RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)) {
                 continue;
             }
-            int width = edge.getEffectiveWidth(config);
+            int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
             if (width >= widestRoad) {
                 widestRoad = width;
                 selectedMaterial = sidewalk
-                    ? edge.getEffectiveSidewalkMaterial(config)
-                    : edge.getEffectiveMaterial(config);
+                    ? RoadModelUtils.getEffectiveSidewalkMaterial(network, edge, config)
+                    : RoadModelUtils.getEffectiveMaterial(network, edge, config);
             }
         }
         return selectedMaterial != null ? selectedMaterial : fallback;

@@ -3,6 +3,7 @@ package com.plot.plugin.road.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
 
 import java.io.IOException;
@@ -12,16 +13,18 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 道路网络（插件私有数据模型）
+ * 道路网络（插件私有数据模型）：拓扑几何 + 逻辑道路工程对象。
  */
 public class RoadNetwork {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private final Map<String, RoadNode> nodes = new LinkedHashMap<>();
     private final Map<String, RoadEdge> edges = new LinkedHashMap<>();
+    private final Map<String, Road> roads = new LinkedHashMap<>();
 
     public Map<String, RoadNode> getNodes() {
         return Map.copyOf(nodes);
@@ -29,6 +32,10 @@ public class RoadNetwork {
 
     public Map<String, RoadEdge> getEdges() {
         return Map.copyOf(edges);
+    }
+
+    public Map<String, Road> getRoads() {
+        return Map.copyOf(roads);
     }
 
     public RoadNode getNode(String nodeId) {
@@ -39,13 +46,46 @@ public class RoadNetwork {
         return edges.get(edgeId);
     }
 
+    public Road getRoad(String roadId) {
+        return roads.get(roadId);
+    }
+
+    public Road getRoadForEdge(RoadEdge edge) {
+        if (edge == null || edge.getRoadId() == null) {
+            return null;
+        }
+        return roads.get(edge.getRoadId());
+    }
+
     public RoadNode createNode(Vec2d position) {
         RoadNode node = new RoadNode(position);
         nodes.put(node.getId(), node);
         return node;
     }
 
+    public Road createRoad() {
+        Road road = new Road();
+        roads.put(road.getId(), road);
+        return road;
+    }
+
+    public Road createRoad(String roadId) {
+        Road road = new Road(roadId);
+        roads.put(road.getId(), road);
+        return road;
+    }
+
+    public Road createRoad(RoadSystemConfig defaults) {
+        Road road = createRoad();
+        road.applyDefaults(defaults);
+        return road;
+    }
+
     public RoadEdge createEdge(String startNodeId, String endNodeId, List<Vec2d> points) {
+        return createEdge(startNodeId, endNodeId, points, null);
+    }
+
+    public RoadEdge createEdge(String startNodeId, String endNodeId, List<Vec2d> points, String roadId) {
         RoadNode start = nodes.get(startNodeId);
         RoadNode end = nodes.get(endNodeId);
         if (start == null || end == null) {
@@ -53,14 +93,42 @@ public class RoadNetwork {
         }
 
         RoadEdge edge = new RoadEdge(startNodeId, endNodeId, points);
+        if (roadId != null && !roadId.isBlank()) {
+            edge.setRoadId(roadId);
+            Road road = roads.get(roadId);
+            if (road != null) {
+                road.addSegment(edge.getId());
+            }
+        }
         edges.put(edge.getId(), edge);
         start.addEdge(edge.getId());
         end.addEdge(edge.getId());
         return edge;
     }
 
+    public void linkEdgeToRoad(String roadId, String edgeId) {
+        Road road = roads.get(roadId);
+        RoadEdge edge = edges.get(edgeId);
+        if (road == null || edge == null) {
+            return;
+        }
+        edge.setRoadId(roadId);
+        road.addSegment(edgeId);
+    }
+
     public void removeEdge(String edgeId) {
+        RoadEdge edge = edges.get(edgeId);
+        String roadId = edge != null ? edge.getRoadId() : null;
         detachEdge(edgeId);
+        if (roadId != null) {
+            Road road = roads.get(roadId);
+            if (road != null) {
+                road.removeSegment(edgeId);
+                if (road.getSegmentIds().isEmpty()) {
+                    roads.remove(roadId);
+                }
+            }
+        }
         cleanupIsolatedNodes();
     }
 
@@ -179,6 +247,10 @@ public class RoadNetwork {
         String startNodeId;
         String endNodeId;
         List<Vec2dData> centerlinePoints = new ArrayList<>();
+        String roadId;
+        List<SlopeOverrideData> slopeOverrides = new ArrayList<>();
+
+        // Legacy fields (v1) — migrated into Road on load
         Integer width;
         String material;
         Boolean includeSidewalk;
@@ -186,13 +258,26 @@ public class RoadNetwork {
         String sidewalkMaterial;
         Integer streetlightSpacing;
         Float maxSlope;
-        List<SlopeOverrideData> slopeOverrides = new ArrayList<>();
         String sourceRoadId;
+    }
+
+    static class RoadData {
+        String id;
+        String name;
+        Integer width;
+        String material;
+        Boolean includeSidewalk;
+        Integer sidewalkWidth;
+        String sidewalkMaterial;
+        Integer streetlightSpacing;
+        Float maxSlope;
+        List<String> segmentIds = new ArrayList<>();
     }
 
     static class NetworkData {
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
+        List<RoadData> roads = new ArrayList<>();
 
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
@@ -207,6 +292,21 @@ public class RoadNetwork {
                 data.nodes.add(nodeData);
             }
 
+            for (Road road : network.roads.values()) {
+                RoadData roadData = new RoadData();
+                roadData.id = road.getId();
+                roadData.name = road.getName();
+                roadData.width = road.getWidth();
+                roadData.material = road.getMaterial();
+                roadData.includeSidewalk = road.getIncludeSidewalk();
+                roadData.sidewalkWidth = road.getSidewalkWidth();
+                roadData.sidewalkMaterial = road.getSidewalkMaterial();
+                roadData.streetlightSpacing = road.getStreetlightSpacing();
+                roadData.maxSlope = road.getMaxSlope();
+                roadData.segmentIds = new ArrayList<>(road.getSegmentIds());
+                data.roads.add(roadData);
+            }
+
             for (RoadEdge edge : network.edges.values()) {
                 EdgeData edgeData = new EdgeData();
                 edgeData.id = edge.getId();
@@ -215,14 +315,7 @@ public class RoadNetwork {
                 for (Vec2d point : edge.getCenterlinePoints()) {
                     edgeData.centerlinePoints.add(new Vec2dData(point));
                 }
-                edgeData.width = edge.getWidth();
-                edgeData.material = edge.getMaterial();
-                edgeData.includeSidewalk = edge.getIncludeSidewalk();
-                edgeData.sidewalkWidth = edge.getSidewalkWidth();
-                edgeData.sidewalkMaterial = edge.getSidewalkMaterial();
-                edgeData.streetlightSpacing = edge.getStreetlightSpacing();
-                edgeData.maxSlope = edge.getMaxSlope();
-                edgeData.sourceRoadId = edge.getSourceRoadId();
+                edgeData.roadId = edge.getRoadId();
                 for (RoadEdge.SlopeOverride override : edge.getSlopeOverrides()) {
                     SlopeOverrideData overrideData = new SlopeOverrideData();
                     overrideData.startDistance = override.startDistance;
@@ -255,6 +348,25 @@ public class RoadNetwork {
                 network.nodes.put(node.getId(), node);
             }
 
+            boolean hasRoadData = roads != null && !roads.isEmpty();
+            if (hasRoadData) {
+                for (RoadData roadData : roads) {
+                    Road road = new Road(
+                        roadData.id,
+                        roadData.name,
+                        roadData.width,
+                        RoadMaterialUtils.normalizeStoredMaterial(roadData.material),
+                        roadData.includeSidewalk,
+                        roadData.sidewalkWidth,
+                        RoadMaterialUtils.normalizeStoredMaterial(roadData.sidewalkMaterial),
+                        roadData.streetlightSpacing,
+                        roadData.maxSlope,
+                        roadData.segmentIds != null ? new java.util.LinkedHashSet<>(roadData.segmentIds) : java.util.Set.of()
+                    );
+                    network.roads.put(road.getId(), road);
+                }
+            }
+
             for (EdgeData edgeData : edges) {
                 List<Vec2d> points = new ArrayList<>();
                 if (edgeData.centerlinePoints != null) {
@@ -274,11 +386,42 @@ public class RoadNetwork {
                     }
                 }
 
+                String roadId = edgeData.roadId != null ? edgeData.roadId : edgeData.sourceRoadId;
                 RoadEdge edge = new RoadEdge(
                     edgeData.id,
                     edgeData.startNodeId,
                     edgeData.endNodeId,
                     points,
+                    roadId,
+                    overrides
+                );
+                network.edges.put(edge.getId(), edge);
+
+                if (!hasRoadData) {
+                    migrateLegacyEdge(network, edgeData, edge);
+                } else if (roadId != null && !roadId.isBlank()) {
+                    Road road = network.roads.get(roadId);
+                    if (road != null) {
+                        road.addSegment(edge.getId());
+                    }
+                }
+            }
+
+            return network;
+        }
+
+        private static void migrateLegacyEdge(RoadNetwork network, EdgeData edgeData, RoadEdge edge) {
+            String roadId = edgeData.roadId != null ? edgeData.roadId : edgeData.sourceRoadId;
+            if (roadId == null || roadId.isBlank()) {
+                roadId = UUID.randomUUID().toString();
+                edge.setRoadId(roadId);
+            }
+
+            Road road = network.roads.get(roadId);
+            if (road == null) {
+                road = new Road(
+                    roadId,
+                    null,
                     edgeData.width,
                     RoadMaterialUtils.normalizeStoredMaterial(edgeData.material),
                     edgeData.includeSidewalk,
@@ -286,13 +429,12 @@ public class RoadNetwork {
                     RoadMaterialUtils.normalizeStoredMaterial(edgeData.sidewalkMaterial),
                     edgeData.streetlightSpacing,
                     edgeData.maxSlope,
-                    overrides
+                    java.util.Set.of()
                 );
-                edge.setSourceRoadId(edgeData.sourceRoadId);
-                network.edges.put(edge.getId(), edge);
+                network.roads.put(roadId, road);
+                edge.setRoadId(roadId);
             }
-
-            return network;
+            road.addSegment(edge.getId());
         }
     }
 }

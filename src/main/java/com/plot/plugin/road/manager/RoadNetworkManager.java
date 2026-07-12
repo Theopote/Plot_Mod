@@ -4,6 +4,7 @@ import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
@@ -278,18 +279,22 @@ public final class RoadNetworkManager {
         if (primary == null) {
             return currentBatchEditDefaults();
         }
-        batchEditWidth = primary.getWidth() != null ? primary.getWidth() : config.getRoadWidth();
-        batchEditMaterial = primary.getMaterial() != null
-            ? primary.getMaterial()
+        Road road = network.getRoadForEdge(primary);
+        if (road == null) {
+            return currentBatchEditDefaults();
+        }
+        batchEditWidth = road.getWidth() != null ? road.getWidth() : config.getRoadWidth();
+        batchEditMaterial = road.getMaterial() != null
+            ? road.getMaterial()
             : config.getSelectedMaterial();
-        batchIncludeSidewalk = primary.getEffectiveIncludeSidewalk(config);
-        batchEditSidewalkWidth = primary.getSidewalkWidth() != null
-            ? primary.getSidewalkWidth()
+        batchIncludeSidewalk = road.getEffectiveIncludeSidewalk(config);
+        batchEditSidewalkWidth = road.getSidewalkWidth() != null
+            ? road.getSidewalkWidth()
             : config.getSidewalkWidth();
-        batchEditSidewalkMaterial = primary.getSidewalkMaterial() != null
-            ? primary.getSidewalkMaterial()
+        batchEditSidewalkMaterial = road.getSidewalkMaterial() != null
+            ? road.getSidewalkMaterial()
             : config.getSelectedSidewalkMaterial();
-        batchEditMaxSlope = primary.getMaxSlope() != null ? primary.getMaxSlope() : config.getMaxSlope();
+        batchEditMaxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         return currentBatchEditDefaults();
     }
 
@@ -318,22 +323,38 @@ public final class RoadNetworkManager {
             return;
         }
         pushHistory();
+        LinkedHashSet<String> updatedRoadIds = new LinkedHashSet<>();
         for (String edgeId : selectedEdgeIds) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
+            if (edge == null || edge.getRoadId() == null) {
                 continue;
             }
-            edge.setWidth(draft.width());
-            edge.setMaterial(draft.material());
-            edge.setIncludeSidewalk(draft.includeSidewalk());
-            if (draft.includeSidewalk()) {
-                edge.setSidewalkWidth(draft.sidewalkWidth());
-                edge.setSidewalkMaterial(draft.sidewalkMaterial());
+            if (!updatedRoadIds.add(edge.getRoadId())) {
+                continue;
             }
-            edge.setMaxSlope(draft.maxSlope());
+            Road road = network.getRoad(edge.getRoadId());
+            if (road == null) {
+                continue;
+            }
+            applyDraftToRoad(road, draft);
         }
         updateBatchEditDraft(draft);
         status.set(PlotI18n.tr("plugin.road.batch_applied", selectedEdgeIds.size()));
+    }
+
+    public Road getRoadForEdge(RoadEdge edge) {
+        return network.getRoadForEdge(edge);
+    }
+
+    private static void applyDraftToRoad(Road road, BatchEditDefaults draft) {
+        road.setWidth(draft.width());
+        road.setMaterial(draft.material());
+        road.setIncludeSidewalk(draft.includeSidewalk());
+        if (draft.includeSidewalk()) {
+            road.setSidewalkWidth(draft.sidewalkWidth());
+            road.setSidewalkMaterial(draft.sidewalkMaterial());
+        }
+        road.setMaxSlope(draft.maxSlope());
     }
 
     public static List<RoadEdge.SlopeOverride> snapshotSlopeOverrides(List<RoadEdge.SlopeOverride> overrides) {

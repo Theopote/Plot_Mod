@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -52,16 +54,8 @@ public class RoadNetworkBuilder {
         RoadNode startNode = findOrCreateNode(network, startPoint);
         RoadNode endNode = findOrCreateNode(network, endPoint);
 
-        RoadEdge edge = network.createEdge(startNode.getId(), endNode.getId(), points);
-        edge.setSourceRoadId(UUID.randomUUID().toString());
-        if (defaults != null) {
-            edge.setWidth(defaults.getRoadWidth());
-            edge.setMaterial(defaults.getSelectedMaterial());
-            edge.setIncludeSidewalk(defaults.isIncludeSidewalk());
-            edge.setSidewalkWidth(defaults.getSidewalkWidth());
-            edge.setSidewalkMaterial(defaults.getSelectedSidewalkMaterial());
-            edge.setMaxSlope(defaults.getMaxSlope());
-        }
+        Road road = network.createRoad(defaults);
+        RoadEdge edge = network.createEdge(startNode.getId(), endNode.getId(), points, road.getId());
 
         Set<String> adoptedEdgeIds = new HashSet<>();
         adoptedEdgeIds.add(edge.getId());
@@ -96,8 +90,8 @@ public class RoadNetworkBuilder {
                     if (edgeA == null || edgeB == null) {
                         continue;
                     }
-                    if (edgeA.getSourceRoadId() != null
-                            && edgeA.getSourceRoadId().equals(edgeB.getSourceRoadId())) {
+                    if (edgeA.getRoadId() != null
+                            && edgeA.getRoadId().equals(edgeB.getRoadId())) {
                         continue;
                     }
 
@@ -231,13 +225,19 @@ public class RoadNetworkBuilder {
         double splitDistance = RoadGeometryUtils.calculatePathLength(firstPart);
         double totalLength = edge.getLength();
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
+        String roadId = edge.getRoadId();
         boolean tracked = trackedEdgeIds != null && trackedEdgeIds.remove(edgeId);
 
         network.detachEdge(edgeId);
-        RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart);
-        RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart);
-        copyProperties(edge, firstEdge);
-        copyProperties(edge, secondEdge);
+        if (roadId != null) {
+            Road road = network.getRoad(roadId);
+            if (road != null) {
+                road.removeSegment(edgeId);
+            }
+        }
+
+        RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
+        RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
         firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
         secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
 
@@ -283,16 +283,5 @@ public class RoadNetworkBuilder {
             }
         }
         return result;
-    }
-
-    private void copyProperties(RoadEdge source, RoadEdge target) {
-        target.setWidth(source.getWidth());
-        target.setMaterial(source.getMaterial());
-        target.setIncludeSidewalk(source.getIncludeSidewalk());
-        target.setSidewalkWidth(source.getSidewalkWidth());
-        target.setSidewalkMaterial(source.getSidewalkMaterial());
-        target.setStreetlightSpacing(source.getStreetlightSpacing());
-        target.setMaxSlope(source.getMaxSlope());
-        target.setSourceRoadId(source.getSourceRoadId());
     }
 }

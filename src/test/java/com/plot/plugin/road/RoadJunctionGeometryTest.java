@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
@@ -19,12 +20,13 @@ class RoadJunctionGeometryTest {
     void collectPolygonVerticesBuildsTJunctionOutline() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
+        List<RoadEdge> edges = tJunctionEdges(network);
 
-        List<RoadEdge> edges = tJunctionEdges();
         List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
             "junction",
             edges,
-            edge -> edge.getEffectiveWidth(config) / 2.0,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
 
@@ -42,20 +44,21 @@ class RoadJunctionGeometryTest {
     void collectPolygonVerticesHandlesFourDifferentWidths() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
 
-        RoadEdge north = new RoadEdge("e-n", "junction", "n-end", List.of(new Vec2d(0, 0), new Vec2d(0, 10)),
-            4, null, null, null, null, null, null, null);
-        RoadEdge east = new RoadEdge("e-e", "junction", "e-end", List.of(new Vec2d(0, 0), new Vec2d(10, 0)),
-            8, null, null, null, null, null, null, null);
-        RoadEdge south = new RoadEdge("e-s", "s-end", "junction", List.of(new Vec2d(0, -10), new Vec2d(0, 0)),
-            6, null, null, null, null, null, null, null);
-        RoadEdge west = new RoadEdge("e-w", "w-end", "junction", List.of(new Vec2d(-10, 0), new Vec2d(0, 0)),
-            10, null, null, null, null, null, null, null);
+        RoadEdge north = RoadTestFixtures.geometryEdge(network, "e-n", "junction", "n-end",
+            List.of(new Vec2d(0, 0), new Vec2d(0, 10)), 4);
+        RoadEdge east = RoadTestFixtures.geometryEdge(network, "e-e", "junction", "e-end",
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)), 8);
+        RoadEdge south = RoadTestFixtures.geometryEdge(network, "e-s", "s-end", "junction",
+            List.of(new Vec2d(0, -10), new Vec2d(0, 0)), 6);
+        RoadEdge west = RoadTestFixtures.geometryEdge(network, "e-w", "w-end", "junction",
+            List.of(new Vec2d(-10, 0), new Vec2d(0, 0)), 10);
 
         List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
             "junction",
             List.of(north, east, south, west),
-            edge -> edge.getEffectiveWidth(config) / 2.0,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
 
@@ -69,24 +72,25 @@ class RoadJunctionGeometryTest {
     void collectPolygonVerticesCoversFiveWayJunction() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
 
         List<RoadEdge> edges = List.of(
-            new RoadEdge("e-n", "hub", "n", List.of(new Vec2d(0, 0), new Vec2d(0, 12)),
-                null, null, null, null, null, null, null, null),
-            new RoadEdge("e-ne", "hub", "ne", List.of(new Vec2d(0, 0), new Vec2d(9, 9)),
-                null, null, null, null, null, null, null, null),
-            new RoadEdge("e-se", "hub", "se", List.of(new Vec2d(0, 0), new Vec2d(9, -9)),
-                null, null, null, null, null, null, null, null),
-            new RoadEdge("e-s", "s", "hub", List.of(new Vec2d(0, -12), new Vec2d(0, 0)),
-                null, null, null, null, null, null, null, null),
-            new RoadEdge("e-w", "w", "hub", List.of(new Vec2d(-12, 0), new Vec2d(0, 0)),
-                null, null, null, null, null, null, null, null)
+            RoadTestFixtures.geometryEdge(network, "e-n", "hub", "n",
+                List.of(new Vec2d(0, 0), new Vec2d(0, 12))),
+            RoadTestFixtures.geometryEdge(network, "e-ne", "hub", "ne",
+                List.of(new Vec2d(0, 0), new Vec2d(9, 9))),
+            RoadTestFixtures.geometryEdge(network, "e-se", "hub", "se",
+                List.of(new Vec2d(0, 0), new Vec2d(9, -9))),
+            RoadTestFixtures.geometryEdge(network, "e-s", "s", "hub",
+                List.of(new Vec2d(0, -12), new Vec2d(0, 0))),
+            RoadTestFixtures.geometryEdge(network, "e-w", "w", "hub",
+                List.of(new Vec2d(-12, 0), new Vec2d(0, 0)))
         );
 
         List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
             "hub",
             edges,
-            edge -> edge.getEffectiveWidth(config) / 2.0,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
 
@@ -99,22 +103,23 @@ class RoadJunctionGeometryTest {
     void collectPolygonVerticesHandlesAcuteAngleApproaches() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
 
         double angle = Math.toRadians(25);
         Vec2d narrowEnd = new Vec2d(Math.cos(angle) * 20, Math.sin(angle) * 20);
         Vec2d wideEnd = new Vec2d(20, 0);
 
         List<RoadEdge> edges = List.of(
-            new RoadEdge("main", "junction", "wide-end", List.of(new Vec2d(0, 0), wideEnd),
-                null, null, null, null, null, null, null, null),
-            new RoadEdge("branch", "junction", "narrow-end", List.of(new Vec2d(0, 0), narrowEnd),
-                null, null, null, null, null, null, null, null)
+            RoadTestFixtures.geometryEdge(network, "main", "junction", "wide-end",
+                List.of(new Vec2d(0, 0), wideEnd)),
+            RoadTestFixtures.geometryEdge(network, "branch", "junction", "narrow-end",
+                List.of(new Vec2d(0, 0), narrowEnd))
         );
 
         List<Vec2d> polygon = RoadJunctionGeometry.collectPolygonVertices(
             "junction",
             edges,
-            edge -> edge.getEffectiveWidth(config) / 2.0,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
 
@@ -125,20 +130,21 @@ class RoadJunctionGeometryTest {
 
     @Test
     void computeApproachDirectionPointsAwayFromJunctionAlongCenterline() {
-        RoadEdge southbound = new RoadEdge("edge", "junction", "far", List.of(
+        RoadNetwork network = new RoadNetwork();
+        RoadEdge southbound = RoadTestFixtures.geometryEdge(network, "edge", "junction", "far", List.of(
             new Vec2d(0, 0),
             new Vec2d(0, 4),
             new Vec2d(0, 12)
-        ), null, null, null, null, null, null, null, null);
+        ));
 
         Vec2d direction = RoadJunctionGeometry.computeApproachDirection(southbound, "junction");
         assertEquals(0, direction.x, 1e-6);
         assertEquals(4, direction.y, 1e-6);
 
-        RoadEdge northApproach = new RoadEdge("edge2", "south-end", "junction", List.of(
+        RoadEdge northApproach = RoadTestFixtures.geometryEdge(network, "edge2", "south-end", "junction", List.of(
             new Vec2d(0, -12),
             new Vec2d(0, 0)
-        ), null, null, null, null, null, null, null, null);
+        ));
         Vec2d intoSouth = RoadJunctionGeometry.computeApproachDirection(northApproach, "junction");
         assertEquals(0, intoSouth.x, 1e-6);
         assertEquals(-12, intoSouth.y, 1e-6);
@@ -146,11 +152,12 @@ class RoadJunctionGeometryTest {
 
     @Test
     void extractNearNodeSegmentWalksAwayFromJunctionAlongCenterline() {
-        RoadEdge edge = new RoadEdge("edge", "junction", "far", List.of(
+        RoadNetwork network = new RoadNetwork();
+        RoadEdge edge = RoadTestFixtures.geometryEdge(network, "edge", "junction", "far", List.of(
             new Vec2d(0, 0),
             new Vec2d(0, 4),
             new Vec2d(0, 12)
-        ), null, null, null, null, null, null, null, null);
+        ));
 
         List<Vec2d> segment = RoadJunctionGeometry.extractNearNodeSegment(
             edge, "junction", 3.0);
@@ -187,17 +194,19 @@ class RoadJunctionGeometryTest {
     void applyCornerFilletsIncreasesVertexCountForTJunction() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
+        List<RoadEdge> edges = tJunctionEdges(network);
 
         List<Vec2d> sharp = RoadJunctionGeometry.collectPolygonVertices(
             "junction",
-            tJunctionEdges(),
-            edge -> edge.getEffectiveWidth(config) / 2.0,
+            edges,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
         List<Vec2d> filleted = RoadJunctionGeometry.buildJunctionFillPolygon(
             "junction",
-            tJunctionEdges(),
-            edge -> edge.getEffectiveWidth(config) / 2.0,
+            edges,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
             2.0
         );
@@ -210,25 +219,25 @@ class RoadJunctionGeometryTest {
     void hitTestNodeFindsNearestJunction() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(0, 0));
-        RoadNode far = network.createNode(new Vec2d(100, 100));
+        network.createNode(new Vec2d(100, 100));
 
         String hit = RoadNetworkOverviewRenderer.hitTestNode(network, 0.2, 0.1, 1.0);
         assertEquals(junction.getId(), hit);
     }
 
-    private static List<RoadEdge> tJunctionEdges() {
-        RoadEdge north = new RoadEdge("e-n", "junction", "n-end", List.of(
+    private static List<RoadEdge> tJunctionEdges(RoadNetwork network) {
+        RoadEdge north = RoadTestFixtures.geometryEdge(network, "e-n", "junction", "n-end", List.of(
             new Vec2d(0, 0),
             new Vec2d(0, 10)
-        ), null, null, null, null, null, null, null, null);
-        RoadEdge east = new RoadEdge("e-e", "junction", "e-end", List.of(
+        ));
+        RoadEdge east = RoadTestFixtures.geometryEdge(network, "e-e", "junction", "e-end", List.of(
             new Vec2d(0, 0),
             new Vec2d(10, 0)
-        ), null, null, null, null, null, null, null, null);
-        RoadEdge south = new RoadEdge("e-s", "s-end", "junction", List.of(
+        ));
+        RoadEdge south = RoadTestFixtures.geometryEdge(network, "e-s", "s-end", "junction", List.of(
             new Vec2d(0, -10),
             new Vec2d(0, 0)
-        ), null, null, null, null, null, null, null, null);
+        ));
         return List.of(north, east, south);
     }
 }

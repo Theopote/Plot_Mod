@@ -1,30 +1,21 @@
 package com.plot.plugin.road.model;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.config.RoadSystemConfig;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * 道路边（中心线及属性）
+ * 道路几何段（中心线 + 拓扑）。工程属性归属 {@link Road}。
  */
 public class RoadEdge {
     private final String id;
     private String startNodeId;
     private String endNodeId;
     private List<Vec2d> centerlinePoints;
-
-    private Integer width;
-    private String material;
-    private Boolean includeSidewalk;
-    private Integer sidewalkWidth;
-    private String sidewalkMaterial;
-    private Integer streetlightSpacing;
-    private Float maxSlope;
+    private String roadId;
     private List<SlopeOverride> slopeOverrides;
-    private String sourceRoadId;
 
     public static class SlopeOverride {
         public double startDistance;
@@ -46,25 +37,21 @@ public class RoadEdge {
     }
 
     public RoadEdge(String startNodeId, String endNodeId, List<Vec2d> centerlinePoints) {
-        this(UUID.randomUUID().toString(), startNodeId, endNodeId, centerlinePoints,
-            null, null, null, null, null, null, null, null);
+        this(UUID.randomUUID().toString(), startNodeId, endNodeId, centerlinePoints, null, null);
     }
 
-    public RoadEdge(String id, String startNodeId, String endNodeId, List<Vec2d> centerlinePoints,
-                    Integer width, String material, Boolean includeSidewalk, Integer sidewalkWidth,
-                    String sidewalkMaterial, Integer streetlightSpacing, Float maxSlope,
-                    List<SlopeOverride> slopeOverrides) {
+    public RoadEdge(
+            String id,
+            String startNodeId,
+            String endNodeId,
+            List<Vec2d> centerlinePoints,
+            String roadId,
+            List<SlopeOverride> slopeOverrides) {
         this.id = id;
         this.startNodeId = startNodeId;
         this.endNodeId = endNodeId;
         this.centerlinePoints = copyPoints(centerlinePoints);
-        this.width = width;
-        this.material = material;
-        this.includeSidewalk = includeSidewalk;
-        this.sidewalkWidth = sidewalkWidth;
-        this.sidewalkMaterial = sidewalkMaterial;
-        this.streetlightSpacing = streetlightSpacing;
-        this.maxSlope = maxSlope;
+        this.roadId = roadId;
         this.slopeOverrides = slopeOverrides != null
             ? slopeOverrides.stream().map(SlopeOverride::copy).toList()
             : new ArrayList<>();
@@ -98,60 +85,24 @@ public class RoadEdge {
         this.centerlinePoints = copyPoints(centerlinePoints);
     }
 
-    public Integer getWidth() {
-        return width;
+    public String getRoadId() {
+        return roadId;
     }
 
-    public void setWidth(Integer width) {
-        this.width = width;
+    public void setRoadId(String roadId) {
+        this.roadId = roadId;
     }
 
-    public String getMaterial() {
-        return material;
+    /** @deprecated 使用 {@link #getRoadId()} */
+    @Deprecated
+    public String getSourceRoadId() {
+        return roadId;
     }
 
-    public void setMaterial(String material) {
-        this.material = material;
-    }
-
-    public Boolean getIncludeSidewalk() {
-        return includeSidewalk;
-    }
-
-    public void setIncludeSidewalk(Boolean includeSidewalk) {
-        this.includeSidewalk = includeSidewalk;
-    }
-
-    public Integer getSidewalkWidth() {
-        return sidewalkWidth;
-    }
-
-    public void setSidewalkWidth(Integer sidewalkWidth) {
-        this.sidewalkWidth = sidewalkWidth;
-    }
-
-    public String getSidewalkMaterial() {
-        return sidewalkMaterial;
-    }
-
-    public void setSidewalkMaterial(String sidewalkMaterial) {
-        this.sidewalkMaterial = sidewalkMaterial;
-    }
-
-    public Integer getStreetlightSpacing() {
-        return streetlightSpacing;
-    }
-
-    public void setStreetlightSpacing(Integer streetlightSpacing) {
-        this.streetlightSpacing = streetlightSpacing;
-    }
-
-    public Float getMaxSlope() {
-        return maxSlope;
-    }
-
-    public void setMaxSlope(Float maxSlope) {
-        this.maxSlope = maxSlope;
+    /** @deprecated 使用 {@link #setRoadId(String)} */
+    @Deprecated
+    public void setSourceRoadId(String sourceRoadId) {
+        this.roadId = sourceRoadId;
     }
 
     public List<SlopeOverride> getSlopeOverrides() {
@@ -162,52 +113,6 @@ public class RoadEdge {
         this.slopeOverrides = slopeOverrides != null
             ? slopeOverrides.stream().map(SlopeOverride::copy).toList()
             : new ArrayList<>();
-    }
-
-    public String getSourceRoadId() {
-        return sourceRoadId;
-    }
-
-    public void setSourceRoadId(String sourceRoadId) {
-        this.sourceRoadId = sourceRoadId;
-    }
-
-    public int getEffectiveWidth(RoadSystemConfig defaults) {
-        return width != null ? width : defaults.getRoadWidth();
-    }
-
-    public String getEffectiveMaterial(RoadSystemConfig defaults) {
-        return material != null ? material : defaults.getSelectedMaterial();
-    }
-
-    public boolean getEffectiveIncludeSidewalk(RoadSystemConfig defaults) {
-        return includeSidewalk != null ? includeSidewalk : defaults.isIncludeSidewalk();
-    }
-
-    public int getEffectiveSidewalkWidth(RoadSystemConfig defaults) {
-        return sidewalkWidth != null ? sidewalkWidth : defaults.getSidewalkWidth();
-    }
-
-    public String getEffectiveSidewalkMaterial(RoadSystemConfig defaults) {
-        if (sidewalkMaterial != null) {
-            return sidewalkMaterial;
-        }
-        return defaults.getSelectedSidewalkMaterial();
-    }
-
-    public float getEffectiveMaxSlope(RoadSystemConfig defaults) {
-        return maxSlope != null ? maxSlope : defaults.getMaxSlope();
-    }
-
-    public float getEffectiveMaxSlope(double distanceAlongEdge, RoadSystemConfig defaults) {
-        if (slopeOverrides != null) {
-            for (SlopeOverride override : slopeOverrides) {
-                if (distanceAlongEdge >= override.startDistance && distanceAlongEdge <= override.endDistance) {
-                    return override.maxSlope;
-                }
-            }
-        }
-        return getEffectiveMaxSlope(defaults);
     }
 
     public double getLength() {
@@ -222,11 +127,7 @@ public class RoadEdge {
     }
 
     RoadEdge copy() {
-        RoadEdge copy = new RoadEdge(id, startNodeId, endNodeId, centerlinePoints,
-            width, material, includeSidewalk, sidewalkWidth, sidewalkMaterial,
-            streetlightSpacing, maxSlope, slopeOverrides);
-        copy.setSourceRoadId(sourceRoadId);
-        return copy;
+        return new RoadEdge(id, startNodeId, endNodeId, centerlinePoints, roadId, slopeOverrides);
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {

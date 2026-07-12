@@ -8,6 +8,7 @@ import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.client.MinecraftClient;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.core.command.BlockRecord;
@@ -134,7 +135,8 @@ public class RoadGenerator {
     /**
      * 基于路网边生成道路（不依赖 Shape）
      */
-    public RoadGenerationResult generateEdge(RoadEdge edge, RoadNode startNode, RoadNode endNode, World world) {
+    public RoadGenerationResult generateEdge(
+            RoadNetwork network, RoadEdge edge, RoadNode startNode, RoadNode endNode, World world) {
         if (edge == null || world == null) {
             LOGGER.warn("道路边或世界为空，无法生成");
             return new RoadGenerationResult(0);
@@ -149,17 +151,17 @@ public class RoadGenerator {
         try {
             List<PathSegment> segments = samplePath(pathPoints);
             List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
-                segments, world, edge, startNode, endNode);
+                segments, world, network, edge, startNode, endNode);
             List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
             List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, world);
 
-            double halfWidth = edge.getEffectiveWidth(config) / 2.0;
+            double halfWidth = RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0;
             List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
             List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfWidth);
 
             RoadGenerationResult result = generateRoadBlocksFromBoundaries(
                 segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, world,
-                getBlockIdFromMaterial(edge.getEffectiveMaterial(config)));
+                getBlockIdFromMaterial(RoadModelUtils.getEffectiveMaterial(network, edge, config)));
 
             int shoulderWidth = config.isIncludeShoulder() ? config.getShoulderWidth() : 0;
             if (config.isIncludeShoulder()) {
@@ -172,17 +174,18 @@ public class RoadGenerator {
                     shoulderWidth, pathPoints, world);
             }
 
-            if (edge.getEffectiveIncludeSidewalk(config)) {
-                double sidewalkOffset = halfWidth + shoulderWidth + edge.getEffectiveSidewalkWidth(config) / 2.0;
+            if (RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)) {
+                double sidewalkOffset = halfWidth + shoulderWidth + RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config) / 2.0;
                 List<Vec2d> leftSidewalk = OffsetHandler.offsetPolyline(pathPoints, sidewalkOffset);
                 List<Vec2d> rightSidewalk = OffsetHandler.offsetPolyline(pathPoints, -sidewalkOffset);
                 generateSidewalkBlocks(result, segments, heightInfos, leftSidewalk, rightSidewalk,
-                    edge.getEffectiveSidewalkWidth(config), world,
-                    getBlockIdFromMaterial(edge.getEffectiveSidewalkMaterial(config)));
+                    RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config), world,
+                    getBlockIdFromMaterial(RoadModelUtils.getEffectiveSidewalkMaterial(network, edge, config)));
             }
 
             if (config.isIncludeDrainage()) {
-                double sidewalkOffset = edge.getEffectiveIncludeSidewalk(config) ? edge.getEffectiveSidewalkWidth(config) : 0;
+                double sidewalkOffset = RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)
+                    ? RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config) : 0;
                 double drainageOffset = halfWidth + shoulderWidth + sidewalkOffset + 0.5;
                 List<Vec2d> leftDrainage = OffsetHandler.offsetPolyline(pathPoints, drainageOffset);
                 List<Vec2d> rightDrainage = OffsetHandler.offsetPolyline(pathPoints, -drainageOffset);
@@ -190,9 +193,9 @@ public class RoadGenerator {
                     getBlockIdFromMaterial("material.plot.gravel"));
             }
 
-            Integer spacing = edge.getStreetlightSpacing();
+            Integer spacing = RoadModelUtils.getStreetlightSpacing(network, edge);
             if (spacing != null && spacing > 0) {
-                generateStreetlights(result, pathPoints, edge, world, shoulderWidth);
+                generateStreetlights(result, pathPoints, network, edge, world, shoulderWidth);
             }
 
             result.pathLength = edge.getLength();
@@ -313,7 +316,8 @@ public class RoadGenerator {
             return getGroundHeightAtNode(world, node, network);
         }
 
-        List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(segments, world, edge, startNode, node);
+        List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
+            segments, world, network, edge, startNode, node);
         if (heightInfos.isEmpty()) {
             return getGroundHeightAtNode(world, node, network);
         }
@@ -468,7 +472,7 @@ public class RoadGenerator {
     }
 
     private List<SegmentHeightInfo> calculateSegmentHeightsForEdge(
-            List<PathSegment> segments, World world, RoadEdge edge,
+            List<PathSegment> segments, World world, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode) {
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
         if (segments.isEmpty()) {
@@ -479,7 +483,7 @@ public class RoadGenerator {
             ? startNode.getManualElevation().intValue()
             : null;
 
-        double halfWidth = edge.getEffectiveWidth(config) / 2.0;
+        double halfWidth = RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0;
         List<Double> distances = new ArrayList<>();
         List<Integer> groundStarts = new ArrayList<>();
         List<Integer> groundEnds = new ArrayList<>();
@@ -491,7 +495,7 @@ public class RoadGenerator {
             distances.add(segment.distance);
             groundStarts.add(getGroundHeightAtPoint(world, segment.start, tangent, halfWidth));
             groundEnds.add(getGroundHeightAtPoint(world, segment.end, tangent, halfWidth));
-            maxSlopes.add(edge.getEffectiveMaxSlope(accumulatedDistance, config));
+            maxSlopes.add(RoadModelUtils.getEffectiveMaxSlope(network, edge, config, accumulatedDistance));
             accumulatedDistance += segment.distance;
         }
 
@@ -523,20 +527,22 @@ public class RoadGenerator {
         }
 
         if (endNode != null && endNode.getManualElevation() != null && !heightInfos.isEmpty()) {
-            applyManualEndHeight(heightInfos, edge, endNode.getManualElevation().intValue(), accumulatedDistance);
+            applyManualEndHeight(heightInfos, network, edge, endNode.getManualElevation().intValue(), accumulatedDistance);
         }
         return heightInfos;
     }
 
     private void applyManualEndHeight(
             List<SegmentHeightInfo> heightInfos,
+            RoadNetwork network,
             RoadEdge edge,
             int desiredEndHeight,
             double totalDistance) {
         int lastIndex = heightInfos.size() - 1;
         SegmentHeightInfo last = heightInfos.get(lastIndex);
         double lastSegmentStartDistance = Math.max(0.0, totalDistance - last.segment.distance);
-        float maxSlopePercent = edge.getEffectiveMaxSlope(lastSegmentStartDistance, config);
+        float maxSlopePercent = RoadModelUtils.getEffectiveMaxSlope(
+            network, edge, config, lastSegmentStartDistance);
         int clampedEnd = clampTowardTarget(last.targetStart, desiredEndHeight, last.segment.distance, maxSlopePercent);
         if (clampedEnd == last.targetEnd) {
             return;
@@ -1060,12 +1066,14 @@ public class RoadGenerator {
     }
 
     private void generateStreetlights(RoadGenerationResult result, List<Vec2d> pathPoints,
-                                      RoadEdge edge, World world, double shoulderWidth) {
-        int spacing = edge.getStreetlightSpacing();
-        double skipDistance = edge.getEffectiveWidth(config);
-        double offset = edge.getEffectiveWidth(config) / 2.0
+                                      RoadNetwork network, RoadEdge edge, World world, double shoulderWidth) {
+        Integer spacingValue = RoadModelUtils.getStreetlightSpacing(network, edge);
+        int spacing = spacingValue != null ? spacingValue : 0;
+        double skipDistance = RoadModelUtils.getEffectiveWidth(network, edge, config);
+        double offset = RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0
             + shoulderWidth
-            + (edge.getEffectiveIncludeSidewalk(config) ? edge.getEffectiveSidewalkWidth(config) : 0)
+            + (RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)
+                ? RoadModelUtils.getEffectiveSidewalkWidth(network, edge, config) : 0)
             + 0.5;
 
         List<Vec2d> samples = RoadGeometryUtils.sampleAlongPath(pathPoints, spacing, skipDistance);
@@ -1228,7 +1236,7 @@ public class RoadGenerator {
             if (edge == null) {
                 continue;
             }
-            double width = edge.getEffectiveWidth(config);
+            double width = RoadModelUtils.getEffectiveWidth(network, edge, config);
             if (width > widest) {
                 widest = width;
                 widestEdge = edge;
@@ -1260,7 +1268,7 @@ public class RoadGenerator {
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
             if (edge != null) {
-                halfWidth = Math.max(halfWidth, edge.getEffectiveWidth(config) / 2.0);
+                halfWidth = Math.max(halfWidth, RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0);
             }
         }
         return halfWidth;

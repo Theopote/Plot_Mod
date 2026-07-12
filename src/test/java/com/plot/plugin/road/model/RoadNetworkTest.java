@@ -1,9 +1,9 @@
 package com.plot.plugin.road.model;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.core.geometry.shapes.PolylineShape;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -30,6 +30,7 @@ class RoadNetworkTest {
 
         assertEquals(2, network.getNodes().size());
         assertEquals(1, network.getEdges().size());
+        assertEquals(1, network.getRoads().size());
         assertEquals(1, result.edges().size());
         assertEquals(0, result.junctionCount());
     }
@@ -47,6 +48,7 @@ class RoadNetworkTest {
         RoadNetworkBuilder.AdoptResult result = builder.adoptShape(network, b, config);
 
         assertEquals(4, network.getEdges().size());
+        assertEquals(2, network.getRoads().size());
         assertEquals(2, result.edges().size());
         assertEquals(1, result.junctionCount());
         assertNotNull(result.edges().getFirst());
@@ -79,43 +81,49 @@ class RoadNetworkTest {
     }
 
     @Test
-    void jsonRoundTripPreservesData() {
+    void jsonRoundTripPreservesRoadProperties() {
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(10, 0));
+        Road road = network.createRoad();
+        road.setWidth(7);
+        road.setMaxSlope(5.0f);
         RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(10, 0)
-        ));
-        edge.setWidth(7);
-        edge.setMaxSlope(5.0f);
+        ), road.getId());
 
         RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
-        RoadEdge restoredEdge = restored.getEdges().values().iterator().next();
+        Road restoredRoad = restored.getRoad(road.getId());
+        RoadEdge restoredEdge = restored.getEdge(edge.getId());
 
         assertEquals(2, restored.getNodes().size());
         assertEquals(1, restored.getEdges().size());
-        assertEquals(7, restoredEdge.getWidth());
-        assertEquals(5.0f, restoredEdge.getMaxSlope());
+        assertEquals(1, restored.getRoads().size());
+        assertNotNull(restoredRoad);
+        assertEquals(7, restoredRoad.getWidth());
+        assertEquals(5.0f, restoredRoad.getMaxSlope());
+        assertEquals(road.getId(), restoredEdge.getRoadId());
     }
 
     @Test
-    void jsonRoundTripPreservesSourceRoadId() {
+    void jsonRoundTripPreservesRoadId() {
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));
         RoadNode end = network.createNode(new Vec2d(10, 0));
+        Road road = network.createRoad("adopt-group-123");
         RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(10, 0)
-        ));
-        edge.setSourceRoadId("adopt-group-123");
+        ), road.getId());
 
         RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
         RoadEdge restoredEdge = restored.getEdges().values().iterator().next();
 
-        assertEquals("adopt-group-123", restoredEdge.getSourceRoadId());
+        assertEquals("adopt-group-123", restoredEdge.getRoadId());
+        assertNotNull(restored.getRoad("adopt-group-123"));
     }
 
     @Test
-    void adoptShapeAssignsSourceRoadId() {
+    void adoptShapeAssignsRoad() {
         RoadNetwork network = new RoadNetwork();
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
         RoadSystemConfig config = new RoadSystemConfig("road_system");
@@ -128,29 +136,28 @@ class RoadNetworkTest {
         builder.adoptShape(network, shape, config);
         RoadEdge edge = network.getEdges().values().iterator().next();
 
-        assertNotNull(edge.getSourceRoadId());
-        assertFalse(edge.getSourceRoadId().isBlank());
+        assertNotNull(edge.getRoadId());
+        assertFalse(edge.getRoadId().isBlank());
+        assertNotNull(network.getRoad(edge.getRoadId()));
     }
 
     @Test
-    void sameSourceRoadIdSkipsIntersectionSplit() {
+    void sameRoadIdSkipsIntersectionSplit() {
         RoadNetwork network = new RoadNetwork();
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
-        String sourceId = "same-adopt-group";
+        Road sharedRoad = network.createRoad("same-adopt-group");
 
         RoadNode a1 = network.createNode(new Vec2d(0, 0));
         RoadNode a2 = network.createNode(new Vec2d(20, 0));
         RoadNode b1 = network.createNode(new Vec2d(10, -10));
         RoadNode b2 = network.createNode(new Vec2d(10, 10));
 
-        RoadEdge horizontal = network.createEdge(a1.getId(), a2.getId(), List.of(
+        network.createEdge(a1.getId(), a2.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(20, 0)
-        ));
-        horizontal.setSourceRoadId(sourceId);
-        RoadEdge vertical = network.createEdge(b1.getId(), b2.getId(), List.of(
+        ), sharedRoad.getId());
+        network.createEdge(b1.getId(), b2.getId(), List.of(
             new Vec2d(10, -10), new Vec2d(10, 10)
-        ));
-        vertical.setSourceRoadId(sourceId);
+        ), sharedRoad.getId());
 
         int nodesBefore = network.getNodes().size();
         int edgesBefore = network.getEdges().size();
@@ -161,7 +168,7 @@ class RoadNetworkTest {
     }
 
     @Test
-    void differentSourceRoadIdStillSplitsAtIntersection() {
+    void differentRoadIdsStillSplitAtIntersection() {
         RoadNetwork network = new RoadNetwork();
         RoadNetworkBuilder builder = new RoadNetworkBuilder();
 
@@ -170,19 +177,51 @@ class RoadNetworkTest {
         RoadNode b1 = network.createNode(new Vec2d(5, 0));
         RoadNode b2 = network.createNode(new Vec2d(5, 10));
 
-        RoadEdge horizontal = network.createEdge(a1.getId(), a2.getId(), List.of(
+        network.createEdge(a1.getId(), a2.getId(), List.of(
             new Vec2d(0, 5), new Vec2d(10, 5)
-        ));
-        horizontal.setSourceRoadId("road-a");
-        RoadEdge vertical = network.createEdge(b1.getId(), b2.getId(), List.of(
+        ), network.createRoad("road-a").getId());
+        network.createEdge(b1.getId(), b2.getId(), List.of(
             new Vec2d(5, 0), new Vec2d(5, 10)
-        ));
-        vertical.setSourceRoadId("road-b");
+        ), network.createRoad("road-b").getId());
 
         builder.detectAndSplitIntersections(network);
 
         assertEquals(4, network.getEdges().size());
         assertEquals(5, network.getNodes().size());
+    }
+
+    @Test
+    void legacyJsonMigratesEdgePropertiesIntoRoad() {
+        String legacyJson = """
+            {
+              "nodes": [
+                {"id":"n1","position":{"x":0,"y":0},"connectedEdgeIds":["e1"]},
+                {"id":"n2","position":{"x":10,"y":0},"connectedEdgeIds":["e1"]}
+              ],
+              "edges": [
+                {
+                  "id":"e1",
+                  "startNodeId":"n1",
+                  "endNodeId":"n2",
+                  "centerlinePoints":[{"x":0,"y":0},{"x":10,"y":0}],
+                  "width":7,
+                  "maxSlope":5.0,
+                  "sourceRoadId":"legacy-road-1"
+                }
+              ]
+            }
+            """;
+
+        RoadNetwork restored = RoadNetwork.fromJson(legacyJson);
+        RoadEdge edge = restored.getEdge("e1");
+        Road road = restored.getRoad("legacy-road-1");
+
+        assertNotNull(edge);
+        assertNotNull(road);
+        assertEquals("legacy-road-1", edge.getRoadId());
+        assertEquals(7, road.getWidth());
+        assertEquals(5.0f, road.getMaxSlope());
+        assertEquals(List.of("e1"), List.copyOf(road.getSegmentIds()));
     }
 
     @Test

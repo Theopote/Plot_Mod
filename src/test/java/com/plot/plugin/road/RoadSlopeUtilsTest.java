@@ -1,7 +1,10 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
+import com.plot.plugin.road.model.RoadNetwork;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -68,16 +71,18 @@ class RoadSlopeUtilsTest {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setMaxSlope(10.0f);
 
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+        road.setMaxSlope(10.0f);
         RoadEdge edge = new RoadEdge(
             "edge-1", "n1", "n2",
             List.of(),
-            null, null, null, null, null, null,
-            null,
+            road.getId(),
             List.of(new RoadEdge.SlopeOverride(0, 10, 5.0f))
         );
 
-        float steepSegmentSlope = edge.getEffectiveMaxSlope(0, config);
-        float gentleSegmentSlope = edge.getEffectiveMaxSlope(10.0001, config);
+        float steepSegmentSlope = RoadModelUtils.getEffectiveMaxSlope(network, edge, config, 0);
+        float gentleSegmentSlope = RoadModelUtils.getEffectiveMaxSlope(network, edge, config, 10.0001);
 
         List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
             List.of(10.0, 10.0),

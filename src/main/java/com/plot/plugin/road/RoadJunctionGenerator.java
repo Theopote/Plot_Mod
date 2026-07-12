@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import net.minecraft.util.math.BlockPos;
@@ -54,32 +55,33 @@ public class RoadJunctionGenerator {
             LOGGER.debug("复杂路口（{}条道路汇聚），使用多边形填充（必要时回退凸包）", degree);
         }
 
-        generatePolygonJunction(blocks, node, connectedEdges, junctionY);
+        generatePolygonJunction(blocks, node, network, connectedEdges, junctionY);
         return blocks;
     }
 
     private void generatePolygonJunction(
             JunctionBlocks blocks,
             RoadNode node,
+            RoadNetwork network,
             List<RoadEdge> edges,
             int junctionY) {
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
-            edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
         double cornerRadius = node.getEffectiveCornerRadius(generator.getConfig().getDefaultCornerRadius());
         List<Vec2d> polygon = RoadJunctionGeometry.buildJunctionFillPolygon(
             node.getId(),
             edges,
-            edge -> edge.getEffectiveWidth(generator.getConfig()) / 2.0,
+            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
             junctionRadius,
             cornerRadius
         );
 
         if (polygon.size() < 3) {
-            generateSimpleEnvelope(blocks, center, edges, junctionY);
+            generateSimpleEnvelope(blocks, network, center, edges, junctionY);
             return;
         }
 
@@ -88,11 +90,12 @@ public class RoadJunctionGenerator {
 
     private void generateSimpleEnvelope(
             JunctionBlocks blocks,
+            RoadNetwork network,
             Vec2d center,
             List<RoadEdge> edges,
             int junctionY) {
         int maxWidth = edges.stream()
-            .mapToInt(edge -> edge.getEffectiveWidth(generator.getConfig()))
+            .mapToInt(edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()))
             .max()
             .orElse(5);
         int radius = maxWidth + 2;
