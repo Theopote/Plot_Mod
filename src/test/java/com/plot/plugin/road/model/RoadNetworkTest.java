@@ -4,6 +4,8 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.style.RoadStyleCatalog;
 import com.plot.core.geometry.shapes.PolylineShape;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkTest {
 
@@ -245,31 +248,42 @@ class RoadNetworkTest {
 
     @Test
     void presetBuildsCrossSectionWithLaneCount() {
-        RoadSystemConfig config = new RoadSystemConfig("road_system");
-        RoadSystemConfig.RoadPreset preset = config.getPresets().getFirst();
-        RoadCrossSection section = RoadCrossSection.fromPreset(preset);
+        RoadStyle style = RoadStyleCatalog.cityMain();
+        RoadCrossSection section = RoadCrossSection.fromStyle(style);
 
-        assertEquals(preset.width, section.getCarriageway().getWidth());
-        assertEquals(preset.hasSidewalk, section.getSidewalk().getEnabled());
-        assertEquals(preset.includeShoulder, section.getShoulder().getEnabled());
+        assertEquals(style.width, section.getCarriageway().getWidth());
+        assertEquals(style.hasSidewalk, section.getSidewalk().getEnabled());
+        assertEquals(style.includeShoulder, section.getShoulder().getEnabled());
     }
 
     @Test
     void roadApplyPresetUpdatesCrossSection() {
-        RoadSystemConfig config = new RoadSystemConfig("road_system");
         Road road = new Road();
-        RoadSystemConfig.RoadPreset preset = config.getPresets().stream()
-            .filter(p -> "city_main".equals(p.id))
-            .findFirst()
-            .orElse(config.getPresets().getFirst());
+        RoadStyle style = RoadStyleCatalog.cityMain();
 
-        road.applyPreset(preset);
+        road.applyStyle(style);
 
-        assertEquals(preset.width, road.getWidth());
-        assertEquals(preset.includeShoulder, road.getIncludeShoulder());
-        if (preset.maxSlope > 0f) {
-            assertEquals(preset.maxSlope, road.getMaxSlope());
+        assertEquals(style.width, road.getWidth());
+        assertEquals(style.includeShoulder, road.getIncludeShoulder());
+        assertEquals("city_main", road.getStyleId());
+        if (style.maxSlope > 0f) {
+            assertEquals(style.maxSlope, road.getMaxSlope());
         }
+    }
+
+    @Test
+    void jsonRoundTripPreservesStyleId() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+        road.applyStyle(RoadStyleCatalog.mountain());
+
+        String json = network.toJson();
+        RoadNetwork restored = RoadNetwork.fromJson(json);
+        Road restoredRoad = restored.getRoad(road.getId());
+
+        assertNotNull(restoredRoad);
+        assertEquals("mountain", restoredRoad.getStyleId());
+        assertTrue(restoredRoad.getIncludeShoulder());
     }
 
     @Test
