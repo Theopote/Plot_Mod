@@ -100,30 +100,26 @@ public class LayerContextMenuRenderer {
                 // 锁定/解锁选项
                 if (layer.isLocked()) {
                     if (ImGui.menuItem(PlotI18n.tr("layer.plot.unlock"), "")) {
-                        layerManager.updateLayerProperty(layer, 
-                            "locked", 
-                            false);
+                        LayerEditHistory.commitProperty(layer.getId(), "locked", true, false);
+                        layerManager.updateLayerProperty(layer, "locked", false);
                     }
                 } else {
                     if (ImGui.menuItem(PlotI18n.tr("layer.plot.lock"), "")) {
-                        layerManager.updateLayerProperty(layer, 
-                            "locked", 
-                            true);
+                        LayerEditHistory.commitProperty(layer.getId(), "locked", false, true);
+                        layerManager.updateLayerProperty(layer, "locked", true);
                     }
                 }
                 
                 // 显示/隐藏选项
                 if (layer.isVisible()) {
                     if (ImGui.menuItem(PlotI18n.tr("layer.plot.hide"), "")) {
-                        layerManager.updateLayerProperty(layer, 
-                            "visible", 
-                            false);
+                        LayerEditHistory.commitProperty(layer.getId(), "visible", true, false);
+                        layerManager.updateLayerProperty(layer, "visible", false);
                     }
                 } else {
                     if (ImGui.menuItem(PlotI18n.tr("layer.plot.show"), "")) {
-                        layerManager.updateLayerProperty(layer, 
-                            "visible", 
-                            true);
+                        LayerEditHistory.commitProperty(layer.getId(), "visible", false, true);
+                        layerManager.updateLayerProperty(layer, "visible", true);
                     }
                 }
                 

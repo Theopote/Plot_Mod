@@ -50,6 +50,16 @@ public class PathNode {
     public void setType(NodeType type) { this.type = type; }
 
     /**
+     * 从快照恢复节点几何。
+     */
+    public void restoreState(Vec2d anchor, Vec2d controlPrev, Vec2d controlNext, NodeType type) {
+        this.anchor = anchor;
+        this.controlPrev = controlPrev;
+        this.controlNext = controlNext;
+        this.type = type;
+    }
+
+    /**
      * 设置平滑控制点
      * 根据拖拽位置计算对称的控制点
      * 

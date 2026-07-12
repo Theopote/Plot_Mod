@@ -115,6 +115,20 @@ public interface IModeHandler {
     }
     
     /**
+     * 捕获当前绘制几何快照。
+     */
+    default DrawingGeometrySnapshot captureGeometrySnapshot() {
+        return null;
+    }
+
+    /**
+     * 应用绘制几何快照。
+     */
+    default boolean applyGeometrySnapshot(DrawingGeometrySnapshot snapshot) {
+        return false;
+    }
+
+    /**
      * 绘制工具上下文接口
      * <p>
      * 提供模式处理器需要的基本服务和工具

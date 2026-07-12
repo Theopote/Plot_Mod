@@ -1,9 +1,11 @@
 package com.plot.ui.tools.impl.drawing.helper;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.command.commands.ControlPointEditCommand;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +47,32 @@ public class EditModeHandler implements IModeHandler {
     private Vec2d dragStartPoint;
     private boolean isControlPointSymmetric = true;
     private final StyleHandler styleHandler;
+    private Shape preEditSnapshot = null;
     
     public EditModeHandler(StyleHandler styleHandler) {
         this.styleHandler = styleHandler;
+    }
+
+    /**
+     * 从已有图形进入编辑模式。
+     */
+    public void beginEditing(Shape shape) {
+        if (shape == null) {
+            return;
+        }
+        reset();
+        editingShape = shape;
+        List<Vec2d> controlPoints = shape.getControlPoints();
+        if (controlPoints != null) {
+            for (Vec2d point : controlPoints) {
+                editPoints.add(point == null ? null : new Vec2d(point.x, point.y));
+            }
+        }
+        int segmentCount = Math.max(0, (editPoints.size() - 1) / 3);
+        for (int i = 0; i < segmentCount; i++) {
+            isCurveSegment.add(shape instanceof BezierCurveShape);
+        }
+        LOGGER.debug("编辑模式已加载图形，控制点数={}", editPoints.size());
     }
 
     @Override
@@ -75,11 +100,13 @@ public class EditModeHandler implements IModeHandler {
                     selectedNodeIndex = nearestIndex;
                     isDraggingNode = true;
                     dragStartPoint = pos;
+                    preEditSnapshot = editingShape != null ? editingShape.clone() : null;
                 }
             } else { // 控制点
                 selectedControlPointIndex = nearestIndex;
                 isDraggingControlPoint = true;
                 dragStartPoint = pos;
+                preEditSnapshot = editingShape != null ? editingShape.clone() : null;
             }
             return IInteractionStrategy.InteractionResult.CONTINUE;
         }
@@ -107,6 +134,7 @@ public class EditModeHandler implements IModeHandler {
             }
             
             dragStartPoint = pos;
+            syncEditPointsToShape();
             return IInteractionStrategy.InteractionResult.CONTINUE;
         }
         
@@ -118,6 +146,7 @@ public class EditModeHandler implements IModeHandler {
             if (isControlPointSymmetric) {
                 updateSymmetricControlPoint(selectedControlPointIndex, pos);
             }
+            syncEditPointsToShape();
             
             return IInteractionStrategy.InteractionResult.CONTINUE;
         }
@@ -127,9 +156,75 @@ public class EditModeHandler implements IModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
+        boolean wasDragging = isDraggingNode || isDraggingControlPoint;
         isDraggingNode = false;
         isDraggingControlPoint = false;
+
+        if (wasDragging) {
+            commitShapeEdit();
+        }
         return IInteractionStrategy.InteractionResult.CONTINUE;
+    }
+
+    private void commitShapeEdit() {
+        if (editingShape == null || preEditSnapshot == null) {
+            preEditSnapshot = null;
+            return;
+        }
+        Shape afterSnapshot = editingShape.clone();
+        if (geometryEqual(preEditSnapshot, afterSnapshot)) {
+            preEditSnapshot = null;
+            return;
+        }
+        ControlPointEditCommand command = new ControlPointEditCommand(editingShape, preEditSnapshot, afterSnapshot);
+        AppState.getInstance().getCommandHistory().execute(command);
+        preEditSnapshot = null;
+    }
+
+    private static boolean geometryEqual(Shape before, Shape after) {
+        List<Vec2d> beforePoints = before.getControlPoints();
+        List<Vec2d> afterPoints = after.getControlPoints();
+        if (beforePoints == null || afterPoints == null) {
+            return beforePoints == afterPoints;
+        }
+        if (beforePoints.size() != afterPoints.size()) {
+            return false;
+        }
+        for (int i = 0; i < beforePoints.size(); i++) {
+            Vec2d a = beforePoints.get(i);
+            Vec2d b = afterPoints.get(i);
+            if (a == null || b == null) {
+                if (a != b) {
+                    return false;
+                }
+                continue;
+            }
+            if (a.distance(b) > 1e-6) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void syncEditPointsToShape() {
+        if (editingShape == null) {
+            return;
+        }
+        for (int i = 0; i < editPoints.size(); i++) {
+            Vec2d worldPoint = editPoints.get(i);
+            if (worldPoint == null) {
+                continue;
+            }
+            Vec2d localPoint = worldPoint;
+            if (editingShape.getTransform() != null) {
+                try {
+                    localPoint = editingShape.getTransform().inverseTransform(worldPoint);
+                } catch (Exception ex) {
+                    LOGGER.warn("逆变换失败，使用世界坐标写回控制点", ex);
+                }
+            }
+            editingShape.setControlPoint(i, localPoint);
+        }
     }
     
     /**
@@ -339,8 +434,27 @@ public class EditModeHandler implements IModeHandler {
         isDraggingNode = false;
         isDraggingControlPoint = false;
         dragStartPoint = null;
+        preEditSnapshot = null;
         isControlPointSymmetric = true;
         LOGGER.debug("编辑模式状态已重置");
+    }
+
+    @Override
+    public DrawingGeometrySnapshot captureGeometrySnapshot() {
+        return DrawingGeometrySnapshot.bezierEdit(editPoints, isCurveSegment);
+    }
+
+    @Override
+    public boolean applyGeometrySnapshot(DrawingGeometrySnapshot snapshot) {
+        if (snapshot == null || snapshot.getKind() != DrawingGeometrySnapshot.Kind.BEZIER_EDIT) {
+            return false;
+        }
+        editPoints.clear();
+        editPoints.addAll(snapshot.getPoints());
+        isCurveSegment.clear();
+        isCurveSegment.addAll(snapshot.getCurveSegments());
+        syncEditPointsToShape();
+        return editingShape != null;
     }
     
     @Override

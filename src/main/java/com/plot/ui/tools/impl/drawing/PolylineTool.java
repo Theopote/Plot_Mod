@@ -12,11 +12,10 @@ import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
-import com.plot.ui.tools.impl.drawing.helper.BezierUtils;
-import com.plot.ui.tools.impl.drawing.helper.IModeHandler;
-import com.plot.ui.tools.impl.drawing.helper.PolylineDrawModeHandler;
-import com.plot.ui.tools.impl.drawing.helper.PenDrawModeHandler;
-import com.plot.ui.tools.impl.drawing.helper.EditModeHandler;
+import com.plot.ui.tools.impl.drawing.helper.*;
+import com.plot.core.state.AppState;
+import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +36,7 @@ import java.util.List;
  * 2. 钢笔模式：绘制贝塞尔曲线，支持控制点拖动
  * 3. 编辑模式：编辑已存在的线条，支持节点和控制点调整
  */
-public class PolylineTool extends DrawingTool {
+public class PolylineTool extends DrawingTool implements PolylineDrawingSession.GeometrySink {
     private static final Logger LOGGER = LoggerFactory.getLogger(PolylineTool.class);
 
     // ====== 常量定义 ======
@@ -250,7 +249,66 @@ public class PolylineTool extends DrawingTool {
         currentModeHandler = modeHandlers.getOrDefault(drawMode, modeHandlers.get(Constants.Modes.POLYLINE));
         
         LOGGER.debug("多段线工具模式从 {} 更改为 {}", previousMode, drawMode);
+        updateStatusMessageForCurrentMode();
+        activateEditModeIfNeeded();
+    }
+
+    @Override
+    protected void onActivate() {
+        super.onActivate();
+        PolylineDrawingSession.register(this);
+        activateEditModeIfNeeded();
+    }
+
+    @Override
+    protected void onDeactivate() {
+        PolylineDrawingSession.unregister(this);
+        super.onDeactivate();
+    }
+
+    @Override
+    public boolean applySnapshot(DrawingGeometrySnapshot snapshot) {
+        if (snapshot == null || currentModeHandler == null) {
+            return false;
+        }
+        boolean applied = currentModeHandler.applyGeometrySnapshot(snapshot);
+        if (applied) {
+            setToolState(ToolState.DRAWING);
+            updatePreview();
             updateStatusMessageForCurrentMode();
+        }
+        return applied;
+    }
+
+    private void activateEditModeIfNeeded() {
+        if (!Constants.Modes.EDIT.equals(drawMode)) {
+            return;
+        }
+        IModeHandler editHandler = modeHandlers.get(Constants.Modes.EDIT);
+        if (!(editHandler instanceof EditModeHandler handler) || handler.isDrawing()) {
+            return;
+        }
+        if (!(appState instanceof AppState concreteAppState)) {
+            return;
+        }
+        if (concreteAppState.getSelection() == null || concreteAppState.getSelection().isEmpty()) {
+            return;
+        }
+        List<Shape> selected = concreteAppState.getSelection().getShapes();
+        if (selected.size() != 1) {
+            return;
+        }
+        Shape shape = selected.get(0);
+        if (!(shape instanceof PolylineShape || shape instanceof BezierCurveShape)) {
+            return;
+        }
+        List<Vec2d> controlPoints = shape.getControlPoints();
+        if (controlPoints == null || controlPoints.isEmpty()) {
+            return;
+        }
+        handler.beginEditing(shape);
+        setToolState(ToolState.DRAWING);
+        updateStatusMessageForCurrentMode();
     }
 
     private void updateMultipleMode(String value) {

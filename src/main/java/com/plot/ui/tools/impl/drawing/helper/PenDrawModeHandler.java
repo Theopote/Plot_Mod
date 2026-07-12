@@ -40,6 +40,9 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     private final List<PathNode> pathNodes = new ArrayList<>();
     private PenDrawingState state = PenDrawingState.IDLE;
     private PathNode currentNode = null; // 当前正在编辑的节点
+    private static final double NODE_HIT_TOLERANCE = 8.0;
+    private int draggingNodeIndex = -1;
+    private DrawingGeometrySnapshot dragBeforeSnapshot;
     
     public PenDrawModeHandler(StyleHandler styleHandler) {
         super(styleHandler);
@@ -89,10 +92,18 @@ public class PenDrawModeHandler extends AbstractModeHandler {
                 break;
                 
             case WAITING_FOR_POINT:
+                int hitIndex = findAnchorIndex(worldPoint);
+                if (hitIndex >= 0) {
+                    draggingNodeIndex = hitIndex;
+                    dragBeforeSnapshot = captureGeometrySnapshot();
+                    LOGGER.debug("钢笔模式：开始拖拽已有锚点 {}", hitIndex);
+                    break;
+                }
                 // 添加新的锚点
                 PathNode newNode = new PathNode(worldPoint);
                 pathNodes.add(newNode);
                 currentNode = newNode;
+                dragBeforeSnapshot = captureGeometrySnapshot();
                 state = PenDrawingState.DEFINING_HANDLE;
                 context.updateStatusMessage(PenConstants.MSG_DRAG_FOR_CURVE);
                 LOGGER.debug("钢笔模式：添加新锚点，当前节点数：{}", pathNodes.size());
@@ -120,6 +131,20 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
+        if (draggingNodeIndex >= 0) {
+            Vec2d worldPoint = getWorldPoint(pos, context);
+            PathNode node = pathNodes.get(draggingNodeIndex);
+            Vec2d delta = worldPoint.subtract(node.getAnchor());
+            node.restoreState(
+                    worldPoint,
+                    node.getControlPrev().add(delta),
+                    node.getControlNext().add(delta),
+                    node.getType());
+            currentMousePoint = worldPoint;
+            notifyPreviewUpdate(context);
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+
         // 调用父类方法处理基础鼠标移动
         IInteractionStrategy.InteractionResult result = super.onMouseMove(pos, context);
         
@@ -133,15 +158,25 @@ public class PenDrawModeHandler extends AbstractModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
-        // 钢笔模式的松开处理：确认当前状态
         if (isDrawing && button == PenConstants.MOUSE_BUTTON_LEFT) {
             LOGGER.debug("钢笔模式：鼠标松开，当前节点数={}, 状态={}", pathNodes.size(), state);
-            
+
+            if (draggingNodeIndex >= 0) {
+                DrawingGeometrySnapshot after = captureGeometrySnapshot();
+                DrawingEditHistory.commitGeometryEdit(dragBeforeSnapshot, after);
+                draggingNodeIndex = -1;
+                dragBeforeSnapshot = null;
+                return IInteractionStrategy.InteractionResult.CONTINUE;
+            }
+
             if (state == PenDrawingState.DEFINING_HANDLE) {
-                // 完成控制手柄定义，回到等待下一个点的状态
+                DrawingGeometrySnapshot after = captureGeometrySnapshot();
+                DrawingEditHistory.commitGeometryEdit(dragBeforeSnapshot, after);
                 state = PenDrawingState.WAITING_FOR_POINT;
                 currentNode = null;
+                dragBeforeSnapshot = null;
                 context.updateStatusMessage(PenConstants.MSG_DRAG_FOR_CURVE);
+                return IInteractionStrategy.InteractionResult.CONTINUE;
             }
         }
         return IInteractionStrategy.InteractionResult.CONTINUE;
@@ -340,7 +375,43 @@ public class PenDrawModeHandler extends AbstractModeHandler {
         pathNodes.clear();
         state = PenDrawingState.IDLE;
         currentNode = null;
+        draggingNodeIndex = -1;
+        dragBeforeSnapshot = null;
         super.reset(); // 调用父类的 reset 方法
+    }
+
+    @Override
+    public DrawingGeometrySnapshot captureGeometrySnapshot() {
+        return DrawingGeometrySnapshot.pen(pathNodes);
+    }
+
+    @Override
+    public boolean applyGeometrySnapshot(DrawingGeometrySnapshot snapshot) {
+        if (snapshot == null || snapshot.getKind() != DrawingGeometrySnapshot.Kind.PEN) {
+            return false;
+        }
+        pathNodes.clear();
+        for (DrawingGeometrySnapshot.PathNodeSnapshot nodeSnapshot : snapshot.getPathNodes()) {
+            pathNodes.add(nodeSnapshot.toPathNode());
+        }
+        state = pathNodes.isEmpty() ? PenDrawingState.IDLE : PenDrawingState.WAITING_FOR_POINT;
+        currentNode = null;
+        draggingNodeIndex = -1;
+        isDrawing = !pathNodes.isEmpty();
+        return true;
+    }
+
+    private int findAnchorIndex(Vec2d worldPoint) {
+        int nearest = -1;
+        double minDistance = NODE_HIT_TOLERANCE;
+        for (int i = 0; i < pathNodes.size(); i++) {
+            double distance = worldPoint.distance(pathNodes.get(i).getAnchor());
+            if (distance <= minDistance) {
+                minDistance = distance;
+                nearest = i;
+            }
+        }
+        return nearest;
     }
     
     @Override

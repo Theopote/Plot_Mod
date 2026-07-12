@@ -410,6 +410,7 @@ public class LayerNameRenderer {
         if (!newName.equals(layer.getName())) {
             String oldName = layer.getName();
             layerManager.updateLayerProperty(layer, "name", newName);
+            LayerEditHistory.commitProperty(layer.getId(), "name", oldName, newName);
             LOGGER.info("更新图层名称: '{}' -> '{}'", oldName, newName);
         }
         

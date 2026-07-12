@@ -31,6 +31,9 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     
     // 折线特有状态
     private final List<Vec2d> points = new ArrayList<>();
+    private static final double VERTEX_HIT_TOLERANCE = 8.0;
+    private int draggingVertexIndex = -1;
+    private DrawingGeometrySnapshot dragBeforeSnapshot;
     
     public PolylineDrawModeHandler(StyleHandler styleHandler) {
         super(styleHandler);
@@ -79,6 +82,14 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             // 通知工具更新预览
             notifyPreviewUpdate(context);
         } else {
+            int hitIndex = findVertexIndex(worldPoint);
+            if (hitIndex >= 0) {
+                draggingVertexIndex = hitIndex;
+                dragBeforeSnapshot = captureGeometrySnapshot();
+                LOGGER.debug("折线模式：开始拖拽顶点 {}", hitIndex);
+                return IInteractionStrategy.InteractionResult.CONTINUE;
+            }
+
             // 添加新点（Shift 下与预览一致的正交点）
             boolean shiftDown = ImGui.getIO().getKeyShift();
             if (shiftDown && !points.isEmpty()) {
@@ -111,6 +122,14 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     
     @Override
     public IInteractionStrategy.InteractionResult onMouseMove(Vec2d pos, DrawingToolContext context) {
+        if (draggingVertexIndex >= 0) {
+            Vec2d worldPoint = getWorldPoint(pos, context);
+            points.set(draggingVertexIndex, worldPoint);
+            currentMousePoint = worldPoint;
+            notifyPreviewUpdate(context);
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+
         // 基础：获取吸附后的世界坐标
         Vec2d snapped = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
 
@@ -135,6 +154,18 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
             return IInteractionStrategy.InteractionResult.CONTINUE;
         }
         return IInteractionStrategy.InteractionResult.IGNORED;
+    }
+
+    @Override
+    public IInteractionStrategy.InteractionResult onMouseUp(Vec2d pos, int button, DrawingToolContext context) {
+        if (button == 0 && draggingVertexIndex >= 0) {
+            DrawingGeometrySnapshot after = captureGeometrySnapshot();
+            DrawingEditHistory.commitGeometryEdit(dragBeforeSnapshot, after);
+            draggingVertexIndex = -1;
+            dragBeforeSnapshot = null;
+            return IInteractionStrategy.InteractionResult.CONTINUE;
+        }
+        return super.onMouseUp(pos, button, context);
     }
     
     @Override
@@ -187,7 +218,38 @@ public class PolylineDrawModeHandler extends AbstractModeHandler {
     @Override
     public void reset() {
         points.clear();
+        draggingVertexIndex = -1;
+        dragBeforeSnapshot = null;
         super.reset(); // 调用父类的 reset 方法
+    }
+
+    @Override
+    public DrawingGeometrySnapshot captureGeometrySnapshot() {
+        return DrawingGeometrySnapshot.polyline(points);
+    }
+
+    @Override
+    public boolean applyGeometrySnapshot(DrawingGeometrySnapshot snapshot) {
+        if (snapshot == null || snapshot.getKind() != DrawingGeometrySnapshot.Kind.POLYLINE) {
+            return false;
+        }
+        points.clear();
+        points.addAll(snapshot.getPoints());
+        isDrawing = points.size() >= 1;
+        return true;
+    }
+
+    private int findVertexIndex(Vec2d worldPoint) {
+        int nearest = -1;
+        double minDistance = VERTEX_HIT_TOLERANCE;
+        for (int i = 0; i < points.size(); i++) {
+            double distance = worldPoint.distance(points.get(i));
+            if (distance <= minDistance) {
+                minDistance = distance;
+                nearest = i;
+            }
+        }
+        return nearest;
     }
     
     @Override

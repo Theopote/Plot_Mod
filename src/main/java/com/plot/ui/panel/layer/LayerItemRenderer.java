@@ -53,6 +53,10 @@ public class LayerItemRenderer {
     }
 
     private final LayerItemPool itemPool = new LayerItemPool();
+    private LayerEditHistory.LayerColorState pendingColorBefore;
+    private String pendingColorLayerId;
+    private LayerEditHistory.LayerLineStyleState pendingLineStyleBefore;
+    private String pendingLineStyleLayerId;
 
     // === 纹理ID ===
     private int textureLock;
@@ -323,7 +327,9 @@ public class LayerItemRenderer {
                         if (!isSelected) { // 只在实际改变时更新
                             LOGGER.debug("图层 '{}' 线型变更: {} -> {}", 
                                        layer.getName(), currentLineStyle.getType(), type);
-                            
+                            LayerEditHistory.LayerLineStyleState before =
+                                    LayerEditHistory.LayerLineStyleState.capture(layer);
+
                             // 创建新的LineStyle对象，不能直接修改getLineStyle()返回的副本
                             LineStyle newLineStyle = new LineStyle(type, currentLineStyle.getWidth());
                             newLineStyle.setColor(currentLineStyle.getColor());
@@ -333,6 +339,11 @@ public class LayerItemRenderer {
                             
                             // 强制更新该图层上所有图形的线条样式
                             layer.forceUpdateAllShapesLineStyle();
+
+                            LayerEditHistory.commitLineStyleEdit(
+                                    layer,
+                                    before,
+                                    LayerEditHistory.LayerLineStyleState.capture(layer));
                         }
                     }
                     if (isSelected) {
@@ -353,6 +364,10 @@ public class LayerItemRenderer {
         float[] lineWidth = {currentLineStyle.getWidth()};
         boolean widthChanged = ImGui.dragFloat("##linewidth_" + layer.getId(), lineWidth, 
                                               0.1f, 0.1f, 5.0f, "%.1f");
+        if (ImGui.isItemActivated()) {
+            pendingLineStyleBefore = LayerEditHistory.LayerLineStyleState.capture(layer);
+            pendingLineStyleLayerId = layer.getId();
+        }
         
         if (widthChanged && !isLocked) {
             // 确保线宽在有效范围内
@@ -371,6 +386,17 @@ public class LayerItemRenderer {
                 // 强制更新该图层上所有图形的线条样式
                 layer.forceUpdateAllShapesLineStyle();
             }
+        }
+
+        if (ImGui.isItemDeactivatedAfterEdit()
+                && pendingLineStyleBefore != null
+                && layer.getId().equals(pendingLineStyleLayerId)) {
+            LayerEditHistory.commitLineStyleEdit(
+                    layer,
+                    pendingLineStyleBefore,
+                    LayerEditHistory.LayerLineStyleState.capture(layer));
+            pendingLineStyleBefore = null;
+            pendingLineStyleLayerId = null;
         }
         
         if (isLocked && ImGui.isItemHovered()) {
@@ -410,9 +436,9 @@ public class LayerItemRenderer {
 
         ImGui.image(textureId, size, size);
         if (ImGui.isItemClicked()) {
-            layerManager.updateLayerProperty(layer,
-                    "locked",
-                    !layer.isLocked());
+            boolean before = layer.isLocked();
+            layerManager.updateLayerProperty(layer, "locked", !before);
+            LayerEditHistory.commitProperty(layer.getId(), "locked", before, !before);
         }
 
         if (ImGui.isItemHovered()) {
@@ -448,9 +474,9 @@ public class LayerItemRenderer {
 
         ImGui.image(textureId, size, size);
         if (ImGui.isItemClicked()) {
-            layerManager.updateLayerProperty(layer,
-                    "visible",
-                    !layer.isVisible());
+            boolean before = layer.isVisible();
+            layerManager.updateLayerProperty(layer, "visible", !before);
+            LayerEditHistory.commitProperty(layer.getId(), "visible", before, !before);
         }
 
         if (ImGui.isItemHovered()) {
@@ -499,6 +525,11 @@ public class LayerItemRenderer {
         boolean colorChanged = ImGui.colorEdit4("##color_" + layer.getId(), colorArray,
                 ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel);
 
+        if (ImGui.isItemActivated()) {
+            pendingColorBefore = LayerEditHistory.LayerColorState.capture(layer);
+            pendingColorLayerId = layer.getId();
+        }
+
         if (colorChanged && !isLocked) {
             java.awt.Color newColor = new java.awt.Color(
                     colorArray[0], colorArray[1], colorArray[2], colorArray[3]
@@ -512,6 +543,17 @@ public class LayerItemRenderer {
             
             // 强制更新该图层上所有图形的颜色
             layer.forceUpdateAllShapesColor();
+        }
+
+        if (ImGui.isItemDeactivatedAfterEdit()
+                && pendingColorBefore != null
+                && layer.getId().equals(pendingColorLayerId)) {
+            LayerEditHistory.commitColorEdit(
+                    layer,
+                    pendingColorBefore,
+                    LayerEditHistory.LayerColorState.capture(layer));
+            pendingColorBefore = null;
+            pendingColorLayerId = null;
         }
 
         if (isLocked && ImGui.isItemHovered()) {
