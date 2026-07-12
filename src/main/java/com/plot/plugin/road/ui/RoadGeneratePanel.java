@@ -76,6 +76,10 @@ public final class RoadGeneratePanel {
             ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
             ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
             ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
+            ImGui.text(PlotI18n.tr("plugin.road.construction_length_result",
+                lastGenerationResult.normalRoadLength,
+                lastGenerationResult.bridgeLength,
+                lastGenerationResult.tunnelLength));
             ImGui.text(PlotI18n.tr("plugin.road.bridge_count_result",
                 lastGenerationResult.bridgeCount, lastGenerationResult.bridgeBlocks.size()));
             ImGui.text(PlotI18n.tr("plugin.road.tunnel_count_result",

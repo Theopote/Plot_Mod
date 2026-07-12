@@ -176,8 +176,9 @@ public class RoadGenerator {
             List<SegmentHeightInfo> heightInfos,
             double pathLength) {
         List<PathSegment> segments = samplePath(pathPoints);
-        List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
-        List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, terrain);
+        ConstructionDetection detection = detectConstruction(segments, heightInfos, terrain);
+        List<BridgeSegment> bridges = detection.bridges();
+        List<TunnelSegment> tunnels = detection.tunnels();
 
         double halfWidth = crossSection.carriagewayHalfWidth();
         List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
@@ -253,6 +254,7 @@ public class RoadGenerator {
         result.fillVolume = metrics.fillVolume;
         result.bridgeCount = metrics.bridgeCount;
         result.tunnelCount = metrics.tunnelCount;
+        applyConstructionStats(result, detection);
         RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer);
         return result;
     }
@@ -440,27 +442,20 @@ public class RoadGenerator {
     /**
      * 桥段
      */
-    private static class BridgeSegment {
-        final PathSegment segment;
-        final int bridgeHeight;
-        
-        BridgeSegment(PathSegment segment, int bridgeHeight) {
-            this.segment = segment;
-            this.bridgeHeight = bridgeHeight;
-        }
+    private record BridgeSegment(PathSegment segment, int bridgeHeight) {
     }
-    
+
     /**
      * 隧道段
      */
-    private static class TunnelSegment {
-        final PathSegment segment;
-        final int tunnelDepth;
-        
-        TunnelSegment(PathSegment segment, int tunnelDepth) {
-            this.segment = segment;
-            this.tunnelDepth = tunnelDepth;
-        }
+    private record TunnelSegment(PathSegment segment, int tunnelDepth) {
+    }
+
+    private record ConstructionDetection(
+            List<BridgeSegment> bridges,
+            List<TunnelSegment> tunnels,
+            List<RoadConstructionType> constructionTypes,
+            List<Double> segmentDistances) {
     }
     
     /**
@@ -620,46 +615,65 @@ public class RoadGenerator {
     }
     
     /**
-     * 检测桥需求
+     * 基于成本比较检测桥/隧道需求，并返回每段施工类型。
      */
-    private List<BridgeSegment> detectBridges(List<PathSegment> segments, List<SegmentHeightInfo> heightInfos) {
-        List<BridgeSegment> bridges = new ArrayList<>();
-        int bridgeThreshold = config.getBridgeThreshold();
-        
+    private ConstructionDetection detectConstruction(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            TerrainSampler terrain) {
+        List<Double> segmentDistances = new ArrayList<>();
+        List<Integer> groundHeights = new ArrayList<>();
+        List<Integer> targetHeights = new ArrayList<>();
+
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
-            
-            // 如果目标高度明显高于地面高度，需要建桥
-            int heightDifference = info.targetStart - info.groundStart;
-            if (heightDifference > bridgeThreshold) {
-                bridges.add(new BridgeSegment(info.segment, heightDifference));
-            }
+            segmentDistances.add(info.segment.distance);
+            groundHeights.add(info.groundStart);
+            targetHeights.add(info.targetStart);
         }
-        
-        return bridges;
-    }
-    
-    /**
-     * 检测隧道需求
-     */
-    private List<TunnelSegment> detectTunnels(List<PathSegment> segments, List<SegmentHeightInfo> heightInfos, TerrainSampler terrain) {
+
+        RoadConstructionEvaluator.RoadConstructionCostConfig costConfig =
+            RoadConstructionEvaluator.RoadConstructionCostConfig.from(config);
+        List<RoadConstructionType> constructionTypes = RoadConstructionEvaluator.evaluatePath(
+            segmentDistances,
+            groundHeights,
+            targetHeights,
+            costConfig,
+            config.getMinimumConstructionRunLength());
+
+        List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();
-        int tunnelThreshold = config.getTunnelThreshold();
-        
-        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+
+        for (int i = 0; i < constructionTypes.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
-            
-            // 如果地面高度明显高于目标高度，需要挖隧道
-            int heightDifference = info.groundStart - info.targetStart;
-            if (heightDifference > tunnelThreshold) {
+            RoadConstructionType type = constructionTypes.get(i);
+            if (type == RoadConstructionType.BRIDGE) {
+                int heightDifference = info.targetStart - info.groundStart;
+                bridges.add(new BridgeSegment(info.segment, heightDifference));
+            } else if (type == RoadConstructionType.TUNNEL) {
                 BlockPos pos = canvasToBlockPos(info.segment.start);
                 if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
+                    int heightDifference = info.groundStart - info.targetStart;
                     tunnels.add(new TunnelSegment(info.segment, heightDifference));
                 }
             }
         }
-        
-        return tunnels;
+
+        return new ConstructionDetection(bridges, tunnels, constructionTypes, segmentDistances);
+    }
+
+    private static void applyConstructionStats(
+            RoadGenerationResult result,
+            ConstructionDetection detection) {
+        result.constructionTypes.addAll(detection.constructionTypes());
+        for (int i = 0; i < detection.constructionTypes().size(); i++) {
+            double distance = detection.segmentDistances().get(i);
+            switch (detection.constructionTypes().get(i)) {
+                case BRIDGE -> result.bridgeLength += distance;
+                case TUNNEL -> result.tunnelLength += distance;
+                case ROAD, CUT, FILL -> result.normalRoadLength += distance;
+            }
+        }
     }
     
     private void generateRoadBlocksFromBoundaries(
@@ -922,19 +936,19 @@ public class RoadGenerator {
         double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
 
         for (BridgeSegment bridge : bridges) {
-            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, bridge.segment);
+            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, bridge.segment());
             if (info == null) {
                 continue;
             }
-            int samples = Math.max(2, (int) Math.ceil(bridge.segment.distance));
+            int samples = Math.max(2, (int) Math.ceil(bridge.segment().distance));
             for (int j = 0; j <= samples; j++) {
                 if (j % 4 != 0 && j != samples) {
                     continue;
                 }
                 double t = (double) j / samples;
-                double normalized = findNormalizedDistance(segments, bridge.segment, t, totalLength);
+                double normalized = findNormalizedDistance(segments, bridge.segment(), t, totalLength);
                 int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                Vec2d center = bridge.segment.start.lerp(bridge.segment.end, t);
+                Vec2d center = bridge.segment().start.lerp(bridge.segment().end, t);
                 Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
                 Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
                 placeBridgePillars(solids, center, targetY, terrain, pillarBlockId);
@@ -957,15 +971,15 @@ public class RoadGenerator {
         double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
 
         for (TunnelSegment tunnel : tunnels) {
-            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, tunnel.segment);
+            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, tunnel.segment());
             if (info == null) {
                 continue;
             }
-            int headroom = Math.max(3, Math.min(6, tunnel.tunnelDepth + 1));
-            int samples = Math.max(2, (int) Math.ceil(tunnel.segment.distance));
+            int headroom = Math.max(3, Math.min(6, tunnel.tunnelDepth() + 1));
+            int samples = Math.max(2, (int) Math.ceil(tunnel.segment().distance));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
-                double normalized = findNormalizedDistance(segments, tunnel.segment, t, totalLength);
+                double normalized = findNormalizedDistance(segments, tunnel.segment(), t, totalLength);
                 int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
                 Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
                 Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);

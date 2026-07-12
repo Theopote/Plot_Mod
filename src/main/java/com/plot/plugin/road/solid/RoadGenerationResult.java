@@ -1,6 +1,7 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.road.RoadConstructionType;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -24,6 +25,10 @@ public class RoadGenerationResult {
     public int tunnelCount;
     public int streetlightCount;
     public double pathLength;
+    public final List<RoadConstructionType> constructionTypes = new ArrayList<>();
+    public double bridgeLength;
+    public double tunnelLength;
+    public double normalRoadLength;
 
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
@@ -53,5 +58,9 @@ public class RoadGenerationResult {
         tunnelCount += source.tunnelCount;
         streetlightCount += source.streetlightCount;
         pathLength += source.pathLength;
+        constructionTypes.addAll(source.constructionTypes);
+        bridgeLength += source.bridgeLength;
+        tunnelLength += source.tunnelLength;
+        normalRoadLength += source.normalRoadLength;
     }
 }

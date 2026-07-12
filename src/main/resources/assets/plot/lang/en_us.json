@@ -344,6 +344,7 @@
   "plugin.road.cut_volume": "Cut Volume:",
   "plugin.road.cut_volume_result": "Cut volume: %d",
   "plugin.road.fill_volume_result": "Fill volume: %d",
+  "plugin.road.construction_length_result": "Road: %.1f m, bridge: %.1f m, tunnel: %.1f m",
   "plugin.road.bridge_detect_count": "Bridge segments detected: %d (structures not generated yet)",
   "plugin.road.bridge_count_result": "Bridge segments: %d, pillars: %d",
   "plugin.road.tunnel_detect_count": "Tunnel segments detected: %d (structures not generated yet)",

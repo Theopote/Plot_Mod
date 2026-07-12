@@ -32,6 +32,14 @@ public class RoadSystemConfig {
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private int bridgeThreshold = 5; // 桥阈值（方块高度差）
     private int tunnelThreshold = 8; // 隧道阈值（方块高度差）
+    private double fillCostPerVolume = 1.0;
+    private double bridgeBaseCost = 15.0;
+    private double bridgeCostPerLength = 0.8;
+    private double cutCostPerVolume = 1.2;
+    private double tunnelBaseCost = 25.0;
+    private double tunnelCostPerLength = 1.5;
+    private double minimumConsiderationHeight = 2.0;
+    private double minimumConstructionRunLength = 3.0;
     private boolean includeShoulder = false; // 是否包含路肩
     private int shoulderWidth = 1; // 路肩宽度
     private boolean includeDrainage = false; // 是否包含排水沟
@@ -219,6 +227,70 @@ public class RoadSystemConfig {
     
     public void setTunnelThreshold(int tunnelThreshold) {
         this.tunnelThreshold = Math.max(1, Math.min(30, tunnelThreshold));
+    }
+
+    public double getFillCostPerVolume() {
+        return fillCostPerVolume;
+    }
+
+    public void setFillCostPerVolume(double fillCostPerVolume) {
+        this.fillCostPerVolume = Math.max(0.0, fillCostPerVolume);
+    }
+
+    public double getBridgeBaseCost() {
+        return bridgeBaseCost;
+    }
+
+    public void setBridgeBaseCost(double bridgeBaseCost) {
+        this.bridgeBaseCost = Math.max(0.0, bridgeBaseCost);
+    }
+
+    public double getBridgeCostPerLength() {
+        return bridgeCostPerLength;
+    }
+
+    public void setBridgeCostPerLength(double bridgeCostPerLength) {
+        this.bridgeCostPerLength = Math.max(0.0, bridgeCostPerLength);
+    }
+
+    public double getCutCostPerVolume() {
+        return cutCostPerVolume;
+    }
+
+    public void setCutCostPerVolume(double cutCostPerVolume) {
+        this.cutCostPerVolume = Math.max(0.0, cutCostPerVolume);
+    }
+
+    public double getTunnelBaseCost() {
+        return tunnelBaseCost;
+    }
+
+    public void setTunnelBaseCost(double tunnelBaseCost) {
+        this.tunnelBaseCost = Math.max(0.0, tunnelBaseCost);
+    }
+
+    public double getTunnelCostPerLength() {
+        return tunnelCostPerLength;
+    }
+
+    public void setTunnelCostPerLength(double tunnelCostPerLength) {
+        this.tunnelCostPerLength = Math.max(0.0, tunnelCostPerLength);
+    }
+
+    public double getMinimumConsiderationHeight() {
+        return minimumConsiderationHeight;
+    }
+
+    public void setMinimumConsiderationHeight(double minimumConsiderationHeight) {
+        this.minimumConsiderationHeight = Math.max(0.0, minimumConsiderationHeight);
+    }
+
+    public double getMinimumConstructionRunLength() {
+        return minimumConstructionRunLength;
+    }
+
+    public void setMinimumConstructionRunLength(double minimumConstructionRunLength) {
+        this.minimumConstructionRunLength = Math.max(0.0, minimumConstructionRunLength);
     }
     
     public boolean isIncludeShoulder() {

@@ -344,6 +344,7 @@
   "plugin.road.cut_volume": "挖方量:",
   "plugin.road.cut_volume_result": "挖方量: %d",
   "plugin.road.fill_volume_result": "填方量: %d",
+  "plugin.road.construction_length_result": "普通路面: %.1f 米，桥梁: %.1f 米，隧道: %.1f 米",
   "plugin.road.bridge_detect_count": "检测到需建桥段: %d（尚未生成桥体）",
   "plugin.road.bridge_count_result": "桥段 %d 段，桥墩 %d 个",
   "plugin.road.tunnel_detect_count": "检测到需挖隧道段: %d（尚未生成隧道体）",
