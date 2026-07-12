@@ -35,10 +35,15 @@ public final class RoadNetworkManager {
 
     private int lastBatchSelectionSize = -1;
     private int batchEditWidth = 5;
+    private int batchEditLaneCount = 1;
     private String batchEditMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String batchEditSidewalkMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private boolean batchIncludeShoulder = false;
+    private int batchEditShoulderWidth = 1;
     private boolean batchIncludeSidewalk = true;
     private int batchEditSidewalkWidth = 1;
+    private boolean batchIncludeDrainage = false;
+    private boolean batchLaneDividers = false;
     private float batchEditMaxSlope = 10f;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
@@ -284,9 +289,14 @@ public final class RoadNetworkManager {
             return currentBatchEditDefaults();
         }
         batchEditWidth = road.getWidth() != null ? road.getWidth() : config.getRoadWidth();
+        batchEditLaneCount = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
         batchEditMaterial = road.getMaterial() != null
             ? road.getMaterial()
             : config.getSelectedMaterial();
+        batchIncludeShoulder = road.getEffectiveIncludeShoulder(config);
+        batchEditShoulderWidth = road.getShoulderWidth() != null
+            ? road.getShoulderWidth()
+            : config.getShoulderWidth();
         batchIncludeSidewalk = road.getEffectiveIncludeSidewalk(config);
         batchEditSidewalkWidth = road.getSidewalkWidth() != null
             ? road.getSidewalkWidth()
@@ -294,6 +304,10 @@ public final class RoadNetworkManager {
         batchEditSidewalkMaterial = road.getSidewalkMaterial() != null
             ? road.getSidewalkMaterial()
             : config.getSelectedSidewalkMaterial();
+        batchIncludeDrainage = road.getEffectiveIncludeDrainage(config);
+        batchLaneDividers = road.getLaneDividers() != null
+            ? road.getLaneDividers()
+            : batchEditLaneCount > 1;
         batchEditMaxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         return currentBatchEditDefaults();
     }
@@ -301,20 +315,30 @@ public final class RoadNetworkManager {
     public BatchEditDefaults currentBatchEditDefaults() {
         return new BatchEditDefaults(
             batchEditWidth,
+            batchEditLaneCount,
             batchEditMaterial,
+            batchIncludeShoulder,
+            batchEditShoulderWidth,
             batchIncludeSidewalk,
             batchEditSidewalkWidth,
             batchEditSidewalkMaterial,
+            batchIncludeDrainage,
+            batchLaneDividers,
             batchEditMaxSlope
         );
     }
 
     public void updateBatchEditDraft(BatchEditDefaults draft) {
         batchEditWidth = draft.width();
+        batchEditLaneCount = draft.laneCount();
         batchEditMaterial = draft.material();
+        batchIncludeShoulder = draft.includeShoulder();
+        batchEditShoulderWidth = draft.shoulderWidth();
         batchIncludeSidewalk = draft.includeSidewalk();
         batchEditSidewalkWidth = draft.sidewalkWidth();
         batchEditSidewalkMaterial = draft.sidewalkMaterial();
+        batchIncludeDrainage = draft.includeDrainage();
+        batchLaneDividers = draft.laneDividers();
         batchEditMaxSlope = draft.maxSlope();
     }
 
@@ -348,12 +372,19 @@ public final class RoadNetworkManager {
 
     private static void applyDraftToRoad(Road road, BatchEditDefaults draft) {
         road.setWidth(draft.width());
+        road.setLaneCount(draft.laneCount());
         road.setMaterial(draft.material());
+        road.setIncludeShoulder(draft.includeShoulder());
+        if (draft.includeShoulder()) {
+            road.setShoulderWidth(draft.shoulderWidth());
+        }
         road.setIncludeSidewalk(draft.includeSidewalk());
         if (draft.includeSidewalk()) {
             road.setSidewalkWidth(draft.sidewalkWidth());
             road.setSidewalkMaterial(draft.sidewalkMaterial());
         }
+        road.setIncludeDrainage(draft.includeDrainage());
+        road.setLaneDividers(draft.laneDividers());
         road.setMaxSlope(draft.maxSlope());
     }
 
@@ -416,10 +447,15 @@ public final class RoadNetworkManager {
 
     public record BatchEditDefaults(
             int width,
+            int laneCount,
             String material,
+            boolean includeShoulder,
+            int shoulderWidth,
             boolean includeSidewalk,
             int sidewalkWidth,
             String sidewalkMaterial,
+            boolean includeDrainage,
+            boolean laneDividers,
             float maxSlope) {
     }
 }

@@ -90,31 +90,69 @@ public final class RoadEdgeListPanel {
         if (edges.isEmpty()) {
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_empty"));
         }
-        for (RoadEdge edge : edges) {
-            ImGui.pushID(edge.getId());
-            String label = RoadEdgeListHelper.formatEdgeLabel(network, edge);
-            boolean selected = ctx.networkManager().getSelectedEdgeIds().contains(edge.getId());
-
-            float rowWidth = ImGui.getContentRegionAvail().x;
-            float selectableWidth = showDelete
-                ? Math.max(0.0f, rowWidth - deleteButtonWidth - ImGui.getStyle().getItemSpacingX())
-                : rowWidth;
-            if (ImGui.selectable(label + "##sel", selected, 0, selectableWidth, 0.0f)) {
-                ctx.networkManager().handleEdgeSelect(edge.getId(), ImGui.getIO().getKeyCtrl());
-            }
-            if (showDelete) {
-                ImGui.sameLine(0.0f, ImGui.getStyle().getItemSpacingX());
-                ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
-                if (ImGui.smallButton(deleteLabel + "##del")) {
-                    ctx.requestDeleteEdge(edge.getId());
-                }
-                ImGui.popStyleColor(3);
-            }
-            ImGui.popID();
+        if (ctx.edgeSortMode() == RoadEdgeListHelper.SortMode.ROAD_GROUP) {
+            renderGroupedList(network, edges, showDelete, deleteButtonWidth);
+        } else {
+            renderFlatList(network, edges, showDelete, deleteButtonWidth, deleteLabel);
         }
         ImGui.endChild();
+    }
+
+    private void renderFlatList(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            boolean showDelete,
+            float deleteButtonWidth,
+            String deleteLabel) {
+        for (RoadEdge edge : edges) {
+            renderEdgeRow(network, edge, showDelete, deleteButtonWidth, deleteLabel, null);
+        }
+    }
+
+    private void renderGroupedList(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            boolean showDelete,
+            float deleteButtonWidth) {
+        String deleteLabel = PlotI18n.tr("plugin.road.delete");
+        for (RoadEdgeListHelper.RoadGroup group : RoadEdgeListHelper.groupByRoad(network, edges)) {
+            if (ImGui.collapsingHeader(group.label() + " (" + group.edges().size() + ")##" + group.roadId())) {
+                for (RoadEdge edge : group.edges()) {
+                    renderEdgeRow(network, edge, showDelete, deleteButtonWidth, deleteLabel, "  ");
+                }
+            }
+        }
+    }
+
+    private void renderEdgeRow(
+            RoadNetwork network,
+            RoadEdge edge,
+            boolean showDelete,
+            float deleteButtonWidth,
+            String deleteLabel,
+            String prefix) {
+        ImGui.pushID(edge.getId());
+        String label = (prefix != null ? prefix : "") + RoadEdgeListHelper.formatEdgeLabel(network, edge);
+        boolean selected = ctx.networkManager().getSelectedEdgeIds().contains(edge.getId());
+
+        float rowWidth = ImGui.getContentRegionAvail().x;
+        float selectableWidth = showDelete
+            ? Math.max(0.0f, rowWidth - deleteButtonWidth - ImGui.getStyle().getItemSpacingX())
+            : rowWidth;
+        if (ImGui.selectable(label + "##sel", selected, 0, selectableWidth, 0.0f)) {
+            ctx.networkManager().handleEdgeSelect(edge.getId(), ImGui.getIO().getKeyCtrl());
+        }
+        if (showDelete) {
+            ImGui.sameLine(0.0f, ImGui.getStyle().getItemSpacingX());
+            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
+            if (ImGui.smallButton(deleteLabel + "##del")) {
+                ctx.requestDeleteEdge(edge.getId());
+            }
+            ImGui.popStyleColor(3);
+        }
+        ImGui.popID();
     }
 
     public void renderDeleteConfirmPopup() {

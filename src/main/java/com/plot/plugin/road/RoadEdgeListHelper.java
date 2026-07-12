@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -21,7 +22,8 @@ public final class RoadEdgeListHelper {
         LENGTH_ASC("plugin.road.sort.length_asc"),
         LENGTH_DESC("plugin.road.sort.length_desc"),
         START_X("plugin.road.sort.start_x"),
-        START_Y("plugin.road.sort.start_y");
+        START_Y("plugin.road.sort.start_y"),
+        ROAD_GROUP("plugin.road.sort.road_group");
 
         private final String i18nKey;
 
@@ -47,6 +49,27 @@ public final class RoadEdgeListHelper {
     }
 
     private RoadEdgeListHelper() {
+    }
+
+    public record RoadGroup(String roadId, String label, List<RoadEdge> edges) {
+        public RoadGroup {
+            edges = List.copyOf(edges);
+        }
+    }
+
+    public static String formatRoadLabel(RoadNetwork network, Road road) {
+        if (road == null) {
+            return PlotI18n.tr("plugin.road.unassigned_road");
+        }
+        String name = road.getName();
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        int segmentCount = road.getSegmentIds().size();
+        int width = road.getWidth() != null ? road.getWidth() : 0;
+        int lanes = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
+        return PlotI18n.tr("plugin.road.road_label", road.getId().substring(0, Math.min(8, road.getId().length())),
+            lanes, width, segmentCount);
     }
 
     public static String formatEdgeLabel(RoadNetwork network, RoadEdge edge) {
@@ -84,6 +107,20 @@ public final class RoadEdgeListHelper {
         return result;
     }
 
+    public static List<RoadGroup> groupByRoad(RoadNetwork network, List<RoadEdge> edges) {
+        java.util.LinkedHashMap<String, List<RoadEdge>> grouped = new java.util.LinkedHashMap<>();
+        for (RoadEdge edge : edges) {
+            String roadId = edge.getRoadId() != null ? edge.getRoadId() : "";
+            grouped.computeIfAbsent(roadId, key -> new ArrayList<>()).add(edge);
+        }
+        List<RoadGroup> groups = new ArrayList<>();
+        for (var entry : grouped.entrySet()) {
+            Road road = entry.getKey().isBlank() ? null : network.getRoad(entry.getKey());
+            groups.add(new RoadGroup(entry.getKey(), formatRoadLabel(network, road), entry.getValue()));
+        }
+        return groups;
+    }
+
     private static boolean matchesSearch(RoadNetwork network, RoadEdge edge, String query) {
         if (query.isEmpty()) {
             return true;
@@ -113,6 +150,7 @@ public final class RoadEdgeListHelper {
             case LENGTH_DESC -> Comparator.comparingDouble(RoadEdge::getLength).reversed();
             case START_X -> Comparator.comparingDouble(edge -> startX(network, edge));
             case START_Y -> Comparator.comparingDouble(edge -> startY(network, edge));
+            case ROAD_GROUP -> Comparator.comparing(edge -> edge.getRoadId() != null ? edge.getRoadId() : "");
         };
     }
 

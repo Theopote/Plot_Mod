@@ -2,6 +2,7 @@ package com.plot.plugin.road.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.core.geometry.shapes.PolylineShape;
 import org.junit.jupiter.api.Test;
@@ -222,6 +223,35 @@ class RoadNetworkTest {
         assertEquals(7, road.getWidth());
         assertEquals(5.0f, road.getMaxSlope());
         assertEquals(List.of("e1"), List.copyOf(road.getSegmentIds()));
+    }
+
+    @Test
+    void presetBuildsCrossSectionWithLaneCount() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadSystemConfig.RoadPreset preset = config.getPresets().getFirst();
+        RoadCrossSection section = RoadCrossSection.fromPreset(preset);
+
+        assertEquals(preset.width, section.getCarriageway().getWidth());
+        assertEquals(preset.hasSidewalk, section.getSidewalk().getEnabled());
+        assertEquals(preset.includeShoulder, section.getShoulder().getEnabled());
+    }
+
+    @Test
+    void roadApplyPresetUpdatesCrossSection() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        Road road = new Road();
+        RoadSystemConfig.RoadPreset preset = config.getPresets().stream()
+            .filter(p -> "city_main".equals(p.id))
+            .findFirst()
+            .orElse(config.getPresets().getFirst());
+
+        road.applyPreset(preset);
+
+        assertEquals(preset.width, road.getWidth());
+        assertEquals(preset.includeShoulder, road.getIncludeShoulder());
+        if (preset.maxSlope > 0f) {
+            assertEquals(preset.maxSlope, road.getMaxSlope());
+        }
     }
 
     @Test
