@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -68,7 +69,9 @@ public class RoadNetworkGenerator {
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
                 junctionGenerator.generateJunction(node, network, world);
-            if (!junctionBlocks.roadBlocks.isEmpty() || !junctionBlocks.sidewalkBlocks.isEmpty()) {
+            if (!junctionBlocks.roadBlocks.isEmpty()
+                || !junctionBlocks.sidewalkBlocks.isEmpty()
+                || !junctionBlocks.markingBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
         }
@@ -95,6 +98,12 @@ public class RoadNetworkGenerator {
                 entry.getValue(),
                 roadGenerator.getBlockIdFromMaterial(roadMaterial),
                 roadGenerator.getBlockIdFromMaterial(sidewalkMaterial)
+            );
+            String markingMaterial = resolveJunctionMarkingMaterial(node, network, config);
+            roadGenerator.mergeJunctionMarkings(
+                aggregate,
+                entry.getValue(),
+                roadGenerator.getBlockIdFromMaterial(markingMaterial)
             );
         }
         return aggregate;
@@ -129,6 +138,29 @@ public class RoadNetworkGenerator {
             }
         }
         return selectedMaterial != null ? selectedMaterial : fallback;
+    }
+
+    static String resolveJunctionMarkingMaterial(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        if (node == null || network == null) {
+            return ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+        }
+        String selectedMaterial = null;
+        int widestRoad = -1;
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) {
+                continue;
+            }
+            int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
+            if (width >= widestRoad) {
+                widestRoad = width;
+                selectedMaterial = RoadModelUtils.resolveCrossSection(network, edge, config).markingMaterial;
+            }
+        }
+        return selectedMaterial != null ? selectedMaterial : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     }
 
     public static World getClientWorld() {

@@ -2,6 +2,7 @@ package com.plot.plugin.road.manager;
 
 import com.plot.core.model.Project;
 import com.plot.core.state.AppState;
+import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.utils.PlotI18n;
@@ -10,11 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.function.Consumer;
 
 /**
@@ -61,7 +58,7 @@ public final class RoadPersistenceManager {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentNetworkFile = hashPath(filePath) + ".json";
+        currentNetworkFile = ProjectPathHasher.projectFileName(filePath);
         loadNetworkFile(getNetworksDir().resolve(currentNetworkFile), onLoaded, onSelectionReset);
         status.set(PlotI18n.tr("plugin.road.network.loaded", filePath));
     }
@@ -70,7 +67,7 @@ public final class RoadPersistenceManager {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentNetworkFile = hashPath(filePath) + ".json";
+        currentNetworkFile = ProjectPathHasher.projectFileName(filePath);
         status.set(PlotI18n.tr("plugin.road.network.saved", filePath));
     }
 
@@ -123,15 +120,5 @@ public final class RoadPersistenceManager {
 
     public Path getNetworksDir() {
         return dataFolder.toPath().resolve("networks");
-    }
-
-    private static String hashPath(String filePath) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(filePath.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash).substring(0, 16);
-        } catch (NoSuchAlgorithmException e) {
-            return DEFAULT_NETWORK_FILE.replace(".json", "");
-        }
     }
 }

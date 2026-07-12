@@ -255,6 +255,34 @@ class RoadNetworkTest {
     }
 
     @Test
+    void jsonRoundTripPreservesCenterLineStyle() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        Road road = network.createRoad();
+        road.setCenterLineStyle(com.plot.plugin.road.model.section.CenterLineStyle.DOUBLE_SOLID);
+        road.setMarkingMaterial(com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
+        road.setWidth(9);
+        road.getCrossSection().getCarriageway().setLaneCount(2);
+        road.getCrossSection().getCarriageway().setLaneWidthAt(0, 4);
+        road.getCrossSection().getCarriageway().setLaneWidthAt(1, 5);
+        network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)
+        ), road.getId());
+
+        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        Road restoredRoad = restored.getRoad(road.getId());
+
+        assertNotNull(restoredRoad);
+        assertEquals(com.plot.plugin.road.model.section.CenterLineStyle.DOUBLE_SOLID,
+            restoredRoad.getCenterLineStyle());
+        assertEquals(com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK,
+            restoredRoad.getMarkingMaterial());
+        assertEquals(List.of(4, 5),
+            restoredRoad.getCrossSection().getCarriageway().resolveLaneWidths(9));
+    }
+
+    @Test
     void jsonRoundTripPreservesCrossSection() {
         RoadNetwork network = new RoadNetwork();
         RoadNode start = network.createNode(new Vec2d(0, 0));

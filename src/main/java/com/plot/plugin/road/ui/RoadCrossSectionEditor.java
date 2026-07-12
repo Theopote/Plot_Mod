@@ -3,6 +3,8 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.Lane;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
@@ -10,6 +12,9 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.type.ImBoolean;
+import imgui.type.ImInt;
+
+import java.util.List;
 
 /**
  * 道路横断面编辑（行车道、路肩、人行道、标线等），编辑 Tab 与批量编辑共用。
@@ -89,6 +94,26 @@ public final class RoadCrossSectionEditor {
         }
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
+        }
+
+        if (laneCount[0] > 1) {
+            road.getCrossSection().getCarriageway().syncLaneCount(laneCount[0]);
+            List<Integer> resolved = road.getCrossSection().getCarriageway().resolveLaneWidths(width[0]);
+            for (int i = 0; i < laneCount[0]; i++) {
+                List<Lane> lanes = road.getCrossSection().getCarriageway().getLanes();
+                Lane lane = i < lanes.size() ? lanes.get(i) : new Lane();
+                int[] laneWidth = {
+                    lane.getWidth() != null ? lane.getWidth() : resolved.get(i)
+                };
+                if (ImGui.sliderInt(
+                    PlotI18n.tr("plugin.road.lane_width_label", i + 1, laneWidth[0]) + "##lane_" + i,
+                    laneWidth, 1, width[0], "%d")) {
+                    road.getCrossSection().getCarriageway().setLaneWidthAt(i, laneWidth[0]);
+                }
+                if (ImGui.isItemActivated() && onHistory != null) {
+                    onHistory.run();
+                }
+            }
         }
 
         RoadUiWidgets.renderBlockMaterialPicker(
@@ -201,6 +226,24 @@ public final class RoadCrossSectionEditor {
             road.setLaneDividers(laneDividersRef.get());
         }
 
+        renderCenterLineStylePicker(road, onHistory);
+
+        RoadUiWidgets.renderBlockMaterialPicker(
+            ctx,
+            "##marking_material",
+            PlotI18n.tr("plugin.road.marking_material"),
+            road.getMarkingMaterial() != null
+                ? road.getMarkingMaterial()
+                : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
+            material -> {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setMarkingMaterial(material);
+            },
+            true
+        );
+
         float[] maxSlope = {road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope()};
         if (EngineeringSlopeInput.render(
             "road_max_slope",
@@ -220,6 +263,34 @@ public final class RoadCrossSectionEditor {
         }
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
+        }
+    }
+
+    private static void renderCenterLineStylePicker(Road road, Runnable onHistory) {
+        CenterLineStyle current = road.getCenterLineStyle() != null
+            ? road.getCenterLineStyle()
+            : CenterLineStyle.NONE;
+        String[] labels = {
+            PlotI18n.tr("plugin.road.center_line.none"),
+            PlotI18n.tr("plugin.road.center_line.single_dashed"),
+            PlotI18n.tr("plugin.road.center_line.double_solid")
+        };
+        ImInt styleIndex = new ImInt(switch (current) {
+            case SINGLE_DASHED -> 1;
+            case DOUBLE_SOLID -> 2;
+            default -> 0;
+        });
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
+        if (ImGui.combo(PlotI18n.tr("plugin.road.center_line_style") + "##center_line", styleIndex, labels)) {
+            CenterLineStyle selected = switch (styleIndex.get()) {
+                case 1 -> CenterLineStyle.SINGLE_DASHED;
+                case 2 -> CenterLineStyle.DOUBLE_SOLID;
+                default -> CenterLineStyle.NONE;
+            };
+            road.setCenterLineStyle(selected);
+            if (onHistory != null) {
+                onHistory.run();
+            }
         }
     }
 }

@@ -261,6 +261,20 @@ public class RoadGenerator {
         }
     }
 
+    public void mergeJunctionMarkings(
+            RoadGenerationResult target,
+            RoadJunctionGenerator.JunctionBlocks junction,
+            String markingBlockId) {
+        if (target == null || junction == null || markingBlockId == null) {
+            return;
+        }
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        for (BlockPos pos : junction.markingBlocks) {
+            target.roadBlocks.add(pos);
+            recordBlockOverride(target, pos, markingBlockId, projectionHandler);
+        }
+    }
+
     private void recordBlockOverride(
             RoadGenerationResult result,
             BlockPos pos,

@@ -21,6 +21,7 @@ import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
+import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
@@ -41,12 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -779,7 +776,7 @@ public class EarthworkPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentProjectFile = hashPath(filePath) + ".json";
+        currentProjectFile = ProjectPathHasher.projectFileName(filePath);
         loadProjectFile(getProjectsDir().resolve(currentProjectFile));
         projectStatus = PlotI18n.tr("plugin.earthwork.project.loaded", filePath);
     }
@@ -788,7 +785,7 @@ public class EarthworkPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentProjectFile = hashPath(filePath) + ".json";
+        currentProjectFile = ProjectPathHasher.projectFileName(filePath);
         saveProjectFile(getProjectsDir().resolve(currentProjectFile));
         projectStatus = PlotI18n.tr("plugin.earthwork.project.saved", filePath);
     }
@@ -832,15 +829,5 @@ public class EarthworkPlugin extends Plugin {
 
     private Path getProjectsDir() {
         return getDataFolder().toPath().resolve("projects");
-    }
-
-    private String hashPath(String filePath) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(filePath.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash).substring(0, 16);
-        } catch (NoSuchAlgorithmException e) {
-            return DEFAULT_PROJECT_FILE.replace(".json", "");
-        }
     }
 }

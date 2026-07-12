@@ -1,11 +1,15 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 道路横断面示意预览（ImGui 绘制，不依赖 World）。
@@ -18,6 +22,7 @@ public final class RoadCrossSectionPreviewRenderer {
     private static final int COLOR_LABEL = 0xFFAAAAAA;
     private static final int COLOR_BORDER = 0xFF606060;
     private static final int COLOR_BG = 0xFF2A2A2A;
+    private static final int COLOR_MARKING = 0xFFE8E8E8;
 
     private RoadCrossSectionPreviewRenderer() {
     }
@@ -81,7 +86,10 @@ public final class RoadCrossSectionPreviewRenderer {
         cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
         cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
         cursorX = drawBand(drawList, layout.leftShoulderBlocks, cursorX, deckY, deckY + deckH, scale, layout.shoulderColor);
+        float roadStartX = cursorX;
         cursorX = drawBand(drawList, layout.roadBlocks, cursorX, deckY, deckY + deckH, scale, layout.roadColor);
+        float roadWidthPx = layout.roadBlocks * scale;
+        drawRoadMarkings(drawList, layout, roadStartX, roadWidthPx, deckY, deckH);
         cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckY + deckH, scale, layout.shoulderColor);
         cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
         drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
@@ -124,6 +132,32 @@ public final class RoadCrossSectionPreviewRenderer {
 
         String label = PlotI18n.tr("plugin.road.cross_section_scale", (int) Math.round(totalBlocks));
         drawList.addText(x0 + padding, y0 + padding * 0.5f, COLOR_LABEL, label);
+    }
+
+    private static void drawRoadMarkings(
+            ImDrawList drawList,
+            CrossSectionLayout layout,
+            float roadStartX,
+            float roadWidthPx,
+            float deckY,
+            float deckH) {
+        if (roadWidthPx <= 0f) {
+            return;
+        }
+        if (layout.medianBlocks > 0f) {
+            float medianPx = layout.medianBlocks * (roadWidthPx / Math.max(1f, layout.roadBlocks));
+            float medianX = roadStartX + roadWidthPx * 0.5f - medianPx * 0.5f;
+            drawList.addRectFilled(medianX, deckY, medianX + medianPx, deckY + deckH, layout.medianColor);
+            drawList.addRect(medianX, deckY, medianX + medianPx, deckY + deckH, COLOR_BORDER);
+        }
+        int markingColor = layout.markingColor != 0 ? layout.markingColor : COLOR_MARKING;
+        for (Float ratio : layout.markingLineRatios) {
+            if (ratio == null) {
+                continue;
+            }
+            float x = roadStartX + roadWidthPx * Math.max(0f, Math.min(1f, ratio));
+            drawList.addLine(x, deckY + 1f, x, deckY + deckH - 1f, markingColor, 1.8f);
+        }
     }
 
     private static float drawBand(
@@ -185,6 +219,10 @@ public final class RoadCrossSectionPreviewRenderer {
         public final int roadColor;
         public final int sidewalkColor;
         public final int shoulderColor;
+        public final float medianBlocks;
+        public final int medianColor;
+        public final List<Float> markingLineRatios;
+        public final int markingColor;
 
         private CrossSectionLayout(
                 float roadBlocks,
@@ -200,7 +238,11 @@ public final class RoadCrossSectionPreviewRenderer {
                 float maxSlopePercent,
                 int roadColor,
                 int sidewalkColor,
-                int shoulderColor) {
+                int shoulderColor,
+                float medianBlocks,
+                int medianColor,
+                List<Float> markingLineRatios,
+                int markingColor) {
             this.roadBlocks = roadBlocks;
             this.leftShoulderBlocks = leftShoulderBlocks;
             this.rightShoulderBlocks = rightShoulderBlocks;
@@ -215,6 +257,47 @@ public final class RoadCrossSectionPreviewRenderer {
             this.roadColor = roadColor;
             this.sidewalkColor = sidewalkColor;
             this.shoulderColor = shoulderColor;
+            this.medianBlocks = medianBlocks;
+            this.medianColor = medianColor;
+            this.markingLineRatios = markingLineRatios != null ? List.copyOf(markingLineRatios) : List.of();
+            this.markingColor = markingColor;
+        }
+
+        private static CrossSectionLayout create(
+                float roadBlocks,
+                float leftShoulderBlocks,
+                float rightShoulderBlocks,
+                float leftSidewalkBlocks,
+                float rightSidewalkBlocks,
+                float drainageBlocks,
+                boolean includeShoulder,
+                float shoulderBlocks,
+                float fillSlopeRatio,
+                float cutSlopeRatio,
+                float maxSlopePercent,
+                int roadColor,
+                int sidewalkColor,
+                int shoulderColor) {
+            return new CrossSectionLayout(
+                roadBlocks,
+                leftShoulderBlocks,
+                rightShoulderBlocks,
+                leftSidewalkBlocks,
+                rightSidewalkBlocks,
+                drainageBlocks,
+                includeShoulder,
+                shoulderBlocks,
+                fillSlopeRatio,
+                cutSlopeRatio,
+                maxSlopePercent,
+                roadColor,
+                sidewalkColor,
+                shoulderColor,
+                0f,
+                0,
+                List.of(),
+                0
+            );
         }
 
         public static CrossSectionLayout fromResolved(ResolvedCrossSection section, float maxSlopePercent) {
@@ -222,6 +305,7 @@ public final class RoadCrossSectionPreviewRenderer {
             float shoulder = section.includeShoulder ? Math.max(0, section.shoulderWidth) : 0f;
             float sidewalk = section.includeSidewalk ? Math.max(0, section.sidewalkWidth) : 0f;
             float drainage = section.includeDrain ? 0.5f : 0f;
+            List<Float> markingRatios = buildMarkingRatios(section, road);
             return new CrossSectionLayout(
                 road,
                 shoulder, shoulder,
@@ -234,8 +318,31 @@ public final class RoadCrossSectionPreviewRenderer {
                 maxSlopePercent,
                 colorForMaterial(section.carriagewayMaterial, 0xFF707070),
                 colorForMaterial(section.sidewalkMaterial, 0xFF989898),
-                colorForMaterial(section.shoulderMaterial, 0xFFB8A070)
+                colorForMaterial(section.shoulderMaterial, 0xFFB8A070),
+                section.includeMedian ? section.medianWidth : 0f,
+                colorForMaterial(section.medianMaterial, 0xFF6FA856),
+                markingRatios,
+                colorForMaterial(section.markingMaterial, COLOR_MARKING)
             );
+        }
+
+        private static List<Float> buildMarkingRatios(ResolvedCrossSection section, float roadWidth) {
+            List<Float> ratios = new ArrayList<>();
+            double half = roadWidth / 2.0;
+            if (section.laneDividers) {
+                for (Double offset : section.laneDividerOffsets) {
+                    if (offset != null) {
+                        ratios.add((float) ((offset + half) / roadWidth));
+                    }
+                }
+            }
+            if (section.centerLineStyle == CenterLineStyle.SINGLE_DASHED) {
+                ratios.add(0.5f);
+            } else if (section.centerLineStyle == CenterLineStyle.DOUBLE_SOLID) {
+                ratios.add(0.45f);
+                ratios.add(0.55f);
+            }
+            return ratios;
         }
 
         public static CrossSectionLayout fromConfig(RoadSystemConfig config) {
@@ -243,7 +350,7 @@ public final class RoadCrossSectionPreviewRenderer {
             float shoulder = config.isIncludeShoulder() ? Math.max(0, config.getShoulderWidth()) : 0f;
             float sidewalk = config.isIncludeSidewalk() ? Math.max(0, config.getSidewalkWidth()) : 0f;
             float drainage = config.isIncludeDrainage() ? 0.5f : 0f;
-            return new CrossSectionLayout(
+            return create(
                 road,
                 shoulder, shoulder,
                 sidewalk, sidewalk,
@@ -266,7 +373,7 @@ public final class RoadCrossSectionPreviewRenderer {
             float drainage = preset.includeDrainage ? 0.5f : 0f;
             String roadMat = preset.roadMaterial != null ? preset.roadMaterial : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
             String swMat = preset.sidewalkMaterial != null ? preset.sidewalkMaterial : roadMat;
-            return new CrossSectionLayout(
+            return create(
                 road,
                 shoulder, shoulder,
                 sidewalk, sidewalk,

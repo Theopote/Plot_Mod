@@ -9,6 +9,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,8 @@ public final class RoadNetworkManager {
     private int batchEditSidewalkWidth = 1;
     private boolean batchIncludeDrainage = false;
     private boolean batchLaneDividers = false;
+    private CenterLineStyle batchCenterLineStyle = CenterLineStyle.NONE;
+    private String batchMarkingMaterial = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     private float batchEditMaxSlope = 10f;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
@@ -308,6 +312,12 @@ public final class RoadNetworkManager {
         batchLaneDividers = road.getLaneDividers() != null
             ? road.getLaneDividers()
             : batchEditLaneCount > 1;
+        batchCenterLineStyle = road.getCenterLineStyle() != null
+            ? road.getCenterLineStyle()
+            : CenterLineStyle.NONE;
+        batchMarkingMaterial = road.getMarkingMaterial() != null
+            ? road.getMarkingMaterial()
+            : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         batchEditMaxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         return currentBatchEditDefaults();
     }
@@ -324,6 +334,8 @@ public final class RoadNetworkManager {
             batchEditSidewalkMaterial,
             batchIncludeDrainage,
             batchLaneDividers,
+            batchCenterLineStyle,
+            batchMarkingMaterial,
             batchEditMaxSlope
         );
     }
@@ -339,6 +351,8 @@ public final class RoadNetworkManager {
         batchEditSidewalkMaterial = draft.sidewalkMaterial();
         batchIncludeDrainage = draft.includeDrainage();
         batchLaneDividers = draft.laneDividers();
+        batchCenterLineStyle = draft.centerLineStyle();
+        batchMarkingMaterial = draft.markingMaterial();
         batchEditMaxSlope = draft.maxSlope();
     }
 
@@ -385,6 +399,8 @@ public final class RoadNetworkManager {
         }
         road.setIncludeDrainage(draft.includeDrainage());
         road.setLaneDividers(draft.laneDividers());
+        road.setCenterLineStyle(draft.centerLineStyle());
+        road.setMarkingMaterial(draft.markingMaterial());
         road.setMaxSlope(draft.maxSlope());
     }
 
@@ -456,6 +472,8 @@ public final class RoadNetworkManager {
             String sidewalkMaterial,
             boolean includeDrainage,
             boolean laneDividers,
+            CenterLineStyle centerLineStyle,
+            String markingMaterial,
             float maxSlope) {
     }
 }

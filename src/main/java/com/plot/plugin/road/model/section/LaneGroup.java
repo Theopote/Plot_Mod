@@ -61,6 +61,14 @@ public class LaneGroup {
         this.lanes = lanes != null ? new ArrayList<>(lanes) : new ArrayList<>();
     }
 
+    public void setLaneWidthAt(int index, int width) {
+        if (index < 0) {
+            return;
+        }
+        syncLaneCount(Math.max(getEffectiveLaneCount(), index + 1));
+        lanes.get(index).setWidth(width);
+    }
+
     public void syncLaneCount(int count) {
         laneCount = Math.max(1, count);
         if (lanes == null) {

@@ -2,6 +2,8 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -24,6 +26,8 @@ public final class RoadBatchCrossSectionEditor {
         final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
         boolean includeDrainage = draft.includeDrainage();
         boolean laneDividers = draft.laneDividers();
+        CenterLineStyle centerLineStyle = draft.centerLineStyle();
+        final String[] markingMaterial = {draft.markingMaterial()};
         float maxSlope = draft.maxSlope();
 
         int[] laneCountArr = {laneCount};
@@ -91,6 +95,33 @@ public final class RoadBatchCrossSectionEditor {
             laneDividers = laneDividersRef.get();
         }
 
+        String[] centerLineLabels = {
+            PlotI18n.tr("plugin.road.center_line.none"),
+            PlotI18n.tr("plugin.road.center_line.single_dashed"),
+            PlotI18n.tr("plugin.road.center_line.double_solid")
+        };
+        imgui.type.ImInt centerLineIndex = new imgui.type.ImInt(switch (centerLineStyle) {
+            case SINGLE_DASHED -> 1;
+            case DOUBLE_SOLID -> 2;
+            default -> 0;
+        });
+        if (ImGui.combo(PlotI18n.tr("plugin.road.center_line_style") + "##batch_center", centerLineIndex, centerLineLabels)) {
+            centerLineStyle = switch (centerLineIndex.get()) {
+                case 1 -> CenterLineStyle.SINGLE_DASHED;
+                case 2 -> CenterLineStyle.DOUBLE_SOLID;
+                default -> CenterLineStyle.NONE;
+            };
+        }
+
+        RoadUiWidgets.renderBlockMaterialPicker(
+            ctx,
+            "##batch_marking_material",
+            PlotI18n.tr("plugin.road.marking_material"),
+            markingMaterial[0],
+            value -> markingMaterial[0] = value,
+            false
+        );
+
         float[] maxSlopeArr = {maxSlope};
         if (com.plot.ui.component.EngineeringSlopeInput.render(
             "batch_max_slope",
@@ -113,6 +144,8 @@ public final class RoadBatchCrossSectionEditor {
                 sidewalkMaterial[0],
                 includeDrainage,
                 laneDividers,
+                centerLineStyle,
+                markingMaterial[0],
                 maxSlope));
         }
     }
