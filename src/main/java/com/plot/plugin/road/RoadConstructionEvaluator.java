@@ -3,10 +3,11 @@ package com.plot.plugin.road;
 import com.plot.plugin.config.RoadSystemConfig;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * 纯函数道路施工决策层：基于成本比较判定每段施工类型，并平滑短距离桥/隧道段。
+ * 纯函数道路施工决策层：按连续同符号区间做成本比较，起步成本只摊销一次。
  */
 public final class RoadConstructionEvaluator {
 
@@ -42,42 +43,28 @@ public final class RoadConstructionEvaluator {
         }
     }
 
+    /**
+     * 单段评估：硬阈值与小高度差走即时判定；显著高度差按单段区间做成本比较。
+     */
     public static RoadConstructionType evaluateSegment(
             double segmentDistance,
             int groundHeight,
             int targetHeight,
             RoadConstructionCostConfig costConfig) {
         int heightDifference = targetHeight - groundHeight;
-
-        if (heightDifference > costConfig.bridgeThreshold()) {
-            return RoadConstructionType.BRIDGE;
-        }
-        if (heightDifference < -costConfig.tunnelThreshold()) {
-            return RoadConstructionType.TUNNEL;
+        RoadConstructionType immediate = classifyImmediate(heightDifference, costConfig);
+        if (immediate != null) {
+            return immediate;
         }
 
-        if (heightDifference > 0) {
-            if (heightDifference <= costConfig.minimumConsiderationHeight()) {
-                return heightDifference > 1 ? RoadConstructionType.FILL : RoadConstructionType.ROAD;
-            }
-            double fillCost = heightDifference * segmentDistance * costConfig.fillCostPerVolume();
-            double bridgeCost = costConfig.bridgeBaseCost()
-                + segmentDistance * costConfig.bridgeCostPerLength();
-            return fillCost <= bridgeCost ? RoadConstructionType.FILL : RoadConstructionType.BRIDGE;
-        }
-
-        if (heightDifference < 0) {
-            int absDiff = Math.abs(heightDifference);
-            if (absDiff <= costConfig.minimumConsiderationHeight()) {
-                return heightDifference < -1 ? RoadConstructionType.CUT : RoadConstructionType.ROAD;
-            }
-            double cutCost = absDiff * segmentDistance * costConfig.cutCostPerVolume();
-            double tunnelCost = costConfig.tunnelBaseCost()
-                + segmentDistance * costConfig.tunnelCostPerLength();
-            return cutCost <= tunnelCost ? RoadConstructionType.CUT : RoadConstructionType.TUNNEL;
-        }
-
-        return RoadConstructionType.ROAD;
+        double earthworkCost = computeEarthworkCost(
+            heightDifference, segmentDistance, costConfig);
+        return decideInterval(
+            Integer.signum(heightDifference),
+            segmentDistance,
+            earthworkCost,
+            costConfig,
+            0.0);
     }
 
     public static List<RoadConstructionType> evaluatePath(
@@ -94,109 +81,107 @@ public final class RoadConstructionEvaluator {
             throw new IllegalArgumentException("segment inputs must have equal length");
         }
 
-        List<RoadConstructionType> raw = new ArrayList<>(size);
+        RoadConstructionType[] result = new RoadConstructionType[size];
         for (int i = 0; i < size; i++) {
-            raw.add(evaluateSegment(
-                segmentDistances.get(i),
-                groundHeights.get(i),
-                targetHeights.get(i),
-                costConfig));
+            int heightDifference = targetHeights.get(i) - groundHeights.get(i);
+            result[i] = classifyImmediate(heightDifference, costConfig);
         }
 
-        if (minimumRunLength <= 0.0) {
-            return raw;
-        }
-        return smoothShortRuns(raw, segmentDistances, groundHeights, targetHeights, minimumRunLength);
-    }
-
-    private static List<RoadConstructionType> smoothShortRuns(
-            List<RoadConstructionType> types,
-            List<Double> segmentDistances,
-            List<Integer> groundHeights,
-            List<Integer> targetHeights,
-            double minimumRunLength) {
-        List<RoadConstructionType> result = new ArrayList<>(types);
         int index = 0;
-        while (index < result.size()) {
-            RoadConstructionType runType = result.get(index);
-            if (!isSmoothable(runType)) {
+        while (index < size) {
+            if (result[index] != null) {
                 index++;
                 continue;
             }
 
             int runStart = index;
-            double runLength = 0.0;
-            while (index < result.size() && result.get(index) == runType) {
-                runLength += segmentDistances.get(index);
+            int sign = Integer.signum(targetHeights.get(index) - groundHeights.get(index));
+            double totalLength = 0.0;
+            double totalEarthworkCost = 0.0;
+
+            while (index < size && result[index] == null
+                    && Integer.signum(targetHeights.get(index) - groundHeights.get(index)) == sign) {
+                int heightDifference = targetHeights.get(index) - groundHeights.get(index);
+                double distance = segmentDistances.get(index);
+                totalLength += distance;
+                totalEarthworkCost += computeEarthworkCost(heightDifference, distance, costConfig);
                 index++;
             }
 
-            if (runLength < minimumRunLength) {
-                RoadConstructionType replacement = pickReplacement(
-                    result, runStart, index, segmentDistances, groundHeights, targetHeights);
-                for (int j = runStart; j < index; j++) {
-                    result.set(j, replacement);
-                }
+            RoadConstructionType decision = decideInterval(
+                sign, totalLength, totalEarthworkCost, costConfig, minimumRunLength);
+            for (int j = runStart; j < index; j++) {
+                result[j] = decision;
             }
         }
-        return result;
+
+        return List.of(result);
     }
 
-    private static boolean isSmoothable(RoadConstructionType type) {
-        return type == RoadConstructionType.BRIDGE || type == RoadConstructionType.TUNNEL;
-    }
-
-    private static RoadConstructionType pickReplacement(
-            List<RoadConstructionType> types,
-            int runStart,
-            int runEnd,
-            List<Double> segmentDistances,
-            List<Integer> groundHeights,
-            List<Integer> targetHeights) {
-        RoadConstructionType left = runStart > 0 ? types.get(runStart - 1) : null;
-        RoadConstructionType right = runEnd < types.size() ? types.get(runEnd) : null;
-
-        if (left != null && left == right) {
-            return left;
+    private static RoadConstructionType classifyImmediate(
+            int heightDifference,
+            RoadConstructionCostConfig costConfig) {
+        if (heightDifference > costConfig.bridgeThreshold()) {
+            return RoadConstructionType.BRIDGE;
         }
-        if (left != null && right == null) {
-            return left;
+        if (heightDifference < -costConfig.tunnelThreshold()) {
+            return RoadConstructionType.TUNNEL;
         }
-        if (left == null && right != null) {
-            return right;
+        if (heightDifference > 0) {
+            if (heightDifference <= costConfig.minimumConsiderationHeight()) {
+                return heightDifference > 1 ? RoadConstructionType.FILL : RoadConstructionType.ROAD;
+            }
+            return null;
         }
-        if (left != null) {
-            double leftRunLength = contiguousRunLength(types, segmentDistances, runStart - 1, -1);
-            double rightRunLength = contiguousRunLength(types, segmentDistances, runEnd, 1);
-            return leftRunLength >= rightRunLength ? left : right;
-        }
-
-        return fallbackByHeight(groundHeights.get(runStart), targetHeights.get(runStart));
-    }
-
-    private static double contiguousRunLength(
-            List<RoadConstructionType> types,
-            List<Double> segmentDistances,
-            int startIndex,
-            int direction) {
-        RoadConstructionType type = types.get(startIndex);
-        double length = segmentDistances.get(startIndex);
-        int index = startIndex + direction;
-        while (index >= 0 && index < types.size() && types.get(index) == type) {
-            length += segmentDistances.get(index);
-            index += direction;
-        }
-        return length;
-    }
-
-    private static RoadConstructionType fallbackByHeight(int groundHeight, int targetHeight) {
-        int heightDifference = targetHeight - groundHeight;
-        if (heightDifference > 1) {
-            return RoadConstructionType.FILL;
-        }
-        if (heightDifference < -1) {
-            return RoadConstructionType.CUT;
+        if (heightDifference < 0) {
+            if (Math.abs(heightDifference) <= costConfig.minimumConsiderationHeight()) {
+                return heightDifference < -1 ? RoadConstructionType.CUT : RoadConstructionType.ROAD;
+            }
+            return null;
         }
         return RoadConstructionType.ROAD;
+    }
+
+    private static double computeEarthworkCost(
+            int heightDifference,
+            double segmentDistance,
+            RoadConstructionCostConfig costConfig) {
+        if (heightDifference > 0) {
+            return heightDifference * segmentDistance * costConfig.fillCostPerVolume();
+        }
+        return Math.abs(heightDifference) * segmentDistance * costConfig.cutCostPerVolume();
+    }
+
+    private static RoadConstructionType decideInterval(
+            int sign,
+            double totalLength,
+            double totalEarthworkCost,
+            RoadConstructionCostConfig costConfig,
+            double minimumRunLength) {
+        if (sign > 0) {
+            double bridgeCost = costConfig.bridgeBaseCost()
+                + totalLength * costConfig.bridgeCostPerLength();
+            RoadConstructionType chosen = totalEarthworkCost <= bridgeCost
+                ? RoadConstructionType.FILL
+                : RoadConstructionType.BRIDGE;
+            if (chosen == RoadConstructionType.BRIDGE
+                    && minimumRunLength > 0.0
+                    && totalLength < minimumRunLength) {
+                return RoadConstructionType.FILL;
+            }
+            return chosen;
+        }
+
+        double tunnelCost = costConfig.tunnelBaseCost()
+            + totalLength * costConfig.tunnelCostPerLength();
+        RoadConstructionType chosen = totalEarthworkCost <= tunnelCost
+            ? RoadConstructionType.CUT
+            : RoadConstructionType.TUNNEL;
+        if (chosen == RoadConstructionType.TUNNEL
+                && minimumRunLength > 0.0
+                && totalLength < minimumRunLength) {
+            return RoadConstructionType.CUT;
+        }
+        return chosen;
     }
 }

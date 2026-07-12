@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,10 +21,58 @@ class RoadConstructionEvaluatorTest {
     }
 
     @Test
-    void moderateHeightDifferencePrefersFillWhenCheaper() {
-        RoadConstructionType type = RoadConstructionEvaluator.evaluateSegment(
-            5.0, 64, 67, DEFAULT_CONFIG);
-        assertEquals(RoadConstructionType.FILL, type);
+    void defaultConfigCostCompareSelectsBridgeForTenMeterSpan() {
+        List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
+            Collections.nCopies(10, 1.0),
+            Collections.nCopies(10, 64),
+            Collections.nCopies(10, 68),
+            DEFAULT_CONFIG,
+            3.0);
+
+        for (RoadConstructionType type : types) {
+            assertEquals(RoadConstructionType.BRIDGE, type);
+        }
+    }
+
+    @Test
+    void defaultConfigShallowDitchPrefersCutOverTunnel() {
+        List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
+            Collections.nCopies(10, 1.0),
+            Collections.nCopies(10, 67),
+            Collections.nCopies(10, 64),
+            DEFAULT_CONFIG,
+            3.0);
+
+        for (RoadConstructionType type : types) {
+            assertEquals(RoadConstructionType.CUT, type);
+        }
+    }
+
+    @Test
+    void defaultConfigDeepDitchSelectsTunnelByCost() {
+        List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
+            Collections.nCopies(15, 1.0),
+            Collections.nCopies(15, 70),
+            Collections.nCopies(15, 64),
+            DEFAULT_CONFIG,
+            3.0);
+
+        for (RoadConstructionType type : types) {
+            assertEquals(RoadConstructionType.TUNNEL, type);
+        }
+    }
+
+    @Test
+    void defaultConfigShortSpanStaysFill() {
+        List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
+            List.of(1.0, 1.0),
+            List.of(64, 64),
+            List.of(68, 68),
+            DEFAULT_CONFIG,
+            3.0);
+
+        assertEquals(RoadConstructionType.FILL, types.get(0));
+        assertEquals(RoadConstructionType.FILL, types.get(1));
     }
 
     @Test
@@ -51,20 +100,20 @@ class RoadConstructionEvaluatorTest {
     }
 
     @Test
-    void shortBridgeRunIsAbsorbedIntoAdjacentFill() {
-        List<Double> distances = List.of(2.0, 1.0, 2.0);
+    void shortBridgeRunIsAbsorbedIntoFillWhenBelowMinimumRunLength() {
+        List<Double> distances = List.of(3.0, 2.0, 3.0);
         List<Integer> groundHeights = List.of(64, 64, 64);
-        List<Integer> targetHeights = List.of(66, 70, 66);
+        List<Integer> targetHeights = List.of(66, 68, 66);
 
-        RoadConstructionEvaluator.RoadConstructionCostConfig alwaysBridge =
+        RoadConstructionEvaluator.RoadConstructionCostConfig config =
             new RoadConstructionEvaluator.RoadConstructionCostConfig(
-                100.0, 0.0, 0.0, 1.2, 25.0, 1.5, 2.0, 100, 100);
+                1.0, 10.0, 0.8, 1.2, 25.0, 1.5, 2.0, 100, 100);
 
         List<RoadConstructionType> types = RoadConstructionEvaluator.evaluatePath(
             distances,
             groundHeights,
             targetHeights,
-            alwaysBridge,
+            config,
             3.0);
 
         assertEquals(RoadConstructionType.FILL, types.get(0));
