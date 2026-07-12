@@ -4,11 +4,18 @@ import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
 import com.plot.ui.theme.UITheme;
+import com.plot.ui.screen.BlockConfigNativeScreen;
+import com.plot.ui.screen.PlotScreen;
+import com.plot.ui.screen.PlotScreenState;
+import com.plot.utils.PlotI18n;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import com.plot.utils.ImGuiUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.ui.theme.ThemeManager;
+
+import java.util.function.Consumer;
 
 /**
  * UI 工具类，提供通用的 UI 相关方法
@@ -218,5 +225,26 @@ public class UIUtils {
         ImGui.endGroup();
         
         return changed;
+    }
+
+    public static void renderEngineeringTooltip(String i18nKey) {
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr(i18nKey));
+        }
+    }
+
+    public static void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            LOGGER.warn("MinecraftClient unavailable, cannot open block picker");
+            return;
+        }
+        client.execute(() -> {
+            if (client.currentScreen instanceof PlotScreen) {
+                PlotScreenState.markSwitchingToPlotSubScreen();
+            }
+            client.setScreen(BlockConfigNativeScreen.forSingleSelection(
+                client.currentScreen, currentBlockId, onSelected));
+        });
     }
 }

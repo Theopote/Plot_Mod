@@ -19,15 +19,14 @@ import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
-import com.plot.ui.screen.BlockConfigNativeScreen;
-import com.plot.ui.screen.PlotScreen;
-import com.plot.ui.screen.PlotScreenState;
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.ImDrawList;
@@ -70,6 +69,9 @@ public class EarthworkPlugin extends Plugin {
     private String pendingDeleteRegionId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
+
+    private EarthworkRegionListHelper.SortMode regionSortMode =
+        EarthworkRegionListHelper.SortMode.INSERTION;
 
     private final ImBoolean autoBalanceRef = new ImBoolean(true);
     private final ImBoolean showGridRef = new ImBoolean(true);
@@ -227,8 +229,19 @@ public class EarthworkPlugin extends Plugin {
             return;
         }
 
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo("##earthwork_region_sort", regionSortMode.label())) {
+            for (EarthworkRegionListHelper.SortMode mode : EarthworkRegionListHelper.SortMode.values()) {
+                boolean selected = mode == regionSortMode;
+                if (ImGui.selectable(mode.label(), selected)) {
+                    regionSortMode = mode;
+                }
+            }
+            ImGui.endCombo();
+        }
+
         ImGui.beginChild("earthwork_overview_list", 0, 220, true);
-        for (GradingRegion region : project.getRegions().values()) {
+        for (GradingRegion region : EarthworkRegionListHelper.sorted(project, regionSortMode)) {
             ImGui.pushID(region.getId());
             boolean selected = region.getId().equals(selectedRegionId);
             if (ImGui.selectable(region.getName() + "##row", selected)) {
@@ -328,6 +341,7 @@ public class EarthworkPlugin extends Plugin {
             projectHistory.push(project);
             region.setFillFactor(fillFactor[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fill_factor");
 
         int[] gridSize = {region.getGridSize()};
         if (ImGui.sliderInt("##region_grid_size", gridSize, 1, 20,
@@ -335,6 +349,7 @@ public class EarthworkPlugin extends Plugin {
             projectHistory.push(project);
             region.setGridSize(gridSize[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.grid_size");
 
         renderMaterialButton(PlotI18n.tr("plugin.earthwork.cut_material"), region.getCutExposeMaterial(),
             blockId -> {
@@ -586,24 +601,10 @@ public class EarthworkPlugin extends Plugin {
             ? PlotI18n.tr("plugin.earthwork.cut_material_air")
             : currentBlockId;
         if (ImGui.button(display + "##" + label, 0, 0)) {
-            openBlockPicker(
+            UIUtils.openBlockPicker(
                 currentBlockId == null || currentBlockId.isBlank() ? "minecraft:air" : currentBlockId,
                 onSelected);
         }
-    }
-
-    private void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return;
-        }
-        client.execute(() -> {
-            if (client.currentScreen instanceof PlotScreen) {
-                PlotScreenState.markSwitchingToPlotSubScreen();
-            }
-            client.setScreen(BlockConfigNativeScreen.forSingleSelection(
-                client.currentScreen, currentBlockId, onSelected));
-        });
     }
 
     private void updateSelectedRegions() {
