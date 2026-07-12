@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Set;
 
 /**
  * 将 {@link RoadSolidPrimitive} 栅格化为 Minecraft {@link BlockPos}。
@@ -56,11 +57,11 @@ public final class RoadVoxelRasterizer {
         if (left == null || right == null) {
             return List.of();
         }
-        List<BlockPos> positions = new ArrayList<>();
+        Set<BlockPos> unique = new LinkedHashSet<>();
         for (Vec2d point : sampleSpanPoints(left, right)) {
-            positions.add(toBlockPos(point, y, transformer));
+            unique.add(toBlockPos(point, y, transformer));
         }
-        return positions;
+        return new ArrayList<>(unique);
     }
 
     public static void flushEdgeSolids(

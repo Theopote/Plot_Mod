@@ -12,14 +12,14 @@ import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.solid.RoadSolidLayer;
+import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
+import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.core.command.BlockRecord;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,16 +114,17 @@ public class RoadGenerator {
                 return new RoadGenerationResult(0);
             }
             World world = client.world;
+            TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
             
             // 4. 计算每个分段的目标高度（考虑坡度限制）
-            List<SegmentHeightInfo> heightInfos = calculateSegmentHeights(segments, world);
+            List<SegmentHeightInfo> heightInfos = calculateSegmentHeights(segments, terrain);
             
             // 5. 检测桥和隧道需求
             List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
-            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, world);
+            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, terrain);
             
             // 6. 生成道路方块（挖填）
-            RoadGenerationResult result = generateRoadBlocks(segments, heightInfos, bridges, tunnels, world);
+            RoadGenerationResult result = generateRoadBlocks(segments, heightInfos, bridges, tunnels, terrain);
             
             LOGGER.info("道路生成完成: 挖{} 填{} 桥{}座 隧道{}段", 
                 result.cutVolume, result.fillVolume, result.bridgeCount, result.tunnelCount);
@@ -157,12 +158,13 @@ public class RoadGenerator {
         }
 
         try {
+            TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
             List<PathSegment> segments = samplePath(pathPoints);
             List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
-                segments, world, network, edge, startNode, endNode);
+                segments, terrain, network, edge, startNode, endNode);
             List<BridgeSegment> bridges = detectBridges(segments, heightInfos);
-            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, world);
+            List<TunnelSegment> tunnels = detectTunnels(segments, heightInfos, terrain);
 
             double halfWidth = crossSection.carriagewayHalfWidth();
             List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfWidth);
@@ -171,7 +173,7 @@ public class RoadGenerator {
             RoadSolidModel solids = new RoadSolidModel();
             EdgeBuildMetrics metrics = new EdgeBuildMetrics();
             generateRoadBlocksFromBoundaries(
-                solids, metrics, segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, world,
+                solids, metrics, segments, heightInfos, leftBoundary, rightBoundary, bridges, tunnels, terrain,
                 getBlockIdFromMaterial(crossSection.carriagewayMaterial));
 
             int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
@@ -182,7 +184,7 @@ public class RoadGenerator {
                 generateShoulderBlocks(solids, segments, heightInfos, leftShoulder, rightShoulder,
                     shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial));
                 generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, leftShoulder, rightShoulder,
-                    shoulderWidth, pathPoints, world);
+                    shoulderWidth, pathPoints, terrain);
             }
 
             if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
@@ -221,7 +223,7 @@ public class RoadGenerator {
 
             Integer spacing = crossSection.streetlightSpacing;
             if (spacing != null && spacing > 0) {
-                generateStreetlights(solids, pathPoints, network, edge, world, shoulderWidth);
+                generateStreetlights(solids, pathPoints, network, edge, terrain, shoulderWidth);
             }
 
             RoadGenerationResult result = new RoadGenerationResult(edge.getLength());
@@ -320,8 +322,9 @@ public class RoadGenerator {
      */
     public int computeJunctionTargetHeight(RoadNode node, RoadNetwork network, World world) {
         if (node == null || network == null || world == null) {
-            return 64;
+            return TerrainSampler.DEFAULT_SEA_LEVEL;
         }
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
         if (node.getManualElevation() != null) {
             return node.getManualElevation().intValue();
         }
@@ -332,15 +335,15 @@ public class RoadGenerator {
             if (edge == null) {
                 continue;
             }
-            heights.add(getTargetHeightAtNode(edge, node, network, world));
+            heights.add(getTargetHeightAtNode(edge, node, network, terrain));
         }
 
         if (heights.isEmpty()) {
-            return getGroundHeightAtNode(world, node, network);
+            return getGroundHeightAtNode(terrain, node, network);
         }
 
-        int min = heights.stream().mapToInt(Integer::intValue).min().orElse(64);
-        int max = heights.stream().mapToInt(Integer::intValue).max().orElse(64);
+        int min = heights.stream().mapToInt(Integer::intValue).min().orElse(TerrainSampler.DEFAULT_SEA_LEVEL);
+        int max = heights.stream().mapToInt(Integer::intValue).max().orElse(TerrainSampler.DEFAULT_SEA_LEVEL);
         if (max - min > 2) {
             LOGGER.warn("路口节点 {} 汇聚道路高度不一致 {}，使用平均值拼接", node.getId(), heights);
         }
@@ -352,7 +355,14 @@ public class RoadGenerator {
      */
     public int getTargetHeightAtNode(RoadEdge edge, RoadNode node, RoadNetwork network, World world) {
         if (edge == null || node == null || world == null) {
-            return 64;
+            return TerrainSampler.DEFAULT_SEA_LEVEL;
+        }
+        return getTargetHeightAtNode(edge, node, network, MinecraftTerrainSampler.of(world, coordinateTransformer));
+    }
+
+    int getTargetHeightAtNode(RoadEdge edge, RoadNode node, RoadNetwork network, TerrainSampler terrain) {
+        if (edge == null || node == null || terrain == null) {
+            return TerrainSampler.DEFAULT_SEA_LEVEL;
         }
         if (node.getManualElevation() != null) {
             return node.getManualElevation().intValue();
@@ -361,13 +371,13 @@ public class RoadGenerator {
         RoadNode startNode = network != null ? network.getNode(edge.getStartNodeId()) : null;
         List<PathSegment> segments = samplePath(edge.getCenterlinePoints());
         if (segments.isEmpty()) {
-            return getGroundHeightAtNode(world, node, network);
+            return getGroundHeightAtNode(terrain, node, network);
         }
 
         List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
-            segments, world, network, edge, startNode, node);
+            segments, terrain, network, edge, startNode, node);
         if (heightInfos.isEmpty()) {
-            return getGroundHeightAtNode(world, node, network);
+            return getGroundHeightAtNode(terrain, node, network);
         }
 
         if (edge.getStartNodeId().equals(node.getId())) {
@@ -376,7 +386,7 @@ public class RoadGenerator {
         if (edge.getEndNodeId().equals(node.getId())) {
             return heightInfos.getLast().targetEnd;
         }
-        return getGroundHeightAtNode(world, node, network);
+        return getGroundHeightAtNode(terrain, node, network);
     }
 
     public BlockPos toBlockPos(Vec2d canvasPos, int y) {
@@ -482,7 +492,7 @@ public class RoadGenerator {
     /**
      * 计算分段高度（考虑坡度限制）
      */
-    private List<SegmentHeightInfo> calculateSegmentHeights(List<PathSegment> segments, World world) {
+    private List<SegmentHeightInfo> calculateSegmentHeights(List<PathSegment> segments, TerrainSampler terrain) {
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
         
         if (segments.isEmpty()) {
@@ -494,14 +504,14 @@ public class RoadGenerator {
         PathSegment firstSegment = segments.getFirst();
         Vec2d firstTangent = firstSegment.end.subtract(firstSegment.start);
         double halfWidth = config.getRoadWidth() / 2.0;
-        int currentHeight = getGroundHeightAtPoint(world, firstPoint, firstTangent, halfWidth);
+        int currentHeight = terrain.sampleCrossSectionGroundY(firstPoint, firstTangent, halfWidth);
         
         double maxSlopePercent = config.getMaxSlope();
         
         for (PathSegment segment : segments) {
             Vec2d tangent = segment.end.subtract(segment.start);
-            int groundStart = getGroundHeightAtPoint(world, segment.start, tangent, halfWidth);
-            int groundEnd = getGroundHeightAtPoint(world, segment.end, tangent, halfWidth);
+            int groundStart = terrain.sampleCrossSectionGroundY(segment.start, tangent, halfWidth);
+            int groundEnd = terrain.sampleCrossSectionGroundY(segment.end, tangent, halfWidth);
             
             int targetStart = currentHeight;
             int targetEnd = RoadSlopeUtils.computeTargetEndHeight(
@@ -519,7 +529,7 @@ public class RoadGenerator {
     }
 
     private List<SegmentHeightInfo> calculateSegmentHeightsForEdge(
-            List<PathSegment> segments, World world, RoadNetwork network, RoadEdge edge,
+            List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode) {
         List<SegmentHeightInfo> heightInfos = new ArrayList<>();
         if (segments.isEmpty()) {
@@ -540,8 +550,8 @@ public class RoadGenerator {
         for (PathSegment segment : segments) {
             Vec2d tangent = segment.end.subtract(segment.start);
             distances.add(segment.distance);
-            groundStarts.add(getGroundHeightAtPoint(world, segment.start, tangent, halfWidth));
-            groundEnds.add(getGroundHeightAtPoint(world, segment.end, tangent, halfWidth));
+            groundStarts.add(terrain.sampleCrossSectionGroundY(segment.start, tangent, halfWidth));
+            groundEnds.add(terrain.sampleCrossSectionGroundY(segment.end, tangent, halfWidth));
             maxSlopes.add(RoadModelUtils.getEffectiveMaxSlope(network, edge, config, accumulatedDistance));
             accumulatedDistance += segment.distance;
         }
@@ -632,7 +642,7 @@ public class RoadGenerator {
     /**
      * 检测隧道需求
      */
-    private List<TunnelSegment> detectTunnels(List<PathSegment> segments, List<SegmentHeightInfo> heightInfos, World world) {
+    private List<TunnelSegment> detectTunnels(List<PathSegment> segments, List<SegmentHeightInfo> heightInfos, TerrainSampler terrain) {
         List<TunnelSegment> tunnels = new ArrayList<>();
         int tunnelThreshold = config.getTunnelThreshold();
         
@@ -642,9 +652,8 @@ public class RoadGenerator {
             // 如果地面高度明显高于目标高度，需要挖隧道
             int heightDifference = info.groundStart - info.targetStart;
             if (heightDifference > tunnelThreshold) {
-                // 检查是否为实心方块（粗略检测）
                 BlockPos pos = canvasToBlockPos(info.segment.start);
-                if (isSolidBlock(world, pos)) {
+                if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
                     tunnels.add(new TunnelSegment(info.segment, heightDifference));
                 }
             }
@@ -660,7 +669,7 @@ public class RoadGenerator {
                                                      List<SegmentHeightInfo> heightInfos,
                                                      List<BridgeSegment> bridges,
                                                      List<TunnelSegment> tunnels,
-                                                     World world) {
+                                                     TerrainSampler terrain) {
         RoadGenerationResult result = new RoadGenerationResult(
             segments.stream().mapToDouble(s -> s.distance).sum());
         result.bridgeCount = bridges.size();
@@ -692,7 +701,7 @@ public class RoadGenerator {
                         roadBlockPos = new BlockPos(roadBlockPos.getX(), targetY, roadBlockPos.getZ());
                         
                         // 获取地面高度
-                        int groundY = getTopHeight(world, new BlockPos(roadBlockPos.getX(), 0, roadBlockPos.getZ()));
+                        int groundY = terrain.sampleSurfaceY(roadPoint);
                         
                         // 计算挖填方
                         if (targetY < groundY) {
@@ -724,7 +733,7 @@ public class RoadGenerator {
             List<Vec2d> rightBoundary,
             List<BridgeSegment> bridges,
             List<TunnelSegment> tunnels,
-            World world,
+            TerrainSampler terrain,
             String blockId) {
         metrics.bridgeCount = bridges.size();
         metrics.tunnelCount = tunnels.size();
@@ -751,7 +760,7 @@ public class RoadGenerator {
                 Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
                 solids.addSpan(left, right, targetY, RoadSolidLayer.ROAD, blockId);
 
-                int groundY = getTopHeight(world, canvasToBlockPos(point));
+                int groundY = terrain.sampleSurfaceY(point);
                 if (targetY < groundY) {
                     cutVolume += (groundY - targetY);
                 } else if (targetY > groundY) {
@@ -761,8 +770,8 @@ public class RoadGenerator {
             accumulatedSegmentStart += segment.distance;
         }
 
-        generateBridgeStructures(solids, bridges, segments, heightInfos, leftBoundary, rightBoundary, world);
-        generateTunnelStructures(solids, tunnels, segments, heightInfos, leftBoundary, rightBoundary, world);
+        generateBridgeStructures(solids, bridges, segments, heightInfos, leftBoundary, rightBoundary, terrain);
+        generateTunnelStructures(solids, tunnels, segments, heightInfos, leftBoundary, rightBoundary);
 
         metrics.cutVolume = cutVolume;
         metrics.fillVolume = fillVolume;
