@@ -57,6 +57,7 @@ public final class RoadStyleCatalog {
     }
 
     /** @deprecated 兼容旧 preset id */
+    @Deprecated
     public static RoadStyle citySecondary() {
         RoadStyle style = residential();
         style.id = "city_secondary";
