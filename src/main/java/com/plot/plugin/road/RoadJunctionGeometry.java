@@ -222,6 +222,56 @@ public final class RoadJunctionGeometry {
         return new Vec2d(0, 0);
     }
 
+    /**
+     * 从节点出发沿中心线向外截取指定长度（用于路口标线延续）。
+     */
+    public static List<Vec2d> extractApproachCenterline(RoadEdge edge, String nodeId, double maxLength) {
+        if (edge == null || nodeId == null || maxLength <= 0) {
+            return List.of();
+        }
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points == null || points.size() < 2) {
+            return List.of();
+        }
+
+        List<Vec2d> ordered = new ArrayList<>();
+        if (edge.getStartNodeId().equals(nodeId)) {
+            ordered.addAll(points);
+        } else if (edge.getEndNodeId().equals(nodeId)) {
+            for (int i = points.size() - 1; i >= 0; i--) {
+                ordered.add(points.get(i));
+            }
+        } else {
+            return List.of();
+        }
+        return truncatePolylineFromStart(ordered, maxLength);
+    }
+
+    static List<Vec2d> truncatePolylineFromStart(List<Vec2d> ordered, double maxLength) {
+        if (ordered == null || ordered.isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> result = new ArrayList<>();
+        result.add(ordered.getFirst());
+        double accumulated = 0.0;
+        for (int i = 1; i < ordered.size(); i++) {
+            Vec2d prev = ordered.get(i - 1);
+            Vec2d curr = ordered.get(i);
+            double segmentLength = prev.distance(curr);
+            if (segmentLength < 1e-9) {
+                continue;
+            }
+            if (accumulated + segmentLength >= maxLength) {
+                double t = (maxLength - accumulated) / segmentLength;
+                result.add(prev.lerp(curr, t));
+                return result;
+            }
+            accumulated += segmentLength;
+            result.add(curr);
+        }
+        return result;
+    }
+
     static Vec2d resolveNodeCenter(String nodeId, List<RoadEdge> edges) {
         for (RoadEdge edge : edges) {
             List<Vec2d> points = edge.getCenterlinePoints();

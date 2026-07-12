@@ -1,56 +1,37 @@
 package com.plot.plugin.earthwork.model;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import com.plot.plugin.common.JsonSnapshotHistory;
 
 /**
  * 土方项目轻量撤销栈（深拷贝 JSON 快照）
  */
 public class EarthworkProjectHistory {
-    private final Deque<String> undoStack = new ArrayDeque<>();
-    private final Deque<String> redoStack = new ArrayDeque<>();
-    private static final int MAX_HISTORY = 50;
+    private final JsonSnapshotHistory<EarthworkProject> delegate = new JsonSnapshotHistory<>(
+        EarthworkProject::toJson,
+        EarthworkProject::fromJson
+    );
 
     public void push(EarthworkProject current) {
-        if (current != null) {
-            undoStack.push(current.toJson());
-            while (undoStack.size() > MAX_HISTORY) {
-                undoStack.removeLast();
-            }
-        }
-        redoStack.clear();
+        delegate.push(current);
     }
 
     public EarthworkProject undo(EarthworkProject current) {
-        if (undoStack.isEmpty()) {
-            return current;
-        }
-        if (current != null) {
-            redoStack.push(current.toJson());
-        }
-        return EarthworkProject.fromJson(undoStack.pop());
+        return delegate.undo(current);
     }
 
     public EarthworkProject redo(EarthworkProject current) {
-        if (redoStack.isEmpty()) {
-            return current;
-        }
-        if (current != null) {
-            undoStack.push(current.toJson());
-        }
-        return EarthworkProject.fromJson(redoStack.pop());
+        return delegate.redo(current);
     }
 
     public boolean canUndo() {
-        return !undoStack.isEmpty();
+        return delegate.canUndo();
     }
 
     public boolean canRedo() {
-        return !redoStack.isEmpty();
+        return delegate.canRedo();
     }
 
     public void clear() {
-        undoStack.clear();
-        redoStack.clear();
+        delegate.clear();
     }
 }

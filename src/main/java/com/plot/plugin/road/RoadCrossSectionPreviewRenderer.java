@@ -130,7 +130,7 @@ public final class RoadCrossSectionPreviewRenderer {
             drawList.addText(x0 + width - padding - 72f, y0 + padding * 0.5f, COLOR_LABEL, gradeLabel);
         }
 
-        String label = PlotI18n.tr("plugin.road.cross_section_scale", (int) Math.round(totalBlocks));
+        String label = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(totalBlocks));
         drawList.addText(x0 + padding, y0 + padding * 0.5f, COLOR_LABEL, label);
     }
 
@@ -195,9 +195,8 @@ public final class RoadCrossSectionPreviewRenderer {
         }
         float horizontalRun = verticalDrop * slopeRatio * horizontalSign;
         float endX = edgeX + horizontalRun;
-        float endY = groundY;
-        drawList.addTriangleFilled(edgeX, deckBottom, endX, endY, edgeX, endY, color);
-        drawList.addLine(edgeX, deckBottom, endX, endY, COLOR_BORDER, 1.2f);
+        drawList.addTriangleFilled(edgeX, deckBottom, endX, groundY, edgeX, groundY, color);
+        drawList.addLine(edgeX, deckBottom, endX, groundY, COLOR_BORDER, 1.2f);
 
         String label = SlopeFormatUtils.formatRatio(slopeRatio);
         float labelX = horizontalSign < 0 ? endX + 2f : edgeX + 2f;

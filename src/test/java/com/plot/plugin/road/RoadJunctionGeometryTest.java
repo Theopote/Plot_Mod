@@ -151,6 +151,25 @@ class RoadJunctionGeometryTest {
     }
 
     @Test
+    void extractApproachCenterlineWalksOutwardFromJunction() {
+        RoadNetwork network = new RoadNetwork();
+        RoadEdge edge = RoadTestFixtures.geometryEdge(network, "edge", "junction", "far", List.of(
+            new Vec2d(0, 0),
+            new Vec2d(0, 4),
+            new Vec2d(0, 12)
+        ));
+
+        List<Vec2d> segment = RoadJunctionGeometry.extractApproachCenterline(
+            edge, "junction", 3.0);
+
+        assertEquals(3, segment.size());
+        assertEquals(0, segment.getFirst().x, 1e-6);
+        assertEquals(0, segment.getFirst().y, 1e-6);
+        assertEquals(4, segment.get(1).y, 1e-6);
+        assertTrue(segment.get(2).y >= 2.9 && segment.get(2).y <= 3.1);
+    }
+
+    @Test
     void extractNearNodeSegmentWalksAwayFromJunctionAlongCenterline() {
         RoadNetwork network = new RoadNetwork();
         RoadEdge edge = RoadTestFixtures.geometryEdge(network, "edge", "junction", "far", List.of(

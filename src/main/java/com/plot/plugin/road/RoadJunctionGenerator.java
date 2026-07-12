@@ -19,7 +19,6 @@ import java.util.List;
  */
 public class RoadJunctionGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadJunctionGenerator");
-    private static final double STOP_LINE_INSET_RATIO = 0.85;
 
     public static class JunctionBlocks {
         public final List<BlockPos> roadBlocks = new ArrayList<>();
@@ -28,9 +27,11 @@ public class RoadJunctionGenerator {
     }
 
     private final RoadGenerator generator;
+    private final RoadJunctionMarkingGenerator markingGenerator;
 
     public RoadJunctionGenerator(RoadGenerator generator) {
         this.generator = generator;
+        this.markingGenerator = new RoadJunctionMarkingGenerator(generator);
     }
 
     public JunctionBlocks generateJunction(RoadNode node, RoadNetwork network, World world) {
@@ -57,12 +58,13 @@ public class RoadJunctionGenerator {
             LOGGER.debug("复杂路口（{}条道路汇聚），使用多边形填充（必要时回退凸包）", degree);
         }
 
-        generatePolygonJunction(blocks, node, network, connectedEdges, junctionY);
-        generateStopLines(blocks, node, network, connectedEdges, junctionY);
+        List<Vec2d> polygon = generatePolygonJunction(blocks, node, network, connectedEdges, junctionY);
+        markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
+        markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
         return blocks;
     }
 
-    private void generatePolygonJunction(
+    private List<Vec2d> generatePolygonJunction(
             JunctionBlocks blocks,
             RoadNode node,
             RoadNetwork network,
@@ -85,48 +87,11 @@ public class RoadJunctionGenerator {
 
         if (polygon.size() < 3) {
             generateSimpleEnvelope(blocks, network, center, edges, junctionY);
-            return;
+            return List.of();
         }
 
         fillPolygon(blocks, polygon, center, junctionY);
-    }
-
-    private void generateStopLines(
-            JunctionBlocks blocks,
-            RoadNode node,
-            RoadNetwork network,
-            List<RoadEdge> edges,
-            int junctionY) {
-        Vec2d center = node.getPosition();
-        double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
-            edges,
-            edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
-        );
-
-        for (RoadEdge edge : edges) {
-            ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
-                network, edge, generator.getConfig());
-            if (!crossSection.laneDividers
-                && crossSection.centerLineStyle == com.plot.plugin.road.model.section.CenterLineStyle.NONE) {
-                continue;
-            }
-
-            Vec2d direction = RoadJunctionGeometry.computeApproachDirection(edge, node.getId());
-            if (direction.lengthSquared() < 1e-12) {
-                continue;
-            }
-
-            Vec2d unit = direction.normalize();
-            Vec2d perpendicular = unit.perpendicular();
-            double halfWidth = crossSection.carriagewayWidth / 2.0;
-            Vec2d stopCenter = center.add(unit.multiply(junctionRadius * STOP_LINE_INSET_RATIO));
-
-            for (int offset = -(int) Math.ceil(halfWidth); offset <= (int) Math.ceil(halfWidth); offset++) {
-                Vec2d point = stopCenter.add(perpendicular.multiply(offset));
-                blocks.markingBlocks.add(generator.toBlockPos(point, junctionY));
-            }
-        }
+        return polygon;
     }
 
     private void generateSimpleEnvelope(

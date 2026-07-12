@@ -1137,25 +1137,9 @@ public class RoadGenerator {
         double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
         double accumulatedSegmentStart = 0.0;
 
-        List<MarkingPass> passes = new ArrayList<>();
-        switch (crossSection.centerLineStyle) {
-            case SINGLE_DASHED -> passes.add(new MarkingPass(0.0, false));
-            case DOUBLE_SOLID -> {
-                passes.add(new MarkingPass(-0.3, true));
-                passes.add(new MarkingPass(0.3, true));
-            }
-            default -> {
-            }
-        }
-        if (crossSection.laneDividers) {
-            for (Double offset : crossSection.laneDividerOffsets) {
-                if (offset != null && Math.abs(offset) > 1e-6) {
-                    passes.add(new MarkingPass(offset, false));
-                }
-            }
-        }
+        List<RoadMarkingPasses.Pass> passes = RoadMarkingPasses.fromCrossSection(crossSection);
 
-        for (MarkingPass pass : passes) {
+        for (RoadMarkingPasses.Pass pass : passes) {
             List<Vec2d> markingLine = OffsetHandler.offsetPolyline(pathPoints, pass.offset());
             accumulatedSegmentStart = 0.0;
             for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
@@ -1177,9 +1161,6 @@ public class RoadGenerator {
                 accumulatedSegmentStart += segment.distance;
             }
         }
-    }
-
-    private record MarkingPass(double offset, boolean solid) {
     }
 
     private void generateStreetlights(RoadGenerationResult result, List<Vec2d> pathPoints,
