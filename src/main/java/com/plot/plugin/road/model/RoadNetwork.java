@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.model.section.BikeLane;
 import com.plot.plugin.road.model.section.Drain;
 import com.plot.plugin.road.model.section.Lane;
 import com.plot.plugin.road.model.section.LaneGroup;
@@ -14,6 +15,7 @@ import com.plot.plugin.road.model.section.Median;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.Shoulder;
 import com.plot.plugin.road.model.section.Sidewalk;
+import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
 
 import java.io.IOException;
