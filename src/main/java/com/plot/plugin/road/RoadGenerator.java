@@ -14,6 +14,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
@@ -816,7 +817,7 @@ public class RoadGenerator {
             List<Vec2d> rightShoulder,
             int shoulderWidth,
             List<Vec2d> pathPoints,
-            World world) {
+            TerrainSampler terrain) {
         String fillBlockId = getBlockIdFromMaterial(config.getFillSlopeMaterial());
         String cutBlockId = config.getCutSlopeMaterial().isBlank()
             ? null
@@ -840,9 +841,9 @@ public class RoadGenerator {
                     : 0.0;
                 Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftShoulder, normalized);
                 Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightShoulder, normalized);
-                placeSlopeBatterAtPoint(solids, left, targetY, outerOffset, pathPoints, world,
+                placeSlopeBatterAtPoint(solids, left, targetY, outerOffset, pathPoints, terrain,
                     fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun, 1);
-                placeSlopeBatterAtPoint(solids, right, targetY, outerOffset, pathPoints, world,
+                placeSlopeBatterAtPoint(solids, right, targetY, outerOffset, pathPoints, terrain,
                     fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun, -1);
             }
             accumulatedSegmentStart += segment.distance;
@@ -855,7 +856,7 @@ public class RoadGenerator {
             int targetY,
             double outerOffset,
             List<Vec2d> pathPoints,
-            World world,
+            TerrainSampler terrain,
             float fillRatio,
             float cutRatio,
             String fillBlockId,
@@ -868,8 +869,7 @@ public class RoadGenerator {
         Vec2d normal = new Vec2d(-direction.y, direction.x).multiply(sideSign);
         Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
 
-        BlockPos outerPos = canvasToBlockPos(outerEdge);
-        int groundAtEdge = getTopHeight(world, outerPos);
+        int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
         if (targetY == groundAtEdge) {
             return;
         }
@@ -877,15 +877,11 @@ public class RoadGenerator {
         boolean isFill = targetY > groundAtEdge;
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
-        String surfaceBlockId = isFill ? fillBlockId : cutBlockId;
 
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
             targetY,
             profileDirection,
-            horizontalOffset -> {
-                Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset));
-                return getTopHeight(world, canvasToBlockPos(sample));
-            },
+            horizontalOffset -> terrain.sampleSurfaceY(outerEdge.add(normal.multiply(horizontalOffset))),
             slopeRatio,
             maxHorizontalRun
         );
@@ -895,8 +891,7 @@ public class RoadGenerator {
             int horizontalOffset = point[0];
             int slopeHeight = point[1];
             Vec2d sample = outerEdge.add(normal.multiply(horizontalOffset));
-            BlockPos columnBase = canvasToBlockPos(sample);
-            int groundY = getTopHeight(world, columnBase);
+            int groundY = terrain.sampleSurfaceY(sample);
 
             if (isFill) {
                 for (int y = groundY + 1; y <= slopeHeight; y++) {
@@ -949,7 +944,7 @@ public class RoadGenerator {
             List<SegmentHeightInfo> heightInfos,
             List<Vec2d> leftBoundary,
             List<Vec2d> rightBoundary,
-            World world) {
+            TerrainSampler terrain) {
         if (bridges.isEmpty()) {
             return;
         }
@@ -972,9 +967,9 @@ public class RoadGenerator {
                 Vec2d center = bridge.segment.start.lerp(bridge.segment.end, t);
                 Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
                 Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
-                placeBridgePillars(solids, center, targetY, world, pillarBlockId);
-                placeBridgePillars(solids, left, targetY, world, pillarBlockId);
-                placeBridgePillars(solids, right, targetY, world, pillarBlockId);
+                placeBridgePillars(solids, center, targetY, terrain, pillarBlockId);
+                placeBridgePillars(solids, left, targetY, terrain, pillarBlockId);
+                placeBridgePillars(solids, right, targetY, terrain, pillarBlockId);
             }
         }
     }
@@ -985,8 +980,7 @@ public class RoadGenerator {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             List<Vec2d> leftBoundary,
-            List<Vec2d> rightBoundary,
-            World world) {
+            List<Vec2d> rightBoundary) {
         if (tunnels.isEmpty()) {
             return;
         }
@@ -1016,10 +1010,9 @@ public class RoadGenerator {
             RoadSolidModel solids,
             Vec2d canvasPos,
             int deckY,
-            World world,
+            TerrainSampler terrain,
             String blockId) {
-        BlockPos base = canvasToBlockPos(canvasPos);
-        int groundY = getTopHeight(world, base);
+        int groundY = terrain.sampleSurfaceY(canvasPos);
         if (deckY - groundY <= config.getBridgeThreshold()) {
             return;
         }
@@ -1168,7 +1161,7 @@ public class RoadGenerator {
             List<Vec2d> pathPoints,
             RoadNetwork network,
             RoadEdge edge,
-            World world,
+            TerrainSampler terrain,
             double shoulderWidth) {
         Integer spacingValue = RoadModelUtils.getStreetlightSpacing(network, edge);
         int spacing = spacingValue != null ? spacingValue : 0;
@@ -1189,7 +1182,7 @@ public class RoadGenerator {
             Vec2d normal = new Vec2d(-direction.y, direction.x);
             double side = placeLeft ? offset : -offset;
             Vec2d lightPos = sample.add(normal.multiply(side));
-            int groundY = getTopHeight(world, canvasToBlockPos(lightPos));
+            int groundY = terrain.sampleSurfaceY(lightPos);
             solids.add(lightPos, groundY + 1, RoadSolidLayer.STREETLIGHT, "minecraft:lantern");
             placeLeft = !placeLeft;
         }
@@ -1223,44 +1216,12 @@ public class RoadGenerator {
     private BlockPos canvasToBlockPos(Vec2d canvasPos) {
         return RoadGeometryUtils.canvasToBlockXZ(canvasPos, coordinateTransformer);
     }
-    
-    /**
-     * 获取地形顶部高度
-     */
-    private int getTopHeight(World world, BlockPos pos) {
-        try {
-            // 使用WORLD_SURFACE高度图（地表高度）
-            BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, pos);
-            return topPos != null ? topPos.getY() : pos.getY();
-        } catch (Exception e) {
-            LOGGER.warn("获取地形高度失败 ({}, {}): {}", pos.getX(), pos.getZ(), e.getMessage());
-            return 64; // 默认海平面
-        }
-    }
 
-    /**
-     * 沿道路横断面采样地面高度并取平均（覆盖 [-halfWidth, +halfWidth]）
-     */
-    private int getGroundHeightAtPoint(World world, Vec2d center, Vec2d tangent, double halfWidth) {
-        if (world == null || center == null || halfWidth <= 0) {
-            return getTopHeight(world, canvasToBlockPos(center));
+    private int getGroundHeightAtNode(TerrainSampler terrain, RoadNode node, RoadNetwork network) {
+        if (node == null || terrain == null) {
+            return TerrainSampler.DEFAULT_SEA_LEVEL;
         }
-
-        Vec2d normal = RoadGeometryUtils.leftNormal(tangent);
-        List<Integer> heights = new ArrayList<>();
-        for (int offset : RoadGeometryUtils.crossSectionSampleOffsets(halfWidth)) {
-            Vec2d samplePos = center.add(normal.multiply(offset));
-            heights.add(getTopHeight(world, canvasToBlockPos(samplePos)));
-        }
-        return RoadSlopeUtils.averageGroundHeight(heights);
-    }
-
-    private int getGroundHeightAtNode(World world, RoadNode node, RoadNetwork network) {
-        if (node == null) {
-            return 64;
-        }
-        return getGroundHeightAtPoint(
-            world,
+        return terrain.sampleCrossSectionGroundY(
             node.getPosition(),
             resolveNodeTangent(node, network),
             resolveNodeHalfWidth(node, network)
@@ -1315,17 +1276,5 @@ public class RoadGenerator {
             }
         }
         return halfWidth;
-    }
-    
-    /**
-     * 检查是否为实心方块（粗略检测）
-     */
-    private boolean isSolidBlock(World world, BlockPos pos) {
-        try {
-            var blockState = world.getBlockState(pos);
-            return blockState != null && !blockState.isAir();
-        } catch (Exception e) {
-            return false;
-        }
     }
 }
