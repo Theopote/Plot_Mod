@@ -55,6 +55,7 @@ public class RoadSystemConfig {
     private float relaxedSlopePercent = 1.0f;
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
     private float fillFactor = 1.1f;
+    private double defaultCrossingClearance = 3.0;
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -412,6 +413,14 @@ public class RoadSystemConfig {
 
     public void setFillFactor(float fillFactor) {
         this.fillFactor = Math.max(1.0f, Math.min(2.0f, fillFactor));
+    }
+
+    public double getDefaultCrossingClearance() {
+        return defaultCrossingClearance;
+    }
+
+    public void setDefaultCrossingClearance(double defaultCrossingClearance) {
+        this.defaultCrossingClearance = Math.max(1.0, Math.min(10.0, defaultCrossingClearance));
     }
     
     /**

@@ -64,11 +64,16 @@ public class RoadJunctionGenerator {
 
         int junctionY = generator.computeJunctionTargetHeight(node, network, terrain);
         List<RoadEdge> connectedEdges = new ArrayList<>();
+        String elevatedRoadId = node.getElevatedRoadId();
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null) {
-                connectedEdges.add(edge);
+            if (edge == null) {
+                continue;
             }
+            if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
+                continue;
+            }
+            connectedEdges.add(edge);
         }
 
         if (degree >= 5) {

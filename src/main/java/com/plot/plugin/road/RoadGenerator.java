@@ -370,10 +370,14 @@ public class RoadGenerator {
             return node.getManualElevation().intValue();
         }
 
+        String elevatedRoadId = node.getElevatedRoadId();
         List<Integer> heights = new ArrayList<>();
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge edge = network.getEdge(edgeId);
             if (edge == null) {
+                continue;
+            }
+            if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
                 continue;
             }
             heights.add(getTargetHeightAtNode(edge, node, network, terrain));
@@ -409,6 +413,11 @@ public class RoadGenerator {
             return node.getManualElevation().intValue();
         }
 
+        Integer elevatedTarget = resolveElevatedCrossingHeight(edge, node, network, terrain);
+        if (elevatedTarget != null) {
+            return elevatedTarget;
+        }
+
         RoadNode startNode = network != null ? network.getNode(edge.getStartNodeId()) : null;
         List<PathSegment> segments = samplePath(edge.getCenterlinePoints());
         if (segments.isEmpty()) {
@@ -428,6 +437,65 @@ public class RoadGenerator {
             return heightInfos.getLast().targetEnd;
         }
         return getGroundHeightAtNode(terrain, node, network);
+    }
+
+    private Integer resolveForcedHeightAtNode(
+            RoadNode node,
+            RoadNetwork network,
+            RoadEdge edge,
+            TerrainSampler terrain) {
+        if (node == null) {
+            return null;
+        }
+        if (node.getManualElevation() != null) {
+            return node.getManualElevation().intValue();
+        }
+        return resolveElevatedCrossingHeight(edge, node, network, terrain);
+    }
+
+    private Integer resolveElevatedCrossingHeight(
+            RoadEdge edge,
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        if (node == null || edge == null || network == null) {
+            return null;
+        }
+        String elevatedRoadId = node.getElevatedRoadId();
+        if (elevatedRoadId == null || !elevatedRoadId.equals(edge.getRoadId())) {
+            return null;
+        }
+        int baseHeight = computeCrossingBaseHeight(node, network, terrain, elevatedRoadId);
+        return baseHeight + (int) Math.round(resolveCrossingClearance(node));
+    }
+
+    private int computeCrossingBaseHeight(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain,
+            String elevatedRoadId) {
+        List<Integer> heights = new ArrayList<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge connectedEdge = network.getEdge(edgeId);
+            if (connectedEdge == null) {
+                continue;
+            }
+            if (elevatedRoadId.equals(connectedEdge.getRoadId())) {
+                continue;
+            }
+            heights.add(getTargetHeightAtNode(connectedEdge, node, network, terrain));
+        }
+        if (heights.isEmpty()) {
+            return getGroundHeightAtNode(terrain, node, network);
+        }
+        return RoadSlopeUtils.averageJunctionHeight(heights);
+    }
+
+    private double resolveCrossingClearance(RoadNode node) {
+        if (node.getCrossingClearance() != null) {
+            return node.getCrossingClearance();
+        }
+        return config.getDefaultCrossingClearance();
     }
 
     public BlockPos toBlockPos(Vec2d canvasPos, int y) {
@@ -570,12 +638,8 @@ public class RoadGenerator {
             return emptyHeightCalculation();
         }
 
-        Integer manualStartHeight = startNode != null && startNode.getManualElevation() != null
-            ? startNode.getManualElevation().intValue()
-            : null;
-        Integer manualEndHeight = endNode != null && endNode.getManualElevation() != null
-            ? endNode.getManualElevation().intValue()
-            : null;
+        Integer manualStartHeight = resolveForcedHeightAtNode(startNode, network, edge, terrain);
+        Integer manualEndHeight = resolveForcedHeightAtNode(endNode, network, edge, terrain);
 
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
             RoadModelUtils.getEffectiveWidth(network, edge, config));
@@ -590,7 +654,7 @@ public class RoadGenerator {
             accumulatedDistance += segment.distance;
         }
 
-        SegmentHeightCalculation calculation = buildSegmentHeights(
+        return buildSegmentHeights(
             segments,
             sampleData,
             maxSlopes,
@@ -598,18 +662,6 @@ public class RoadGenerator {
             manualEndHeight,
             segmentIndex -> RoadModelUtils.getEffectiveMaxSlope(
                 network, edge, config, profileDistanceAtSegmentStart(sampleData, segmentIndex)));
-
-        if (manualEndHeight != null && !calculation.heightInfos().isEmpty()) {
-            List<SegmentHeightInfo> adjusted = new ArrayList<>(calculation.heightInfos());
-            applyManualEndHeight(adjusted, network, edge, manualEndHeight, accumulatedDistance);
-            return new SegmentHeightCalculation(
-                adjusted,
-                calculation.profileDistances(),
-                calculation.profileGroundHeights(),
-                calculation.profileGuideLine(),
-                buildProfileTargetHeights(adjusted, manualStartHeight));
-        }
-        return calculation;
     }
 
     private static SegmentHeightCalculation emptyHeightCalculation() {
@@ -699,6 +751,7 @@ public class RoadGenerator {
             guideEnds,
             effectiveMaxSlopes,
             manualStartHeight,
+            manualEndHeight,
             config.getMaxContinuousSlopeLength(),
             config.getRelaxedSlopeLength(),
             config.getRelaxedSlopePercent()
@@ -756,28 +809,6 @@ public class RoadGenerator {
         return profileTargetHeights;
     }
 
-    private void applyManualEndHeight(
-            List<SegmentHeightInfo> heightInfos,
-            RoadNetwork network,
-            RoadEdge edge,
-            int desiredEndHeight,
-            double totalDistance) {
-        int lastIndex = heightInfos.size() - 1;
-        SegmentHeightInfo last = heightInfos.get(lastIndex);
-        double lastSegmentStartDistance = Math.max(0.0, totalDistance - last.segment.distance);
-        float maxSlopePercent = RoadModelUtils.getEffectiveMaxSlope(
-            network, edge, config, lastSegmentStartDistance);
-        int clampedEnd = RoadSlopeUtils.clampTowardTarget(
-            last.targetStart, desiredEndHeight, last.segment.distance, maxSlopePercent);
-        if (clampedEnd == last.targetEnd) {
-            return;
-        }
-        double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
-            last.targetStart, clampedEnd, last.segment.distance);
-        heightInfos.set(lastIndex, new SegmentHeightInfo(
-            last.segment, last.groundStart, last.groundEnd, last.targetStart, clampedEnd, actualSlope));
-    }
-    
     /**
      * 基于成本比较检测桥/隧道需求，并返回每段施工类型。
      */

@@ -23,8 +23,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -197,6 +199,62 @@ public class RoadNetwork {
             .count();
     }
 
+    /**
+     * 获取节点处连接的道路 ID（按 roadId 去重）。
+     */
+    public Set<String> getDistinctRoadIdsAtNode(String nodeId) {
+        RoadNode node = nodes.get(nodeId);
+        if (node == null) {
+            return Set.of();
+        }
+        Set<String> roadIds = new LinkedHashSet<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = edges.get(edgeId);
+            if (edge != null && edge.getRoadId() != null && !edge.getRoadId().isBlank()) {
+                roadIds.add(edge.getRoadId());
+            }
+        }
+        return roadIds;
+    }
+
+    public List<RoadEdge> getEdgesAtNode(String nodeId) {
+        RoadNode node = nodes.get(nodeId);
+        if (node == null) {
+            return List.of();
+        }
+        List<RoadEdge> connected = new ArrayList<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = edges.get(edgeId);
+            if (edge != null) {
+                connected.add(edge);
+            }
+        }
+        return connected;
+    }
+
+    /**
+     * 设置节点的立体交叉标记；校验失败时返回 false 且不修改状态。
+     */
+    public boolean setNodeGradeSeparation(String nodeId, String elevatedRoadId, Double crossingClearance) {
+        RoadNode node = nodes.get(nodeId);
+        if (node == null) {
+            return false;
+        }
+        if (elevatedRoadId == null || elevatedRoadId.isBlank()) {
+            node.clearGradeSeparation();
+            return true;
+        }
+
+        Set<String> roadIds = getDistinctRoadIdsAtNode(nodeId);
+        if (roadIds.size() < 2 || !roadIds.contains(elevatedRoadId)) {
+            return false;
+        }
+
+        node.setElevatedRoadId(elevatedRoadId);
+        node.setCrossingClearance(crossingClearance);
+        return true;
+    }
+
     public String toJson() {
         NetworkData data = NetworkData.from(this);
         return GSON.toJson(data);
@@ -258,6 +316,8 @@ public class RoadNetwork {
         String id;
         Vec2dData position;
         Double manualElevation;
+        String elevatedRoadId;
+        Double crossingClearance;
         Double cornerRadius;
         String stopLines;
         String continuedMarkings;
@@ -556,6 +616,8 @@ public class RoadNetwork {
                 nodeData.id = node.getId();
                 nodeData.position = new Vec2dData(node.getPosition());
                 nodeData.manualElevation = node.getManualElevation();
+                nodeData.elevatedRoadId = node.getElevatedRoadId();
+                nodeData.crossingClearance = node.getCrossingClearance();
                 nodeData.cornerRadius = node.getCornerRadius();
                 if (node.getStopLines() != JunctionMarkingSetting.AUTO) {
                     nodeData.stopLines = node.getStopLines().name();
@@ -621,6 +683,8 @@ public class RoadNetwork {
                 node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
                 node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));
                 node.setTurnArrows(JunctionMarkingSetting.fromString(nodeData.turnArrows));
+                node.setElevatedRoadId(nodeData.elevatedRoadId);
+                node.setCrossingClearance(nodeData.crossingClearance);
                 if (nodeData.connectedEdgeIds != null) {
                     for (String edgeId : nodeData.connectedEdgeIds) {
                         node.addEdge(edgeId);

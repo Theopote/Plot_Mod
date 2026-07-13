@@ -1,5 +1,8 @@
 package com.plot.plugin.road;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
@@ -8,6 +11,8 @@ import java.util.function.IntUnaryOperator;
  * 道路坡度与高度计算的纯数值逻辑（不依赖 Minecraft World）
  */
 public final class RoadSlopeUtils {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadSlopeUtils");
+
     private RoadSlopeUtils() {
     }
 
@@ -142,6 +147,64 @@ public final class RoadSlopeUtils {
             double maxContinuousSlopeLength,
             double relaxedSlopeLength,
             float relaxedSlopePercent) {
+        return computeChainedTargetHeights(
+            segmentDistances,
+            groundStarts,
+            groundEnds,
+            maxSlopePercents,
+            manualStartHeight,
+            null,
+            maxContinuousSlopeLength,
+            relaxedSlopeLength,
+            relaxedSlopePercent
+        );
+    }
+
+    /**
+     * 沿多段路径链式计算目标高度，并限制单一方向的连续爬坡/下坡长度。
+     * 若指定 {@code manualEndHeight}，则在正向计算后反向修正，使链条末端精确等于该值。
+     */
+    public static List<Integer> computeChainedTargetHeights(
+            List<Double> segmentDistances,
+            List<Integer> groundStarts,
+            List<Integer> groundEnds,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            double maxContinuousSlopeLength,
+            double relaxedSlopeLength,
+            float relaxedSlopePercent) {
+        List<Integer> targetEnds = computeChainedTargetHeightsForward(
+            segmentDistances,
+            groundStarts,
+            groundEnds,
+            maxSlopePercents,
+            manualStartHeight,
+            maxContinuousSlopeLength,
+            relaxedSlopeLength,
+            relaxedSlopePercent
+        );
+        if (manualEndHeight == null || targetEnds.isEmpty()) {
+            return targetEnds;
+        }
+        return applyManualEndHeightCorrection(
+            targetEnds,
+            segmentDistances,
+            maxSlopePercents,
+            manualStartHeight,
+            manualEndHeight
+        );
+    }
+
+    private static List<Integer> computeChainedTargetHeightsForward(
+            List<Double> segmentDistances,
+            List<Integer> groundStarts,
+            List<Integer> groundEnds,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            double maxContinuousSlopeLength,
+            double relaxedSlopeLength,
+            float relaxedSlopePercent) {
         if (segmentDistances == null || segmentDistances.isEmpty()) {
             return List.of();
         }
@@ -259,6 +322,51 @@ public final class RoadSlopeUtils {
                 processedInSegment += chunkDistance;
             }
             targetEnds.add(currentHeight);
+        }
+        return targetEnds;
+    }
+
+    private static List<Integer> applyManualEndHeightCorrection(
+            List<Integer> targetEnds,
+            List<Double> segmentDistances,
+            List<Float> maxSlopePercents,
+            Integer manualStartHeight,
+            int manualEndHeight) {
+        int size = targetEnds.size();
+        int lastIdx = size - 1;
+        int previousLast = targetEnds.get(lastIdx);
+        targetEnds.set(lastIdx, manualEndHeight);
+
+        boolean slopeViolation = previousLast != manualEndHeight;
+        for (int i = lastIdx; i > 0; i--) {
+            int segmentEnd = targetEnds.get(i);
+            int previousSegmentEnd = targetEnds.get(i - 1);
+            int adjustedStart = clampTowardTarget(
+                segmentEnd,
+                previousSegmentEnd,
+                segmentDistances.get(i),
+                maxSlopePercents.get(i)
+            );
+            if (adjustedStart != previousSegmentEnd) {
+                targetEnds.set(i - 1, adjustedStart);
+                slopeViolation = true;
+            }
+        }
+
+        if (manualStartHeight != null) {
+            int reachableEnd = clampTowardTarget(
+                manualStartHeight,
+                targetEnds.get(0),
+                segmentDistances.get(0),
+                maxSlopePercents.get(0)
+            );
+            if (reachableEnd != targetEnds.get(0)) {
+                slopeViolation = true;
+            }
+        }
+
+        if (slopeViolation) {
+            LOGGER.warn("该边长度不足以在坡度限制内连接两端强制标高");
         }
         return targetEnds;
     }

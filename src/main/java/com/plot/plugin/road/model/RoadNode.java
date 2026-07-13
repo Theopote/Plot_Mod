@@ -18,6 +18,10 @@ public class RoadNode {
     private final String id;
     private Vec2d position;
     private Double manualElevation;
+    /** 在此节点跨越通过的道路 ID；null 表示普通路口 */
+    private String elevatedRoadId;
+    /** 立体交叉净空高度（格），null 表示使用全局默认值 */
+    private Double crossingClearance;
     /** 路缘石圆角半径（格），null 表示使用网络默认值 */
     private Double cornerRadius;
     private JunctionMarkingSetting stopLines = JunctionMarkingSetting.AUTO;
@@ -67,6 +71,27 @@ public class RoadNode {
 
     public void setManualElevation(Double manualElevation) {
         this.manualElevation = manualElevation;
+    }
+
+    public String getElevatedRoadId() {
+        return elevatedRoadId;
+    }
+
+    public void setElevatedRoadId(String elevatedRoadId) {
+        this.elevatedRoadId = elevatedRoadId;
+    }
+
+    public Double getCrossingClearance() {
+        return crossingClearance;
+    }
+
+    public void setCrossingClearance(Double crossingClearance) {
+        this.crossingClearance = crossingClearance;
+    }
+
+    public void clearGradeSeparation() {
+        this.elevatedRoadId = null;
+        this.crossingClearance = null;
     }
 
     public Double getCornerRadius() {
@@ -137,6 +162,8 @@ public class RoadNode {
 
     RoadNode copy() {
         RoadNode copy = new RoadNode(id, position, manualElevation, cornerRadius, connectedEdgeIds);
+        copy.elevatedRoadId = elevatedRoadId;
+        copy.crossingClearance = crossingClearance;
         copy.stopLines = stopLines;
         copy.continuedMarkings = continuedMarkings;
         copy.crosswalks = crosswalks;

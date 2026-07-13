@@ -216,4 +216,53 @@ class RoadSlopeUtilsTest {
 
         assertEquals(66, targetEnds.getLast());
     }
+
+    @Test
+    void chainedHeightsHonorManualEndElevation() {
+        List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
+            List.of(50.0),
+            List.of(64),
+            List.of(80),
+            List.of(45.0f),
+            60,
+            70,
+            0.0,
+            0.0,
+            0.0f
+        );
+
+        assertEquals(70, targetEnds.getLast());
+    }
+
+    @Test
+    void chainedHeightsMatchLegacyWhenManualEndIsNull() {
+        List<Double> distances = List.of(10.0, 10.0);
+        List<Integer> groundStarts = List.of(64, 64);
+        List<Integer> groundEnds = List.of(80, 80);
+        List<Float> slopes = List.of(10.0f, 10.0f);
+
+        List<Integer> legacy = RoadSlopeUtils.computeChainedTargetHeights(
+            distances, groundStarts, groundEnds, slopes, 64, 30.0, 5.0, 1.0f);
+        List<Integer> withNullEnd = RoadSlopeUtils.computeChainedTargetHeights(
+            distances, groundStarts, groundEnds, slopes, 64, null, 30.0, 5.0, 1.0f);
+
+        assertEquals(legacy, withNullEnd);
+    }
+
+    @Test
+    void chainedHeightsHonorBothManualStartAndEnd() {
+        List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
+            List.of(100.0),
+            List.of(64),
+            List.of(80),
+            List.of(45.0f),
+            60,
+            70,
+            0.0,
+            0.0,
+            0.0f
+        );
+
+        assertEquals(70, targetEnds.getLast());
+    }
 }

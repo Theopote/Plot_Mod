@@ -63,6 +63,14 @@ public final class RoadGraphQueries {
         return new GraphComponent(List.copyOf(componentNodes), List.copyOf(componentEdges));
     }
 
+    public List<String> distinctRoadIdsAtNode(String nodeId) {
+        return List.copyOf(network.getDistinctRoadIdsAtNode(nodeId));
+    }
+
+    public List<RoadEdge> edgesAtNode(String nodeId) {
+        return network.getEdgesAtNode(nodeId);
+    }
+
     public List<RoadNode> deadEndNodes() {
         List<RoadNode> deadEnds = new ArrayList<>();
         for (RoadNode node : network.getNodes().values()) {
