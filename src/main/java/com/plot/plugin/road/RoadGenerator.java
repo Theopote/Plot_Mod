@@ -271,7 +271,7 @@ public class RoadGenerator {
             generateStreetlights(solids, pathPoints, terrain, crossSection);
         }
 
-        clearTerrainAboveRoadEnvelope(solids, segments, heightInfos, crossSection, terrain);
+        gradeRoadEnvelope(solids, metrics, segments, heightInfos, crossSection, terrain);
 
         RoadGenerationResult result = new RoadGenerationResult(pathLength);
         result.cutVolume = metrics.cutVolume;
@@ -848,22 +848,14 @@ public class RoadGenerator {
         int[] volumeScratch = new int[2];
         forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) -> {
             solids.addLateralStrip(center, leftNormal, carriagewayWidth, targetY, RoadSolidLayer.ROAD, blockId);
-            int groundY = terrain.sampleSurfaceY(center);
-            if (targetY < groundY) {
-                volumeScratch[0] += (groundY - targetY);
-            } else if (targetY > groundY) {
-                volumeScratch[1] += (targetY - groundY);
-            }
         });
 
         generateBridgeStructures(solids, bridges, segments, heightInfos, leftBoundary, rightBoundary, terrain);
-
-        metrics.cutVolume = volumeScratch[0];
-        metrics.fillVolume = volumeScratch[1];
     }
 
-    private void clearTerrainAboveRoadEnvelope(
+    private void gradeRoadEnvelope(
             RoadSolidModel solids,
+            EdgeBuildMetrics metrics,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             ResolvedCrossSection crossSection,
@@ -874,6 +866,11 @@ public class RoadGenerator {
             return;
         }
         int tunnelThreshold = config.getTunnelThreshold();
+        int bridgeThreshold = config.getBridgeThreshold();
+        String fillMaterialId = getBlockIdFromMaterial(
+            crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
+                ? crossSection.fillSlopeMaterial
+                : config.getFillSlopeMaterial());
         RoadTerrainClearanceUtils.BlockColumnResolver columnResolver = new RoadTerrainClearanceUtils.BlockColumnResolver() {
             @Override
             public int worldX(Vec2d planPoint) {
@@ -885,16 +882,21 @@ public class RoadGenerator {
                 return canvasToBlockPos(planPoint).getZ();
             }
         };
+        RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) ->
-            RoadTerrainClearanceUtils.clearCrossSectionOverhead(
+            total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
                 solids,
                 center,
                 leftNormal,
                 envelopeWidth,
                 targetY,
                 tunnelThreshold,
+                bridgeThreshold,
+                fillMaterialId,
                 terrain,
-                columnResolver));
+                columnResolver)));
+        metrics.cutVolume = total.cutVolume();
+        metrics.fillVolume = total.fillVolume();
     }
 
     private void generateShoulderBlocks(

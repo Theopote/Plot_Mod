@@ -13,5 +13,6 @@ public enum RoadSolidLayer {
     DRAIN,
     BRIDGE,
     TUNNEL,
+    SUBGRADE,
     STREETLIGHT
 }

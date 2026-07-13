@@ -70,16 +70,42 @@ public final class RoadVoxelRasterizer {
         }
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
         for (RoadSolidPrimitive primitive : solids.primitives()) {
-            BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
-            appendToResultBucket(result, primitive.layer(), pos);
-            if (primitive.materialId() != null) {
-                result.recordPlacementIfAbsent(
-                    pos,
-                    projectionHandler.getBlockIdAt(pos),
-                    primitive.materialId());
+            if (primitive.layer() == RoadSolidLayer.TUNNEL) {
+                continue;
             }
+            writePlacementRecord(result, primitive, transformer, projectionHandler, false);
+        }
+        for (RoadSolidPrimitive primitive : solids.primitives()) {
+            if (primitive.layer() != RoadSolidLayer.TUNNEL) {
+                continue;
+            }
+            writePlacementRecord(result, primitive, transformer, projectionHandler, true);
         }
         result.streetlightCount = result.streetlightBlocks.size();
+    }
+
+    private static void writePlacementRecord(
+            RoadGenerationResult result,
+            RoadSolidPrimitive primitive,
+            CoordinateTransformer transformer,
+            BlockProjectionHandler projectionHandler,
+            boolean overrideExisting) {
+        BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
+        appendToResultBucket(result, primitive.layer(), pos);
+        if (primitive.materialId() == null) {
+            return;
+        }
+        if (overrideExisting) {
+            result.recordPlacementOverride(
+                pos,
+                projectionHandler.getBlockIdAt(pos),
+                primitive.materialId());
+        } else {
+            result.recordPlacementIfAbsent(
+                pos,
+                projectionHandler.getBlockIdAt(pos),
+                primitive.materialId());
+        }
     }
 
     /**
@@ -97,17 +123,52 @@ public final class RoadVoxelRasterizer {
         }
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
         for (RoadSolidPrimitive primitive : solids.primitives()) {
-            String overrideBlockId = resolveJunctionMaterialOverride(
-                primitive.layer(), roadBlockId, sidewalkBlockId, markingBlockId);
-            if (overrideBlockId == null) {
+            if (primitive.layer() == RoadSolidLayer.TUNNEL) {
                 continue;
             }
-            BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
-            appendToResultBucket(result, primitive.layer(), pos);
+            writeJunctionPlacementRecord(
+                result, primitive, transformer, projectionHandler,
+                roadBlockId, sidewalkBlockId, markingBlockId, false);
+        }
+        for (RoadSolidPrimitive primitive : solids.primitives()) {
+            if (primitive.layer() != RoadSolidLayer.TUNNEL) {
+                continue;
+            }
+            writeJunctionPlacementRecord(
+                result, primitive, transformer, projectionHandler,
+                roadBlockId, sidewalkBlockId, markingBlockId, true);
+        }
+    }
+
+    private static void writeJunctionPlacementRecord(
+            RoadGenerationResult result,
+            RoadSolidPrimitive primitive,
+            CoordinateTransformer transformer,
+            BlockProjectionHandler projectionHandler,
+            String roadBlockId,
+            String sidewalkBlockId,
+            String markingBlockId,
+            boolean overrideExisting) {
+        String blockId = resolveJunctionMaterialOverride(
+            primitive.layer(), roadBlockId, sidewalkBlockId, markingBlockId);
+        if (blockId == null) {
+            blockId = primitive.materialId();
+        }
+        if (blockId == null) {
+            return;
+        }
+        BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
+        appendToResultBucket(result, primitive.layer(), pos);
+        if (overrideExisting) {
             result.recordPlacementOverride(
                 pos,
                 projectionHandler.getBlockIdAt(pos),
-                overrideBlockId);
+                blockId);
+        } else {
+            result.recordPlacementIfAbsent(
+                pos,
+                projectionHandler.getBlockIdAt(pos),
+                blockId);
         }
     }
 
@@ -130,7 +191,7 @@ public final class RoadVoxelRasterizer {
             BlockPos pos) {
         switch (layer) {
             case ROAD, MEDIAN, MARKING -> result.roadBlocks.add(pos);
-            case SIDEWALK, BIKE_LANE, SHOULDER, DRAIN -> result.sidewalkBlocks.add(pos);
+            case SIDEWALK, BIKE_LANE, SHOULDER, DRAIN, SUBGRADE -> result.sidewalkBlocks.add(pos);
             case BRIDGE -> result.bridgeBlocks.add(pos);
             case TUNNEL -> result.tunnelBlocks.add(pos);
             case STREETLIGHT -> result.streetlightBlocks.add(pos);

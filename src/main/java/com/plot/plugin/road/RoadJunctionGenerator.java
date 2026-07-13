@@ -75,7 +75,7 @@ public class RoadJunctionGenerator {
             LOGGER.debug("复杂路口（{}条道路汇聚），使用多边形填充（必要时回退凸包）", degree);
         }
 
-        List<Vec2d> polygon = generatePolygonJunction(blocks, node, network, connectedEdges, junctionY);
+        List<Vec2d> polygon = generatePolygonJunction(blocks, node, network, connectedEdges, junctionY, terrain);
         markingGenerator.generateStopLines(blocks, node, network, connectedEdges, junctionY);
         markingGenerator.generateMarkings(blocks, node, network, connectedEdges, polygon, junctionY);
         return blocks;
@@ -86,7 +86,8 @@ public class RoadJunctionGenerator {
             RoadNode node,
             RoadNetwork network,
             List<RoadEdge> edges,
-            int junctionY) {
+            int junctionY,
+            TerrainSampler terrain) {
         Vec2d center = node.getPosition();
         double junctionRadius = RoadJunctionGeometry.resolveEffectiveJunctionRadius(
             edges,
@@ -103,11 +104,11 @@ public class RoadJunctionGenerator {
         );
 
         if (polygon.size() < 3) {
-            generateSimpleEnvelope(blocks, network, center, edges, junctionY);
+            generateSimpleEnvelope(blocks, network, center, edges, junctionY, terrain);
             return List.of();
         }
 
-        fillPolygon(blocks, polygon, center, junctionY);
+        fillPolygon(blocks, polygon, center, junctionY, terrain);
         return polygon;
     }
 
@@ -116,7 +117,8 @@ public class RoadJunctionGenerator {
             RoadNetwork network,
             Vec2d center,
             List<RoadEdge> edges,
-            int junctionY) {
+            int junctionY,
+            TerrainSampler terrain) {
         int maxWidth = edges.stream()
             .mapToInt(edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()))
             .max()
@@ -124,10 +126,16 @@ public class RoadJunctionGenerator {
         int radius = maxWidth + 2;
         for (Vec2d point : RoadJunctionGeometry.collectSimpleEnvelopePoints(center, radius)) {
             blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
+            gradeJunctionColumn(blocks, point, junctionY, terrain);
         }
     }
 
-    private void fillPolygon(JunctionBlocks blocks, List<Vec2d> polygon, Vec2d center, int junctionY) {
+    private void fillPolygon(
+            JunctionBlocks blocks,
+            List<Vec2d> polygon,
+            Vec2d center,
+            int junctionY,
+            TerrainSampler terrain) {
         double minX = polygon.stream().mapToDouble(p -> p.x).min().orElse(center.x);
         double maxX = polygon.stream().mapToDouble(p -> p.x).max().orElse(center.x);
         double minY = polygon.stream().mapToDouble(p -> p.y).min().orElse(center.y);
@@ -138,8 +146,32 @@ public class RoadJunctionGenerator {
                 Vec2d point = new Vec2d(x, z);
                 if (RoadGeometryUtils.pointInPolygon(point, polygon)) {
                     blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
+                    gradeJunctionColumn(blocks, point, junctionY, terrain);
                 }
             }
         }
+    }
+
+    private void gradeJunctionColumn(
+            JunctionBlocks blocks,
+            Vec2d planPoint,
+            int junctionY,
+            TerrainSampler terrain) {
+        if (terrain == null || generator == null) {
+            return;
+        }
+        int worldX = (int) Math.round(planPoint.x);
+        int worldZ = (int) Math.round(planPoint.y);
+        String fillMaterialId = generator.getBlockIdFromMaterial(generator.getConfig().getFillSlopeMaterial());
+        RoadRoadbedGradingUtils.gradeColumn(
+            blocks.getSolids(),
+            planPoint,
+            junctionY,
+            generator.getConfig().getTunnelThreshold(),
+            generator.getConfig().getBridgeThreshold(),
+            fillMaterialId,
+            worldX,
+            worldZ,
+            terrain);
     }
 }
