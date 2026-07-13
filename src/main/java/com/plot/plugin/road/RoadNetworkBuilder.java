@@ -44,13 +44,16 @@ public class RoadNetworkBuilder {
             throw new IllegalArgumentException("Shape must have at least 2 points");
         }
 
-        List<Vec2d> endpoints = shape.getEndpoints();
-        Vec2d startPoint = endpoints != null && !endpoints.isEmpty()
-            ? endpoints.getFirst()
-            : points.getFirst();
-        Vec2d endPoint = endpoints != null && endpoints.size() > 1
-            ? endpoints.getLast()
-            : points.getLast();
+        // 端点优先用离散中心线首尾（闭合圆/矩形等 getEndpoints 可能为空，首尾重合则共用一个节点）
+        Vec2d startPoint = points.getFirst();
+        Vec2d endPoint = points.getLast();
+        List<Vec2d> shapeEndpoints = shape.getEndpoints();
+        if (shapeEndpoints != null && shapeEndpoints.size() >= 2
+            && !RoadGeometryUtils.pointsNear(startPoint, endPoint, NODE_TOLERANCE)) {
+            // 开放路径：若 Shape 声明了端点且与中心线端点一致量级，沿用声明端点便于吸附
+            startPoint = shapeEndpoints.getFirst();
+            endPoint = shapeEndpoints.getLast();
+        }
 
         RoadNode startNode = findOrCreateNode(network, startPoint);
         RoadNode endNode = findOrCreateNode(network, endPoint);

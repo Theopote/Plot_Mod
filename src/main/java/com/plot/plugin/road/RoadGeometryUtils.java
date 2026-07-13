@@ -1,10 +1,21 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.AnnotationShape;
+import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.CableShape;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.EllipseShape;
+import com.plot.core.geometry.shapes.EllipticalArcShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.geometry.shapes.RectangleShape;
+import com.plot.core.geometry.shapes.SineCurveShape;
+import com.plot.core.geometry.shapes.SpiralShape;
+import com.plot.core.geometry.shapes.TextShape;
 import com.plot.core.model.Shape;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.util.math.BlockPos;
@@ -30,11 +41,45 @@ public final class RoadGeometryUtils {
     private RoadGeometryUtils() {
     }
 
+    /**
+     * 是否可作为道路中心线认领。
+     * 支持折线/样条/圆/椭圆/弧/矩形/多边形/螺旋/正弦/悬链等几何轮廓；
+     * 排除文字、标注等非路径对象。
+     */
     public static boolean isAdoptablePath(Shape shape) {
+        if (shape == null || isNonPathShape(shape)) {
+            return false;
+        }
+        // 已知路径类型：直接认可（避免每帧对螺旋等做完整离散）
+        if (isKnownPathType(shape)) {
+            return true;
+        }
+        // 未知类型：尝试离散点列
+        try {
+            return extractShapePoints(shape).size() >= 2;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isNonPathShape(Shape shape) {
+        return shape instanceof TextShape || shape instanceof AnnotationShape;
+    }
+
+    private static boolean isKnownPathType(Shape shape) {
         return shape instanceof PolylineShape
             || shape instanceof FreeDrawPath
             || shape instanceof BezierCurveShape
-            || shape instanceof LineShape;
+            || shape instanceof LineShape
+            || shape instanceof CircleShape
+            || shape instanceof EllipseShape
+            || shape instanceof EllipticalArcShape
+            || shape instanceof ArcShape
+            || shape instanceof RectangleShape
+            || shape instanceof Polygon
+            || shape instanceof SpiralShape
+            || shape instanceof SineCurveShape
+            || shape instanceof CableShape;
     }
 
     public static Shape findFirstAdoptablePath(List<Shape> shapes) {
@@ -55,18 +100,97 @@ public final class RoadGeometryUtils {
         return paths;
     }
 
+    /**
+     * 从任意可认领图形提取道路中心线折点（统一为折线，闭合形状首尾重合）。
+     */
     public static List<Vec2d> extractShapePoints(Shape shape) {
-        if (shape == null) {
+        if (shape == null || isNonPathShape(shape)) {
             return List.of();
         }
-        if (shape instanceof PolylineShape || shape instanceof FreeDrawPath) {
-            return shape.getPoints();
-        }
+
+        // 贝塞尔：密采样 + RDP 简化（控制点序列不能当中心线）
         if (shape instanceof BezierCurveShape bezier) {
             return sampleBezierCurve(bezier);
         }
+
+        // 折线 / 自由绘：原样取点（自由绘已在绘制时简化）
+        if (shape instanceof PolylineShape || shape instanceof FreeDrawPath) {
+            return copyAndSanitizePoints(shape.getPoints());
+        }
+
+        // 直线：两端点即可
+        if (shape instanceof LineShape) {
+            return copyAndSanitizePoints(shape.getPoints());
+        }
+
+        // 曲线 / 闭合轮廓：用 getPoints() 离散后适度简化，避免路网顶点过密
+        if (shape instanceof CircleShape
+            || shape instanceof EllipseShape
+            || shape instanceof EllipticalArcShape
+            || shape instanceof ArcShape
+            || shape instanceof SpiralShape
+            || shape instanceof SineCurveShape
+            || shape instanceof CableShape
+            || shape instanceof RectangleShape
+            || shape instanceof Polygon) {
+            List<Vec2d> dense = shape.getPoints();
+            List<Vec2d> sanitized = copyAndSanitizePoints(dense);
+            if (sanitized.size() < 2) {
+                return sanitized;
+            }
+            // 矩形/多边形顶点少，不必强行简化；圆/螺旋等密采样再 RDP
+            if (sanitized.size() <= 8) {
+                return sanitized;
+            }
+            return simplifyPolyline(sanitized, ROAD_CENTERLINE_SIMPLIFY_EPSILON);
+        }
+
+        // 其它未知 Shape：尽量用 getPoints()，失败再回退端点
+        try {
+            List<Vec2d> points = copyAndSanitizePoints(shape.getPoints());
+            if (points.size() >= 2) {
+                return points.size() > 8
+                    ? simplifyPolyline(points, ROAD_CENTERLINE_SIMPLIFY_EPSILON)
+                    : points;
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
         List<Vec2d> endpoints = shape.getEndpoints();
-        return endpoints != null ? new ArrayList<>(endpoints) : List.of();
+        return endpoints != null ? copyAndSanitizePoints(endpoints) : List.of();
+    }
+
+    /**
+     * 拷贝点列并去掉连续重复点；闭合轮廓若首尾几乎重合则保留闭合。
+     */
+    public static List<Vec2d> copyAndSanitizePoints(List<Vec2d> source) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> result = new ArrayList<>(source.size());
+        Vec2d prev = null;
+        for (Vec2d point : source) {
+            if (point == null) {
+                continue;
+            }
+            if (prev != null && pointsNear(prev, point, 1e-9)) {
+                continue;
+            }
+            Vec2d copy = point.copy();
+            result.add(copy);
+            prev = copy;
+        }
+        // 闭合：原序列首尾重合但被去重删掉了末点时，补回闭合点
+        if (result.size() >= 2 && source.size() >= 2) {
+            Vec2d firstSrc = source.getFirst();
+            Vec2d lastSrc = source.getLast();
+            if (firstSrc != null && lastSrc != null
+                && pointsNear(firstSrc, lastSrc, 1e-6)
+                && !pointsNear(result.getFirst(), result.getLast(), 1e-6)) {
+                result.add(result.getFirst().copy());
+            }
+        }
+        return result;
     }
 
     /**

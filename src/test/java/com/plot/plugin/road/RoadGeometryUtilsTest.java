@@ -1,9 +1,15 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.EllipseShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.geometry.shapes.RectangleShape;
+import com.plot.core.geometry.shapes.SpiralShape;
+import com.plot.core.geometry.shapes.SpiralType;
 import com.plot.ui.tools.impl.drawing.helper.BezierUtils;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -121,6 +127,43 @@ class RoadGeometryUtilsTest {
         assertEquals(3, extracted.size());
         assertEquals(0, extracted.getFirst().x, 1e-6);
         assertEquals(10, extracted.getLast().x, 1e-6);
+    }
+
+    @Test
+    void isAdoptablePathAcceptsCircleEllipseArcRectangleSpiral() {
+        assertTrue(RoadGeometryUtils.isAdoptablePath(new CircleShape(new Vec2d(0, 0), 10)));
+        assertTrue(RoadGeometryUtils.isAdoptablePath(new EllipseShape(new Vec2d(0, 0), 12, 6, 0)));
+        assertTrue(RoadGeometryUtils.isAdoptablePath(
+            new ArcShape(new Vec2d(0, 0), 8, 0, Math.PI)));
+        assertTrue(RoadGeometryUtils.isAdoptablePath(
+            new RectangleShape(new Vec2d(0, 0), 20, 10, 0)));
+        assertTrue(RoadGeometryUtils.isAdoptablePath(
+            new SpiralShape(new Vec2d(0, 0), 5, 3, 15, SpiralType.LINEAR)));
+    }
+
+    @Test
+    void extractShapePointsFromCircleIsClosedLoop() {
+        CircleShape circle = new CircleShape(new Vec2d(0, 0), 10);
+        List<Vec2d> points = RoadGeometryUtils.extractShapePoints(circle);
+
+        assertTrue(points.size() >= 8);
+        assertTrue(
+            points.getFirst().distance(points.getLast()) < 0.5,
+            "circle centerline should close (first ≈ last)");
+        double radiusError = points.stream()
+            .mapToDouble(p -> Math.abs(p.distance(new Vec2d(0, 0)) - 10))
+            .max()
+            .orElse(999);
+        assertTrue(radiusError < 0.5, "sampled points should lie near the circle");
+    }
+
+    @Test
+    void extractShapePointsFromRectangleHasFourCorners() {
+        RectangleShape rect = new RectangleShape(new Vec2d(0, 0), 20, 10, 0);
+        List<Vec2d> points = RoadGeometryUtils.extractShapePoints(rect);
+
+        assertTrue(points.size() >= 4);
+        assertTrue(RoadGeometryUtils.isAdoptablePath(rect));
     }
 
     @Test

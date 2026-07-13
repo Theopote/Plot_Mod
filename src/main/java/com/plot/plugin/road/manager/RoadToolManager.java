@@ -1,9 +1,18 @@
 package com.plot.plugin.road.manager;
 
+import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.CableShape;
+import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.EllipseShape;
+import com.plot.core.geometry.shapes.EllipticalArcShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.geometry.shapes.RectangleShape;
+import com.plot.core.geometry.shapes.SineCurveShape;
+import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
@@ -85,12 +94,42 @@ public final class RoadToolManager {
     public static String getPathTypeName(Shape shape) {
         if (shape instanceof PolylineShape) {
             return PlotI18n.tr("path.plot.polyline");
-        } else if (shape instanceof FreeDrawPath) {
+        }
+        if (shape instanceof FreeDrawPath) {
             return PlotI18n.tr("path.plot.freedraw");
-        } else if (shape instanceof BezierCurveShape) {
+        }
+        if (shape instanceof BezierCurveShape) {
             return PlotI18n.tr("path.plot.bezier");
-        } else if (shape instanceof LineShape) {
+        }
+        if (shape instanceof LineShape) {
             return PlotI18n.tr("path.plot.line");
+        }
+        if (shape instanceof CircleShape) {
+            return PlotI18n.tr("path.plot.circle");
+        }
+        if (shape instanceof EllipseShape) {
+            return PlotI18n.tr("path.plot.ellipse");
+        }
+        if (shape instanceof EllipticalArcShape) {
+            return PlotI18n.tr("path.plot.elliptical_arc");
+        }
+        if (shape instanceof ArcShape) {
+            return PlotI18n.tr("path.plot.arc");
+        }
+        if (shape instanceof RectangleShape) {
+            return PlotI18n.tr("path.plot.rectangle");
+        }
+        if (shape instanceof Polygon) {
+            return PlotI18n.tr("path.plot.polygon");
+        }
+        if (shape instanceof SpiralShape) {
+            return PlotI18n.tr("path.plot.spiral");
+        }
+        if (shape instanceof SineCurveShape) {
+            return PlotI18n.tr("path.plot.sine");
+        }
+        if (shape instanceof CableShape) {
+            return PlotI18n.tr("path.plot.cable");
         }
         return PlotI18n.tr("path.plot.unknown");
     }
