@@ -181,10 +181,48 @@ public final class RoadNetworkManager {
                 lastSelectedEdgeId = edgeId;
             }
         } else {
-            selectedEdgeIds.clear();
-            selectedEdgeIds.add(edgeId);
-            lastSelectedEdgeId = edgeId;
+            RoadEdge edge = network.getEdge(edgeId);
+            String roadId = edge != null ? edge.getRoadId() : null;
+            if (roadId != null && !roadId.isBlank()) {
+                selectRoad(roadId, false);
+            } else {
+                selectedEdgeIds.clear();
+                selectedEdgeIds.add(edgeId);
+                lastSelectedEdgeId = edgeId;
+            }
         }
+        selectedNodeId = "";
+        ensureSelectionValid();
+    }
+
+    /**
+     * 选中一条逻辑道路的全部几何段（同一 {@code roadId}）。
+     */
+    public void selectRoad(String roadId, boolean multiSelect) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return;
+        }
+        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        segmentIds.removeIf(id -> network.getEdge(id) == null);
+        if (segmentIds.isEmpty()) {
+            return;
+        }
+        if (multiSelect) {
+            boolean allSelected = segmentIds.stream().allMatch(selectedEdgeIds::contains);
+            if (allSelected) {
+                segmentIds.forEach(selectedEdgeIds::remove);
+            } else {
+                selectedEdgeIds.addAll(segmentIds);
+            }
+        } else {
+            selectedEdgeIds.clear();
+            selectedEdgeIds.addAll(segmentIds);
+        }
+        lastSelectedEdgeId = segmentIds.getFirst();
         selectedNodeId = "";
         ensureSelectionValid();
     }

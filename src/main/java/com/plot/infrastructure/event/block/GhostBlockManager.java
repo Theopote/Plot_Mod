@@ -124,12 +124,6 @@ public class GhostBlockManager {
         blockIds.add(id);
         
         LOGGER.debug("添加幽灵方块: {}", ghostBlock);
-        
-        // 发布幽灵方块添加事件
-        eventBus.publish(new Events.WarningEvent("GhostBlockManager",
-                PlotI18n.status("status.plot.ghost.added",
-                        blockType, position.x, height, position.y)));
-
     }
     
     /**
@@ -165,19 +159,22 @@ public class GhostBlockManager {
         int count = 0;
         try {
             count = ghostBlocks.size();
+            if (count == 0) {
+                return;
+            }
             ghostBlocks.clear();
             blockIds.clear();
             LOGGER.info("已清空所有幽灵方块，共清理 {} 个", count);
         } catch (Throwable t) {
             LOGGER.error("清空幽灵方块集合时发生异常", t);
+            return;
         }
 
-        // 发布清理事件（best-effort，绝不向外抛异常）
         try {
-            eventBus.publish(new Events.WarningEvent("GhostBlockManager",
-                    PlotI18n.status("status.plot.ghost.cleared", count)));
+            eventBus.publish(new Events.StatusMessageEvent("GhostBlockManager",
+                PlotI18n.status("status.plot.ghost.cleared", count)));
         } catch (Throwable t) {
-            LOGGER.error("发布幽灵方块清理事件失败", t);
+            LOGGER.error("发布幽灵方块清理状态失败", t);
         }
     }
 

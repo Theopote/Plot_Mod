@@ -21,7 +21,7 @@ public final class RoadUiContext {
 
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
     private final ImString edgeSearchBuffer = new ImString(128);
-    private RoadEdgeListHelper.SortMode edgeSortMode = RoadEdgeListHelper.SortMode.INSERTION;
+    private RoadEdgeListHelper.SortMode edgeSortMode = RoadEdgeListHelper.SortMode.ROAD_GROUP;
     private boolean coordFilterEnabled = false;
     private final float[] coordMinX = {0f};
     private final float[] coordMaxX = {100f};

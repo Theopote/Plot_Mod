@@ -3,6 +3,8 @@ package com.plot.plugin.road.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.style.RoadStyle;
@@ -488,6 +490,30 @@ class RoadNetworkTest {
         assertTrue(network.getRoads().isEmpty());
         assertTrue(network.getEdges().isEmpty());
         assertTrue(network.getNodes().isEmpty());
+    }
+
+    @Test
+    void selectRoadSelectsAllSegments() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkManager manager = new RoadNetworkManager(
+            new RoadSystemConfig("road_system"), new RoadProjectStatus());
+        Road road = network.createRoad("road-a");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadEdge first = network.createEdge(a.getId(), b.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)
+        ), road.getId());
+        RoadEdge second = network.createEdge(b.getId(), c.getId(), List.of(
+            new Vec2d(10, 0), new Vec2d(20, 0)
+        ), road.getId());
+        manager.setNetwork(network);
+
+        manager.handleEdgeSelect(first.getId(), false);
+
+        assertTrue(manager.getSelectedEdgeIds().contains(first.getId()));
+        assertTrue(manager.getSelectedEdgeIds().contains(second.getId()));
+        assertEquals(2, manager.getSelectedEdgeIds().size());
     }
 
     @Test

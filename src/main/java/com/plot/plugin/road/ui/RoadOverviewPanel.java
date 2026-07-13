@@ -57,6 +57,7 @@ public final class RoadOverviewPanel {
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_hint"));
         edgeListPanel.renderToolbar("##overview");
         edgeListPanel.renderList(180, true, "edge_list");
     }

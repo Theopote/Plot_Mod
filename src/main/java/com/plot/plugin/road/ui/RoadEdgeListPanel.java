@@ -117,6 +117,12 @@ public final class RoadEdgeListPanel {
         String deleteLabel = PlotI18n.tr("plugin.road.delete");
         for (RoadEdgeListHelper.RoadGroup group : RoadEdgeListHelper.groupByRoad(network, edges)) {
             boolean hasRoadId = group.roadId() != null && !group.roadId().isBlank();
+            if (group.edges().size() == 1) {
+                RoadEdge edge = group.edges().getFirst();
+                renderRoadGroupRow(network, group, List.of(edge), showDelete, deleteButtonWidth, deleteLabel, true);
+                continue;
+            }
+
             if (showDelete && hasRoadId) {
                 if (ImGui.smallButton(
                         PlotI18n.tr("plugin.road.delete_road") + "##delete_road_" + group.roadId())) {
@@ -124,12 +130,75 @@ public final class RoadEdgeListPanel {
                 }
                 ImGui.sameLine();
             }
-            if (ImGui.collapsingHeader(group.label() + " (" + group.edges().size() + ")##" + group.roadId())) {
+
+            boolean roadSelected = group.edges().stream()
+                .allMatch(edge -> ctx.networkManager().getSelectedEdgeIds().contains(edge.getId()));
+            String header = group.label() + " (" + PlotI18n.tr(
+                "plugin.road.segment_count", group.edges().size()) + ")";
+            if (ImGui.selectable(header + "##road_group_" + group.roadId(), roadSelected)) {
+                if (hasRoadId) {
+                    ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
+                } else if (!group.edges().isEmpty()) {
+                    ctx.networkManager().handleEdgeSelect(
+                        group.edges().getFirst().getId(), ImGui.getIO().getKeyCtrl());
+                }
+            }
+            if (ImGui.treeNode(PlotI18n.tr("plugin.road.show_segments") + "##segments_" + group.roadId())) {
                 for (RoadEdge edge : group.edges()) {
                     renderEdgeRow(network, edge, showDelete, deleteButtonWidth, deleteLabel, "  ");
                 }
+                ImGui.treePop();
             }
         }
+    }
+
+    private void renderRoadGroupRow(
+            RoadNetwork network,
+            RoadEdgeListHelper.RoadGroup group,
+            List<RoadEdge> edges,
+            boolean showDelete,
+            float deleteButtonWidth,
+            String deleteLabel,
+            boolean useRoadLabel) {
+        boolean hasRoadId = group.roadId() != null && !group.roadId().isBlank();
+        if (showDelete && hasRoadId) {
+            if (ImGui.smallButton(
+                    PlotI18n.tr("plugin.road.delete_road") + "##delete_road_" + group.roadId())) {
+                ctx.requestDeleteRoad(group.roadId());
+            }
+            ImGui.sameLine();
+        }
+
+        RoadEdge edge = edges.getFirst();
+        ImGui.pushID(edge.getId());
+        String label = useRoadLabel
+            ? group.label()
+            : RoadEdgeListHelper.formatEdgeLabel(network, edge);
+        boolean selected = edges.stream()
+            .allMatch(item -> ctx.networkManager().getSelectedEdgeIds().contains(item.getId()));
+
+        float rowWidth = ImGui.getContentRegionAvail().x;
+        float selectableWidth = showDelete
+            ? Math.max(0.0f, rowWidth - deleteButtonWidth - ImGui.getStyle().getItemSpacingX())
+            : rowWidth;
+        if (ImGui.selectable(label + "##road_sel", selected, 0, selectableWidth, 0.0f)) {
+            if (hasRoadId) {
+                ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
+            } else {
+                ctx.networkManager().handleEdgeSelect(edge.getId(), ImGui.getIO().getKeyCtrl());
+            }
+        }
+        if (showDelete && !hasRoadId) {
+            ImGui.sameLine(0.0f, ImGui.getStyle().getItemSpacingX());
+            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
+            if (ImGui.smallButton(deleteLabel + "##del")) {
+                ctx.requestDeleteEdge(edge.getId());
+            }
+            ImGui.popStyleColor(3);
+        }
+        ImGui.popID();
     }
 
     private void renderEdgeRow(
