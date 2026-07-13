@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.modify.helper;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
+import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
 import com.plot.ui.tools.impl.modify.constants.AlignConstants;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
@@ -36,27 +37,27 @@ class AlignHandlerTest {
 
     @Test
     void calculateModifiedShapesLeftAlignsToSelectionBounds() {
-        CircleShape left = new CircleShape(new Vec2d(0, 0), 5);
-        CircleShape right = new CircleShape(new Vec2d(30, 0), 5);
+        RectangleShape left = new RectangleShape(new Vec2d(0, 0), 10, 10, 0);
+        RectangleShape right = new RectangleShape(new Vec2d(30, 0), 10, 10, 0);
         ModifyParameters params = alignParams("LEFT", "SELECTION_BOUNDS");
 
         List<Shape> result = handler.calculateModifiedShapes(List.of(left, right), params);
 
-        CircleShape alignedRight = (CircleShape) result.get(1);
-        assertEquals(0.0, alignedRight.getCenter().x, 1e-6);
-        assertEquals(0.0, alignedRight.getCenter().y, 1e-6);
+        RectangleShape alignedRight = (RectangleShape) result.get(1);
+        assertEquals(0.0, alignedRight.getPosition().x, 1e-6);
+        assertEquals(0.0, alignedRight.getPosition().y, 1e-6);
     }
 
     @Test
     void calculateModifiedShapesCentersHorizontallyWithinSelectionBounds() {
-        CircleShape left = new CircleShape(new Vec2d(0, 0), 5);
-        CircleShape right = new CircleShape(new Vec2d(40, 0), 5);
+        RectangleShape left = new RectangleShape(new Vec2d(0, 0), 10, 10, 0);
+        RectangleShape right = new RectangleShape(new Vec2d(40, 0), 10, 10, 0);
         ModifyParameters params = alignParams("CENTER", "SELECTION_BOUNDS");
 
         List<Shape> result = handler.calculateModifiedShapes(List.of(left, right), params);
 
-        CircleShape alignedRight = (CircleShape) result.get(1);
-        assertEquals(20.0, alignedRight.getCenter().x, 1e-6);
+        RectangleShape alignedRight = (RectangleShape) result.get(1);
+        assertEquals(20.0, alignedRight.getPosition().x, 1e-6);
     }
 
     @Test

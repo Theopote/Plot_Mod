@@ -150,4 +150,13 @@ public final class RoadUiContext {
         double maxY = Math.max(coordMinY[0], coordMaxY[0]);
         return new RoadEdgeListHelper.CoordFilter(coordFilterEnabled, minX, maxX, minY, maxY);
     }
+
+    /**
+     * 推送历史记录并自动使预览失效
+     * 在所有修改网络的操作后调用此方法，确保预览数据不会过期
+     */
+    public void pushHistoryAndInvalidatePreview() {
+        networkManager.pushHistory();
+        previewManager.invalidatePreview();
+    }
 }

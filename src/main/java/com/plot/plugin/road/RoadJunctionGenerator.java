@@ -119,12 +119,30 @@ public class RoadJunctionGenerator {
             List<RoadEdge> edges,
             int junctionY,
             TerrainSampler terrain) {
+        // 边缘情况保护：如果边列表为空，至少生成节点位置的方块
+        if (edges.isEmpty()) {
+            LOGGER.warn("路口节点边列表为空，生成最小覆盖（中心点）");
+            blocks.getSolids().add(center, junctionY, RoadSolidLayer.ROAD);
+            gradeJunctionColumn(blocks, center, junctionY, terrain);
+            return;
+        }
+
         int maxWidth = edges.stream()
             .mapToInt(edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()))
             .max()
             .orElse(5);
         int radius = maxWidth + 2;
-        for (Vec2d point : RoadJunctionGeometry.collectSimpleEnvelopePoints(center, radius)) {
+
+        List<Vec2d> envelopePoints = RoadJunctionGeometry.collectSimpleEnvelopePoints(center, radius);
+        // 再次保护：如果包络点为空，至少生成中心点
+        if (envelopePoints.isEmpty()) {
+            LOGGER.warn("路口简单包络点为空，回退到中心点");
+            blocks.getSolids().add(center, junctionY, RoadSolidLayer.ROAD);
+            gradeJunctionColumn(blocks, center, junctionY, terrain);
+            return;
+        }
+
+        for (Vec2d point : envelopePoints) {
             blocks.getSolids().add(point, junctionY, RoadSolidLayer.ROAD);
             gradeJunctionColumn(blocks, point, junctionY, terrain);
         }

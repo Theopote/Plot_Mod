@@ -137,6 +137,25 @@ public final class RoadPreviewManager {
         lastGenerationResult = null;
     }
 
+    /**
+     * 检查预览是否有效（非空且未过期）
+     */
+    public boolean hasValidPreview() {
+        return lastGenerationResult != null && !lastGenerationResult.placementRecords.isEmpty();
+    }
+
+    /**
+     * 使预览失效（在网络变更时调用）
+     */
+    public void invalidatePreview() {
+        if (lastGenerationResult != null || !lastEdgeResults.isEmpty()) {
+            LOGGER.debug("网络已变更，预览结果失效");
+            lastEdgeResults = Collections.emptyMap();
+            lastGenerationResult = null;
+            // 不清除虚影，让用户知道需要重新计算预览
+        }
+    }
+
     public void buildRoadInWorld() {
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             status.set(PlotI18n.tr("plugin.road.build_no_blocks"));

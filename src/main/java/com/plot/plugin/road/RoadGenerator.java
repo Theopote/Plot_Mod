@@ -502,8 +502,8 @@ public class RoadGenerator {
      * 采样路径点，创建分段
      */
     private List<PathSegment> samplePath(List<Vec2d> pathPoints) {
-        // 采样密度：从配置读取（可配置的采样精度）
-        double minSampleDistance = config.getPathSampleDistance();
+        // 采样密度：从配置读取（可配置的采样精度），验证范围防止除零或无限循环
+        double minSampleDistance = Math.max(0.1, Math.min(10.0, config.getPathSampleDistance()));
 
         // 预先计算总段数，避免ArrayList频繁扩容
         int estimatedSegments = 0;

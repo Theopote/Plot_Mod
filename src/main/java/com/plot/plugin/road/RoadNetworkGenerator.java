@@ -173,8 +173,16 @@ public class RoadNetworkGenerator {
         return selectedMaterial != null ? selectedMaterial : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     }
 
+    /**
+     * 获取客户端世界实例（缓存引用避免TOCTOU问题）
+     */
     public static World getClientWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
-        return client != null ? client.world : null;
+        if (client == null) {
+            return null;
+        }
+        // 缓存world引用，避免在检查后使用前变为null
+        World world = client.world;
+        return world;
     }
 }
