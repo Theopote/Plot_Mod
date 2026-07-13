@@ -27,7 +27,7 @@ public final class EarthworkBalanceUtils {
         int hi = maxZ;
         while (lo < hi) {
             int mid = lo + (hi - lo) / 2;
-            if (balanceDiff(groundHeightSamples, mid, fillFactor) > 0) {
+            if (computeBalanceDiff(groundHeightSamples, mid) > 0) {
                 lo = mid + 1;
             } else {
                 hi = mid;
@@ -35,9 +35,9 @@ public final class EarthworkBalanceUtils {
         }
 
         int bestZ = lo;
-        long bestAbs = Math.abs(balanceDiff(groundHeightSamples, lo, fillFactor));
+        long bestAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo));
         if (lo - 1 >= minZ) {
-            long prevAbs = Math.abs(balanceDiff(groundHeightSamples, lo - 1, fillFactor));
+            long prevAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo - 1));
             if (prevAbs < bestAbs) {
                 bestZ = lo - 1;
             }
@@ -76,18 +76,9 @@ public final class EarthworkBalanceUtils {
     }
 
     /**
-     * 计算平衡差值（挖方量 - 填方量）
-     *
-     * 注意：填土系数不应在此处应用。
-     * 填土系数（fillFactor）表示填土的松散系数，用于估算需要的原土体积。
-     * 但在Minecraft中，我们放置的是实际方块，不是原土体积。
-     * 因此平衡计算应基于实际方块数，不应用填土系数。
-     *
-     * @deprecated fillFactor参数已不再使用，为保持API兼容性暂时保留
+     * 计算平衡差值（挖方量 - 填方量），基于实际方块数，不应用填土系数。
      */
-    @Deprecated
-    static long balanceDiff(List<Integer> groundHeightSamples, int targetElevation, float fillFactor) {
-        // 修复：不再应用填土系数，保持方块数平衡
+    static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation) {
         return computeCutVolume(groundHeightSamples, targetElevation)
             - computeFillVolume(groundHeightSamples, targetElevation);
     }

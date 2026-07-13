@@ -23,9 +23,9 @@ class EarthworkBalanceUtilsTest {
         int balanced = EarthworkBalanceUtils.findBalancedElevation(samples, 1.1f);
         assertTrue(balanced >= 64 && balanced <= 70);
 
-        long centerDiff = Math.abs(EarthworkBalanceUtils.balanceDiff(samples, balanced, 1.1f));
-        long lowerDiff = Math.abs(EarthworkBalanceUtils.balanceDiff(samples, balanced - 1, 1.1f));
-        long upperDiff = Math.abs(EarthworkBalanceUtils.balanceDiff(samples, balanced + 1, 1.1f));
+        long centerDiff = Math.abs(EarthworkBalanceUtils.computeBalanceDiff(samples, balanced));
+        long lowerDiff = Math.abs(EarthworkBalanceUtils.computeBalanceDiff(samples, balanced - 1));
+        long upperDiff = Math.abs(EarthworkBalanceUtils.computeBalanceDiff(samples, balanced + 1));
         assertTrue(centerDiff <= lowerDiff);
         assertTrue(centerDiff <= upperDiff);
     }
