@@ -248,7 +248,7 @@ class RoadGeneratorTerrainTest {
         SimpleCrossFixture fixture = SimpleCrossFixture.create();
         fixture.network().setNodeGradeSeparation(fixture.junction().getId(), true, null, 3.0);
 
-        assertEquals(fixture.roadB().getId(), generator.resolveElevatedRoadId(
+        assertEquals(fixture.roadA().getId(), generator.resolveElevatedRoadId(
             fixture.junction(), fixture.network(), terrain));
     }
 
@@ -261,7 +261,7 @@ class RoadGeneratorTerrainTest {
         SimpleCrossFixture fixture = SimpleCrossFixture.create();
         fixture.network().setNodeGradeSeparation(fixture.junction().getId(), true, null, 3.0);
 
-        assertEquals(fixture.roadA().getId(), generator.resolveElevatedRoadId(
+        assertEquals(fixture.roadB().getId(), generator.resolveElevatedRoadId(
             fixture.junction(), fixture.network(), terrain));
     }
 

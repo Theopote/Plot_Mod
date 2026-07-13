@@ -499,14 +499,15 @@ public class RoadGenerator {
             return node.getManualElevation().intValue();
         }
 
-        RoadNode startNode = network != null ? network.getNode(edge.getStartNodeId()) : null;
+        RoadNode edgeStart = network != null ? network.getNode(edge.getStartNodeId()) : null;
+        RoadNode edgeEnd = network != null ? network.getNode(edge.getEndNodeId()) : null;
         List<PathSegment> segments = samplePath(edge.getCenterlinePoints());
         if (segments.isEmpty()) {
             return getGroundHeightAtNode(terrain, node, network);
         }
 
         List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
-            segments, terrain, network, edge, startNode, node).heightInfos();
+            segments, terrain, network, edge, edgeStart, edgeEnd, false).heightInfos();
         if (heightInfos.isEmpty()) {
             return getGroundHeightAtNode(terrain, node, network);
         }
@@ -524,12 +525,16 @@ public class RoadGenerator {
             RoadNode node,
             RoadNetwork network,
             RoadEdge edge,
-            TerrainSampler terrain) {
+            TerrainSampler terrain,
+            boolean applyGradeSeparation) {
         if (node == null) {
             return null;
         }
         if (node.getManualElevation() != null) {
             return node.getManualElevation().intValue();
+        }
+        if (!applyGradeSeparation) {
+            return null;
         }
         return resolveElevatedCrossingHeight(edge, node, network, terrain);
     }
@@ -716,12 +721,21 @@ public class RoadGenerator {
     private SegmentHeightCalculation calculateSegmentHeightsForEdge(
             List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode) {
+        return calculateSegmentHeightsForEdge(
+            segments, terrain, network, edge, startNode, endNode, true);
+    }
+
+    private SegmentHeightCalculation calculateSegmentHeightsForEdge(
+            List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
+            RoadNode startNode, RoadNode endNode, boolean applyGradeSeparation) {
         if (segments.isEmpty()) {
             return emptyHeightCalculation();
         }
 
-        Integer manualStartHeight = resolveForcedHeightAtNode(startNode, network, edge, terrain);
-        Integer manualEndHeight = resolveForcedHeightAtNode(endNode, network, edge, terrain);
+        Integer manualStartHeight = resolveForcedHeightAtNode(
+            startNode, network, edge, terrain, applyGradeSeparation);
+        Integer manualEndHeight = resolveForcedHeightAtNode(
+            endNode, network, edge, terrain, applyGradeSeparation);
 
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
             RoadModelUtils.getEffectiveWidth(network, edge, config));
