@@ -41,8 +41,8 @@ public final class RoadGuideLineUtils {
 
         double totalLength = cumulativeDistances.getLast();
         double anchorWindow = Math.min(totalLength * ANCHOR_WINDOW_RATIO, MAX_ANCHOR_WINDOW);
-
-        if (totalLength < anchorWindow * 2.0) {
+        boolean shortPath = totalLength < MAX_ANCHOR_WINDOW * 2.0;
+        if (shortPath) {
             int constant = resolveShortPathAnchor(
                 groundHeightSamples, fillFactor, startAnchorOverride, endAnchorOverride);
             List<Integer> guideLine = new ArrayList<>(groundHeightSamples.size());

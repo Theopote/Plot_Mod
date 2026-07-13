@@ -29,7 +29,7 @@ class RoadGuideLineUtilsTest {
     @Test
     void shortPathUsesConstantBalancedGuideLine() {
         List<Integer> ground = List.of(64, 70, 76);
-        List<Double> distances = List.of(0.0, 1.0, 2.0);
+        List<Double> distances = List.of(0.0, 5.0, 10.0);
 
         List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances, 1.1f);
 
@@ -57,7 +57,7 @@ class RoadGuideLineUtilsTest {
     @Test
     void shortPathRespectsSingleManualAnchor() {
         List<Integer> ground = List.of(64, 66, 68);
-        List<Double> distances = List.of(0.0, 1.0, 2.0);
+        List<Double> distances = List.of(0.0, 4.0, 8.0);
 
         List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(ground, distances, 1.1f, 90, null);
 
