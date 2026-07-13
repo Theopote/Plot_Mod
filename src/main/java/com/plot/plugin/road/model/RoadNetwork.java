@@ -306,10 +306,14 @@ public class RoadNetwork {
         Path tempFile = file.resolveSibling(file.getFileName() + ".tmp");
         Files.writeString(tempFile, toJson());
 
-        // 原子性重命名，避免保存过程中断导致文件损坏
-        Files.move(tempFile, file,
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.ATOMIC_MOVE);
+        // 优先原子重命名；部分 Windows 环境不支持 ATOMIC_MOVE 时回退
+        try {
+            Files.move(tempFile, file,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     public static RoadNetwork loadFrom(Path file) throws IOException {

@@ -91,5 +91,4 @@ public final class EarthworkBalanceUtils {
         return computeCutVolume(groundHeightSamples, targetElevation)
             - computeFillVolume(groundHeightSamples, targetElevation);
     }
-    }
 }

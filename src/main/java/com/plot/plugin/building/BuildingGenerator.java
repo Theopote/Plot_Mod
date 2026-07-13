@@ -341,10 +341,16 @@ public class BuildingGenerator {
     private int getTopHeight(World world, BlockPos pos) {
         try {
             BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, pos);
-            return topPos != null ? topPos.getY() : pos.getY();
+            if (topPos == null) {
+                LOGGER.warn("获取地形高度返回null ({}, {})，使用海平面高度",
+                    pos.getX(), pos.getZ());
+                return world.getSeaLevel();
+            }
+            return topPos.getY();
         } catch (Exception e) {
-            LOGGER.warn("获取地形高度失败 ({}, {}): {}", pos.getX(), pos.getZ(), e.getMessage());
-            return 64;
+            LOGGER.error("获取地形高度失败 ({}, {}): {}",
+                pos.getX(), pos.getZ(), e.getMessage(), e);
+            throw new RuntimeException("无法获取地形高度，建筑生成中止", e);
         }
     }
 

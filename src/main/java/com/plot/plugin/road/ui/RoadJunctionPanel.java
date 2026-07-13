@@ -68,8 +68,10 @@ public final class RoadJunctionPanel {
             (float) RoadNode.MAX_CORNER_RADIUS,
             "%.1f m"
         )) {
-            ctx.networkManager().pushHistory();
             node.setCornerRadius((double) cornerRadius[0]);
+        }
+        if (ImGui.isItemActivated()) {
+            ctx.networkManager().pushHistory();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.junction_corner_radius"));

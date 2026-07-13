@@ -52,17 +52,19 @@ public class BuildingPlugin extends Plugin {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BuildingPlugin");
     private static final String DEFAULT_PROJECT_FILE = "default.json";
 
+    private final Object projectLock = new Object();
+
     private BuildingProject project = new BuildingProject();
     private final BuildingProjectHistory projectHistory = new BuildingProjectHistory();
     private BuildingGenerator buildingGenerator;
 
     private final BuildingFootprintPickSession pickSession = new BuildingFootprintPickSession();
     private final List<Shape> selectedFootprints = new ArrayList<>();
-    private String selectedBuildingId = "";
-    private String projectStatus = "";
+    private volatile String selectedBuildingId = "";
+    private volatile String projectStatus = "";
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
-    private BuildingGenerator.BuildingGenerationResult lastGenerationResult;
+    private volatile BuildingGenerator.BuildingGenerationResult lastGenerationResult;
     private String pendingDeleteBuildingId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
@@ -93,9 +95,14 @@ public class BuildingPlugin extends Plugin {
     @Override
     public void onEnable() {
         try {
-            buildingGenerator = new BuildingGenerator(CoordinateTransformer.getInstance());
+            CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+            if (transformer == null) {
+                throw new IllegalStateException("CoordinateTransformer未初始化，插件无法启动");
+            }
+            buildingGenerator = new BuildingGenerator(transformer);
         } catch (Exception e) {
             LOGGER.error("初始化建筑生成器失败: {}", e.getMessage(), e);
+            throw new RuntimeException("建筑插件初始化失败", e);
         }
 
         EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
@@ -108,8 +115,15 @@ public class BuildingPlugin extends Plugin {
         saveProjectFile(getProjectsDir().resolve(currentProjectFile));
         pickSession.cancel();
 
-        EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
-        EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+        try {
+            EventBus eventBus = EventBus.getInstance();
+            if (eventBus != null) {
+                eventBus.unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
+                eventBus.unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+            }
+        } catch (Exception e) {
+            LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -295,8 +309,10 @@ public class BuildingPlugin extends Plugin {
 
         buildingNameBuffer.set(building.getName());
         if (ImGui.inputText(PlotI18n.tr("plugin.building.building_name"), buildingNameBuffer)) {
-            projectHistory.push(project);
             building.setName(buildingNameBuffer.get());
+        }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            projectHistory.push(project);
         }
 
         int[] floors = {building.getFloors()};
@@ -400,6 +416,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void renderRoofTypeSelector(BuildingFootprint building) {
+        BuildingFootprint.RoofType[] roofTypes = BuildingFootprint.RoofType.values();
         String[] labels = {
             PlotI18n.tr("plugin.building.roof_flat"),
             PlotI18n.tr("plugin.building.roof_gable"),
@@ -407,8 +424,11 @@ public class BuildingPlugin extends Plugin {
         };
         ImInt roofTypeIndex = new ImInt(building.getRoofType().ordinal());
         if (ImGui.combo(PlotI18n.tr("plugin.building.roof_type"), roofTypeIndex, labels)) {
-            projectHistory.push(project);
-            building.setRoofType(BuildingFootprint.RoofType.values()[roofTypeIndex.get()]);
+            int index = roofTypeIndex.get();
+            if (index >= 0 && index < roofTypes.length) {
+                projectHistory.push(project);
+                building.setRoofType(roofTypes[index]);
+            }
         }
         if (!BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())) {
             ImGui.textColored((int) 0xFFFFA060FFL, PlotI18n.tr("plugin.building.roof_rect_hint"));
@@ -754,9 +774,13 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void buildInWorld() {
-        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-            projectStatus = PlotI18n.tr("plugin.building.build_no_blocks");
-            return;
+        final BuildingGenerator.BuildingGenerationResult resultSnapshot;
+        synchronized (projectLock) {
+            if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+                projectStatus = PlotI18n.tr("plugin.building.build_no_blocks");
+                return;
+            }
+            resultSnapshot = lastGenerationResult;
         }
 
         BlockProjectionHandler.PlacementReadiness readiness =
@@ -771,7 +795,7 @@ public class BuildingPlugin extends Plugin {
             return;
         }
 
-        List<BlockRecord> records = new ArrayList<>(lastGenerationResult.placementRecords.values());
+        List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
         BuildingGenerateCommand command = new BuildingGenerateCommand(records);
         projectStatus = PlotI18n.tr("plugin.building.build_in_progress", records.size());
         command.executeScheduled(() -> {

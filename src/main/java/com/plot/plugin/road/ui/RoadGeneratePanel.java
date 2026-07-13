@@ -45,7 +45,7 @@ public final class RoadGeneratePanel {
         }
 
         ImGui.sameLine();
-        boolean hasPreview = ctx.previewManager().getLastGenerationResult() != null;
+        boolean hasPreview = ctx.previewManager().hasValidPreview();
         if (!hasPreview) {
             ImGui.beginDisabled();
         }
@@ -82,7 +82,7 @@ public final class RoadGeneratePanel {
         RoadUiWidgets.renderRoadVisibilityWarning(ctx);
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
-        if (lastGenerationResult != null) {
+        if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
             ImGui.separator();
             ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.road.calc_results"));

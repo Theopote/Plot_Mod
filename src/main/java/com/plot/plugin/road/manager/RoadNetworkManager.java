@@ -37,6 +37,8 @@ public final class RoadNetworkManager {
     private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
     private String selectedNodeId = "";
     private String lastSelectedEdgeId = "";
+    /** 路网变更时回调（用于使预览失效），由插件装配。 */
+    private Runnable onNetworkChanged;
 
     private int lastBatchSelectionSize = -1;
     private int batchEditWidth = 5;
@@ -58,12 +60,20 @@ public final class RoadNetworkManager {
         this.status = status;
     }
 
+    /**
+     * 注册路网变更监听（预览失效等）。重复设置会覆盖。
+     */
+    public void setOnNetworkChanged(Runnable onNetworkChanged) {
+        this.onNetworkChanged = onNetworkChanged;
+    }
+
     public RoadNetwork getNetwork() {
         return network;
     }
 
     public void setNetwork(RoadNetwork network) {
         this.network = network != null ? network : new RoadNetwork();
+        notifyNetworkChanged();
     }
 
     public RoadNetworkHistory getHistory() {
@@ -102,22 +112,37 @@ public final class RoadNetworkManager {
         return history.canRedo();
     }
 
+    /**
+     * 推入撤销快照，并标记路网即将/已经变更（使预览失效）。
+     * UI 与 Manager 在修改前应统一调用此方法。
+     */
     public void pushHistory() {
         history.push(network);
+        notifyNetworkChanged();
     }
 
     public void undo() {
         network = history.undo(network);
+        ensureSelectionValid();
+        notifyNetworkChanged();
     }
 
     public void redo() {
         network = history.redo(network);
+        ensureSelectionValid();
+        notifyNetworkChanged();
     }
 
     public void resetSelection() {
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
         selectedNodeId = "";
+    }
+
+    private void notifyNetworkChanged() {
+        if (onNetworkChanged != null) {
+            onNetworkChanged.run();
+        }
     }
 
     public RoadNode getSelectedJunctionNode() {
@@ -164,15 +189,16 @@ public final class RoadNetworkManager {
         ensureSelectionValid();
     }
 
+    /**
+     * 移除已不存在的边选择，允许空选择（不再自动回填第一条边）。
+     */
     public void ensureSelectionValid() {
         selectedEdgeIds.removeIf(id -> network.getEdge(id) == null);
-        if (selectedEdgeIds.isEmpty() && !network.getEdges().isEmpty()) {
-            String firstId = network.getEdges().values().iterator().next().getId();
-            selectedEdgeIds.add(firstId);
-            lastSelectedEdgeId = firstId;
-        }
         if (!lastSelectedEdgeId.isEmpty() && network.getEdge(lastSelectedEdgeId) == null) {
             lastSelectedEdgeId = getPrimarySelectedEdgeId();
+        }
+        if (selectedNodeId != null && !selectedNodeId.isBlank() && network.getNode(selectedNodeId) == null) {
+            selectedNodeId = "";
         }
     }
 
@@ -206,7 +232,7 @@ public final class RoadNetworkManager {
     public void clearEdgeSelection() {
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
-        ensureSelectionValid();
+        // 允许真正清空选择，不强制回填
     }
 
     public void deleteEdge(String edgeId) {

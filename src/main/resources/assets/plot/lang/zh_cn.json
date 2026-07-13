@@ -796,6 +796,7 @@
   "plugin.road.generate_world_unavailable": "当前世界未就绪，无法生成道路",
   "plugin.road.generate_empty_result": "未生成可放置方块，请检查道路参数或路径",
   "plugin.road.generate_preview_ready": "预览计算完成，可投影或生成道路",
+  "plugin.road.preview_invalidated": "路网已变更，预览已失效，请重新计算预览",
   "plugin.road.build_no_blocks": "没有可生成的道路方块",
   "plugin.road.build_success": "道路构建完成：已发送 %d 个方块指令",
   "plugin.road.network.default_loaded": "已加载默认道路网络",

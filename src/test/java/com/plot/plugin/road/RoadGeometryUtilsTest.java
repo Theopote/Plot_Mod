@@ -171,7 +171,8 @@ class RoadGeometryUtilsTest {
     void canvasToBlockXZFallsBackToOneToOneMapping() {
         BlockPos pos = RoadGeometryUtils.canvasToBlockXZ(new Vec2d(12.7, -3.2), null);
 
-        assertEquals(12, pos.getX());
+        // 与 RoadGeometryUtils / 体素栅格一致：四舍五入到最近格点
+        assertEquals(13, pos.getX());
         assertEquals(-3, pos.getZ());
     }
 

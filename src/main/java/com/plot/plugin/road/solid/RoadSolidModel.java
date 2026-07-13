@@ -24,9 +24,9 @@ public final class RoadSolidModel {
             return false;
         }
 
-        // 当去重键数量过大时，清理以防止内存泄漏
+        // 超限后停止继续添加，避免 clear 键表导致重复图元
         if (dedupKeys.size() >= MAX_DEDUP_KEYS) {
-            dedupKeys.clear();
+            return false;
         }
 
         if (!dedupKeys.add(primitive.dedupKey())) {

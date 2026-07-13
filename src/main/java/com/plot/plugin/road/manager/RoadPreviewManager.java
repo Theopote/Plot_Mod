@@ -145,14 +145,20 @@ public final class RoadPreviewManager {
     }
 
     /**
-     * 使预览失效（在网络变更时调用）
+     * 使预览失效（在网络变更时调用）。
+     * 同时清除虚影，避免界面上仍显示与当前路网不一致的投影。
      */
     public void invalidatePreview() {
-        if (lastGenerationResult != null || !lastEdgeResults.isEmpty()) {
-            LOGGER.debug("网络已变更，预览结果失效");
-            lastEdgeResults = Collections.emptyMap();
-            lastGenerationResult = null;
-            // 不清除虚影，让用户知道需要重新计算预览
+        boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
+        lastEdgeResults = Collections.emptyMap();
+        lastGenerationResult = null;
+        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearAllGhostBlocks();
+        }
+        if (hadPreview) {
+            LOGGER.debug("网络已变更，预览结果与虚影已失效");
+            status.set(PlotI18n.tr("plugin.road.preview_invalidated"));
         }
     }
 

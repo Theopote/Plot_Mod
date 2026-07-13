@@ -795,6 +795,7 @@
   "plugin.road.generate_world_unavailable": "World is not ready. Cannot generate roads.",
   "plugin.road.generate_empty_result": "No placeable blocks were generated. Check road parameters or path.",
   "plugin.road.generate_preview_ready": "Preview generated. You can project or build now.",
+  "plugin.road.preview_invalidated": "Road network changed; preview cleared. Recalculate preview.",
   "plugin.road.build_no_blocks": "No road blocks available to build",
   "plugin.road.build_success": "Road built: sent %d block commands",
   "plugin.road.network.default_loaded": "Loaded default road network",

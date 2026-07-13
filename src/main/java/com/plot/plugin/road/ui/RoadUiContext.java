@@ -165,11 +165,10 @@ public final class RoadUiContext {
     }
 
     /**
-     * 推送历史记录并自动使预览失效
-     * 在所有修改网络的操作后调用此方法，确保预览数据不会过期
+     * 推送历史记录并自动使预览失效。
+     * {@link RoadNetworkManager#pushHistory()} 已统一触发预览失效，此方法保留为语义明确的入口。
      */
     public void pushHistoryAndInvalidatePreview() {
         networkManager.pushHistory();
-        previewManager.invalidatePreview();
     }
 }
