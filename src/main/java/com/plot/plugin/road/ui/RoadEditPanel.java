@@ -169,7 +169,7 @@ public final class RoadEditPanel {
             return;
         }
 
-        RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().syncBatchEditDefaults();
+        RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();
         ImGui.textColored((int) 0xFF808080FFL,
             PlotI18n.tr("plugin.road.batch_edit_hint", ctx.networkManager().getSelectedEdgeIds().size()));
         RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);

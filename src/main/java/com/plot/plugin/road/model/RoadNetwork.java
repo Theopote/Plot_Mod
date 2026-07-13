@@ -21,6 +21,7 @@ import com.plot.plugin.road.model.section.StreetFurniture;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -209,9 +210,20 @@ public class RoadNetwork {
         return data != null ? data.toNetwork() : new RoadNetwork();
     }
 
+    /**
+     * 保存网络到文件（原子性保存，先写临时文件再重命名）
+     */
     public void saveTo(Path file) throws IOException {
         Files.createDirectories(file.getParent());
-        Files.writeString(file, toJson());
+
+        // 先写入临时文件
+        Path tempFile = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.writeString(tempFile, toJson());
+
+        // 原子性重命名，避免保存过程中断导致文件损坏
+        Files.move(tempFile, file,
+            StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.ATOMIC_MOVE);
     }
 
     public static RoadNetwork loadFrom(Path file) throws IOException {
