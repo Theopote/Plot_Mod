@@ -36,7 +36,8 @@ class BezierUtilsTest {
     @Test
     void validateBezierDataAcceptsWellFormedCurve() {
         List<Vec2d> anchors = List.of(new Vec2d(0, 0), new Vec2d(10, 0));
-        List<Vec2d[]> controls = List.of(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
+        List<Vec2d[]> controls = new ArrayList<>();
+        controls.add(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
 
         assertTrue(BezierUtils.validateBezierData(new BezierUtils.BezierData(anchors, controls, false)));
     }
@@ -52,7 +53,8 @@ class BezierUtilsTest {
     @Test
     void validateBezierDataRejectsMismatchedControlPairCount() {
         List<Vec2d> anchors = List.of(new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(20, 0));
-        List<Vec2d[]> controls = List.of(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
+        List<Vec2d[]> controls = new ArrayList<>();
+        controls.add(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
 
         assertFalse(BezierUtils.validateBezierData(new BezierUtils.BezierData(anchors, controls, false)));
     }
@@ -101,7 +103,8 @@ class BezierUtilsTest {
     @Test
     void calculateApproximateLengthSumsSegments() {
         List<Vec2d> anchors = List.of(new Vec2d(0, 0), new Vec2d(10, 0));
-        List<Vec2d[]> controls = List.of(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
+        List<Vec2d[]> controls = new ArrayList<>();
+        controls.add(new Vec2d[]{new Vec2d(0, 10), new Vec2d(10, 10)});
 
         double length = BezierUtils.calculateApproximateLength(anchors, controls);
 

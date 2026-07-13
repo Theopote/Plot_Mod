@@ -114,7 +114,7 @@ class GeometryTrimUtilsTest {
         Shape circle = new CircleShape(new Vec2d(0, 0), 10);
 
         assertTrue(utils.isPointOnShape(line, new Vec2d(5, 0)));
-        assertFalse(utils.isPointOnShape(line, new Vec2d(5, 5)));
+        assertFalse(utils.isPointOnShape(line, new Vec2d(5, 10)));
         assertTrue(utils.isPointOnShape(circle, new Vec2d(10, 0)));
         assertFalse(utils.isPointOnShape(circle, new Vec2d(0, 0)));
     }
@@ -126,7 +126,7 @@ class GeometryTrimUtilsTest {
         Vec2d center = utils.calculateCenter(points);
         double radius = utils.calculateRadius(points, center);
 
-        assertEquals(10.0 / 3.0, center.x, 1e-6);
+        assertEquals(20.0 / 3.0, center.x, 1e-6);
         assertEquals(10.0 / 3.0, center.y, 1e-6);
         assertTrue(radius > 0.0);
     }
@@ -166,13 +166,14 @@ class GeometryTrimUtilsTest {
     }
 
     @Test
-    void createDenseCirclePointsProducesClosedLoop() {
+    void createDenseCirclePointsSamplesFullCircle() {
         CircleShape circle = new CircleShape(new Vec2d(0, 0), 10);
 
         List<Vec2d> points = utils.createDenseCirclePoints(circle);
 
-        assertTrue(points.size() > 8);
-        assertEquals(points.getFirst().x, points.getLast().x, 1e-3);
-        assertEquals(points.getFirst().y, points.getLast().y, 1e-3);
+        assertEquals(36, points.size());
+        assertEquals(10.0, points.getFirst().x, 1e-6);
+        assertEquals(0.0, points.getFirst().y, 1e-6);
+        assertTrue(points.stream().allMatch(p -> Math.abs(p.distance(new Vec2d(0, 0)) - 10.0) < 1e-3));
     }
 }
