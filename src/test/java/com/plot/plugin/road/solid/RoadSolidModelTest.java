@@ -25,7 +25,7 @@ class RoadSolidModelTest {
         BlockPos pos = RoadVoxelRasterizer.toBlockPos(new Vec2d(4.2, 9.8), 65, null);
         assertEquals(4, pos.getX());
         assertEquals(65, pos.getY());
-        assertEquals(9, pos.getZ());
+        assertEquals(10, pos.getZ());
     }
 
     @Test

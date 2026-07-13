@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model.section;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 
 import java.util.List;
@@ -217,7 +218,54 @@ public final class ResolvedCrossSection {
     }
 
     public double carriagewayHalfWidth() {
-        return carriagewayWidth / 2.0;
+        return RoadDimensionUtils.halfExtentFromCenter(carriagewayWidth);
+    }
+
+    /** 路肩 + 自行车道 + 人行道总方块宽度。 */
+    public int outerBandBlockCount() {
+        return (includeShoulder ? shoulderWidth : 0)
+            + (includeBikeLane ? bikeLaneWidth : 0)
+            + (includeSidewalk ? sidewalkWidth : 0);
+    }
+
+    private static double stripCenterOffset(int startLateral, int widthBlocks) {
+        if (widthBlocks <= 0) {
+            return 0.0;
+        }
+        return startLateral + (widthBlocks - 1) / 2.0;
+    }
+
+    public double shoulderCenterOffset() {
+        if (!includeShoulder || shoulderWidth <= 0) {
+            return 0.0;
+        }
+        int start = RoadDimensionUtils.maxLateralOffset(carriagewayWidth) + 1;
+        return stripCenterOffset(start, shoulderWidth);
+    }
+
+    public double bikeLaneCenterOffset() {
+        if (!includeBikeLane || bikeLaneWidth <= 0) {
+            return 0.0;
+        }
+        int start = RoadDimensionUtils.maxLateralOffset(carriagewayWidth) + 1;
+        if (includeShoulder) {
+            start += shoulderWidth;
+        }
+        return stripCenterOffset(start, bikeLaneWidth);
+    }
+
+    public double sidewalkCenterOffset() {
+        if (!includeSidewalk || sidewalkWidth <= 0) {
+            return 0.0;
+        }
+        int start = RoadDimensionUtils.maxLateralOffset(carriagewayWidth) + 1;
+        if (includeShoulder) {
+            start += shoulderWidth;
+        }
+        if (includeBikeLane) {
+            start += bikeLaneWidth;
+        }
+        return stripCenterOffset(start, sidewalkWidth);
     }
 
     /** 路肩外侧过渡带总宽度（路肩 + 自行车道 + 人行道）。 */
@@ -228,21 +276,15 @@ public final class ResolvedCrossSection {
     }
 
     public double bikeLaneOffset() {
-        return carriagewayHalfWidth()
-            + (includeShoulder ? shoulderWidth : 0)
-            + (includeBikeLane ? bikeLaneWidth / 2.0 : 0);
+        return bikeLaneCenterOffset();
     }
 
     public double outerSidewalkOffset() {
-        return carriagewayHalfWidth()
-            + (includeShoulder ? shoulderWidth : 0)
-            + (includeBikeLane ? bikeLaneWidth : 0)
-            + (includeSidewalk ? sidewalkWidth / 2.0 : 0);
+        return sidewalkCenterOffset();
     }
 
     public double outerDrainageOffset() {
-        return carriagewayHalfWidth()
-            + outerBandWidth()
-            + 0.5;
+        int outer = RoadDimensionUtils.maxLateralOffset(carriagewayWidth) + outerBandBlockCount() + 1;
+        return outer;
     }
 }

@@ -1,6 +1,7 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadDimensionUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,19 +42,26 @@ public final class RoadSolidModel {
         }
     }
 
-    public void addStrip(Vec2d center, int width, int elevation, RoadSolidLayer layer, String materialId) {
-        if (center == null || width <= 0) {
+    /**
+     * 沿法线方向铺设固定方块宽度的条带（1m = 1 方块，宽度为四舍五入后的整数）。
+     */
+    public void addLateralStrip(
+            Vec2d center,
+            Vec2d leftNormal,
+            int widthBlocks,
+            int elevation,
+            RoadSolidLayer layer,
+            String materialId) {
+        if (center == null || leftNormal == null || widthBlocks <= 0) {
             return;
         }
-        int half = Math.max(0, (int) Math.ceil(width / 2.0));
-        double radiusSquared = Math.max(0.25, width * width / 4.0);
-        for (int dx = -half; dx <= half; dx++) {
-            for (int dz = -half; dz <= half; dz++) {
-                if ((dx * dx + dz * dz) > radiusSquared) {
-                    continue;
-                }
-                add(new Vec2d(center.x + dx, center.y + dz), elevation, layer, materialId);
-            }
+        Vec2d normal = leftNormal.lengthSquared() > 1e-12
+            ? leftNormal.normalize()
+            : new Vec2d(0, 1);
+        int minOffset = RoadDimensionUtils.minLateralOffset(widthBlocks);
+        int maxOffset = RoadDimensionUtils.maxLateralOffset(widthBlocks);
+        for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
+            add(center.add(normal.multiply(lateral)), elevation, layer, materialId);
         }
     }
 

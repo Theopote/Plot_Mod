@@ -317,10 +317,16 @@ public final class RoadGeometryUtils {
         if (transformer != null) {
             Vec2d worldPos = transformer.canvasToMinecraftWorld(canvasPos);
             if (worldPos != null) {
-                return new BlockPos((int) worldPos.x, 0, (int) worldPos.y);
+                return new BlockPos(
+                    (int) Math.round(worldPos.x),
+                    0,
+                    (int) Math.round(worldPos.y));
             }
         }
-        return new BlockPos((int) canvasPos.x, 0, (int) canvasPos.y);
+        return new BlockPos(
+            (int) Math.round(canvasPos.x),
+            0,
+            (int) Math.round(canvasPos.y));
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {
