@@ -823,7 +823,7 @@
   "hint.plot.array.no_path_picked": "未拾取路径",
   "hint.plot.trim.boundary": "边界修剪：选择边界图形，然后点击要修剪的图形一侧",
   "hint.plot.road.bridge_threshold": "当路面高于地面超过此方块数时，自动生成桥梁而非填方。",
-  "hint.plot.road.tunnel_threshold": "当地面高于路面超过此方块数时，自动挖穿地形形成隧道。",
+  "hint.plot.road.tunnel_threshold": "若路面上方此高度处仍有方块，则挖成隧道腔体；否则将路面上方地形完全开挖至地表。",
   "hint.plot.road.fill_factor": "引导线平衡标高计算使用的填方压实系数。大于 1.0 时，算法会倾向选择更低的目标标高，以减少两端过量填方。",
   "hint.plot.road.include_shoulder": "在车道外侧添加窄条过渡带，用于边缘保护和视觉过渡。",
   "hint.plot.road.shoulder_width": "道路两侧路肩的宽度（方块数）。",

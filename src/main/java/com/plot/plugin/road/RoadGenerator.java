@@ -164,17 +164,44 @@ public class RoadGenerator {
      * 基于中心线与横断面生成道路（测试用，不依赖 Minecraft World）。
      */
     RoadGenerationResult generateFromPathPoints(List<Vec2d> pathPoints, TerrainSampler terrain) {
+        return generateFromPathPoints(pathPoints, terrain, null);
+    }
+
+    RoadGenerationResult generateFromPathPoints(
+            List<Vec2d> pathPoints,
+            TerrainSampler terrain,
+            Integer manualRoadElevation) {
         if (pathPoints == null || pathPoints.size() < 2 || terrain == null) {
             return new RoadGenerationResult(0);
         }
         List<PathSegment> segments = samplePath(pathPoints);
-        SegmentHeightCalculation heightCalculation = calculateSegmentHeights(segments, terrain);
+        SegmentHeightCalculation heightCalculation = manualRoadElevation != null
+            ? calculateSegmentHeightsWithManualElevation(segments, terrain, manualRoadElevation)
+            : calculateSegmentHeights(segments, terrain);
         double pathLength = segments.stream().mapToDouble(s -> s.distance).sum();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
         RoadGenerationResult result = buildFromCenterline(
             pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength);
         result.copyProfileFrom(toProfileResult(heightCalculation));
         return result;
+    }
+
+    private SegmentHeightCalculation calculateSegmentHeightsWithManualElevation(
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            int manualRoadElevation) {
+        if (segments.isEmpty()) {
+            return emptyHeightCalculation();
+        }
+        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
+        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
+        return buildSegmentHeights(
+            segments,
+            sampleData,
+            List.of(),
+            manualRoadElevation,
+            manualRoadElevation,
+            segmentIndex -> config.getMaxSlope());
     }
 
     private RoadGenerationResult buildFromCenterline(
@@ -243,6 +270,8 @@ public class RoadGenerator {
         if (spacing != null && spacing > 0) {
             generateStreetlights(solids, pathPoints, terrain, crossSection);
         }
+
+        clearTerrainAboveRoadEnvelope(solids, segments, heightInfos, crossSection, terrain);
 
         RoadGenerationResult result = new RoadGenerationResult(pathLength);
         result.cutVolume = metrics.cutVolume;
@@ -828,10 +857,44 @@ public class RoadGenerator {
         });
 
         generateBridgeStructures(solids, bridges, segments, heightInfos, leftBoundary, rightBoundary, terrain);
-        generateTunnelStructures(solids, tunnels, segments, heightInfos, leftBoundary, rightBoundary);
 
         metrics.cutVolume = volumeScratch[0];
         metrics.fillVolume = volumeScratch[1];
+    }
+
+    private void clearTerrainAboveRoadEnvelope(
+            RoadSolidModel solids,
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            ResolvedCrossSection crossSection,
+            TerrainSampler terrain) {
+        int sideBandWidth = crossSection.outerBandBlockCount();
+        int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
+        if (envelopeWidth <= 0) {
+            return;
+        }
+        int tunnelThreshold = config.getTunnelThreshold();
+        RoadTerrainClearanceUtils.BlockColumnResolver columnResolver = new RoadTerrainClearanceUtils.BlockColumnResolver() {
+            @Override
+            public int worldX(Vec2d planPoint) {
+                return canvasToBlockPos(planPoint).getX();
+            }
+
+            @Override
+            public int worldZ(Vec2d planPoint) {
+                return canvasToBlockPos(planPoint).getZ();
+            }
+        };
+        forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) ->
+            RoadTerrainClearanceUtils.clearCrossSectionOverhead(
+                solids,
+                center,
+                leftNormal,
+                envelopeWidth,
+                targetY,
+                tunnelThreshold,
+                terrain,
+                columnResolver));
     }
 
     private void generateShoulderBlocks(
@@ -1006,38 +1069,6 @@ public class RoadGenerator {
         }
     }
 
-    private void generateTunnelStructures(
-            RoadSolidModel solids,
-            List<TunnelSegment> tunnels,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            List<Vec2d> leftBoundary,
-            List<Vec2d> rightBoundary) {
-        if (tunnels.isEmpty()) {
-            return;
-        }
-        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
-
-        for (TunnelSegment tunnel : tunnels) {
-            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, tunnel.segment());
-            if (info == null) {
-                continue;
-            }
-            int headroom = Math.max(3, Math.min(6, tunnel.tunnelDepth() + 1));
-            int samples = Math.max(2, (int) Math.ceil(tunnel.segment().distance));
-            for (int j = 0; j <= samples; j++) {
-                double t = (double) j / samples;
-                double normalized = findNormalizedDistance(segments, tunnel.segment(), t, totalLength);
-                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
-                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
-                for (int y = targetY + 1; y <= targetY + headroom; y++) {
-                    carveBetweenPoints(solids, left, right, y);
-                }
-            }
-        }
-    }
-
     private void placeBridgePillars(
             RoadSolidModel solids,
             Vec2d canvasPos,
@@ -1051,14 +1082,6 @@ public class RoadGenerator {
         for (int y = groundY + 1; y < deckY; y++) {
             solids.add(canvasPos, y, RoadSolidLayer.BRIDGE, blockId);
         }
-    }
-
-    private void carveBetweenPoints(
-            RoadSolidModel solids,
-            Vec2d left,
-            Vec2d right,
-            int y) {
-        solids.addSpan(left, right, y, RoadSolidLayer.TUNNEL, "minecraft:air");
     }
 
     private static SegmentHeightInfo findHeightInfo(

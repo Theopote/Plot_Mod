@@ -823,7 +823,7 @@
   "hint.plot.array.no_path_picked": "No path picked",
   "hint.plot.trim.boundary": "Boundary trim: select boundary, then click the side to trim",
   "hint.plot.road.bridge_threshold": "When the road surface is higher than the ground by more than this many blocks, a bridge is generated instead of filling terrain.",
-  "hint.plot.road.tunnel_threshold": "When the ground is higher than the road surface by more than this many blocks, a tunnel is carved through the terrain.",
+  "hint.plot.road.tunnel_threshold": "When solid blocks still exist this many blocks above the road surface, a tunnel cavity is carved; otherwise terrain above the road is fully excavated to the surface.",
   "hint.plot.road.fill_factor": "Compaction factor used when balancing guide-line elevations. Values above 1.0 bias the algorithm toward lower target grades to limit excessive fill at both ends.",
   "hint.plot.road.include_shoulder": "Adds a narrow strip beside the road pavement for transition and edge protection.",
   "hint.plot.road.shoulder_width": "Width of the shoulder strip on each side of the road (in blocks).",

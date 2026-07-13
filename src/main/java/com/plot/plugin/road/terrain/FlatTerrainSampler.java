@@ -25,6 +25,6 @@ public final class FlatTerrainSampler implements TerrainSampler {
 
     @Override
     public boolean isSolidBlock(int worldX, int y, int worldZ) {
-        return solid;
+        return solid && y <= elevation;
     }
 }
