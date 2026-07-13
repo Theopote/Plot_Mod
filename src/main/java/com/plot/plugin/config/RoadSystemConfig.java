@@ -31,8 +31,8 @@ public class RoadSystemConfig {
     
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
-    private int bridgeThreshold = 5; // 桥阈值（方块高度差）
-    private int tunnelThreshold = 8; // 隧道阈值（方块高度差）
+    private int bridgeThreshold = 3; // 桥阈值（方块高度差）- 从5改为3，更容易触发桥梁
+    private int tunnelThreshold = 4; // 隧道阈值（方块高度差）- 从8改为4，山体覆盖4格即形成隧道
     private double fillCostPerVolume = 1.0;
     private double bridgeBaseCost = 15.0;
     private double bridgeCostPerLength = 0.8;
@@ -41,7 +41,7 @@ public class RoadSystemConfig {
     private double tunnelCostPerLength = 1.5;
     private double minimumConsiderationHeight = 2.0;
     private double minimumConstructionRunLength = 3.0;
-    private boolean includeShoulder = false; // 是否包含路肩
+    private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
     private boolean includeDrainage = false; // 是否包含排水沟
     private double pathLength = 0.0; // 当前路径长度（米）
