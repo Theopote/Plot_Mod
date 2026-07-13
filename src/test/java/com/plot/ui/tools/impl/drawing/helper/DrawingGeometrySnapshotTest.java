@@ -54,4 +54,32 @@ class DrawingGeometrySnapshotTest {
                 List.of(new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10)),
                 List.of(false, false))));
     }
+
+    @Test
+    void penSnapshotRoundTripsPathNodes() {
+        PathNode corner = new PathNode(new Vec2d(0, 0));
+        PathNode smooth = new PathNode(new Vec2d(10, 0));
+        smooth.setSmoothControlPoints(new Vec2d(10, 5));
+
+        DrawingGeometrySnapshot snapshot = DrawingGeometrySnapshot.pen(List.of(corner, smooth));
+        DrawingGeometrySnapshot.PathNodeSnapshot nodeSnapshot = snapshot.getPathNodes().get(1);
+        PathNode restored = nodeSnapshot.toPathNode();
+
+        assertEquals(DrawingGeometrySnapshot.Kind.PEN, snapshot.getKind());
+        assertEquals(PathNode.NodeType.SMOOTH, restored.getType());
+        assertEquals(10.0, restored.getControlNext().x, 1e-6);
+        assertEquals(5.0, restored.getControlNext().y, 1e-6);
+        assertTrue(snapshot.sameGeometryAs(DrawingGeometrySnapshot.pen(List.of(
+                new PathNode(new Vec2d(0, 0)),
+                restored))));
+    }
+
+    @Test
+    void penSnapshotsDifferWhenNodeGeometryChanges() {
+        DrawingGeometrySnapshot before = DrawingGeometrySnapshot.pen(List.of(new PathNode(new Vec2d(0, 0))));
+        PathNode moved = new PathNode(new Vec2d(20, 0));
+        DrawingGeometrySnapshot after = DrawingGeometrySnapshot.pen(List.of(moved));
+
+        assertFalse(before.sameGeometryAs(after));
+    }
 }

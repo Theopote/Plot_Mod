@@ -68,6 +68,36 @@ class DrawingEditHistoryTest {
     }
 
     @Test
+    void commitGeometryEditSupportsPenSnapshots() {
+        AtomicReference<DrawingGeometrySnapshot> current = new AtomicReference<>(
+                DrawingGeometrySnapshot.pen(List.of(new PathNode(new Vec2d(0, 0)))));
+        sink = snapshot -> {
+            current.set(snapshot);
+            return true;
+        };
+        PolylineDrawingSession.register(sink);
+
+        DrawingGeometrySnapshot before = current.get();
+        PathNode moved = new PathNode(new Vec2d(30, 10));
+        moved.setSmoothControlPoints(new Vec2d(30, 20));
+        DrawingGeometrySnapshot after = DrawingGeometrySnapshot.pen(List.of(moved));
+        current.set(after);
+
+        DrawingEditHistory.commitGeometryEdit(before, after);
+
+        assertEquals(1, commandHistory.size());
+        commandHistory.undo();
+        assertEquals(DrawingGeometrySnapshot.Kind.PEN, current.get().getKind());
+        assertEquals(1, current.get().getPathNodes().size());
+        assertEquals(0.0, current.get().getPathNodes().getFirst().anchorX(), 1e-6);
+
+        commandHistory.redo();
+        assertEquals(30.0, current.get().getPathNodes().getFirst().anchorX(), 1e-6);
+        assertEquals(PathNode.NodeType.SMOOTH,
+                current.get().getPathNodes().getFirst().toPathNode().getType());
+    }
+
+    @Test
     void commitGeometryEditIgnoresNullSnapshots() {
         DrawingGeometrySnapshot snapshot = DrawingGeometrySnapshot.polyline(
                 List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
