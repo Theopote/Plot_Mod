@@ -429,11 +429,38 @@ public final class RoadSlopeUtils {
      * 路口汇聚高度：取各相连边在节点处高度的平均值
      */
     public static int averageJunctionHeight(List<Integer> connectedEdgeHeights) {
-        if (connectedEdgeHeights == null || connectedEdgeHeights.isEmpty()) {
-            return 64;
+        return resolveJunctionHeight(connectedEdgeHeights).height();
+    }
+
+    /**
+     * 路口高程决议结果：目标高度 + 汇聚边高程散布。
+     */
+    public record JunctionHeightResolution(int height, int min, int max, int spread) {
+        /** 散布超过该阈值时视为显著不一致（易出现台阶）。 */
+        public static final int SIGNIFICANT_SPREAD_THRESHOLD = 2;
+
+        public boolean isSignificantMismatch() {
+            return spread > SIGNIFICANT_SPREAD_THRESHOLD;
         }
-        return (int) Math.round(
-            connectedEdgeHeights.stream().mapToInt(Integer::intValue).average().orElse(64)
-        );
+    }
+
+    /**
+     * 根据各相连边在节点处的自然高程，决议路口统一标高。
+     * 策略：算术平均（四舍五入）；空列表回落到默认海平面 64。
+     */
+    public static JunctionHeightResolution resolveJunctionHeight(List<Integer> connectedEdgeHeights) {
+        if (connectedEdgeHeights == null || connectedEdgeHeights.isEmpty()) {
+            return new JunctionHeightResolution(64, 64, 64, 0);
+        }
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        long sum = 0;
+        for (int height : connectedEdgeHeights) {
+            min = Math.min(min, height);
+            max = Math.max(max, height);
+            sum += height;
+        }
+        int average = (int) Math.round(sum / (double) connectedEdgeHeights.size());
+        return new JunctionHeightResolution(average, min, max, max - min);
     }
 }

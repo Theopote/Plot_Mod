@@ -12,6 +12,8 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.plot.plugin.road.terrain.TerrainSampler;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -56,11 +58,17 @@ public class RoadNetworkGenerator {
             return networkResult;
         }
 
+        TerrainSampler terrain = roadGenerator.createTerrainSampler(world);
+        // 第一遍：决议全网节点统一标高，消除路口台阶
+        Map<String, Integer> nodeElevations =
+            roadGenerator.resolveNetworkNodeElevations(network, terrain);
+
+        // 第二遍：各边端点强制对齐到统一标高
         for (RoadEdge edge : network.getEdges().values()) {
             RoadNode start = network.getNode(edge.getStartNodeId());
             RoadNode end = network.getNode(edge.getEndNodeId());
             RoadGenerationResult edgeResult =
-                roadGenerator.generateEdge(network, edge, start, end, world);
+                roadGenerator.generateEdge(network, edge, start, end, terrain, nodeElevations);
             networkResult.edgeResults.put(edge.getId(), edgeResult);
         }
 
@@ -69,14 +77,16 @@ public class RoadNetworkGenerator {
                 continue;
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
-                junctionGenerator.generateJunction(node, network, world);
+                junctionGenerator.generateJunction(node, network, terrain, nodeElevations);
             if (!junctionBlocks.isEmpty()) {
                 networkResult.junctionResults.put(node.getId(), junctionBlocks);
             }
         }
 
-        LOGGER.info("路网生成完成: {} 条边, {} 个路口",
-            networkResult.edgeResults.size(), networkResult.junctionResults.size());
+        LOGGER.info("路网生成完成: {} 条边, {} 个路口（统一标高节点 {} 个）",
+            networkResult.edgeResults.size(),
+            networkResult.junctionResults.size(),
+            nodeElevations.size());
         return networkResult;
     }
 

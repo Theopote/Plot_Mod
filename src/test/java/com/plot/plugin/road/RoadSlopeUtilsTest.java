@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadSlopeUtilsTest {
@@ -106,6 +107,22 @@ class RoadSlopeUtilsTest {
     void averageJunctionHeightUsesMeanOfConnectedEdges() {
         assertEquals(66, RoadSlopeUtils.averageJunctionHeight(List.of(64, 66, 68)));
         assertEquals(64, RoadSlopeUtils.averageJunctionHeight(List.of()));
+    }
+
+    @Test
+    void resolveJunctionHeightReportsSpreadAndMean() {
+        RoadSlopeUtils.JunctionHeightResolution resolution =
+            RoadSlopeUtils.resolveJunctionHeight(List.of(77, 77, 73, 73));
+        assertEquals(75, resolution.height());
+        assertEquals(73, resolution.min());
+        assertEquals(77, resolution.max());
+        assertEquals(4, resolution.spread());
+        assertTrue(resolution.isSignificantMismatch());
+
+        RoadSlopeUtils.JunctionHeightResolution tight =
+            RoadSlopeUtils.resolveJunctionHeight(List.of(70, 71, 70));
+        assertEquals(70, tight.height());
+        assertFalse(tight.isSignificantMismatch());
     }
 
     @Test

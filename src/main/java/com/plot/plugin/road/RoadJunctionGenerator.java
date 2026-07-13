@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 路口路面生成
@@ -48,10 +49,21 @@ public class RoadJunctionGenerator {
         if (node == null || network == null || generator == null || world == null) {
             return new JunctionBlocks();
         }
-        return generateJunction(node, network, generator.createTerrainSampler(world));
+        return generateJunction(node, network, generator.createTerrainSampler(world), null);
     }
 
     public JunctionBlocks generateJunction(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
+        return generateJunction(node, network, terrain, null);
+    }
+
+    /**
+     * @param networkNodeElevations 路网统一节点标高；非 null 时路口面直接使用该高度
+     */
+    public JunctionBlocks generateJunction(
+            RoadNode node,
+            RoadNetwork network,
+            TerrainSampler terrain,
+            Map<String, Integer> networkNodeElevations) {
         JunctionBlocks blocks = new JunctionBlocks();
         if (node == null || network == null || generator == null || terrain == null) {
             return blocks;
@@ -62,7 +74,12 @@ public class RoadJunctionGenerator {
             return blocks;
         }
 
-        int junctionY = generator.computeJunctionTargetHeight(node, network, terrain);
+        int junctionY;
+        if (networkNodeElevations != null && networkNodeElevations.containsKey(node.getId())) {
+            junctionY = networkNodeElevations.get(node.getId());
+        } else {
+            junctionY = generator.computeJunctionTargetHeight(node, network, terrain);
+        }
         List<RoadEdge> connectedEdges = new ArrayList<>();
         String elevatedRoadId = node.isGradeSeparated()
             ? generator.resolveElevatedRoadId(node, network, terrain)

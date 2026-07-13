@@ -143,6 +143,24 @@ public class RoadGenerator {
             LOGGER.warn("道路边或世界为空，无法生成");
             return new RoadGenerationResult(0);
         }
+        return generateEdge(
+            network, edge, startNode, endNode, MinecraftTerrainSampler.of(world, coordinateTransformer), null);
+    }
+
+    /**
+     * 基于路网边生成道路；{@code networkNodeElevations} 为路网统一节点标高（两遍求解第二遍使用）。
+     */
+    public RoadGenerationResult generateEdge(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadNode startNode,
+            RoadNode endNode,
+            TerrainSampler terrain,
+            Map<String, Integer> networkNodeElevations) {
+        if (edge == null || terrain == null) {
+            LOGGER.warn("道路边或地形为空，无法生成");
+            return new RoadGenerationResult(0);
+        }
 
         List<Vec2d> pathPoints = edge.getCenterlinePoints();
         if (pathPoints.size() < 2) {
@@ -151,11 +169,10 @@ public class RoadGenerator {
         }
 
         try {
-            TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
             List<PathSegment> segments = samplePath(pathPoints);
             SegmentHeightCalculation heightCalculation = calculateSegmentHeightsForEdge(
-                segments, terrain, network, edge, startNode, endNode);
+                segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints, terrain, crossSection, heightCalculation.heightInfos(), edge.getLength());
             result.edgeId = edge.getId();
@@ -366,35 +383,85 @@ public class RoadGenerator {
         if (node == null || network == null || terrain == null) {
             return TerrainSampler.DEFAULT_SEA_LEVEL;
         }
-        if (node.getManualElevation() != null) {
-            return node.getManualElevation().intValue();
+        Map<String, Integer> resolved = resolveNetworkNodeElevations(network, terrain);
+        Integer height = resolved.get(node.getId());
+        return height != null ? height : getGroundHeightAtNode(terrain, node, network);
+    }
+
+    /**
+     * 路网节点统一标高（第一遍）：按各边自然高程决议，供边生成第二遍强制对齐端点。
+     * 立体交叉节点存的是下层（非跨越方）标高；跨越方高度仍由 {@link #resolveElevatedCrossingHeight} 处理。
+     */
+    public Map<String, Integer> resolveNetworkNodeElevations(RoadNetwork network, TerrainSampler terrain) {
+        Map<String, Integer> resolved = new LinkedHashMap<>();
+        if (network == null || terrain == null) {
+            return resolved;
         }
 
-        String elevatedRoadId = node.isGradeSeparated()
-            ? resolveElevatedRoadId(node, network, terrain)
-            : null;
-        List<Integer> heights = new ArrayList<>();
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
+        Map<String, List<Integer>> naturalHeightsByNode = new LinkedHashMap<>();
+        for (RoadEdge edge : network.getEdges().values()) {
+            RoadNode startNode = network.getNode(edge.getStartNodeId());
+            RoadNode endNode = network.getNode(edge.getEndNodeId());
+            if (startNode == null || endNode == null) {
                 continue;
             }
+            List<PathSegment> segments = samplePath(edge.getCenterlinePoints());
+            if (segments.isEmpty()) {
+                continue;
+            }
+            List<SegmentHeightInfo> heightInfos = calculateSegmentHeightsForEdge(
+                segments, terrain, network, edge, startNode, endNode, false, null).heightInfos();
+            if (heightInfos.isEmpty()) {
+                continue;
+            }
+            collectNaturalHeightSample(
+                naturalHeightsByNode, startNode, edge, heightInfos.getFirst().targetStart, network, terrain);
+            collectNaturalHeightSample(
+                naturalHeightsByNode, endNode, edge, heightInfos.getLast().targetEnd, network, terrain);
+        }
+
+        for (RoadNode node : network.getNodes().values()) {
+            if (node.getManualElevation() != null) {
+                resolved.put(node.getId(), node.getManualElevation().intValue());
+                continue;
+            }
+            List<Integer> samples = naturalHeightsByNode.getOrDefault(node.getId(), List.of());
+            if (samples.isEmpty()) {
+                resolved.put(node.getId(), getGroundHeightAtNode(terrain, node, network));
+                continue;
+            }
+            RoadSlopeUtils.JunctionHeightResolution resolution =
+                RoadSlopeUtils.resolveJunctionHeight(samples);
+            if (resolution.isSignificantMismatch()) {
+                LOGGER.info(
+                    "路口/节点 {} 自然高程散布较大 {}（spread={}），统一到 Y={}",
+                    node.getId(), samples, resolution.spread(), resolution.height());
+            }
+            resolved.put(node.getId(), resolution.height());
+        }
+        return resolved;
+    }
+
+    private void collectNaturalHeightSample(
+            Map<String, List<Integer>> naturalHeightsByNode,
+            RoadNode node,
+            RoadEdge edge,
+            int naturalHeight,
+            RoadNetwork network,
+            TerrainSampler terrain) {
+        if (node == null || edge == null) {
+            return;
+        }
+        // 立体交叉：下层共识不含跨越方自然高程
+        if (node.isGradeSeparated()) {
+            String elevatedRoadId = resolveElevatedRoadId(node, network, terrain);
             if (elevatedRoadId != null && elevatedRoadId.equals(edge.getRoadId())) {
-                continue;
+                return;
             }
-            heights.add(getTargetHeightAtNode(edge, node, network, terrain));
         }
-
-        if (heights.isEmpty()) {
-            return getGroundHeightAtNode(terrain, node, network);
-        }
-
-        int min = heights.stream().mapToInt(Integer::intValue).min().orElse(TerrainSampler.DEFAULT_SEA_LEVEL);
-        int max = heights.stream().mapToInt(Integer::intValue).max().orElse(TerrainSampler.DEFAULT_SEA_LEVEL);
-        if (max - min > 2) {
-            LOGGER.warn("路口节点 {} 汇聚道路高度不一致 {}，使用平均值拼接", node.getId(), heights);
-        }
-        return RoadSlopeUtils.averageJunctionHeight(heights);
+        naturalHeightsByNode
+            .computeIfAbsent(node.getId(), id -> new ArrayList<>())
+            .add(naturalHeight);
     }
 
     /**
@@ -722,20 +789,40 @@ public class RoadGenerator {
             List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode) {
         return calculateSegmentHeightsForEdge(
-            segments, terrain, network, edge, startNode, endNode, true);
+            segments, terrain, network, edge, startNode, endNode, true, null);
     }
 
     private SegmentHeightCalculation calculateSegmentHeightsForEdge(
             List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode, boolean applyGradeSeparation) {
+        return calculateSegmentHeightsForEdge(
+            segments, terrain, network, edge, startNode, endNode, applyGradeSeparation, null);
+    }
+
+    private SegmentHeightCalculation calculateSegmentHeightsForEdge(
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadNode startNode,
+            RoadNode endNode,
+            boolean applyGradeSeparation,
+            Map<String, Integer> networkNodeElevations) {
         if (segments.isEmpty()) {
             return emptyHeightCalculation();
         }
 
+        // 优先级：手动标高 / 立体交叉跨越高度 > 路网统一节点标高
         Integer manualStartHeight = resolveForcedHeightAtNode(
             startNode, network, edge, terrain, applyGradeSeparation);
         Integer manualEndHeight = resolveForcedHeightAtNode(
             endNode, network, edge, terrain, applyGradeSeparation);
+        if (manualStartHeight == null) {
+            manualStartHeight = lookupNetworkNodeElevation(networkNodeElevations, startNode);
+        }
+        if (manualEndHeight == null) {
+            manualEndHeight = lookupNetworkNodeElevation(networkNodeElevations, endNode);
+        }
 
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
             RoadModelUtils.getEffectiveWidth(network, edge, config));
@@ -758,6 +845,14 @@ public class RoadGenerator {
             manualEndHeight,
             segmentIndex -> RoadModelUtils.getEffectiveMaxSlope(
                 network, edge, config, profileDistanceAtSegmentStart(sampleData, segmentIndex)));
+    }
+
+    private static Integer lookupNetworkNodeElevation(
+            Map<String, Integer> networkNodeElevations, RoadNode node) {
+        if (networkNodeElevations == null || node == null) {
+            return null;
+        }
+        return networkNodeElevations.get(node.getId());
     }
 
     private static SegmentHeightCalculation emptyHeightCalculation() {

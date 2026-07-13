@@ -69,6 +69,54 @@ class RoadGeneratorTerrainTest {
     }
 
     @Test
+    void networkNodeElevationsForceConnectedEdgesToMeetAtJunction() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setMaxSlope(100.0f); // 允许端点完全对齐到决议标高
+        RoadGenerator generator = new RoadGenerator(config, null);
+        // 南北向高、东西向低，自然高程在路口会不一致
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return Math.abs(planPoint.y) >= Math.abs(planPoint.x) ? 80 : 70;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return true;
+            }
+        };
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 20));
+        RoadNode east = network.createNode(new Vec2d(20, 0));
+        RoadNode west = network.createNode(new Vec2d(-20, 0));
+
+        var northEdge = network.createEdge(
+            junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 20)));
+        var eastEdge = network.createEdge(
+            junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(20, 0)));
+        network.createEdge(
+            junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-20, 0)));
+
+        int naturalNorth = generator.getTargetHeightAtNode(northEdge, junction, network, terrain);
+        int naturalEast = generator.getTargetHeightAtNode(eastEdge, junction, network, terrain);
+        assertTrue(Math.abs(naturalNorth - naturalEast) > 2, "precondition: natural heights should disagree");
+
+        var nodeElevations = generator.resolveNetworkNodeElevations(network, terrain);
+        int unified = nodeElevations.get(junction.getId());
+        assertEquals(generator.computeJunctionTargetHeight(junction, network, terrain), unified);
+
+        var northResult = generator.generateEdge(
+            network, northEdge, junction, north, terrain, nodeElevations);
+        var eastResult = generator.generateEdge(
+            network, eastEdge, junction, east, terrain, nodeElevations);
+
+        assertEquals(unified, (int) northResult.profileTargetHeights.getFirst());
+        assertEquals(unified, (int) eastResult.profileTargetHeights.getFirst());
+    }
+
+    @Test
     void generateFromPathPointsPlacesRoadAtFlatTerrainElevation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setIncludeSidewalk(false);
