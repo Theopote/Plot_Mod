@@ -12,6 +12,7 @@ import imgui.type.ImInt;
 
 /**
  * 交叉口属性编辑（概览/编辑 Tab 与 PropertyPanel 共用）。
+ * 标线默认全自动生成，高级覆盖折叠收起，减少日常操作负担。
  */
 public final class RoadJunctionPanel {
     private final RoadUiContext ctx;
@@ -87,24 +88,30 @@ public final class RoadJunctionPanel {
         }
 
         ImGui.spacing();
+        // 默认自动：只展示说明，不强迫用户点四个下拉框
+        ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.road.junction_markings_auto_status"));
         if (!compact) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_markings_hint"));
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_markings_auto_detail"));
         }
-        renderMarkingSetting("stop_lines", PlotI18n.tr("plugin.road.junction_stop_lines"), node.getStopLines(),
-            value -> node.setStopLines(value));
-        renderMarkingSetting("continued_markings", PlotI18n.tr("plugin.road.junction_continued_markings"),
-            node.getContinuedMarkings(), value -> node.setContinuedMarkings(value));
-        renderMarkingSetting("crosswalks", PlotI18n.tr("plugin.road.junction_crosswalks"), node.getCrosswalks(),
-            value -> node.setCrosswalks(value));
-        renderMarkingSetting("turn_arrows", PlotI18n.tr("plugin.road.junction_turn_arrows"), node.getTurnArrows(),
-            value -> node.setTurnArrows(value));
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.junction_reset_markings"))) {
-            ctx.networkManager().pushHistory();
-            node.setStopLines(JunctionMarkingSetting.AUTO);
-            node.setContinuedMarkings(JunctionMarkingSetting.AUTO);
-            node.setCrosswalks(JunctionMarkingSetting.AUTO);
-            node.setTurnArrows(JunctionMarkingSetting.AUTO);
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.junction_markings_advanced"))) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_markings_hint"));
+            renderMarkingSetting("stop_lines", PlotI18n.tr("plugin.road.junction_stop_lines"), node.getStopLines(),
+                node::setStopLines);
+            renderMarkingSetting("continued_markings", PlotI18n.tr("plugin.road.junction_continued_markings"),
+                node.getContinuedMarkings(), node::setContinuedMarkings);
+            renderMarkingSetting("crosswalks", PlotI18n.tr("plugin.road.junction_crosswalks"), node.getCrosswalks(),
+                node::setCrosswalks);
+            renderMarkingSetting("turn_arrows", PlotI18n.tr("plugin.road.junction_turn_arrows"), node.getTurnArrows(),
+                node::setTurnArrows);
+
+            if (ImGui.button(PlotI18n.tr("plugin.road.junction_reset_markings"))) {
+                ctx.networkManager().pushHistory();
+                node.setStopLines(JunctionMarkingSetting.AUTO);
+                node.setContinuedMarkings(JunctionMarkingSetting.AUTO);
+                node.setCrosswalks(JunctionMarkingSetting.AUTO);
+                node.setTurnArrows(JunctionMarkingSetting.AUTO);
+            }
         }
     }
 

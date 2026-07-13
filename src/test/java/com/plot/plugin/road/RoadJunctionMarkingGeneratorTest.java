@@ -67,7 +67,7 @@ class RoadJunctionMarkingGeneratorTest {
     }
 
     @Test
-    void turnArrowsAppearAtThreeWayJunction() {
+    void turnArrowsAppearAtThreeWayJunctionWithoutManualMarkingSetup() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadGenerator generator = new RoadGenerator(config, null);
         RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
@@ -78,8 +78,8 @@ class RoadJunctionMarkingGeneratorTest {
         RoadNode east = network.createNode(new Vec2d(10, 0));
         RoadNode south = network.createNode(new Vec2d(0, -10));
 
+        // 故意不开启中线/分道线：箭头仍应自动出现
         Road road = network.createRoad();
-        road.setCenterLineStyle(CenterLineStyle.SINGLE_DASHED);
 
         List<RoadEdge> edges = List.of(
             network.createEdge(
@@ -98,7 +98,38 @@ class RoadJunctionMarkingGeneratorTest {
             blocks, junction, network, edges, List.of(), 64);
 
         assertTrue(blocks.getSolids().count(RoadSolidLayer.MARKING) >= 12,
-            "turn arrows add four blocks per approach at a T-junction");
+            "topology-based turn arrows should appear without manual lane-marking setup");
+    }
+
+    @Test
+    void tJunctionSouthApproachResolvesLeftAndStraightTurns() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+
+        RoadEdge northEdge = network.createEdge(
+            junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)));
+        RoadEdge eastEdge = network.createEdge(
+            junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        RoadEdge southEdge = network.createEdge(
+            south.getId(), junction.getId(), List.of(new Vec2d(0, -10), new Vec2d(0, 0)));
+
+        var southApproach = new RoadJunctionMarkingGenerator.ApproachGeometry(
+            southEdge, RoadJunctionGeometry.computeApproachDirection(southEdge, junction.getId()).normalize());
+        var all = List.of(
+            new RoadJunctionMarkingGenerator.ApproachGeometry(
+                northEdge, RoadJunctionGeometry.computeApproachDirection(northEdge, junction.getId()).normalize()),
+            new RoadJunctionMarkingGenerator.ApproachGeometry(
+                eastEdge, RoadJunctionGeometry.computeApproachDirection(eastEdge, junction.getId()).normalize()),
+            southApproach
+        );
+
+        var turns = RoadJunctionMarkingGenerator.resolveTurnOptions(southApproach, all);
+        // 从南向北驶入：可直行向北、右转向东（坐标系 y 向上时左转会朝西，此处无西出口）
+        assertTrue(turns.straight(), "south approach should allow straight north");
+        assertTrue(turns.right() || turns.left(), "south approach should allow turn onto east arm");
     }
 
     @Test
