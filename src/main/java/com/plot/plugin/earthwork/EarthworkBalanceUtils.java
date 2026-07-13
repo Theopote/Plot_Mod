@@ -75,8 +75,21 @@ public final class EarthworkBalanceUtils {
         return Math.round(computeFillVolume(groundHeightSamples, targetElevation) * fillFactor);
     }
 
+    /**
+     * 计算平衡差值（挖方量 - 填方量）
+     *
+     * 注意：填土系数不应在此处应用。
+     * 填土系数（fillFactor）表示填土的松散系数，用于估算需要的原土体积。
+     * 但在Minecraft中，我们放置的是实际方块，不是原土体积。
+     * 因此平衡计算应基于实际方块数，不应用填土系数。
+     *
+     * @deprecated fillFactor参数已不再使用，为保持API兼容性暂时保留
+     */
+    @Deprecated
     static long balanceDiff(List<Integer> groundHeightSamples, int targetElevation, float fillFactor) {
+        // 修复：不再应用填土系数，保持方块数平衡
         return computeCutVolume(groundHeightSamples, targetElevation)
-            - computeFillVolumeRequired(groundHeightSamples, targetElevation, fillFactor);
+            - computeFillVolume(groundHeightSamples, targetElevation);
+    }
     }
 }

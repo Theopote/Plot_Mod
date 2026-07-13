@@ -60,12 +60,14 @@ public class EarthworkPlugin extends Plugin {
     private final EarthworkProjectHistory projectHistory = new EarthworkProjectHistory();
     private EarthworkGenerator earthworkGenerator;
 
+    // 多线程访问的字段需要同步保护（UI线程 + 异步方块放置）
+    private final Object projectLock = new Object();
     private final List<Shape> selectedRegions = new ArrayList<>();
-    private String selectedRegionId = "";
-    private String projectStatus = "";
+    private volatile String selectedRegionId = "";
+    private volatile String projectStatus = "";
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
-    private EarthworkGenerator.EarthworkGenerationResult lastGenerationResult;
+    private volatile EarthworkGenerator.EarthworkGenerationResult lastGenerationResult;
     private String pendingDeleteRegionId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
@@ -107,9 +109,14 @@ public class EarthworkPlugin extends Plugin {
         showGridRef.set(config.isShowGrid());
 
         try {
-            earthworkGenerator = new EarthworkGenerator(CoordinateTransformer.getInstance());
+            CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+            if (transformer == null) {
+                throw new IllegalStateException("CoordinateTransformer未初始化，插件无法启动");
+            }
+            earthworkGenerator = new EarthworkGenerator(transformer);
         } catch (Exception e) {
             LOGGER.error("初始化土方生成器失败: {}", e.getMessage(), e);
+            throw new RuntimeException("土方插件初始化失败", e);
         }
 
         EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
@@ -124,8 +131,16 @@ public class EarthworkPlugin extends Plugin {
             config.save();
         }
 
-        EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
-        EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+        // 安全地取消事件订阅
+        try {
+            EventBus eventBus = EventBus.getInstance();
+            if (eventBus != null) {
+                eventBus.unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
+                eventBus.unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+            }
+        } catch (Exception e) {
+            LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -694,9 +709,14 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void buildInWorld() {
-        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.build_no_blocks");
-            return;
+        // 创建不可变快照，避免异步任务中的并发问题
+        final EarthworkGenerator.EarthworkGenerationResult resultSnapshot;
+        synchronized (projectLock) {
+            if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+                projectStatus = PlotI18n.tr("plugin.earthwork.build_no_blocks");
+                return;
+            }
+            resultSnapshot = lastGenerationResult;
         }
 
         BlockProjectionHandler.PlacementReadiness readiness =
@@ -711,7 +731,7 @@ public class EarthworkPlugin extends Plugin {
             return;
         }
 
-        List<BlockRecord> records = new ArrayList<>(lastGenerationResult.placementRecords.values());
+        List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
         EarthworkGenerateCommand command = new EarthworkGenerateCommand(records);
         projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress", records.size());
         command.executeScheduled(() -> {
