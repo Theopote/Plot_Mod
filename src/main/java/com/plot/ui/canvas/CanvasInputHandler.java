@@ -10,6 +10,7 @@ import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 // import com.plot.infrastructure.event.mouse.KeyEvent; // 未使用
 import com.plot.infrastructure.event.mouse.MouseEvent;
+import com.plot.ui.panel.gallery.GalleryPlacementGuard;
 import com.plot.utils.ExceptionDebug;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
@@ -74,6 +75,11 @@ public class CanvasInputHandler {
             BaseTool currentTool = appState.getCurrentTool();
             if (currentTool != null) {
                 handleKeyboardEvents(currentTool);
+            }
+
+            // 图库放置模式优先：避免与绘制/选择工具争抢同一次点击
+            if (GalleryPlacementGuard.isActive()) {
+                return;
             }
 
             // 使用“画布屏幕区域”判断鼠标是否在画布上（避免依赖 ImGui 当前窗口上下文）

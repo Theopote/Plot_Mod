@@ -1,42 +1,48 @@
 package com.plot.ui.panel.gallery;
 
+import com.plot.core.gallery.GalleryItem;
+import com.plot.core.gallery.GalleryRepository;
+import com.plot.core.state.AppState;
 import com.plot.ui.component.Icons;
 import com.plot.ui.component.UIComponent;
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
 import com.plot.ui.theme.ThemeManager;
-import imgui.ImGui;
-import imgui.flag.*;
-import imgui.type.ImString;
-import com.plot.core.state.AppState;
-import com.plot.infrastructure.event.EventBus;
-
-import static com.plot.ui.panel.gallery.GalleryPanel.GalleryItem.GalleryItemType.BLOCK;
-
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import com.plot.ui.component.UIUtils;
 import com.plot.PlotMod;
 import com.plot.utils.PlotI18n;
+import imgui.ImGui;
+import imgui.flag.ImGuiTableColumnFlags;
+import imgui.flag.ImGuiTableFlags;
+import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * 图库面板，用于管理和使用预设图形
+ * 图库面板：预设建筑平面、保存选中图形、放置到画布、删除确认。
  */
 public class GalleryPanel implements UIComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GalleryPanel");
     private static final String ADD_CATEGORY_POPUP_ID = "##plot_add_category_popup";
 
-    private final ImString searchText;
+    private final AppState appState = AppState.getInstance();
+    private final GalleryRepository repository = GalleryRepository.getInstance();
+    private final GalleryPlaceSession placeSession = new GalleryPlaceSession();
+    private final GalleryDeleteDialog deleteDialog = new GalleryDeleteDialog();
+    private final GalleryItemEditorDialog editorDialog = new GalleryItemEditorDialog();
+
+    private final ImString searchText = new ImString(256);
+    private final ImString newCategoryName = new ImString(32);
+
     private String selectedCategory = CategoryType.BUILDING.name();
-    private boolean initialized = false;
+    private boolean initialized;
 
-    // 添加自定义类别列表
-    private final List<String> customCategories = new ArrayList<>();
-
-    // 使用枚举表示分类
     private enum CategoryType {
         ALL("gallery.plot.category.all"),
         BUILDING("gallery.plot.category.building"),
@@ -70,13 +76,7 @@ public class GalleryPanel implements UIComponent {
         }
     }
 
-    private final GalleryManager galleryManager = new GalleryManager(); // 创建 GalleryManager 实例
-
     public GalleryPanel() {
-        // 预留：后续可使用 AppState/EventBus 做图库选择事件派发
-        AppState.getInstance();
-        EventBus.getInstance();
-        this.searchText = new ImString(256);
     }
 
     @Override
@@ -85,19 +85,9 @@ public class GalleryPanel implements UIComponent {
             PlotMod.LOGGER.debug("GalleryPanel已经初始化，跳过初始化流程");
             return;
         }
-
         try {
             PlotMod.LOGGER.info("正在初始化GalleryPanel...");
-
-            // 异步加载图库项目
-            CompletableFuture.runAsync(() -> {
-                try {
-                    galleryManager.loadGalleryItems();
-                } catch (Exception e) {
-                    PlotMod.LOGGER.error("加载图库项目失败: {}", e.getMessage(), e);
-                }
-            });
-
+            repository.load();
             initialized = true;
             PlotMod.LOGGER.info("GalleryPanel初始化完成");
         } catch (Exception e) {
@@ -113,22 +103,20 @@ public class GalleryPanel implements UIComponent {
         }
 
         try {
-            // 设置内边距和间距
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8);
-            ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 8);
+            ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 8, 8);
+            ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 8, 8);
 
-            // 渲染搜索栏
             renderSearchBar();
-
-            // 渲染分类
+            renderSaveToolbar();
             renderCategories();
-
-            // 渲染图库内容
             renderGalleryContent();
+            renderPlaceHint();
 
-            // 恢复样式
+            deleteDialog.render();
+            editorDialog.render();
+            placeSession.tick(appState);
+
             ImGui.popStyleVar(2);
-
         } catch (Exception e) {
             PlotMod.LOGGER.error("GalleryPanel渲染失败: {}", e.getMessage(), e);
         }
@@ -136,69 +124,94 @@ public class GalleryPanel implements UIComponent {
 
     private void renderSearchBar() {
         var theme = ThemeManager.getInstance().getCurrentTheme();
-        // 添加样式设置
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 8, 6);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, theme.inputBackground);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
-        ImGui.pushStyleColor(ImGuiCol.Border, theme.inputBorder);
-        ImGui.pushStyleColor(ImGuiCol.Text, theme.inputText);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FramePadding, 8, 6);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBg, theme.inputBackground);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgHovered, theme.inputBackgroundHovered);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.FrameBgActive, theme.inputBackgroundActive);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Border, theme.inputBorder);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, theme.inputText);
 
-        // 设置搜索框宽度为可用区域宽度减去边距
-        float availableWidth = ImGui.getContentRegionAvailX() - 16; // 减去左右各8像素边距
+        float availableWidth = ImGui.getContentRegionAvailX() - 16;
         ImGui.setNextItemWidth(availableWidth);
+        UIUtils.iconInput("##search", Icons.SEARCH, PlotI18n.tr("panel.plot.gallery_search_placeholder"), searchText);
 
-        // 渲染搜索输入框
-        if (UIUtils.iconInput("##search", Icons.SEARCH, PlotI18n.tr("panel.plot.gallery_search_placeholder"), searchText)) {
-            // 处理搜索文本变化
-            filterGalleryItems(searchText.get());
-        }
-
-        // 恢复样式
         ImGui.popStyleColor(5);
         ImGui.popStyleVar();
+    }
+
+    private void renderSaveToolbar() {
+        ImGui.spacing();
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        int selectedCount = appState.getSelectedShapes().size();
+
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.buttonSelected);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+        if (ImGui.button(PlotI18n.tr("panel.plot.gallery_save_selection") + "##save_selection")) {
+            editorDialog.showSave(appState.getSelectedShapes(), selectedCategory);
+        }
+        ImGui.popStyleColor(2);
+
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text(PlotI18n.tr("panel.plot.gallery_save_selection_hint", selectedCount));
+            ImGui.endTooltip();
+        }
+
+        if (placeSession.isActive() && placeSession.getPendingItem() != null) {
+            ImGui.sameLine();
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.warningText);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel") + "##cancel_place")) {
+                placeSession.cancel();
+            }
+            ImGui.popStyleColor(2);
+        }
+    }
+
+    private void renderPlaceHint() {
+        if (!placeSession.isActive() || placeSession.getPendingItem() == null) {
+            return;
+        }
+        ImGui.spacing();
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.textColored(theme.warningText, PlotI18n.tr(
+            "status.plot.gallery.place_active",
+            placeSession.getPendingItem().getDisplayName()));
     }
 
     private void renderCategories() {
         var theme = ThemeManager.getInstance().getCurrentTheme();
         ImGui.spacing();
 
-        // 获取所有类别（预设 + 自定义）
         List<String> presetCategoryIds = Arrays.stream(CategoryType.values())
-                .map(Enum::name)
-                .toList();
+            .map(Enum::name)
+            .toList();
         List<String> allCategoryIds = new ArrayList<>(presetCategoryIds);
-        allCategoryIds.addAll(customCategories);
+        allCategoryIds.addAll(repository.getCustomCategories());
 
         float availableWidth = ImGui.getContentRegionAvailX() - 16;
         float baseButtonWidth = Math.max(56.0f,
-                Math.min(84.0f, (availableWidth / Math.max(1, Math.min(allCategoryIds.size(), 5))) - 4.0f));
+            Math.min(84.0f, (availableWidth / Math.max(1, Math.min(allCategoryIds.size(), 5))) - 4.0f));
 
-        // 渲染所有类别按钮
         float startX = ImGui.getCursorPosX();
         float currentX = startX;
-
         String categoryToRemove = null;
 
-        // 设置标签按钮样式
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 12);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FramePadding, 6, 4);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, 12);
 
         for (String categoryId : allCategoryIds) {
-            boolean isCustomCategory = customCategories.contains(categoryId);
+            boolean isCustomCategory = repository.getCustomCategories().contains(categoryId);
             String categoryLabel = CategoryType.getDisplayNameForId(categoryId);
             float categoryButtonWidth = getCompactCategoryButtonWidth(
-                    categoryLabel, baseButtonWidth, availableWidth, isCustomCategory);
+                categoryLabel, baseButtonWidth, availableWidth, isCustomCategory);
 
-            // 检查是否需要换行
             if (currentX + categoryButtonWidth > startX + availableWidth) {
                 ImGui.newLine();
                 currentX = startX;
             }
 
             ImGui.setCursorPosX(currentX);
-
-            // 设置标签颜色
             boolean isPresetCategory = presetCategoryIds.contains(categoryId);
 
             int normalColor = isPresetCategory ? theme.tabNormal : theme.buttonNormal;
@@ -211,21 +224,19 @@ public class GalleryPanel implements UIComponent {
                 activeColor = theme.buttonSelectedActive;
             }
 
-            ImGui.pushStyleColor(ImGuiCol.Button, normalColor);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoveredColor);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, normalColor);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, hoveredColor);
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, activeColor);
 
-            // 渲染带文字的按钮
             if (ImGui.button(categoryLabel + "##" + categoryId, categoryButtonWidth, 24)) {
                 selectedCategory = categoryId;
             }
 
-            // 如果是自定义类别，添加删除按钮
             if (isCustomCategory) {
                 ImGui.sameLine(0, 0);
                 ImGui.setCursorPosX(ImGui.getCursorPosX() - 20);
-                ImGui.pushStyleColor(ImGuiCol.Button, theme.panelBackground);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.panelBackground);
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
                 if (ImGui.button("×##delete" + categoryId, 16, 16)) {
                     categoryToRemove = categoryId;
                 }
@@ -238,9 +249,7 @@ public class GalleryPanel implements UIComponent {
             }
 
             ImGui.popStyleColor(3);
-
             currentX += categoryButtonWidth + 4;
-
             if (currentX < startX + availableWidth) {
                 ImGui.sameLine();
             }
@@ -248,16 +257,15 @@ public class GalleryPanel implements UIComponent {
 
         ImGui.popStyleVar(2);
 
-        // 处理类别删除
         if (categoryToRemove != null) {
-            customCategories.remove(categoryToRemove);
+            repository.removeCustomCategory(categoryToRemove);
             if (selectedCategory.equals(categoryToRemove)) {
                 selectedCategory = CategoryType.ALL.name();
             }
         }
 
-        // 添加新类别的按钮
-        float addButtonWidth = getCompactCategoryButtonWidth(PlotI18n.tr("panel.plot.gallery_add_category"), baseButtonWidth, availableWidth, false);
+        float addButtonWidth = getCompactCategoryButtonWidth(
+            PlotI18n.tr("panel.plot.gallery_add_category"), baseButtonWidth, availableWidth, false);
         if (currentX + addButtonWidth <= startX + availableWidth) {
             ImGui.setCursorPosX(currentX);
             renderAddCategoryButton(addButtonWidth);
@@ -266,9 +274,7 @@ public class GalleryPanel implements UIComponent {
             renderAddCategoryButton(addButtonWidth);
         }
 
-        // 添加类别的弹出窗口
         renderAddCategoryPopup();
-
         ImGui.newLine();
         ImGui.separator();
     }
@@ -279,51 +285,39 @@ public class GalleryPanel implements UIComponent {
     }
 
     private void renderAddCategoryButton(float buttonWidth) {
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 12);
-        
-        ImGui.pushStyleColor(ImGuiCol.Button, ThemeManager.getInstance().getCurrentTheme().tabNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ThemeManager.getInstance().getCurrentTheme().tabHovered);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, ThemeManager.getInstance().getCurrentTheme().tabActive);
-        
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FramePadding, 6, 4);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, 12);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.tabNormal);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.tabHovered);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, theme.tabActive);
         if (ImGui.button(PlotI18n.tr("panel.plot.gallery_add_category") + "##add_category", buttonWidth, 24)) {
             ImGui.openPopup(ADD_CATEGORY_POPUP_ID);
         }
-        
         ImGui.popStyleColor(3);
         ImGui.popStyleVar(2);
     }
 
     private void renderGalleryContent() {
-        // 设置子窗口样式
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 1);
-        ImGui.pushStyleColor(ImGuiCol.ChildBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ChildRounding, 0);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ChildBorderSize, 1);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ChildBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
 
         if (ImGui.beginChild("##gallery_content", 0, 0, true, ImGuiWindowFlags.None)) {
             List<GalleryItem> items = getFilteredItems();
             if (!items.isEmpty()) {
-                // 设置表格列
                 if (ImGui.beginTable("gallery_table", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg)) {
-                    // 设置列宽
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_name"), ImGuiTableColumnFlags.WidthFixed, 120);
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_description"), ImGuiTableColumnFlags.WidthStretch);
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_actions"), ImGuiTableColumnFlags.WidthFixed, 160);
                     ImGui.tableHeadersRow();
 
-                    // 渲染每一行
                     for (GalleryItem item : items) {
                         ImGui.tableNextRow();
-                        
-                        // 名称列
                         ImGui.tableNextColumn();
-                        ImGui.text(item.name);
-                        
-                        // 描述列
+                        ImGui.text(item.getDisplayName());
                         ImGui.tableNextColumn();
-                        ImGui.text(item.description);
-                        
-                        // 操作列
+                        ImGui.text(item.getDisplayDescription());
                         ImGui.tableNextColumn();
                         renderItemOperations(item);
                     }
@@ -343,12 +337,11 @@ public class GalleryPanel implements UIComponent {
         float buttonWidth = 35;
         float buttonHeight = 20;
         var theme = ThemeManager.getInstance().getCurrentTheme();
-        
-        // 放置按钮
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonSelected);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
-        if (ImGui.button("+" + "##place" + item.id, buttonWidth, buttonHeight)) {
-            handlePlaceItem(item);
+
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.buttonSelected);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonSelectedHovered);
+        if (ImGui.button("+" + "##place" + item.getId(), buttonWidth, buttonHeight)) {
+            placeSession.begin(item);
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
@@ -356,27 +349,27 @@ public class GalleryPanel implements UIComponent {
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
-        
-        // 编辑按钮
+
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.buttonNormal);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        if (ImGui.button("✎" + "##edit" + item.id, buttonWidth, buttonHeight)) {
-            handleEditItem(item);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
+        if (ImGui.button("✎" + "##edit" + item.getId(), buttonWidth, buttonHeight) && !item.isPreset()) {
+            editorDialog.showEdit(item);
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text(PlotI18n.tr("button.plot.edit"));
+            ImGui.text(item.isPreset()
+                ? PlotI18n.tr("panel.plot.gallery_preset_readonly")
+                : PlotI18n.tr("button.plot.edit"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
-        
-        // 删除按钮
+
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.errorText);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        if (ImGui.button("×" + "##delete" + item.id, buttonWidth, buttonHeight)) {
-            handleDeleteItem(item);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.errorText);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
+        if (ImGui.button("×" + "##delete" + item.getId(), buttonWidth, buttonHeight)) {
+            deleteDialog.show(item);
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
@@ -384,85 +377,38 @@ public class GalleryPanel implements UIComponent {
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
-        
-        // 导入按钮
+
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.Button, theme.mutedText);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
-        if (ImGui.button("↓" + "##import" + item.id, buttonWidth, buttonHeight)) {
-            handleImportItem(item);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.mutedText);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
+        if (ImGui.button("↓" + "##import" + item.getId(), buttonWidth, buttonHeight)) {
+            repository.placeAtViewportCenter(item, appState);
         }
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text(PlotI18n.tr("button.plot.import"));
+            ImGui.text(PlotI18n.tr("panel.plot.gallery_open_on_canvas"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);
     }
 
-    /**
-     * 根据搜索文本过滤图库项目
-     *
-     * @param searchText 搜索文本
-     */
-    private void filterGalleryItems(String searchText) {
-        try {
-            LOGGER.debug("正在搜索: {}", searchText);
-
-            // 这里应该实现实际的搜索逻辑
-            // 例如：根据名称、描述或标签进行过滤
-
-            // 更新UI以显示搜索结果
-            // ...
-
-            LOGGER.debug("搜索完成");
-        } catch (Exception e) {
-            LOGGER.error("搜索失败: {}", e.getMessage(), e);
-        }
-    }
-
-    private void handlePlaceItem(GalleryItem item) {
-        LOGGER.debug("放置图库项目: {}", item.id);
-        // TODO: 实现放置逻辑
-    }
-
-    private void handleEditItem(GalleryItem item) {
-        LOGGER.debug("编辑图库项目: {}", item.id);
-        // TODO: 实现编辑逻辑
-    }
-
-    private void handleDeleteItem(GalleryItem item) {
-        LOGGER.debug("删除图库项目: {}", item.id);
-        // TODO: 实现删除逻辑，可能需要添加确认对话框
-    }
-
-    private void handleImportItem(GalleryItem item) {
-        LOGGER.debug("导入图库项目: {}", item.id);
-        // TODO: 实现导入逻辑
-    }
-
     private List<GalleryItem> getFilteredItems() {
-        List<GalleryItem> filteredItems = new ArrayList<>(galleryManager.galleryItems);
+        List<GalleryItem> filteredItems = new ArrayList<>(repository.getItems());
 
         if (!CategoryType.ALL.name().equals(selectedCategory)) {
             filteredItems.removeIf(item -> !item.getCategory().equals(selectedCategory));
         }
 
-        if (!searchText.get().isEmpty()) {
-            String searchStr = searchText.get().toLowerCase();
-            filteredItems.removeIf(item -> 
-                !item.getName().toLowerCase().contains(searchStr) &&
-                !item.getDescription().toLowerCase().contains(searchStr) &&
-                item.getTags().stream().noneMatch(tag -> tag.toLowerCase().contains(searchStr))
-            );
+        String query = searchText.get().trim().toLowerCase();
+        if (!query.isEmpty()) {
+            filteredItems.removeIf(item ->
+                !item.getDisplayName().toLowerCase().contains(query)
+                    && !item.getDisplayDescription().toLowerCase().contains(query));
         }
 
         return filteredItems;
     }
 
-    // 添加新的方法：渲染添加类别的弹出窗口
-    private final ImString newCategoryName = new ImString(32);
-    
     private void renderAddCategoryPopup() {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
         try {
@@ -476,13 +422,15 @@ public class GalleryPanel implements UIComponent {
                     ImGui.inputText("##new_category", newCategoryName);
 
                     DialogLayoutHelper.beginFooter();
-                    DialogLayoutHelper.FooterResult action =
-                            DialogLayoutHelper.footerConfirmCancelCentered(PlotI18n.tr("button.plot.cancel"), PlotI18n.tr("button.plot.confirm"), DialogStyleManager.getContentWidth());
+                    DialogLayoutHelper.FooterResult action = DialogLayoutHelper.footerConfirmCancelCentered(
+                        PlotI18n.tr("button.plot.cancel"),
+                        PlotI18n.tr("button.plot.confirm"),
+                        DialogStyleManager.getContentWidth());
 
                     if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
                         String categoryName = newCategoryName.get().trim();
-                        if (!categoryName.isEmpty() && !customCategories.contains(categoryName)) {
-                            customCategories.add(categoryName);
+                        if (!categoryName.isEmpty() && !repository.getCustomCategories().contains(categoryName)) {
+                            repository.addCustomCategory(categoryName);
                             newCategoryName.clear();
                         }
                         ImGui.closeCurrentPopup();
@@ -501,134 +449,15 @@ public class GalleryPanel implements UIComponent {
         }
     }
 
-    /**
-     * 图库项目类，表示一个可以被选择和使用的预设图形
-     */
-    public static class GalleryItem {
-        public enum GalleryItemType {
-            OBJECT,  // 对象
-            BLOCK    // 图块
-        }
-
-        final String id;           // 唯一标识符
-        final String name;         // 显示名称
-        final String description;  // 描述信息
-        final String category;     // 所属分类
-        private final GalleryItemType type;
-        final List<String> tags;   // 标签
-
-        GalleryItem(String id, String name, String description, String category, 
-                    GalleryItemType type, List<String> tags) {
-            this.id = id;
-            this.name = name;
-            this.description = description;
-            this.category = category;
-            this.type = type;
-            this.tags = tags;
-        }
-
-        GalleryItem(String id, String name, String description, String category, 
-                    GalleryItemType type) {
-            this(id, name, description, category, type, new ArrayList<>());
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public String getCategory() {
-            return category;
-        }
-
-        public List<String> getTags() {
-            return tags;
-        }
-
-        public GalleryItemType getType() {
-            return type;
-        }
-    }
-
-    public static class GalleryManager {
-        private final List<GalleryItem> galleryItems = new ArrayList<>();
-        private boolean initialized = false;
-
-        public void loadGalleryItems() {
-            try {
-                if (initialized) {
-                    LOGGER.debug("画廊项目已加载，跳过初始化");
-                    return;
-                }
-
-                LOGGER.info("开始加载图库项目...");
-                
-                // 添加示例图库项目
-                galleryItems.add(new GalleryItem(
-                    "rect_block",
-                    PlotI18n.tr("gallery.plot.item.rect_block.name"),
-                    PlotI18n.tr("gallery.plot.item.rect_block.desc"),
-                    CategoryType.BUILDING.name(),
-                    BLOCK,
-                    Arrays.asList("basic", "rectangle")
-                ));
-
-                galleryItems.add(new GalleryItem(
-                    "circle_block",
-                    PlotI18n.tr("gallery.plot.item.circle_block.name"),
-                    PlotI18n.tr("gallery.plot.item.circle_block.desc"),
-                    CategoryType.LANDSCAPE.name(),
-                    BLOCK
-                ));
-
-                galleryItems.add(new GalleryItem(
-                    "triangle_block",
-                    PlotI18n.tr("gallery.plot.item.triangle_block.name"),
-                    PlotI18n.tr("gallery.plot.item.triangle_block.desc"),
-                    CategoryType.SYMBOL.name(),
-                    BLOCK
-                ));
-
-                initialized = true;
-                LOGGER.info("成功加载 {} 个图库项目", galleryItems.size());
-            } catch (Exception e) {
-                LOGGER.error("加载图库项目失败", e);
-            }
-        }
-
-        public void dispose() {
-            initialized = false;
-            galleryItems.clear();
-        }
-    }
-
     public void dispose() {
-        // 清理图库面板资源
         LOGGER.debug("正在清理GalleryPanel资源...");
-        
         try {
-            // 清理画廊管理器
-            galleryManager.dispose();
-
-            // 清理搜索文本
-            if (searchText != null) {
-                searchText.clear();
-            }
-            
-            // 清理自定义类别
-            customCategories.clear();
-
-            // 重置状态
+            placeSession.cancel();
+            GalleryPlacementGuard.setActive(false);
+            searchText.clear();
+            newCategoryName.clear();
             initialized = false;
             selectedCategory = CategoryType.ALL.name();
-            
             LOGGER.debug("GalleryPanel资源清理完成");
         } catch (Exception e) {
             LOGGER.error("清理GalleryPanel资源时发生错误", e);

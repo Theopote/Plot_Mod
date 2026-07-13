@@ -212,6 +212,10 @@ public class Canvas implements ICanvas, UIComponent {
     @Override public Vec2d screenToWorld(Vec2d screenPos) { return core.screenToWorld(screenPos); }
     @Override public Vec2d worldToScreen(Vec2d worldPos) { return core.worldToScreen(worldPos); }
 
+    public boolean isScreenPosInsideCanvas(Vec2d screenPos) {
+        return core.isScreenPosInsideCanvas(screenPos);
+    }
+
     // 其他方法保持不变
     public void undo() { com.plot.infrastructure.event.EventBus.getInstance().publish(new com.plot.infrastructure.event.command.UndoEvent("Canvas")); }
     public void redo() { com.plot.infrastructure.event.EventBus.getInstance().publish(new com.plot.infrastructure.event.command.RedoEvent("Canvas")); }
