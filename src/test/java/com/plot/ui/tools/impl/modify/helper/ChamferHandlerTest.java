@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.modify.helper;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.ChamferTool;
@@ -71,6 +72,34 @@ class ChamferHandlerTest {
                 params);
 
         assertFalse(result.isValid());
+    }
+
+    @Test
+    void calculateModifiedShapesChamfersPolylineCorner() {
+        PolylineShape polyline = new PolylineShape(
+                List.of(new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10)),
+                false);
+        ModifyParameters params = chamferParams(2.0, new Vec2d(5, 0), new Vec2d(10, 5));
+
+        List<Shape> result = handler.calculateModifiedShapes(List.of(polyline, polyline), params);
+
+        assertEquals(1, result.size());
+        PolylineShape modified = (PolylineShape) result.getFirst();
+        assertEquals(4, modified.getPoints().size());
+    }
+
+    @Test
+    void validateModificationAcceptsPolylineCornerMode() {
+        PolylineShape polyline = new PolylineShape(
+                List.of(new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10)),
+                false);
+        ModifyParameters params = chamferParams(2.0, new Vec2d(5, 0), new Vec2d(10, 5));
+
+        IModifyHandler.ValidationResult result = handler.validateModification(
+                List.of(polyline, polyline),
+                params);
+
+        assertTrue(result.isValid());
     }
 
     private static ModifyParameters chamferParams(double distance, Vec2d click1, Vec2d click2) {

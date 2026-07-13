@@ -80,6 +80,54 @@ class ArrayHandlerTest {
         }));
     }
 
+    @Test
+    void validateModificationAcceptsPathArrayWithoutBasePoint() {
+        ModifyParameters params = pathParams(3, List.of(new Vec2d(0, 0), new Vec2d(20, 0)));
+
+        IModifyHandler.ValidationResult result = handler.validateModification(
+                List.of(new CircleShape(new Vec2d(0, 0), 5)),
+                params);
+
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void calculatePathArrayDistributesCopiesAlongPath() {
+        CircleShape source = new CircleShape(new Vec2d(0, 5), 2);
+        ModifyParameters params = pathParams(3, List.of(new Vec2d(0, 0), new Vec2d(30, 0)));
+
+        List<Shape> result = handler.calculateModifiedShapes(List.of(source), params);
+
+        assertEquals(3, result.size());
+        assertTrue(result.stream().anyMatch(shape -> {
+            Vec2d center = ((CircleShape) shape).getCenter();
+            return Math.abs(center.x - 15.0) < 1e-3 && Math.abs(center.y - 5.0) < 1e-3;
+        }));
+        assertTrue(result.stream().anyMatch(shape -> {
+            Vec2d center = ((CircleShape) shape).getCenter();
+            return Math.abs(center.x - 30.0) < 1e-3 && Math.abs(center.y - 5.0) < 1e-3;
+        }));
+    }
+
+    @Test
+    void calculatePathArrayReturnsOriginalShapesWhenPathInvalid() {
+        CircleShape source = new CircleShape(new Vec2d(0, 0), 5);
+        ModifyParameters params = pathParams(3, List.of(new Vec2d(0, 0)));
+
+        List<Shape> result = handler.calculateModifiedShapes(List.of(source), params);
+
+        assertEquals(1, result.size());
+        assertEquals(source, result.getFirst());
+    }
+
+    private static ModifyParameters pathParams(int count, List<Vec2d> pathPoints) {
+        ModifyParameters params = new ModifyParameters();
+        params.setParameter("arrayType", "PATH");
+        params.setInt("rowCount", count);
+        params.setParameter("pathPoints", pathPoints);
+        return params;
+    }
+
     private static ModifyParameters rectangularParams(
             int rows, int cols, double columnSpacing, double rowSpacing, Vec2d basePoint) {
         ModifyParameters params = new ModifyParameters();
