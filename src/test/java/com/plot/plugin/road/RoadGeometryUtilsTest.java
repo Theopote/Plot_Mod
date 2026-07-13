@@ -36,21 +36,58 @@ class RoadGeometryUtilsTest {
 
         List<Vec2d> sampled = RoadGeometryUtils.sampleBezierCurve(curve);
         List<Vec2d> controlPoints = curve.getControlPoints();
+        List<Vec2d> rawDense = curve.getCurvePoints();
 
         assertFalse(sampled.isEmpty());
         assertNotEquals(controlPoints.size(), sampled.size(),
             "curve sampling should produce a denser polyline than the control polygon");
         assertNotEquals(controlPoints, sampled,
             "sampleBezierCurve must not return the control-handle sequence");
+        assertTrue(sampled.size() <= rawDense.size(),
+            "road adoption should not densify beyond render sampling");
+        assertTrue(sampled.size() < rawDense.size() || rawDense.size() <= 4,
+            "road adoption should simplify dense render sampling when curve is oversampled");
 
         Vec2d expectedMidpoint = BezierUtils.evaluateCubicBezier(
             anchorStart, control1, control2, anchorEnd, 0.5);
-        assertTrue(sampled.stream().anyMatch(point -> point.distance(expectedMidpoint) < 1.0),
+        assertTrue(sampled.stream().anyMatch(point -> point.distance(expectedMidpoint) < 1.5),
             "sampled points should follow the actual Bezier curve, not linear control handles");
 
         double maxSampledY = sampled.stream().mapToDouble(point -> point.y).max().orElse(0);
         assertTrue(maxSampledY > 10.0,
             "curved road centerline should bulge above the straight chord between anchors");
+    }
+
+    @Test
+    void sampleBezierCurveKeepsSingleLogicalPolylineForNearlyStraightCurve() {
+        List<Vec2d[]> controls = new ArrayList<>();
+        controls.add(new Vec2d[]{new Vec2d(3, 0.2), new Vec2d(7, -0.2)});
+        BezierCurveShape curve = new BezierCurveShape(
+            List.of(new Vec2d(0, 0), new Vec2d(10, 0)),
+            controls,
+            false
+        );
+
+        List<Vec2d> sampled = RoadGeometryUtils.sampleBezierCurve(curve);
+        // 近乎直线：点数应远少于渲染密采样
+        assertTrue(sampled.size() >= 2);
+        assertTrue(sampled.size() <= 12,
+            "nearly straight spline should not produce dozens of centerline vertices");
+    }
+
+    @Test
+    void simplifyPolylineRemovesColinearMiddlePoints() {
+        List<Vec2d> dense = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(1, 0),
+            new Vec2d(2, 0),
+            new Vec2d(3, 0),
+            new Vec2d(4, 0)
+        );
+        List<Vec2d> simplified = RoadGeometryUtils.simplifyPolyline(dense, 0.1);
+        assertEquals(2, simplified.size());
+        assertEquals(0, simplified.getFirst().x, 1e-9);
+        assertEquals(4, simplified.getLast().x, 1e-9);
     }
 
     @Test

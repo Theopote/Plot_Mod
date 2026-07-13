@@ -21,6 +21,12 @@ import java.util.Set;
  * 道路几何工具（与 Shape / RoadGenerator 解耦的纯几何运算）
  */
 public final class RoadGeometryUtils {
+    /**
+     * 认领样条时中心线简化容差（格）。越大点越少、曲线越“折”；
+     * 生成阶段仍会按 pathSampleDistance 再细分，此处只减少路网存储/示意图上的冗余顶点。
+     */
+    public static final double ROAD_CENTERLINE_SIMPLIFY_EPSILON = 0.35;
+
     private RoadGeometryUtils() {
     }
 
@@ -64,13 +70,107 @@ public final class RoadGeometryUtils {
     }
 
     /**
-     * 获取贝塞尔曲线上的采样点（使用 {@link BezierCurveShape#getCurvePoints()}，而非控制手柄序列）
+     * 将样条离散为道路中心线折点。
+     * <p>
+     * 路网数据模型只存折线中心线（不存贝塞尔控制点），因此认领时必须离散。
+     * 画布侧 {@link BezierCurveShape#getCurvePoints()} 为渲染用密采样（每段可达 8–64 点），
+     * 直接入库会让示意图看起来像“一条曲线被切成很多小段”。此处先密采样保证贴合曲线，
+     * 再 RDP 简化 + 最大间距补点，使拓扑上仍是<strong>一条边</strong>，顶点数量适合道路用途。
      */
     public static List<Vec2d> sampleBezierCurve(BezierCurveShape curve) {
         if (curve == null) {
             return List.of();
         }
-        return new ArrayList<>(curve.getCurvePoints());
+        List<Vec2d> dense = curve.getCurvePoints();
+        if (dense.size() < 2) {
+            return new ArrayList<>(dense);
+        }
+        // 只简化、不再二次密化：生成道路时 RoadGenerator.samplePath 会按配置间距细分
+        return simplifyPolyline(dense, ROAD_CENTERLINE_SIMPLIFY_EPSILON);
+    }
+
+    /**
+     * Douglas–Peucker 折线简化：保留端点，去掉偏离弦不超过 {@code epsilon} 的中间点。
+     */
+    public static List<Vec2d> simplifyPolyline(List<Vec2d> points, double epsilon) {
+        if (points == null || points.size() < 3 || epsilon <= 0) {
+            return points == null ? List.of() : new ArrayList<>(points);
+        }
+        boolean[] keep = new boolean[points.size()];
+        keep[0] = true;
+        keep[points.size() - 1] = true;
+        simplifyPolylineRecursive(points, 0, points.size() - 1, epsilon, keep);
+        List<Vec2d> result = new ArrayList<>();
+        for (int i = 0; i < points.size(); i++) {
+            if (keep[i]) {
+                result.add(points.get(i).copy());
+            }
+        }
+        return result;
+    }
+
+    private static void simplifyPolylineRecursive(
+            List<Vec2d> points, int start, int end, double epsilon, boolean[] keep) {
+        if (end <= start + 1) {
+            return;
+        }
+        Vec2d a = points.get(start);
+        Vec2d b = points.get(end);
+        double maxDist = -1;
+        int maxIndex = -1;
+        for (int i = start + 1; i < end; i++) {
+            double dist = pointToSegmentDistance(points.get(i), a, b);
+            if (dist > maxDist) {
+                maxDist = dist;
+                maxIndex = i;
+            }
+        }
+        if (maxDist > epsilon && maxIndex >= 0) {
+            keep[maxIndex] = true;
+            simplifyPolylineRecursive(points, start, maxIndex, epsilon, keep);
+            simplifyPolylineRecursive(points, maxIndex, end, epsilon, keep);
+        }
+    }
+
+    private static double pointToSegmentDistance(Vec2d p, Vec2d a, Vec2d b) {
+        double dx = b.x - a.x;
+        double dy = b.y - a.y;
+        double lenSq = dx * dx + dy * dy;
+        if (lenSq < 1e-18) {
+            return p.distance(a);
+        }
+        double t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+        t = Math.max(0.0, Math.min(1.0, t));
+        double projX = a.x + t * dx;
+        double projY = a.y + t * dy;
+        double ex = p.x - projX;
+        double ey = p.y - projY;
+        return Math.sqrt(ex * ex + ey * ey);
+    }
+
+    /**
+     * 若相邻点间距超过 {@code maxSpacing}，在中间线性插值补点。
+     */
+    public static List<Vec2d> densifyPolyline(List<Vec2d> points, double maxSpacing) {
+        if (points == null || points.size() < 2 || maxSpacing <= 0) {
+            return points == null ? List.of() : new ArrayList<>(points);
+        }
+        List<Vec2d> result = new ArrayList<>();
+        result.add(points.getFirst().copy());
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d a = points.get(i);
+            Vec2d b = points.get(i + 1);
+            double dist = a.distance(b);
+            if (dist > maxSpacing) {
+                int steps = (int) Math.ceil(dist / maxSpacing);
+                for (int s = 1; s < steps; s++) {
+                    double t = (double) s / steps;
+                    result.add(a.lerp(b, t));
+                }
+            }
+            result.add(b.copy());
+        }
+        return result;
     }
 
     public static double calculatePathLength(List<Vec2d> points) {
