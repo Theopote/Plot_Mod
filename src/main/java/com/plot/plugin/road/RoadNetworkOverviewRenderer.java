@@ -317,9 +317,13 @@ public final class RoadNetworkOverviewRenderer {
         return originX + PADDING + (float) ((worldX - bounds.minX) / bounds.spanX) * inner;
     }
 
+    /**
+     * 与 Plot 画布一致：画布 Y 向下增大，不把世界 Y 做上下翻转。
+     * （此前使用 maxY - worldY，会相对画布呈上下镜像。）
+     */
     private static float toScreenY(double worldY, Bounds bounds, float originY, float height) {
         float inner = height - PADDING * 2f;
-        return originY + PADDING + (float) ((bounds.maxY - worldY) / bounds.spanY) * inner;
+        return originY + PADDING + (float) ((worldY - bounds.minY) / bounds.spanY) * inner;
     }
 
     private static double toWorldX(float screenX, Bounds bounds, float originX, float width) {
@@ -333,9 +337,9 @@ public final class RoadNetworkOverviewRenderer {
     private static double toWorldY(float screenY, Bounds bounds, float originY, float height) {
         float inner = height - PADDING * 2f;
         if (inner <= 0f) {
-            return bounds.maxY;
+            return bounds.minY;
         }
-        return bounds.maxY - (screenY - originY - PADDING) / inner * bounds.spanY;
+        return bounds.minY + (screenY - originY - PADDING) / inner * bounds.spanY;
     }
 
     static String hitTestEdge(RoadNetwork network, double wx, double wy, double threshold) {
