@@ -330,9 +330,7 @@ public final class RoadDefaultParamsPanel {
                 ctx,
                 "##cut_slope_material",
                 PlotI18n.tr("plugin.road.cut_slope_material"),
-                config.getCutSlopeMaterial().isBlank()
-                    ? config.getFillSlopeMaterial()
-                    : config.getCutSlopeMaterial(),
+                config.getCutSlopeMaterial(),
                 blockId -> {
                     config.setCutSlopeMaterial(blockId);
                     markCustom();

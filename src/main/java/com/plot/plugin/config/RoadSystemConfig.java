@@ -18,6 +18,7 @@ import java.util.Map;
  */
 public class RoadSystemConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final String DEFAULT_FILL_SLOPE_MATERIAL = "material.plot.gravel";
     private String pluginId;
 
     private int roadWidth = 5;
@@ -48,7 +49,7 @@ public class RoadSystemConfig {
 
     private float fillSlopeRatio = 1.5f;
     private float cutSlopeRatio = 1.0f;
-    private String fillSlopeMaterial = "material.plot.gravel";
+    private String fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
     private String cutSlopeMaterial = "";
     private double maxContinuousSlopeLength = 30.0;
     private double relaxedSlopeLength = 5.0;
@@ -113,6 +114,11 @@ public class RoadSystemConfig {
         config.selectedSidewalkMaterial = normalizedSidewalk != null
             ? normalizedSidewalk
             : config.selectedMaterial;
+        config.setFillSlopeMaterial(config.fillSlopeMaterial);
+        config.setCutSlopeMaterial(config.cutSlopeMaterial);
+        if (config.fillSlopeMaterial.isBlank()) {
+            config.fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
+        }
     }
 
     private static void mergeMissingBuiltinStyles(RoadSystemConfig config) {
@@ -353,7 +359,9 @@ public class RoadSystemConfig {
     }
 
     public String getFillSlopeMaterial() {
-        return fillSlopeMaterial;
+        return fillSlopeMaterial != null && !fillSlopeMaterial.isBlank()
+            ? fillSlopeMaterial
+            : DEFAULT_FILL_SLOPE_MATERIAL;
     }
 
     public void setFillSlopeMaterial(String fillSlopeMaterial) {
@@ -361,7 +369,10 @@ public class RoadSystemConfig {
     }
 
     public String getCutSlopeMaterial() {
-        return cutSlopeMaterial;
+        if (cutSlopeMaterial != null && !cutSlopeMaterial.isBlank()) {
+            return cutSlopeMaterial;
+        }
+        return getFillSlopeMaterial();
     }
 
     public void setCutSlopeMaterial(String cutSlopeMaterial) {
