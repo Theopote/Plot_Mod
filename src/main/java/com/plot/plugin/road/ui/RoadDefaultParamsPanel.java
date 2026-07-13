@@ -256,6 +256,19 @@ public final class RoadDefaultParamsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.tunnel_threshold");
 
+        float[] fillFactor = {config.getFillFactor()};
+        if (ImGui.sliderFloat(
+            "##road_fill_factor",
+            fillFactor,
+            1.0f,
+            2.0f,
+            PlotI18n.tr("plugin.road.fill_factor", String.format("%.2f", fillFactor[0]))
+        )) {
+            config.setFillFactor(fillFactor[0]);
+            markCustom();
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_factor");
+
         ImBoolean shoulderRef = new ImBoolean(config.isIncludeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), shoulderRef)) {
             config.setIncludeShoulder(shoulderRef.get());
