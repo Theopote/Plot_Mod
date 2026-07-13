@@ -10,8 +10,12 @@ import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 道路几何工具（与 Shape / RoadGenerator 解耦的纯几何运算）
@@ -262,6 +266,241 @@ public final class RoadGeometryUtils {
 
     public static boolean pointsNear(Vec2d a, Vec2d b, double tolerance) {
         return a != null && b != null && a.distance(b) <= tolerance;
+    }
+
+    /**
+     * 将可认领路径按首尾相连关系分组，每组对应一次认领（一条 roadId）。
+     * 简单链（无分叉）合并为一条折线；分叉或交汇处各段保持独立。
+     */
+    public static List<List<Vec2d>> groupConnectedPathsForAdoption(List<Shape> shapes) {
+        return groupConnectedPathsForAdoption(shapes, RoadNetworkBuilder.NODE_TOLERANCE);
+    }
+
+    public static List<List<Vec2d>> groupConnectedPathsForAdoption(List<Shape> shapes, double tolerance) {
+        List<PathFragment> fragments = buildAdoptableFragments(shapes);
+        if (fragments.isEmpty()) {
+            return List.of();
+        }
+        if (fragments.size() == 1) {
+            return List.of(copyPoints(fragments.getFirst().points));
+        }
+
+        assignEndpointClusters(fragments, tolerance);
+        List<Set<Integer>> components = buildFragmentComponents(fragments);
+        List<List<Vec2d>> groups = new ArrayList<>();
+        for (Set<Integer> component : components) {
+            Map<Integer, Integer> clusterDegrees = clusterDegrees(component, fragments);
+            if (component.size() == 1 || !isSimplePath(clusterDegrees)) {
+                for (int index : sortedIndices(component)) {
+                    groups.add(copyPoints(fragments.get(index).points));
+                }
+            } else {
+                groups.add(mergeSimpleChain(component, fragments, clusterDegrees));
+            }
+        }
+        return groups;
+    }
+
+    private static final class PathFragment {
+        final List<Vec2d> points;
+        int startCluster = -1;
+        int endCluster = -1;
+
+        PathFragment(List<Vec2d> points) {
+            this.points = points;
+        }
+    }
+
+    private static List<PathFragment> buildAdoptableFragments(List<Shape> shapes) {
+        List<PathFragment> fragments = new ArrayList<>();
+        if (shapes == null) {
+            return fragments;
+        }
+        for (Shape shape : shapes) {
+            if (!isAdoptablePath(shape)) {
+                continue;
+            }
+            List<Vec2d> points = extractShapePoints(shape);
+            if (points.size() < 2) {
+                continue;
+            }
+            fragments.add(new PathFragment(points));
+        }
+        return fragments;
+    }
+
+    private static void assignEndpointClusters(List<PathFragment> fragments, double tolerance) {
+        List<Vec2d> clusterReps = new ArrayList<>();
+        for (PathFragment fragment : fragments) {
+            fragment.startCluster = findOrCreateCluster(fragment.points.getFirst(), clusterReps, tolerance);
+            fragment.endCluster = findOrCreateCluster(fragment.points.getLast(), clusterReps, tolerance);
+        }
+    }
+
+    private static int findOrCreateCluster(Vec2d point, List<Vec2d> clusterReps, double tolerance) {
+        for (int i = 0; i < clusterReps.size(); i++) {
+            if (pointsNear(point, clusterReps.get(i), tolerance)) {
+                return i;
+            }
+        }
+        clusterReps.add(point.copy());
+        return clusterReps.size() - 1;
+    }
+
+    private static List<Set<Integer>> buildFragmentComponents(List<PathFragment> fragments) {
+        int count = fragments.size();
+        int[] parent = new int[count];
+        for (int i = 0; i < count; i++) {
+            parent[i] = i;
+        }
+        for (int i = 0; i < count; i++) {
+            for (int j = i + 1; j < count; j++) {
+                if (fragmentsShareCluster(fragments.get(i), fragments.get(j))) {
+                    union(parent, i, j);
+                }
+            }
+        }
+
+        Map<Integer, Set<Integer>> grouped = new HashMap<>();
+        for (int i = 0; i < count; i++) {
+            grouped.computeIfAbsent(find(parent, i), ignored -> new LinkedHashSet<>()).add(i);
+        }
+        return new ArrayList<>(grouped.values());
+    }
+
+    private static boolean fragmentsShareCluster(PathFragment left, PathFragment right) {
+        return left.startCluster == right.startCluster
+            || left.startCluster == right.endCluster
+            || left.endCluster == right.startCluster
+            || left.endCluster == right.endCluster;
+    }
+
+    private static int find(int[] parent, int index) {
+        if (parent[index] != index) {
+            parent[index] = find(parent, parent[index]);
+        }
+        return parent[index];
+    }
+
+    private static void union(int[] parent, int left, int right) {
+        int rootLeft = find(parent, left);
+        int rootRight = find(parent, right);
+        if (rootLeft != rootRight) {
+            parent[rootRight] = rootLeft;
+        }
+    }
+
+    private static Map<Integer, Integer> clusterDegrees(Set<Integer> component, List<PathFragment> fragments) {
+        Map<Integer, Integer> degrees = new HashMap<>();
+        for (int index : component) {
+            PathFragment fragment = fragments.get(index);
+            degrees.merge(fragment.startCluster, 1, Integer::sum);
+            degrees.merge(fragment.endCluster, 1, Integer::sum);
+        }
+        return degrees;
+    }
+
+    private static boolean isSimplePath(Map<Integer, Integer> clusterDegrees) {
+        for (int degree : clusterDegrees.values()) {
+            if (degree > 2) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<Integer> sortedIndices(Set<Integer> component) {
+        List<Integer> indices = new ArrayList<>(component);
+        indices.sort(Integer::compareTo);
+        return indices;
+    }
+
+    private static List<Vec2d> mergeSimpleChain(
+        Set<Integer> component,
+        List<PathFragment> fragments,
+        Map<Integer, Integer> clusterDegrees
+    ) {
+        Integer terminalCluster = null;
+        for (Map.Entry<Integer, Integer> entry : clusterDegrees.entrySet()) {
+            if (entry.getValue() == 1) {
+                terminalCluster = entry.getKey();
+                break;
+            }
+        }
+
+        int startFragment = -1;
+        boolean forward = true;
+        if (terminalCluster != null) {
+            for (int index : component) {
+                PathFragment fragment = fragments.get(index);
+                if (fragment.startCluster == terminalCluster) {
+                    startFragment = index;
+                    forward = true;
+                    break;
+                }
+                if (fragment.endCluster == terminalCluster) {
+                    startFragment = index;
+                    forward = false;
+                    break;
+                }
+            }
+        } else {
+            startFragment = sortedIndices(component).getFirst();
+        }
+
+        Set<Integer> remaining = new HashSet<>(component);
+        List<Vec2d> merged = new ArrayList<>();
+        int currentFragment = startFragment;
+        boolean currentForward = forward;
+        while (currentFragment >= 0) {
+            PathFragment fragment = fragments.get(currentFragment);
+            List<Vec2d> oriented = currentForward
+                ? fragment.points
+                : reverseCopy(fragment.points);
+            appendJoined(merged, oriented, RoadNetworkBuilder.NODE_TOLERANCE);
+            remaining.remove(currentFragment);
+
+            int exitCluster = currentForward ? fragment.endCluster : fragment.startCluster;
+            int nextFragment = -1;
+            boolean nextForward = true;
+            for (int candidate : remaining) {
+                PathFragment next = fragments.get(candidate);
+                if (next.startCluster == exitCluster) {
+                    nextFragment = candidate;
+                    nextForward = true;
+                    break;
+                }
+                if (next.endCluster == exitCluster) {
+                    nextFragment = candidate;
+                    nextForward = false;
+                    break;
+                }
+            }
+            currentFragment = nextFragment;
+            currentForward = nextForward;
+        }
+        return merged;
+    }
+
+    private static void appendJoined(List<Vec2d> target, List<Vec2d> segment, double tolerance) {
+        if (segment.isEmpty()) {
+            return;
+        }
+        int startIndex = 0;
+        if (!target.isEmpty() && pointsNear(target.getLast(), segment.getFirst(), tolerance)) {
+            startIndex = 1;
+        }
+        for (int i = startIndex; i < segment.size(); i++) {
+            target.add(segment.get(i).copy());
+        }
+    }
+
+    private static List<Vec2d> reverseCopy(List<Vec2d> points) {
+        List<Vec2d> reversed = new ArrayList<>(points.size());
+        for (int i = points.size() - 1; i >= 0; i--) {
+            reversed.add(points.get(i).copy());
+        }
+        return reversed;
     }
 
     /**

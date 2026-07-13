@@ -3,12 +3,15 @@ package com.plot.plugin.road.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
+import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -440,6 +443,51 @@ class RoadNetworkTest {
         assertTrue(restoredNode.isGradeSeparated());
         assertEquals(roadB.getId(), restoredNode.getElevatedRoadId());
         assertEquals(5.0, restoredNode.getCrossingClearance());
+    }
+
+    @Test
+    void mergedAdoptionCreatesSingleRoad() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+        List<LineShape> segments = List.of(
+            new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new LineShape(new Vec2d(10, 0), new Vec2d(20, 0)),
+            new LineShape(new Vec2d(20, 0), new Vec2d(30, 0))
+        );
+
+        List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
+            new ArrayList<>(segments));
+        assertEquals(1, groups.size());
+
+        for (List<Vec2d> points : groups) {
+            builder.adoptShape(network, new PolylineShape(points, false), config);
+        }
+
+        assertEquals(1, network.getRoads().size());
+        assertEquals(1, network.getEdges().size());
+    }
+
+    @Test
+    void removeRoadDeletesAllSegmentsAndIsolatedNodes() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode mid = network.createNode(new Vec2d(10, 0));
+        RoadNode end = network.createNode(new Vec2d(20, 0));
+        Road road = network.createRoad("road-to-remove");
+        network.createEdge(start.getId(), mid.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)
+        ), road.getId());
+        network.createEdge(mid.getId(), end.getId(), List.of(
+            new Vec2d(10, 0), new Vec2d(20, 0)
+        ), road.getId());
+
+        network.removeRoad(road.getId());
+
+        assertTrue(network.getRoads().isEmpty());
+        assertTrue(network.getEdges().isEmpty());
+        assertTrue(network.getNodes().isEmpty());
     }
 
     @Test

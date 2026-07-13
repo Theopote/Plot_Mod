@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.BezierCurveShape;
+import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.ui.tools.impl.drawing.helper.BezierUtils;
 import net.minecraft.util.math.BlockPos;
@@ -172,5 +173,65 @@ class RoadGeometryUtilsTest {
 
         assertEquals(12, pos.getX());
         assertEquals(-3, pos.getZ());
+    }
+
+    @Test
+    void groupConnectedPathsMergesSimpleChain() {
+        List<LineShape> segments = List.of(
+            new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new LineShape(new Vec2d(10, 0), new Vec2d(20, 0)),
+            new LineShape(new Vec2d(20, 0), new Vec2d(30, 0))
+        );
+
+        List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
+            new ArrayList<>(segments));
+
+        assertEquals(1, groups.size());
+        assertEquals(4, groups.getFirst().size());
+        assertEquals(0, groups.getFirst().getFirst().x, 1e-6);
+        assertEquals(30, groups.getFirst().getLast().x, 1e-6);
+    }
+
+    @Test
+    void groupConnectedPathsMergesReversedSegments() {
+        List<LineShape> segments = List.of(
+            new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new LineShape(new Vec2d(20, 0), new Vec2d(10, 0))
+        );
+
+        List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
+            new ArrayList<>(segments));
+
+        assertEquals(1, groups.size());
+        assertEquals(3, groups.getFirst().size());
+        assertEquals(0, groups.getFirst().getFirst().x, 1e-6);
+        assertEquals(20, groups.getFirst().getLast().x, 1e-6);
+    }
+
+    @Test
+    void groupConnectedPathsKeepsDisconnectedSegmentsSeparate() {
+        List<LineShape> segments = List.of(
+            new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new LineShape(new Vec2d(0, 20), new Vec2d(10, 20))
+        );
+
+        List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
+            new ArrayList<>(segments));
+
+        assertEquals(2, groups.size());
+    }
+
+    @Test
+    void groupConnectedPathsDoesNotMergeFork() {
+        List<LineShape> segments = List.of(
+            new LineShape(new Vec2d(0, 0), new Vec2d(10, 0)),
+            new LineShape(new Vec2d(10, 0), new Vec2d(20, 0)),
+            new LineShape(new Vec2d(10, 0), new Vec2d(10, 10))
+        );
+
+        List<List<Vec2d>> groups = RoadGeometryUtils.groupConnectedPathsForAdoption(
+            new ArrayList<>(segments));
+
+        assertEquals(3, groups.size());
     }
 }

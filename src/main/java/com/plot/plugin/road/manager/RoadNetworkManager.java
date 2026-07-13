@@ -1,8 +1,11 @@
 package com.plot.plugin.road.manager;
 
+import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -246,12 +249,16 @@ public final class RoadNetworkManager {
         boolean historyPushed = false;
         selectedEdgeIds.clear();
 
-        for (Shape path : selectedPaths) {
+        List<List<Vec2d>> adoptionGroups =
+            RoadGeometryUtils.groupConnectedPathsForAdoption(selectedPaths);
+
+        for (List<Vec2d> pathPoints : adoptionGroups) {
             try {
                 if (!historyPushed) {
                     pushHistory();
                     historyPushed = true;
                 }
+                Shape path = new PolylineShape(pathPoints, false);
                 RoadNetworkBuilder.AdoptResult result =
                     networkBuilder.adoptShape(network, path, config);
                 adoptedCount++;
