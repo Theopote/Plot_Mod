@@ -79,12 +79,14 @@ public class GalleryItemEditorDialog {
 
     private void renderDialog(String popupId, String title) {
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
+        float dialogWidth = DialogStyleManager.DialogWidth.STANDARD.value;
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-        ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.STANDARD.value, 0.0f, ImGuiCond.Appearing);
+        // 固定宽度；AlwaysAutoResize 会与 -1 宽输入框形成反馈，导致弹窗逐帧变窄
+        ImGui.setNextWindowSize(dialogWidth, 0.0f, ImGuiCond.Always);
 
         try {
-            int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize;
+            int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
             if (ImGui.beginPopupModal(popupId, windowFlags)) {
                 try {
                     if (DialogStyleManager.renderTopRightCloseButton("gallery_editor")) {
@@ -92,7 +94,7 @@ public class GalleryItemEditorDialog {
                         ImGui.endPopup();
                         return;
                     }
-                    renderContent(title);
+                    renderContent(title, dialogWidth);
                 } catch (Exception e) {
                     LOGGER.error("渲染图库编辑对话框失败", e);
                     closePopup();
@@ -104,7 +106,9 @@ public class GalleryItemEditorDialog {
         }
     }
 
-    private void renderContent(String title) {
+    private void renderContent(String title, float dialogWidth) {
+        float contentWidth = dialogWidth - DialogStyleManager.PANEL_PADDING * 2.0f;
+
         DialogLayoutHelper.beginSection(title);
         if (mode == Mode.SAVE) {
             DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.gallery_save_hint", pendingSelection.size()));
@@ -112,22 +116,21 @@ public class GalleryItemEditorDialog {
         DialogLayoutHelper.endSection();
 
         ImGui.text(PlotI18n.tr("dialog.plot.gallery_field_name"));
-        ImGui.setNextItemWidth(-1.0f);
+        ImGui.setNextItemWidth(contentWidth);
         ImGui.inputText("##gallery_name", nameInput);
 
         ImGui.text(PlotI18n.tr("dialog.plot.gallery_field_description"));
-        ImGui.setNextItemWidth(-1.0f);
-        ImGui.inputTextMultiline("##gallery_description", descriptionInput, -1.0f, 72.0f);
+        ImGui.inputTextMultiline("##gallery_description", descriptionInput, contentWidth, 72.0f);
 
         ImGui.text(PlotI18n.tr("dialog.plot.gallery_field_category"));
-        ImGui.setNextItemWidth(-1.0f);
+        ImGui.setNextItemWidth(contentWidth);
         ImGui.inputText("##gallery_category", categoryInput);
 
         DialogLayoutHelper.beginFooter();
         DialogLayoutHelper.FooterResult action = DialogLayoutHelper.footerConfirmCancelCentered(
             PlotI18n.tr("button.plot.cancel"),
             PlotI18n.tr("button.plot.confirm"),
-            DialogStyleManager.getContentWidth());
+            contentWidth);
 
         if (action.confirmClicked() || DialogLayoutHelper.isConfirmShortcutPressed()) {
             confirm();
