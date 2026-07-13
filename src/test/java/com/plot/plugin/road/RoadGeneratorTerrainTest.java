@@ -162,7 +162,7 @@ class RoadGeneratorTerrainTest {
         network.createEdge(
             junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-12, 0)), roadB.getId());
 
-        assertTrue(network.setNodeGradeSeparation(junction.getId(), roadB.getId(), 3.0));
+        assertTrue(network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 3.0));
 
         int underpassHeight = generator.getTargetHeightAtNode(northEdge, junction, network, terrain);
         int elevatedHeight = generator.getTargetHeightAtNode(eastEdge, junction, network, terrain);
@@ -197,7 +197,7 @@ class RoadGeneratorTerrainTest {
         var westEdge = network.createEdge(
             junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)), roadB.getId());
 
-        network.setNodeGradeSeparation(junction.getId(), roadB.getId(), 4.0);
+        network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 4.0);
 
         int eastAtJunction = generator.getTargetHeightAtNode(eastEdge, junction, network, terrain);
         int westAtJunction = generator.getTargetHeightAtNode(westEdge, junction, network, terrain);
@@ -219,17 +219,140 @@ class RoadGeneratorTerrainTest {
         RoadNode junction = network.createNode(new Vec2d(0, 0));
         junction.setManualElevation(80.0);
         RoadNode north = network.createNode(new Vec2d(0, 12));
+        RoadNode south = network.createNode(new Vec2d(0, -12));
         RoadNode east = network.createNode(new Vec2d(12, 0));
+        RoadNode west = network.createNode(new Vec2d(-12, 0));
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
 
-        var northEdge = network.createEdge(
-            junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 12)), roadA.getId());
         var eastEdge = network.createEdge(
             junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(12, 0)), roadB.getId());
-        network.setNodeGradeSeparation(junction.getId(), roadB.getId(), 3.0);
+        network.createEdge(
+            junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-12, 0)), roadB.getId());
+        var northEdge = network.createEdge(
+            junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 12)), roadA.getId());
+        network.createEdge(
+            junction.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -12)), roadA.getId());
+        network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 3.0);
 
         assertEquals(80, generator.getTargetHeightAtNode(eastEdge, junction, network, terrain));
         assertEquals(80, generator.getTargetHeightAtNode(northEdge, junction, network, terrain));
+    }
+
+    @Test
+    void resolveElevatedRoadIdAutoSelectsHigherNaturalRoad() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGenerator generator = new RoadGenerator(config, null);
+        TerrainSampler terrain = directionalTerrain(64, 80);
+
+        SimpleCrossFixture fixture = SimpleCrossFixture.create();
+        fixture.network().setNodeGradeSeparation(fixture.junction().getId(), true, null, 3.0);
+
+        assertEquals(fixture.roadB().getId(), generator.resolveElevatedRoadId(
+            fixture.junction(), fixture.network(), terrain));
+    }
+
+    @Test
+    void resolveElevatedRoadIdAutoFollowsTerrainSwap() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGenerator generator = new RoadGenerator(config, null);
+        TerrainSampler terrain = directionalTerrain(80, 64);
+
+        SimpleCrossFixture fixture = SimpleCrossFixture.create();
+        fixture.network().setNodeGradeSeparation(fixture.junction().getId(), true, null, 3.0);
+
+        assertEquals(fixture.roadA().getId(), generator.resolveElevatedRoadId(
+            fixture.junction(), fixture.network(), terrain));
+    }
+
+    @Test
+    void gradeSeparationRejectedForNonSimpleCrossing() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        network.createEdge(junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)), roadA.getId());
+        network.createEdge(junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), roadB.getId());
+        network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)), roadB.getId());
+
+        assertFalse(network.setNodeGradeSeparation(junction.getId(), true, roadA.getId(), 3.0));
+        assertFalse(junction.isGradeSeparated());
+    }
+
+    @Test
+    void staleElevatedRoadIdIgnoredWhenGradeSeparationDisabled() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGenerator generator = new RoadGenerator(config, null);
+        TerrainSampler terrain = new FlatTerrainSampler(70);
+
+        SimpleCrossFixture fixture = SimpleCrossFixture.create();
+        fixture.junction().setGradeSeparated(false);
+        fixture.junction().setElevatedRoadId(fixture.roadB().getId());
+
+        int underpassHeight = generator.getTargetHeightAtNode(
+            fixture.edgeForRoad(fixture.roadA()), fixture.junction(), fixture.network(), terrain);
+        int crossingHeight = generator.getTargetHeightAtNode(
+            fixture.edgeForRoad(fixture.roadB()), fixture.junction(), fixture.network(), terrain);
+
+        assertEquals(70, underpassHeight);
+        assertEquals(70, crossingHeight);
+    }
+
+    private static TerrainSampler directionalTerrain(int horizontalHeight, int verticalHeight) {
+        return new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return horizontalHeight;
+            }
+
+            @Override
+            public int sampleCrossSectionGroundY(Vec2d center, Vec2d tangent, double halfWidth) {
+                if (tangent != null && Math.abs(tangent.x) >= Math.abs(tangent.y)) {
+                    return horizontalHeight;
+                }
+                return verticalHeight;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return true;
+            }
+        };
+    }
+
+    private record SimpleCrossFixture(
+            RoadNetwork network,
+            RoadNode junction,
+            Road roadA,
+            Road roadB) {
+        static SimpleCrossFixture create() {
+            RoadNetwork network = new RoadNetwork();
+            RoadNode junction = network.createNode(new Vec2d(0, 0));
+            RoadNode north = network.createNode(new Vec2d(0, 12));
+            RoadNode south = network.createNode(new Vec2d(0, -12));
+            RoadNode east = network.createNode(new Vec2d(12, 0));
+            RoadNode west = network.createNode(new Vec2d(-12, 0));
+            Road roadA = network.createRoad("road-a");
+            Road roadB = network.createRoad("road-b");
+            network.createEdge(
+                junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 12)), roadA.getId());
+            network.createEdge(
+                junction.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -12)), roadA.getId());
+            network.createEdge(
+                junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(12, 0)), roadB.getId());
+            network.createEdge(
+                junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-12, 0)), roadB.getId());
+            return new SimpleCrossFixture(network, junction, roadA, roadB);
+        }
+
+        com.plot.plugin.road.model.RoadEdge edgeForRoad(Road road) {
+            return network.getEdgesAtNode(junction.getId()).stream()
+                .filter(edge -> road.getId().equals(edge.getRoadId()))
+                .findFirst()
+                .orElseThrow();
+        }
     }
 }

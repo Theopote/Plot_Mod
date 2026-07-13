@@ -116,6 +116,58 @@ class RoadGraphTest {
         assertTrue(cycles.getFirst().size() >= 3);
     }
 
+    @Test
+    void isSimpleCrossingAcceptsStandardFourWayIntersection() {
+        RoadNetwork network = simpleCrossNetwork();
+        RoadNode junction = network.getNodes().values().stream()
+            .filter(node -> node.getDegree() == 4)
+            .findFirst()
+            .orElseThrow();
+
+        assertTrue(RoadGraphQueries.isSimpleCrossing(junction, network));
+    }
+
+    @Test
+    void isSimpleCrossingRejectsTJunctionAndMultiRoadNodes() {
+        RoadNetwork tJunction = tJunctionNetwork();
+        RoadNode tNode = tJunction.getNodes().values().stream()
+            .filter(node -> node.getDegree() == 3)
+            .findFirst()
+            .orElseThrow();
+        assertFalse(RoadGraphQueries.isSimpleCrossing(tNode, tJunction));
+
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        Road roadC = network.createRoad("road-c");
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+        network.createEdge(junction.getId(), north.getId(), line(junction.getPosition(), north.getPosition()), roadA.getId());
+        network.createEdge(junction.getId(), east.getId(), line(junction.getPosition(), east.getPosition()), roadB.getId());
+        network.createEdge(junction.getId(), west.getId(), line(junction.getPosition(), west.getPosition()), roadC.getId());
+        network.createEdge(junction.getId(), south.getId(), line(junction.getPosition(), south.getPosition()), roadB.getId());
+        assertFalse(RoadGraphQueries.isSimpleCrossing(junction, network));
+    }
+
+    private static RoadNetwork simpleCrossNetwork() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
+        network.createEdge(junction.getId(), north.getId(), line(junction.getPosition(), north.getPosition()), roadA.getId());
+        network.createEdge(junction.getId(), south.getId(), line(junction.getPosition(), south.getPosition()), roadA.getId());
+        network.createEdge(junction.getId(), east.getId(), line(junction.getPosition(), east.getPosition()), roadB.getId());
+        network.createEdge(junction.getId(), west.getId(), line(junction.getPosition(), west.getPosition()), roadB.getId());
+        return network;
+    }
+
     private static RoadNetwork tJunctionNetwork() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(0, 0));

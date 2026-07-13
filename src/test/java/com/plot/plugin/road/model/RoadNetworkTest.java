@@ -424,15 +424,20 @@ class RoadNetworkTest {
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
         RoadNode north = network.createNode(new Vec2d(5, 15));
+        RoadNode south = network.createNode(new Vec2d(5, -5));
         RoadNode east = network.createNode(new Vec2d(15, 5));
+        RoadNode west = network.createNode(new Vec2d(-5, 5));
         network.createEdge(junction.getId(), north.getId(), List.of(new Vec2d(5, 5), new Vec2d(5, 15)), roadA.getId());
+        network.createEdge(junction.getId(), south.getId(), List.of(new Vec2d(5, 5), new Vec2d(5, -5)), roadA.getId());
         network.createEdge(junction.getId(), east.getId(), List.of(new Vec2d(5, 5), new Vec2d(15, 5)), roadB.getId());
-        network.setNodeGradeSeparation(junction.getId(), roadB.getId(), 5.0);
+        network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(5, 5), new Vec2d(-5, 5)), roadB.getId());
+        network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 5.0);
 
         RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
         RoadNode restoredNode = restored.getNode(junction.getId());
 
         assertNotNull(restoredNode);
+        assertTrue(restoredNode.isGradeSeparated());
         assertEquals(roadB.getId(), restoredNode.getElevatedRoadId());
         assertEquals(5.0, restoredNode.getCrossingClearance());
     }
@@ -444,11 +449,16 @@ class RoadNetworkTest {
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
         RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
         RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
         network.createEdge(junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)), roadA.getId());
+        network.createEdge(junction.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -10)), roadA.getId());
         network.createEdge(junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), roadB.getId());
+        network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)), roadB.getId());
 
-        assertFalse(network.setNodeGradeSeparation(junction.getId(), "missing-road", 3.0));
+        assertFalse(network.setNodeGradeSeparation(junction.getId(), true, "missing-road", 3.0));
+        assertFalse(junction.isGradeSeparated());
         assertNull(junction.getElevatedRoadId());
     }
 }
