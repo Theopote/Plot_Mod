@@ -18,7 +18,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 道路预览、虚影投影与世界落地。
@@ -29,6 +32,7 @@ public final class RoadPreviewManager {
     private final RoadProjectStatus status;
     private RoadNetworkGenerator networkGenerator;
     private RoadGenerationResult lastGenerationResult;
+    private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
 
     public RoadPreviewManager(RoadProjectStatus status) {
         this.status = status;
@@ -40,6 +44,17 @@ public final class RoadPreviewManager {
 
     public RoadGenerationResult getLastGenerationResult() {
         return lastGenerationResult;
+    }
+
+    public Map<String, RoadGenerationResult> getLastEdgeResults() {
+        return lastEdgeResults;
+    }
+
+    public RoadGenerationResult getLastEdgeResult(String edgeId) {
+        if (edgeId == null || lastEdgeResults.isEmpty()) {
+            return null;
+        }
+        return lastEdgeResults.get(edgeId);
     }
 
     public boolean calculateNetworkPreview(RoadNetwork network) {
@@ -59,7 +74,9 @@ public final class RoadPreviewManager {
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
-        lastGenerationResult = networkGenerator.generateAggregated(network, world);
+        RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
+        lastGenerationResult = previewResult.aggregate();
+        lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
 
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             status.set(PlotI18n.tr("plugin.road.generate_empty_result"));
@@ -116,6 +133,7 @@ public final class RoadPreviewManager {
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
+        lastEdgeResults = Collections.emptyMap();
         lastGenerationResult = null;
     }
 

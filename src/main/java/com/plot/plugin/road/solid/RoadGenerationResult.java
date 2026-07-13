@@ -30,6 +30,12 @@ public class RoadGenerationResult {
     public double tunnelLength;
     public double normalRoadLength;
 
+    public String edgeId;
+    public List<Double> profileDistances = new ArrayList<>();
+    public List<Integer> profileGroundHeights = new ArrayList<>();
+    public List<Integer> profileGuideLine = new ArrayList<>();
+    public List<Integer> profileTargetHeights = new ArrayList<>();
+
     public RoadGenerationResult(double pathLength) {
         this.pathLength = pathLength;
     }
@@ -62,5 +68,23 @@ public class RoadGenerationResult {
         bridgeLength += source.bridgeLength;
         tunnelLength += source.tunnelLength;
         normalRoadLength += source.normalRoadLength;
+    }
+
+    public void copyProfileFrom(RoadGenerationResult source) {
+        if (source == null) {
+            return;
+        }
+        edgeId = source.edgeId;
+        profileDistances = new ArrayList<>(source.profileDistances);
+        profileGroundHeights = new ArrayList<>(source.profileGroundHeights);
+        profileGuideLine = new ArrayList<>(source.profileGuideLine);
+        profileTargetHeights = new ArrayList<>(source.profileTargetHeights);
+    }
+
+    public boolean hasProfileData() {
+        return !profileDistances.isEmpty()
+            && profileDistances.size() == profileGroundHeights.size()
+            && profileDistances.size() == profileGuideLine.size()
+            && profileDistances.size() == profileTargetHeights.size();
     }
 }

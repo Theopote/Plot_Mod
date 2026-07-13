@@ -53,6 +53,7 @@ public class RoadSystemConfig {
     private double relaxedSlopeLength = 5.0;
     private float relaxedSlopePercent = 1.0f;
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;
+    private float fillFactor = 1.1f;
 
     public RoadSystemConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -394,6 +395,14 @@ public class RoadSystemConfig {
             RoadNode.MIN_CORNER_RADIUS,
             Math.min(RoadNode.MAX_CORNER_RADIUS, defaultCornerRadius)
         );
+    }
+
+    public float getFillFactor() {
+        return fillFactor;
+    }
+
+    public void setFillFactor(float fillFactor) {
+        this.fillFactor = Math.max(1.0f, Math.min(2.0f, fillFactor));
     }
     
     /**

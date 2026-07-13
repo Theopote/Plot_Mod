@@ -6,6 +6,7 @@ import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.ui.component.Icons;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -61,11 +62,28 @@ public final class RoadEditPanel {
             (int) 0xFF808080FFL,
             PlotI18n.tr("plugin.road.editing_road", RoadEdgeListHelper.formatRoadLabel(network, road)));
 
+        renderElevationHint(current);
+
         RoadCrossSectionEditor.renderPreview(road, ctx.networkManager().getConfig());
         RoadCrossSectionEditor.renderPresetButtons(ctx, road, null);
         RoadCrossSectionEditor.renderFields(ctx, road, ctx.networkManager()::pushHistory);
 
         renderSlopeOverrides(current);
+    }
+
+    private void renderElevationHint(RoadEdge edge) {
+        RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
+        if (edgeResult == null || !edgeResult.hasProfileData()) {
+            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.elevation_hint_preview_required"));
+            return;
+        }
+
+        int startGround = edgeResult.profileGroundHeights.getFirst();
+        int endGround = edgeResult.profileGroundHeights.getLast();
+        int startGuide = edgeResult.profileGuideLine.getFirst();
+        int endGuide = edgeResult.profileGuideLine.getLast();
+        ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_start", startGround, startGuide));
+        ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_end", endGround, endGuide));
     }
 
     private void renderSlopeOverrides(RoadEdge edge) {

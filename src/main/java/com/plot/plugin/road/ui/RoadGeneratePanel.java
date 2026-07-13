@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
@@ -86,6 +87,13 @@ public final class RoadGeneratePanel {
                 lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
             ImGui.text(PlotI18n.tr("plugin.road.streetlight_count_result", lastGenerationResult.streetlightCount));
 
+            RoadGenerationResult profileResult = resolveProfileResult();
+            if (profileResult != null && profileResult.hasProfileData()) {
+                if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.longitudinal_profile"))) {
+                    RoadLongitudinalProfileRenderer.render(profileResult, false);
+                }
+            }
+
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
                 ImGui.textColored((int) 0xFFFFB060FFL, PlotI18n.tr("plugin.road.generate_empty_result"));
@@ -116,6 +124,21 @@ public final class RoadGeneratePanel {
             }
             renderBuildConfirmPopup();
         }
+    }
+
+    private RoadGenerationResult resolveProfileResult() {
+        String selectedEdgeId = ctx.networkManager().getPrimarySelectedEdgeId();
+        RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(selectedEdgeId);
+        if (edgeResult != null && edgeResult.hasProfileData()) {
+            return edgeResult;
+        }
+        for (RoadGenerationResult candidate : ctx.previewManager().getLastEdgeResults().values()) {
+            if (candidate != null && candidate.hasProfileData()) {
+                return candidate;
+            }
+        }
+        RoadGenerationResult aggregate = ctx.previewManager().getLastGenerationResult();
+        return aggregate != null && aggregate.hasProfileData() ? aggregate : null;
     }
 
     private void renderBuildConfirmPopup() {

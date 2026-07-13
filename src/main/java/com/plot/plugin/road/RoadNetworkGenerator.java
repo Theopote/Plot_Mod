@@ -81,7 +81,23 @@ public class RoadNetworkGenerator {
     }
 
     public RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
+        return generatePreview(network, world).aggregate();
+    }
+
+    public PreviewResult generatePreview(RoadNetwork network, World world) {
         NetworkGenerationResult networkResult = generateAll(network, world);
+        RoadGenerationResult aggregate = aggregateNetworkResult(network, networkResult);
+        return new PreviewResult(aggregate, networkResult.getEdgeResults());
+    }
+
+    public record PreviewResult(
+            RoadGenerationResult aggregate,
+            Map<String, RoadGenerationResult> edgeResults) {
+    }
+
+    private RoadGenerationResult aggregateNetworkResult(
+            RoadNetwork network,
+            NetworkGenerationResult networkResult) {
         RoadGenerationResult aggregate = new RoadGenerationResult(0);
         RoadSystemConfig config = roadGenerator.getConfig();
         for (RoadGenerationResult edgeResult : networkResult.getEdgeResults().values()) {
