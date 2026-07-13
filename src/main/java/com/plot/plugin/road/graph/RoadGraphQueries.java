@@ -31,6 +31,30 @@ public final class RoadGraphQueries {
         return new RoadGraphQueries(network);
     }
 
+    /**
+     * 标准四路交叉：度数 4、恰好 2 个 roadId、每个 roadId 恰好 2 条边。
+     */
+    public static boolean isSimpleCrossing(RoadNode node, RoadNetwork network) {
+        if (node == null || network == null) {
+            return false;
+        }
+        if (node.getDegree() != 4) {
+            return false;
+        }
+        Map<String, Integer> roadEdgeCounts = new HashMap<>();
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null || edge.getRoadId() == null || edge.getRoadId().isBlank()) {
+                return false;
+            }
+            roadEdgeCounts.merge(edge.getRoadId(), 1, Integer::sum);
+        }
+        if (roadEdgeCounts.size() != 2) {
+            return false;
+        }
+        return roadEdgeCounts.values().stream().allMatch(count -> count == 2);
+    }
+
     public List<GraphComponent> connectedComponents() {
         Set<String> visitedNodes = new HashSet<>();
         List<GraphComponent> components = new ArrayList<>();

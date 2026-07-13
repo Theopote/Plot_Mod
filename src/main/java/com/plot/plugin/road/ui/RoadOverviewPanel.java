@@ -2,14 +2,20 @@ package com.plot.plugin.road.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadGenerator;
+import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
+import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +75,7 @@ public final class RoadOverviewPanel {
         }
 
         ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.node_elevation_hint"));
-        ImGui.beginChild("node_elevation_list", 0, 200, true);
+        ImGui.beginChild("node_elevation_list", 0, 220, true);
         for (RoadNode node : nodes) {
             ImGui.pushID(node.getId());
             Vec2d pos = node.getPosition();
@@ -110,27 +116,31 @@ public final class RoadOverviewPanel {
     }
 
     private void renderGradeSeparationControls(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        if (!isGradeSeparationCandidate(node, network)) {
+        if (!RoadGraphQueries.isSimpleCrossing(node, network)) {
             return;
         }
 
         List<String> roadIds = new ArrayList<>(network.getDistinctRoadIdsAtNode(node.getId()));
-        if (roadIds.isEmpty()) {
+        if (roadIds.size() != 2) {
             return;
         }
 
-        String[] labels = new String[roadIds.size() + 1];
+        String[] labels = new String[roadIds.size() + 2];
         labels[0] = PlotI18n.tr("plugin.road.grade_separation_none");
+        labels[1] = PlotI18n.tr("plugin.road.grade_separation_auto");
         for (int i = 0; i < roadIds.size(); i++) {
-            labels[i + 1] = formatRoadLabel(network, roadIds.get(i));
+            labels[i + 2] = formatRoadLabel(network, roadIds.get(i));
         }
 
         int currentIndex = 0;
-        String elevatedId = node.getElevatedRoadId();
-        if (elevatedId != null) {
-            int roadIndex = roadIds.indexOf(elevatedId);
-            if (roadIndex >= 0) {
-                currentIndex = roadIndex + 1;
+        if (node.isGradeSeparated()) {
+            if (node.getElevatedRoadId() == null) {
+                currentIndex = 1;
+            } else {
+                int roadIndex = roadIds.indexOf(node.getElevatedRoadId());
+                if (roadIndex >= 0) {
+                    currentIndex = roadIndex + 2;
+                }
             }
         }
 
@@ -138,18 +148,20 @@ public final class RoadOverviewPanel {
         ImInt index = new ImInt(currentIndex);
         if (ImGui.combo(PlotI18n.tr("plugin.road.grade_separation") + "##grade_sep", index, labels)) {
             ctx.networkManager().pushHistory();
+            double clearance = node.getCrossingClearance() != null
+                ? node.getCrossingClearance()
+                : config.getDefaultCrossingClearance();
             if (index.get() == 0) {
-                network.setNodeGradeSeparation(node.getId(), null, null);
+                network.setNodeGradeSeparation(node.getId(), false, null, null);
+            } else if (index.get() == 1) {
+                network.setNodeGradeSeparation(node.getId(), true, null, clearance);
             } else {
-                String selectedRoadId = roadIds.get(index.get() - 1);
-                double clearance = node.getCrossingClearance() != null
-                    ? node.getCrossingClearance()
-                    : config.getDefaultCrossingClearance();
-                network.setNodeGradeSeparation(node.getId(), selectedRoadId, clearance);
+                String selectedRoadId = roadIds.get(index.get() - 2);
+                network.setNodeGradeSeparation(node.getId(), true, selectedRoadId, clearance);
             }
         }
 
-        if (node.getElevatedRoadId() != null) {
+        if (node.isGradeSeparated()) {
             double currentClearance = node.getCrossingClearance() != null
                 ? node.getCrossingClearance()
                 : config.getDefaultCrossingClearance();
@@ -165,17 +177,39 @@ public final class RoadOverviewPanel {
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
             }
+
+            if (node.getElevatedRoadId() == null) {
+                renderAutoElevatedRoadHint(node, network, config);
+            }
         }
 
-        if (node.getManualElevation() != null && node.getElevatedRoadId() != null) {
+        if (node.getManualElevation() != null && node.isGradeSeparated()) {
             ImGui.textColored(
                 (int) 0xFFFF8800FFL,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
     }
 
-    private static boolean isGradeSeparationCandidate(RoadNode node, RoadNetwork network) {
-        return node.getDegree() >= 4 || network.getDistinctRoadIdsAtNode(node.getId()).size() >= 2;
+    private void renderAutoElevatedRoadHint(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
+        RoadGenerator generator = new RoadGenerator(config, null);
+        TerrainSampler terrain = resolveTerrainSampler(generator);
+        String resolvedRoadId = generator.resolveElevatedRoadId(node, network, terrain);
+        if (resolvedRoadId == null) {
+            return;
+        }
+        ImGui.textColored(
+            (int) 0xFF808080FFL,
+            PlotI18n.tr(
+                "plugin.road.grade_separation_auto_result",
+                formatRoadLabel(network, resolvedRoadId)));
+    }
+
+    private static TerrainSampler resolveTerrainSampler(RoadGenerator generator) {
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world != null) {
+            return generator.createTerrainSampler(world);
+        }
+        return new FlatTerrainSampler(TerrainSampler.DEFAULT_SEA_LEVEL);
     }
 
     private static String formatRoadLabel(RoadNetwork network, String roadId) {

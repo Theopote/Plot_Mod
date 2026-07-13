@@ -18,6 +18,8 @@ import com.plot.plugin.road.model.section.Sidewalk;
 import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
 
+import com.plot.plugin.road.graph.RoadGraphQueries;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -235,22 +237,32 @@ public class RoadNetwork {
     /**
      * 设置节点的立体交叉标记；校验失败时返回 false 且不修改状态。
      */
-    public boolean setNodeGradeSeparation(String nodeId, String elevatedRoadId, Double crossingClearance) {
+    public boolean setNodeGradeSeparation(
+            String nodeId,
+            boolean gradeSeparated,
+            String elevatedRoadId,
+            Double crossingClearance) {
         RoadNode node = nodes.get(nodeId);
         if (node == null) {
             return false;
         }
-        if (elevatedRoadId == null || elevatedRoadId.isBlank()) {
-            node.clearGradeSeparation();
+        if (!gradeSeparated) {
+            node.setGradeSeparated(false);
             return true;
         }
-
-        Set<String> roadIds = getDistinctRoadIdsAtNode(nodeId);
-        if (roadIds.size() < 2 || !roadIds.contains(elevatedRoadId)) {
+        if (!RoadGraphQueries.isSimpleCrossing(node, this)) {
             return false;
         }
-
-        node.setElevatedRoadId(elevatedRoadId);
+        if (elevatedRoadId != null && !elevatedRoadId.isBlank()) {
+            Set<String> roadIds = getDistinctRoadIdsAtNode(nodeId);
+            if (roadIds.size() != 2 || !roadIds.contains(elevatedRoadId)) {
+                return false;
+            }
+            node.setElevatedRoadId(elevatedRoadId);
+        } else {
+            node.setElevatedRoadId(null);
+        }
+        node.setGradeSeparated(true);
         node.setCrossingClearance(crossingClearance);
         return true;
     }
@@ -316,6 +328,7 @@ public class RoadNetwork {
         String id;
         Vec2dData position;
         Double manualElevation;
+        Boolean gradeSeparated;
         String elevatedRoadId;
         Double crossingClearance;
         Double cornerRadius;
@@ -616,6 +629,9 @@ public class RoadNetwork {
                 nodeData.id = node.getId();
                 nodeData.position = new Vec2dData(node.getPosition());
                 nodeData.manualElevation = node.getManualElevation();
+                if (node.isGradeSeparated()) {
+                    nodeData.gradeSeparated = true;
+                }
                 nodeData.elevatedRoadId = node.getElevatedRoadId();
                 nodeData.crossingClearance = node.getCrossingClearance();
                 nodeData.cornerRadius = node.getCornerRadius();
@@ -683,6 +699,7 @@ public class RoadNetwork {
                 node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
                 node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));
                 node.setTurnArrows(JunctionMarkingSetting.fromString(nodeData.turnArrows));
+                node.setGradeSeparated(Boolean.TRUE.equals(nodeData.gradeSeparated));
                 node.setElevatedRoadId(nodeData.elevatedRoadId);
                 node.setCrossingClearance(nodeData.crossingClearance);
                 if (nodeData.connectedEdgeIds != null) {

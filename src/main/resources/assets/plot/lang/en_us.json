@@ -692,6 +692,8 @@
   "plugin.road.node_elevation_auto": "Auto Elevation",
   "plugin.road.grade_separation": "Grade Separation",
   "plugin.road.grade_separation_none": "None",
+  "plugin.road.grade_separation_auto": "Auto",
+  "plugin.road.grade_separation_auto_result": "Currently elevated: %s",
   "plugin.road.crossing_clearance": "Clearance",
   "plugin.road.grade_separation_manual_override": "Manual elevation is set; grade separation will be ignored",
   "plugin.road.road_label_fallback": "Road %s",
