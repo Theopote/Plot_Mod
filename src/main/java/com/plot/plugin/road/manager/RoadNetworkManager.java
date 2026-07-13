@@ -142,12 +142,9 @@ public final class RoadNetworkManager {
     }
 
     /**
-     * 全网统一标高平路：沿途经地形采样，取众数（否则平均）作为路面 Y，
-     * 所有节点设为该手动标高，所有道路与默认配置最大坡度强制为 0。
-     *
-     * @return 推荐结果；无边或采样失败时返回 null
+     * 仅采样并推荐统一标高，不修改路网。
      */
-    public RoadUniformElevationUtils.ElevationRecommendation applyUniformFlatElevation(
+    public RoadUniformElevationUtils.ElevationRecommendation previewUniformElevation(
             TerrainSampler terrain) {
         if (network.getEdges().isEmpty()) {
             status.set(PlotI18n.tr("plugin.road.no_edges"));
@@ -157,17 +154,71 @@ public final class RoadNetworkManager {
             status.set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return null;
         }
-
         RoadUniformElevationUtils.ElevationRecommendation recommendation =
             RoadUniformElevationUtils.recommendForNetwork(network, terrain, config);
         if (recommendation.sampleCount() <= 0) {
             status.set(PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
             return null;
         }
+        String strategy = recommendation.usedMode()
+            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
+            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
+        status.set(PlotI18n.tr(
+            "plugin.road.uniform_elevation_preview",
+            recommendation.elevation(),
+            strategy,
+            recommendation.sampleCount(),
+            String.format("%.1f", recommendation.average())));
+        return recommendation;
+    }
 
+    /**
+     * 全网统一标高平路：沿途经地形采样，取众数（否则平均）作为路面 Y 并应用。
+     */
+    public RoadUniformElevationUtils.ElevationRecommendation applyUniformFlatElevation(
+            TerrainSampler terrain) {
+        RoadUniformElevationUtils.ElevationRecommendation recommendation =
+            previewUniformElevation(terrain);
+        if (recommendation == null) {
+            return null;
+        }
+        String strategy = recommendation.usedMode()
+            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
+            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
+        applyUniformFlatElevationAt(
+            recommendation.elevation(),
+            strategy,
+            recommendation.sampleCount(),
+            recommendation.average());
+        return recommendation;
+    }
+
+    /**
+     * 全网统一到用户指定标高，最大坡度强制 0。
+     */
+    public boolean applyCustomUniformFlatElevation(int elevation) {
+        if (network.getEdges().isEmpty()) {
+            status.set(PlotI18n.tr("plugin.road.no_edges"));
+            return false;
+        }
+        int clamped = Math.max(-64, Math.min(320, elevation));
+        applyUniformFlatElevationAt(
+            clamped,
+            PlotI18n.tr("plugin.road.uniform_elevation_strategy_custom"),
+            0,
+            clamped);
+        return true;
+    }
+
+    /**
+     * 将全部节点手动标高设为 {@code elevation}，全部道路与默认最大坡度设为 0。
+     */
+    public void applyUniformFlatElevationAt(
+            int elevation,
+            String strategyLabel,
+            int sampleCount,
+            double average) {
         pushHistory();
-
-        int elevation = recommendation.elevation();
         for (RoadNode node : network.getNodes().values()) {
             node.setManualElevation((double) elevation);
         }
@@ -176,22 +227,24 @@ public final class RoadNetworkManager {
         }
         config.setMaxSlope(0f);
 
-        String strategy = recommendation.usedMode()
-            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
-            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
-        status.set(PlotI18n.tr(
-            "plugin.road.uniform_elevation_applied",
-            elevation,
-            strategy,
-            recommendation.sampleCount(),
-            String.format("%.1f", recommendation.average())));
+        if (sampleCount > 0) {
+            status.set(PlotI18n.tr(
+                "plugin.road.uniform_elevation_applied",
+                elevation,
+                strategyLabel != null ? strategyLabel : "",
+                sampleCount,
+                String.format("%.1f", average)));
+        } else {
+            status.set(PlotI18n.tr(
+                "plugin.road.uniform_elevation_applied_custom",
+                elevation));
+        }
         LOGGER.info(
             "全网统一标高: Y={} ({}), 样本={}, 平均={}",
             elevation,
-            recommendation.usedMode() ? "众数" : "平均",
-            recommendation.sampleCount(),
-            recommendation.average());
-        return recommendation;
+            strategyLabel,
+            sampleCount,
+            average);
     }
 
     private void notifyNetworkChanged() {

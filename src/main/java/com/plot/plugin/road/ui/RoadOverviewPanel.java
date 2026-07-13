@@ -26,9 +26,15 @@ import java.util.List;
  * 道路概览 Tab：路网统计、缩略图、节点标高与边列表。
  */
 public final class RoadOverviewPanel {
+    private static final int ELEVATION_MIN = -64;
+    private static final int ELEVATION_MAX = 320;
+
     private final RoadUiContext ctx;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
+    /** 全网统一标高草稿（自定义 Y） */
+    private final int[] uniformElevationDraft = {64};
+    private String lastRecommendationSummary = "";
 
     public RoadOverviewPanel(RoadUiContext ctx, RoadEdgeListPanel edgeListPanel, RoadJunctionPanel junctionPanel) {
         this.ctx = ctx;
@@ -44,7 +50,7 @@ public final class RoadOverviewPanel {
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
 
-        renderUniformFlatElevationButton(network);
+        renderUniformFlatElevationControls(network);
 
         RoadNetworkOverviewRenderer.render(
             network,
@@ -66,35 +72,106 @@ public final class RoadOverviewPanel {
         edgeListPanel.renderList(180, true, "edge_list");
     }
 
-    private void renderUniformFlatElevationButton(RoadNetwork network) {
+    private void renderUniformFlatElevationControls(RoadNetwork network) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.uniform_flat_elevation"))) {
+            return;
+        }
+
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
+
         boolean disabled = network.getEdges().isEmpty();
         if (disabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(
-            PlotI18n.tr("plugin.road.uniform_flat_elevation"),
-            ImGui.getContentRegionAvailX(),
-            0
-        )) {
-            applyUniformFlatElevation();
+
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+
+        // 自动：采样众数/平均并应用
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_auto_apply"), half, 0)) {
+            applyUniformFlatElevationAuto();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_auto_apply_hint"));
+        }
+        ImGui.sameLine();
+        // 仅采样推荐，填入自定义框，不改路网
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_sample"), half, 0)) {
+            sampleUniformElevationSuggestion();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_sample_hint"));
+        }
+
+        if (!lastRecommendationSummary.isBlank()) {
+            ImGui.textColored((int) 0xFF80C0FFFFL, lastRecommendationSummary);
+        }
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
+        ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.uniform_elevation_custom_y") + "##uniform_y",
+            uniformElevationDraft,
+            ELEVATION_MIN,
+            ELEVATION_MAX,
+            "Y=%d"
+        );
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply"), 0, 0)) {
+            ctx.networkManager().applyCustomUniformFlatElevation(uniformElevationDraft[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply_hint"));
+        }
+
         if (disabled) {
             ImGui.endDisabled();
-        }
-        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
         }
         ImGui.spacing();
     }
 
-    private void applyUniformFlatElevation() {
+    private TerrainSampler requireTerrainOrNull() {
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null) {
             ctx.status().set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return null;
+        }
+        return MinecraftTerrainSampler.of(world, CoordinateTransformer.getInstance());
+    }
+
+    private void applyUniformFlatElevationAuto() {
+        TerrainSampler terrain = requireTerrainOrNull();
+        if (terrain == null) {
             return;
         }
-        TerrainSampler terrain = MinecraftTerrainSampler.of(world, CoordinateTransformer.getInstance());
-        ctx.networkManager().applyUniformFlatElevation(terrain);
+        var recommendation = ctx.networkManager().applyUniformFlatElevation(terrain);
+        if (recommendation != null) {
+            uniformElevationDraft[0] = recommendation.elevation();
+            lastRecommendationSummary = formatRecommendation(recommendation);
+        }
+    }
+
+    private void sampleUniformElevationSuggestion() {
+        TerrainSampler terrain = requireTerrainOrNull();
+        if (terrain == null) {
+            return;
+        }
+        var recommendation = ctx.networkManager().previewUniformElevation(terrain);
+        if (recommendation != null) {
+            uniformElevationDraft[0] = recommendation.elevation();
+            lastRecommendationSummary = formatRecommendation(recommendation);
+        }
+    }
+
+    private static String formatRecommendation(
+            com.plot.plugin.road.RoadUniformElevationUtils.ElevationRecommendation recommendation) {
+        String strategy = recommendation.usedMode()
+            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
+            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
+        return PlotI18n.tr(
+            "plugin.road.uniform_elevation_preview",
+            recommendation.elevation(),
+            strategy,
+            recommendation.sampleCount(),
+            String.format("%.1f", recommendation.average()));
     }
 
     private void renderNodeElevationEditor() {
