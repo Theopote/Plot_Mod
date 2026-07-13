@@ -7,6 +7,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -14,6 +15,7 @@ import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +139,59 @@ public final class RoadNetworkManager {
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
         selectedNodeId = "";
+    }
+
+    /**
+     * 全网统一标高平路：沿途经地形采样，取众数（否则平均）作为路面 Y，
+     * 所有节点设为该手动标高，所有道路与默认配置最大坡度强制为 0。
+     *
+     * @return 推荐结果；无边或采样失败时返回 null
+     */
+    public RoadUniformElevationUtils.ElevationRecommendation applyUniformFlatElevation(
+            TerrainSampler terrain) {
+        if (network.getEdges().isEmpty()) {
+            status.set(PlotI18n.tr("plugin.road.no_edges"));
+            return null;
+        }
+        if (terrain == null) {
+            status.set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return null;
+        }
+
+        RoadUniformElevationUtils.ElevationRecommendation recommendation =
+            RoadUniformElevationUtils.recommendForNetwork(network, terrain, config);
+        if (recommendation.sampleCount() <= 0) {
+            status.set(PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
+            return null;
+        }
+
+        pushHistory();
+
+        int elevation = recommendation.elevation();
+        for (RoadNode node : network.getNodes().values()) {
+            node.setManualElevation((double) elevation);
+        }
+        for (Road road : network.getRoads().values()) {
+            road.setMaxSlope(0f);
+        }
+        config.setMaxSlope(0f);
+
+        String strategy = recommendation.usedMode()
+            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
+            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
+        status.set(PlotI18n.tr(
+            "plugin.road.uniform_elevation_applied",
+            elevation,
+            strategy,
+            recommendation.sampleCount(),
+            String.format("%.1f", recommendation.average())));
+        LOGGER.info(
+            "全网统一标高: Y={} ({}), 样本={}, 平均={}",
+            elevation,
+            recommendation.usedMode() ? "众数" : "平均",
+            recommendation.sampleCount(),
+            recommendation.average());
+        return recommendation;
     }
 
     private void notifyNetworkChanged() {

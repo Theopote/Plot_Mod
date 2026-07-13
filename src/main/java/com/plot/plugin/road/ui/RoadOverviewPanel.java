@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
@@ -10,6 +11,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
+import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -42,6 +44,8 @@ public final class RoadOverviewPanel {
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
 
+        renderUniformFlatElevationButton(network);
+
         RoadNetworkOverviewRenderer.render(
             network,
             ctx.networkManager().getNetworkBuilder(),
@@ -60,6 +64,37 @@ public final class RoadOverviewPanel {
         ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_hint"));
         edgeListPanel.renderToolbar("##overview");
         edgeListPanel.renderList(180, true, "edge_list");
+    }
+
+    private void renderUniformFlatElevationButton(RoadNetwork network) {
+        boolean disabled = network.getEdges().isEmpty();
+        if (disabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(
+            PlotI18n.tr("plugin.road.uniform_flat_elevation"),
+            ImGui.getContentRegionAvailX(),
+            0
+        )) {
+            applyUniformFlatElevation();
+        }
+        if (disabled) {
+            ImGui.endDisabled();
+        }
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
+        }
+        ImGui.spacing();
+    }
+
+    private void applyUniformFlatElevation() {
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            ctx.status().set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return;
+        }
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, CoordinateTransformer.getInstance());
+        ctx.networkManager().applyUniformFlatElevation(terrain);
     }
 
     private void renderNodeElevationEditor() {
