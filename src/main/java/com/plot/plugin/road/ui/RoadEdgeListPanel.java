@@ -116,6 +116,14 @@ public final class RoadEdgeListPanel {
             float deleteButtonWidth) {
         String deleteLabel = PlotI18n.tr("plugin.road.delete");
         for (RoadEdgeListHelper.RoadGroup group : RoadEdgeListHelper.groupByRoad(network, edges)) {
+            boolean hasRoadId = group.roadId() != null && !group.roadId().isBlank();
+            if (showDelete && hasRoadId) {
+                if (ImGui.smallButton(
+                        PlotI18n.tr("plugin.road.delete_road") + "##delete_road_" + group.roadId())) {
+                    ctx.requestDeleteRoad(group.roadId());
+                }
+                ImGui.sameLine();
+            }
             if (ImGui.collapsingHeader(group.label() + " (" + group.edges().size() + ")##" + group.roadId())) {
                 for (RoadEdge edge : group.edges()) {
                     renderEdgeRow(network, edge, showDelete, deleteButtonWidth, deleteLabel, "  ");
@@ -162,10 +170,14 @@ public final class RoadEdgeListPanel {
         }
 
         if (ImGui.beginPopupModal("##road_delete_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text(PlotI18n.tr("plugin.road.delete_confirm"));
+            boolean deleteRoad = !ctx.pendingDeleteRoadId().isEmpty();
+            ImGui.text(PlotI18n.tr(
+                deleteRoad ? "plugin.road.delete_road_confirm" : "plugin.road.delete_confirm"));
             ImGui.separator();
             if (ImGui.button(PlotI18n.tr("plugin.road.delete"), 100, 0)) {
-                if (!ctx.pendingDeleteEdgeId().isEmpty()) {
+                if (!ctx.pendingDeleteRoadId().isEmpty()) {
+                    ctx.networkManager().deleteRoad(ctx.pendingDeleteRoadId());
+                } else if (!ctx.pendingDeleteEdgeId().isEmpty()) {
                     ctx.networkManager().deleteEdge(ctx.pendingDeleteEdgeId());
                 }
                 ctx.clearPendingDeleteEdgeId();

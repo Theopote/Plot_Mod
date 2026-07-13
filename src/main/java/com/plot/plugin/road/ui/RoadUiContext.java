@@ -30,6 +30,7 @@ public final class RoadUiContext {
     private final ImBoolean batchIncludeSidewalkRef = new ImBoolean(true);
 
     private String pendingDeleteEdgeId = "";
+    private String pendingDeleteRoadId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
 
@@ -112,6 +113,13 @@ public final class RoadUiContext {
 
     public void requestDeleteEdge(String edgeId) {
         pendingDeleteEdgeId = edgeId;
+        pendingDeleteRoadId = "";
+        deleteConfirmPending = true;
+    }
+
+    public void requestDeleteRoad(String roadId) {
+        pendingDeleteRoadId = roadId;
+        pendingDeleteEdgeId = "";
         deleteConfirmPending = true;
     }
 
@@ -119,8 +127,13 @@ public final class RoadUiContext {
         return pendingDeleteEdgeId;
     }
 
+    public String pendingDeleteRoadId() {
+        return pendingDeleteRoadId;
+    }
+
     public void clearPendingDeleteEdgeId() {
         pendingDeleteEdgeId = "";
+        pendingDeleteRoadId = "";
     }
 
     public boolean deleteConfirmPending() {

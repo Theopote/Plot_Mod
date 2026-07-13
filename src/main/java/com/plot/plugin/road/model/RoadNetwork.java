@@ -151,6 +151,22 @@ public class RoadNetwork {
         cleanupIsolatedNodes();
     }
 
+    public void removeRoad(String roadId) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        Road road = roads.get(roadId);
+        if (road == null) {
+            return;
+        }
+        List<String> edgeIds = new ArrayList<>(road.getSegmentIds());
+        for (String edgeId : edgeIds) {
+            detachEdge(edgeId);
+        }
+        roads.remove(roadId);
+        cleanupIsolatedNodes();
+    }
+
     /**
      * 仅断开边连接，不清理孤立节点（供打断求交等需要立即复用端点的场景）
      */

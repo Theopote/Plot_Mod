@@ -220,6 +220,21 @@ public final class RoadNetworkManager {
         ensureSelectionValid();
     }
 
+    public void deleteRoad(String roadId) {
+        if (roadId == null || roadId.isBlank()) {
+            return;
+        }
+        pushHistory();
+        Road road = network.getRoad(roadId);
+        List<String> edgeIds = road != null ? new ArrayList<>(road.getSegmentIds()) : List.of();
+        network.removeRoad(roadId);
+        selectedEdgeIds.removeIf(edgeIds::contains);
+        if (edgeIds.contains(lastSelectedEdgeId)) {
+            lastSelectedEdgeId = "";
+        }
+        ensureSelectionValid();
+    }
+
     public void adoptSelectedPaths(List<Shape> selectedPaths) {
         if (selectedPaths.isEmpty()) {
             return;
