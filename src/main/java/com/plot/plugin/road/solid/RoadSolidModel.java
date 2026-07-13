@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
  * 道路实体图元集合（几何层输出，供 rasterizer 或未来 mesh exporter 消费）。
  */
 public final class RoadSolidModel {
+    private static final int MAX_DEDUP_KEYS = 100000; // 限制去重键最大数量，防止内存泄漏
+
     private final List<RoadSolidPrimitive> primitives = new ArrayList<>();
     private final Set<String> dedupKeys = new LinkedHashSet<>();
 
@@ -21,6 +23,12 @@ public final class RoadSolidModel {
         if (primitive == null) {
             return false;
         }
+
+        // 当去重键数量过大时，清理以防止内存泄漏
+        if (dedupKeys.size() >= MAX_DEDUP_KEYS) {
+            dedupKeys.clear();
+        }
+
         if (!dedupKeys.add(primitive.dedupKey())) {
             return false;
         }
@@ -81,6 +89,14 @@ public final class RoadSolidModel {
 
     public boolean isEmpty() {
         return primitives.isEmpty();
+    }
+
+    /**
+     * 清空所有图元和去重键，释放内存
+     */
+    public void clear() {
+        primitives.clear();
+        dedupKeys.clear();
     }
 
     public void addAll(RoadSolidModel other) {

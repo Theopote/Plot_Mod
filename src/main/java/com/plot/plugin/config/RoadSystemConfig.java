@@ -44,6 +44,7 @@ public class RoadSystemConfig {
     private int shoulderWidth = 1; // 路肩宽度
     private boolean includeDrainage = false; // 是否包含排水沟
     private double pathLength = 0.0; // 当前路径长度（米）
+    private double pathSampleDistance = 1.0; // 路径采样密度（米/点），用于控制路径细分精度
 
     private float fillSlopeRatio = 1.5f;
     private float cutSlopeRatio = 1.0f;
@@ -293,7 +294,15 @@ public class RoadSystemConfig {
     public void setMinimumConstructionRunLength(double minimumConstructionRunLength) {
         this.minimumConstructionRunLength = Math.max(0.0, minimumConstructionRunLength);
     }
-    
+
+    public double getPathSampleDistance() {
+        return pathSampleDistance;
+    }
+
+    public void setPathSampleDistance(double pathSampleDistance) {
+        this.pathSampleDistance = Math.max(0.1, Math.min(10.0, pathSampleDistance));
+    }
+
     public boolean isIncludeShoulder() {
         return includeShoulder;
     }

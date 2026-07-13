@@ -69,19 +69,74 @@ public final class RoadVoxelRasterizer {
             return;
         }
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+
+        // 提取公共逻辑：先处理非隧道，再处理隧道
+        flushSolidsByLayer(result, solids, transformer, projectionHandler,
+            (res, prim, trans, handler, overrideExisting) ->
+                writePlacementRecord(res, prim, trans, handler, overrideExisting));
+
+        result.streetlightCount = result.streetlightBlocks.size();
+    }
+
+    /**
+     * 路口 solids 落地：按层应用材质覆盖并写入 placement（override 语义）。
+     */
+    public static void flushJunctionSolids(
+            RoadGenerationResult result,
+            RoadSolidModel solids,
+            CoordinateTransformer transformer,
+            String roadBlockId,
+            String sidewalkBlockId,
+            String markingBlockId) {
+        if (result == null || solids == null || solids.isEmpty()) {
+            return;
+        }
+        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+
+        // 提取公共逻辑：先处理非隧道，再处理隧道
+        flushSolidsByLayer(result, solids, transformer, projectionHandler,
+            (res, prim, trans, handler, overrideExisting) ->
+                writeJunctionPlacementRecord(res, prim, trans, handler,
+                    roadBlockId, sidewalkBlockId, markingBlockId, overrideExisting));
+    }
+
+    /**
+     * 通用的按层刷新逻辑：先处理非隧道层，再处理隧道层（覆盖）
+     */
+    private static void flushSolidsByLayer(
+            RoadGenerationResult result,
+            RoadSolidModel solids,
+            CoordinateTransformer transformer,
+            BlockProjectionHandler projectionHandler,
+            SolidWriter writer) {
+        // 第一遍：非隧道层
         for (RoadSolidPrimitive primitive : solids.primitives()) {
             if (primitive.layer() == RoadSolidLayer.TUNNEL) {
                 continue;
             }
-            writePlacementRecord(result, primitive, transformer, projectionHandler, false);
+            writer.write(result, primitive, transformer, projectionHandler, false);
         }
+
+        // 第二遍：隧道层（覆盖已有方块）
         for (RoadSolidPrimitive primitive : solids.primitives()) {
             if (primitive.layer() != RoadSolidLayer.TUNNEL) {
                 continue;
             }
-            writePlacementRecord(result, primitive, transformer, projectionHandler, true);
+            writer.write(result, primitive, transformer, projectionHandler, true);
         }
-        result.streetlightCount = result.streetlightBlocks.size();
+    }
+
+    /**
+     * Solid写入器函数式接口
+     */
+    @FunctionalInterface
+    private interface SolidWriter {
+        void write(
+            RoadGenerationResult result,
+            RoadSolidPrimitive primitive,
+            CoordinateTransformer transformer,
+            BlockProjectionHandler projectionHandler,
+            boolean overrideExisting);
     }
 
     private static void writePlacementRecord(
@@ -105,38 +160,6 @@ public final class RoadVoxelRasterizer {
                 pos,
                 projectionHandler.getBlockIdAt(pos),
                 primitive.materialId());
-        }
-    }
-
-    /**
-     * 路口 solids 落地：按层应用材质覆盖并写入 placement（override 语义）。
-     */
-    public static void flushJunctionSolids(
-            RoadGenerationResult result,
-            RoadSolidModel solids,
-            CoordinateTransformer transformer,
-            String roadBlockId,
-            String sidewalkBlockId,
-            String markingBlockId) {
-        if (result == null || solids == null || solids.isEmpty()) {
-            return;
-        }
-        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
-        for (RoadSolidPrimitive primitive : solids.primitives()) {
-            if (primitive.layer() == RoadSolidLayer.TUNNEL) {
-                continue;
-            }
-            writeJunctionPlacementRecord(
-                result, primitive, transformer, projectionHandler,
-                roadBlockId, sidewalkBlockId, markingBlockId, false);
-        }
-        for (RoadSolidPrimitive primitive : solids.primitives()) {
-            if (primitive.layer() != RoadSolidLayer.TUNNEL) {
-                continue;
-            }
-            writeJunctionPlacementRecord(
-                result, primitive, transformer, projectionHandler,
-                roadBlockId, sidewalkBlockId, markingBlockId, true);
         }
     }
 

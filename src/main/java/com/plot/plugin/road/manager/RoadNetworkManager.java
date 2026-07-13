@@ -247,9 +247,23 @@ public final class RoadNetworkManager {
                 if (!result.edges().isEmpty()) {
                     lastSelectedEdgeId = result.edges().getFirst().getId();
                 }
-            } catch (Exception e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                // 可恢复的业务逻辑错误
                 failedCount++;
-                LOGGER.warn("认领单条道路失败: {}", e.getMessage(), e);
+                LOGGER.warn("认领单条道路失败: {}", e.getMessage());
+            } catch (OutOfMemoryError | StackOverflowError e) {
+                // 严重错误，立即停止
+                LOGGER.error("严重错误，停止认领: {}", e.getMessage(), e);
+                throw e;
+            } catch (Exception e) {
+                // 其他未预期的错误
+                failedCount++;
+                LOGGER.error("认领单条道路时发生未知错误: {}", e.getMessage(), e);
+                // 如果失败率过高，停止处理
+                if (failedCount > adoptedCount && failedCount > 3) {
+                    LOGGER.error("失败率过高（失败{}次，成功{}次），停止认领", failedCount, adoptedCount);
+                    break;
+                }
             }
         }
 
@@ -279,7 +293,13 @@ public final class RoadNetworkManager {
             adoptedCount, failedCount, selectedEdgeIds.size());
     }
 
-    public BatchEditDefaults syncBatchEditDefaults() {
+    /**
+     * 加载批量编辑的默认值（从当前选中的主要边）
+     *
+     * 重命名说明：原名 syncBatchEditDefaults 暗示"同步"操作，
+     * 实际是加载和合并默认值，因此改为更清晰的名称。
+     */
+    public BatchEditDefaults loadBatchEditDefaults() {
         String primaryId = getPrimarySelectedEdgeId();
         if (selectedEdgeIds.size() == lastBatchSelectionSize && primaryId.equals(lastSelectedEdgeId)) {
             return currentBatchEditDefaults();
@@ -434,18 +454,29 @@ public final class RoadNetworkManager {
     }
 
     public static boolean hasOverlappingOverride(List<RoadEdge.SlopeOverride> overrides, int index) {
-        RoadEdge.SlopeOverride current = overrides.get(index);
-        if (current.startDistance > current.endDistance) {
+        if (overrides == null || index < 0 || index >= overrides.size()) {
             return false;
         }
+
+        RoadEdge.SlopeOverride current = overrides.get(index);
+
+        // 验证当前区间有效性：startDistance必须小于endDistance
+        if (current.startDistance >= current.endDistance) {
+            return true; // 无效区间视为重叠（阻止添加）
+        }
+
         for (int i = 0; i < overrides.size(); i++) {
             if (i == index) {
                 continue;
             }
             RoadEdge.SlopeOverride other = overrides.get(i);
-            if (other.startDistance > other.endDistance) {
+
+            // 跳过无效的other区间
+            if (other.startDistance >= other.endDistance) {
                 continue;
             }
+
+            // 标准区间重叠检测：A.start < B.end && A.end > B.start
             if (current.startDistance < other.endDistance && current.endDistance > other.startDistance) {
                 return true;
             }

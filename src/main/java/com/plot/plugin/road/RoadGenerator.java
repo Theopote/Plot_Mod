@@ -340,8 +340,9 @@ public class RoadGenerator {
 
     /**
      * @deprecated 使用带材质参数的 {@link #mergeJunctionBlocks(RoadGenerationResult, RoadJunctionGenerator.JunctionBlocks, String, String)}
+     *             计划在 v2.0 版本移除
      */
-    @Deprecated
+    @Deprecated(since = "1.x", forRemoval = true)
     public void mergeJunctionBlocks(RoadGenerationResult target, RoadJunctionGenerator.JunctionBlocks junction) {
         mergeJunctionBlocks(
             target,
@@ -501,16 +502,29 @@ public class RoadGenerator {
      * 采样路径点，创建分段
      */
     private List<PathSegment> samplePath(List<Vec2d> pathPoints) {
-        List<PathSegment> segments = new ArrayList<>();
-        
-        // 采样密度：每1米至少1个点
-        double minSampleDistance = 1.0;
-        
+        // 采样密度：从配置读取（可配置的采样精度）
+        double minSampleDistance = config.getPathSampleDistance();
+
+        // 预先计算总段数，避免ArrayList频繁扩容
+        int estimatedSegments = 0;
         for (int i = 0; i < pathPoints.size() - 1; i++) {
             Vec2d start = pathPoints.get(i);
             Vec2d end = pathPoints.get(i + 1);
             double distance = start.distance(end);
-            
+            if (distance < minSampleDistance) {
+                estimatedSegments += 1;
+            } else {
+                estimatedSegments += (int) Math.ceil(distance / minSampleDistance);
+            }
+        }
+
+        List<PathSegment> segments = new ArrayList<>(estimatedSegments);
+
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d start = pathPoints.get(i);
+            Vec2d end = pathPoints.get(i + 1);
+            double distance = start.distance(end);
+
             if (distance < minSampleDistance) {
                 // 距离太短，直接添加
                 segments.add(new PathSegment(start, end));
@@ -526,7 +540,7 @@ public class RoadGenerator {
                 }
             }
         }
-        
+
         return segments;
     }
     
@@ -1093,10 +1107,20 @@ public class RoadGenerator {
         }
     }
 
+    /**
+     * 查找指定段的高度信息（使用引用相等避免浮点数比较）
+     */
     private static SegmentHeightInfo findHeightInfo(
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             PathSegment target) {
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            // 使用引用相等代替浮点数距离比较，更可靠
+            if (segments.get(i) == target) {
+                return heightInfos.get(i);
+            }
+        }
+        // 如果引用不相等，降级到浮点数比较（兼容性保护）
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             if (sameSegment(segments.get(i), target)) {
                 return heightInfos.get(i);
@@ -1115,6 +1139,15 @@ public class RoadGenerator {
         }
         double accumulated = 0.0;
         for (PathSegment segment : segments) {
+            // 优先使用引用相等
+            if (segment == target) {
+                return (accumulated + segmentT * segment.distance) / totalLength;
+            }
+            accumulated += segment.distance;
+        }
+        // 降级到浮点数比较
+        accumulated = 0.0;
+        for (PathSegment segment : segments) {
             if (sameSegment(segment, target)) {
                 return (accumulated + segmentT * segment.distance) / totalLength;
             }
@@ -1123,6 +1156,10 @@ public class RoadGenerator {
         return 0.0;
     }
 
+    /**
+     * 判断两个段是否相同（使用浮点数距离比较，容差1mm）
+     * 注意：这是降级方案，优先使用引用相等（==）
+     */
     private static boolean sameSegment(PathSegment a, PathSegment b) {
         return a.start.distance(b.start) < 1e-3 && a.end.distance(b.end) < 1e-3;
     }
