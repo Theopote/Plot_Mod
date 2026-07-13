@@ -76,14 +76,23 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
         }
 
-        EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
-        EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
-        persistenceManager.loadForCurrentProject(
-            networkManager::setNetwork,
-            () -> {
-                networkManager.getHistory().clear();
-                networkManager.resetSelection();
-            });
+        // 订阅事件并加载网络，如果失败则清理资源
+        try {
+            EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
+            EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
+            persistenceManager.loadForCurrentProject(
+                networkManager::setNetwork,
+                () -> {
+                    networkManager.getHistory().clear();
+                    networkManager.resetSelection();
+                });
+        } catch (Exception e) {
+            // 清理已订阅的监听器，防止资源泄漏
+            EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
+            EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+            LOGGER.error("加载当前项目失败: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override

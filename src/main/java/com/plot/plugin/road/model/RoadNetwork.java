@@ -22,21 +22,23 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
  * 道路网络（插件私有数据模型）：拓扑几何 + 逻辑道路工程对象。
+ *
+ * 使用ConcurrentHashMap保证线程安全，支持多线程并发访问（UI线程、渲染线程、持久化线程）。
  */
 public class RoadNetwork {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final Map<String, RoadNode> nodes = new LinkedHashMap<>();
-    private final Map<String, RoadEdge> edges = new LinkedHashMap<>();
-    private final Map<String, Road> roads = new LinkedHashMap<>();
+    private final Map<String, RoadNode> nodes = new ConcurrentHashMap<>();
+    private final Map<String, RoadEdge> edges = new ConcurrentHashMap<>();
+    private final Map<String, Road> roads = new ConcurrentHashMap<>();
 
     public Map<String, RoadNode> getNodes() {
         return Map.copyOf(nodes);

@@ -216,6 +216,8 @@ public final class RoadNetworkManager {
         if (edgeId.equals(lastSelectedEdgeId)) {
             lastSelectedEdgeId = getPrimarySelectedEdgeId();
         }
+        // 确保选择状态有效，删除边后其他相关边可能也变为无效
+        ensureSelectionValid();
     }
 
     public void adoptSelectedPaths(List<Shape> selectedPaths) {

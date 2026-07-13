@@ -93,13 +93,20 @@ public class RoadGenerator {
             List<PathSegment> segments = samplePath(pathPoints);
             LOGGER.debug("路径分段数: {}", segments.size());
             
-            // 3. 获取Minecraft世界（客户端）
+            // 3. 获取Minecraft世界（客户端），使用缓存引用避免TOCTOU问题
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.world == null) {
-                LOGGER.error("无法获取Minecraft客户端或世界");
+            if (client == null) {
+                LOGGER.error("无法获取Minecraft客户端");
                 return new RoadGenerationResult(0);
             }
+
+            // 缓存world引用，避免在检查后使用前变为null
             World world = client.world;
+            if (world == null) {
+                LOGGER.error("无法获取世界实例");
+                return new RoadGenerationResult(0);
+            }
+
             TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
             
             // 4. 计算每个分段的目标高度（考虑坡度限制）

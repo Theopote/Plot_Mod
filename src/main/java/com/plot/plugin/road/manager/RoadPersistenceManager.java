@@ -86,12 +86,14 @@ public final class RoadPersistenceManager {
             Runnable onSelectionReset) {
         try {
             RoadNetwork loaded = RoadNetwork.loadFrom(file);
+            // 只有加载成功后才清空历史，保证原子性
             history.clear();
             onSelectionReset.run();
             return loaded;
         } catch (IOException e) {
             LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
             status.set(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
+            // 加载失败时不清空历史，保留当前状态
             return new RoadNetwork();
         }
     }
