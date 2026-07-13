@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 内置图库预设：经典建筑平面与基础几何图形。
+ * 内置图库预设：经典建筑平面与几何/泰森多边形图形。
  */
 public final class GalleryPresetFactory {
     private GalleryPresetFactory() {
@@ -45,23 +45,41 @@ public final class GalleryPresetFactory {
             "BUILDING",
             courtyardPolygon()));
         presets.add(preset(
+            "preset_pond",
+            "gallery.plot.item.pond.name",
+            "gallery.plot.item.pond.desc",
+            "LANDSCAPE",
+            List.of(new CircleShape(new Vec2d(0, 0), 10))));
+        presets.add(preset(
             "preset_rectangle",
             "gallery.plot.item.rect_block.name",
             "gallery.plot.item.rect_block.desc",
-            "SYMBOL",
+            "SHAPE",
             List.of(new RectangleShape(new Vec2d(-8, -6), 16, 12, 0))));
         presets.add(preset(
             "preset_circle",
             "gallery.plot.item.circle_block.name",
             "gallery.plot.item.circle_block.desc",
-            "LANDSCAPE",
+            "SHAPE",
             List.of(new CircleShape(new Vec2d(0, 0), 8))));
         presets.add(preset(
             "preset_triangle",
             "gallery.plot.item.triangle_block.name",
             "gallery.plot.item.triangle_block.desc",
-            "SYMBOL",
+            "SHAPE",
             trianglePolygon()));
+        presets.add(preset(
+            "preset_voronoi",
+            "gallery.plot.item.voronoi.name",
+            "gallery.plot.item.voronoi.desc",
+            "SHAPE",
+            voronoiTessellation(false)));
+        presets.add(preset(
+            "preset_voronoi_warp",
+            "gallery.plot.item.voronoi_warp.name",
+            "gallery.plot.item.voronoi_warp.desc",
+            "SHAPE",
+            voronoiTessellation(true)));
         return presets;
     }
 
@@ -136,5 +154,38 @@ public final class GalleryPresetFactory {
             new Vec2d(0, 10),
             new Vec2d(-9, -6),
             new Vec2d(9, -6))));
+    }
+
+    private static List<Shape> voronoiTessellation(boolean warped) {
+        double w = warped ? 1.0 : 0.0;
+        List<Shape> cells = new ArrayList<>();
+        cells.add(voronoiCell(w,
+            new Vec2d(-12, 2), new Vec2d(-6, 6), new Vec2d(-2, 2), new Vec2d(-4, -4), new Vec2d(-10, -6)));
+        cells.add(voronoiCell(w,
+            new Vec2d(-2, 8), new Vec2d(4, 10), new Vec2d(8, 4), new Vec2d(2, 0), new Vec2d(-2, 4)));
+        cells.add(voronoiCell(w,
+            new Vec2d(6, 8), new Vec2d(12, 6), new Vec2d(14, 0), new Vec2d(10, -4), new Vec2d(4, 2)));
+        cells.add(voronoiCell(w,
+            new Vec2d(-8, -10), new Vec2d(-2, -8), new Vec2d(0, -14), new Vec2d(-6, -16), new Vec2d(-12, -14)));
+        cells.add(voronoiCell(w,
+            new Vec2d(2, -6), new Vec2d(8, -8), new Vec2d(12, -14), new Vec2d(4, -16), new Vec2d(0, -10)));
+        cells.add(voronoiCell(w,
+            new Vec2d(-4, -2), new Vec2d(2, -2), new Vec2d(4, -6), new Vec2d(0, -8), new Vec2d(-6, -6)));
+        return cells;
+    }
+
+    private static Polygon voronoiCell(double warpStrength, Vec2d... vertices) {
+        List<Vec2d> points = new ArrayList<>(vertices.length);
+        for (int i = 0; i < vertices.length; i++) {
+            Vec2d v = vertices[i];
+            if (warpStrength > 0.0) {
+                double angle = i * 1.7;
+                v = new Vec2d(
+                    v.x + Math.sin(angle) * 2.5 * warpStrength,
+                    v.y + Math.cos(angle * 1.3) * 2.0 * warpStrength);
+            }
+            points.add(v);
+        }
+        return new Polygon(points);
     }
 }

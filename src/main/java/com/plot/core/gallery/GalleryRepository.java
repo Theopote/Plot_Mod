@@ -86,9 +86,18 @@ public final class GalleryRepository {
                     if (snapshot.items != null) {
                         for (GallerySnapshot.ItemSnapshot itemSnap : snapshot.items) {
                             GalleryItem item = GalleryItem.fromSnapshot(itemSnap);
-                            if (item != null) {
-                                items.add(item);
+                            if (item == null) {
+                                continue;
                             }
+                            if ("SYMBOL".equals(item.getCategory())) {
+                                item = GalleryItem.userItem(
+                                    item.getId(),
+                                    item.getDisplayName(),
+                                    item.getDisplayDescription(),
+                                    "SHAPE",
+                                    item.getShapes());
+                            }
+                            items.add(item);
                         }
                     }
                 }
@@ -98,6 +107,7 @@ public final class GalleryRepository {
         }
 
         mergeMissingPresets();
+        syncPresetsFromFactory();
         loaded = true;
         LOGGER.info("图库已加载 {} 个条目", items.size());
     }
@@ -259,6 +269,28 @@ public final class GalleryRepository {
         } else if (!Files.exists(galleryFile)) {
             items.clear();
             items.addAll(GalleryPresetFactory.createPresets());
+            save();
+        }
+    }
+
+    private void syncPresetsFromFactory() {
+        Map<String, GalleryItem> factoryById = new LinkedHashMap<>();
+        for (GalleryItem preset : GalleryPresetFactory.createPresets()) {
+            factoryById.put(preset.getId(), preset);
+        }
+        boolean changed = false;
+        for (int i = 0; i < items.size(); i++) {
+            GalleryItem item = items.get(i);
+            if (!item.isPreset()) {
+                continue;
+            }
+            GalleryItem fresh = factoryById.get(item.getId());
+            if (fresh != null) {
+                items.set(i, fresh);
+                changed = true;
+            }
+        }
+        if (changed) {
             save();
         }
     }
