@@ -112,7 +112,7 @@ public class OrthographicCamera {
     public synchronized void setViewDistance(float distance) {
         try {
             if (!locked) { // 检查锁定状态
-                this.viewDistance = Math.max(40.0f, Math.min(480.0f, distance));
+                this.viewDistance = Math.max(40.0f, Math.min(600.0f, distance));  // 统一最大值为600
                 updateProjectionMatrix();
             }
         } catch (Exception e) {
@@ -193,7 +193,7 @@ public class OrthographicCamera {
     public void setFar(float far) {
         try {
             if (!locked) {
-                this.far = Math.max(100.0f, Math.min(2000.0f, far));
+                this.far = Math.max(100.0f, Math.min(1000.0f, far));  // 统一最大远平面为1000
                 updateProjectionMatrix();
             }
         } catch (Exception e) {

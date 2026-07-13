@@ -184,7 +184,7 @@ public class CameraManager {
             // 根据相机模式设置不同的最小值
             float minDistance = isOrthographic ? 50.0f : 20.0f;
             float oldDistance = this.viewDistance;
-            this.viewDistance = Math.max(minDistance, Math.min(1000.0f, distance));  // 扩大最大视图距离到1000
+            this.viewDistance = Math.max(minDistance, Math.min(600.0f, distance));  // 统一最大值为600
             
             // 如果视图范围变小，需要相应调整平移值以避免视觉跳跃
             if (this.viewDistance < oldDistance) {
