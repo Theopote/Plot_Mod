@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.CommandManager;
 import com.plot.core.command.commands.BuildingGenerateCommand;
-import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -155,8 +154,12 @@ public class BuildingPlugin extends Plugin {
             }
             ImGui.endTabBar();
         }
+    }
 
+    @Override
+    public void renderDeferredModals() {
         renderDeleteConfirmPopup();
+        renderBuildConfirmPopup();
     }
 
     private void renderToolbar() {
@@ -569,7 +572,6 @@ public class BuildingPlugin extends Plugin {
             if (buildDisabled) {
                 ImGui.endDisabled();
             }
-            renderBuildConfirmPopup();
         }
     }
 

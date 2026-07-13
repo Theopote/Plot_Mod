@@ -118,4 +118,11 @@ public interface IPlugin {
      * 渲染插件界面
      */
     void render();
+
+    /**
+     * 在所有 Dock 窗口 {@code begin/end} 完成后渲染模态弹窗。
+     * Dear ImGui 要求模态弹窗不能与其它窗口的 begin 交错调用，否则会触发 blocking_modal 断言。
+     */
+    default void renderDeferredModals() {
+    }
 }

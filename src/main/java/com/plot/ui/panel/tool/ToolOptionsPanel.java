@@ -244,6 +244,17 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
         ImGui.popStyleVar(2);  // 弹出外部的 WindowPadding(0,0) 和 FramePadding(4,4)
     }
 
+    public void renderDeferredModals() {
+        BaseTool currentTool = appState.getCurrentTool();
+        if (currentTool == null) {
+            return;
+        }
+        ToolOptionRenderer renderer = ToolOptionRendererFactory.getRenderer(currentTool);
+        if (renderer != null) {
+            renderer.renderDeferredModals();
+        }
+    }
+
     @Override
     public void init() {
         PlotMod.LOGGER.debug("ToolOptionsPanel初始化");

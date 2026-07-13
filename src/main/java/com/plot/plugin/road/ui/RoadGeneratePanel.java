@@ -128,7 +128,6 @@ public final class RoadGeneratePanel {
             if (buildDisabled) {
                 ImGui.endDisabled();
             }
-            renderBuildConfirmPopup();
         }
     }
 
@@ -220,7 +219,7 @@ public final class RoadGeneratePanel {
         }
     }
 
-    private void renderBuildConfirmPopup() {
+    public void renderBuildConfirmPopup() {
         if (ctx.buildConfirmPending()) {
             ImGui.openPopup("##road_build_confirm");
             ctx.clearBuildConfirmPending();

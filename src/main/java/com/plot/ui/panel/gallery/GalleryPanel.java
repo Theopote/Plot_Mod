@@ -106,15 +106,17 @@ public class GalleryPanel implements UIComponent {
             renderCategories();
             renderGalleryContent();
             renderPlaceHint();
-
-            deleteDialog.render();
-            editorDialog.render();
             placeSession.tick(appState);
 
             ImGui.popStyleVar(2);
         } catch (Exception e) {
             PlotMod.LOGGER.error("GalleryPanel渲染失败: {}", e.getMessage(), e);
         }
+    }
+
+    public void renderDeferredModals() {
+        deleteDialog.render();
+        editorDialog.render();
     }
 
     private void renderSearchBar() {

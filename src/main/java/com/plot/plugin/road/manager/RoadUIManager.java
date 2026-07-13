@@ -76,8 +76,11 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             }
             ImGui.endTabBar();
         }
+    }
 
+    public void renderDeferredModals() {
         edgeListPanel.renderDeleteConfirmPopup();
+        generatePanel.renderBuildConfirmPopup();
     }
 
     @Override

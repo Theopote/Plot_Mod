@@ -11,6 +11,12 @@ public interface ToolOptionRenderer {
      * @return 渲染内容的总高度
      */
     float render();
+
+    /**
+     * 在所有 Dock 窗口渲染完成后显示模态弹窗。
+     */
+    default void renderDeferredModals() {
+    }
     
     /**
      * 初始化工具选项

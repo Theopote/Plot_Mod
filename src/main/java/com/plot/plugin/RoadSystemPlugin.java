@@ -119,6 +119,14 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
     }
 
     @Override
+    public void renderDeferredModals() {
+        if (config == null) {
+            return;
+        }
+        uiManager.renderDeferredModals();
+    }
+
+    @Override
     public boolean hasJunctionPropertyContent() {
         return uiManager.hasJunctionPropertyContent();
     }

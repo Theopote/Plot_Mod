@@ -13,6 +13,8 @@ import com.plot.ui.canvas.Canvas;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.layout.PanelEdgeCursorHelper;
 import com.plot.ui.theme.UITheme;
+import com.plot.core.plugin.PluginManager;
+import com.plot.api.plugin.IPlugin;
 import com.plot.ui.panel.PropertyPanel;
 import com.plot.ui.panel.extension.ExtensionPanel;
 import com.plot.ui.panel.gallery.GalleryPanel;
@@ -413,6 +415,8 @@ public class PlotScreen extends Screen {
             // 再渲染 DockSpace 与面板窗口（位于画布之上）
             renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, systemPanel, toolPanel,
                 propertyPanel, galleryPanel, extensionPanel);
+
+            renderDeferredModals(controlPanel, propertyPanel, galleryPanel);
             
             // 首次渲染完成后，标记为已完成
             if (firstRender) {
@@ -420,6 +424,28 @@ public class PlotScreen extends Screen {
             }
         } finally {
             ImGui.popStyleColor(2);
+        }
+    }
+
+    /**
+     * 在所有 Dock 面板窗口结束后再渲染模态弹窗，避免 ImGui blocking_modal 断言。
+     */
+    private void renderDeferredModals(ControlPanel controlPanel,
+                                      PropertyPanel propertyPanel,
+                                      GalleryPanel galleryPanel) {
+        if (controlPanel != null) {
+            controlPanel.renderDeferredModals();
+        }
+        if (propertyPanel != null) {
+            propertyPanel.renderDeferredModals();
+        }
+        if (galleryPanel != null) {
+            galleryPanel.renderDeferredModals();
+        }
+
+        IPlugin activePlugin = PluginManager.getInstance().getActivePlugin();
+        if (activePlugin != null && activePlugin.isEnabled()) {
+            activePlugin.renderDeferredModals();
         }
     }
 

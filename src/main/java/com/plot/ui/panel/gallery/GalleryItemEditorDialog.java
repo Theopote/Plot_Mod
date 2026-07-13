@@ -31,6 +31,7 @@ public class GalleryItemEditorDialog {
     }
 
     private boolean visible;
+    private boolean popupOpenRequested;
     private Mode mode = Mode.SAVE;
     private GalleryItem editingItem;
     private List<Shape> pendingSelection = List.of();
@@ -51,7 +52,7 @@ public class GalleryItemEditorDialog {
         this.defaultCategory = defaultCategory != null ? defaultCategory : "BUILDING";
         resetInputs("", "", this.defaultCategory);
         visible = true;
-        ImGui.openPopup(SAVE_DIALOG_TITLE);
+        popupOpenRequested = true;
     }
 
     public void showEdit(GalleryItem item) {
@@ -63,12 +64,16 @@ public class GalleryItemEditorDialog {
         pendingSelection = List.of();
         resetInputs(item.getDisplayName(), item.getDisplayDescription(), item.getCategory());
         visible = true;
-        ImGui.openPopup(EDIT_DIALOG_TITLE);
+        popupOpenRequested = true;
     }
 
     public void render() {
         if (!visible) {
             return;
+        }
+        if (popupOpenRequested) {
+            ImGui.openPopup(mode == Mode.SAVE ? SAVE_DIALOG_TITLE : EDIT_DIALOG_TITLE);
+            popupOpenRequested = false;
         }
         if (mode == Mode.SAVE) {
             renderDialog(SAVE_DIALOG_TITLE, PlotI18n.tr("dialog.plot.gallery_save_title"));

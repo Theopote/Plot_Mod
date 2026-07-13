@@ -171,8 +171,12 @@ public class EarthworkPlugin extends Plugin {
             }
             ImGui.endTabBar();
         }
+    }
 
+    @Override
+    public void renderDeferredModals() {
         renderDeleteConfirmPopup();
+        renderBuildConfirmPopup();
     }
 
     private void renderToolbar() {
@@ -475,7 +479,6 @@ public class EarthworkPlugin extends Plugin {
             if (buildDisabled) {
                 ImGui.endDisabled();
             }
-            renderBuildConfirmPopup();
         }
     }
 

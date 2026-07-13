@@ -127,6 +127,11 @@ public class PropertyPanel implements UIComponent {
         }
     }
 
+    public void renderDeferredModals() {
+        toolOptionsPanel.renderDeferredModals();
+        layerPanel.renderDeferredModals();
+    }
+
     private void renderToolSection() {
         UITheme.ThemeColors currentTheme = ThemeManager.getInstance().getCurrentTheme();
         

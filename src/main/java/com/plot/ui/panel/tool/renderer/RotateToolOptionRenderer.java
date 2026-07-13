@@ -129,9 +129,6 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             height += ImGui.getFrameHeightWithSpacing();
 
             
-            // 渲染角度步长输入弹窗
-            renderAngleStepInputPopup();
-            
             PlotMod.LOGGER.debug("RotateToolOptionRenderer: 渲染完成，高度: {}", height);
             
         } finally {
@@ -139,6 +136,11 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
         }
         
         return height;
+    }
+
+    @Override
+    public void renderDeferredModals() {
+        renderAngleStepInputPopup();
     }
     
     /**

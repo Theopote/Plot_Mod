@@ -19,6 +19,7 @@ public class GalleryDeleteDialog {
     private static final String DIALOG_TITLE = "gallery_delete_confirm##GalleryDeletePopup";
 
     private boolean visible;
+    private boolean popupOpenRequested;
     private GalleryItem pendingItem;
 
     public void show(GalleryItem item) {
@@ -27,12 +28,16 @@ public class GalleryDeleteDialog {
         }
         pendingItem = item;
         visible = true;
-        ImGui.openPopup(DIALOG_TITLE);
+        popupOpenRequested = true;
     }
 
     public void render() {
         if (!visible || pendingItem == null) {
             return;
+        }
+        if (popupOpenRequested) {
+            ImGui.openPopup(DIALOG_TITLE);
+            popupOpenRequested = false;
         }
 
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();

@@ -48,6 +48,7 @@ public class LayerPanel implements UIComponent {
 
     /** 警告消息内容 */
     private String warningMessage = "";
+    private boolean warningPopupPending = false;
 
     /** 事件监听器映射表 */
     private final Map<Class<? extends Event>, EventListener> eventListeners = new HashMap<>();
@@ -312,16 +313,6 @@ public class LayerPanel implements UIComponent {
                 
                 ImGui.endChild(); // 结束图层列表容器
                 
-                // 渲染警告消息和新建图层对话框
-                if (!warningMessage.isEmpty()) {
-                    renderWarningMessage();
-                }
-                
-                newLayerDialog.render();
-                
-                // 渲染删除图层确认对话框
-                deleteLayerDialog.render();
-                
                 ImGui.endChild(); // 结束整个面板
                 
             } catch (Exception e) {
@@ -333,6 +324,18 @@ public class LayerPanel implements UIComponent {
 
         // 恢复样式
         ImGui.popStyleColor();
+    }
+
+    public void renderDeferredModals() {
+        if (warningPopupPending) {
+            ImGui.openPopup("##layer_warning_dialog");
+            warningPopupPending = false;
+        }
+        if (!warningMessage.isEmpty()) {
+            renderWarningMessage();
+        }
+        newLayerDialog.render();
+        deleteLayerDialog.render();
     }
 
     /**
@@ -347,7 +350,7 @@ public class LayerPanel implements UIComponent {
                     ImGuiWindowFlags.NoScrollbar |
                     ImGuiWindowFlags.NoSavedSettings;
 
-            if (ImGui.beginPopupModal("##warning_dialog", popupFlags)) {
+            if (ImGui.beginPopupModal("##layer_warning_dialog", popupFlags)) {
                 try {
                     if (DialogStyleManager.renderTopRightCloseButton("layer_warning")) {
                         ImGui.closeCurrentPopup();
@@ -378,8 +381,8 @@ public class LayerPanel implements UIComponent {
      * @param message 警告消息内容
      */
     private void showWarningDialog(String message) {
-        ImGui.openPopup("##warning_dialog");
         warningMessage = message;
+        warningPopupPending = true;
     }
 
     /**

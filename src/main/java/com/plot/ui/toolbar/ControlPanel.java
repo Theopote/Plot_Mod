@@ -341,13 +341,23 @@ public class ControlPanel implements UIComponent {
     }
     
     /**
-     * 渲染所有对话框
+     * 在所有 Dock 窗口渲染完成后再显示模态弹窗。
      */
-    private void renderDialogs() {
-        if (projectionSettingsDialog != null) projectionSettingsDialog.render();
-        if (lineToBlockSettingsDialog != null) lineToBlockSettingsDialog.render();
+    public void renderDeferredModals() {
+        if (projectionSettingsDialog != null) {
+            projectionSettingsDialog.render();
+        }
+        if (lineToBlockSettingsDialog != null) {
+            lineToBlockSettingsDialog.render();
+        }
         com.plot.ui.dialog.SettingsAndHelpDialog.getInstance().render();
         renderWarningDialog();
+    }
+
+    /**
+     * 渲染所有对话框（非模态部分已移至 {@link #renderDeferredModals()}）
+     */
+    private void renderDialogs() {
     }
     
     /**
