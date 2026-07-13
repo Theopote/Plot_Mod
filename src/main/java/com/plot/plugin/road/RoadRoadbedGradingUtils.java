@@ -57,10 +57,28 @@ public final class RoadRoadbedGradingUtils {
             String fillMaterialId,
             TerrainSampler terrain,
             RoadTerrainClearanceUtils.BlockColumnResolver columnResolver) {
+        return gradeCrossSectionEnvelope(
+            solids, center, leftNormal, widthBlocks, roadY,
+            tunnelThreshold, bridgeThreshold, fillMaterialId, terrain, columnResolver, 1.0);
+    }
+
+    public static GradingVolumes gradeCrossSectionEnvelope(
+            RoadSolidModel solids,
+            Vec2d center,
+            Vec2d leftNormal,
+            int widthBlocks,
+            int roadY,
+            int tunnelThreshold,
+            int bridgeThreshold,
+            String fillMaterialId,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double canvasUnitsPerBlock) {
         if (solids == null || center == null || leftNormal == null || widthBlocks <= 0
                 || terrain == null || columnResolver == null) {
             return GradingVolumes.ZERO;
         }
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
         Vec2d normal = leftNormal.lengthSquared() > 1e-12
             ? leftNormal.normalize()
             : new Vec2d(0, 1);
@@ -68,7 +86,7 @@ public final class RoadRoadbedGradingUtils {
         int maxOffset = RoadDimensionUtils.maxLateralOffset(widthBlocks);
         GradingVolumes total = GradingVolumes.ZERO;
         for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
-            Vec2d planPoint = center.add(normal.multiply(lateral));
+            Vec2d planPoint = center.add(normal.multiply(lateral * scale));
             int worldX = columnResolver.worldX(planPoint);
             int worldZ = columnResolver.worldZ(planPoint);
             total = total.add(gradeColumn(

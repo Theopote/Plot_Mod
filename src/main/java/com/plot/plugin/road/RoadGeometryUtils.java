@@ -792,6 +792,55 @@ public final class RoadGeometryUtils {
             (int) Math.round(canvasPos.y));
     }
 
+    /**
+     * 估计「1 个 Minecraft 方块」对应多少画布坐标单位。
+     * <p>
+     * 道路横断面按 1 格 = 1 方块设计；若横向偏移直接用画布 1 单位步进，
+     * 经相机视野映射后可能被压成不足 1 格，导致路宽塌成 2～3 格。
+     * 生成时横向偏移应乘以本系数。
+     */
+    public static double canvasUnitsPerWorldBlock(
+            CoordinateTransformer transformer,
+            Vec2d origin,
+            Vec2d direction) {
+        if (origin == null) {
+            return 1.0;
+        }
+        Vec2d dir = leftNormal(direction != null ? direction : new Vec2d(1, 0));
+        // leftNormal of (1,0) is (0,1); we want the provided direction as lateral probe.
+        // Recompute: probe along the given direction (should already be a normal for strips).
+        dir = direction != null && direction.lengthSquared() > 1e-12
+            ? direction.normalize()
+            : new Vec2d(0, 1);
+        if (transformer == null) {
+            return 1.0;
+        }
+        try {
+            Vec2d world0 = transformer.canvasToMinecraftWorld(origin);
+            if (world0 == null) {
+                return 1.0;
+            }
+            // 先用 1 单位探针，过小时改用 100 单位探针抑制数值误差
+            double probe = 1.0;
+            Vec2d world1 = transformer.canvasToMinecraftWorld(origin.add(dir.multiply(probe)));
+            double worldDist = world1 != null ? world0.distance(world1) : 0.0;
+            if (worldDist < 1e-4) {
+                probe = 100.0;
+                world1 = transformer.canvasToMinecraftWorld(origin.add(dir.multiply(probe)));
+                worldDist = world1 != null ? world0.distance(world1) : 0.0;
+            }
+            if (worldDist < 1e-6) {
+                return 1.0;
+            }
+            // probe 画布单位 → worldDist 世界格；1 世界格需要 probe/worldDist 画布单位
+            double units = probe / worldDist;
+            // 合理夹紧，避免极端相机参数导致爆炸
+            return Math.max(0.05, Math.min(units, 500.0));
+        } catch (Exception e) {
+            return 1.0;
+        }
+    }
+
     private static List<Vec2d> copyPoints(List<Vec2d> points) {
         List<Vec2d> copy = new ArrayList<>();
         if (points != null) {
