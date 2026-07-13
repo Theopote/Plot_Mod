@@ -79,8 +79,9 @@ public class PlotScreen extends Screen {
     private static final String WIN_LEFT_ID = "##ToolPanel";
     private static final String WIN_PROPERTY_ID = "##PropertyPanel";
     private static final String WIN_EXTENSION_ID = "##ExtensionPanel";
-    /** 递增以在布局结构变化时强制重建 Dock（例如属性/扩展改为 Dock Tab） */
-    private static final int DOCK_LAYOUT_VERSION = 6;
+    private static final String WIN_GALLERY_ID = "##GalleryPanel";
+    /** 递增以在布局结构变化时强制重建 Dock（例如属性/扩展/图库改为 Dock Tab） */
+    private static final int DOCK_LAYOUT_VERSION = 7;
 
     private int dockspaceId;
     private int dockIdTopLeft;  // 顶部左侧（ControlPanel）
@@ -182,6 +183,7 @@ public class PlotScreen extends Screen {
         SystemPanel systemPanel = uiContainer.get(SystemPanel.class);
         ToolPanel toolPanel = uiContainer.get(ToolPanel.class);
         PropertyPanel propertyPanel = uiContainer.get(PropertyPanel.class);
+        GalleryPanel galleryPanel = uiContainer.get(GalleryPanel.class);
         ExtensionPanel extensionPanel = uiContainer.get(ExtensionPanel.class);
         Canvas canvas = uiContainer.get(Canvas.class);
 
@@ -195,6 +197,7 @@ public class PlotScreen extends Screen {
             toolPanel.init();
         }
         if (propertyPanel != null) propertyPanel.init();
+        if (galleryPanel != null) galleryPanel.init();
         if (extensionPanel != null) extensionPanel.init();
         if (canvas != null) {
             // 修复：确保Canvas被正确初始化，包括CanvasCore的camera
@@ -384,6 +387,7 @@ public class PlotScreen extends Screen {
         SystemPanel systemPanel = uiContainer.get(SystemPanel.class);
         ToolPanel toolPanel = uiContainer.get(ToolPanel.class);
         PropertyPanel propertyPanel = uiContainer.get(PropertyPanel.class);
+        GalleryPanel galleryPanel = uiContainer.get(GalleryPanel.class);
         ExtensionPanel extensionPanel = uiContainer.get(ExtensionPanel.class);
         Canvas canvas = uiContainer.get(Canvas.class);
 
@@ -407,7 +411,8 @@ public class PlotScreen extends Screen {
             }
 
             // 再渲染 DockSpace 与面板窗口（位于画布之上）
-            renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, systemPanel, toolPanel, propertyPanel, extensionPanel);
+            renderDockSpaceLayout(displayWidth, displayHeight, controlPanel, systemPanel, toolPanel,
+                propertyPanel, galleryPanel, extensionPanel);
             
             // 首次渲染完成后，标记为已完成
             if (firstRender) {
@@ -426,6 +431,7 @@ public class PlotScreen extends Screen {
                                        SystemPanel systemPanel,
                                        ToolPanel toolPanel,
                                        PropertyPanel propertyPanel,
+                                       GalleryPanel galleryPanel,
                                        ExtensionPanel extensionPanel) {
         // 1) 创建全屏 DockSpace 宿主窗口
         final int hostFlags =
@@ -466,6 +472,7 @@ public class PlotScreen extends Screen {
         renderDockedSystemPanel(systemPanel);
         renderDockedToolPanel(toolPanel);
         renderDockedPropertyPanel(propertyPanel);
+        renderDockedGalleryPanel(galleryPanel);
         renderDockedExtensionPanel(extensionPanel);
 
         // 顶部栏与主内容区之间的全宽水平分割条
@@ -507,7 +514,7 @@ public class PlotScreen extends Screen {
         ImInt dockTopLeft = new ImInt();     // 顶部左侧（控制面板）
         ImInt dockTopRight = new ImInt();    // 顶部右侧（系统面板）
         ImInt dockBottomLeft = new ImInt();  // 左侧底部（工具面板）
-        ImInt dockBottomRight = new ImInt(); // 右侧栏（属性 / 扩展 Dock Tab）
+        ImInt dockBottomRight = new ImInt(); // 右侧栏（属性 / 图库 / 扩展 Dock Tab）
         ImInt dockBottomMain = new ImInt();  // 底部中间（画布）
 
         float leftDockWidth = UILayout.Toolbar.PANEL_WIDTH;
@@ -531,7 +538,7 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderSetNodePos(dockTopRight.get(), displayWidth - rightDockWidth, 0.0f);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockTopLeft.get(), 0.0f, 0.0f);
 
-        // 底部内容区再分割左右：左为工具面板，右为属性/扩展面板，中间为画布
+        // 底部内容区再分割左右：左为工具面板，右为属性/图库/扩展面板，中间为画布
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockBottomLeft, dockBottomMain);
         imgui.internal.ImGui.dockBuilderSplitNode(dockBottomMain.get(), ImGuiDir.Right, rightRatio, dockBottomRight, dockBottomMain);
 
@@ -556,6 +563,7 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderDockWindow(systemPanelWindowTitle(), dockIdTopRight);  // 系统面板在顶部右侧
         imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindowTitle(), dockIdLeft);
         imgui.internal.ImGui.dockBuilderDockWindow(propertyPanelWindowTitle(), dockIdRight);
+        imgui.internal.ImGui.dockBuilderDockWindow(galleryPanelWindowTitle(), dockIdRight);
         imgui.internal.ImGui.dockBuilderDockWindow(extensionPanelWindowTitle(), dockIdRight);
         // 关键：中央节点不 dock 任何窗口，配合 PassthruCentralNode 让中央区域天然留空且透明（参考 ChronoBlocks）
 
@@ -672,6 +680,39 @@ public class PlotScreen extends Screen {
         }
     }
 
+    private void renderDockedGalleryPanel(GalleryPanel galleryPanel) {
+        if (galleryPanel == null) {
+            return;
+        }
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, UILayout.CONTENT_PADDING, UILayout.CONTENT_PADDING);
+        ImGui.pushStyleColor(ImGuiCol.Border, ThemeManager.getInstance().getCurrentTheme().border);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, ThemeManager.getInstance().getCurrentTheme().panelBackground);
+
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
+        float displayHeight = ImGui.getIO().getDisplaySizeY();
+        float topBarHeight = getTopBarHeight();
+        float rightWidth = UILayout.RIGHT_PANEL_DEFAULT_WIDTH;
+        float bottomHeight = Math.max(0.0f, displayHeight - topBarHeight);
+        ImGui.setNextWindowPos(displayWidth - rightWidth, topBarHeight, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(rightWidth, bottomHeight, ImGuiCond.FirstUseEver);
+
+        try {
+            boolean visible = ImGui.begin(galleryPanelWindowTitle(), DOCKABLE_WINDOW_FLAGS);
+            try {
+                if (visible) {
+                    galleryPanel.render();
+                    recordCurrentWindowLeftEdge();
+                }
+            } finally {
+                ImGui.end();
+            }
+        } finally {
+            ImGui.popStyleColor(2);
+            ImGui.popStyleVar(2);
+        }
+    }
+
     private void renderDockedExtensionPanel(ExtensionPanel extensionPanel) {
         if (extensionPanel == null) {
             return;
@@ -719,6 +760,10 @@ public class PlotScreen extends Screen {
 
     private static String propertyPanelWindowTitle() {
         return PlotI18n.tr("panel.plot.properties") + WIN_PROPERTY_ID;
+    }
+
+    private static String galleryPanelWindowTitle() {
+        return PlotI18n.tr("panel.plot.gallery") + WIN_GALLERY_ID;
     }
 
     private static String extensionPanelWindowTitle() {

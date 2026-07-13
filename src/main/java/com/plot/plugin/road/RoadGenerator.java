@@ -882,9 +882,9 @@ public class RoadGenerator {
                 return canvasToBlockPos(planPoint).getZ();
             }
         };
-        RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        RoadRoadbedGradingUtils.GradingVolumes[] total = {RoadRoadbedGradingUtils.GradingVolumes.ZERO};
         forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) ->
-            total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
+            total[0] = total[0].add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
                 solids,
                 center,
                 leftNormal,
@@ -895,8 +895,8 @@ public class RoadGenerator {
                 fillMaterialId,
                 terrain,
                 columnResolver)));
-        metrics.cutVolume = total.cutVolume();
-        metrics.fillVolume = total.fillVolume();
+        metrics.cutVolume = total[0].cutVolume();
+        metrics.fillVolume = total[0].fillVolume();
     }
 
     private void generateShoulderBlocks(
