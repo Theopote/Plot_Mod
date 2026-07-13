@@ -184,7 +184,7 @@ public class CameraManager {
             // 根据相机模式设置不同的最小值
             float minDistance = isOrthographic ? 50.0f : 20.0f;
             float oldDistance = this.viewDistance;
-            this.viewDistance = Math.max(minDistance, Math.min(480.0f, distance));
+            this.viewDistance = Math.max(minDistance, Math.min(1000.0f, distance));  // 扩大最大视图距离到1000
             
             // 如果视图范围变小，需要相应调整平移值以避免视觉跳跃
             if (this.viewDistance < oldDistance) {
@@ -355,9 +355,18 @@ public class CameraManager {
 
             // 确保视图范围不会太小，防止相机高度计算出现问题
             float safeViewDistance = Math.max(isOrthographic ? 50.0f : 20.0f, viewDistance);
-            
-            // 计算相机高度 - 使用安全的视图范围值
-            float cameraHeight = Math.max(terrainHeight + 20.0f, safeViewDistance);
+
+            // 计算相机高度
+            // 正交相机：使用固定的合理高度（不随viewDistance线性增长）
+            // 透视相机：基于viewDistance计算高度
+            float cameraHeight;
+            if (isOrthographic) {
+                // 正交相机保持在地形上方150格的固定高度，确保在渲染距离内
+                cameraHeight = terrainHeight + 150.0f;
+            } else {
+                // 透视相机使用原来的逻辑
+                cameraHeight = Math.max(terrainHeight + 20.0f, safeViewDistance);
+            }
 
             // 获取玩家基础位置（用于计算基准位置）
             Vec3d basePos = new Vec3d(player.getX(), player.getY(), player.getZ());
@@ -473,9 +482,16 @@ public class CameraManager {
             
             // 使用安全的视图范围值
             float safeViewDistance = Math.max(isOrthographic ? 50.0f : 20.0f, viewDistance);
-            
+
             // 计算目标高度
-            float targetHeight = Math.max(terrainHeight + 20.0f, safeViewDistance);
+            float targetHeight;
+            if (isOrthographic) {
+                // 正交相机保持固定高度
+                targetHeight = Math.max(terrainHeight + 20.0f, terrainHeight + 150.0f);
+            } else {
+                // 透视相机使用原来的逻辑
+                targetHeight = Math.max(terrainHeight + 20.0f, safeViewDistance);
+            }
 
             // 如果高度差异显著，平滑调整高度
             if (Math.abs(currentPos.y - targetHeight) > 0.1f) {

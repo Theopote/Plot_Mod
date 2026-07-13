@@ -72,8 +72,9 @@ public class CameraSettingsManager {
 
                     // 视野范围设置
                     float[] viewDistance = {camera.getViewDistance()};
-                    if (ImGui.sliderFloat(PlotI18n.tr("camera.plot.view_distance"), viewDistance, 0.0f, 100.0f, "%.0f")) {
-                        camera.setViewDistance(viewDistance[0]);
+                    if (ImGui.sliderFloat(PlotI18n.tr("camera.plot.view_distance"), viewDistance, 40.0f, 1000.0f, "%.0f")) {
+                        // 通过CameraManager设置，这样会触发区块更新
+                        cameraManager.setViewDistance(viewDistance[0]);
                         settingsChanged = true;
                     }
 
