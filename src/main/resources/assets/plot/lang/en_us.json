@@ -342,6 +342,8 @@
   "plugin.road.preset_custom": "Custom",
   "plugin.road.streetlight_count_result": "Streetlights: %d",
   "plugin.road.longitudinal_profile": "Longitudinal Profile",
+  "plugin.road.profile_edge_select": "Road Edge",
+  "plugin.road.profile_edge_index": "%d / %d",
   "plugin.road.profile_ground": "Existing Ground",
   "plugin.road.profile_guide": "Guide Line",
   "plugin.road.profile_target": "Road Target Elevation",

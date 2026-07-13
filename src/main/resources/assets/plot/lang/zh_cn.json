@@ -342,6 +342,8 @@
   "plugin.road.preset_custom": "自定义",
   "plugin.road.streetlight_count_result": "路灯数量: %d",
   "plugin.road.longitudinal_profile": "纵断面图",
+  "plugin.road.profile_edge_select": "道路边",
+  "plugin.road.profile_edge_index": "%d / %d",
   "plugin.road.profile_ground": "现状地形",
   "plugin.road.profile_guide": "引导线建议",
   "plugin.road.profile_target": "道路目标标高",
