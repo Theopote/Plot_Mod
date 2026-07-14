@@ -71,11 +71,6 @@ public final class RoadPersistenceManager {
         status.set(PlotI18n.tr("plugin.road.network.saved", filePath));
     }
 
-    public void saveCurrentNetwork(RoadNetwork network) {
-        saveNetworkFile(getCurrentNetworkPath(), network);
-        status.set(PlotI18n.tr("plugin.road.network.manual_saved"));
-    }
-
     public void saveOnDisable(RoadNetwork network) {
         saveNetworkFile(getCurrentNetworkPath(), network);
     }

@@ -114,8 +114,15 @@ public class BuildingPlugin extends Plugin {
     }
 
     @Override
+    public void onDeactivate() {
+        if (isEnabled()) {
+            persistProject();
+        }
+    }
+
+    @Override
     public void onDisable() {
-        saveProjectFile(getProjectsDir().resolve(currentProjectFile));
+        persistProject();
         pickSession.cancel();
 
         try {
@@ -167,7 +174,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void renderToolbar() {
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
 
         boolean undoDisabled = !projectHistory.canUndo();
         if (undoDisabled) {
@@ -192,11 +199,6 @@ public class BuildingPlugin extends Plugin {
         }
         if (redoDisabled) {
             ImGui.endDisabled();
-        }
-
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.building.save_project"), buttonWidth, 0)) {
-            saveCurrentProject();
         }
 
         if (!projectStatus.isEmpty()) {
@@ -910,9 +912,8 @@ public class BuildingPlugin extends Plugin {
         projectStatus = PlotI18n.tr("plugin.building.project.saved", filePath);
     }
 
-    private void saveCurrentProject() {
+    private void persistProject() {
         saveProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.building.project.manual_saved");
     }
 
     private void loadProjectFile(Path file) {

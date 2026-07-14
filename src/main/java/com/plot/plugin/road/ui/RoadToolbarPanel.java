@@ -21,7 +21,7 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
 
         boolean undoDisabled = !ctx.networkManager().canUndo();
         if (undoDisabled) {
@@ -43,10 +43,6 @@ public final class RoadToolbarPanel {
         }
         if (redoDisabled) {
             ImGui.endDisabled();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.save_network"), buttonWidth, 0)) {
-            ctx.persistenceManager().saveCurrentNetwork(ctx.networkManager().getNetwork());
         }
 
         if (!ctx.status().isEmpty()) {
