@@ -5,7 +5,6 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.io.IOException;
 import javax.imageio.ImageIO;
-import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
