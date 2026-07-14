@@ -9,8 +9,20 @@ All tools and their modes. Options appear in the **Tool Properties** section whe
 ### Select
 | Mode | Description |
 |------|-------------|
-| Normal | Box-select; Shift+click add; Ctrl+click remove |
+| Normal | Box-select; **Ctrl+click/box** to add or remove from selection |
 | Lasso | Freehand selection outline |
+
+**Box direction:**
+
+| Drag | Rule |
+|------|------|
+| Left→right | Window select: only fully contained shapes |
+| Right→left | Cross select: shapes that intersect the box |
+
+- Plain click on empty area clears selection
+- Plain click on a shape selects only that shape
+- Single shape selected: **control point editing** available
+- Select tool does **not** move shapes — use Move tool
 
 **Shortcut:** `Space`
 
@@ -65,7 +77,11 @@ Two-point / Three-point. **Shortcut:** `S`
 Start-end-direction / Through-point / Center-start-end. **Shortcut:** `A`
 
 ### Polyline
-**Polyline** (click segments) / **Pen** (anchors + curve handles).
+| Mode | Description |
+|------|-------------|
+| Polyline | Click segments; double-click or Enter to finish |
+| Pen | Anchors + curve handles (Bezier) |
+| Edit | Adjust nodes and control points on existing lines |
 
 ### Polygon
 Center-vertex / Center-radius. Sides adjustable via slider.
@@ -90,7 +106,7 @@ Phase 0–360° (preset buttons); amplitude/wavelength set by mouse.
 ## Edit Tools
 
 ### Move
-Click base point → destination.
+Click base → destination, or drag directly. Hold **Shift** for orthogonal constraint.
 
 ### Rotate
 Angle step 1–90°; angle snap toggle; preset buttons. Ctrl for temporary copy.

@@ -20,7 +20,7 @@ Under **Settings → Controls → Plot**:
 
 | Action | Default |
 |--------|---------|
-| Open Plot Interface | `P` |
+| Open Plot Interface | `0` |
 
 ### In-Plot Shortcuts (Customizable)
 
@@ -57,14 +57,15 @@ Managed in **Settings & Help → Shortcuts**. Saved to:
 - **Esc** — cancel recording
 - **Reset defaults** — restore all defaults
 
-> Conflict warnings appear when a key is already bound elsewhere.
+> **Note:** Opening Plot defaults to **`0`**, separate from Free Draw (`P`) inside Plot. Change it under Minecraft Controls if needed.
 
-> **Note:** Free Draw defaults to `P`, same as the Minecraft "Open Plot" key. Inside Plot, the in-plot binding takes priority. Rebind one of them to avoid confusion.
+> **Scope:** Keymap covers common drawing tools and undo/redo only. Tools like Spline, Polyline, and Move have no default shortcuts — activate from the toolbar.
 
 ### Global Shortcuts (Not in Keymap UI)
 
 | Key | Action |
 |-----|--------|
+| `Ctrl+A` | Select all shapes on visible layers |
 | `Delete` | Delete selected shapes |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |

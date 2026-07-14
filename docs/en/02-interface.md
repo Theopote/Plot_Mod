@@ -9,9 +9,9 @@ Plot uses a dockable ImGui panel layout with a full-screen canvas over the live 
 │  Control Panel (top)                          System Panel (top-right) │
 │  Undo/Snap/Blocks/View…                       Theme toggle + Close ✕  │
 ├──────────┬───────────────────────────────────────┬─────────────┤
-│ Tool     │         Canvas (full-screen)           │  Property   │
-│ Panel    │         Draw and edit here             │  Panel      │
-│ (left)   │                                        │  (right)    │
+│ Tool     │         Canvas (full-screen)           │ Property /  │
+│ Panel    │         Draw and edit here             │ Gallery /   │
+│ (left)   │                                        │ Extension   │
 └──────────┴───────────────────────────────────────┴─────────────┘
 ```
 
@@ -24,7 +24,7 @@ All panels support **drag-and-drop docking**. The default layout is created on f
 ## Top Control Panel
 
 ### Plot Logo
-Opens **Settings & Help** — shortcuts, snap feedback, built-in tutorials.
+Opens **Settings & Help** — shortcuts, snap feedback, built-in tutorials. See [Settings & Shortcuts](05-settings-shortcuts.md).
 
 ### File Tools
 | Button | Action |
@@ -76,9 +76,15 @@ Tools are grouped with separators:
 
 ---
 
-## Right Property Panel
+## Right Sidebar (Property / Gallery / Extension)
 
-Collapsible sections:
+The right sidebar uses **tabs**:
+
+| Tab | Contents |
+|-----|----------|
+| **Property** | Tool properties, layers, history, status |
+| **Gallery** | Presets, save selection, place on canvas — see [Gallery](07-gallery.md) |
+| **Extension** | Built-in plugins — see [Extension Plugins](08-plugins.md) |
 
 ### Tool Properties
 Current tool name, description, mode options, and usage hints.
@@ -109,12 +115,27 @@ Canvas and selection statistics.
 
 ---
 
+## Dialogs
+
+| Dialog | How to open |
+|--------|-------------|
+| Settings & Help | Click Plot logo |
+| Snap settings | Right-click Snap button |
+| Grid settings | Right-click Grid button |
+| Line to Block settings | Right-click Line to Block button |
+| Projection settings | Right-click Project Blocks button |
+| Ortho camera settings | Right-click Camera Toggle button |
+| Block Config | Left-click Block Config (native Minecraft UI) |
+
+---
+
 ## Global Modifier Keys
 
 | Key | Action |
 |-----|--------|
 | **Shift** | Orthogonal/angle constraints; may temporarily disable snap |
-| **Ctrl** | Temporary copy in some transform tools |
+| **Ctrl** | Add/remove from selection; temporary copy in some transform tools |
+| **Ctrl+A** | Select all shapes on visible layers |
 | **Delete** | Delete selected shapes (undoable) |
 | **Esc** | Cancel operation → clear selection → clear ghost blocks |
 | **Ctrl+Z** | Undo |

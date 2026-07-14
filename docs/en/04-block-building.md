@@ -109,10 +109,7 @@ Places ghost block previews as **real blocks**.
 
 ---
 
-## Road System Plugin (In Development)
+## Related
 
-Built-in plugin for generating roads along paths. Features presets (highway, urban main/secondary roads, rural roads), width/material/slope settings, sidewalks, shoulders, drainage, cut/fill calculations, and ghost preview.
-
-> **Note:** The Extension Panel is not enabled in the default UI layout yet. The road system plugin is not accessible from the interface in the current version.
-
-Config: `config/plugins/road_system.json`
+- Reuse saved shapes → [Gallery](07-gallery.md)
+- Roads, earthwork, buildings → [Extension Plugins](08-plugins.md)

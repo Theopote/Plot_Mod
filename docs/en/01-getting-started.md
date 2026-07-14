@@ -22,7 +22,7 @@ Plot is a Minecraft Fabric mod that brings CAD-style 2D planning tools into the 
 
 | Method | Action |
 |--------|--------|
-| **Keybinding** | Press **`P`** in-game (configurable under Controls → Plot) |
+| **Keybinding** | Press **`0`** in-game (configurable under Controls → Plot) |
 | **Item** | Use the **Plot** item from the creative **Tools** tab |
 
 > You must be in a world with an active player to open Plot.
@@ -56,13 +56,15 @@ On close, Plot automatically:
 ### 2. Select Shapes
 
 1. Press `Space` for the **Select** tool
-2. Drag to box-select, or Shift+click to add to selection
-3. Ctrl+click to remove from selection
+2. Drag to box-select (left→right: window select; right→left: cross select)
+3. Hold **Ctrl** while clicking or box-selecting to add or remove from selection
+
+> The Select tool does **not** move shapes. Use the Move tool for that.
 
 ### 3. Move Shapes
 
 1. With shapes selected, switch to the **Move** tool
-2. Click a base point, then a destination
+2. Click a base point, then a destination (or drag directly)
 
 ### 4. Undo
 
@@ -90,4 +92,5 @@ See [Block Building](04-block-building.md) for the full workflow.
 
 - [Interface Guide](02-interface.md) — full layout overview
 - [Tools Reference](03-tools-reference.md) — every tool and mode
+- [Gallery](07-gallery.md) — save and reuse shapes
 - [Settings & Shortcuts](05-settings-shortcuts.md) — customization

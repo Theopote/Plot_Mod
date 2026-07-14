@@ -43,12 +43,9 @@ You need ghost block previews first:
 3. Verify bindings in **Settings & Help → Shortcuts**
 4. Try **Reset defaults**
 
-### P key conflict
+### What does the P key do?
 
-- Minecraft: `P` opens Plot
-- In-Plot: `P` activates Free Draw
-
-Inside Plot, the in-plot binding wins. Rebind one to avoid confusion.
+`P` is the in-Plot **Free Draw** shortcut. Opening Plot uses **`0`** by default (Minecraft Controls → Plot).
 
 ### Changing the "Open Plot" key
 
@@ -103,11 +100,11 @@ Maximum **14** slots.
 
 ### Can I save projects?
 
-No save/load UI in the current version. Auto-persisted: keybindings, tool configs, plugin configs. Canvas shapes are **not** saved as project files.
+No unified save/load UI yet. Auto-persisted: keybindings, tool configs, plugin configs, plugin project data, and **gallery entries**. Canvas layer content is **not** saved as a project file when Plot closes. Use the [Gallery](07-gallery.md) to save and reuse shapes.
 
-### Where is the Road System plugin?
+### Where are the extension plugins?
 
-The **Extension Panel** is not enabled in the default UI yet. Road system features will be available in a future release.
+Switch to the **Extension** tab on the right, click a plugin icon, and check **Enable plugin**. See [Extension Plugins](08-plugins.md). Built-in: **Road System**, **Earthwork Balance**, **Building Generator**.
 
 ### Tools in lang files but not available?
 

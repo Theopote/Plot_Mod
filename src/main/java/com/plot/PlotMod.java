@@ -292,7 +292,7 @@ public class PlotMod implements ModInitializer, ClientModInitializer {
             openScreenKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                     "key.plot.open_screen", 
                     InputUtil.Type.KEYSYM, 
-                    GLFW.GLFW_KEY_P, 
+                    GLFW.GLFW_KEY_0, 
                     KeyBinding.Category.MISC));
 
             // 注册客户端tick事件
