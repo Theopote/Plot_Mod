@@ -316,6 +316,7 @@
   "dialog.plot.line_width": "Line Width",
   "dialog.plot.mode": "Mode",
   "dialog.plot.name": "Name",
+  "dialog.plot.new_category": "New Category",
   "dialog.plot.gallery_delete_confirm": "Delete gallery item \"%s\"?",
   "dialog.plot.gallery_delete_warning": "This cannot be undone. Only the gallery preset is removed; shapes already placed on the canvas are not affected.",
   "dialog.plot.gallery_rename_category_title": "Rename Category",
