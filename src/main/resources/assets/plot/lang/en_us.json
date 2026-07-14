@@ -2329,6 +2329,7 @@
   "plugin.building.project.loaded": "Building project loaded for %s",
   "plugin.building.project.saved": "Building project saved for %s",
   "plugin.building.project.load_failed": "Failed to load building project: %s",
+  "plugin.building.project.save_failed": "Failed to save building project: %s",
   "plugin.building.project.default_loaded": "Default building project loaded",
   "plugin.building.history.generate": "Generate building (%d blocks)",
   "plugin.building.history.generate.detail": "Place building blocks (%d changes)",

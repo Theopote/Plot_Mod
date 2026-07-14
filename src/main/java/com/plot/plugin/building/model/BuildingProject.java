@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +22,7 @@ public class BuildingProject {
     private final Map<String, BuildingFootprint> buildings = new LinkedHashMap<>();
 
     public Map<String, BuildingFootprint> getBuildings() {
-        return Map.copyOf(buildings);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(buildings));
     }
 
     public BuildingFootprint getBuilding(String id) {
@@ -56,8 +57,12 @@ public class BuildingProject {
         if (json == null || json.isBlank()) {
             return new BuildingProject();
         }
-        ProjectData data = GSON.fromJson(json, ProjectData.class);
-        return data != null ? data.toProject() : new BuildingProject();
+        try {
+            ProjectData data = GSON.fromJson(json, ProjectData.class);
+            return data != null ? data.toProject() : new BuildingProject();
+        } catch (RuntimeException e) {
+            return new BuildingProject();
+        }
     }
 
     public void saveTo(Path file) throws IOException {

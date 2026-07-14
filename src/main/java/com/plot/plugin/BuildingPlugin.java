@@ -67,6 +67,7 @@ public class BuildingPlugin extends Plugin {
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
     private volatile BuildingGenerator.BuildingGenerationResult lastGenerationResult;
+    private String buildingNameEditingId = "";
     private String pendingDeleteBuildingId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
@@ -327,12 +328,13 @@ public class BuildingPlugin extends Plugin {
         renderBuildingSelector();
         ImGui.separator();
 
-        buildingNameBuffer.set(building.getName());
-        if (ImGui.inputText(PlotI18n.tr("plugin.building.building_name"), buildingNameBuffer)) {
-            building.setName(buildingNameBuffer.get());
+        if (!building.getId().equals(buildingNameEditingId)) {
+            buildingNameBuffer.set(building.getName());
+            buildingNameEditingId = building.getId();
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) {
+        if (ImGui.inputText(PlotI18n.tr("plugin.building.building_name"), buildingNameBuffer)) {
             projectHistory.push(project);
+            building.setName(buildingNameBuffer.get());
         }
 
         int[] floors = {building.getFloors()};
@@ -886,6 +888,7 @@ public class BuildingPlugin extends Plugin {
             selectedBuildingId = project.getBuildings().isEmpty()
                 ? ""
                 : project.getBuildings().keySet().iterator().next();
+            buildingNameEditingId = "";
         }
     }
 
@@ -945,6 +948,7 @@ public class BuildingPlugin extends Plugin {
             project.saveTo(file);
         } catch (IOException e) {
             LOGGER.error("保存建筑项目失败: {}", e.getMessage(), e);
+            projectStatus = PlotI18n.tr("plugin.building.project.save_failed", file.getFileName());
         }
     }
 

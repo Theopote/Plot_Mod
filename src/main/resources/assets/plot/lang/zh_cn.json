@@ -2329,6 +2329,7 @@
   "plugin.building.project.loaded": "已加载建筑项目：%s",
   "plugin.building.project.saved": "已保存建筑项目：%s",
   "plugin.building.project.load_failed": "加载建筑项目失败：%s",
+  "plugin.building.project.save_failed": "保存建筑项目失败：%s",
   "plugin.building.project.default_loaded": "已加载默认建筑项目",
   "plugin.building.history.generate": "生成建筑（%d 个方块）",
   "plugin.building.history.generate.detail": "放置建筑方块（%d 处变更）",
