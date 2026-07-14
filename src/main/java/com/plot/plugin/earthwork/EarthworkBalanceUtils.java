@@ -27,7 +27,7 @@ public final class EarthworkBalanceUtils {
         int hi = maxZ;
         while (lo < hi) {
             int mid = lo + (hi - lo) / 2;
-            if (computeBalanceDiff(groundHeightSamples, mid) > 0) {
+            if (computeBalanceDiff(groundHeightSamples, mid, fillFactor) > 0) {
                 lo = mid + 1;
             } else {
                 hi = mid;
@@ -35,9 +35,9 @@ public final class EarthworkBalanceUtils {
         }
 
         int bestZ = lo;
-        long bestAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo));
+        long bestAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo, fillFactor));
         if (lo - 1 >= minZ) {
-            long prevAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo - 1));
+            long prevAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo - 1, fillFactor));
             if (prevAbs < bestAbs) {
                 bestZ = lo - 1;
             }
@@ -78,8 +78,8 @@ public final class EarthworkBalanceUtils {
     /**
      * 计算平衡差值（挖方量 - 填方量），基于实际方块数，不应用填土系数。
      */
-    static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation) {
+    static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation, float fillFactor) {
         return computeCutVolume(groundHeightSamples, targetElevation)
-            - computeFillVolume(groundHeightSamples, targetElevation);
+            - computeFillVolumeRequired(groundHeightSamples, targetElevation, fillFactor);
     }
 }

@@ -55,6 +55,9 @@ public class EarthworkGenerator {
         public long cutVolume;
         public long fillVolume;
         public int resolvedElevation;
+        public int resolvedElevationMin;
+        public int resolvedElevationMax;
+        public boolean slopedSurface;
         public int blockCount;
         public final List<String> warnings = new ArrayList<>();
     }
@@ -82,8 +85,15 @@ public class EarthworkGenerator {
             sampleHeights.add(getTopHeight(world, column));
         }
 
-        int targetElevation = resolveTargetElevation(region, sampleHeights);
-        result.resolvedElevation = targetElevation;
+        GradingSurfaceResolver.ResolvedSurface surface = GradingSurfaceResolver.resolve(
+            region, sampleCenters, sampleHeights, coordinateTransformer);
+        GradingPlane plane = surface.plane();
+        result.resolvedElevation = plane.isFlat()
+            ? surface.elevationMin()
+            : (surface.elevationMin() + surface.elevationMax()) / 2;
+        result.resolvedElevationMin = surface.elevationMin();
+        result.resolvedElevationMax = surface.elevationMax();
+        result.slopedSurface = !plane.isFlat();
 
         String fillBlockId = EarthworkGeometryUtils.resolveFillBlockId(region.getFillMaterial());
         String cutBlockId = EarthworkGeometryUtils.resolveCutBlockId(region.getCutExposeMaterial());
@@ -94,6 +104,7 @@ public class EarthworkGenerator {
             }
             BlockPos column = EarthworkGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
             int groundY = getTopHeight(world, column);
+            int targetElevation = plane.evaluateAt(column.getX(), column.getZ());
 
             ChangeType sampleType = ChangeType.FILL;
             if (groundY > targetElevation) {
@@ -130,18 +141,10 @@ public class EarthworkGenerator {
         region.setLastCutVolume(result.cutVolume);
         region.setLastFillVolume(result.fillVolume);
         region.setLastResolvedElevation(result.resolvedElevation);
+        region.setLastResolvedElevationMin(result.resolvedElevationMin);
+        region.setLastResolvedElevationMax(result.resolvedElevationMax);
         result.blockCount = result.placementRecords.size();
         return result;
-    }
-
-    private int resolveTargetElevation(GradingRegion region, List<Integer> sampleHeights) {
-        if (region.isAutoBalance()) {
-            return EarthworkBalanceUtils.findBalancedElevation(sampleHeights, region.getFillFactor());
-        }
-        if (region.getManualTargetElevation() != null) {
-            return region.getManualTargetElevation();
-        }
-        return EarthworkBalanceUtils.findBalancedElevation(sampleHeights, region.getFillFactor());
     }
 
     private boolean matchesSampleGrid(Vec2d center, int gridSize) {

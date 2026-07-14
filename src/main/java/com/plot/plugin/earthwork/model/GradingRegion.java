@@ -13,10 +13,13 @@ public class GradingRegion {
     public static final String DEFAULT_FILL_MATERIAL = "minecraft:dirt";
     public static final float DEFAULT_FILL_FACTOR = 1.1f;
     public static final int DEFAULT_GRID_SIZE = 5;
+    public static final int DEFAULT_SLOPE_PITCH_RATIO = 4;
+    private static final int CONTROL_POINT_COUNT = 3;
 
     private final String id;
     private String name;
     private List<Vec2d> outerPoints;
+    private GradingSurfaceMode surfaceMode = GradingSurfaceMode.FLAT;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
     private float fillFactor = DEFAULT_FILL_FACTOR;
@@ -24,9 +27,23 @@ public class GradingRegion {
     private String fillMaterial = DEFAULT_FILL_MATERIAL;
     private int gridSize = DEFAULT_GRID_SIZE;
 
+    private double slopeDirectionDegrees = 0.0;
+    private int slopePitchRatio = DEFAULT_SLOPE_PITCH_RATIO;
+    private Double slopeAnchorCanvasX;
+    private Double slopeAnchorCanvasY;
+    private Integer slopeAnchorElevation;
+
+    private final double[] threePointCanvasX = new double[CONTROL_POINT_COUNT];
+    private final double[] threePointCanvasY = new double[CONTROL_POINT_COUNT];
+    private final int[] threePointElevation = new int[] {64, 64, 64};
+
+    private boolean fitSlopeBalanceCutFill = true;
+
     private transient long lastCutVolume;
     private transient long lastFillVolume;
     private transient int lastResolvedElevation;
+    private transient int lastResolvedElevationMin;
+    private transient int lastResolvedElevationMax;
 
     public GradingRegion(List<Vec2d> outerPoints) {
         this(UUID.randomUUID().toString(), outerPoints);
@@ -56,6 +73,14 @@ public class GradingRegion {
 
     public void setOuterPoints(List<Vec2d> outerPoints) {
         this.outerPoints = copyPoints(outerPoints);
+    }
+
+    public GradingSurfaceMode getSurfaceMode() {
+        return surfaceMode != null ? surfaceMode : GradingSurfaceMode.FLAT;
+    }
+
+    public void setSurfaceMode(GradingSurfaceMode surfaceMode) {
+        this.surfaceMode = surfaceMode != null ? surfaceMode : GradingSurfaceMode.FLAT;
     }
 
     public boolean isAutoBalance() {
@@ -110,6 +135,88 @@ public class GradingRegion {
         this.gridSize = Math.max(1, Math.min(20, gridSize));
     }
 
+    public double getSlopeDirectionDegrees() {
+        return slopeDirectionDegrees;
+    }
+
+    public void setSlopeDirectionDegrees(double slopeDirectionDegrees) {
+        this.slopeDirectionDegrees = ((slopeDirectionDegrees % 360.0) + 360.0) % 360.0;
+    }
+
+    public int getSlopePitchRatio() {
+        return slopePitchRatio;
+    }
+
+    public void setSlopePitchRatio(int slopePitchRatio) {
+        this.slopePitchRatio = Math.max(1, Math.min(32, slopePitchRatio));
+    }
+
+    public Vec2d getSlopeAnchorCanvas() {
+        if (slopeAnchorCanvasX == null || slopeAnchorCanvasY == null) {
+            return null;
+        }
+        return new Vec2d(slopeAnchorCanvasX, slopeAnchorCanvasY);
+    }
+
+    public void setSlopeAnchorCanvas(Vec2d anchor) {
+        if (anchor == null) {
+            slopeAnchorCanvasX = null;
+            slopeAnchorCanvasY = null;
+            return;
+        }
+        slopeAnchorCanvasX = anchor.x;
+        slopeAnchorCanvasY = anchor.y;
+    }
+
+    public Integer getSlopeAnchorElevation() {
+        return slopeAnchorElevation;
+    }
+
+    public void setSlopeAnchorElevation(Integer slopeAnchorElevation) {
+        this.slopeAnchorElevation = slopeAnchorElevation;
+    }
+
+    public double getThreePointCanvasX(int index) {
+        return threePointCanvasX[clampControlIndex(index)];
+    }
+
+    public double getThreePointCanvasY(int index) {
+        return threePointCanvasY[clampControlIndex(index)];
+    }
+
+    public int getThreePointElevation(int index) {
+        return threePointElevation[clampControlIndex(index)];
+    }
+
+    public void setThreePointControl(int index, Vec2d canvasPoint, int elevation) {
+        int safeIndex = clampControlIndex(index);
+        if (canvasPoint != null) {
+            threePointCanvasX[safeIndex] = canvasPoint.x;
+            threePointCanvasY[safeIndex] = canvasPoint.y;
+        }
+        threePointElevation[safeIndex] = elevation;
+    }
+
+    public void setThreePointCanvasX(int index, double canvasX) {
+        threePointCanvasX[clampControlIndex(index)] = canvasX;
+    }
+
+    public void setThreePointCanvasY(int index, double canvasY) {
+        threePointCanvasY[clampControlIndex(index)] = canvasY;
+    }
+
+    public void setThreePointElevation(int index, int elevation) {
+        threePointElevation[clampControlIndex(index)] = elevation;
+    }
+
+    public boolean isFitSlopeBalanceCutFill() {
+        return fitSlopeBalanceCutFill;
+    }
+
+    public void setFitSlopeBalanceCutFill(boolean fitSlopeBalanceCutFill) {
+        this.fitSlopeBalanceCutFill = fitSlopeBalanceCutFill;
+    }
+
     public long getLastCutVolume() {
         return lastCutVolume;
     }
@@ -132,6 +239,22 @@ public class GradingRegion {
 
     public void setLastResolvedElevation(int lastResolvedElevation) {
         this.lastResolvedElevation = lastResolvedElevation;
+    }
+
+    public int getLastResolvedElevationMin() {
+        return lastResolvedElevationMin;
+    }
+
+    public void setLastResolvedElevationMin(int lastResolvedElevationMin) {
+        this.lastResolvedElevationMin = lastResolvedElevationMin;
+    }
+
+    public int getLastResolvedElevationMax() {
+        return lastResolvedElevationMax;
+    }
+
+    public void setLastResolvedElevationMax(int lastResolvedElevationMax) {
+        this.lastResolvedElevationMax = lastResolvedElevationMax;
     }
 
     public double computeArea() {
@@ -162,5 +285,12 @@ public class GradingRegion {
             }
         }
         return copy;
+    }
+
+    private static int clampControlIndex(int index) {
+        if (index <= 0) {
+            return 0;
+        }
+        return Math.min(index, CONTROL_POINT_COUNT - 1);
     }
 }

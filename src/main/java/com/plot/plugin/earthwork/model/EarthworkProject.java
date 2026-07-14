@@ -97,12 +97,22 @@ public class EarthworkProject {
         String id;
         String name;
         List<Vec2dData> outerPoints = new ArrayList<>();
+        String surfaceMode = GradingSurfaceMode.FLAT.name();
         boolean autoBalance = true;
         Integer manualTargetElevation;
         float fillFactor = GradingRegion.DEFAULT_FILL_FACTOR;
         String cutExposeMaterial = "";
         String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
         int gridSize = GradingRegion.DEFAULT_GRID_SIZE;
+        double slopeDirectionDegrees = 0.0;
+        int slopePitchRatio = GradingRegion.DEFAULT_SLOPE_PITCH_RATIO;
+        Double slopeAnchorCanvasX;
+        Double slopeAnchorCanvasY;
+        Integer slopeAnchorElevation;
+        double[] threePointCanvasX = new double[3];
+        double[] threePointCanvasY = new double[3];
+        int[] threePointElevation = new int[] {64, 64, 64};
+        boolean fitSlopeBalanceCutFill = true;
     }
 
     static class ProjectData {
@@ -119,10 +129,24 @@ public class EarthworkProject {
                 }
                 regionData.autoBalance = region.isAutoBalance();
                 regionData.manualTargetElevation = region.getManualTargetElevation();
+                regionData.surfaceMode = region.getSurfaceMode().name();
                 regionData.fillFactor = region.getFillFactor();
                 regionData.cutExposeMaterial = region.getCutExposeMaterial();
                 regionData.fillMaterial = region.getFillMaterial();
                 regionData.gridSize = region.getGridSize();
+                regionData.slopeDirectionDegrees = region.getSlopeDirectionDegrees();
+                regionData.slopePitchRatio = region.getSlopePitchRatio();
+                if (region.getSlopeAnchorCanvas() != null) {
+                    regionData.slopeAnchorCanvasX = region.getSlopeAnchorCanvas().x;
+                    regionData.slopeAnchorCanvasY = region.getSlopeAnchorCanvas().y;
+                }
+                regionData.slopeAnchorElevation = region.getSlopeAnchorElevation();
+                for (int i = 0; i < 3; i++) {
+                    regionData.threePointCanvasX[i] = region.getThreePointCanvasX(i);
+                    regionData.threePointCanvasY[i] = region.getThreePointCanvasY(i);
+                    regionData.threePointElevation[i] = region.getThreePointElevation(i);
+                }
+                regionData.fitSlopeBalanceCutFill = region.isFitSlopeBalanceCutFill();
                 data.regions.add(regionData);
             }
             return data;
@@ -139,6 +163,7 @@ public class EarthworkProject {
                 region.setName(regionData.name);
                 region.setAutoBalance(regionData.autoBalance);
                 region.setManualTargetElevation(regionData.manualTargetElevation);
+                region.setSurfaceMode(GradingSurfaceMode.fromId(regionData.surfaceMode));
                 region.setFillFactor(regionData.fillFactor);
                 if (regionData.cutExposeMaterial != null) {
                     region.setCutExposeMaterial(regionData.cutExposeMaterial);
@@ -147,6 +172,21 @@ public class EarthworkProject {
                     region.setFillMaterial(regionData.fillMaterial);
                 }
                 region.setGridSize(regionData.gridSize);
+                region.setSlopeDirectionDegrees(regionData.slopeDirectionDegrees);
+                region.setSlopePitchRatio(regionData.slopePitchRatio);
+                if (regionData.slopeAnchorCanvasX != null && regionData.slopeAnchorCanvasY != null) {
+                    region.setSlopeAnchorCanvas(new Vec2d(regionData.slopeAnchorCanvasX, regionData.slopeAnchorCanvasY));
+                }
+                region.setSlopeAnchorElevation(regionData.slopeAnchorElevation);
+                if (regionData.threePointCanvasX != null && regionData.threePointCanvasY != null && regionData.threePointElevation != null) {
+                    for (int i = 0; i < 3; i++) {
+                        region.setThreePointControl(
+                            i,
+                            new Vec2d(regionData.threePointCanvasX[i], regionData.threePointCanvasY[i]),
+                            regionData.threePointElevation[i]);
+                    }
+                }
+                region.setFitSlopeBalanceCutFill(regionData.fitSlopeBalanceCutFill);
                 project.addRegion(region);
             }
             return project;

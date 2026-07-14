@@ -23,11 +23,13 @@ import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
+import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.earthwork.model.GradingRegion;
+import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.UIUtils;
@@ -360,25 +362,7 @@ public class EarthworkPlugin extends Plugin {
             region.setName(regionNameBuffer.get());
         }
 
-        autoBalanceRef.set(region.isAutoBalance());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.auto_balance"), autoBalanceRef)) {
-            projectHistory.push(project);
-            region.setAutoBalance(autoBalanceRef.get());
-        }
-
-        if (!region.isAutoBalance()) {
-            int initial = region.getManualTargetElevation() != null ? region.getManualTargetElevation() : 64;
-            int[] elevation = {initial};
-            if (ImGui.sliderInt("##target_elevation", elevation, -64, 320,
-                PlotI18n.tr("plugin.earthwork.target_elevation", elevation[0]))) {
-                projectHistory.push(project);
-                region.setManualTargetElevation(elevation[0]);
-            }
-        } else {
-            ImGui.beginDisabled();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.manual_elevation_disabled"));
-            ImGui.endDisabled();
-        }
+        renderSurfaceModeSettings(region);
 
         float[] fillFactor = {region.getFillFactor()};
         if (ImGui.sliderFloat("##fill_factor", fillFactor, 1.0f, 2.0f,
@@ -409,6 +393,168 @@ public class EarthworkPlugin extends Plugin {
 
         ImGui.separator();
         renderGlobalGridSettings();
+    }
+
+    private void renderSurfaceModeSettings(GradingRegion region) {
+        GradingSurfaceMode[] modes = GradingSurfaceMode.values();
+        String[] modeLabels = new String[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            modeLabels[i] = modes[i].label();
+        }
+        ImInt modeIndex = new ImInt(region.getSurfaceMode().ordinal());
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.surface_mode"), modeIndex, modeLabels)) {
+            int selected = modeIndex.get();
+            if (selected >= 0 && selected < modes.length && modes[selected] != region.getSurfaceMode()) {
+                projectHistory.push(project);
+                region.setSurfaceMode(modes[selected]);
+                initializeSurfaceDefaults(region, modes[selected]);
+            }
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.surface_mode");
+
+        switch (region.getSurfaceMode()) {
+            case FLAT -> renderFlatSurfaceSettings(region);
+            case FIXED_SLOPE -> renderFixedSlopeSettings(region);
+            case THREE_POINT -> renderThreePointSurfaceSettings(region);
+            case FIT_SLOPE -> renderFitSlopeSettings(region);
+        }
+    }
+
+    private void renderFlatSurfaceSettings(GradingRegion region) {
+        autoBalanceRef.set(region.isAutoBalance());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.auto_balance"), autoBalanceRef)) {
+            projectHistory.push(project);
+            region.setAutoBalance(autoBalanceRef.get());
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.auto_balance");
+
+        if (!region.isAutoBalance()) {
+            int initial = region.getManualTargetElevation() != null ? region.getManualTargetElevation() : 64;
+            int[] elevation = {initial};
+            if (ImGui.sliderInt("##target_elevation", elevation, -64, 320,
+                PlotI18n.tr("plugin.earthwork.target_elevation", elevation[0]))) {
+                projectHistory.push(project);
+                region.setManualTargetElevation(elevation[0]);
+            }
+        } else {
+            ImGui.beginDisabled();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.manual_elevation_disabled"));
+            ImGui.endDisabled();
+        }
+    }
+
+    private void renderFixedSlopeSettings(GradingRegion region) {
+        float[] direction = {(float) region.getSlopeDirectionDegrees()};
+        if (ImGui.sliderFloat("##slope_direction", direction, 0.0f, 359.0f,
+            PlotI18n.tr("plugin.earthwork.slope_direction", String.format("%.0f", direction[0])))) {
+            projectHistory.push(project);
+            region.setSlopeDirectionDegrees(direction[0]);
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_direction");
+
+        int[] pitch = {region.getSlopePitchRatio()};
+        if (ImGui.sliderInt("##slope_pitch", pitch, 1, 32,
+            PlotI18n.tr("plugin.earthwork.slope_pitch", pitch[0]))) {
+            projectHistory.push(project);
+            region.setSlopePitchRatio(pitch[0]);
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_pitch");
+
+        int anchorInitial = region.getSlopeAnchorElevation() != null ? region.getSlopeAnchorElevation() : 64;
+        int[] anchorElevation = {anchorInitial};
+        if (ImGui.sliderInt("##slope_anchor_elevation", anchorElevation, -64, 320,
+            PlotI18n.tr("plugin.earthwork.slope_anchor_elevation", anchorElevation[0]))) {
+            projectHistory.push(project);
+            region.setSlopeAnchorElevation(anchorElevation[0]);
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_anchor_elevation");
+
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.slope_reset_anchor"))) {
+            projectHistory.push(project);
+            region.setSlopeAnchorCanvas(EarthworkGeometryUtils.computeCentroid(region.getOuterPoints()));
+            initializeSurfaceDefaults(region, GradingSurfaceMode.FIXED_SLOPE);
+        }
+    }
+
+    private void renderThreePointSurfaceSettings(GradingRegion region) {
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.three_point_reset"))) {
+            projectHistory.push(project);
+            initializeSurfaceDefaults(region, GradingSurfaceMode.THREE_POINT);
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.three_point_reset");
+
+        var bounds = EarthworkGeometryUtils.computeBounds(region.getOuterPoints());
+        for (int i = 0; i < 3; i++) {
+            ImGui.separator();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.three_point_label", i + 1));
+
+            float[] canvasX = {(float) region.getThreePointCanvasX(i)};
+            if (ImGui.sliderFloat("##three_point_x_" + i, canvasX,
+                (float) bounds.minX(), (float) bounds.maxX(),
+                PlotI18n.tr("plugin.earthwork.three_point_canvas_x", String.format("%.1f", canvasX[0])))) {
+                projectHistory.push(project);
+                region.setThreePointCanvasX(i, canvasX[0]);
+            }
+
+            float[] canvasZ = {(float) region.getThreePointCanvasY(i)};
+            if (ImGui.sliderFloat("##three_point_z_" + i, canvasZ,
+                (float) bounds.minZ(), (float) bounds.maxZ(),
+                PlotI18n.tr("plugin.earthwork.three_point_canvas_z", String.format("%.1f", canvasZ[0])))) {
+                projectHistory.push(project);
+                region.setThreePointCanvasY(i, canvasZ[0]);
+            }
+
+            int[] elevation = {region.getThreePointElevation(i)};
+            if (ImGui.sliderInt("##three_point_y_" + i, elevation, -64, 320,
+                PlotI18n.tr("plugin.earthwork.three_point_elevation", elevation[0]))) {
+                projectHistory.push(project);
+                region.setThreePointElevation(i, elevation[0]);
+            }
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.three_point");
+    }
+
+    private void renderFitSlopeSettings(GradingRegion region) {
+        ImBoolean balanceRef = new ImBoolean(region.isFitSlopeBalanceCutFill());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.fit_slope_balance"), balanceRef)) {
+            projectHistory.push(project);
+            region.setFitSlopeBalanceCutFill(balanceRef.get());
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fit_slope_balance");
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.fit_slope_hint"));
+    }
+
+    private void initializeSurfaceDefaults(GradingRegion region, GradingSurfaceMode mode) {
+        List<Vec2d> sampleCenters = EarthworkGeometryUtils.collectSampleCenters(
+            region.getOuterPoints(), region.getGridSize());
+        List<Integer> sampleHeights = sampleHeightsFromWorld(region, sampleCenters);
+        CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+
+        if (mode == GradingSurfaceMode.THREE_POINT) {
+            GradingSurfaceResolver.initializeThreePointDefaults(
+                region, sampleCenters, sampleHeights, transformer);
+        } else if (mode == GradingSurfaceMode.FIXED_SLOPE) {
+            GradingSurfaceResolver.initializeFixedSlopeDefaults(
+                region, sampleCenters, sampleHeights, transformer);
+        }
+    }
+
+    private List<Integer> sampleHeightsFromWorld(GradingRegion region, List<Vec2d> sampleCenters) {
+        List<Integer> sampleHeights = new ArrayList<>();
+        World world = getClientWorld();
+        CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+        if (world == null || transformer == null) {
+            for (int i = 0; i < sampleCenters.size(); i++) {
+                sampleHeights.add(64);
+            }
+            return sampleHeights;
+        }
+        for (Vec2d center : sampleCenters) {
+            var column = EarthworkGeometryUtils.canvasToBlockXZ(center, transformer);
+            sampleHeights.add(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, column.getX(), column.getZ()));
+        }
+        return sampleHeights;
     }
 
     private void renderGlobalGridSettings() {
@@ -470,7 +616,16 @@ public class EarthworkPlugin extends Plugin {
             ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.cut_volume_result", lastGenerationResult.cutVolume));
             ImGui.text(PlotI18n.tr("plugin.earthwork.fill_volume_result", lastGenerationResult.fillVolume));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.resolved_elevation_result", lastGenerationResult.resolvedElevation));
+            if (lastGenerationResult.slopedSurface) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.resolved_elevation_slope_result",
+                    lastGenerationResult.resolvedElevationMin,
+                    lastGenerationResult.resolvedElevationMax));
+            } else {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.resolved_elevation_result",
+                    lastGenerationResult.resolvedElevation));
+            }
             ImGui.text(PlotI18n.tr("plugin.earthwork.block_count_result", lastGenerationResult.blockCount));
 
             for (String warningKey : lastGenerationResult.warnings) {
