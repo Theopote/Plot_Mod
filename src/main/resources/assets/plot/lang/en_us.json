@@ -106,6 +106,7 @@
   "panel.plot.gallery_rename_category": "Rename Category",
   "panel.plot.gallery_delete_category": "Delete Category",
   "panel.plot.gallery_no_items": "No gallery items match the filter",
+  "panel.plot.gallery_search_label": "Search",
   "panel.plot.gallery_search_placeholder": "Search...",
   "panel.plot.gallery_col_name": "Name",
   "panel.plot.gallery_col_description": "Description",

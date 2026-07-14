@@ -3,9 +3,7 @@ package com.plot.ui.panel.gallery;
 import com.plot.core.gallery.GalleryItem;
 import com.plot.core.gallery.GalleryRepository;
 import com.plot.core.state.AppState;
-import com.plot.ui.component.Icons;
 import com.plot.ui.component.UIComponent;
-import com.plot.ui.component.UIUtils;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.PlotMod;
 import com.plot.utils.PlotI18n;
@@ -25,6 +23,7 @@ import java.util.List;
  */
 public class GalleryPanel implements UIComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GalleryPanel");
+    private static final float MAX_NAME_COLUMN_WIDTH = 120.0f;
 
     private final AppState appState = AppState.getInstance();
     private final GalleryRepository repository = GalleryRepository.getInstance();
@@ -132,8 +131,15 @@ public class GalleryPanel implements UIComponent {
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, theme.inputText);
 
         float availableWidth = ImGui.getContentRegionAvailX() - 16;
-        ImGui.setNextItemWidth(availableWidth);
-        UIUtils.iconInput("##search", Icons.SEARCH, PlotI18n.tr("panel.plot.gallery_search_placeholder"), searchText);
+        String searchLabel = PlotI18n.tr("panel.plot.gallery_search_label");
+        float labelWidth = ImGui.calcTextSize(searchLabel).x;
+        float spacing = 8.0f;
+
+        ImGui.alignTextToFramePadding();
+        ImGui.text(searchLabel);
+        ImGui.sameLine(0, spacing);
+        ImGui.setNextItemWidth(Math.max(availableWidth - labelWidth - spacing, 80.0f));
+        ImGui.inputTextWithHint("##search", PlotI18n.tr("panel.plot.gallery_search_placeholder"), searchText);
 
         ImGui.popStyleColor(5);
         ImGui.popStyleVar();
@@ -310,8 +316,9 @@ public class GalleryPanel implements UIComponent {
         if (ImGui.beginChild("##gallery_content", 0, 0, true, ImGuiWindowFlags.None)) {
             List<GalleryItem> items = getFilteredItems();
             if (!items.isEmpty()) {
+                float nameColumnWidth = computeNameColumnWidth(items);
                 if (ImGui.beginTable("gallery_table", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg)) {
-                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_name"), ImGuiTableColumnFlags.WidthFixed, 120);
+                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_name"), ImGuiTableColumnFlags.WidthFixed, nameColumnWidth);
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_description"), ImGuiTableColumnFlags.WidthStretch);
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_actions"), ImGuiTableColumnFlags.WidthFixed, 80);
                     ImGui.tableHeadersRow();
@@ -335,6 +342,15 @@ public class GalleryPanel implements UIComponent {
 
         ImGui.popStyleColor();
         ImGui.popStyleVar(2);
+    }
+
+    private float computeNameColumnWidth(List<GalleryItem> items) {
+        float maxTextWidth = ImGui.calcTextSize(PlotI18n.tr("panel.plot.gallery_col_name")).x;
+        for (GalleryItem item : items) {
+            maxTextWidth = Math.max(maxTextWidth, ImGui.calcTextSize(item.getDisplayName()).x);
+        }
+        float cellPadding = ImGui.getStyle().getFramePaddingX() * 2.0f + 8.0f;
+        return Math.min(maxTextWidth + cellPadding, MAX_NAME_COLUMN_WIDTH);
     }
 
     private void renderItemOperations(GalleryItem item) {

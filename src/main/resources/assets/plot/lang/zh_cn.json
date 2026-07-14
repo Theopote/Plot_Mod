@@ -106,6 +106,7 @@
   "panel.plot.gallery_rename_category": "重命名分类",
   "panel.plot.gallery_delete_category": "删除分类",
   "panel.plot.gallery_no_items": "没有找到符合条件的图库项目",
+  "panel.plot.gallery_search_label": "搜索",
   "panel.plot.gallery_search_placeholder": "搜索...",
   "panel.plot.gallery_col_name": "名称",
   "panel.plot.gallery_col_description": "描述",
