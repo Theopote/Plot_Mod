@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,8 +203,7 @@ public class RoadJunctionGenerator {
         if (terrain == null || generator == null) {
             return;
         }
-        int worldX = (int) Math.round(planPoint.x);
-        int worldZ = (int) Math.round(planPoint.y);
+        BlockPos column = generator.toBlockPos(planPoint, 0);
         String fillMaterialId = generator.getBlockIdFromMaterial(generator.getConfig().getFillSlopeMaterial());
         RoadRoadbedGradingUtils.gradeColumn(
             blocks.getSolids(),
@@ -212,8 +212,8 @@ public class RoadJunctionGenerator {
             generator.getConfig().getTunnelThreshold(),
             generator.getConfig().getBridgeThreshold(),
             fillMaterialId,
-            worldX,
-            worldZ,
+            column.getX(),
+            column.getZ(),
             terrain);
     }
 }

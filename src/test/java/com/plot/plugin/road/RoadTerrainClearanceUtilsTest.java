@@ -120,6 +120,52 @@ class RoadTerrainClearanceUtilsTest {
         assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 70));
     }
 
+    @Test
+    void surfaceAboveRoadWithoutDetectedSolidsStillUsesCutMode() {
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 68;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return false;
+            }
+        };
+        assertEquals(
+            RoadTerrainClearanceUtils.OverheadMode.CUT,
+            RoadTerrainClearanceUtils.classify(64, 68, 0, 0, 8, terrain));
+    }
+
+    @Test
+    void gradingExcavatesWhenSurfaceAboveRoadButNoSolidsDetected() {
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 68;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return false;
+            }
+        };
+        RoadSolidModel solids = new RoadSolidModel();
+        RoadRoadbedGradingUtils.GradingVolumes volumes = RoadRoadbedGradingUtils.gradeColumn(
+            solids,
+            new Vec2d(0, 0),
+            64,
+            8,
+            3,
+            "minecraft:dirt",
+            0,
+            0,
+            terrain);
+        assertEquals(4, volumes.cutVolume());
+        assertTrue(solids.primitives().stream().anyMatch(p -> p.elevation() == 68));
+    }
+
     private static TerrainSampler columnTerrain(int surfaceY, int roadY, int deepCheckY) {
         return new TerrainSampler() {
             @Override

@@ -29,7 +29,8 @@ public final class RoadTerrainClearanceUtils {
             return OverheadMode.NONE;
         }
         if (!hasSolidAboveRoad(roadY, surfaceY, worldX, worldZ, terrain)) {
-            return OverheadMode.NONE;
+            // 高度图已报告路面以上存在地表，但逐格未检测到实心方块（如草被误判为空）时仍按开挖处理
+            return OverheadMode.CUT;
         }
         if (terrain.isSolidBlock(worldX, roadY + tunnelThreshold, worldZ)) {
             return OverheadMode.TUNNEL;

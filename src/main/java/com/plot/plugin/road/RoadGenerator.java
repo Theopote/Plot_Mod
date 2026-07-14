@@ -44,6 +44,10 @@ public class RoadGenerator {
     
     private final RoadSystemConfig config;
     private final CoordinateTransformer coordinateTransformer;
+
+    /** 路网边生成时用于路口端部标高平滑，仅在 {@link #buildFromCenterline} 内短暂赋值。 */
+    private EndpointElevationSnap endpointStartSnap;
+    private EndpointElevationSnap endpointEndSnap;
     
     public RoadSystemConfig getConfig() {
         return config;
@@ -172,7 +176,8 @@ public class RoadGenerator {
             SegmentHeightCalculation heightCalculation = calculateSegmentHeightsForEdge(
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
             RoadGenerationResult result = buildFromCenterline(
-                pathPoints, terrain, crossSection, heightCalculation.heightInfos(), edge.getLength());
+                pathPoints, terrain, crossSection, heightCalculation.heightInfos(), edge.getLength(),
+                resolveEndpointSnap(startNode, endNode, networkNodeElevations, crossSection, pathPoints));
             result.edgeId = edge.getId();
             result.copyProfileFrom(toProfileResult(heightCalculation));
             return result;
@@ -232,6 +237,16 @@ public class RoadGenerator {
             ResolvedCrossSection crossSection,
             List<SegmentHeightInfo> heightInfos,
             double pathLength) {
+        return buildFromCenterline(pathPoints, terrain, crossSection, heightInfos, pathLength, null);
+    }
+
+    private RoadGenerationResult buildFromCenterline(
+            List<Vec2d> pathPoints,
+            TerrainSampler terrain,
+            ResolvedCrossSection crossSection,
+            List<SegmentHeightInfo> heightInfos,
+            double pathLength,
+            EndpointElevationSnaps endpointSnaps) {
         List<PathSegment> segments = samplePath(pathPoints);
         ConstructionDetection detection = detectConstruction(segments, heightInfos, terrain);
         List<BridgeSegment> bridges = detection.bridges();
@@ -240,77 +255,124 @@ public class RoadGenerator {
         // 横向 1 格 = 1 世界方块：补偿画布坐标经相机映射后的缩放
         double unitsPerBlock = estimateCanvasUnitsPerBlock(pathPoints, segments);
 
-        RoadSolidModel solids = new RoadSolidModel();
-        EdgeBuildMetrics metrics = new EdgeBuildMetrics();
-        generateCarriagewayBlocks(
-            solids, metrics, segments, heightInfos, bridges, tunnels, terrain,
-            crossSection.carriagewayWidth,
-            getBlockIdFromMaterial(crossSection.carriagewayMaterial),
-            unitsPerBlock);
-
-        int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
-        if (crossSection.includeShoulder && shoulderWidth > 0) {
-            double shoulderCenterOffset = crossSection.shoulderCenterOffset() * unitsPerBlock;
-            generateShoulderBlocks(solids, segments, heightInfos, shoulderCenterOffset,
-                shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial), unitsPerBlock);
-            generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, shoulderCenterOffset,
-                shoulderWidth, pathPoints, terrain, crossSection, unitsPerBlock);
-        }
-
-        if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
-            generateBikeLaneBlocks(solids, segments, heightInfos,
-                crossSection.bikeLaneCenterOffset() * unitsPerBlock,
-                crossSection.bikeLaneWidth,
-                getBlockIdFromMaterial(crossSection.bikeLaneMaterial),
+        endpointStartSnap = endpointSnaps != null ? endpointSnaps.start() : null;
+        endpointEndSnap = endpointSnaps != null ? endpointSnaps.end() : null;
+        try {
+            RoadSolidModel solids = new RoadSolidModel();
+            EdgeBuildMetrics metrics = new EdgeBuildMetrics();
+            generateCarriagewayBlocks(
+                solids, metrics, segments, heightInfos, bridges, tunnels, terrain,
+                crossSection.carriagewayWidth,
+                getBlockIdFromMaterial(crossSection.carriagewayMaterial),
                 unitsPerBlock);
+
+            int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
+            if (crossSection.includeShoulder && shoulderWidth > 0) {
+                double shoulderCenterOffset = crossSection.shoulderCenterOffset() * unitsPerBlock;
+                generateShoulderBlocks(solids, segments, heightInfos, shoulderCenterOffset,
+                    shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial), unitsPerBlock);
+                generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, shoulderCenterOffset,
+                    shoulderWidth, pathPoints, terrain, crossSection, unitsPerBlock);
+            }
+
+            if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
+                generateBikeLaneBlocks(solids, segments, heightInfos,
+                    crossSection.bikeLaneCenterOffset() * unitsPerBlock,
+                    crossSection.bikeLaneWidth,
+                    getBlockIdFromMaterial(crossSection.bikeLaneMaterial),
+                    unitsPerBlock);
+            }
+
+            if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
+                generateSidewalkBlocks(solids, segments, heightInfos,
+                    crossSection.sidewalkCenterOffset() * unitsPerBlock,
+                    crossSection.sidewalkWidth,
+                    getBlockIdFromMaterial(crossSection.sidewalkMaterial),
+                    unitsPerBlock);
+            }
+
+            if (crossSection.includeDrain) {
+                double drainageOffset = crossSection.outerDrainageOffset() * unitsPerBlock;
+                generateDrainageChannels(solids, segments, heightInfos, drainageOffset,
+                    getBlockIdFromMaterial("material.plot.gravel"), unitsPerBlock);
+            }
+
+            if (crossSection.includeMedian && crossSection.medianWidth > 0) {
+                double halfMedian = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) * unitsPerBlock;
+                List<Vec2d> leftMedian = OffsetHandler.offsetPolyline(pathPoints, -halfMedian);
+                List<Vec2d> rightMedian = OffsetHandler.offsetPolyline(pathPoints, halfMedian);
+                generateMedianBlocks(
+                    solids,
+                    segments,
+                    heightInfos,
+                    leftMedian,
+                    rightMedian,
+                    getBlockIdFromMaterial(crossSection.medianMaterial));
+            }
+
+            if (crossSection.laneDividers || crossSection.centerLineStyle != CenterLineStyle.NONE) {
+                generateLaneMarkings(solids, segments, heightInfos, pathPoints, crossSection, unitsPerBlock);
+            }
+
+            Integer spacing = crossSection.streetlightSpacing;
+            if (spacing != null && spacing > 0) {
+                generateStreetlights(solids, pathPoints, terrain, crossSection, unitsPerBlock);
+            }
+
+            gradeRoadEnvelope(solids, metrics, segments, heightInfos, crossSection, terrain, unitsPerBlock);
+
+            RoadGenerationResult result = new RoadGenerationResult(pathLength);
+            result.cutVolume = metrics.cutVolume;
+            result.fillVolume = metrics.fillVolume;
+            result.bridgeCount = metrics.bridgeCount;
+            result.tunnelCount = metrics.tunnelCount;
+            applyConstructionStats(result, detection);
+            RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer);
+            return result;
+        } finally {
+            endpointStartSnap = null;
+            endpointEndSnap = null;
         }
+    }
 
-        if (crossSection.includeSidewalk && crossSection.sidewalkWidth > 0) {
-            generateSidewalkBlocks(solids, segments, heightInfos,
-                crossSection.sidewalkCenterOffset() * unitsPerBlock,
-                crossSection.sidewalkWidth,
-                getBlockIdFromMaterial(crossSection.sidewalkMaterial),
-                unitsPerBlock);
+    private record EndpointElevationSnap(Vec2d position, int elevation, double blendRadius) {
+    }
+
+    private record EndpointElevationSnaps(EndpointElevationSnap start, EndpointElevationSnap end) {
+    }
+
+    private EndpointElevationSnaps resolveEndpointSnap(
+            RoadNode startNode,
+            RoadNode endNode,
+            Map<String, Integer> networkNodeElevations,
+            ResolvedCrossSection crossSection,
+            List<Vec2d> pathPoints) {
+        if (networkNodeElevations == null || networkNodeElevations.isEmpty()) {
+            return null;
         }
+        List<PathSegment> segments = samplePath(pathPoints);
+        double unitsPerBlock = estimateCanvasUnitsPerBlock(pathPoints, segments);
+        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
+        double blendRadius = Math.max(halfWidth + 2.0, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
 
-        if (crossSection.includeDrain) {
-            double drainageOffset = crossSection.outerDrainageOffset() * unitsPerBlock;
-            generateDrainageChannels(solids, segments, heightInfos, drainageOffset,
-                getBlockIdFromMaterial("material.plot.gravel"), unitsPerBlock);
+        EndpointElevationSnap start = null;
+        EndpointElevationSnap end = null;
+        if (startNode != null) {
+            Integer elevation = networkNodeElevations.get(startNode.getId());
+            if (elevation != null) {
+                start = new EndpointElevationSnap(startNode.getPosition(), elevation, blendRadius);
+            }
         }
-
-        if (crossSection.includeMedian && crossSection.medianWidth > 0) {
-            double halfMedian = RoadDimensionUtils.halfExtentFromCenter(crossSection.medianWidth) * unitsPerBlock;
-            List<Vec2d> leftMedian = OffsetHandler.offsetPolyline(pathPoints, -halfMedian);
-            List<Vec2d> rightMedian = OffsetHandler.offsetPolyline(pathPoints, halfMedian);
-            generateMedianBlocks(
-                solids,
-                segments,
-                heightInfos,
-                leftMedian,
-                rightMedian,
-                getBlockIdFromMaterial(crossSection.medianMaterial));
+        if (endNode != null) {
+            Integer elevation = networkNodeElevations.get(endNode.getId());
+            if (elevation != null) {
+                end = new EndpointElevationSnap(endNode.getPosition(), elevation, blendRadius);
+            }
         }
-
-        if (crossSection.laneDividers || crossSection.centerLineStyle != CenterLineStyle.NONE) {
-            generateLaneMarkings(solids, segments, heightInfos, pathPoints, crossSection, unitsPerBlock);
+        if (start == null && end == null) {
+            return null;
         }
-
-        Integer spacing = crossSection.streetlightSpacing;
-        if (spacing != null && spacing > 0) {
-            generateStreetlights(solids, pathPoints, terrain, crossSection, unitsPerBlock);
-        }
-
-        gradeRoadEnvelope(solids, metrics, segments, heightInfos, crossSection, terrain, unitsPerBlock);
-
-        RoadGenerationResult result = new RoadGenerationResult(pathLength);
-        result.cutVolume = metrics.cutVolume;
-        result.fillVolume = metrics.fillVolume;
-        result.bridgeCount = metrics.bridgeCount;
-        result.tunnelCount = metrics.tunnelCount;
-        applyConstructionStats(result, detection);
-        RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer);
-        return result;
+        return new EndpointElevationSnaps(start, end);
     }
 
     public void mergeResult(RoadGenerationResult target, RoadGenerationResult source) {
@@ -1638,7 +1700,27 @@ public class RoadGenerator {
         void accept(Vec2d center, Vec2d leftNormal, int targetY);
     }
 
-    private static void forEachPathSample(
+    private int snapEndpointElevation(Vec2d center, int targetY) {
+        int snapped = targetY;
+        if (endpointStartSnap != null) {
+            snapped = blendEndpointElevation(center, endpointStartSnap, snapped);
+        }
+        if (endpointEndSnap != null) {
+            snapped = blendEndpointElevation(center, endpointEndSnap, snapped);
+        }
+        return snapped;
+    }
+
+    private static int blendEndpointElevation(Vec2d center, EndpointElevationSnap snap, int currentY) {
+        double distance = center.distance(snap.position());
+        if (distance >= snap.blendRadius()) {
+            return currentY;
+        }
+        double blend = 1.0 - distance / snap.blendRadius();
+        return (int) Math.round(currentY * (1.0 - blend) + snap.elevation() * blend);
+    }
+
+    private void forEachPathSample(
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             PathSampleConsumer consumer) {
@@ -1650,7 +1732,8 @@ public class RoadGenerator {
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
+                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                targetY = snapEndpointElevation(center, targetY);
                 consumer.accept(center, leftNormal, targetY);
             }
         }

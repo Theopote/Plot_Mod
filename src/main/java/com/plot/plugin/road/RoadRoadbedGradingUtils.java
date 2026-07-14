@@ -114,13 +114,13 @@ public final class RoadRoadbedGradingUtils {
             TerrainSampler terrain) {
         RoadTerrainClearanceUtils.OverheadMode mode = RoadTerrainClearanceUtils.classify(
             roadY, groundY, worldX, worldZ, tunnelThreshold, terrain);
-        if (mode == RoadTerrainClearanceUtils.OverheadMode.NONE) {
-            return GradingVolumes.ZERO;
-        }
         int cleared = 0;
-        int topY = mode == RoadTerrainClearanceUtils.OverheadMode.TUNNEL
-            ? roadY + tunnelThreshold
-            : groundY;
+        int topY = groundY;
+        if (mode == RoadTerrainClearanceUtils.OverheadMode.TUNNEL) {
+            topY = roadY + tunnelThreshold;
+        } else if (mode == RoadTerrainClearanceUtils.OverheadMode.NONE && groundY > roadY) {
+            topY = groundY;
+        }
         for (int y = roadY + 1; y <= topY; y++) {
             solids.add(planPoint, y, RoadSolidLayer.TUNNEL, "minecraft:air");
             cleared++;
