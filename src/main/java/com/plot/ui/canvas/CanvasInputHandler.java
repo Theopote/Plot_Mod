@@ -39,10 +39,6 @@ public class CanvasInputHandler {
     private final CanvasCore core;
     private final AppState appState;
 
-    // 拖动状态相关
-    private Vec2d lastDragPos;
-    private boolean isDraggingShapes = false;
-    
     // 鼠标中键拖动平移状态
     private Vec2d lastMiddleButtonDragPos = null;
     private boolean isPanningWithMiddleButton = false;
@@ -197,7 +193,6 @@ public class CanvasInputHandler {
         }
         
         boolean isInSelectionMode = currentTool.isSelecting();
-        List<Shape> selectedShapes = appState.getSelectedShapes(); // 直接从AppState获取
 
         // 处理左键点击
         if (ImGui.isMouseClicked(0)) {
@@ -211,7 +206,7 @@ public class CanvasInputHandler {
 
         // 处理拖动
         if (ImGui.isMouseDown(0)) {
-            handleDrag(worldPos, currentTool, isInSelectionMode, selectedShapes);
+            handleDrag(worldPos);
         }
 
         // 处理释放
@@ -344,44 +339,10 @@ public class CanvasInputHandler {
     /**
      * 处理拖动事件
      */
-    private void handleDrag(Vec2d worldPos, BaseTool currentTool, boolean isInSelectionMode, List<Shape> selectedShapes) {
-        // 检查是否开始拖动已选中的图形（仅当点在图形轮廓上）
-        if (isInSelectionMode && !selectedShapes.isEmpty() && !isDraggingShapes) {
-            // 只有当鼠标在已选中的图形上按下时才开始拖动
-            for (Shape shape : selectedShapes) {
-                // 将像素容差转换为世界距离
-                double worldTol = 5.0;
-                try {
-                    worldTol = core.getCamera() != null ? core.getCamera().screenToWorldDistance(5.0) : 5.0;
-                } catch (Exception e) {
-                    ExceptionDebug.log("CanvasInputHandler: screenToWorldDistance for selection", e);
-                }
-                if (com.plot.ui.tools.impl.modify.helper.GeometricSelectionHelper
-                        .isPointOnShape(shape, worldPos, worldTol)) {
-                    isDraggingShapes = true;
-                    lastDragPos = worldPos;
-                    LOGGER.debug("开始拖动 {} 个图形", selectedShapes.size());
-                    break;
-                }
-            }
-        }
-        
-        // 如果正在拖动图形
-        if (isDraggingShapes) {
-            Vec2d delta = worldPos.subtract(lastDragPos);
-            if (delta.length() > 0.01) { // 避免微小抖动
-                for (Shape shape : selectedShapes) {
-                    shape.translate(delta);
-                }
-                lastDragPos = worldPos;
-                core.markDirty(CanvasCore.DirtyType.CONTENT);
-            }
-        } else {
-            // 否则，是工具的拖动行为 (如绘制、拖动画布等)
-            if (onMouseDragged != null) {
-                Vec2d delta = new Vec2d(ImGui.getMouseDragDeltaX(), ImGui.getMouseDragDeltaY());
-                onMouseDragged.accept(new MouseEvent(MouseEvent.Type.DRAGGED, worldPos, delta));
-            }
+    private void handleDrag(Vec2d worldPos) {
+        if (onMouseDragged != null) {
+            Vec2d delta = new Vec2d(ImGui.getMouseDragDeltaX(), ImGui.getMouseDragDeltaY());
+            onMouseDragged.accept(new MouseEvent(MouseEvent.Type.DRAGGED, worldPos, delta));
         }
     }
 
@@ -389,13 +350,6 @@ public class CanvasInputHandler {
      * 处理鼠标释放
      */
     private void handleMouseRelease(Vec2d worldPos, BaseTool currentTool) {
-        if (isDraggingShapes) {
-            isDraggingShapes = false;
-            // 可以在此创建并执行一个MoveCommand，以便撤销
-            LOGGER.debug("结束拖动图形");
-        }
-        lastDragPos = null;
-
         currentTool.onMouseUp(worldPos, 0);
         core.markDirty(CanvasCore.DirtyType.CONTENT);
         appState.getCanvas().refresh(); // 如果有必要，强制刷新
@@ -558,7 +512,7 @@ public class CanvasInputHandler {
                     appState.clearSelection();
                     appState.addSelectedShape(clickedShape);
                 }
-                // 如果点击了已选中的图形，则什么都不做，准备拖动
+                // 如果点击了已选中的图形，则保持当前选择
             }
             core.markDirty(CanvasCore.DirtyType.CONTENT);
         }
