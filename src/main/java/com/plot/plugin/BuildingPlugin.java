@@ -20,6 +20,7 @@ import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
@@ -27,6 +28,7 @@ import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.screen.BlockConfigNativeScreen;
 import com.plot.ui.screen.PlotScreen;
 import com.plot.ui.screen.PlotScreenState;
@@ -71,6 +73,7 @@ public class BuildingPlugin extends Plugin {
 
     private final ImBoolean manualElevationRef = new ImBoolean(false);
     private final ImString buildingNameBuffer = new ImString(64);
+    private BuildingListHelper.SortMode buildingSortMode = BuildingListHelper.SortMode.INSERTION;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -232,8 +235,19 @@ public class BuildingPlugin extends Plugin {
             return;
         }
 
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.beginCombo("##building_sort", buildingSortMode.label())) {
+            for (BuildingListHelper.SortMode mode : BuildingListHelper.SortMode.values()) {
+                boolean selected = mode == buildingSortMode;
+                if (ImGui.selectable(mode.label(), selected)) {
+                    buildingSortMode = mode;
+                }
+            }
+            ImGui.endCombo();
+        }
+
         ImGui.beginChild("building_overview_list", 0, 220, true);
-        for (BuildingFootprint building : project.getBuildings().values()) {
+        for (BuildingFootprint building : BuildingListHelper.sorted(project, buildingSortMode)) {
             ImGui.pushID(building.getId());
             boolean selected = building.getId().equals(selectedBuildingId);
             if (ImGui.selectable(building.getName() + "##row", selected)) {
@@ -324,6 +338,7 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
             building.setFloors(floors[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.floors");
 
         int[] floorHeight = {building.getFloorHeight()};
         if (ImGui.sliderInt("##floor_height", floorHeight, 2, 16,
@@ -331,6 +346,7 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
             building.setFloorHeight(floorHeight[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.floor_height");
 
         int[] wallThickness = {building.getWallThickness()};
         if (ImGui.sliderInt("##wall_thickness", wallThickness, 1, 8,
@@ -338,6 +354,7 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
             building.setWallThickness(wallThickness[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.wall_thickness");
 
         renderMaterialButton(PlotI18n.tr("plugin.building.wall_material"), building.getWallMaterial(),
             blockId -> {
@@ -369,6 +386,7 @@ public class BuildingPlugin extends Plugin {
                 projectHistory.push(project);
                 building.setRoofPitchRatio(pitch[0]);
             }
+            UIUtils.renderEngineeringTooltip("hint.plot.building.roof_pitch");
         }
 
         manualElevationRef.set(building.getManualBaseElevation() != null);
@@ -380,6 +398,7 @@ public class BuildingPlugin extends Plugin {
                 building.setManualBaseElevation(null);
             }
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.manual_elevation");
         if (manualElevationRef.get()) {
             int initial = building.getManualBaseElevation() != null ? building.getManualBaseElevation() : 64;
             int[] elevation = {initial};
@@ -387,6 +406,7 @@ public class BuildingPlugin extends Plugin {
                 projectHistory.push(project);
                 building.setManualBaseElevation(elevation[0]);
             }
+            UIUtils.renderEngineeringTooltip("hint.plot.building.base_elevation");
         }
 
         ImGui.separator();
@@ -397,24 +417,28 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
             building.setWindowSpacing(windowSpacing[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.window_spacing");
         int[] windowWidth = {building.getWindowWidth()};
         if (ImGui.sliderInt("##window_width", windowWidth, 1, 4,
             PlotI18n.tr("plugin.building.window_width", windowWidth[0]))) {
             projectHistory.push(project);
             building.setWindowWidth(windowWidth[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.window_width");
         int[] windowHeight = {building.getWindowHeight()};
         if (ImGui.sliderInt("##window_height", windowHeight, 1, 6,
             PlotI18n.tr("plugin.building.window_height", windowHeight[0]))) {
             projectHistory.push(project);
             building.setWindowHeight(windowHeight[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.window_height");
         int[] windowSill = {building.getWindowSillHeight()};
         if (ImGui.sliderInt("##window_sill", windowSill, 0, 8,
             PlotI18n.tr("plugin.building.window_sill", windowSill[0]))) {
             projectHistory.push(project);
             building.setWindowSillHeight(windowSill[0]);
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
 
         renderDoorEditor(building);
     }
@@ -434,6 +458,7 @@ public class BuildingPlugin extends Plugin {
                 building.setRoofType(roofTypes[index]);
             }
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.roof_type");
         if (!BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
         }
@@ -460,8 +485,11 @@ public class BuildingPlugin extends Plugin {
         float[] positionRatio = {0.5f};
         int[] floor = {0};
         ImGui.sliderInt(PlotI18n.tr("plugin.building.door_wall"), wallSegment, 0, Math.max(0, segmentCount - 1));
+        UIUtils.renderEngineeringTooltip("hint.plot.building.door_wall");
         ImGui.sliderFloat(PlotI18n.tr("plugin.building.door_position"), positionRatio, 0.0f, 1.0f);
+        UIUtils.renderEngineeringTooltip("hint.plot.building.door_position");
         ImGui.sliderInt(PlotI18n.tr("plugin.building.door_floor"), floor, 0, Math.max(0, building.getFloors() - 1));
+        UIUtils.renderEngineeringTooltip("hint.plot.building.door_floor");
         if (ImGui.button(PlotI18n.tr("plugin.building.add_door"))) {
             projectHistory.push(project);
             building.addDoor(new BuildingFootprint.DoorOpening(
@@ -473,10 +501,13 @@ public class BuildingPlugin extends Plugin {
         if (project.getBuildingCount() == 0) {
             return;
         }
-        String[] labels = project.getBuildings().values().stream()
+        List<BuildingFootprint> buildings = BuildingListHelper.sorted(project, buildingSortMode);
+        String[] labels = buildings.stream()
             .map(BuildingFootprint::getName)
             .toArray(String[]::new);
-        String[] ids = project.getBuildings().keySet().toArray(String[]::new);
+        String[] ids = buildings.stream()
+            .map(BuildingFootprint::getId)
+            .toArray(String[]::new);
         int current = 0;
         for (int i = 0; i < ids.length; i++) {
             if (ids[i].equals(selectedBuildingId)) {
