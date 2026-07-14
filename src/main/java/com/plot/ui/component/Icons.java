@@ -30,15 +30,6 @@ public class Icons {
     public static final String CALCULATOR = "\uf1ec";     // 计算器
     public static final String FILE_EXPORT = "\uf56e";    // 导出文件
 
-    // 图片工具图标
-    public static final String IMAGE = "\uf03e";         // 图片
-    public static final String IMAGE_PLUS = "\uf067";    // 添加图片
-    public static final String CROP = "\uf125";          // 裁剪
-    public static final String FLIP_HORIZONTAL = "\uf125"; // 裁剪
-    public static final String ARROWS_MAXIMIZE = "\uf362"; // 翻转
-    public static final String CONTRAST = "\uf042";      // 对比度
-    public static final String MAXIMIZE = "\uf2d0";      // 最大化
-
     // 道路系统图标
     public static final String ROAD = "\uf018";         // 道路
     public static final String ROAD_BRIDGE = "\uf21c";  // 桥梁

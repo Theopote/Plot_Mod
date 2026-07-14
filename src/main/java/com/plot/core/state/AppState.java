@@ -178,7 +178,7 @@ public class AppState implements IAppState {
      * 扩展类型枚举
      */
     public enum ExtensionType {
-        NONE, ROAD_SYSTEM, IMAGE_TOOLS, EARTHWORK_BALANCE
+        NONE, ROAD_SYSTEM, EARTHWORK_BALANCE
     }
 
     /**
