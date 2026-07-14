@@ -166,9 +166,13 @@ public final class RoadDefaultParamsPanel {
 
         float gap = ImGui.getStyle().getItemSpacingX();
         float cardWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
-        float cardHeight = 88f;
+        float cardHeight = presetCardHeight();
         int column = 0;
+        int index = 0;
         for (RoadStyle style : config.getStyles()) {
+            if (index > 0 && index % 2 == 0) {
+                ImGui.dummy(0f, PRESET_CARD_ROW_GAP);
+            }
             if (column > 0) {
                 ImGui.sameLine(0, gap);
             }
@@ -177,6 +181,7 @@ public final class RoadDefaultParamsPanel {
                 ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
             }
             column = (column + 1) % 2;
+            index++;
         }
 
         ImGui.spacing();
@@ -194,6 +199,22 @@ public final class RoadDefaultParamsPanel {
         ImGui.spacing();
     }
 
+    private static final float PRESET_CARD_PADDING_X = 4f;
+    private static final float PRESET_CARD_PADDING_TOP = 8f;
+    private static final float PRESET_CARD_PADDING_BOTTOM = 2f;
+    private static final float PRESET_CARD_ROW_GAP = 8f;
+    private static final float PRESET_PREVIEW_GAP = 1f;
+    /** 约为上一版图示高度的 80%。 */
+    private static final float PRESET_PREVIEW_HEIGHT = 50f;
+
+    private static float presetCardHeight() {
+        return PRESET_CARD_PADDING_TOP
+            + PRESET_PREVIEW_HEIGHT
+            + PRESET_PREVIEW_GAP
+            + ImGui.getTextLineHeight()
+            + PRESET_CARD_PADDING_BOTTOM;
+    }
+
     private boolean renderPresetCard(
             RoadStyle style,
             float width,
@@ -203,7 +224,8 @@ public final class RoadDefaultParamsPanel {
         if (selected) {
             ImGui.pushStyleColor(ImGuiCol.Border, (int) 0xFF4DA6FFFFL);
         }
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PRESET_CARD_PADDING_X, 0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0f, 0f);
         ImGui.beginChild(
             "##preset_card",
             width,
@@ -212,9 +234,8 @@ public final class RoadDefaultParamsPanel {
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
         );
 
-        float labelLineH = ImGui.getTextLineHeightWithSpacing();
-        float labelAreaH = labelLineH * 2f;
-        float previewH = height - labelAreaH;
+        ImGui.dummy(0f, PRESET_CARD_PADDING_TOP);
+        float contentWidth = ImGui.getContentRegionAvail().x;
         ImVec2 pos = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         RoadCrossSectionPreviewRenderer.CrossSectionLayout layout =
@@ -224,21 +245,22 @@ public final class RoadDefaultParamsPanel {
             layout,
             pos.x,
             pos.y,
-            width,
-            previewH,
+            contentWidth,
+            PRESET_PREVIEW_HEIGHT,
             RoadCrossSectionPreviewRenderer.MiniRenderOptions.presetCard()
         );
-        ImGui.dummy(width, previewH);
+        ImGui.dummy(contentWidth, PRESET_PREVIEW_HEIGHT);
 
         String presetName = PlotI18n.tr("preset.road." + style.id);
         String caption = presetName + " (" + RoadCrossSectionPreviewRenderer.formatPresetCaption(layout) + ")";
-        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + width);
+        ImGui.dummy(0f, PRESET_PREVIEW_GAP);
+        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + contentWidth);
         ImGui.text(caption);
         ImGui.popTextWrapPos();
 
         boolean clicked = ImGui.isWindowHovered() && ImGui.isMouseClicked(0);
         ImGui.endChild();
-        ImGui.popStyleVar();
+        ImGui.popStyleVar(2);
         if (selected) {
             ImGui.popStyleColor();
         }
