@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PolygonRegionUtilsTest {
@@ -46,5 +47,12 @@ class PolygonRegionUtilsTest {
         ));
         assertEquals(5.0, centroid.x, 1e-6);
         assertEquals(5.0, centroid.y, 1e-6);
+    }
+
+    @Test
+    void openPolylineOutlineIsTreatedAsClosedForSampling() {
+        List<Vec2d> openTriangle = List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(2, 3));
+        List<Vec2d> centers = PolygonRegionUtils.collectFootprintCellCenters(openTriangle);
+        assertFalse(centers.isEmpty());
     }
 }

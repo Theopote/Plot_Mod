@@ -7,6 +7,8 @@ import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
+import com.plot.core.tool.BaseTool;
+import com.plot.core.tool.ToolManager;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.EventBus;
@@ -20,6 +22,7 @@ import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
+import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.common.ProjectPathHasher;
@@ -59,6 +62,7 @@ public class EarthworkPlugin extends Plugin {
     private EarthworkConfig config;
     private EarthworkProject project = new EarthworkProject();
     private final EarthworkProjectHistory projectHistory = new EarthworkProjectHistory();
+    private final EarthworkRegionPickSession pickSession = new EarthworkRegionPickSession();
     private EarthworkGenerator earthworkGenerator;
 
     // 多线程访问的字段需要同步保护（UI线程 + 异步方块放置）
@@ -127,6 +131,7 @@ public class EarthworkPlugin extends Plugin {
 
     @Override
     public void onDisable() {
+        pickSession.cancel();
         saveProjectFile(getProjectsDir().resolve(currentProjectFile));
         if (config != null) {
             config.save();
@@ -148,6 +153,10 @@ public class EarthworkPlugin extends Plugin {
     public void render() {
         if (config == null) {
             return;
+        }
+
+        if (pickSession.isActive()) {
+            handlePickSessionTick();
         }
 
         renderToolbar();
@@ -294,7 +303,17 @@ public class EarthworkPlugin extends Plugin {
     private void renderAdoptTab() {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.adopt_hint"));
         ImGui.spacing();
-        updateSelectedRegions();
+
+        if (pickSession.isActive()) {
+            int count = pickSession.getAccumulatedCount();
+            if (count > 0) {
+                ImGui.text(String.format(
+                    PlotI18n.tr("plugin.earthwork.regions_selected"),
+                    count));
+            }
+        } else {
+            updateSelectedRegions();
+        }
 
         if (!selectedRegions.isEmpty()) {
             ImGui.text(String.format(
@@ -305,6 +324,10 @@ public class EarthworkPlugin extends Plugin {
         }
 
         ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.pick_region"), 0, 0)) {
+            startPickSession();
+        }
+        ImGui.sameLine();
         boolean adoptDisabled = selectedRegions.isEmpty();
         if (adoptDisabled) {
             ImGui.beginDisabled();
@@ -630,6 +653,40 @@ public class EarthworkPlugin extends Plugin {
         selectedRegions.clear();
         selectedRegions.addAll(
             EarthworkGeometryUtils.findAdoptableRegions(AppState.getInstance().getSelectedShapes()));
+    }
+
+    private void startPickSession() {
+        ToolManager toolManager = ToolManager.getInstance();
+        if (toolManager == null) {
+            return;
+        }
+        var selectTool = toolManager.getTool("select");
+        if (!(selectTool instanceof BaseTool baseTool)) {
+            return;
+        }
+        selectedRegions.clear();
+        pickSession.begin();
+        toolManager.setActiveTool(selectTool);
+        AppState.getInstance().setCurrentTool(baseTool);
+        projectStatus = PlotI18n.tr("plugin.earthwork.pick_started");
+    }
+
+    private void handlePickSessionTick() {
+        EarthworkRegionPickSession.Outcome outcome = pickSession.tick(AppState.getInstance());
+        switch (outcome.getResult()) {
+            case SUCCESS -> {
+                selectedRegions.clear();
+                selectedRegions.addAll(outcome.getRegions());
+                adoptSelectedRegions();
+            }
+            case NEED_SELECTION -> projectStatus = PlotI18n.tr("plugin.earthwork.pick_need_selection");
+            case NO_VALID -> projectStatus = PlotI18n.tr("plugin.earthwork.pick_no_valid");
+            case CANCELLED -> projectStatus = PlotI18n.tr("plugin.earthwork.pick_cancelled");
+            default -> {
+                List<Shape> selected = AppState.getInstance().getSelectedShapes();
+                projectStatus = PlotI18n.tr(pickSession.hintKeyForCurrentSelection(selected));
+            }
+        }
     }
 
     private void adoptSelectedRegions() {

@@ -25,6 +25,32 @@ public final class PolygonRegionUtils {
         return copy;
     }
 
+    /**
+     * 规范化区域外轮廓：去连续重复点，去掉与起点重合的闭合重复点，至少保留 3 个顶点。
+     * 未显式闭合的折线保留为开放顶点序列，后续面积/填充按首尾相连处理。
+     */
+    public static List<Vec2d> normalizeRegionOutline(List<Vec2d> points) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> sanitized = new ArrayList<>();
+        Vec2d previous = null;
+        for (Vec2d point : points) {
+            if (point == null) {
+                continue;
+            }
+            if (previous != null && previous.distance(point) <= 1e-9) {
+                continue;
+            }
+            sanitized.add(point.copy());
+            previous = sanitized.getLast();
+        }
+        if (sanitized.size() >= 2 && sanitized.getFirst().distance(sanitized.getLast()) <= 1e-6) {
+            sanitized.remove(sanitized.size() - 1);
+        }
+        return sanitized.size() >= 3 ? sanitized : List.of();
+    }
+
     public static Polygon toPolygon(List<Vec2d> points) {
         return new Polygon(copyPoints(points));
     }

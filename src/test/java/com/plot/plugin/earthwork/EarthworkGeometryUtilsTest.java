@@ -3,7 +3,9 @@ package com.plot.plugin.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.EllipseShape;
+import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,42 @@ class EarthworkGeometryUtilsTest {
         );
 
         assertEquals(4, EarthworkGeometryUtils.findAdoptableRegions(shapes).size());
+    }
+
+    @Test
+    void openPolylineIsAdoptableAndAutoClosedForArea() {
+        PolylineShape openTriangle = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(2, 3)),
+            false);
+
+        assertTrue(EarthworkGeometryUtils.isAdoptableRegion(openTriangle));
+        List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(openTriangle);
+        assertEquals(3, points.size());
+        assertEquals(6.0, Math.abs(com.plot.plugin.earthwork.model.GradingRegion.signedArea(points)), 1e-6);
+    }
+
+    @Test
+    void closedPolylineWithDuplicateClosingPointIsNormalized() {
+        PolylineShape closed = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(4, 4), new Vec2d(0, 0)),
+            true);
+
+        List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(closed);
+        assertEquals(3, points.size());
+    }
+
+    @Test
+    void lineShapeIsNotAdoptable() {
+        assertFalse(EarthworkGeometryUtils.isAdoptableRegion(
+            new LineShape(new Vec2d(0, 0), new Vec2d(10, 0))));
+    }
+
+    @Test
+    void collinearPolylineIsNotAdoptable() {
+        PolylineShape lineLike = new PolylineShape(
+            List.of(new Vec2d(0, 0), new Vec2d(2, 0), new Vec2d(4, 0)),
+            false);
+        assertFalse(EarthworkGeometryUtils.isAdoptableRegion(lineLike));
     }
 
     @Test
