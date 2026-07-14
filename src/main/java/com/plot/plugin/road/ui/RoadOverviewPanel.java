@@ -23,22 +23,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 道路概览 Tab：路网统计、缩略图、节点标高与边列表。
+ * 道路概览 Tab：路网统计、缩略图点选、节点标高与交叉口摘要。
  */
 public final class RoadOverviewPanel {
     private static final int ELEVATION_MIN = -64;
     private static final int ELEVATION_MAX = 320;
 
     private final RoadUiContext ctx;
-    private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
     /** 全网统一标高草稿（自定义 Y） */
     private final int[] uniformElevationDraft = {64};
     private String lastRecommendationSummary = "";
 
-    public RoadOverviewPanel(RoadUiContext ctx, RoadEdgeListPanel edgeListPanel, RoadJunctionPanel junctionPanel) {
+    public RoadOverviewPanel(RoadUiContext ctx, RoadJunctionPanel junctionPanel) {
         this.ctx = ctx;
-        this.edgeListPanel = edgeListPanel;
         this.junctionPanel = junctionPanel;
     }
 
@@ -61,15 +59,11 @@ public final class RoadOverviewPanel {
             edgeId -> ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl()),
             ctx.networkManager()::handleNodeSelect
         );
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.network_map_hint"));
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.overview_edit_tab_hint"));
 
         junctionPanel.renderSummary();
         renderNodeElevationEditor();
-
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_hint"));
-        edgeListPanel.renderToolbar("##overview");
-        edgeListPanel.renderList(180, true, "edge_list");
     }
 
     private void renderUniformFlatElevationControls(RoadNetwork network) {

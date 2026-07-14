@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 道路边列表的排序与过滤（概览 / 编辑 Tab 共用）。
+ * 道路边列表的排序与过滤（编辑 Tab 使用）。
  */
 public final class RoadEdgeListHelper {
 

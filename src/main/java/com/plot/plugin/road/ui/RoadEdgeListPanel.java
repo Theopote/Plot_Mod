@@ -12,7 +12,7 @@ import imgui.type.ImBoolean;
 import java.util.List;
 
 /**
- * 道路边列表工具栏与列表（概览/编辑 Tab 共用）。
+ * 道路边列表工具栏与列表（编辑 Tab 专用）。
  */
 public final class RoadEdgeListPanel {
     private final RoadUiContext ctx;

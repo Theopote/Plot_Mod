@@ -39,8 +39,9 @@ public final class RoadEditPanel {
 
         ctx.networkManager().ensureSelectionValid();
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
+        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_hint"));
         edgeListPanel.renderToolbar("##edit");
-        edgeListPanel.renderList(120, true, "edit_edge_list");
+        edgeListPanel.renderList(180, true, "edit_edge_list");
 
         renderBatchEditPanel();
         junctionPanel.renderEditor();

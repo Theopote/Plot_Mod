@@ -699,6 +699,7 @@
   "plugin.road.network_map": "路网示意图",
   "plugin.road.network_map_empty": "暂无可显示的道路边",
   "plugin.road.network_map_hint": "点击道路或节点选中；单击道路会选中整条路；Ctrl 可多选",
+  "plugin.road.overview_edit_tab_hint": "边列表与属性编辑请切换到「编辑属性」Tab。",
   "plugin.road.junction_selected": "交叉口 [%s] (%.0f, %.0f) · %d 路",
   "plugin.road.junction_corner_radius": "路缘石圆角半径: %.1f 米",
   "plugin.road.junction_corner_hint": "统一应用于该交叉口所有外角，系统自动修剪衔接并生成圆角铺装。",

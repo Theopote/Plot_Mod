@@ -699,6 +699,7 @@
   "plugin.road.network_map": "Network Map",
   "plugin.road.network_map_empty": "No road edges to display",
   "plugin.road.network_map_hint": "Click a road or node to select; a click selects the whole road; Ctrl for multi-select",
+  "plugin.road.overview_edit_tab_hint": "Use the Edit Properties tab for the edge list and detailed editing.",
   "plugin.road.junction_selected": "Junction [%s] (%.0f, %.0f) · %d roads",
   "plugin.road.junction_corner_radius": "Curb corner radius: %.1f m",
   "plugin.road.junction_corner_hint": "Applies uniformly to all outer corners; trim and fillet paving is handled automatically.",
