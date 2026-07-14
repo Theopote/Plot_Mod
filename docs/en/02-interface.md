@@ -137,6 +137,6 @@ Canvas and selection statistics.
 | **Ctrl** | Add/remove from selection; temporary copy in some transform tools |
 | **Ctrl+A** | Select all shapes on visible layers |
 | **Delete** | Delete selected shapes (undoable) |
-| **Esc** | Cancel operation → clear selection → clear ghost blocks |
+| **Esc** | Cancel operation -> clear selection -> clear ghost blocks |
 | **Ctrl+Z** | Undo |
 | **Ctrl+Y** / **Ctrl+Shift+Z** | Redo |

@@ -1,11 +1,11 @@
 # Block Building
 
-Plot's core building workflow: draw a design → configure blocks → preview → project into the world.
+Plot's core building workflow: draw a design -> configure blocks -> preview -> project into the world.
 
 ## Workflow
 
 ```
-Draw → Select → Block Config → Line to Block (preview) → Projection Settings → Project Blocks
+Draw -> Select -> Block Config -> Line to Block (preview) -> Projection Settings -> Project Blocks
 ```
 
 ---
@@ -111,5 +111,5 @@ Places ghost block previews as **real blocks**.
 
 ## Related
 
-- Reuse saved shapes → [Gallery](07-gallery.md)
-- Roads, earthwork, buildings → [Extension Plugins](08-plugins.md)
+- Reuse saved shapes -> [Gallery](07-gallery.md)
+- Roads, earthwork, buildings -> [Extension Plugins](08-plugins.md)

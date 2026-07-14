@@ -16,7 +16,7 @@ Click the **Plot logo** in the top control panel to open **Settings & Help**.
 
 ### Minecraft Keybinding
 
-Under **Settings → Controls → Plot**:
+Under **Settings -> Controls -> Plot**:
 
 | Action | Default |
 |--------|---------|
@@ -24,7 +24,7 @@ Under **Settings → Controls → Plot**:
 
 ### In-Plot Shortcuts (Customizable)
 
-Managed in **Settings & Help → Shortcuts**. Saved to:
+Managed in **Settings & Help -> Shortcuts**. Saved to:
 
 ```
 .minecraft/plot/keymap.json
@@ -48,7 +48,7 @@ Managed in **Settings & Help → Shortcuts**. Saved to:
 
 #### Customizing
 
-1. Open **Settings & Help → Shortcuts**
+1. Open **Settings & Help -> Shortcuts**
 2. Double-click a row or click **Edit**
 3. Press the desired key combination
 4. Click **Done**
@@ -69,7 +69,7 @@ Managed in **Settings & Help → Shortcuts**. Saved to:
 | `Delete` | Delete selected shapes |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
-| `Esc` | Cancel → clear selection → clear ghost blocks |
+| `Esc` | Cancel -> clear selection -> clear ghost blocks |
 
 ---
 

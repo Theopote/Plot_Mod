@@ -17,7 +17,7 @@ Mouse input is captured by panels when hovering over them. Move the cursor to th
 
 ### Line to Block button is grayed out
 
-You must **select** at least one shape first (`Space` → box-select or click).
+You must **select** at least one shape first (`Space` -> box-select or click).
 
 ### Project Blocks has no effect
 
@@ -40,16 +40,16 @@ You need ghost block previews first:
 
 1. Ensure no text input has focus
 2. Check for conflicts with other mods
-3. Verify bindings in **Settings & Help → Shortcuts**
+3. Verify bindings in **Settings & Help -> Shortcuts**
 4. Try **Reset defaults**
 
 ### What does the P key do?
 
-`P` is the in-Plot **Free Draw** shortcut. Opening Plot uses **`0`** by default (Minecraft Controls → Plot).
+`P` is the in-Plot **Free Draw** shortcut. Opening Plot uses **`0`** by default (Minecraft Controls -> Plot).
 
 ### Changing the "Open Plot" key
 
-Modify it in Minecraft **Settings → Controls → Plot**, not in Plot's shortcut settings.
+Modify it in Minecraft **Settings -> Controls -> Plot**, not in Plot's shortcut settings.
 
 ---
 
@@ -130,7 +130,7 @@ No. Mobs continue moving. Use Plot in a safe area.
 
 ## Getting Help
 
-- In-game: **Plot logo → Settings & Help → Help & Tutorials** (8 chapters aligned with docs/)
+- In-game: **Plot logo -> Settings & Help -> Help & Tutorials** (8 chapters aligned with docs/)
 - Online: [docs/README.md](../README.md)
 - Issues: [GitHub Issues](https://github.com/Theopote/Plot_Mod/issues)
 

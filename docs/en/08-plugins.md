@@ -25,7 +25,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 ### Typical Workflow
 
 1. Draw road centerlines with polyline, spline, or similar tools
-2. Open **Extension** → **Road System** → enable the plugin
+2. Open **Extension** -> **Road System** -> enable the plugin
 3. Adopt paths and set width, materials, etc.
 4. Generate ghost block preview, then project to the world
 
@@ -45,7 +45,7 @@ Config: `.minecraft/config/plugins/road_system.json`
 ### Typical Workflow
 
 1. Draw or select a closed region for grading
-2. Open **Extension** → **Earthwork Balance** → enable
+2. Open **Extension** -> **Earthwork Balance** -> enable
 3. Use the **Adopt** tab to pick/claim regions
 4. Use **Edit** to set grading mode (flat, fixed slope, three-point, fit slope, etc.)
 5. Use **Generate** to preview cut/fill and build
@@ -64,14 +64,14 @@ Config: `.minecraft/config/plugins/road_system.json`
 ### Typical Workflow
 
 1. Draw a building footprint (rectangle or polygon)
-2. Open **Extension** → **Building Generator** → enable
+2. Open **Extension** -> **Building Generator** -> enable
 3. Pick/adopt the footprint
 4. Configure floors, height, etc.
 5. Generate preview and project
 
 ### Features
 
-- 2D footprint → 3D building volume
+- 2D footprint -> 3D building volume
 - Multi-building project management
 - Ghost preview and block placement
 

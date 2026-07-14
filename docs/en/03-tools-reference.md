@@ -16,8 +16,8 @@ All tools and their modes. Options appear in the **Tool Properties** section whe
 
 | Drag | Rule |
 |------|------|
-| Left→right | Window select: only fully contained shapes |
-| Right→left | Cross select: shapes that intersect the box |
+| Left->right | Window select: only fully contained shapes |
+| Right->left | Cross select: shapes that intersect the box |
 
 - Plain click on empty area clears selection
 - Plain click on a shape selects only that shape
@@ -106,7 +106,7 @@ Phase 0–360° (preset buttons); amplitude/wavelength set by mouse.
 ## Edit Tools
 
 ### Move
-Click base → destination, or drag directly. Hold **Shift** for orthogonal constraint.
+Click base -> destination, or drag directly. Hold **Shift** for orthogonal constraint.
 
 ### Rotate
 Angle step 1–90°; angle snap toggle; preset buttons. Ctrl for temporary copy.
