@@ -31,6 +31,7 @@ public class GalleryPanel implements UIComponent {
     private final GalleryDeleteDialog deleteDialog = new GalleryDeleteDialog();
     private final GalleryItemEditorDialog editorDialog = new GalleryItemEditorDialog();
     private final GalleryCategoryRenameDialog categoryRenameDialog = new GalleryCategoryRenameDialog();
+    private final GalleryCategoryAddDialog categoryAddDialog = new GalleryCategoryAddDialog();
     private final GalleryCategoryDeleteDialog categoryDeleteDialog = new GalleryCategoryDeleteDialog();
 
     private final ImString searchText = new ImString(256);
@@ -118,6 +119,7 @@ public class GalleryPanel implements UIComponent {
         deleteDialog.render();
         editorDialog.render();
         categoryRenameDialog.render();
+        categoryAddDialog.render();
         categoryDeleteDialog.render();
     }
 
@@ -166,7 +168,7 @@ public class GalleryPanel implements UIComponent {
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.buttonNormal);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
         if (ImGui.button(PlotI18n.tr("panel.plot.gallery_add_category") + "##add_category")) {
-            addNewCategory();
+            categoryAddDialog.show(name -> selectedCategory = name);
         }
         ImGui.popStyleColor(2);
 
@@ -286,26 +288,6 @@ public class GalleryPanel implements UIComponent {
         }
         categoryIds.addAll(repository.getCustomCategories());
         return categoryIds;
-    }
-
-    private void addNewCategory() {
-        String name = generateDefaultCategoryName();
-        repository.addCustomCategory(name);
-        selectedCategory = name;
-    }
-
-    private String generateDefaultCategoryName() {
-        int index = repository.getCustomCategories().size() + 1;
-        String name = PlotI18n.tr("gallery.plot.category.default_name", index);
-        int suffix = index;
-        while (isCategoryNameTaken(name)) {
-            name = PlotI18n.tr("gallery.plot.category.default_name", ++suffix);
-        }
-        return name;
-    }
-
-    private boolean isCategoryNameTaken(String name) {
-        return repository.isCategoryNameTaken(name, null);
     }
 
     private void renderGalleryContent() {
