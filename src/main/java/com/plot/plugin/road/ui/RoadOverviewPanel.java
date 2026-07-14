@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
@@ -59,8 +60,8 @@ public final class RoadOverviewPanel {
             edgeId -> ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl()),
             ctx.networkManager()::handleNodeSelect
         );
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.network_map_hint"));
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.overview_edit_tab_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.overview_edit_tab_hint"));
 
         junctionPanel.renderSummary();
         renderNodeElevationEditor();
@@ -71,7 +72,7 @@ public final class RoadOverviewPanel {
             return;
         }
 
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
 
         boolean disabled = network.getEdges().isEmpty();
         if (disabled) {
@@ -97,7 +98,7 @@ public final class RoadOverviewPanel {
         }
 
         if (!lastRecommendationSummary.isBlank()) {
-            ImGui.textColored((int) 0xFF80C0FFFFL, lastRecommendationSummary);
+            ImGui.textColored(PluginUiColors.STATUS_INFO, lastRecommendationSummary);
         }
 
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
@@ -177,11 +178,11 @@ public final class RoadOverviewPanel {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         List<RoadNode> nodes = new ArrayList<>(network.getNodes().values());
         if (nodes.isEmpty()) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_nodes"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_nodes"));
             return;
         }
 
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.node_elevation_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_hint"));
         ImGui.beginChild("node_elevation_list", 0, 220, true);
         for (RoadNode node : nodes) {
             ImGui.pushID(node.getId());
@@ -292,7 +293,7 @@ public final class RoadOverviewPanel {
 
         if (node.getManualElevation() != null && node.isGradeSeparated()) {
             ImGui.textColored(
-                (int) 0xFFFF8800FFL,
+                PluginUiColors.WARNING_STRONG,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
     }
@@ -305,7 +306,7 @@ public final class RoadOverviewPanel {
             return;
         }
         ImGui.textColored(
-            (int) 0xFF808080FFL,
+            PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.road.grade_separation_auto_result",
                 formatRoadLabel(network, resolvedRoadId)));

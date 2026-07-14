@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.RoadEdge;
@@ -65,7 +66,7 @@ public final class RoadEdgeListPanel {
             ctx.networkManager().clearEdgeSelection();
         }
         ImGui.sameLine();
-        ImGui.textColored((int) 0xFF808080FFL,
+        ImGui.textColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.selection_count",
                 ctx.networkManager().getSelectedEdgeIds().size(),
                 ctx.networkManager().filteredEdges(
@@ -88,7 +89,7 @@ public final class RoadEdgeListPanel {
 
         ImGui.beginChild(childId, 0, height, true);
         if (edges.isEmpty()) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.edge_list_empty"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
         }
         if (ctx.edgeSortMode() == RoadEdgeListHelper.SortMode.ROAD_GROUP) {
             renderGroupedList(network, edges, showDelete, deleteButtonWidth);
@@ -190,9 +191,9 @@ public final class RoadEdgeListPanel {
         }
         if (showDelete && !hasRoadId) {
             ImGui.sameLine(0.0f, ImGui.getStyle().getItemSpacingX());
-            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
+            ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
             if (ImGui.smallButton(deleteLabel + "##del")) {
                 ctx.requestDeleteEdge(edge.getId());
             }
@@ -221,9 +222,9 @@ public final class RoadEdgeListPanel {
         }
         if (showDelete) {
             ImGui.sameLine(0.0f, ImGui.getStyle().getItemSpacingX());
-            ImGui.pushStyleColor(ImGuiCol.Button, (int) 0xFF0000FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, (int) 0xFF2020FFL);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, (int) 0xFF0000CCL);
+            ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
             if (ImGui.smallButton(deleteLabel + "##del")) {
                 ctx.requestDeleteEdge(edge.getId());
             }

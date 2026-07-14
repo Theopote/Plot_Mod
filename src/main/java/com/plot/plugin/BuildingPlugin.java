@@ -24,6 +24,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
 import com.plot.plugin.common.ProjectPathHasher;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.screen.BlockConfigNativeScreen;
@@ -196,7 +197,7 @@ public class BuildingPlugin extends Plugin {
         }
 
         if (!projectStatus.isEmpty()) {
-            ImGui.textColored((int) 0xFF80FF80FFL, projectStatus);
+            ImGui.textColored(PluginUiColors.STATUS_OK, projectStatus);
         }
         ImGui.separator();
     }
@@ -209,10 +210,10 @@ public class BuildingPlugin extends Plugin {
 
         BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         if (progress != null) {
-            ImGui.textColored((int) 0xFF80C0FFFFL,
+            ImGui.textColored(PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.building.placement_progress", progress.processed(), progress.total()));
         } else {
-            ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.building.build_in_progress_hint"));
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.building.build_in_progress_hint"));
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.building.cancel_placement"), 0, 0)) {
@@ -227,7 +228,7 @@ public class BuildingPlugin extends Plugin {
             String.format("%.1f", project.getTotalArea())));
 
         if (project.getBuildingCount() == 0) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.building.no_buildings"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.no_buildings"));
             return;
         }
 
@@ -240,7 +241,7 @@ public class BuildingPlugin extends Plugin {
             }
 
             ImGui.sameLine();
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr(
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.building.overview_item",
                 String.format("%.1f", building.computeArea()),
                 building.getFloors(),
@@ -262,7 +263,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void renderAdoptTab() {
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.building.adopt_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.adopt_hint"));
         ImGui.spacing();
 
         if (pickSession.isActive()) {
@@ -279,7 +280,7 @@ public class BuildingPlugin extends Plugin {
                 PlotI18n.tr("plugin.building.footprints_selected"),
                 selectedFootprints.size()));
         } else {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.building.draw_footprint_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.draw_footprint_hint"));
         }
 
         ImGui.spacing();
@@ -302,7 +303,7 @@ public class BuildingPlugin extends Plugin {
     private void renderEditTab() {
         BuildingFootprint building = project.getBuilding(selectedBuildingId);
         if (building == null) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.building.select_building_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
             renderBuildingSelector();
             return;
         }
@@ -434,7 +435,7 @@ public class BuildingPlugin extends Plugin {
             }
         }
         if (!BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())) {
-            ImGui.textColored((int) 0xFFFFA060FFL, PlotI18n.tr("plugin.building.roof_rect_hint"));
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
         }
     }
 
@@ -495,7 +496,7 @@ public class BuildingPlugin extends Plugin {
         boolean hasBuilding = building != null;
 
         if (!hasBuilding) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.building.select_building_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
             renderBuildingSelector();
             return;
         }
@@ -527,12 +528,12 @@ public class BuildingPlugin extends Plugin {
         BlockProjectionHandler.PlacementReadiness buildReadiness =
             BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
-            ImGui.textColored((int) 0xFFFF8080FFL, buildReadiness.message());
+            ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
 
         if (lastGenerationResult != null) {
             ImGui.separator();
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.building.preview_projection_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.building.calc_results"));
             ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", lastGenerationResult.cutVolume));
             ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", lastGenerationResult.fillVolume));
@@ -541,12 +542,12 @@ public class BuildingPlugin extends Plugin {
                 PlotI18n.tr("plugin.building.roof_" + lastGenerationResult.effectiveRoofType.name().toLowerCase())));
 
             for (String warningKey : lastGenerationResult.warnings) {
-                ImGui.textColored((int) 0xFFFFA060FFL, PlotI18n.tr(warningKey));
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
             }
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
-                ImGui.textColored((int) 0xFFFFB060FFL, PlotI18n.tr("plugin.building.generate_empty_result"));
+                ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.building.generate_empty_result"));
             }
 
             if (!hasPlacements) {
@@ -588,7 +589,7 @@ public class BuildingPlugin extends Plugin {
             BlockProjectionHandler.PlacementReadiness readiness =
                 BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
             if (!readiness.ready()) {
-                ImGui.textColored((int) 0xFFFF6060FFL, readiness.message());
+                ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
 
             ImGui.separator();

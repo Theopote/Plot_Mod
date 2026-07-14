@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -24,7 +25,7 @@ public final class RoadAdoptPanel {
     public void render() {
         List<Shape> selectedPaths = ctx.toolManager().getSelectedPaths();
 
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.adopt_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_hint"));
         ImGui.spacing();
 
         if (ctx.toolManager().getPathPickSession().isActive()) {
@@ -48,7 +49,7 @@ public final class RoadAdoptPanel {
                 Shape path = selectedPaths.getFirst();
                 ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"),
                     RoadToolManager.calculatePathLength(path)));
-                ImGui.textColored((int) 0xFF4080FFFFL,
+                ImGui.textColored(PluginUiColors.INFO_BLUE,
                     PlotI18n.tr("plugin.road.path_type", RoadToolManager.getPathTypeName(path)));
             } else {
                 double totalLength = selectedPaths.stream()
@@ -76,7 +77,7 @@ public final class RoadAdoptPanel {
                     ImGui.endCombo();
                 }
             } else {
-                ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_path_found"));
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_path_found"));
                 ImGui.text(PlotI18n.tr("plugin.road.draw_path_hint"));
             }
         }

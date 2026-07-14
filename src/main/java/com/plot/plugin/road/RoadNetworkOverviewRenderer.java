@@ -1,4 +1,5 @@
 package com.plot.plugin.road;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -174,7 +175,7 @@ public final class RoadNetworkOverviewRenderer {
 
     private static void renderLegend() {
         ImGui.spacing();
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.network_map_legend"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_legend"));
         ImGui.sameLine();
         legendItem(COLOR_ENDPOINT, PlotI18n.tr("plugin.road.legend.endpoint"));
         ImGui.sameLine();
@@ -194,7 +195,7 @@ public final class RoadNetworkOverviewRenderer {
         drawList.addCircleFilled(pos.x + 4f, y, 3f, color);
         ImGui.dummy(10f, 0);
         ImGui.sameLine();
-        ImGui.textColored((int) 0xFFAAAAAAFFL, label);
+        ImGui.textColored(PluginUiColors.LEGEND, label);
         ImGui.sameLine();
     }
 
@@ -203,7 +204,7 @@ public final class RoadNetworkOverviewRenderer {
         float textW = ImGui.calcTextSize(text).x;
         float textX = x + (w - textW) * 0.5f;
         float textY = y + (h - ImGui.getTextLineHeight()) * 0.5f;
-        drawList.addText(textX, textY, (int) 0xFF707070FFL, text);
+        drawList.addText(textX, textY, PluginUiColors.LEGEND_DARK, text);
     }
 
     private static void drawEdges(
@@ -256,7 +257,7 @@ public final class RoadNetworkOverviewRenderer {
             float sy = toScreenY(pos.y, bounds, originY, height);
             float radius = selected ? SELECTED_NODE_RADIUS : NODE_RADIUS;
             drawList.addCircleFilled(sx, sy, radius, color);
-            drawList.addCircle(sx, sy, radius + 0.5f, (int) 0xFF202020FFL, 12, 1f);
+            drawList.addCircle(sx, sy, radius + 0.5f, PluginUiColors.RING_DARK, 12, 1f);
             if (selected) {
                 drawList.addCircle(sx, sy, radius + 2.5f, COLOR_NODE_SELECTED_RING, 16, 1.5f);
             }

@@ -23,6 +23,7 @@ import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.common.ProjectPathHasher;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
@@ -213,7 +214,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         if (!projectStatus.isEmpty()) {
-            ImGui.textColored((int) 0xFF80FF80FFL, projectStatus);
+            ImGui.textColored(PluginUiColors.STATUS_OK, projectStatus);
         }
         ImGui.separator();
     }
@@ -226,10 +227,10 @@ public class EarthworkPlugin extends Plugin {
 
         BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         if (progress != null) {
-            ImGui.textColored((int) 0xFF80C0FFFFL,
+            ImGui.textColored(PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.earthwork.placement_progress", progress.processed(), progress.total()));
         } else {
-            ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.earthwork.build_in_progress_hint"));
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.earthwork.build_in_progress_hint"));
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.cancel_placement"), 0, 0)) {
@@ -244,7 +245,7 @@ public class EarthworkPlugin extends Plugin {
             String.format("%.1f", project.getTotalArea())));
 
         if (project.getRegionCount() == 0) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.no_regions"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.no_regions"));
             return;
         }
 
@@ -272,7 +273,7 @@ public class EarthworkPlugin extends Plugin {
                 ? PlotI18n.tr("plugin.earthwork.overview_stats",
                     region.getLastCutVolume(), region.getLastFillVolume(), region.getLastResolvedElevation())
                 : PlotI18n.tr("plugin.earthwork.overview_no_stats");
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr(
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.earthwork.overview_item",
                 String.format("%.1f", region.computeArea()),
                 stats));
@@ -291,7 +292,7 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void renderAdoptTab() {
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.adopt_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.adopt_hint"));
         ImGui.spacing();
         updateSelectedRegions();
 
@@ -300,7 +301,7 @@ public class EarthworkPlugin extends Plugin {
                 PlotI18n.tr("plugin.earthwork.regions_selected"),
                 selectedRegions.size()));
         } else {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.draw_region_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.draw_region_hint"));
         }
 
         ImGui.spacing();
@@ -319,7 +320,7 @@ public class EarthworkPlugin extends Plugin {
     private void renderEditTab() {
         GradingRegion region = project.getRegion(selectedRegionId);
         if (region == null) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.select_region_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
             renderRegionSelector();
             renderGlobalGridSettings();
             return;
@@ -350,7 +351,7 @@ public class EarthworkPlugin extends Plugin {
             }
         } else {
             ImGui.beginDisabled();
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.manual_elevation_disabled"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.manual_elevation_disabled"));
             ImGui.endDisabled();
         }
 
@@ -399,7 +400,7 @@ public class EarthworkPlugin extends Plugin {
         boolean hasRegion = region != null;
 
         if (!hasRegion) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.select_region_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
             renderRegionSelector();
             return;
         }
@@ -431,7 +432,7 @@ public class EarthworkPlugin extends Plugin {
         BlockProjectionHandler.PlacementReadiness buildReadiness =
             BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
-            ImGui.textColored((int) 0xFFFF8080FFL, buildReadiness.message());
+            ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
 
         if (config.isShowGrid() && lastGenerationResult != null) {
@@ -440,7 +441,7 @@ public class EarthworkPlugin extends Plugin {
 
         if (lastGenerationResult != null) {
             ImGui.separator();
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.cut_volume_result", lastGenerationResult.cutVolume));
             ImGui.text(PlotI18n.tr("plugin.earthwork.fill_volume_result", lastGenerationResult.fillVolume));
@@ -448,12 +449,12 @@ public class EarthworkPlugin extends Plugin {
             ImGui.text(PlotI18n.tr("plugin.earthwork.block_count_result", lastGenerationResult.blockCount));
 
             for (String warningKey : lastGenerationResult.warnings) {
-                ImGui.textColored((int) 0xFFFFA060FFL, PlotI18n.tr(warningKey));
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
             }
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
-                ImGui.textColored((int) 0xFFFFB060FFL, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+                ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
             }
 
             if (!hasPlacements) {
@@ -521,7 +522,7 @@ public class EarthworkPlugin extends Plugin {
         float by2 = by1 + (float) (spanZ * scale);
         drawList.addRect(bx1, by1, bx2, by2, borderColor);
 
-        ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.earthwork.grid_preview_legend"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.grid_preview_legend"));
     }
 
     private void renderBuildConfirmPopup() {
@@ -537,7 +538,7 @@ public class EarthworkPlugin extends Plugin {
             BlockProjectionHandler.PlacementReadiness readiness =
                 BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
             if (!readiness.ready()) {
-                ImGui.textColored((int) 0xFFFF6060FFL, readiness.message());
+                ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
 
             ImGui.separator();

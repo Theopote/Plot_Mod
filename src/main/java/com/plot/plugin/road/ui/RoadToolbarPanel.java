@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.utils.PlotI18n;
@@ -49,7 +50,7 @@ public final class RoadToolbarPanel {
         }
 
         if (!ctx.status().isEmpty()) {
-            ImGui.textColored((int) 0xFF80FF80FFL, ctx.status().get());
+            ImGui.textColored(PluginUiColors.STATUS_OK, ctx.status().get());
         }
         ImGui.separator();
     }
@@ -62,10 +63,10 @@ public final class RoadToolbarPanel {
 
         BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         if (progress != null) {
-            ImGui.textColored((int) 0xFF80C0FFFFL,
+            ImGui.textColored(PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.placement_progress", progress.processed(), progress.total()));
         } else {
-            ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.road.build_in_progress_hint"));
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.build_in_progress_hint"));
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.cancel_placement"), 0, 0)) {

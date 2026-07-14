@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
@@ -32,7 +33,7 @@ public final class RoadGeneratePanel {
         boolean hasNetwork = !network.getEdges().isEmpty();
 
         if (!hasNetwork) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.no_edges"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
@@ -71,20 +72,20 @@ public final class RoadGeneratePanel {
         }
 
         if (!hasNetwork) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.draw_path_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.draw_path_hint"));
         }
 
         BlockProjectionHandler.PlacementReadiness buildReadiness =
             BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
-            ImGui.textColored((int) 0xFFFF8080FFL, buildReadiness.message());
+            ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
         RoadUiWidgets.renderRoadVisibilityWarning(ctx);
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
             ImGui.separator();
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.preview_projection_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
             ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
             ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
@@ -102,7 +103,7 @@ public final class RoadGeneratePanel {
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
-                ImGui.textColored((int) 0xFFFFB060FFL, PlotI18n.tr("plugin.road.generate_empty_result"));
+                ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
             }
 
             if (!hasPlacements) {
@@ -148,7 +149,7 @@ public final class RoadGeneratePanel {
             RoadEdge edge = network.getEdge(edgeIds.getFirst());
             if (edge != null) {
                 ImGui.textColored(
-                    (int) 0xFF808080FFL,
+                    PluginUiColors.HINT_GRAY,
                     RoadEdgeListHelper.formatEdgeLabel(network, edge));
             }
         }
@@ -233,7 +234,7 @@ public final class RoadGeneratePanel {
             BlockProjectionHandler.PlacementReadiness readiness =
                 BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
             if (!readiness.ready()) {
-                ImGui.textColored((int) 0xFFFF6060FFL, readiness.message());
+                ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
             RoadUiWidgets.renderRoadVisibilityWarning(ctx);
 

@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
@@ -194,10 +195,10 @@ public final class RoadDefaultParamsPanel {
         }
         if (customSelected) {
             ImGui.sameLine();
-            ImGui.textColored((int) 0xFF4DA6FFFFL, "●");
+            ImGui.textColored(PluginUiColors.ACCENT_BLUE, "●");
         } else if (!selectedId.isBlank()) {
             ImGui.sameLine();
-            ImGui.textColored((int) 0xFF808080FFL,
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("preset.road." + selectedId));
         }
         ImGui.spacing();
@@ -225,7 +226,7 @@ public final class RoadDefaultParamsPanel {
             boolean selected) {
         ImGui.pushID(style.id);
         if (selected) {
-            ImGui.pushStyleColor(ImGuiCol.Border, (int) 0xFF4DA6FFFFL);
+            ImGui.pushStyleColor(ImGuiCol.Border, PluginUiColors.ACCENT_BLUE);
         }
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, PRESET_CARD_PADDING_X, 0f);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0f, 0f);

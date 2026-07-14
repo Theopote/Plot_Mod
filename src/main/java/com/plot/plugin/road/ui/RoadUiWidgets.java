@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.ui.component.UIUtils;
@@ -40,7 +41,7 @@ public final class RoadUiWidgets {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
         ImGui.sameLine();
-        ImGui.textColored((int) 0xFF808080FFL, label);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
     }
 
     public static void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {
@@ -54,7 +55,7 @@ public final class RoadUiWidgets {
     public static void renderRoadVisibilityWarning(RoadUiContext ctx) {
         String message = ctx.previewManager().formatVisibilityWarning();
         if (!message.isBlank()) {
-            ImGui.textColored((int) 0xFFFFA060FFL, message);
+            ImGui.textColored(PluginUiColors.WARNING, message);
         }
     }
 }

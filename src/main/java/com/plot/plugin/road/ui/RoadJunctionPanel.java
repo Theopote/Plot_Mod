@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -55,7 +56,7 @@ public final class RoadJunctionPanel {
             RoadNetworkManager.junctionTypeLabel(type), pos.x, pos.y, node.getDegree()));
 
         if (!compact) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_corner_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
         }
 
         double effectiveRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
@@ -89,13 +90,13 @@ public final class RoadJunctionPanel {
 
         ImGui.spacing();
         // 默认自动：只展示说明，不强迫用户点四个下拉框
-        ImGui.textColored((int) 0xFF80C0FFFFL, PlotI18n.tr("plugin.road.junction_markings_auto_status"));
+        ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.junction_markings_auto_status"));
         if (!compact) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_markings_auto_detail"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_auto_detail"));
         }
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.junction_markings_advanced"))) {
-            ImGui.textColored((int) 0xFF808080FFL, PlotI18n.tr("plugin.road.junction_markings_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_hint"));
             renderMarkingSetting("stop_lines", PlotI18n.tr("plugin.road.junction_stop_lines"), node.getStopLines(),
                 node::setStopLines);
             renderMarkingSetting("continued_markings", PlotI18n.tr("plugin.road.junction_continued_markings"),

@@ -1,4 +1,5 @@
 package com.plot.plugin.road.ui;
+import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
@@ -47,7 +48,7 @@ public final class RoadCrossSectionEditor {
             height);
         ImGui.dummy(width, height);
         ImGui.textColored(
-            (int) 0xFF808080FFL,
+            PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.lane_count_summary", resolved.laneCount, resolved.carriagewayWidth));
     }
 
