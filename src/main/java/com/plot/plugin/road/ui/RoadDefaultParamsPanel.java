@@ -11,6 +11,7 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
@@ -159,8 +160,11 @@ public final class RoadDefaultParamsPanel {
     }
 
     private void renderPresetSelector() {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.road_presets"), ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        ImGui.text(PlotI18n.tr("plugin.road.road_presets"));
         String selectedId = config.getSelectedPreset();
         boolean customSelected = selectedId == null || selectedId.isBlank();
 
