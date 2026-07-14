@@ -8,7 +8,7 @@ Click the **Plot logo** in the top control panel to open **Settings & Help**.
 |-----|----------|
 | Shortcuts | Customize tool and edit keybindings |
 | Snap & Feedback | Snap marker display and colors |
-| Help & Tutorials | Built-in guides |
+| Help & Tutorials | 8 in-game chapters aligned with docs/ (getting started, interface, tools, blocks, settings, gallery, plugins, FAQ) |
 
 ---
 

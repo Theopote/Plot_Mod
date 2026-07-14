@@ -30,11 +30,76 @@ import java.util.Objects;
 // no-op
 
 /**
- * 设置与帮助对话框（第一期：快捷键页）
+ * 设置与帮助对话框
  */
 public class SettingsAndHelpDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/SettingsAndHelpDialog");
     private static final SettingsAndHelpDialog INSTANCE = new SettingsAndHelpDialog();
+
+    private record HelpTopic(String titleKey, String[] bulletKeys) {}
+
+    /** 与 docs/ 用户文档章节对应的帮助主题 */
+    private static final HelpTopic[] HELP_TOPICS = {
+        new HelpTopic("settings.plot.help_topic.getting_started", new String[] {
+            "settings.plot.help_getting_started.b01",
+            "settings.plot.help_getting_started.b02",
+            "settings.plot.help_getting_started.b03",
+            "settings.plot.help_getting_started.b04",
+            "settings.plot.help_getting_started.b05",
+            "settings.plot.help_getting_started.b06",
+            "settings.plot.help_getting_started.b07",
+        }),
+        new HelpTopic("settings.plot.help_topic.interface", new String[] {
+            "settings.plot.help_interface.b01",
+            "settings.plot.help_interface.b02",
+            "settings.plot.help_interface.b03",
+            "settings.plot.help_interface.b04",
+            "settings.plot.help_interface.b05",
+        }),
+        new HelpTopic("settings.plot.help_topic.tools", new String[] {
+            "settings.plot.help_tools.b01",
+            "settings.plot.help_tools.b02",
+            "settings.plot.help_tools.b03",
+            "settings.plot.help_tools.b04",
+            "settings.plot.help_tools.b05",
+        }),
+        new HelpTopic("settings.plot.help_topic.blocks", new String[] {
+            "settings.plot.help_blocks.b01",
+            "settings.plot.help_blocks.b02",
+            "settings.plot.help_blocks.b03",
+            "settings.plot.help_blocks.b04",
+            "settings.plot.help_blocks.b05",
+        }),
+        new HelpTopic("settings.plot.help_topic.settings", new String[] {
+            "settings.plot.help_settings.b01",
+            "settings.plot.help_settings.b02",
+            "settings.plot.help_settings.b03",
+            "settings.plot.help_settings.b04",
+        }),
+        new HelpTopic("settings.plot.help_topic.gallery", new String[] {
+            "settings.plot.help_gallery.b01",
+            "settings.plot.help_gallery.b02",
+            "settings.plot.help_gallery.b03",
+            "settings.plot.help_gallery.b04",
+        }),
+        new HelpTopic("settings.plot.help_topic.plugins", new String[] {
+            "settings.plot.help_plugins.b01",
+            "settings.plot.help_plugins.b02",
+            "settings.plot.help_plugins.b03",
+            "settings.plot.help_plugins.b04",
+            "settings.plot.help_plugins.b05",
+        }),
+        new HelpTopic("settings.plot.help_topic.faq", new String[] {
+            "settings.plot.help_faq.b01",
+            "settings.plot.help_faq.b02",
+            "settings.plot.help_faq.b03",
+            "settings.plot.help_faq.b04",
+            "settings.plot.help_faq.b05",
+            "settings.plot.help_faq.b06",
+        }),
+    };
+
+    private static final float HELP_NAV_WIDTH = 200.0f;
 
     private boolean isOpen = false;
     private final ImString searchText = new ImString(256);
@@ -359,52 +424,34 @@ public class SettingsAndHelpDialog {
         ImGui.textDisabled(PlotI18n.tr("settings.plot.help_select_topic"));
 
         if (DialogLayoutHelper.beginSettingsPageBody("##help_scroll_region", 0.0f)) {
-            if (ImGui.beginChild("##help_nav", 180, 0, true)) {
-                if (ImGui.selectable(PlotI18n.tr("settings.plot.basic_operations"), selectedHelpTopic == 0)) selectedHelpTopic = 0;
-                if (ImGui.selectable(PlotI18n.tr("settings.plot.advanced_tips"), selectedHelpTopic == 1)) selectedHelpTopic = 1;
-                if (ImGui.selectable(PlotI18n.tr("settings.plot.shortcuts_troubleshooting"), selectedHelpTopic == 2)) selectedHelpTopic = 2;
-                if (ImGui.selectable(PlotI18n.tr("settings.plot.changelog"), selectedHelpTopic == 3)) selectedHelpTopic = 3;
+            if (ImGui.beginChild("##help_nav", HELP_NAV_WIDTH, 0, true)) {
+                for (int i = 0; i < HELP_TOPICS.length; i++) {
+                    HelpTopic topic = HELP_TOPICS[i];
+                    if (ImGui.selectable(PlotI18n.tr(topic.titleKey()), selectedHelpTopic == i)) {
+                        selectedHelpTopic = i;
+                    }
+                }
             }
             ImGui.endChild();
 
             ImGui.sameLine();
 
             if (ImGui.beginChild("##help_content", 0, 0, true)) {
-                switch (selectedHelpTopic) {
-                    case 0 -> {
-                        ImGui.text(PlotI18n.tr("settings.plot.basic_operations"));
-                        ImGui.separator();
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_basic_select"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_basic_move"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_basic_zoom"));
-                    }
-                    case 1 -> {
-                        ImGui.text(PlotI18n.tr("settings.plot.advanced_tips"));
-                        ImGui.separator();
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_advanced_shift"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_advanced_snap"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_advanced_edit"));
-                    }
-                    case 2 -> {
-                        ImGui.text(PlotI18n.tr("settings.plot.shortcuts_troubleshooting"));
-                        ImGui.separator();
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_troubleshoot_conflict"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_troubleshoot_invalid"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.help_troubleshoot_esc"));
-                    }
-                    case 3 -> {
-                        ImGui.text(PlotI18n.tr("settings.plot.changelog"));
-                        ImGui.separator();
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.changelog_table"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.changelog_recording"));
-                        ImGui.bulletText(PlotI18n.tr("settings.plot.changelog_display"));
-                    }
-                    default -> selectedHelpTopic = 0;
-                }
+                int topicIndex = Math.clamp(selectedHelpTopic, 0, HELP_TOPICS.length - 1);
+                renderHelpTopicContent(HELP_TOPICS[topicIndex]);
             }
             ImGui.endChild();
         }
         ImGui.endChild();
+    }
+
+    private void renderHelpTopicContent(HelpTopic topic) {
+        ImGui.text(PlotI18n.tr(topic.titleKey()));
+        ImGui.separator();
+        ImGui.spacing();
+        for (String bulletKey : topic.bulletKeys()) {
+            ImGui.bulletText(PlotI18n.tr(bulletKey));
+        }
     }
 
     private void renderDisplayPage() {

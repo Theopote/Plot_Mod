@@ -142,7 +142,7 @@ Plot 会在进入世界后预加载常用方块图标缓存。首次打开方块
 
 ## 获取帮助
 
-- 游戏内：**Plot 标志 → 设置与帮助 → 帮助与教程**
+- 游戏内：**Plot 标志 → 设置与帮助 → 帮助与教程**（8 章，与 docs/ 对应）
 - 在线文档：[docs/README.md](../README.md)
 - 提交问题：[GitHub Issues](https://github.com/Theopote/Plot_Mod/issues)
 

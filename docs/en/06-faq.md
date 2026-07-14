@@ -130,7 +130,7 @@ No. Mobs continue moving. Use Plot in a safe area.
 
 ## Getting Help
 
-- In-game: **Plot logo → Settings & Help → Help & Tutorials**
+- In-game: **Plot logo → Settings & Help → Help & Tutorials** (8 chapters aligned with docs/)
 - Online: [docs/README.md](../README.md)
 - Issues: [GitHub Issues](https://github.com/Theopote/Plot_Mod/issues)
 
