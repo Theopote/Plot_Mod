@@ -1,5 +1,4 @@
 package com.plot.plugin.road.ui;
-import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
@@ -8,10 +7,12 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.component.Icons;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,15 @@ public final class RoadEditPanel {
 
         renderBatchEditPanel();
         junctionPanel.renderEditor();
+
+        int selectedCount = ctx.networkManager().getSelectedEdgeIds().size();
+        if (selectedCount > 1) {
+            ImGui.separator();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.single_edge_disabled_multi", selectedCount));
+            return;
+        }
 
         ImGui.separator();
         String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
@@ -164,16 +174,18 @@ public final class RoadEditPanel {
     }
 
     private void renderBatchEditPanel() {
-        if (ctx.networkManager().getSelectedEdgeIds().isEmpty()) {
+        int selectedCount = ctx.networkManager().getSelectedEdgeIds().size();
+        if (selectedCount == 0) {
             return;
         }
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.batch_edit"))) {
+        int headerFlags = selectedCount > 1 ? ImGuiTreeNodeFlags.DefaultOpen : 0;
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.batch_edit"), headerFlags)) {
             return;
         }
 
         RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();
         ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.batch_edit_hint", ctx.networkManager().getSelectedEdgeIds().size()));
+            PlotI18n.tr("plugin.road.batch_edit_hint", selectedCount));
         RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);
     }
 }

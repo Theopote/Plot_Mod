@@ -756,6 +756,7 @@
   "plugin.road.batch_edit_hint": "Apply the values below to %d selected edge(s)",
   "plugin.road.apply_batch": "Apply to selection",
   "plugin.road.batch_applied": "Updated %d edge(s)",
+  "plugin.road.single_edge_disabled_multi": "%d edges selected — use batch edit above. Per-edge settings (cross section, slope overrides, etc.) require a single selection.",
   "plugin.road.single_edge_edit": "Single edge: %s",
   "plugin.road.delete": "Delete",
   "plugin.road.delete_road": "Delete road",

@@ -756,6 +756,7 @@
   "plugin.road.batch_edit_hint": "将以下参数应用到已选的 %d 条边",
   "plugin.road.apply_batch": "应用到选中项",
   "plugin.road.batch_applied": "已更新 %d 条边",
+  "plugin.road.single_edge_disabled_multi": "已选 %d 条边，请使用上方批量编辑；单条属性（横断面、坡度覆盖等）需只选一条边后再编辑。",
   "plugin.road.single_edge_edit": "单条编辑：%s",
   "plugin.road.delete": "删除",
   "plugin.road.delete_road": "删除整条路",
