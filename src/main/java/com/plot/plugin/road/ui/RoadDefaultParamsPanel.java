@@ -164,14 +164,14 @@ public final class RoadDefaultParamsPanel {
         String selectedId = config.getSelectedPreset();
         boolean customSelected = selectedId == null || selectedId.isBlank();
 
-        float gap = ImGui.getStyle().getItemSpacingX();
+        float gap = PRESET_CARD_PADDING_X;
         float cardWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
         float cardHeight = presetCardHeight();
         int column = 0;
         int index = 0;
         for (RoadStyle style : config.getStyles()) {
             if (index > 0 && index % 2 == 0) {
-                ImGui.dummy(0f, PRESET_CARD_ROW_GAP);
+                ImGui.dummy(0f, gap);
             }
             if (column > 0) {
                 ImGui.sameLine(0, gap);
@@ -202,10 +202,9 @@ public final class RoadDefaultParamsPanel {
     private static final float PRESET_CARD_PADDING_X = 4f;
     private static final float PRESET_CARD_PADDING_TOP = 8f;
     private static final float PRESET_CARD_PADDING_BOTTOM = 2f;
-    private static final float PRESET_CARD_ROW_GAP = 8f;
     private static final float PRESET_PREVIEW_GAP = 1f;
-    /** 约为上一版图示高度的 80%。 */
-    private static final float PRESET_PREVIEW_HEIGHT = 50f;
+    /** 图示区高度；与 {@link RoadCrossSectionPreviewRenderer.MiniRenderOptions#presetCard()} 比例配套。 */
+    private static final float PRESET_PREVIEW_HEIGHT = 28f;
 
     private static float presetCardHeight() {
         return PRESET_CARD_PADDING_TOP

@@ -281,7 +281,8 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static MiniRenderOptions presetCard() {
-            return new MiniRenderOptions(0f, false, false, 0.20f, 0.36f, 0.78f);
+            // 路面贴顶；地面条约占图示高度 28%（约为原先 50% 的三分之一）
+            return new MiniRenderOptions(0f, false, false, 0.02f, 0.46f, 0.714f);
         }
     }
 
