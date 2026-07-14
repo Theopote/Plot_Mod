@@ -10,6 +10,8 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 /**
@@ -164,7 +166,7 @@ public final class RoadDefaultParamsPanel {
 
         float gap = ImGui.getStyle().getItemSpacingX();
         float cardWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
-        float cardHeight = 54f;
+        float cardHeight = 88f;
         int column = 0;
         for (RoadStyle style : config.getStyles()) {
             if (column > 0) {
@@ -201,22 +203,42 @@ public final class RoadDefaultParamsPanel {
         if (selected) {
             ImGui.pushStyleColor(ImGuiCol.Border, (int) 0xFF4DA6FFFFL);
         }
-        ImGui.beginChild("##preset_card", width, height, true);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
+        ImGui.beginChild(
+            "##preset_card",
+            width,
+            height,
+            true,
+            ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
+        );
+
+        float labelLineH = ImGui.getTextLineHeightWithSpacing();
+        float labelAreaH = labelLineH * 2f;
+        float previewH = height - labelAreaH;
         ImVec2 pos = ImGui.getCursorScreenPos();
-        float labelH = ImGui.getTextLineHeightWithSpacing();
-        float previewH = Math.max(18f, height - labelH - 4f);
         ImDrawList drawList = ImGui.getWindowDrawList();
+        RoadCrossSectionPreviewRenderer.CrossSectionLayout layout =
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style);
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style),
-            pos.x + 3f,
-            pos.y + 2f,
-            width - 6f,
-            previewH);
-        ImGui.dummy(width - 6f, previewH);
-        ImGui.text(PlotI18n.tr("preset.road." + style.id));
+            layout,
+            pos.x,
+            pos.y,
+            width,
+            previewH,
+            RoadCrossSectionPreviewRenderer.MiniRenderOptions.presetCard()
+        );
+        ImGui.dummy(width, previewH);
+
+        String presetName = PlotI18n.tr("preset.road." + style.id);
+        String caption = presetName + " (" + RoadCrossSectionPreviewRenderer.formatPresetCaption(layout) + ")";
+        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + width);
+        ImGui.text(caption);
+        ImGui.popTextWrapPos();
+
         boolean clicked = ImGui.isWindowHovered() && ImGui.isMouseClicked(0);
         ImGui.endChild();
+        ImGui.popStyleVar();
         if (selected) {
             ImGui.popStyleColor();
         }

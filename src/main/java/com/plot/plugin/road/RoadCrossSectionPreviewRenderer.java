@@ -60,7 +60,30 @@ public final class RoadCrossSectionPreviewRenderer {
             float y,
             float width,
             float height) {
-        drawCrossSection(drawList, layout, x, y, width, height);
+        renderMini(drawList, layout, x, y, width, height, MiniRenderOptions.standard());
+    }
+
+    public static void renderMini(
+            ImDrawList drawList,
+            CrossSectionLayout layout,
+            float x,
+            float y,
+            float width,
+            float height,
+            MiniRenderOptions options) {
+        drawCrossSection(drawList, layout, x, y, width, height, options);
+    }
+
+    public static String formatPresetCaption(CrossSectionLayout layout) {
+        String scale = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(layout.totalWidthBlocks()));
+        if (layout.maxSlopePercent <= 0f) {
+            return scale;
+        }
+        String grade = PlotI18n.tr(
+            "plugin.road.cross_section_grade",
+            SlopeFormatUtils.formatPercent(layout.maxSlopePercent)
+        );
+        return scale + ", " + grade;
     }
 
     private static void drawCrossSection(
@@ -70,10 +93,23 @@ public final class RoadCrossSectionPreviewRenderer {
             float y0,
             float width,
             float height) {
-        float padding = 8f;
-        float deckY = y0 + height * 0.28f;
-        float deckH = height * 0.22f;
-        float groundY = y0 + height * 0.72f;
+        drawCrossSection(drawList, layout, x0, y0, width, height, MiniRenderOptions.standard());
+    }
+
+    private static void drawCrossSection(
+            ImDrawList drawList,
+            CrossSectionLayout layout,
+            float x0,
+            float y0,
+            float width,
+            float height,
+            MiniRenderOptions options) {
+        MiniRenderOptions renderOptions = options != null ? options : MiniRenderOptions.standard();
+        float padding = renderOptions.padding;
+        float deckY = y0 + height * renderOptions.deckYRatio;
+        float deckH = height * renderOptions.deckHRatio;
+        float groundY = y0 + height * renderOptions.groundYRatio;
+        float groundBottom = padding > 0f ? y0 + height - padding : y0 + height;
 
         float totalBlocks = layout.totalWidthBlocks();
         if (totalBlocks <= 0f) {
@@ -83,8 +119,10 @@ public final class RoadCrossSectionPreviewRenderer {
         float scale = (width - padding * 2f) / totalBlocks;
         float cursorX = x0 + (width - totalBlocks * scale) * 0.5f;
 
-        drawList.addLine(x0 + padding, groundY, x0 + width - padding, groundY, COLOR_GROUND_LINE, 1.5f);
-        drawList.addRectFilled(x0 + padding, groundY, x0 + width - padding, y0 + height - padding, COLOR_GROUND);
+        float groundLeft = x0 + padding;
+        float groundRight = x0 + width - padding;
+        drawList.addLine(groundLeft, groundY, groundRight, groundY, COLOR_GROUND_LINE, 1.5f);
+        drawList.addRectFilled(groundLeft, groundY, groundRight, groundBottom, COLOR_GROUND);
 
         cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
         cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
@@ -113,7 +151,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 -1,
                 layout.fillSlopeRatio,
                 layout.shoulderColor,
-                layout.fillSlopeRatio > 0f
+                layout.fillSlopeRatio > 0f,
+                renderOptions.drawSlopeLabels
             );
             drawBatterSlope(
                 drawList,
@@ -123,20 +162,23 @@ public final class RoadCrossSectionPreviewRenderer {
                 1,
                 layout.cutSlopeRatio,
                 layout.shoulderColor,
-                layout.cutSlopeRatio > 0f
+                layout.cutSlopeRatio > 0f,
+                renderOptions.drawSlopeLabels
             );
         }
 
-        if (layout.maxSlopePercent > 0f) {
-            String gradeLabel = PlotI18n.tr(
-                "plugin.road.cross_section_grade",
-                SlopeFormatUtils.formatPercent(layout.maxSlopePercent)
-            );
-            drawList.addText(x0 + width - padding - 72f, y0 + padding * 0.5f, COLOR_LABEL, gradeLabel);
-        }
+        if (renderOptions.drawOverlayLabels) {
+            if (layout.maxSlopePercent > 0f) {
+                String gradeLabel = PlotI18n.tr(
+                    "plugin.road.cross_section_grade",
+                    SlopeFormatUtils.formatPercent(layout.maxSlopePercent)
+                );
+                drawList.addText(x0 + width - padding - 72f, y0 + padding * 0.5f, COLOR_LABEL, gradeLabel);
+            }
 
-        String label = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(totalBlocks));
-        drawList.addText(x0 + padding, y0 + padding * 0.5f, COLOR_LABEL, label);
+            String label = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(totalBlocks));
+            drawList.addText(x0 + padding, y0 + padding * 0.5f, COLOR_LABEL, label);
+        }
     }
 
     private static void drawRoadMarkings(
@@ -190,7 +232,8 @@ public final class RoadCrossSectionPreviewRenderer {
             int horizontalSign,
             float slopeRatio,
             int color,
-            boolean enabled) {
+            boolean enabled,
+            boolean drawLabel) {
         if (!enabled || slopeRatio <= 0f) {
             return;
         }
@@ -203,9 +246,43 @@ public final class RoadCrossSectionPreviewRenderer {
         drawList.addTriangleFilled(edgeX, deckBottom, endX, groundY, edgeX, groundY, color);
         drawList.addLine(edgeX, deckBottom, endX, groundY, COLOR_BORDER, 1.2f);
 
-        String label = SlopeFormatUtils.formatRatio(slopeRatio);
-        float labelX = horizontalSign < 0 ? endX + 2f : edgeX + 2f;
-        drawList.addText(labelX, deckBottom + 2f, COLOR_LABEL, label);
+        if (drawLabel) {
+            String label = SlopeFormatUtils.formatRatio(slopeRatio);
+            float labelX = horizontalSign < 0 ? endX + 2f : edgeX + 2f;
+            drawList.addText(labelX, deckBottom + 2f, COLOR_LABEL, label);
+        }
+    }
+
+    public static final class MiniRenderOptions {
+        public final float padding;
+        public final boolean drawOverlayLabels;
+        public final boolean drawSlopeLabels;
+        public final float deckYRatio;
+        public final float deckHRatio;
+        public final float groundYRatio;
+
+        private MiniRenderOptions(
+                float padding,
+                boolean drawOverlayLabels,
+                boolean drawSlopeLabels,
+                float deckYRatio,
+                float deckHRatio,
+                float groundYRatio) {
+            this.padding = padding;
+            this.drawOverlayLabels = drawOverlayLabels;
+            this.drawSlopeLabels = drawSlopeLabels;
+            this.deckYRatio = deckYRatio;
+            this.deckHRatio = deckHRatio;
+            this.groundYRatio = groundYRatio;
+        }
+
+        public static MiniRenderOptions standard() {
+            return new MiniRenderOptions(8f, true, true, 0.28f, 0.22f, 0.72f);
+        }
+
+        public static MiniRenderOptions presetCard() {
+            return new MiniRenderOptions(0f, false, false, 0.20f, 0.36f, 0.78f);
+        }
     }
 
     public static final class CrossSectionLayout {
