@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.DoubleBuffer;
 import java.nio.IntBuffer;
 
@@ -202,36 +204,88 @@ public class ImGuiRenderer {
         }
     }
 
+    /** 界面常用符号区段（箭头、破折号等），与中文区段分次合并进字体图集 */
+    private static final short[] UI_SYMBOL_GLYPH_RANGES = new short[] {
+        (short) 0x2190, (short) 0x21FF,
+        (short) 0x2010, (short) 0x2017,
+        (short) 0x2715, (short) 0x2717,
+        0
+    };
+
+    private static final String BUNDLED_CJK_FONT = "/assets/plot/fonts/SourceHanSansCN-Regular.ttf";
+    private static final float UI_FONT_SIZE = 16.0f;
+
     private void initializeFonts(ImGuiIO io) {
+        ImFontConfig cjkConfig = null;
+        ImFontConfig symbolConfig = null;
         try {
-            ImFontConfig fontConfig = new ImFontConfig();
-            fontConfig.setGlyphRanges(io.getFonts().getGlyphRangesChineseFull());
-            
-            String[] fontPaths = {
-                "C:/Windows/Fonts/msyh.ttc",
-                "/System/Library/Fonts/PingFang.ttc",
-                "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
-            };
-            
-            boolean fontLoaded = false;
-            for (String fontPath : fontPaths) {
-                if (new File(fontPath).exists()) {
-                    io.getFonts().addFontFromFileTTF(fontPath, 16.0f, fontConfig);
-                    fontLoaded = true;
-                    break;
-                }
+            io.getFonts().addFontDefault();
+
+            cjkConfig = new ImFontConfig();
+            cjkConfig.setMergeMode(true);
+            cjkConfig.setPixelSnapH(true);
+            cjkConfig.setGlyphRanges(io.getFonts().getGlyphRangesChineseFull());
+
+            boolean cjkLoaded = loadCjkFont(io, cjkConfig);
+            if (!cjkLoaded) {
+                LOGGER.warn("CJK font not found; Chinese UI text may not render correctly");
+            } else {
+                symbolConfig = new ImFontConfig();
+                symbolConfig.setMergeMode(true);
+                symbolConfig.setPixelSnapH(true);
+                symbolConfig.setGlyphRanges(UI_SYMBOL_GLYPH_RANGES);
+                loadCjkFont(io, symbolConfig);
             }
-            
-            if (!fontLoaded) {
-                io.getFonts().addFontDefault();
-            }
-            
+
             io.getFonts().build();
-            fontConfig.destroy();
         } catch (Exception e) {
             LOGGER.error("Font init failed", e);
             io.getFonts().addFontDefault();
             io.getFonts().build();
+        } finally {
+            if (cjkConfig != null) {
+                cjkConfig.destroy();
+            }
+            if (symbolConfig != null) {
+                symbolConfig.destroy();
+            }
+        }
+    }
+
+    private boolean loadCjkFont(ImGuiIO io, ImFontConfig config) {
+        String[] systemFontPaths = {
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
+        };
+        for (String fontPath : systemFontPaths) {
+            if (new File(fontPath).exists()) {
+                io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
+                LOGGER.info("Loaded UI font from {}", fontPath);
+                return true;
+            }
+        }
+
+        byte[] bundled = loadBundledFontBytes();
+        if (bundled != null) {
+            config.setFontDataOwnedByAtlas(false);
+            io.getFonts().addFontFromMemoryTTF(bundled, UI_FONT_SIZE, config);
+            LOGGER.info("Loaded bundled UI font from {}", BUNDLED_CJK_FONT);
+            return true;
+        }
+        return false;
+    }
+
+    private byte[] loadBundledFontBytes() {
+        try (InputStream in = ImGuiRenderer.class.getResourceAsStream(BUNDLED_CJK_FONT)) {
+            if (in == null) {
+                return null;
+            }
+            return in.readAllBytes();
+        } catch (IOException e) {
+            LOGGER.warn("Failed to read bundled font {}", BUNDLED_CJK_FONT, e);
+            return null;
         }
     }
 

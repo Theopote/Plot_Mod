@@ -450,7 +450,14 @@ public class SettingsAndHelpDialog {
         ImGui.separator();
         ImGui.spacing();
         for (String bulletKey : topic.bulletKeys()) {
-            ImGui.bulletText(PlotI18n.tr(bulletKey));
+            String text = PlotI18n.tr(bulletKey);
+            if (text.equals(bulletKey)) {
+                LOGGER.warn("Missing help translation: {}", bulletKey);
+                text = bulletKey;
+            }
+            ImGui.pushTextWrapPos(0.0f);
+            ImGui.bulletText(text);
+            ImGui.popTextWrapPos();
         }
     }
 
