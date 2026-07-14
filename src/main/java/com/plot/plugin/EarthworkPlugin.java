@@ -23,6 +23,8 @@ import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
+import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
@@ -65,6 +67,7 @@ public class EarthworkPlugin extends Plugin {
     private EarthworkProject project = new EarthworkProject();
     private final EarthworkProjectHistory projectHistory = new EarthworkProjectHistory();
     private final EarthworkRegionPickSession pickSession = new EarthworkRegionPickSession();
+    private final EarthworkThreePointPickSession threePointPickSession = new EarthworkThreePointPickSession();
     private EarthworkGenerator earthworkGenerator;
 
     // 多线程访问的字段需要同步保护（UI线程 + 异步方块放置）
@@ -141,6 +144,7 @@ public class EarthworkPlugin extends Plugin {
     @Override
     public void onDisable() {
         pickSession.cancel();
+        threePointPickSession.cancel();
         persistProject();
         if (config != null) {
             config.save();
@@ -166,6 +170,9 @@ public class EarthworkPlugin extends Plugin {
 
         if (pickSession.isActive()) {
             handlePickSessionTick();
+        }
+        if (threePointPickSession.isActive()) {
+            handleThreePointPickSessionTick();
         }
 
         renderToolbar();
@@ -511,6 +518,19 @@ public class EarthworkPlugin extends Plugin {
                 projectHistory.push(project);
                 region.setThreePointElevation(i, elevation[0]);
             }
+
+            boolean pickingThisPoint = threePointPickSession.isActive()
+                && threePointPickSession.getControlPointIndex() == i;
+            if (pickingThisPoint) {
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.STATUS_INFO);
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.three_point_pick") + "##pick_" + i)) {
+                startThreePointPick(region, i);
+            }
+            if (pickingThisPoint) {
+                ImGui.popStyleColor();
+            }
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.three_point_pick");
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.three_point");
     }
@@ -551,8 +571,7 @@ public class EarthworkPlugin extends Plugin {
             return sampleHeights;
         }
         for (Vec2d center : sampleCenters) {
-            var column = EarthworkGeometryUtils.canvasToBlockXZ(center, transformer);
-            sampleHeights.add(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, column.getX(), column.getZ()));
+            sampleHeights.add(TerrainSurfaceSampler.sampleAtCanvas(world, center, transformer));
         }
         return sampleHeights;
     }
@@ -813,6 +832,7 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void startPickSession() {
+        threePointPickSession.cancel();
         ToolManager toolManager = ToolManager.getInstance();
         if (toolManager == null) {
             return;
@@ -843,6 +863,54 @@ public class EarthworkPlugin extends Plugin {
                 List<Shape> selected = AppState.getInstance().getSelectedShapes();
                 projectStatus = PlotI18n.tr(pickSession.hintKeyForCurrentSelection(selected));
             }
+        }
+    }
+
+    private void startThreePointPick(GradingRegion region, int controlPointIndex) {
+        if (region == null || controlPointIndex < 0 || controlPointIndex > 2) {
+            return;
+        }
+        if (getClientWorld() == null) {
+            projectStatus = PlotI18n.tr("status.plot.earthwork.three_point_pick_world_unavailable");
+            return;
+        }
+        pickSession.cancel();
+        threePointPickSession.begin(controlPointIndex);
+        projectStatus = PlotI18n.tr("status.plot.earthwork.three_point_pick_active", controlPointIndex + 1);
+    }
+
+    private void handleThreePointPickSessionTick() {
+        GradingRegion region = project.getRegion(selectedRegionId);
+        if (region == null) {
+            threePointPickSession.cancel();
+            return;
+        }
+
+        EarthworkThreePointPickSession.Outcome outcome =
+            threePointPickSession.tick(AppState.getInstance(), region.getOuterPoints());
+        switch (outcome.getResult()) {
+            case PICKED -> {
+                EarthworkThreePointPickSession.PickResult pick = outcome.getPick();
+                if (pick != null) {
+                    projectHistory.push(project);
+                    region.setThreePointControl(
+                        outcome.getControlPointIndex(),
+                        pick.canvasPoint(),
+                        pick.elevation());
+                    projectStatus = PlotI18n.tr(
+                        "status.plot.earthwork.three_point_pick_success",
+                        outcome.getControlPointIndex() + 1);
+                }
+            }
+            case OUTSIDE_REGION -> projectStatus =
+                PlotI18n.tr("status.plot.earthwork.three_point_pick_outside_region");
+            case WORLD_UNAVAILABLE -> projectStatus =
+                PlotI18n.tr("status.plot.earthwork.three_point_pick_world_unavailable");
+            case CANCELLED -> projectStatus =
+                PlotI18n.tr("status.plot.earthwork.three_point_pick_cancelled");
+            default -> projectStatus = PlotI18n.tr(
+                "status.plot.earthwork.three_point_pick_active",
+                outcome.getControlPointIndex() + 1);
         }
     }
 

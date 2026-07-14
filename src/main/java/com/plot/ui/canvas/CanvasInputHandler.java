@@ -11,6 +11,7 @@ import com.plot.core.tool.BaseTool;
 // import com.plot.infrastructure.event.mouse.KeyEvent; // 未使用
 import com.plot.infrastructure.event.mouse.MouseEvent;
 import com.plot.ui.panel.gallery.GalleryPlacementGuard;
+import com.plot.plugin.earthwork.EarthworkPickGuard;
 import com.plot.utils.ExceptionDebug;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
@@ -77,8 +78,8 @@ public class CanvasInputHandler {
                 handleKeyboardEvents(currentTool);
             }
 
-            // 图库放置模式优先：避免与绘制/选择工具争抢同一次点击
-            if (GalleryPlacementGuard.isActive()) {
+            // 图库放置 / 土方拾取模式优先：避免与绘制/选择工具争抢同一次点击
+            if (GalleryPlacementGuard.isActive() || EarthworkPickGuard.isActive()) {
                 return;
             }
 
