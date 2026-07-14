@@ -377,6 +377,7 @@ public class BuildingPlugin extends Plugin {
                 projectHistory.push(project);
                 building.setFoundationFillMaterial(blockId);
             });
+        UIUtils.renderEngineeringTooltip("hint.plot.building.foundation_material");
 
         renderRoofTypeSelector(building);
         if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {

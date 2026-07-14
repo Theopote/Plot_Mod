@@ -64,6 +64,14 @@ class BuildingListHelperTest {
     }
 
     @Test
+    void sortByAreaDescending() {
+        BuildingProject project = sampleProject();
+        assertEquals(
+            List.of("building-large", "building-medium", "building-small"),
+            ids(project, BuildingListHelper.SortMode.AREA_DESC));
+    }
+
+    @Test
     void sortByFloorsDescending() {
         BuildingProject project = sampleProject();
         assertEquals(
