@@ -3,37 +3,38 @@ package com.plot.ui.panel.gallery;
 import com.plot.core.gallery.GalleryItem;
 import com.plot.core.gallery.GalleryRepository;
 import com.plot.core.model.Shape;
+import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
+import com.plot.ui.component.Icons;
+import com.plot.ui.component.UIComponent;
+import com.plot.ui.component.UIUtils;
 import com.plot.ui.dialog.DialogLayoutHelper;
 import com.plot.ui.dialog.DialogStyleManager;
+import com.plot.ui.theme.ThemeManager;
+import com.plot.PlotMod;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiTableColumnFlags;
+import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 保存选中图形到图库 / 编辑图库条目。
+ * 保存选中图形到图库。
  */
 public class GalleryItemEditorDialog {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GalleryItemEditorDialog");
     private static final String SAVE_DIALOG_TITLE = "gallery_save##GallerySavePopup";
-    private static final String EDIT_DIALOG_TITLE = "gallery_edit##GalleryEditPopup";
-
-    public enum Mode {
-        SAVE,
-        EDIT
-    }
 
     private boolean visible;
     private boolean popupOpenRequested;
-    private Mode mode = Mode.SAVE;
-    private GalleryItem editingItem;
     private List<Shape> pendingSelection = List.of();
     private String defaultCategory = "BUILDING";
 
@@ -46,23 +47,9 @@ public class GalleryItemEditorDialog {
             publishStatus("status.plot.gallery.save_no_selection");
             return;
         }
-        mode = Mode.SAVE;
-        editingItem = null;
         pendingSelection = List.copyOf(selectedShapes);
         this.defaultCategory = defaultCategory != null ? defaultCategory : "BUILDING";
         resetInputs("", "", this.defaultCategory);
-        visible = true;
-        popupOpenRequested = true;
-    }
-
-    public void showEdit(GalleryItem item) {
-        if (item == null || item.isPreset()) {
-            return;
-        }
-        mode = Mode.EDIT;
-        editingItem = item;
-        pendingSelection = List.of();
-        resetInputs(item.getDisplayName(), item.getDisplayDescription(), item.getCategory());
         visible = true;
         popupOpenRequested = true;
     }
@@ -72,14 +59,10 @@ public class GalleryItemEditorDialog {
             return;
         }
         if (popupOpenRequested) {
-            ImGui.openPopup(mode == Mode.SAVE ? SAVE_DIALOG_TITLE : EDIT_DIALOG_TITLE);
+            ImGui.openPopup(SAVE_DIALOG_TITLE);
             popupOpenRequested = false;
         }
-        if (mode == Mode.SAVE) {
-            renderDialog(SAVE_DIALOG_TITLE, PlotI18n.tr("dialog.plot.gallery_save_title"));
-        } else {
-            renderDialog(EDIT_DIALOG_TITLE, PlotI18n.tr("dialog.plot.gallery_edit_title"));
-        }
+        renderDialog(SAVE_DIALOG_TITLE, PlotI18n.tr("dialog.plot.gallery_save_title"));
     }
 
     private void renderDialog(String popupId, String title) {
@@ -87,7 +70,6 @@ public class GalleryItemEditorDialog {
         float dialogWidth = DialogStyleManager.DialogWidth.STANDARD.value;
         var center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-        // 固定宽度；AlwaysAutoResize 会与 -1 宽输入框形成反馈，导致弹窗逐帧变窄
         ImGui.setNextWindowSize(dialogWidth, 0.0f, ImGuiCond.Always);
 
         try {
@@ -101,7 +83,7 @@ public class GalleryItemEditorDialog {
                     }
                     renderContent(title, dialogWidth);
                 } catch (Exception e) {
-                    LOGGER.error("渲染图库编辑对话框失败", e);
+                    LOGGER.error("渲染图库保存对话框失败", e);
                     closePopup();
                 }
                 ImGui.endPopup();
@@ -115,9 +97,7 @@ public class GalleryItemEditorDialog {
         float contentWidth = dialogWidth - DialogStyleManager.PANEL_PADDING * 2.0f;
 
         DialogLayoutHelper.beginSection(title);
-        if (mode == Mode.SAVE) {
-            DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.gallery_save_hint", pendingSelection.size()));
-        }
+        DialogLayoutHelper.helpText(PlotI18n.tr("dialog.plot.gallery_save_hint", pendingSelection.size()));
         DialogLayoutHelper.endSection();
 
         ImGui.text(PlotI18n.tr("dialog.plot.gallery_field_name"));
@@ -157,14 +137,8 @@ public class GalleryItemEditorDialog {
             category = defaultCategory;
         }
 
-        GalleryRepository repository = GalleryRepository.getInstance();
-        if (mode == Mode.SAVE) {
-            repository.saveFromSelection(pendingSelection, name, description, category);
-            publishStatus("status.plot.gallery.save_success", name);
-        } else if (editingItem != null) {
-            repository.updateItem(editingItem.getId(), name, description, category);
-            publishStatus("status.plot.gallery.edit_success", name);
-        }
+        GalleryRepository.getInstance().saveFromSelection(pendingSelection, name, description, category);
+        publishStatus("status.plot.gallery.save_success", name);
         closePopup();
     }
 
@@ -176,7 +150,6 @@ public class GalleryItemEditorDialog {
 
     private void closePopup() {
         visible = false;
-        editingItem = null;
         pendingSelection = List.of();
         ImGui.closeCurrentPopup();
     }

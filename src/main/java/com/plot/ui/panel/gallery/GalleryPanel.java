@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -32,6 +31,8 @@ public class GalleryPanel implements UIComponent {
     private final GalleryPlaceSession placeSession = new GalleryPlaceSession();
     private final GalleryDeleteDialog deleteDialog = new GalleryDeleteDialog();
     private final GalleryItemEditorDialog editorDialog = new GalleryItemEditorDialog();
+    private final GalleryCategoryRenameDialog categoryRenameDialog = new GalleryCategoryRenameDialog();
+    private final GalleryCategoryDeleteDialog categoryDeleteDialog = new GalleryCategoryDeleteDialog();
 
     private final ImString searchText = new ImString(256);
 
@@ -117,6 +118,8 @@ public class GalleryPanel implements UIComponent {
     public void renderDeferredModals() {
         deleteDialog.render();
         editorDialog.render();
+        categoryRenameDialog.render();
+        categoryDeleteDialog.render();
     }
 
     private void renderSearchBar() {
@@ -153,6 +156,14 @@ public class GalleryPanel implements UIComponent {
             ImGui.endTooltip();
         }
 
+        ImGui.sameLine();
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.buttonNormal);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
+        if (ImGui.button(PlotI18n.tr("panel.plot.gallery_add_category") + "##add_category")) {
+            addNewCategory();
+        }
+        ImGui.popStyleColor(2);
+
         if (placeSession.isActive() && placeSession.getPendingItem() != null) {
             ImGui.sameLine();
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.warningText);
@@ -177,9 +188,7 @@ public class GalleryPanel implements UIComponent {
 
     private void renderCategories() {
         var theme = ThemeManager.getInstance().getCurrentTheme();
-        List<String> categoryIds = Arrays.stream(CategoryType.values())
-            .map(Enum::name)
-            .toList();
+        List<String> categoryIds = getCategoryIds();
 
         float availableWidth = ImGui.getContentRegionAvailX();
         float tagHeight = ImGui.getFrameHeight();
@@ -221,6 +230,10 @@ public class GalleryPanel implements UIComponent {
             }
             ImGui.popStyleColor(3);
 
+            if (repository.isCustomCategory(categoryId)) {
+                renderCustomCategoryContextMenu(categoryId);
+            }
+
             x += tagWidth + tagSpacing;
         }
 
@@ -229,9 +242,64 @@ public class GalleryPanel implements UIComponent {
         ImGui.separator();
     }
 
+    private void renderCustomCategoryContextMenu(String categoryId) {
+        var theme = ThemeManager.getInstance().getCurrentTheme();
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.PopupBg, theme.panelBackground);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Border, theme.border);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, theme.text);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Header, theme.tabNormal);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.HeaderHovered, theme.tabHovered);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.HeaderActive, theme.tabActive);
+
+        if (ImGui.beginPopupContextItem("##gallery_category_ctx_" + categoryId)) {
+            if (ImGui.menuItem(PlotI18n.tr("panel.plot.gallery_rename_category"))) {
+                categoryRenameDialog.show(categoryId, newName -> selectedCategory = newName);
+            }
+            if (ImGui.menuItem(PlotI18n.tr("panel.plot.gallery_delete_category"))) {
+                categoryDeleteDialog.show(categoryId, deletedId -> {
+                    if (deletedId.equals(selectedCategory)) {
+                        selectedCategory = CategoryType.ALL.name();
+                    }
+                });
+            }
+            ImGui.endPopup();
+        }
+
+        ImGui.popStyleColor(6);
+    }
+
     private float categoryTagWidth(String label) {
         float framePaddingX = ImGui.getStyle().getFramePaddingX();
         return ImGui.calcTextSize(label).x + framePaddingX * 2.0f;
+    }
+
+    private List<String> getCategoryIds() {
+        List<String> categoryIds = new ArrayList<>();
+        for (CategoryType type : CategoryType.values()) {
+            categoryIds.add(type.name());
+        }
+        categoryIds.addAll(repository.getCustomCategories());
+        return categoryIds;
+    }
+
+    private void addNewCategory() {
+        String name = generateDefaultCategoryName();
+        repository.addCustomCategory(name);
+        selectedCategory = name;
+    }
+
+    private String generateDefaultCategoryName() {
+        int index = repository.getCustomCategories().size() + 1;
+        String name = PlotI18n.tr("gallery.plot.category.default_name", index);
+        int suffix = index;
+        while (isCategoryNameTaken(name)) {
+            name = PlotI18n.tr("gallery.plot.category.default_name", ++suffix);
+        }
+        return name;
+    }
+
+    private boolean isCategoryNameTaken(String name) {
+        return repository.isCategoryNameTaken(name, null);
     }
 
     private void renderGalleryContent() {
@@ -245,7 +313,7 @@ public class GalleryPanel implements UIComponent {
                 if (ImGui.beginTable("gallery_table", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg)) {
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_name"), ImGuiTableColumnFlags.WidthFixed, 120);
                     ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_description"), ImGuiTableColumnFlags.WidthStretch);
-                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_actions"), ImGuiTableColumnFlags.WidthFixed, 160);
+                    ImGui.tableSetupColumn(PlotI18n.tr("panel.plot.gallery_col_actions"), ImGuiTableColumnFlags.WidthFixed, 80);
                     ImGui.tableHeadersRow();
 
                     for (GalleryItem item : items) {
@@ -287,21 +355,6 @@ public class GalleryPanel implements UIComponent {
         ImGui.popStyleColor(2);
 
         ImGui.sameLine();
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.buttonNormal);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
-        if (ImGui.button("✎" + "##edit" + item.getId(), buttonWidth, buttonHeight) && !item.isPreset()) {
-            editorDialog.showEdit(item);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(item.isPreset()
-                ? PlotI18n.tr("panel.plot.gallery_preset_readonly")
-                : PlotI18n.tr("button.plot.edit"));
-            ImGui.endTooltip();
-        }
-        ImGui.popStyleColor(2);
-
-        ImGui.sameLine();
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.errorText);
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
         if (ImGui.button("×" + "##delete" + item.getId(), buttonWidth, buttonHeight)) {
@@ -310,19 +363,6 @@ public class GalleryPanel implements UIComponent {
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
             ImGui.text(PlotI18n.tr("button.plot.delete"));
-            ImGui.endTooltip();
-        }
-        ImGui.popStyleColor(2);
-
-        ImGui.sameLine();
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, theme.mutedText);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, theme.buttonHovered);
-        if (ImGui.button("↓" + "##import" + item.getId(), buttonWidth, buttonHeight)) {
-            repository.placeAtViewportCenter(item, appState);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(PlotI18n.tr("panel.plot.gallery_open_on_canvas"));
             ImGui.endTooltip();
         }
         ImGui.popStyleColor(2);

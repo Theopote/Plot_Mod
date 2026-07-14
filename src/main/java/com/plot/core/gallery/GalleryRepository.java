@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,9 @@ import java.util.UUID;
 public final class GalleryRepository {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GalleryRepository");
     private static final String GALLERY_FILE_NAME = "gallery.json";
+    private static final Set<String> RESERVED_CATEGORY_IDS = Set.of(
+        "ALL", "BUILDING", "LANDSCAPE", "SHAPE", "SYMBOL");
+    private static final String FALLBACK_CATEGORY_ID = "BUILDING";
     private static volatile GalleryRepository INSTANCE;
     private static final Object INSTANCE_LOCK = new Object();
 
@@ -135,17 +139,82 @@ public final class GalleryRepository {
     }
 
     public synchronized void addCustomCategory(String name) {
-        if (name == null || name.isBlank() || customCategories.contains(name)) {
+        if (name == null || name.isBlank() || customCategories.contains(name) || isReservedCategoryId(name)) {
             return;
         }
         customCategories.add(name);
         save();
     }
 
-    public synchronized void removeCustomCategory(String name) {
-        if (customCategories.remove(name)) {
-            save();
+    public synchronized boolean renameCustomCategory(String oldName, String newName) {
+        if (oldName == null || newName == null) {
+            return false;
         }
+        String trimmed = newName.trim();
+        if (trimmed.isBlank() || !customCategories.contains(oldName)) {
+            return false;
+        }
+        if (trimmed.equals(oldName)) {
+            return true;
+        }
+        if (customCategories.contains(trimmed) || isReservedCategoryId(trimmed)) {
+            return false;
+        }
+        int index = customCategories.indexOf(oldName);
+        customCategories.set(index, trimmed);
+        reassignItemCategory(oldName, trimmed);
+        save();
+        return true;
+    }
+
+    public synchronized boolean deleteCustomCategory(String name) {
+        if (!customCategories.remove(name)) {
+            return false;
+        }
+        reassignItemCategory(name, FALLBACK_CATEGORY_ID);
+        save();
+        return true;
+    }
+
+    public synchronized boolean isCustomCategory(String categoryId) {
+        return categoryId != null && customCategories.contains(categoryId);
+    }
+
+    public synchronized boolean isCategoryNameTaken(String name, String except) {
+        if (name == null) {
+            return true;
+        }
+        String trimmed = name.trim();
+        if (trimmed.isEmpty()) {
+            return true;
+        }
+        if (except != null && trimmed.equals(except)) {
+            return false;
+        }
+        if (isReservedCategoryId(trimmed)) {
+            return true;
+        }
+        return customCategories.contains(trimmed);
+    }
+
+    public synchronized void removeCustomCategory(String name) {
+        deleteCustomCategory(name);
+    }
+
+    private void reassignItemCategory(String fromCategory, String toCategory) {
+        for (int i = 0; i < items.size(); i++) {
+            GalleryItem item = items.get(i);
+            if (!fromCategory.equals(item.getCategory())) {
+                continue;
+            }
+            GallerySnapshot.ItemSnapshot snap = item.toSnapshot();
+            snap.category = toCategory;
+            items.set(i, GalleryItem.fromSnapshot(snap));
+        }
+    }
+
+    private static boolean isReservedCategoryId(String categoryId) {
+        return categoryId != null && RESERVED_CATEGORY_IDS.contains(categoryId);
     }
 
     public synchronized Optional<GalleryItem> findById(String id) {
