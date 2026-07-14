@@ -9,7 +9,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -203,8 +202,7 @@ public class EarthworkGenerator {
 
     private int getTopHeight(World world, BlockPos pos) {
         try {
-            BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, pos);
-            return topPos != null ? topPos.getY() : pos.getY();
+            return TerrainSurfaceSampler.sampleAtBlock(world, pos.getX(), pos.getZ());
         } catch (Exception e) {
             LOGGER.warn("获取地形高度失败 ({}, {}): {}", pos.getX(), pos.getZ(), e.getMessage());
             return 64;

@@ -677,6 +677,7 @@
   "plugin.earthwork.project.loaded": "已加载土方项目: %s",
   "plugin.earthwork.project.saved": "已保存土方项目: %s",
   "plugin.earthwork.project.load_failed": "加载土方项目失败: %s",
+  "plugin.earthwork.project.save_failed": "保存土方项目失败: %s",
   "plugin.earthwork.project.default_loaded": "已加载默认土方项目",
   "plugin.earthwork.history.generate": "整平地形（%d 方块）",
   "plugin.earthwork.history.generate.detail": "放置土方方块（%d 处变更）",

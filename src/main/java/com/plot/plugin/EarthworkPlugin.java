@@ -78,6 +78,7 @@ public class EarthworkPlugin extends Plugin {
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
     private volatile EarthworkGenerator.EarthworkGenerationResult lastGenerationResult;
+    private String regionNameEditingRegionId = "";
     private String pendingDeleteRegionId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
@@ -363,7 +364,10 @@ public class EarthworkPlugin extends Plugin {
         renderRegionSelector();
         ImGui.separator();
 
-        regionNameBuffer.set(region.getName());
+        if (!region.getId().equals(regionNameEditingRegionId)) {
+            regionNameBuffer.set(region.getName());
+            regionNameEditingRegionId = region.getId();
+        }
         if (ImGui.inputText(PlotI18n.tr("plugin.earthwork.region_name"), regionNameBuffer)) {
             projectHistory.push(project);
             region.setName(regionNameBuffer.get());
@@ -581,6 +585,7 @@ public class EarthworkPlugin extends Plugin {
         showGridRef.set(config.isShowGrid());
         if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.show_grid"), showGridRef)) {
             config.setShowGrid(showGridRef.get());
+            config.save();
         }
     }
 
@@ -1071,6 +1076,7 @@ public class EarthworkPlugin extends Plugin {
             selectedRegionId = project.getRegions().isEmpty()
                 ? ""
                 : project.getRegions().keySet().iterator().next();
+            regionNameEditingRegionId = "";
         }
     }
 
@@ -1130,6 +1136,7 @@ public class EarthworkPlugin extends Plugin {
             project.saveTo(file);
         } catch (IOException e) {
             LOGGER.error("保存土方项目失败: {}", e.getMessage(), e);
+            projectStatus = PlotI18n.tr("plugin.earthwork.project.save_failed", file.getFileName());
         }
     }
 

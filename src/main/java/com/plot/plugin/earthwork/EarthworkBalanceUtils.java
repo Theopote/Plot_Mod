@@ -7,6 +7,7 @@ import java.util.List;
  */
 public final class EarthworkBalanceUtils {
     private static final int DEFAULT_ELEVATION = 64;
+    private static final float DEFAULT_FILL_FACTOR = 1.1f;
 
     private EarthworkBalanceUtils() {
     }
@@ -75,8 +76,13 @@ public final class EarthworkBalanceUtils {
         return Math.round(computeFillVolume(groundHeightSamples, targetElevation) * fillFactor);
     }
 
+    static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation) {
+        return computeBalanceDiff(groundHeightSamples, targetElevation, DEFAULT_FILL_FACTOR);
+    }
+
     /**
-     * 计算平衡差值（挖方量 - 填方量），基于实际方块数，不应用填土系数。
+     * 计算平衡差值（挖方量 - 换算后的填方需求量）。
+     * fillFactor 用于将填方几何体积换算为所需松散方量，与平衡标高求解语义一致。
      */
     static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation, float fillFactor) {
         return computeCutVolume(groundHeightSamples, targetElevation)
