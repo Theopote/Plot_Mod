@@ -34,11 +34,13 @@ public final class RoadBatchCrossSectionEditor {
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##batch_lanes", laneCountArr, 1, 4, "%d")) {
             laneCount = laneCountArr[0];
         }
+        laneCount = laneCountArr[0];
 
         int[] widthArr = {width};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##batch_width", widthArr, 3, 20, "%d")) {
             width = widthArr[0];
         }
+        width = widthArr[0];
 
         RoadUiWidgets.renderBlockMaterialPicker(
             ctx,
@@ -60,11 +62,12 @@ public final class RoadBatchCrossSectionEditor {
                 shoulderWidthArr, 0, 3, "%d")) {
                 shoulderWidth = shoulderWidthArr[0];
             }
+            shoulderWidth = shoulderWidthArr[0];
         }
 
-        ctx.batchIncludeSidewalkRef().set(includeSidewalk);
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##batch_sw", ctx.batchIncludeSidewalkRef())) {
-            includeSidewalk = ctx.batchIncludeSidewalkRef().get();
+        ImBoolean sidewalkRef = new ImBoolean(includeSidewalk);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##batch_sw", sidewalkRef)) {
+            includeSidewalk = sidewalkRef.get();
         }
 
         if (includeSidewalk) {
@@ -74,6 +77,7 @@ public final class RoadBatchCrossSectionEditor {
                 sidewalkWidthArr, 1, 3, "%d")) {
                 sidewalkWidth = sidewalkWidthArr[0];
             }
+            sidewalkWidth = sidewalkWidthArr[0];
 
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
@@ -131,22 +135,26 @@ public final class RoadBatchCrossSectionEditor {
         )) {
             maxSlope = maxSlopeArr[0];
         }
+        maxSlope = maxSlopeArr[0];
+
+        RoadNetworkManager.BatchEditDefaults updatedDraft = new RoadNetworkManager.BatchEditDefaults(
+            width,
+            laneCount,
+            material[0],
+            includeShoulder,
+            shoulderWidth,
+            includeSidewalk,
+            sidewalkWidth,
+            sidewalkMaterial[0],
+            includeDrainage,
+            laneDividers,
+            centerLineStyle,
+            markingMaterial[0],
+            maxSlope);
+        ctx.networkManager().updateBatchEditDraft(updatedDraft);
 
         if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {
-            ctx.networkManager().applyBatchEdit(new RoadNetworkManager.BatchEditDefaults(
-                width,
-                laneCount,
-                material[0],
-                includeShoulder,
-                shoulderWidth,
-                includeSidewalk,
-                sidewalkWidth,
-                sidewalkMaterial[0],
-                includeDrainage,
-                laneDividers,
-                centerLineStyle,
-                markingMaterial[0],
-                maxSlope));
+            ctx.networkManager().applyBatchEdit(updatedDraft);
         }
     }
 }
