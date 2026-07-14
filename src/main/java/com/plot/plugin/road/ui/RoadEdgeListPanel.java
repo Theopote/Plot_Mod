@@ -1,22 +1,28 @@
 package com.plot.plugin.road.ui;
-import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 道路边列表工具栏与列表（编辑 Tab 专用）。
  */
 public final class RoadEdgeListPanel {
+    private static final int MAX_VISIBLE_ROWS = 14;
+
     private final RoadUiContext ctx;
+    /** 按道路分组时「显示分段」树的展开状态，用于估算列表高度 */
+    private final Set<String> expandedSegmentGroups = new HashSet<>();
 
     public RoadEdgeListPanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -75,7 +81,7 @@ public final class RoadEdgeListPanel {
                     ctx.currentCoordFilter()).size()));
     }
 
-    public void renderList(float height, boolean showDelete, String childId) {
+    public void renderList(boolean showDelete, String childId) {
         RoadNetwork network = ctx.networkManager().getNetwork();
         ctx.networkManager().ensureSelectionValid();
         List<RoadEdge> edges = ctx.networkManager().filteredEdges(
@@ -87,7 +93,14 @@ public final class RoadEdgeListPanel {
             ? ImGui.calcTextSize(deleteLabel).x + ImGui.getStyle().getFramePaddingX() * 2.0f + 8.0f
             : 0.0f;
 
-        ImGui.beginChild(childId, 0, height, true);
+        float lineHeight = ImGui.getTextLineHeightWithSpacing();
+        float padding = ImGui.getStyle().getWindowPaddingY() * 2.0f;
+        float estimatedHeight = computeContentHeight(network, edges, lineHeight, padding);
+        float maxHeight = lineHeight * MAX_VISIBLE_ROWS + padding;
+        float childHeight = Math.min(estimatedHeight, maxHeight);
+        int windowFlags = estimatedHeight > maxHeight ? ImGuiWindowFlags.None : ImGuiWindowFlags.NoScrollbar;
+
+        ImGui.beginChild(childId, 0, childHeight, true, windowFlags);
         if (edges.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
         }
@@ -97,6 +110,33 @@ public final class RoadEdgeListPanel {
             renderFlatList(network, edges, showDelete, deleteButtonWidth, deleteLabel);
         }
         ImGui.endChild();
+    }
+
+    private float computeContentHeight(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            float lineHeight,
+            float padding) {
+        if (edges.isEmpty()) {
+            return lineHeight * 2 + padding;
+        }
+        if (ctx.edgeSortMode() != RoadEdgeListHelper.SortMode.ROAD_GROUP) {
+            return lineHeight * edges.size() + padding;
+        }
+
+        float total = padding;
+        for (RoadEdgeListHelper.RoadGroup group : RoadEdgeListHelper.groupByRoad(network, edges)) {
+            if (group.edges().size() == 1) {
+                total += lineHeight;
+                continue;
+            }
+            total += lineHeight;
+            total += lineHeight;
+            if (expandedSegmentGroups.contains(group.roadId())) {
+                total += lineHeight * group.edges().size();
+            }
+        }
+        return total;
     }
 
     private void renderFlatList(
@@ -145,10 +185,13 @@ public final class RoadEdgeListPanel {
                 }
             }
             if (ImGui.treeNode(PlotI18n.tr("plugin.road.show_segments") + "##segments_" + group.roadId())) {
+                expandedSegmentGroups.add(group.roadId());
                 for (RoadEdge edge : group.edges()) {
                     renderEdgeRow(network, edge, showDelete, deleteButtonWidth, deleteLabel, "  ");
                 }
                 ImGui.treePop();
+            } else {
+                expandedSegmentGroups.remove(group.roadId());
             }
         }
     }

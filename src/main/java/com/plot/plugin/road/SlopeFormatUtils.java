@@ -51,7 +51,7 @@ public final class SlopeFormatUtils {
 
     public static String formatRatio(float horizontalRatio) {
         if (Float.isInfinite(horizontalRatio) || horizontalRatio <= 0.0f) {
-            return "1:∞";
+            return "1:inf";
         }
         return String.format("1:%.1f", horizontalRatio);
     }
@@ -61,12 +61,12 @@ public final class SlopeFormatUtils {
         if (Float.isInfinite(ratio)) {
             return formatPercent(percent);
         }
-        return formatPercent(percent) + " ≈ " + formatRatio(ratio);
+        return formatPercent(percent) + " ~ " + formatRatio(ratio);
     }
 
     public static String formatDualBatter(float horizontalRatio) {
         float percent = horizontalRatioToPercent(horizontalRatio);
-        return formatRatio(horizontalRatio) + " ≈ " + formatPercent(percent);
+        return formatRatio(horizontalRatio) + " ~ " + formatPercent(percent);
     }
 
     /**

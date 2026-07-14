@@ -8,7 +8,6 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
-import com.plot.ui.component.Icons;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -43,7 +42,7 @@ public final class RoadEditPanel {
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
         edgeListPanel.renderToolbar("##edit");
-        edgeListPanel.renderList(180, true, "edit_edge_list");
+        edgeListPanel.renderList(true, "edit_edge_list");
 
         renderBatchEditPanel();
         junctionPanel.renderEditor();
@@ -133,7 +132,7 @@ public final class RoadEditPanel {
             ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
-            if (ImGui.button(Icons.PLUGIN_REMOVE + "##rm")) {
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##rm")) {
                 ctx.networkManager().pushHistory();
                 overrides.remove(i);
                 edge.setSlopeOverrides(overrides);

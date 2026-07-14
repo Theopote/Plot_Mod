@@ -43,7 +43,7 @@ class SlopeFormatUtilsTest {
 
     @Test
     void formatDualDisplaysEquivalentValues() {
-        assertEquals("10.0% ≈ 1:10.0", SlopeFormatUtils.formatDualGrade(10.0f));
-        assertEquals("1:1.5 ≈ 66.7%", SlopeFormatUtils.formatDualBatter(1.5f));
+        assertEquals("10.0% ~ 1:10.0", SlopeFormatUtils.formatDualGrade(10.0f));
+        assertEquals("1:1.5 ~ 66.7%", SlopeFormatUtils.formatDualBatter(1.5f));
     }
 }

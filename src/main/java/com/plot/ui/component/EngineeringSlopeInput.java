@@ -108,7 +108,7 @@ public final class EngineeringSlopeInput {
             : (format == DisplayFormat.RATIO
                 ? SlopeFormatUtils.formatPercent(SlopeFormatUtils.horizontalRatioToPercent(value[0]))
                 : SlopeFormatUtils.formatRatio(value[0]));
-        ImGui.textDisabled("≈ " + equivalent);
+        ImGui.textDisabled("~ " + equivalent);
 
         ImString buffer = TEXT_BUFFERS.computeIfAbsent(id, key -> new ImString(32));
         if (!ImGui.isAnyItemActive()) {
