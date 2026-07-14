@@ -67,6 +67,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         // 路网任何变更都使预览失效，避免按过期几何落地
         networkManager.setOnNetworkChanged(previewManager::invalidatePreview);
         toolManager = new RoadToolManager(status);
+        toolManager.setPathsPickedHandler(networkManager::adoptSelectedPaths);
         uiManager = new RoadUIManager(
             networkManager, previewManager, persistenceManager, toolManager, status);
 

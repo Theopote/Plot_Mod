@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * 道路绘制/拾取工具交互。
@@ -35,9 +36,17 @@ public final class RoadToolManager {
     private final RoadPathPickSession pathPickSession = new RoadPathPickSession();
     private final List<Shape> selectedPaths = new ArrayList<>();
     private final RoadProjectStatus status;
+    private Consumer<List<Shape>> pathsPickedHandler;
 
     public RoadToolManager(RoadProjectStatus status) {
         this.status = status;
+    }
+
+    /**
+     * 拾取会话右键确认后调用；用于自动认领等后续操作。
+     */
+    public void setPathsPickedHandler(Consumer<List<Shape>> pathsPickedHandler) {
+        this.pathsPickedHandler = pathsPickedHandler;
     }
 
     public RoadPathPickSession getPathPickSession() {
@@ -170,7 +179,9 @@ public final class RoadToolManager {
             case SUCCESS -> {
                 selectedPaths.clear();
                 selectedPaths.addAll(outcome.getPaths());
-                if (selectedPaths.size() == 1) {
+                if (pathsPickedHandler != null) {
+                    pathsPickedHandler.accept(List.copyOf(selectedPaths));
+                } else if (selectedPaths.size() == 1) {
                     status.set(String.format(PlotI18n.tr("plugin.road.path_selected"),
                         calculatePathLength(selectedPaths.getFirst())));
                 } else {
