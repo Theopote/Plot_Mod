@@ -1,61 +1,109 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
+import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
+import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 道路编辑 Tab：边列表、批量编辑、单条边属性与坡度覆盖。
+ * 道路编辑 Tab：网络级批量操作、边列表、基于选中态的节点/边属性编辑。
  */
 public final class RoadEditPanel {
+    private static final int ELEVATION_MIN = -64;
+    private static final int ELEVATION_MAX = 320;
+
     private final RoadUiContext ctx;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
+    private final RoadNodePropertyPanel nodePropertyPanel;
 
-    public RoadEditPanel(RoadUiContext ctx, RoadEdgeListPanel edgeListPanel, RoadJunctionPanel junctionPanel) {
+    /** 全网统一标高草稿（自定义 Y） */
+    private final int[] uniformElevationDraft = {64};
+    private String lastRecommendationSummary = "";
+
+    public RoadEditPanel(
+            RoadUiContext ctx,
+            RoadEdgeListPanel edgeListPanel,
+            RoadJunctionPanel junctionPanel,
+            RoadNodePropertyPanel nodePropertyPanel) {
         this.ctx = ctx;
         this.edgeListPanel = edgeListPanel;
         this.junctionPanel = junctionPanel;
+        this.nodePropertyPanel = nodePropertyPanel;
     }
 
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
+        ctx.networkManager().ensureSelectionValid();
+
+        renderUniformFlatElevationControls(network);
+        ImGui.separator();
+
         List<RoadEdge> allEdges = new ArrayList<>(network.getEdges().values());
         if (allEdges.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
+            renderSelectionDispatch(network, true);
             return;
         }
 
-        ctx.networkManager().ensureSelectionValid();
         ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
         edgeListPanel.renderToolbar("##edit");
         edgeListPanel.renderList(true, "edit_edge_list");
 
-        renderBatchEditPanel();
-        junctionPanel.renderEditor();
+        renderSelectionDispatch(network, false);
+    }
 
-        int selectedCount = ctx.networkManager().getSelectedEdgeIds().size();
-        if (selectedCount > 1) {
-            ImGui.separator();
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.single_edge_disabled_multi", selectedCount));
+    private void renderSelectionDispatch(RoadNetwork network, boolean edgesEmpty) {
+        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
+        int selectedEdgeCount = ctx.networkManager().getSelectedEdgeIds().size();
+
+        if (selectedNodeId != null && !selectedNodeId.isBlank()) {
+            nodePropertyPanel.renderForSelectedNode(junctionPanel);
+            nodePropertyPanel.renderAllNodesCollapsibleList();
             return;
         }
 
+        if (edgesEmpty) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edit_select_hint"));
+            return;
+        }
+
+        if (selectedEdgeCount > 1) {
+            renderBatchEditPanel();
+            ImGui.separator();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.single_edge_disabled_multi", selectedEdgeCount));
+            return;
+        }
+
+        if (selectedEdgeCount == 1) {
+            renderBatchEditPanel();
+            renderSingleEdgeDetail(network);
+            return;
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edit_select_hint"));
+    }
+
+    private void renderSingleEdgeDetail(RoadNetwork network) {
         ImGui.separator();
         String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
         RoadEdge current = network.getEdge(primaryId);
@@ -80,6 +128,106 @@ public final class RoadEditPanel {
         RoadCrossSectionEditor.renderFields(ctx, road, ctx.networkManager()::pushHistory);
 
         renderSlopeOverrides(current);
+    }
+
+    private void renderUniformFlatElevationControls(RoadNetwork network) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.uniform_flat_elevation"))) {
+            return;
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
+
+        boolean disabled = network.getEdges().isEmpty();
+        if (disabled) {
+            ImGui.beginDisabled();
+        }
+
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_auto_apply"), half, 0)) {
+            applyUniformFlatElevationAuto();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_auto_apply_hint"));
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_sample"), half, 0)) {
+            sampleUniformElevationSuggestion();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_sample_hint"));
+        }
+
+        if (!lastRecommendationSummary.isBlank()) {
+            ImGui.textColored(PluginUiColors.STATUS_INFO, lastRecommendationSummary);
+        }
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
+        ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.uniform_elevation_custom_y") + "##uniform_y",
+            uniformElevationDraft,
+            ELEVATION_MIN,
+            ELEVATION_MAX,
+            "Y=%d"
+        );
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply"), 0, 0)) {
+            ctx.networkManager().applyCustomUniformFlatElevation(uniformElevationDraft[0]);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply_hint"));
+        }
+
+        if (disabled) {
+            ImGui.endDisabled();
+        }
+        ImGui.spacing();
+    }
+
+    private TerrainSampler requireTerrainOrNull() {
+        World world = RoadNetworkGenerator.getClientWorld();
+        if (world == null) {
+            ctx.status().set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            return null;
+        }
+        return MinecraftTerrainSampler.of(world, CoordinateTransformer.getInstance());
+    }
+
+    private void applyUniformFlatElevationAuto() {
+        TerrainSampler terrain = requireTerrainOrNull();
+        if (terrain == null) {
+            return;
+        }
+        var recommendation = ctx.networkManager().applyUniformFlatElevation(terrain);
+        if (recommendation != null) {
+            uniformElevationDraft[0] = recommendation.elevation();
+            lastRecommendationSummary = formatRecommendation(recommendation);
+        }
+    }
+
+    private void sampleUniformElevationSuggestion() {
+        TerrainSampler terrain = requireTerrainOrNull();
+        if (terrain == null) {
+            return;
+        }
+        var recommendation = ctx.networkManager().previewUniformElevation(terrain);
+        if (recommendation != null) {
+            uniformElevationDraft[0] = recommendation.elevation();
+            lastRecommendationSummary = formatRecommendation(recommendation);
+        }
+    }
+
+    private static String formatRecommendation(
+            com.plot.plugin.road.RoadUniformElevationUtils.ElevationRecommendation recommendation) {
+        String strategy = recommendation.usedMode()
+            ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
+            : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
+        return PlotI18n.tr(
+            "plugin.road.uniform_elevation_preview",
+            recommendation.elevation(),
+            strategy,
+            recommendation.sampleCount(),
+            String.format("%.1f", recommendation.average()));
     }
 
     private void renderElevationHint(RoadEdge edge) {

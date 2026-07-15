@@ -7,6 +7,7 @@ import com.plot.plugin.road.ui.RoadEdgeListPanel;
 import com.plot.plugin.road.ui.RoadEditPanel;
 import com.plot.plugin.road.ui.RoadGeneratePanel;
 import com.plot.plugin.road.ui.RoadJunctionPanel;
+import com.plot.plugin.road.ui.RoadNodePropertyPanel;
 import com.plot.plugin.road.ui.RoadOverviewPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
@@ -38,10 +39,11 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
         this.edgeListPanel = new RoadEdgeListPanel(ctx);
         this.junctionPanel = new RoadJunctionPanel(ctx);
+        RoadNodePropertyPanel nodePropertyPanel = new RoadNodePropertyPanel(ctx);
         this.toolbarPanel = new RoadToolbarPanel(ctx);
-        this.overviewPanel = new RoadOverviewPanel(ctx, junctionPanel);
+        this.overviewPanel = new RoadOverviewPanel(ctx);
         this.adoptPanel = new RoadAdoptPanel(ctx, new RoadDefaultParamsPanel(ctx));
-        this.editPanel = new RoadEditPanel(ctx, edgeListPanel, junctionPanel);
+        this.editPanel = new RoadEditPanel(ctx, edgeListPanel, junctionPanel, nodePropertyPanel);
         this.generatePanel = new RoadGeneratePanel(ctx);
     }
 
