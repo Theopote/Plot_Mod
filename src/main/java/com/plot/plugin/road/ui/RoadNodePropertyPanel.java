@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -105,8 +106,14 @@ public final class RoadNodePropertyPanel {
                 ? (int) Math.round(node.getManualElevation())
                 : 64;
             int[] elevation = {initial};
-            if (ImGui.sliderInt("##elevation", elevation, -64, 320, "Y=%d")) {
+            if (ImGui.sliderInt("##elevation", elevation,
+                RoadParameterLimits.ELEVATION_MIN,
+                RoadParameterLimits.ELEVATION_MAX,
+                "Y=%d")) {
                 node.setManualElevation((double) elevation[0]);
+            }
+            if (!inline && ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
             }
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
@@ -246,8 +253,8 @@ public final class RoadNodePropertyPanel {
         if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
                 clearance,
-                1,
-                10,
+                RoadParameterLimits.MIN_CROSSING_CLEARANCE,
+                RoadParameterLimits.MAX_CROSSING_CLEARANCE,
                 "%d")) {
             node.setCrossingClearance((double) clearance[0]);
         }

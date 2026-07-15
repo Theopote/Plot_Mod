@@ -26,9 +26,6 @@ import java.util.List;
  * 道路编辑 Tab：网络级批量操作、边列表、基于选中态的节点/边属性编辑。
  */
 public final class RoadEditPanel {
-    private static final int ELEVATION_MIN = -64;
-    private static final int ELEVATION_MAX = 320;
-
     private final RoadUiContext ctx;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
@@ -167,10 +164,13 @@ public final class RoadEditPanel {
         ImGui.sliderInt(
             PlotI18n.tr("plugin.road.uniform_elevation_custom_y") + "##uniform_y",
             uniformElevationDraft,
-            ELEVATION_MIN,
-            ELEVATION_MAX,
+            RoadParameterLimits.ELEVATION_MIN,
+            RoadParameterLimits.ELEVATION_MAX,
             "Y=%d"
         );
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
+        }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply"), 0, 0)) {
             ctx.networkManager().applyCustomUniformFlatElevation(uniformElevationDraft[0]);
@@ -299,7 +299,7 @@ public final class RoadEditPanel {
             )) {
                 ctx.networkManager().pushHistory();
             }
-            override.maxSlope = slope[0];
+            override.maxSlope = RoadParameterLimits.clampGradePercent(slope[0]);
 
             if (override.startDistance > override.endDistance) {
                 ImGui.textColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.slope_range_invalid"));

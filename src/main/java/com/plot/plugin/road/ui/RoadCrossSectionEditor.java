@@ -100,6 +100,9 @@ public final class RoadCrossSectionEditor {
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
+        }
 
         if (laneCount[0] > 1) {
             road.getCrossSection().getCarriageway().syncLaneCount(laneCount[0]);
@@ -291,6 +294,9 @@ public final class RoadCrossSectionEditor {
         }
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
         }
     }
 

@@ -44,6 +44,9 @@ public final class RoadDefaultParamsPanel {
             config.setRoadWidth(roadWidth[0]);
             markCustom();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
+        }
 
         float[] maxSlope = {config.getMaxSlope()};
         if (EngineeringSlopeInput.render(
@@ -337,7 +340,7 @@ public final class RoadDefaultParamsPanel {
                 "##road_shoulder_width",
                 shoulderWidth,
                 0,
-                3,
+                RoadParameterLimits.MAX_STRIP_WIDTH,
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0])
             )) {
                 config.setShoulderWidth(shoulderWidth[0]);

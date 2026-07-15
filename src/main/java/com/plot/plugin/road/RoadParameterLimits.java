@@ -38,6 +38,10 @@ public final class RoadParameterLimits {
         return Math.max(MIN_STRIP_WIDTH, clampCarriagewayWidth(carriagewayWidth) / lanes);
     }
 
+    public static int clampLaneWidth(int laneWidth, int carriagewayWidth, int laneCount) {
+        return Math.max(MIN_STRIP_WIDTH, Math.min(maxPerLaneWidth(carriagewayWidth, laneCount), laneWidth));
+    }
+
     public static int clampStripWidth(int width) {
         return Math.max(MIN_STRIP_WIDTH, Math.min(MAX_STRIP_WIDTH, width));
     }

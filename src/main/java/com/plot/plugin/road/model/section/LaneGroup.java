@@ -75,7 +75,8 @@ public class LaneGroup {
             return;
         }
         syncLaneCount(Math.max(getEffectiveLaneCount(), index + 1));
-        lanes.get(index).setWidth(Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, width));
+        int carriageway = this.width != null && this.width > 0 ? this.width : RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH;
+        lanes.get(index).setWidth(RoadParameterLimits.clampLaneWidth(width, carriageway, getEffectiveLaneCount()));
     }
 
     public void syncLaneCount(int count) {
