@@ -97,17 +97,17 @@ public final class RoadUiWidgets {
         if (hasAccentMaterial) {
             float[] ratio = {mix.getAccentRatio() > 0f ? mix.getAccentRatio() : 0.15f};
             if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)) + buttonId,
+                "##accent_ratio" + buttonId,
                 ratio,
                 0f,
                 0.5f,
-                "%.0f%%")) {
-                if (pushHistoryOnChange) {
-                    ctx.networkManager().pushHistory();
-                }
+                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)))) {
                 MaterialMix updated = mix.copy();
                 updated.setAccentRatio(ratio[0]);
                 setter.set(updated);
+            }
+            if (ImGui.isItemActivated() && pushHistoryOnChange) {
+                ctx.networkManager().pushHistory();
             }
         }
     }

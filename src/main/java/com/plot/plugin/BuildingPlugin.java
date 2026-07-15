@@ -711,11 +711,11 @@ public class BuildingPlugin extends Plugin {
         if (hasAccentMaterial) {
             float[] ratio = {mix.getAccentRatio() > 0f ? mix.getAccentRatio() : 0.15f};
             if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)) + "##" + label,
+                "##accent_ratio_" + label,
                 ratio,
                 0f,
                 0.5f,
-                "%.0f%%")) {
+                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)))) {
                 MaterialMix updated = mix.copy();
                 updated.setAccentRatio(ratio[0]);
                 onSelected.accept(updated);

@@ -123,12 +123,7 @@ public final class RoadCrossSectionEditor {
             "##road_material",
             PlotI18n.tr("plugin.road.material"),
             road.getMaterial() != null ? road.getMaterial() : config.getSelectedMaterial(),
-            material -> {
-                if (onHistory != null) {
-                    onHistory.run();
-                }
-                road.setMaterial(material);
-            },
+            road::setMaterial,
             true
         );
 
