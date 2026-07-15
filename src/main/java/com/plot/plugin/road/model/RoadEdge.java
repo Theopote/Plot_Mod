@@ -111,9 +111,17 @@ public class RoadEdge {
     }
 
     public void setSlopeOverrides(List<SlopeOverride> slopeOverrides) {
-        this.slopeOverrides = slopeOverrides != null
-            ? slopeOverrides.stream().map(SlopeOverride::copy).toList()
-            : new ArrayList<>();
+        if (slopeOverrides == null) {
+            this.slopeOverrides = new ArrayList<>();
+            return;
+        }
+        this.slopeOverrides = slopeOverrides.stream()
+            .map(override -> {
+                SlopeOverride copy = override.copy();
+                copy.maxSlope = RoadParameterLimits.clampGradePercent(copy.maxSlope);
+                return copy;
+            })
+            .toList();
     }
 
     public double getLength() {

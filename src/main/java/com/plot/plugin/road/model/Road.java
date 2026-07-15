@@ -133,7 +133,9 @@ public class Road {
             crossSection.getCarriageway().setWidth(null);
             return;
         }
-        crossSection.getCarriageway().setWidth(RoadParameterLimits.clampCarriagewayWidth(width));
+        int clamped = RoadParameterLimits.clampCarriagewayWidth(width);
+        crossSection.getCarriageway().setWidth(clamped);
+        crossSection.getCarriageway().reclampLaneWidths(clamped);
     }
 
     public MaterialMix getMaterial() {
@@ -158,6 +160,10 @@ public class Road {
         }
         int clamped = RoadParameterLimits.clampLaneCount(laneCount);
         crossSection.getCarriageway().syncLaneCount(clamped);
+        Integer width = crossSection.getCarriageway().getWidth();
+        if (width != null) {
+            crossSection.getCarriageway().reclampLaneWidths(width);
+        }
         if (crossSection.getMarkings().getLaneDividers() == null) {
             crossSection.getMarkings().setLaneDividers(clamped > 1);
         }

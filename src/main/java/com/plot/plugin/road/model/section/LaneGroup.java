@@ -79,6 +79,19 @@ public class LaneGroup {
         lanes.get(index).setWidth(RoadParameterLimits.clampLaneWidth(width, carriageway, getEffectiveLaneCount()));
     }
 
+    /** Re-clamp stored per-lane widths after carriageway width or lane count changes. */
+    public void reclampLaneWidths(int carriagewayWidth) {
+        if (lanes == null || lanes.isEmpty()) {
+            return;
+        }
+        int count = getEffectiveLaneCount();
+        for (Lane lane : lanes) {
+            if (lane != null && lane.getWidth() != null && lane.getWidth() > 0) {
+                lane.setWidth(RoadParameterLimits.clampLaneWidth(lane.getWidth(), carriagewayWidth, count));
+            }
+        }
+    }
+
     public void syncLaneCount(int count) {
         laneCount = Math.max(1, count);
         if (lanes == null) {
