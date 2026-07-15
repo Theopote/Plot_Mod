@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadParameterLimits;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -12,7 +13,7 @@ import java.util.UUID;
  */
 public class RoadNode {
     public static final double MIN_CORNER_RADIUS = 0.0;
-    public static final double MAX_CORNER_RADIUS = 8.0;
+    public static final double MAX_CORNER_RADIUS = 12.0;
     public static final double DEFAULT_CORNER_RADIUS = 2.0;
 
     private final String id;
@@ -72,7 +73,7 @@ public class RoadNode {
     }
 
     public void setManualElevation(Double manualElevation) {
-        this.manualElevation = manualElevation;
+        this.manualElevation = RoadParameterLimits.clampManualElevation(manualElevation);
     }
 
     public boolean isGradeSeparated() {
@@ -96,7 +97,7 @@ public class RoadNode {
     }
 
     public void setCrossingClearance(Double crossingClearance) {
-        this.crossingClearance = crossingClearance;
+        this.crossingClearance = RoadParameterLimits.clampCrossingClearanceNullable(crossingClearance);
     }
 
     public void clearGradeSeparation() {

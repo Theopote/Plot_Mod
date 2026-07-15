@@ -3,6 +3,7 @@ import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.ui.component.EngineeringSlopeInput;
@@ -36,7 +37,10 @@ public final class RoadDefaultParamsPanel {
 
         ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
         int[] roadWidth = {config.getRoadWidth()};
-        if (ImGui.sliderInt("##road_width", roadWidth, 3, 20, PlotI18n.tr("plugin.road.road_width", roadWidth[0]))) {
+        if (ImGui.sliderInt("##road_width", roadWidth,
+            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
+            RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
+            PlotI18n.tr("plugin.road.road_width", roadWidth[0]))) {
             config.setRoadWidth(roadWidth[0]);
             markCustom();
         }
@@ -57,20 +61,23 @@ public final class RoadDefaultParamsPanel {
         if (ImGui.sliderFloat(
             "##max_continuous_slope_length",
             maxContinuousLength,
-            5.0f,
-            100.0f,
+            (float) RoadParameterLimits.MIN_CONTINUOUS_SLOPE_LENGTH,
+            (float) RoadParameterLimits.MAX_CONTINUOUS_SLOPE_LENGTH,
             PlotI18n.tr("plugin.road.max_continuous_slope_length", maxContinuousLength[0])
         )) {
             config.setMaxContinuousSlopeLength(maxContinuousLength[0]);
             markCustom();
         }
 
+        float relaxedMax = (float) Math.min(
+            RoadParameterLimits.MAX_RELAXED_SLOPE_LENGTH,
+            config.getMaxContinuousSlopeLength());
         float[] relaxedLength = {(float) config.getRelaxedSlopeLength()};
         if (ImGui.sliderFloat(
             "##relaxed_slope_length",
             relaxedLength,
-            1.0f,
-            30.0f,
+            (float) RoadParameterLimits.MIN_RELAXED_SLOPE_LENGTH,
+            relaxedMax,
             PlotI18n.tr("plugin.road.relaxed_slope_length", relaxedLength[0])
         )) {
             config.setRelaxedSlopeLength(relaxedLength[0]);
@@ -102,8 +109,8 @@ public final class RoadDefaultParamsPanel {
             if (ImGui.sliderInt(
                 "##default_sidewalk_width",
                 sidewalkWidth,
-                1,
-                3,
+                RoadParameterLimits.MIN_STRIP_WIDTH,
+                RoadParameterLimits.MAX_STRIP_WIDTH,
                 PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0])
             )) {
                 config.setSidewalkWidth(sidewalkWidth[0]);

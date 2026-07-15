@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
@@ -32,13 +33,15 @@ public final class RoadBatchCrossSectionEditor {
         float maxSlope = draft.maxSlope();
 
         int[] laneCountArr = {laneCount};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##batch_lanes", laneCountArr, 1, 4, "%d")) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##batch_lanes", laneCountArr,
+            RoadParameterLimits.MIN_LANE_COUNT, RoadParameterLimits.MAX_LANE_COUNT, "%d")) {
             laneCount = laneCountArr[0];
         }
         laneCount = laneCountArr[0];
 
         int[] widthArr = {width};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##batch_width", widthArr, 3, 20, "%d")) {
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", widthArr[0]) + "##batch_width", widthArr,
+            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH, "%d")) {
             width = widthArr[0];
         }
         width = widthArr[0];
@@ -60,7 +63,7 @@ public final class RoadBatchCrossSectionEditor {
             int[] shoulderWidthArr = {shoulderWidth};
             if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidthArr[0]) + "##batch_shoulder_w",
-                shoulderWidthArr, 0, 3, "%d")) {
+                shoulderWidthArr, 0, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
                 shoulderWidth = shoulderWidthArr[0];
             }
             shoulderWidth = shoulderWidthArr[0];
@@ -75,7 +78,7 @@ public final class RoadBatchCrossSectionEditor {
             int[] sidewalkWidthArr = {sidewalkWidth};
             if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidthArr[0]) + "##batch_sw_w",
-                sidewalkWidthArr, 1, 3, "%d")) {
+                sidewalkWidthArr, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
                 sidewalkWidth = sidewalkWidthArr[0];
             }
             sidewalkWidth = sidewalkWidthArr[0];

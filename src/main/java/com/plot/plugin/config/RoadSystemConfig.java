@@ -6,6 +6,7 @@ import com.plot.core.log.LogManager;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
@@ -157,7 +158,7 @@ public class RoadSystemConfig {
     }
 
     public void setRoadWidth(int roadWidth) {
-        this.roadWidth = roadWidth;
+        this.roadWidth = RoadParameterLimits.clampCarriagewayWidth(roadWidth);
     }
 
     public boolean isIncludeSidewalk() {
@@ -173,7 +174,7 @@ public class RoadSystemConfig {
     }
 
     public void setSidewalkWidth(int sidewalkWidth) {
-        this.sidewalkWidth = sidewalkWidth;
+        this.sidewalkWidth = RoadParameterLimits.clampStripWidth(sidewalkWidth);
     }
 
     public MaterialMix getSelectedMaterial() {
@@ -233,7 +234,7 @@ public class RoadSystemConfig {
     }
     
     public void setMaxSlope(float maxSlope) {
-        this.maxSlope = Math.max(0.0f, Math.min(45.0f, maxSlope));
+        this.maxSlope = RoadParameterLimits.clampGradePercent(maxSlope);
     }
     
     public int getBridgeThreshold() {
@@ -337,7 +338,7 @@ public class RoadSystemConfig {
     }
     
     public void setShoulderWidth(int shoulderWidth) {
-        this.shoulderWidth = Math.max(0, Math.min(3, shoulderWidth));
+        this.shoulderWidth = RoadParameterLimits.clampShoulderWidth(shoulderWidth);
     }
     
     public boolean isIncludeDrainage() {
@@ -398,7 +399,10 @@ public class RoadSystemConfig {
     }
 
     public void setMaxContinuousSlopeLength(double maxContinuousSlopeLength) {
-        this.maxContinuousSlopeLength = Math.max(0.0, maxContinuousSlopeLength);
+        this.maxContinuousSlopeLength = RoadParameterLimits.clampMaxContinuousSlopeLength(maxContinuousSlopeLength);
+        this.relaxedSlopeLength = RoadParameterLimits.clampRelaxedSlopeLength(
+            this.relaxedSlopeLength,
+            this.maxContinuousSlopeLength);
     }
 
     public double getRelaxedSlopeLength() {
@@ -406,7 +410,9 @@ public class RoadSystemConfig {
     }
 
     public void setRelaxedSlopeLength(double relaxedSlopeLength) {
-        this.relaxedSlopeLength = Math.max(0.0, relaxedSlopeLength);
+        this.relaxedSlopeLength = RoadParameterLimits.clampRelaxedSlopeLength(
+            relaxedSlopeLength,
+            this.maxContinuousSlopeLength);
     }
 
     public float getRelaxedSlopePercent() {
@@ -445,7 +451,7 @@ public class RoadSystemConfig {
     }
 
     public void setDefaultCrossingClearance(double defaultCrossingClearance) {
-        this.defaultCrossingClearance = Math.max(1.0, Math.min(10.0, defaultCrossingClearance));
+        this.defaultCrossingClearance = RoadParameterLimits.clampCrossingClearance(defaultCrossingClearance);
     }
     
     /**
@@ -461,14 +467,16 @@ public class RoadSystemConfig {
         String resolvedSidewalkMaterial = style.sidewalkMaterial != null && !style.sidewalkMaterial.isBlank()
             ? style.sidewalkMaterial
             : resolvedRoadMaterial;
-        this.roadWidth = style.width;
+        setRoadWidth(style.width);
         this.includeSidewalk = style.hasSidewalk;
-        this.sidewalkWidth = style.hasSidewalk ? Math.max(1, style.sidewalkWidth) : sidewalkWidth;
+        if (style.hasSidewalk) {
+            setSidewalkWidth(style.sidewalkWidth);
+        }
         this.includeShoulder = style.includeShoulder;
-        this.shoulderWidth = style.shoulderWidth;
+        setShoulderWidth(style.shoulderWidth);
         this.includeDrainage = style.includeDrainage;
         if (style.maxSlope > 0f) {
-            this.maxSlope = style.maxSlope;
+            setMaxSlope(style.maxSlope);
         }
         if (style.fillSlopeRatio > 0f) {
             this.fillSlopeRatio = style.fillSlopeRatio;

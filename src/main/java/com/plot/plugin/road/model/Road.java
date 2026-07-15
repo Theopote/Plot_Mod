@@ -2,6 +2,7 @@ package com.plot.plugin.road.model;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.style.RoadStyle;
@@ -128,7 +129,11 @@ public class Road {
     }
 
     public void setWidth(Integer width) {
-        crossSection.getCarriageway().setWidth(width);
+        if (width == null) {
+            crossSection.getCarriageway().setWidth(null);
+            return;
+        }
+        crossSection.getCarriageway().setWidth(RoadParameterLimits.clampCarriagewayWidth(width));
     }
 
     public MaterialMix getMaterial() {
@@ -148,12 +153,13 @@ public class Road {
     }
 
     public void setLaneCount(Integer laneCount) {
-        if (laneCount == null || laneCount < 1) {
+        if (laneCount == null || laneCount < RoadParameterLimits.MIN_LANE_COUNT) {
             return;
         }
-        crossSection.getCarriageway().syncLaneCount(laneCount);
+        int clamped = RoadParameterLimits.clampLaneCount(laneCount);
+        crossSection.getCarriageway().syncLaneCount(clamped);
         if (crossSection.getMarkings().getLaneDividers() == null) {
-            crossSection.getMarkings().setLaneDividers(laneCount > 1);
+            crossSection.getMarkings().setLaneDividers(clamped > 1);
         }
     }
 
@@ -170,7 +176,11 @@ public class Road {
     }
 
     public void setMedianWidth(Integer medianWidth) {
-        crossSection.getMedian().setWidth(medianWidth);
+        if (medianWidth == null) {
+            crossSection.getMedian().setWidth(null);
+            return;
+        }
+        crossSection.getMedian().setWidth(RoadParameterLimits.clampStripWidth(medianWidth));
     }
 
     public Boolean getLaneDividers() {
@@ -210,7 +220,11 @@ public class Road {
     }
 
     public void setSidewalkWidth(Integer sidewalkWidth) {
-        crossSection.getSidewalk().setWidth(sidewalkWidth);
+        if (sidewalkWidth == null) {
+            crossSection.getSidewalk().setWidth(null);
+            return;
+        }
+        crossSection.getSidewalk().setWidth(RoadParameterLimits.clampStripWidth(sidewalkWidth));
     }
 
     public String getSidewalkMaterial() {
@@ -234,7 +248,11 @@ public class Road {
     }
 
     public void setShoulderWidth(Integer shoulderWidth) {
-        crossSection.getShoulder().setWidth(shoulderWidth);
+        if (shoulderWidth == null) {
+            crossSection.getShoulder().setWidth(null);
+            return;
+        }
+        crossSection.getShoulder().setWidth(RoadParameterLimits.clampShoulderWidth(shoulderWidth));
     }
 
     public String getShoulderMaterial() {
@@ -258,7 +276,11 @@ public class Road {
     }
 
     public void setBikeLaneWidth(Integer bikeLaneWidth) {
-        crossSection.getBikeLane().setWidth(bikeLaneWidth);
+        if (bikeLaneWidth == null) {
+            crossSection.getBikeLane().setWidth(null);
+            return;
+        }
+        crossSection.getBikeLane().setWidth(RoadParameterLimits.clampStripWidth(bikeLaneWidth));
     }
 
     public String getBikeLaneMaterial() {
@@ -282,7 +304,8 @@ public class Road {
     }
 
     public void setStreetlightSpacing(Integer streetlightSpacing) {
-        crossSection.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
+        crossSection.getStreetFurniture().setStreetlightSpacing(
+            RoadParameterLimits.normalizeStreetlightSpacing(streetlightSpacing));
     }
 
     public Float getMaxSlope() {
@@ -290,7 +313,7 @@ public class Road {
     }
 
     public void setMaxSlope(Float maxSlope) {
-        this.maxSlope = maxSlope;
+        this.maxSlope = maxSlope != null ? RoadParameterLimits.clampGradePercent(maxSlope) : null;
     }
 
     public Set<String> getSegmentIds() {

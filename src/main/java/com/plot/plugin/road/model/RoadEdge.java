@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadParameterLimits;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ public class RoadEdge {
         public SlopeOverride(double startDistance, double endDistance, float maxSlope) {
             this.startDistance = startDistance;
             this.endDistance = endDistance;
-            this.maxSlope = maxSlope;
+            this.maxSlope = RoadParameterLimits.clampGradePercent(maxSlope);
         }
 
         public SlopeOverride copy() {

@@ -2,6 +2,7 @@ package com.plot.plugin.road.model.section;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.RoadParameterLimits;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,7 +75,7 @@ public class LaneGroup {
             return;
         }
         syncLaneCount(Math.max(getEffectiveLaneCount(), index + 1));
-        lanes.get(index).setWidth(width);
+        lanes.get(index).setWidth(Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, width));
     }
 
     public void syncLaneCount(int count) {

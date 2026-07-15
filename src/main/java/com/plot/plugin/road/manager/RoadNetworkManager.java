@@ -8,7 +8,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadNetworkBuilder;
-import com.plot.plugin.road.RoadUniformElevationUtils;
+import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -202,7 +202,7 @@ public final class RoadNetworkManager {
             status.set(PlotI18n.tr("plugin.road.no_edges"));
             return false;
         }
-        int clamped = Math.max(-64, Math.min(320, elevation));
+        int clamped = (int) RoadParameterLimits.clampElevation(elevation);
         applyUniformFlatElevationAt(
             clamped,
             PlotI18n.tr("plugin.road.uniform_elevation_strategy_custom"),
