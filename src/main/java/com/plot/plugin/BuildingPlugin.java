@@ -709,17 +709,7 @@ public class BuildingPlugin extends Plugin {
 
         boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
         if (hasAccentMaterial) {
-            float[] ratio = {mix.getAccentRatio() > 0f ? mix.getAccentRatio() : 0.15f};
-            if (ImGui.sliderFloat(
-                "##accent_ratio_" + label,
-                ratio,
-                0f,
-                0.5f,
-                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)))) {
-                MaterialMix updated = mix.copy();
-                updated.setAccentRatio(ratio[0]);
-                onSelected.accept(updated);
-            }
+            RoadUiWidgets.renderAccentRatioSlider(mix, onSelected::accept, label, null);
         }
     }
 

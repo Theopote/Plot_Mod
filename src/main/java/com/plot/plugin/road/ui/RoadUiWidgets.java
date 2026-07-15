@@ -72,7 +72,8 @@ public final class RoadUiWidgets {
             displayName += " + " + RoadMaterialUtils.getDisplayName(mix.getAccentMaterial());
         }
 
-        if (ImGui.button(displayName + buttonId, ImGui.getContentRegionAvailX() * 0.55f, 0)) {
+        ImGui.pushID(buttonId);
+        if (ImGui.button(displayName + "##pick", ImGui.getContentRegionAvailX() * 0.55f, 0)) {
             List<String> initial = new ArrayList<>();
             if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
                 initial.add(mix.getPrimaryMaterial());
@@ -95,21 +96,50 @@ public final class RoadUiWidgets {
 
         boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
         if (hasAccentMaterial) {
-            float[] ratio = {mix.getAccentRatio() > 0f ? mix.getAccentRatio() : 0.15f};
-            if (ImGui.sliderFloat(
-                "##accent_ratio" + buttonId,
-                ratio,
-                0f,
-                0.5f,
-                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)))) {
-                MaterialMix updated = mix.copy();
-                updated.setAccentRatio(ratio[0]);
-                setter.set(updated);
-            }
-            if (ImGui.isItemActivated() && pushHistoryOnChange) {
-                ctx.networkManager().pushHistory();
-            }
+            renderAccentRatioSlider(
+                mix,
+                setter,
+                buttonId,
+                pushHistoryOnChange ? () -> ctx.networkManager().pushHistory() : null);
         }
+        ImGui.popID();
+    }
+
+    /**
+     * 点缀比例滑条（0–50%）。
+     * ImGui 的 format 参数必须是 printf 格式（如 "%.0f%%"），不能把翻译后的 "点缀比例：15%" 传进去，
+     * 否则末尾的 '%' 会破坏滑条交互。
+     */
+    public static void renderAccentRatioSlider(
+            MaterialMix mix,
+            MaterialMixSetter setter,
+            String id,
+            Runnable onActivated) {
+        MaterialMix current = mix;
+        if (current.getAccentRatio() <= 0f) {
+            MaterialMix updated = current.copy();
+            updated.setAccentRatio(0.15f);
+            setter.set(updated);
+            current = updated;
+        }
+
+        float[] ratioPercent = {current.getAccentRatio() * 100f};
+        ImGui.pushID(id);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.sliderFloat(
+            PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratioPercent[0])) + "##slider",
+            ratioPercent,
+            0f,
+            50f,
+            "%.0f%%")) {
+            MaterialMix updated = current.copy();
+            updated.setAccentRatio(ratioPercent[0] / 100f);
+            setter.set(updated);
+        }
+        if (ImGui.isItemActivated() && onActivated != null) {
+            onActivated.run();
+        }
+        ImGui.popID();
     }
 
     public static MaterialMix fromPaletteSelection(List<String> blockIds, float existingRatio) {
