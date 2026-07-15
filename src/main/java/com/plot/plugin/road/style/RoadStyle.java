@@ -1,5 +1,6 @@
 package com.plot.plugin.road.style;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -98,7 +99,7 @@ public class RoadStyle {
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setLaneCount(lanes);
         section.getCarriageway().setWidth(width);
-        section.getCarriageway().setMaterial(roadMat);
+        section.getCarriageway().setMaterial(MaterialMix.single(roadMat));
         section.getCarriageway().syncLaneCount(lanes);
 
         section.getShoulder().setEnabled(includeShoulder);

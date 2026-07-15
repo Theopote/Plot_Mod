@@ -5,6 +5,7 @@ import com.plot.ui.dialog.BlockConfigDialog.BlockCategoryManager.BlockCategory;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +62,37 @@ public final class BlockConfigManager {
 
     public synchronized List<Block> getPaletteBlocksSnapshot() {
         return new ArrayList<>(paletteBlocks);
+    }
+
+    public synchronized void setPaletteFromBlockIds(List<String> blockIds) {
+        paletteBlocks.clear();
+        if (blockIds == null || blockIds.isEmpty()) {
+            LOGGER.info("方块调色盘已清空");
+            return;
+        }
+
+        for (String blockId : blockIds) {
+            if (blockId == null || blockId.isBlank()) {
+                continue;
+            }
+            if (paletteBlocks.size() >= MAX_PALETTE_SLOTS) {
+                break;
+            }
+            try {
+                Block block = Registries.BLOCK.get(Identifier.of(blockId));
+                if (block == null) {
+                    continue;
+                }
+                ItemStack stack = BlockIconRenderer.getItemStackForBlock(block);
+                if (!stack.isEmpty()) {
+                    paletteBlocks.add(block);
+                }
+            } catch (Exception ignored) {
+                // skip invalid ids
+            }
+        }
+
+        LOGGER.info("方块调色盘已更新: {} 个方块", paletteBlocks.size());
     }
 
     public synchronized void setPaletteBlocks(List<Block> blocks) {

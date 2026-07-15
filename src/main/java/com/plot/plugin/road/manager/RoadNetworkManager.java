@@ -1,6 +1,7 @@
 package com.plot.plugin.road.manager;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
@@ -45,7 +46,7 @@ public final class RoadNetworkManager {
     private int lastBatchSelectionSize = -1;
     private int batchEditWidth = 5;
     private int batchEditLaneCount = 1;
-    private String batchEditMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private MaterialMix batchEditMaterial = MaterialMix.single(com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
     private String batchEditSidewalkMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private boolean batchIncludeShoulder = false;
     private int batchEditShoulderWidth = 1;
@@ -691,7 +692,7 @@ public final class RoadNetworkManager {
     public record BatchEditDefaults(
             int width,
             int laneCount,
-            String material,
+            MaterialMix material,
             boolean includeShoulder,
             int shoulderWidth,
             boolean includeSidewalk,

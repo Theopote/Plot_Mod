@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,8 +46,8 @@ class BuildingProjectTest {
         assertEquals(3, restoredFootprint.getFloors());
         assertEquals(4, restoredFootprint.getFloorHeight());
         assertEquals(2, restoredFootprint.getWallThickness());
-        assertEquals("minecraft:stone_bricks", restoredFootprint.getWallMaterial());
-        assertEquals("minecraft:oak_planks", restoredFootprint.getFloorMaterial());
+        assertEquals("minecraft:stone_bricks", restoredFootprint.getWallMaterial().getPrimaryMaterial());
+        assertEquals("minecraft:oak_planks", restoredFootprint.getFloorMaterial().getPrimaryMaterial());
         assertEquals("minecraft:dark_oak_planks", restoredFootprint.getRoofMaterial());
         assertEquals("minecraft:cobblestone", restoredFootprint.getFoundationFillMaterial());
         assertEquals(BuildingFootprint.RoofType.GABLE, restoredFootprint.getRoofType());
@@ -61,5 +62,39 @@ class BuildingProjectTest {
         assertEquals(0.5, restoredFootprint.getDoors().getFirst().positionRatio, 1e-6);
         assertTrue(restoredFootprint.isRectangular());
         assertEquals(4, restoredFootprint.getOuterPoints().size());
+    }
+
+    @Test
+    void legacyStringWallMaterialLoadsAsMaterialMix() {
+        String json = """
+            {
+              "buildings": [{
+                "id": "b1",
+                "name": "Legacy",
+                "outerPoints": [{"x": 0, "y": 0}, {"x": 5, "y": 0}, {"x": 5, "y": 5}],
+                "isRectangular": true,
+                "floors": 1,
+                "floorHeight": 3,
+                "wallThickness": 1,
+                "wallMaterial": "minecraft:stone_bricks",
+                "floorMaterial": "minecraft:oak_planks",
+                "roofMaterial": "minecraft:stone_bricks",
+                "foundationFillMaterial": "minecraft:stone",
+                "roofType": "FLAT",
+                "roofPitchRatio": 1,
+                "windowSpacing": 4,
+                "windowWidth": 1,
+                "windowHeight": 2,
+                "windowSillHeight": 1,
+                "doors": []
+              }]
+            }
+            """;
+
+        BuildingProject project = BuildingProject.fromJson(json);
+        BuildingFootprint footprint = project.getBuilding("b1");
+        assertNotNull(footprint);
+        assertEquals("minecraft:stone_bricks", footprint.getWallMaterial().getPrimaryMaterial());
+        assertFalse(footprint.getWallMaterial().hasAccent());
     }
 }

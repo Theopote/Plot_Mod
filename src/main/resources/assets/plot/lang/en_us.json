@@ -410,6 +410,7 @@
   "plugin.road.bike_lane_width": "Bike lane width %d",
   "plugin.road.include_sidewalk": "Include Sidewalk",
   "plugin.road.material": "Road Material",
+  "plugin.material.accent_ratio": "Accent ratio: %d%%",
   "plugin.road.sidewalk_material": "Sidewalk Material",
   "plugin.road.select_block_hint": "Open block picker (search & categories)",
   "plugin.road.projection_ref": "Projection Reference",

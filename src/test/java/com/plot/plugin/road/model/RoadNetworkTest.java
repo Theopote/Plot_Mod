@@ -1,6 +1,7 @@
 package com.plot.plugin.road.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.manager.RoadNetworkManager;
@@ -534,5 +535,34 @@ class RoadNetworkTest {
         assertFalse(network.setNodeGradeSeparation(junction.getId(), true, "missing-road", 3.0));
         assertFalse(junction.isGradeSeparated());
         assertNull(junction.getElevatedRoadId());
+    }
+
+    @Test
+    void legacyStringCarriagewayMaterialLoadsAsMaterialMix() {
+        String json = """
+            {
+              "roads": [{
+                "id": "road-1",
+                "name": "Road 1",
+                "crossSection": {
+                  "carriageway": {
+                    "width": 5,
+                    "material": "material.plot.gravel"
+                  }
+                },
+                "segmentIds": []
+              }],
+              "nodes": [],
+              "edges": []
+            }
+            """;
+
+        RoadNetwork network = RoadNetwork.fromJson(json);
+        Road road = network.getRoads().values().iterator().next();
+        MaterialMix material = road.getMaterial();
+
+        assertNotNull(material);
+        assertEquals("material.plot.gravel", material.getPrimaryMaterial());
+        assertFalse(material.hasAccent());
     }
 }

@@ -415,7 +415,7 @@ public final class RoadCrossSectionPreviewRenderer {
                 section.fillSlopeRatio,
                 section.cutSlopeRatio,
                 maxSlopePercent,
-                colorForMaterial(section.carriagewayMaterial, 0xFF707070),
+                colorForMaterial(section.carriagewayMaterial.getPrimaryMaterial(), 0xFF707070),
                 colorForMaterial(section.sidewalkMaterial, 0xFF989898),
                 colorForMaterial(section.bikeLaneMaterial, 0xFF6FA8D8),
                 colorForMaterial(section.shoulderMaterial, 0xFFB8A070),

@@ -3,6 +3,7 @@ package com.plot.plugin.building;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.material.MaterialMixResolver;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.building.model.BuildingFootprint;
@@ -71,14 +72,12 @@ public class BuildingGenerator {
             groundHeights, footprint.getManualBaseElevation());
 
         String foundationFill = BuildingGeometryUtils.resolveBlockId(footprint.getFoundationFillMaterial());
-        String wallBlock = BuildingGeometryUtils.resolveBlockId(footprint.getWallMaterial());
-        String floorBlock = BuildingGeometryUtils.resolveBlockId(footprint.getFloorMaterial());
         String roofBlock = BuildingGeometryUtils.resolveBlockId(footprint.getRoofMaterial());
 
         levelFoundation(result, footprintCells, world, baseElevation, foundationFill, projectionHandler);
         generateWalls(result, footprintCells, outerPolygon, innerPolygon, world,
-            baseElevation, footprint, wallBlock, projectionHandler);
-        generateFloors(result, innerPolygon, world, baseElevation, footprint, floorBlock, projectionHandler);
+            baseElevation, footprint, projectionHandler);
+        generateFloors(result, innerPolygon, world, baseElevation, footprint, projectionHandler);
 
         BuildingFootprint.RoofType roofType = resolveRoofType(footprint, result);
         result.effectiveRoofType = roofType;
@@ -148,7 +147,6 @@ public class BuildingGenerator {
             World world,
             int baseElevation,
             BuildingFootprint footprint,
-            String wallBlockId,
             BlockProjectionHandler projectionHandler) {
         int topY = baseElevation + footprint.getFloors() * footprint.getFloorHeight();
         for (GridCell cell : cells) {
@@ -162,6 +160,9 @@ public class BuildingGenerator {
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
             for (int y = baseElevation; y < topY; y++) {
                 BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
+                String wallBlockId = MaterialMixResolver.resolve(
+                    footprint.getWallMaterial(), pos, footprint.getId(),
+                    BuildingGeometryUtils::resolveBlockId);
                 recordBlock(result, pos, wallBlockId, projectionHandler);
             }
         }
@@ -173,7 +174,6 @@ public class BuildingGenerator {
             World world,
             int baseElevation,
             BuildingFootprint footprint,
-            String floorBlockId,
             BlockProjectionHandler projectionHandler) {
         if (innerPolygon == null) {
             return;
@@ -190,6 +190,9 @@ public class BuildingGenerator {
                 }
                 BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateTransformer);
                 BlockPos pos = new BlockPos(column.getX(), floorY, column.getZ());
+                String floorBlockId = MaterialMixResolver.resolve(
+                    footprint.getFloorMaterial(), pos, footprint.getId(),
+                    BuildingGeometryUtils::resolveBlockId);
                 recordBlock(result, pos, floorBlockId, projectionHandler);
             }
         }

@@ -2,6 +2,7 @@ package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.material.MaterialMix;
 import com.plot.core.command.CommandManager;
 import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.core.model.Project;
@@ -24,6 +25,8 @@ import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
+import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.Canvas;
@@ -360,15 +363,15 @@ public class BuildingPlugin extends Plugin {
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.wall_thickness");
 
-        renderMaterialButton(PlotI18n.tr("plugin.building.wall_material"), building.getWallMaterial(),
-            blockId -> {
+        renderMaterialMixButton(PlotI18n.tr("plugin.building.wall_material"), building.getWallMaterial(),
+            mix -> {
                 projectHistory.push(project);
-                building.setWallMaterial(blockId);
+                building.setWallMaterial(mix);
             });
-        renderMaterialButton(PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
-            blockId -> {
+        renderMaterialMixButton(PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
+            mix -> {
                 projectHistory.push(project);
-                building.setFloorMaterial(blockId);
+                building.setFloorMaterial(mix);
             });
         renderMaterialButton(PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
             blockId -> {
@@ -677,6 +680,61 @@ public class BuildingPlugin extends Plugin {
             }
             ImGui.endPopup();
         }
+    }
+
+    private void renderMaterialMixButton(
+            String label,
+            MaterialMix currentMix,
+            java.util.function.Consumer<MaterialMix> onSelected) {
+        MaterialMix mix = currentMix != null
+            ? currentMix
+            : MaterialMix.single(BuildingFootprint.DEFAULT_WALL_MATERIAL);
+        String displayName = RoadMaterialUtils.getDisplayName(mix.getPrimaryMaterial());
+        if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
+            displayName += " + " + RoadMaterialUtils.getDisplayName(mix.getAccentMaterial());
+        }
+        ImGui.text(label);
+        ImGui.sameLine();
+        if (ImGui.button(displayName + "##" + label, 0, 0)) {
+            java.util.List<String> initial = new java.util.ArrayList<>();
+            if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
+                initial.add(mix.getPrimaryMaterial());
+            }
+            if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
+                initial.add(mix.getAccentMaterial());
+            }
+            openPalettePicker(initial, blockIds ->
+                onSelected.accept(RoadUiWidgets.fromPaletteSelection(blockIds, mix.getAccentRatio())));
+        }
+
+        boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
+        if (hasAccentMaterial) {
+            float[] ratio = {mix.getAccentRatio() > 0f ? mix.getAccentRatio() : 0.15f};
+            if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratio[0] * 100)) + "##" + label,
+                ratio,
+                0f,
+                0.5f,
+                "%.0f%%")) {
+                MaterialMix updated = mix.copy();
+                updated.setAccentRatio(ratio[0]);
+                onSelected.accept(updated);
+            }
+        }
+    }
+
+    private void openPalettePicker(java.util.List<String> initialBlockIds, java.util.function.Consumer<java.util.List<String>> onConfirm) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        client.execute(() -> {
+            if (client.currentScreen instanceof PlotScreen) {
+                PlotScreenState.markSwitchingToPlotSubScreen();
+            }
+            client.setScreen(BlockConfigNativeScreen.forPaletteSelection(
+                client.currentScreen, initialBlockIds, onConfirm));
+        });
     }
 
     private void renderMaterialButton(String label, String currentBlockId, Consumer<String> onSelected) {

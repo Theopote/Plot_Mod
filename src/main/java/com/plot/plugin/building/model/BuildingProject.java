@@ -3,6 +3,8 @@ package com.plot.plugin.building.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
+import com.plot.core.material.MaterialMixTypeAdapter;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +19,10 @@ import java.util.Map;
  * 建筑项目（管理已认领的多个建筑轮廓）
  */
 public class BuildingProject {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder()
+        .setPrettyPrinting()
+        .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
+        .create();
 
     private final Map<String, BuildingFootprint> buildings = new LinkedHashMap<>();
 
@@ -114,8 +119,8 @@ public class BuildingProject {
         int floors;
         int floorHeight;
         int wallThickness;
-        String wallMaterial;
-        String floorMaterial;
+        MaterialMix wallMaterial;
+        MaterialMix floorMaterial;
         String roofMaterial;
         String foundationFillMaterial;
         String roofType;

@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -18,7 +19,7 @@ public final class RoadBatchCrossSectionEditor {
     public static void renderDraftFields(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
         int width = draft.width();
         int laneCount = draft.laneCount();
-        final String[] material = {draft.material()};
+        final MaterialMix[] material = {draft.material()};
         boolean includeShoulder = draft.includeShoulder();
         int shoulderWidth = draft.shoulderWidth();
         boolean includeSidewalk = draft.includeSidewalk();
@@ -42,7 +43,7 @@ public final class RoadBatchCrossSectionEditor {
         }
         width = widthArr[0];
 
-        RoadUiWidgets.renderBlockMaterialPicker(
+        RoadUiWidgets.renderMaterialMixPicker(
             ctx,
             "##batch_road_material",
             PlotI18n.tr("plugin.road.material"),

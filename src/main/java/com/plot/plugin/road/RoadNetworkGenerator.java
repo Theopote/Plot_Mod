@@ -134,7 +134,9 @@ public class RoadNetworkGenerator {
             RoadNetwork network,
             RoadSystemConfig config,
             boolean sidewalk) {
-        String fallback = sidewalk ? config.getSelectedSidewalkMaterial() : config.getSelectedMaterial();
+        String fallback = sidewalk
+            ? config.getSelectedSidewalkMaterial()
+            : config.getSelectedMaterial().getPrimaryMaterial();
         if (node == null || network == null) {
             return fallback;
         }

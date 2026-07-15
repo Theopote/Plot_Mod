@@ -3,7 +3,10 @@ package com.plot.plugin.road.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
+import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.section.BikeLane;
 import com.plot.plugin.road.model.section.Drain;
@@ -39,7 +42,10 @@ import java.util.stream.Collectors;
  * 使用ConcurrentHashMap保证线程安全，支持多线程并发访问（UI线程、渲染线程、持久化线程）。
  */
 public class RoadNetwork {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder()
+        .setPrettyPrinting()
+        .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
+        .create();
 
     private final Map<String, RoadNode> nodes = new ConcurrentHashMap<>();
     private final Map<String, RoadEdge> edges = new ConcurrentHashMap<>();
@@ -392,7 +398,7 @@ public class RoadNetwork {
     static class LaneGroupData {
         Integer laneCount;
         Integer width;
-        String material;
+        MaterialMix material;
         List<LaneData> lanes = new ArrayList<>();
     }
 
@@ -538,7 +544,9 @@ public class RoadNetwork {
                 LaneGroup laneGroup = new LaneGroup();
                 laneGroup.setLaneCount(carriageway.laneCount);
                 laneGroup.setWidth(carriageway.width);
-                laneGroup.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(carriageway.material));
+                laneGroup.setMaterial(carriageway.material != null
+                    ? RoadMaterialMixUtils.normalizeStored(carriageway.material)
+                    : null);
                 if (carriageway.lanes != null) {
                     List<Lane> lanes = new ArrayList<>();
                     for (LaneData laneData : carriageway.lanes) {

@@ -410,6 +410,7 @@
   "plugin.road.bike_lane_width": "自行车道宽度 %d",
   "plugin.road.include_sidewalk": "包含人行道",
   "plugin.road.material": "道路材质",
+  "plugin.material.accent_ratio": "点缀比例：%d%%",
   "plugin.road.sidewalk_material": "人行道材质",
   "plugin.road.select_block_hint": "打开方块选择器（支持搜索与分类）",
   "plugin.road.projection_ref": "投影参考",

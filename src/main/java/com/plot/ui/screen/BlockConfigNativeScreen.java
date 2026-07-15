@@ -137,6 +137,7 @@ public class BlockConfigNativeScreen extends Screen {
     private final Screen parent;
     private final SelectionMode selectionMode;
     private final Consumer<String> onBlockSelected;
+    private final Consumer<List<String>> onPaletteConfirmed;
     private Block highlightedBlock;
 
     private BlockCategory currentCategory = BlockCategory.BUILDING_BLOCKS;
@@ -214,11 +215,30 @@ public class BlockConfigNativeScreen extends Screen {
         return new BlockConfigNativeScreen(parent, SelectionMode.SINGLE, initialBlockId, onSelected);
     }
 
+    public static BlockConfigNativeScreen forPaletteSelection(
+            Screen parent,
+            List<String> initialBlockIds,
+            Consumer<List<String>> onConfirm) {
+        BlockConfigNativeScreen screen = new BlockConfigNativeScreen(
+            parent, SelectionMode.PALETTE, null, null, onConfirm);
+        screen.configManager.setPaletteFromBlockIds(initialBlockIds);
+        return screen;
+    }
+
     private BlockConfigNativeScreen(
             Screen parent,
             SelectionMode selectionMode,
             String initialBlockId,
             Consumer<String> onSelected) {
+        this(parent, selectionMode, initialBlockId, onSelected, null);
+    }
+
+    private BlockConfigNativeScreen(
+            Screen parent,
+            SelectionMode selectionMode,
+            String initialBlockId,
+            Consumer<String> onSelected,
+            Consumer<List<String>> onPaletteConfirmed) {
         super(selectionMode == SelectionMode.SINGLE
             ? Text.translatable("block.plot.single_select_title")
             : Text.translatable("block.plot.title"));
@@ -226,6 +246,7 @@ public class BlockConfigNativeScreen extends Screen {
         this.parent = parent;
         this.selectionMode = selectionMode;
         this.onBlockSelected = onSelected;
+        this.onPaletteConfirmed = onPaletteConfirmed;
         this.highlightedBlock = initialBlockId != null
             ? RoadMaterialUtils.resolveBlock(initialBlockId)
             : null;
@@ -1171,6 +1192,11 @@ public class BlockConfigNativeScreen extends Screen {
 
     private void applyAndClose() {
         configManager.setPaletteBlocks(palette);
+        if (onPaletteConfirmed != null) {
+            onPaletteConfirmed.accept(palette.stream()
+                .map(block -> Registries.BLOCK.getId(block).toString())
+                .toList());
+        }
         close();
     }
 

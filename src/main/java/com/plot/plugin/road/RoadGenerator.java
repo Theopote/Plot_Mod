@@ -1,6 +1,8 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
+import com.plot.core.material.MaterialMixResolver;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
@@ -118,7 +120,7 @@ public class RoadGenerator {
 
             // 5–6. 检测桥/隧道并生成 solids
             RoadGenerationResult result = buildFromCenterline(
-                pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength);
+                pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength, null, "standalone");
             result.copyProfileFrom(toProfileResult(heightCalculation));
             
             LOGGER.info("道路生成完成: 挖{} 填{} 桥{}座 隧道{}段", 
@@ -177,7 +179,8 @@ public class RoadGenerator {
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints, terrain, crossSection, heightCalculation.heightInfos(), edge.getLength(),
-                resolveEndpointSnap(startNode, endNode, networkNodeElevations, crossSection, pathPoints));
+                resolveEndpointSnap(startNode, endNode, networkNodeElevations, crossSection, pathPoints),
+                edge.getId());
             result.edgeId = edge.getId();
             result.copyProfileFrom(toProfileResult(heightCalculation));
             return result;
@@ -247,6 +250,17 @@ public class RoadGenerator {
             List<SegmentHeightInfo> heightInfos,
             double pathLength,
             EndpointElevationSnaps endpointSnaps) {
+        return buildFromCenterline(pathPoints, terrain, crossSection, heightInfos, pathLength, endpointSnaps, "standalone");
+    }
+
+    private RoadGenerationResult buildFromCenterline(
+            List<Vec2d> pathPoints,
+            TerrainSampler terrain,
+            ResolvedCrossSection crossSection,
+            List<SegmentHeightInfo> heightInfos,
+            double pathLength,
+            EndpointElevationSnaps endpointSnaps,
+            String carriagewaySeedKey) {
         List<PathSegment> segments = samplePath(pathPoints);
         ConstructionDetection detection = detectConstruction(segments, heightInfos, terrain);
         List<BridgeSegment> bridges = detection.bridges();
@@ -263,7 +277,8 @@ public class RoadGenerator {
             generateCarriagewayBlocks(
                 solids, metrics, segments, heightInfos, bridges, tunnels, terrain,
                 crossSection.carriagewayWidth,
-                getBlockIdFromMaterial(crossSection.carriagewayMaterial),
+                crossSection.carriagewayMaterial,
+                carriagewaySeedKey,
                 unitsPerBlock);
 
             int shoulderWidth = crossSection.includeShoulder ? crossSection.shoulderWidth : 0;
@@ -432,8 +447,8 @@ public class RoadGenerator {
         mergeJunctionBlocks(
             target,
             junction,
-            getBlockIdFromMaterial(config.getSelectedMaterial()),
-            getBlockIdFromMaterial(config.getSelectedMaterial())
+            getBlockIdFromMaterial(config.getSelectedMaterial().getPrimaryMaterial()),
+            getBlockIdFromMaterial(config.getSelectedMaterial().getPrimaryMaterial())
         );
     }
 
@@ -1164,7 +1179,8 @@ public class RoadGenerator {
             List<TunnelSegment> tunnels,
             TerrainSampler terrain,
             int carriagewayWidth,
-            String blockId,
+            MaterialMix carriagewayMaterial,
+            String seedKey,
             double unitsPerBlock) {
         metrics.bridgeCount = bridges.size();
         metrics.tunnelCount = tunnels.size();
@@ -1180,8 +1196,21 @@ public class RoadGenerator {
         List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfExtent);
         List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfExtent);
 
-        forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) -> solids.addLateralStrip(
-            center, leftNormal, carriagewayWidth, targetY, RoadSolidLayer.ROAD, blockId, unitsPerBlock));
+        forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) -> {
+            double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+            Vec2d normal = leftNormal.lengthSquared() > 1e-12
+                ? leftNormal.normalize()
+                : new Vec2d(0, 1);
+            int minOffset = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
+            int maxOffset = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
+            for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
+                Vec2d planPoint = center.add(normal.multiply(lateral * scale));
+                BlockPos pos = canvasToBlockPos(planPoint).withY(targetY);
+                String blockId = MaterialMixResolver.resolve(
+                    carriagewayMaterial, pos, seedKey, this::getBlockIdFromMaterial);
+                solids.add(planPoint, targetY, RoadSolidLayer.ROAD, blockId);
+            }
+        });
 
         generateBridgeStructures(solids, bridges, segments, heightInfos, leftBoundary, rightBoundary, terrain);
     }

@@ -111,13 +111,13 @@ public final class RoadDefaultParamsPanel {
             }
         }
 
-        RoadUiWidgets.renderBlockMaterialPicker(
+        RoadUiWidgets.renderMaterialMixPicker(
             ctx,
             "##default_road_material",
             PlotI18n.tr("plugin.road.material"),
             config.getSelectedMaterial(),
-            blockId -> {
-                config.setSelectedMaterial(blockId);
+            mix -> {
+                config.setSelectedMaterial(mix);
                 markCustom();
             },
             false

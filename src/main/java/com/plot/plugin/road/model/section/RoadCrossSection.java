@@ -1,5 +1,6 @@
 package com.plot.plugin.road.model.section;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.style.RoadStyle;
@@ -70,7 +71,9 @@ public class RoadCrossSection {
         RoadCrossSection section = new RoadCrossSection();
         section.carriageway.setLaneCount(1);
         section.carriageway.setWidth(width);
-        section.carriageway.setMaterial(material);
+        if (material != null) {
+            section.carriageway.setMaterial(RoadMaterialUtils.normalizeStoredMaterial(material));
+        }
         section.sidewalk.setEnabled(includeSidewalk);
         section.sidewalk.setWidth(sidewalkWidth);
         section.sidewalk.setMaterial(sidewalkMaterial);

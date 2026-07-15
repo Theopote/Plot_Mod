@@ -118,7 +118,7 @@ public final class RoadCrossSectionEditor {
             }
         }
 
-        RoadUiWidgets.renderBlockMaterialPicker(
+        RoadUiWidgets.renderMaterialMixPicker(
             ctx,
             "##road_material",
             PlotI18n.tr("plugin.road.material"),

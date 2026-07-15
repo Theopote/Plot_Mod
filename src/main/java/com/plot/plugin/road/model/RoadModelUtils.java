@@ -3,6 +3,7 @@ package com.plot.plugin.road.model;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.core.material.MaterialMix;
 
 /**
  * 从路网解析道路工程属性的辅助方法。
@@ -42,7 +43,8 @@ public final class RoadModelUtils {
     }
 
     public static String getEffectiveMaterial(RoadNetwork network, RoadEdge edge, RoadSystemConfig defaults) {
-        return resolveCrossSection(network, edge, defaults).carriagewayMaterial;
+        MaterialMix mix = resolveCrossSection(network, edge, defaults).carriagewayMaterial;
+        return mix != null ? mix.getPrimaryMaterial() : null;
     }
 
     public static boolean getEffectiveIncludeSidewalk(RoadNetwork network, RoadEdge edge, RoadSystemConfig defaults) {

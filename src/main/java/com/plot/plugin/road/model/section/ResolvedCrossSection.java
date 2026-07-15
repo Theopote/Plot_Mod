@@ -1,7 +1,9 @@
 package com.plot.plugin.road.model.section;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
 
 import java.util.List;
@@ -17,7 +19,7 @@ public final class ResolvedCrossSection {
     public final List<Integer> laneWidths;
     public final List<Double> laneDividerOffsets;
     public final int carriagewayWidth;
-    public final String carriagewayMaterial;
+    public final MaterialMix carriagewayMaterial;
     public final boolean includeMedian;
     public final int medianWidth;
     public final String medianMaterial;
@@ -46,7 +48,7 @@ public final class ResolvedCrossSection {
             List<Integer> laneWidths,
             List<Double> laneDividerOffsets,
             int carriagewayWidth,
-            String carriagewayMaterial,
+            MaterialMix carriagewayMaterial,
             boolean includeMedian,
             int medianWidth,
             String medianMaterial,
@@ -121,9 +123,9 @@ public final class ResolvedCrossSection {
         int laneCount = carriageway.getEffectiveLaneCount();
         List<Integer> laneWidths = carriageway.resolveLaneWidths(safeWidth);
         List<Double> laneDividerOffsets = carriageway.resolveLaneDividerOffsets(safeWidth);
-        String roadMaterial = carriageway.getMaterial() != null
-            ? carriageway.getMaterial()
-            : config.getSelectedMaterial();
+        MaterialMix roadMaterial = MaterialMix.orDefault(
+            carriageway.getMaterial(),
+            config.getSelectedMaterial());
 
         boolean includeMedian = median.getEnabled() != null && median.getEnabled();
         int medianWidth = includeMedian
@@ -189,7 +191,7 @@ public final class ResolvedCrossSection {
             laneWidths,
             laneDividerOffsets,
             safeWidth,
-            RoadMaterialUtils.normalizeStoredMaterial(roadMaterial),
+            RoadMaterialMixUtils.normalizeStored(roadMaterial),
             includeMedian,
             medianWidth,
             RoadMaterialUtils.normalizeStoredMaterial(medianMaterial),

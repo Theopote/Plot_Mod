@@ -1,6 +1,7 @@
 package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialMix;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,8 +51,8 @@ public class BuildingFootprint {
     private int floors = 1;
     private int floorHeight = 3;
     private int wallThickness = 1;
-    private String wallMaterial = DEFAULT_WALL_MATERIAL;
-    private String floorMaterial = DEFAULT_FLOOR_MATERIAL;
+    private MaterialMix wallMaterial = MaterialMix.single(DEFAULT_WALL_MATERIAL);
+    private MaterialMix floorMaterial = MaterialMix.single(DEFAULT_FLOOR_MATERIAL);
     private String roofMaterial = DEFAULT_ROOF_MATERIAL;
     private String foundationFillMaterial = DEFAULT_FOUNDATION_FILL;
 
@@ -129,22 +130,38 @@ public class BuildingFootprint {
         this.wallThickness = Math.max(1, Math.min(8, wallThickness));
     }
 
-    public String getWallMaterial() {
+    public MaterialMix getWallMaterial() {
         return wallMaterial;
+    }
+
+    public void setWallMaterial(MaterialMix wallMaterial) {
+        this.wallMaterial = wallMaterial != null && wallMaterial.getPrimaryMaterial() != null
+            && !wallMaterial.getPrimaryMaterial().isBlank()
+            ? wallMaterial
+            : MaterialMix.single(DEFAULT_WALL_MATERIAL);
     }
 
     public void setWallMaterial(String wallMaterial) {
         this.wallMaterial = wallMaterial != null && !wallMaterial.isBlank()
-            ? wallMaterial.trim() : DEFAULT_WALL_MATERIAL;
+            ? MaterialMix.single(wallMaterial.trim())
+            : MaterialMix.single(DEFAULT_WALL_MATERIAL);
     }
 
-    public String getFloorMaterial() {
+    public MaterialMix getFloorMaterial() {
         return floorMaterial;
+    }
+
+    public void setFloorMaterial(MaterialMix floorMaterial) {
+        this.floorMaterial = floorMaterial != null && floorMaterial.getPrimaryMaterial() != null
+            && !floorMaterial.getPrimaryMaterial().isBlank()
+            ? floorMaterial
+            : MaterialMix.single(DEFAULT_FLOOR_MATERIAL);
     }
 
     public void setFloorMaterial(String floorMaterial) {
         this.floorMaterial = floorMaterial != null && !floorMaterial.isBlank()
-            ? floorMaterial.trim() : DEFAULT_FLOOR_MATERIAL;
+            ? MaterialMix.single(floorMaterial.trim())
+            : MaterialMix.single(DEFAULT_FLOOR_MATERIAL);
     }
 
     public String getRoofMaterial() {

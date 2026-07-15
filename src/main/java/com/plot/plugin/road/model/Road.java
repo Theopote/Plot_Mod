@@ -1,5 +1,6 @@
 package com.plot.plugin.road.model;
 
+import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.CenterLineStyle;
@@ -130,8 +131,12 @@ public class Road {
         crossSection.getCarriageway().setWidth(width);
     }
 
-    public String getMaterial() {
+    public MaterialMix getMaterial() {
         return crossSection.getCarriageway().getMaterial();
+    }
+
+    public void setMaterial(MaterialMix material) {
+        crossSection.getCarriageway().setMaterial(material);
     }
 
     public void setMaterial(String material) {
@@ -306,7 +311,7 @@ public class Road {
         return crossSection.resolve(defaults).carriagewayWidth;
     }
 
-    public String getEffectiveMaterial(RoadSystemConfig defaults) {
+    public MaterialMix getEffectiveMaterial(RoadSystemConfig defaults) {
         return crossSection.resolve(defaults).carriagewayMaterial;
     }
 

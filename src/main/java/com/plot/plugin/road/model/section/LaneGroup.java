@@ -1,5 +1,8 @@
 package com.plot.plugin.road.model.section;
 
+import com.plot.core.material.MaterialMix;
+import com.plot.plugin.road.RoadMaterialUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -10,13 +13,13 @@ import java.util.List;
 public class LaneGroup {
     private Integer laneCount;
     private Integer width;
-    private String material;
+    private MaterialMix material;
     private List<Lane> lanes = new ArrayList<>();
 
     public LaneGroup() {
     }
 
-    public LaneGroup(Integer laneCount, Integer width, String material) {
+    public LaneGroup(Integer laneCount, Integer width, MaterialMix material) {
         this.laneCount = laneCount;
         this.width = width;
         this.material = material;
@@ -45,12 +48,17 @@ public class LaneGroup {
         this.width = width;
     }
 
-    public String getMaterial() {
+    public MaterialMix getMaterial() {
         return material;
     }
 
-    public void setMaterial(String material) {
+    public void setMaterial(MaterialMix material) {
         this.material = material;
+    }
+
+    public void setMaterial(String material) {
+        String normalized = RoadMaterialUtils.normalizeStoredMaterial(material);
+        this.material = normalized != null ? MaterialMix.single(normalized) : null;
     }
 
     public List<Lane> getLanes() {

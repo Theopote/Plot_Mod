@@ -3,6 +3,8 @@ package com.plot.plugin.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
+import com.plot.core.material.MaterialMix;
+import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.style.RoadStyle;
@@ -17,14 +19,17 @@ import java.util.Map;
  * 道路系统插件配置
  */
 public class RoadSystemConfig {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder()
+        .setPrettyPrinting()
+        .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
+        .create();
     private static final String DEFAULT_FILL_SLOPE_MATERIAL = "material.plot.gravel";
     private String pluginId;
 
     private int roadWidth = 5;
     private boolean includeSidewalk = true;
     private int sidewalkWidth = 1;
-    private String selectedMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private MaterialMix selectedMaterial = MaterialMix.single(RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
     private String selectedSidewalkMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String selectedPreset = "";
     private List<RoadStyle> presets;
@@ -106,14 +111,13 @@ public class RoadSystemConfig {
         } else {
             mergeMissingBuiltinStyles(config);
         }
-        String normalizedMaterial = RoadMaterialUtils.normalizeStoredMaterial(config.selectedMaterial);
-        config.selectedMaterial = normalizedMaterial != null
-            ? normalizedMaterial
-            : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+        config.selectedMaterial = MaterialMix.orDefault(
+            config.selectedMaterial,
+            MaterialMix.single(RoadMaterialUtils.DEFAULT_ROAD_BLOCK));
         String normalizedSidewalk = RoadMaterialUtils.normalizeStoredMaterial(config.selectedSidewalkMaterial);
         config.selectedSidewalkMaterial = normalizedSidewalk != null
             ? normalizedSidewalk
-            : config.selectedMaterial;
+            : config.selectedMaterial.getPrimaryMaterial();
         config.setFillSlopeMaterial(config.fillSlopeMaterial);
         config.setCutSlopeMaterial(config.cutSlopeMaterial);
         if (config.fillSlopeMaterial.isBlank()) {
@@ -172,16 +176,26 @@ public class RoadSystemConfig {
         this.sidewalkWidth = sidewalkWidth;
     }
 
-    public String getSelectedMaterial() {
+    public MaterialMix getSelectedMaterial() {
         return selectedMaterial;
     }
 
+    public void setSelectedMaterial(MaterialMix selectedMaterial) {
+        this.selectedMaterial = selectedMaterial != null
+            ? selectedMaterial
+            : MaterialMix.single(RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
+    }
+
     public void setSelectedMaterial(String selectedMaterial) {
-        this.selectedMaterial = selectedMaterial;
+        String normalized = RoadMaterialUtils.normalizeStoredMaterial(selectedMaterial);
+        this.selectedMaterial = MaterialMix.single(
+            normalized != null ? normalized : RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
     }
 
     public String getSelectedSidewalkMaterial() {
-        return selectedSidewalkMaterial != null ? selectedSidewalkMaterial : selectedMaterial;
+        return selectedSidewalkMaterial != null
+            ? selectedSidewalkMaterial
+            : selectedMaterial.getPrimaryMaterial();
     }
 
     public void setSelectedSidewalkMaterial(String selectedSidewalkMaterial) {
@@ -465,7 +479,7 @@ public class RoadSystemConfig {
         if (style.fillSlopeMaterial != null && !style.fillSlopeMaterial.isBlank()) {
             this.fillSlopeMaterial = style.fillSlopeMaterial;
         }
-        this.selectedMaterial = resolvedRoadMaterial;
+        this.selectedMaterial = MaterialMix.single(resolvedRoadMaterial);
         this.selectedSidewalkMaterial = resolvedSidewalkMaterial;
         this.selectedPreset = style.id;
     }
