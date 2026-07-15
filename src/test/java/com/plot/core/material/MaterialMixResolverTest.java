@@ -33,20 +33,63 @@ class MaterialMixResolverTest {
     }
 
     @Test
-    void accentRatioIsApproximatelyRespected() {
+    void accentRatioIsApproximatelyRespectedOnRoadFootprint() {
+        MaterialMix mix = new MaterialMix("primary", "accent", 0.2f);
+        String[] seeds = {
+            "edge-0", "edge-1", "edge-42", "road-12345", "road--999", "seg-777888"
+        };
+
+        for (String seed : seeds) {
+            int accentCount = 0;
+            int total = 0;
+            // Typical carriageway strip: ~200 long, ~9 wide, fixed Y.
+            for (int x = 0; x <= 200; x++) {
+                for (int z = -4; z <= 4; z++) {
+                    total++;
+                    String resolved = MaterialMixResolver.resolve(
+                        mix, new BlockPos(x, 64, z), seed, material -> material);
+                    if ("accent".equals(resolved)) {
+                        accentCount++;
+                    }
+                }
+            }
+
+            double ratio = accentCount / (double) total;
+            assertTrue(ratio > 0.15 && ratio < 0.25,
+                "accent ratio for seed '" + seed + "' was " + ratio);
+        }
+    }
+
+    @Test
+    void accentBlocksAreScatteredNotBinarizedOnShortRoad() {
         MaterialMix mix = new MaterialMix("primary", "accent", 0.2f);
         int accentCount = 0;
-        int total = 10_000;
-        for (int x = 0; x < total; x++) {
-            String resolved = MaterialMixResolver.resolve(
-                mix, new BlockPos(x, 0, 0), "seed", material -> material);
-            if ("accent".equals(resolved)) {
-                accentCount++;
+        int total = 0;
+        int runs = 0;
+        boolean previousAccent = false;
+        boolean sawRun = false;
+
+        for (int x = 0; x <= 200; x++) {
+            for (int z = -4; z <= 4; z++) {
+                total++;
+                boolean accent = "accent".equals(MaterialMixResolver.resolve(
+                    mix, new BlockPos(x, 64, z), "edge-a", material -> material));
+                if (accent) {
+                    accentCount++;
+                }
+                if (accent != previousAccent && total > 1) {
+                    runs++;
+                    sawRun = true;
+                }
+                previousAccent = accent;
             }
         }
 
         double ratio = accentCount / (double) total;
         assertTrue(ratio > 0.15 && ratio < 0.25, "accent ratio was " + ratio);
+        // All-or-nothing would yield ~1 run; sparse speckles need many transitions.
+        assertTrue(sawRun && runs > 50,
+            "expected scattered accents, but only saw " + runs + " runs");
     }
 
     @Test

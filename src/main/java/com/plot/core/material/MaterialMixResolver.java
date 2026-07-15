@@ -38,11 +38,25 @@ public final class MaterialMixResolver {
         return blockIdResolver.apply(chosen);
     }
 
+    /**
+     * Maps (pos, seedKey) to a stable unit float in [0, 1).
+     * Uses splitmix64-style avalanche mixing so nearby coords still decorate independently.
+     */
     static double deterministicUnitFloat(BlockPos pos, String seedKey) {
-        long hash = pos.getX();
-        hash = hash * 31L + pos.getY();
-        hash = hash * 31L + pos.getZ();
-        hash = hash * 31L + (seedKey != null ? seedKey.hashCode() : 0);
-        return (hash & 0x7FFFFFFFL) / (double) 0x80000000L;
+        long seed = seedKey != null ? seedKey.hashCode() : 0L;
+        long h = (long) pos.getX() * 0x9E3779B97F4A7C15L;
+        h ^= (long) pos.getY() * 0xBF58476D1CE4E5B9L;
+        h ^= (long) pos.getZ() * 0x94D049BB133111EBL;
+        h ^= seed * 0x2545F4914F6CDD1DL;
+        h = avalanche64(h);
+        // High bits after multiplicative mixing are higher quality than low bits.
+        return (h >>> 33) / (double) (1L << 31);
+    }
+
+    /** Stafford / SplitMix64 finalizer. */
+    private static long avalanche64(long z) {
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
     }
 }
