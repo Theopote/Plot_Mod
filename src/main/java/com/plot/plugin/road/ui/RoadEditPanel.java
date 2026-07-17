@@ -56,16 +56,17 @@ public final class RoadEditPanel {
         List<RoadEdge> allEdges = new ArrayList<>(network.getEdges().values());
         if (allEdges.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
-            renderSelectionDispatch(network, true);
-            return;
+        } else {
+            ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
+            edgeListPanel.renderToolbar("##edit");
+            edgeListPanel.renderList(true, "edit_edge_list");
         }
 
-        ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
-        edgeListPanel.renderToolbar("##edit");
-        edgeListPanel.renderList(true, "edit_edge_list");
+        renderSelectionDispatch(network, allEdges.isEmpty());
 
-        renderSelectionDispatch(network, false);
+        ImGui.separator();
+        nodePropertyPanel.renderAllNodesCollapsibleList();
     }
 
     private void renderSelectionDispatch(RoadNetwork network, boolean edgesEmpty) {
@@ -74,7 +75,6 @@ public final class RoadEditPanel {
 
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
             nodePropertyPanel.renderForSelectedNode(junctionPanel);
-            nodePropertyPanel.renderAllNodesCollapsibleList();
             return;
         }
 
@@ -129,10 +129,7 @@ public final class RoadEditPanel {
     }
 
     private void renderUniformFlatElevationControls(RoadNetwork network) {
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.uniform_flat_elevation"))) {
-            return;
-        }
-
+        ImGui.text(PlotI18n.tr("plugin.road.uniform_flat_elevation"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
 
         boolean disabled = network.getEdges().isEmpty();

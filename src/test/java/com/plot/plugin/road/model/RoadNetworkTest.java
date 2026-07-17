@@ -518,6 +518,32 @@ class RoadNetworkTest {
     }
 
     @Test
+    void nodeAndEdgeSelectionAreMutuallyExclusive() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkManager manager = new RoadNetworkManager(
+            new RoadSystemConfig("road_system"), new RoadProjectStatus());
+        Road road = network.createRoad("road-a");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(a.getId(), b.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)
+        ), road.getId());
+        manager.setNetwork(network);
+
+        manager.handleNodeSelect(a.getId());
+        assertEquals(a.getId(), manager.getSelectedNodeId());
+        assertTrue(manager.getSelectedEdgeIds().isEmpty());
+
+        manager.handleEdgeSelect(edge.getId(), false);
+        assertTrue(manager.getSelectedNodeId().isBlank());
+        assertTrue(manager.getSelectedEdgeIds().contains(edge.getId()));
+
+        manager.handleNodeSelect(b.getId());
+        assertEquals(b.getId(), manager.getSelectedNodeId());
+        assertTrue(manager.getSelectedEdgeIds().isEmpty());
+    }
+
+    @Test
     void setNodeGradeSeparationRejectsUnknownRoadId() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(0, 0));

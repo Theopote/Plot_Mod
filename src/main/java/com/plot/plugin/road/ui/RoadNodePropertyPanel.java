@@ -54,7 +54,7 @@ public final class RoadNodePropertyPanel {
     }
 
     public void renderAllNodesCollapsibleList() {
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.node_elevation_settings"))) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.all_nodes"))) {
             return;
         }
 
@@ -79,6 +79,13 @@ public final class RoadNodePropertyPanel {
             }
             ImGui.sameLine();
             renderNodeElevationControls(node, network, config, true);
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.road.locate") + "##locate")) {
+                ctx.networkManager().handleNodeSelect(node.getId());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("plugin.road.node_locate_hint"));
+            }
             ImGui.popID();
         }
         ImGui.endChild();
