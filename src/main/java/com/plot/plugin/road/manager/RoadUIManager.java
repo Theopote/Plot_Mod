@@ -11,6 +11,7 @@ import com.plot.plugin.road.ui.RoadNodePropertyPanel;
 import com.plot.plugin.road.ui.RoadOverviewPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
@@ -27,6 +28,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private final RoadGeneratePanel generatePanel;
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
+    private final RoadNodePropertyPanel nodePropertyPanel;
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -39,7 +41,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
         this.edgeListPanel = new RoadEdgeListPanel(ctx);
         this.junctionPanel = new RoadJunctionPanel(ctx);
-        RoadNodePropertyPanel nodePropertyPanel = new RoadNodePropertyPanel(ctx);
+        this.nodePropertyPanel = new RoadNodePropertyPanel(ctx);
         this.toolbarPanel = new RoadToolbarPanel(ctx);
         this.overviewPanel = new RoadOverviewPanel(ctx);
         this.adoptPanel = new RoadAdoptPanel(ctx, new RoadDefaultParamsPanel(ctx));
@@ -87,11 +89,20 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
 
     @Override
     public boolean hasJunctionPropertyContent() {
-        return ctx.networkManager().getSelectedJunctionNode() != null;
+        return ctx.networkManager().getSelectedNode() != null;
     }
 
     @Override
     public void renderJunctionPropertySection() {
-        junctionPanel.renderPropertySection();
+        nodePropertyPanel.renderPropertySection(junctionPanel);
+    }
+
+    @Override
+    public String getPropertySectionTitleKey() {
+        RoadNode node = ctx.networkManager().getSelectedNode();
+        if (node != null && node.isJunction()) {
+            return "panel.plot.road_junction";
+        }
+        return "panel.plot.road_node";
     }
 }

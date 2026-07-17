@@ -96,8 +96,19 @@ public final class RoadNetworkManager {
         return selectedNodeId;
     }
 
+    public RoadNode getSelectedNode() {
+        if (selectedNodeId == null || selectedNodeId.isBlank()) {
+            return null;
+        }
+        return network.getNode(selectedNodeId);
+    }
+
     public void setSelectedNodeId(String selectedNodeId) {
         this.selectedNodeId = selectedNodeId != null ? selectedNodeId : "";
+    }
+
+    public void clearNodeSelection() {
+        selectedNodeId = "";
     }
 
     public String getLastSelectedEdgeId() {
@@ -252,10 +263,7 @@ public final class RoadNetworkManager {
     }
 
     public RoadNode getSelectedJunctionNode() {
-        if (selectedNodeId == null || selectedNodeId.isBlank()) {
-            return null;
-        }
-        RoadNode node = network.getNode(selectedNodeId);
+        RoadNode node = getSelectedNode();
         if (node == null || !node.isJunction()) {
             return null;
         }

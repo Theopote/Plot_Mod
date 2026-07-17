@@ -145,6 +145,11 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         uiManager.renderJunctionPropertySection();
     }
 
+    @Override
+    public String getPropertySectionTitleKey() {
+        return uiManager.getPropertySectionTitleKey();
+    }
+
     private void onProjectLoaded(String filePath) {
         persistenceManager.onProjectLoaded(
             filePath,

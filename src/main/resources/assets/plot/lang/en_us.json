@@ -781,6 +781,7 @@
   "plugin.road.junction_marking.off": "Force off",
   "plugin.road.default_corner_radius": "Default curb radius: %.1f m",
   "panel.plot.road_junction": "Road Junction",
+  "panel.plot.road_node": "Road Node",
   "plugin.road.network_map_legend": "Junctions:",
   "plugin.road.legend.endpoint": "End",
   "plugin.road.legend.through": "Through",

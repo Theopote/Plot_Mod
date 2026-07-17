@@ -113,7 +113,7 @@ public class PropertyPanel implements UIComponent {
             // ====== 历史记录部分 ======
             renderHistorySection();
 
-            // ====== 道路交叉口属性（道路插件激活且选中路口时） ======
+            // ====== 道路节点属性（道路插件激活且选中节点时，与编辑 Tab 同步） ======
             renderRoadJunctionSection();
 
             // ====== 状态属性部分 ======
@@ -205,7 +205,9 @@ public class PropertyPanel implements UIComponent {
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, currentTheme.tabActive);
         ImGui.pushStyleColor(ImGuiCol.Text, currentTheme.text);
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("panel.plot.road_junction"), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(
+                PlotI18n.tr(roadPlugin.getPropertySectionTitleKey()),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.popStyleColor(4);
             roadPlugin.renderJunctionPropertySection();
         } else {

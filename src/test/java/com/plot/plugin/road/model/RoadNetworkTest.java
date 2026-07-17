@@ -544,6 +544,43 @@ class RoadNetworkTest {
     }
 
     @Test
+    void getSelectedNodeReturnsAnySelectedNode() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkManager manager = new RoadNetworkManager(
+            new RoadSystemConfig("road_system"), new RoadProjectStatus());
+        RoadNode endpoint = network.createNode(new Vec2d(0, 0));
+        manager.setNetwork(network);
+
+        assertNull(manager.getSelectedNode());
+
+        manager.handleNodeSelect(endpoint.getId());
+        assertNotNull(manager.getSelectedNode());
+        assertEquals(endpoint.getId(), manager.getSelectedNode().getId());
+        assertNull(manager.getSelectedJunctionNode());
+    }
+
+    @Test
+    void getSelectedJunctionNodeRequiresDegreeAtLeastThree() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNetworkManager manager = new RoadNetworkManager(
+            new RoadSystemConfig("road_system"), new RoadProjectStatus());
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode center = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode south = network.createNode(new Vec2d(0, -10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        network.createEdge(center.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)), roadA.getId());
+        network.createEdge(center.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -10)), roadA.getId());
+        network.createEdge(center.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), roadB.getId());
+        manager.setNetwork(network);
+
+        manager.handleNodeSelect(center.getId());
+        assertNotNull(manager.getSelectedNode());
+        assertNotNull(manager.getSelectedJunctionNode());
+    }
+
+    @Test
     void setNodeGradeSeparationRejectsUnknownRoadId() {
         RoadNetwork network = new RoadNetwork();
         RoadNode junction = network.createNode(new Vec2d(0, 0));

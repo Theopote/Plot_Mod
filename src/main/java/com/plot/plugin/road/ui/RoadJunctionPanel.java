@@ -85,7 +85,7 @@ public final class RoadJunctionPanel {
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.junction_clear_selection"))) {
-            ctx.networkManager().setSelectedNodeId("");
+            ctx.networkManager().clearNodeSelection();
         }
 
         ImGui.spacing();

@@ -781,6 +781,7 @@
   "plugin.road.junction_marking.off": "强制关闭",
   "plugin.road.default_corner_radius": "默认路缘石圆角: %.1f 米",
   "panel.plot.road_junction": "道路交叉口",
+  "panel.plot.road_node": "道路节点",
   "plugin.road.network_map_legend": "路口：",
   "plugin.road.legend.endpoint": "端点",
   "plugin.road.legend.through": "直通",

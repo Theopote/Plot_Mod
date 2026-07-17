@@ -32,13 +32,7 @@ public final class RoadNodePropertyPanel {
     }
 
     public void renderForSelectedNode(RoadJunctionPanel junctionPanel) {
-        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        if (selectedNodeId == null || selectedNodeId.isBlank()) {
-            return;
-        }
-
-        RoadNetwork network = ctx.networkManager().getNetwork();
-        RoadNode node = network.getNode(selectedNodeId);
+        RoadNode node = ctx.networkManager().getSelectedNode();
         if (node == null) {
             return;
         }
@@ -47,10 +41,27 @@ public final class RoadNodePropertyPanel {
         ImGui.text(PlotI18n.tr("plugin.road.node_selected_detail"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_hint"));
 
+        RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
         renderNodeElevationControls(node, network, config, false);
 
         junctionPanel.renderEditor();
+    }
+
+    /** PropertyPanel 侧栏：与编辑 Tab 同一套控件，紧凑布局。 */
+    public void renderPropertySection(RoadJunctionPanel junctionPanel) {
+        RoadNode node = ctx.networkManager().getSelectedNode();
+        if (node == null) {
+            return;
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, formatNodeLabel(node));
+
+        RoadNetwork network = ctx.networkManager().getNetwork();
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        renderNodeElevationControls(node, network, config, false);
+
+        junctionPanel.renderPropertySection();
     }
 
     public void renderAllNodesCollapsibleList() {
