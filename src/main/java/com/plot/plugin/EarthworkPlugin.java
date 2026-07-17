@@ -353,16 +353,16 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void renderEditTab() {
+        renderRegionSelector();
+        ImGui.separator();
+        renderGlobalGridSettings();
+        ImGui.separator();
+
         GradingRegion region = project.getRegion(selectedRegionId);
         if (region == null) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.select_region_hint"));
-            renderRegionSelector();
-            renderGlobalGridSettings();
             return;
         }
-
-        renderRegionSelector();
-        ImGui.separator();
 
         if (!region.getId().equals(regionNameEditingRegionId)) {
             regionNameBuffer.set(region.getName());
@@ -401,9 +401,6 @@ public class EarthworkPlugin extends Plugin {
                 projectHistory.push(project);
                 region.setFillMaterial(blockId);
             });
-
-        ImGui.separator();
-        renderGlobalGridSettings();
     }
 
     private void renderSurfaceModeSettings(GradingRegion region) {
