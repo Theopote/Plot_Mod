@@ -186,7 +186,7 @@ public class CanvasEventHandler {
     private void handleLayerContentChanged(Event event) {
         if (event instanceof LayerEventSystem.LayerContentChangedEvent contentEvent) {
             LOGGER.debug("处理图层内容变更事件: {}", contentEvent.getDescription());
-            core.markDirty(CanvasCore.DirtyType.CONTENT);
+            core.markDirty(CanvasCore.DirtyType.CONTENT, CanvasCore.DirtyType.TOOL_PREVIEW);
         }
     }
     

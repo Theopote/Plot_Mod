@@ -437,13 +437,13 @@ public class CanvasInputHandler {
             DeleteShapesCommand deleteCommand = new DeleteShapesCommand(new ArrayList<>(selectedShapes));
             CommandManager.getInstance().executeCommand(deleteCommand);
             // 命令执行成功后会自动清空AppState中的选择
-            core.markDirty(CanvasCore.DirtyType.CONTENT);
+            core.markDirty(CanvasCore.DirtyType.CONTENT, CanvasCore.DirtyType.TOOL_PREVIEW);
             LOGGER.debug("删除命令执行成功");
         } catch (Exception e) {
             LOGGER.error("执行删除命令时出错: {}", e.getMessage(), e);
             // 降级处理
             appState.deleteSelectedShapes();
-            core.markDirty(CanvasCore.DirtyType.CONTENT);
+            core.markDirty(CanvasCore.DirtyType.CONTENT, CanvasCore.DirtyType.TOOL_PREVIEW);
         }
     }
     

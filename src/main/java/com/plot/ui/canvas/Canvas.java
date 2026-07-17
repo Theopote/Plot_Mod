@@ -113,6 +113,13 @@ public class Canvas implements ICanvas, UIComponent {
         }
     }
     
+    /**
+     * 标记工具预览层需要重绘（控制点、选择框等 overlay）。
+     */
+    public void markToolPreviewDirty() {
+        core.markDirty(CanvasCore.DirtyType.TOOL_PREVIEW);
+    }
+
     @Override
     public void refresh() {
         LOGGER.debug("请求刷新画布...");

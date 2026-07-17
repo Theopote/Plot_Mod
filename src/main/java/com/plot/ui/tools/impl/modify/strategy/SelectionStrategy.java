@@ -526,6 +526,12 @@ public class SelectionStrategy implements IModifyStrategy {
         // 清除选择状态
         context.clearSelection();
         selectedShapeIds.clear();
+
+        ControlPointEditTool editTool = context.getControlPointEditTool();
+        if (editTool != null && editTool.isActive()) {
+            editTool.deactivate();
+        }
+
         LOGGER.debug("SelectionStrategy: 已清除所有选择");
         
         // 更新状态消息

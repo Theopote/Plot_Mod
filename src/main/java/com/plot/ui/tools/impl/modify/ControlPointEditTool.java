@@ -116,7 +116,7 @@ public class ControlPointEditTool extends ModifyTool {
 
     @Override
     protected void renderPreview(DrawContext context) {
-        if (!isActive || targetShape == null) {
+        if (!ensureTargetShapeStillValid()) {
             return;
         }
         
@@ -127,11 +127,37 @@ public class ControlPointEditTool extends ModifyTool {
      * ImGui渲染支持
      */
     public void renderPreview(ImDrawList drawList, CanvasCamera camera) {
-        if (!isActive || targetShape == null || camera == null) {
+        if (!ensureTargetShapeStillValid() || camera == null) {
             return;
         }
         
         renderControlPointsImGui(drawList, camera);
+    }
+
+    /**
+     * 目标图形被删除或移出画布后，控制点编辑状态需同步清理。
+     */
+    private boolean ensureTargetShapeStillValid() {
+        if (!isActive || targetShape == null) {
+            return false;
+        }
+        if (targetShape.isDeleted() || !concreteAppState.getShapes().contains(targetShape)) {
+            deactivate();
+            requestToolPreviewRefresh();
+            return false;
+        }
+        return true;
+    }
+
+    private void requestToolPreviewRefresh() {
+        try {
+            var canvas = concreteAppState.getCanvas();
+            if (canvas != null) {
+                canvas.markToolPreviewDirty();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("请求刷新控制点预览失败", e);
+        }
     }
     
     /**
@@ -317,6 +343,7 @@ public class ControlPointEditTool extends ModifyTool {
         this.originalControlPointPosition = null;
         this.preEditSnapshot = null;
         
+        requestToolPreviewRefresh();
         LOGGER.debug("控制点编辑模式已停用");
     }
     
