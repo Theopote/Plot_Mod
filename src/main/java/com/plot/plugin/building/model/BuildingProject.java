@@ -7,13 +7,16 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 建筑项目（管理已认领的多个建筑轮廓）
@@ -38,6 +41,9 @@ public class BuildingProject {
         if (footprint == null) {
             throw new IllegalArgumentException("Building footprint cannot be null");
         }
+        if (footprint.getId() == null || footprint.getId().isBlank()) {
+            throw new IllegalArgumentException("Building footprint id cannot be blank");
+        }
         buildings.put(footprint.getId(), footprint);
         return footprint;
     }
@@ -58,6 +64,9 @@ public class BuildingProject {
         return GSON.toJson(ProjectData.from(this));
     }
 
+    /**
+     * 解析 JSON。损坏内容抛 {@link IllegalArgumentException}，不得静默变成空项目。
+     */
     public static BuildingProject fromJson(String json) {
         if (json == null || json.isBlank()) {
             return new BuildingProject();
@@ -66,20 +75,35 @@ public class BuildingProject {
             ProjectData data = GSON.fromJson(json, ProjectData.class);
             return data != null ? data.toProject() : new BuildingProject();
         } catch (RuntimeException e) {
-            return new BuildingProject();
+            throw new IllegalArgumentException("Invalid building project JSON", e);
         }
     }
 
+    /**
+     * 原子保存：先写临时文件再 rename。
+     */
     public void saveTo(Path file) throws IOException {
         Files.createDirectories(file.getParent());
-        Files.writeString(file, toJson());
+        Path tempFile = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.writeString(tempFile, toJson());
+        try {
+            Files.move(tempFile, file,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     public static BuildingProject loadFrom(Path file) throws IOException {
         if (!Files.exists(file)) {
             return new BuildingProject();
         }
-        return fromJson(Files.readString(file));
+        try {
+            return fromJson(Files.readString(file));
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Failed to parse building project: " + file.getFileName(), e);
+        }
     }
 
     BuildingProject deepCopy() {
@@ -177,12 +201,23 @@ public class BuildingProject {
         BuildingProject toProject() {
             BuildingProject project = new BuildingProject();
             for (BuildingData buildingData : buildings) {
+                if (buildingData.outerPoints == null || buildingData.outerPoints.size() < 3) {
+                    continue;
+                }
                 List<Vec2d> points = new ArrayList<>();
                 for (Vec2dData pointData : buildingData.outerPoints) {
-                    points.add(pointData.toVec2d());
+                    if (pointData != null) {
+                        points.add(pointData.toVec2d());
+                    }
                 }
+                if (points.size() < 3) {
+                    continue;
+                }
+                String id = buildingData.id != null && !buildingData.id.isBlank()
+                    ? buildingData.id
+                    : UUID.randomUUID().toString();
                 BuildingFootprint footprint = new BuildingFootprint(
-                    buildingData.id, points, buildingData.isRectangular);
+                    id, points, buildingData.isRectangular);
                 footprint.setName(buildingData.name);
                 footprint.setFloors(buildingData.floors);
                 footprint.setFloorHeight(buildingData.floorHeight);
@@ -213,14 +248,16 @@ public class BuildingProject {
                 footprint.setWindowHeight(buildingData.windowHeight);
                 footprint.setWindowSillHeight(buildingData.windowSillHeight);
                 List<BuildingFootprint.DoorOpening> doors = new ArrayList<>();
-                for (DoorData doorData : buildingData.doors) {
-                    doors.add(new BuildingFootprint.DoorOpening(
-                        doorData.wallSegmentIndex,
-                        doorData.positionRatio,
-                        doorData.floor,
-                        doorData.width,
-                        doorData.height
-                    ));
+                if (buildingData.doors != null) {
+                    for (DoorData doorData : buildingData.doors) {
+                        doors.add(new BuildingFootprint.DoorOpening(
+                            doorData.wallSegmentIndex,
+                            doorData.positionRatio,
+                            doorData.floor,
+                            doorData.width,
+                            doorData.height
+                        ));
+                    }
                 }
                 footprint.setDoors(doors);
                 project.addBuilding(footprint);

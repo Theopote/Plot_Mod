@@ -2375,6 +2375,8 @@
   "plugin.building.project.load_failed": "Failed to load building project: %s",
   "plugin.building.project.save_failed": "Failed to save building project: %s",
   "plugin.building.project.default_loaded": "Default building project loaded",
+  "plugin.building.preview_invalidated": "Building parameters changed; preview invalidated — recalculate preview",
+  "plugin.building.warn.inner_offset_failed": "Inner offset failed (wall too thick or footprint too small); no interior floors generated",
   "plugin.building.history.generate": "Generate building (%d blocks)",
   "plugin.building.history.generate.detail": "Place building blocks (%d changes)",
   "plugin.building.warn.roof_downgrade": "Non-axis-aligned rectangular footprint: sloped roof downgraded to flat",

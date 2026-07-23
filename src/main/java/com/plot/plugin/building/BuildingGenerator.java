@@ -7,8 +7,8 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +59,10 @@ public class BuildingGenerator {
         Polygon innerPolygon = innerPoints.size() >= 3
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;
+        if (innerPolygon == null) {
+            result.warnings.add("plugin.building.warn.inner_offset_failed");
+            LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板");
+        }
 
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
         List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
@@ -236,6 +240,10 @@ public class BuildingGenerator {
 
         for (int floor = 0; floor < footprint.getFloors(); floor++) {
             int floorBaseY = baseElevation + floor * footprint.getFloorHeight();
+            int sill = footprint.getWindowSillHeight();
+            // 窗洞高度夹在层高内，避免打穿楼板
+            int maxWindowHeight = Math.max(1, footprint.getFloorHeight() - sill - 1);
+            int windowHeight = Math.min(footprint.getWindowHeight(), maxWindowHeight);
             for (BuildingGeometryUtils.WallSample sample : samples) {
                 carveOpening(
                     result,
@@ -243,8 +251,8 @@ public class BuildingGenerator {
                     sample.tangent(),
                     sample.inwardNormal(),
                     footprint.getWindowWidth(),
-                    footprint.getWindowHeight(),
-                    floorBaseY + footprint.getWindowSillHeight(),
+                    windowHeight,
+                    floorBaseY + sill,
                     footprint.getWallThickness(),
                     projectionHandler
                 );
@@ -278,13 +286,15 @@ public class BuildingGenerator {
                 inwardNormal = inwardNormal.multiply(-1);
             }
             int floorBaseY = baseElevation + door.floor * footprint.getFloorHeight();
+            int maxDoorHeight = Math.max(1, footprint.getFloorHeight() - 1);
+            int doorHeight = Math.min(Math.max(1, door.height), maxDoorHeight);
             carveOpening(
                 result,
                 point,
                 tangent,
                 inwardNormal,
                 door.width,
-                door.height,
+                doorHeight,
                 floorBaseY,
                 footprint.getWallThickness(),
                 projectionHandler
@@ -330,31 +340,52 @@ public class BuildingGenerator {
         return cells;
     }
 
+    /**
+     * 写入放置记录：保留首次 previousBlockId，允许后续阶段覆盖 newBlockId
+     * （门窗镂空、屋面材质等必须能覆盖墙/楼板）。
+     */
     private void recordBlock(
             BuildingGenerationResult result,
             BlockPos pos,
             String newBlockId,
             BlockProjectionHandler projectionHandler) {
-        if (!result.placementRecords.containsKey(pos)) {
-            String previous = projectionHandler.getBlockIdAt(pos);
-            result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
+        if (result == null || pos == null || newBlockId == null) {
+            return;
+        }
+        BlockRecord existing = result.placementRecords.get(pos);
+        if (existing != null) {
+            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
+            return;
+        }
+        String previous = projectionHandler != null
+            ? projectionHandler.getBlockIdAt(pos)
+            : "minecraft:air";
+        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
+    }
+
+    /** package-private for unit tests of override semantics */
+    static void recordBlockForTest(
+            BuildingGenerationResult result,
+            BlockPos pos,
+            String previousBlockId,
+            String newBlockId) {
+        if (result == null || pos == null || newBlockId == null) {
+            return;
+        }
+        BlockRecord existing = result.placementRecords.get(pos);
+        if (existing != null) {
+            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
+        } else {
+            result.placementRecords.put(pos, new BlockRecord(pos, previousBlockId, newBlockId));
         }
     }
 
     private int getTopHeight(World world, BlockPos pos) {
-        try {
-            BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, pos);
-            if (topPos == null) {
-                LOGGER.warn("获取地形高度返回null ({}, {})，使用海平面高度",
-                    pos.getX(), pos.getZ());
-                return world.getSeaLevel();
-            }
-            return topPos.getY();
-        } catch (Exception e) {
-            LOGGER.error("获取地形高度失败 ({}, {}): {}",
-                pos.getX(), pos.getZ(), e.getMessage(), e);
-            throw new RuntimeException("无法获取地形高度，建筑生成中止", e);
+        if (world == null || pos == null) {
+            return TerrainSurfaceSampler.sampleAtBlock(null, 0, 0);
         }
+        // 与土方一致：实面标高，失败时内部已降级默认 64
+        return TerrainSurfaceSampler.sampleAtBlock(world, pos.getX(), pos.getZ());
     }
 
     private record GridCell(Vec2d center) {

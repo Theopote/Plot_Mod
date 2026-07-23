@@ -2,12 +2,17 @@ package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildingProjectTest {
@@ -96,5 +101,60 @@ class BuildingProjectTest {
         assertNotNull(footprint);
         assertEquals("minecraft:stone_bricks", footprint.getWallMaterial().getPrimaryMaterial());
         assertFalse(footprint.getWallMaterial().hasAccent());
+    }
+
+    @Test
+    void corruptJsonThrowsInsteadOfSilentEmptyProject() {
+        assertThrows(IllegalArgumentException.class, () -> BuildingProject.fromJson("{not-valid-json"));
+    }
+
+    @Test
+    void loadFromCorruptFileThrowsIoException(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("broken.json");
+        Files.writeString(file, "{broken");
+        assertThrows(IOException.class, () -> BuildingProject.loadFrom(file));
+    }
+
+    @Test
+    void saveToIsAtomicAndRoundTrips(@TempDir Path dir) throws IOException {
+        BuildingProject project = new BuildingProject();
+        BuildingFootprint footprint = new BuildingFootprint(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(6, 0),
+            new Vec2d(6, 4),
+            new Vec2d(0, 4)
+        ), true);
+        footprint.setName("Atomic");
+        project.addBuilding(footprint);
+
+        Path file = dir.resolve("buildings.json");
+        project.saveTo(file);
+        assertTrue(Files.exists(file));
+        assertFalse(Files.exists(dir.resolve("buildings.json.tmp")));
+
+        BuildingProject loaded = BuildingProject.loadFrom(file);
+        assertEquals(1, loaded.getBuildingCount());
+        assertEquals("Atomic", loaded.getBuilding(footprint.getId()).getName());
+    }
+
+    @Test
+    void missingBuildingIdGetsGeneratedUuid() {
+        String json = """
+            {
+              "buildings": [{
+                "name": "NoId",
+                "outerPoints": [{"x": 0, "y": 0}, {"x": 4, "y": 0}, {"x": 4, "y": 4}],
+                "isRectangular": true,
+                "floors": 1,
+                "floorHeight": 3,
+                "wallThickness": 1
+              }]
+            }
+            """;
+        BuildingProject project = BuildingProject.fromJson(json);
+        assertEquals(1, project.getBuildingCount());
+        BuildingFootprint fp = project.getBuildings().values().iterator().next();
+        assertNotNull(fp.getId());
+        assertFalse(fp.getId().isBlank());
     }
 }

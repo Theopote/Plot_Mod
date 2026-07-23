@@ -95,9 +95,18 @@ public final class BuildingRoofGenerator {
             BlockPos pos,
             String newBlockId,
             BlockProjectionHandler projectionHandler) {
-        if (!result.placementRecords.containsKey(pos)) {
-            String previous = projectionHandler.getBlockIdAt(pos);
-            result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
+        if (result == null || pos == null || newBlockId == null) {
+            return;
         }
+        // 与 BuildingGenerator 一致：保留 previous，允许覆盖 newBlockId
+        BlockRecord existing = result.placementRecords.get(pos);
+        if (existing != null) {
+            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
+            return;
+        }
+        String previous = projectionHandler != null
+            ? projectionHandler.getBlockIdAt(pos)
+            : "minecraft:air";
+        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
     }
 }

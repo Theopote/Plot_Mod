@@ -74,6 +74,8 @@ public class BuildingPlugin extends Plugin {
     private String pendingDeleteBuildingId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
+    /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 重复写盘 */
+    private int lastSavedContentHash;
 
     private final ImBoolean manualElevationRef = new ImBoolean(false);
     private final ImString buildingNameBuffer = new ImString(64);
@@ -187,6 +189,8 @@ public class BuildingPlugin extends Plugin {
         if (ImGui.button(PlotI18n.tr("plugin.building.undo"), buttonWidth, 0)) {
             project = projectHistory.undo(project);
             syncSelectedBuildingAfterHistory();
+            buildingNameEditingId = "";
+            clearPreview();
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -200,6 +204,8 @@ public class BuildingPlugin extends Plugin {
         if (ImGui.button(PlotI18n.tr("plugin.building.redo"), buttonWidth, 0)) {
             project = projectHistory.redo(project);
             syncSelectedBuildingAfterHistory();
+            buildingNameEditingId = "";
+            clearPreview();
         }
         if (redoDisabled) {
             ImGui.endDisabled();
@@ -336,30 +342,45 @@ public class BuildingPlugin extends Plugin {
             buildingNameEditingId = building.getId();
         }
         if (ImGui.inputText(PlotI18n.tr("plugin.building.building_name"), buildingNameBuffer)) {
-            projectHistory.push(project);
             building.setName(buildingNameBuffer.get());
+        }
+        if (ImGui.isItemActivated()) {
+            projectHistory.push(project);
         }
 
         int[] floors = {building.getFloors()};
-        if (ImGui.sliderInt("##floors", floors, 1, 32, PlotI18n.tr("plugin.building.floors", floors[0]))) {
+        boolean floorsChanged = ImGui.sliderInt(
+            "##floors", floors, 1, 32, PlotI18n.tr("plugin.building.floors", floors[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (floorsChanged) {
             building.setFloors(floors[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.floors");
 
         int[] floorHeight = {building.getFloorHeight()};
-        if (ImGui.sliderInt("##floor_height", floorHeight, 2, 16,
-            PlotI18n.tr("plugin.building.floor_height", floorHeight[0]))) {
+        boolean floorHeightChanged = ImGui.sliderInt("##floor_height", floorHeight, 2, 16,
+            PlotI18n.tr("plugin.building.floor_height", floorHeight[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (floorHeightChanged) {
             building.setFloorHeight(floorHeight[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.floor_height");
 
         int[] wallThickness = {building.getWallThickness()};
-        if (ImGui.sliderInt("##wall_thickness", wallThickness, 1, 8,
-            PlotI18n.tr("plugin.building.wall_thickness", wallThickness[0]))) {
+        boolean wallThicknessChanged = ImGui.sliderInt("##wall_thickness", wallThickness, 1, 8,
+            PlotI18n.tr("plugin.building.wall_thickness", wallThickness[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (wallThicknessChanged) {
             building.setWallThickness(wallThickness[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.wall_thickness");
 
@@ -367,32 +388,40 @@ public class BuildingPlugin extends Plugin {
             mix -> {
                 projectHistory.push(project);
                 building.setWallMaterial(mix);
+                invalidatePreview();
             });
         renderMaterialMixButton(PlotI18n.tr("plugin.building.floor_material"), building.getFloorMaterial(),
             mix -> {
                 projectHistory.push(project);
                 building.setFloorMaterial(mix);
+                invalidatePreview();
             });
         renderMaterialButton(PlotI18n.tr("plugin.building.roof_material"), building.getRoofMaterial(),
             blockId -> {
                 projectHistory.push(project);
                 building.setRoofMaterial(blockId);
+                invalidatePreview();
             });
         renderMaterialButton(PlotI18n.tr("plugin.building.foundation_material"),
             building.getFoundationFillMaterial(),
             blockId -> {
                 projectHistory.push(project);
                 building.setFoundationFillMaterial(blockId);
+                invalidatePreview();
             });
         UIUtils.renderEngineeringTooltip("hint.plot.building.foundation_material");
 
         renderRoofTypeSelector(building);
         if (building.getRoofType() != BuildingFootprint.RoofType.FLAT) {
             int[] pitch = {building.getRoofPitchRatio()};
-            if (ImGui.sliderInt("##roof_pitch", pitch, 1, 16,
-                PlotI18n.tr("plugin.building.roof_pitch", pitch[0]))) {
+            boolean pitchChanged = ImGui.sliderInt("##roof_pitch", pitch, 1, 16,
+                PlotI18n.tr("plugin.building.roof_pitch", pitch[0]));
+            if (ImGui.isItemActivated()) {
                 projectHistory.push(project);
+            }
+            if (pitchChanged) {
                 building.setRoofPitchRatio(pitch[0]);
+                invalidatePreview();
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.roof_pitch");
         }
@@ -405,14 +434,19 @@ public class BuildingPlugin extends Plugin {
             } else {
                 building.setManualBaseElevation(null);
             }
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.manual_elevation");
         if (manualElevationRef.get()) {
             int initial = building.getManualBaseElevation() != null ? building.getManualBaseElevation() : 64;
             int[] elevation = {initial};
-            if (ImGui.sliderInt("##base_elevation", elevation, -64, 320, "Y=%d")) {
+            boolean elevationChanged = ImGui.sliderInt("##base_elevation", elevation, -64, 320, "Y=%d");
+            if (ImGui.isItemActivated()) {
                 projectHistory.push(project);
+            }
+            if (elevationChanged) {
                 building.setManualBaseElevation(elevation[0]);
+                invalidatePreview();
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.base_elevation");
         }
@@ -420,31 +454,47 @@ public class BuildingPlugin extends Plugin {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.building.window_settings"));
         int[] windowSpacing = {building.getWindowSpacing()};
-        if (ImGui.sliderInt("##window_spacing", windowSpacing, 0, 32,
-            PlotI18n.tr("plugin.building.window_spacing", windowSpacing[0]))) {
+        boolean windowSpacingChanged = ImGui.sliderInt("##window_spacing", windowSpacing, 0, 32,
+            PlotI18n.tr("plugin.building.window_spacing", windowSpacing[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (windowSpacingChanged) {
             building.setWindowSpacing(windowSpacing[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_spacing");
         int[] windowWidth = {building.getWindowWidth()};
-        if (ImGui.sliderInt("##window_width", windowWidth, 1, 4,
-            PlotI18n.tr("plugin.building.window_width", windowWidth[0]))) {
+        boolean windowWidthChanged = ImGui.sliderInt("##window_width", windowWidth, 1, 4,
+            PlotI18n.tr("plugin.building.window_width", windowWidth[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (windowWidthChanged) {
             building.setWindowWidth(windowWidth[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_width");
         int[] windowHeight = {building.getWindowHeight()};
-        if (ImGui.sliderInt("##window_height", windowHeight, 1, 6,
-            PlotI18n.tr("plugin.building.window_height", windowHeight[0]))) {
+        boolean windowHeightChanged = ImGui.sliderInt("##window_height", windowHeight, 1, 6,
+            PlotI18n.tr("plugin.building.window_height", windowHeight[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (windowHeightChanged) {
             building.setWindowHeight(windowHeight[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_height");
         int[] windowSill = {building.getWindowSillHeight()};
-        if (ImGui.sliderInt("##window_sill", windowSill, 0, 8,
-            PlotI18n.tr("plugin.building.window_sill", windowSill[0]))) {
+        boolean windowSillChanged = ImGui.sliderInt("##window_sill", windowSill, 0, 8,
+            PlotI18n.tr("plugin.building.window_sill", windowSill[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (windowSillChanged) {
             building.setWindowSillHeight(windowSill[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
 
@@ -464,6 +514,7 @@ public class BuildingPlugin extends Plugin {
             if (index >= 0 && index < roofTypes.length) {
                 projectHistory.push(project);
                 building.setRoofType(roofTypes[index]);
+                invalidatePreview();
             }
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.roof_type");
@@ -484,6 +535,7 @@ public class BuildingPlugin extends Plugin {
             if (ImGui.button(PlotI18n.tr("plugin.building.remove_door"))) {
                 projectHistory.push(project);
                 building.removeDoor(i);
+                invalidatePreview();
             }
             ImGui.popID();
         }
@@ -502,6 +554,7 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
             building.addDoor(new BuildingFootprint.DoorOpening(
                 wallSegment[0], positionRatio[0], floor[0], 1, 2));
+            invalidatePreview();
         }
     }
 
@@ -669,6 +722,7 @@ public class BuildingPlugin extends Plugin {
                             ? ""
                             : project.getBuildings().keySet().iterator().next();
                     }
+                    clearPreview();
                 }
                 pendingDeleteBuildingId = "";
                 ImGui.closeCurrentPopup();
@@ -811,6 +865,9 @@ public class BuildingPlugin extends Plugin {
         }
 
         selectedFootprints.clear();
+        if (adopted > 0) {
+            clearPreview();
+        }
         projectStatus = adopted > 1
             ? PlotI18n.tr("plugin.building.adopt_success_batch", adopted)
             : PlotI18n.tr("plugin.building.adopt_success");
@@ -828,13 +885,26 @@ public class BuildingPlugin extends Plugin {
             ghostBlockManager.clearAllGhostBlocks();
         }
 
-        lastGenerationResult = buildingGenerator.generate(building, world);
+        try {
+            lastGenerationResult = buildingGenerator.generate(building, world);
+        } catch (Exception e) {
+            LOGGER.error("建筑预览生成失败: {}", e.getMessage(), e);
+            lastGenerationResult = null;
+            projectStatus = PlotI18n.tr("plugin.building.generate_empty_result");
+            return false;
+        }
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             projectStatus = PlotI18n.tr("plugin.building.generate_empty_result");
             return false;
         }
 
-        projectStatus = PlotI18n.tr("plugin.building.generate_preview_ready");
+        if (!lastGenerationResult.warnings.isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.building.generate_preview_ready")
+                + " — "
+                + PlotI18n.tr(lastGenerationResult.warnings.getFirst());
+        } else {
+            projectStatus = PlotI18n.tr("plugin.building.generate_preview_ready");
+        }
         return true;
     }
 
@@ -858,6 +928,14 @@ public class BuildingPlugin extends Plugin {
             ghostBlockManager.clearAllGhostBlocks();
         }
         lastGenerationResult = null;
+    }
+
+    /** 参数/工程变更后使预览失效，避免按过期几何落地。 */
+    private void invalidatePreview() {
+        if (lastGenerationResult != null) {
+            clearPreview();
+            projectStatus = PlotI18n.tr("plugin.building.preview_invalidated");
+        }
     }
 
     private void buildInWorld() {
@@ -887,8 +965,14 @@ public class BuildingPlugin extends Plugin {
         projectStatus = PlotI18n.tr("plugin.building.build_in_progress", records.size());
         command.executeScheduled(() -> {
             BuildingGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
+            // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
-                projectStatus = PlotI18n.tr("plugin.building.build_cancelled", result.success(), result.total());
+                if (result.success() > 0) {
+                    CommandManager.getInstance().pushExecuted(command);
+                }
+                projectStatus = PlotI18n.tr(
+                    "plugin.building.build_cancelled", result.success(), result.total());
+                clearPreview();
                 return;
             }
             CommandManager.getInstance().pushExecuted(command);
@@ -949,9 +1033,13 @@ public class BuildingPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentProjectFile = ProjectPathHasher.projectFileName(filePath);
-        loadProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.building.project.loaded", filePath);
+        String targetFile = ProjectPathHasher.projectFileName(filePath);
+        Path file = getProjectsDir().resolve(targetFile);
+        // 仅加载成功后才绑定路径，避免失败时把旧工程写进新文件
+        if (loadProjectFile(file)) {
+            currentProjectFile = targetFile;
+            projectStatus = PlotI18n.tr("plugin.building.project.loaded", filePath);
+        }
     }
 
     private void onProjectSaved(String filePath) {
@@ -959,24 +1047,35 @@ public class BuildingPlugin extends Plugin {
             return;
         }
         currentProjectFile = ProjectPathHasher.projectFileName(filePath);
-        saveProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.building.project.saved", filePath);
+        if (saveProjectFile(getProjectsDir().resolve(currentProjectFile))) {
+            projectStatus = PlotI18n.tr("plugin.building.project.saved", filePath);
+        }
     }
 
     private void persistProject() {
         saveProjectFile(getProjectsDir().resolve(currentProjectFile));
     }
 
-    private void loadProjectFile(Path file) {
+    /**
+     * @return true 若加载成功（含文件不存在时返回空项目）
+     */
+    private boolean loadProjectFile(Path file) {
         try {
-            project = BuildingProject.loadFrom(file);
+            BuildingProject loaded = BuildingProject.loadFrom(file);
+            project = loaded;
             projectHistory.clear();
             selectedBuildingId = project.getBuildings().isEmpty()
                 ? ""
                 : project.getBuildings().keySet().iterator().next();
+            buildingNameEditingId = "";
+            pickSession.cancel();
+            selectedFootprints.clear();
+            clearPreview();
+            return true;
         } catch (IOException e) {
             LOGGER.error("加载建筑项目失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.building.project.load_failed", file.getFileName());
+            return false;
         }
     }
 
@@ -986,17 +1085,31 @@ public class BuildingPlugin extends Plugin {
             onProjectLoaded(current.getFilePath());
             return;
         }
-        currentProjectFile = DEFAULT_PROJECT_FILE;
-        loadProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.building.project.default_loaded");
+        Path file = getProjectsDir().resolve(DEFAULT_PROJECT_FILE);
+        if (loadProjectFile(file)) {
+            currentProjectFile = DEFAULT_PROJECT_FILE;
+            projectStatus = PlotI18n.tr("plugin.building.project.default_loaded");
+        }
     }
 
-    private void saveProjectFile(Path file) {
+    private boolean saveProjectFile(Path file) {
+        if (file == null || project == null) {
+            return false;
+        }
         try {
+            String json = project.toJson();
+            int contentHash = 31 * json.hashCode() + file.toAbsolutePath().normalize().hashCode();
+            if (contentHash == lastSavedContentHash) {
+                LOGGER.debug("建筑项目内容未变，跳过重复保存: {}", file.getFileName());
+                return true;
+            }
             project.saveTo(file);
+            lastSavedContentHash = contentHash;
+            return true;
         } catch (IOException e) {
             LOGGER.error("保存建筑项目失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.building.project.save_failed", file.getFileName());
+            return false;
         }
     }
 
