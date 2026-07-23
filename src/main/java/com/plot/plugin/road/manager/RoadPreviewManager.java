@@ -83,22 +83,32 @@ public final class RoadPreviewManager {
             return false;
         }
 
-        LOGGER.info("路网预览: 挖{} 填{} 路灯{}",
+        if (lastGenerationResult.droppedSolidCount > 0) {
+            LOGGER.error(
+                "路网预览不完整：因实体上限丢弃 {} 个图元",
+                lastGenerationResult.droppedSolidCount);
+        }
+
+        LOGGER.info("路网预览: 挖{} 填{} 路灯{} 丢弃{}",
             lastGenerationResult.cutVolume, lastGenerationResult.fillVolume,
-            lastGenerationResult.streetlightCount);
+            lastGenerationResult.streetlightCount,
+            lastGenerationResult.droppedSolidCount);
         applyPreviewReadyStatus();
         return true;
     }
 
     private void applyPreviewReadyStatus() {
+        StringBuilder message = new StringBuilder(PlotI18n.tr("plugin.road.generate_preview_ready"));
+        if (lastGenerationResult != null && lastGenerationResult.droppedSolidCount > 0) {
+            message.append(" — ").append(PlotI18n.tr(
+                "plugin.road.generate_dropped_solids",
+                lastGenerationResult.droppedSolidCount));
+        }
         RoadPlacementVisibility.Analysis visibility = analyzeRoadVisibility();
         if (visibility != null && visibility.requiresWarning()) {
-            status.set(PlotI18n.tr("plugin.road.generate_preview_ready")
-                + " — "
-                + RoadPlacementVisibility.formatWarningMessage(visibility));
-            return;
+            message.append(" — ").append(RoadPlacementVisibility.formatWarningMessage(visibility));
         }
-        status.set(PlotI18n.tr("plugin.road.generate_preview_ready"));
+        status.set(message.toString());
     }
 
     public RoadPlacementVisibility.Analysis analyzeRoadVisibility() {

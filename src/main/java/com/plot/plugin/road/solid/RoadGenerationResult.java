@@ -24,6 +24,8 @@ public class RoadGenerationResult {
     public int bridgeCount;
     public int tunnelCount;
     public int streetlightCount;
+    /** 因实体图元硬顶上限而丢弃的方块数（>0 表示结果不完整） */
+    public int droppedSolidCount;
     public double pathLength;
     public final List<RoadConstructionType> constructionTypes = new ArrayList<>();
     public double bridgeLength;
@@ -63,6 +65,7 @@ public class RoadGenerationResult {
         bridgeCount += source.bridgeCount;
         tunnelCount += source.tunnelCount;
         streetlightCount += source.streetlightCount;
+        droppedSolidCount += source.droppedSolidCount;
         pathLength += source.pathLength;
         constructionTypes.addAll(source.constructionTypes);
         bridgeLength += source.bridgeLength;

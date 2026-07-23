@@ -41,5 +41,31 @@ class RoadSolidModelTest {
         assertEquals(2, result.roadBlocks.size());
         assertEquals(1, result.sidewalkBlocks.size());
         assertEquals(3, result.placementRecords.size());
+        assertEquals(0, result.droppedSolidCount);
+    }
+
+    @Test
+    void droppedCountIsTrackedWhenAtCapacity() {
+        RoadSolidModel solids = new RoadSolidModel();
+        // 填满硬顶后继续添加应计入丢弃数（不 flush 全量，避免测试过慢）
+        for (int i = 0; i < 100_000; i++) {
+            assertTrue(solids.add(new Vec2d(i, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        }
+        assertTrue(solids.isAtCapacity());
+        assertFalse(solids.add(new Vec2d(999_999, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertFalse(solids.add(new Vec2d(999_998, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone"));
+        assertEquals(2, solids.getDroppedDueToLimit());
+
+        RoadGenerationResult result = new RoadGenerationResult(0);
+        // 仅验证丢弃计数传播：构造一个小模型并手动设置场景
+        RoadSolidModel tiny = new RoadSolidModel();
+        tiny.add(new Vec2d(1, 1), 64, RoadSolidLayer.ROAD, "minecraft:stone");
+        // 通过 addAll 合并带丢弃计数的模型
+        RoadSolidModel emptyWithDrops = new RoadSolidModel();
+        // 模拟：将 solids 的 dropped 合并
+        emptyWithDrops.addAll(solids);
+        assertTrue(emptyWithDrops.getDroppedDueToLimit() >= 2);
+        RoadVoxelRasterizer.flushEdgeSolids(result, emptyWithDrops, null);
+        assertTrue(result.droppedSolidCount >= 2);
     }
 }

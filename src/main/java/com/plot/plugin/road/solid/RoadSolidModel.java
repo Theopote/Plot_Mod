@@ -2,6 +2,8 @@ package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadDimensionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,10 +16,13 @@ import java.util.stream.Collectors;
  * 道路实体图元集合（几何层输出，供 rasterizer 或未来 mesh exporter 消费）。
  */
 public final class RoadSolidModel {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadSolidModel");
     private static final int MAX_DEDUP_KEYS = 100000; // 限制去重键最大数量，防止内存泄漏
 
     private final List<RoadSolidPrimitive> primitives = new ArrayList<>();
     private final Set<String> dedupKeys = new LinkedHashSet<>();
+    private int droppedDueToLimit;
+    private boolean limitLogged;
 
     public boolean add(RoadSolidPrimitive primitive) {
         if (primitive == null) {
@@ -26,6 +31,14 @@ public final class RoadSolidModel {
 
         // 超限后停止继续添加，避免 clear 键表导致重复图元
         if (dedupKeys.size() >= MAX_DEDUP_KEYS) {
+            droppedDueToLimit++;
+            if (!limitLogged) {
+                limitLogged = true;
+                LOGGER.error(
+                    "道路实体图元达到上限 {}，后续方块将被丢弃（已丢弃 {} 个）",
+                    MAX_DEDUP_KEYS,
+                    droppedDueToLimit);
+            }
             return false;
         }
 
@@ -109,12 +122,23 @@ public final class RoadSolidModel {
         return primitives.isEmpty();
     }
 
+    /** 因硬顶上限而丢弃的图元数量（去重命中不计入）。 */
+    public int getDroppedDueToLimit() {
+        return droppedDueToLimit;
+    }
+
+    public boolean isAtCapacity() {
+        return dedupKeys.size() >= MAX_DEDUP_KEYS;
+    }
+
     /**
      * 清空所有图元和去重键，释放内存
      */
     public void clear() {
         primitives.clear();
         dedupKeys.clear();
+        droppedDueToLimit = 0;
+        limitLogged = false;
     }
 
     public void addAll(RoadSolidModel other) {
@@ -123,6 +147,11 @@ public final class RoadSolidModel {
         }
         for (RoadSolidPrimitive primitive : other.primitives) {
             add(primitive);
+        }
+        // 合并对端已丢弃计数（用于聚合结果可观测）
+        this.droppedDueToLimit += other.droppedDueToLimit;
+        if (other.limitLogged) {
+            this.limitLogged = true;
         }
     }
 }

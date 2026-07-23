@@ -261,6 +261,7 @@ public final class RoadEditPanel {
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
             }
+            // 滑条在 isItemActivated 之后写回，保证历史快照为改前值
             override.startDistance = start[0];
             if (override.startDistance > override.endDistance) {
                 override.endDistance = override.startDistance;

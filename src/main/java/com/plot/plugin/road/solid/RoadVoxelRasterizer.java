@@ -65,7 +65,13 @@ public final class RoadVoxelRasterizer {
             RoadGenerationResult result,
             RoadSolidModel solids,
             CoordinateTransformer transformer) {
-        if (result == null || solids == null || solids.isEmpty()) {
+        if (result == null || solids == null) {
+            return;
+        }
+        if (solids.getDroppedDueToLimit() > 0) {
+            result.droppedSolidCount += solids.getDroppedDueToLimit();
+        }
+        if (solids.isEmpty()) {
             return;
         }
         BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();

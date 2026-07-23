@@ -131,6 +131,30 @@ public class RoadNetwork {
         return edge;
     }
 
+    /**
+     * 将已有边重新挂回网络（用于图编辑失败回滚）。
+     */
+    public void attachExistingEdge(RoadEdge edge) {
+        if (edge == null || edge.getId() == null || edge.getId().isBlank()) {
+            return;
+        }
+        RoadNode start = nodes.get(edge.getStartNodeId());
+        RoadNode end = nodes.get(edge.getEndNodeId());
+        if (start == null || end == null) {
+            throw new IllegalArgumentException("Start or end node does not exist for edge " + edge.getId());
+        }
+        edges.put(edge.getId(), edge);
+        start.addEdge(edge.getId());
+        end.addEdge(edge.getId());
+        String roadId = edge.getRoadId();
+        if (roadId != null && !roadId.isBlank()) {
+            Road road = roads.get(roadId);
+            if (road != null) {
+                road.addSegment(edge.getId());
+            }
+        }
+    }
+
     public void linkEdgeToRoad(String roadId, String edgeId) {
         Road road = roads.get(roadId);
         RoadEdge edge = edges.get(edgeId);
@@ -269,7 +293,7 @@ public class RoadNetwork {
             return false;
         }
         if (!gradeSeparated) {
-            node.setGradeSeparated(false);
+            node.clearGradeSeparation();
             return true;
         }
         if (!RoadGraphQueries.isSimpleCrossing(node, this)) {
@@ -727,14 +751,14 @@ public class RoadNetwork {
                 node.setContinuedMarkings(JunctionMarkingSetting.fromString(nodeData.continuedMarkings));
                 node.setCrosswalks(JunctionMarkingSetting.fromString(nodeData.crosswalks));
                 node.setTurnArrows(JunctionMarkingSetting.fromString(nodeData.turnArrows));
-                node.setGradeSeparated(Boolean.TRUE.equals(nodeData.gradeSeparated));
-                node.setElevatedRoadId(nodeData.elevatedRoadId);
-                node.setCrossingClearance(nodeData.crossingClearance);
-                if (nodeData.connectedEdgeIds != null) {
-                    for (String edgeId : nodeData.connectedEdgeIds) {
-                        node.addEdge(edgeId);
-                    }
+                if (Boolean.TRUE.equals(nodeData.gradeSeparated)) {
+                    node.setGradeSeparated(true);
+                    node.setElevatedRoadId(nodeData.elevatedRoadId);
+                    node.setCrossingClearance(nodeData.crossingClearance);
+                } else {
+                    node.clearGradeSeparation();
                 }
+                // 拓扑由下方 rebuildTopologyFromEdges 按边 start/end 重建，不信任序列化的 connectedEdgeIds
                 network.nodes.put(node.getId(), node);
             }
 
@@ -816,7 +840,27 @@ public class RoadNetwork {
                 }
             }
 
+            rebuildTopologyFromEdges(network);
             return network;
+        }
+
+        /**
+         * 按所有边的 start/end 重建节点连接列表，修正损坏或旧数据中的拓扑不一致。
+         */
+        private static void rebuildTopologyFromEdges(RoadNetwork network) {
+            for (RoadNode node : network.nodes.values()) {
+                node.clearConnectedEdges();
+            }
+            for (RoadEdge edge : network.edges.values()) {
+                RoadNode start = network.nodes.get(edge.getStartNodeId());
+                RoadNode end = network.nodes.get(edge.getEndNodeId());
+                if (start != null) {
+                    start.addEdge(edge.getId());
+                }
+                if (end != null) {
+                    end.addEdge(edge.getId());
+                }
+            }
         }
 
         private static void migrateLegacyEdge(RoadNetwork network, EdgeData edgeData, RoadEdge edge) {

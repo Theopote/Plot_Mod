@@ -85,17 +85,59 @@ public final class RoadGraphEdits {
 
         List<RoadEdge.SlopeOverride> mergedOverrides = mergeSlopeOverrides(edgeA, edgeB, nodeId);
 
+        // 快照供失败回滚（detach 后不可仅 return empty）
+        RoadEdge snapshotA = copyEdge(edgeA);
+        RoadEdge snapshotB = copyEdge(edgeB);
+
         detachAndUnlink(edgeA);
         detachAndUnlink(edgeB);
-        try {
-            network.removeNode(nodeId);
-        } catch (IllegalStateException ignored) {
+
+        RoadNode through = network.getNode(nodeId);
+        if (through == null || through.getDegree() != 0) {
+            restoreEdge(snapshotA);
+            restoreEdge(snapshotB);
             return Optional.empty();
         }
 
-        RoadEdge merged = network.createEdge(nodeA, nodeB, mergedPoints, roadId);
-        merged.setSlopeOverrides(mergedOverrides);
-        return Optional.of(merged.getId());
+        try {
+            network.removeNode(nodeId);
+        } catch (IllegalStateException e) {
+            restoreEdge(snapshotA);
+            restoreEdge(snapshotB);
+            return Optional.empty();
+        }
+
+        try {
+            RoadEdge merged = network.createEdge(nodeA, nodeB, mergedPoints, roadId);
+            merged.setSlopeOverrides(mergedOverrides);
+            return Optional.of(merged.getId());
+        } catch (RuntimeException e) {
+            // 节点已删、合并失败：尽量恢复原边（through 节点无法完整恢复，记录错误）
+            restoreEdge(snapshotA);
+            restoreEdge(snapshotB);
+            return Optional.empty();
+        }
+    }
+
+    private static RoadEdge copyEdge(RoadEdge edge) {
+        return new RoadEdge(
+            edge.getId(),
+            edge.getStartNodeId(),
+            edge.getEndNodeId(),
+            edge.getCenterlinePoints(),
+            edge.getRoadId(),
+            edge.getSlopeOverrides());
+    }
+
+    private void restoreEdge(RoadEdge snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        try {
+            network.attachExistingEdge(snapshot);
+        } catch (RuntimeException ignored) {
+            // 回滚尽力而为
+        }
     }
 
     public Optional<SplitResult> splitEdgeAtNode(String edgeId, String nodeId, Vec2d splitPoint, double tolerance) {

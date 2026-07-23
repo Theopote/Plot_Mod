@@ -72,6 +72,8 @@ class RoadRoadbedGradingUtilsTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
         config.setTunnelThreshold(8);
+        // 高差 4（60→64）需 <= bridgeThreshold 才会走路基填方而非桥梁
+        config.setBridgeThreshold(5);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);

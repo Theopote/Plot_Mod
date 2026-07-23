@@ -168,6 +168,11 @@ public class RoadNode {
         connectedEdgeIds.remove(edgeId);
     }
 
+    /** 清空连接边列表（加载后从边重建拓扑时使用）。 */
+    public void clearConnectedEdges() {
+        connectedEdgeIds.clear();
+    }
+
     public int getDegree() {
         return connectedEdgeIds.size();
     }

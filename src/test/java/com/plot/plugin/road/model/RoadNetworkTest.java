@@ -625,7 +625,51 @@ class RoadNetworkTest {
         MaterialMix material = road.getMaterial();
 
         assertNotNull(material);
-        assertEquals("material.plot.gravel", material.getPrimaryMaterial());
+        // 旧 abstract key 在加载时规范为 block id
+        assertEquals("minecraft:gravel", material.getPrimaryMaterial());
         assertFalse(material.hasAccent());
+    }
+
+    @Test
+    void loadRebuildsTopologyFromEdgeEndpoints() {
+        // 节点 connectedEdgeIds 故意缺失，应从边 start/end 重建
+        String json = """
+            {
+              "nodes": [
+                {"id": "n1", "position": {"x": 0, "y": 0}, "connectedEdgeIds": []},
+                {"id": "n2", "position": {"x": 10, "y": 0}, "connectedEdgeIds": []}
+              ],
+              "edges": [
+                {
+                  "id": "e1",
+                  "startNodeId": "n1",
+                  "endNodeId": "n2",
+                  "centerlinePoints": [{"x": 0, "y": 0}, {"x": 10, "y": 0}],
+                  "roadId": "road-1"
+                }
+              ],
+              "roads": [
+                {"id": "road-1", "name": "R1", "segmentIds": ["e1"]}
+              ]
+            }
+            """;
+        RoadNetwork network = RoadNetwork.fromJson(json);
+        assertEquals(1, network.getNode("n1").getDegree());
+        assertEquals(1, network.getNode("n2").getDegree());
+        assertTrue(network.getNode("n1").getConnectedEdgeIds().contains("e1"));
+        assertTrue(network.getNode("n2").getConnectedEdgeIds().contains("e1"));
+    }
+
+    @Test
+    void clearGradeSeparationCleansElevatedFields() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode node = network.createNode(new Vec2d(5, 5));
+        node.setGradeSeparated(true);
+        node.setElevatedRoadId("road-a");
+        node.setCrossingClearance(4.0);
+        assertTrue(network.setNodeGradeSeparation(node.getId(), false, null, null));
+        assertFalse(node.isGradeSeparated());
+        assertNull(node.getElevatedRoadId());
+        assertNull(node.getCrossingClearance());
     }
 }

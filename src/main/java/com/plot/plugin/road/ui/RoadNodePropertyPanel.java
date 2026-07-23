@@ -124,17 +124,19 @@ public final class RoadNodePropertyPanel {
                 ? (int) Math.round(node.getManualElevation())
                 : 64;
             int[] elevation = {initial};
-            if (ImGui.sliderInt("##elevation", elevation,
+            boolean elevationChanged = ImGui.sliderInt("##elevation", elevation,
                 RoadParameterLimits.ELEVATION_MIN,
                 RoadParameterLimits.ELEVATION_MAX,
-                "Y=%d")) {
+                "Y=%d");
+            // 先推历史（节点仍为旧值），再应用新值，避免撤销无效
+            if (ImGui.isItemActivated()) {
+                ctx.networkManager().pushHistory();
+            }
+            if (elevationChanged) {
                 node.setManualElevation((double) elevation[0]);
             }
             if (!inline && ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
-            }
-            if (ImGui.isItemActivated()) {
-                ctx.networkManager().pushHistory();
             }
         }
 
@@ -268,21 +270,23 @@ public final class RoadNodePropertyPanel {
         if (inline) {
             ImGui.sameLine();
         }
-        if (ImGui.sliderInt(
+        boolean clearanceChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.crossing_clearance") + "##clearance",
                 clearance,
                 RoadParameterLimits.MIN_CROSSING_CLEARANCE,
                 RoadParameterLimits.MAX_CROSSING_CLEARANCE,
-                "%d")) {
-            node.setCrossingClearance((double) clearance[0]);
-        }
+                "%d");
         if (ImGui.isItemActivated()) {
             ctx.networkManager().pushHistory();
+        }
+        if (clearanceChanged) {
+            node.setCrossingClearance((double) clearance[0]);
         }
     }
 
     private void renderAutoElevatedRoadHint(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(
+            config, com.plot.infrastructure.coordinate.CoordinateTransformer.getInstance());
         TerrainSampler terrain = resolveTerrainSampler(generator);
         String resolvedRoadId = generator.resolveElevatedRoadId(node, network, terrain);
         if (resolvedRoadId == null) {

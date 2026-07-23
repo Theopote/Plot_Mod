@@ -84,21 +84,25 @@ public final class RoadCrossSectionEditor {
         RoadSystemConfig config = ctx.networkManager().getConfig();
 
         int[] laneCount = {road.getCrossSection().getCarriageway().getEffectiveLaneCount()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.lane_count", laneCount[0]) + "##lanes", laneCount,
-            RoadParameterLimits.MIN_LANE_COUNT, RoadParameterLimits.MAX_LANE_COUNT, "%d")) {
-            road.setLaneCount(laneCount[0]);
-        }
+        boolean laneCountChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.lane_count", laneCount[0]) + "##lanes", laneCount,
+            RoadParameterLimits.MIN_LANE_COUNT, RoadParameterLimits.MAX_LANE_COUNT, "%d");
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
+        }
+        if (laneCountChanged) {
+            road.setLaneCount(laneCount[0]);
         }
 
         int[] width = {road.getWidth() != null ? road.getWidth() : config.getRoadWidth()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.road.road_width", width[0]) + "##road_width", width,
-            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH, "%d")) {
-            road.setWidth(width[0]);
-        }
+        boolean widthChanged = ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.road_width", width[0]) + "##road_width", width,
+            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH, "%d");
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
+        }
+        if (widthChanged) {
+            road.setWidth(width[0]);
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
@@ -114,13 +118,14 @@ public final class RoadCrossSectionEditor {
                     lane.getWidth() != null ? lane.getWidth() : resolved.get(i)
                 };
                 int perLaneMax = RoadParameterLimits.maxPerLaneWidth(width[0], laneCount[0]);
-                if (ImGui.sliderInt(
+                boolean laneWidthChanged = ImGui.sliderInt(
                     PlotI18n.tr("plugin.road.lane_width_label", i + 1, laneWidth[0]) + "##lane_" + i,
-                    laneWidth, RoadParameterLimits.MIN_STRIP_WIDTH, perLaneMax, "%d")) {
-                    road.getCrossSection().getCarriageway().setLaneWidthAt(i, laneWidth[0]);
-                }
+                    laneWidth, RoadParameterLimits.MIN_STRIP_WIDTH, perLaneMax, "%d");
                 if (ImGui.isItemActivated() && onHistory != null) {
                     onHistory.run();
+                }
+                if (laneWidthChanged) {
+                    road.getCrossSection().getCarriageway().setLaneWidthAt(i, laneWidth[0]);
                 }
             }
         }
@@ -145,13 +150,14 @@ public final class RoadCrossSectionEditor {
             int[] shoulderWidth = {
                 road.getShoulderWidth() != null ? road.getShoulderWidth() : config.getShoulderWidth()
             };
-            if (ImGui.sliderInt(
+            boolean shoulderChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0]) + "##shoulder_w",
-                shoulderWidth, 0, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
-                road.setShoulderWidth(shoulderWidth[0]);
-            }
+                shoulderWidth, 0, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
+            }
+            if (shoulderChanged) {
+                road.setShoulderWidth(shoulderWidth[0]);
             }
         }
 
@@ -166,13 +172,14 @@ public final class RoadCrossSectionEditor {
             int[] bikeWidth = {
                 road.getBikeLaneWidth() != null ? road.getBikeLaneWidth() : 1
             };
-            if (ImGui.sliderInt(
+            boolean bikeChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.bike_lane_width", bikeWidth[0]) + "##bike_w",
-                bikeWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
-                road.setBikeLaneWidth(bikeWidth[0]);
-            }
+                bikeWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
+            }
+            if (bikeChanged) {
+                road.setBikeLaneWidth(bikeWidth[0]);
             }
         }
 
@@ -187,13 +194,14 @@ public final class RoadCrossSectionEditor {
             int[] sidewalkWidth = {
                 road.getSidewalkWidth() != null ? road.getSidewalkWidth() : config.getSidewalkWidth()
             };
-            if (ImGui.sliderInt(
+            boolean swChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##sw_w",
-                sidewalkWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
-                road.setSidewalkWidth(sidewalkWidth[0]);
-            }
+                sidewalkWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
+            }
+            if (swChanged) {
+                road.setSidewalkWidth(sidewalkWidth[0]);
             }
 
             RoadUiWidgets.renderBlockMaterialPicker(
@@ -230,13 +238,14 @@ public final class RoadCrossSectionEditor {
         }
         if (medianRef.get()) {
             int[] medianWidth = {road.getMedianWidth() != null ? road.getMedianWidth() : 1};
-            if (ImGui.sliderInt(
+            boolean medianChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.median_width", medianWidth[0]) + "##median_w",
-                medianWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
-                road.setMedianWidth(medianWidth[0]);
-            }
+                medianWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
+            }
+            if (medianChanged) {
+                road.setMedianWidth(medianWidth[0]);
             }
         }
 
@@ -283,17 +292,18 @@ public final class RoadCrossSectionEditor {
         }
 
         int[] lightSpacing = {road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0};
-        if (ImGui.sliderInt(
+        boolean lightsChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.streetlight_spacing") + "##lights",
             lightSpacing,
             RoadParameterLimits.STREETLIGHT_DISABLED,
             RoadParameterLimits.MAX_STREETLIGHT_SPACING,
-            "%dm")) {
-            road.setStreetlightSpacing(lightSpacing[0]);
-            lightSpacing[0] = road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0;
-        }
+            "%dm");
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
+        }
+        if (lightsChanged) {
+            road.setStreetlightSpacing(lightSpacing[0]);
+            lightSpacing[0] = road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0;
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));

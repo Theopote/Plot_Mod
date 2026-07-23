@@ -29,8 +29,12 @@ class RoadParameterLimitsTest {
 
     @Test
     void clampRelaxedSlopeLengthRespectsContinuousCap() {
+        // continuous=5 时 relaxed 上限被压到 5
         assertEquals(5.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 5.0), 0.001);
-        assertEquals(10.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 30.0), 0.001);
+        // continuous=10 时 relaxed 上限为 min(MAX_RELAXED=30, 10)=10
+        assertEquals(10.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 10.0), 0.001);
+        // continuous>=MAX_RELAXED 时取 MAX_RELAXED=30
+        assertEquals(30.0, RoadParameterLimits.clampRelaxedSlopeLength(30.0, 30.0), 0.001);
         assertEquals(1.0, RoadParameterLimits.clampRelaxedSlopeLength(0.5, 30.0), 0.001);
     }
 

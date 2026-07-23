@@ -234,7 +234,7 @@ public final class RoadNetworkManager {
         for (Road road : network.getRoads().values()) {
             road.setMaxSlope(0f);
         }
-        config.setMaxSlope(0f);
+        // 仅改路网内道路坡度，不写全局默认配置，避免副作用持久化到 config
 
         if (sampleCount > 0) {
             status.set(PlotI18n.tr(
@@ -290,6 +290,9 @@ public final class RoadNetworkManager {
         if (multiSelect) {
             if (selectedEdgeIds.contains(edgeId)) {
                 selectedEdgeIds.remove(edgeId);
+                if (edgeId.equals(lastSelectedEdgeId)) {
+                    lastSelectedEdgeId = selectedEdgeIds.isEmpty() ? "" : selectedEdgeIds.getFirst();
+                }
             } else {
                 selectedEdgeIds.add(edgeId);
                 lastSelectedEdgeId = edgeId;
@@ -331,23 +334,27 @@ public final class RoadNetworkManager {
                 segmentIds.forEach(selectedEdgeIds::remove);
             } else {
                 selectedEdgeIds.addAll(segmentIds);
+                lastSelectedEdgeId = segmentIds.getFirst();
             }
         } else {
             selectedEdgeIds.clear();
             selectedEdgeIds.addAll(segmentIds);
+            lastSelectedEdgeId = segmentIds.getFirst();
         }
-        lastSelectedEdgeId = segmentIds.getFirst();
         selectedNodeId = "";
         ensureSelectionValid();
     }
 
     /**
      * 移除已不存在的边选择，允许空选择（不再自动回填第一条边）。
+     * 保证 {@code lastSelectedEdgeId} 始终落在当前选择集内（或为空）。
      */
     public void ensureSelectionValid() {
         selectedEdgeIds.removeIf(id -> network.getEdge(id) == null);
-        if (!lastSelectedEdgeId.isEmpty() && network.getEdge(lastSelectedEdgeId) == null) {
-            lastSelectedEdgeId = getPrimarySelectedEdgeId();
+        if (lastSelectedEdgeId.isEmpty()
+                || !selectedEdgeIds.contains(lastSelectedEdgeId)
+                || network.getEdge(lastSelectedEdgeId) == null) {
+            lastSelectedEdgeId = selectedEdgeIds.isEmpty() ? "" : selectedEdgeIds.getFirst();
         }
         if (selectedNodeId != null && !selectedNodeId.isBlank() && network.getNode(selectedNodeId) == null) {
             selectedNodeId = "";
@@ -355,7 +362,10 @@ public final class RoadNetworkManager {
     }
 
     public String getPrimarySelectedEdgeId() {
-        if (!lastSelectedEdgeId.isEmpty() && network.getEdge(lastSelectedEdgeId) != null) {
+        ensureSelectionValid();
+        if (!lastSelectedEdgeId.isEmpty()
+                && selectedEdgeIds.contains(lastSelectedEdgeId)
+                && network.getEdge(lastSelectedEdgeId) != null) {
             return lastSelectedEdgeId;
         }
         if (!selectedEdgeIds.isEmpty()) {
@@ -379,6 +389,9 @@ public final class RoadNetworkManager {
     public void selectAllEdges() {
         selectedEdgeIds.clear();
         selectedEdgeIds.addAll(network.getEdges().keySet());
+        selectedNodeId = "";
+        lastSelectedEdgeId = selectedEdgeIds.isEmpty() ? "" : selectedEdgeIds.getFirst();
+        ensureSelectionValid();
     }
 
     public void clearEdgeSelection() {

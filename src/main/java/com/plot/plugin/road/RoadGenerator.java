@@ -1116,10 +1116,12 @@ public class RoadGenerator {
 
         List<BridgeSegment> bridges = new ArrayList<>();
         List<TunnelSegment> tunnels = new ArrayList<>();
+        // 可修改副本：地形不支持隧道时降级，避免统计长度与真实几何不一致
+        List<RoadConstructionType> resolvedTypes = new ArrayList<>(constructionTypes);
 
-        for (int i = 0; i < constructionTypes.size() && i < heightInfos.size(); i++) {
+        for (int i = 0; i < resolvedTypes.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
-            RoadConstructionType type = constructionTypes.get(i);
+            RoadConstructionType type = resolvedTypes.get(i);
             if (type == RoadConstructionType.BRIDGE) {
                 int heightDifference = info.targetStart - info.groundStart;
                 bridges.add(new BridgeSegment(info.segment, heightDifference));
@@ -1128,11 +1130,14 @@ public class RoadGenerator {
                 if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
                     int heightDifference = info.groundStart - info.targetStart;
                     tunnels.add(new TunnelSegment(info.segment, heightDifference));
+                } else {
+                    // 评估为隧道但起点无实心地形：不生成隧道体，统计按挖方/普通路
+                    resolvedTypes.set(i, RoadConstructionType.CUT);
                 }
             }
         }
 
-        return new ConstructionDetection(bridges, tunnels, constructionTypes, segmentDistances);
+        return new ConstructionDetection(bridges, tunnels, resolvedTypes, segmentDistances);
     }
 
     private static void applyConstructionStats(

@@ -126,18 +126,19 @@ public final class RoadUiWidgets {
         float[] ratioPercent = {current.getAccentRatio() * 100f};
         ImGui.pushID(id);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.sliderFloat(
+        boolean ratioChanged = ImGui.sliderFloat(
             PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratioPercent[0])) + "##slider",
             ratioPercent,
             0f,
             50f,
-            "%.0f%%")) {
+            "%.0f%%");
+        if (ImGui.isItemActivated() && onActivated != null) {
+            onActivated.run();
+        }
+        if (ratioChanged) {
             MaterialMix updated = current.copy();
             updated.setAccentRatio(ratioPercent[0] / 100f);
             setter.set(updated);
-        }
-        if (ImGui.isItemActivated() && onActivated != null) {
-            onActivated.run();
         }
         ImGui.popID();
     }

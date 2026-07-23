@@ -883,6 +883,8 @@
   "plugin.road.network.loaded": "已加载道路网络: %s",
   "plugin.road.network.saved": "已保存道路网络: %s",
   "plugin.road.network.load_failed": "加载道路网络失败: %s",
+  "plugin.road.network.save_failed": "保存道路网络失败: %s",
+  "plugin.road.generate_dropped_solids": "实体图元超限，已丢弃 %d 个方块，结果可能不完整",
   "plugin.road.history.generate": "构建道路 (%d 方块)",
   "plugin.road.history.generate.detail": "在世界中放置 %d 个道路方块",
   "material.plot.concrete": "混凝土",
