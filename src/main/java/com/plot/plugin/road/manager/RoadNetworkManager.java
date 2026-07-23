@@ -50,6 +50,11 @@ public final class RoadNetworkManager {
     private boolean batchIncludeSidewalk = true;
     private int batchEditSidewalkWidth = 1;
     private boolean batchIncludeDrainage = false;
+    private boolean batchIncludeBikeLane = false;
+    private int batchEditBikeLaneWidth = 1;
+    private boolean batchIncludeMedian = false;
+    private int batchEditMedianWidth = 1;
+    private int batchStreetlightSpacing = 0;
     private boolean batchLaneDividers = false;
     private CenterLineStyle batchCenterLineStyle = CenterLineStyle.NONE;
     private String batchMarkingMaterial = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
@@ -544,6 +549,15 @@ public final class RoadNetworkManager {
             ? road.getSidewalkMaterial()
             : config.getSelectedSidewalkMaterial();
         batchIncludeDrainage = road.getEffectiveIncludeDrainage(config);
+        batchIncludeBikeLane = road.getEffectiveIncludeBikeLane(config);
+        batchEditBikeLaneWidth = road.getBikeLaneWidth() != null
+            ? road.getBikeLaneWidth()
+            : 1;
+        batchIncludeMedian = road.getIncludeMedian() != null && road.getIncludeMedian();
+        batchEditMedianWidth = road.getMedianWidth() != null ? road.getMedianWidth() : 1;
+        batchStreetlightSpacing = road.getStreetlightSpacing() != null
+            ? road.getStreetlightSpacing()
+            : 0;
         batchLaneDividers = road.getLaneDividers() != null
             ? road.getLaneDividers()
             : batchEditLaneCount > 1;
@@ -568,6 +582,11 @@ public final class RoadNetworkManager {
             batchEditSidewalkWidth,
             batchEditSidewalkMaterial,
             batchIncludeDrainage,
+            batchIncludeBikeLane,
+            batchEditBikeLaneWidth,
+            batchIncludeMedian,
+            batchEditMedianWidth,
+            batchStreetlightSpacing,
             batchLaneDividers,
             batchCenterLineStyle,
             batchMarkingMaterial,
@@ -585,6 +604,11 @@ public final class RoadNetworkManager {
         batchEditSidewalkWidth = draft.sidewalkWidth();
         batchEditSidewalkMaterial = draft.sidewalkMaterial();
         batchIncludeDrainage = draft.includeDrainage();
+        batchIncludeBikeLane = draft.includeBikeLane();
+        batchEditBikeLaneWidth = draft.bikeLaneWidth();
+        batchIncludeMedian = draft.includeMedian();
+        batchEditMedianWidth = draft.medianWidth();
+        batchStreetlightSpacing = draft.streetlightSpacing();
         batchLaneDividers = draft.laneDividers();
         batchCenterLineStyle = draft.centerLineStyle();
         batchMarkingMaterial = draft.markingMaterial();
@@ -633,6 +657,15 @@ public final class RoadNetworkManager {
             road.setSidewalkMaterial(draft.sidewalkMaterial());
         }
         road.setIncludeDrainage(draft.includeDrainage());
+        road.setIncludeBikeLane(draft.includeBikeLane());
+        if (draft.includeBikeLane()) {
+            road.setBikeLaneWidth(draft.bikeLaneWidth());
+        }
+        road.setIncludeMedian(draft.includeMedian());
+        if (draft.includeMedian()) {
+            road.setMedianWidth(draft.medianWidth());
+        }
+        road.setStreetlightSpacing(draft.streetlightSpacing());
         road.setLaneDividers(draft.laneDividers());
         road.setCenterLineStyle(draft.centerLineStyle());
         road.setMarkingMaterial(draft.markingMaterial());
@@ -717,6 +750,11 @@ public final class RoadNetworkManager {
             int sidewalkWidth,
             String sidewalkMaterial,
             boolean includeDrainage,
+            boolean includeBikeLane,
+            int bikeLaneWidth,
+            boolean includeMedian,
+            int medianWidth,
+            int streetlightSpacing,
             boolean laneDividers,
             CenterLineStyle centerLineStyle,
             String markingMaterial,

@@ -17,6 +17,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -34,6 +35,9 @@ public final class RoadEditPanel {
     /** 全网统一标高草稿（自定义 Y） */
     private final int[] uniformElevationDraft = {64};
     private String lastRecommendationSummary = "";
+    private boolean uniformElevationConfirmPending = false;
+    /** true = 自动采样应用；false = 自定义 Y */
+    private boolean uniformElevationConfirmAuto = true;
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -125,7 +129,11 @@ public final class RoadEditPanel {
     }
 
     private void renderUniformFlatElevationControls(RoadNetwork network) {
-        ImGui.text(PlotI18n.tr("plugin.road.uniform_flat_elevation"));
+        // 折叠收起：全网破坏性操作，避免与日常边编辑抢视觉焦点
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.uniform_flat_elevation"))) {
+            return;
+        }
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.uniform_flat_elevation_warning"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
 
         boolean disabled = network.getEdges().isEmpty();
@@ -136,7 +144,8 @@ public final class RoadEditPanel {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
 
         if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_auto_apply"), half, 0)) {
-            applyUniformFlatElevationAuto();
+            uniformElevationConfirmAuto = true;
+            uniformElevationConfirmPending = true;
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_auto_apply_hint"));
@@ -166,7 +175,8 @@ public final class RoadEditPanel {
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply"), 0, 0)) {
-            ctx.networkManager().applyCustomUniformFlatElevation(uniformElevationDraft[0]);
+            uniformElevationConfirmAuto = false;
+            uniformElevationConfirmPending = true;
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.uniform_elevation_custom_apply_hint"));
@@ -176,6 +186,42 @@ public final class RoadEditPanel {
             ImGui.endDisabled();
         }
         ImGui.spacing();
+    }
+
+    /**
+     * 统一标高二次确认（破坏性：全节点手动 Y + 各路 maxSlope=0）。
+     */
+    public void renderUniformElevationConfirmPopup() {
+        if (uniformElevationConfirmPending) {
+            ImGui.openPopup("##road_uniform_elevation_confirm");
+            uniformElevationConfirmPending = false;
+        }
+
+        if (ImGui.beginPopupModal("##road_uniform_elevation_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+            if (uniformElevationConfirmAuto) {
+                ImGui.textWrapped(PlotI18n.tr("plugin.road.uniform_elevation_confirm_auto"));
+            } else {
+                ImGui.textWrapped(PlotI18n.tr(
+                    "plugin.road.uniform_elevation_confirm_custom",
+                    uniformElevationDraft[0]));
+            }
+            ImGui.separator();
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.uniform_elevation_confirm_side_effect"));
+
+            if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_confirm_ok"), 120, 0)) {
+                if (uniformElevationConfirmAuto) {
+                    applyUniformFlatElevationAuto();
+                } else {
+                    ctx.networkManager().applyCustomUniformFlatElevation(uniformElevationDraft[0]);
+                }
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     private TerrainSampler requireTerrainOrNull() {
