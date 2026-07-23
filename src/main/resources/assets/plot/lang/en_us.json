@@ -752,7 +752,7 @@
   "plugin.road.grade_separation_auto": "Auto",
   "plugin.road.grade_separation_auto_result": "Currently elevated: %s",
   "plugin.road.crossing_clearance": "Clearance",
-  "plugin.road.grade_separation_manual_override": "Manual elevation is set; grade separation will be ignored",
+  "plugin.road.grade_separation_manual_override": "Manual elevation is the lower deck; elevated road = manual Y + clearance",
   "plugin.road.road_label_fallback": "Road %s",
   "plugin.road.no_nodes": "No nodes yet",
   "plugin.road.edge_list": "Road Edges",

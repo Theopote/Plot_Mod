@@ -40,6 +40,7 @@ public final class RoadUniformElevationUtils {
 
     /**
      * 沿路网所有边中心线采样途经地表高度（按横断面宽度取平均地表）。
+     * 按整数格 (x,z) 去重，避免路口端点被多条边重复计权。
      */
     public static List<Integer> sampleNetworkGroundHeights(
             RoadNetwork network,
@@ -53,6 +54,9 @@ public final class RoadUniformElevationUtils {
             ? Math.max(0.5, config.getPathSampleDistance())
             : DEFAULT_SAMPLE_SPACING;
 
+        // key = quantized plan cell，value = height
+        Map<Long, Integer> uniqueByCell = new HashMap<>();
+
         for (RoadEdge edge : network.getEdges().values()) {
             List<Vec2d> centerline = edge.getCenterlinePoints();
             if (centerline == null || centerline.size() < 2) {
@@ -63,8 +67,7 @@ public final class RoadUniformElevationUtils {
                 : 5;
             double halfWidth = RoadDimensionUtils.halfExtentFromCenter(width);
 
-            // 至少采起点
-            samples.add(sampleAt(terrain, centerline.getFirst(), centerline.get(1), halfWidth));
+            putSample(uniqueByCell, terrain, centerline.getFirst(), centerline.get(1), halfWidth);
 
             double accumulated = 0.0;
             double nextSampleAt = spacing;
@@ -79,18 +82,39 @@ public final class RoadUniformElevationUtils {
                     double t = (nextSampleAt - accumulated) / segLen;
                     t = Math.max(0.0, Math.min(1.0, t));
                     Vec2d point = a.lerp(b, t);
-                    samples.add(sampleAt(terrain, point, b.subtract(a), halfWidth));
+                    putSample(uniqueByCell, terrain, point, b.subtract(a), halfWidth);
                     nextSampleAt += spacing;
                 }
                 accumulated += segLen;
             }
 
-            // 终点（若尚未采到）
             Vec2d last = centerline.getLast();
             Vec2d prev = centerline.get(centerline.size() - 2);
-            samples.add(sampleAt(terrain, last, last.subtract(prev), halfWidth));
+            putSample(uniqueByCell, terrain, last, last.subtract(prev), halfWidth);
         }
+        samples.addAll(uniqueByCell.values());
         return samples;
+    }
+
+    private static void putSample(
+            Map<Long, Integer> uniqueByCell,
+            TerrainSampler terrain,
+            Vec2d point,
+            Vec2d tangent,
+            double halfWidth) {
+        if (point == null || uniqueByCell == null) {
+            return;
+        }
+        long key = cellKey(point);
+        // 首次采样保留；路口重复位置不再叠加权重
+        uniqueByCell.putIfAbsent(key, sampleAt(terrain, point, tangent, halfWidth));
+    }
+
+    /** 将平面点量化到整数格，用于跨边去重。 */
+    static long cellKey(Vec2d point) {
+        int x = (int) Math.round(point.x);
+        int z = (int) Math.round(point.y);
+        return (((long) x) << 32) ^ (z & 0xffffffffL);
     }
 
     private static int sampleAt(TerrainSampler terrain, Vec2d point, Vec2d tangent, double halfWidth) {

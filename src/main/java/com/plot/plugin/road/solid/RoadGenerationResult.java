@@ -59,7 +59,11 @@ public class RoadGenerationResult {
         bridgeBlocks.addAll(source.bridgeBlocks);
         tunnelBlocks.addAll(source.tunnelBlocks);
         streetlightBlocks.addAll(source.streetlightBlocks);
-        placementRecords.putAll(source.placementRecords);
+        // 边与边重叠时 first-claim：保留先写入边的材质，避免后写边覆盖导致预览不稳定
+        // （路口仍通过 recordOverride 单独覆盖）
+        for (Map.Entry<BlockPos, BlockRecord> entry : source.placementRecords.entrySet()) {
+            placementRecords.putIfAbsent(entry.getKey(), entry.getValue());
+        }
         cutVolume += source.cutVolume;
         fillVolume += source.fillVolume;
         bridgeCount += source.bridgeCount;

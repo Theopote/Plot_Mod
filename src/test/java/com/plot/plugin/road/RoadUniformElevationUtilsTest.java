@@ -83,6 +83,26 @@ class RoadUniformElevationUtilsTest {
     }
 
     @Test
+    void sampleNetworkDedupesJunctionEndpointsAcrossEdges() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setPathSampleDistance(100.0); // 每边只采端点附近
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode a = network.createNode(new Vec2d(10, 0));
+        RoadNode b = network.createNode(new Vec2d(0, 10));
+        network.createEdge(
+            junction.getId(), a.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        network.createEdge(
+            junction.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)));
+
+        List<Integer> samples = RoadUniformElevationUtils.sampleNetworkGroundHeights(
+            network, new FlatTerrainSampler(66), config);
+
+        // 路口 (0,0) 只计一次：两条边 × 两端 = 3 个唯一点（0,0)/(10,0)/(0,10）
+        assertEquals(3, samples.size());
+    }
+
+    @Test
     void sampleNetworkReflectsVaryingTerrainMode() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setPathSampleDistance(1.0);

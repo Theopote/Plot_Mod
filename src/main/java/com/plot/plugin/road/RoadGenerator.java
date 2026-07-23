@@ -561,13 +561,14 @@ public class RoadGenerator {
         if (edge == null || node == null || terrain == null) {
             return TerrainSampler.DEFAULT_SEA_LEVEL;
         }
-        if (node.getManualElevation() != null) {
-            return node.getManualElevation().intValue();
-        }
 
+        // 立体交叉优先：上跨边 = 下层标高(手动或自然) + 净空；下穿边用手动/自然下层标高
         Integer elevatedTarget = resolveElevatedCrossingHeight(edge, node, network, terrain);
         if (elevatedTarget != null) {
             return elevatedTarget;
+        }
+        if (node.getManualElevation() != null) {
+            return node.getManualElevation().intValue();
         }
 
         RoadNode startNode = network != null ? network.getNode(edge.getStartNodeId()) : null;
@@ -671,6 +672,14 @@ public class RoadGenerator {
         return getGroundHeightAtNode(terrain, node, network);
     }
 
+    /**
+     * 端点强制标高：
+     * <ul>
+     *   <li>立体交叉上跨边：下层标高 + 净空（下层标高优先用节点手动标高）</li>
+     *   <li>立体交叉下穿边 / 普通节点：手动标高（若有）</li>
+     * </ul>
+     * 手动标高不再整网覆盖掉立体交叉，而是作为下层基准。
+     */
     private Integer resolveForcedHeightAtNode(
             RoadNode node,
             RoadNetwork network,
@@ -680,13 +689,16 @@ public class RoadGenerator {
         if (node == null) {
             return null;
         }
+        if (applyGradeSeparation) {
+            Integer elevated = resolveElevatedCrossingHeight(edge, node, network, terrain);
+            if (elevated != null) {
+                return elevated;
+            }
+        }
         if (node.getManualElevation() != null) {
             return node.getManualElevation().intValue();
         }
-        if (!applyGradeSeparation) {
-            return null;
-        }
-        return resolveElevatedCrossingHeight(edge, node, network, terrain);
+        return null;
     }
 
     private Integer resolveElevatedCrossingHeight(
@@ -710,6 +722,10 @@ public class RoadGenerator {
             RoadNetwork network,
             TerrainSampler terrain,
             String elevatedRoadId) {
+        // 手动标高即下层（下穿）基准面
+        if (node.getManualElevation() != null) {
+            return node.getManualElevation().intValue();
+        }
         List<Integer> heights = new ArrayList<>();
         for (String edgeId : node.getConnectedEdgeIds()) {
             RoadEdge connectedEdge = network.getEdge(edgeId);
@@ -899,7 +915,7 @@ public class RoadGenerator {
             return emptyHeightCalculation();
         }
 
-        // 优先级：手动标高 / 立体交叉跨越高度 > 路网统一节点标高
+        // 优先级：立体交叉上跨 / 手动下层标高 > 路网统一节点标高
         Integer manualStartHeight = resolveForcedHeightAtNode(
             startNode, network, edge, terrain, applyGradeSeparation);
         Integer manualEndHeight = resolveForcedHeightAtNode(
@@ -1101,8 +1117,9 @@ public class RoadGenerator {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             SegmentHeightInfo info = heightInfos.get(i);
             segmentDistances.add(info.segment.distance);
-            groundHeights.add(info.groundStart);
-            targetHeights.add(info.targetStart);
+            // 用段起止平均高程，避免仅看起点导致长段内漏判桥/隧
+            groundHeights.add(averageHeight(info.groundStart, info.groundEnd));
+            targetHeights.add(averageHeight(info.targetStart, info.targetEnd));
         }
 
         RoadConstructionEvaluator.RoadConstructionCostConfig costConfig =
@@ -1123,15 +1140,21 @@ public class RoadGenerator {
             SegmentHeightInfo info = heightInfos.get(i);
             RoadConstructionType type = resolvedTypes.get(i);
             if (type == RoadConstructionType.BRIDGE) {
-                int heightDifference = info.targetStart - info.groundStart;
-                bridges.add(new BridgeSegment(info.segment, heightDifference));
+                int heightDifference = Math.max(
+                    info.targetStart - info.groundStart,
+                    info.targetEnd - info.groundEnd);
+                bridges.add(new BridgeSegment(info.segment, Math.max(0, heightDifference)));
             } else if (type == RoadConstructionType.TUNNEL) {
-                BlockPos pos = canvasToBlockPos(info.segment.start);
+                // 段中点附近探测实心，减少仅测起点的误判
+                Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
+                BlockPos pos = canvasToBlockPos(mid);
                 if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
-                    int heightDifference = info.groundStart - info.targetStart;
-                    tunnels.add(new TunnelSegment(info.segment, heightDifference));
+                    int heightDifference = Math.max(
+                        info.groundStart - info.targetStart,
+                        info.groundEnd - info.targetEnd);
+                    tunnels.add(new TunnelSegment(info.segment, Math.max(0, heightDifference)));
                 } else {
-                    // 评估为隧道但起点无实心地形：不生成隧道体，统计按挖方/普通路
+                    // 评估为隧道但中点无实心地形：不生成隧道体，统计按挖方/普通路
                     resolvedTypes.set(i, RoadConstructionType.CUT);
                 }
             }
@@ -1152,6 +1175,10 @@ public class RoadGenerator {
                 case ROAD, CUT, FILL -> result.normalRoadLength += distance;
             }
         }
+    }
+
+    private static int averageHeight(int a, int b) {
+        return (int) Math.round((a + b) / 2.0);
     }
     
     private double estimateCanvasUnitsPerBlock(List<Vec2d> pathPoints, List<PathSegment> segments) {

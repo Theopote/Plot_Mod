@@ -24,6 +24,8 @@ public final class RoadPersistenceManager {
     private final File dataFolder;
     private final RoadProjectStatus status;
     private String currentNetworkFile = DEFAULT_NETWORK_FILE;
+    /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 连续重复写盘 */
+    private int lastSavedContentHash;
 
     public RoadPersistenceManager(File dataFolder, RoadProjectStatus status) {
         this.dataFolder = dataFolder;
@@ -119,17 +121,24 @@ public final class RoadPersistenceManager {
     }
 
     public boolean saveNetworkFile(Path file, RoadNetwork network) {
-        if (network == null) {
+        if (network == null || file == null) {
             return false;
         }
         try {
+            String json = network.toJson();
+            int contentHash = 31 * json.hashCode() + file.toAbsolutePath().normalize().hashCode();
+            if (contentHash == lastSavedContentHash) {
+                LOGGER.debug("路网内容未变，跳过重复保存: {}", file.getFileName());
+                return true;
+            }
             network.saveTo(file);
+            lastSavedContentHash = contentHash;
             return true;
         } catch (IOException e) {
             LOGGER.error("保存道路网络失败: {}", e.getMessage(), e);
             status.set(PlotI18n.tr(
                 "plugin.road.network.save_failed",
-                file != null ? file.getFileName() : "?"));
+                file.getFileName()));
             return false;
         }
     }

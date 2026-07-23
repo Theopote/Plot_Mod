@@ -256,7 +256,7 @@ class RoadGeneratorTerrainTest {
     }
 
     @Test
-    void manualElevationOverridesGradeSeparation() {
+    void manualElevationIsLowerDeckBaseWithGradeSeparation() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setDefaultCrossingClearance(3.0);
         RoadGenerator generator = new RoadGenerator(config, null);
@@ -282,8 +282,9 @@ class RoadGeneratorTerrainTest {
             junction.getId(), south.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, -12)), roadA.getId());
         network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 3.0);
 
-        assertEquals(80, generator.getTargetHeightAtNode(eastEdge, junction, network, terrain));
+        // 下穿 = 手动标高；上跨 = 手动标高 + 净空
         assertEquals(80, generator.getTargetHeightAtNode(northEdge, junction, network, terrain));
+        assertEquals(83, generator.getTargetHeightAtNode(eastEdge, junction, network, terrain));
     }
 
     @Test

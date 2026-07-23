@@ -752,7 +752,7 @@
   "plugin.road.grade_separation_auto": "自动判断",
   "plugin.road.grade_separation_auto_result": "当前在上：%s",
   "plugin.road.crossing_clearance": "净空高度",
-  "plugin.road.grade_separation_manual_override": "已设置手动标高，立体交叉设置将被忽略",
+  "plugin.road.grade_separation_manual_override": "手动标高作为下层（下穿）基准；上跨道路 = 手动标高 + 净空",
   "plugin.road.road_label_fallback": "道路 %s",
   "plugin.road.no_nodes": "尚无节点",
   "plugin.road.edge_list": "道路边列表",

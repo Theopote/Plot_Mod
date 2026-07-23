@@ -180,7 +180,7 @@ public final class RoadNodePropertyPanel {
 
         if (node.getManualElevation() != null && node.isGradeSeparated()) {
             ImGui.textColored(
-                PluginUiColors.WARNING_STRONG,
+                PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
     }
@@ -212,7 +212,7 @@ public final class RoadNodePropertyPanel {
 
         if (node.getManualElevation() != null && node.isGradeSeparated()) {
             ImGui.textColored(
-                PluginUiColors.WARNING_STRONG,
+                PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
     }

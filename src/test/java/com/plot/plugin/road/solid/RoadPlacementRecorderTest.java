@@ -37,6 +37,23 @@ class RoadPlacementRecorderTest {
     }
 
     @Test
+    void mergeFromUsesFirstClaimForOverlappingPlacements() {
+        RoadGenerationResult first = new RoadGenerationResult(0);
+        RoadGenerationResult second = new RoadGenerationResult(0);
+        BlockPos pos = new BlockPos(2, 64, 3);
+        first.recordPlacementIfAbsent(pos, "minecraft:grass_block", "minecraft:stone");
+        second.recordPlacementIfAbsent(pos, "minecraft:dirt", "minecraft:gravel");
+
+        RoadGenerationResult aggregate = new RoadGenerationResult(0);
+        aggregate.mergeFrom(first);
+        aggregate.mergeFrom(second);
+
+        assertEquals(1, aggregate.placementRecords.size());
+        assertEquals("minecraft:stone", aggregate.placementRecords.get(pos).newBlockId);
+        assertEquals("minecraft:grass_block", aggregate.placementRecords.get(pos).previousBlockId);
+    }
+
+    @Test
     void flushJunctionSolidsAppliesLayerMaterialOverrides() {
         RoadGenerationResult result = new RoadGenerationResult(0);
         RoadSolidModel solids = new RoadSolidModel();
