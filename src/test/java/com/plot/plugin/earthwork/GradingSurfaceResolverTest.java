@@ -65,6 +65,39 @@ class GradingSurfaceResolverTest {
     }
 
     @Test
+    void balancePlaneInterceptUsesGroundResidualsNotPlaneTargets() {
+        // 平面 y=64 平坦；地面有高有低 → 残差非零，平衡后 intercept 应移动
+        GradingPlane base = GradingPlane.flat(64);
+        List<GradingSurfaceResolver.HeightSample> samples = List.of(
+            new GradingSurfaceResolver.HeightSample(0, 0, 70),
+            new GradingSurfaceResolver.HeightSample(1, 0, 70),
+            new GradingSurfaceResolver.HeightSample(2, 0, 70),
+            new GradingSurfaceResolver.HeightSample(3, 0, 70),
+            new GradingSurfaceResolver.HeightSample(4, 0, 60),
+            new GradingSurfaceResolver.HeightSample(5, 0, 60));
+
+        GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(base, samples, 1.0f);
+        assertNotNull(balanced);
+        // 高地更多 → 平衡标高倾向抬高（相对 64 的残差多为正），intercept 应上升
+        assertTrue(balanced.intercept() > base.intercept() - 0.01);
+        // 旧算法对「全为 64 的平面目标」求平衡会得到 64、delta=0，无法抬升
+        assertTrue(Math.abs(balanced.intercept() - 64.0) > 0.5
+            || balanced.evaluateAt(0, 0) != 64);
+    }
+
+    @Test
+    void balancePlaneInterceptOnMatchingTerrainKeepsPlane() {
+        GradingPlane base = GradingPlane.flat(65);
+        List<GradingSurfaceResolver.HeightSample> samples = List.of(
+            new GradingSurfaceResolver.HeightSample(0, 0, 65),
+            new GradingSurfaceResolver.HeightSample(5, 0, 65),
+            new GradingSurfaceResolver.HeightSample(0, 5, 65),
+            new GradingSurfaceResolver.HeightSample(5, 5, 65));
+        GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(base, samples, 1.1f);
+        assertEquals(65, balanced.evaluateAt(0, 0));
+    }
+
+    @Test
     void fitSlopeUsesLeastSquaresTrend() {
         GradingRegion region = new GradingRegion(square(10));
         region.setSurfaceMode(GradingSurfaceMode.FIT_SLOPE);

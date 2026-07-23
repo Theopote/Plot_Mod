@@ -216,18 +216,29 @@ public final class GradingSurfaceResolver {
         return new GradingPlane(solution[0], solution[1], solution[2]);
     }
 
-    private static GradingPlane balancePlaneIntercept(
+    /**
+     * 在拟合坡面 intercept 上平移，使相对地面的挖填平衡。
+     * <p>
+     * 对每个样本取残差 {@code groundY - plane(x,z)}，再对残差序列求平衡标高，
+     * 结果即为 intercept 增量（原先误把平面目标高当地面样本，偏移无意义）。
+     */
+    static GradingPlane balancePlaneIntercept(
             GradingPlane basePlane,
             List<HeightSample> samples,
             float fillFactor) {
-        List<Integer> targetHeights = new ArrayList<>(samples.size());
-        for (HeightSample sample : samples) {
-            targetHeights.add(basePlane.evaluateAt(sample.worldX(), sample.worldZ()));
+        if (basePlane == null || samples == null || samples.isEmpty()) {
+            return basePlane;
         }
-        int balanced = EarthworkBalanceUtils.findBalancedElevation(targetHeights, fillFactor);
-        int currentAverage = (int) Math.round(targetHeights.stream().mapToInt(Integer::intValue).average().orElse(balanced));
-        int delta = balanced - currentAverage;
-        return new GradingPlane(basePlane.coeffX(), basePlane.coeffZ(), basePlane.intercept() + delta);
+        List<Integer> residuals = new ArrayList<>(samples.size());
+        for (HeightSample sample : samples) {
+            int planeY = basePlane.evaluateAt(sample.worldX(), sample.worldZ());
+            residuals.add(sample.groundY() - planeY);
+        }
+        int delta = EarthworkBalanceUtils.findBalancedElevation(residuals, fillFactor);
+        return new GradingPlane(
+            basePlane.coeffX(),
+            basePlane.coeffZ(),
+            basePlane.intercept() + delta);
     }
 
     private static ResolvedSurface summarize(GradingPlane plane, List<HeightSample> samples) {

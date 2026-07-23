@@ -5,13 +5,16 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 土方平衡项目（管理已认领的多个整平区域）
@@ -53,24 +56,46 @@ public class EarthworkProject {
         return GSON.toJson(ProjectData.from(this));
     }
 
+    /**
+     * 解析 JSON。损坏内容抛 {@link IllegalArgumentException}，不得静默变成空项目。
+     */
     public static EarthworkProject fromJson(String json) {
         if (json == null || json.isBlank()) {
             return new EarthworkProject();
         }
-        ProjectData data = GSON.fromJson(json, ProjectData.class);
-        return data != null ? data.toProject() : new EarthworkProject();
+        try {
+            ProjectData data = GSON.fromJson(json, ProjectData.class);
+            return data != null ? data.toProject() : new EarthworkProject();
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Invalid earthwork project JSON", e);
+        }
     }
 
+    /**
+     * 原子保存：先写临时文件再 rename。
+     */
     public void saveTo(Path file) throws IOException {
         Files.createDirectories(file.getParent());
-        Files.writeString(file, toJson());
+        Path tempFile = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.writeString(tempFile, toJson());
+        try {
+            Files.move(tempFile, file,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     public static EarthworkProject loadFrom(Path file) throws IOException {
         if (!Files.exists(file)) {
             return new EarthworkProject();
         }
-        return fromJson(Files.readString(file));
+        try {
+            return fromJson(Files.readString(file));
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Failed to parse earthwork project: " + file.getFileName(), e);
+        }
     }
 
     EarthworkProject deepCopy() {
@@ -155,12 +180,26 @@ public class EarthworkProject {
 
         EarthworkProject toProject() {
             EarthworkProject project = new EarthworkProject();
+            if (regions == null) {
+                return project;
+            }
             for (RegionData regionData : regions) {
+                if (regionData == null || regionData.outerPoints == null) {
+                    continue;
+                }
                 List<Vec2d> points = new ArrayList<>();
                 for (Vec2dData pointData : regionData.outerPoints) {
-                    points.add(pointData.toVec2d());
+                    if (pointData != null) {
+                        points.add(pointData.toVec2d());
+                    }
                 }
-                GradingRegion region = new GradingRegion(regionData.id, points);
+                if (points.size() < 3) {
+                    continue;
+                }
+                String id = regionData.id != null && !regionData.id.isBlank()
+                    ? regionData.id
+                    : UUID.randomUUID().toString();
+                GradingRegion region = new GradingRegion(id, points);
                 region.setName(regionData.name);
                 region.setAutoBalance(regionData.autoBalance);
                 region.setManualTargetElevation(regionData.manualTargetElevation);

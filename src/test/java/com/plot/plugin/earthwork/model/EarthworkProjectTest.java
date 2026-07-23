@@ -2,11 +2,17 @@ package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkProjectTest {
@@ -60,5 +66,39 @@ class EarthworkProjectTest {
         assertEquals(false, restoredRegion.isFitSlopeBalanceCutFill());
         assertEquals(4, restoredRegion.getOuterPoints().size());
         assertTrue(restoredRegion.computeArea() > 0.0);
+    }
+
+    @Test
+    void corruptJsonThrowsInsteadOfSilentEmptyProject() {
+        assertThrows(IllegalArgumentException.class, () -> EarthworkProject.fromJson("{not-valid-json"));
+    }
+
+    @Test
+    void loadFromCorruptFileThrowsIoException(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("broken.json");
+        Files.writeString(file, "{broken");
+        assertThrows(IOException.class, () -> EarthworkProject.loadFrom(file));
+    }
+
+    @Test
+    void saveToIsAtomicAndRoundTrips(@TempDir Path dir) throws IOException {
+        EarthworkProject project = new EarthworkProject();
+        GradingRegion region = new GradingRegion(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(8, 0),
+            new Vec2d(8, 6),
+            new Vec2d(0, 6)
+        ));
+        region.setName("Pad");
+        project.addRegion(region);
+
+        Path file = dir.resolve("earthwork.json");
+        project.saveTo(file);
+        assertTrue(Files.exists(file));
+        assertFalse(Files.exists(dir.resolve("earthwork.json.tmp")));
+
+        EarthworkProject loaded = EarthworkProject.loadFrom(file);
+        assertEquals(1, loaded.getRegionCount());
+        assertEquals("Pad", loaded.getRegion(region.getId()).getName());
     }
 }

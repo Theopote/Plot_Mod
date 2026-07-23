@@ -82,6 +82,8 @@ public class EarthworkPlugin extends Plugin {
     private String pendingDeleteRegionId = "";
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
+    /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 重复写盘 */
+    private int lastSavedContentHash;
 
     private EarthworkRegionListHelper.SortMode regionSortMode =
         EarthworkRegionListHelper.SortMode.INSERTION;
@@ -216,6 +218,8 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.undo"), buttonWidth, 0)) {
             project = projectHistory.undo(project);
             syncSelectedRegionAfterHistory();
+            regionNameEditingRegionId = "";
+            clearPreview();
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -229,6 +233,8 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.redo"), buttonWidth, 0)) {
             project = projectHistory.redo(project);
             syncSelectedRegionAfterHistory();
+            regionNameEditingRegionId = "";
+            clearPreview();
         }
         if (redoDisabled) {
             ImGui.endDisabled();
@@ -369,25 +375,35 @@ public class EarthworkPlugin extends Plugin {
             regionNameEditingRegionId = region.getId();
         }
         if (ImGui.inputText(PlotI18n.tr("plugin.earthwork.region_name"), regionNameBuffer)) {
-            projectHistory.push(project);
             region.setName(regionNameBuffer.get());
+        }
+        if (ImGui.isItemActivated()) {
+            projectHistory.push(project);
         }
 
         renderSurfaceModeSettings(region);
 
         float[] fillFactor = {region.getFillFactor()};
-        if (ImGui.sliderFloat("##fill_factor", fillFactor, 1.0f, 2.0f,
-            PlotI18n.tr("plugin.earthwork.fill_factor", String.format("%.2f", fillFactor[0])))) {
+        boolean fillFactorChanged = ImGui.sliderFloat("##fill_factor", fillFactor, 1.0f, 2.0f,
+            PlotI18n.tr("plugin.earthwork.fill_factor", String.format("%.2f", fillFactor[0])));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (fillFactorChanged) {
             region.setFillFactor(fillFactor[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fill_factor");
 
         int[] gridSize = {region.getGridSize()};
-        if (ImGui.sliderInt("##region_grid_size", gridSize, 1, 20,
-            PlotI18n.tr("plugin.earthwork.grid_size", gridSize[0]))) {
+        boolean gridSizeChanged = ImGui.sliderInt("##region_grid_size", gridSize, 1, 20,
+            PlotI18n.tr("plugin.earthwork.grid_size", gridSize[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (gridSizeChanged) {
             region.setGridSize(gridSize[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.grid_size");
 
@@ -395,11 +411,13 @@ public class EarthworkPlugin extends Plugin {
             blockId -> {
                 projectHistory.push(project);
                 region.setCutExposeMaterial(blockId);
+                invalidatePreview();
             });
         renderMaterialButton(PlotI18n.tr("plugin.earthwork.fill_material"), region.getFillMaterial(),
             blockId -> {
                 projectHistory.push(project);
                 region.setFillMaterial(blockId);
+                invalidatePreview();
             });
     }
 
@@ -417,6 +435,7 @@ public class EarthworkPlugin extends Plugin {
                 projectHistory.push(project);
                 region.setSurfaceMode(modes[selected]);
                 initializeSurfaceDefaults(region, modes[selected]);
+                invalidatePreview();
             }
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.surface_mode");
@@ -434,16 +453,21 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.auto_balance"), autoBalanceRef)) {
             projectHistory.push(project);
             region.setAutoBalance(autoBalanceRef.get());
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.auto_balance");
 
         if (!region.isAutoBalance()) {
             int initial = region.getManualTargetElevation() != null ? region.getManualTargetElevation() : 64;
             int[] elevation = {initial};
-            if (ImGui.sliderInt("##target_elevation", elevation, -64, 320,
-                PlotI18n.tr("plugin.earthwork.target_elevation", elevation[0]))) {
+            boolean elevationChanged = ImGui.sliderInt("##target_elevation", elevation, -64, 320,
+                PlotI18n.tr("plugin.earthwork.target_elevation", elevation[0]));
+            if (ImGui.isItemActivated()) {
                 projectHistory.push(project);
+            }
+            if (elevationChanged) {
                 region.setManualTargetElevation(elevation[0]);
+                invalidatePreview();
             }
         } else {
             ImGui.beginDisabled();
@@ -454,27 +478,39 @@ public class EarthworkPlugin extends Plugin {
 
     private void renderFixedSlopeSettings(GradingRegion region) {
         float[] direction = {(float) region.getSlopeDirectionDegrees()};
-        if (ImGui.sliderFloat("##slope_direction", direction, 0.0f, 359.0f,
-            PlotI18n.tr("plugin.earthwork.slope_direction", String.format("%.0f", direction[0])))) {
+        boolean directionChanged = ImGui.sliderFloat("##slope_direction", direction, 0.0f, 359.0f,
+            PlotI18n.tr("plugin.earthwork.slope_direction", String.format("%.0f", direction[0])));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (directionChanged) {
             region.setSlopeDirectionDegrees(direction[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_direction");
 
         int[] pitch = {region.getSlopePitchRatio()};
-        if (ImGui.sliderInt("##slope_pitch", pitch, 1, 32,
-            PlotI18n.tr("plugin.earthwork.slope_pitch", pitch[0]))) {
+        boolean pitchChanged = ImGui.sliderInt("##slope_pitch", pitch, 1, 32,
+            PlotI18n.tr("plugin.earthwork.slope_pitch", pitch[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (pitchChanged) {
             region.setSlopePitchRatio(pitch[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_pitch");
 
         int anchorInitial = region.getSlopeAnchorElevation() != null ? region.getSlopeAnchorElevation() : 64;
         int[] anchorElevation = {anchorInitial};
-        if (ImGui.sliderInt("##slope_anchor_elevation", anchorElevation, -64, 320,
-            PlotI18n.tr("plugin.earthwork.slope_anchor_elevation", anchorElevation[0]))) {
+        boolean anchorChanged = ImGui.sliderInt("##slope_anchor_elevation", anchorElevation, -64, 320,
+            PlotI18n.tr("plugin.earthwork.slope_anchor_elevation", anchorElevation[0]));
+        if (ImGui.isItemActivated()) {
             projectHistory.push(project);
+        }
+        if (anchorChanged) {
             region.setSlopeAnchorElevation(anchorElevation[0]);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.slope_anchor_elevation");
 
@@ -482,6 +518,7 @@ public class EarthworkPlugin extends Plugin {
             projectHistory.push(project);
             region.setSlopeAnchorCanvas(EarthworkGeometryUtils.computeCentroid(region.getOuterPoints()));
             initializeSurfaceDefaults(region, GradingSurfaceMode.FIXED_SLOPE);
+            invalidatePreview();
         }
     }
 
@@ -489,6 +526,7 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.three_point_reset"))) {
             projectHistory.push(project);
             initializeSurfaceDefaults(region, GradingSurfaceMode.THREE_POINT);
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.three_point_reset");
 
@@ -498,26 +536,38 @@ public class EarthworkPlugin extends Plugin {
             ImGui.text(PlotI18n.tr("plugin.earthwork.three_point_label", i + 1));
 
             float[] canvasX = {(float) region.getThreePointCanvasX(i)};
-            if (ImGui.sliderFloat("##three_point_x_" + i, canvasX,
+            boolean xChanged = ImGui.sliderFloat("##three_point_x_" + i, canvasX,
                 (float) bounds.minX(), (float) bounds.maxX(),
-                PlotI18n.tr("plugin.earthwork.three_point_canvas_x", String.format("%.1f", canvasX[0])))) {
+                PlotI18n.tr("plugin.earthwork.three_point_canvas_x", String.format("%.1f", canvasX[0])));
+            if (ImGui.isItemActivated()) {
                 projectHistory.push(project);
+            }
+            if (xChanged) {
                 region.setThreePointCanvasX(i, canvasX[0]);
+                invalidatePreview();
             }
 
             float[] canvasZ = {(float) region.getThreePointCanvasY(i)};
-            if (ImGui.sliderFloat("##three_point_z_" + i, canvasZ,
+            boolean zChanged = ImGui.sliderFloat("##three_point_z_" + i, canvasZ,
                 (float) bounds.minZ(), (float) bounds.maxZ(),
-                PlotI18n.tr("plugin.earthwork.three_point_canvas_z", String.format("%.1f", canvasZ[0])))) {
+                PlotI18n.tr("plugin.earthwork.three_point_canvas_z", String.format("%.1f", canvasZ[0])));
+            if (ImGui.isItemActivated()) {
                 projectHistory.push(project);
+            }
+            if (zChanged) {
                 region.setThreePointCanvasY(i, canvasZ[0]);
+                invalidatePreview();
             }
 
             int[] elevation = {region.getThreePointElevation(i)};
-            if (ImGui.sliderInt("##three_point_y_" + i, elevation, -64, 320,
-                PlotI18n.tr("plugin.earthwork.three_point_elevation", elevation[0]))) {
+            boolean yChanged = ImGui.sliderInt("##three_point_y_" + i, elevation, -64, 320,
+                PlotI18n.tr("plugin.earthwork.three_point_elevation", elevation[0]));
+            if (ImGui.isItemActivated()) {
                 projectHistory.push(project);
+            }
+            if (yChanged) {
                 region.setThreePointElevation(i, elevation[0]);
+                invalidatePreview();
             }
 
             boolean pickingThisPoint = threePointPickSession.isActive()
@@ -541,6 +591,7 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.fit_slope_balance"), balanceRef)) {
             projectHistory.push(project);
             region.setFitSlopeBalanceCutFill(balanceRef.get());
+            invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fit_slope_balance");
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.fit_slope_hint"));
@@ -780,6 +831,7 @@ public class EarthworkPlugin extends Plugin {
                             ? ""
                             : project.getRegions().keySet().iterator().next();
                     }
+                    clearPreview();
                 }
                 pendingDeleteRegionId = "";
                 ImGui.closeCurrentPopup();
@@ -899,6 +951,7 @@ public class EarthworkPlugin extends Plugin {
                         outcome.getControlPointIndex(),
                         pick.canvasPoint(),
                         pick.elevation());
+                    invalidatePreview();
                     projectStatus = PlotI18n.tr(
                         "status.plot.earthwork.three_point_pick_success",
                         outcome.getControlPointIndex() + 1);
@@ -922,13 +975,23 @@ public class EarthworkPlugin extends Plugin {
             return;
         }
 
-        projectHistory.push(project);
-        int adopted = 0;
+        // 先收集有效轮廓，避免 0 认领仍 push 历史
+        List<List<Vec2d>> validOutlines = new ArrayList<>();
         for (Shape shape : selectedRegions) {
             List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(shape);
-            if (points.size() < 3) {
-                continue;
+            if (points.size() >= 3) {
+                validOutlines.add(points);
             }
+        }
+        if (validOutlines.isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.adopt_no_selection");
+            selectedRegions.clear();
+            return;
+        }
+
+        projectHistory.push(project);
+        int adopted = 0;
+        for (List<Vec2d> points : validOutlines) {
             GradingRegion region = new GradingRegion(points);
             region.setName(PlotI18n.tr("plugin.earthwork.default_name", adopted + 1));
             region.setAutoBalance(config.isAutoBalance());
@@ -943,6 +1006,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         selectedRegions.clear();
+        clearPreview();
         projectStatus = adopted > 1
             ? PlotI18n.tr("plugin.earthwork.adopt_success_batch", adopted)
             : PlotI18n.tr("plugin.earthwork.adopt_success");
@@ -960,8 +1024,15 @@ public class EarthworkPlugin extends Plugin {
             ghostBlockManager.clearAllGhostBlocks();
         }
 
-        lastGenerationResult = earthworkGenerator.generate(region, world);
-        if (lastGenerationResult == null) {
+        try {
+            lastGenerationResult = earthworkGenerator.generate(region, world);
+        } catch (Exception e) {
+            LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
+            lastGenerationResult = null;
+            projectStatus = PlotI18n.tr("plugin.earthwork.generate_empty_result");
+            return false;
+        }
+        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             projectStatus = PlotI18n.tr("plugin.earthwork.generate_empty_result");
             return false;
         }
@@ -996,6 +1067,21 @@ public class EarthworkPlugin extends Plugin {
         lastGenerationResult = null;
     }
 
+    /** 参数/工程变更后使预览失效，并清零区域上次统计，避免陈旧数据误导。 */
+    private void invalidatePreview() {
+        boolean hadPreview = lastGenerationResult != null;
+        clearPreview();
+        if (project != null) {
+            for (GradingRegion region : project.getRegions().values()) {
+                region.setLastCutVolume(0);
+                region.setLastFillVolume(0);
+            }
+        }
+        if (hadPreview) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.preview_invalidated");
+        }
+    }
+
     private void buildInWorld() {
         // 创建不可变快照，避免异步任务中的并发问题
         final EarthworkGenerator.EarthworkGenerationResult resultSnapshot;
@@ -1024,8 +1110,14 @@ public class EarthworkPlugin extends Plugin {
         projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress", records.size());
         command.executeScheduled(() -> {
             EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
+            // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
-                projectStatus = PlotI18n.tr("plugin.earthwork.build_cancelled", result.success(), result.total());
+                if (result.success() > 0) {
+                    CommandManager.getInstance().pushExecuted(command);
+                }
+                projectStatus = PlotI18n.tr(
+                    "plugin.earthwork.build_cancelled", result.success(), result.total());
+                clearPreview();
                 return;
             }
             CommandManager.getInstance().pushExecuted(command);
@@ -1086,9 +1178,13 @@ public class EarthworkPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentProjectFile = ProjectPathHasher.projectFileName(filePath);
-        loadProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.earthwork.project.loaded", filePath);
+        String targetFile = ProjectPathHasher.projectFileName(filePath);
+        Path file = getProjectsDir().resolve(targetFile);
+        // 仅加载成功后才绑定路径，避免失败时把旧工程写进新文件
+        if (loadProjectFile(file)) {
+            currentProjectFile = targetFile;
+            projectStatus = PlotI18n.tr("plugin.earthwork.project.loaded", filePath);
+        }
     }
 
     private void onProjectSaved(String filePath) {
@@ -1096,24 +1192,36 @@ public class EarthworkPlugin extends Plugin {
             return;
         }
         currentProjectFile = ProjectPathHasher.projectFileName(filePath);
-        saveProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.earthwork.project.saved", filePath);
+        if (saveProjectFile(getProjectsDir().resolve(currentProjectFile))) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.project.saved", filePath);
+        }
     }
 
     private void persistProject() {
         saveProjectFile(getProjectsDir().resolve(currentProjectFile));
     }
 
-    private void loadProjectFile(Path file) {
+    /**
+     * @return true 若加载成功（含文件不存在时返回空项目）
+     */
+    private boolean loadProjectFile(Path file) {
         try {
-            project = EarthworkProject.loadFrom(file);
+            EarthworkProject loaded = EarthworkProject.loadFrom(file);
+            project = loaded;
             projectHistory.clear();
             selectedRegionId = project.getRegions().isEmpty()
                 ? ""
                 : project.getRegions().keySet().iterator().next();
+            regionNameEditingRegionId = "";
+            pickSession.cancel();
+            threePointPickSession.cancel();
+            selectedRegions.clear();
+            clearPreview();
+            return true;
         } catch (IOException e) {
             LOGGER.error("加载土方项目失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.earthwork.project.load_failed", file.getFileName());
+            return false;
         }
     }
 
@@ -1123,17 +1231,31 @@ public class EarthworkPlugin extends Plugin {
             onProjectLoaded(current.getFilePath());
             return;
         }
-        currentProjectFile = DEFAULT_PROJECT_FILE;
-        loadProjectFile(getProjectsDir().resolve(currentProjectFile));
-        projectStatus = PlotI18n.tr("plugin.earthwork.project.default_loaded");
+        Path file = getProjectsDir().resolve(DEFAULT_PROJECT_FILE);
+        if (loadProjectFile(file)) {
+            currentProjectFile = DEFAULT_PROJECT_FILE;
+            projectStatus = PlotI18n.tr("plugin.earthwork.project.default_loaded");
+        }
     }
 
-    private void saveProjectFile(Path file) {
+    private boolean saveProjectFile(Path file) {
+        if (file == null || project == null) {
+            return false;
+        }
         try {
+            String json = project.toJson();
+            int contentHash = 31 * json.hashCode() + file.toAbsolutePath().normalize().hashCode();
+            if (contentHash == lastSavedContentHash) {
+                LOGGER.debug("土方项目内容未变，跳过重复保存: {}", file.getFileName());
+                return true;
+            }
             project.saveTo(file);
+            lastSavedContentHash = contentHash;
+            return true;
         } catch (IOException e) {
             LOGGER.error("保存土方项目失败: {}", e.getMessage(), e);
             projectStatus = PlotI18n.tr("plugin.earthwork.project.save_failed", file.getFileName());
+            return false;
         }
     }
 

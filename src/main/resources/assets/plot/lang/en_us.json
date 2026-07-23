@@ -713,6 +713,7 @@
   "plugin.earthwork.project.load_failed": "Failed to load earthwork project: %s",
   "plugin.earthwork.project.save_failed": "Failed to save earthwork project: %s",
   "plugin.earthwork.project.default_loaded": "Default earthwork project loaded",
+  "plugin.earthwork.preview_invalidated": "Earthwork parameters changed; preview invalidated — recalculate preview",
   "plugin.earthwork.history.generate": "Grade terrain (%d blocks)",
   "plugin.earthwork.history.generate.detail": "Place earthwork blocks (%d changes)",
   "plugin.road.path_selected": "Selected path: %.1f m",
