@@ -60,10 +60,15 @@ public final class RoadBatchCrossSectionEditor {
             includeShoulder = shoulderRef.get();
         }
         if (includeShoulder) {
-            int[] shoulderWidthArr = {shoulderWidth};
+            int[] shoulderWidthArr = {
+                Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, shoulderWidth)
+            };
             if (ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidthArr[0]) + "##batch_shoulder_w",
-                shoulderWidthArr, 0, RoadParameterLimits.MAX_STRIP_WIDTH, "%d")) {
+                shoulderWidthArr,
+                RoadParameterLimits.MIN_STRIP_WIDTH,
+                RoadParameterLimits.MAX_STRIP_WIDTH,
+                "%d")) {
                 shoulderWidth = shoulderWidthArr[0];
             }
             shoulderWidth = shoulderWidthArr[0];

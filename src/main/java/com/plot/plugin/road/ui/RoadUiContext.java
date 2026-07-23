@@ -171,4 +171,13 @@ public final class RoadUiContext {
     public void pushHistoryAndInvalidatePreview() {
         networkManager.pushHistory();
     }
+
+    /**
+     * 全局配置（桥/隧阈值、采样、默认横断面等）变更后调用：使预览失效，避免按过期参数落地。
+     */
+    public void onGenerationConfigChanged() {
+        if (previewManager != null) {
+            previewManager.invalidatePreview();
+        }
+    }
 }

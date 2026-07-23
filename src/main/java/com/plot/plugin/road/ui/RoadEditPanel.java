@@ -83,17 +83,13 @@ public final class RoadEditPanel {
             return;
         }
 
+        // 多选：仅批量编辑；单选：仅单条详情，避免两套控件重叠误导用户
         if (selectedEdgeCount > 1) {
             renderBatchEditPanel();
-            ImGui.separator();
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.single_edge_disabled_multi", selectedEdgeCount));
             return;
         }
 
         if (selectedEdgeCount == 1) {
-            renderBatchEditPanel();
             renderSingleEdgeDetail(network);
             return;
         }

@@ -17,6 +17,12 @@ public final class RoadParameterLimits {
     public static final int STREETLIGHT_DISABLED = 0;
     public static final int MIN_STREETLIGHT_SPACING = 8;
     public static final int MAX_STREETLIGHT_SPACING = 50;
+    public static final int MIN_BRIDGE_THRESHOLD = 1;
+    public static final int MAX_BRIDGE_THRESHOLD = 20;
+    public static final int MIN_TUNNEL_THRESHOLD = 1;
+    public static final int MAX_TUNNEL_THRESHOLD = 30;
+    public static final double MIN_PATH_SAMPLE_DISTANCE = 0.5;
+    public static final double MAX_PATH_SAMPLE_DISTANCE = 5.0;
     public static final double MIN_CONTINUOUS_SLOPE_LENGTH = 5.0;
     public static final double MAX_CONTINUOUS_SLOPE_LENGTH = 100.0;
     public static final double MIN_RELAXED_SLOPE_LENGTH = 1.0;

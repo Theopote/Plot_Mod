@@ -32,6 +32,10 @@ public final class RoadGeneratePanel {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean hasNetwork = !network.getEdges().isEmpty();
 
+        // 全局生成参数放在生成 Tab 顶部，便于在预览/落地前调整
+        RoadGenerationSettingsPanel.render(ctx, true);
+        ImGui.separator();
+
         if (!hasNetwork) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
             ImGui.beginDisabled();

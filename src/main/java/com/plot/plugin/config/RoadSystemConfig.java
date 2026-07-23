@@ -242,7 +242,9 @@ public class RoadSystemConfig {
     }
     
     public void setBridgeThreshold(int bridgeThreshold) {
-        this.bridgeThreshold = Math.max(1, Math.min(20, bridgeThreshold));
+        this.bridgeThreshold = Math.max(
+            RoadParameterLimits.MIN_BRIDGE_THRESHOLD,
+            Math.min(RoadParameterLimits.MAX_BRIDGE_THRESHOLD, bridgeThreshold));
     }
     
     public int getTunnelThreshold() {
@@ -250,7 +252,9 @@ public class RoadSystemConfig {
     }
     
     public void setTunnelThreshold(int tunnelThreshold) {
-        this.tunnelThreshold = Math.max(1, Math.min(30, tunnelThreshold));
+        this.tunnelThreshold = Math.max(
+            RoadParameterLimits.MIN_TUNNEL_THRESHOLD,
+            Math.min(RoadParameterLimits.MAX_TUNNEL_THRESHOLD, tunnelThreshold));
     }
 
     public double getFillCostPerVolume() {
@@ -322,7 +326,9 @@ public class RoadSystemConfig {
     }
 
     public void setPathSampleDistance(double pathSampleDistance) {
-        this.pathSampleDistance = Math.max(0.1, Math.min(10.0, pathSampleDistance));
+        this.pathSampleDistance = Math.max(
+            RoadParameterLimits.MIN_PATH_SAMPLE_DISTANCE,
+            Math.min(RoadParameterLimits.MAX_PATH_SAMPLE_DISTANCE, pathSampleDistance));
     }
 
     public boolean isIncludeShoulder() {

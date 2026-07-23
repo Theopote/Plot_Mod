@@ -147,12 +147,18 @@ public final class RoadCrossSectionEditor {
             road.setIncludeShoulder(shoulderRef.get());
         }
         if (road.getEffectiveIncludeShoulder(config)) {
+            int rawShoulder = road.getShoulderWidth() != null
+                ? road.getShoulderWidth()
+                : config.getShoulderWidth();
             int[] shoulderWidth = {
-                road.getShoulderWidth() != null ? road.getShoulderWidth() : config.getShoulderWidth()
+                Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, rawShoulder)
             };
             boolean shoulderChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0]) + "##shoulder_w",
-                shoulderWidth, 0, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
+                shoulderWidth,
+                RoadParameterLimits.MIN_STRIP_WIDTH,
+                RoadParameterLimits.MAX_STRIP_WIDTH,
+                "%d");
             if (ImGui.isItemActivated() && onHistory != null) {
                 onHistory.run();
             }
@@ -291,19 +297,24 @@ public final class RoadCrossSectionEditor {
             }
         }
 
-        int[] lightSpacing = {road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0};
+        // 0 = 关闭；开启时最小间距与 normalize 一致，避免设 1–7 被静默抬到 8
+        int currentLights = road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0;
+        int[] lightSpacing = {currentLights};
         boolean lightsChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.streetlight_spacing") + "##lights",
             lightSpacing,
             RoadParameterLimits.STREETLIGHT_DISABLED,
             RoadParameterLimits.MAX_STREETLIGHT_SPACING,
-            "%dm");
+            lightSpacing[0] <= 0 ? PlotI18n.tr("plugin.road.streetlight_off") : "%dm");
         if (ImGui.isItemActivated() && onHistory != null) {
             onHistory.run();
         }
         if (lightsChanged) {
-            road.setStreetlightSpacing(lightSpacing[0]);
-            lightSpacing[0] = road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0;
+            int value = lightSpacing[0];
+            if (value > 0 && value < RoadParameterLimits.MIN_STREETLIGHT_SPACING) {
+                value = RoadParameterLimits.MIN_STREETLIGHT_SPACING;
+            }
+            road.setStreetlightSpacing(value);
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
