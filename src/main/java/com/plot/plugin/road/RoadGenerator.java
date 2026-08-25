@@ -1300,7 +1300,8 @@ public class RoadGenerator {
             : getBlockIdFromMaterial(crossSection.cutSlopeMaterial);
         float fillRatio = crossSection.fillSlopeRatio;
         float cutRatio = crossSection.cutSlopeRatio;
-        int maxHorizontalRun = 32;
+        // 普通挖填段的边坡只负责接回邻近地形；更大的高差应由桥梁/隧道承担。
+        int maxHorizontalRun = 16;
         double outerOffset = RoadDimensionUtils.halfExtentFromCenter(shoulderWidth) * unitsPerBlock;
 
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
@@ -1314,7 +1315,9 @@ public class RoadGenerator {
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = leftNormalForSegment(segment);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            for (int j = 0; j <= samples; j++) {
+            // 不在每条拓扑边的端点展开边坡。逻辑道路被路口切成大量短边时，端点边坡会
+            // 以不同法向反复叠加，形成扇形尖刺；中间采样足以覆盖连续路段。
+            for (int j = 1; j < samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
@@ -1358,6 +1361,10 @@ public class RoadGenerator {
         boolean isFill = targetY > groundAtEdge;
         int profileDirection = isFill ? -1 : 1;
         float slopeRatio = isFill ? fillRatio : cutRatio;
+        int heightDifference = Math.abs(targetY - groundAtEdge);
+        int usefulHorizontalRun = Math.min(
+            maxHorizontalRun,
+            Math.max(2, (int) Math.ceil(heightDifference * Math.max(0.5f, slopeRatio)) + 2));
 
         List<int[]> profile = RoadSlopeUtils.computeSlopeProfile(
             targetY,
@@ -1365,7 +1372,7 @@ public class RoadGenerator {
             horizontalOffset -> terrain.sampleSurfaceY(
                 outerEdge.add(normal.multiply(horizontalOffset * scale))),
             slopeRatio,
-            maxHorizontalRun
+            usefulHorizontalRun
         );
 
         for (int step = 1; step < profile.size(); step++) {
