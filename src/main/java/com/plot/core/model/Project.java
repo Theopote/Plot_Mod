@@ -21,8 +21,10 @@ import org.slf4j.LoggerFactory;
 import java.awt.Color;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -34,6 +36,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class Project {
     private static final Logger LOGGER = LoggerFactory.getLogger(Project.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    /** 写入中的临时文件后缀 */
+    public static final String TEMP_SUFFIX = ".tmp";
+    /** 上一次成功保存的备份后缀 */
+    public static final String BACKUP_SUFFIX = ".bak";
+    /** 自动保存副本后缀（每次成功保存后更新） */
+    public static final String AUTOSAVE_SUFFIX = ".autosave";
 
     private String name;
     private final String id;
@@ -188,6 +197,9 @@ public class Project {
         if (filePath == null) {
             throw new IllegalArgumentException("filePath must not be null");
         }
+        if (!Files.isRegularFile(filePath)) {
+            throw new IOException("Project file does not exist: " + filePath);
+        }
         String data = Files.readString(filePath, StandardCharsets.UTF_8);
         Project project = deserialize(data);
         project.setFilePath(filePath.toString());
@@ -199,6 +211,7 @@ public class Project {
 
     /**
      * 捕获当前运行时状态并保存到磁盘，同时发布 {@link ProjectSavedEvent}。
+     * 使用临时文件 + JSON 校验 + 原子替换，并在覆盖前保留 .bak / .autosave 副本。
      */
     public static void saveToFile(AppState appState, Path filePath) throws IOException {
         if (filePath == null) {
@@ -206,7 +219,8 @@ public class Project {
         }
         Project project = captureFromAppState(appState);
         project.setFilePath(filePath.toString());
-        Files.writeString(filePath, project.serialize(), StandardCharsets.UTF_8);
+        String serialized = project.serialize();
+        writeAtomically(filePath, serialized);
         project.setModified(false);
         appState.setCurrentProject(project);
         EventBus.getInstance().publish(new ProjectSavedEvent(project.getId(), project.getFilePath()));
@@ -258,22 +272,96 @@ public class Project {
         return GSON.toJson(snapshot);
     }
 
-    public static Project deserialize(String data) {
+    public static Project deserialize(String data) throws ProjectFormatException {
         if (data == null || data.isBlank()) {
-            LOGGER.warn("项目反序列化失败：输入为空");
-            return new Project(PlotI18n.defaultProjectName());
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.EMPTY_INPUT,
+                    PlotI18n.error("error.plot.project.empty_input"));
         }
 
+        final ProjectSnapshot snapshot;
         try {
-            ProjectSnapshot snapshot = GSON.fromJson(data, ProjectSnapshot.class);
-            if (snapshot == null) {
-                LOGGER.warn("项目反序列化失败：JSON 解析结果为空");
-                return new Project(PlotI18n.defaultProjectName());
-            }
-            return fromSnapshot(snapshot);
+            snapshot = GSON.fromJson(data, ProjectSnapshot.class);
         } catch (JsonSyntaxException e) {
-            LOGGER.error("项目反序列化失败：JSON 格式无效", e);
-            return new Project(PlotI18n.defaultProjectName());
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.INVALID_JSON,
+                    PlotI18n.error("error.plot.project.invalid_json"),
+                    e);
+        }
+
+        if (snapshot == null) {
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.VALIDATION_FAILED,
+                    PlotI18n.error("error.plot.project.null_snapshot"));
+        }
+
+        validateSnapshot(snapshot);
+        return fromSnapshot(snapshot);
+    }
+
+    private static void validateSnapshot(ProjectSnapshot snapshot) throws ProjectFormatException {
+        if (snapshot.formatVersion != ProjectSnapshot.CURRENT_FORMAT_VERSION) {
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
+                    PlotI18n.error("error.plot.project.unsupported_format",
+                            snapshot.formatVersion, ProjectSnapshot.CURRENT_FORMAT_VERSION));
+        }
+        if (snapshot.layers == null) {
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.VALIDATION_FAILED,
+                    PlotI18n.error("error.plot.project.missing_layers"));
+        }
+        boolean hasIdentity = (snapshot.id != null && !snapshot.id.isBlank())
+                || (snapshot.name != null && !snapshot.name.isBlank());
+        if (!hasIdentity) {
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.VALIDATION_FAILED,
+                    PlotI18n.error("error.plot.project.missing_identity"));
+        }
+    }
+
+    /**
+     * 原子写入：先写 .tmp → 校验 JSON → 备份原文件为 .bak → 原子替换 → 更新 .autosave。
+     */
+    static void writeAtomically(Path target, String content) throws IOException {
+        if (target == null) {
+            throw new IllegalArgumentException("target must not be null");
+        }
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        Path tempFile = Path.of(target.toString() + TEMP_SUFFIX);
+        try {
+            Files.writeString(tempFile, content, StandardCharsets.UTF_8);
+            deserialize(Files.readString(tempFile, StandardCharsets.UTF_8));
+
+            if (Files.isRegularFile(target)) {
+                Path backupFile = Path.of(target.toString() + BACKUP_SUFFIX);
+                Files.copy(target, backupFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            atomicMove(tempFile, target);
+
+            Path autosaveFile = Path.of(target.toString() + AUTOSAVE_SUFFIX);
+            Files.copy(target, autosaveFile, StandardCopyOption.REPLACE_EXISTING);
+        } catch (ProjectFormatException e) {
+            Files.deleteIfExists(tempFile);
+            throw new IOException(PlotI18n.error("error.plot.project.save_validation_failed"), e);
+        } catch (IOException e) {
+            Files.deleteIfExists(tempFile);
+            throw e;
+        }
+    }
+
+    private static void atomicMove(Path source, Path target) throws IOException {
+        try {
+            Files.move(source, target,
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -295,11 +383,6 @@ public class Project {
     }
 
     private static Project fromSnapshot(ProjectSnapshot snapshot) {
-        if (snapshot.formatVersion != ProjectSnapshot.CURRENT_FORMAT_VERSION) {
-            LOGGER.warn("项目格式版本不匹配: expected={}, actual={}",
-                    ProjectSnapshot.CURRENT_FORMAT_VERSION, snapshot.formatVersion);
-        }
-
         String projectId = snapshot.id != null && !snapshot.id.isBlank()
                 ? snapshot.id
                 : UUID.randomUUID().toString();
