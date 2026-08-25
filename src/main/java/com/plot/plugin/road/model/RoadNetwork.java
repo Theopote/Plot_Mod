@@ -2,6 +2,7 @@ package com.plot.plugin.road.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
@@ -350,7 +351,11 @@ public class RoadNetwork {
         if (!Files.exists(file)) {
             return new RoadNetwork();
         }
-        return fromJson(Files.readString(file));
+        try {
+            return fromJson(Files.readString(file));
+        } catch (JsonParseException | IllegalStateException | NullPointerException e) {
+            throw new IOException("Invalid road network JSON: " + file, e);
+        }
     }
 
     RoadNetwork deepCopy() {

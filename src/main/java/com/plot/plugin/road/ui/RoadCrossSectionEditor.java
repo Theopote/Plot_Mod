@@ -291,10 +291,10 @@ public final class RoadCrossSectionEditor {
             maxSlope,
             EngineeringSlopeInput.ValueKind.GRADE
         )) {
-            road.setMaxSlope(maxSlope[0]);
             if (onHistory != null) {
                 onHistory.run();
             }
+            road.setMaxSlope(maxSlope[0]);
         }
 
         // 0 = 关闭；开启时最小间距与 normalize 一致，避免设 1–7 被静默抬到 8
@@ -342,10 +342,10 @@ public final class RoadCrossSectionEditor {
                 case 2 -> CenterLineStyle.DOUBLE_SOLID;
                 default -> CenterLineStyle.NONE;
             };
-            road.setCenterLineStyle(selected);
             if (onHistory != null) {
                 onHistory.run();
             }
+            road.setCenterLineStyle(selected);
         }
     }
 }

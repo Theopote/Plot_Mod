@@ -73,9 +73,17 @@ public final class RoadPreviewManager {
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
-        RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
-        lastGenerationResult = previewResult.aggregate();
-        lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
+        try {
+            RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
+            lastGenerationResult = previewResult.aggregate();
+            lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
+        } catch (RuntimeException e) {
+            lastGenerationResult = null;
+            lastEdgeResults = Collections.emptyMap();
+            status.set(PlotI18n.tr("plugin.road.generate_preview_failed"));
+            LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
+            return false;
+        }
 
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             status.set(PlotI18n.tr("plugin.road.generate_empty_result"));

@@ -2,6 +2,7 @@ package com.plot.plugin.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.plot.core.log.LogManager;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
@@ -96,7 +97,7 @@ public class RoadSystemConfig {
                     applyLoadedState(config, pluginId);
                 }
                 return config;
-            } catch (IOException e) {
+            } catch (IOException | JsonParseException e) {
                 LogManager.getInstance().error("Failed to load config: " + configPath, e);
             }
         }
@@ -104,9 +105,8 @@ public class RoadSystemConfig {
     }
 
     private static void applyLoadedState(RoadSystemConfig config, String pluginId) {
-        if (config.pluginId == null) {
-            config.pluginId = pluginId;
-        }
+        // 文件名决定配置归属；不要信任 JSON 中可能过期或被手工改坏的 pluginId。
+        config.pluginId = pluginId;
         if (config.presets == null) {
             config.initDefaultPresets();
         } else {

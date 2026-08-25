@@ -13,7 +13,11 @@ import com.plot.plugin.road.style.RoadStyleCatalog;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,9 +25,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkTest {
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    void loadFromReportsMalformedJsonAsIOException() throws IOException {
+        Path file = tempDir.resolve("broken.json");
+        Files.writeString(file, "{not valid json");
+
+        assertThrows(IOException.class, () -> RoadNetwork.loadFrom(file));
+    }
+
+    @Test
+    void loadFromReportsIncompleteDataAsIOException() throws IOException {
+        Path file = tempDir.resolve("incomplete.json");
+        Files.writeString(file, "{\"nodes\":[],\"edges\":null}");
+
+        assertThrows(IOException.class, () -> RoadNetwork.loadFrom(file));
+    }
 
     @Test
     void adoptSinglePolylineCreatesTwoNodesAndOneEdge() {
