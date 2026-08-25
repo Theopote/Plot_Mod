@@ -89,14 +89,13 @@ public final class RoadNodePropertyPanel {
                 ImGui.text(formatNodeLabel(node));
             }
             ImGui.sameLine();
-            renderNodeElevationControls(node, network, config, true);
-            ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.road.locate") + "##locate")) {
                 ctx.networkManager().handleNodeSelect(node.getId());
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("plugin.road.node_locate_hint"));
             }
+            renderNodeElevationControls(node, network, config, false);
             ImGui.popID();
         }
         ImGui.endChild();

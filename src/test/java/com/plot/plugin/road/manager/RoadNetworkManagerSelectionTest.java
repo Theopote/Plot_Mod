@@ -59,6 +59,17 @@ class RoadNetworkManagerSelectionTest {
     }
 
     @Test
+    void setSelectedNodeClearsExistingEdgeSelection() {
+        manager.handleEdgeSelect(edgeA, false);
+
+        manager.setSelectedNodeId(nodeId);
+
+        assertEquals(nodeId, manager.getSelectedNodeId());
+        assertTrue(manager.getSelectedEdgeIds().isEmpty());
+        assertTrue(manager.getPrimarySelectedEdgeId().isBlank());
+    }
+
+    @Test
     void applyUniformFlatElevationDoesNotWriteConfigMaxSlope() {
         RoadSystemConfig config = manager.getConfig();
         config.setMaxSlope(12f);

@@ -109,7 +109,16 @@ public final class RoadNetworkManager {
     }
 
     public void setSelectedNodeId(String selectedNodeId) {
-        this.selectedNodeId = selectedNodeId != null ? selectedNodeId : "";
+        if (selectedNodeId == null || selectedNodeId.isBlank()) {
+            this.selectedNodeId = "";
+            return;
+        }
+        if (network.getNode(selectedNodeId) == null) {
+            return;
+        }
+        this.selectedNodeId = selectedNodeId;
+        selectedEdgeIds.clear();
+        lastSelectedEdgeId = "";
     }
 
     public void clearNodeSelection() {

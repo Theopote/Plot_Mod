@@ -746,7 +746,7 @@
   "plugin.road.node_elevation_hint": "可为关键节点指定手动标高；关闭自动后使用固定 Y 值",
   "plugin.road.node_selected_detail": "当前选中节点",
   "plugin.road.node_elevation_list_hint": "浏览全部节点；点击「定位」可选中并在上方显示详情。",
-  "plugin.road.edit_select_hint": "请在示意图或上方列表中选中一条边或一个节点以编辑属性。",
+  "plugin.road.edit_select_hint": "请在示意图或列表中选中一条边或一个节点以编辑属性。",
   "plugin.road.node_elevation_auto": "自动标高",
   "plugin.road.grade_separation": "立体交叉",
   "plugin.road.grade_separation_none": "无",

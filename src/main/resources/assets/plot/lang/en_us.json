@@ -746,7 +746,7 @@
   "plugin.road.node_elevation_hint": "Set manual elevation for key nodes; disable auto mode to use fixed Y.",
   "plugin.road.node_selected_detail": "Selected Node",
   "plugin.road.node_elevation_list_hint": "Browse all nodes; click Locate to select one and show its details above.",
-  "plugin.road.edit_select_hint": "Select an edge or a node on the map or in the list above to edit its properties.",
+  "plugin.road.edit_select_hint": "Select an edge or a node on the map or in the list to edit its properties.",
   "plugin.road.node_elevation_auto": "Auto Elevation",
   "plugin.road.grade_separation": "Grade Separation",
   "plugin.road.grade_separation_none": "None",
