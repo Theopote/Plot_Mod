@@ -9,6 +9,11 @@ pluginManagement {
 			name = 'Fabric Snapshots'
 			url = 'https://maven.fabricmc.net/snapshots/'
 		}
+		// Maven Central 在部分地区被 Cloudflare 拦截（403），使用国内镜像
+		maven {
+			name = 'Aliyun Maven'
+			url = 'https://maven.aliyun.com/repository/public'
+		}
 		mavenCentral()
 		gradlePluginPortal()
 	}
