@@ -19,8 +19,7 @@ public final class RoadOverviewPanel {
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
         ImGui.text(PlotI18n.tr("plugin.road.network_stats",
-            network.getNodes().size(),
-            network.getEdges().size(),
+            network.getRoads().size(),
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
 

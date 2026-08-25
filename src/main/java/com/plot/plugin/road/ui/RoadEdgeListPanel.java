@@ -72,13 +72,16 @@ public final class RoadEdgeListPanel {
             ctx.networkManager().clearEdgeSelection();
         }
         ImGui.sameLine();
+        int selectedRoads = ctx.networkManager().getSelectedRoadIds().size();
         ImGui.textColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.selection_count",
-                ctx.networkManager().getSelectedEdgeIds().size(),
-                ctx.networkManager().filteredEdges(
-                    ctx.edgeSearchBuffer().get(),
-                    ctx.edgeSortMode(),
-                    ctx.currentCoordFilter()).size()));
+                selectedRoads,
+                RoadEdgeListHelper.groupByRoad(
+                    ctx.networkManager().getNetwork(),
+                    ctx.networkManager().filteredEdges(
+                        ctx.edgeSearchBuffer().get(),
+                        ctx.edgeSortMode(),
+                        ctx.currentCoordFilter())).size()));
     }
 
     public void renderList(boolean showDelete, String childId) {

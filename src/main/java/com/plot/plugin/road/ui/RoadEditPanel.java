@@ -362,18 +362,22 @@ public final class RoadEditPanel {
     }
 
     private void renderBatchEditPanel() {
-        int selectedCount = ctx.networkManager().getSelectedEdgeIds().size();
-        if (selectedCount == 0) {
+        int selectedEdgeCount = ctx.networkManager().getSelectedEdgeIds().size();
+        if (selectedEdgeCount == 0) {
             return;
         }
-        int headerFlags = selectedCount > 1 ? ImGuiTreeNodeFlags.DefaultOpen : 0;
+        int selectedRoadCount = ctx.networkManager().getSelectedRoadIds().size();
+        int displayCount = selectedRoadCount > 0 ? selectedRoadCount : selectedEdgeCount;
+        int headerFlags = selectedEdgeCount > 1 ? ImGuiTreeNodeFlags.DefaultOpen : 0;
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.batch_edit"), headerFlags)) {
             return;
         }
 
         RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();
         ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.batch_edit_hint", selectedCount));
+            PlotI18n.tr("plugin.road.batch_edit_hint", displayCount));
+        ImGui.textColored(PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.batch_cross_section_only"));
         RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);
     }
 }

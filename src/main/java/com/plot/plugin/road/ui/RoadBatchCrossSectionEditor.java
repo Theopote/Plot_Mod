@@ -34,7 +34,6 @@ public final class RoadBatchCrossSectionEditor {
         boolean laneDividers = draft.laneDividers();
         CenterLineStyle centerLineStyle = draft.centerLineStyle();
         final String[] markingMaterial = {draft.markingMaterial()};
-        float maxSlope = draft.maxSlope();
 
         int[] laneCountArr = {laneCount};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##batch_lanes", laneCountArr,
@@ -178,17 +177,6 @@ public final class RoadBatchCrossSectionEditor {
             false
         );
 
-        float[] maxSlopeArr = {maxSlope};
-        if (com.plot.ui.component.EngineeringSlopeInput.render(
-            "batch_max_slope",
-            PlotI18n.tr("plugin.road.max_slope_label"),
-            maxSlopeArr,
-            com.plot.ui.component.EngineeringSlopeInput.ValueKind.GRADE
-        )) {
-            maxSlope = maxSlopeArr[0];
-        }
-        maxSlope = maxSlopeArr[0];
-
         int[] lightSpacing = {streetlightSpacing};
         if (ImGui.sliderInt(
             PlotI18n.tr("plugin.road.streetlight_spacing") + "##batch_lights",
@@ -227,7 +215,7 @@ public final class RoadBatchCrossSectionEditor {
             laneDividers,
             centerLineStyle,
             markingMaterial[0],
-            maxSlope);
+            draft.maxSlope());
         ctx.networkManager().updateBatchEditDraft(updatedDraft);
 
         if (ImGui.button(PlotI18n.tr("plugin.road.apply_batch"), ImGui.getContentRegionAvailX(), 0)) {

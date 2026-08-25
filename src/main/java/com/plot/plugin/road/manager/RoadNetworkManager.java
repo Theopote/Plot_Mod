@@ -98,6 +98,18 @@ public final class RoadNetworkManager {
         return selectedEdgeIds;
     }
 
+    /** 面向 UI 的逻辑道路选择；隐藏一条道路被拓扑切成许多边的实现细节。 */
+    public LinkedHashSet<String> getSelectedRoadIds() {
+        LinkedHashSet<String> roadIds = new LinkedHashSet<>();
+        for (String edgeId : selectedEdgeIds) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge != null && edge.getRoadId() != null && !edge.getRoadId().isBlank()) {
+                roadIds.add(edge.getRoadId());
+            }
+        }
+        return roadIds;
+    }
+
     public String getSelectedNodeId() {
         return selectedNodeId;
     }
@@ -686,7 +698,8 @@ public final class RoadNetworkManager {
         road.setLaneDividers(draft.laneDividers());
         road.setCenterLineStyle(draft.centerLineStyle());
         road.setMarkingMaterial(draft.markingMaterial());
-        road.setMaxSlope(draft.maxSlope());
+        // 批量面板只编辑横断面和附属设施。纵坡属于路线设计，不能因为用户只想改宽度
+        // 就把第一条道路的坡度覆盖到所有选中道路。
     }
 
     public static List<RoadEdge.SlopeOverride> snapshotSlopeOverrides(List<RoadEdge.SlopeOverride> overrides) {

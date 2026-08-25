@@ -33,7 +33,7 @@ public final class RoadGeneratePanel {
         boolean hasNetwork = !network.getEdges().isEmpty();
 
         // 全局生成参数放在生成 Tab 顶部，便于在预览/落地前调整
-        RoadGenerationSettingsPanel.render(ctx, true);
+        RoadGenerationSettingsPanel.render(ctx, false);
         ImGui.separator();
 
         if (!hasNetwork) {
@@ -43,6 +43,7 @@ public final class RoadGeneratePanel {
         if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
             if (ctx.previewManager().calculateNetworkPreview(network)) {
                 syncProfileEdgeSelection(network);
+                ctx.previewManager().projectRoadPreview();
             }
         }
         if (!hasNetwork) {
@@ -59,19 +60,6 @@ public final class RoadGeneratePanel {
             profileEdgeId = "";
         }
         if (!hasPreview) {
-            ImGui.endDisabled();
-        }
-
-        if (!hasNetwork) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.road.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-            if (ctx.previewManager().calculateNetworkPreview(network)) {
-                syncProfileEdgeSelection(network);
-                ctx.requestBuildConfirm();
-            }
-        }
-        if (!hasNetwork) {
             ImGui.endDisabled();
         }
 
@@ -110,24 +98,13 @@ public final class RoadGeneratePanel {
                 ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
             }
 
-            if (!hasPlacements) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.road.projection_ref"), half, 0)) {
-                ctx.previewManager().projectRoadPreview();
-            }
-            if (!hasPlacements) {
-                ImGui.endDisabled();
-            }
-
-            ImGui.sameLine();
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
                 || BlockPlacementScheduler.getInstance().isBusy();
             if (buildDisabled) {
                 ImGui.beginDisabled();
             }
-            if (ImGui.button(PlotI18n.tr("plugin.road.build"), half, 0)) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.build"), ImGui.getContentRegionAvailX(), 0)) {
                 ctx.requestBuildConfirm();
             }
             if (buildDisabled) {
