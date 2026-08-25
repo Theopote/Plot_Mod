@@ -9,7 +9,7 @@
 2. Clear shape selection
 3. Clear ghost block previews
 
-To exit Plot, click the **close button (✕)** in the top-right corner.
+To exit Plot, click the **close button** in the top-right system panel.
 
 ### Clicks on the canvas don't work
 
@@ -32,6 +32,10 @@ You need ghost block previews first:
 - Use the **Eraser** tool
 - All deletions are undoable with `Ctrl+Z`
 
+### How to clear the entire canvas?
+
+Click **Clear Canvas** in the **Tool Settings** area of the top control panel. The operation is undoable (`Ctrl+Z`).
+
 ---
 
 ## Shortcuts
@@ -51,6 +55,10 @@ You need ghost block previews first:
 
 Modify it in Minecraft **Settings -> Controls -> Plot**, not in Plot's shortcut settings.
 
+### Can Ctrl+A and Delete be changed in shortcut settings?
+
+No. `Ctrl+A` (select all) and `Delete` (delete) are hardcoded global shortcuts and are not in the Keymap table.
+
 ---
 
 ## View
@@ -59,13 +67,15 @@ Modify it in Minecraft **Settings -> Controls -> Plot**, not in Plot's shortcut 
 
 | Action | Function |
 |--------|----------|
-| Scroll wheel | Zoom |
-| Middle-mouse drag | Pan |
-| View range slider | Adjust visible range |
+| **View range slider** | Adjust visible range (40–600) — primary zoom method |
+| **Middle-mouse drag** | Pan the canvas |
+| **Canvas opacity slider** | Adjust overlay transparency |
+
+> **The scroll wheel does not zoom the view.** The wheel only adjusts parameters in some tools (multi-line spacing, fillet/chamfer distance, spiral coefficients, etc.).
 
 ### View is locked
 
-Click the **Lock View** button to unlock.
+Click the **Lock View** button to unlock. While locked, the view range slider and middle-mouse pan are disabled.
 
 ### Return to normal gameplay camera
 
@@ -92,7 +102,7 @@ Maximum **14** slots.
 | Mode | Use case |
 |------|----------|
 | Full | Precise detail |
-| Simplified | Large structures; fewer blocks; adjustable ratio |
+| Simplified | Large structures; fewer blocks; ratio 0.1–1.0 |
 
 ---
 
@@ -100,7 +110,7 @@ Maximum **14** slots.
 
 ### Can I save projects?
 
-No unified save/load UI yet. Auto-persisted: keybindings, tool configs, plugin configs, plugin project data, and **gallery entries**. Canvas layer content is **not** saved as a project file when Plot closes. Use the [Gallery](07-gallery.md) to save and reuse shapes.
+No unified save/load UI yet. Auto-persisted: keybindings, tool configs, plugin configs, plugin project data (`plot/plugins/`), and **gallery entries**. Canvas layer content is **not** saved as a project file when Plot closes. Use the [Gallery](07-gallery.md) to save and reuse shapes.
 
 ### Where are the extension plugins?
 
@@ -108,7 +118,22 @@ Switch to the **Extension** tab on the right, click a plugin icon, and check **E
 
 ### Tools in lang files but not available?
 
-**Fill** and **Stretch** appear in language files but are not registered in the tool panel yet.
+**Fill** appears in language files but is not registered in the tool panel yet.
+
+**Stretch** is also not registered. For polyline corner rotation, use the **Transform** tool in the toolbar.
+
+---
+
+## Gallery
+
+### How do I place a gallery entry?
+
+1. Find the entry in the gallery list
+2. Click the **`+`** button on that row to enter placement mode
+3. Click on the canvas to set the position
+4. Press **Esc** or click **Cancel** to exit placement mode
+
+> There is no "open at canvas center" feature — placement position is determined by your canvas click.
 
 ---
 
@@ -130,7 +155,7 @@ No. Mobs continue moving. Use Plot in a safe area.
 
 ## Getting Help
 
-- In-game: **Plot logo -> Settings & Help -> Help & Tutorials** (8 chapters aligned with docs/)
+- In-game: **Plot Settings & Help -> Help & Tutorials** (8 chapters aligned with docs/)
 - Online: [docs/README.md](../README.md)
 - Issues: [GitHub Issues](https://github.com/Theopote/Plot_Mod/issues)
 

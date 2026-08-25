@@ -22,8 +22,8 @@ Plot is a Minecraft Fabric mod that brings CAD-style 2D planning tools into the 
 
 | Method | Action |
 |--------|--------|
-| **Keybinding** | Press **`0`** in-game (configurable under Controls -> Plot) |
-| **Item** | Use the **Plot** item from the creative **Tools** tab |
+| **Keybinding** | Press **`0`** in-game (configurable under **Settings -> Controls -> Plot**) |
+| **Item** | Use the **Plot** item from the creative **Tools** tab (right-click) |
 
 > You must be in a world with an active player to open Plot.
 
@@ -32,25 +32,25 @@ Plot is a Minecraft Fabric mod that brings CAD-style 2D planning tools into the 
 - Switches to an **orthographic top-down camera**
 - Hides the HUD (hotbar, player model) — the game **does not pause**
 - The Minecraft world remains visible behind a semi-transparent drawing overlay
-- The UI initializes on first open (ImGui)
+- The UI initializes on first open (ImGui) and creates the default dock layout
 
 ## Closing Plot
 
-Click the **close button (✕)** in the top-right corner.
+Click the **close button** in the top-right corner (system panel, icon button).
 
-> **Note:** `Esc` does **not** close Plot — it cancels operations and clears selections. See [FAQ](06-faq.md).
+> **Note:** `Esc` does **not** close Plot — it cancels operations, clears selection, or clears ghost blocks. See [FAQ](06-faq.md).
 
 On close, Plot automatically:
 - Restores the perspective camera and HUD
 - Clears ghost block previews
-- Saves tool configurations
+- Saves tool configurations and keybindings
 
 ## Five-Minute Tutorial
 
 ### 1. Draw a Line
 
 1. Press `L` or select the **Line** tool from the left toolbar
-2. Click a start point, then an end point
+2. Click a start point, then an end point in the central canvas area
 3. Hold **Shift** to constrain to horizontal/vertical
 
 ### 2. Select Shapes
@@ -65,10 +65,11 @@ On close, Plot automatically:
 
 1. With shapes selected, switch to the **Move** tool
 2. Click a base point, then a destination (or drag directly)
+3. Hold **Shift** to constrain to horizontal/vertical
 
 ### 4. Undo
 
-- Click **Undo** in the top toolbar, or press `Ctrl+Z`
+- Click **Undo** on the top control panel, or press `Ctrl+Z` (redo: `Ctrl+Y` or `Ctrl+Shift+Z`)
 
 ### 5. Convert to Blocks
 
@@ -83,10 +84,22 @@ See [Block Building](04-block-building.md) for the full workflow.
 
 | Action | Function |
 |--------|----------|
-| **Scroll wheel** | Zoom |
-| **Middle-mouse drag** | Pan |
-| **View range slider** | Adjust visible range (40–310) |
+| **View range slider** | Adjust visible range (40–600); disabled when view is locked |
+| **Middle-mouse drag** | Pan the canvas (disabled when view is locked) |
 | **Canvas opacity slider** | Adjust overlay transparency (0–100%) |
+| **Lock view** | When locked, pan and view range adjustment are disabled |
+
+> **Note:** The scroll wheel **does not** zoom the view. Use the **View Range** slider on the control panel to zoom.
+
+## Global Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+A` | Select all shapes on visible layers |
+| `Delete` | Delete selected shapes |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
+| `Esc` | Cancel operation -> clear selection -> clear ghost blocks |
 
 ## Next Steps
 

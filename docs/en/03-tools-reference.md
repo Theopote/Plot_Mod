@@ -169,6 +169,20 @@ Modes: Distance, Angle, Radius, Area.
 
 ## General Tips
 
-1. **Shift** — orthogonal constraints in most drawing tools
-2. **Snap** — combine with endpoint/midpoint/intersection snap for precision
-3. **Undo** — all operations support `Ctrl+Z`
+1. **Shift** — orthogonal constraints in most drawing tools; also temporarily disables snap when snap is on
+2. **Snap** — combine with endpoint/midpoint/intersection snap for precision; see [Settings & Shortcuts](05-settings-shortcuts.md)
+3. **Tool properties panel** — usage hints update when you switch modes
+4. **Scroll wheel** — adjusts parameters in some tools (multi-line spacing, fillet/chamfer distance, spiral coefficients, etc.); **does not** zoom the canvas
+5. **Control point editing** — drag nodes on a single selected shape; toggle display in Settings
+
+---
+
+## Tools Not Yet Enabled
+
+**Fill** and **Stretch** appear in language files but are not registered in the toolbar:
+
+| Tool | Status | Alternative |
+|------|--------|-------------|
+| Fill | Not registered | — |
+| Stretch | Not registered | Use **Transform** for polyline corner rotation |
+

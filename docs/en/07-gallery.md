@@ -12,7 +12,7 @@ Switch to the **Gallery** tab in the right sidebar (alongside **Property** and *
 |------|----------|
 | Search | Filter entries by name or description |
 | Categories | All / Building / Landscape / Shape, plus custom categories |
-| Item table | Name, description, action buttons |
+| Item table | Name, description, action buttons (`+` place, `×` delete) |
 | Toolbar | Save selection to gallery, add category |
 
 ## Built-in Presets
@@ -37,11 +37,13 @@ Saved entries persist locally across sessions.
 ## Placing on Canvas
 
 1. Find the entry in the gallery list
-2. Click **Open on canvas center** (or the place action)
-3. Click on the canvas to set the position
-4. Press **Esc** or cancel to exit placement mode
+2. Click the **`+`** button on that row (tooltip: **Place**)
+3. In placement mode, click on the canvas to set the position
+4. Press **Esc** or click **Cancel** to exit placement mode
 
-> While gallery placement is active, drawing tools do not receive clicks.
+> While gallery placement is active, drawing tools do not receive clicks. The status bar shows the active gallery item name.
+
+> **Note:** Placement position is determined by your canvas click — entries are not automatically placed at the canvas center.
 
 ## Managing Categories
 
@@ -49,11 +51,11 @@ Saved entries persist locally across sessions.
 |--------|-------------|
 | Add category | Create a custom category |
 | Rename | Via context menu (custom categories only) |
-| Delete | Requires confirmation; built-in categories cannot be deleted |
+| Delete | Requires confirmation; built-in categories cannot be deleted; entries move to **Building** |
 
 ## Deleting Entries
 
-User-saved entries can be removed via the delete button in the actions column (with confirmation).
+User-saved entries can be removed via the **`×`** delete button in the actions column (with confirmation).
 
 ## Tips
 

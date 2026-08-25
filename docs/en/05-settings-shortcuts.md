@@ -1,8 +1,12 @@
 # Settings & Shortcuts
 
+Plot provides extensive customization for shortcuts, snap, grid, and visual feedback.
+
+---
+
 ## Opening Settings
 
-Click the **Plot logo** in the top control panel to open **Settings & Help**.
+Click the **Plot Settings & Help** button on the far left of the top control panel to open **Settings & Help**.
 
 | Tab | Contents |
 |-----|----------|
@@ -49,17 +53,20 @@ Managed in **Settings & Help -> Shortcuts**. Saved to:
 #### Customizing
 
 1. Open **Settings & Help -> Shortcuts**
-2. Double-click a row or click **Edit**
-3. Press the desired key combination
-4. Click **Done**
+2. Use the search box to find actions quickly
+3. **Double-click** a row or click **Edit** to record
+4. Press the desired key combination
+5. Click **Done**
 
-- **Backspace** — clear binding
-- **Esc** — cancel recording
-- **Reset defaults** — restore all defaults
+| Action | Description |
+|--------|-------------|
+| **Backspace** | Clear current binding |
+| **Esc** | Cancel recording |
+| **Reset** | Restore all defaults |
 
 > **Note:** Opening Plot defaults to **`0`**, separate from Free Draw (`P`) inside Plot. Change it under Minecraft Controls if needed.
 
-> **Scope:** Keymap covers common drawing tools and undo/redo only. Tools like Spline, Polyline, and Move have no default shortcuts — activate from the toolbar.
+> **Scope:** Keymap covers common drawing tools and undo/redo only. Tools like spline, polyline, and move have no default shortcuts — activate from the left toolbar.
 
 ### Global Shortcuts (Not in Keymap UI)
 
@@ -80,15 +87,40 @@ Managed in **Settings & Help -> Shortcuts**. Saved to:
 - Right-click — detailed settings dialog
 
 ### Geometry Snap Types
-Endpoint, midpoint, center, centroid, vertex, quadrant, grid, perpendicular, intersection, nearest, control point, tangent.
+
+| Type | Description |
+|------|-------------|
+| Endpoint | Line segment endpoints |
+| Midpoint | Line segment midpoints |
+| Center | Circle/arc center |
+| Centroid | Closed shape centroid |
+| Vertex | Polygon vertices |
+| Quadrant | 0°/90°/180°/270° on circles/ellipses |
+| Grid | Grid intersections |
+| Perpendicular | Perpendicular foot |
+| Intersection | Shape intersections |
+| Nearest | Nearest point on shape |
+| Control point | Spline/Bezier control points |
+| Tangent | Tangent contact points |
 
 ### Relation Constraints
+
 Horizontal, vertical, parallel, extension.
 
 ### Other Options
-Snap radius (px/mm, Alt toggles unit), marker size (2–10 px), snap level (global/tool/layer), priority (type vs distance), exclude hidden layers, Shift to temporarily disable, marker animation.
+
+| Option | Description |
+|--------|-------------|
+| Snap radius | 1–50 px or 0.2–15 mm (Alt toggles unit) |
+| Marker size | 2–10 px |
+| Snap level | Global / tool / layer |
+| Priority | Type-first or distance-first |
+| Exclude hidden layers | Do not snap to hidden layers |
+| Shift temporary disable | Hold Shift to pause snap |
+| Marker animation | Visual feedback on snap hit |
 
 ### Snap & Feedback Tab
+
 Toggle marker types, customize colors per snap type, show control points / point indices, reset all colors.
 
 ---
@@ -100,11 +132,11 @@ Right-click the **Grid** button:
 | Parameter | Range |
 |-----------|-------|
 | Grid size | 8–64 |
-| Opacity | Slider |
-| Line width | Slider |
+| Opacity | 0.1–1.0 |
+| Line width | 0.5–3.0 |
 | Color | Color picker |
 
-Left-click toggles grid visibility.
+Left-click toggles grid visibility (enabled by default).
 
 ---
 
@@ -112,7 +144,14 @@ Left-click toggles grid visibility.
 
 Right-click **Camera Toggle**:
 
-Scale 0.1–10, view distance 0–100, near/far planes, reset to defaults.
+| Parameter | Range |
+|-----------|-------|
+| Scale | 0.1–10 |
+| View distance | 40–600 |
+| Near / far planes | Numeric input |
+| Reset defaults | One-click restore |
+
+> The **View Range** slider on the control panel controls the same value, range 40–600.
 
 ---
 
@@ -124,10 +163,11 @@ Top-right system panel: **Dark** / **Light** theme.
 
 ## Persisted Configuration
 
-| File | Contents |
-|------|----------|
+| File / location | Contents |
+|-----------------|----------|
 | `plot/keymap.json` | Keybindings |
-| Tool configs | Saved on Plot close |
-| `config/plugins/*.json` | Plugin configs |
+| Tool configs | Per-tool modes and parameters (saved on Plot close) |
+| `config/plugins/*.json` | Plugin global configs |
+| `plot/plugins/` | Plugin project data (road networks, earthwork regions, building projects) |
 
-> **Note:** There is currently **no** project save/load UI. Canvas content is not persisted as a project file when Plot closes. Command history is session-only.
+> **Note:** There is currently **no** canvas layer project save/load UI. Layer content is not persisted as a project file when Plot closes. Command history is session-only. Use the [Gallery](07-gallery.md) to save and reuse shape snippets.
