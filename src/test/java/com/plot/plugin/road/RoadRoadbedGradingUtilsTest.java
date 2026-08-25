@@ -74,6 +74,8 @@ class RoadRoadbedGradingUtilsTest {
         config.setTunnelThreshold(8);
         // 高差 4（60→64）需 <= bridgeThreshold 才会走路基填方而非桥梁
         config.setBridgeThreshold(5);
+        // 成本决策也必须选择填方；路基生成应遵循统一施工类型，而不是另行按阈值判断。
+        config.setBridgeBaseCost(1_000.0);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);

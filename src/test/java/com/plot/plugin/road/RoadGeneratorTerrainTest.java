@@ -131,6 +131,38 @@ class RoadGeneratorTerrainTest {
     }
 
     @Test
+    void bridgeSegmentsRemainSuspendedInsteadOfBeingFilledAsRoadbed() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(5);
+        config.setIncludeSidewalk(false);
+        config.setIncludeShoulder(true);
+        config.setBridgeThreshold(2);
+        config.setMinimumConsiderationHeight(0.0);
+        RoadGenerator generator = new RoadGenerator(config, null);
+        TerrainSampler valley = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return planPoint.x >= 5 && planPoint.x <= 15 ? 48 : 64;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y <= (worldX >= 5 && worldX <= 15 ? 48 : 64);
+            }
+        };
+
+        RoadGenerationResult result = generator.generateFromPathPoints(
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)), valley, 64);
+
+        assertTrue(result.bridgeLength > 0, "valley should be classified as a bridge run");
+        assertTrue(result.bridgeCount > 0);
+        assertEquals(0, result.fillVolume,
+            "bridge runs must not be filled to deck elevation by ordinary roadbed grading");
+        assertTrue(result.roadBlocks.stream().allMatch(pos -> pos.getY() == 64),
+            "a level design profile must produce one continuous deck elevation");
+    }
+
+    @Test
     void targetHeightDoesNotFollowSteepTerrainFully() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(10.0f);

@@ -205,7 +205,8 @@ public class RoadGenerator {
                 generateShoulderBlocks(solids, segments, heightInfos, shoulderCenterOffset,
                     shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial), unitsPerBlock);
                 generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, shoulderCenterOffset,
-                    shoulderWidth, pathPoints, terrain, crossSection, unitsPerBlock);
+                    shoulderWidth, terrain, crossSection, unitsPerBlock,
+                    detection.constructionTypes());
             }
 
             if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
@@ -252,7 +253,9 @@ public class RoadGenerator {
                 generateStreetlights(solids, pathPoints, terrain, crossSection, unitsPerBlock);
             }
 
-            gradeRoadEnvelope(solids, metrics, segments, heightInfos, crossSection, terrain, unitsPerBlock);
+            gradeRoadEnvelope(
+                solids, metrics, segments, heightInfos, crossSection, terrain, unitsPerBlock,
+                detection.constructionTypes());
 
             RoadGenerationResult result = new RoadGenerationResult(pathLength);
             result.cutVolume = metrics.cutVolume;
@@ -1085,6 +1088,16 @@ public class RoadGenerator {
     private static int averageHeight(int a, int b) {
         return (int) Math.round((a + b) / 2.0);
     }
+
+    static RoadConstructionType constructionTypeAt(
+            List<RoadConstructionType> constructionTypes,
+            int segmentIndex) {
+        if (constructionTypes == null || segmentIndex < 0 || segmentIndex >= constructionTypes.size()) {
+            return RoadConstructionType.ROAD;
+        }
+        RoadConstructionType type = constructionTypes.get(segmentIndex);
+        return type != null ? type : RoadConstructionType.ROAD;
+    }
     
     private double estimateCanvasUnitsPerBlock(List<Vec2d> pathPoints, List<PathSegment> segments) {
         Vec2d origin;
@@ -1177,7 +1190,8 @@ public class RoadGenerator {
             List<SegmentHeightInfo> heightInfos,
             ResolvedCrossSection crossSection,
             TerrainSampler terrain,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            List<RoadConstructionType> constructionTypes) {
         int sideBandWidth = crossSection.outerBandBlockCount();
         int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
         if (envelopeWidth <= 0) {
@@ -1200,22 +1214,31 @@ public class RoadGenerator {
                 return canvasToBlockPos(planPoint).getZ();
             }
         };
-        RoadRoadbedGradingUtils.GradingVolumes[] total = {RoadRoadbedGradingUtils.GradingVolumes.ZERO};
-        forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) ->
-            total[0] = total[0].add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
-                solids,
-                center,
-                leftNormal,
-                envelopeWidth,
-                targetY,
-                tunnelThreshold,
-                bridgeThreshold,
-                fillMaterialId,
-                terrain,
-                columnResolver,
-                unitsPerBlock)));
-        metrics.cutVolume = total[0].cutVolume();
-        metrics.fillVolume = total[0].fillVolume();
+        RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            RoadConstructionType type = constructionTypeAt(constructionTypes, i);
+            // 桥面必须悬空，不能再用路基填方把沟谷整个灌满。
+            if (type == RoadConstructionType.BRIDGE) {
+                continue;
+            }
+            PathSegment segment = segments.get(i);
+            SegmentHeightInfo info = heightInfos.get(i);
+            Vec2d leftNormal = leftNormalForSegment(segment);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                Vec2d center = segment.start.lerp(segment.end, t);
+                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                targetY = snapEndpointElevation(center, targetY);
+                total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
+                    solids, center, leftNormal, envelopeWidth, targetY,
+                    tunnelThreshold, bridgeThreshold, fillMaterialId,
+                    terrain, columnResolver, unitsPerBlock));
+            }
+        }
+        metrics.cutVolume = total.cutVolume();
+        metrics.fillVolume = total.fillVolume();
     }
 
     private void generateShoulderBlocks(
@@ -1261,10 +1284,10 @@ public class RoadGenerator {
             List<SegmentHeightInfo> heightInfos,
             double shoulderCenterOffset,
             int shoulderWidth,
-            List<Vec2d> pathPoints,
             TerrainSampler terrain,
             ResolvedCrossSection crossSection,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            List<RoadConstructionType> constructionTypes) {
         if (!crossSection.includeSlopeBatter) {
             return;
         }
@@ -1277,14 +1300,32 @@ public class RoadGenerator {
         int maxHorizontalRun = 32;
         double outerOffset = RoadDimensionUtils.halfExtentFromCenter(shoulderWidth) * unitsPerBlock;
 
-        forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) -> {
-            Vec2d left = center.add(leftNormal.multiply(shoulderCenterOffset));
-            Vec2d right = center.subtract(leftNormal.multiply(shoulderCenterOffset));
-            placeSlopeBatterAtPoint(solids, left, targetY, outerOffset, pathPoints, terrain,
-                fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun, 1, unitsPerBlock);
-            placeSlopeBatterAtPoint(solids, right, targetY, outerOffset, pathPoints, terrain,
-                fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun, -1, unitsPerBlock);
-        });
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            RoadConstructionType type = constructionTypeAt(constructionTypes, i);
+            // 桥梁和隧道采用结构化断面，不在两侧重复生成贴地边坡。
+            if (type == RoadConstructionType.BRIDGE || type == RoadConstructionType.TUNNEL) {
+                continue;
+            }
+            PathSegment segment = segments.get(i);
+            SegmentHeightInfo info = heightInfos.get(i);
+            Vec2d leftNormal = leftNormalForSegment(segment);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                Vec2d center = segment.start.lerp(segment.end, t);
+                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                targetY = snapEndpointElevation(center, targetY);
+                Vec2d left = center.add(leftNormal.multiply(shoulderCenterOffset));
+                Vec2d right = center.subtract(leftNormal.multiply(shoulderCenterOffset));
+                placeSlopeBatterAtPoint(solids, left, targetY, outerOffset, terrain,
+                    fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
+                    leftNormal, unitsPerBlock);
+                placeSlopeBatterAtPoint(solids, right, targetY, outerOffset, terrain,
+                    fillRatio, cutRatio, fillBlockId, cutBlockId, maxHorizontalRun,
+                    leftNormal.multiply(-1), unitsPerBlock);
+            }
+        }
     }
 
     private void placeSlopeBatterAtPoint(
@@ -1292,20 +1333,18 @@ public class RoadGenerator {
             Vec2d shoulderCenter,
             int targetY,
             double outerOffset,
-            List<Vec2d> pathPoints,
             TerrainSampler terrain,
             float fillRatio,
             float cutRatio,
             String fillBlockId,
             String cutBlockId,
             int maxHorizontalRun,
-            int sideSign,
+            Vec2d outwardNormal,
             double unitsPerBlock) {
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        int pathIndex = Math.max(0, Math.min(pathPoints.size() - 2,
-            RoadGeometryUtils.findNearestSegmentIndex(pathPoints, shoulderCenter)));
-        Vec2d direction = pathPoints.get(pathIndex + 1).subtract(pathPoints.get(pathIndex)).normalize();
-        Vec2d normal = new Vec2d(-direction.y, direction.x).multiply(sideSign);
+        Vec2d normal = outwardNormal != null && outwardNormal.lengthSquared() > 1e-12
+            ? outwardNormal.normalize()
+            : new Vec2d(0, 1);
         Vec2d outerEdge = shoulderCenter.add(normal.multiply(outerOffset));
 
         int groundAtEdge = terrain.sampleSurfaceY(outerEdge);
