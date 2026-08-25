@@ -824,7 +824,9 @@ public class RoadGenerator {
      */
     private List<PathSegment> samplePath(List<Vec2d> pathPoints) {
         // 采样密度：从配置读取（可配置的采样精度），验证范围防止除零或无限循环
-        double minSampleDistance = Math.max(0.1, Math.min(10.0, config.getPathSampleDistance()));
+        double worldSampleDistance = Math.max(0.1, Math.min(10.0, config.getPathSampleDistance()));
+        double canvasUnitsPerBlock = estimateCanvasUnitsPerBlock(pathPoints, null);
+        double minSampleDistance = worldSampleDistance * Math.max(0.05, Math.min(canvasUnitsPerBlock, 500.0));
 
         // 预先计算总段数，避免ArrayList频繁扩容
         List<PathSegment> segments = getPathSegments(pathPoints, minSampleDistance);
@@ -933,11 +935,12 @@ public class RoadGenerator {
 
         List<Double> distances = new ArrayList<>();
         List<Float> maxSlopes = new ArrayList<>();
+        double canvasUnitsPerBlock = estimateCanvasUnitsPerBlock(null, segments);
         double accumulatedDistance = 0.0;
         for (PathSegment segment : segments) {
-            distances.add(segment.distance);
+            distances.add(segment.distance / canvasUnitsPerBlock);
             maxSlopes.add(RoadModelUtils.getEffectiveMaxSlope(network, edge, config, accumulatedDistance));
-            accumulatedDistance += segment.distance;
+            accumulatedDistance += segment.distance / canvasUnitsPerBlock;
         }
 
         return buildSegmentHeights(
@@ -947,7 +950,8 @@ public class RoadGenerator {
             manualStartHeight,
             manualEndHeight,
             segmentIndex -> RoadModelUtils.getEffectiveMaxSlope(
-                network, edge, config, profileDistanceAtSegmentStart(sampleData, segmentIndex)));
+                network, edge, config,
+                profileDistanceAtSegmentStart(sampleData, segmentIndex, canvasUnitsPerBlock)));
     }
 
     private static Integer lookupNetworkNodeElevation(
@@ -1014,9 +1018,12 @@ public class RoadGenerator {
             Integer manualStartHeight,
             Integer manualEndHeight,
             java.util.function.IntFunction<Float> maxSlopeResolver) {
+        double canvasUnitsPerBlock = estimateCanvasUnitsPerBlock(null, segments);
+        List<Double> worldCumulativeDistances = toWorldDistances(
+            sampleData.cumulativeDistances(), canvasUnitsPerBlock);
         List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(
             sampleData.groundSamples(),
-            sampleData.cumulativeDistances(),
+            worldCumulativeDistances,
             config.getFillFactor(),
             manualStartHeight,
             manualEndHeight);
@@ -1031,7 +1038,7 @@ public class RoadGenerator {
         List<Double> distances = new ArrayList<>();
         List<Float> effectiveMaxSlopes = new ArrayList<>();
         for (int i = 0; i < segments.size(); i++) {
-            distances.add(segments.get(i).distance);
+            distances.add(segments.get(i).distance / canvasUnitsPerBlock);
             if (maxSlopes != null && maxSlopes.size() == segments.size()) {
                 effectiveMaxSlopes.add(maxSlopes.get(i));
             } else {
@@ -1061,7 +1068,7 @@ public class RoadGenerator {
             int targetStart = currentHeight;
             int targetEnd = targetEnds.get(i);
             double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
-                targetStart, targetEnd, segment.distance);
+                targetStart, targetEnd, segment.distance / canvasUnitsPerBlock);
             heightInfos.add(new SegmentHeightInfo(
                 segment,
                 sampleData.groundStarts().get(i),
@@ -1074,17 +1081,32 @@ public class RoadGenerator {
 
         return new SegmentHeightCalculation(
             heightInfos,
-            new ArrayList<>(sampleData.cumulativeDistances()),
+            worldCumulativeDistances,
             new ArrayList<>(sampleData.groundSamples()),
             new ArrayList<>(guideLine),
             buildProfileTargetHeights(heightInfos, manualStartHeight));
     }
 
-    private static double profileDistanceAtSegmentStart(HeightSampleData sampleData, int segmentIndex) {
+    private static List<Double> toWorldDistances(
+            List<Double> canvasDistances,
+            double canvasUnitsPerBlock) {
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
+        List<Double> worldDistances = new ArrayList<>(canvasDistances.size());
+        for (double distance : canvasDistances) {
+            worldDistances.add(distance / scale);
+        }
+        return worldDistances;
+    }
+
+    private static double profileDistanceAtSegmentStart(
+            HeightSampleData sampleData,
+            int segmentIndex,
+            double canvasUnitsPerBlock) {
         if (segmentIndex < 0 || segmentIndex >= sampleData.cumulativeDistances().size()) {
             return 0.0;
         }
-        return sampleData.cumulativeDistances().get(segmentIndex);
+        return sampleData.cumulativeDistances().get(segmentIndex)
+            / Math.max(1e-9, canvasUnitsPerBlock);
     }
 
     private static List<Integer> buildProfileTargetHeights(
