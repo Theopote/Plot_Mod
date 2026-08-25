@@ -421,7 +421,9 @@ public class SettingsAndHelpDialog {
     }
 
     private void renderHelpPage() {
+        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
         ImGui.textDisabled(PlotI18n.tr("settings.plot.help_select_topic"));
+        ImGui.popTextWrapPos();
 
         if (DialogLayoutHelper.beginSettingsPageBody("##help_scroll_region", 0.0f)) {
             if (ImGui.beginChild("##help_nav", HELP_NAV_WIDTH, 0, true)) {
@@ -449,14 +451,17 @@ public class SettingsAndHelpDialog {
         ImGui.text(PlotI18n.tr(topic.titleKey()));
         ImGui.separator();
         ImGui.spacing();
+        float wrapPos = ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
         for (String bulletKey : topic.bulletKeys()) {
             String text = PlotI18n.tr(bulletKey);
             if (text.equals(bulletKey)) {
                 LOGGER.warn("Missing help translation: {}", bulletKey);
                 text = bulletKey;
             }
-            ImGui.pushTextWrapPos(0.0f);
-            ImGui.bulletText(text);
+            ImGui.bullet();
+            ImGui.sameLine();
+            ImGui.pushTextWrapPos(wrapPos);
+            ImGui.textWrapped(text);
             ImGui.popTextWrapPos();
         }
     }
