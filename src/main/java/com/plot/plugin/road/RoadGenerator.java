@@ -1147,7 +1147,8 @@ public class RoadGenerator {
             } else if (type == RoadConstructionType.TUNNEL) {
                 // 段中点附近探测实心，减少仅测起点的误判
                 Vec2d mid = info.segment.start.lerp(info.segment.end, 0.5);
-                BlockPos pos = canvasToBlockPos(mid);
+                int targetY = Math.round((info.targetStart + info.targetEnd) / 2.0f);
+                BlockPos pos = canvasToBlockPos(mid).withY(targetY);
                 if (terrain.isSolidBlock(pos.getX(), pos.getY(), pos.getZ())) {
                     int heightDifference = Math.max(
                         info.groundStart - info.targetStart,

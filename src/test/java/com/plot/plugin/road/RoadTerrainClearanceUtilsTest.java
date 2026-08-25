@@ -101,6 +101,37 @@ class RoadTerrainClearanceUtilsTest {
     }
 
     @Test
+    void generatorKeepsTunnelClassificationWhenSolidTerrainStartsAtRoadLevel() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(3);
+        config.setTunnelThreshold(8);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeDrainage(false);
+
+        TerrainSampler terrain = new TerrainSampler() {
+            @Override
+            public int sampleSurfaceY(Vec2d planPoint) {
+                return 100;
+            }
+
+            @Override
+            public boolean isSolidBlock(int worldX, int y, int worldZ) {
+                return y >= 64 && y <= 100;
+            }
+        };
+        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerationResult result = generator.generateFromPathPoints(
+            List.of(new Vec2d(0, 0), new Vec2d(6, 0)),
+            terrain,
+            64);
+
+        assertTrue(result.constructionTypes.contains(RoadConstructionType.TUNNEL));
+        assertTrue(result.tunnelLength > 0);
+        assertEquals(0, result.normalRoadLength);
+    }
+
+    @Test
     void generatorFullyExcavatesShallowOverburden() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
