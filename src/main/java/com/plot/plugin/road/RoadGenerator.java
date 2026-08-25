@@ -1251,21 +1251,41 @@ public class RoadGenerator {
         List<Vec2d> leftBoundary = OffsetHandler.offsetPolyline(pathPoints, halfExtent);
         List<Vec2d> rightBoundary = OffsetHandler.offsetPolyline(pathPoints, -halfExtent);
 
-        forEachPathSample(segments, heightInfos, (center, leftNormal, targetY) -> {
-            double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-            Vec2d normal = leftNormal.lengthSquared() > 1e-12
-                ? leftNormal.normalize()
-                : new Vec2d(0, 1);
-            int minOffset = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
-            int maxOffset = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
-            for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
-                Vec2d planPoint = center.add(normal.multiply(lateral * scale));
-                BlockPos pos = canvasToBlockPos(planPoint).withY(targetY);
-                String blockId = MaterialMixResolver.resolve(
-                    carriagewayMaterial, pos, seedKey, this::getBlockIdFromMaterial);
-                solids.add(planPoint, targetY, RoadSolidLayer.ROAD, blockId);
+        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        int minOffset = RoadDimensionUtils.minLateralOffset(carriagewayWidth);
+        int maxOffset = RoadDimensionUtils.maxLateralOffset(carriagewayWidth);
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            PathSegment segment = segments.get(i);
+            SegmentHeightInfo info = heightInfos.get(i);
+            Vec2d normal = leftNormalForSegment(segment);
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            Vec2d previousCenter = null;
+            int previousY = 0;
+            for (int j = 0; j <= samples; j++) {
+                double t = (double) j / samples;
+                Vec2d center = segment.start.lerp(segment.end, t);
+                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                targetY = snapEndpointElevation(center, targetY);
+                for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
+                    Vec2d planPoint = center.add(normal.multiply(lateral * scale));
+                    BlockPos pos = canvasToBlockPos(planPoint).withY(targetY);
+                    String blockId = MaterialMixResolver.resolve(
+                        carriagewayMaterial, pos, seedKey, this::getBlockIdFromMaterial);
+                    solids.add(planPoint, targetY, RoadSolidLayer.ROAD, blockId);
+                    if (previousCenter != null) {
+                        Vec2d previousPoint = previousCenter.add(normal.multiply(lateral * scale));
+                        solids.addSpan(
+                            previousPoint,
+                            planPoint,
+                            previousY,
+                            RoadSolidLayer.ROAD,
+                            blockId);
+                    }
+                }
+                previousCenter = center;
+                previousY = targetY;
             }
-        });
+        }
 
         generateBridgeStructures(solids, bridges, segments, heightInfos, leftBoundary, rightBoundary, terrain);
     }

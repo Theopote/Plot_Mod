@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadGeneratorRoadWidthTest {
 
@@ -60,5 +61,29 @@ class RoadGeneratorRoadWidthTest {
 
         assertEquals(6, zValues.size());
         assertEquals(Set.of(-2, -1, 0, 1, 2, 3), zValues);
+    }
+
+    @Test
+    void diagonalRoadDoesNotLeaveLongitudinalGaps() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(3);
+        config.setIncludeShoulder(false);
+        config.setIncludeSidewalk(false);
+        config.setIncludeDrainage(false);
+
+        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerationResult result = generator.generateFromPathPoints(
+            List.of(new Vec2d(0, 0), new Vec2d(20, 20)),
+            new FlatTerrainSampler(64));
+
+        Set<String> occupied = result.roadBlocks.stream()
+            .map(pos -> pos.getX() + ":" + pos.getZ())
+            .collect(Collectors.toSet());
+        for (int coordinate = 1; coordinate < 20; coordinate++) {
+            int x = coordinate;
+            assertTrue(
+                occupied.stream().anyMatch(key -> key.startsWith(x + ":")),
+                "diagonal road has a gap at x=" + x);
+        }
     }
 }
