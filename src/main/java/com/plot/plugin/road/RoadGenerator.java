@@ -1260,7 +1260,6 @@ public class RoadGenerator {
             Vec2d normal = leftNormalForSegment(segment);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             Vec2d previousCenter = null;
-            int previousY = 0;
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
@@ -1277,13 +1276,12 @@ public class RoadGenerator {
                         solids.addSpan(
                             previousPoint,
                             planPoint,
-                            previousY,
+                            targetY,
                             RoadSolidLayer.ROAD,
                             blockId);
                     }
                 }
                 previousCenter = center;
-                previousY = targetY;
             }
         }
 
@@ -1828,11 +1826,12 @@ public class RoadGenerator {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             PathSampleConsumer consumer) {
+        double scale = estimateCanvasUnitsPerBlock(null, segments);
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = leftNormalForSegment(segment);
-            int samples = Math.max(2, (int) Math.ceil(segment.distance));
+            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
