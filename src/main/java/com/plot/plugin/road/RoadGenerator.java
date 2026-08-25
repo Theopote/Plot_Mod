@@ -3,10 +3,8 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
-import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import net.minecraft.client.MinecraftClient;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -69,86 +67,6 @@ public class RoadGenerator {
         int fillVolume;
         int bridgeCount;
         int tunnelCount;
-    }
-    
-    /**
-     * 生成道路
-     * 
-     * @param path 路径图形（PolylineShape、FreeDrawPath或BezierCurveShape）
-     * @return 道路生成结果
-     */
-    public RoadGenerationResult generateRoad(Shape path) {
-        if (path == null) {
-            LOGGER.warn("路径为空，无法生成道路");
-            return new RoadGenerationResult(0);
-        }
-        
-        try {
-            // 1. 从路径中提取点列表
-            List<Vec2d> pathPoints = extractPathPoints(path);
-            if (pathPoints == null || pathPoints.size() < 2) {
-                LOGGER.warn("路径点数不足，无法生成道路");
-                return new RoadGenerationResult(0);
-            }
-            
-            LOGGER.info("开始生成道路，路径点数: {}", pathPoints.size());
-            
-            // 2. 采样路径点（细分以确保足够的采样密度）
-            List<PathSegment> segments = samplePath(pathPoints);
-            LOGGER.debug("路径分段数: {}", segments.size());
-            
-            // 3. 获取Minecraft世界（客户端），使用缓存引用避免TOCTOU问题
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null) {
-                LOGGER.error("无法获取Minecraft客户端");
-                return new RoadGenerationResult(0);
-            }
-
-            // 缓存world引用，避免在检查后使用前变为null
-            World world = client.world;
-            if (world == null) {
-                LOGGER.error("无法获取世界实例");
-                return new RoadGenerationResult(0);
-            }
-
-            TerrainSampler terrain = MinecraftTerrainSampler.of(world, coordinateTransformer);
-            
-            // 4. 计算每个分段的目标高度（考虑坡度限制）
-            SegmentHeightCalculation heightCalculation = calculateSegmentHeights(segments, terrain);
-            double pathLength = segments.stream().mapToDouble(s -> s.distance).sum();
-            ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
-
-            // 5–6. 检测桥/隧道并生成 solids
-            RoadGenerationResult result = buildFromCenterline(
-                pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength, null, "standalone");
-            result.copyProfileFrom(toProfileResult(heightCalculation));
-            
-            LOGGER.info("道路生成完成: 挖{} 填{} 桥{}座 隧道{}段", 
-                result.cutVolume, result.fillVolume, result.bridgeCount, result.tunnelCount);
-            
-            return result;
-            
-        } catch (Exception e) {
-            LOGGER.error("生成道路时发生错误: {}", e.getMessage(), e);
-            return new RoadGenerationResult(0);
-        }
-    }
-    
-    private List<Vec2d> extractPathPoints(Shape path) {
-        return RoadGeometryUtils.extractShapePoints(path);
-    }
-    
-    /**
-     * 基于路网边生成道路（不依赖 Shape）
-     */
-    public RoadGenerationResult generateEdge(
-            RoadNetwork network, RoadEdge edge, RoadNode startNode, RoadNode endNode, World world) {
-        if (edge == null || world == null) {
-            LOGGER.warn("道路边或世界为空，无法生成");
-            return new RoadGenerationResult(0);
-        }
-        return generateEdge(
-            network, edge, startNode, endNode, MinecraftTerrainSampler.of(world, coordinateTransformer), null);
     }
 
     /**
@@ -422,22 +340,6 @@ public class RoadGenerator {
         mergeJunction(target, junction, roadBlockId, sidewalkBlockId, null);
     }
 
-    public void mergeJunctionMarkings(
-            RoadGenerationResult target,
-            RoadJunctionGenerator.JunctionBlocks junction,
-            String markingBlockId) {
-        if (target == null || junction == null || markingBlockId == null) {
-            return;
-        }
-        RoadVoxelRasterizer.flushJunctionSolids(
-            target,
-            junction.getSolids(),
-            coordinateTransformer,
-            null,
-            null,
-            markingBlockId);
-    }
-
     /**
      * @deprecated 使用带材质参数的 {@link #mergeJunctionBlocks(RoadGenerationResult, RoadJunctionGenerator.JunctionBlocks, String, String)}
      *             计划在 v2.0 版本移除
@@ -450,16 +352,6 @@ public class RoadGenerator {
             getBlockIdFromMaterial(config.getSelectedMaterial().getPrimaryMaterial()),
             getBlockIdFromMaterial(config.getSelectedMaterial().getPrimaryMaterial())
         );
-    }
-
-    /**
-     * 计算路口节点处的目标路面高度（汇聚各相连边在节点处的高度均值）
-     */
-    public int computeJunctionTargetHeight(RoadNode node, RoadNetwork network, World world) {
-        if (node == null || network == null || world == null) {
-            return TerrainSampler.DEFAULT_SEA_LEVEL;
-        }
-        return computeJunctionTargetHeight(node, network, MinecraftTerrainSampler.of(world, coordinateTransformer));
     }
 
     public int computeJunctionTargetHeight(RoadNode node, RoadNetwork network, TerrainSampler terrain) {
@@ -545,16 +437,6 @@ public class RoadGenerator {
         naturalHeightsByNode
             .computeIfAbsent(node.getId(), id -> new ArrayList<>())
             .add(naturalHeight);
-    }
-
-    /**
-     * 获取单条边在指定节点处的目标路面高度
-     */
-    public int getTargetHeightAtNode(RoadEdge edge, RoadNode node, RoadNetwork network, World world) {
-        if (edge == null || node == null || world == null) {
-            return TerrainSampler.DEFAULT_SEA_LEVEL;
-        }
-        return getTargetHeightAtNode(edge, node, network, MinecraftTerrainSampler.of(world, coordinateTransformer));
     }
 
     int getTargetHeightAtNode(RoadEdge edge, RoadNode node, RoadNetwork network, TerrainSampler terrain) {
