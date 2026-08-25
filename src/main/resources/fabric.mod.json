@@ -19,7 +19,7 @@
 			"com.plot.PlotMod"
 		],
 		"client": [
-			"com.plot.PlotMod"
+			"com.plot.client.PlotClient"
 		],
 		"fabric-datagen": [
 			"com.plot.PlotDataGenerator"
