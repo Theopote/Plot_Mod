@@ -25,9 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 道路生成器
@@ -1416,28 +1419,66 @@ public class RoadGenerator {
         }
         String pillarBlockId = getBlockIdFromMaterial("material.plot.stone");
         double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
-
+        double unitsPerBlock = estimateCanvasUnitsPerBlock(null, segments);
+        double pillarSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
+        Set<PathSegment> bridgeSegments = Collections.newSetFromMap(new IdentityHashMap<>());
         for (BridgeSegment bridge : bridges) {
-            SegmentHeightInfo info = findHeightInfo(segments, heightInfos, bridge.segment());
-            if (info == null) {
-                continue;
-            }
-            int samples = Math.max(2, (int) Math.ceil(bridge.segment().distance));
-            for (int j = 0; j <= samples; j++) {
-                if (j % 4 != 0 && j != samples) {
-                    continue;
-                }
-                double t = (double) j / samples;
-                double normalized = findNormalizedDistance(segments, bridge.segment(), t, totalLength);
-                int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                Vec2d center = bridge.segment().start.lerp(bridge.segment().end, t);
-                Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
-                Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
-                placeBridgePillars(solids, center, targetY, terrain, pillarBlockId);
-                placeBridgePillars(solids, left, targetY, terrain, pillarBlockId);
-                placeBridgePillars(solids, right, targetY, terrain, pillarBlockId);
-            }
+            bridgeSegments.add(bridge.segment());
         }
+
+        double accumulated = 0.0;
+        double nextPillarDistance = Double.NaN;
+        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
+            PathSegment segment = segments.get(i);
+            SegmentHeightInfo info = heightInfos.get(i);
+            boolean isBridge = bridgeSegments.contains(segment);
+            boolean previousIsBridge = i > 0 && bridgeSegments.contains(segments.get(i - 1));
+            boolean nextIsBridge = i + 1 < segments.size() && bridgeSegments.contains(segments.get(i + 1));
+            double segmentEnd = accumulated + segment.distance;
+
+            if (isBridge) {
+                if (!previousIsBridge) {
+                    nextPillarDistance = accumulated;
+                }
+                while (nextPillarDistance <= segmentEnd + 1e-9) {
+                    placeBridgePillarCrossSection(
+                        solids, segment, info, nextPillarDistance, accumulated, totalLength,
+                        leftBoundary, rightBoundary, terrain, pillarBlockId);
+                    nextPillarDistance += pillarSpacing;
+                }
+                // 桥梁连续区间的末端必须有支承，但不要在每个一格细分段末端重复生成。
+                if (!nextIsBridge && nextPillarDistance - pillarSpacing < segmentEnd - 1e-6) {
+                    placeBridgePillarCrossSection(
+                        solids, segment, info, segmentEnd, accumulated, totalLength,
+                        leftBoundary, rightBoundary, terrain, pillarBlockId);
+                }
+            }
+            accumulated = segmentEnd;
+        }
+    }
+
+    private void placeBridgePillarCrossSection(
+            RoadSolidModel solids,
+            PathSegment segment,
+            SegmentHeightInfo info,
+            double globalDistance,
+            double segmentStartDistance,
+            double totalLength,
+            List<Vec2d> leftBoundary,
+            List<Vec2d> rightBoundary,
+            TerrainSampler terrain,
+            String pillarBlockId) {
+        double t = segment.distance > 1e-9
+            ? Math.max(0.0, Math.min(1.0, (globalDistance - segmentStartDistance) / segment.distance))
+            : 0.0;
+        double normalized = totalLength > 1e-9 ? globalDistance / totalLength : 0.0;
+        int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+        Vec2d center = segment.start.lerp(segment.end, t);
+        Vec2d left = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(leftBoundary, normalized);
+        Vec2d right = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(rightBoundary, normalized);
+        placeBridgePillars(solids, center, targetY, terrain, pillarBlockId);
+        placeBridgePillars(solids, left, targetY, terrain, pillarBlockId);
+        placeBridgePillars(solids, right, targetY, terrain, pillarBlockId);
     }
 
     private void placeBridgePillars(

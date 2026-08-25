@@ -40,7 +40,8 @@ public final class RoadNetworkManager {
     /** 路网变更时回调（用于使预览失效），由插件装配。 */
     private Runnable onNetworkChanged;
 
-    private int lastBatchSelectionSize = -1;
+    /** 批量草稿对应的选择签名；不能复用 lastSelectedEdgeId。 */
+    private String lastBatchSelectionKey = "";
     private int batchEditWidth = 5;
     private int batchEditLaneCount = 1;
     private MaterialMix batchEditMaterial = MaterialMix.single(com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
@@ -149,12 +150,14 @@ public final class RoadNetworkManager {
     public void undo() {
         network = history.undo(network);
         ensureSelectionValid();
+        lastBatchSelectionKey = "";
         notifyNetworkChanged();
     }
 
     public void redo() {
         network = history.redo(network);
         ensureSelectionValid();
+        lastBatchSelectionKey = "";
         notifyNetworkChanged();
     }
 
@@ -162,6 +165,7 @@ public final class RoadNetworkManager {
         selectedEdgeIds.clear();
         lastSelectedEdgeId = "";
         selectedNodeId = "";
+        lastBatchSelectionKey = "";
     }
 
     /**
@@ -528,11 +532,11 @@ public final class RoadNetworkManager {
      */
     public BatchEditDefaults loadBatchEditDefaults() {
         String primaryId = getPrimarySelectedEdgeId();
-        if (selectedEdgeIds.size() == lastBatchSelectionSize && primaryId.equals(lastSelectedEdgeId)) {
+        String selectionKey = batchSelectionKey(primaryId);
+        if (selectionKey.equals(lastBatchSelectionKey)) {
             return currentBatchEditDefaults();
         }
-        lastSelectedEdgeId = primaryId;
-        lastBatchSelectionSize = selectedEdgeIds.size();
+        lastBatchSelectionKey = selectionKey;
         RoadEdge primary = network.getEdge(getPrimarySelectedEdgeId());
         if (primary == null) {
             return currentBatchEditDefaults();
@@ -578,6 +582,10 @@ public final class RoadNetworkManager {
             : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         batchEditMaxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         return currentBatchEditDefaults();
+    }
+
+    private String batchSelectionKey(String primaryId) {
+        return (primaryId != null ? primaryId : "") + "|" + String.join("|", selectedEdgeIds);
     }
 
     public BatchEditDefaults currentBatchEditDefaults() {

@@ -11,6 +11,7 @@ import com.plot.plugin.road.terrain.TerrainSampler;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -160,6 +161,12 @@ class RoadGeneratorTerrainTest {
             "bridge runs must not be filled to deck elevation by ordinary roadbed grading");
         assertTrue(result.roadBlocks.stream().allMatch(pos -> pos.getY() == 64),
             "a level design profile must produce one continuous deck elevation");
+        long supportStations = result.bridgeBlocks.stream()
+            .map(pos -> pos.getX())
+            .collect(Collectors.toSet())
+            .size();
+        assertTrue(supportStations <= 4,
+            "pillar spacing must continue across sampled segments instead of restarting every metre");
     }
 
     @Test

@@ -82,4 +82,21 @@ class RoadNetworkManagerSelectionTest {
         assertEquals(12f, config.getMaxSlope(), 0.001f);
         assertEquals(0f, road.getMaxSlope(), 0.001f);
     }
+
+    @Test
+    void batchDraftReloadsWhenSwitchingToDifferentSelectionOfSameSize() {
+        var flatRoad = manager.getNetwork().createRoad(manager.getConfig());
+        flatRoad.setMaxSlope(0f);
+        manager.getNetwork().linkEdgeToRoad(flatRoad.getId(), edgeA);
+        var gradedRoad = manager.getNetwork().createRoad(manager.getConfig());
+        gradedRoad.setMaxSlope(12f);
+        manager.getNetwork().linkEdgeToRoad(gradedRoad.getId(), edgeB);
+
+        manager.handleEdgeSelect(edgeA, false);
+        assertEquals(0f, manager.loadBatchEditDefaults().maxSlope(), 0.001f);
+
+        // 选择数量仍为 1，但草稿必须从新道路重载，不能沿用上一条平路的 0%。
+        manager.handleEdgeSelect(edgeB, false);
+        assertEquals(12f, manager.loadBatchEditDefaults().maxSlope(), 0.001f);
+    }
 }
