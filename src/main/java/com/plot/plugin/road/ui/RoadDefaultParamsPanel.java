@@ -375,8 +375,5 @@ public final class RoadDefaultParamsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.include_drainage");
 
-        ImGui.spacing();
-        // 桥/隧等生成全局参数与认领页共用组件（默认折叠）
-        RoadGenerationSettingsPanel.render(ctx, false);
     }
 }

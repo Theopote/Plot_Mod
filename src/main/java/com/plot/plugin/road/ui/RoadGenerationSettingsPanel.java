@@ -9,14 +9,14 @@ import imgui.flag.ImGuiTreeNodeFlags;
 
 /**
  * 全局生成参数（桥/隧阈值、采样、纵断面平衡系数、默认净空等）。
- * 供「生成」Tab 与认领页高级区复用；变更会失效预览。
+ * 供「生成」Tab 调整；变更会失效预览。
  */
 public final class RoadGenerationSettingsPanel {
     private RoadGenerationSettingsPanel() {
     }
 
     /**
-     * @param defaultOpen 生成 Tab 建议默认展开；认领页高级区可折叠
+    * @param defaultOpen 是否默认展开设置区域
      */
     public static void render(RoadUiContext ctx, boolean defaultOpen) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
