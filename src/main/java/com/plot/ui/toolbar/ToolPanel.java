@@ -5,6 +5,7 @@ import com.plot.infrastructure.event.tool.ToolSelectedEvent;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImGui;
 import imgui.flag.*;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.core.tool.BaseTool;
@@ -51,11 +52,11 @@ public class ToolPanel implements UIComponent {
             
             // 确保 ToolManager 已初始化
             try {
-                this.toolManager = ToolManager.getInstance();
+                this.toolManager = ApplicationContext.getInstance().getToolManager();
             } catch (IllegalStateException e) {
                 LOGGER.warn("ToolManager未初始化，现在使用AppState进行初始化");
-                ToolManager.initialize(AppState.getInstance());
-                this.toolManager = ToolManager.getInstance();
+                ToolManager.initialize(ApplicationContext.getInstance().getAppState());
+                this.toolManager = ApplicationContext.getInstance().getToolManager();
             }
             
             if (this.toolManager == null) {
@@ -75,8 +76,8 @@ public class ToolPanel implements UIComponent {
             throw e;
         }
         
-        this.appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
     }
     
     public void render() {
@@ -379,8 +380,8 @@ public class ToolPanel implements UIComponent {
                 
                 // 使用新的DrawingToolsModule API重新初始化
                 try {
-                    SnapManager snapManager = SnapManager.getInstance();
-                    CommandService commandService = CommandService.getInstance();
+                    SnapManager snapManager = ApplicationContext.getInstance().getSnapManager();
+                    CommandService commandService = ApplicationContext.getInstance().getCommandService();
                     DrawingToolsModule.initializeAndRegister(toolManager, appState, eventBus, snapManager, commandService);
                 } catch (Exception initException) {
                     LOGGER.error("重新初始化绘图工具失败: {}", initException.getMessage(), initException);
@@ -433,11 +434,11 @@ public class ToolPanel implements UIComponent {
             // 确保 ToolManager 已初始化
             if (toolManager == null) {
                 try {
-                    this.toolManager = ToolManager.getInstance();
+                    this.toolManager = ApplicationContext.getInstance().getToolManager();
                 } catch (IllegalStateException e) {
                     LOGGER.warn("ToolManager未初始化，现在使用AppState进行初始化");
                     ToolManager.initialize(appState);
-                    this.toolManager = ToolManager.getInstance();
+                    this.toolManager = ApplicationContext.getInstance().getToolManager();
                 }
                 
                 if (toolManager == null) {

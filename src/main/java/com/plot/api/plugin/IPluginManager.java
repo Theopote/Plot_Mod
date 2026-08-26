@@ -1,8 +1,5 @@
 package com.plot.api.plugin;
 
-import com.plot.core.plugin.PluginDependencyGraph;
-import com.plot.api.plugin.PluginException;
-
 import java.util.List;
 
 /**
@@ -70,12 +67,6 @@ public interface IPluginManager {
      * @return 是否满足依赖要求
      */
     boolean checkDependencies(IPlugin plugin);
-
-    /**
-     * 获取插件依赖图
-     * @return 依赖图
-     */
-    PluginDependencyGraph getDependencyGraph();
 
     /**
      * 添加插件监听器

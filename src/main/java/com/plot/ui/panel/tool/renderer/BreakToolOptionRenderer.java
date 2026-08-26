@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.BreakTool;
 import com.plot.ui.tools.impl.modify.strategy.BreakStrategy;
@@ -177,7 +178,7 @@ public class BreakToolOptionRenderer extends AbstractToolOptionRenderer {
     private BreakTool getCurrentToolFromContext() {
         try {
             // 从AppState获取当前工具
-            com.plot.core.state.AppState appState = com.plot.core.state.AppState.getInstance();
+            com.plot.core.state.AppState appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             com.plot.core.tool.BaseTool currentTool = appState.getCurrentTool();
             
             if (currentTool instanceof BreakTool) {

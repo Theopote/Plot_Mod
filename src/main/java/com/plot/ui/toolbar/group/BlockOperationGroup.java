@@ -1,6 +1,7 @@
 package com.plot.ui.toolbar.group;
 
 import com.plot.core.command.commands.ProjectGhostBlocksCommand;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
@@ -182,8 +183,9 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
      */
     private void executeProjection() {
         LOGGER.debug("执行投影操作...");
-        
-        var ghostBlockManager = GhostBlockManager.getInstance();
+
+        ApplicationContext context = ApplicationContext.getInstance();
+        var ghostBlockManager = context.getGhostBlockManager();
         List<GhostBlockManager.GhostBlock> visibleGhostBlocks = ghostBlockManager.getVisibleGhostBlocks();
         int ghostBlockCount = visibleGhostBlocks.size();
         
@@ -193,7 +195,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         }
         
         LOGGER.info("发现 {} 个幽灵方块需要投影", ghostBlockCount);
-        ProjectGhostBlocksCommand projectionCommand = getProjectGhostBlocksCommand(visibleGhostBlocks);
+        ProjectGhostBlocksCommand projectionCommand = getProjectGhostBlocksCommand(visibleGhostBlocks, context);
         appState.getCommandService().execute(projectionCommand);
 
         int projectedCount = projectionCommand.getProjectedCount();
@@ -205,7 +207,9 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         }
     }
 
-    private @NotNull ProjectGhostBlocksCommand getProjectGhostBlocksCommand(List<GhostBlockManager.GhostBlock> visibleGhostBlocks) {
+    private @NotNull ProjectGhostBlocksCommand getProjectGhostBlocksCommand(
+            List<GhostBlockManager.GhostBlock> visibleGhostBlocks,
+            ApplicationContext context) {
         BlockProjectionEvent.ProjectionMode projectionMode = BlockProjectionEvent.ProjectionMode.GROUND;
         Integer elevation = null;
         if (projectionSettingsDialog != null && projectionSettingsDialog.getProjectionMode() == ProjectionSettingsDialog.ProjectionMode.ELEVATION) {
@@ -216,7 +220,10 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         return new ProjectGhostBlocksCommand(
                 visibleGhostBlocks,
                 projectionMode,
-                elevation
+                elevation,
+                context.getGhostBlockManager(),
+                context.getBlockProjectionHandler(),
+                context.getEventBus()
         );
     }
 

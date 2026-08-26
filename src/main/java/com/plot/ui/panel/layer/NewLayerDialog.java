@@ -1,5 +1,6 @@
 package com.plot.ui.panel.layer;
 
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
@@ -44,8 +45,8 @@ public class NewLayerDialog {
     private final ImString layerName;           // 图层名称输入缓冲区
     private final float[] layerColor =         // 图层颜色 (RGBA)
             {1.0f, 1.0f, 1.0f, 1.0f};
-    private LineStyle.LineType lineType =      // 图层线型
-            LineStyle.LineType.SOLID;
+    private LineType lineType =      // 图层线型
+            LineType.SOLID;
     private float lineWidth = 1.0f;            // 图层线宽（改为单值）
     private boolean nameInputInvalid = false;  // 名称输入是否合法（用于红色边框反馈）
 
@@ -196,7 +197,7 @@ public class NewLayerDialog {
         nameInputInvalid = false;
         layerName.clear();
         Arrays.fill(layerColor, 1.0f);
-        lineType = LineStyle.LineType.SOLID;
+        lineType = LineType.SOLID;
         lineWidth = 1.0f;
     }
 
@@ -303,7 +304,7 @@ public class NewLayerDialog {
 
                     DialogLayoutHelper.formRowLabel(PlotI18n.tr("dialog.plot.line_style"));
                     if (ImGui.beginCombo("##new_layer_line_type", lineType.toString())) {
-                        for (LineStyle.LineType type : LineStyle.LineType.values()) {
+                        for (LineType type : LineType.values()) {
                             if (ImGui.selectable(type.toString(), type == lineType)) {
                                 lineType = type;
                             }

@@ -1,6 +1,6 @@
 package com.plot.api.render;
 
-import com.plot.ui.canvas.CanvasCamera;
+import com.plot.api.render.ViewTransform;
 import imgui.ImDrawList;
 
 /**
@@ -21,7 +21,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.LineShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.LineShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染矩形
@@ -30,7 +30,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.RectangleShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.RectangleShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染圆形
@@ -39,7 +39,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.CircleShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.CircleShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染椭圆
@@ -48,7 +48,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.EllipseShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.EllipseShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染多边形
@@ -57,7 +57,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.Polygon shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.Polygon shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染弧线
@@ -66,7 +66,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.ArcShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.ArcShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染椭圆弧
@@ -75,7 +75,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.EllipticalArcShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.EllipticalArcShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染贝塞尔曲线
@@ -84,7 +84,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.BezierCurveShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.BezierCurveShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染多段线
@@ -93,7 +93,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.PolylineShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.PolylineShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染文本
@@ -102,7 +102,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.TextShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.TextShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染正弦曲线
@@ -111,7 +111,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.SineCurveShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.SineCurveShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染自由绘制路径
@@ -120,7 +120,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.FreeDrawPath shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.FreeDrawPath shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染螺旋线
@@ -129,7 +129,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.SpiralShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.SpiralShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染悬链线
@@ -138,7 +138,7 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.geometry.shapes.CableShape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.geometry.shapes.CableShape shape, ImDrawList drawList, ViewTransform camera);
     
     /**
      * 渲染通用图形（默认实现）
@@ -147,5 +147,5 @@ public interface IRenderVisitor {
      * @param drawList ImGui绘制列表
      * @param camera 相机对象
      */
-    void render(com.plot.core.model.Shape shape, ImDrawList drawList, CanvasCamera camera);
+    void render(com.plot.core.model.Shape shape, ImDrawList drawList, ViewTransform camera);
 }

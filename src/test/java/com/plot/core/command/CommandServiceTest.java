@@ -1,5 +1,6 @@
 package com.plot.core.command;
 
+import com.plot.core.context.ApplicationContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,7 @@ class CommandServiceTest {
 
     @BeforeEach
     void setUp() {
-        commandService = CommandService.getInstance();
+        commandService = ApplicationContext.getInstance().getCommandService();
         commandService.clear();
     }
 

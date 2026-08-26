@@ -1,6 +1,7 @@
 package com.plot.ui.toolbar;
 
 import com.plot.utils.PlotI18n;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -64,8 +65,8 @@ public class ControlPanel implements UIComponent {
         LOGGER.info("Initializing ControlPanel with component architecture...");
         
         try {
-            this.appState = AppState.getInstance();
-            this.eventBus = EventBus.getInstance();
+            this.appState = ApplicationContext.getInstance().getAppState();
+            this.eventBus = ApplicationContext.getInstance().getEventBus();
             
             // 加载图标资源
             ControlPanelIcons.loadTextures();

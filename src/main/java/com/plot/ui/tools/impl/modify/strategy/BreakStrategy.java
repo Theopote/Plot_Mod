@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.shapes.LineShape;
@@ -385,7 +386,7 @@ public class BreakStrategy implements IModifyStrategy {
                 } else {
                     // 兜底：尝试全局实例
                     try {
-                        com.plot.core.state.AppState concrete = com.plot.core.state.AppState.getInstance();
+                        com.plot.core.state.AppState concrete = com.plot.core.context.ApplicationContext.getInstance().getAppState();
                         if (concrete != null) {
                             breakParameters.setParameter("appState", concrete);
                         }

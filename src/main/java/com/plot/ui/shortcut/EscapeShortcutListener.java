@@ -1,6 +1,7 @@
 package com.plot.ui.shortcut;
 
 import com.plot.api.shortcut.IShortcutListener;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.infrastructure.event.block.GhostBlockManager;
@@ -42,7 +43,7 @@ public class EscapeShortcutListener implements IShortcutListener {
     private boolean handleEscape() {
         LOGGER.debug("Escape键按下，执行取消操作");
         
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         boolean handled = false;
         
         // 1. 取消当前工具的操作
@@ -66,7 +67,7 @@ public class EscapeShortcutListener implements IShortcutListener {
         
         // 3. 如果有其他需要取消的状态，可以在这里添加
         try {
-            GhostBlockManager ghostManager = GhostBlockManager.getInstance();
+            GhostBlockManager ghostManager = ApplicationContext.getInstance().getGhostBlockManager();
             int ghostCount = ghostManager.getVisibleGhostBlockCount();
             if (ghostCount > 0) {
                 MinecraftClient client = MinecraftClient.getInstance();

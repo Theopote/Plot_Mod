@@ -1,5 +1,6 @@
 package com.plot.ui.toolbar.group;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.utils.PlotI18n;
@@ -39,8 +40,8 @@ public abstract class AbstractToolbarGroup implements ToolbarGroup {
     
     protected AbstractToolbarGroup(String groupName) {
         this.groupName = groupName;
-        this.appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
     }
     
     @Override

@@ -1,6 +1,5 @@
 package com.plot.plugin.road.ui;
 
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
@@ -232,7 +231,7 @@ public final class RoadEditPanel {
             ctx.status().set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return null;
         }
-        return MinecraftTerrainSampler.of(world, CoordinateTransformer.getInstance());
+        return MinecraftTerrainSampler.of(world, ctx.host().coordinates());
     }
 
     private void applyUniformFlatElevationAuto() {

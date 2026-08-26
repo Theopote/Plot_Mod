@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.layout.UILayout;
@@ -18,7 +19,7 @@ public abstract class AbstractToolOptionRenderer implements ToolOptionRenderer {
     protected final String toolId;
 
     protected AbstractToolOptionRenderer(String toolId) {
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.toolId = toolId;
     }
 

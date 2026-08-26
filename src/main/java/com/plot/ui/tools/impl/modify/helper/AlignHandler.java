@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.helper;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.style.ShapeStyle;
@@ -208,7 +209,7 @@ public class AlignHandler implements IModifyHandler {
             return new com.plot.core.command.commands.ModifyCommand(
                 originalShapes,
                 modifiedShapes,
-                com.plot.core.state.AppState.getInstance(),
+                com.plot.core.context.ApplicationContext.getInstance().getAppState(),
                 "history.plot.op.align"
             );
         } catch (Exception e) {

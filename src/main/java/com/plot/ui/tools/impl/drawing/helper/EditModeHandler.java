@@ -5,6 +5,7 @@ import com.plot.core.command.commands.ControlPointEditCommand;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import org.slf4j.Logger;
@@ -177,7 +178,7 @@ public class EditModeHandler implements IModeHandler {
             return;
         }
         ControlPointEditCommand command = new ControlPointEditCommand(editingShape, preEditSnapshot, afterSnapshot);
-        AppState.getInstance().getCommandService().execute(command);
+        ApplicationContext.getInstance().getAppState().getCommandService().execute(command);
         preEditSnapshot = null;
     }
 

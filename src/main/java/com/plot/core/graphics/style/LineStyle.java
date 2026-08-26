@@ -2,6 +2,7 @@ package com.plot.core.graphics.style;
 
 import java.awt.Color;
 import com.plot.api.graphics.ILineStyle;
+import com.plot.api.graphics.LineType;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,24 +12,6 @@ import org.slf4j.LoggerFactory;
  */
 public class LineStyle implements ILineStyle {
     private static final Logger LOGGER = LoggerFactory.getLogger(LineStyle.class);
-    
-    /**
-     * 线型枚举
-     * 只包含实线和虚线两种类型
-     */
-    public enum LineType {
-        SOLID,
-        DASHED;
-
-        public String getDisplayName() {
-            return PlotI18n.lineTypeLabel(this);
-        }
-
-        @Override
-        public String toString() {
-            return getDisplayName();
-        }
-    }
     
     private boolean visible;
     private LineType type;

@@ -1,6 +1,7 @@
 package com.plot.ui.panel.tool;
 
 import com.plot.PlotMod;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.infrastructure.event.EventBus;
@@ -144,8 +145,8 @@ public class ToolOptionsPanel implements UIComponent, AutoCloseable, EventListen
     }
 
     public ToolOptionsPanel() {
-        this.appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         
         // 注册工具切换事件监听
         this.eventBus.subscribe(ToolChangedEvent.class, this);

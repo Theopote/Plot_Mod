@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.core.command.Command;
 import com.plot.core.layer.LayerManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.utils.PlotI18n;
 import com.plot.api.model.ILayer;
@@ -45,7 +46,7 @@ public class LayerPropertyEditCommand implements Command {
     }
 
     private void applyValue(Object value) {
-        LayerManager layerManager = AppState.getInstance().getLayerManager();
+        LayerManager layerManager = ApplicationContext.getInstance().getAppState().getLayerManager();
         if (layerManager == null) {
             return;
         }

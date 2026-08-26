@@ -2,6 +2,7 @@ package com.plot.ui.panel.gallery;
 
 import com.plot.core.gallery.GalleryItem;
 import com.plot.core.gallery.GalleryRepository;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.component.UIComponent;
 import com.plot.ui.theme.ThemeManager;
@@ -25,7 +26,7 @@ public class GalleryPanel implements UIComponent {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GalleryPanel");
     private static final float MAX_NAME_COLUMN_WIDTH = 120.0f;
 
-    private final AppState appState = AppState.getInstance();
+    private final AppState appState = ApplicationContext.getInstance().getAppState();
     private final GalleryRepository repository = GalleryRepository.getInstance();
     private final GalleryPlaceSession placeSession = new GalleryPlaceSession();
     private final GalleryDeleteDialog deleteDialog = new GalleryDeleteDialog();

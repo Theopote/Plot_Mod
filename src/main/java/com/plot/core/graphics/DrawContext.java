@@ -1,10 +1,9 @@
 package com.plot.core.graphics;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.render.ViewTransform;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
-import com.plot.ui.canvas.CanvasCamera;
-import com.plot.ui.canvas.CanvasRenderer;
 import imgui.ImDrawList;
 import java.awt.Color;
 import java.awt.Font;
@@ -22,8 +21,7 @@ public class DrawContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(DrawContext.class);
 
     // 核心组件
-    private CanvasRenderer renderer;
-    private CanvasCamera camera;
+    private ViewTransform camera;
     private ImDrawList drawList;
     private Vec2d offset;
 
@@ -93,23 +91,9 @@ public class DrawContext {
     // =============== 核心组件设置 ===============
 
     /**
-     * 设置渲染器
+     * 设置视图变换（通常为 UI 侧 CanvasCamera）。
      */
-    public void setRenderer(CanvasRenderer renderer) {
-        if (renderer == null) {
-            LOGGER.warn("尝试设置null渲染器");
-            return;
-        }
-        this.renderer = renderer;
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("设置渲染器: {}", renderer);
-    }
-    }
-
-    /**
-     * 设置相机
-     */
-    public void setCamera(CanvasCamera camera) {
+    public void setCamera(ViewTransform camera) {
         if (camera == null) {
             LOGGER.warn("尝试设置null相机");
             return;
@@ -418,7 +402,6 @@ public class DrawContext {
         try {
             // 清理核心组件
             drawList = null;
-            renderer = null;
             camera = null;
             offset = null;
 
@@ -943,10 +926,9 @@ public class DrawContext {
     }
 
     /**
-     * 获取相机
-     * @return 当前使用的相机对象
+     * 获取视图变换
      */
-    public CanvasCamera getCamera() {
+    public ViewTransform getCamera() {
         return camera;
     }
 

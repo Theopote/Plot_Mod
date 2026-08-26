@@ -1,6 +1,7 @@
 package com.plot.ui.panel.gallery;
 
 import com.plot.core.gallery.GalleryRepository;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -130,6 +131,6 @@ public class GalleryCategoryRenameDialog {
     }
 
     private static void publishStatus(String key, Object... args) {
-        EventBus.getInstance().publish(new Events.StatusMessageEvent(PlotI18n.tr(key, args)));
+        ApplicationContext.getInstance().getEventBus().publish(new Events.StatusMessageEvent(PlotI18n.tr(key, args)));
     }
 }

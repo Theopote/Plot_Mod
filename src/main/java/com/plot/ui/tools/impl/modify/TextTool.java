@@ -12,6 +12,7 @@ import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.log.LogManager;
 import com.plot.core.tool.BaseTool;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.infrastructure.event.EventBus;
@@ -119,7 +120,7 @@ public class TextTool extends BaseTool {
      */
     public TextTool(ICanvas canvas, Component parentComponent) {
         super(TOOL_ID, PlotI18n.toolDescription(TOOL_ID), Icons.TEXT_IDENTIFIER, PlotI18n.toolLabel(TOOL_ID),
-                AppState.getInstance(), EventBus.getInstance(), ShortcutManager.getInstance());
+                ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getEventBus(), ShortcutManager.getInstance());
         this.canvas = canvas;
         this.parentComponent = parentComponent;
         this.currentState = ToolState.IDLE;

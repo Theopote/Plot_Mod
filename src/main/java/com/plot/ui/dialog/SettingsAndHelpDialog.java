@@ -1,6 +1,7 @@
 package com.plot.ui.dialog;
 import com.plot.core.shortcut.KeyboardShortcutConverter;
 import com.plot.core.shortcut.ShortcutManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.snap.SnapPriorityEvaluator;
 import com.plot.ui.tools.impl.modify.ControlPointEditTool;
@@ -496,7 +497,7 @@ public class SettingsAndHelpDialog {
     }
 
     private void renderDisplayPage() {
-        SnapManager snapManager = SnapManager.getInstance();
+        SnapManager snapManager = ApplicationContext.getInstance().getSnapManager();
         syncDisplayToggleStates(snapManager);
         final String displayHintText = PlotI18n.tr("settings.plot.display_marker_hint");
 

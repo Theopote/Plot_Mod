@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
@@ -174,7 +175,7 @@ public class RotateWithSelectionStrategy extends BaseSelectionStrategy implement
 
         // 初始化旋转处理器
         if (rotateHandler == null) {
-            rotateHandler = new RotateHandler(com.plot.core.state.AppState.getInstance());
+            rotateHandler = new RotateHandler(com.plot.core.context.ApplicationContext.getInstance().getAppState());
         }
 
         Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());

@@ -16,6 +16,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.ui.component.Icons;
+import com.plot.api.render.ViewTransform;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
 import imgui.ImDrawList;
@@ -24,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.ui.tools.impl.drawing.strategy.IInteractionStrategy;
 import com.plot.ui.tools.impl.drawing.strategy.MultiStepInteractionStrategy;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.plot.ui.tools.snap.SnapEnhancer;
 import com.plot.utils.ExceptionDebug;
 
@@ -1100,7 +1101,7 @@ public class LineTool extends DrawingTool {
         
         @Override
         public void accept(IRenderVisitor visitor,
-                           imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                           imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
             visitor.render(this, drawList, camera);
         }
         
@@ -1134,7 +1135,7 @@ public class LineTool extends DrawingTool {
         }
         
         @Override
-        protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+        protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
             try {
                 // 绘制所有线条
                 for (LineShape line : lines) {

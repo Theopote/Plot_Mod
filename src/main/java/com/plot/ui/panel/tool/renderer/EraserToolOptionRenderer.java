@@ -2,6 +2,7 @@ package com.plot.ui.panel.tool.renderer;
 
 import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.ui.tools.impl.modify.EraserTool;
@@ -91,7 +92,7 @@ public class EraserToolOptionRenderer extends AbstractToolOptionRenderer {
      * @return 橡皮擦工具实例，如果当前工具不是橡皮擦则返回null
      */
     private EraserTool getCurrentEraserTool() {
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         if (appState != null) {
             BaseTool currentTool = appState.getCurrentTool();
             if (currentTool instanceof EraserTool) {

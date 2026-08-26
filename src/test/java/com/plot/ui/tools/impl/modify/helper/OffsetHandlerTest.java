@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +22,7 @@ class OffsetHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new OffsetHandler(AppState.getInstance());
+        handler = new OffsetHandler(ApplicationContext.getInstance().getAppState());
     }
 
     @Test

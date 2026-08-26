@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.drawing;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
@@ -188,8 +189,8 @@ public class PolygonTool extends DrawingTool {
 
     @Deprecated
     public PolygonTool() {
-        this(com.plot.core.state.AppState.getInstance(), 
-             com.plot.core.snap.SnapManager.getInstance());
+        this(com.plot.core.context.ApplicationContext.getInstance().getAppState(), 
+             com.plot.core.context.ApplicationContext.getInstance().getSnapManager());
     }
     
     // ====== 策略模式集成 ======

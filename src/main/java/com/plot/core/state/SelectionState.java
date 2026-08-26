@@ -2,6 +2,7 @@ package com.plot.core.state;
 
 import com.plot.core.model.Shape;
 import com.plot.core.selection.Selection;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.selection.SelectionChangedEvent;
 import com.plot.utils.ExceptionDebug;
@@ -105,7 +106,7 @@ public final class SelectionState {
         DebouncedTasks.publishDebounced(EVENT_SELECTION, () -> {
             AppState appState = appStateSupplier.get();
             SelectionChangedEvent event = new SelectionChangedEvent(new ArrayList<>(selectedShapes), appState);
-            EventBus.getInstance().publish(event);
+            ApplicationContext.getInstance().getEventBus().publish(event);
         });
     }
 }

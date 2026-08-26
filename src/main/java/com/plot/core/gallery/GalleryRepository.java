@@ -8,6 +8,7 @@ import com.plot.core.geometry.BoundingBox;
 import com.plot.core.model.Shape;
 import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.model.serialization.ShapeSerialization;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.canvas.Canvas;
 import com.plot.infrastructure.event.EventBus;
@@ -379,6 +380,6 @@ public final class GalleryRepository {
     }
 
     private static void publishStatus(String key, Object... args) {
-        EventBus.getInstance().publish(new Events.StatusMessageEvent(PlotI18n.tr(key, args)));
+        ApplicationContext.getInstance().getEventBus().publish(new Events.StatusMessageEvent(PlotI18n.tr(key, args)));
     }
 }

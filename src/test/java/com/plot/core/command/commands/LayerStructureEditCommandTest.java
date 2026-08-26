@@ -1,5 +1,6 @@
 package com.plot.core.command.commands;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.panel.layer.LayerStructureSnapshot;
 import org.junit.jupiter.api.BeforeAll;
@@ -14,7 +15,7 @@ class LayerStructureEditCommandTest {
     @BeforeAll
     static void initializeLayerSystem() {
         // 生产环境由 PlotMod 启动流程初始化；独立单元测试需要显式建立该前置条件。
-        AppState.getInstance().initializeLayerSystem();
+        ApplicationContext.getInstance().getAppState().initializeLayerSystem();
     }
 
     @Test
@@ -26,7 +27,7 @@ class LayerStructureEditCommandTest {
 
     @Test
     void commandExecuteAppliesAfterSnapshot() {
-        var layerManager = AppState.getInstance().getLayerManager();
+        var layerManager = ApplicationContext.getInstance().getAppState().getLayerManager();
         if (layerManager.getLayerCount() == 0) {
             layerManager.createLayer("base layer");
         }

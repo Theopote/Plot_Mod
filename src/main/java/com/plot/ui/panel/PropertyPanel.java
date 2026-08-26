@@ -12,6 +12,7 @@ import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
@@ -36,12 +37,12 @@ public class PropertyPanel implements UIComponent {
     private final EventListener toolChangedListener;
 
     public PropertyPanel() {
-        AppState appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
-        ToolManager toolManager = ToolManager.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
+        ToolManager toolManager = ApplicationContext.getInstance().getToolManager();
         this.toolOptionsPanel = new ToolOptionsPanel();
         this.layerPanel = new LayerPanel();
-        this.historyPanel = new HistoryPanel(AppState.getInstance().getCommandService());
+        this.historyPanel = new HistoryPanel(ApplicationContext.getInstance().getAppState().getCommandService());
         this.statusPanel = new StatusPanel();
         
         // 初始化事件监听器（用于其他面板的更新）

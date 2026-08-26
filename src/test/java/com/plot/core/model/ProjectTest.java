@@ -3,6 +3,7 @@ package com.plot.core.model;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.model.serialization.ProjectSnapshot;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class ProjectTest {
 
     @BeforeEach
     void resetAppState() {
-        AppState.getInstance().initializeLayerSystem();
+        ApplicationContext.getInstance().getAppState().initializeLayerSystem();
     }
 
     @Test
@@ -115,7 +116,7 @@ class ProjectTest {
     @Test
     void serializeRoundTripPreservesProjectName() throws ProjectFormatException {
         Project project = new Project("Audit Test");
-        project.syncLayersFrom(AppState.getInstance().getLayerManager());
+        project.syncLayersFrom(ApplicationContext.getInstance().getAppState().getLayerManager());
 
         Project restored = Project.deserialize(project.serialize());
         assertEquals("Audit Test", restored.getName());
@@ -127,7 +128,7 @@ class ProjectTest {
         Path file = dir.resolve("broken.plot");
         Files.writeString(file, "{broken", StandardCharsets.UTF_8);
 
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         appState.initializeLayerSystem();
         LayerManager layerManager = appState.getLayerManager();
         Layer marker = new Layer("marker-layer");
@@ -151,7 +152,7 @@ class ProjectTest {
                   "layers": [
                 """, StandardCharsets.UTF_8);
 
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         appState.initializeLayerSystem();
         LayerManager layerManager = appState.getLayerManager();
         int layerCountBefore = layerManager.getLayerCount();
@@ -163,7 +164,7 @@ class ProjectTest {
     @Test
     void loadFromMissingFileThrowsWithoutMutatingState(@TempDir Path dir) {
         Path missing = dir.resolve("does-not-exist.plot");
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         appState.initializeLayerSystem();
         LayerManager layerManager = appState.getLayerManager();
         int before = layerManager.getLayerCount();
@@ -177,12 +178,12 @@ class ProjectTest {
         Path file = dir.resolve("null.plot");
         Files.writeString(file, "null", StandardCharsets.UTF_8);
         assertThrows(ProjectFormatException.class,
-            () -> Project.loadFromFile(AppState.getInstance(), file));
+            () -> Project.loadFromFile(ApplicationContext.getInstance().getAppState(), file));
     }
 
     @Test
     void saveToFileIsAtomicAndCreatesBackupAndAutosave(@TempDir Path dir) throws IOException {
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         appState.initializeLayerSystem();
         Project first = new Project("First Save");
         first.applyToAppState(appState);

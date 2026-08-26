@@ -28,8 +28,8 @@ import java.util.concurrent.ScheduledFuture;
 /**
  * 应用状态兼容门面：委托到 {@link ApplicationContext} 及其聚焦服务。
  * <p>
- * 新代码优先通过 {@link ApplicationContext} 访问各服务；本类保留以兼容现有
- * {@code AppState.getInstance()} 调用点。Canvas 不在此持有，见
+ * 新代码优先通过 {@link ApplicationContext} 访问各服务；本类保留为兼容门面。
+ * {@link #getInstance()} 已标记废弃。Canvas 不在此持有，见
  * {@code com.plot.ui.canvas.CanvasAccess}。
  */
 public class AppState implements IAppState {
@@ -38,12 +38,16 @@ public class AppState implements IAppState {
     private final ApplicationContext context;
 
     /**
-     * 由 {@link ApplicationContext} 构造；外部请使用 {@link #getInstance()}。
+     * 由 {@link ApplicationContext} 构造；外部请使用 {@link ApplicationContext#getAppState()}。
      */
     public AppState(ApplicationContext context) {
         this.context = context;
     }
 
+    /**
+     * @deprecated 使用 {@link ApplicationContext#getAppState()}。
+     */
+    @Deprecated
     public static AppState getInstance() {
         return ApplicationContext.getInstance().getAppState();
     }
@@ -190,8 +194,8 @@ public class AppState implements IAppState {
         DeleteShapesCommand deleteCommand = new DeleteShapesCommand(shapesToDelete);
         context.getCommandService().execute(deleteCommand);
         clearSelection();
-        EventBus.getInstance().publish(new ShapesRemovedEvent(shapesToDelete));
-        EventBus.getInstance().publish(
+        context.getEventBus().publish(new ShapesRemovedEvent(shapesToDelete));
+        context.getEventBus().publish(
             new CommandExecutedEvent("删除图形", CommandExecutedEvent.CommandType.EXECUTE));
     }
 

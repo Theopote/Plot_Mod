@@ -3,6 +3,7 @@ package com.plot.ui.panel.gallery;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.gallery.GalleryItem;
 import com.plot.core.gallery.GalleryRepository;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -117,6 +118,6 @@ public final class GalleryPlaceSession {
     }
 
     private static void publishStatus(String key, Object... args) {
-        EventBus.getInstance().publish(new Events.StatusMessageEvent(PlotI18n.tr(key, args)));
+        ApplicationContext.getInstance().getEventBus().publish(new Events.StatusMessageEvent(PlotI18n.tr(key, args)));
     }
 }

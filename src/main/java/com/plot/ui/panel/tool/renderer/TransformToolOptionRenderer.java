@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.TransformTool;
 import com.plot.ui.theme.ThemeManager;
@@ -134,7 +135,7 @@ public class TransformToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private TransformTool getCurrentTool() {
         try {
-            com.plot.core.state.AppState appState = com.plot.core.state.AppState.getInstance();
+            com.plot.core.state.AppState appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             if (appState == null) {
                 return null;
             }

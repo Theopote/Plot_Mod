@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.utils.ImGuiUtils;
 import com.plot.ui.theme.ThemeManager;
@@ -153,7 +154,7 @@ public class MirrorToolOptionRenderer extends AbstractToolOptionRenderer {
         // 从工具获取当前配置
         try {
             // 通过ToolManager获取当前工具
-            com.plot.core.tool.ToolManager toolManager = com.plot.core.tool.ToolManager.getInstance();
+            com.plot.core.tool.ToolManager toolManager = com.plot.core.context.ApplicationContext.getInstance().getToolManager();
             com.plot.api.tool.ITool currentTool = toolManager.getActiveTool();
             
             if (currentTool instanceof MirrorTool mirrorTool) {

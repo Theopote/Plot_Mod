@@ -2,6 +2,7 @@ package com.plot.ui.camera;
 
 import com.plot.camera.CameraManager;
 import com.plot.camera.OrthographicCamera;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -24,7 +25,7 @@ public class CameraSettingsManager {
     private OrthographicCamera camera;
 
     private CameraSettingsManager() {
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.cameraManager = CameraManager.getInstance();
     }
 

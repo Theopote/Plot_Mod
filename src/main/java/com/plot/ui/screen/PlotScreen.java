@@ -1,12 +1,12 @@
 package com.plot.ui.screen;
 
 import com.plot.core.state.AppState;
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.ExceptionDebug;
 import com.plot.ui.imgui.ImGuiRenderer;
 import com.plot.ui.imgui.GuiOverlayRenderer;
 import com.plot.ui.imgui.PlotStyleScope;
 import com.plot.ui.toolbar.ControlPanel;
-import com.plot.infrastructure.event.block.GhostBlockManager;
 import com.plot.ui.toolbar.SystemPanel;
 import com.plot.ui.toolbar.ToolPanel;
 import com.plot.ui.canvas.Canvas;
@@ -124,7 +124,7 @@ public class PlotScreen extends Screen {
         LOGGER.debug("创建 PlotScreen 实例...");
 
         // 获取核心依赖
-        this.appState = AppState.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
         this.imGuiRenderer = ImGuiRenderer.getInstance();
         this.uiContainer = UIContainer.getInstance();
 
@@ -928,20 +928,19 @@ public class PlotScreen extends Screen {
         }
 
         // 关闭 Plot 时清理幽灵方块，避免未投影预览残留
-        GhostBlockManager.getInstance().clearAllGhostBlocks();
+        ApplicationContext.getInstance().getGhostBlockManager().clearAllGhostBlocks();
 
         // 恢复 Plot 屏幕状态（恢复云渲染和雾渲染）
         PlotScreenState.setPlotScreenOpen(false);
 
         try {
-            com.plot.core.tool.ToolManager.getInstance().saveToolConfigs();
+            com.plot.core.context.ApplicationContext.getInstance().getToolManager().saveToolConfigs();
         } catch (Exception e) {
             LOGGER.warn("保存工具配置失败: {}", e.getMessage());
         }
 
         try {
-            com.plot.core.context.ApplicationContext context =
-                com.plot.core.context.ApplicationContext.getInstance();
+            ApplicationContext context = ApplicationContext.getInstance();
             context.getProjectSession().save(context);
         } catch (Exception e) {
             LOGGER.warn("保存画布会话失败: {}", e.getMessage());
@@ -1241,7 +1240,7 @@ public class PlotScreen extends Screen {
         } catch (Exception e) { ExceptionDebug.log("PlotScreen: handle character shortcut", e); }
 
         // 如果ImGui没有捕获，尝试传递给当前工具
-        BaseTool currentTool = AppState.getInstance().getCurrentTool();
+        BaseTool currentTool = ApplicationContext.getInstance().getAppState().getCurrentTool();
         if (currentTool != null && chr != '\0' && currentTool.onKeyTyped(chr)) {
             PlotMod.LOGGER.debug("工具处理字符输入: text='{}', tool={}", 
                 text, currentTool.getClass().getSimpleName());

@@ -2,6 +2,7 @@ package com.plot.core.layer;
 
 import com.plot.api.event.EventType;
 import com.plot.api.model.ILayer;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.utils.PlotI18n;
@@ -32,7 +33,7 @@ public class LayerEventSystem {
     public static final String LAYER_CONTENT_CHANGED = "layer.content.changed";
     
     public LayerEventSystem() {
-        this(EventBus.getInstance());
+        this(ApplicationContext.getInstance().getEventBus());
     }
     
     public LayerEventSystem(EventBus eventBus) {

@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.snap.SnapManager;
 import com.plot.ui.canvas.CanvasCamera;
 import imgui.ImColor;
@@ -73,7 +74,7 @@ public class SnapEnhancer {
             if (actuallySnapped) {
                 // 直接使用 SnapManager 解析出的真实吸附类型，避免各工具再做一套启发式推断导致显示错乱。
                 com.plot.core.snap.SnapPriorityEvaluator.SnapType snapType =
-                    SnapManager.getInstance().getLastResolvedSnapType();
+                    ApplicationContext.getInstance().getSnapManager().getLastResolvedSnapType();
                 if (snapType == null || snapType == com.plot.core.snap.SnapPriorityEvaluator.SnapType.NONE) {
                     snapType = inferSnapType(originalWorldPoint, snappedWorldPoint);
                 }
@@ -129,7 +130,7 @@ public class SnapEnhancer {
             boolean actuallySnapped = distance > 0.001;
 
             if (actuallySnapped) {
-                var snapType = SnapManager.getInstance().getLastResolvedSnapType();
+                var snapType = ApplicationContext.getInstance().getSnapManager().getLastResolvedSnapType();
                 if (snapType == null || snapType == com.plot.core.snap.SnapPriorityEvaluator.SnapType.NONE) {
                     snapType = inferSnapType(originalWorldPoint, snappedWorldPoint);
                 }
@@ -375,7 +376,7 @@ public class SnapEnhancer {
             return null;
         }
 
-        Shape sourceShape = SnapManager.getInstance().getLastResolvedSnapSourceShape();
+        Shape sourceShape = ApplicationContext.getInstance().getSnapManager().getLastResolvedSnapSourceShape();
         if (!(sourceShape instanceof LineShape lineShape)) {
             return null;
         }
@@ -427,7 +428,7 @@ public class SnapEnhancer {
 
     private float getMarkerScale() {
         try {
-            float configured = SnapManager.getInstance().getMarkerSize();
+            float configured = ApplicationContext.getInstance().getSnapManager().getMarkerSize();
             float scale = configured / 5.0f;
             return Math.max(0.8f, Math.min(2.0f, scale));
         } catch (Exception e) {

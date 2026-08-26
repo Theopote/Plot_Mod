@@ -2,6 +2,7 @@ package com.plot.ui.shortcut;
 
 import com.plot.api.shortcut.IShortcutListener;
 import com.plot.utils.PlotI18n;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.model.Shape;
 import com.plot.core.command.CommandService;
@@ -43,7 +44,7 @@ public class DeleteShortcutListener implements IShortcutListener {
      * 处理删除操作
      */
     private boolean handleDelete() {
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         List<Shape> selectedShapes = appState.getSelectedShapes();
         
         if (selectedShapes == null || selectedShapes.isEmpty()) {
@@ -58,7 +59,7 @@ public class DeleteShortcutListener implements IShortcutListener {
             // 1. 记录到命令历史中，支持撤销/重做
             // 2. 发布正确的命令事件
             // 3. 确保业务逻辑的完整性
-            CommandService commandService = CommandService.getInstance();
+            CommandService commandService = ApplicationContext.getInstance().getCommandService();
             
             DeleteShapesCommand deleteCommand = new DeleteShapesCommand(
                 new ArrayList<>(selectedShapes));

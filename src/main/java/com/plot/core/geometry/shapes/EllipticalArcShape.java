@@ -7,7 +7,7 @@ import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
 import com.plot.core.graphics.DrawContext;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -458,7 +458,7 @@ public class EllipticalArcShape extends Shape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         // ImGui绘制实现
         if (!isVisible() || isDeleted()) {
             return;
@@ -496,7 +496,7 @@ public class EllipticalArcShape extends Shape {
     }
     
     @Override
-    public void accept(IRenderVisitor visitor, imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    public void accept(IRenderVisitor visitor, imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         // 简化实现：直接绘制
         drawImGui(drawList, camera);
     }

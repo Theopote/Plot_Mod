@@ -1,5 +1,6 @@
 package com.plot.ui.dialog;
 
+import com.plot.core.context.ApplicationContext;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -221,12 +222,12 @@ class UIShortcutActions {
 
     static class UiActions {
         static boolean publishUndo() {
-            com.plot.infrastructure.event.EventBus.getInstance().publish(
+            com.plot.core.context.ApplicationContext.getInstance().getEventBus().publish(
                     new com.plot.infrastructure.event.command.UndoEvent());
             return true;
         }
         static boolean publishRedo() {
-            com.plot.infrastructure.event.EventBus.getInstance().publish(
+            com.plot.core.context.ApplicationContext.getInstance().getEventBus().publish(
                     new com.plot.infrastructure.event.command.RedoEvent());
             return true;
         }
@@ -235,7 +236,7 @@ class UIShortcutActions {
     static class ToolActions {
         static boolean activate(String toolId) {
             try {
-                com.plot.core.tool.ToolManager toolManager = com.plot.core.tool.ToolManager.getInstance();
+                com.plot.core.tool.ToolManager toolManager = com.plot.core.context.ApplicationContext.getInstance().getToolManager();
                 com.plot.api.tool.ITool tool = toolManager.getTool(toolId);
                 if (tool != null) {
                     toolManager.activateTool(tool);

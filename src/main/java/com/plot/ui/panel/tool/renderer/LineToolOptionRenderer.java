@@ -1,6 +1,7 @@
 package com.plot.ui.panel.tool.renderer;
 
 import com.plot.utils.PlotI18n;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.drawing.LineTool;
 import com.plot.utils.ImGuiUtils;
@@ -185,7 +186,7 @@ public class LineToolOptionRenderer extends AbstractToolOptionRenderer {
     }
 
     private void syncFromToolState() {
-        var currentTool = AppState.getInstance().getCurrentTool();
+        var currentTool = ApplicationContext.getInstance().getAppState().getCurrentTool();
         if (currentTool instanceof LineTool lineTool) {
             lineToolType = lineTool.getDrawingMode();
             lineCountArray[0] = lineTool.getLineCount();

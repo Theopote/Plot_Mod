@@ -3,6 +3,7 @@ package com.plot.ui.toolbar.group;
 import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.ClearCanvasCommand;
 import com.plot.core.snap.SnapManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.component.ControlPanelIcons;
@@ -22,7 +23,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
     
     public ToolSettingsGroup(AppState appState, EventBus eventBus) {
         super("toolbar.plot.group.tool_settings", appState, eventBus);
-        this.snapManager = SnapManager.getInstance();
+        this.snapManager = ApplicationContext.getInstance().getSnapManager();
         this.gridManager = GridManager.getInstance();
     }
     
@@ -108,7 +109,7 @@ public class ToolSettingsGroup extends AbstractToolbarGroup {
                 PlotI18n.tr("toolbar.plot.clear_canvas"))) {
             // 使用命令系统，支持撤销和重做
             ClearCanvasCommand command = new ClearCanvasCommand(appState);
-            CommandService.getInstance().execute(command);
+            ApplicationContext.getInstance().getCommandService().execute(command);
         }
 
         if (ImGui.isItemHovered()) {

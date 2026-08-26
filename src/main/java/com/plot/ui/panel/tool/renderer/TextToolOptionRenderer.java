@@ -7,6 +7,7 @@ import com.plot.core.graphics.style.TextAlignment;
 import com.plot.ui.tools.impl.modify.TextTool;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -138,7 +139,7 @@ public class TextToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private void syncStateFromTool() {
         try {
-            AppState appState = AppState.getInstance();
+            AppState appState = ApplicationContext.getInstance().getAppState();
             if (appState == null) {
                 return;
             }

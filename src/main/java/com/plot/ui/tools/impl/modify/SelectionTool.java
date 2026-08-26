@@ -5,6 +5,7 @@ import com.plot.api.snap.ISnapManager;
 import com.plot.api.state.IAppState;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.snap.SnapManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
@@ -71,7 +72,7 @@ public class SelectionTool extends ModifyTool {
      * 构造函数（兼容版本）
      */
     public SelectionTool(ICanvas canvas) {
-        this(AppState.getInstance(), SnapManager.getInstance(), canvas);
+        this(ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager(), canvas);
     }
     
     /**

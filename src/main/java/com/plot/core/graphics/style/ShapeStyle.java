@@ -5,6 +5,7 @@ import java.util.Objects;
 
 import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.graphics.ILineStyle;
+import com.plot.api.graphics.LineType;
 import com.plot.api.graphics.IFillStyle;
 
 /**
@@ -26,22 +27,22 @@ public class ShapeStyle implements IShapeStyle, Cloneable {
     
     // 预定义样式
     public static final ShapeStyle DEFAULT = new ShapeStyle(
-        new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(Color.BLACK),
+        new LineStyle(LineType.SOLID, 1.0f).withColor(Color.BLACK),
         new FillStyle(Color.WHITE, 0.5f)
     );
     
     public static final ShapeStyle PREVIEW = new ShapeStyle(
-        new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(new Color(0, 120, 215)),
+        new LineStyle(LineType.SOLID, 1.0f).withColor(new Color(0, 120, 215)),
         new FillStyle(new Color(0, 120, 215, 128), 0.3f)
     );
     
     public static final ShapeStyle SELECTED = new ShapeStyle(
-        new LineStyle(LineStyle.LineType.SOLID, 2.5f).withColor(new Color(255, 215, 0)), // 亮黄色
+        new LineStyle(LineType.SOLID, 2.5f).withColor(new Color(255, 215, 0)), // 亮黄色
         new FillStyle(new Color(255, 215, 0, 80), 0.3f) // 半透明亮黄色填充
     );
     
     public static final ShapeStyle HIGHLIGHTED = new ShapeStyle(
-        new LineStyle(LineStyle.LineType.SOLID, 2.0f).withColor(new Color(255, 140, 0)), // 橙色
+        new LineStyle(LineType.SOLID, 2.0f).withColor(new Color(255, 140, 0)), // 橙色
         new FillStyle(new Color(255, 140, 0, 64), 0.2f)
     );
     
@@ -351,7 +352,7 @@ public class ShapeStyle implements IShapeStyle, Cloneable {
      * 设置描边样式
      * @param style 线条样式类型
      */
-    public void setStrokeStyle(LineStyle.LineType style) {
+    public void setStrokeStyle(LineType style) {
         if (this.lineStyle == null) {
             this.lineStyle = new LineStyle(style, this.lineWidth);
         } else if (this.lineStyle instanceof LineStyle) {

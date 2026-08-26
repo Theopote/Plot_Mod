@@ -3,6 +3,7 @@ package com.plot.core.snap;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.SnapSettingsChangedEvent;
@@ -39,7 +40,7 @@ public class SnapManager implements ISnapManager, SnapService {
 
     private SnapManager() {
         this.eventBus = EventBus.getInstance();
-        this.appState = AppState.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
         this.settings = new SnapSettings();
     }
 

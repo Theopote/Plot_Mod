@@ -15,6 +15,7 @@ import com.plot.core.geometry.shapes.TextShape;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.CableShape;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.ExceptionDebug;

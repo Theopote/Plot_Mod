@@ -10,7 +10,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -708,7 +708,7 @@ public class PolylineShape extends Shape implements IExtendableShape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
     
@@ -963,7 +963,7 @@ public class PolylineShape extends Shape implements IExtendableShape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             if (points.size() < 2) return;
             

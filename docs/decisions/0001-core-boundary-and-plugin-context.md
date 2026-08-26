@@ -37,6 +37,9 @@ Plot 正确方向是 **Core ← Plugin**（Road / Building / Earthwork …）。
 ## Consequences
 
 - 新插件（Parcel 等）必须经 `PluginContext` 拿宿主能力，不能再扩大定位器面。
-- 世界服务（`GhostBlockManager` / `BlockPlacementScheduler` / `BlockProjectionHandler`）已纳入 `PluginContext`（`ghosts()` / `placement()` / `projection()`）。实现层暂仍为单例，但对 `com.plot.plugin/**` 禁止再直接 `getInstance()`。
-- UI / Core 命令默认构造仍可回退单例；插件创建落地命令时应传入 Context 中的实例。
-- UI 仍可临时使用 `AppState` 门面；新 Core/Plugin 代码不得新增 `AppState.getInstance()`。
+- `ApplicationContext` 是 UI/Core 服务访问面：`getAppState` / `getCommandService` / `getToolManager` / `getSnapManager` / `getEventBus` / 世界服务等。
+- `AppState.getInstance()` / `CommandService.getInstance()` 已 `@Deprecated`（组合根内部解析除外）。
+- `ViewTransform` 位于 `com.plot.api.render`；`DrawContext` / `Shape.renderImGui` / `IRenderVisitor` 均使用它，Core 几何不再依赖 `CanvasCamera`。
+- `IShapeVisitor` 迁至 `com.plot.core.geometry.visitor`（UI 包保留废弃转发）。
+- `LineType` 升至 `com.plot.api.graphics`；`IPluginManager` 不再暴露 core 的 `PluginDependencyGraph`。
+- `api` 仍有对 core 具体类型的引用（`IAppState`/`ILayer`/`ISnapManager` 的 `Shape`，`ITool`/`IRenderer` 的 `DrawContext`，`IRenderVisitor` 的具体 Shape 类等），下一刀继续收。

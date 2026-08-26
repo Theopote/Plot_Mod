@@ -5,6 +5,7 @@ import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.api.model.ILayer;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 
 import java.awt.Color;
@@ -27,7 +28,7 @@ public final class LayerStructureSnapshot {
     }
 
     public static LayerStructureSnapshot capture() {
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         LayerManager layerManager = appState.getLayerManager();
         List<LayerEntry> entries = new ArrayList<>();
         for (ILayer layer : layerManager.getLayers()) {
@@ -41,7 +42,7 @@ public final class LayerStructureSnapshot {
     }
 
     public void apply() {
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         LayerManager layerManager = appState.getLayerManager();
 
         Set<String> targetIds = new HashSet<>();

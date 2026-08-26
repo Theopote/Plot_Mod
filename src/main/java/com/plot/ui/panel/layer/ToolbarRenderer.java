@@ -3,6 +3,7 @@ package com.plot.ui.panel.layer;
 import com.plot.api.model.ILayer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.UITheme;
@@ -53,7 +54,7 @@ public class ToolbarRenderer {
             int textureMoveDown,
             int textureSelectAll) {
         this.layerManager = layerManager;
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.showWarningDialog = showWarningDialog;
         this.showNewLayerDialog = showNewLayerDialog;
         this.showDeleteLayerDialog = showDeleteLayerDialog;

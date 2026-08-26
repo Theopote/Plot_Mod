@@ -10,6 +10,7 @@ import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.snap.SnapManager;
 import com.plot.core.shortcut.ShortcutManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 
 import net.minecraft.util.Identifier;
@@ -65,7 +66,7 @@ import com.plot.ui.tools.impl.drawing.helper.StyleHandler;
 public abstract class DrawingTool extends BaseTool implements IDirty, IInteractionStrategy.DrawingToolContext {
     protected static final Logger LOGGER = LoggerFactory.getLogger(DrawingTool.class);
 
-    private static volatile EventBus sharedEventBus = EventBus.getInstance();
+    private static volatile EventBus sharedEventBus = ApplicationContext.getInstance().getEventBus();
     private static volatile ShortcutManager sharedShortcutManager = ShortcutManager.getInstance();
 
     /**
@@ -177,7 +178,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
      */
     @Deprecated
     protected DrawingTool(String id, Identifier icon) {
-        this(id, icon, AppState.getInstance(), SnapManager.getInstance());
+        this(id, icon, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager());
     }
 
     protected DrawingTool(String id, String name, Identifier icon, String description,
@@ -228,7 +229,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
      */
     @Deprecated
     protected DrawingTool(String id, String name, Identifier icon, String description) {
-        this(id, name, icon, description, AppState.getInstance(), SnapManager.getInstance(), InteractionType.DRAG_AND_DROP);
+        this(id, name, icon, description, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager(), InteractionType.DRAG_AND_DROP);
     }
 
     /**

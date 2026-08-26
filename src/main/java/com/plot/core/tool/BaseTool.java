@@ -11,6 +11,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.shortcut.IShortcutListener;
 import com.plot.core.log.LogManager;
 import com.plot.core.shortcut.ShortcutManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -79,7 +80,7 @@ public abstract class BaseTool implements ITool, IShortcutListener {
     @Deprecated
     protected BaseTool(String id, String description, Identifier icon, String name) {
         this(id, description, icon, name,
-                AppState.getInstance(), EventBus.getInstance(), ShortcutManager.getInstance());
+                ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getEventBus(), ShortcutManager.getInstance());
     }
 
     // ITool 实现

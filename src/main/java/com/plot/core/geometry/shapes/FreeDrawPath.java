@@ -10,8 +10,8 @@ import com.plot.core.model.Shape;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
-import com.plot.ui.canvas.CanvasCamera;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.api.render.ViewTransform;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -71,7 +71,7 @@ public class FreeDrawPath extends Shape implements IExtendableShape {
         }
         
         // 记录相机状态
-        CanvasCamera camera = context.getCamera();
+        ViewTransform camera = context.getCamera();
         LOGGER.debug("Path.draw: 相机状态={}", camera != null ? "有效" : "无效");
 
         // 绘制路径的所有线段
@@ -1114,12 +1114,12 @@ public class FreeDrawPath extends Shape implements IExtendableShape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             if (points.size() < 2) {
                 return;

@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.ArrayTool;
 import com.plot.ui.tools.impl.modify.strategy.ArrayWithSelectionStrategy;
@@ -827,7 +828,7 @@ public class ArrayToolOptionRenderer extends AbstractToolOptionRenderer {
     private ArrayTool getCurrentToolFromContext() {
         try {
             // 使用AppState获取当前工具，与其他渲染器保持一致
-            com.plot.core.state.AppState appState = com.plot.core.state.AppState.getInstance();
+            com.plot.core.state.AppState appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             com.plot.core.tool.BaseTool currentTool = appState.getCurrentTool();
             
             LOGGER.debug("AppState获取到的当前工具: {}", 

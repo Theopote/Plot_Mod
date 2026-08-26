@@ -87,7 +87,10 @@ public final class EarthworkThreePointPickSession {
         EarthworkPickGuard.setActive(false);
     }
 
-    public Outcome tick(AppState appState, List<Vec2d> regionOuterPoints) {
+    public Outcome tick(
+            AppState appState,
+            List<Vec2d> regionOuterPoints,
+            CoordinateTransformer transformer) {
         if (!active || controlPointIndex < 0) {
             return Outcome.none();
         }
@@ -130,7 +133,6 @@ public final class EarthworkThreePointPickSession {
 
         MinecraftClient client = MinecraftClient.getInstance();
         World world = client != null ? client.world : null;
-        CoordinateTransformer transformer = CoordinateTransformer.getInstance();
         if (world == null || transformer == null) {
             return Outcome.failed(Result.WORLD_UNAVAILABLE, controlPointIndex);
         }

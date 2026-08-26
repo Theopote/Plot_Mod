@@ -5,6 +5,7 @@ import com.plot.api.state.IAppState;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
@@ -94,7 +95,7 @@ public class ExtendTool extends ModifyTool {
             LOGGER.error(errorMessage);
             
             // 回退到全局单例，但添加警告
-            ExtendWithSelectionStrategy strategy = new ExtendWithSelectionStrategy(com.plot.core.state.AppState.getInstance());
+            ExtendWithSelectionStrategy strategy = new ExtendWithSelectionStrategy(com.plot.core.context.ApplicationContext.getInstance().getAppState());
             LOGGER.warn("使用全局单例回退策略创建 ExtendWithSelectionStrategy。建议修复依赖注入配置以避免使用单例模式。");
             return strategy;
         }

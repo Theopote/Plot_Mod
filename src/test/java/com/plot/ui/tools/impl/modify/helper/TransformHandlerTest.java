@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.dto.TransformParams;
 import com.plot.ui.tools.impl.modify.enums.TransformMode;
@@ -23,7 +24,7 @@ class TransformHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new TransformHandler(AppState.getInstance());
+        handler = new TransformHandler(ApplicationContext.getInstance().getAppState());
     }
 
     @Test

@@ -106,10 +106,10 @@ public final class PlotClient implements ClientModInitializer {
         try {
             PlotMod.LOGGER.debug("开始初始化绘图工具模块...");
 
-            ToolManager toolManager = ToolManager.getInstance();
-            EventBus eventBus = EventBus.getInstance();
-            com.plot.core.snap.SnapManager snapManager = com.plot.core.snap.SnapManager.getInstance();
-            CommandService commandService = CommandService.getInstance();
+            ToolManager toolManager = ApplicationContext.getInstance().getToolManager();
+            EventBus eventBus = ApplicationContext.getInstance().getEventBus();
+            com.plot.core.snap.SnapManager snapManager = com.plot.core.context.ApplicationContext.getInstance().getSnapManager();
+            CommandService commandService = ApplicationContext.getInstance().getCommandService();
 
             DrawingToolsModule.initializeAndRegister(
                     toolManager,
@@ -150,7 +150,7 @@ public final class PlotClient implements ClientModInitializer {
 
     private void initializeClientEventSystems() {
         try {
-            CommandService.getInstance();
+            ApplicationContext.getInstance().getCommandService();
             ShortcutManager shortcutManager = ShortcutManager.getInstance();
             shortcutManager.addListener(new EditShortcutListener());
             shortcutManager.addListener(new DeleteShortcutListener());

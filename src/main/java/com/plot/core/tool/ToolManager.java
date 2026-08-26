@@ -10,6 +10,7 @@ import com.plot.infrastructure.event.tool.ToolChangedEvent;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
 import com.plot.infrastructure.event.tool.ToolEvent;
 import com.plot.core.config.ConfigManager;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 
 import java.util.*;
@@ -198,7 +199,7 @@ public class ToolManager implements IToolManager {
             
             // 发布工具变更事件
             String newToolName = tool != null ? tool.getName() : "none";
-            EventBus.getInstance().publish(new ToolChangedEvent(newToolName));
+            ApplicationContext.getInstance().getEventBus().publish(new ToolChangedEvent(newToolName));
         }
     }
 
@@ -424,7 +425,7 @@ public class ToolManager implements IToolManager {
         }
 
         for (Map.Entry<String, Object> entry : toolConfig.getAllValues().entrySet()) {
-            EventBus.getInstance().publish(
+            ApplicationContext.getInstance().getEventBus().publish(
                     new ToolConfigEvent("ToolManager", tool.getId(), entry.getKey(), null, entry.getValue())
             );
         }

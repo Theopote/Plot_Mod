@@ -11,7 +11,7 @@ import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.LineStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -1088,7 +1088,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
     
@@ -1261,7 +1261,7 @@ public class SineCurveShape extends Shape implements IExtendableShape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             // 获取正弦曲线上的点
             List<Vec2d> sinePoints = getPoints();

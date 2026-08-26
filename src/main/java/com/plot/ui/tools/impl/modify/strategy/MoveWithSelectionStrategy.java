@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.UITheme;
@@ -152,7 +153,7 @@ public class MoveWithSelectionStrategy extends BaseSelectionStrategy implements 
 
         // 初始化移动处理器
         if (moveHandler == null) {
-            AppState appState = AppState.getInstance();
+            AppState appState = ApplicationContext.getInstance().getAppState();
             if (appState == null) {
                 context.setStatusMessage("status.plot.common.no_app_state");
                 return ModifyResult.CANCEL;

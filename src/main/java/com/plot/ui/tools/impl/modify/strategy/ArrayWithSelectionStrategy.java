@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.geometry.util.PathUtils;
 import com.plot.core.command.commands.ModifyCommand;
@@ -176,7 +177,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                     try {
                         arrayHandler = new ArrayHandler((com.plot.core.state.AppState) context.getAppState());
                     } catch (Exception e) {
-                        arrayHandler = new ArrayHandler(com.plot.core.state.AppState.getInstance());
+                        arrayHandler = new ArrayHandler(com.plot.core.context.ApplicationContext.getInstance().getAppState());
                     }
                 }
 
@@ -251,7 +252,7 @@ public class ArrayWithSelectionStrategy extends BaseSelectionStrategy implements
                 try {
                     arrayHandler = new ArrayHandler((com.plot.core.state.AppState) context.getAppState());
                 } catch (Exception e) {
-                    arrayHandler = new ArrayHandler(com.plot.core.state.AppState.getInstance());
+                    arrayHandler = new ArrayHandler(com.plot.core.context.ApplicationContext.getInstance().getAppState());
                 }
             }
 

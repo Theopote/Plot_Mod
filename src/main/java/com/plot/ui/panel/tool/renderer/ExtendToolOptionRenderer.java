@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -156,7 +157,7 @@ public class ExtendToolOptionRenderer extends AbstractToolOptionRenderer {
     private ExtendTool getCurrentToolFromContext() {
         try {
             // 使用AppState获取当前工具 - 这是备用方案，不是推荐方式
-            com.plot.core.state.AppState appState = com.plot.core.state.AppState.getInstance();
+            com.plot.core.state.AppState appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             if (appState == null) {
                 LOGGER.debug("AppState未初始化，无法获取当前工具（这是正常的，如果使用render(ExtendTool)方法）");
                 return null;

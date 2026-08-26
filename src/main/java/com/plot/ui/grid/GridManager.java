@@ -1,5 +1,6 @@
 package com.plot.ui.grid;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.GridToggleEvent;
 import com.plot.infrastructure.event.view.GridColorChangedEvent;
@@ -26,7 +27,7 @@ public class GridManager {
     private GridSettings settings;
 
     private GridManager() {
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.settings = new GridSettings();
         LOGGER.debug("GridManager初始化完成，默认启用状态：{}", true);
         

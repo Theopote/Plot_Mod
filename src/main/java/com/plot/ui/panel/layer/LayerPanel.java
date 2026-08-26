@@ -2,6 +2,7 @@ package com.plot.ui.panel.layer;
 
 import com.plot.utils.PlotI18n;
 import com.plot.api.model.ILayer;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
@@ -100,13 +101,13 @@ public class LayerPanel implements UIComponent {
     public LayerPanel() {
         try {
             // 确保AppState已初始化
-            this.appState = AppState.getInstance();
+            this.appState = ApplicationContext.getInstance().getAppState();
             if (this.appState == null) {
                 throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_init_failed"));
             }
 
             // 确保EventBus已初始化
-            this.eventBus = EventBus.getInstance();
+            this.eventBus = ApplicationContext.getInstance().getEventBus();
             if (this.eventBus == null) {
                 throw new IllegalStateException(PlotI18n.error("error.plot.validation.event_bus_init_failed"));
             }

@@ -11,6 +11,7 @@ import com.plot.core.selection.Selection;
 import com.plot.core.tool.BaseTool;
 import com.plot.utils.PlotI18n;
 import com.plot.core.command.commands.ModifyCommand;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.core.snap.SnapManager;
@@ -68,7 +69,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
             new com.plot.ui.tools.snap.SnapEnhancer("ModifyTool");
     protected static final Logger LOGGER = LoggerFactory.getLogger(ModifyTool.class);
 
-    private static volatile EventBus sharedEventBus = EventBus.getInstance();
+    private static volatile EventBus sharedEventBus = ApplicationContext.getInstance().getEventBus();
     private static volatile ShortcutManager sharedShortcutManager = ShortcutManager.getInstance();
 
     /**
@@ -156,7 +157,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
      */
     @Deprecated
     protected ModifyTool(String id, Identifier icon) {
-        this(id, icon, AppState.getInstance(), SnapManager.getInstance());
+        this(id, icon, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager());
     }
 
     protected ModifyTool(String id, String name, Identifier icon, String description,
@@ -192,7 +193,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
      */
     @Deprecated
     protected ModifyTool(String id, String name, Identifier icon, String description) {
-        this(id, name, icon, description, AppState.getInstance(), SnapManager.getInstance());
+        this(id, name, icon, description, ApplicationContext.getInstance().getAppState(), ApplicationContext.getInstance().getSnapManager());
     }
 
     // ====== 鼠标事件处理（完全委托给策略） ======

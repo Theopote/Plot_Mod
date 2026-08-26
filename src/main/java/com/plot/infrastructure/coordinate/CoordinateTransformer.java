@@ -1,6 +1,7 @@
 package com.plot.infrastructure.coordinate;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasCamera;
@@ -56,7 +57,7 @@ public class CoordinateTransformer {
     }
 
     private CoordinateTransformer() {
-        this.appState = AppState.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
     }
 
     /**

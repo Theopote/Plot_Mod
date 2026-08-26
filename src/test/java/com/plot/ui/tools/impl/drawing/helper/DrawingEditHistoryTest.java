@@ -2,6 +2,7 @@ package com.plot.ui.tools.impl.drawing.helper;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.CommandService;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +20,7 @@ class DrawingEditHistoryTest {
 
     @BeforeEach
     void setUp() {
-        commandService = AppState.getInstance().getCommandService();
+        commandService = ApplicationContext.getInstance().getAppState().getCommandService();
         commandService.clear();
     }
 

@@ -1,6 +1,6 @@
 package com.plot.utils;
 
-import com.plot.core.graphics.style.LineStyle;
+import com.plot.api.graphics.LineType;
 import net.minecraft.text.Text;
 
 /**
@@ -54,7 +54,7 @@ public final class PlotI18n {
         return operationKey;
     }
 
-    public static String lineTypeLabel(LineStyle.LineType type) {
+    public static String lineTypeLabel(LineType type) {
         if (type == null) {
             return "";
         }

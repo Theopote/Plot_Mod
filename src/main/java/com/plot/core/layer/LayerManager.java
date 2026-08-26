@@ -2,6 +2,7 @@ package com.plot.core.layer;
 
 import com.plot.api.model.ILayer;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import org.slf4j.Logger;
@@ -44,8 +45,8 @@ public class LayerManager {
      */
     private LayerManager() {
         // 依赖
-        AppState appState = AppState.getInstance();
-        EventBus eventBus = EventBus.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
+        EventBus eventBus = ApplicationContext.getInstance().getEventBus();
         this.eventSystem = new LayerEventSystem(eventBus);
         
         LOGGER.debug("创建优化图层管理器");

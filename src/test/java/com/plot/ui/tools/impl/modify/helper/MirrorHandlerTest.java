@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.helper;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,7 +21,7 @@ class MirrorHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new MirrorHandler(AppState.getInstance());
+        handler = new MirrorHandler(ApplicationContext.getInstance().getAppState());
     }
 
     @Test

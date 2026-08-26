@@ -5,6 +5,7 @@ import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
 import com.plot.ui.tools.impl.drawing.RectangleTool;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import imgui.ImGui;
@@ -165,7 +166,7 @@ public class RectangleToolOptionRenderer extends AbstractToolOptionRenderer {
      */
     private RectangleTool getCurrentRectangleTool() {
         try {
-            AppState appState = AppState.getInstance();
+            AppState appState = ApplicationContext.getInstance().getAppState();
             BaseTool currentTool = appState.getCurrentTool();
             
             if (currentTool instanceof RectangleTool) {

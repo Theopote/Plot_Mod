@@ -3,15 +3,15 @@ package com.plot.core.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.geometry.Matrix3d;
 import com.plot.api.render.IRenderVisitor;
+import com.plot.api.render.ViewTransform;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.FillStyle;
 import com.plot.core.graphics.style.ShapeStyle;
-import com.plot.ui.canvas.CanvasCamera;
-import com.plot.ui.canvas.CanvasRenderer;
+import com.plot.api.render.ViewTransform;
 import com.plot.core.graphics.DrawContext;
 import com.plot.api.model.IDirty;
 import com.plot.api.graphics.IShapeStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.plot.core.geometry.AffineTransform;
 
 import java.util.List;
@@ -267,18 +267,16 @@ public abstract class Shape implements Cloneable, IDirty {
 
     /**
      * 渲染形状到画布
-     * @param renderer 画布渲染器
-     * @param camera 相机
+     * @param camera 视图变换
      * @param opacity 不透明度
      */
-    public void render(CanvasRenderer renderer, CanvasCamera camera, float opacity) {
+    public void render(ViewTransform camera, float opacity) {
         if (!isVisible() || isDeleted()) {
             return;
         }
         
         // 创建一个DrawContext对象供draw方法使用
         DrawContext context = new DrawContext();
-        context.setRenderer(renderer);
         context.setCamera(camera);
         context.setOpacity(opacity);
         
@@ -330,7 +328,7 @@ public abstract class Shape implements Cloneable, IDirty {
      * @param drawList ImGui绘制列表
      * @param camera 画布相机
      */
-    public void renderImGui(imgui.ImDrawList drawList, CanvasCamera camera) {
+    public void renderImGui(imgui.ImDrawList drawList, ViewTransform camera) {
         if (!isVisible() || isDeleted()) {
             return;
         }
@@ -344,7 +342,7 @@ public abstract class Shape implements Cloneable, IDirty {
      * @param drawList ImGui绘制列表
      * @param camera 画布相机
      */
-    protected abstract void drawImGui(imgui.ImDrawList drawList, CanvasCamera camera);
+    protected abstract void drawImGui(imgui.ImDrawList drawList, ViewTransform camera);
 
     // 几何操作
     public abstract void translate(Vec2d offset);
@@ -480,7 +478,7 @@ public abstract class Shape implements Cloneable, IDirty {
      * @param camera 画布相机
      */
     public abstract void accept(IRenderVisitor visitor,
-                                imgui.ImDrawList drawList, CanvasCamera camera);
+                                imgui.ImDrawList drawList, ViewTransform camera);
 
     /**
      * 计算点到形状的最短距离

@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
@@ -170,7 +171,7 @@ public class ScaleWithSelectionStrategy extends BaseSelectionStrategy implements
 
         // 初始化缩放处理器
         if (scaleHandler == null) {
-            scaleHandler = new ScaleHandler(com.plot.core.state.AppState.getInstance());
+            scaleHandler = new ScaleHandler(com.plot.core.context.ApplicationContext.getInstance().getAppState());
         }
 
         Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());

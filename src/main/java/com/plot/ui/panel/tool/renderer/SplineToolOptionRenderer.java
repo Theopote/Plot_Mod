@@ -11,6 +11,7 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.ui.panel.tool.renderer.helpers.SliderRenderHelper;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.tool.ToolManager;
 import com.plot.api.tool.ITool;
 import imgui.ImGui;
@@ -32,7 +33,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
     
     // 使用配置对象和事件驱动机制
     private final SplineConfig localConfig = new SplineConfig();
-    private final EventBus eventBus = EventBus.getInstance();
+    private final EventBus eventBus = ApplicationContext.getInstance().getEventBus();
     
     // UI 数组引用（用于 ImGui 控件）
     private final float[] tensionArray = {0.5f};
@@ -108,7 +109,7 @@ public class SplineToolOptionRenderer extends AbstractToolOptionRenderer impleme
      */
     private void syncFromToolActivation() {
         try {
-            ITool tool = ToolManager.getInstance().getActiveTool();
+            ITool tool = ApplicationContext.getInstance().getToolManager().getActiveTool();
             if (tool instanceof SplineTool splineTool && tool.getId().equals(this.toolId)) {
                 SplineConfig toolConfig = splineTool.getSplineConfig();
                 localConfig.setCurrentMode(toolConfig.getCurrentMode());

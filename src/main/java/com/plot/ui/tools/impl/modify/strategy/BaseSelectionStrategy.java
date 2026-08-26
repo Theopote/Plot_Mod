@@ -1,5 +1,6 @@
 package com.plot.ui.tools.impl.modify.strategy;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.graphics.DrawContext;
@@ -202,7 +203,7 @@ public abstract class BaseSelectionStrategy {
      */
     protected void clearSelection(ModifyToolContext context) {
         try {
-            List<Shape> allShapes = com.plot.core.state.AppState.getInstance().getShapes();
+            List<Shape> allShapes = com.plot.core.context.ApplicationContext.getInstance().getAppState().getShapes();
             for (Shape shape : allShapes) {
                 if (selectedShapeIds.contains(shape.getId())) {
                     shape.setSelected(false);
@@ -243,7 +244,7 @@ public abstract class BaseSelectionStrategy {
     protected void clearTemporarySelection(ModifyToolContext context) {
         if (!tempSelectedShapeIds.isEmpty()) {
             try {
-                List<Shape> allShapes = com.plot.core.state.AppState.getInstance().getShapes();
+                List<Shape> allShapes = com.plot.core.context.ApplicationContext.getInstance().getAppState().getShapes();
                 for (Shape shape : allShapes) {
                     if (tempSelectedShapeIds.contains(shape.getId()) && !shape.isSelected()) {
                         shape.setHighlighted(false);
@@ -317,7 +318,7 @@ public abstract class BaseSelectionStrategy {
     protected List<Shape> getSelectedShapesFromIds(ModifyToolContext context) {
         List<Shape> result = new ArrayList<>();
         try {
-            List<Shape> allShapes = com.plot.core.state.AppState.getInstance().getShapes();
+            List<Shape> allShapes = com.plot.core.context.ApplicationContext.getInstance().getAppState().getShapes();
             for (Shape shape : allShapes) {
                 if (selectedShapeIds.contains(shape.getId())) {
                     result.add(shape);

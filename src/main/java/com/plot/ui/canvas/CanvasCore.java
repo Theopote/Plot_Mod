@@ -9,6 +9,7 @@ import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.TextStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.OpacityChangeEvent;
@@ -113,7 +114,7 @@ public class CanvasCore implements ICanvas {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_layer_manager_null"));
         }
         
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.camera = new CanvasCamera();
         this.coordinateTransform = new CoordinateTransform(camera);
         this.opacity = UITheme.Canvas.DEFAULT_OPACITY;
@@ -151,7 +152,7 @@ public class CanvasCore implements ICanvas {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.layer_manager_null"));
         }
         
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         this.camera = new CanvasCamera();
         this.coordinateTransform = new CoordinateTransform(camera);
         this.opacity = UITheme.Canvas.DEFAULT_OPACITY;
@@ -189,7 +190,7 @@ public class CanvasCore implements ICanvas {
      * 这确保了CanvasCore始终与AppState保持一致
      */
     private static AppState getAppStateOrThrow() {
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         if (appState == null) {
             throw new IllegalStateException(PlotI18n.error("error.plot.validation.app_state_before_canvas_core"));
         }

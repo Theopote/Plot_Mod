@@ -2,6 +2,7 @@ package com.plot.ui.canvas;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.geometry.Matrix3d;
+import com.plot.api.render.ViewTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.ui.component.UIComponent;
@@ -10,7 +11,7 @@ import com.plot.api.model.IDirty;
 /**
  * 画布相机，处理视图变换
  */
-public class CanvasCamera implements UIComponent, IDirty {
+public class CanvasCamera implements UIComponent, IDirty, ViewTransform {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/CanvasCamera");
     
     private Vec2d position;      // 相机位置

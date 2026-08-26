@@ -2,6 +2,7 @@ package com.plot.ui.panel.tool.renderer;
 
 import com.plot.utils.PlotI18n;
 import com.plot.PlotMod;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.ui.tools.impl.modify.SelectionTool;
@@ -55,7 +56,7 @@ public class SelectionToolOptionRenderer extends AbstractToolOptionRenderer {
             
             // 获取当前选择模式
             try {
-                BaseTool currentTool = AppState.getInstance().getCurrentTool();
+                BaseTool currentTool = ApplicationContext.getInstance().getAppState().getCurrentTool();
                 if (currentTool instanceof SelectionTool selectionTool) {
                     // 直接从工具获取当前模式
                     SelectionStrategy.SelectionMode currentMode = selectionTool.getCurrentSelectionMode();

@@ -2,6 +2,7 @@ package com.plot.core.command.commands;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.Command;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.block.BlockProjectionEvent;
@@ -44,6 +45,24 @@ public class ProjectGhostBlocksCommand implements Command {
             BlockProjectionEvent.ProjectionMode projectionMode,
             Integer elevation
     ) {
+        this(
+            ghostBlocks,
+            projectionMode,
+            elevation,
+            GhostBlockManager.getInstance(),
+            BlockProjectionHandler.getInstance(),
+            ApplicationContext.getInstance().getEventBus()
+        );
+    }
+
+    public ProjectGhostBlocksCommand(
+            List<GhostBlockManager.GhostBlock> ghostBlocks,
+            BlockProjectionEvent.ProjectionMode projectionMode,
+            Integer elevation,
+            GhostBlockManager ghostBlockManager,
+            BlockProjectionHandler projectionHandler,
+            EventBus eventBus
+    ) {
         this.sourceGhostBlocks = new ArrayList<>();
         if (ghostBlocks != null) {
             for (GhostBlockManager.GhostBlock ghostBlock : ghostBlocks) {
@@ -67,9 +86,13 @@ public class ProjectGhostBlocksCommand implements Command {
         this.elevation = elevation;
         this.timestamp = new Date();
 
-        this.ghostBlockManager = GhostBlockManager.getInstance();
-        this.projectionHandler = BlockProjectionHandler.getInstance();
-        this.eventBus = EventBus.getInstance();
+        this.ghostBlockManager = ghostBlockManager != null
+            ? ghostBlockManager
+            : GhostBlockManager.getInstance();
+        this.projectionHandler = projectionHandler != null
+            ? projectionHandler
+            : BlockProjectionHandler.getInstance();
+        this.eventBus = eventBus != null ? eventBus : ApplicationContext.getInstance().getEventBus();
     }
 
     @Override

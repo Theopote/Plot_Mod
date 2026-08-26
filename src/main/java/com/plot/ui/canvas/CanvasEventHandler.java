@@ -1,6 +1,7 @@
 package com.plot.ui.canvas;
 
 import com.plot.api.model.ILayer;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.view.GridToggleEvent;
@@ -43,7 +44,7 @@ public class CanvasEventHandler {
         
         this.core = core;
         this.grid = grid;
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         
         LOGGER.debug("开始注册事件监听器");
         registerEventListeners();

@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.tools.impl.modify.ChamferTool;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
@@ -22,7 +23,7 @@ class ChamferHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new ChamferHandler(AppState.getInstance());
+        handler = new ChamferHandler(ApplicationContext.getInstance().getAppState());
     }
 
     @Test

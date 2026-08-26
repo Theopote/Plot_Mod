@@ -13,6 +13,7 @@ import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.Icons;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.drawing.helper.*;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.PolylineShape;
@@ -132,8 +133,8 @@ public class PolylineTool extends DrawingTool implements PolylineDrawingSession.
 
     @Deprecated
     public PolylineTool() {
-        this(com.plot.core.state.AppState.getInstance(), 
-             com.plot.core.snap.SnapManager.getInstance());
+        this(com.plot.core.context.ApplicationContext.getInstance().getAppState(), 
+             com.plot.core.context.ApplicationContext.getInstance().getSnapManager());
     }
 
     @Override

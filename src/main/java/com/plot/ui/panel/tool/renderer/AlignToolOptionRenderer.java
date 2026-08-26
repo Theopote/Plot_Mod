@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.tools.impl.modify.AlignTool;
 import com.plot.ui.tools.impl.modify.strategy.AlignStrategy;
@@ -206,7 +207,7 @@ public class AlignToolOptionRenderer extends AbstractToolOptionRenderer {
         
         // 回退到全局状态获取
         try {
-            var appState = com.plot.core.state.AppState.getInstance();
+            var appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             if (appState != null) {
                 var toolManager = appState.getCurrentTool();
                 if (toolManager instanceof AlignTool) {

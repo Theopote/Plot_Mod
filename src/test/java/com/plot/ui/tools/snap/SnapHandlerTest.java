@@ -3,6 +3,7 @@ package com.plot.ui.tools.snap;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.canvas.CanvasCamera;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +24,7 @@ class SnapHandlerTest {
     void setUp() {
         camera = new CanvasCamera();
         snapManager = new RecordingSnapManager();
-        handler = new SnapHandler(AppState.getInstance(), snapManager, "test-tool");
+        handler = new SnapHandler(ApplicationContext.getInstance().getAppState(), snapManager, "test-tool");
     }
 
     @Test

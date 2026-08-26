@@ -1,6 +1,7 @@
 package com.plot.infrastructure.event.block;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
@@ -72,7 +73,7 @@ public class LineToBlockHandler {
      */
     private LineToBlockHandler() {
         this.eventBus = EventBus.getInstance();
-        this.appState = AppState.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
         this.ghostBlockManager = GhostBlockManager.getInstance();
         registerEventListeners();
     }

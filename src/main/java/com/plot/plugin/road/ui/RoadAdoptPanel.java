@@ -2,7 +2,6 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.core.model.Shape;
-import com.plot.core.state.AppState;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.utils.PlotI18n;
@@ -31,7 +30,7 @@ public final class RoadAdoptPanel {
         if (ctx.toolManager().getPathPickSession().isActive()) {
             int pickingCount = ctx.toolManager().getPathPickSession().getAccumulatedCount();
             if (pickingCount > 0) {
-                double totalLength = AppState.getInstance().getSelectedShapes().stream()
+                double totalLength = ctx.host().appState().getSelectedShapes().stream()
                     .filter(RoadGeometryUtils::isAdoptablePath)
                     .mapToDouble(RoadToolManager::calculatePathLength)
                     .sum();
@@ -71,7 +70,7 @@ public final class RoadAdoptPanel {
                         if (ImGui.selectable(label, selected)) {
                             selectedPaths.clear();
                             selectedPaths.add(path);
-                            AppState.getInstance().setSelectedShapes(List.of(path));
+                            ctx.host().appState().setSelectedShapes(List.of(path));
                         }
                     }
                     ImGui.endCombo();

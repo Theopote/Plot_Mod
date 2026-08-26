@@ -8,12 +8,13 @@ import com.plot.core.model.Shape;
 import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.style.TextStyle;
 import com.plot.core.graphics.style.ShapeStyle;
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.FillStyle;
 import com.plot.api.graphics.ITextStyle;
 import com.plot.api.graphics.ILineStyle;
 import com.plot.api.graphics.IFillStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 
 import com.plot.core.graphics.DrawContext;
 
@@ -885,7 +886,7 @@ public class TextShape extends Shape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
 
@@ -1101,7 +1102,7 @@ public class TextShape extends Shape {
                             if (textColor == null) {
                                 textColor = Color.BLACK;
                             }
-                            charStyle.setLineStyle((ILineStyle) new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(textColor));
+                            charStyle.setLineStyle((ILineStyle) new LineStyle(LineType.SOLID, 1.0f).withColor(textColor));
                             charStyle.setFillStyle((IFillStyle) new FillStyle(textColor, 1.0f));
                             path.setStyle(charStyle);
                             
@@ -1180,7 +1181,7 @@ public class TextShape extends Shape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             // 获取变换后的文字属性（保留用于未来扩展）
             // Vec2d transformedPosition = getTransform().transform(position);

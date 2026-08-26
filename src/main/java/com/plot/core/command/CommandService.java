@@ -30,6 +30,11 @@ public final class CommandService {
         eventBus.subscribe(this, RedoEvent.class, event -> redo());
     }
 
+    /**
+     * @deprecated 使用 {@link com.plot.core.context.ApplicationContext#getCommandService()}。
+     * 组合根构造期间仍可调用本方法。
+     */
+    @Deprecated
     public static synchronized CommandService getInstance() {
         if (instance == null) {
             instance = new CommandService();

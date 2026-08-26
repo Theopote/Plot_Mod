@@ -1,6 +1,7 @@
 package com.plot.core.command.commands;
 
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.utils.PlotI18n;
 
@@ -18,7 +19,7 @@ public class DeleteShapesCommand extends ModifyCommand {
      * @param shapesToDelete 要删除的图形列表
      */
     public DeleteShapesCommand(List<Shape> shapesToDelete) {
-        super(shapesToDelete, new ArrayList<>(), AppState.getInstance());
+        super(shapesToDelete, new ArrayList<>(), ApplicationContext.getInstance().getAppState());
         this.shapesToDelete = new ArrayList<>(shapesToDelete);
     }
     

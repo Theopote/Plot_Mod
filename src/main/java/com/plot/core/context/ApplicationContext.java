@@ -14,6 +14,11 @@ import com.plot.core.state.DebouncedTasks;
 import com.plot.core.state.SelectionState;
 import com.plot.core.state.ViewportState;
 import com.plot.api.graphics.IShapeStyle;
+import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.infrastructure.event.EventBus;
+import com.plot.infrastructure.event.block.BlockPlacementScheduler;
+import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.infrastructure.event.block.GhostBlockManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,10 +46,10 @@ public final class ApplicationContext {
     private final AtomicReference<ShapeStyle> currentStyle = new AtomicReference<>(new ShapeStyle());
     private final AtomicLong stateVersion = new AtomicLong(1);
 
+    @SuppressWarnings("deprecation")
     private ApplicationContext() {
         LOGGER.info("创建 ApplicationContext...");
         this.commandService = CommandService.getInstance();
-        // SnapManager 构造会回调 AppState.getInstance()，须等本 Context 挂到 INSTANCE 后再取
         this.projectSession = new ProjectSession();
         this.viewportState = new ViewportState();
         this.activeToolState = new ActiveToolState();
@@ -61,6 +66,10 @@ public final class ApplicationContext {
             LayerService layers = layerRef.get();
             return layers != null ? layers.getShapes() : java.util.Collections.emptyList();
         });
+
+        // 先挂 INSTANCE：子组件（LayerService / SnapManager 等）构造若回查 getInstance() 不会再递归创建
+        INSTANCE = this;
+
         this.layerService = new LayerService(spatialIndexService, selectionState);
         layerRef.set(this.layerService);
     }
@@ -69,7 +78,7 @@ public final class ApplicationContext {
         if (INSTANCE == null) {
             synchronized (LOCK) {
                 if (INSTANCE == null) {
-                    INSTANCE = new ApplicationContext();
+                    new ApplicationContext();
                 }
             }
         }
@@ -119,7 +128,35 @@ public final class ApplicationContext {
     }
 
     public SnapService getSnapService() {
+        return getSnapManager();
+    }
+
+    public SnapManager getSnapManager() {
         return SnapManager.getInstance();
+    }
+
+    public com.plot.core.tool.ToolManager getToolManager() {
+        return com.plot.core.tool.ToolManager.getInstance();
+    }
+
+    public EventBus getEventBus() {
+        return EventBus.getInstance();
+    }
+
+    public CoordinateTransformer getCoordinateTransformer() {
+        return CoordinateTransformer.getInstance();
+    }
+
+    public GhostBlockManager getGhostBlockManager() {
+        return GhostBlockManager.getInstance();
+    }
+
+    public BlockPlacementScheduler getBlockPlacementScheduler() {
+        return BlockPlacementScheduler.getInstance();
+    }
+
+    public BlockProjectionHandler getBlockProjectionHandler() {
+        return BlockProjectionHandler.getInstance();
     }
 
     public ProjectSession getProjectSession() {

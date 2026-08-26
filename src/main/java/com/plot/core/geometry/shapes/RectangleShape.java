@@ -7,9 +7,10 @@ import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
 import com.plot.core.graphics.DrawContext;
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -571,7 +572,7 @@ public class RectangleShape extends Shape {
         // 获取线条样式
         LineStyle lineStyle = (activeStyle.getLineStyle() instanceof LineStyle) 
             ? (LineStyle) activeStyle.getLineStyle() 
-            : new LineStyle(LineStyle.LineType.SOLID, 1.0f).withColor(activeStyle.getLineStyle().getColor());
+            : new LineStyle(LineType.SOLID, 1.0f).withColor(activeStyle.getLineStyle().getColor());
         
         // 矩形工具不需要填充，只绘制轮廓
         // 如果需要填充，先绘制填充
@@ -760,7 +761,7 @@ public class RectangleShape extends Shape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
     
@@ -797,7 +798,7 @@ public class RectangleShape extends Shape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             // 获取变换后的四个角点
             List<Vec2d> transformedCorners = getCorners().stream()

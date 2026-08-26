@@ -928,7 +928,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         EarthworkThreePointPickSession.Outcome outcome =
-            threePointPickSession.tick(ctx().appState(), region.getOuterPoints());
+            threePointPickSession.tick(ctx().appState(), region.getOuterPoints(), ctx().coordinates());
         switch (outcome.getResult()) {
             case PICKED -> {
                 EarthworkThreePointPickSession.PickResult pick = outcome.getPick();

@@ -6,6 +6,7 @@ import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.ui.tools.impl.modify.dto.ExtendParameters;
@@ -1414,7 +1415,7 @@ public class ExtendHandler implements IModifyHandler {
     private com.plot.core.spatial.SpatialIndex getSpatialIndex() {
         try {
             // 从AppState获取空间索引
-            com.plot.core.state.AppState appState = com.plot.core.state.AppState.getInstance();
+            com.plot.core.state.AppState appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             if (appState != null) {
                 return appState.getSpatialIndex();
             }

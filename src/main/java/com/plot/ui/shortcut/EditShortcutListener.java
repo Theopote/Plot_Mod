@@ -1,6 +1,7 @@
 package com.plot.ui.shortcut;
 
 import com.plot.api.shortcut.IShortcutListener;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.infrastructure.event.command.UndoEvent;
@@ -21,7 +22,7 @@ public class EditShortcutListener implements IShortcutListener {
     private final EventBus eventBus;
     
     public EditShortcutListener() {
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
         LOGGER.debug("编辑快捷键监听器已初始化");
     }
     

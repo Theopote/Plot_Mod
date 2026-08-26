@@ -8,9 +8,10 @@ import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;
 import com.plot.core.graphics.DrawContext;
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -880,7 +881,7 @@ public class ArcShape extends Shape implements IExtendableShape {
         
         // 使用虚线样式绘制预览
         LineStyle previewStyle = (LineStyle) getLineStyle().clone();
-        previewStyle.setType(LineStyle.LineType.DASHED);
+        previewStyle.setType(LineType.DASHED);
         
         // 绘制预览线段
         for (int i = 0; i < transformedPoints.size() - 1; i++) {
@@ -1161,7 +1162,7 @@ public class ArcShape extends Shape implements IExtendableShape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
     
@@ -1238,7 +1239,7 @@ public class ArcShape extends Shape implements IExtendableShape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             // 获取变换后的圆弧属性
             Vec2d transformedCenter = getTransform().transform(center);

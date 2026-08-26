@@ -463,7 +463,6 @@ public class PluginManager implements IPluginManager {
         return true;
     }
 
-    @Override
     public PluginDependencyGraph getDependencyGraph() {
         return dependencyGraph;
     }

@@ -2,6 +2,7 @@ package com.plot.ui.theme;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.ThemeChangeEvent;
 import imgui.ImColor;
@@ -77,7 +78,7 @@ public class ThemeManager {
         applyTheme();
 
         // 主题切换后发布事件
-        EventBus.getInstance().publish(new ThemeChangeEvent(currentTheme));
+        ApplicationContext.getInstance().getEventBus().publish(new ThemeChangeEvent(currentTheme));
 
         // 保存主题偏好
         saveTheme(targetTheme);

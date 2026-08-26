@@ -1,5 +1,6 @@
 package com.plot.ui.panel.tool.renderer;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.ui.tools.impl.modify.RotateTool;
 import com.plot.ui.tools.impl.modify.strategy.RotateStrategy;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -177,7 +178,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
     private RotateTool getCurrentTool() {
         try {
             // 通过AppState获取当前激活的工具
-            com.plot.core.state.AppState appState = com.plot.core.state.AppState.getInstance();
+            com.plot.core.state.AppState appState = com.plot.core.context.ApplicationContext.getInstance().getAppState();
             if (appState == null) {
                 PlotMod.LOGGER.warn("AppState实例不存在");
                 return null;
@@ -190,7 +191,7 @@ public class RotateToolOptionRenderer extends AbstractToolOptionRenderer {
             
             // 如果当前工具不是RotateTool，尝试通过工具ID查找
             if (currentTool != null) {
-                com.plot.core.tool.ToolManager toolManager = com.plot.core.tool.ToolManager.getInstance();
+                com.plot.core.tool.ToolManager toolManager = com.plot.core.context.ApplicationContext.getInstance().getToolManager();
                 com.plot.api.tool.ITool rotateTool = toolManager.getTool("rotate");
                 if (rotateTool instanceof RotateTool) {
                     return (RotateTool) rotateTool;

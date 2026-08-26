@@ -51,12 +51,12 @@ public final class PluginContext {
         return new PluginContext(
             applicationContext.getAppState(),
             applicationContext.getCommandService(),
-            EventBus.getInstance(),
-            ToolManager.getInstance(),
-            CoordinateTransformer.getInstance(),
-            GhostBlockManager.getInstance(),
-            BlockPlacementScheduler.getInstance(),
-            BlockProjectionHandler.getInstance()
+            applicationContext.getEventBus(),
+            applicationContext.getToolManager(),
+            applicationContext.getCoordinateTransformer(),
+            applicationContext.getGhostBlockManager(),
+            applicationContext.getBlockPlacementScheduler(),
+            applicationContext.getBlockProjectionHandler()
         );
     }
 

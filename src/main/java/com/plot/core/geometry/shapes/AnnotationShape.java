@@ -11,8 +11,8 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
 import com.plot.utils.PlotI18n;
-import com.plot.ui.canvas.CanvasCamera;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.api.render.ViewTransform;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
@@ -1206,7 +1206,7 @@ public class AnnotationShape extends Shape {
     }
     
     @Override
-    public void accept(IRenderVisitor visitor, ImDrawList drawList, CanvasCamera camera) {
+    public void accept(IRenderVisitor visitor, ImDrawList drawList, ViewTransform camera) {
         // 使用默认渲染
         drawImGui(drawList, camera);
     }
@@ -1218,7 +1218,7 @@ public class AnnotationShape extends Shape {
     }
     
     @Override
-    protected void drawImGui(ImDrawList drawList, CanvasCamera camera) {
+    protected void drawImGui(ImDrawList drawList, ViewTransform camera) {
         // 简化实现：使用DrawContext渲染
         // 这个方法在render()中已经实现
     }

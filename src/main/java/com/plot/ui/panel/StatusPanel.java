@@ -1,5 +1,6 @@
 package com.plot.ui.panel;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
 import com.plot.infrastructure.event.EventBus;
@@ -46,9 +47,9 @@ public class StatusPanel implements UIComponent {
     private final EventListener statusMessageListener;
 
     public StatusPanel() {
-        this.appState = AppState.getInstance();
-        this.eventBus = EventBus.getInstance();
-        this.toolManager = ToolManager.getInstance();
+        this.appState = ApplicationContext.getInstance().getAppState();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
+        this.toolManager = ApplicationContext.getInstance().getToolManager();
         this.currentToolName = PlotI18n.toolLabel("select");
         this.status = PlotI18n.tr("status.plot.ready");
         

@@ -8,6 +8,7 @@ import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.geometry.BoundingBox;
 import org.slf4j.Logger;
@@ -42,7 +43,7 @@ public class SnapCalculator {
                 settings.snapPriority.get() == 0  // 0 = 类型优先, 1 = 距离优先
         );
         
-        AppState appState = AppState.getInstance();
+        AppState appState = ApplicationContext.getInstance().getAppState();
         this.selectedShapes = appState.getSelectedShapes();
         
         // 修改获取当前图层ID的方式
@@ -386,7 +387,7 @@ public class SnapCalculator {
         }
         
         // 从AppState获取当前图层
-        ILayer activeLayer = AppState.getInstance().getActiveLayer();
+        ILayer activeLayer = ApplicationContext.getInstance().getAppState().getActiveLayer();
         if (activeLayer == null) {
             return false;
         }

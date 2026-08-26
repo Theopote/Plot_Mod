@@ -3,6 +3,7 @@ package com.plot.ui.panel;
 import com.plot.core.command.Command;
 import com.plot.core.command.CommandService;
 import com.plot.utils.PlotI18n;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.command.RedoEvent;
 import com.plot.infrastructure.event.command.UndoEvent;
@@ -22,7 +23,7 @@ public class HistoryPanel implements UIComponent {
 
     public HistoryPanel(CommandService commandService) {
         this.commandService = commandService;
-        this.eventBus = EventBus.getInstance();
+        this.eventBus = ApplicationContext.getInstance().getEventBus();
     }
 
     @Override

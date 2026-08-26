@@ -1,6 +1,7 @@
 package com.plot.core.runtime;
 
 import com.plot.core.state.DebouncedTasks;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ public final class PlotRuntime {
             LOGGER.error("DebouncedTasks.shutdown failed", e);
         }
         try {
-            EventBus.getInstance().clear();
+            ApplicationContext.getInstance().getEventBus().clear();
         } catch (Exception e) {
             LOGGER.error("EventBus.clear failed", e);
         }

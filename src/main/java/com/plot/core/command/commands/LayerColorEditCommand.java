@@ -5,6 +5,7 @@ import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.ui.panel.layer.LayerEditHistory;
 import com.plot.utils.PlotI18n;
@@ -60,7 +61,7 @@ public class LayerColorEditCommand implements Command {
             return;
         }
 
-        LayerManager layerManager = AppState.getInstance().getLayerManager();
+        LayerManager layerManager = ApplicationContext.getInstance().getAppState().getLayerManager();
         if (layerManager != null) {
             layerManager.updateLayerProperty(layer, "color", state.layerColor());
         }
@@ -68,7 +69,7 @@ public class LayerColorEditCommand implements Command {
     }
 
     private Layer findLayer() {
-        LayerManager layerManager = AppState.getInstance().getLayerManager();
+        LayerManager layerManager = ApplicationContext.getInstance().getAppState().getLayerManager();
         if (layerManager == null) {
             return null;
         }
@@ -80,7 +81,7 @@ public class LayerColorEditCommand implements Command {
         if (records == null || records.isEmpty()) {
             return;
         }
-        for (Shape shape : AppState.getInstance().getShapes()) {
+        for (Shape shape : ApplicationContext.getInstance().getAppState().getShapes()) {
             if (shape == null) {
                 continue;
             }

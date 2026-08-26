@@ -27,7 +27,7 @@ public final class PlotMod implements ModInitializer {
             context.initialize();
 
             ToolManager.initialize(context.getAppState());
-            CommandService.getInstance();
+            ApplicationContext.getInstance().getCommandService();
 
             ModItems.registerItems();
             ModItems.registerItemGroups();

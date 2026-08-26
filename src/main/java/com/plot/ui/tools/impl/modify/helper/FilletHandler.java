@@ -576,7 +576,7 @@ public class FilletHandler implements IModifyHandler {
                     if (preview.getStyle() != null && preview.getStyle() instanceof com.plot.core.graphics.style.ShapeStyle style) {
                         if (style.getLineStyle() instanceof com.plot.core.graphics.style.LineStyle) {
                             ((com.plot.core.graphics.style.LineStyle) style.getLineStyle()).setType(
-                                com.plot.core.graphics.style.LineStyle.LineType.DASHED
+                                com.plot.api.graphics.LineType.DASHED
                             );
                         }
                     }

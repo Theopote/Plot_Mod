@@ -1,6 +1,7 @@
 package com.plot.ui.tools.impl.drawing.helper;
 
 import com.plot.core.command.commands.DrawingGeometryEditCommand;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 
 /**
@@ -14,6 +15,6 @@ public final class DrawingEditHistory {
         if (before == null || after == null || before.sameGeometryAs(after)) {
             return;
         }
-        AppState.getInstance().getCommandService().execute(new DrawingGeometryEditCommand(before, after));
+        ApplicationContext.getInstance().getAppState().getCommandService().execute(new DrawingGeometryEditCommand(before, after));
     }
 }

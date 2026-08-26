@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.plot.api.model.ILayer;
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
@@ -15,6 +16,7 @@ import com.plot.core.model.serialization.migration.ProjectMigrationRegistry;
 import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.core.persistence.BackupManager;
 import com.plot.core.persistence.PersistenceException;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -210,7 +212,7 @@ public class Project {
         Project project = deserialize(data);
         project.setFilePath(filePath.toString());
         project.applyToAppState(appState);
-        EventBus.getInstance().publish(new ProjectLoadedEvent(project.getId(), project.getFilePath()));
+        ApplicationContext.getInstance().getEventBus().publish(new ProjectLoadedEvent(project.getId(), project.getFilePath()));
         LOGGER.info("项目已加载: {}", filePath);
         return project;
     }
@@ -229,7 +231,7 @@ public class Project {
         writeAtomically(filePath, serialized);
         project.setModified(false);
         appState.setCurrentProject(project);
-        EventBus.getInstance().publish(new ProjectSavedEvent(project.getId(), project.getFilePath()));
+        ApplicationContext.getInstance().getEventBus().publish(new ProjectSavedEvent(project.getId(), project.getFilePath()));
         LOGGER.info("项目已保存: {}", filePath);
     }
 
@@ -415,7 +417,7 @@ public class Project {
         if (restoreStats.skippedShapes > 0) {
             String message = buildRestoreWarningMessage(restoreStats);
             LOGGER.warn(message);
-            EventBus.getInstance().publish(new Events.WarningEvent("Project", message));
+            ApplicationContext.getInstance().getEventBus().publish(new Events.WarningEvent("Project", message));
         }
 
         if (restoredLayers.isEmpty()) {
@@ -597,7 +599,7 @@ public class Project {
             return null;
         }
         ProjectSnapshot.LineStyleSnapshot snapshot = new ProjectSnapshot.LineStyleSnapshot();
-        snapshot.type = lineStyle.getType() != null ? lineStyle.getType().name() : LineStyle.LineType.SOLID.name();
+        snapshot.type = lineStyle.getType() != null ? lineStyle.getType().name() : LineType.SOLID.name();
         snapshot.width = lineStyle.getWidth();
         snapshot.visible = lineStyle.isVisible();
         snapshot.color = toColorSnapshot(lineStyle.getColor());
@@ -609,10 +611,10 @@ public class Project {
             return null;
         }
 
-        LineStyle.LineType lineType = LineStyle.LineType.SOLID;
+        LineType lineType = LineType.SOLID;
         if (snapshot.type != null) {
             try {
-                lineType = LineStyle.LineType.valueOf(snapshot.type);
+                lineType = LineType.valueOf(snapshot.type);
             } catch (IllegalArgumentException ignored) {
                 LOGGER.warn("未知线型: {}", snapshot.type);
             }

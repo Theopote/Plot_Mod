@@ -4,6 +4,7 @@ import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.graphics.ITextStyle;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.api.geometry.Vec2d;
 import java.util.List;
@@ -224,8 +225,8 @@ public class Canvas implements ICanvas, UIComponent {
     }
 
     // 其他方法保持不变
-    public void undo() { com.plot.infrastructure.event.EventBus.getInstance().publish(new com.plot.infrastructure.event.command.UndoEvent("Canvas")); }
-    public void redo() { com.plot.infrastructure.event.EventBus.getInstance().publish(new com.plot.infrastructure.event.command.RedoEvent("Canvas")); }
+    public void undo() { com.plot.core.context.ApplicationContext.getInstance().getEventBus().publish(new com.plot.infrastructure.event.command.UndoEvent("Canvas")); }
+    public void redo() { com.plot.core.context.ApplicationContext.getInstance().getEventBus().publish(new com.plot.infrastructure.event.command.RedoEvent("Canvas")); }
     public List<Shape> getSelectedShapes() { return inputHandler.getSelectedShapes(); }
     public void setOpacity(float opacity) { core.setOpacity(opacity); }
     public float getOpacity() { return core.getOpacity(); }

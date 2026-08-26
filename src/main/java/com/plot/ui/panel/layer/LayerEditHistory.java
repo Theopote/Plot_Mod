@@ -8,6 +8,7 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.layer.Layer;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 
 import java.awt.Color;
@@ -59,7 +60,7 @@ public final class LayerEditHistory {
         if (statesEqual(before, after)) {
             return;
         }
-        AppState.getInstance().getCommandService().pushExecuted(
+        ApplicationContext.getInstance().getAppState().getCommandService().pushExecuted(
                 new LayerColorEditCommand(layer.getId(), before, after));
     }
 
@@ -70,7 +71,7 @@ public final class LayerEditHistory {
         if (statesEqual(before, after)) {
             return;
         }
-        AppState.getInstance().getCommandService().pushExecuted(
+        ApplicationContext.getInstance().getAppState().getCommandService().pushExecuted(
                 new LayerLineStyleEditCommand(layer.getId(), before, after));
     }
 
@@ -78,7 +79,7 @@ public final class LayerEditHistory {
         if (layerId == null || property == null || valuesEqual(before, after)) {
             return;
         }
-        AppState.getInstance().getCommandService().pushExecuted(
+        ApplicationContext.getInstance().getAppState().getCommandService().pushExecuted(
                 new LayerPropertyEditCommand(layerId, property, before, after));
     }
 
@@ -89,7 +90,7 @@ public final class LayerEditHistory {
         if (before == null || after == null || before.sameStructureAs(after)) {
             return;
         }
-        AppState.getInstance().getCommandService().pushExecuted(
+        ApplicationContext.getInstance().getAppState().getCommandService().pushExecuted(
                 new LayerStructureEditCommand(before, after, operationKey));
     }
 

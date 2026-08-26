@@ -39,6 +39,7 @@ public final class LayerService {
     }
 
     private void subscribeToLayerEvents() {
+        // 直接取 EventBus，避免构造期再进 ApplicationContext.getInstance()（INSTANCE 尚未赋值会递归炸栈）
         EventBus eventBus = EventBus.getInstance();
         eventBus.subscribe(this, LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
         eventBus.subscribe(this, LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);

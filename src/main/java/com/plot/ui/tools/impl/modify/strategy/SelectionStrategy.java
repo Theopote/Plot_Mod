@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 // import com.plot.core.command.commands.DeleteShapesCommand;
 import com.plot.utils.PlotI18n;
@@ -512,7 +513,7 @@ public class SelectionStrategy implements IModifyStrategy {
     private void clearSelection(ModifyToolContext context) {
         // 清除所有已选中图形的选中状态（跨图层）
         try {
-            List<Shape> allShapes = AppState.getInstance().getShapes();
+            List<Shape> allShapes = ApplicationContext.getInstance().getAppState().getShapes();
             for (Shape shape : allShapes) {
                 if (selectedShapeIds.contains(shape.getId())) {
                     shape.setSelected(false);
@@ -608,7 +609,7 @@ public class SelectionStrategy implements IModifyStrategy {
         // 清除之前临时选择图形的高亮（跨图层）
         if (!tempSelectedShapeIds.isEmpty()) {
             try {
-                List<Shape> allShapes = AppState.getInstance().getShapes();
+                List<Shape> allShapes = ApplicationContext.getInstance().getAppState().getShapes();
                 for (Shape shape : allShapes) {
                     if (tempSelectedShapeIds.contains(shape.getId()) && !shape.isSelected()) {
                         shape.setHighlighted(false);
@@ -791,7 +792,7 @@ public class SelectionStrategy implements IModifyStrategy {
             context.clearSelection();
 
             // 选择所有可见图形（遍历所有图层的可见、未删除图形）
-            List<Shape> allShapes = AppState.getInstance().getShapes();
+            List<Shape> allShapes = ApplicationContext.getInstance().getAppState().getShapes();
             for (Shape shape : allShapes) {
                 if (shape != null && shape.isVisible() && !shape.isDeleted()) {
                     selectedShapeIds.add(shape.getId());
@@ -813,13 +814,13 @@ public class SelectionStrategy implements IModifyStrategy {
             
             try {
                 // 获取AppState的选中图形列表
-                AppState appState = AppState.getInstance();
+                AppState appState = ApplicationContext.getInstance().getAppState();
                 List<Shape> selectedShapes = appState.getSelectedShapes();
                 
                 if (!selectedShapes.isEmpty()) {
                     // 使用 CommandService 执行删除命令，确保命令历史和事件的完整性
                     com.plot.core.command.CommandService commandService =
-                        com.plot.core.command.CommandService.getInstance();
+                        ApplicationContext.getInstance().getCommandService();
                     
                     com.plot.core.command.commands.DeleteShapesCommand deleteCommand = 
                         new com.plot.core.command.commands.DeleteShapesCommand(

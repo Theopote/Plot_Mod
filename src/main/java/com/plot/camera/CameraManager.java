@@ -9,6 +9,7 @@ import net.minecraft.world.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.joml.Vector3f;
+import com.plot.core.context.ApplicationContext;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.view.CameraSettingsEvent;
 
@@ -20,7 +21,7 @@ public class CameraManager {
     private CameraState savedState;
 
     private final OrthographicCamera orthographicCamera = new OrthographicCamera();
-    private final EventBus eventBus = EventBus.getInstance();
+    private final EventBus eventBus = ApplicationContext.getInstance().getEventBus();
 
     private float rotationAngle = 0.0f; // 添加旋转角度属性，默认为0度
 

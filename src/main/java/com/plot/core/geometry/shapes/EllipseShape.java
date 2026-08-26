@@ -10,8 +10,9 @@ import com.plot.core.model.Shape;
 import com.plot.utils.PlotI18n;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
-import com.plot.ui.tools.impl.modify.helper.IShapeVisitor;
+import com.plot.core.geometry.visitor.IShapeVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1096,10 +1097,10 @@ public class EllipseShape extends Shape {
         // 绘制辅助线
         if (showAxes) {
             // 创建辅助线样式
-            LineStyle dashedStyle = new LineStyle(LineStyle.LineType.DASHED, 1.0f);
+            LineStyle dashedStyle = new LineStyle(LineType.DASHED, 1.0f);
             dashedStyle.setColor(new Color(100, 100, 255, 180)); // 半透明蓝色
             
-            LineStyle solidStyle = new LineStyle(LineStyle.LineType.SOLID, 1.0f);
+            LineStyle solidStyle = new LineStyle(LineType.SOLID, 1.0f);
             solidStyle.setColor(new Color(255, 100, 100, 180)); // 半透明红色
             
             // 应用变换到焦点和轴端点
@@ -1296,7 +1297,7 @@ public class EllipseShape extends Shape {
     
     @Override
     public void accept(IRenderVisitor visitor,
-                       imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+                       imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         visitor.render(this, drawList, camera);
     }
     
@@ -1371,7 +1372,7 @@ public class EllipseShape extends Shape {
     }
     
     @Override
-    protected void drawImGui(imgui.ImDrawList drawList, com.plot.ui.canvas.CanvasCamera camera) {
+    protected void drawImGui(imgui.ImDrawList drawList, com.plot.api.render.ViewTransform camera) {
         try {
             // 获取变换后的椭圆属性
             Vec2d transformedCenter = getTransform().transform(center);

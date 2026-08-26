@@ -1,5 +1,6 @@
 package com.plot.ui.panel.layer;
 
+import com.plot.api.graphics.LineType;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.layer.Layer;
 import com.plot.api.model.ILayer;
@@ -326,7 +327,7 @@ public class LayerItemRenderer {
                 ImGuiComboFlags.HeightLargest)) {
             
             if (!isLocked) {
-                for (LineStyle.LineType type : LineStyle.LineType.values()) {
+                for (LineType type : LineType.values()) {
                     boolean isSelected = type == currentLineStyle.getType();
                     if (ImGui.selectable(type.toString(), isSelected)) {
                         if (!isSelected) { // 只在实际改变时更新

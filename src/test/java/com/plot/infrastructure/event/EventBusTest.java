@@ -1,5 +1,6 @@
 package com.plot.infrastructure.event;
 
+import com.plot.core.context.ApplicationContext;
 import com.plot.api.event.EventType;
 import com.plot.infrastructure.event.base.Event;
 import org.junit.jupiter.api.AfterEach;
@@ -28,7 +29,7 @@ class EventBusTest {
 
     @BeforeEach
     void setUp() {
-        bus = EventBus.getInstance();
+        bus = ApplicationContext.getInstance().getEventBus();
         bus.clear();
     }
 

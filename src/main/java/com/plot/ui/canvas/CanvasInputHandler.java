@@ -6,6 +6,7 @@ import com.plot.camera.CameraManager;
 import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.DeleteShapesCommand;
 import com.plot.core.model.Shape;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 // import com.plot.infrastructure.event.mouse.KeyEvent; // 未使用
@@ -60,7 +61,7 @@ public class CanvasInputHandler {
      */
     public CanvasInputHandler(CanvasCore core) {
         this.core = core;
-        this.appState = AppState.getInstance(); // 缓存AppState实例
+        this.appState = ApplicationContext.getInstance().getAppState(); // 缓存AppState实例
     }
 
     /**
@@ -435,7 +436,7 @@ public class CanvasInputHandler {
         try {
             // 使用Command模式执行删除，以支持撤销
             DeleteShapesCommand deleteCommand = new DeleteShapesCommand(new ArrayList<>(selectedShapes));
-            CommandService.getInstance().execute(deleteCommand);
+            ApplicationContext.getInstance().getCommandService().execute(deleteCommand);
             // 命令执行成功后会自动清空AppState中的选择
             core.markDirty(CanvasCore.DirtyType.CONTENT, CanvasCore.DirtyType.TOOL_PREVIEW);
             LOGGER.debug("删除命令执行成功");

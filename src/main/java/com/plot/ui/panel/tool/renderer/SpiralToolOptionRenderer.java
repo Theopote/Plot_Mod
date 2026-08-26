@@ -2,6 +2,7 @@ package com.plot.ui.panel.tool.renderer;
 
 import com.plot.utils.PlotI18n;
 import com.plot.core.geometry.shapes.SpiralType;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.tool.ToolConfigEvent;
@@ -205,7 +206,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
      * 获取当前螺旋线工具实例
      */
     private SpiralTool getCurrentSpiralTool() {
-        var appState = AppState.getInstance();
+        var appState = ApplicationContext.getInstance().getAppState();
         if (appState == null) {
             LOGGER.warn("AppState实例不存在");
             return null;
@@ -504,7 +505,7 @@ public class SpiralToolOptionRenderer extends AbstractToolOptionRenderer {
         
         try {
             // 发送配置更新事件
-            EventBus.getInstance().publish(new ToolConfigEvent("spiral", key, null, value));
+            ApplicationContext.getInstance().getEventBus().publish(new ToolConfigEvent("spiral", key, null, value));
         } catch (Exception e) {
             LOGGER.error("发送配置更新事件失败: key={}, value={}, error={}", key, value, e.getMessage(), e);
         }
