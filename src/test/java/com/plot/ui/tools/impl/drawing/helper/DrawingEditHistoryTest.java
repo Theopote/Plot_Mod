@@ -1,7 +1,7 @@
 package com.plot.ui.tools.impl.drawing.helper;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.CommandHistory;
+import com.plot.core.command.CommandService;
 import com.plot.core.state.AppState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,13 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DrawingEditHistoryTest {
 
-    private CommandHistory commandHistory;
+    private CommandService commandService;
     private PolylineDrawingSession.GeometrySink sink;
 
     @BeforeEach
     void setUp() {
-        commandHistory = AppState.getInstance().getCommandHistory();
-        commandHistory.clear();
+        commandService = AppState.getInstance().getCommandService();
+        commandService.clear();
     }
 
     @AfterEach
@@ -29,7 +29,7 @@ class DrawingEditHistoryTest {
             PolylineDrawingSession.unregister(sink);
             sink = null;
         }
-        commandHistory.clear();
+        commandService.clear();
     }
 
     @Test
@@ -39,7 +39,7 @@ class DrawingEditHistoryTest {
 
         DrawingEditHistory.commitGeometryEdit(snapshot, snapshot);
 
-        assertEquals(0, commandHistory.size());
+        assertEquals(0, commandService.size());
     }
 
     @Test
@@ -59,11 +59,11 @@ class DrawingEditHistoryTest {
 
         DrawingEditHistory.commitGeometryEdit(before, after);
 
-        assertEquals(1, commandHistory.size());
-        commandHistory.undo();
+        assertEquals(1, commandService.size());
+        commandService.undo();
         assertEquals(10.0, current.get().getPoints().get(1).x, 1e-6);
 
-        commandHistory.redo();
+        commandService.redo();
         assertEquals(20.0, current.get().getPoints().get(1).x, 1e-6);
     }
 
@@ -85,13 +85,13 @@ class DrawingEditHistoryTest {
 
         DrawingEditHistory.commitGeometryEdit(before, after);
 
-        assertEquals(1, commandHistory.size());
-        commandHistory.undo();
+        assertEquals(1, commandService.size());
+        commandService.undo();
         assertEquals(DrawingGeometrySnapshot.Kind.PEN, current.get().getKind());
         assertEquals(1, current.get().getPathNodes().size());
         assertEquals(0.0, current.get().getPathNodes().getFirst().anchorX(), 1e-6);
 
-        commandHistory.redo();
+        commandService.redo();
         assertEquals(30.0, current.get().getPathNodes().getFirst().anchorX(), 1e-6);
         assertEquals(PathNode.NodeType.SMOOTH,
                 current.get().getPathNodes().getFirst().toPathNode().getType());
@@ -105,6 +105,6 @@ class DrawingEditHistoryTest {
         DrawingEditHistory.commitGeometryEdit(null, snapshot);
         DrawingEditHistory.commitGeometryEdit(snapshot, null);
 
-        assertEquals(0, commandHistory.size());
+        assertEquals(0, commandService.size());
     }
 }

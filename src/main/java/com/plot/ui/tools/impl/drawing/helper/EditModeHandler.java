@@ -177,7 +177,7 @@ public class EditModeHandler implements IModeHandler {
             return;
         }
         ControlPointEditCommand command = new ControlPointEditCommand(editingShape, preEditSnapshot, afterSnapshot);
-        AppState.getInstance().getCommandHistory().execute(command);
+        AppState.getInstance().getCommandService().execute(command);
         preEditSnapshot = null;
     }
 

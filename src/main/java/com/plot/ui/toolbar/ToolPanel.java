@@ -19,7 +19,7 @@ import net.minecraft.text.Text;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.tools.DrawingToolsModule;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.snap.SnapManager;
 
 import java.util.*;
@@ -380,8 +380,8 @@ public class ToolPanel implements UIComponent {
                 // 使用新的DrawingToolsModule API重新初始化
                 try {
                     SnapManager snapManager = SnapManager.getInstance();
-                    CommandManager commandManager = CommandManager.getInstance();
-                    DrawingToolsModule.initializeAndRegister(toolManager, appState, eventBus, snapManager, commandManager);
+                    CommandService commandService = CommandService.getInstance();
+                    DrawingToolsModule.initializeAndRegister(toolManager, appState, eventBus, snapManager, commandService);
                 } catch (Exception initException) {
                     LOGGER.error("重新初始化绘图工具失败: {}", initException.getMessage(), initException);
                     return;

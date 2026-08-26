@@ -3,7 +3,7 @@ package com.plot.plugin;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
@@ -968,14 +968,14 @@ public class BuildingPlugin extends Plugin {
             // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
                 if (result.success() > 0) {
-                    CommandManager.getInstance().pushExecuted(command);
+                    CommandService.getInstance().pushExecuted(command);
                 }
                 projectStatus = PlotI18n.tr(
                     "plugin.building.build_cancelled", result.success(), result.total());
                 clearPreview();
                 return;
             }
-            CommandManager.getInstance().pushExecuted(command);
+            CommandService.getInstance().pushExecuted(command);
             applyBuildResultStatus(result);
             clearPreview();
         });

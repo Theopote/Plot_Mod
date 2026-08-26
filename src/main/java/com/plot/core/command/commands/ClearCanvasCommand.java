@@ -73,7 +73,7 @@ public class ClearCanvasCommand implements Command {
     @Override
     public void redo() {
         // 重做就是再次执行清除（清空画布）
-        // 注意：CommandHistory.redo() 实际上会调用 execute()，但为了接口完整性，这里也实现
+        // CommandService.redo() 调用 command.redo()，此处实现具体重做逻辑。
         try {
             // 保存当前所有图形（可能是从撤销恢复的图形）
             List<Shape> currentShapes = new ArrayList<>(appState.getShapes());

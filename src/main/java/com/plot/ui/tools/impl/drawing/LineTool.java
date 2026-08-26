@@ -679,7 +679,7 @@ public class LineTool extends DrawingTool {
 
                 if (appState instanceof com.plot.core.state.AppState concreteAppState) {
                     ModifyCommand command = new ModifyCommand(new ArrayList<>(), new ArrayList<>(lines), concreteAppState);
-                    concreteAppState.getCommandHistory().execute(command);
+                    concreteAppState.getCommandService().execute(command);
                 } else if (appState != null) {
                     for (LineShape line : lines) {
                         if (line == null) continue;

@@ -1,7 +1,7 @@
 package com.plot.ui.panel;
 
 import com.plot.core.command.Command;
-import com.plot.core.command.CommandHistory;
+import com.plot.core.command.CommandService;
 import com.plot.utils.PlotI18n;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.command.RedoEvent;
@@ -17,11 +17,11 @@ import java.util.List;
 
 public class HistoryPanel implements UIComponent {
     private static final int MAX_HISTORY_ITEMS = 30;
-    private final CommandHistory commandHistory;
+    private final CommandService commandService;
     private final EventBus eventBus;
 
-    public HistoryPanel(CommandHistory commandHistory) {
-        this.commandHistory = commandHistory;
+    public HistoryPanel(CommandService commandService) {
+        this.commandService = commandService;
         this.eventBus = EventBus.getInstance();
     }
 
@@ -53,8 +53,8 @@ public class HistoryPanel implements UIComponent {
             // 在 beginChild 内部设置内容边距，保持与标题边距一致
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 4, 4);
             if (ImGui.beginChild("##history_list", 0, 200, true)) {
-                List<Command> history = commandHistory.getHistory();
-                int currentIndex = commandHistory.getCurrentIndex();
+                List<Command> history = commandService.history();
+                int currentIndex = commandService.getCurrentIndex();
                 
                 if (history.isEmpty()) {
                     ImGui.textDisabled(PlotI18n.tr("history.plot.empty"));
@@ -71,7 +71,7 @@ public class HistoryPanel implements UIComponent {
                     }
                     
                     // 显示命令名称和时间戳
-                    Date recordedAt = commandHistory.getTimestampAt(i);
+                    Date recordedAt = commandService.getTimestampAt(i);
                     String timestamp = recordedAt == null
                         ? "--:--:--"
                         : new java.text.SimpleDateFormat("HH:mm:ss").format(recordedAt);

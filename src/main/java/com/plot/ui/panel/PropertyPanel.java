@@ -41,7 +41,7 @@ public class PropertyPanel implements UIComponent {
         ToolManager toolManager = ToolManager.getInstance();
         this.toolOptionsPanel = new ToolOptionsPanel();
         this.layerPanel = new LayerPanel();
-        this.historyPanel = new HistoryPanel(AppState.getInstance().getCommandHistory());
+        this.historyPanel = new HistoryPanel(AppState.getInstance().getCommandService());
         this.statusPanel = new StatusPanel();
         
         // 初始化事件监听器（用于其他面板的更新）

@@ -3,7 +3,7 @@ package com.plot.ui.canvas;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.ILayer;
 import com.plot.camera.CameraManager;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.DeleteShapesCommand;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
@@ -435,7 +435,7 @@ public class CanvasInputHandler {
         try {
             // 使用Command模式执行删除，以支持撤销
             DeleteShapesCommand deleteCommand = new DeleteShapesCommand(new ArrayList<>(selectedShapes));
-            CommandManager.getInstance().executeCommand(deleteCommand);
+            CommandService.getInstance().execute(deleteCommand);
             // 命令执行成功后会自动清空AppState中的选择
             core.markDirty(CanvasCore.DirtyType.CONTENT, CanvasCore.DirtyType.TOOL_PREVIEW);
             LOGGER.debug("删除命令执行成功");

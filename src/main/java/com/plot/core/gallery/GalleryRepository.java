@@ -302,7 +302,7 @@ public final class GalleryRepository {
         if (placed.isEmpty() || appState == null) {
             return;
         }
-        appState.getCommandHistory().execute(
+        appState.getCommandService().execute(
             new ModifyCommand(List.of(), placed, appState, PlotI18n.tr("history.plot.gallery.place")));
         appState.setSelectedShapes(placed);
         publishStatus("status.plot.gallery.placed", item.getDisplayName());

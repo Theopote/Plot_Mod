@@ -5,7 +5,7 @@ import com.plot.api.snap.ISnapManager;
 import com.plot.ui.tools.impl.drawing.*;
 import com.plot.ui.tools.impl.modify.TextTool;
 import com.plot.ui.canvas.Canvas;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.infrastructure.event.EventBus;
 import org.slf4j.Logger;
@@ -37,10 +37,10 @@ public class ToolFactory {
      * @param appState 应用状态管理器（不能为null）
      * @param snapManager 吸附管理器（可以为null）
      * @param canvas 画布实例（某些工具需要）
-     * @param commandManager 命令管理器（某些工具需要）
+     * @param CommandService 命令管理器（某些工具需要）
      */
     public ToolFactory(IAppState appState, ISnapManager snapManager, 
-                       Canvas canvas, CommandManager commandManager) {
+                       Canvas canvas, CommandService commandService) {
         this.appState = appState;
         this.snapManager = snapManager;
         this.canvas = canvas;

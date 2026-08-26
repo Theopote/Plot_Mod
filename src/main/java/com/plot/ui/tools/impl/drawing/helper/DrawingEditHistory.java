@@ -14,6 +14,6 @@ public final class DrawingEditHistory {
         if (before == null || after == null || before.sameGeometryAs(after)) {
             return;
         }
-        AppState.getInstance().getCommandHistory().execute(new DrawingGeometryEditCommand(before, after));
+        AppState.getInstance().getCommandService().execute(new DrawingGeometryEditCommand(before, after));
     }
 }

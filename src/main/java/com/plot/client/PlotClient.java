@@ -1,7 +1,7 @@
 package com.plot.client;
 
 import com.plot.PlotMod;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
@@ -9,7 +9,6 @@ import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.block.GhostBlockWorldRenderer;
 import com.plot.infrastructure.event.block.LineToBlockHandler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
-import com.plot.infrastructure.event.command.CommandEventListener;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.manager.UIManager;
@@ -103,14 +102,14 @@ public final class PlotClient implements ClientModInitializer {
             ToolManager toolManager = ToolManager.getInstance();
             EventBus eventBus = EventBus.getInstance();
             com.plot.core.snap.SnapManager snapManager = com.plot.core.snap.SnapManager.getInstance();
-            CommandManager commandManager = CommandManager.getInstance();
+            CommandService commandService = CommandService.getInstance();
 
             DrawingToolsModule.initializeAndRegister(
                     toolManager,
                     appState,
                     eventBus,
                     snapManager,
-                    commandManager
+                    commandService
             );
 
             ModifyToolsModule.initializeAndRegister(
@@ -118,7 +117,7 @@ public final class PlotClient implements ClientModInitializer {
                     appState,
                     eventBus,
                     snapManager,
-                    commandManager
+                    commandService
             );
 
             boolean drawingToolsOk = DrawingToolsModule.verifyInitialization(toolManager);
@@ -144,8 +143,7 @@ public final class PlotClient implements ClientModInitializer {
 
     private void initializeClientEventSystems() {
         try {
-            CommandEventListener.getInstance();
-
+            CommandService.getInstance();
             ShortcutManager shortcutManager = ShortcutManager.getInstance();
             shortcutManager.addListener(new EditShortcutListener());
             shortcutManager.addListener(new DeleteShortcutListener());

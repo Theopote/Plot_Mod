@@ -10,7 +10,7 @@ public class RedoEvent extends Event {
     private final String source;
     
     public RedoEvent() {
-        this("CommandManager");
+        this("CommandService");
     }
     
     public RedoEvent(String source) {

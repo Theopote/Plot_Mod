@@ -463,7 +463,7 @@ public class ControlPointEditTool extends ModifyTool {
                     preEditSnapshot,
                     afterSnapshot
             );
-            appState.getCommandHistory().execute(command);
+            appState.getCommandService().execute(command);
             LOGGER.debug("控制点编辑已记录到撤销历史");
         }
 

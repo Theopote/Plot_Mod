@@ -277,7 +277,7 @@ public class TransformTool extends ModifyTool implements EventListener {
     public void executeModifyCommand(com.plot.core.command.commands.ModifyCommand command) {
         if (command != null) {
             try {
-                concreteAppState.getCommandHistory().execute(command);
+                concreteAppState.getCommandService().execute(command);
                 LOGGER.debug("TransformTool 执行修改命令: {}", command.getClass().getSimpleName());
                 
                 // 强制同步清理新旧图形的视觉状态：不选中、不高亮

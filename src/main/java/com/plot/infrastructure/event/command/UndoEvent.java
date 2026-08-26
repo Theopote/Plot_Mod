@@ -10,7 +10,7 @@ public class UndoEvent extends Event {
     private final String source;
     
     public UndoEvent() {
-        this("CommandManager");
+        this("CommandService");
     }
     
     public UndoEvent(String source) {

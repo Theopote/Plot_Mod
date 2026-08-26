@@ -1,6 +1,6 @@
 package com.plot;
 
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
 import com.plot.registry.ModItems;
@@ -31,7 +31,7 @@ public final class PlotMod implements ModInitializer {
             ToolManager.initialize(appState);
             appState.setToolManager(ToolManager.getInstance());
 
-            CommandManager.getInstance();
+            CommandService.getInstance();
 
             ModItems.registerItems();
             ModItems.registerItemGroups();

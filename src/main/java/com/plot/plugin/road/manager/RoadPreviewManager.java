@@ -1,7 +1,7 @@
 package com.plot.plugin.road.manager;
 
 import com.plot.core.command.BlockRecord;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
@@ -212,7 +212,7 @@ public final class RoadPreviewManager {
                 status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
                 return;
             }
-            CommandManager.getInstance().pushExecuted(command);
+            CommandService.getInstance().pushExecuted(command);
             applyBuildResultStatus(result);
             clearPreview();
         });

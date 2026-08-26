@@ -665,7 +665,7 @@ public final class RoadNetworkManager {
             applyDraftToRoad(road, draft);
         }
         updateBatchEditDraft(draft);
-        status.set(PlotI18n.tr("plugin.road.batch_applied", selectedEdgeIds.size()));
+        status.set(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
     }
 
     public Road getRoadForEdge(RoadEdge edge) {

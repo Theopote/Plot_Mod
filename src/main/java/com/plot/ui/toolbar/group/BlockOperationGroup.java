@@ -194,7 +194,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         
         LOGGER.info("发现 {} 个幽灵方块需要投影", ghostBlockCount);
         ProjectGhostBlocksCommand projectionCommand = getProjectGhostBlocksCommand(visibleGhostBlocks);
-        appState.getCommandHistory().execute(projectionCommand);
+        appState.getCommandService().execute(projectionCommand);
 
         int projectedCount = projectionCommand.getProjectedCount();
         

@@ -4,7 +4,7 @@ import com.plot.api.shortcut.IShortcutListener;
 import com.plot.utils.PlotI18n;
 import com.plot.core.state.AppState;
 import com.plot.core.model.Shape;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.DeleteShapesCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,12 +58,12 @@ public class DeleteShortcutListener implements IShortcutListener {
             // 1. 记录到命令历史中，支持撤销/重做
             // 2. 发布正确的命令事件
             // 3. 确保业务逻辑的完整性
-            CommandManager commandManager = CommandManager.getInstance();
+            CommandService commandService = CommandService.getInstance();
             
             DeleteShapesCommand deleteCommand = new DeleteShapesCommand(
                 new ArrayList<>(selectedShapes));
             
-            commandManager.executeCommand(deleteCommand);
+            commandService.execute(deleteCommand);
             
             LOGGER.debug("删除命令执行成功");
             return true;

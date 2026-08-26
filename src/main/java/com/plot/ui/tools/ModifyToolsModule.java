@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import com.plot.api.tool.ToolGroup;
 import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.tool.ToolGroupImpl;
@@ -62,7 +62,7 @@ public final class ModifyToolsModule {
      * @param appState 应用状态，提供工具创建所需的依赖
      * @param eventBus 事件总线，用于工具间通信
      * @param snapManager 吸附管理器，用于需要吸附功能的工具
-     * @param commandManager 命令管理器，用于需要撤销/重做功能的工具
+     * @param CommandService 命令管理器，用于需要撤销/重做功能的工具
      * @throws IllegalArgumentException 如果任何参数为null
      * @throws RuntimeException 如果初始化过程中发生错误
      */
@@ -71,7 +71,7 @@ public final class ModifyToolsModule {
             IAppState appState, 
             EventBus eventBus,
             ISnapManager snapManager,
-            CommandManager commandManager) {
+            CommandService commandService) {
         
         // 参数验证
         if (toolManager == null) {
@@ -86,7 +86,7 @@ public final class ModifyToolsModule {
         if (snapManager == null) {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.snap_manager_null"));
         }
-        if (commandManager == null) {
+        if (commandService == null) {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.command_manager_null"));
         }
         
@@ -99,7 +99,7 @@ public final class ModifyToolsModule {
             ToolGroup modifyGroup = getOrCreateModifyGroup(toolManager);
             
             // 创建所有修改工具
-            List<BaseTool> tools = createAllModifyTools(appState, eventBus, snapManager, commandManager);
+            List<BaseTool> tools = createAllModifyTools(appState, eventBus, snapManager, commandService);
             
             // 注册工具到ToolManager和工具组
             registerTools(toolManager, modifyGroup, tools);
@@ -136,14 +136,14 @@ public final class ModifyToolsModule {
      * @param appState 应用状态，提供工具创建所需的依赖
      * @param eventBus 事件总线，传递给需要事件处理的工具
      * @param snapManager 吸附管理器，传递给需要吸附功能的工具
-     * @param commandManager 命令管理器，传递给需要撤销/重做功能的工具
+     * @param CommandService 命令管理器，传递给需要撤销/重做功能的工具
      * @return 创建的工具列表
      */
     private static List<BaseTool> createAllModifyTools(
             IAppState appState, 
             EventBus eventBus,
             ISnapManager snapManager,
-            CommandManager commandManager) {
+            CommandService commandService) {
         
         LOGGER.debug("开始创建修改工具实例...");
         

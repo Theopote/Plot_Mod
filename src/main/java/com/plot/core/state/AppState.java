@@ -4,7 +4,7 @@ import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.model.ILayer;
 import com.plot.api.state.IAppState;
-import com.plot.core.command.CommandHistory;
+import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.DeleteShapesCommand;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.graphics.style.ShapeStyle;
@@ -95,7 +95,7 @@ public class AppState implements IAppState {
     private float gridSize;         // 网格大小
 
     // ====== 命令历史 ======
-    private final CommandHistory commandHistory;
+    private final CommandService commandService;
 
     // ====== 核心组件引用 ======
     private Canvas canvas;
@@ -187,7 +187,7 @@ public class AppState implements IAppState {
      */
     private AppState() {
         LOGGER.info("创建 AppState 单例实例...");
-        this.commandHistory = CommandHistory.getInstance();
+        this.commandService = CommandService.getInstance();
         // 初始化基础状态
         this.zoom = DEFAULT_ZOOM;
         this.opacity = 0.0f;
@@ -494,8 +494,8 @@ public class AppState implements IAppState {
 
     // --- 命令和历史相关 ---
 
-    public CommandHistory getCommandHistory() {
-        return commandHistory;
+    public CommandService getCommandService() {
+        return commandService;
     }
 
     // --- 项目相关 ---
@@ -640,15 +640,11 @@ public class AppState implements IAppState {
     }
 
     public void undo() {
-        if (commandHistory != null && commandHistory.canUndo()) {
-            commandHistory.undo();
-        }
+        commandService.undo();
     }
 
     public void redo() {
-        if (commandHistory != null && commandHistory.canRedo()) {
-            commandHistory.redo();
-        }
+        commandService.redo();
     }
 
     /**
@@ -665,7 +661,7 @@ public class AppState implements IAppState {
         
         // 使用专门的DeleteShapesCommand类
         DeleteShapesCommand deleteCommand = new DeleteShapesCommand(shapesToDelete);
-        commandHistory.execute(deleteCommand);
+        commandService.execute(deleteCommand);
         
         // 清空选择
         clearSelection();
@@ -713,10 +709,10 @@ public class AppState implements IAppState {
         try {
             // 检查关键组件是否正常
             boolean layerManagerValid = layerManager != null && layerManager.getLayerCount() >= 0;
-            boolean commandHistoryValid = commandHistory != null;
+            boolean commandServiceValid = commandService != null;
             boolean basicStateValid = zoom > 0 && opacity >= 0 && opacity <= 1;
             
-            return layerManagerValid && commandHistoryValid && basicStateValid;
+            return layerManagerValid && commandServiceValid && basicStateValid;
         } catch (Exception e) {
             LOGGER.error("验证应用状态时出错", e);
             return false;

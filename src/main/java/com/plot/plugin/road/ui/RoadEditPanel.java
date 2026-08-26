@@ -76,6 +76,8 @@ public final class RoadEditPanel {
     private void renderSelectionDispatch(RoadNetwork network, boolean edgesEmpty) {
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         int selectedEdgeCount = ctx.networkManager().getSelectedEdgeIds().size();
+        int selectedRoadCount = ctx.networkManager().getSelectedRoadIds().size();
+        int selectedLogicalCount = selectedRoadCount > 0 ? selectedRoadCount : selectedEdgeCount;
 
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
             nodePropertyPanel.renderForSelectedNode(junctionPanel);
@@ -88,12 +90,12 @@ public final class RoadEditPanel {
         }
 
         // 多选：仅批量编辑；单选：仅单条详情，避免两套控件重叠误导用户
-        if (selectedEdgeCount > 1) {
+        if (selectedLogicalCount > 1) {
             renderBatchEditPanel();
             return;
         }
 
-        if (selectedEdgeCount == 1) {
+        if (selectedEdgeCount >= 1) {
             renderSingleEdgeDetail(network);
             return;
         }
@@ -368,7 +370,7 @@ public final class RoadEditPanel {
         }
         int selectedRoadCount = ctx.networkManager().getSelectedRoadIds().size();
         int displayCount = selectedRoadCount > 0 ? selectedRoadCount : selectedEdgeCount;
-        int headerFlags = selectedEdgeCount > 1 ? ImGuiTreeNodeFlags.DefaultOpen : 0;
+        int headerFlags = displayCount > 1 ? ImGuiTreeNodeFlags.DefaultOpen : 0;
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.batch_edit"), headerFlags)) {
             return;
         }

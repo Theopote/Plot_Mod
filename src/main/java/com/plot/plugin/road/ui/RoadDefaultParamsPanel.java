@@ -36,7 +36,7 @@ public final class RoadDefaultParamsPanel {
         ImGui.separator();
         ImGui.spacing();
 
-        ImGui.text(PlotI18n.tr("plugin.road.basic_params"));
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.basic_params"))) {
         int[] roadWidth = {config.getRoadWidth()};
         if (ImGui.sliderInt("##road_width", roadWidth,
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
@@ -146,6 +146,7 @@ public final class RoadDefaultParamsPanel {
                 },
                 false
             );
+        }
         }
 
         renderAdvancedEngineeringSettings();

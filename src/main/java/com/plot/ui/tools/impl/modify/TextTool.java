@@ -734,7 +734,7 @@ public class TextTool extends BaseTool {
             if (text.isEmpty()) {
                 executeShapeReplaceCommand(List.of(activeText), List.of(), "删除空文字");
             } else if (editingOriginalText != null && !editingOriginalText.equals(activeText.getText())) {
-                requireAppState().getCommandHistory().execute(new TextEditCommand(activeText, editingOriginalText, activeText.getText()));
+                requireAppState().getCommandService().execute(new TextEditCommand(activeText, editingOriginalText, activeText.getText()));
                 LogManager.getInstance().info("TextTool: 完成编辑文字: {}", text);
             } else {
                 LogManager.getInstance().info("TextTool: 完成编辑文字: {}", text);
@@ -941,7 +941,7 @@ public class TextTool extends BaseTool {
                 requireAppState(),
                 actionName
             );
-            requireAppState().getCommandHistory().execute(command);
+            requireAppState().getCommandService().execute(command);
             LogManager.getInstance().debug("TextTool: 命令已执行 - {}", actionName);
         } catch (Exception e) {
             LogManager.getInstance().error("TextTool: 执行命令失败 - {}", actionName, e);

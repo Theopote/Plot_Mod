@@ -448,7 +448,7 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
         try {
             if (appState instanceof AppState concreteAppState) {
                 ModifyCommand command = new ModifyCommand(Collections.emptyList(), new ArrayList<>(List.of(shape)), concreteAppState);
-                concreteAppState.getCommandHistory().execute(command);
+                concreteAppState.getCommandService().execute(command);
                 LOGGER.debug("工具 [{}] 成功提交图形 [{}] 到AppState", toolId, shape.getId());
             } else {
                 appState.addShape(shape);

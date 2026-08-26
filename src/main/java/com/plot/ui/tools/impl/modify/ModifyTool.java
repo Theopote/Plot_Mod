@@ -368,7 +368,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     public void executeModifyCommand(ModifyCommand command) {
         if (command != null) {
             try {
-                concreteAppState.getCommandHistory().execute(command);
+                concreteAppState.getCommandService().execute(command);
                 LOGGER.debug("ModifyTool [{}] 执行修改命令: {}", toolId, command.getClass().getSimpleName());
                 
                 // 强制同步清理新旧图形的视觉状态：不选中、不高亮

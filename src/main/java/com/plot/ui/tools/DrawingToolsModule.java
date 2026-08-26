@@ -11,7 +11,7 @@ import com.plot.core.tool.ToolGroupImpl;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.tools.impl.drawing.DrawingTool;
 import com.plot.ui.tools.impl.modify.TextTool;
-import com.plot.core.command.CommandManager;
+import com.plot.core.command.CommandService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.utils.PlotI18n;
@@ -60,7 +60,7 @@ public final class DrawingToolsModule {
      * @param appState 应用状态，提供工具创建所需的依赖
      * @param eventBus 事件总线，用于工具间通信
      * @param snapManager 吸附管理器，用于工具的吸附功能
-     * @param commandManager 命令管理器，用于工具的命令执行
+     * @param CommandService 命令管理器，用于工具的命令执行
      * @throws IllegalArgumentException 如果任何参数为null
      * @throws RuntimeException 如果初始化过程中发生错误
      */
@@ -69,7 +69,7 @@ public final class DrawingToolsModule {
             IAppState appState, 
             EventBus eventBus,
             com.plot.api.snap.ISnapManager snapManager,
-            com.plot.core.command.CommandManager commandManager) {
+            com.plot.core.command.CommandService commandService) {
         // 参数验证
         if (toolManager == null) {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.tool_manager_null"));
@@ -83,7 +83,7 @@ public final class DrawingToolsModule {
         if (snapManager == null) {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.snap_manager_null"));
         }
-        if (commandManager == null) {
+        if (commandService == null) {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.command_manager_null"));
         }
         
@@ -98,7 +98,7 @@ public final class DrawingToolsModule {
             ToolGroup drawingGroup = getOrCreateDrawingGroup(toolManager);
             
             // 创建所有绘图工具
-            List<BaseTool> tools = createAllDrawingTools(appState, snapManager, commandManager);
+            List<BaseTool> tools = createAllDrawingTools(appState, snapManager, commandService);
             
             // 注册工具到ToolManager和工具组
             registerTools(toolManager, drawingGroup, tools);
@@ -146,13 +146,13 @@ public final class DrawingToolsModule {
      * 
      * @param appState 应用状态，提供工具创建所需的依赖
      * @param snapManager 吸附管理器，用于工具的吸附功能
-     * @param commandManager 命令管理器，用于工具的命令执行
+     * @param CommandService 命令管理器，用于工具的命令执行
      * @return 创建的工具列表
      */
     private static List<BaseTool> createAllDrawingTools(
             IAppState appState,
             com.plot.api.snap.ISnapManager snapManager,
-            CommandManager commandManager) {
+            CommandService commandService) {
         LOGGER.debug("开始创建绘图工具实例...");
         
         List<BaseTool> tools = new ArrayList<>();
@@ -165,7 +165,7 @@ public final class DrawingToolsModule {
                     appState,
                 snapManager, 
                 appState.getCanvas(), 
-                commandManager
+                commandService
             );
             
             // 使用工厂创建支持依赖注入的核心绘图工具

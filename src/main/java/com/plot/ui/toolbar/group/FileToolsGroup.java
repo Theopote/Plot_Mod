@@ -24,7 +24,7 @@ public class FileToolsGroup extends AbstractToolbarGroup {
         
         try {
             // 撤销 - 检查是否可以撤销
-            boolean canUndo = appState.getCommandHistory().canUndo();
+            boolean canUndo = appState.getCommandService().canUndo();
             if (ToolbarUIUtils.renderToolbarButton(
                     ControlPanelIcons.getIdentifier(ControlPanelIcons.UNDO),
                     PlotI18n.tr("toolbar.plot.undo"), !canUndo, false)) {
@@ -33,7 +33,7 @@ public class FileToolsGroup extends AbstractToolbarGroup {
             addButtonSpacing();
 
             // 重做 - 检查是否可以重做
-            boolean canRedo = appState.getCommandHistory().canRedo();
+            boolean canRedo = appState.getCommandService().canRedo();
             if (ToolbarUIUtils.renderToolbarButton(
                     ControlPanelIcons.getIdentifier(ControlPanelIcons.REDO),
                     PlotI18n.tr("toolbar.plot.redo"), !canRedo, false)) {

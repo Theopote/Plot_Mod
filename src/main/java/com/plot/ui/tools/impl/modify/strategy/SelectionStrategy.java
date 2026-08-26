@@ -817,15 +817,15 @@ public class SelectionStrategy implements IModifyStrategy {
                 List<Shape> selectedShapes = appState.getSelectedShapes();
                 
                 if (!selectedShapes.isEmpty()) {
-                    // 使用CommandManager执行删除命令，确保命令历史和事件的完整性
-                    com.plot.core.command.CommandManager commandManager = 
-                        com.plot.core.command.CommandManager.getInstance();
+                    // 使用 CommandService 执行删除命令，确保命令历史和事件的完整性
+                    com.plot.core.command.CommandService commandService =
+                        com.plot.core.command.CommandService.getInstance();
                     
                     com.plot.core.command.commands.DeleteShapesCommand deleteCommand = 
                         new com.plot.core.command.commands.DeleteShapesCommand(
                             new java.util.ArrayList<>(selectedShapes));
                     
-                    commandManager.executeCommand(deleteCommand);
+                    commandService.execute(deleteCommand);
                     
                     LOGGER.debug("SelectionStrategy: Delete命令执行成功");
                     context.setStatusMessage(PlotI18n.status("status.plot.common.deleted_count", selectedShapes.size()));
