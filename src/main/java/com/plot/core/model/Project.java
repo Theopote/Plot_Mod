@@ -12,6 +12,9 @@ import com.plot.core.layer.LayerManager;
 import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.model.serialization.ShapeSerialization;
 import com.plot.core.model.serialization.migration.ProjectMigrationRegistry;
+import com.plot.core.persistence.AtomicFileWriter;
+import com.plot.core.persistence.BackupManager;
+import com.plot.core.persistence.PersistenceException;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -24,10 +27,8 @@ import org.slf4j.LoggerFactory;
 import java.awt.Color;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -41,11 +42,11 @@ public class Project {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** 写入中的临时文件后缀 */
-    public static final String TEMP_SUFFIX = ".tmp";
+    public static final String TEMP_SUFFIX = AtomicFileWriter.TEMP_SUFFIX;
     /** 上一次成功保存的备份后缀 */
-    public static final String BACKUP_SUFFIX = ".bak";
+    public static final String BACKUP_SUFFIX = BackupManager.BACKUP_SUFFIX;
     /** 自动保存副本后缀（每次成功保存后更新） */
-    public static final String AUTOSAVE_SUFFIX = ".autosave";
+    public static final String AUTOSAVE_SUFFIX = BackupManager.AUTOSAVE_SUFFIX;
 
     private String name;
     private final String id;
@@ -354,44 +355,18 @@ public class Project {
      * 原子写入：先写 .tmp → 校验 JSON → 备份原文件为 .bak → 原子替换 → 更新 .autosave。
      */
     static void writeAtomically(Path target, String content) throws IOException {
-        if (target == null) {
-            throw new IllegalArgumentException("target must not be null");
-        }
-        Path parent = target.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-
-        Path tempFile = Path.of(target.toString() + TEMP_SUFFIX);
         try {
-            Files.writeString(tempFile, content, StandardCharsets.UTF_8);
-            deserialize(Files.readString(tempFile, StandardCharsets.UTF_8));
-
-            if (Files.isRegularFile(target)) {
-                Path backupFile = Path.of(target.toString() + BACKUP_SUFFIX);
-                Files.copy(target, backupFile, StandardCopyOption.REPLACE_EXISTING);
-            }
-
-            atomicMove(tempFile, target);
-
-            Path autosaveFile = Path.of(target.toString() + AUTOSAVE_SUFFIX);
-            Files.copy(target, autosaveFile, StandardCopyOption.REPLACE_EXISTING);
-        } catch (ProjectFormatException e) {
-            Files.deleteIfExists(tempFile);
+            AtomicFileWriter.write(target, content, AtomicFileWriter.Options.projectDocument(json -> {
+                // round-trip validate via deserialize
+                deserialize(json);
+            }));
+        } catch (PersistenceException e) {
             throw new IOException(PlotI18n.error("error.plot.project.save_validation_failed"), e);
         } catch (IOException e) {
-            Files.deleteIfExists(tempFile);
+            if (e.getCause() instanceof ProjectFormatException) {
+                throw new IOException(PlotI18n.error("error.plot.project.save_validation_failed"), e.getCause());
+            }
             throw e;
-        }
-    }
-
-    private static void atomicMove(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target,
-                    StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

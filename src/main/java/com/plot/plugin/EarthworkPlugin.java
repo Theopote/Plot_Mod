@@ -28,7 +28,8 @@ import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
-import com.plot.plugin.common.ProjectPathHasher;
+import com.plot.core.persistence.ContentFingerprint;
+import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
@@ -83,7 +84,7 @@ public class EarthworkPlugin extends Plugin {
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
     /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 重复写盘 */
-    private int lastSavedContentHash;
+    private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
 
     private EarthworkRegionListHelper.SortMode regionSortMode =
         EarthworkRegionListHelper.SortMode.INSERTION;
@@ -1179,7 +1180,7 @@ public class EarthworkPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        String targetFile = ProjectPathHasher.projectFileName(filePath);
+        String targetFile = ProjectPathResolver.sidecarFileName(filePath);
         Path file = getProjectsDir().resolve(targetFile);
         // 仅加载成功后才绑定路径，避免失败时把旧工程写进新文件
         if (loadProjectFile(file)) {
@@ -1192,7 +1193,7 @@ public class EarthworkPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentProjectFile = ProjectPathHasher.projectFileName(filePath);
+        currentProjectFile = ProjectPathResolver.sidecarFileName(filePath);
         if (saveProjectFile(getProjectsDir().resolve(currentProjectFile))) {
             projectStatus = PlotI18n.tr("plugin.earthwork.project.saved", filePath);
         }
@@ -1245,13 +1246,12 @@ public class EarthworkPlugin extends Plugin {
         }
         try {
             String json = project.toJson();
-            int contentHash = 31 * json.hashCode() + file.toAbsolutePath().normalize().hashCode();
-            if (contentHash == lastSavedContentHash) {
+            if (contentFingerprint.isUnchanged(json, file)) {
                 LOGGER.debug("土方项目内容未变，跳过重复保存: {}", file.getFileName());
                 return true;
             }
             project.saveTo(file);
-            lastSavedContentHash = contentHash;
+            contentFingerprint.markSaved(json, file);
             return true;
         } catch (IOException e) {
             LOGGER.error("保存土方项目失败: {}", e.getMessage(), e);

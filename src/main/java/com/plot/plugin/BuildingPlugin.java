@@ -27,7 +27,8 @@ import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.ui.RoadUiWidgets;
-import com.plot.plugin.common.ProjectPathHasher;
+import com.plot.core.persistence.ContentFingerprint;
+import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
@@ -75,7 +76,7 @@ public class BuildingPlugin extends Plugin {
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
     /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 重复写盘 */
-    private int lastSavedContentHash;
+    private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
 
     private final ImBoolean manualElevationRef = new ImBoolean(false);
     private final ImString buildingNameBuffer = new ImString(64);
@@ -1034,7 +1035,7 @@ public class BuildingPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        String targetFile = ProjectPathHasher.projectFileName(filePath);
+        String targetFile = ProjectPathResolver.sidecarFileName(filePath);
         Path file = getProjectsDir().resolve(targetFile);
         // 仅加载成功后才绑定路径，避免失败时把旧工程写进新文件
         if (loadProjectFile(file)) {
@@ -1047,7 +1048,7 @@ public class BuildingPlugin extends Plugin {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentProjectFile = ProjectPathHasher.projectFileName(filePath);
+        currentProjectFile = ProjectPathResolver.sidecarFileName(filePath);
         if (saveProjectFile(getProjectsDir().resolve(currentProjectFile))) {
             projectStatus = PlotI18n.tr("plugin.building.project.saved", filePath);
         }
@@ -1099,13 +1100,12 @@ public class BuildingPlugin extends Plugin {
         }
         try {
             String json = project.toJson();
-            int contentHash = 31 * json.hashCode() + file.toAbsolutePath().normalize().hashCode();
-            if (contentHash == lastSavedContentHash) {
+            if (contentFingerprint.isUnchanged(json, file)) {
                 LOGGER.debug("建筑项目内容未变，跳过重复保存: {}", file.getFileName());
                 return true;
             }
             project.saveTo(file);
-            lastSavedContentHash = contentHash;
+            contentFingerprint.markSaved(json, file);
             return true;
         } catch (IOException e) {
             LOGGER.error("保存建筑项目失败: {}", e.getMessage(), e);

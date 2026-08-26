@@ -7,10 +7,8 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -83,16 +81,7 @@ public class BuildingProject {
      * 原子保存：先写临时文件再 rename。
      */
     public void saveTo(Path file) throws IOException {
-        Files.createDirectories(file.getParent());
-        Path tempFile = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tempFile, toJson());
-        try {
-            Files.move(tempFile, file,
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
-        }
+        com.plot.core.persistence.AtomicFileWriter.write(file, toJson());
     }
 
     public static BuildingProject loadFrom(Path file) throws IOException {

@@ -1,8 +1,9 @@
 package com.plot.plugin.road.manager;
 
 import com.plot.core.model.Project;
+import com.plot.core.persistence.ContentFingerprint;
+import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.state.AppState;
-import com.plot.plugin.common.ProjectPathHasher;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.utils.PlotI18n;
@@ -24,8 +25,7 @@ public final class RoadPersistenceManager {
     private final File dataFolder;
     private final RoadProjectStatus status;
     private String currentNetworkFile = DEFAULT_NETWORK_FILE;
-    /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 连续重复写盘 */
-    private int lastSavedContentHash;
+    private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
 
     public RoadPersistenceManager(File dataFolder, RoadProjectStatus status) {
         this.dataFolder = dataFolder;
@@ -62,7 +62,7 @@ public final class RoadPersistenceManager {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        String targetFile = ProjectPathHasher.projectFileName(filePath);
+        String targetFile = ProjectPathResolver.sidecarFileName(filePath);
         Path file = getNetworksDir().resolve(targetFile);
         // 仅在加载成功后才绑定 currentNetworkFile，避免失败时把旧路网写进新工程文件
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
@@ -75,7 +75,7 @@ public final class RoadPersistenceManager {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        currentNetworkFile = ProjectPathHasher.projectFileName(filePath);
+        currentNetworkFile = ProjectPathResolver.sidecarFileName(filePath);
         status.set(PlotI18n.tr("plugin.road.network.saved", filePath));
     }
 
@@ -89,21 +89,16 @@ public final class RoadPersistenceManager {
             Runnable onSelectionReset) {
         try {
             RoadNetwork loaded = RoadNetwork.loadFrom(file);
-            // 只有加载成功后才清空历史，保证原子性
             history.clear();
             onSelectionReset.run();
             return loaded;
         } catch (IOException e) {
             LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
             status.set(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
-            // 加载失败时不清空历史，保留当前状态
             return new RoadNetwork();
         }
     }
 
-    /**
-     * @return true 若加载成功（含文件不存在时返回空网络）
-     */
     private boolean loadNetworkFile(
             Path file,
             Consumer<RoadNetwork> onLoaded,
@@ -126,13 +121,12 @@ public final class RoadPersistenceManager {
         }
         try {
             String json = network.toJson();
-            int contentHash = 31 * json.hashCode() + file.toAbsolutePath().normalize().hashCode();
-            if (contentHash == lastSavedContentHash) {
+            if (contentFingerprint.isUnchanged(json, file)) {
                 LOGGER.debug("路网内容未变，跳过重复保存: {}", file.getFileName());
                 return true;
             }
             network.saveTo(file);
-            lastSavedContentHash = contentHash;
+            contentFingerprint.markSaved(json, file);
             return true;
         } catch (IOException e) {
             LOGGER.error("保存道路网络失败: {}", e.getMessage(), e);

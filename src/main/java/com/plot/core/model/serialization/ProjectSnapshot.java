@@ -1,5 +1,7 @@
 package com.plot.core.model.serialization;
 
+import com.plot.core.persistence.VersionedDocument;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,7 +10,7 @@ import java.util.List;
  * <p>
  * 旧版本通过 {@link com.plot.core.model.serialization.migration.ProjectMigrationRegistry} 链式升级。
  */
-public final class ProjectSnapshot {
+public final class ProjectSnapshot implements VersionedDocument {
     public static final int CURRENT_FORMAT_VERSION = 2;
 
     public int formatVersion = CURRENT_FORMAT_VERSION;
@@ -20,6 +22,11 @@ public final class ProjectSnapshot {
     public String activeLayerId;
     public CanvasSnapshot canvas;
     public List<LayerSnapshot> layers = new ArrayList<>();
+
+    @Override
+    public int formatVersion() {
+        return formatVersion;
+    }
 
     public static final class CanvasSnapshot {
         public String id;

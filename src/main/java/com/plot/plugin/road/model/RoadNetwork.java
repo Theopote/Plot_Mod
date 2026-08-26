@@ -331,20 +331,7 @@ public class RoadNetwork {
      * 保存网络到文件（原子性保存，先写临时文件再重命名）
      */
     public void saveTo(Path file) throws IOException {
-        Files.createDirectories(file.getParent());
-
-        // 先写入临时文件
-        Path tempFile = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tempFile, toJson());
-
-        // 优先原子重命名；部分 Windows 环境不支持 ATOMIC_MOVE 时回退
-        try {
-            Files.move(tempFile, file,
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE);
-        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
-        }
+        com.plot.core.persistence.AtomicFileWriter.write(file, toJson());
     }
 
     public static RoadNetwork loadFrom(Path file) throws IOException {
