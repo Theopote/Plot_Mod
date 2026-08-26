@@ -1,7 +1,7 @@
 package com.plot.core.geometry.shapes;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.api.render.IRenderVisitor;
+import com.plot.core.geometry.visitor.IRenderVisitor;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.AffineTransform;
 import com.plot.core.model.Shape;

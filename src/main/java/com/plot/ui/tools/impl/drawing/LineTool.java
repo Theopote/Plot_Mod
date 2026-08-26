@@ -2,7 +2,7 @@ package com.plot.ui.tools.impl.drawing;
 
 import com.plot.utils.PlotI18n;
 import com.plot.api.geometry.Vec2d;
-import com.plot.api.render.IRenderVisitor;
+import com.plot.core.geometry.visitor.IRenderVisitor;
 import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
 import com.plot.api.graphics.IShapeStyle;

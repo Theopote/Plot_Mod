@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.geometry.Matrix3d;
-import com.plot.api.render.IRenderVisitor;
+import com.plot.core.geometry.visitor.IRenderVisitor;
 import com.plot.api.shape.IExtendableShape;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.geometry.GeometryUtils;

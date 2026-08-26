@@ -3,7 +3,7 @@ package com.plot.core.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.geometry.Matrix3d;
 import com.plot.api.model.IShape;
-import com.plot.api.render.IRenderVisitor;
+import com.plot.core.geometry.visitor.IRenderVisitor;
 import com.plot.api.render.ViewTransform;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.FillStyle;
