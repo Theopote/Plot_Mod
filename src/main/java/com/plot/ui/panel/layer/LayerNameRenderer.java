@@ -138,8 +138,8 @@ public class LayerNameRenderer {
         
         // 如果当前图层正在编辑中
         if (isEditing && layer.getId().equals(currentEditingLayerId)) {
-            // 使用完全自定义的方法处理编辑模式，避免使用ImGui的输入框
-            handleCustomEditing(layer, textScreenX, textScreenY, availableTextWidth, textHeight);
+            // 编辑区域使用整行高度，避免输入框过矮
+            handleCustomEditing(layer, textScreenX, originalY + windowY - scrollY, availableTextWidth, height);
         } else {
             // 显示图层名称
             String displayName = PlotI18n.layerDisplayName(layer.getName());
@@ -249,6 +249,10 @@ public class LayerNameRenderer {
             ImGui.invisibleButton("##layout_keeper_" + layer.getId(), width, height);
         }
 
+        float inputHeight = Math.max(height - 4.0f, ImGui.getFrameHeight());
+        float inputPadY = Math.max(0.0f, (inputHeight - ImGui.getFontSize()) * 0.5f);
+        float inputOffsetY = Math.max(0.0f, (height - inputHeight) * 0.5f);
+
         // 设置样式
         ImGui.pushStyleColor(ImGuiCol.FrameBg, 0, 0, 0, 0); // 透明背景
         
@@ -260,7 +264,7 @@ public class LayerNameRenderer {
             theme.buttonSelected
         );
         
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0); // 移除内边距
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, inputPadY);
         
         // 计算输入框位置 - 确保与原文本位置一致
 
@@ -272,9 +276,10 @@ public class LayerNameRenderer {
         // 使用子窗口确保输入框位置正确
         if (ImGui.beginChild("##edit_child_" + layer.getId(), width, height, false,
                 ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoScrollbar)) {
+            ImGui.setCursorPosY(inputOffsetY);
 
             // 设置输入框宽度
-            ImGui.setNextItemWidth(width - 4); // 留出一些边距
+            ImGui.setNextItemWidth(Math.max(0.0f, width - 4.0f)); // 留出一些边距
 
             // 确保输入框有焦点
             if (setFocus) {

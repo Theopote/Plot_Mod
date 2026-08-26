@@ -31,6 +31,8 @@ public class LayerPanel implements UIComponent {
     private static final float TOOLBAR_HEIGHT = 24.0f;
     /** 单个图层项的高度 */
     private static final float LAYER_ITEM_HEIGHT = 24.0f;
+    /** 图层项之间的纵向间距 */
+    private static final float LAYER_ITEM_SPACING = 4.0f;
 
     // === 图层名称编辑相关 ===
     /** 图层名称编辑缓冲区 */
@@ -281,7 +283,7 @@ public class LayerPanel implements UIComponent {
                 float panelHeight = TOOLBAR_HEIGHT +  // 按钮栏高度
                                   (LAYER_ITEM_HEIGHT * 5) +  // 5个图层项的高度
                                   windowPaddingY * 2 +  // 面板上下内边距
-                                  itemSpacingY* 5;  // 按钮栏和图层列表之间的间距
+                                  itemSpacingY + (LAYER_ITEM_SPACING * 4);  // 工具栏间距 + 5行中的4处行间距
                 
                 // 创建固定高度的面板边框，不带滚动条和鼠标滚动（避免工具栏区域滚动）
                 ImGui.beginChild("##layers_panel", ImGui.getContentRegionAvailX(), panelHeight, true, 

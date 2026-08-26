@@ -499,6 +499,8 @@ public class LayerItemRenderer {
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, theme.buttonHovered);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, theme.buttonActive);
         ImGui.pushStyleColor(ImGuiCol.Border, theme.buttonBorder);
+        float framePadY = Math.max(0.0f, (size - ImGui.getFontSize()) * 0.5f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, framePadY);
 
         java.awt.Color layerColor = layer.getColor();
         float[] colorArray = {
@@ -571,6 +573,7 @@ public class LayerItemRenderer {
             ImGui.popStyleVar();
         }
 
+        ImGui.popStyleVar();
         ImGui.popStyleColor(4);
     }
 

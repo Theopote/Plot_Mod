@@ -56,6 +56,9 @@ public class LayerListRenderer {
                 
                 // 渲染图层项
                 layerItemRenderer.render(concreteLayer, isActive, isSelected);
+                if (i > 0) {
+                    imgui.ImGui.dummy(0.0f, LAYER_ITEM_SPACING);
+                }
             }
         }
     }
