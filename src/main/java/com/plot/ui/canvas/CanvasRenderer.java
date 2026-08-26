@@ -5,6 +5,7 @@ import com.plot.api.model.ILayer;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
@@ -571,7 +572,7 @@ public class CanvasRenderer implements EventListener {
         for (ILayer layer : layers) {
             if (layer.isVisible()) {
                 visibleLayerCount++;
-                List<Shape> shapes = layer.getShapes();
+                List<Shape> shapes = ShapeLists.of(layer.getShapes());
                 int layerShapeCount = 0;
                 int layerCulledCount = 0;
                 

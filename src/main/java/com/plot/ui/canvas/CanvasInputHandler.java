@@ -6,6 +6,7 @@ import com.plot.camera.CameraManager;
 import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.DeleteShapesCommand;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
@@ -456,7 +457,7 @@ public class CanvasInputHandler {
         int count = 0;
         for (ILayer layer : core.getLayers()) {
             if (layer != null && layer.isVisible() && !layer.isLocked()) {
-                for (Shape shape : layer.getShapes()) {
+                for (Shape shape : ShapeLists.of(layer.getShapes())) {
                     if (shape != null && shape.isVisible() && !shape.isDeleted()) {
                         appState.addSelectedShape(shape);
                         count++;
@@ -534,7 +535,7 @@ public class CanvasInputHandler {
         for (int i = layers.size() - 1; i >= 0; i--) {
             ILayer layer = layers.get(i);
             if (layer.isVisible() && !layer.isLocked()) {
-                List<Shape> shapes = layer.getShapes();
+                List<Shape> shapes = ShapeLists.of(layer.getShapes());
                 // 从图层中的最上层图形开始反向遍历
                 for (int j = shapes.size() - 1; j >= 0; j--) {
                     Shape shape = shapes.get(j);

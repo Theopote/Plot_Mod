@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.modify.helper.ExtendHandler;
@@ -146,7 +147,7 @@ public class ExtendWithSelectionStrategy extends BaseSelectionStrategy implement
         }
 
         boxSelectedShapes.clear();
-        List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+        List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
 
         // 判断框选方向：从左到右为包含选择，从右到左为相交选择
         boolean isLeftToRight = boxStartPoint.x <= boxCurrentPoint.x;

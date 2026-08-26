@@ -7,6 +7,7 @@ import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.core.state.AppState;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
@@ -115,7 +116,7 @@ public class ChamferStrategy implements IModifyStrategy {
         }
         
         boxSelectedShapes.clear();
-        List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+        List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
         
         for (Shape shape : allShapes) {
             if (shape != null && shape.isVisible() && !shape.isDeleted() && isChamferableShape(shape)) {

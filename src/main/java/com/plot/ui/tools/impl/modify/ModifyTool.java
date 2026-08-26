@@ -7,6 +7,7 @@ import com.plot.api.snap.ISnapManager;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.core.selection.Selection;
 import com.plot.core.tool.BaseTool;
 import com.plot.utils.PlotI18n;
@@ -724,7 +725,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
         try {
             var activeLayer = concreteAppState.getActiveLayer();
             if (activeLayer != null) {
-                return activeLayer.getShapes();
+                return ShapeLists.of(activeLayer.getShapes());
             }
             return concreteAppState.getShapes();
         } catch (Exception e) {
@@ -739,7 +740,7 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
             if (concreteAppState.getLayerManager() != null) {
                 var layer = concreteAppState.getLayerManager().getLayerById(layerId);
                 if (layer != null) {
-                    return layer.getShapes();
+                    return ShapeLists.of(layer.getShapes());
                 }
             }
         } catch (Exception e) {

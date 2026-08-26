@@ -77,7 +77,8 @@ public final class LayerService {
         }
         try {
             List<Shape> shapesInLayer = targetLayer.getShapes().stream()
-                .filter(shape -> shape != null && !shape.isDeleted())
+                .filter(shape -> shape instanceof Shape concrete && !concrete.isDeleted())
+                .map(shape -> (Shape) shape)
                 .collect(Collectors.toList());
             selectionState.setSelectedShapes(shapesInLayer);
         } catch (Exception e) {
@@ -185,6 +186,8 @@ public final class LayerService {
         try {
             return layerManager.getLayers().stream()
                 .flatMap(layer -> layer.getShapes().stream())
+                .filter(shape -> shape instanceof Shape)
+                .map(shape -> (Shape) shape)
                 .collect(Collectors.toList());
         } finally {
             stateLock.readLock().unlock();

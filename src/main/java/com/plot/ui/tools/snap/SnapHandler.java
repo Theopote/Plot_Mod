@@ -6,6 +6,7 @@ import com.plot.api.state.IAppState;
 import com.plot.api.snap.ISnapManager;
 import com.plot.api.model.ILayer;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.tools.impl.drawing.helper.ISnapHandler;
 
@@ -143,7 +144,7 @@ public class SnapHandler implements ISnapHandler {
                     // 回退到只获取当前图层的图形
                     ILayer currentLayer = appState.getActiveLayer();
                     if (currentLayer != null) {
-                        List<Shape> layerShapes = currentLayer.getShapes();
+                        List<Shape> layerShapes = ShapeLists.of(currentLayer.getShapes());
                         if (layerShapes != null) {
                             snapTargetShapes.addAll(layerShapes);
                         }

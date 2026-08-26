@@ -217,7 +217,7 @@ public class Canvas implements ICanvas, UIComponent {
         // AppState会发布事件，CanvasEventHandler会监听并调用refresh()
         // 这里不需要手动调用refresh()
     }
-    @Override public List<Shape> getShapes() { return core.getShapes(); }
+    @Override public List<? extends IShape> getShapes() { return core.getShapes(); }
     @Override public Vec2d screenToWorld(Vec2d screenPos) { return core.screenToWorld(screenPos); }
     @Override public Vec2d worldToScreen(Vec2d worldPos) { return core.worldToScreen(worldPos); }
 

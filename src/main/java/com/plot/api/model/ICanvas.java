@@ -4,7 +4,6 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.graphics.ITextStyle;
 import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.model.ILayer;
-import com.plot.core.model.Shape;
 import java.util.List;
 
 /**
@@ -145,7 +144,7 @@ public interface ICanvas {
      * 获取画布上的所有图形
      * @return 图形列表
      */
-    List<Shape> getShapes();
+    List<? extends IShape> getShapes();
 
     /**
      * 将屏幕坐标转换为世界坐标

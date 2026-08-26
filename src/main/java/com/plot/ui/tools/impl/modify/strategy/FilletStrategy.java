@@ -5,6 +5,7 @@ import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.core.state.AppState;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
@@ -713,7 +714,7 @@ public class FilletStrategy implements IModifyStrategy {
         }
         
         boxSelectedShapes.clear();
-        List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+        List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
         
         for (Shape shape : allShapes) {
             if (shape != null && shape.isVisible() && !shape.isDeleted() && isFilletableShape(shape)) {

@@ -264,7 +264,7 @@ public class LayerContextMenuRenderer {
             // 合并所有其他选中的图层到目标图层
             for (ILayer layer : layersToMerge) {
                 // 复制所有形状到目标图层
-                for (com.plot.core.model.Shape shape : layer.getShapes()) {
+                for (com.plot.core.model.Shape shape : com.plot.core.model.ShapeLists.of(layer.getShapes())) {
                     targetLayer.addShape(shape);
                 }
                 

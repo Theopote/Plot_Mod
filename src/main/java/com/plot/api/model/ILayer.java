@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.plot.core.graphics.style.LineStyle;
-import com.plot.core.model.Shape;
 import java.awt.Color;
 
 /**
@@ -95,7 +94,7 @@ public interface ILayer {
      * 获取所有形状
      * @return 形状列表
      */
-    List<Shape> getShapes();
+    List<? extends IShape> getShapes();
 
     /**
      * 清空图层

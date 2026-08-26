@@ -465,7 +465,7 @@ public class Project {
         snapshot.color = toColorSnapshot(layer.getColor());
         snapshot.lineStyle = toLineStyleSnapshot(layer.getLineStyle());
 
-        for (Shape shape : layer.getShapes()) {
+        for (Shape shape : ShapeLists.of(layer.getShapes())) {
             if (shape == null || shape.isDeleted()) {
                 continue;
             }

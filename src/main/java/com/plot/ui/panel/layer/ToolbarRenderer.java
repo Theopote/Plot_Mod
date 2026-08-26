@@ -408,7 +408,7 @@ public class ToolbarRenderer {
             
             // 复制所有选中图层的图元到新图层
             for (ILayer layer : selectedLayers) {
-                for (com.plot.core.model.Shape shape : layer.getShapes()) {
+                for (com.plot.core.model.Shape shape : com.plot.core.model.ShapeLists.of(layer.getShapes())) {
                     concreteMergedLayer.addShape(shape);
                 }
             }

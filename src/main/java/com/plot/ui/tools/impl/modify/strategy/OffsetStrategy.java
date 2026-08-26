@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.strategy;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import com.plot.ui.tools.impl.modify.dto.ModifyParameters;
 import com.plot.ui.tools.impl.modify.constants.ModifyConstraints;
@@ -370,7 +371,7 @@ public class OffsetStrategy implements IModifyStrategy {
      * 查找点击位置的图形
      */
     private Shape findShapeAtPoint(Vec2d point, ModifyToolContext context) {
-        List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+        List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
         
         Shape nearest = null;
         double minDistance = Double.MAX_VALUE;

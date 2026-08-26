@@ -462,7 +462,7 @@ public class CanvasCore implements ICanvas {
     }
     
     @Override 
-    public List<Shape> getShapes() { 
+    public List<? extends IShape> getShapes() { 
         List<Shape> allShapes = new ArrayList<>();
         List<ILayer> layers = layerManager.getLayers();
         for (ILayer layer : layers) {

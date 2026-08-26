@@ -3,6 +3,7 @@ package com.plot.ui.tools.impl.modify.strategy;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.ui.tools.impl.modify.helper.TransformHandler;
 import com.plot.ui.tools.impl.modify.helper.BoundingBoxControlManager;
@@ -233,7 +234,7 @@ public class TransformWithSelectionStrategy extends BaseSelectionStrategy implem
         }
         
         // 从应用状态中获取所有图形
-        List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+        List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
         
         // 根据ID找到对应的图形
         for (String shapeId : selectedShapeIds) {

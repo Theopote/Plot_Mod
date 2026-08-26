@@ -5,6 +5,7 @@ import com.plot.core.command.commands.ModifyCommand;
 import com.plot.core.geometry.BoundingBox;
 import com.plot.core.graphics.DrawContext;
 import com.plot.core.model.Shape;
+import com.plot.core.model.ShapeLists;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.tools.impl.modify.helper.TrimHandler;
@@ -602,7 +603,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             Vec2d highlightPos = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
             
             // 根据当前状态高亮不同的图形
-            List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+            List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
             Shape nearestShape = findShapeAtPoint(highlightPos, allShapes, context);
             
             if (nearestShape != null) {
@@ -640,7 +641,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             if (dragDistance < dragThreshold) { // 拖动阈值
                 // 点选模式：选择单个图形
                 Vec2d snappedPoint = context.getSnapHandler().getSnappedWorldPoint(pos, context.getCamera());
-                List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+                List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
                 Shape clickedShape = findShapeAtPoint(snappedPoint, allShapes, context);
                 if (clickedShape != null) {
                     boxSelectedShapes.clear();
@@ -746,7 +747,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
             LOGGER.debug("开始执行点击修剪操作，点击位置=({}, {})", clickPos.x, clickPos.y);
             
             // 查找被点击的图形
-            List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+            List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
             LOGGER.debug("当前图层图形数量: {}", allShapes.size());
             Shape targetShape = findShapeAtPoint(clickPos, allShapes, context);
             
@@ -1016,7 +1017,7 @@ public class TrimWithSelectionStrategy extends BaseSelectionStrategy implements 
         isLeftToRight = boxCurrentPoint.x >= boxStartPoint.x;
         
         boxSelectedShapes.clear();
-        List<Shape> allShapes = context.getAppState().getActiveLayer().getShapes();
+                List<Shape> allShapes = ShapeLists.of(context.getAppState().getActiveLayer().getShapes());
         
         for (Shape shape : allShapes) {
             if (shape != null && shape.isVisible() && !shape.isDeleted()) {
