@@ -43,13 +43,17 @@ public final class ApplicationContext {
     private final CommandService commandService;
     private final ProjectSession projectSession;
     private final AppState appState;
+    private final EventBus eventBus;
+    private final SnapManager snapManager;
     private final AtomicReference<ShapeStyle> currentStyle = new AtomicReference<>(new ShapeStyle());
     private final AtomicLong stateVersion = new AtomicLong(1);
 
     @SuppressWarnings("deprecation")
     private ApplicationContext() {
         LOGGER.info("创建 ApplicationContext...");
-        this.commandService = CommandService.getInstance();
+        // 事件总线先解析：后续服务一律注入，不再各自 EventBus.getInstance()
+        this.eventBus = EventBus.getInstance();
+        this.commandService = CommandService.initialize(eventBus);
         this.projectSession = new ProjectSession();
         this.viewportState = new ViewportState();
         this.activeToolState = new ActiveToolState();
@@ -67,11 +71,13 @@ public final class ApplicationContext {
             return layers != null ? layers.getShapes() : java.util.Collections.emptyList();
         });
 
-        // 先挂 INSTANCE：子组件（LayerService / SnapManager 等）构造若回查 getInstance() 不会再递归创建
+        // 先挂 INSTANCE：子组件若回查 getInstance() 不会再递归创建
         INSTANCE = this;
 
-        this.layerService = new LayerService(spatialIndexService, selectionState);
+        this.layerService = new LayerService(spatialIndexService, selectionState, eventBus);
         layerRef.set(this.layerService);
+
+        this.snapManager = SnapManager.initialize(eventBus, appState);
     }
 
     public static ApplicationContext getInstance() {
@@ -132,7 +138,7 @@ public final class ApplicationContext {
     }
 
     public SnapManager getSnapManager() {
-        return SnapManager.getInstance();
+        return snapManager;
     }
 
     public com.plot.core.tool.ToolManager getToolManager() {
@@ -140,7 +146,7 @@ public final class ApplicationContext {
     }
 
     public EventBus getEventBus() {
-        return EventBus.getInstance();
+        return eventBus;
     }
 
     public CoordinateTransformer getCoordinateTransformer() {

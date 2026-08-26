@@ -47,5 +47,6 @@ Plot 正确方向是 **Core ← Plugin**（Road / Building / Earthwork …）。
 - `ILayer` 线型 API 已改为 `ILineStyle`（不再直接依赖 `core.graphics.style.LineStyle`）；`Layer` 内部仍桥接到具体实现。
 - `api.render.IDrawContext` 已抽出；`ITool.render` / `IRenderer.begin` 改为依赖它，`core.graphics.DrawContext` 实现该接口。
 - `IRenderVisitor` 已迁至 `com.plot.core.geometry.visitor`（与 `IShapeVisitor` 同层），因其依赖具体 Shape 与 ImGui，不宜留在 api。
+- Core 组合根已持有并注入 `EventBus`：`CommandService` / `LayerService` / `SnapManager` 经构造注入，不再各自 `EventBus.getInstance()`；`ApplicationContext` 拥有 `snapManager` 字段。
 - `api.plugin.PluginDescription` 已改为使用 API 层 `PropertiesPluginConfig`，去除对 `core.plugin.PluginConfig` 的直接依赖。
-- `api` 包对 core 的直接依赖已清空（含 FQCN）；后续重点转向 Core 内部定位器收口与减少 `ShapeLists`/concrete `DrawContext` 桥接。
+- `api` 包对 core 的直接依赖已清空（含 FQCN）；后续可继续把 `ToolManager` 等收进组合根，并减少 `LogManager.getInstance()` 散落（日志可后置）。

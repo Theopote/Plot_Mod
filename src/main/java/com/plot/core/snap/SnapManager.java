@@ -40,15 +40,26 @@ public class SnapManager implements ISnapManager, SnapService {
     private SnapPriorityEvaluator.SnapType lastResolvedSnapType = SnapPriorityEvaluator.SnapType.NONE;
     private Shape lastResolvedSnapSourceShape = null;
 
-    private SnapManager() {
-        this.eventBus = EventBus.getInstance();
-        this.appState = ApplicationContext.getInstance().getAppState();
+    private SnapManager(EventBus eventBus, AppState appState) {
+        this.eventBus = eventBus;
+        this.appState = appState;
         this.settings = new SnapSettings();
+    }
+
+    /**
+     * 组合根专用：用注入依赖初始化单例。
+     */
+    public static synchronized SnapManager initialize(EventBus eventBus, AppState appState) {
+        if (INSTANCE == null) {
+            INSTANCE = new SnapManager(eventBus, appState);
+        }
+        return INSTANCE;
     }
 
     public static SnapManager getInstance() {
         if (INSTANCE == null) {
-            INSTANCE = new SnapManager();
+            ApplicationContext ctx = ApplicationContext.getInstance();
+            INSTANCE = new SnapManager(ctx.getEventBus(), ctx.getAppState());
         }
         return INSTANCE;
     }

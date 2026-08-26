@@ -19,15 +19,26 @@ public final class CommandService {
 
     private static CommandService instance;
 
+    private final EventBus eventBus;
     private final List<Command> commands = new ArrayList<>();
     private final List<Date> commandTimestamps = new ArrayList<>();
     private int currentIndex = -1;
     private List<Command> activeTransaction = null;
 
-    private CommandService() {
-        EventBus eventBus = EventBus.getInstance();
-        eventBus.subscribe(this, UndoEvent.class, event -> undo());
-        eventBus.subscribe(this, RedoEvent.class, event -> redo());
+    private CommandService(EventBus eventBus) {
+        this.eventBus = eventBus;
+        this.eventBus.subscribe(this, UndoEvent.class, event -> undo());
+        this.eventBus.subscribe(this, RedoEvent.class, event -> redo());
+    }
+
+    /**
+     * 组合根专用：用注入的 EventBus 初始化单例。
+     */
+    public static synchronized CommandService initialize(EventBus eventBus) {
+        if (instance == null) {
+            instance = new CommandService(eventBus);
+        }
+        return instance;
     }
 
     /**
@@ -37,7 +48,7 @@ public final class CommandService {
     @Deprecated
     public static synchronized CommandService getInstance() {
         if (instance == null) {
-            instance = new CommandService();
+            instance = new CommandService(EventBus.getInstance());
         }
         return instance;
     }

@@ -29,18 +29,18 @@ public final class LayerService {
     private final ReentrantReadWriteLock stateLock = new ReentrantReadWriteLock();
     private final SpatialIndexService spatialIndexService;
     private final SelectionState selectionState;
+    private final EventBus eventBus;
 
     private LayerManager layerManager;
 
-    public LayerService(SpatialIndexService spatialIndexService, SelectionState selectionState) {
+    public LayerService(SpatialIndexService spatialIndexService, SelectionState selectionState, EventBus eventBus) {
         this.spatialIndexService = spatialIndexService;
         this.selectionState = selectionState;
+        this.eventBus = eventBus;
         subscribeToLayerEvents();
     }
 
     private void subscribeToLayerEvents() {
-        // 直接取 EventBus，避免构造期再进 ApplicationContext.getInstance()（INSTANCE 尚未赋值会递归炸栈）
-        EventBus eventBus = EventBus.getInstance();
         eventBus.subscribe(this, LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
         eventBus.subscribe(this, LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
         eventBus.subscribe(this, LayerEventSystem.SelectAllElementsInLayerEvent.class, this::handleSelectAllElementsInLayer);
@@ -143,7 +143,7 @@ public final class LayerService {
         layer.addShape(shape);
         shapeToLayerMap.put(shape, layer);
         spatialIndexService.update(shape);
-        EventBus.getInstance().publish(
+        eventBus.publish(
             new LayerEventSystem.LayerContentChangedEvent(layer.getId(), layer, "shape_added", shape));
     }
 
@@ -158,7 +158,7 @@ public final class LayerService {
             if (removed) {
                 shapeToLayerMap.remove(shape);
                 spatialIndexService.remove(shape);
-                EventBus.getInstance().publish(
+                eventBus.publish(
                     new LayerEventSystem.LayerContentChangedEvent(layer.getId(), layer, "shape_removed", shape));
             } else {
                 LOGGER.error("严重状态不一致！shapeToLayerMap 中记录图形 {} 在图层 '{}' 中，但图层中实际不存在",
