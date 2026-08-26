@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 项目存档的 JSON 数据结构（formatVersion = 1）。
+ * 项目存档的 JSON 数据结构（当前 formatVersion = {@link #CURRENT_FORMAT_VERSION}）。
+ * <p>
+ * 旧版本通过 {@link com.plot.core.model.serialization.migration.ProjectMigrationRegistry} 链式升级。
  */
 public final class ProjectSnapshot {
-    public static final int CURRENT_FORMAT_VERSION = 1;
+    public static final int CURRENT_FORMAT_VERSION = 2;
 
     public int formatVersion = CURRENT_FORMAT_VERSION;
     public String name;

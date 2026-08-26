@@ -11,6 +11,7 @@ public class ProjectFormatException extends IOException {
         EMPTY_INPUT,
         INVALID_JSON,
         UNSUPPORTED_FORMAT_VERSION,
+        MIGRATION_FAILED,
         VALIDATION_FAILED
     }
 

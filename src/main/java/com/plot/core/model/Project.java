@@ -2,6 +2,8 @@ package com.plot.core.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.plot.api.model.ILayer;
 import com.plot.core.graphics.style.LineStyle;
@@ -9,6 +11,7 @@ import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.model.serialization.ShapeSerialization;
+import com.plot.core.model.serialization.migration.ProjectMigrationRegistry;
 import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
@@ -281,9 +284,34 @@ public class Project {
                     PlotI18n.error("error.plot.project.empty_input"));
         }
 
+        final JsonObject root;
+        try {
+            var element = JsonParser.parseString(data);
+            if (element == null || !element.isJsonObject()) {
+                throw new ProjectFormatException(
+                        ProjectFormatException.Reason.VALIDATION_FAILED,
+                        PlotI18n.error("error.plot.project.null_snapshot"));
+            }
+            root = element.getAsJsonObject();
+        } catch (ProjectFormatException e) {
+            throw e;
+        } catch (JsonSyntaxException e) {
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.INVALID_JSON,
+                    PlotI18n.error("error.plot.project.invalid_json"),
+                    e);
+        } catch (RuntimeException e) {
+            throw new ProjectFormatException(
+                    ProjectFormatException.Reason.INVALID_JSON,
+                    PlotI18n.error("error.plot.project.invalid_json"),
+                    e);
+        }
+
+        ProjectMigrationRegistry.getInstance().migrateToCurrent(root);
+
         final ProjectSnapshot snapshot;
         try {
-            snapshot = GSON.fromJson(data, ProjectSnapshot.class);
+            snapshot = GSON.fromJson(root, ProjectSnapshot.class);
         } catch (JsonSyntaxException e) {
             throw new ProjectFormatException(
                     ProjectFormatException.Reason.INVALID_JSON,

@@ -53,22 +53,63 @@ class ProjectTest {
     }
 
     @Test
-    void deserializeMissingLayersThrows() {
+    void deserializeV1MigratesToCurrent() throws ProjectFormatException {
         String json = """
                 {
                   "formatVersion": 1,
-                  "name": "No Layers",
-                  "layers": null
+                  "name": "Legacy V1",
+                  "id": "legacy-v1",
+                  "layers": [
+                    {
+                      "id": "layer-1",
+                      "name": "Layer 1",
+                      "shapes": []
+                    }
+                  ]
                 }
                 """;
-        ProjectFormatException ex = assertThrows(ProjectFormatException.class, () -> Project.deserialize(json));
-        assertEquals(ProjectFormatException.Reason.VALIDATION_FAILED, ex.getReason());
+        Project project = Project.deserialize(json);
+        assertEquals("Legacy V1", project.getName());
+        assertEquals(1, project.getLayers().size());
+
+        String saved = project.serialize();
+        assertTrue(saved.contains("\"formatVersion\": " + ProjectSnapshot.CURRENT_FORMAT_VERSION)
+                || saved.contains("\"formatVersion\":" + ProjectSnapshot.CURRENT_FORMAT_VERSION));
     }
 
     @Test
-    void deserializeBareObjectThrowsValidationFailed() {
-        ProjectFormatException ex = assertThrows(ProjectFormatException.class, () -> Project.deserialize("{}"));
-        assertEquals(ProjectFormatException.Reason.VALIDATION_FAILED, ex.getReason());
+    void deserializeMissingFormatVersionMigratesFromV0() throws ProjectFormatException {
+        String json = """
+                {
+                  "name": "No Version Field",
+                  "id": "no-ver",
+                  "layers": []
+                }
+                """;
+        Project project = Project.deserialize(json);
+        assertEquals("No Version Field", project.getName());
+    }
+
+    @Test
+    void deserializeV1NullLayersMigratesToEmptyLayers() throws ProjectFormatException {
+        String json = """
+                {
+                  "formatVersion": 1,
+                  "name": "Null Layers",
+                  "id": "null-layers",
+                  "layers": null
+                }
+                """;
+        Project project = Project.deserialize(json);
+        assertEquals("Null Layers", project.getName());
+        assertFalse(project.getLayers().isEmpty());
+    }
+
+    @Test
+    void deserializeBareObjectMigratesWithDefaultName() throws ProjectFormatException {
+        Project project = Project.deserialize("{}");
+        assertEquals("Untitled", project.getName());
+        assertFalse(project.getLayers().isEmpty());
     }
 
     @Test
