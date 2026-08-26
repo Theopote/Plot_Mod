@@ -46,4 +46,8 @@ replay_*.log
 **/bin/
 **/out/
 **/classes/
-/logs/latest.log
+
+# runtime / client logs (Minecraft / Plot)
+logs/
+*.log
+*.log.gz

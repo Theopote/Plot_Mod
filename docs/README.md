@@ -1,12 +1,21 @@
-# Plot 用户文档 / User Documentation
+# Plot 文档索引
 
-欢迎使用 Plot！本目录包含面向最终用户的使用说明，帮助你快速上手并在 Minecraft 中完成规划与建造。
+本目录是仓库内文档的统一入口，避免根目录堆积任务书与修复报告。
 
-Welcome to Plot! This directory contains end-user guides for planning and building in Minecraft.
+## 结构
 
----
+| 路径 | 用途 |
+|------|------|
+| [zh/](zh/) · [en/](en/) | 面向最终用户的使用手册 |
+| [architecture/](architecture/) | 架构说明与模块边界 |
+| [development/](development/) | 开发约定、流程；任务书见 [task-assignments/](development/task-assignments/) |
+| [decisions/](decisions/) | 设计决策记录（ADR） |
+| [plugins/](plugins/) | 插件专题说明 |
+| [historical-reports/](historical-reports/) | 历史问题报告与修复总结（归档，非现行规范） |
 
-## 中文文档
+## 用户手册
+
+### 中文
 
 | 章节 | 内容 |
 |------|------|
@@ -19,7 +28,7 @@ Welcome to Plot! This directory contains end-user guides for planning and buildi
 | [图库](zh/07-gallery.md) | 预设图形、保存选中、放置到画布 |
 | [扩展插件](zh/08-plugins.md) | 道路系统、土方平衡、建筑轮廓生成器 |
 
-## English Documentation
+### English
 
 | Chapter | Contents |
 |---------|----------|
@@ -32,11 +41,9 @@ Welcome to Plot! This directory contains end-user guides for planning and buildi
 | [Gallery](en/07-gallery.md) | Presets, save selection, place on canvas |
 | [Extension Plugins](en/08-plugins.md) | Road system, earthwork, building generator |
 
----
-
 ## 相关链接
 
-- [项目主页 / Project Home](https://github.com/Theopote/Plot_Mod)
-- [开发者文档 / Developer README](../README.md)
-- [贡献指南 / Contributing](../CONTRIBUTING.md)
-- [更新日志 / Changelog](../CHANGELOG.md)
+- [项目主页](https://github.com/Theopote/Plot_Mod)
+- [开发者 README](../README.md)
+- [贡献指南](../CONTRIBUTING.md)
+- [更新日志](../CHANGELOG.md)

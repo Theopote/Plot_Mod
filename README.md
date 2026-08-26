@@ -124,6 +124,14 @@ src/main/java/com/plot/
 ├── ui/               # 用户界面（画布、工具栏、面板、对话框）
 ├── plugin/           # 内置插件（道路系统等）
 └── PlotMod.java      # 模组入口
+
+docs/                 # 文档统一入口（用户手册 + 工程文档）
+├── zh/ · en/         # 用户手册
+├── architecture/     # 架构说明
+├── development/      # 开发约定与任务书
+├── decisions/        # 设计决策（ADR）
+├── plugins/          # 插件专题
+└── historical-reports/  # 历史修复报告归档
 ```
 
 ---
