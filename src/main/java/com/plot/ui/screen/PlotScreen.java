@@ -939,6 +939,12 @@ public class PlotScreen extends Screen {
         }
 
         try {
+            com.plot.core.model.ProjectSession.save(appState);
+        } catch (Exception e) {
+            LOGGER.warn("保存画布会话失败: {}", e.getMessage());
+        }
+
+        try {
             UIContainer.getInstance().dispose();
         } catch (Exception e) {
             LOGGER.error("释放 Plot UI 组件资源失败", e);

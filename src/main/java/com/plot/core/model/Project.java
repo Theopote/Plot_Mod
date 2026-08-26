@@ -186,6 +186,8 @@ public class Project {
             if (activeLayer != null) {
                 appState.setActiveLayer(activeLayer);
             }
+            appState.rebuildShapeToLayerMap();
+            appState.rebuildSpatialIndex();
         }
         setModified(false);
     }

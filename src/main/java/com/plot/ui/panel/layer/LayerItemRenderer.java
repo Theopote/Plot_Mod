@@ -303,6 +303,11 @@ public class LayerItemRenderer {
         ImGui.pushStyleColor(ImGuiCol.HeaderHovered, theme.tabHovered);
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, theme.tabActive);
 
+        // 使 combo / dragFloat 高度与图层行高一致，避免底部出现空隙
+        float framePadY = Math.max(0.0f, (LAYER_ITEM_HEIGHT - ImGui.getFontSize()) * 0.5f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, framePadY);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+
         // 使用传入的Y坐标，确保与其他元素完全对齐
         ImGui.setCursorPos(startX, yPos);
         
@@ -407,6 +412,7 @@ public class LayerItemRenderer {
             ImGui.popStyleVar(); // 恢复透明度
         }
 
+        ImGui.popStyleVar(2); // FramePadding + FrameBorderSize
         ImGui.popStyleColor(8);
     }
 

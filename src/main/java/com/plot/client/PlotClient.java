@@ -2,6 +2,7 @@ package com.plot.client;
 
 import com.plot.PlotMod;
 import com.plot.core.command.CommandService;
+import com.plot.core.model.ProjectSession;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
@@ -51,7 +52,10 @@ public final class PlotClient implements ClientModInitializer {
         try {
             PlotMod.LOGGER.debug("步骤1: 获取AppState实例");
             AppState appState = AppState.getInstance();
-            appState.ensureDefaultLayer();
+            if (appState.getLayerManager() == null) {
+                appState.initializeLayerSystem();
+            }
+            ProjectSession.loadOrInitialize(appState);
 
             ImGuiWorldRenderer.init();
             GhostBlockWorldRenderer.init();
@@ -238,10 +242,11 @@ public final class PlotClient implements ClientModInitializer {
     private void registerClientShutdownHooks() {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             try {
-                PlotMod.LOGGER.info("客户端关闭，卸载插件并保存配置...");
+                PlotMod.LOGGER.info("客户端关闭，保存画布会话并卸载插件...");
+                ProjectSession.save(AppState.getInstance());
                 PluginManager.getInstance().unloadAll();
             } catch (Exception e) {
-                PlotMod.LOGGER.error("插件卸载失败: {}", e.getMessage(), e);
+                PlotMod.LOGGER.error("客户端关闭清理失败: {}", e.getMessage(), e);
             }
         });
     }

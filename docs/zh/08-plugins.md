@@ -120,7 +120,7 @@ Plot 内置多个插件，通过右侧栏的 **扩展** 标签页访问。
 
 各插件会在 `.minecraft/plot/plugins/` 下保存自己的项目数据（JSON）。插件配置保存在 `config/plugins/` 目录。
 
-这与画布主设计的「项目文件」不同。当前版本画布图层尚无统一的保存/加载 UI，但插件各自的数据会按会话自动持久化。
+这与画布主设计的「项目文件」不同。画布图层会自动保存到 `.minecraft/plot/projects/default.json`；插件配置保存在 `config/plugins/`，插件项目数据保存在 `plot/plugins/`。
 
 ---
 
