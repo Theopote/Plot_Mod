@@ -42,4 +42,6 @@ Plot 正确方向是 **Core ← Plugin**（Road / Building / Earthwork …）。
 - `ViewTransform` 位于 `com.plot.api.render`；`DrawContext` / `Shape.renderImGui` / `IRenderVisitor` 均使用它，Core 几何不再依赖 `CanvasCamera`。
 - `IShapeVisitor` 迁至 `com.plot.core.geometry.visitor`（UI 包保留废弃转发）。
 - `LineType` 升至 `com.plot.api.graphics`；`IPluginManager` 不再暴露 core 的 `PluginDependencyGraph`。
-- `api` 仍有对 core 具体类型的引用（`IAppState`/`ILayer`/`ISnapManager` 的 `Shape`，`ITool`/`IRenderer` 的 `DrawContext`，`IRenderVisitor` 的具体 Shape 类等），下一刀继续收。
+- `api` 已引入 `IShape` 并迁移 `IAppState.addShape`、`ISnapManager`、`IExtendableShape` 到接口抽象；`Shape` 实现 `IShape` 作为兼容桥接。
+- `api.plugin.PluginDescription` 已改为使用 API 层 `PropertiesPluginConfig`，去除对 `core.plugin.PluginConfig` 的直接依赖。
+- `api` 仍有剩余 core 引用（如 `ILayer`/`ICanvas.getShapes` 仍返回 `Shape`，以及 `ITool`/`IRenderer` 的 `DrawContext`、`IRenderVisitor` 的具体 Shape 类），下一刀继续收。

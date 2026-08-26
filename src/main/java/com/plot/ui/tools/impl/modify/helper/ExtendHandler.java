@@ -1449,7 +1449,7 @@ public class ExtendHandler implements IModifyHandler {
                 // 使用IExtendableShape接口进行类型安全的延伸操作
                 if (extendedShape instanceof IExtendableShape extendableShape) {
                     LOGGER.debug("开始执行延伸操作...");
-                    Shape result = extendableShape.extend(extendPoint, targetPoint);
+                    Shape result = (Shape) extendableShape.extend(extendPoint, targetPoint);
                     if (result != null) {
                         LOGGER.debug("延伸操作成功完成，新图形ID: {}", result.getId());
                         return result;

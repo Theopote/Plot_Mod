@@ -3,8 +3,8 @@ package com.plot.api.model;
 import java.util.List;
 import java.util.Set;
 
-import com.plot.core.model.Shape;
 import com.plot.core.graphics.style.LineStyle;
+import com.plot.core.model.Shape;
 import java.awt.Color;
 
 /**
@@ -72,19 +72,19 @@ public interface ILayer {
     /**
      * 获取指定ID的形状
      */
-    Shape getShape(String id);
+    IShape getShape(String id);
 
     /**
      * 添加形状
      */
-    void addShape(Shape shape);
+    void addShape(IShape shape);
 
     /**
      * 从图层中移除形状
      * @param shape 要移除的形状
      * @return 是否成功移除
      */
-    boolean removeShape(Shape shape);
+    boolean removeShape(IShape shape);
 
     /**
      * 检查是否包含指定ID的形状

@@ -1,6 +1,7 @@
 package com.plot.core.snap;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.model.IShape;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.model.Shape;
 import com.plot.core.context.ApplicationContext;
@@ -19,6 +20,7 @@ import imgui.flag.ImGuiCond;
 import com.plot.core.geometry.BoundingBox;
 
 import java.util.List;
+import java.util.ArrayList;
 import com.plot.ui.tools.snap.SnapVisualStyle;
 
 /**
@@ -485,14 +487,27 @@ public class SnapManager implements ISnapManager, SnapService {
     // ====== ISnapManager接口实现 ======
     
     @Override
-    public Vec2d snapPoint(Vec2d point, List<Shape> snapTargets) {
-        return getSnapPoint(point, snapTargets);
+    public Vec2d snapPoint(Vec2d point, List<? extends IShape> snapTargets) {
+        return getSnapPoint(point, toConcreteShapes(snapTargets));
     }
     
     @Override
-    public Vec2d snapPoint(Vec2d point, Vec2d startPoint, List<Shape> snapTargets) {
+    public Vec2d snapPoint(Vec2d point, Vec2d startPoint, List<? extends IShape> snapTargets) {
         // 简化实现：忽略起始点，使用标准吸附
-        return getSnapPoint(point, snapTargets);
+        return getSnapPoint(point, toConcreteShapes(snapTargets));
+    }
+
+    private List<Shape> toConcreteShapes(List<? extends IShape> shapes) {
+        List<Shape> concrete = new ArrayList<>();
+        if (shapes == null) {
+            return concrete;
+        }
+        for (IShape shape : shapes) {
+            if (shape instanceof Shape coreShape) {
+                concrete.add(coreShape);
+            }
+        }
+        return concrete;
     }
     
     @Override

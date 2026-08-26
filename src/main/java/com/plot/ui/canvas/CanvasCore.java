@@ -5,6 +5,7 @@ import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.graphics.ITextStyle;
 import com.plot.api.model.ICanvas;
 import com.plot.api.model.ILayer;
+import com.plot.api.model.IShape;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.graphics.style.TextStyle;
 import com.plot.core.layer.LayerManager;
@@ -383,8 +384,8 @@ public class CanvasCore implements ICanvas {
     }
     
     @Override 
-    public void addShape(Shape shape) { 
-        if (shape == null) {
+    public void addShape(IShape shape) { 
+        if (!(shape instanceof Shape concrete)) {
             LOGGER.warn("尝试添加空图形");
             return;
         }
@@ -397,20 +398,20 @@ public class CanvasCore implements ICanvas {
         
         try {
             LOGGER.debug("添加图形到活动图层: {}", activeLayer.getName());
-            activeLayer.addShape(shape);
+            activeLayer.addShape(concrete);
             
             // 确保图形有样式
-            if (shape.getStyle() == null) {
+            if (concrete.getStyle() == null) {
                 IShapeStyle style = getCurrentShapeStyle();
                 if (style != null) {
-                    shape.setStyle(style.clone());
+                    concrete.setStyle(style.clone());
                     LOGGER.debug("已应用当前样式到图形");
                 } else {
                     // 创建默认样式
                     ShapeStyle defaultStyle = new ShapeStyle();
                     defaultStyle.setStrokeColor(java.awt.Color.BLACK);
                     defaultStyle.setStrokeWidth(2.0f);
-                    shape.setStyle(defaultStyle);
+                    concrete.setStyle(defaultStyle);
                     LOGGER.debug("已应用默认样式到图形");
                 }
             }
@@ -423,8 +424,8 @@ public class CanvasCore implements ICanvas {
     }
     
     @Override 
-    public void removeShape(Shape shape) { 
-        if (shape == null) {
+    public void removeShape(IShape shape) { 
+        if (!(shape instanceof Shape concrete)) {
             LOGGER.warn("尝试移除空图形");
             return;
         }
@@ -437,7 +438,7 @@ public class CanvasCore implements ICanvas {
         
         try {
             LOGGER.debug("从活动图层移除图形: {}", activeLayer.getName());
-            activeLayer.removeShape(shape);
+            activeLayer.removeShape(concrete);
             markDirty(DirtyType.CONTENT);
             LOGGER.debug("图形移除成功");
         } catch (Exception e) {
@@ -465,7 +466,11 @@ public class CanvasCore implements ICanvas {
         List<Shape> allShapes = new ArrayList<>();
         List<ILayer> layers = layerManager.getLayers();
         for (ILayer layer : layers) {
-            allShapes.addAll(layer.getShapes());
+            for (IShape shape : layer.getShapes()) {
+                if (shape instanceof Shape concrete) {
+                    allShapes.add(concrete);
+                }
+            }
         }
         return allShapes;
     }

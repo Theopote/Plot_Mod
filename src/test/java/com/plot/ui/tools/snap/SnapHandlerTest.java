@@ -1,6 +1,7 @@
 package com.plot.ui.tools.snap;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.model.IShape;
 import com.plot.api.snap.ISnapManager;
 import com.plot.core.model.Shape;
 import com.plot.core.context.ApplicationContext;
@@ -68,14 +69,14 @@ class SnapHandlerTest {
         private int snapCallCount;
 
         @Override
-        public Vec2d snapPoint(Vec2d point, List<Shape> snapTargets) {
+        public Vec2d snapPoint(Vec2d point, List<? extends IShape> snapTargets) {
             lastWorldPoint = point;
             snapCallCount++;
             return snappedPoint;
         }
 
         @Override
-        public Vec2d snapPoint(Vec2d point, Vec2d startPoint, List<Shape> snapTargets) {
+        public Vec2d snapPoint(Vec2d point, Vec2d startPoint, List<? extends IShape> snapTargets) {
             return snapPoint(point, snapTargets);
         }
 

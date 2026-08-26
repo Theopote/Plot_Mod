@@ -6,6 +6,7 @@ import com.plot.core.model.Entity;
 import com.plot.core.model.Shape;
 import com.plot.api.model.ILayer;
 import com.plot.api.model.IElement;
+import com.plot.api.model.IShape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,32 +202,32 @@ public class Layer extends Entity implements ILayer, LayerState.StateChangeListe
     }
     
     @Override
-    public void addShape(Shape shape) {
-        if (shape == null) {
+    public void addShape(IShape shape) {
+        if (!(shape instanceof Shape concrete)) {
             LOGGER.warn("尝试添加空图形到图层 '{}'", name);
             return;
         }
         
-        container.addElement(shape);
+        container.addElement(concrete);
         
         // 应用图层样式到新添加的图形
-        applyLayerStyleToShape(shape);
+        applyLayerStyleToShape(concrete);
         
-        eventSystem.publishLayerContentChanged(id, this, "element_added", shape);
-        LOGGER.debug("添加图形到图层 '{}': {}", name, shape.getId());
+        eventSystem.publishLayerContentChanged(id, this, "element_added", concrete);
+        LOGGER.debug("添加图形到图层 '{}': {}", name, concrete.getId());
     }
     
     @Override
-    public boolean removeShape(Shape shape) {
-        if (shape == null) {
+    public boolean removeShape(IShape shape) {
+        if (!(shape instanceof Shape concrete)) {
             LOGGER.warn("尝试从图层 '{}' 移除空图形", name);
             return false;
         }
         
-        boolean removed = container.removeElement(shape);
+        boolean removed = container.removeElement(concrete);
         if (removed) {
-            eventSystem.publishLayerContentChanged(id, this, "element_removed", shape);
-            LOGGER.debug("从图层 '{}' 移除图形: {}", name, shape.getId());
+            eventSystem.publishLayerContentChanged(id, this, "element_removed", concrete);
+            LOGGER.debug("从图层 '{}' 移除图形: {}", name, concrete.getId());
         }
         return removed;
     }

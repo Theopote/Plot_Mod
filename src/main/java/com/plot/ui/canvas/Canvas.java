@@ -6,6 +6,7 @@ import com.plot.core.layer.LayerManager;
 import com.plot.core.model.Shape;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.state.AppState;
+import com.plot.api.model.IShape;
 import com.plot.api.geometry.Vec2d;
 import java.util.List;
 
@@ -170,15 +171,15 @@ public class Canvas implements ICanvas, UIComponent {
      * 此方法现在委托给AppState，实现相同的功能但保持架构清晰。
      */
     @Override 
-    public void addShape(Shape shape) {
-        if (shape == null) {
+    public void addShape(IShape shape) {
+        if (!(shape instanceof Shape concrete)) {
             LOGGER.warn("尝试添加空图形");
             return;
         }
         
         LOGGER.debug("Canvas.addShape() 委托给 AppState.addShape()");
         // 委托给AppState，保持单向数据流
-        appState.addShape(shape);
+        appState.addShape(concrete);
         
         // AppState会发布事件，CanvasEventHandler会监听并调用refresh()
         // 这里不需要手动调用refresh()
@@ -189,15 +190,15 @@ public class Canvas implements ICanvas, UIComponent {
      * 修复：委托给AppState，保持API一致性和单向数据流
      */
     @Override 
-    public void removeShape(Shape shape) {
-        if (shape == null) {
+    public void removeShape(IShape shape) {
+        if (!(shape instanceof Shape concrete)) {
             LOGGER.warn("尝试移除空图形");
             return;
         }
         
         LOGGER.debug("Canvas.removeShape() 委托给 AppState.removeShape()");
         // 委托给AppState，保持单向数据流和API一致性
-        appState.removeShape(shape);
+        appState.removeShape(concrete);
         
         // AppState会发布事件，CanvasEventHandler会监听并调用refresh()
         // 这里不需要手动调用refresh()

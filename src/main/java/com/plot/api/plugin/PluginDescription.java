@@ -1,7 +1,5 @@
 package com.plot.api.plugin;
 
-import com.plot.core.plugin.PluginConfig;
-
 import java.util.Properties;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +27,7 @@ public class PluginDescription implements IPluginDescription {
         this.author = props.getProperty("author", "");
         this.website = props.getProperty("website", "");
         this.dependencies = parseDependencies(props.getProperty("dependencies", ""));
-        this.config = new PluginConfig(props);
+        this.config = new PropertiesPluginConfig(props);
     }
 
     private String getRequiredProperty(Properties props, String key) throws PluginException {

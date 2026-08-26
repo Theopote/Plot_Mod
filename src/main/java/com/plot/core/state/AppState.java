@@ -2,6 +2,7 @@ package com.plot.core.state;
 
 import com.plot.api.graphics.IShapeStyle;
 import com.plot.api.model.ILayer;
+import com.plot.api.model.IShape;
 import com.plot.api.state.IAppState;
 import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.DeleteShapesCommand;
@@ -77,9 +78,16 @@ public class AppState implements IAppState {
     }
 
     @Override
-    public void addShape(Shape shape) {
-        layers().addShape(shape);
+    public void addShape(IShape shape) {
+        if (!(shape instanceof Shape concrete)) {
+            throw new IllegalArgumentException("IShape must be core Shape implementation");
+        }
+        layers().addShape(concrete);
         context.bumpStateVersion();
+    }
+
+    public void addShape(Shape shape) {
+        addShape((IShape) shape);
     }
 
     public void removeShape(Shape shape) {

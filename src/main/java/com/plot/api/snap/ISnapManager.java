@@ -1,8 +1,8 @@
 package com.plot.api.snap;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.model.IShape;
 import com.plot.api.resource.IDisposable;
-import com.plot.core.model.Shape;
 import java.util.List;
 
 /**
@@ -25,7 +25,7 @@ public interface ISnapManager extends IDisposable {
      * @param snapTargets 吸附目标列表
      * @return 吸附后的点坐标
      */
-    Vec2d snapPoint(Vec2d point, List<Shape> snapTargets);
+    Vec2d snapPoint(Vec2d point, List<? extends IShape> snapTargets);
     
     /**
      * 执行点吸附（带起始点参考）
@@ -34,7 +34,7 @@ public interface ISnapManager extends IDisposable {
      * @param snapTargets 吸附目标列表
      * @return 吸附后的点坐标
      */
-    Vec2d snapPoint(Vec2d point, Vec2d startPoint, List<Shape> snapTargets);
+    Vec2d snapPoint(Vec2d point, Vec2d startPoint, List<? extends IShape> snapTargets);
     
     /**
      * 检查是否启用吸附功能

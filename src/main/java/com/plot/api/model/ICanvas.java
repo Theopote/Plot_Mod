@@ -124,12 +124,12 @@ public interface ICanvas {
     /**
      * 添加形状到当前图层
      */
-    void addShape(Shape shape);
+    void addShape(IShape shape);
     
     /**
      * 从当前图层移除形状
      */
-    void removeShape(Shape shape);
+    void removeShape(IShape shape);
     
     /**
      * 清空所有图层

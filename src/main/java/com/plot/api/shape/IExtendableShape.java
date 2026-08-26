@@ -1,7 +1,7 @@
 package com.plot.api.shape;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.model.Shape;
+import com.plot.api.model.IShape;
 
 /**
  * 可延伸图形接口
@@ -46,7 +46,7 @@ public interface IExtendableShape {
      * @throws IllegalArgumentException 如果参数无效
      * @throws UnsupportedOperationException 如果图形类型不支持延伸
      */
-    Shape extend(Vec2d extendPoint, Vec2d targetPoint);
+    IShape extend(Vec2d extendPoint, Vec2d targetPoint);
     
     /**
      * 检查图形是否支持从指定点延伸
@@ -63,7 +63,7 @@ public interface IExtendableShape {
         }
         
         // 获取图形的端点
-        java.util.List<Vec2d> endpoints = ((Shape) this).getEndpoints();
+        java.util.List<Vec2d> endpoints = ((IShape) this).getEndpoints();
         if (endpoints == null || endpoints.isEmpty()) {
             return false;
         }
@@ -87,6 +87,6 @@ public interface IExtendableShape {
         }
         
         // 默认实现：尝试使用图形的切线方向
-        return ((Shape) this).getTangentAt(extendPoint);
+        return ((IShape) this).getTangentAt(extendPoint);
     }
 }

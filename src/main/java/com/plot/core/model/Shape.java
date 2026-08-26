@@ -2,12 +2,12 @@ package com.plot.core.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.geometry.Matrix3d;
+import com.plot.api.model.IShape;
 import com.plot.api.render.IRenderVisitor;
 import com.plot.api.render.ViewTransform;
 import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.FillStyle;
 import com.plot.core.graphics.style.ShapeStyle;
-import com.plot.api.render.ViewTransform;
 import com.plot.core.graphics.DrawContext;
 import com.plot.api.model.IDirty;
 import com.plot.api.graphics.IShapeStyle;
@@ -21,7 +21,7 @@ import java.util.ArrayList;
 /**
  * 基础形状接口
  */
-public abstract class Shape implements Cloneable, IDirty {
+public abstract class Shape implements Cloneable, IDirty, IShape {
     protected final String id;
     protected Matrix3d transform;
     protected IShapeStyle style;
