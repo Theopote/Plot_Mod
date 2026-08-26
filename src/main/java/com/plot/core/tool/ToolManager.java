@@ -26,18 +26,23 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ToolManager implements IToolManager {
     private static ToolManager INSTANCE;
     
-    private final AppState appState; // 持有对 AppState 的引用
+    private final AppState appState;
+    private final EventBus eventBus;
     private final Map<String, ITool> tools;
     private final Map<String, ToolGroup> groups;
     private final List<IToolListener> listeners;
     private ITool activeTool;
     private final ToolGroup defaultGroup;
 
-    private ToolManager(AppState appState) {
+    private ToolManager(AppState appState, EventBus eventBus) {
         if (appState == null) {
             throw new IllegalArgumentException(PlotI18n.error("error.plot.validation.app_state_null"));
         }
+        if (eventBus == null) {
+            throw new IllegalArgumentException("EventBus must not be null");
+        }
         this.appState = appState;
+        this.eventBus = eventBus;
         this.tools = new ConcurrentHashMap<>();
         this.groups = new ConcurrentHashMap<>();
         this.listeners = new CopyOnWriteArrayList<>();
@@ -47,10 +52,23 @@ public class ToolManager implements IToolManager {
         addGroup(defaultGroup);
     }
 
-    public static void initialize(AppState appState) {
+    /**
+     * 组合根专用：用注入依赖初始化单例。
+     */
+    public static synchronized ToolManager initialize(AppState appState, EventBus eventBus) {
         if (INSTANCE == null) {
-            INSTANCE = new ToolManager(appState);
+            INSTANCE = new ToolManager(appState, eventBus);
         }
+        return INSTANCE;
+    }
+
+    /**
+     * @deprecated 优先经 {@link ApplicationContext#getToolManager()}；
+     * 兼容旧调用：回退到组合根上的 EventBus。
+     */
+    @Deprecated
+    public static synchronized ToolManager initialize(AppState appState) {
+        return initialize(appState, ApplicationContext.getInstance().getEventBus());
     }
 
     public static ToolManager getInstance() {
@@ -199,7 +217,7 @@ public class ToolManager implements IToolManager {
             
             // 发布工具变更事件
             String newToolName = tool != null ? tool.getName() : "none";
-            ApplicationContext.getInstance().getEventBus().publish(new ToolChangedEvent(newToolName));
+            eventBus.publish(new ToolChangedEvent(newToolName));
         }
     }
 
@@ -425,7 +443,7 @@ public class ToolManager implements IToolManager {
         }
 
         for (Map.Entry<String, Object> entry : toolConfig.getAllValues().entrySet()) {
-            ApplicationContext.getInstance().getEventBus().publish(
+            eventBus.publish(
                     new ToolConfigEvent("ToolManager", tool.getId(), entry.getKey(), null, entry.getValue())
             );
         }

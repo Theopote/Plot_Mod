@@ -50,14 +50,8 @@ public class ToolPanel implements UIComponent {
             // 初始化折叠状态管理
             this.groupCollapsedState = new HashMap<>();
             
-            // 确保 ToolManager 已初始化
-            try {
-                this.toolManager = ApplicationContext.getInstance().getToolManager();
-            } catch (IllegalStateException e) {
-                LOGGER.warn("ToolManager未初始化，现在使用AppState进行初始化");
-                ToolManager.initialize(ApplicationContext.getInstance().getAppState());
-                this.toolManager = ApplicationContext.getInstance().getToolManager();
-            }
+            // ToolManager 已由 ApplicationContext 持有
+            this.toolManager = ApplicationContext.getInstance().getToolManager();
             
             if (this.toolManager == null) {
                 throw new IllegalStateException(PlotI18n.error("error.plot.validation.tool_manager_init_failed"));
@@ -433,13 +427,7 @@ public class ToolPanel implements UIComponent {
             
             // 确保 ToolManager 已初始化
             if (toolManager == null) {
-                try {
-                    this.toolManager = ApplicationContext.getInstance().getToolManager();
-                } catch (IllegalStateException e) {
-                    LOGGER.warn("ToolManager未初始化，现在使用AppState进行初始化");
-                    ToolManager.initialize(appState);
-                    this.toolManager = ApplicationContext.getInstance().getToolManager();
-                }
+                this.toolManager = ApplicationContext.getInstance().getToolManager();
                 
                 if (toolManager == null) {
                     throw new IllegalStateException(PlotI18n.error("error.plot.validation.tool_manager_init_failed"));

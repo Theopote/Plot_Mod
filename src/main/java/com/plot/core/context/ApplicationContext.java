@@ -45,6 +45,7 @@ public final class ApplicationContext {
     private final AppState appState;
     private final EventBus eventBus;
     private final SnapManager snapManager;
+    private final com.plot.core.tool.ToolManager toolManager;
     private final AtomicReference<ShapeStyle> currentStyle = new AtomicReference<>(new ShapeStyle());
     private final AtomicLong stateVersion = new AtomicLong(1);
 
@@ -78,6 +79,7 @@ public final class ApplicationContext {
         layerRef.set(this.layerService);
 
         this.snapManager = SnapManager.initialize(eventBus, appState);
+        this.toolManager = com.plot.core.tool.ToolManager.initialize(appState, eventBus);
     }
 
     public static ApplicationContext getInstance() {
@@ -142,7 +144,7 @@ public final class ApplicationContext {
     }
 
     public com.plot.core.tool.ToolManager getToolManager() {
-        return com.plot.core.tool.ToolManager.getInstance();
+        return toolManager;
     }
 
     public EventBus getEventBus() {

@@ -1,8 +1,6 @@
 package com.plot;
 
-import com.plot.core.command.CommandService;
 import com.plot.core.context.ApplicationContext;
-import com.plot.core.tool.ToolManager;
 import com.plot.registry.ModItems;
 import com.plot.utils.PlotI18n;
 import net.fabricmc.api.ModInitializer;
@@ -26,8 +24,9 @@ public final class PlotMod implements ModInitializer {
             ApplicationContext context = ApplicationContext.getInstance();
             context.initialize();
 
-            ToolManager.initialize(context.getAppState());
-            ApplicationContext.getInstance().getCommandService();
+            // ToolManager 已由 ApplicationContext 持有；此处仅确保可访问
+            context.getToolManager();
+            context.getCommandService();
 
             ModItems.registerItems();
             ModItems.registerItemGroups();
