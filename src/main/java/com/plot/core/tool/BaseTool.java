@@ -16,6 +16,7 @@ import com.plot.core.state.AppState;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.infrastructure.event.tool.ToolStateChangedEvent;
+import com.plot.api.render.IDrawContext;
 import com.plot.core.graphics.DrawContext;
 import net.minecraft.util.Identifier;
 import com.plot.core.model.Shape;
@@ -259,9 +260,10 @@ public abstract class BaseTool implements ITool, IShortcutListener {
     }
 
     @Override
-    public void render(DrawContext context) {
-        // 调用预览渲染
-        renderPreview(context);
+    public void render(IDrawContext context) {
+        if (context instanceof DrawContext concrete) {
+            renderPreview(concrete);
+        }
     }
 
     @Override

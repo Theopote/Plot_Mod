@@ -2,7 +2,7 @@ package com.plot.api.tool;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.shortcut.IShortcutListener;
-import com.plot.core.graphics.DrawContext;
+import com.plot.api.render.IDrawContext;
 
 /**
  * 工具接口，定义了工具的基本操作
@@ -204,7 +204,7 @@ public interface ITool extends IShortcutListener {
      * 渲染工具
      * @param context 绘制上下文
      */
-    void render(DrawContext context);
+    void render(IDrawContext context);
 
     /**
      * 清理工具资源

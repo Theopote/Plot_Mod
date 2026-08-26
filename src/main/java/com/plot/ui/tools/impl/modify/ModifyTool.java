@@ -777,10 +777,13 @@ public abstract class ModifyTool extends BaseTool implements IModifyStrategy.Mod
     }
 
     @Override
-    public void render(DrawContext context) {
-        renderPreview(context);
+    public void render(com.plot.api.render.IDrawContext context) {
+        if (!(context instanceof DrawContext concrete)) {
+            return;
+        }
+        renderPreview(concrete);
         // 统一渲染捕捉指示器（DrawContext）
-        try { snapEnhancer.renderSnapIndicator(context); } catch (Exception e) { ExceptionDebug.log("ModifyTool: render snap indicator", e); }
+        try { snapEnhancer.renderSnapIndicator(concrete); } catch (Exception e) { ExceptionDebug.log("ModifyTool: render snap indicator", e); }
     }
 
     /**

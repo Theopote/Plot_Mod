@@ -17,7 +17,7 @@ import static com.plot.core.graphics.DrawingConstants.*;
  * 绘图上下文
  * 提供基本的绘图功能
  */
-public class DrawContext {
+public class DrawContext implements com.plot.api.render.IDrawContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(DrawContext.class);
 
     // 核心组件

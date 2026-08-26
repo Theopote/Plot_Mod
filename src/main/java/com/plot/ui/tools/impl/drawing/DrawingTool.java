@@ -464,9 +464,9 @@ public abstract class DrawingTool extends BaseTool implements IDirty, IInteracti
     // ====== 渲染方法 ======
 
     @Override
-    public void render(DrawContext context) {
-        if (shouldShowPreview()) {
-            renderPreview(context);
+    public void render(com.plot.api.render.IDrawContext context) {
+        if (context instanceof DrawContext concrete && shouldShowPreview()) {
+            renderPreview(concrete);
         }
     }
 

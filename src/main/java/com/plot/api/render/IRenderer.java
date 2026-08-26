@@ -1,7 +1,6 @@
 package com.plot.api.render;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.graphics.DrawContext;
 import java.awt.Color;
 
 /**
@@ -12,7 +11,7 @@ public interface IRenderer {
      * 开始渲染
      * @param context 绘制上下文
      */
-    void begin(DrawContext context);
+    void begin(IDrawContext context);
 
     /**
      * 结束渲染
