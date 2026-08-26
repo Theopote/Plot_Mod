@@ -64,7 +64,8 @@ public final class RoadVoxelRasterizer {
     public static void flushEdgeSolids(
             RoadGenerationResult result,
             RoadSolidModel solids,
-            CoordinateTransformer transformer) {
+            CoordinateTransformer transformer,
+            BlockProjectionHandler projectionHandler) {
         if (result == null || solids == null) {
             return;
         }
@@ -74,7 +75,7 @@ public final class RoadVoxelRasterizer {
         if (solids.isEmpty()) {
             return;
         }
-        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
 
         // 提取公共逻辑：先处理非隧道，再处理隧道
         flushSolidsByLayer(result, solids, transformer, projectionHandler,
@@ -91,13 +92,14 @@ public final class RoadVoxelRasterizer {
             RoadGenerationResult result,
             RoadSolidModel solids,
             CoordinateTransformer transformer,
+            BlockProjectionHandler projectionHandler,
             String roadBlockId,
             String sidewalkBlockId,
             String markingBlockId) {
         if (result == null || solids == null || solids.isEmpty()) {
             return;
         }
-        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
 
         // 提取公共逻辑：先处理非隧道，再处理隧道
         flushSolidsByLayer(result, solids, transformer, projectionHandler,

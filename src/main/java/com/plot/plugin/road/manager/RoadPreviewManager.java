@@ -1,9 +1,8 @@
 package com.plot.plugin.road.manager;
 
 import com.plot.core.command.BlockRecord;
-import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.GenerateRoadCommand;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.core.context.PluginContext;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.infrastructure.event.block.GhostBlockManager;
@@ -21,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 道路预览、虚影投影与世界落地。
@@ -29,12 +29,14 @@ public final class RoadPreviewManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadPreview");
 
     private final RoadProjectStatus status;
+    private final PluginContext host;
     private RoadNetworkGenerator networkGenerator;
     private RoadGenerationResult lastGenerationResult;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
 
-    public RoadPreviewManager(RoadProjectStatus status) {
+    public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
+        this.host = Objects.requireNonNull(host, "host");
     }
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
@@ -69,7 +71,7 @@ public final class RoadPreviewManager {
             return false;
         }
 
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -123,7 +125,7 @@ public final class RoadPreviewManager {
         if (lastGenerationResult == null) {
             return null;
         }
-        return RoadPlacementVisibility.analyze(lastGenerationResult, CoordinateTransformer.getInstance());
+        return RoadPlacementVisibility.analyze(lastGenerationResult, host.coordinates());
     }
 
     public String formatVisibilityWarning() {
@@ -134,7 +136,7 @@ public final class RoadPreviewManager {
         if (lastGenerationResult == null) {
             return;
         }
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = host.ghosts();
         if (ghostBlockManager == null) {
             return;
         }
@@ -146,7 +148,7 @@ public final class RoadPreviewManager {
     }
 
     public void clearPreview() {
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -169,7 +171,7 @@ public final class RoadPreviewManager {
         boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
         lastEdgeResults = Collections.emptyMap();
         lastGenerationResult = null;
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -186,13 +188,13 @@ public final class RoadPreviewManager {
         }
 
         BlockProjectionHandler.PlacementReadiness readiness =
-            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            host.projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
             status.set(readiness.message());
             return;
         }
 
-        if (BlockPlacementScheduler.getInstance().isBusy()) {
+        if (host.placement().isBusy()) {
             status.set(PlotI18n.tr("plugin.road.build_in_progress_wait"));
             return;
         }
@@ -204,7 +206,7 @@ public final class RoadPreviewManager {
 
         List<BlockRecord> records =
             new ArrayList<>(lastGenerationResult.placementRecords.values());
-        GenerateRoadCommand command = new GenerateRoadCommand(records);
+        GenerateRoadCommand command = new GenerateRoadCommand(records, host.projection(), host.placement());
         status.set(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
@@ -212,7 +214,7 @@ public final class RoadPreviewManager {
                 status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
                 return;
             }
-            CommandService.getInstance().pushExecuted(command);
+            host.commands().pushExecuted(command);
             applyBuildResultStatus(result);
             clearPreview();
         });

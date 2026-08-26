@@ -1,5 +1,6 @@
 package com.plot.plugin.road.manager;
 
+import com.plot.core.context.PluginContext;
 import com.plot.core.geometry.shapes.ArcShape;
 import com.plot.core.geometry.shapes.BezierCurveShape;
 import com.plot.core.geometry.shapes.CableShape;
@@ -25,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -36,10 +38,12 @@ public final class RoadToolManager {
     private final RoadPathPickSession pathPickSession = new RoadPathPickSession();
     private final List<Shape> selectedPaths = new ArrayList<>();
     private final RoadProjectStatus status;
+    private final PluginContext host;
     private Consumer<List<Shape>> pathsPickedHandler;
 
-    public RoadToolManager(RoadProjectStatus status) {
+    public RoadToolManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
+        this.host = Objects.requireNonNull(host, "host");
     }
 
     /**
@@ -65,11 +69,12 @@ public final class RoadToolManager {
         if (!pathPickSession.isActive()) {
             return;
         }
-        RoadPathPickSession.Outcome outcome = pathPickSession.tick(AppState.getInstance());
+        AppState appState = host.appState();
+        RoadPathPickSession.Outcome outcome = pathPickSession.tick(appState);
         applyPathPickOutcome(outcome);
 
         if (pathPickSession.isActive()) {
-            List<Shape> selected = AppState.getInstance().getSelectedShapes();
+            List<Shape> selected = appState.getSelectedShapes();
             String hintKey = pathPickSession.hintKeyForCurrentSelection(selected);
             if ("status.plot.road.pick_path_right_click_multi".equals(hintKey)) {
                 status.set(PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount()));
@@ -83,7 +88,7 @@ public final class RoadToolManager {
         try {
             selectedPaths.clear();
             selectedPaths.addAll(
-                RoadGeometryUtils.findAdoptablePaths(AppState.getInstance().getSelectedShapes())
+                RoadGeometryUtils.findAdoptablePaths(host.appState().getSelectedShapes())
             );
         } catch (Exception e) {
             LOGGER.error("更新选中路径失败: {}", e.getMessage(), e);
@@ -92,7 +97,7 @@ public final class RoadToolManager {
 
     public List<Shape> findAvailablePaths() {
         List<Shape> paths = new ArrayList<>();
-        for (Shape shape : AppState.getInstance().getShapes()) {
+        for (Shape shape : host.appState().getShapes()) {
             if (RoadGeometryUtils.isAdoptablePath(shape)) {
                 paths.add(shape);
             }
@@ -148,20 +153,15 @@ public final class RoadToolManager {
     }
 
     public void activatePathDrawingTool() {
-        ToolManager toolManager = ToolManager.getInstance();
-        if (toolManager != null) {
-            var polylineTool = toolManager.getTool("polyline");
-            if (polylineTool instanceof BaseTool baseTool) {
-                AppState.getInstance().setCurrentTool(baseTool);
-            }
+        ToolManager toolManager = host.tools();
+        var polylineTool = toolManager.getTool("polyline");
+        if (polylineTool instanceof BaseTool baseTool) {
+            host.appState().setCurrentTool(baseTool);
         }
     }
 
     public void activatePathPickTool() {
-        ToolManager toolManager = ToolManager.getInstance();
-        if (toolManager == null) {
-            return;
-        }
+        ToolManager toolManager = host.tools();
         var selectTool = toolManager.getTool("select");
         if (!(selectTool instanceof BaseTool baseTool)) {
             return;
@@ -170,7 +170,7 @@ public final class RoadToolManager {
         selectedPaths.clear();
         pathPickSession.begin();
         toolManager.setActiveTool(selectTool);
-        AppState.getInstance().setCurrentTool(baseTool);
+        host.appState().setCurrentTool(baseTool);
         status.set(PlotI18n.tr("plugin.road.pick_path_hint"));
     }
 

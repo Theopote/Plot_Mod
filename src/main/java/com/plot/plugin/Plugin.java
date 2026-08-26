@@ -1,6 +1,7 @@
 package com.plot.plugin;
 
 import com.plot.api.plugin.*;
+import com.plot.core.context.PluginContext;
 import com.plot.core.plugin.PluginConfig;
 import com.plot.utils.PlotI18n;
 import net.minecraft.util.Identifier;
@@ -8,11 +9,13 @@ import net.minecraft.util.Identifier;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 插件基类，所有插件都需要继承此类。
  * <p>
  * 状态由 {@link com.plot.core.plugin.PluginManager} 统一推进，子类勿旁路跳过生命周期。
+ * 宿主服务经 {@link #bind(PluginContext)} 注入，子类通过 {@link #ctx()} 访问。
  * </p>
  */
 public abstract class Plugin implements IPlugin {
@@ -23,6 +26,7 @@ public abstract class Plugin implements IPlugin {
     private boolean enabled;
     private IPluginConfig config;
     private PluginState state;
+    private PluginContext pluginContext;
 
     public Plugin(String id, String name, String description, Identifier icon) {
         this.id = id;
@@ -32,6 +36,27 @@ public abstract class Plugin implements IPlugin {
         this.enabled = false;
         this.config = new PluginConfig(id);
         this.state = PluginState.DISCOVERED;
+    }
+
+    /**
+     * 由 {@link com.plot.core.plugin.PluginManager} 在 initialize 之前注入。
+     */
+    public final void bind(PluginContext context) {
+        this.pluginContext = Objects.requireNonNull(context, "pluginContext");
+    }
+
+    /**
+     * 已绑定的宿主服务；未 bind 时抛出异常。
+     */
+    protected final PluginContext ctx() {
+        if (pluginContext == null) {
+            throw new IllegalStateException("Plugin not bound to PluginContext: " + id);
+        }
+        return pluginContext;
+    }
+
+    protected final boolean isBound() {
+        return pluginContext != null;
     }
 
     @Override

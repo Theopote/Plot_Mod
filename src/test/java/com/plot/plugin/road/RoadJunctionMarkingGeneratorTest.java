@@ -24,7 +24,7 @@ class RoadJunctionMarkingGeneratorTest {
     void generatesStopLinesCrosswalksAndContinuedMarkingsAtTJunction() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
 
         RoadNetwork network = new RoadNetwork();
@@ -69,7 +69,7 @@ class RoadJunctionMarkingGeneratorTest {
     @Test
     void turnArrowsAppearAtThreeWayJunctionWithoutManualMarkingSetup() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
 
         RoadNetwork network = new RoadNetwork();
@@ -135,7 +135,7 @@ class RoadJunctionMarkingGeneratorTest {
     @Test
     void junctionMarkingOverridesDisableCrosswalksAndArrows() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadJunctionMarkingGenerator markingGenerator = new RoadJunctionMarkingGenerator(generator);
 
         RoadNetwork network = new RoadNetwork();

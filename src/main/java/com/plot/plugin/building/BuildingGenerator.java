@@ -27,9 +27,13 @@ public class BuildingGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BuildingGenerator");
 
     private final CoordinateTransformer coordinateTransformer;
+    private final BlockProjectionHandler projectionHandler;
 
-    public BuildingGenerator(CoordinateTransformer coordinateTransformer) {
+    public BuildingGenerator(
+            CoordinateTransformer coordinateTransformer,
+            BlockProjectionHandler projectionHandler) {
         this.coordinateTransformer = coordinateTransformer;
+        this.projectionHandler = java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
     }
 
     public static class BuildingGenerationResult {
@@ -64,7 +68,7 @@ public class BuildingGenerator {
             LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板");
         }
 
-        BlockProjectionHandler projectionHandler = BlockProjectionHandler.getInstance();
+        BlockProjectionHandler projectionHandler = this.projectionHandler;
         List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
 
         List<Integer> groundHeights = new ArrayList<>();

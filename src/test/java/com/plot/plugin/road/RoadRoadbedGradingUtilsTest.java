@@ -81,7 +81,7 @@ class RoadRoadbedGradingUtilsTest {
         config.setIncludeDrainage(false);
 
         TerrainSampler terrain = columnTerrain(60, 64, 100);
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(6, 0)),
             terrain,
@@ -100,7 +100,7 @@ class RoadRoadbedGradingUtilsTest {
         solids.add(new Vec2d(2, 2), 64, RoadSolidLayer.ROAD, "minecraft:stone");
         solids.add(new Vec2d(2, 2), 65, RoadSolidLayer.TUNNEL, "minecraft:air");
 
-        RoadVoxelRasterizer.flushEdgeSolids(result, solids, null);
+        RoadVoxelRasterizer.flushEdgeSolids(result, solids, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
         assertEquals(2, result.placementRecords.size());
         assertEquals("minecraft:stone", result.placementRecords.values().stream()

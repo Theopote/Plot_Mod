@@ -35,9 +35,10 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             RoadPreviewManager previewManager,
             RoadPersistenceManager persistenceManager,
             RoadToolManager toolManager,
-            RoadProjectStatus status) {
+            RoadProjectStatus status,
+            com.plot.core.context.PluginContext host) {
         this.ctx = new RoadUiContext(
-            networkManager, previewManager, persistenceManager, toolManager, status);
+            networkManager, previewManager, persistenceManager, toolManager, status, host);
 
         this.edgeListPanel = new RoadEdgeListPanel(ctx);
         this.junctionPanel = new RoadJunctionPanel(ctx);

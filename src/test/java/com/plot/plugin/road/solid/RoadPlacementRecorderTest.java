@@ -61,13 +61,7 @@ class RoadPlacementRecorderTest {
         solids.add(new com.plot.api.geometry.Vec2d(1, 0), 64, RoadSolidLayer.SIDEWALK);
         solids.add(new com.plot.api.geometry.Vec2d(2, 0), 64, RoadSolidLayer.MARKING);
 
-        RoadVoxelRasterizer.flushJunctionSolids(
-            result,
-            solids,
-            null,
-            "minecraft:stone",
-            "minecraft:oak_planks",
-            "minecraft:white_concrete");
+        RoadVoxelRasterizer.flushJunctionSolids(result, solids, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance(), "minecraft:stone", "minecraft:oak_planks", "minecraft:white_concrete");
 
         assertEquals(2, result.roadBlocks.size());
         assertEquals(1, result.sidewalkBlocks.size());

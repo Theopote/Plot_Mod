@@ -111,6 +111,13 @@ public final class ApplicationContext {
         return commandService;
     }
 
+    /**
+     * 为插件安装路径创建宿主服务句柄（见 {@link PluginContext}）。
+     */
+    public PluginContext createPluginContext() {
+        return PluginContext.from(this);
+    }
+
     public SnapService getSnapService() {
         return SnapManager.getInstance();
     }

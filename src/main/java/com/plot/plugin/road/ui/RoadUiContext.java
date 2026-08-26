@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.core.context.PluginContext;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadPersistenceManager;
 import com.plot.plugin.road.manager.RoadPreviewManager;
@@ -8,6 +9,8 @@ import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
+
+import java.util.Objects;
 
 /**
  * 道路 UI 层共享依赖与可变界面状态。
@@ -18,6 +21,7 @@ public final class RoadUiContext {
     private final RoadPersistenceManager persistenceManager;
     private final RoadToolManager toolManager;
     private final RoadProjectStatus status;
+    private final PluginContext host;
 
     private final ImBoolean adoptIncludeSidewalkRef = new ImBoolean(false);
     private final ImString edgeSearchBuffer = new ImString(128);
@@ -39,12 +43,14 @@ public final class RoadUiContext {
             RoadPreviewManager previewManager,
             RoadPersistenceManager persistenceManager,
             RoadToolManager toolManager,
-            RoadProjectStatus status) {
+            RoadProjectStatus status,
+            PluginContext host) {
         this.networkManager = networkManager;
         this.previewManager = previewManager;
         this.persistenceManager = persistenceManager;
         this.toolManager = toolManager;
         this.status = status;
+        this.host = Objects.requireNonNull(host, "host");
     }
 
     public RoadNetworkManager networkManager() {
@@ -65,6 +71,10 @@ public final class RoadUiContext {
 
     public RoadProjectStatus status() {
         return status;
+    }
+
+    public PluginContext host() {
+        return host;
     }
 
     public ImBoolean adoptIncludeSidewalkRef() {

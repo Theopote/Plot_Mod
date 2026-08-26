@@ -52,7 +52,7 @@ public final class RoadToolbarPanel {
     }
 
     private void renderActivePlacementControls() {
-        BlockPlacementScheduler scheduler = BlockPlacementScheduler.getInstance();
+        var scheduler = ctx.host().placement();
         if (!scheduler.isBusy()) {
             return;
         }

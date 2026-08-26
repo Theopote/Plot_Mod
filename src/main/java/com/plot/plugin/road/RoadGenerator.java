@@ -5,6 +5,7 @@ import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -47,6 +48,7 @@ public class RoadGenerator {
     
     private final RoadSystemConfig config;
     private final CoordinateTransformer coordinateTransformer;
+    private final BlockProjectionHandler projectionHandler;
 
     /** 路网边生成时用于路口端部标高平滑，仅在 {@link #buildFromCenterline} 内短暂赋值。 */
     private EndpointElevationSnap endpointStartSnap;
@@ -60,9 +62,13 @@ public class RoadGenerator {
         return MinecraftTerrainSampler.of(world, coordinateTransformer);
     }
 
-    public RoadGenerator(RoadSystemConfig config, CoordinateTransformer coordinateTransformer) {
+    public RoadGenerator(
+            RoadSystemConfig config,
+            CoordinateTransformer coordinateTransformer,
+            BlockProjectionHandler projectionHandler) {
         this.config = config;
         this.coordinateTransformer = coordinateTransformer;
+        this.projectionHandler = java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
     }
     
     private static final class EdgeBuildMetrics {
@@ -266,7 +272,7 @@ public class RoadGenerator {
             result.bridgeCount = metrics.bridgeCount;
             result.tunnelCount = metrics.tunnelCount;
             applyConstructionStats(result, detection);
-            RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer);
+            RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer, projectionHandler);
             return result;
         } finally {
             endpointStartSnap = null;
@@ -333,6 +339,7 @@ public class RoadGenerator {
             target,
             junction.getSolids(),
             coordinateTransformer,
+            projectionHandler,
             roadBlockId,
             sidewalkBlockId,
             markingBlockId);

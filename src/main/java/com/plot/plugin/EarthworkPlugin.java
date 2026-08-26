@@ -2,16 +2,13 @@ package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
-import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
-import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
@@ -123,18 +120,14 @@ public class EarthworkPlugin extends Plugin {
         showGridRef.set(config.isShowGrid());
 
         try {
-            CoordinateTransformer transformer = CoordinateTransformer.getInstance();
-            if (transformer == null) {
-                throw new IllegalStateException("CoordinateTransformer未初始化，插件无法启动");
-            }
-            earthworkGenerator = new EarthworkGenerator(transformer);
+            earthworkGenerator = new EarthworkGenerator(ctx().coordinates());
         } catch (Exception e) {
             LOGGER.error("初始化土方生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("土方插件初始化失败", e);
         }
 
-        EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
-        EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
+        ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
+        ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
         loadProjectForCurrentProject();
     }
 
@@ -155,13 +148,8 @@ public class EarthworkPlugin extends Plugin {
             config.save();
         }
 
-        // 安全地取消事件订阅
         try {
-            EventBus eventBus = EventBus.getInstance();
-            if (eventBus != null) {
-                eventBus.unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
-                eventBus.unsubscribe(ProjectSavedEvent.class, projectSavedListener);
-            }
+            ctx().events().unsubscribeOwner(this);
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
         }
@@ -249,7 +237,7 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void renderActivePlacementControls() {
-        BlockPlacementScheduler scheduler = BlockPlacementScheduler.getInstance();
+        var scheduler = ctx().placement();
         if (!scheduler.isBusy()) {
             return;
         }
@@ -603,7 +591,7 @@ public class EarthworkPlugin extends Plugin {
         List<Vec2d> sampleCenters = EarthworkGeometryUtils.collectSampleCenters(
             region.getOuterPoints(), region.getGridSize());
         List<Integer> sampleHeights = sampleHeightsFromWorld(region, sampleCenters);
-        CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+        CoordinateTransformer transformer = ctx().coordinates();
 
         if (mode == GradingSurfaceMode.THREE_POINT) {
             GradingSurfaceResolver.initializeThreePointDefaults(
@@ -617,7 +605,7 @@ public class EarthworkPlugin extends Plugin {
     private List<Integer> sampleHeightsFromWorld(GradingRegion region, List<Vec2d> sampleCenters) {
         List<Integer> sampleHeights = new ArrayList<>();
         World world = getClientWorld();
-        CoordinateTransformer transformer = CoordinateTransformer.getInstance();
+        CoordinateTransformer transformer = ctx().coordinates();
         if (world == null || transformer == null) {
             for (int i = 0; i < sampleCenters.size(); i++) {
                 sampleHeights.add(64);
@@ -675,7 +663,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         BlockProjectionHandler.PlacementReadiness buildReadiness =
-            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            ctx().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
@@ -724,7 +712,7 @@ public class EarthworkPlugin extends Plugin {
             ImGui.sameLine();
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
-                || BlockPlacementScheduler.getInstance().isBusy();
+                || ctx().placement().isBusy();
             if (buildDisabled) {
                 ImGui.beginDisabled();
             }
@@ -790,13 +778,13 @@ public class EarthworkPlugin extends Plugin {
             ImGui.text(String.format(PlotI18n.tr("plugin.earthwork.build_confirm"), blockCount));
 
             BlockProjectionHandler.PlacementReadiness readiness =
-                BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+                ctx().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
 
             ImGui.separator();
-            boolean canBuild = readiness.ready() && !BlockPlacementScheduler.getInstance().isBusy();
+            boolean canBuild = readiness.ready() && !ctx().placement().isBusy();
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
@@ -884,15 +872,12 @@ public class EarthworkPlugin extends Plugin {
     private void updateSelectedRegions() {
         selectedRegions.clear();
         selectedRegions.addAll(
-            EarthworkGeometryUtils.findAdoptableRegions(AppState.getInstance().getSelectedShapes()));
+            EarthworkGeometryUtils.findAdoptableRegions(ctx().appState().getSelectedShapes()));
     }
 
     private void startPickSession() {
         threePointPickSession.cancel();
-        ToolManager toolManager = ToolManager.getInstance();
-        if (toolManager == null) {
-            return;
-        }
+        ToolManager toolManager = ctx().tools();
         var selectTool = toolManager.getTool("select");
         if (!(selectTool instanceof BaseTool baseTool)) {
             return;
@@ -900,12 +885,12 @@ public class EarthworkPlugin extends Plugin {
         selectedRegions.clear();
         pickSession.begin();
         toolManager.setActiveTool(selectTool);
-        AppState.getInstance().setCurrentTool(baseTool);
+        ctx().appState().setCurrentTool(baseTool);
         projectStatus = PlotI18n.tr("plugin.earthwork.pick_started");
     }
 
     private void handlePickSessionTick() {
-        EarthworkRegionPickSession.Outcome outcome = pickSession.tick(AppState.getInstance());
+        EarthworkRegionPickSession.Outcome outcome = pickSession.tick(ctx().appState());
         switch (outcome.getResult()) {
             case SUCCESS -> {
                 selectedRegions.clear();
@@ -916,7 +901,7 @@ public class EarthworkPlugin extends Plugin {
             case NO_VALID -> projectStatus = PlotI18n.tr("plugin.earthwork.pick_no_valid");
             case CANCELLED -> projectStatus = PlotI18n.tr("plugin.earthwork.pick_cancelled");
             default -> {
-                List<Shape> selected = AppState.getInstance().getSelectedShapes();
+                List<Shape> selected = ctx().appState().getSelectedShapes();
                 projectStatus = PlotI18n.tr(pickSession.hintKeyForCurrentSelection(selected));
             }
         }
@@ -943,7 +928,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         EarthworkThreePointPickSession.Outcome outcome =
-            threePointPickSession.tick(AppState.getInstance(), region.getOuterPoints());
+            threePointPickSession.tick(ctx().appState(), region.getOuterPoints());
         switch (outcome.getResult()) {
             case PICKED -> {
                 EarthworkThreePointPickSession.PickResult pick = outcome.getPick();
@@ -1021,7 +1006,7 @@ public class EarthworkPlugin extends Plugin {
             return false;
         }
 
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -1047,7 +1032,7 @@ public class EarthworkPlugin extends Plugin {
         if (lastGenerationResult == null) {
             return;
         }
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager == null) {
             return;
         }
@@ -1062,7 +1047,7 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void clearPreview() {
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -1096,33 +1081,33 @@ public class EarthworkPlugin extends Plugin {
         }
 
         BlockProjectionHandler.PlacementReadiness readiness =
-            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            ctx().projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
             projectStatus = readiness.message();
             return;
         }
 
-        if (BlockPlacementScheduler.getInstance().isBusy()) {
+        if (ctx().placement().isBusy()) {
             projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress_wait");
             return;
         }
 
         List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
-        EarthworkGenerateCommand command = new EarthworkGenerateCommand(records);
+        EarthworkGenerateCommand command = new EarthworkGenerateCommand(records, ctx().projection(), ctx().placement());
         projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress", records.size());
         command.executeScheduled(() -> {
             EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
             // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
                 if (result.success() > 0) {
-                    CommandService.getInstance().pushExecuted(command);
+                    ctx().commands().pushExecuted(command);
                 }
                 projectStatus = PlotI18n.tr(
                     "plugin.earthwork.build_cancelled", result.success(), result.total());
                 clearPreview();
                 return;
             }
-            CommandService.getInstance().pushExecuted(command);
+            ctx().commands().pushExecuted(command);
             applyBuildResultStatus(result);
             clearPreview();
         });
@@ -1228,7 +1213,7 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void loadProjectForCurrentProject() {
-        Project current = AppState.getInstance().getCurrentProject();
+        Project current = ctx().appState().getCurrentProject();
         if (current != null && current.getFilePath() != null && !current.getFilePath().isBlank()) {
             onProjectLoaded(current.getFilePath());
             return;

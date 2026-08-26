@@ -41,21 +41,41 @@ public class EarthworkGenerateCommand implements Command {
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final boolean schedulePlacement;
+    private final BlockPlacementScheduler placementScheduler;
     private ExecutionResult lastExecutionResult;
 
     public EarthworkGenerateCommand(List<BlockRecord> records) {
-        this(records, BlockProjectionHandler.getInstance()::setBlockAt, true);
+        this(records, BlockProjectionHandler.getInstance(), BlockPlacementScheduler.getInstance());
+    }
+
+    /** 插件经 PluginContext 注入世界服务时使用。 */
+    public EarthworkGenerateCommand(
+            List<BlockRecord> records,
+            BlockProjectionHandler projectionHandler,
+            BlockPlacementScheduler placementScheduler) {
+        this(records, projectionHandler::setBlockAt, true, placementScheduler);
     }
 
     EarthworkGenerateCommand(List<BlockRecord> records, BlockWriter blockWriter) {
-        this(records, blockWriter, false);
+        this(records, blockWriter, false, BlockPlacementScheduler.getInstance());
     }
 
     EarthworkGenerateCommand(List<BlockRecord> records, BlockWriter blockWriter, boolean schedulePlacement) {
+        this(records, blockWriter, schedulePlacement, BlockPlacementScheduler.getInstance());
+    }
+
+    private EarthworkGenerateCommand(
+            List<BlockRecord> records,
+            BlockWriter blockWriter,
+            boolean schedulePlacement,
+            BlockPlacementScheduler placementScheduler) {
         this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
         this.timestamp = new Date();
         this.blockWriter = blockWriter;
         this.schedulePlacement = schedulePlacement;
+        this.placementScheduler = placementScheduler != null
+            ? placementScheduler
+            : BlockPlacementScheduler.getInstance();
     }
 
     public void executeScheduled(Runnable onComplete) {
@@ -133,7 +153,7 @@ public class EarthworkGenerateCommand implements Command {
         }
 
         if (schedulePlacement) {
-            BlockPlacementScheduler.getInstance().enqueue(writes, result -> {
+            placementScheduler.enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
                 LOGGER.info("土方{}完成: {}/{} 成功, {} 失败",
                     applyNewBlocks ? "落地" : "撤销",
@@ -163,7 +183,7 @@ public class EarthworkGenerateCommand implements Command {
         }
 
         if (schedulePlacement) {
-            BlockPlacementScheduler.getInstance().enqueue(writes, result -> {
+            placementScheduler.enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
                 LOGGER.info("土方撤销完成: {}/{} 成功, {} 失败",
                     lastExecutionResult.success(),

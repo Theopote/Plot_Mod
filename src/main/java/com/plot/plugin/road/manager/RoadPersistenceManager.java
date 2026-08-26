@@ -1,9 +1,9 @@
 package com.plot.plugin.road.manager;
 
+import com.plot.core.context.PluginContext;
 import com.plot.core.model.Project;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.core.persistence.ProjectPathResolver;
-import com.plot.core.state.AppState;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.utils.PlotI18n;
@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -24,12 +25,14 @@ public final class RoadPersistenceManager {
 
     private final File dataFolder;
     private final RoadProjectStatus status;
+    private final PluginContext host;
     private String currentNetworkFile = DEFAULT_NETWORK_FILE;
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
 
-    public RoadPersistenceManager(File dataFolder, RoadProjectStatus status) {
+    public RoadPersistenceManager(File dataFolder, RoadProjectStatus status, PluginContext host) {
         this.dataFolder = dataFolder;
         this.status = status;
+        this.host = Objects.requireNonNull(host, "host");
     }
 
     public String getCurrentNetworkFile() {
@@ -43,7 +46,7 @@ public final class RoadPersistenceManager {
     public void loadForCurrentProject(
             Consumer<RoadNetwork> onLoaded,
             Runnable onSelectionReset) {
-        Project project = AppState.getInstance().getCurrentProject();
+        Project project = host.appState().getCurrentProject();
         if (project != null && project.getFilePath() != null && !project.getFilePath().isBlank()) {
             onProjectLoaded(project.getFilePath(), onLoaded, onSelectionReset);
             return;

@@ -25,7 +25,7 @@ class RoadGeneratorRoadWidthTest {
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);
 
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(12, 0)),
             new FlatTerrainSampler(64));
@@ -48,7 +48,7 @@ class RoadGeneratorRoadWidthTest {
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);
 
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(12, 0)),
             new FlatTerrainSampler(64));
@@ -71,7 +71,7 @@ class RoadGeneratorRoadWidthTest {
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);
 
-        RoadGenerator generator = new RoadGenerator(config, null);
+        RoadGenerator generator = new RoadGenerator(config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         RoadGenerationResult result = generator.generateFromPathPoints(
             List.of(new Vec2d(0, 0), new Vec2d(20, 20)),
             new FlatTerrainSampler(64));

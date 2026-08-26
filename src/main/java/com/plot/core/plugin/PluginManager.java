@@ -1,6 +1,7 @@
 package com.plot.core.plugin;
 
 import com.plot.api.plugin.*;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.log.LogManager;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -82,6 +83,10 @@ public class PluginManager implements IPluginManager {
         PluginState previous = plugin.getState();
         plugin.transitionState(PluginState.LOADING);
         notifyStateChange(plugin, previous, PluginState.LOADING);
+
+        if (plugin instanceof com.plot.plugin.Plugin hostPlugin) {
+            hostPlugin.bind(ApplicationContext.getInstance().createPluginContext());
+        }
 
         // LOADED：纳入注册表与依赖图
         dependencyGraph.addPlugin(plugin);

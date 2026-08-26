@@ -3,15 +3,11 @@ package com.plot.plugin;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
-import com.plot.core.command.CommandService;
 import com.plot.core.command.commands.BuildingGenerateCommand;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
-import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
@@ -105,18 +101,14 @@ public class BuildingPlugin extends Plugin {
     @Override
     public void onEnable() {
         try {
-            CoordinateTransformer transformer = CoordinateTransformer.getInstance();
-            if (transformer == null) {
-                throw new IllegalStateException("CoordinateTransformer未初始化，插件无法启动");
-            }
-            buildingGenerator = new BuildingGenerator(transformer);
+            buildingGenerator = new BuildingGenerator(ctx().coordinates(), ctx().projection());
         } catch (Exception e) {
             LOGGER.error("初始化建筑生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("建筑插件初始化失败", e);
         }
 
-        EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
-        EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
+        ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
+        ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
         loadProjectForCurrentProject();
     }
 
@@ -134,11 +126,7 @@ public class BuildingPlugin extends Plugin {
         pickSession.cancel();
 
         try {
-            EventBus eventBus = EventBus.getInstance();
-            if (eventBus != null) {
-                eventBus.unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
-                eventBus.unsubscribe(ProjectSavedEvent.class, projectSavedListener);
-            }
+            ctx().events().unsubscribeOwner(this);
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
         }
@@ -220,7 +208,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void renderActivePlacementControls() {
-        BlockPlacementScheduler scheduler = BlockPlacementScheduler.getInstance();
+        var scheduler = ctx().placement();
         if (!scheduler.isBusy()) {
             return;
         }
@@ -620,7 +608,7 @@ public class BuildingPlugin extends Plugin {
         }
 
         BlockProjectionHandler.PlacementReadiness buildReadiness =
-            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            ctx().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
@@ -657,7 +645,7 @@ public class BuildingPlugin extends Plugin {
             ImGui.sameLine();
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
-                || BlockPlacementScheduler.getInstance().isBusy();
+                || ctx().placement().isBusy();
             if (buildDisabled) {
                 ImGui.beginDisabled();
             }
@@ -681,13 +669,13 @@ public class BuildingPlugin extends Plugin {
             ImGui.text(String.format(PlotI18n.tr("plugin.building.build_confirm"), blockCount));
 
             BlockProjectionHandler.PlacementReadiness readiness =
-                BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+                ctx().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
 
             ImGui.separator();
-            boolean canBuild = readiness.ready() && !BlockPlacementScheduler.getInstance().isBusy();
+            boolean canBuild = readiness.ready() && !ctx().placement().isBusy();
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
@@ -806,10 +794,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void startPickSession() {
-        ToolManager toolManager = ToolManager.getInstance();
-        if (toolManager == null) {
-            return;
-        }
+        ToolManager toolManager = ctx().tools();
         var selectTool = toolManager.getTool("select");
         if (!(selectTool instanceof BaseTool baseTool)) {
             return;
@@ -817,12 +802,12 @@ public class BuildingPlugin extends Plugin {
         selectedFootprints.clear();
         pickSession.begin();
         toolManager.setActiveTool(selectTool);
-        AppState.getInstance().setCurrentTool(baseTool);
+        ctx().appState().setCurrentTool(baseTool);
         projectStatus = PlotI18n.tr("plugin.building.pick_started");
     }
 
     private void handlePickSessionTick() {
-        BuildingFootprintPickSession.Outcome outcome = pickSession.tick(AppState.getInstance());
+        BuildingFootprintPickSession.Outcome outcome = pickSession.tick(ctx().appState());
         switch (outcome.getResult()) {
             case SUCCESS -> {
                 selectedFootprints.clear();
@@ -833,7 +818,7 @@ public class BuildingPlugin extends Plugin {
             case NO_VALID -> projectStatus = PlotI18n.tr("plugin.building.pick_no_valid");
             case CANCELLED -> projectStatus = PlotI18n.tr("plugin.building.pick_cancelled");
             default -> {
-                List<Shape> selected = AppState.getInstance().getSelectedShapes();
+                List<Shape> selected = ctx().appState().getSelectedShapes();
                 projectStatus = PlotI18n.tr(pickSession.hintKeyForCurrentSelection(selected));
             }
         }
@@ -842,7 +827,7 @@ public class BuildingPlugin extends Plugin {
     private void updateSelectedFootprints() {
         selectedFootprints.clear();
         selectedFootprints.addAll(
-            BuildingGeometryUtils.findAdoptableFootprints(AppState.getInstance().getSelectedShapes()));
+            BuildingGeometryUtils.findAdoptableFootprints(ctx().appState().getSelectedShapes()));
     }
 
     private void adoptSelectedFootprints() {
@@ -882,7 +867,7 @@ public class BuildingPlugin extends Plugin {
             return false;
         }
 
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -914,7 +899,7 @@ public class BuildingPlugin extends Plugin {
         if (lastGenerationResult == null) {
             return;
         }
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager == null) {
             return;
         }
@@ -925,7 +910,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void clearPreview() {
-        GhostBlockManager ghostBlockManager = GhostBlockManager.getInstance();
+        GhostBlockManager ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -951,33 +936,33 @@ public class BuildingPlugin extends Plugin {
         }
 
         BlockProjectionHandler.PlacementReadiness readiness =
-            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            ctx().projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
             projectStatus = readiness.message();
             return;
         }
 
-        if (BlockPlacementScheduler.getInstance().isBusy()) {
+        if (ctx().placement().isBusy()) {
             projectStatus = PlotI18n.tr("plugin.building.build_in_progress_wait");
             return;
         }
 
         List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
-        BuildingGenerateCommand command = new BuildingGenerateCommand(records);
+        BuildingGenerateCommand command = new BuildingGenerateCommand(records, ctx().projection(), ctx().placement());
         projectStatus = PlotI18n.tr("plugin.building.build_in_progress", records.size());
         command.executeScheduled(() -> {
             BuildingGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
             // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
                 if (result.success() > 0) {
-                    CommandService.getInstance().pushExecuted(command);
+                    ctx().commands().pushExecuted(command);
                 }
                 projectStatus = PlotI18n.tr(
                     "plugin.building.build_cancelled", result.success(), result.total());
                 clearPreview();
                 return;
             }
-            CommandService.getInstance().pushExecuted(command);
+            ctx().commands().pushExecuted(command);
             applyBuildResultStatus(result);
             clearPreview();
         });
@@ -1082,7 +1067,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void loadProjectForCurrentProject() {
-        Project current = AppState.getInstance().getCurrentProject();
+        Project current = ctx().appState().getCurrentProject();
         if (current != null && current.getFilePath() != null && !current.getFilePath().isBlank()) {
             onProjectLoaded(current.getFilePath());
             return;

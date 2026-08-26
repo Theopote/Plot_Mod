@@ -285,7 +285,7 @@ public final class RoadNodePropertyPanel {
 
     private void renderAutoElevatedRoadHint(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
         RoadGenerator generator = new RoadGenerator(
-            config, com.plot.infrastructure.coordinate.CoordinateTransformer.getInstance());
+            config, ctx.host().coordinates(), ctx.host().projection());
         TerrainSampler terrain = resolveTerrainSampler(generator);
         String resolvedRoadId = generator.resolveElevatedRoadId(node, network, terrain);
         if (resolvedRoadId == null) {

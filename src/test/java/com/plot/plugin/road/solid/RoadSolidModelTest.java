@@ -36,7 +36,7 @@ class RoadSolidModelTest {
         solids.add(new Vec2d(3, 2), 64, RoadSolidLayer.SIDEWALK, "minecraft:oak_planks");
         solids.add(new Vec2d(2, 2), 64, RoadSolidLayer.MARKING, "minecraft:white_concrete");
 
-        RoadVoxelRasterizer.flushEdgeSolids(result, solids, null);
+        RoadVoxelRasterizer.flushEdgeSolids(result, solids, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
 
         assertEquals(2, result.roadBlocks.size());
         assertEquals(1, result.sidewalkBlocks.size());
@@ -65,7 +65,7 @@ class RoadSolidModelTest {
         // 模拟：将 solids 的 dropped 合并
         emptyWithDrops.addAll(solids);
         assertTrue(emptyWithDrops.getDroppedDueToLimit() >= 2);
-        RoadVoxelRasterizer.flushEdgeSolids(result, emptyWithDrops, null);
+        RoadVoxelRasterizer.flushEdgeSolids(result, emptyWithDrops, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
         assertTrue(result.droppedSolidCount >= 2);
     }
 }

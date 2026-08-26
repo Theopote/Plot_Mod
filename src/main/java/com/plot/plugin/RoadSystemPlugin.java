@@ -1,10 +1,5 @@
 package com.plot.plugin;
 
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.EventBus;
-import com.plot.infrastructure.event.EventListener;
-import com.plot.infrastructure.event.project.ProjectLoadedEvent;
-import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
@@ -15,6 +10,9 @@ import com.plot.plugin.road.manager.RoadPreviewManager;
 import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.manager.RoadToolManager;
 import com.plot.plugin.road.manager.RoadUIManager;
+import com.plot.infrastructure.event.EventListener;
+import com.plot.infrastructure.event.project.ProjectLoadedEvent;
+import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.ui.component.ExtensionPanelIcons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,27 +60,25 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         }
 
         networkManager = new RoadNetworkManager(config, status);
-        persistenceManager = new RoadPersistenceManager(getDataFolder(), status);
-        previewManager = new RoadPreviewManager(status);
+        persistenceManager = new RoadPersistenceManager(getDataFolder(), status, ctx());
+        previewManager = new RoadPreviewManager(status, ctx());
         // 路网任何变更都使预览失效，避免按过期几何落地
         networkManager.setOnNetworkChanged(previewManager::invalidatePreview);
-        toolManager = new RoadToolManager(status);
+        toolManager = new RoadToolManager(status, ctx());
         toolManager.setPathsPickedHandler(networkManager::adoptSelectedPaths);
         uiManager = new RoadUIManager(
-            networkManager, previewManager, persistenceManager, toolManager, status);
+            networkManager, previewManager, persistenceManager, toolManager, status, ctx());
 
         try {
-            CoordinateTransformer transformer = CoordinateTransformer.getInstance();
-            RoadGenerator roadGenerator = new RoadGenerator(config, transformer);
+            RoadGenerator roadGenerator = new RoadGenerator(config, ctx().coordinates(), ctx().projection());
             previewManager.setNetworkGenerator(new RoadNetworkGenerator(roadGenerator));
         } catch (Exception e) {
             LOGGER.error("初始化道路生成器失败: {}", e.getMessage(), e);
         }
 
-        // 订阅事件并加载网络，如果失败则清理资源
         try {
-            EventBus.getInstance().subscribe(ProjectLoadedEvent.class, projectLoadedListener);
-            EventBus.getInstance().subscribe(ProjectSavedEvent.class, projectSavedListener);
+            ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
+            ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
             persistenceManager.loadForCurrentProject(
                 networkManager::setNetwork,
                 () -> {
@@ -90,9 +86,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
                     networkManager.resetSelection();
                 });
         } catch (Exception e) {
-            // 清理已订阅的监听器，防止资源泄漏
-            EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
-            EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+            ctx().events().unsubscribeOwner(this);
             LOGGER.error("加载当前项目失败: {}", e.getMessage(), e);
             throw e;
         }
@@ -115,8 +109,7 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             toolManager.cancel();
         }
 
-        EventBus.getInstance().unsubscribe(ProjectLoadedEvent.class, projectLoadedListener);
-        EventBus.getInstance().unsubscribe(ProjectSavedEvent.class, projectSavedListener);
+        ctx().events().unsubscribeOwner(this);
 
         if (config != null) {
             config.save();

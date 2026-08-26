@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
-import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
@@ -68,7 +67,7 @@ public final class RoadGeneratePanel {
         }
 
         BlockProjectionHandler.PlacementReadiness buildReadiness =
-            BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+            ctx.host().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
@@ -100,7 +99,7 @@ public final class RoadGeneratePanel {
 
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
-                || BlockPlacementScheduler.getInstance().isBusy();
+                || ctx.host().placement().isBusy();
             if (buildDisabled) {
                 ImGui.beginDisabled();
             }
@@ -213,14 +212,14 @@ public final class RoadGeneratePanel {
             ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
             BlockProjectionHandler.PlacementReadiness readiness =
-                BlockProjectionHandler.getInstance().checkWorldModificationReadiness();
+                ctx.host().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
             RoadUiWidgets.renderRoadVisibilityWarning(ctx);
 
             ImGui.separator();
-            boolean canBuild = readiness.ready() && !BlockPlacementScheduler.getInstance().isBusy();
+            boolean canBuild = readiness.ready() && !ctx.host().placement().isBusy();
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
