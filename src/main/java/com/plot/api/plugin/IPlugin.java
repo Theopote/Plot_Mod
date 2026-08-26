@@ -87,6 +87,20 @@ public interface IPlugin {
     void unload() throws PluginException;
 
     /**
+     * 释放插件持有的外部资源（在 unload 之后由管理器调用）。
+     * 默认无操作；内置插件可覆盖以关闭句柄、清理缓存等。
+     */
+    default void dispose() throws PluginException {
+    }
+
+    /**
+     * 由管理器推进插件状态（ACTIVE / INACTIVE / FAILED 等）。
+     * 默认无操作；基类 {@code Plugin} 会实现。
+     */
+    default void transitionState(PluginState newState) {
+    }
+
+    /**
      * 检查插件是否已启用
      * @return 是否已启用
      */

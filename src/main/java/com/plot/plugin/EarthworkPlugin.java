@@ -142,6 +142,7 @@ public class EarthworkPlugin extends Plugin {
         if (isEnabled()) {
             persistProject();
         }
+        super.onDeactivate();
     }
 
     @Override

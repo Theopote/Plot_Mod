@@ -2,8 +2,6 @@ package com.plot.core.plugin;
 
 import com.plot.api.plugin.*;
 import com.plot.core.log.LogManager;
-import com.plot.api.plugin.PluginException;
-import com.plot.api.plugin.IPluginListener;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.File;
@@ -14,11 +12,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 插件管理器实现类
+ * 插件管理器。内置与外部插件共用同一生命周期管线：
+ * <pre>
+ * DISCOVERED → LOADED → INITIALIZED → ENABLED → ACTIVE
+ *   ⇄ INACTIVE → DISABLED → UNLOADED → DISPOSED
+ * </pre>
  */
 public class PluginManager implements IPluginManager {
     private static final PluginManager INSTANCE = new PluginManager();
-    
+
     private final Map<String, IPlugin> plugins;
     private final List<IPluginListener> listeners;
     private final PluginDependencyGraph dependencyGraph;
@@ -30,88 +32,20 @@ public class PluginManager implements IPluginManager {
         this.plugins = new ConcurrentHashMap<>();
         this.listeners = new CopyOnWriteArrayList<>();
         this.dependencyGraph = new PluginDependencyGraph();
-        
-        // 初始化插件加载器
+
         try {
             Path pluginsPath = FabricLoader.getInstance()
                 .getGameDir()
                 .resolve("plot")
                 .resolve("plugins");
-                
-            // 确保目录存在
+
             Files.createDirectories(pluginsPath);
-            
             this.pluginLoader = new PluginLoader(pluginsPath);
-            
-            // 注册内置插件
+
             registerBuiltinPlugins();
-            
-            // 加载外部插件
-            loadPlugins();
+            loadExternalPlugins();
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to initialize plugin manager", e);
-        }
-    }
-    
-    /**
-     * 注册内置插件
-     */
-    private void registerBuiltinPlugins() {
-        try {
-            // 注册土方平衡插件
-            com.plot.plugin.EarthworkPlugin earthworkPlugin = new com.plot.plugin.EarthworkPlugin();
-            registerBuiltinPlugin(earthworkPlugin);
-            
-            // 注册道路系统插件
-            com.plot.plugin.RoadSystemPlugin roadSystemPlugin = new com.plot.plugin.RoadSystemPlugin();
-            registerBuiltinPlugin(roadSystemPlugin);
-
-            // 注册建筑轮廓生成器插件
-            com.plot.plugin.BuildingPlugin buildingPlugin = new com.plot.plugin.BuildingPlugin();
-            registerBuiltinPlugin(buildingPlugin);
-            
-            LogManager.getInstance().info("Registered {} builtin plugins", plugins.size());
-        } catch (Exception e) {
-            LogManager.getInstance().error("Failed to register builtin plugins", e);
-        }
-    }
-    
-    /**
-     * 注册单个内置插件
-     */
-    private void registerBuiltinPlugin(IPlugin plugin) {
-        try {
-            if (plugin == null) {
-                LogManager.getInstance().warn("Cannot register null plugin");
-                return;
-            }
-            
-            // 检查是否已加载
-            if (plugins.containsKey(plugin.getId())) {
-                LogManager.getInstance().warn("Plugin already registered: " + plugin.getId());
-                return;
-            }
-            
-            // 初始化插件
-            plugin.initialize();
-            
-            // 添加到依赖图
-            dependencyGraph.addPlugin(plugin);
-            
-            // 添加到插件列表
-            plugins.put(plugin.getId(), plugin);
-            
-            // 默认启用插件
-            try {
-                plugin.enable();
-            } catch (Exception e) {
-                LogManager.getInstance().warn("Failed to enable plugin " + plugin.getId() + " on registration", e);
-            }
-            
-            notifyListeners(plugin, PluginState.LOADED);
-            LogManager.getInstance().info("Registered builtin plugin: " + plugin.getId());
-        } catch (Exception e) {
-            LogManager.getInstance().error("Failed to register builtin plugin: " + (plugin != null ? plugin.getId() : "null"), e);
         }
     }
 
@@ -119,7 +53,108 @@ public class PluginManager implements IPluginManager {
         return INSTANCE;
     }
 
-    private void loadPlugins() {
+    private void registerBuiltinPlugins() {
+        try {
+            installPlugin(new com.plot.plugin.EarthworkPlugin(), true);
+            installPlugin(new com.plot.plugin.RoadSystemPlugin(), true);
+            installPlugin(new com.plot.plugin.BuildingPlugin(), true);
+            LogManager.getInstance().info("Registered {} plugins after builtins", plugins.size());
+        } catch (Exception e) {
+            LogManager.getInstance().error("Failed to register builtin plugins", e);
+        }
+    }
+
+    /**
+     * 统一安装路径：依赖图 → 依赖检查 → initialize →（可选）enable。
+     * 内置与外部插件都必须走此方法，禁止旁路。
+     */
+    private IPlugin installPlugin(IPlugin plugin, boolean enableAfterInit) throws PluginException {
+        if (plugin == null) {
+            throw new PluginException("Cannot install null plugin");
+        }
+
+        String id = plugin.getId();
+        if (plugins.containsKey(id)) {
+            LogManager.getInstance().warn("Plugin already installed: {}", id);
+            return plugins.get(id);
+        }
+
+        PluginState previous = plugin.getState();
+        plugin.transitionState(PluginState.LOADING);
+        notifyStateChange(plugin, previous, PluginState.LOADING);
+
+        // LOADED：纳入注册表与依赖图
+        dependencyGraph.addPlugin(plugin);
+        plugins.put(id, plugin);
+        transitionAndNotify(plugin, PluginState.LOADED);
+
+        if (dependencyGraph.hasCircularDependencies()) {
+            rollbackInstall(plugin, PluginState.FAILED);
+            throw new PluginException("Circular dependency detected for plugin: " + id);
+        }
+
+        if (!checkDependencies(plugin)) {
+            transitionAndNotify(plugin, PluginState.MISSING_DEPENDENCIES);
+            notifyMissingDependencies(plugin);
+            // 仍保留在注册表中，但不初始化/启用
+            return plugin;
+        }
+
+        try {
+            PluginState beforeInit = plugin.getState();
+            plugin.initialize();
+            // initialize() 可能已写入 INITIALIZED；仍保证监听器收到变更
+            if (plugin.getState() != PluginState.INITIALIZED) {
+                plugin.transitionState(PluginState.INITIALIZED);
+            }
+            notifyStateChange(plugin, beforeInit, PluginState.INITIALIZED);
+            notifyListenersLoaded(plugin);
+        } catch (Exception e) {
+            rollbackInstall(plugin, PluginState.FAILED);
+            throw new PluginException("Failed to initialize plugin: " + id, e);
+        }
+
+        if (enableAfterInit) {
+            enablePlugin(plugin);
+        }
+
+        LogManager.getInstance().info("Installed plugin: {} (state={})", id, plugin.getState());
+        return plugin;
+    }
+
+    private void rollbackInstall(IPlugin plugin, PluginState failureState) {
+        String id = plugin.getId();
+        try {
+            if (plugin.isEnabled()) {
+                plugin.disable();
+            }
+        } catch (Exception ignored) {
+            // best-effort
+        }
+        try {
+            plugin.unload();
+        } catch (Exception ignored) {
+            // best-effort
+        }
+        plugins.remove(id);
+        dependencyGraph.removePlugin(id);
+        try {
+            if (pluginLoader != null) {
+                pluginLoader.unloadPlugin(plugin);
+            }
+        } catch (Exception ignored) {
+            // best-effort
+        }
+        transitionAndNotify(plugin, failureState);
+        try {
+            plugin.dispose();
+            transitionAndNotify(plugin, PluginState.DISPOSED);
+        } catch (Exception ignored) {
+            // best-effort
+        }
+    }
+
+    private void loadExternalPlugins() {
         if (pluginLoader == null) {
             LogManager.getInstance().warn("Plugin loader is not initialized");
             return;
@@ -137,14 +172,73 @@ public class PluginManager implements IPluginManager {
             return;
         }
 
+        List<IPlugin> discovered = new ArrayList<>();
         for (File file : Objects.requireNonNull(pluginsDir.listFiles())) {
-            if (pluginLoader.isPluginFile(file.getPath())) {
-                try {
-                    IPlugin plugin = pluginLoader.loadPlugin(file.getPath());
-                    plugins.put(plugin.getId(), plugin);
-                } catch (Exception e) {
-                    LogManager.getInstance().error("Failed to load plugin: " + file.getName(), e);
+            if (!pluginLoader.isPluginFile(file.getPath())) {
+                continue;
+            }
+            try {
+                IPlugin plugin = pluginLoader.loadPlugin(file.getPath());
+                if (plugin != null) {
+                    plugin.transitionState(PluginState.DISCOVERED);
+                    discovered.add(plugin);
                 }
+            } catch (Exception e) {
+                LogManager.getInstance().error("Failed to discover plugin: " + file.getName(), e);
+                for (IPluginListener listener : listeners) {
+                    try {
+                        listener.onPluginLoadError(file.getPath(), e);
+                    } catch (Exception notifyError) {
+                        LogManager.getInstance().error("Error notifying plugin listener", notifyError);
+                    }
+                }
+            }
+        }
+
+        // 先全部纳入依赖图再按拓扑顺序 initialize/enable，保证依赖检查可用
+        List<IPlugin> pendingInit = new ArrayList<>();
+        for (IPlugin plugin : discovered) {
+            if (plugins.containsKey(plugin.getId())) {
+                LogManager.getInstance().warn("Skipping external plugin already installed: {}", plugin.getId());
+                continue;
+            }
+            try {
+                dependencyGraph.addPlugin(plugin);
+                plugins.put(plugin.getId(), plugin);
+                transitionAndNotify(plugin, PluginState.LOADED);
+                pendingInit.add(plugin);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Failed to register discovered plugin: " + plugin.getId(), e);
+            }
+        }
+
+        if (dependencyGraph.hasCircularDependencies()) {
+            LogManager.getInstance().error("Circular dependency among external plugins; skipping enable");
+            return;
+        }
+
+        List<IPlugin> order = dependencyGraph.getLoadOrder();
+        for (IPlugin plugin : order) {
+            if (!pendingInit.contains(plugin)) {
+                continue;
+            }
+            try {
+                if (!checkDependencies(plugin)) {
+                    transitionAndNotify(plugin, PluginState.MISSING_DEPENDENCIES);
+                    notifyMissingDependencies(plugin);
+                    continue;
+                }
+                PluginState beforeInit = plugin.getState();
+                plugin.initialize();
+                if (plugin.getState() != PluginState.INITIALIZED) {
+                    plugin.transitionState(PluginState.INITIALIZED);
+                }
+                notifyStateChange(plugin, beforeInit, PluginState.INITIALIZED);
+                notifyListenersLoaded(plugin);
+                enablePlugin(plugin);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Failed to activate external plugin: " + plugin.getId(), e);
+                transitionAndNotify(plugin, PluginState.FAILED);
             }
         }
     }
@@ -157,39 +251,22 @@ public class PluginManager implements IPluginManager {
                 return null;
             }
 
-            // 加载插件
             IPlugin plugin = pluginLoader.loadPlugin(pluginFile);
             if (plugin == null) {
                 throw new PluginException("Failed to load plugin from file: " + pluginFile);
             }
 
-            // 检查是否已加载
-            if (plugins.containsKey(plugin.getId())) {
-                LogManager.getInstance().warn("Plugin already loaded: " + plugin.getId());
-                return plugins.get(plugin.getId());
-            }
-
-            // 添加到依赖图
-            dependencyGraph.addPlugin(plugin);
-
-            // 检查循环依赖
-            if (dependencyGraph.hasCircularDependencies()) {
-                throw new PluginException("Circular dependency detected for plugin: " + plugin.getId());
-            }
-
-            // 检查依赖
-            if (!checkDependencies(plugin)) {
-                throw new PluginException("Missing dependencies for plugin: " + plugin.getId());
-            }
-
-            // 初始化插件
-            plugin.initialize();
-            plugins.put(plugin.getId(), plugin);
-            notifyListeners(plugin, PluginState.LOADED);
-            LogManager.getInstance().info("Loaded plugin: " + plugin.getId());
-            return plugin;
+            plugin.transitionState(PluginState.DISCOVERED);
+            return installPlugin(plugin, true);
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to load plugin: " + pluginFile, e);
+            for (IPluginListener listener : listeners) {
+                try {
+                    listener.onPluginLoadError(pluginFile, e);
+                } catch (Exception notifyError) {
+                    LogManager.getInstance().error("Error notifying plugin listener", notifyError);
+                }
+            }
             return null;
         }
     }
@@ -200,24 +277,60 @@ public class PluginManager implements IPluginManager {
             return;
         }
 
+        Set<String> dependents = dependencyGraph.getDependents(plugin.getId());
+        if (!dependents.isEmpty()) {
+            throw new PluginException("Cannot unload plugin " + plugin.getId()
+                + " because it is required by: " + String.join(", ", dependents));
+        }
+
+        teardownPlugin(plugin, true);
+    }
+
+    /**
+     * 完整镜像加载过程的 teardown：
+     * ACTIVE/INACTIVE → disable → unload → graph remove → loader unload → notify → dispose
+     */
+    private void teardownPlugin(IPlugin plugin, boolean notify) throws PluginException {
+        String id = plugin.getId();
         try {
-            // 检查依赖该插件的其他插件
-            Set<String> dependents = dependencyGraph.getDependents(plugin.getId());
-            if (!dependents.isEmpty()) {
-                throw new PluginException("Cannot unload plugin " + plugin.getId() + 
-                                        " because it is required by: " + String.join(", ", dependents));
+            if (activePlugin != null && activePlugin.getId().equals(id)) {
+                deactivateActivePlugin();
             }
 
-            plugin.disable();
-            plugin.unload();
-            plugins.remove(plugin.getId());
-            dependencyGraph.removePlugin(plugin.getId());
-            pluginLoader.unloadPlugin(plugin);
-            notifyListeners(plugin, PluginState.UNLOADED);
-            LogManager.getInstance().info("Unloaded plugin: " + plugin.getId());
+            transitionAndNotify(plugin, PluginState.UNLOADING);
 
+            if (plugin.isEnabled()) {
+                plugin.disable();
+                if (notify) {
+                    notifyListenersDisabled(plugin);
+                }
+                transitionAndNotify(plugin, PluginState.DISABLED);
+            }
+
+            plugin.unload();
+            plugins.remove(id);
+            dependencyGraph.removePlugin(id);
+
+            if (pluginLoader != null) {
+                pluginLoader.unloadPlugin(plugin);
+            }
+
+            transitionAndNotify(plugin, PluginState.UNLOADED);
+            if (notify) {
+                notifyListenersUnloaded(plugin);
+            }
+
+            plugin.dispose();
+            transitionAndNotify(plugin, PluginState.DISPOSED);
+
+            LogManager.getInstance().info("Unloaded plugin: {}", id);
+        } catch (PluginException e) {
+            transitionAndNotify(plugin, PluginState.FAILED);
+            LogManager.getInstance().error("Failed to unload plugin: " + id, e);
+            throw e;
         } catch (Exception e) {
-            LogManager.getInstance().error("Failed to unload plugin: " + plugin.getId(), e);
+            transitionAndNotify(plugin, PluginState.FAILED);
+            LogManager.getInstance().error("Failed to unload plugin: " + id, e);
             throw new PluginException("Failed to unload plugin: " + e.getMessage(), e);
         }
     }
@@ -228,11 +341,32 @@ public class PluginManager implements IPluginManager {
             return;
         }
 
+        PluginState state = plugin.getState();
+        if (state == PluginState.MISSING_DEPENDENCIES
+            || state == PluginState.FAILED
+            || state == PluginState.DISPOSED
+            || state == PluginState.UNLOADED) {
+            LogManager.getInstance().warn("Cannot enable plugin {} in state {}", plugin.getId(), state);
+            return;
+        }
+
+        if (!checkDependencies(plugin)) {
+            transitionAndNotify(plugin, PluginState.MISSING_DEPENDENCIES);
+            notifyMissingDependencies(plugin);
+            return;
+        }
+
         try {
+            PluginState beforeEnable = plugin.getState();
             plugin.enable();
-            notifyListeners(plugin, PluginState.ENABLED);
-            LogManager.getInstance().info("Enabled plugin: " + plugin.getId());
+            if (plugin.getState() != PluginState.ENABLED) {
+                plugin.transitionState(PluginState.ENABLED);
+            }
+            notifyStateChange(plugin, beforeEnable, PluginState.ENABLED);
+            notifyListenersEnabled(plugin);
+            LogManager.getInstance().info("Enabled plugin: {}", plugin.getId());
         } catch (Exception e) {
+            transitionAndNotify(plugin, PluginState.FAILED);
             LogManager.getInstance().error("Failed to enable plugin: " + plugin.getId(), e);
         }
     }
@@ -244,10 +378,19 @@ public class PluginManager implements IPluginManager {
         }
 
         try {
+            if (activePlugin != null && activePlugin.getId().equals(plugin.getId())) {
+                deactivateActivePlugin();
+            }
+            PluginState beforeDisable = plugin.getState();
             plugin.disable();
-            notifyListeners(plugin, PluginState.DISABLED);
-            LogManager.getInstance().info("Disabled plugin: " + plugin.getId());
+            if (plugin.getState() != PluginState.DISABLED) {
+                plugin.transitionState(PluginState.DISABLED);
+            }
+            notifyStateChange(plugin, beforeDisable, PluginState.DISABLED);
+            notifyListenersDisabled(plugin);
+            LogManager.getInstance().info("Disabled plugin: {}", plugin.getId());
         } catch (Exception e) {
+            transitionAndNotify(plugin, PluginState.FAILED);
             LogManager.getInstance().error("Failed to disable plugin: " + plugin.getId(), e);
         }
     }
@@ -288,19 +431,27 @@ public class PluginManager implements IPluginManager {
         for (PluginDependency dependency : plugin.getDependencies()) {
             String dependencyId = dependency.getPluginId();
             IPlugin dependencyPlugin = plugins.get(dependencyId);
-            
+
             if (dependencyPlugin == null) {
                 if (dependency.isRequired()) {
-                    LogManager.getInstance().error("Missing required dependency " + dependencyId + 
-                                                " for plugin " + plugin.getId());
+                    LogManager.getInstance().error("Missing required dependency {} for plugin {}",
+                        dependencyId, plugin.getId());
                     return false;
                 }
                 continue;
             }
 
             if (!dependency.isVersionCompatible(dependencyPlugin.getVersion())) {
-                LogManager.getInstance().error("Incompatible dependency version " + dependencyId + 
-                                            " for plugin " + plugin.getId());
+                LogManager.getInstance().error("Incompatible dependency version {} for plugin {}",
+                    dependencyId, plugin.getId());
+                for (IPluginListener listener : listeners) {
+                    try {
+                        listener.onPluginIncompatibleVersion(
+                            plugin, dependency.getVersion(), dependencyPlugin.getVersion());
+                    } catch (Exception e) {
+                        LogManager.getInstance().error("Error notifying plugin listener", e);
+                    }
+                }
                 return false;
             }
         }
@@ -324,25 +475,75 @@ public class PluginManager implements IPluginManager {
         listeners.remove(listener);
     }
 
-    private void notifyListeners(IPlugin plugin, PluginState newState) {
+    private void transitionAndNotify(IPlugin plugin, PluginState newState) {
+        PluginState oldState = plugin.getState();
+        if (oldState == newState) {
+            return;
+        }
+        plugin.transitionState(newState);
+        notifyStateChange(plugin, oldState, newState);
+    }
+
+    private void notifyStateChange(IPlugin plugin, PluginState oldState, PluginState newState) {
         for (IPluginListener listener : listeners) {
             try {
-                switch (newState) {
-                    case LOADED:
-                        listener.onPluginLoaded(plugin);
-                        break;
-                    case UNLOADED:
-                        listener.onPluginUnloaded(plugin);
-                        break;
-                    case ENABLED:
-                        listener.onPluginEnabled(plugin);
-                        break;
-                    case DISABLED:
-                        listener.onPluginDisabled(plugin);
-                        break;
-                }
+                listener.onPluginStateChange(plugin, oldState, newState);
             } catch (Exception e) {
                 LogManager.getInstance().error("Error notifying plugin listener", e);
+            }
+        }
+    }
+
+    private void notifyListenersLoaded(IPlugin plugin) {
+        for (IPluginListener listener : listeners) {
+            try {
+                listener.onPluginLoaded(plugin);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Error notifying plugin listener", e);
+            }
+        }
+    }
+
+    private void notifyListenersUnloaded(IPlugin plugin) {
+        for (IPluginListener listener : listeners) {
+            try {
+                listener.onPluginUnloaded(plugin);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Error notifying plugin listener", e);
+            }
+        }
+    }
+
+    private void notifyListenersEnabled(IPlugin plugin) {
+        for (IPluginListener listener : listeners) {
+            try {
+                listener.onPluginEnabled(plugin);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Error notifying plugin listener", e);
+            }
+        }
+    }
+
+    private void notifyListenersDisabled(IPlugin plugin) {
+        for (IPluginListener listener : listeners) {
+            try {
+                listener.onPluginDisabled(plugin);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Error notifying plugin listener", e);
+            }
+        }
+    }
+
+    private void notifyMissingDependencies(IPlugin plugin) {
+        for (PluginDependency dependency : plugin.getDependencies()) {
+            if (plugins.get(dependency.getPluginId()) == null && dependency.isRequired()) {
+                for (IPluginListener listener : listeners) {
+                    try {
+                        listener.onPluginMissingDependency(plugin, dependency);
+                    } catch (Exception e) {
+                        LogManager.getInstance().error("Error notifying plugin listener", e);
+                    }
+                }
             }
         }
     }
@@ -354,12 +555,14 @@ public class PluginManager implements IPluginManager {
 
     @Override
     public void setPluginLoader(IPluginLoader loader) {
-        if (loader != null) {
-            this.pluginLoader = loader;
-            // 重新加载插件
-            plugins.clear();
-            loadPlugins();
+        if (loader == null) {
+            return;
         }
+        // 必须先完整 teardown，再换 loader 并重新走统一生命周期
+        unloadAll();
+        this.pluginLoader = loader;
+        registerBuiltinPlugins();
+        loadExternalPlugins();
     }
 
     @Override
@@ -372,41 +575,71 @@ public class PluginManager implements IPluginManager {
         this.pluginRepository = repository;
     }
 
-    /**
-     * 获取当前激活的插件
-     */
     public IPlugin getActivePlugin() {
         return activePlugin;
     }
 
-    /**
-     * 设置当前激活的插件
-     */
     public void setActivePlugin(IPlugin plugin) {
-        if (activePlugin != null) {
-            activePlugin.onDeactivate();
+        if (activePlugin == plugin) {
+            return;
         }
+        deactivateActivePlugin();
         activePlugin = plugin;
         if (activePlugin != null) {
+            PluginState oldState = activePlugin.getState();
             activePlugin.onActivate();
+            if (activePlugin.isEnabled()) {
+                activePlugin.transitionState(PluginState.ACTIVE);
+                notifyStateChange(activePlugin, oldState, PluginState.ACTIVE);
+            }
+        }
+    }
+
+    private void deactivateActivePlugin() {
+        if (activePlugin == null) {
+            return;
+        }
+        IPlugin previous = activePlugin;
+        activePlugin = null;
+        PluginState oldState = previous.getState();
+        previous.onDeactivate();
+        if (previous.isEnabled()) {
+            previous.transitionState(PluginState.INACTIVE);
+            notifyStateChange(previous, oldState, PluginState.INACTIVE);
         }
     }
 
     /**
-     * 卸载所有插件
+     * 卸载全部插件：按依赖逆序完整 teardown（disable → unload → graph → loader → dispose）。
      */
     public void unloadAll() {
-        setActivePlugin(null);
+        deactivateActivePlugin();
+
+        List<IPlugin> order = new ArrayList<>(dependencyGraph.getLoadOrder());
+        Collections.reverse(order);
+
+        // 图中可能缺漏的也一并处理
         for (IPlugin plugin : plugins.values()) {
-            try {
-                if (plugin.isEnabled()) {
-                    plugin.disable();
-                }
-                pluginLoader.unloadPlugin(plugin);
-            } catch (Exception e) {
-                LogManager.getInstance().error("Failed to unload plugin: " + plugin.getId(), e);
+            if (!order.contains(plugin)) {
+                order.add(plugin);
             }
         }
+
+        for (IPlugin plugin : order) {
+            if (!plugins.containsKey(plugin.getId())) {
+                continue;
+            }
+            try {
+                teardownPlugin(plugin, true);
+            } catch (Exception e) {
+                LogManager.getInstance().error("Failed to unload plugin during unloadAll: " + plugin.getId(), e);
+                plugins.remove(plugin.getId());
+                dependencyGraph.removePlugin(plugin.getId());
+            }
+        }
+
         plugins.clear();
+        dependencyGraph.clear();
+        activePlugin = null;
     }
 }

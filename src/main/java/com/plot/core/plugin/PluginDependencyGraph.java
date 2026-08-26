@@ -155,4 +155,13 @@ public class PluginDependencyGraph {
     public Map<String, IPlugin> getPlugins() {
         return new HashMap<>(plugins);
     }
+
+    /**
+     * 清空依赖图（与 unloadAll 配套）
+     */
+    public void clear() {
+        dependencies.clear();
+        dependents.clear();
+        plugins.clear();
+    }
 }

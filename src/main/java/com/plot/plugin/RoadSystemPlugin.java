@@ -100,10 +100,10 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
 
     @Override
     public void onDeactivate() {
-        if (!isEnabled() || persistenceManager == null || networkManager == null) {
-            return;
+        if (isEnabled() && persistenceManager != null && networkManager != null) {
+            persistenceManager.saveOnDisable(networkManager.getNetwork());
         }
-        persistenceManager.saveOnDisable(networkManager.getNetwork());
+        super.onDeactivate();
     }
 
     @Override

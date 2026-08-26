@@ -124,6 +124,7 @@ public class BuildingPlugin extends Plugin {
         if (isEnabled()) {
             persistProject();
         }
+        super.onDeactivate();
     }
 
     @Override

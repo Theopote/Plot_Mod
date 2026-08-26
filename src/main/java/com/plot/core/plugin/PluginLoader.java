@@ -96,23 +96,19 @@ public class PluginLoader implements IPluginLoader {
 
     @Override
     public void unloadPlugin(IPlugin plugin) throws PluginException {
-        if (plugin == null) return;
+        if (plugin == null) {
+            return;
+        }
 
         try {
-            // 执行插件的卸载逻辑
-            plugin.unload();
-
-            // 关闭类加载器
+            // 生命周期（disable/unload/dispose）由 PluginManager 负责；此处仅释放类加载器
             ClassLoader classLoader = pluginClassLoaders.remove(plugin.getId());
-            if (classLoader != null) {
-                ((URLClassLoader) classLoader).close();
+            if (classLoader instanceof URLClassLoader urlClassLoader) {
+                urlClassLoader.close();
             }
-
-            // 移除插件实例
             loadedPlugins.remove(plugin.getId());
-
         } catch (Exception e) {
-            throw new PluginException("Failed to unload plugin: " + plugin.getId(), e);
+            throw new PluginException("Failed to unload plugin classloader: " + plugin.getId(), e);
         }
     }
 
