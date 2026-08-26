@@ -11,10 +11,18 @@ base {
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// Maven Central 在部分地区被 Cloudflare 拦截（403），使用国内镜像
+	// Maven Central 在部分地区被 Cloudflare 拦截（403），Batik 等走阿里云 exclusive
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'Aliyun Central'
+				url = 'https://maven.aliyun.com/repository/central'
+			}
+		}
+		filter {
+			includeGroup 'org.apache.xmlgraphics'
+		}
+	}
 	maven {
 		name = 'Aliyun Maven'
 		url = 'https://maven.aliyun.com/repository/public'

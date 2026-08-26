@@ -9,6 +9,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.model.serialization.ProjectSnapshot;
 import com.plot.core.model.serialization.ShapeSerialization;
 import com.plot.core.state.AppState;
+import com.plot.ui.canvas.Canvas;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.Events;
 import com.plot.utils.PlotI18n;
@@ -309,12 +310,13 @@ public final class GalleryRepository {
     }
 
     public void placeAtViewportCenter(GalleryItem item, AppState appState) {
-        if (appState == null || appState.getCanvas() == null) {
+        Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
+        if (appState == null || canvas == null) {
             return;
         }
-        float centerX = appState.getCanvas().getWidth() * 0.5f;
-        float centerY = appState.getCanvas().getHeight() * 0.5f;
-        Vec2d worldCenter = appState.getCanvas().screenToWorld(new Vec2d(centerX, centerY));
+        float centerX = canvas.getWidth() * 0.5f;
+        float centerY = canvas.getHeight() * 0.5f;
+        Vec2d worldCenter = canvas.screenToWorld(new Vec2d(centerX, centerY));
         placeOnCanvas(item, worldCenter, appState);
     }
 

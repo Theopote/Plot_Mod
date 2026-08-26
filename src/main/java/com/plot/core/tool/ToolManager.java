@@ -60,11 +60,10 @@ public class ToolManager implements IToolManager {
     }
 
     /**
-     * 获取Canvas引用
-     * 总是从AppState获取最新的Canvas引用，确保数据一致性
+     * 获取Canvas引用（客户端 CanvasAccess；core 不持有 Canvas）。
      */
     public ICanvas getCanvas() {
-        return this.appState.getCanvas();
+        return com.plot.ui.canvas.CanvasAccess.get();
     }
 
     @Override

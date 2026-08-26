@@ -97,7 +97,7 @@ public final class GalleryPlaceSession {
             return Outcome.none();
         }
 
-        Canvas canvas = appState.getCanvas();
+        Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
         if (canvas == null) {
             return Outcome.none();
         }

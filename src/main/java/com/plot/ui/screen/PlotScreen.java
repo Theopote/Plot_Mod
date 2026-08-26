@@ -10,6 +10,7 @@ import com.plot.infrastructure.event.block.GhostBlockManager;
 import com.plot.ui.toolbar.SystemPanel;
 import com.plot.ui.toolbar.ToolPanel;
 import com.plot.ui.canvas.Canvas;
+import com.plot.ui.canvas.CanvasAccess;
 import com.plot.ui.layout.UILayout;
 import com.plot.ui.layout.PanelEdgeCursorHelper;
 import com.plot.ui.theme.UITheme;
@@ -153,11 +154,11 @@ public class PlotScreen extends Screen {
     private void registerComponents() {
         LOGGER.debug("注册UI组件到容器...");
         // 从 AppState 获取已经完全初始化好的 Canvas
-        Canvas canvas = appState.getCanvas();
+        Canvas canvas = CanvasAccess.get();
         if (canvas != null) {
             uiContainer.register(Canvas.class, canvas);
         } else {
-            LOGGER.error("registerComponents: AppState.getCanvas() 返回 null，Canvas 未注册");
+            LOGGER.error("registerComponents: CanvasAccess.get() 返回 null，Canvas 未注册");
         }
         
         // 其他UI组件
@@ -939,7 +940,9 @@ public class PlotScreen extends Screen {
         }
 
         try {
-            com.plot.core.model.ProjectSession.save(appState);
+            com.plot.core.context.ApplicationContext context =
+                com.plot.core.context.ApplicationContext.getInstance();
+            context.getProjectSession().save(context);
         } catch (Exception e) {
             LOGGER.warn("保存画布会话失败: {}", e.getMessage());
         }

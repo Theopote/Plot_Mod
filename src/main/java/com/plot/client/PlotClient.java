@@ -2,7 +2,7 @@ package com.plot.client;
 
 import com.plot.PlotMod;
 import com.plot.core.command.CommandService;
-import com.plot.core.model.ProjectSession;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.ToolManager;
@@ -12,6 +12,7 @@ import com.plot.infrastructure.event.block.LineToBlockHandler;
 import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.core.shortcut.ShortcutManager;
 import com.plot.ui.canvas.Canvas;
+import com.plot.ui.canvas.CanvasAccess;
 import com.plot.ui.manager.UIManager;
 import com.plot.ui.shortcut.DeleteShortcutListener;
 import com.plot.ui.shortcut.EditShortcutListener;
@@ -50,21 +51,23 @@ public final class PlotClient implements ClientModInitializer {
         PlotMod.LOGGER.info("初始化 Master Planner Mod (客户端逻辑)...");
 
         try {
-            PlotMod.LOGGER.debug("步骤1: 获取AppState实例");
-            AppState appState = AppState.getInstance();
-            if (appState.getLayerManager() == null) {
-                appState.initializeLayerSystem();
+            PlotMod.LOGGER.debug("步骤1: 获取 ApplicationContext");
+            ApplicationContext context = ApplicationContext.getInstance();
+            if (context.getLayerService().getLayerManager() == null) {
+                context.initialize();
             }
-            ProjectSession.loadOrInitialize(appState);
+            context.getProjectSession().loadOrInitialize(context);
 
             ImGuiWorldRenderer.init();
             GhostBlockWorldRenderer.init();
 
+            AppState appState = context.getAppState();
+
             PlotMod.LOGGER.debug("步骤4: 创建Canvas实例");
             Canvas canvas = new Canvas(appState);
 
-            PlotMod.LOGGER.debug("步骤5: 注册Canvas到AppState");
-            appState.setCanvas(canvas);
+            PlotMod.LOGGER.debug("步骤5: 注册 CanvasAccess");
+            CanvasAccess.set(canvas);
 
             PlotMod.LOGGER.debug("步骤6: 初始化绘图工具模块");
             initializeDrawingTools(appState);
@@ -243,7 +246,8 @@ public final class PlotClient implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             try {
                 PlotMod.LOGGER.info("客户端关闭，保存画布会话并卸载插件...");
-                ProjectSession.save(AppState.getInstance());
+                ApplicationContext context = ApplicationContext.getInstance();
+                context.getProjectSession().save(context);
                 PluginManager.getInstance().unloadAll();
             } catch (Exception e) {
                 PlotMod.LOGGER.error("客户端关闭清理失败: {}", e.getMessage(), e);

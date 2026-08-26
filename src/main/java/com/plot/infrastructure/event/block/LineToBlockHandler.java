@@ -794,7 +794,7 @@ public class LineToBlockHandler {
             }
 
             // 获取Canvas和相机
-            Canvas canvas = appState.getCanvas();
+            Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
             if (canvas == null) {
                 LOGGER.error("Canvas未初始化");
                 return null;

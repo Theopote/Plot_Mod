@@ -24,7 +24,7 @@ import com.plot.ui.tools.snap.SnapVisualStyle;
  * 吸附管理器
  * 负责处理所有与吸附相关的功能
  */
-public class SnapManager implements ISnapManager {
+public class SnapManager implements ISnapManager, SnapService {
     private static final Logger LOGGER = LoggerFactory.getLogger(SnapManager.class);
     private static SnapManager INSTANCE;
     private static final int SHIFT_KEY_CODE = 16;  // Shift 键的键码
@@ -253,7 +253,7 @@ public class SnapManager implements ISnapManager {
         // 将世界坐标转换为屏幕坐标
         Vec2d screenPoint = point;
         try {
-            com.plot.ui.canvas.Canvas canvas = appState.getCanvas();
+            com.plot.ui.canvas.Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
             if (canvas != null) {
                 com.plot.ui.canvas.CanvasCamera camera = canvas.getCamera();
                 if (camera != null) {

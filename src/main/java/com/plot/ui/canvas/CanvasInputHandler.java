@@ -352,7 +352,7 @@ public class CanvasInputHandler {
     private void handleMouseRelease(Vec2d worldPos, BaseTool currentTool) {
         currentTool.onMouseUp(worldPos, 0);
         core.markDirty(CanvasCore.DirtyType.CONTENT);
-        appState.getCanvas().refresh(); // 如果有必要，强制刷新
+        CanvasAccess.get().refresh(); // 如果有必要，强制刷新
 
         if (onMouseReleased != null) {
             onMouseReleased.accept(new MouseEvent(MouseEvent.Type.RELEASED, worldPos, new Vec2d(0, 0)));

@@ -1,7 +1,7 @@
 package com.plot;
 
 import com.plot.core.command.CommandService;
-import com.plot.core.state.AppState;
+import com.plot.core.context.ApplicationContext;
 import com.plot.core.tool.ToolManager;
 import com.plot.registry.ModItems;
 import com.plot.utils.PlotI18n;
@@ -23,14 +23,10 @@ public final class PlotMod implements ModInitializer {
         LOGGER.info("初始化 Master Planner Mod (通用逻辑)...");
 
         try {
-            AppState appState = AppState.getInstance();
+            ApplicationContext context = ApplicationContext.getInstance();
+            context.initialize();
 
-            appState.initializeLayerSystem();
-            appState.initializePluginSystem();
-
-            ToolManager.initialize(appState);
-            appState.setToolManager(ToolManager.getInstance());
-
+            ToolManager.initialize(context.getAppState());
             CommandService.getInstance();
 
             ModItems.registerItems();

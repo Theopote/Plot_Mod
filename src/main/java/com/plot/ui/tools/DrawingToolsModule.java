@@ -164,7 +164,7 @@ public final class DrawingToolsModule {
             ToolFactory toolFactory = new ToolFactory(
                     appState,
                 snapManager, 
-                appState.getCanvas(), 
+                com.plot.ui.canvas.CanvasAccess.get(), 
                 commandService
             );
             
@@ -187,8 +187,8 @@ public final class DrawingToolsModule {
             tools.add(toolFactory.createSineCurveTool());
 
             // 新增：将文字工具视为绘图工具进行注册
-            if (appState.getCanvas() != null) {
-                tools.add(new TextTool(appState.getCanvas()));
+            if (com.plot.ui.canvas.CanvasAccess.get() != null) {
+                tools.add(new TextTool(com.plot.ui.canvas.CanvasAccess.get()));
             }
             
             LOGGER.debug("成功创建 {} 个绘图工具", tools.size());

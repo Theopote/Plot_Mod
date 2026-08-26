@@ -1008,7 +1008,7 @@ public class BuildingPlugin extends Plugin {
 
     private void locateBuilding(BuildingFootprint building) {
         Vec2d centroid = BuildingGeometryUtils.computeCentroid(building.getOuterPoints());
-        Canvas canvas = AppState.getInstance().getCanvas();
+        Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
         if (canvas != null && canvas.getCamera() != null) {
             canvas.getCamera().setOffset(centroid);
             selectedBuildingId = building.getId();

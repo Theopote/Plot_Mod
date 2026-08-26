@@ -1153,7 +1153,7 @@ public class EarthworkPlugin extends Plugin {
 
     private void locateRegion(GradingRegion region) {
         Vec2d centroid = EarthworkGeometryUtils.computeCentroid(region.getOuterPoints());
-        Canvas canvas = AppState.getInstance().getCanvas();
+        Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
         if (canvas != null && canvas.getCamera() != null) {
             canvas.getCamera().setOffset(centroid);
             selectedRegionId = region.getId();

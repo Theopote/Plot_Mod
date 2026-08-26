@@ -1,6 +1,7 @@
 package com.plot.core.model;
 
-import com.plot.core.state.AppState;
+import com.plot.core.context.ApplicationContext;
+import com.plot.core.layer.LayerService;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * 画布会话持久化：关闭 Plot / 退出游戏时自动保存，启动时自动加载。
+ * 画布会话：持有当前 {@link Project}，并负责默认会话文件的加载/保存。
  * <p>
  * 默认文件：{@code .minecraft/plot/projects/default.json}
  */
@@ -17,35 +18,39 @@ public final class ProjectSession {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/ProjectSession");
     private static final String DEFAULT_PROJECT_FILE = "default.json";
 
-    private static volatile boolean loaded = false;
+    private Project currentProject;
+    private boolean loaded;
 
-    private ProjectSession() {
+    public Path getDefaultProjectPath() {
+        return FabricLoader.getInstance()
+            .getGameDir()
+            .resolve("plot")
+            .resolve("projects")
+            .resolve(DEFAULT_PROJECT_FILE);
     }
 
-    public static Path getDefaultProjectPath() {
-        return FabricLoader.getInstance()
-                .getGameDir()
-                .resolve("plot")
-                .resolve("projects")
-                .resolve(DEFAULT_PROJECT_FILE);
+    public Project getCurrentProject() {
+        return currentProject;
+    }
+
+    public void setCurrentProject(Project project) {
+        this.currentProject = project;
     }
 
     /**
      * 启动时加载上次会话；若无存档则创建默认图层。
      */
-    public static void loadOrInitialize(AppState appState) {
-        if (appState == null) {
-            return;
-        }
-        if (loaded) {
+    public void loadOrInitialize(ApplicationContext context) {
+        if (context == null || loaded) {
             return;
         }
         loaded = true;
 
+        LayerService layers = context.getLayerService();
         Path path = getDefaultProjectPath();
         if (Files.isRegularFile(path)) {
             try {
-                Project.loadFromFile(appState, path);
+                Project.loadFromFile(context.getAppState(), path);
                 LOGGER.info("已加载画布会话: {}", path);
                 return;
             } catch (Exception e) {
@@ -53,26 +58,45 @@ public final class ProjectSession {
             }
         }
 
-        appState.ensureDefaultLayer();
-        if (appState.getCurrentProject() == null) {
-            appState.setCurrentProject(Project.captureFromAppState(appState));
+        layers.ensureDefaultLayer();
+        if (currentProject == null) {
+            setCurrentProject(Project.captureFromAppState(context.getAppState()));
         }
     }
 
     /**
      * 将当前画布图层写入默认会话文件。
      */
-    public static void save(AppState appState) {
-        if (appState == null || appState.getLayerManager() == null) {
+    public void save(ApplicationContext context) {
+        if (context == null || context.getLayerService().getLayerManager() == null) {
             return;
         }
         try {
             Path path = getDefaultProjectPath();
             Files.createDirectories(path.getParent());
-            Project.saveToFile(appState, path);
+            Project.saveToFile(context.getAppState(), path);
             LOGGER.info("已保存画布会话: {}", path);
         } catch (Exception e) {
             LOGGER.error("保存画布会话失败: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * @deprecated 使用 {@link #loadOrInitialize(ApplicationContext)}
+     */
+    @Deprecated
+    public static void loadOrInitialize(com.plot.core.state.AppState appState) {
+        if (appState == null) {
+            return;
+        }
+        ApplicationContext.getInstance().getProjectSession().loadOrInitialize(ApplicationContext.getInstance());
+    }
+
+    /**
+     * @deprecated 使用 {@link #save(ApplicationContext)}
+     */
+    @Deprecated
+    public static void save(com.plot.core.state.AppState appState) {
+        ApplicationContext.getInstance().getProjectSession().save(ApplicationContext.getInstance());
     }
 }

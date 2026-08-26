@@ -151,7 +151,7 @@ public final class ModifyToolsModule {
         
         try {
             // 验证 AppState 状态并获取必要的依赖
-            com.plot.api.model.ICanvas canvas = appState.getCanvas();
+            com.plot.api.model.ICanvas canvas = com.plot.ui.canvas.CanvasAccess.get();
             if (canvas == null) {
                 throw new IllegalStateException(PlotI18n.error("error.plot.validation.canvas_not_in_app_state"));
             }

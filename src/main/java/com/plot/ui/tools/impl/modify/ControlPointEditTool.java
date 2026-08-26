@@ -151,7 +151,7 @@ public class ControlPointEditTool extends ModifyTool {
 
     private void requestToolPreviewRefresh() {
         try {
-            var canvas = concreteAppState.getCanvas();
+            var canvas = com.plot.ui.canvas.CanvasAccess.get();
             if (canvas != null) {
                 canvas.markToolPreviewDirty();
             }

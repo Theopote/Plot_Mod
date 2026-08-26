@@ -377,7 +377,7 @@ public class CoordinateTransformer {
      */
     private Vec2d canvasToMinecraftWorldSimple(Vec2d canvasPos, double playerX, double playerZ) {
         try {
-            Canvas canvas = appState.getCanvas();
+            Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
             CanvasCamera camera = canvas.getCamera();
 
             // 获取相机参数
