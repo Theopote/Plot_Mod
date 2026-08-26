@@ -378,9 +378,9 @@ public class LayerManager {
                     break;
                 case "linestyle":
                 case "line_style":
-                    if (newValue instanceof com.plot.core.graphics.style.LineStyle) {
+                    if (newValue instanceof com.plot.api.graphics.ILineStyle lineStyle) {
                         // 先更新图层的线条样式
-                        layer.setLineStyle((com.plot.core.graphics.style.LineStyle) newValue);
+                        layer.setLineStyle(lineStyle);
                         
                         // 如果是Layer类型，强制触发图层上所有图形的样式更新
                         if (layer instanceof com.plot.core.layer.Layer concreteLayer) {

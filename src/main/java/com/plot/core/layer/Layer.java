@@ -4,6 +4,7 @@ import com.plot.core.graphics.style.LineStyle;
 import com.plot.core.graphics.style.ShapeStyle;
 import com.plot.core.model.Entity;
 import com.plot.core.model.Shape;
+import com.plot.api.graphics.ILineStyle;
 import com.plot.api.model.ILayer;
 import com.plot.api.model.IElement;
 import com.plot.api.model.IShape;
@@ -190,8 +191,23 @@ public class Layer extends Entity implements ILayer, LayerState.StateChangeListe
     }
     
     @Override
-    public void setLineStyle(LineStyle lineStyle) {
-        state.setLineStyle(lineStyle);
+    public void setLineStyle(ILineStyle lineStyle) {
+        state.setLineStyle(toConcreteLineStyle(lineStyle));
+    }
+
+    private static LineStyle toConcreteLineStyle(ILineStyle lineStyle) {
+        if (lineStyle == null) {
+            return null;
+        }
+        if (lineStyle instanceof LineStyle concrete) {
+            return concrete;
+        }
+        LineStyle copy = new LineStyle(lineStyle.getType(), lineStyle.getWidth());
+        if (lineStyle.getColor() != null) {
+            copy.setColor(lineStyle.getColor());
+        }
+        copy.setVisible(lineStyle.isVisible());
+        return copy;
     }
     
     // === 图形管理 ===

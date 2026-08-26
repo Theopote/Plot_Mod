@@ -594,7 +594,7 @@ public class Project {
         return new Color(snapshot.r, snapshot.g, snapshot.b, snapshot.a);
     }
 
-    private static ProjectSnapshot.LineStyleSnapshot toLineStyleSnapshot(LineStyle lineStyle) {
+    private static ProjectSnapshot.LineStyleSnapshot toLineStyleSnapshot(com.plot.api.graphics.ILineStyle lineStyle) {
         if (lineStyle == null) {
             return null;
         }

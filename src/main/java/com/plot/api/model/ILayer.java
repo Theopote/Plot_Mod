@@ -3,7 +3,7 @@ package com.plot.api.model;
 import java.util.List;
 import java.util.Set;
 
-import com.plot.core.graphics.style.LineStyle;
+import com.plot.api.graphics.ILineStyle;
 import java.awt.Color;
 
 /**
@@ -116,12 +116,12 @@ public interface ILayer {
     /**
      * 设置图层线条样式
      */
-    void setLineStyle(LineStyle style);
+    void setLineStyle(ILineStyle style);
 
     /**
      * 获取图层线条样式
      */
-    LineStyle getLineStyle();
+    ILineStyle getLineStyle();
 
     /**
      * 设置图层颜色

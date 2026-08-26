@@ -44,5 +44,6 @@ Plot 正确方向是 **Core ← Plugin**（Road / Building / Earthwork …）。
 - `LineType` 升至 `com.plot.api.graphics`；`IPluginManager` 不再暴露 core 的 `PluginDependencyGraph`。
 - `api` 已引入 `IShape` 并迁移 `IAppState.addShape`、`ISnapManager`、`IExtendableShape` 到接口抽象；`Shape` 实现 `IShape` 作为兼容桥接。
 - `ILayer`/`ICanvas.getShapes` 已改为返回 `List<? extends IShape>`；core/ui 调用点经 `ShapeLists.of` 桥接回 `List<Shape>`。
+- `ILayer` 线型 API 已改为 `ILineStyle`（不再直接依赖 `core.graphics.style.LineStyle`）；`Layer` 内部仍桥接到具体实现。
 - `api.plugin.PluginDescription` 已改为使用 API 层 `PropertiesPluginConfig`，去除对 `core.plugin.PluginConfig` 的直接依赖。
-- `api` 仍有剩余 core 引用（如 `ILayer` 的 `LineStyle`，以及 `ITool`/`IRenderer` 的 `DrawContext`、`IRenderVisitor` 的具体 Shape 类），下一刀继续收。
+- `api` 仍有剩余 core 引用（`ITool`/`IRenderer` 的 `DrawContext`、`IRenderVisitor` 的具体 Shape 类），下一刀继续收。
