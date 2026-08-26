@@ -1,7 +1,6 @@
 package com.plot.ui.panel.layer;
 
 import com.plot.api.model.ILayer;
-import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
 import com.plot.core.state.AppState;
 import com.plot.ui.dialog.DialogLayoutHelper;
@@ -25,6 +24,7 @@ public class DeleteLayerDialog {
 
     // === 状态字段 ===
     private boolean isVisible = false;
+    private boolean popupOpenRequested = false;
 
     // === 依赖项 ===
     private final AppState appState;
@@ -48,11 +48,12 @@ public class DeleteLayerDialog {
         }
 
         isVisible = true;
-        ImGui.openPopup(DIALOG_TITLE);
+        popupOpenRequested = true;
     }
 
     public void hide() {
         isVisible = false;
+        popupOpenRequested = false;
     }
 
     private void closePopup() {
@@ -70,17 +71,31 @@ public class DeleteLayerDialog {
             return PlotI18n.tr("layer.plot.select_to_delete");
         }
 
-        if (layerManager.getLayers().size() <= selectedLayers.size()) {
+        int deletableCount = countDeletableSelectedLayers(layerManager);
+        if (deletableCount == 0) {
+            return PlotI18n.tr("layer.plot.cannot_delete_locked",
+                    PlotI18n.layerDisplayName(selectedLayers.iterator().next().getName()));
+        }
+
+        if (layerManager.getLayers().size() <= deletableCount) {
             return PlotI18n.tr("layer.plot.must_keep_one");
         }
 
+        return null;
+    }
+
+    private int countDeletableSelectedLayers(LayerManager layerManager) {
+        int count = 0;
         for (ILayer layer : selectedLayers) {
-            if (layer instanceof Layer && layer.isLocked()) {
-                return PlotI18n.tr("layer.plot.cannot_delete_locked", PlotI18n.layerDisplayName(layer.getName()));
+            if (layer == null) {
+                continue;
+            }
+            ILayer resolved = layerManager.getLayerById(layer.getId());
+            if (resolved != null && !resolved.isLocked()) {
+                count++;
             }
         }
-
-        return null;
+        return count;
     }
 
     public void render() {
@@ -88,16 +103,22 @@ public class DeleteLayerDialog {
             return;
         }
 
+        if (popupOpenRequested) {
+            ImGui.openPopup(DIALOG_TITLE);
+        }
+
         DialogStyleManager.DialogStyleScope styleScope = DialogStyleManager.applyDialogStyle();
 
-        // 仅首次出现时居中，避免用户拖动后被下一帧重置位置
-        var center = ImGui.getMainViewport().getCenter();
-        ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-        ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0.0f, ImGuiCond.Appearing);
+        if (ImGui.isPopupOpen(DIALOG_TITLE)) {
+            var center = ImGui.getMainViewport().getCenter();
+            ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+            ImGui.setNextWindowSize(DialogStyleManager.DialogWidth.COMPACT.value, 0.0f, ImGuiCond.Appearing);
+        }
 
         try {
             int windowFlags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize;
             if (ImGui.beginPopupModal(DIALOG_TITLE, windowFlags)) {
+                popupOpenRequested = false;
                 try {
                     if (DialogStyleManager.renderTopRightCloseButton("delete_layer")) {
                         closePopup();
@@ -170,7 +191,7 @@ public class DeleteLayerDialog {
             if (resolved == null) {
                 continue;
             }
-            if (resolved instanceof Layer && resolved.isLocked()) {
+            if (resolved.isLocked()) {
                 continue;
             }
             layersToDelete.add(resolved);

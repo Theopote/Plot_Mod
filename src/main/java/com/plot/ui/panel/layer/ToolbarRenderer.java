@@ -105,7 +105,9 @@ public class ToolbarRenderer {
             } else if (hasLockedLayersInSelection) {
                 deleteTooltip = PlotI18n.tr("layer.plot.cannot_delete_locked", lockedLayerName);
             } else if (selectedLayers.isEmpty()) {
-                deleteTooltip = PlotI18n.tr("layer.plot.select_to_delete");
+                deleteTooltip = layerManager.getActiveLayer() != null
+                        ? PlotI18n.tr("layer.plot.toolbar.delete_selected")
+                        : PlotI18n.tr("layer.plot.select_to_delete");
             } else {
                 deleteTooltip = PlotI18n.tr("layer.plot.toolbar.delete_selected");
             }
