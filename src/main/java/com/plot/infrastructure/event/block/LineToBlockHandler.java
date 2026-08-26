@@ -81,7 +81,7 @@ public class LineToBlockHandler {
      * 注册事件监听器
      */
     private void registerEventListeners() {
-        eventBus.subscribe(LineToBlockEvent.class, this::handleLineToBlockEvent);
+        eventBus.subscribe(this, LineToBlockEvent.class, this::handleLineToBlockEvent);
     }
 
     /**

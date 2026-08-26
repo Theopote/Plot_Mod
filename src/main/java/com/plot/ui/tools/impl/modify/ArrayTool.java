@@ -47,7 +47,7 @@ public class ArrayTool extends ModifyTool {
         LOGGER.info("ArrayTool 已创建");
         
         // 订阅ToolConfigEvent
-        eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.subscribe(this, ToolConfigEvent.class, this::handleToolConfigEvent);
     }
 
     /**
@@ -60,7 +60,7 @@ public class ArrayTool extends ModifyTool {
         LOGGER.info("ArrayTool 已创建（兼容模式）");
         
         // 订阅ToolConfigEvent
-        eventBus.subscribe(ToolConfigEvent.class, this::handleToolConfigEvent);
+        eventBus.subscribe(this, ToolConfigEvent.class, this::handleToolConfigEvent);
     }
     
     /**

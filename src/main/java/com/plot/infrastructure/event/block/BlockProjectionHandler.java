@@ -136,7 +136,7 @@ public class BlockProjectionHandler {
      * 注册事件监听器
      */
     private void registerEventListeners() {
-        eventBus.subscribe(BlockProjectionEvent.class, this::handleBlockProjectionEvent);
+        eventBus.subscribe(this, BlockProjectionEvent.class, this::handleBlockProjectionEvent);
     }
 
     /**

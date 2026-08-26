@@ -156,6 +156,7 @@ public final class ApplicationContext {
     }
 
     public void dispose() {
+        // 仅取消防抖 pending；线程池由 PlotRuntime.shutdown() 统一关闭
         DebouncedTasks.shutdown();
     }
 

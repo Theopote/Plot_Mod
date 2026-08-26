@@ -26,8 +26,8 @@ public final class CommandService {
 
     private CommandService() {
         EventBus eventBus = EventBus.getInstance();
-        eventBus.subscribe(UndoEvent.class, event -> undo());
-        eventBus.subscribe(RedoEvent.class, event -> redo());
+        eventBus.subscribe(this, UndoEvent.class, event -> undo());
+        eventBus.subscribe(this, RedoEvent.class, event -> redo());
     }
 
     public static synchronized CommandService getInstance() {

@@ -40,9 +40,9 @@ public final class LayerService {
 
     private void subscribeToLayerEvents() {
         EventBus eventBus = EventBus.getInstance();
-        eventBus.subscribe(LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
-        eventBus.subscribe(LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
-        eventBus.subscribe(LayerEventSystem.SelectAllElementsInLayerEvent.class, this::handleSelectAllElementsInLayer);
+        eventBus.subscribe(this, LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
+        eventBus.subscribe(this, LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
+        eventBus.subscribe(this, LayerEventSystem.SelectAllElementsInLayerEvent.class, this::handleSelectAllElementsInLayer);
     }
 
     private void handleLayerActivated(Event event) {

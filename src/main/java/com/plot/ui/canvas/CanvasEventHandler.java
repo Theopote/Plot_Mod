@@ -54,15 +54,16 @@ public class CanvasEventHandler {
      * 注册事件监听器
      */
     private void registerEventListeners() {
-        eventBus.subscribe(OpacityChangeEvent.class, this::handleOpacityChange);
-        eventBus.subscribe(GridToggleEvent.class, this::handleGridToggle);
-        eventBus.subscribe(LayerEventSystem.LayerCreatedEvent.class, this::handleLayerCreated);
-        eventBus.subscribe(LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
-        eventBus.subscribe(LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
-        eventBus.subscribe(LayerEventSystem.LayerPropertyChangedEvent.class, this::handleLayerPropertyChanged);
-        eventBus.subscribe(LayerEventSystem.LayerOrderChangedEvent.class, this::handleLayerOrderChanged);
-        eventBus.subscribe(LayerEventSystem.LayerContentChangedEvent.class, this::handleLayerContentChanged);
-        eventBus.subscribe(ShapeAddedEvent.class, this::handleShapeAdded);
+        // owner=this：method reference 无法用第二次 this:: 对等取消，统一走 unsubscribeOwner
+        eventBus.subscribe(this, OpacityChangeEvent.class, this::handleOpacityChange);
+        eventBus.subscribe(this, GridToggleEvent.class, this::handleGridToggle);
+        eventBus.subscribe(this, LayerEventSystem.LayerCreatedEvent.class, this::handleLayerCreated);
+        eventBus.subscribe(this, LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
+        eventBus.subscribe(this, LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
+        eventBus.subscribe(this, LayerEventSystem.LayerPropertyChangedEvent.class, this::handleLayerPropertyChanged);
+        eventBus.subscribe(this, LayerEventSystem.LayerOrderChangedEvent.class, this::handleLayerOrderChanged);
+        eventBus.subscribe(this, LayerEventSystem.LayerContentChangedEvent.class, this::handleLayerContentChanged);
+        eventBus.subscribe(this, ShapeAddedEvent.class, this::handleShapeAdded);
     }
 
     /**
@@ -253,15 +254,7 @@ public class CanvasEventHandler {
      * 取消订阅所有事件
      */
     public void unsubscribeAll() {
-        eventBus.unsubscribe(OpacityChangeEvent.class, this::handleOpacityChange);
-        eventBus.unsubscribe(GridToggleEvent.class, this::handleGridToggle);
-        eventBus.unsubscribe(LayerEventSystem.LayerCreatedEvent.class, this::handleLayerCreated);
-        eventBus.unsubscribe(LayerEventSystem.LayerRemovedEvent.class, this::handleLayerRemoved);
-        eventBus.unsubscribe(LayerEventSystem.LayerActivatedEvent.class, this::handleLayerActivated);
-        eventBus.unsubscribe(LayerEventSystem.LayerPropertyChangedEvent.class, this::handleLayerPropertyChanged);
-        eventBus.unsubscribe(LayerEventSystem.LayerOrderChangedEvent.class, this::handleLayerOrderChanged);
-        eventBus.unsubscribe(LayerEventSystem.LayerContentChangedEvent.class, this::handleLayerContentChanged);
-        eventBus.unsubscribe(ShapeAddedEvent.class, this::handleShapeAdded);
+        eventBus.unsubscribeOwner(this);
     }
 
     /**

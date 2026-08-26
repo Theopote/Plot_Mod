@@ -249,6 +249,8 @@ public final class PlotClient implements ClientModInitializer {
                 ApplicationContext context = ApplicationContext.getInstance();
                 context.getProjectSession().save(context);
                 PluginManager.getInstance().unloadAll();
+                context.dispose();
+                com.plot.core.runtime.PlotRuntime.shutdown();
             } catch (Exception e) {
                 PlotMod.LOGGER.error("客户端关闭清理失败: {}", e.getMessage(), e);
             }
