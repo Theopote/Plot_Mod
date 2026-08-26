@@ -87,6 +87,10 @@ public class LayerContextMenuRenderer {
                 // 删除图层选项 - 锁定图层不能删除
                 if (!layer.isLocked()) {
                     if (ImGui.menuItem(PlotI18n.tr("layer.plot.delete"), "")) {
+                        if (!selectedLayers.contains(layer)) {
+                            selectedLayers.clear();
+                            selectedLayers.add(layer);
+                        }
                         showDeleteLayerDialog.run();
                     }
                 } else {

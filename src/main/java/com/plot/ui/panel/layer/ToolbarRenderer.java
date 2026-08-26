@@ -116,21 +116,26 @@ public class ToolbarRenderer {
                     false,
                 currentTheme,
                 () -> {
-                    if (canDelete) {
-                        if (selectedLayers.isEmpty()) {
-                            showWarningDialog.accept(PlotI18n.tr("layer.plot.select_to_delete"));
+                    if (!canDelete) {
+                        return;
+                    }
+                    if (selectedLayers.isEmpty()) {
+                        ILayer activeLayer = layerManager.getActiveLayer();
+                        if (activeLayer != null && !activeLayer.isLocked()) {
+                            selectedLayers.add(activeLayer);
                         } else {
-                            // 在回调内部重新检查是否有锁定的图层
-                            boolean hasLockedLayer = selectedLayers.stream().anyMatch(ILayer::isLocked);
-                            if (hasLockedLayer) {
-                                showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.delete_unlock_first"));
-                            } else {
-                                showDeleteLayerDialog.run();
-                            }
+                            showWarningDialog.accept(PlotI18n.tr("layer.plot.select_to_delete"));
+                            return;
                         }
                     }
+                    boolean hasLockedLayer = selectedLayers.stream().anyMatch(ILayer::isLocked);
+                    if (hasLockedLayer) {
+                        showWarningDialog.accept(PlotI18n.tr("layer.plot.toolbar.delete_unlock_first"));
+                    } else {
+                        showDeleteLayerDialog.run();
+                    }
                 },
-                !canDelete || hasLockedLayersInSelection || selectedLayers.isEmpty()
+                !canDelete || hasLockedLayersInSelection || (selectedLayers.isEmpty() && layerManager.getActiveLayer() == null)
             );
 
             ImGui.sameLine(0, BUTTON_SPACING);

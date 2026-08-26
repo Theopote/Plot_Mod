@@ -20,6 +20,7 @@ public class LayerStructureEditCommand implements Command {
 
     @Override
     public void execute() {
+        afterSnapshot.apply();
     }
 
     @Override

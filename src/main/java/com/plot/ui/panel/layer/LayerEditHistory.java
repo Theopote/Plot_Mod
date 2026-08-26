@@ -59,7 +59,7 @@ public final class LayerEditHistory {
         if (statesEqual(before, after)) {
             return;
         }
-        AppState.getInstance().getCommandService().execute(
+        AppState.getInstance().getCommandService().pushExecuted(
                 new LayerColorEditCommand(layer.getId(), before, after));
     }
 
@@ -70,7 +70,7 @@ public final class LayerEditHistory {
         if (statesEqual(before, after)) {
             return;
         }
-        AppState.getInstance().getCommandService().execute(
+        AppState.getInstance().getCommandService().pushExecuted(
                 new LayerLineStyleEditCommand(layer.getId(), before, after));
     }
 
@@ -78,7 +78,7 @@ public final class LayerEditHistory {
         if (layerId == null || property == null || valuesEqual(before, after)) {
             return;
         }
-        AppState.getInstance().getCommandService().execute(
+        AppState.getInstance().getCommandService().pushExecuted(
                 new LayerPropertyEditCommand(layerId, property, before, after));
     }
 
@@ -89,7 +89,7 @@ public final class LayerEditHistory {
         if (before == null || after == null || before.sameStructureAs(after)) {
             return;
         }
-        AppState.getInstance().getCommandService().execute(
+        AppState.getInstance().getCommandService().pushExecuted(
                 new LayerStructureEditCommand(before, after, operationKey));
     }
 

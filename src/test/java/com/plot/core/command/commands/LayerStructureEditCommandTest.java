@@ -5,6 +5,7 @@ import com.plot.ui.panel.layer.LayerStructureSnapshot;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,17 +25,31 @@ class LayerStructureEditCommandTest {
     }
 
     @Test
-    void commandUndoRedoDelegatesToSnapshots() {
+    void commandExecuteAppliesAfterSnapshot() {
+        var layerManager = AppState.getInstance().getLayerManager();
+        if (layerManager.getLayerCount() == 0) {
+            layerManager.createLayer("base layer");
+        }
+        if (layerManager.getLayerCount() == 1) {
+            layerManager.createLayer("second layer");
+        }
+
         LayerStructureSnapshot before = LayerStructureSnapshot.capture();
+        int countBeforeAdd = layerManager.getLayerCount();
+
+        var created = layerManager.createLayer("CommandService test layer");
+        assertTrue(created.isSuccess());
         LayerStructureSnapshot after = LayerStructureSnapshot.capture();
+
+        layerManager.removeLayer(created.getLayer());
+        assertEquals(countBeforeAdd, layerManager.getLayerCount());
 
         LayerStructureEditCommand command = new LayerStructureEditCommand(
                 before,
                 after,
-                "history.plot.layer_structure.reorder");
+                "history.plot.layer_structure.create");
 
-        command.undo();
-        command.redo();
-        assertFalse(command.getDescription().isBlank());
+        command.execute();
+        assertEquals(countBeforeAdd + 1, layerManager.getLayerCount());
     }
 }

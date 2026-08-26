@@ -162,33 +162,34 @@ public class DeleteLayerDialog {
 
     private void deleteSelectedLayers() {
         LayerStructureSnapshot before = LayerStructureSnapshot.capture();
-
-        // 通过 AppState 获取 LayerManager
         LayerManager layerManager = appState.getLayerManager();
-        
-        // 再次检查是否有锁定的图层（以防在对话框打开期间图层被锁定）
+
         List<ILayer> layersToDelete = new ArrayList<>();
         for (ILayer layer : selectedLayers) {
-            if (!(layer instanceof Layer) || !layer.isLocked()) {
-                layersToDelete.add(layer);
+            ILayer resolved = layerManager.getLayerById(layer.getId());
+            if (resolved == null) {
+                continue;
             }
+            if (resolved instanceof Layer && resolved.isLocked()) {
+                continue;
+            }
+            layersToDelete.add(resolved);
         }
-        
-        // 删除所有未锁定的选中图层
+
+        if (layersToDelete.isEmpty()) {
+            return;
+        }
+
         for (ILayer layer : layersToDelete) {
             layerManager.removeLayer(layer);
         }
-        
-        // 清空选中状态
+
         selectedLayers.clear();
 
-        // 如果还有其他图层，设置最后一个图层为活动图层
         List<ILayer> remainingLayers = layerManager.getLayers();
         if (!remainingLayers.isEmpty()) {
             ILayer lastLayer = remainingLayers.getLast();
-            if (lastLayer instanceof Layer) {
-                layerManager.setActiveLayer(lastLayer);
-            }
+            layerManager.setActiveLayer(lastLayer);
         }
 
         LayerEditHistory.commitStructureEdit(
