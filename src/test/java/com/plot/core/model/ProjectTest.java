@@ -142,6 +142,45 @@ class ProjectTest {
     }
 
     @Test
+    void loadFromTruncatedJsonThrowsAndPreservesRuntime(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("truncated.plot");
+        Files.writeString(file, """
+                {
+                  "formatVersion": 2,
+                  "name": "Half",
+                  "layers": [
+                """, StandardCharsets.UTF_8);
+
+        AppState appState = AppState.getInstance();
+        appState.initializeLayerSystem();
+        LayerManager layerManager = appState.getLayerManager();
+        int layerCountBefore = layerManager.getLayerCount();
+
+        assertThrows(ProjectFormatException.class, () -> Project.loadFromFile(appState, file));
+        assertEquals(layerCountBefore, layerManager.getLayerCount());
+    }
+
+    @Test
+    void loadFromMissingFileThrowsWithoutMutatingState(@TempDir Path dir) {
+        Path missing = dir.resolve("does-not-exist.plot");
+        AppState appState = AppState.getInstance();
+        appState.initializeLayerSystem();
+        LayerManager layerManager = appState.getLayerManager();
+        int before = layerManager.getLayerCount();
+
+        assertThrows(IOException.class, () -> Project.loadFromFile(appState, missing));
+        assertEquals(before, layerManager.getLayerCount());
+    }
+
+    @Test
+    void loadFromNullJsonLiteralThrows(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("null.plot");
+        Files.writeString(file, "null", StandardCharsets.UTF_8);
+        assertThrows(ProjectFormatException.class,
+            () -> Project.loadFromFile(AppState.getInstance(), file));
+    }
+
+    @Test
     void saveToFileIsAtomicAndCreatesBackupAndAutosave(@TempDir Path dir) throws IOException {
         AppState appState = AppState.getInstance();
         appState.initializeLayerSystem();
@@ -176,6 +215,39 @@ class ProjectTest {
         String original = Files.readString(file, StandardCharsets.UTF_8);
         assertThrows(IOException.class, () -> Project.writeAtomically(file, ""));
 
+        assertEquals(original, Files.readString(file, StandardCharsets.UTF_8));
+        assertFalse(Files.exists(dir.resolve("safe.plot" + Project.TEMP_SUFFIX)));
+    }
+
+    @Test
+    void writeAtomicallyDoesNotOverwriteOnCorruptJson(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("safe2.plot");
+        String goodJson = new Project("Keep Me").serialize();
+        Project.writeAtomically(file, goodJson);
+        String original = Files.readString(file, StandardCharsets.UTF_8);
+
+        assertThrows(IOException.class, () -> Project.writeAtomically(file, "{not-json"));
+        assertEquals(original, Files.readString(file, StandardCharsets.UTF_8));
+        assertFalse(Files.exists(Path.of(file + Project.TEMP_SUFFIX)));
+        assertFalse(Files.exists(dir.resolve("safe2.plot.tmp")));
+    }
+
+    @Test
+    void writeAtomicallyRejectsFutureFormatWithoutClobbering(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("v-future.plot");
+        String goodJson = new Project("Stable").serialize();
+        Project.writeAtomically(file, goodJson);
+        String original = Files.readString(file, StandardCharsets.UTF_8);
+
+        String future = """
+                {
+                  "formatVersion": 99,
+                  "name": "Future",
+                  "id": "future",
+                  "layers": []
+                }
+                """;
+        assertThrows(IOException.class, () -> Project.writeAtomically(file, future));
         assertEquals(original, Files.readString(file, StandardCharsets.UTF_8));
     }
 

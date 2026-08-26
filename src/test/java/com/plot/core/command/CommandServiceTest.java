@@ -5,8 +5,14 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * 命令历史灾难场景：指针一致性、事务原子性、失败不污染历史。
+ * <p>
+ * 覆盖原 CommandManager / CommandHistory 职责（已统一到 {@link CommandService}）。
+ */
 class CommandServiceTest {
 
     private CommandService commandService;
@@ -15,6 +21,14 @@ class CommandServiceTest {
     void setUp() {
         commandService = CommandService.getInstance();
         commandService.clear();
+    }
+
+    @Test
+    void executeFailureDoesNotEnterHistory() {
+        assertFalse(commandService.execute(new FailingCommand(true, false, false)));
+        assertEquals(0, commandService.size());
+        assertEquals(-1, commandService.getCurrentIndex());
+        assertFalse(commandService.canUndo());
     }
 
     @Test
@@ -48,6 +62,45 @@ class CommandServiceTest {
     }
 
     @Test
+    void newExecuteAfterUndoDiscardsRedoBranch() {
+        AtomicCounter counter = new AtomicCounter();
+        commandService.execute(new CounterCommand(counter, 1));
+        commandService.execute(new CounterCommand(counter, 10));
+        assertEquals(11, counter.value);
+
+        assertTrue(commandService.undo());
+        assertEquals(1, counter.value);
+        assertTrue(commandService.canRedo());
+        assertEquals(2, commandService.size());
+
+        commandService.execute(new CounterCommand(counter, 100));
+        assertEquals(101, counter.value);
+        assertFalse(commandService.canRedo());
+        assertEquals(2, commandService.size());
+        assertEquals(1, commandService.getCurrentIndex());
+    }
+
+    @Test
+    void nestedBeginTransactionThrows() {
+        commandService.beginTransaction();
+        assertThrows(IllegalStateException.class, commandService::beginTransaction);
+        commandService.rollbackTransaction();
+    }
+
+    @Test
+    void failedExecuteInsideTransactionIsNotRecorded() {
+        AtomicCounter counter = new AtomicCounter();
+        commandService.beginTransaction();
+        assertTrue(commandService.execute(new CounterCommand(counter, 1)));
+        assertFalse(commandService.execute(new FailingCommand(true, false, false)));
+        commandService.commitTransaction();
+
+        assertEquals(1, counter.value);
+        assertEquals(1, commandService.size());
+        assertFalse(commandService.history().get(0) instanceof CompositeCommand);
+    }
+
+    @Test
     void transactionRollbackUndoesExecutedCommands() {
         AtomicCounter counter = new AtomicCounter();
         commandService.beginTransaction();
@@ -56,6 +109,21 @@ class CommandServiceTest {
         commandService.rollbackTransaction();
 
         assertEquals(0, counter.value);
+        assertEquals(0, commandService.size());
+        assertFalse(commandService.isInTransaction());
+    }
+
+    @Test
+    void transactionRollbackContinuesWhenUndoFails() {
+        AtomicCounter counter = new AtomicCounter();
+        commandService.beginTransaction();
+        commandService.execute(new CounterCommand(counter, 5));
+        commandService.pushExecuted(new FailingCommand(false, true, false));
+        commandService.rollbackTransaction();
+
+        // CounterCommand 仍应被撤销；失败 undo 不阻断回滚循环
+        assertEquals(0, counter.value);
+        assertFalse(commandService.isInTransaction());
         assertEquals(0, commandService.size());
     }
 
@@ -73,6 +141,29 @@ class CommandServiceTest {
 
         commandService.undo();
         assertEquals(0, counter.value);
+    }
+
+    @Test
+    void clearAbortsOpenTransaction() {
+        commandService.beginTransaction();
+        commandService.execute(new CounterCommand(new AtomicCounter(), 1));
+        commandService.clear();
+
+        assertFalse(commandService.isInTransaction());
+        assertEquals(0, commandService.size());
+        assertEquals(-1, commandService.getCurrentIndex());
+    }
+
+    @Test
+    void historyTrimKeepsPointerConsistent() {
+        AtomicCounter counter = new AtomicCounter();
+        for (int i = 0; i < 120; i++) {
+            commandService.execute(new CounterCommand(counter, 1));
+        }
+        assertEquals(100, commandService.size());
+        assertEquals(99, commandService.getCurrentIndex());
+        assertTrue(commandService.canUndo());
+        assertFalse(commandService.canRedo());
     }
 
     private static final class AtomicCounter {
