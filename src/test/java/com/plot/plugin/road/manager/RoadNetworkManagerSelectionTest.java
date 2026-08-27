@@ -130,6 +130,44 @@ class RoadNetworkManagerSelectionTest {
     }
 
     @Test
+    void batchDraftToCrossSectionPreservesSlopeIndependentlyOfShoulder() {
+        RoadNetworkManager.BatchEditDefaults draft = new RoadNetworkManager.BatchEditDefaults(
+            7,
+            2,
+            com.plot.core.material.MaterialMix.single("minecraft:stone"),
+            false,
+            1,
+            false,
+            1,
+            "minecraft:stone",
+            false,
+            false,
+            1,
+            false,
+            1,
+            0,
+            true,
+            com.plot.plugin.road.model.section.CenterLineStyle.SINGLE_DASHED,
+            "minecraft:white_concrete",
+            true,
+            2.0f,
+            1.5f,
+            "minecraft:gravel",
+            "minecraft:dirt",
+            8f);
+
+        var section = draft.toCrossSection();
+        var resolved = section.resolve(manager.getConfig());
+
+        assertFalse(resolved.includeShoulder);
+        assertTrue(resolved.includeSlopeBatter);
+        assertEquals(2.0f, resolved.fillSlopeRatio, 0.001f);
+        assertEquals(1.5f, resolved.cutSlopeRatio, 0.001f);
+        assertEquals(7, resolved.carriagewayWidth);
+        assertEquals(2, resolved.laneCount);
+    }
+
+    @Test
     void batchDraftReloadsWhenSwitchingToDifferentSelectionOfSameSize() {
         var flatRoad = manager.getNetwork().createRoad(manager.getConfig());
         flatRoad.setMaxSlope(0f);

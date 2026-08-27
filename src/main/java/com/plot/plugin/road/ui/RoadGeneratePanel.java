@@ -211,12 +211,30 @@ public final class RoadGeneratePanel {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
             ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
+            if (lastGenerationResult != null) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.road.build_confirm_volumes",
+                        lastGenerationResult.cutVolume,
+                        lastGenerationResult.fillVolume,
+                        lastGenerationResult.bridgeCount,
+                        lastGenerationResult.tunnelCount));
+            }
+
             com.plot.api.world.PlacementReadiness readiness =
                 ctx.host().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 ImGui.textColored(PluginUiColors.ERROR, readiness.message());
             }
+            if (ctx.host().placement().isBusy()) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_in_progress_wait"));
+            }
             RoadUiWidgets.renderRoadVisibilityWarning(ctx);
+
+            ImGui.spacing();
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_cancel_hint"));
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_undo_hint"));
 
             ImGui.separator();
             boolean canBuild = readiness.ready() && !ctx.host().placement().isBusy();

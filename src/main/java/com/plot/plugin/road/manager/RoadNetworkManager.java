@@ -13,6 +13,7 @@ import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
@@ -829,5 +830,33 @@ public final class RoadNetworkManager {
             String fillSlopeMaterial,
             String cutSlopeMaterial,
             float maxSlope) {
+
+        /** 将批量草稿转为临时横断面，供预览与解析使用。 */
+        public RoadCrossSection toCrossSection() {
+            RoadCrossSection section = new RoadCrossSection();
+            section.getCarriageway().setWidth(width);
+            section.getCarriageway().setLaneCount(laneCount);
+            section.getCarriageway().setMaterial(material);
+            section.getShoulder().setEnabled(includeShoulder);
+            section.getShoulder().setWidth(shoulderWidth);
+            section.getSidewalk().setEnabled(includeSidewalk);
+            section.getSidewalk().setWidth(sidewalkWidth);
+            section.getSidewalk().setMaterial(sidewalkMaterial);
+            section.getDrain().setEnabled(includeDrainage);
+            section.getBikeLane().setEnabled(includeBikeLane);
+            section.getBikeLane().setWidth(bikeLaneWidth);
+            section.getMedian().setEnabled(includeMedian);
+            section.getMedian().setWidth(medianWidth);
+            section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
+            section.getMarkings().setLaneDividers(laneDividers);
+            section.getMarkings().setCenterLineStyle(centerLineStyle);
+            section.getMarkings().setMaterial(markingMaterial);
+            section.getSlopeBatter().setEnabled(includeSlopeBatter);
+            section.getSlopeBatter().setFillRatio(fillSlopeRatio);
+            section.getSlopeBatter().setCutRatio(cutSlopeRatio);
+            section.getSlopeBatter().setFillMaterial(fillSlopeMaterial);
+            section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+            return section;
+        }
     }
 }
