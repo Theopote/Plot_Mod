@@ -100,6 +100,8 @@ public final class RoadGeneratePanel {
                 lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
             ImGui.text(PlotI18n.tr("plugin.road.streetlight_count_result", lastGenerationResult.streetlightCount));
 
+            RoadNetworkValidationPanel.render(ctx);
+
             renderLongitudinalProfile(network);
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
