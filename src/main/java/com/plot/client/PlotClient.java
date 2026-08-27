@@ -53,6 +53,7 @@ public final class PlotClient implements ClientModInitializer {
         try {
             PlotMod.LOGGER.debug("步骤0: 初始化 ClientServices（世界服务组合根）");
             ClientServices.initialize();
+            com.plot.item.PlotItemClientActions.setOpenScreen(PlotClient::openPlotScreen);
 
             PlotMod.LOGGER.debug("步骤1: 获取 ApplicationContext");
             ApplicationContext context = ApplicationContext.getInstance();

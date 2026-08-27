@@ -11,7 +11,6 @@ import net.minecraft.world.World;
 import net.minecraft.util.Hand;
 
 import com.plot.PlotMod;
-import com.plot.client.PlotClient;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +57,7 @@ public class PlotItem extends Item {
         if (world.isClient()) {
             LOGGER.info("Attempting to open Plot screen...");
             try {
-                PlotClient.openPlotScreen();
+                PlotItemClientActions.openScreen();
                 LOGGER.info("Plot screen opened successfully");
                 return ActionResult.SUCCESS;
             } catch (Exception e) {

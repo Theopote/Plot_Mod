@@ -28,3 +28,4 @@ Accepted — 2026-08-26
 - UI / 插件世界操作经 `ClientServices` 组装的接口句柄，不再经 `ApplicationContext` getter。
 - 逻辑侧 `PluginContext` 访问 `ghosts()`/`projection()` 等在无世界服务时会明确失败。
 - Core / Plugin 编译期类型依赖止于 `api.world`，dedicated-server 加载链路不再因 `PluginContext` 字段类型拉入 `BlockProjectionHandler` → `MinecraftClient`。
+- CI 另有 `runServerSmoke`：Fabric dedicated server 加载 Plot 后必须打出 `PLOT_SERVER_SMOKE_PASS` 并退出（物理 classloader 验收，而非仅编译通过）。

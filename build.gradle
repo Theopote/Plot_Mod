@@ -36,13 +36,57 @@ loom {
 			sourceSet sourceSets.main
 		}
 	}
-	
-	// 配置运行时的 JVM 参数，消除模块系统警告
+
 	runConfigs.configureEach {
-		// 允许未命名模块访问原生方法（JNA 需要）
 		vmArgs.add("--enable-native-access=ALL-UNNAMED")
-		// 允许访问内部 API（JOML 需要，但未来可能失效）
-		// 注意：sun.misc.Unsafe 的警告无法通过参数消除，需要等待 JOML 更新
+	}
+
+	// Dedicated-server smoke: load Plot on a physical server, then exit.
+	runConfigs.register("serverSmoke") {
+		server()
+		ideConfigGenerated = false
+		runDir = "run-server-smoke"
+		vmArgs.add("-Dplot.server.smoke=true")
+		// Loom server configs already pass nogui; avoid duplicating.
+	}
+}
+
+def serverSmokeDir = file("run-server-smoke")
+
+tasks.register("prepareServerSmoke") {
+	description = "Accept EULA and write a minimal dedicated-server properties file for smoke."
+	outputs.dir(serverSmokeDir)
+	doLast {
+		serverSmokeDir.mkdirs()
+		new File(serverSmokeDir, "eula.txt").text = "eula=true\n"
+		new File(serverSmokeDir, "server.properties").text = """\
+online-mode=false
+level-name=smoke
+motd=plot-server-smoke
+gamemode=creative
+max-players=1
+view-distance=2
+simulation-distance=2
+sync-chunk-writes=false
+spawn-protection=0
+difficulty=peaceful
+""".stripIndent()
+	}
+}
+
+afterEvaluate {
+	def smoke = tasks.named("runServerSmoke")
+	smoke.configure {
+		dependsOn("prepareServerSmoke")
+		doLast {
+			def logFile = new File(serverSmokeDir, "logs/latest.log")
+			def logText = logFile.exists() ? logFile.getText("UTF-8") : ""
+			if (!logText.contains("PLOT_SERVER_SMOKE_PASS")) {
+				throw new GradleException(
+					"Dedicated-server smoke failed: marker PLOT_SERVER_SMOKE_PASS not found in ${logFile.absolutePath}"
+				)
+			}
+		}
 	}
 }
 
