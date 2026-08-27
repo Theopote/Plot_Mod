@@ -4,7 +4,8 @@ import com.plot.core.plugin.PluginManager;
 import com.plot.api.plugin.IPlugin;
 import com.plot.ui.component.UIComponent;
 import imgui.ImGui;
-import imgui.flag.*;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.UIUtils;
@@ -99,31 +100,36 @@ public class ExtensionPanel implements UIComponent {
 
                 float contentHeight = ImGui.getContentRegionAvailY();
                 if (contentHeight > 0) {
+                    // 不用横向滚动：宽度不够时让文字按面板宽度自动换行
                     ImGui.beginChild("##plugin_content",
                         ImGui.getContentRegionAvailX(),
                         contentHeight,
-                        false,
-                        ImGuiWindowFlags.HorizontalScrollbar);
+                        false);
 
+                    // wrap_pos_x == 0：换行到当前窗口/子区域右边缘
+                    ImGui.pushTextWrapPos(0.0f);
                     try {
                         if (currentActivePlugin.isEnabled()) {
                             currentActivePlugin.render();
                         } else {
-                            ImGui.textColored(
-                                theme.mutedText,
-                                PlotI18n.tr("panel.plot.extension_enable_first", currentActivePlugin.getName())
-                            );
+                            ImGui.textWrapped(PlotI18n.tr(
+                                "panel.plot.extension_enable_first", currentActivePlugin.getName()));
                         }
                     } catch (Exception e) {
                         PlotMod.LOGGER.error("渲染插件界面失败: {}", e.getMessage(), e);
-                        ImGui.textColored(theme.errorText, PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
+                        ImGui.pushStyleColor(ImGuiCol.Text, theme.errorText);
+                        ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
+                        ImGui.popStyleColor();
+                    } finally {
+                        ImGui.popTextWrapPos();
+                        ImGui.endChild();
                     }
-
-                    ImGui.endChild();
                 }
             } else {
                 // 没有激活的插件，显示提示信息
-                ImGui.textColored(theme.mutedText, PlotI18n.tr("panel.plot.extension_select_plugin"));
+                ImGui.pushStyleColor(ImGuiCol.Text, theme.mutedText);
+                ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_plugin"));
+                ImGui.popStyleColor();
                 ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_select_hint"));
             }
             

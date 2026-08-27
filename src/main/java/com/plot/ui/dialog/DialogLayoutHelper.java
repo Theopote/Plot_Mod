@@ -79,7 +79,9 @@ public final class DialogLayoutHelper {
         ImGui.tableNextRow();
         ImGui.tableSetColumnIndex(0);
         ImGui.alignTextToFramePadding();
-        ImGui.text(label);
+        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
+        ImGui.textWrapped(label);
+        ImGui.popTextWrapPos();
         ImGui.tableSetColumnIndex(1);
         ImGui.setNextItemWidth(-1.0f);
     }
