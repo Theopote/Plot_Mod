@@ -22,4 +22,8 @@ public record CrossSectionDraftEditorOptions(
             false,
             false);
     }
+
+    public static CrossSectionDraftEditorOptions roadEdit() {
+        return new CrossSectionDraftEditorOptions("road", false, null, true, true);
+    }
 }

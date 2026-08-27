@@ -13,7 +13,7 @@ import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
 /**
- * 认领默认、批量编辑共用的横断面草稿 UI。
+ * 认领默认、批量编辑、单条道路编辑共用的横断面草稿 UI。
  */
 public final class CrossSectionDraftEditor {
     private CrossSectionDraftEditor() {
@@ -24,9 +24,20 @@ public final class CrossSectionDraftEditor {
             CrossSectionDraft draft,
             CrossSectionDraftEditorOptions options,
             Runnable onChanged) {
+        render(ctx, CrossSectionDraftMutator.forDraft(draft, onChanged), options);
+    }
+
+    public static void render(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        CrossSectionDraft draft = mutator.draft();
         if (draft == null) {
             return;
         }
+        CrossSectionDraftFieldHooks hooks = mutator.hooks();
+        boolean roadEdit = mutator.isRoadEdit();
+
         if (options.showBanner() && options.bannerKey() != null) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(options.bannerKey()));
             ImGui.spacing();
@@ -41,8 +52,10 @@ public final class CrossSectionDraftEditor {
             RoadParameterLimits.MIN_LANE_COUNT,
             RoadParameterLimits.MAX_LANE_COUNT,
             "%d")) {
-            draft.setLaneCount(laneCountArr[0]);
-            notifyChanged(onChanged);
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setLaneCount(laneCountArr[0]);
         }
         laneCount = draft.laneCount();
 
@@ -54,13 +67,16 @@ public final class CrossSectionDraftEditor {
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
             RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
             "%d")) {
-            draft.setWidth(widthArr[0]);
-            notifyChanged(onChanged);
+            if (ImGui.isItemActivated()) {
+                hooks.onItemActivated();
+            }
+            mutator.setWidth(widthArr[0]);
         }
         width = draft.width();
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
         }
+        mutator.afterWidthField();
 
         if (options.showLaneWidths() && laneCount > 1) {
             var resolved = draft.resolveLaneWidths();
@@ -77,8 +93,10 @@ public final class CrossSectionDraftEditor {
                     RoadParameterLimits.MIN_STRIP_WIDTH,
                     perLaneMax,
                     "%d")) {
-                    draft.setLaneWidthAt(i, laneWidthArr[0]);
-                    notifyChanged(onChanged);
+                    if (ImGui.isItemActivated()) {
+                        hooks.onItemActivated();
+                    }
+                    mutator.setLaneWidthAt(i, laneWidthArr[0]);
                 }
             }
         }
@@ -89,18 +107,18 @@ public final class CrossSectionDraftEditor {
             "##" + id + "_road_material",
             PlotI18n.tr("plugin.road.material"),
             material[0],
-            value -> {
-                draft.setMaterial(value);
-                notifyChanged(onChanged);
-            },
-            false
+            value -> mutator.setMaterial(value),
+            hooks.pushHistoryOnPicker()
         );
 
         ImBoolean shoulderRef = new ImBoolean(draft.includeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder") + "##" + id + "_shoulder", shoulderRef)) {
-            draft.setIncludeShoulder(shoulderRef.get());
-            notifyChanged(onChanged);
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeShoulder(shoulderRef.get());
         }
+        mutator.afterShoulderIncludeField();
         if (draft.includeShoulder()) {
             int[] shoulderWidthArr = {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.shoulderWidth())
@@ -111,9 +129,12 @@ public final class CrossSectionDraftEditor {
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
                 "%d")) {
-                draft.setShoulderWidth(shoulderWidthArr[0]);
-                notifyChanged(onChanged);
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setShoulderWidth(shoulderWidthArr[0]);
             }
+            mutator.afterShoulderWidthField();
         }
 
         ImGui.spacing();
@@ -121,9 +142,12 @@ public final class CrossSectionDraftEditor {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
         ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
-            draft.setIncludeSlopeBatter(slopeRef.get());
-            notifyChanged(onChanged);
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeSlopeBatter(slopeRef.get());
         }
+        mutator.afterSlopeEnabledField();
         if (draft.includeSlopeBatter()) {
             float[] fillSlopeArr = {draft.fillSlopeRatio()};
             if (EngineeringSlopeInput.render(
@@ -132,10 +156,13 @@ public final class CrossSectionDraftEditor {
                 fillSlopeArr,
                 EngineeringSlopeInput.ValueKind.BATTER
             )) {
-                draft.setFillSlopeRatio(fillSlopeArr[0]);
-                notifyChanged(onChanged);
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setFillSlopeRatio(fillSlopeArr[0]);
             }
             RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+            mutator.afterFillSlopeField();
 
             float[] cutSlopeArr = {draft.cutSlopeRatio()};
             if (EngineeringSlopeInput.render(
@@ -144,10 +171,13 @@ public final class CrossSectionDraftEditor {
                 cutSlopeArr,
                 EngineeringSlopeInput.ValueKind.BATTER
             )) {
-                draft.setCutSlopeRatio(cutSlopeArr[0]);
-                notifyChanged(onChanged);
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setCutSlopeRatio(cutSlopeArr[0]);
             }
             RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+            mutator.afterCutSlopeField();
 
             final String[] fillSlopeMaterial = {draft.fillSlopeMaterial()};
             RoadUiWidgets.renderBlockMaterialPicker(
@@ -155,11 +185,8 @@ public final class CrossSectionDraftEditor {
                 "##" + id + "_fill_slope_material",
                 PlotI18n.tr("plugin.road.fill_slope_material"),
                 fillSlopeMaterial[0],
-                value -> {
-                    draft.setFillSlopeMaterial(value);
-                    notifyChanged(onChanged);
-                },
-                false
+                value -> mutator.setFillSlopeMaterial(value),
+                hooks.pushHistoryOnPicker()
             );
             final String[] cutSlopeMaterial = {draft.cutSlopeMaterial()};
             RoadUiWidgets.renderBlockMaterialPicker(
@@ -167,51 +194,19 @@ public final class CrossSectionDraftEditor {
                 "##" + id + "_cut_slope_material",
                 PlotI18n.tr("plugin.road.cut_slope_material"),
                 cutSlopeMaterial[0] != null ? cutSlopeMaterial[0] : "",
-                value -> {
-                    draft.setCutSlopeMaterial(value);
-                    notifyChanged(onChanged);
-                },
-                false
-            );
-        }
-
-        ImBoolean sidewalkRef = new ImBoolean(draft.includeSidewalk());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##" + id + "_sw", sidewalkRef)) {
-            draft.setIncludeSidewalk(sidewalkRef.get());
-            notifyChanged(onChanged);
-        }
-        if (draft.includeSidewalk()) {
-            int[] sidewalkWidthArr = {draft.sidewalkWidth()};
-            if (ImGui.sliderInt(
-                PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidthArr[0]) + "##" + id + "_sw_w",
-                sidewalkWidthArr,
-                RoadParameterLimits.MIN_STRIP_WIDTH,
-                RoadParameterLimits.MAX_STRIP_WIDTH,
-                "%d")) {
-                draft.setSidewalkWidth(sidewalkWidthArr[0]);
-                notifyChanged(onChanged);
-            }
-            final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
-            RoadUiWidgets.renderBlockMaterialPicker(
-                ctx,
-                "##" + id + "_sidewalk_material",
-                PlotI18n.tr("plugin.road.sidewalk_material"),
-                sidewalkMaterial[0] != null
-                    ? sidewalkMaterial[0]
-                    : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
-                value -> {
-                    draft.setSidewalkMaterial(value);
-                    notifyChanged(onChanged);
-                },
-                false
+                value -> mutator.setCutSlopeMaterial(value),
+                hooks.pushHistoryOnPicker()
             );
         }
 
         ImBoolean bikeRef = new ImBoolean(draft.includeBikeLane());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_bike_lane") + "##" + id + "_bike", bikeRef)) {
-            draft.setIncludeBikeLane(bikeRef.get());
-            notifyChanged(onChanged);
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeBikeLane(bikeRef.get());
         }
+        mutator.afterBikeLaneIncludeField();
         if (draft.includeBikeLane()) {
             int[] bikeWidthArr = {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.bikeLaneWidth())
@@ -222,16 +217,65 @@ public final class CrossSectionDraftEditor {
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
                 "%d")) {
-                draft.setBikeLaneWidth(bikeWidthArr[0]);
-                notifyChanged(onChanged);
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setBikeLaneWidth(bikeWidthArr[0]);
             }
         }
 
+        ImBoolean sidewalkRef = new ImBoolean(draft.includeSidewalk());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##" + id + "_sw", sidewalkRef)) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeSidewalk(sidewalkRef.get());
+        }
+        mutator.afterSidewalkIncludeField();
+        if (draft.includeSidewalk()) {
+            int[] sidewalkWidthArr = {draft.sidewalkWidth()};
+            if (ImGui.sliderInt(
+                PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidthArr[0]) + "##" + id + "_sw_w",
+                sidewalkWidthArr,
+                RoadParameterLimits.MIN_STRIP_WIDTH,
+                RoadParameterLimits.MAX_STRIP_WIDTH,
+                "%d")) {
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setSidewalkWidth(sidewalkWidthArr[0]);
+            }
+            mutator.afterSidewalkWidthField();
+            final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                ctx,
+                "##" + id + "_sidewalk_material",
+                PlotI18n.tr("plugin.road.sidewalk_material"),
+                sidewalkMaterial[0] != null
+                    ? sidewalkMaterial[0]
+                    : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
+                value -> mutator.setSidewalkMaterial(value),
+                hooks.pushHistoryOnPicker()
+            );
+        }
+
+        ImBoolean drainRef = new ImBoolean(draft.includeDrainage());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage") + "##" + id + "_drain", drainRef)) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeDrainage(drainRef.get());
+        }
+        mutator.afterDrainField();
+
         ImBoolean medianRef = new ImBoolean(draft.includeMedian());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_median") + "##" + id + "_median", medianRef)) {
-            draft.setIncludeMedian(medianRef.get());
-            notifyChanged(onChanged);
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeMedian(medianRef.get());
         }
+        mutator.afterMedianIncludeField();
         if (draft.includeMedian()) {
             int[] medianWidthArr = {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, draft.medianWidth())
@@ -242,21 +286,20 @@ public final class CrossSectionDraftEditor {
                 RoadParameterLimits.MIN_STRIP_WIDTH,
                 RoadParameterLimits.MAX_STRIP_WIDTH,
                 "%d")) {
-                draft.setMedianWidth(medianWidthArr[0]);
-                notifyChanged(onChanged);
+                if (ImGui.isItemActivated()) {
+                    hooks.onItemActivated();
+                }
+                mutator.setMedianWidth(medianWidthArr[0]);
             }
-        }
-
-        ImBoolean drainRef = new ImBoolean(draft.includeDrainage());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage") + "##" + id + "_drain", drainRef)) {
-            draft.setIncludeDrainage(drainRef.get());
-            notifyChanged(onChanged);
+            mutator.afterMedianWidthField();
         }
 
         ImBoolean laneDividersRef = new ImBoolean(draft.laneDividers());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.lane_dividers") + "##" + id + "_dividers", laneDividersRef)) {
-            draft.setLaneDividers(laneDividersRef.get());
-            notifyChanged(onChanged);
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setLaneDividers(laneDividersRef.get());
         }
 
         CenterLineStyle centerLineStyle = draft.centerLineStyle();
@@ -274,12 +317,14 @@ public final class CrossSectionDraftEditor {
             PlotI18n.tr("plugin.road.center_line_style") + "##" + id + "_center",
             centerLineIndex,
             centerLineLabels)) {
-            draft.setCenterLineStyle(switch (centerLineIndex.get()) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setCenterLineStyle(switch (centerLineIndex.get()) {
                 case 1 -> CenterLineStyle.SINGLE_DASHED;
                 case 2 -> CenterLineStyle.DOUBLE_SOLID;
                 default -> CenterLineStyle.NONE;
             });
-            notifyChanged(onChanged);
         }
 
         final String[] markingMaterial = {draft.markingMaterial()};
@@ -288,33 +333,9 @@ public final class CrossSectionDraftEditor {
             "##" + id + "_marking_material",
             PlotI18n.tr("plugin.road.marking_material"),
             markingMaterial[0],
-            value -> {
-                draft.setMarkingMaterial(value);
-                notifyChanged(onChanged);
-            },
-            false
+            value -> mutator.setMarkingMaterial(value),
+            hooks.pushHistoryOnPicker()
         );
-
-        int[] lightSpacing = {draft.streetlightSpacing()};
-        if (ImGui.sliderInt(
-            PlotI18n.tr("plugin.road.streetlight_spacing") + "##" + id + "_lights",
-            lightSpacing,
-            RoadParameterLimits.STREETLIGHT_DISABLED,
-            RoadParameterLimits.MAX_STREETLIGHT_SPACING,
-            lightSpacing[0] <= 0 ? PlotI18n.tr("plugin.road.streetlight_off") : "%dm"
-        )) {
-            int value = lightSpacing[0];
-            if (value > 0 && value < RoadParameterLimits.MIN_STREETLIGHT_SPACING) {
-                value = RoadParameterLimits.MIN_STREETLIGHT_SPACING;
-            }
-            draft.setStreetlightSpacing(value);
-            notifyChanged(onChanged);
-        } else {
-            draft.setStreetlightSpacing(lightSpacing[0]);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
-        }
 
         if (options.showMaxSlope()) {
             float[] maxSlopeArr = {draft.maxSlope()};
@@ -324,16 +345,35 @@ public final class CrossSectionDraftEditor {
                 maxSlopeArr,
                 EngineeringSlopeInput.ValueKind.GRADE
             )) {
-                draft.setMaxSlope(maxSlopeArr[0]);
-                notifyChanged(onChanged);
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setMaxSlope(maxSlopeArr[0]);
             }
             RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
+            mutator.afterMaxSlopeField();
         }
-    }
 
-    private static void notifyChanged(Runnable onChanged) {
-        if (onChanged != null) {
-            onChanged.run();
+        int[] lightSpacing = {draft.streetlightSpacing()};
+        if (ImGui.sliderInt(
+            PlotI18n.tr("plugin.road.streetlight_spacing") + "##" + id + "_lights",
+            lightSpacing,
+            RoadParameterLimits.STREETLIGHT_DISABLED,
+            RoadParameterLimits.MAX_STREETLIGHT_SPACING,
+            lightSpacing[0] <= 0 ? PlotI18n.tr("plugin.road.streetlight_off") : "%dm"
+        )) {
+            if (ImGui.isItemActivated()) {
+                hooks.onItemActivated();
+            }
+            int value = lightSpacing[0];
+            if (value > 0 && value < RoadParameterLimits.MIN_STREETLIGHT_SPACING) {
+                value = RoadParameterLimits.MIN_STREETLIGHT_SPACING;
+            }
+            mutator.setStreetlightSpacing(value);
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
+        }
+        mutator.afterStreetlightField();
     }
 }

@@ -249,22 +249,26 @@ public final class CrossSectionDraft {
         }
         if (road.getIncludeMedian() != null) {
             draft.includeMedian = road.getIncludeMedian();
+        } else {
+            draft.includeMedian = false;
         }
         if (road.getMedianWidth() != null) {
             draft.medianWidth = road.getMedianWidth();
         }
-        if (road.getStreetlightSpacing() != null) {
-            draft.streetlightSpacing = road.getStreetlightSpacing();
-        }
+        draft.streetlightSpacing = road.getStreetlightSpacing() != null
+            ? road.getStreetlightSpacing()
+            : 0;
         if (road.getLaneDividers() != null) {
             draft.laneDividers = road.getLaneDividers();
+        } else {
+            draft.laneDividers = draft.laneCount > 1;
         }
-        if (road.getCenterLineStyle() != null) {
-            draft.centerLineStyle = road.getCenterLineStyle();
-        }
-        if (road.getMarkingMaterial() != null) {
-            draft.markingMaterial = road.getMarkingMaterial();
-        }
+        draft.centerLineStyle = road.getCenterLineStyle() != null
+            ? road.getCenterLineStyle()
+            : CenterLineStyle.NONE;
+        draft.markingMaterial = road.getMarkingMaterial() != null
+            ? road.getMarkingMaterial()
+            : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         if (road.getIncludeSlopeBatter() != null) {
             draft.includeSlopeBatter = road.getIncludeSlopeBatter();
         } else {
@@ -272,18 +276,28 @@ public final class CrossSectionDraft {
         }
         if (road.getFillSlopeRatio() != null) {
             draft.fillSlopeRatio = road.getFillSlopeRatio();
+        } else {
+            draft.fillSlopeRatio = road.getEffectiveFillSlopeRatio(defaults);
         }
         if (road.getCutSlopeRatio() != null) {
             draft.cutSlopeRatio = road.getCutSlopeRatio();
+        } else {
+            draft.cutSlopeRatio = road.getEffectiveCutSlopeRatio(defaults);
         }
         if (road.getFillSlopeMaterial() != null) {
             draft.fillSlopeMaterial = road.getFillSlopeMaterial();
+        } else {
+            draft.fillSlopeMaterial = road.getEffectiveFillSlopeMaterial(defaults);
         }
         if (road.getCutSlopeMaterial() != null) {
             draft.cutSlopeMaterial = road.getCutSlopeMaterial();
+        } else {
+            draft.cutSlopeMaterial = road.getEffectiveCutSlopeMaterial(defaults);
         }
         if (road.getMaxSlope() != null) {
             draft.maxSlope = road.getMaxSlope();
+        } else {
+            draft.maxSlope = defaults.getMaxSlope();
         }
         return draft;
     }
