@@ -225,8 +225,10 @@ public class ImGuiRenderer {
     };
 
     private static final String BUNDLED_CJK_FONT = "/assets/plot/fonts/SourceHanSansCN-Regular.ttf";
-    /** UI 字号：中文约 16px；英文使用独立西文字体以保持正常字距 */
-    private static final float UI_FONT_SIZE = 16.0f;
+    /** 中文 UI 字号 */
+    private static final float CJK_FONT_SIZE = 16.0f;
+    /** 英文 UI 字号（略大于中文，提升拉丁字母可读性） */
+    private static final float LATIN_FONT_SIZE = 18.0f;
 
     /**
      * 必须在整个 ImGui 生命周期内保持强引用：
@@ -248,22 +250,22 @@ public class ImGuiRenderer {
             keptSymbolGlyphRanges = UI_SYMBOL_GLYPH_RANGES;
             io.getFonts().setTexDesiredWidth(4096);
 
-            // 1) 西文主字体：字母间距正常
+            // 1) 西文主字体：字母间距正常，字号略大
             latinConfig = new ImFontConfig();
-            latinConfig.setSizePixels(UI_FONT_SIZE);
+            latinConfig.setSizePixels(LATIN_FONT_SIZE);
             latinConfig.setPixelSnapH(true);
             latinConfig.setOversampleH(1);
             latinConfig.setOversampleV(1);
             latinConfig.setGlyphRanges(keptLatinGlyphRanges);
             if (!loadLatinUiFont(io, latinConfig)) {
                 io.getFonts().addFontDefault(latinConfig);
-                LOGGER.info("Loaded Latin UI font: ImGui default @ {}px", UI_FONT_SIZE);
+                LOGGER.info("Loaded Latin UI font: ImGui default @ {}px", LATIN_FONT_SIZE);
             }
 
-            // 2) 合并中文：同字号，且 ranges 不含 Latin，避免覆盖西文字距
+            // 2) 合并中文：保持 16px；ranges 不含 Latin，避免覆盖西文字形/字距
             cjkConfig = new ImFontConfig();
             cjkConfig.setMergeMode(true);
-            cjkConfig.setSizePixels(UI_FONT_SIZE);
+            cjkConfig.setSizePixels(CJK_FONT_SIZE);
             cjkConfig.setPixelSnapH(true);
             cjkConfig.setOversampleH(1);
             cjkConfig.setOversampleV(1);
@@ -273,7 +275,7 @@ public class ImGuiRenderer {
             } else {
                 symbolConfig = new ImFontConfig();
                 symbolConfig.setMergeMode(true);
-                symbolConfig.setSizePixels(UI_FONT_SIZE);
+                symbolConfig.setSizePixels(CJK_FONT_SIZE);
                 symbolConfig.setPixelSnapH(true);
                 symbolConfig.setOversampleH(1);
                 symbolConfig.setOversampleV(1);
@@ -317,8 +319,8 @@ public class ImGuiRenderer {
             if (new File(fontPath).exists()) {
                 config.setFontNo(0);
                 config.setFontDataOwnedByAtlas(true);
-                io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
-                LOGGER.info("Loaded Latin UI font from {} @ {}px", fontPath, UI_FONT_SIZE);
+                io.getFonts().addFontFromFileTTF(fontPath, LATIN_FONT_SIZE, config);
+                LOGGER.info("Loaded Latin UI font from {} @ {}px", fontPath, LATIN_FONT_SIZE);
                 return true;
             }
         }
@@ -335,8 +337,8 @@ public class ImGuiRenderer {
             if (new File(fontPath).exists()) {
                 config.setFontNo(0);
                 config.setFontDataOwnedByAtlas(true);
-                io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
-                LOGGER.info("Merged CJK UI font from {} @ {}px", fontPath, UI_FONT_SIZE);
+                io.getFonts().addFontFromFileTTF(fontPath, CJK_FONT_SIZE, config);
+                LOGGER.info("Merged CJK UI font from {} @ {}px", fontPath, CJK_FONT_SIZE);
                 return true;
             }
         }
@@ -347,8 +349,8 @@ public class ImGuiRenderer {
         if (keptFontData != null) {
             config.setFontNo(0);
             config.setFontDataOwnedByAtlas(false);
-            io.getFonts().addFontFromMemoryTTF(keptFontData, UI_FONT_SIZE, config);
-            LOGGER.info("Merged CJK UI font from bundled {} @ {}px", BUNDLED_CJK_FONT, UI_FONT_SIZE);
+            io.getFonts().addFontFromMemoryTTF(keptFontData, CJK_FONT_SIZE, config);
+            LOGGER.info("Merged CJK UI font from bundled {} @ {}px", BUNDLED_CJK_FONT, CJK_FONT_SIZE);
             return true;
         }
 
@@ -362,8 +364,8 @@ public class ImGuiRenderer {
             if (new File(fontPath).exists()) {
                 config.setFontNo(0);
                 config.setFontDataOwnedByAtlas(true);
-                io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
-                LOGGER.warn("Merged CJK UI font from TTC/fallback {} @ {}px", fontPath, UI_FONT_SIZE);
+                io.getFonts().addFontFromFileTTF(fontPath, CJK_FONT_SIZE, config);
+                LOGGER.warn("Merged CJK UI font from TTC/fallback {} @ {}px", fontPath, CJK_FONT_SIZE);
                 return true;
             }
         }
