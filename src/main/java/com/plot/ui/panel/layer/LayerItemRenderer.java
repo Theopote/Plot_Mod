@@ -202,6 +202,11 @@ public class LayerItemRenderer {
 
         ImGui.endGroup();
 
+        // 名称编辑中时，不处理拖拽/选中，避免打断输入
+        if (layerNameRenderer.isEditing()) {
+            return;
+        }
+
         // 处理拖拽
         handleDragDrop(layer);
 
