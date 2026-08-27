@@ -1,5 +1,7 @@
 package com.plot.infrastructure.event.block;
 
+import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.PlacementReadiness;
 import com.plot.infrastructure.event.EventBus;
 import com.plot.infrastructure.event.base.Event;
 import com.plot.infrastructure.event.Events;
@@ -22,7 +24,7 @@ import java.util.Objects;
  * 方块投影事件处理器
  * 负责处理方块投影事件，在Minecraft世界中放置方块
  */
-public class BlockProjectionHandler {
+public class BlockProjectionHandler implements IBlockProjectionService {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockProjectionHandler");
     private static BlockProjectionHandler INSTANCE;
     private final EventBus eventBus;
@@ -64,21 +66,16 @@ public class BlockProjectionHandler {
     }
 
     /**
-     * 世界修改前置检查结果（创造模式 + /setblock 权限）
+     * @deprecated 使用 {@link PlacementReadiness}（api.world）。
      */
-    public record PlacementReadiness(boolean ready, String message) {
-        public static PlacementReadiness ok() {
-            return new PlacementReadiness(true, "");
-        }
-
-        public static PlacementReadiness fail(String message) {
-            return new PlacementReadiness(false, message != null ? message : "");
-        }
+    @Deprecated
+    public record LegacyPlacementReadiness(boolean ready, String message) {
     }
 
     /**
      * 检查当前客户端是否具备通过 /setblock 修改世界的前置条件
      */
+    @Override
     public PlacementReadiness checkWorldModificationReadiness() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.world == null) {
@@ -225,6 +222,7 @@ public class BlockProjectionHandler {
         return new ProjectionResult(true, PlotI18n.status("status.plot.projection.success"), finalPos, normalizedBlockId, previousBlockId);
     }
 
+    @Override
     public boolean setBlockAt(BlockPos pos, String blockId) {
         if (pos == null) {
             return false;
@@ -245,6 +243,7 @@ public class BlockProjectionHandler {
         return sendSetBlockCommand(client, pos, normalizedBlockId);
     }
 
+    @Override
     public String getBlockIdAt(BlockPos pos) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || pos == null) {

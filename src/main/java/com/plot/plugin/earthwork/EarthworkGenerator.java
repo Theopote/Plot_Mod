@@ -3,7 +3,7 @@ package com.plot.plugin.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -25,9 +25,9 @@ import java.util.Map;
 public class EarthworkGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkGenerator");
 
-    private final CoordinateTransformer coordinateTransformer;
+    private final ICoordinateService coordinateTransformer;
 
-    public EarthworkGenerator(CoordinateTransformer coordinateTransformer) {
+    public EarthworkGenerator(ICoordinateService coordinateTransformer) {
         this.coordinateTransformer = coordinateTransformer;
     }
 

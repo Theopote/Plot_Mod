@@ -67,7 +67,7 @@ public class EscapeShortcutListener implements IShortcutListener {
         
         // 3. 如果有其他需要取消的状态，可以在这里添加
         try {
-            GhostBlockManager ghostManager = ApplicationContext.getInstance().getGhostBlockManager();
+            GhostBlockManager ghostManager = com.plot.client.ClientServices.getInstance().getGhostBlockManager();
             int ghostCount = ghostManager.getVisibleGhostBlockCount();
             if (ghostCount > 0) {
                 MinecraftClient client = MinecraftClient.getInstance();

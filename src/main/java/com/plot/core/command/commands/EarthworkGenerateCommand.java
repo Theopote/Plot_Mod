@@ -1,5 +1,7 @@
 package com.plot.core.command.commands;
 
+import com.plot.api.world.IBlockPlacementService;
+import com.plot.api.world.IBlockProjectionService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.Command;
 import com.plot.infrastructure.event.block.BlockPlacementScheduler;
@@ -41,7 +43,7 @@ public class EarthworkGenerateCommand implements Command {
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final boolean schedulePlacement;
-    private final BlockPlacementScheduler placementScheduler;
+    private final IBlockPlacementService placementScheduler;
     private ExecutionResult lastExecutionResult;
 
     public EarthworkGenerateCommand(List<BlockRecord> records) {
@@ -51,8 +53,8 @@ public class EarthworkGenerateCommand implements Command {
     /** 插件经 PluginContext 注入世界服务时使用。 */
     public EarthworkGenerateCommand(
             List<BlockRecord> records,
-            BlockProjectionHandler projectionHandler,
-            BlockPlacementScheduler placementScheduler) {
+            IBlockProjectionService projectionHandler,
+            IBlockPlacementService placementScheduler) {
         this(records, projectionHandler::setBlockAt, true, placementScheduler);
     }
 
@@ -68,7 +70,7 @@ public class EarthworkGenerateCommand implements Command {
             List<BlockRecord> records,
             BlockWriter blockWriter,
             boolean schedulePlacement,
-            BlockPlacementScheduler placementScheduler) {
+            IBlockPlacementService placementScheduler) {
         this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
         this.timestamp = new Date();
         this.blockWriter = blockWriter;
@@ -146,10 +148,10 @@ public class EarthworkGenerateCommand implements Command {
             List<BlockRecord> source,
             boolean applyNewBlocks,
             java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<BlockPlacementScheduler.BlockWrite> writes = new ArrayList<>(source.size());
+        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (BlockRecord record : source) {
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
-            writes.add(new BlockPlacementScheduler.BlockWrite(record.pos, blockId));
+            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(record.pos, blockId));
         }
 
         if (schedulePlacement) {
@@ -176,10 +178,10 @@ public class EarthworkGenerateCommand implements Command {
     private void enqueueWritesReverse(
             List<BlockRecord> source,
             java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<BlockPlacementScheduler.BlockWrite> writes = new ArrayList<>(source.size());
+        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
-            writes.add(new BlockPlacementScheduler.BlockWrite(record.pos, record.previousBlockId));
+            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(record.pos, record.previousBlockId));
         }
 
         if (schedulePlacement) {
@@ -224,7 +226,7 @@ public class EarthworkGenerateCommand implements Command {
         return new ExecutionResult(success, source.size() - success, source.size());
     }
 
-    private static ExecutionResult toExecutionResult(BlockPlacementScheduler.ExecutionResult result) {
+    private static ExecutionResult toExecutionResult(com.plot.api.world.IBlockPlacementService.ExecutionResult result) {
         return new ExecutionResult(
             result.success(),
             result.failed(),

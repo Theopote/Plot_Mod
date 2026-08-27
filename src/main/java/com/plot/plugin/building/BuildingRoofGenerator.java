@@ -3,8 +3,8 @@ package com.plot.plugin.building;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 
@@ -24,8 +24,8 @@ public final class BuildingRoofGenerator {
             int topFloorY,
             String roofBlockId,
             BuildingFootprint.RoofType roofType,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler) {
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler) {
         Polygon roofPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
         BuildingGeometryUtils.RectBounds bounds = BuildingGeometryUtils.normalizedRectBounds(outerPoints);
         int pitch = Math.max(1, footprint.getRoofPitchRatio());
@@ -94,7 +94,7 @@ public final class BuildingRoofGenerator {
             BuildingGenerator.BuildingGenerationResult result,
             BlockPos pos,
             String newBlockId,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         if (result == null || pos == null || newBlockId == null) {
             return;
         }

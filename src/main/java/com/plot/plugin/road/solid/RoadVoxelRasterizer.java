@@ -1,8 +1,8 @@
 package com.plot.plugin.road.solid;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.RoadGeometryUtils;
 import net.minecraft.util.math.BlockPos;
 
@@ -18,7 +18,7 @@ public final class RoadVoxelRasterizer {
     private RoadVoxelRasterizer() {
     }
 
-    public static BlockPos toBlockPos(Vec2d planPoint, int elevation, CoordinateTransformer transformer) {
+    public static BlockPos toBlockPos(Vec2d planPoint, int elevation, ICoordinateService transformer) {
         BlockPos base = RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer);
         return new BlockPos(base.getX(), elevation, base.getZ());
     }
@@ -39,7 +39,7 @@ public final class RoadVoxelRasterizer {
 
     public static List<BlockPos> rasterize(
             List<RoadSolidPrimitive> primitives,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         if (primitives == null || primitives.isEmpty()) {
             return List.of();
         }
@@ -50,7 +50,7 @@ public final class RoadVoxelRasterizer {
         return new ArrayList<>(unique);
     }
 
-    public static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y, CoordinateTransformer transformer) {
+    public static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y, ICoordinateService transformer) {
         if (left == null || right == null) {
             return List.of();
         }
@@ -64,8 +64,8 @@ public final class RoadVoxelRasterizer {
     public static void flushEdgeSolids(
             RoadGenerationResult result,
             RoadSolidModel solids,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler) {
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler) {
         if (result == null || solids == null) {
             return;
         }
@@ -91,8 +91,8 @@ public final class RoadVoxelRasterizer {
     public static void flushJunctionSolids(
             RoadGenerationResult result,
             RoadSolidModel solids,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler,
             String roadBlockId,
             String sidewalkBlockId,
             String markingBlockId) {
@@ -114,8 +114,8 @@ public final class RoadVoxelRasterizer {
     private static void flushSolidsByLayer(
             RoadGenerationResult result,
             RoadSolidModel solids,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler,
             SolidWriter writer) {
         // 第一遍：非隧道层
         for (RoadSolidPrimitive primitive : solids.primitives()) {
@@ -142,16 +142,16 @@ public final class RoadVoxelRasterizer {
         void write(
             RoadGenerationResult result,
             RoadSolidPrimitive primitive,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler,
             boolean overrideExisting);
     }
 
     private static void writePlacementRecord(
             RoadGenerationResult result,
             RoadSolidPrimitive primitive,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler,
             boolean overrideExisting) {
         BlockPos pos = toBlockPos(primitive.planPoint(), primitive.elevation(), transformer);
         appendToResultBucket(result, primitive.layer(), pos);
@@ -174,8 +174,8 @@ public final class RoadVoxelRasterizer {
     private static void writeJunctionPlacementRecord(
             RoadGenerationResult result,
             RoadSolidPrimitive primitive,
-            CoordinateTransformer transformer,
-            BlockProjectionHandler projectionHandler,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler,
             String roadBlockId,
             String sidewalkBlockId,
             String markingBlockId,

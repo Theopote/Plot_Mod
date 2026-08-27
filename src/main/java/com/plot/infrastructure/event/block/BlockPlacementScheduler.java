@@ -1,5 +1,6 @@
 package com.plot.infrastructure.event.block;
 
+import com.plot.api.world.IBlockPlacementService;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
@@ -14,7 +15,7 @@ import java.util.function.Consumer;
 /**
  * 分帧发送 setblock 指令，避免单帧内堆积大量网络包。
  */
-public final class BlockPlacementScheduler {
+public final class BlockPlacementScheduler implements IBlockPlacementService {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockPlacementScheduler");
     private static final int BLOCKS_PER_TICK = 40;
 
@@ -30,30 +31,6 @@ public final class BlockPlacementScheduler {
     private boolean tickRegistered;
     private BlockWriter blockWriter = (pos, blockId) -> BlockProjectionHandler.getInstance().setBlockAt(pos, blockId);
 
-    public record BlockWrite(BlockPos pos, String blockId) {
-    }
-
-    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
-        public ExecutionResult(int success, int failed, int total) {
-            this(success, failed, total, false);
-        }
-
-        public static ExecutionResult cancelled(int success, int failed, int total) {
-            return new ExecutionResult(success, failed, total, true);
-        }
-
-        public boolean isFullSuccess() {
-            return !cancelled && total > 0 && failed == 0 && success == total;
-        }
-
-        public boolean isTotalFailure() {
-            return !cancelled && total > 0 && success == 0;
-        }
-    }
-
-    public record ProgressSnapshot(int processed, int total, int success, int failed) {
-    }
-
     public static BlockPlacementScheduler getInstance() {
         if (instance == null) {
             instance = new BlockPlacementScheduler();
@@ -61,10 +38,12 @@ public final class BlockPlacementScheduler {
         return instance;
     }
 
+    @Override
     public boolean isBusy() {
         return activeJob != null || !jobQueue.isEmpty();
     }
 
+    @Override
     public ProgressSnapshot getProgressSnapshot() {
         if (activeJob != null) {
             return new ProgressSnapshot(
@@ -81,6 +60,7 @@ public final class BlockPlacementScheduler {
         return null;
     }
 
+    @Override
     public void enqueue(List<BlockWrite> writes, Consumer<ExecutionResult> onComplete) {
         if (writes == null || writes.isEmpty()) {
             if (onComplete != null) {
@@ -98,6 +78,7 @@ public final class BlockPlacementScheduler {
      *
      * @return 是否取消了至少一个任务
      */
+    @Override
     public boolean cancelAll() {
         if (!isBusy()) {
             return false;

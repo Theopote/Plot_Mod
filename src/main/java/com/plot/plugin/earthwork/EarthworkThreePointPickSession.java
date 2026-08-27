@@ -3,7 +3,7 @@ package com.plot.plugin.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.state.AppState;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.ui.canvas.Canvas;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
@@ -90,7 +90,7 @@ public final class EarthworkThreePointPickSession {
     public Outcome tick(
             AppState appState,
             List<Vec2d> regionOuterPoints,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         if (!active || controlPointIndex < 0) {
             return Outcome.none();
         }

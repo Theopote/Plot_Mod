@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 6. 【优化】增强窗口尺寸获取鲁棒性、玩家位置验证、浮点精度处理
  * 7. 【新增】缓存机制和坐标验证
  */
-public class CoordinateTransformer {
+public class CoordinateTransformer implements com.plot.api.world.ICoordinateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CoordinateTransformer.class);
     private static CoordinateTransformer INSTANCE;
 
@@ -249,6 +249,7 @@ public class CoordinateTransformer {
      * @param canvasPos 画布世界坐标
      * @return Minecraft世界坐标（XZ平面），如果转换失败返回null
      */
+    @Override
     public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
         try {
             // 【新增】监控视图范围变化
@@ -434,7 +435,8 @@ public class CoordinateTransformer {
     /**
      * 当前正交相机在 Minecraft 世界 XZ 平面上的可见范围（以玩家位置为原点叠加相机偏移）
      */
-    public WorldViewBounds getMinecraftWorldViewBounds() {
+    @Override
+    public com.plot.api.world.WorldViewBounds getMinecraftWorldViewBounds() {
         CameraViewBounds relative = getCameraViewBounds();
         if (relative == null) {
             return null;
@@ -447,7 +449,7 @@ public class CoordinateTransformer {
 
         double playerX = client.player.getX();
         double playerZ = client.player.getZ();
-        return new WorldViewBounds(
+        return new com.plot.api.world.WorldViewBounds(
             playerX + relative.left,
             playerX + relative.right,
             playerZ + relative.bottom,
@@ -488,8 +490,9 @@ public class CoordinateTransformer {
     }
 
     /**
-     * Minecraft 世界 XZ 可见范围
+     * @deprecated 使用 {@link com.plot.api.world.WorldViewBounds}。
      */
+    @Deprecated
     public record WorldViewBounds(double minX, double maxX, double minZ, double maxZ) {
         public boolean containsBox(int boxMinX, int boxMaxX, int boxMinZ, int boxMaxZ) {
             return boxMinX >= minX && boxMaxX <= maxX && boxMinZ >= minZ && boxMaxZ <= maxZ;

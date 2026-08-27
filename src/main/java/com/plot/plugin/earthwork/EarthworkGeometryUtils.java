@@ -15,7 +15,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.geometry.shapes.TextShape;
 import com.plot.core.model.Shape;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.util.math.BlockPos;
 
@@ -140,7 +140,7 @@ public final class EarthworkGeometryUtils {
         return sampled.isEmpty() ? allCenters : sampled;
     }
 
-    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, CoordinateTransformer transformer) {
+    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {
         return PolygonRegionUtils.canvasToBlockXZ(canvasPos, transformer);
     }
 

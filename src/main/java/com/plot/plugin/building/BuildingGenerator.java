@@ -1,11 +1,11 @@
 package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.material.MaterialMixResolver;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import net.minecraft.util.math.BlockPos;
@@ -26,12 +26,12 @@ import java.util.Set;
 public class BuildingGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BuildingGenerator");
 
-    private final CoordinateTransformer coordinateTransformer;
-    private final BlockProjectionHandler projectionHandler;
+    private final ICoordinateService coordinateTransformer;
+    private final IBlockProjectionService projectionHandler;
 
     public BuildingGenerator(
-            CoordinateTransformer coordinateTransformer,
-            BlockProjectionHandler projectionHandler) {
+            ICoordinateService coordinateTransformer,
+            IBlockProjectionService projectionHandler) {
         this.coordinateTransformer = coordinateTransformer;
         this.projectionHandler = java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
     }
@@ -68,7 +68,7 @@ public class BuildingGenerator {
             LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板");
         }
 
-        BlockProjectionHandler projectionHandler = this.projectionHandler;
+        IBlockProjectionService projectionHandler = this.projectionHandler;
         List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
 
         List<Integer> groundHeights = new ArrayList<>();
@@ -127,7 +127,7 @@ public class BuildingGenerator {
             World world,
             int baseElevation,
             String fillBlockId,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         for (GridCell cell : cells) {
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateTransformer);
             int groundY = getTopHeight(world, column);
@@ -155,7 +155,7 @@ public class BuildingGenerator {
             World world,
             int baseElevation,
             BuildingFootprint footprint,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         int topY = baseElevation + footprint.getFloors() * footprint.getFloorHeight();
         for (GridCell cell : cells) {
             Vec2d center = cell.center();
@@ -182,7 +182,7 @@ public class BuildingGenerator {
             World world,
             int baseElevation,
             BuildingFootprint footprint,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         if (innerPolygon == null) {
             return;
         }
@@ -212,7 +212,7 @@ public class BuildingGenerator {
             World world,
             int topFloorY,
             String roofBlockId,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         if (innerPolygon == null) {
             return;
         }
@@ -234,7 +234,7 @@ public class BuildingGenerator {
             List<Vec2d> outerPoints,
             World world,
             int baseElevation,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         if (footprint.getWindowSpacing() <= 0) {
             return;
         }
@@ -270,7 +270,7 @@ public class BuildingGenerator {
             List<Vec2d> outerPoints,
             World world,
             int baseElevation,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         int segmentCount = outerPoints.size();
         for (BuildingFootprint.DoorOpening door : footprint.getDoors()) {
             if (door.floor < 0 || door.floor >= footprint.getFloors()) {
@@ -315,7 +315,7 @@ public class BuildingGenerator {
             int height,
             int startY,
             int wallThickness,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         Set<BlockPos> carved = new LinkedHashSet<>();
         for (int w = 0; w < width; w++) {
             double lateral = w - (width - 1) / 2.0;
@@ -352,7 +352,7 @@ public class BuildingGenerator {
             BuildingGenerationResult result,
             BlockPos pos,
             String newBlockId,
-            BlockProjectionHandler projectionHandler) {
+            IBlockProjectionService projectionHandler) {
         if (result == null || pos == null || newBlockId == null) {
             return;
         }

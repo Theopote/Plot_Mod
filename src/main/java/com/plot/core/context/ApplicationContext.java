@@ -14,11 +14,7 @@ import com.plot.core.state.DebouncedTasks;
 import com.plot.core.state.SelectionState;
 import com.plot.core.state.ViewportState;
 import com.plot.api.graphics.IShapeStyle;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.infrastructure.event.EventBus;
-import com.plot.infrastructure.event.block.BlockPlacementScheduler;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
-import com.plot.infrastructure.event.block.GhostBlockManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +22,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 应用组合根：持有聚焦状态与服务，替代原先的 AppState God Object。
+ * 应用组合根：持有逻辑侧状态与服务（Project / Layer / Selection / Command / Snap / Tool / Event）。
  * <p>
+ * Client 专属世界服务（Ghost / Placement / Projection / Coordinate）位于
+ * {@code com.plot.client.ClientServices}，不得回流进本类。
  * {@link AppState} 仍作为兼容门面，委托到本上下文。
  */
 public final class ApplicationContext {
@@ -129,7 +127,8 @@ public final class ApplicationContext {
     }
 
     /**
-     * 为插件安装路径创建宿主服务句柄（见 {@link PluginContext}）。
+     * 为插件安装路径创建逻辑侧宿主句柄（无 client 世界服务）。
+     * 客户端完整句柄由 {@link PluginContextFactory}（经 ClientServices）提供。
      */
     public PluginContext createPluginContext() {
         return PluginContext.from(this);
@@ -149,22 +148,6 @@ public final class ApplicationContext {
 
     public EventBus getEventBus() {
         return eventBus;
-    }
-
-    public CoordinateTransformer getCoordinateTransformer() {
-        return CoordinateTransformer.getInstance();
-    }
-
-    public GhostBlockManager getGhostBlockManager() {
-        return GhostBlockManager.getInstance();
-    }
-
-    public BlockPlacementScheduler getBlockPlacementScheduler() {
-        return BlockPlacementScheduler.getInstance();
-    }
-
-    public BlockProjectionHandler getBlockProjectionHandler() {
-        return BlockProjectionHandler.getInstance();
     }
 
     public ProjectSession getProjectSession() {

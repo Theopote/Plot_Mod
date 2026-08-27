@@ -17,7 +17,7 @@ import com.plot.core.geometry.shapes.SineCurveShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.TextShape;
 import com.plot.core.model.Shape;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -773,7 +773,7 @@ public final class RoadGeometryUtils {
     /**
      * 画布坐标转 Minecraft 方块 XZ（Y 由调用方指定）
      */
-    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, CoordinateTransformer transformer) {
+    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {
         if (canvasPos == null) {
             return BlockPos.ORIGIN;
         }
@@ -800,7 +800,7 @@ public final class RoadGeometryUtils {
      * 生成时横向偏移应乘以本系数。
      */
     public static double canvasUnitsPerWorldBlock(
-            CoordinateTransformer transformer,
+            ICoordinateService transformer,
             Vec2d origin,
             Vec2d direction) {
         if (origin == null) {

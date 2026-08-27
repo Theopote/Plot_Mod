@@ -1,7 +1,7 @@
 package com.plot.core.plugin;
 
 import com.plot.api.plugin.*;
-import com.plot.core.context.ApplicationContext;
+import com.plot.core.context.PluginContextFactory;
 import com.plot.core.log.LogManager;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -20,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * </pre>
  */
 public class PluginManager implements IPluginManager {
-    private static final PluginManager INSTANCE = new PluginManager();
+    private static volatile PluginManager INSTANCE;
 
     private final Map<String, IPlugin> plugins;
     private final List<IPluginListener> listeners;
@@ -51,7 +51,16 @@ public class PluginManager implements IPluginManager {
     }
 
     public static PluginManager getInstance() {
-        return INSTANCE;
+        PluginManager local = INSTANCE;
+        if (local == null) {
+            synchronized (PluginManager.class) {
+                local = INSTANCE;
+                if (local == null) {
+                    INSTANCE = local = new PluginManager();
+                }
+            }
+        }
+        return local;
     }
 
     private void registerBuiltinPlugins() {
@@ -85,7 +94,7 @@ public class PluginManager implements IPluginManager {
         notifyStateChange(plugin, previous, PluginState.LOADING);
 
         if (plugin instanceof com.plot.plugin.Plugin hostPlugin) {
-            hostPlugin.bind(ApplicationContext.getInstance().createPluginContext());
+            hostPlugin.bind(PluginContextFactory.create());
         }
 
         // LOADED：纳入注册表与依赖图

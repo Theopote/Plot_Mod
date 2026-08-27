@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MaterialMixResolverTest {
@@ -95,14 +94,15 @@ class MaterialMixResolverTest {
     @Test
     void differentSeedKeysChangeSelectionDistribution() {
         MaterialMix mix = new MaterialMix("primary", "accent", 0.5f);
-        BlockPos pos = new BlockPos(4, 8, 16);
+        BlockPos origin = new BlockPos(4, 8, 16);
         Map<String, Integer> countsBySeed = new HashMap<>();
+        int differingPositions = 0;
 
         for (String seed : java.util.List.of("edge-a", "edge-b", "edge-c")) {
             int accentCount = 0;
             for (int i = 0; i < 200; i++) {
                 String resolved = MaterialMixResolver.resolve(
-                    mix, new BlockPos(pos.getX() + i, pos.getY(), pos.getZ()), seed, material -> material);
+                    mix, new BlockPos(origin.getX() + i, origin.getY(), origin.getZ()), seed, material -> material);
                 if ("accent".equals(resolved)) {
                     accentCount++;
                 }
@@ -110,10 +110,19 @@ class MaterialMixResolverTest {
             countsBySeed.put(seed, accentCount);
         }
 
+        for (int i = 0; i < 200; i++) {
+            BlockPos pos = new BlockPos(origin.getX() + i, origin.getY(), origin.getZ());
+            String a = MaterialMixResolver.resolve(mix, pos, "edge-a", material -> material);
+            String b = MaterialMixResolver.resolve(mix, pos, "edge-b", material -> material);
+            if (!a.equals(b)) {
+                differingPositions++;
+            }
+        }
+
         assertTrue(countsBySeed.values().stream().distinct().count() > 1,
-            "different seeds should not all produce identical accent counts");
-        assertNotEquals(
-            MaterialMixResolver.resolve(mix, pos, "edge-a", material -> material),
-            MaterialMixResolver.resolve(mix, pos, "edge-b", material -> material));
+            "different seeds should not all produce identical accent counts: " + countsBySeed);
+        // Single-cell equality is expected occasionally at 50%; require sequence divergence.
+        assertTrue(differingPositions > 0,
+            "seed keys should change the resolved sequence across a footprint");
     }
 }

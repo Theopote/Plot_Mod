@@ -9,9 +9,7 @@ import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.infrastructure.event.EventListener;
-import com.plot.infrastructure.event.block.BlockPlacementScheduler;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
-import com.plot.infrastructure.event.block.GhostBlockManager;
+import com.plot.api.world.IBlockProjectionService;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.building.BuildingFootprintPickSession;
@@ -208,12 +206,12 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void renderActivePlacementControls() {
-        var scheduler = ctx().placement();
+        com.plot.api.world.IBlockPlacementService scheduler = ctx().placement();
         if (!scheduler.isBusy()) {
             return;
         }
 
-        BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
+        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         if (progress != null) {
             ImGui.textColored(PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.building.placement_progress", progress.processed(), progress.total()));
@@ -607,7 +605,7 @@ public class BuildingPlugin extends Plugin {
             }
         }
 
-        BlockProjectionHandler.PlacementReadiness buildReadiness =
+        com.plot.api.world.PlacementReadiness buildReadiness =
             ctx().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
@@ -668,7 +666,7 @@ public class BuildingPlugin extends Plugin {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
             ImGui.text(String.format(PlotI18n.tr("plugin.building.build_confirm"), blockCount));
 
-            BlockProjectionHandler.PlacementReadiness readiness =
+            com.plot.api.world.PlacementReadiness readiness =
                 ctx().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 ImGui.textColored(PluginUiColors.ERROR, readiness.message());
@@ -867,7 +865,7 @@ public class BuildingPlugin extends Plugin {
             return false;
         }
 
-        GhostBlockManager ghostBlockManager = ctx().ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -899,7 +897,7 @@ public class BuildingPlugin extends Plugin {
         if (lastGenerationResult == null) {
             return;
         }
-        GhostBlockManager ghostBlockManager = ctx().ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager == null) {
             return;
         }
@@ -910,7 +908,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void clearPreview() {
-        GhostBlockManager ghostBlockManager = ctx().ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = ctx().ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -935,7 +933,7 @@ public class BuildingPlugin extends Plugin {
             resultSnapshot = lastGenerationResult;
         }
 
-        BlockProjectionHandler.PlacementReadiness readiness =
+        com.plot.api.world.PlacementReadiness readiness =
             ctx().projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
             projectStatus = readiness.message();

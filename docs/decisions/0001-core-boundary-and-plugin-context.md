@@ -49,5 +49,7 @@ Plot 正确方向是 **Core ← Plugin**（Road / Building / Earthwork …）。
 - `IRenderVisitor` 已迁至 `com.plot.core.geometry.visitor`（与 `IShapeVisitor` 同层），因其依赖具体 Shape 与 ImGui，不宜留在 api。
 - Core 组合根已持有并注入 `EventBus`：`CommandService` / `LayerService` / `SnapManager` 经构造注入，不再各自 `EventBus.getInstance()`；`ApplicationContext` 拥有 `snapManager` 字段。
 - `ToolManager` 同样由组合根持有：`initialize(AppState, EventBus)` 注入事件总线，工具变更/配置事件不再经 `ApplicationContext.getEventBus()` 回查。
+- **Client/Server 边界**：`ApplicationContext` 不再暴露 `GhostBlockManager` / `BlockPlacementScheduler` / `BlockProjectionHandler` / `CoordinateTransformer`。这些由 `com.plot.client.ClientServices` 持有；`PluginContextFactory` 在客户端初始化后接管完整 `PluginContext` 组装。
+- **事务语义**：`CommandService` 在事务内 `execute` 失败时自动 `rollbackTransaction`；事务进行中拒绝 `undo`/`redo`。
 - `api.plugin.PluginDescription` 已改为使用 API 层 `PropertiesPluginConfig`，去除对 `core.plugin.PluginConfig` 的直接依赖。
-- `api` 包对 core 的直接依赖已清空（含 FQCN）；后续可减少 `LogManager.getInstance()` 散落，并固化一次架构提交 + 主路径手测。
+- `api` 包对 core 的直接依赖已清空（含 FQCN）。

@@ -1,7 +1,7 @@
 package com.plot.plugin.road;
 
+import com.plot.api.world.WorldViewBounds;
 import com.plot.core.command.commands.GenerateRoadCommand;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,7 @@ class RoadPlacementVisibilityTest {
             new BlockPos(10, 64, 10),
             new BlockPos(20, 64, 20)
         );
-        CoordinateTransformer.WorldViewBounds view = bounds(0, 100, 0, 100);
+        com.plot.api.world.WorldViewBounds view = bounds(0, 100, 0, 100);
 
         RoadPlacementVisibility.Analysis analysis = RoadPlacementVisibility.analyze(result, view);
 
@@ -32,7 +32,7 @@ class RoadPlacementVisibilityTest {
             new BlockPos(90, 64, 10),
             new BlockPos(110, 64, 20)
         );
-        CoordinateTransformer.WorldViewBounds view = bounds(0, 100, 0, 100);
+        com.plot.api.world.WorldViewBounds view = bounds(0, 100, 0, 100);
 
         RoadPlacementVisibility.Analysis analysis = RoadPlacementVisibility.analyze(result, view);
 
@@ -48,7 +48,7 @@ class RoadPlacementVisibilityTest {
             new BlockPos(200, 64, 200),
             new BlockPos(220, 64, 220)
         );
-        CoordinateTransformer.WorldViewBounds view = bounds(0, 100, 0, 100);
+        com.plot.api.world.WorldViewBounds view = bounds(0, 100, 0, 100);
 
         RoadPlacementVisibility.Analysis analysis = RoadPlacementVisibility.analyze(result, view);
 
@@ -69,8 +69,8 @@ class RoadPlacementVisibilityTest {
         return result;
     }
 
-    private static CoordinateTransformer.WorldViewBounds bounds(
+    private static com.plot.api.world.WorldViewBounds bounds(
             double minX, double maxX, double minZ, double maxZ) {
-        return new CoordinateTransformer.WorldViewBounds(minX, maxX, minZ, maxZ);
+        return new com.plot.api.world.WorldViewBounds(minX, maxX, minZ, maxZ);
     }
 }

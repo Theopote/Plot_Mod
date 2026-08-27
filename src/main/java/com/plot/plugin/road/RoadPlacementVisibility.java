@@ -1,6 +1,6 @@
 package com.plot.plugin.road;
 
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.core.command.BlockRecord;
 import com.plot.utils.PlotI18n;
@@ -20,7 +20,7 @@ public final class RoadPlacementVisibility {
 
     public record Analysis(
         Status status,
-        CoordinateTransformer.WorldViewBounds viewBounds,
+        com.plot.api.world.WorldViewBounds viewBounds,
         int blockCount,
         int minX,
         int maxX,
@@ -37,8 +37,8 @@ public final class RoadPlacementVisibility {
     private RoadPlacementVisibility() {
     }
 
-    public static Analysis analyze(RoadGenerationResult result, CoordinateTransformer transformer) {
-        CoordinateTransformer.WorldViewBounds viewBounds = transformer != null
+    public static Analysis analyze(RoadGenerationResult result, ICoordinateService transformer) {
+        com.plot.api.world.WorldViewBounds viewBounds = transformer != null
             ? transformer.getMinecraftWorldViewBounds()
             : null;
         return analyze(result, viewBounds);
@@ -46,7 +46,7 @@ public final class RoadPlacementVisibility {
 
     public static Analysis analyze(
             RoadGenerationResult result,
-            CoordinateTransformer.WorldViewBounds viewBounds) {
+            com.plot.api.world.WorldViewBounds viewBounds) {
         if (result == null || result.placementRecords.isEmpty()) {
             return new Analysis(Status.FULLY_VISIBLE, viewBounds, 0, 0, 0, 0, 0);
         }

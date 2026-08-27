@@ -20,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * 幽灵方块管理器
  * 负责管理线转方块生成的预览方块，这些方块在画布上可见但没有落到地上
  */
-public class GhostBlockManager {
+public class GhostBlockManager implements com.plot.api.world.IGhostBlockService {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GhostBlockManager");
     private static GhostBlockManager INSTANCE;
     

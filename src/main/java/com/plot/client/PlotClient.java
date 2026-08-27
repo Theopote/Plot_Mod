@@ -51,6 +51,9 @@ public final class PlotClient implements ClientModInitializer {
         PlotMod.LOGGER.info("初始化 Master Planner Mod (客户端逻辑)...");
 
         try {
+            PlotMod.LOGGER.debug("步骤0: 初始化 ClientServices（世界服务组合根）");
+            ClientServices.initialize();
+
             PlotMod.LOGGER.debug("步骤1: 获取 ApplicationContext");
             ApplicationContext context = ApplicationContext.getInstance();
             if (context.getLayerService().getLayerManager() == null) {

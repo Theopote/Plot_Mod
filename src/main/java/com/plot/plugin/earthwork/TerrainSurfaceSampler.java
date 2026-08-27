@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
@@ -39,7 +39,7 @@ public final class TerrainSurfaceSampler {
         }
     }
 
-    public static int sampleAtCanvas(World world, Vec2d canvasPos, CoordinateTransformer transformer) {
+    public static int sampleAtCanvas(World world, Vec2d canvasPos, ICoordinateService transformer) {
         if (world == null || canvasPos == null || transformer == null) {
             return DEFAULT_ELEVATION;
         }

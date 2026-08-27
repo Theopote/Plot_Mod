@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
-import com.plot.infrastructure.event.block.BlockPlacementScheduler;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -52,12 +51,12 @@ public final class RoadToolbarPanel {
     }
 
     private void renderActivePlacementControls() {
-        var scheduler = ctx.host().placement();
+        com.plot.api.world.IBlockPlacementService scheduler = ctx.host().placement();
         if (!scheduler.isBusy()) {
             return;
         }
 
-        BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
+        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         if (progress != null) {
             ImGui.textColored(PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.placement_progress", progress.processed(), progress.total()));

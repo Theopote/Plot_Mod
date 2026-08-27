@@ -89,16 +89,27 @@ class CommandServiceTest {
     }
 
     @Test
-    void failedExecuteInsideTransactionIsNotRecorded() {
+    void failedExecuteInsideTransactionRollsBackEntireTransaction() {
         AtomicCounter counter = new AtomicCounter();
         commandService.beginTransaction();
         assertTrue(commandService.execute(new CounterCommand(counter, 1)));
         assertFalse(commandService.execute(new FailingCommand(true, false, false)));
-        commandService.commitTransaction();
 
+        // 失败后自动回滚：先前成功的命令已撤销，事务已关闭
+        assertEquals(0, counter.value);
+        assertFalse(commandService.isInTransaction());
+        assertEquals(0, commandService.size());
+    }
+
+    @Test
+    void undoDuringTransactionIsRejected() {
+        AtomicCounter counter = new AtomicCounter();
+        commandService.execute(new CounterCommand(counter, 1));
+        commandService.beginTransaction();
+        assertFalse(commandService.undo());
         assertEquals(1, counter.value);
-        assertEquals(1, commandService.size());
-        assertFalse(commandService.history().get(0) instanceof CompositeCommand);
+        assertTrue(commandService.isInTransaction());
+        commandService.rollbackTransaction();
     }
 
     @Test

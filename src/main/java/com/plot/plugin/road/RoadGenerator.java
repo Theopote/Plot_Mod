@@ -1,11 +1,11 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.ICoordinateService;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.config.RoadSystemConfig;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
@@ -47,8 +47,8 @@ public class RoadGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadGenerator");
     
     private final RoadSystemConfig config;
-    private final CoordinateTransformer coordinateTransformer;
-    private final BlockProjectionHandler projectionHandler;
+    private final ICoordinateService coordinateTransformer;
+    private final IBlockProjectionService projectionHandler;
 
     /** 路网边生成时用于路口端部标高平滑，仅在 {@link #buildFromCenterline} 内短暂赋值。 */
     private EndpointElevationSnap endpointStartSnap;
@@ -64,8 +64,8 @@ public class RoadGenerator {
 
     public RoadGenerator(
             RoadSystemConfig config,
-            CoordinateTransformer coordinateTransformer,
-            BlockProjectionHandler projectionHandler) {
+            ICoordinateService coordinateTransformer,
+            IBlockProjectionService projectionHandler) {
         this.config = config;
         this.coordinateTransformer = coordinateTransformer;
         this.projectionHandler = java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
@@ -1686,7 +1686,7 @@ public class RoadGenerator {
         return rasterizeSpan(left, right, y, null);
     }
 
-    static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y, CoordinateTransformer transformer) {
+    static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y, ICoordinateService transformer) {
         return RoadVoxelRasterizer.rasterizeSpan(left, right, y, transformer);
     }
 

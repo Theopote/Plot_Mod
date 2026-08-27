@@ -6,7 +6,7 @@ import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 
@@ -245,7 +245,7 @@ public final class BuildingGeometryUtils {
         return new Vec2d(-normalized.y, normalized.x);
     }
 
-    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, CoordinateTransformer transformer) {
+    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {
         return PolygonRegionUtils.canvasToBlockXZ(canvasPos, transformer);
     }
 

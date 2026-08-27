@@ -2,7 +2,7 @@ package com.plot.core.geometry;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -114,7 +114,7 @@ public final class PolygonRegionUtils {
         return centers;
     }
 
-    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, CoordinateTransformer transformer) {
+    public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {
         if (canvasPos == null) {
             return BlockPos.ORIGIN;
         }

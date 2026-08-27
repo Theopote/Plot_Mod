@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 
@@ -26,7 +26,7 @@ public final class GradingSurfaceResolver {
             GradingRegion region,
             List<Vec2d> sampleCenters,
             List<Integer> sampleHeights,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         List<HeightSample> samples = buildSamples(sampleCenters, sampleHeights, transformer);
         GradingPlane plane = switch (region.getSurfaceMode()) {
             case FLAT -> resolveFlat(region, samples);
@@ -41,7 +41,7 @@ public final class GradingSurfaceResolver {
             GradingRegion region,
             List<Vec2d> sampleCenters,
             List<Integer> sampleHeights,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         if (region == null || sampleCenters == null || sampleCenters.isEmpty()) {
             return;
         }
@@ -75,7 +75,7 @@ public final class GradingSurfaceResolver {
             GradingRegion region,
             List<Vec2d> sampleCenters,
             List<Integer> sampleHeights,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         if (region == null) {
             return;
         }
@@ -102,7 +102,7 @@ public final class GradingSurfaceResolver {
     private static GradingPlane resolveFixedSlope(
             GradingRegion region,
             List<HeightSample> samples,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         Vec2d anchorCanvas = region.getSlopeAnchorCanvas();
         if (anchorCanvas == null) {
             anchorCanvas = EarthworkGeometryUtils.computeCentroid(region.getOuterPoints());
@@ -122,7 +122,7 @@ public final class GradingSurfaceResolver {
         return new GradingPlane(coeffX, coeffZ, intercept);
     }
 
-    private static GradingPlane resolveThreePoint(GradingRegion region, CoordinateTransformer transformer) {
+    private static GradingPlane resolveThreePoint(GradingRegion region, ICoordinateService transformer) {
         var block1 = EarthworkGeometryUtils.canvasToBlockXZ(
             new Vec2d(region.getThreePointCanvasX(0), region.getThreePointCanvasY(0)), transformer);
         var block2 = EarthworkGeometryUtils.canvasToBlockXZ(
@@ -259,7 +259,7 @@ public final class GradingSurfaceResolver {
     private static List<HeightSample> buildSamples(
             List<Vec2d> sampleCenters,
             List<Integer> sampleHeights,
-            CoordinateTransformer transformer) {
+            ICoordinateService transformer) {
         List<HeightSample> samples = new ArrayList<>();
         if (sampleCenters == null || sampleHeights == null) {
             return samples;
@@ -280,7 +280,7 @@ public final class GradingSurfaceResolver {
     private static int nearestSampleElevation(
             Vec2d canvasPoint,
             List<HeightSample> samples,
-            CoordinateTransformer transformer,
+            ICoordinateService transformer,
             int fallback) {
         if (canvasPoint == null || samples.isEmpty()) {
             return fallback;

@@ -1,7 +1,7 @@
 package com.plot.plugin.road.terrain;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.infrastructure.coordinate.CoordinateTransformer;
+import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.road.RoadGeometryUtils;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
@@ -16,14 +16,14 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/MinecraftTerrainSampler");
 
     private final World world;
-    private final CoordinateTransformer transformer;
+    private final ICoordinateService transformer;
 
-    public MinecraftTerrainSampler(World world, CoordinateTransformer transformer) {
+    public MinecraftTerrainSampler(World world, ICoordinateService transformer) {
         this.world = world;
         this.transformer = transformer;
     }
 
-    public static TerrainSampler of(World world, CoordinateTransformer transformer) {
+    public static TerrainSampler of(World world, ICoordinateService transformer) {
         return new MinecraftTerrainSampler(world, transformer);
     }
 

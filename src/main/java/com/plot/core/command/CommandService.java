@@ -67,7 +67,9 @@ public final class CommandService {
                 activeTransaction.add(command);
                 return true;
             } catch (Exception e) {
-                LOGGER.error("事务中执行命令失败: {}", command.getDescription(), e);
+                LOGGER.error("事务中执行命令失败，回滚整个事务: {}", command.getDescription(), e);
+                // 原子性：任一失败则撤销已成功的事务命令，不留下半成品历史
+                rollbackTransaction();
                 return false;
             }
         }
@@ -98,6 +100,10 @@ public final class CommandService {
     }
 
     public boolean undo() {
+        if (activeTransaction != null) {
+            LOGGER.warn("事务进行中，拒绝 undo；请先 commit/rollback");
+            return false;
+        }
         if (!canUndo()) {
             LOGGER.debug("没有可撤销的命令");
             return false;
@@ -117,6 +123,10 @@ public final class CommandService {
     }
 
     public boolean redo() {
+        if (activeTransaction != null) {
+            LOGGER.warn("事务进行中，拒绝 redo；请先 commit/rollback");
+            return false;
+        }
         if (!canRedo()) {
             LOGGER.debug("没有可重做的命令");
             return false;

@@ -1,7 +1,7 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
+import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.model.RoadEdge;
@@ -66,7 +66,7 @@ public final class RoadGeneratePanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.draw_path_hint"));
         }
 
-        BlockProjectionHandler.PlacementReadiness buildReadiness =
+        com.plot.api.world.PlacementReadiness buildReadiness =
             ctx.host().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
@@ -211,7 +211,7 @@ public final class RoadGeneratePanel {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
             ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
-            BlockProjectionHandler.PlacementReadiness readiness =
+            com.plot.api.world.PlacementReadiness readiness =
                 ctx.host().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
                 ImGui.textColored(PluginUiColors.ERROR, readiness.message());

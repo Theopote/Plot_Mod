@@ -184,8 +184,8 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
     private void executeProjection() {
         LOGGER.debug("执行投影操作...");
 
-        ApplicationContext context = ApplicationContext.getInstance();
-        var ghostBlockManager = context.getGhostBlockManager();
+        var clientServices = com.plot.client.ClientServices.getInstance();
+        var ghostBlockManager = clientServices.getGhostBlockManager();
         List<GhostBlockManager.GhostBlock> visibleGhostBlocks = ghostBlockManager.getVisibleGhostBlocks();
         int ghostBlockCount = visibleGhostBlocks.size();
         
@@ -195,7 +195,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
         }
         
         LOGGER.info("发现 {} 个幽灵方块需要投影", ghostBlockCount);
-        ProjectGhostBlocksCommand projectionCommand = getProjectGhostBlocksCommand(visibleGhostBlocks, context);
+        ProjectGhostBlocksCommand projectionCommand = getProjectGhostBlocksCommand(visibleGhostBlocks, clientServices);
         appState.getCommandService().execute(projectionCommand);
 
         int projectedCount = projectionCommand.getProjectedCount();
@@ -209,7 +209,7 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
 
     private @NotNull ProjectGhostBlocksCommand getProjectGhostBlocksCommand(
             List<GhostBlockManager.GhostBlock> visibleGhostBlocks,
-            ApplicationContext context) {
+            com.plot.client.ClientServices clientServices) {
         BlockProjectionEvent.ProjectionMode projectionMode = BlockProjectionEvent.ProjectionMode.GROUND;
         Integer elevation = null;
         if (projectionSettingsDialog != null && projectionSettingsDialog.getProjectionMode() == ProjectionSettingsDialog.ProjectionMode.ELEVATION) {
@@ -221,9 +221,9 @@ public class BlockOperationGroup extends AbstractToolbarGroup {
                 visibleGhostBlocks,
                 projectionMode,
                 elevation,
-                context.getGhostBlockManager(),
-                context.getBlockProjectionHandler(),
-                context.getEventBus()
+                clientServices.getGhostBlockManager(),
+                clientServices.getBlockProjectionHandler(),
+                ApplicationContext.getInstance().getEventBus()
         );
     }
 

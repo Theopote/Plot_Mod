@@ -3,9 +3,7 @@ package com.plot.plugin.road.manager;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.core.context.PluginContext;
-import com.plot.infrastructure.event.block.BlockPlacementScheduler;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
-import com.plot.infrastructure.event.block.GhostBlockManager;
+import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadPlacementVisibility;
@@ -71,7 +69,7 @@ public final class RoadPreviewManager {
             return false;
         }
 
-        GhostBlockManager ghostBlockManager = host.ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -136,7 +134,7 @@ public final class RoadPreviewManager {
         if (lastGenerationResult == null) {
             return;
         }
-        GhostBlockManager ghostBlockManager = host.ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager == null) {
             return;
         }
@@ -148,7 +146,7 @@ public final class RoadPreviewManager {
     }
 
     public void clearPreview() {
-        GhostBlockManager ghostBlockManager = host.ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -171,7 +169,7 @@ public final class RoadPreviewManager {
         boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
         lastEdgeResults = Collections.emptyMap();
         lastGenerationResult = null;
-        GhostBlockManager ghostBlockManager = host.ghosts();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
         }
@@ -187,7 +185,7 @@ public final class RoadPreviewManager {
             return;
         }
 
-        BlockProjectionHandler.PlacementReadiness readiness =
+        com.plot.api.world.PlacementReadiness readiness =
             host.projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
             status.set(readiness.message());

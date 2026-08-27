@@ -25,10 +25,10 @@ class BlockPlacementSchedulerTest {
 
     @Test
     void cancelQueuedJobMarksResultCancelled() {
-        List<BlockPlacementScheduler.BlockWrite> writes = new ArrayList<>();
-        writes.add(new BlockPlacementScheduler.BlockWrite(new BlockPos(0, 64, 0), "minecraft:stone"));
+        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>();
+        writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(new BlockPos(0, 64, 0), "minecraft:stone"));
 
-        AtomicReference<BlockPlacementScheduler.ExecutionResult> result = new AtomicReference<>();
+        AtomicReference<com.plot.api.world.IBlockPlacementService.ExecutionResult> result = new AtomicReference<>();
         scheduler.enqueue(writes, result::set);
 
         assertTrue(scheduler.cancelAll());
@@ -40,17 +40,17 @@ class BlockPlacementSchedulerTest {
 
     @Test
     void cancelActiveJobReportsPartialProgress() {
-        List<BlockPlacementScheduler.BlockWrite> writes = new ArrayList<>();
+        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>();
         for (int i = 0; i < 80; i++) {
-            writes.add(new BlockPlacementScheduler.BlockWrite(new BlockPos(i, 64, 0), "minecraft:stone"));
+            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(new BlockPos(i, 64, 0), "minecraft:stone"));
         }
 
-        AtomicReference<BlockPlacementScheduler.ExecutionResult> result = new AtomicReference<>();
+        AtomicReference<com.plot.api.world.IBlockPlacementService.ExecutionResult> result = new AtomicReference<>();
         scheduler.enqueue(writes, result::set);
 
         scheduler.tickForTest();
         assertTrue(scheduler.isBusy());
-        BlockPlacementScheduler.ProgressSnapshot progress = scheduler.getProgressSnapshot();
+        com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         assertEquals(40, progress.processed());
         assertEquals(80, progress.total());
 

@@ -928,7 +928,7 @@ public class PlotScreen extends Screen {
         }
 
         // 关闭 Plot 时清理幽灵方块，避免未投影预览残留
-        ApplicationContext.getInstance().getGhostBlockManager().clearAllGhostBlocks();
+        com.plot.client.ClientServices.getInstance().getGhostBlockManager().clearAllGhostBlocks();
 
         // 恢复 Plot 屏幕状态（恢复云渲染和雾渲染）
         PlotScreenState.setPlotScreenOpen(false);
