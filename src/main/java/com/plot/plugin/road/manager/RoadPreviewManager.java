@@ -80,14 +80,14 @@ public final class RoadPreviewManager {
 
     public boolean calculateNetworkPreview(RoadNetwork network) {
         if (network.getEdges().isEmpty()) {
-            status.set(PlotI18n.tr("plugin.road.no_edges"));
+            status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return false;
         }
 
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null || networkGenerator == null) {
             LOGGER.warn("世界或生成器未就绪");
-            status.set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return false;
         }
 
@@ -105,13 +105,13 @@ public final class RoadPreviewManager {
             lastGenerationResult = null;
             lastEdgeResults = Collections.emptyMap();
             lastNodeElevations = Collections.emptyMap();
-            status.set(PlotI18n.tr("plugin.road.generate_preview_failed"));
+            status.error(PlotI18n.tr("plugin.road.generate_preview_failed"));
             LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
             return false;
         }
 
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-            status.set(PlotI18n.tr("plugin.road.generate_empty_result"));
+            status.warning(PlotI18n.tr("plugin.road.generate_empty_result"));
             LOGGER.warn("路网预览未产生可投影方块");
             return false;
         }
@@ -132,16 +132,19 @@ public final class RoadPreviewManager {
 
     private void applyPreviewReadyStatus() {
         StringBuilder message = new StringBuilder(PlotI18n.tr("plugin.road.generate_preview_ready"));
+        RoadStatus.Severity severity = RoadStatus.Severity.SUCCESS;
         if (lastGenerationResult != null && lastGenerationResult.droppedSolidCount > 0) {
             message.append(" — ").append(PlotI18n.tr(
                 "plugin.road.generate_dropped_solids",
                 lastGenerationResult.droppedSolidCount));
+            severity = RoadStatus.Severity.WARNING;
         }
         RoadPlacementVisibility.Analysis visibility = analyzeRoadVisibility();
         if (visibility != null && visibility.requiresWarning()) {
             message.append(" — ").append(RoadPlacementVisibility.formatWarningMessage(visibility));
+            severity = RoadStatus.Severity.WARNING;
         }
-        status.set(message.toString());
+        status.set(severity, message.toString());
     }
 
     public RoadPlacementVisibility.Analysis analyzeRoadVisibility() {
@@ -199,26 +202,26 @@ public final class RoadPreviewManager {
         clearGhostBlocksSafely();
         if (hadPreview) {
             LOGGER.debug("网络已变更，预览结果与虚影已失效");
-            status.set(PlotI18n.tr("plugin.road.preview_invalidated"));
+            status.info(PlotI18n.tr("plugin.road.preview_invalidated"));
         }
         bumpTerrainRevision();
     }
 
     public void buildRoadInWorld() {
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-            status.set(PlotI18n.tr("plugin.road.build_no_blocks"));
+            status.warning(PlotI18n.tr("plugin.road.build_no_blocks"));
             return;
         }
 
         com.plot.api.world.PlacementReadiness readiness =
             host.projection().checkWorldModificationReadiness();
         if (!readiness.ready()) {
-            status.set(readiness.message());
+            status.error(readiness.message());
             return;
         }
 
         if (host.placement().isBusy()) {
-            status.set(PlotI18n.tr("plugin.road.build_in_progress_wait"));
+            status.warning(PlotI18n.tr("plugin.road.build_in_progress_wait"));
             return;
         }
 
@@ -230,19 +233,19 @@ public final class RoadPreviewManager {
         List<BlockRecord> records =
             new ArrayList<>(lastGenerationResult.placementRecords.values());
         GenerateRoadCommand command = new GenerateRoadCommand(records, host.projection(), host.placement());
-        status.set(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
+        status.progress(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
             // 仅当有实际写入时入历史；Undo 只回滚 appliedRecords
             if (result != null && result.cancelled()) {
                 if (command.hasAppliedRecords()) {
                     host.commands().pushExecuted(command);
-                    status.set(PlotI18n.tr(
+                    status.warning(PlotI18n.tr(
                         "plugin.road.build_cancelled_undoable",
                         command.getAppliedRecordCount(),
                         result.total()));
                 } else {
-                    status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
+                    status.warning(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
                 }
                 clearPreview();
                 return;
@@ -257,27 +260,27 @@ public final class RoadPreviewManager {
 
     private void applyBuildResultStatus(GenerateRoadCommand.ExecutionResult result) {
         if (result == null || result.total() == 0) {
-            status.set(PlotI18n.tr("plugin.road.build_no_blocks"));
+            status.warning(PlotI18n.tr("plugin.road.build_no_blocks"));
             return;
         }
         if (result.cancelled()) {
             if (result.success() > 0) {
-                status.set(PlotI18n.tr(
+                status.warning(PlotI18n.tr(
                     "plugin.road.build_cancelled_undoable", result.success(), result.total()));
             } else {
-                status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
+                status.warning(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
             }
             return;
         }
         if (result.isFullSuccess()) {
-            status.set(PlotI18n.tr("plugin.road.build_success", result.success()));
+            status.success(PlotI18n.tr("plugin.road.build_success", result.success()));
             return;
         }
         if (result.isTotalFailure()) {
-            status.set(PlotI18n.tr("plugin.road.build_failed", result.total()));
+            status.error(PlotI18n.tr("plugin.road.build_failed", result.total()));
             return;
         }
-        status.set(PlotI18n.tr(
+        status.warning(PlotI18n.tr(
             "plugin.road.build_partial_undoable",
             result.success(),
             result.total(),

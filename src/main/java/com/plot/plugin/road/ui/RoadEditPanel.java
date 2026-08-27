@@ -304,7 +304,7 @@ public final class RoadEditPanel {
     private TerrainSampler requireTerrainOrNull() {
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null) {
-            ctx.status().set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            ctx.status().error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return null;
         }
         return MinecraftTerrainSampler.of(world, ctx.host().coordinates());

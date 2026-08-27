@@ -77,9 +77,9 @@ public final class RoadToolManager {
             List<Shape> selected = appState.getSelectedShapes();
             String hintKey = pathPickSession.hintKeyForCurrentSelection(selected);
             if ("status.plot.road.pick_path_right_click_multi".equals(hintKey)) {
-                status.set(PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount()));
+                status.info(PlotI18n.status(hintKey, pathPickSession.getAccumulatedCount()));
             } else {
-                status.set(PlotI18n.status(hintKey));
+                status.info(PlotI18n.status(hintKey));
             }
         }
     }
@@ -171,7 +171,7 @@ public final class RoadToolManager {
         pathPickSession.begin();
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
-        status.set(PlotI18n.tr("plugin.road.pick_path_hint"));
+        status.info(PlotI18n.tr("plugin.road.pick_path_hint"));
     }
 
     private void applyPathPickOutcome(RoadPathPickSession.Outcome outcome) {
@@ -182,21 +182,21 @@ public final class RoadToolManager {
                 if (pathsPickedHandler != null) {
                     pathsPickedHandler.accept(List.copyOf(selectedPaths));
                 } else if (selectedPaths.size() == 1) {
-                    status.set(String.format(PlotI18n.tr("plugin.road.path_selected"),
+                    status.success(String.format(PlotI18n.tr("plugin.road.path_selected"),
                         calculatePathLength(selectedPaths.getFirst())));
                 } else {
                     double totalLength = selectedPaths.stream()
                         .mapToDouble(RoadToolManager::calculatePathLength)
                         .sum();
-                    status.set(String.format(
+                    status.success(String.format(
                         PlotI18n.tr("plugin.road.paths_selected"),
                         selectedPaths.size(),
                         totalLength));
                 }
             }
-            case NEED_SELECTION -> status.set(PlotI18n.status("status.plot.road.pick_path_need_selection"));
-            case NO_VALID -> status.set(PlotI18n.status("status.plot.road.pick_path_no_valid"));
-            case CANCELLED -> status.set(PlotI18n.status("status.plot.road.pick_path_cancelled"));
+            case NEED_SELECTION -> status.warning(PlotI18n.status("status.plot.road.pick_path_need_selection"));
+            case NO_VALID -> status.warning(PlotI18n.status("status.plot.road.pick_path_no_valid"));
+            case CANCELLED -> status.info(PlotI18n.status("status.plot.road.pick_path_cancelled"));
             default -> { }
         }
     }

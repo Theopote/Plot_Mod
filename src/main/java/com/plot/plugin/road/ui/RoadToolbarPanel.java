@@ -64,7 +64,7 @@ public final class RoadToolbarPanel {
         }
 
         if (!ctx.status().isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, ctx.status().get());
+            RoadStatusUi.render(ctx.status().getStatus());
         }
         ImGui.separator();
     }

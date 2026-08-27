@@ -54,7 +54,7 @@ public final class RoadPersistenceManager {
         Path file = getNetworksDir().resolve(DEFAULT_NETWORK_FILE);
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
             currentNetworkFile = DEFAULT_NETWORK_FILE;
-            status.set(PlotI18n.tr("plugin.road.network.default_loaded"));
+            status.info(PlotI18n.tr("plugin.road.network.default_loaded"));
         }
     }
 
@@ -70,7 +70,7 @@ public final class RoadPersistenceManager {
         // 仅在加载成功后才绑定 currentNetworkFile，避免失败时把旧路网写进新工程文件
         if (loadNetworkFile(file, onLoaded, onSelectionReset)) {
             currentNetworkFile = targetFile;
-            status.set(PlotI18n.tr("plugin.road.network.loaded", filePath));
+            status.success(PlotI18n.tr("plugin.road.network.loaded", filePath));
         }
     }
 
@@ -79,7 +79,7 @@ public final class RoadPersistenceManager {
             return;
         }
         currentNetworkFile = ProjectPathResolver.sidecarFileName(filePath);
-        status.set(PlotI18n.tr("plugin.road.network.saved", filePath));
+        status.success(PlotI18n.tr("plugin.road.network.saved", filePath));
     }
 
     public void saveOnDisable(RoadNetwork network) {
@@ -97,7 +97,7 @@ public final class RoadPersistenceManager {
             return loaded;
         } catch (IOException e) {
             LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
-            status.set(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
+            status.error(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
             return new RoadNetwork();
         }
     }
@@ -113,7 +113,7 @@ public final class RoadPersistenceManager {
             return true;
         } catch (IOException e) {
             LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
-            status.set(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
+            status.error(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
             return false;
         }
     }
@@ -133,7 +133,7 @@ public final class RoadPersistenceManager {
             return true;
         } catch (IOException e) {
             LOGGER.error("保存道路网络失败: {}", e.getMessage(), e);
-            status.set(PlotI18n.tr(
+            status.error(PlotI18n.tr(
                 "plugin.road.network.save_failed",
                 file.getFileName()));
             return false;

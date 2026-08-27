@@ -201,23 +201,23 @@ public final class RoadNetworkManager {
     public RoadUniformElevationUtils.ElevationRecommendation previewUniformElevation(
             TerrainSampler terrain) {
         if (network.getEdges().isEmpty()) {
-            status.set(PlotI18n.tr("plugin.road.no_edges"));
+            status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return null;
         }
         if (terrain == null) {
-            status.set(PlotI18n.tr("plugin.road.generate_world_unavailable"));
+            status.error(PlotI18n.tr("plugin.road.generate_world_unavailable"));
             return null;
         }
         RoadUniformElevationUtils.ElevationRecommendation recommendation =
             RoadUniformElevationUtils.recommendForNetwork(network, terrain, config);
         if (recommendation.sampleCount() <= 0) {
-            status.set(PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
+            status.warning(PlotI18n.tr("plugin.road.uniform_elevation_no_samples"));
             return null;
         }
         String strategy = recommendation.usedMode()
             ? PlotI18n.tr("plugin.road.uniform_elevation_strategy_mode")
             : PlotI18n.tr("plugin.road.uniform_elevation_strategy_average");
-        status.set(PlotI18n.tr(
+        status.info(PlotI18n.tr(
             "plugin.road.uniform_elevation_preview",
             recommendation.elevation(),
             strategy,
@@ -252,7 +252,7 @@ public final class RoadNetworkManager {
      */
     public boolean applyCustomUniformFlatElevation(int elevation) {
         if (network.getEdges().isEmpty()) {
-            status.set(PlotI18n.tr("plugin.road.no_edges"));
+            status.warning(PlotI18n.tr("plugin.road.no_edges"));
             return false;
         }
         int clamped = (int) RoadParameterLimits.clampElevation(elevation);
@@ -282,14 +282,14 @@ public final class RoadNetworkManager {
         // 仅改路网内道路坡度，不写全局默认配置，避免副作用持久化到 config
 
         if (sampleCount > 0) {
-            status.set(PlotI18n.tr(
+            status.success(PlotI18n.tr(
                 "plugin.road.uniform_elevation_applied",
                 elevation,
                 strategyLabel != null ? strategyLabel : "",
                 sampleCount,
                 String.format("%.1f", average)));
         } else {
-            status.set(PlotI18n.tr(
+            status.success(PlotI18n.tr(
                 "plugin.road.uniform_elevation_applied_custom",
                 elevation));
         }
@@ -577,26 +577,26 @@ public final class RoadNetworkManager {
         }
 
         if (adoptedCount == 0) {
-            status.set(PlotI18n.tr("plugin.road.adopt_failed"));
+            status.error(PlotI18n.tr("plugin.road.adopt_failed"));
             return;
         }
 
         if (failedCount > 0) {
-            status.set(String.format(
+            status.warning(String.format(
                 PlotI18n.tr("plugin.road.adopt_partial_success"),
                 adoptedCount,
                 failedCount));
         } else if (adoptedCount > 1) {
-            status.set(String.format(
+            status.success(String.format(
                 PlotI18n.tr("plugin.road.adopt_success_batch"),
                 adoptedCount,
                 totalJunctions));
         } else if (totalJunctions > 0) {
-            status.set(String.format(
+            status.success(String.format(
                 PlotI18n.tr("plugin.road.adopt_success_junction"),
                 totalJunctions));
         } else {
-            status.set(PlotI18n.tr("plugin.road.adopt_success"));
+            status.success(PlotI18n.tr("plugin.road.adopt_success"));
         }
         LOGGER.info("认领道路完成: 成功 {} 条, 失败 {} 条 ({} 段边)",
             adoptedCount, failedCount, selectedEdgeIds.size());
@@ -754,7 +754,7 @@ public final class RoadNetworkManager {
             applyDraftToRoad(road, draft);
         }
         updateBatchEditDraft(draft);
-        status.set(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
+        status.success(PlotI18n.tr("plugin.road.batch_applied", updatedRoadIds.size()));
     }
 
     public Road getRoadForEdge(RoadEdge edge) {
