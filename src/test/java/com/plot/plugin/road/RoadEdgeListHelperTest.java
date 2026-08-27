@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RoadEdgeListHelperTest {
 
@@ -48,5 +50,30 @@ class RoadEdgeListHelperTest {
             new RoadEdgeListHelper.CoordFilter(false, 0, 0, 0, 0));
 
         assertEquals(1, filtered.size());
+    }
+
+    @Test
+    void formatRoadLabelPrefersCustomName() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+        road.setName("Residential Loop");
+
+        assertEquals("Residential Loop", RoadEdgeListHelper.formatRoadLabel(network, road));
+    }
+
+    @Test
+    void setNameNormalizesBlankAndTrim() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+
+        road.setName("  Main Street  ");
+        assertEquals("Main Street", road.getName());
+        assertEquals("Main Street", RoadEdgeListHelper.formatRoadLabel(network, road));
+
+        road.setName("   ");
+        assertNull(road.getName());
+        assertEquals(
+            RoadEdgeListHelper.formatAutoRoadLabel(network, road),
+            RoadEdgeListHelper.formatRoadLabel(network, road));
     }
 }

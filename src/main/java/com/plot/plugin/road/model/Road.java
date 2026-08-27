@@ -123,7 +123,12 @@ public class Road {
     }
 
     public void setName(String name) {
-        this.name = name;
+        if (name == null || name.isBlank()) {
+            this.name = null;
+            return;
+        }
+        String trimmed = name.trim();
+        this.name = trimmed.length() > 128 ? trimmed.substring(0, 128) : trimmed;
     }
 
     public RoadCrossSection getCrossSection() {

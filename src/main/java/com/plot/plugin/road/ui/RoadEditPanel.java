@@ -37,6 +37,7 @@ public final class RoadEditPanel {
     private boolean uniformElevationConfirmPending = false;
     /** true = 自动采样应用；false = 自定义 Y */
     private boolean uniformElevationConfirmAuto = true;
+    private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -147,10 +148,9 @@ public final class RoadEditPanel {
     }
 
     private void renderRoadScopeHeader(RoadNetwork network, Road road) {
-        String roadLabel = RoadEdgeListHelper.formatRoadLabel(network, road);
+        identityEditor.render(network, road, ctx.networkManager()::pushHistory);
         int segmentCount = road.getSegmentIds().size();
         double length = RoadEdgeListHelper.computeRoadLength(network, road);
-        ImGui.text(roadLabel);
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));

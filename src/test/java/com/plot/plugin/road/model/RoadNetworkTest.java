@@ -258,6 +258,7 @@ class RoadNetworkTest {
         Road road = network.createRoad();
         road.setWidth(7);
         road.setMaxSlope(5.0f);
+        road.setName("Main Street");
         RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(10, 0)
         ), road.getId());
@@ -272,6 +273,7 @@ class RoadNetworkTest {
         assertNotNull(restoredRoad);
         assertEquals(7, restoredRoad.getWidth());
         assertEquals(5.0f, restoredRoad.getMaxSlope());
+        assertEquals("Main Street", restoredRoad.getName());
         assertEquals(road.getId(), restoredEdge.getRoadId());
     }
 

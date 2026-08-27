@@ -65,6 +65,14 @@ public final class RoadEdgeListHelper {
         if (name != null && !name.isBlank()) {
             return name;
         }
+        return formatAutoRoadLabel(network, road);
+    }
+
+    /** 无自定义名称时的列表/占位标签（基于 id 与横断面摘要）。 */
+    public static String formatAutoRoadLabel(RoadNetwork network, Road road) {
+        if (road == null) {
+            return PlotI18n.tr("plugin.road.unassigned_road");
+        }
         int segmentCount = road.getSegmentIds().size();
         int width = road.getWidth() != null ? road.getWidth() : 0;
         int lanes = road.getCrossSection().getCarriageway().getEffectiveLaneCount();
