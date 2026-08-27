@@ -30,7 +30,7 @@ public class LayerNameRenderer {
     private static final int MAX_BUFFER_SIZE = 512;
     private static final int MAX_NAME_LENGTH = 50;
 
-    private final ImString nameBuffer = new ImString(MAX_BUFFER_SIZE);
+    private final ImString nameBuffer = createNameBuffer();
     private String currentEditingLayerId = null;
     private boolean setFocus = false;
     private boolean isEditing = false;
@@ -57,6 +57,14 @@ public class LayerNameRenderer {
         this.showWarningDialog = showWarningDialog;
     }
 
+    private static ImString createNameBuffer() {
+        ImString buffer = new ImString(MAX_BUFFER_SIZE);
+        // imgui-java 默认 isResizable=false；中文按 UTF-8 多字节写入时必须允许扩容
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = 256;
+        return buffer;
+    }
+
     /**
      * 处理系统原生重命名输入框的异步结果。
      */
@@ -81,9 +89,10 @@ public class LayerNameRenderer {
             return;
         }
 
-        nameBuffer.set(nativeInputText.trim());
+        // 直接使用系统输入框返回的 Java 字符串，避免再经 ImString UTF-8 缓冲往返截断
+        String renamed = nativeInputText.trim();
         resetNativeInputState();
-        applyNameChange(layer);
+        applyNameChange(layer, renamed);
     }
 
     /**
@@ -284,7 +293,7 @@ public class LayerNameRenderer {
             }
 
             if (finished) {
-                applyNameChange(layer);
+                applyNameChange(layer, nameBuffer.get());
             } else if (canceled) {
                 cancelEditing(layer.getId());
             }
@@ -355,27 +364,24 @@ public class LayerNameRenderer {
         LOGGER.info("打开系统重命名输入框: '{}'", layer.getName());
     }
 
-    private void applyNameChange(Layer layer) {
-        String newName = nameBuffer.get().trim();
+    private void applyNameChange(Layer layer, String rawName) {
+        String newName = rawName != null ? rawName.trim() : "";
 
         if (newName.isEmpty()) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_empty"));
-            nameBuffer.set(layer.getName());
             cancelEditing(layer.getId());
             return;
         }
 
-        int nameLength = calculateDisplayLength(newName);
-        if (nameLength > MAX_NAME_LENGTH) {
+        // 按字符数限制，避免把中文按“显示宽度 *2”误判为过长
+        if (newName.length() > MAX_NAME_LENGTH) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_too_long"));
-            nameBuffer.set(layer.getName());
             cancelEditing(layer.getId());
             return;
         }
 
         if (!newName.equals(layer.getName()) && layerManager.isNameExists(newName)) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_exists"));
-            nameBuffer.set(layer.getName());
             cancelEditing(layer.getId());
             return;
         }
@@ -384,26 +390,12 @@ public class LayerNameRenderer {
             String oldName = layer.getName();
             layerManager.updateLayerProperty(layer, "name", newName);
             LayerEditHistory.commitProperty(layer.getId(), "name", oldName, newName);
-            LOGGER.info("更新图层名称: '{}' -> '{}'", oldName, newName);
+            LOGGER.info("更新图层名称: '{}' -> '{}' (chars={}, utf8Bytes={})",
+                    oldName, newName, newName.length(),
+                    newName.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
         }
 
         cancelEditing(layer.getId());
-    }
-
-    private int calculateDisplayLength(String text) {
-        if (text == null) {
-            return 0;
-        }
-
-        int length = 0;
-        for (char c : text.toCharArray()) {
-            if (c > 127) {
-                length += 2;
-            } else {
-                length += 1;
-            }
-        }
-        return length;
     }
 
     private void cancelEditing(String layerId) {

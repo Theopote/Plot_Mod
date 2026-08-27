@@ -213,38 +213,73 @@ public class ImGuiRenderer {
     };
 
     private static final String BUNDLED_CJK_FONT = "/assets/plot/fonts/SourceHanSansCN-Regular.ttf";
-    private static final float UI_FONT_SIZE = 16.0f;
+    /** UI 主字体像素大小（中英文共用同一字体，避免合并后中文缩成小点） */
+    private static final float UI_FONT_SIZE = 18.0f;
+
+    /**
+     * 必须在整个 ImGui 生命周期内保持强引用：
+     * - glyphRanges：setGlyphRanges 把数组指针交给原生层
+     * - fontData：FontDataOwnedByAtlas(false) 时原生层不拷贝字体字节，GC 回收会导致字形损坏（中文变成小点）
+     */
+    private short[] keptCjkGlyphRanges;
+    private short[] keptSymbolGlyphRanges;
+    private byte[] keptFontData;
 
     private void initializeFonts(ImGuiIO io) {
-        ImFontConfig cjkConfig = null;
+        ImFontConfig mainConfig = null;
         ImFontConfig symbolConfig = null;
         try {
-            io.getFonts().addFontDefault();
+            keptCjkGlyphRanges = io.getFonts().getGlyphRangesChineseFull();
+            keptSymbolGlyphRanges = UI_SYMBOL_GLYPH_RANGES;
+            io.getFonts().setTexDesiredWidth(4096);
 
-            cjkConfig = new ImFontConfig();
-            cjkConfig.setMergeMode(true);
-            cjkConfig.setPixelSnapH(true);
-            cjkConfig.setGlyphRanges(io.getFonts().getGlyphRangesChineseFull());
+            // 关键：不要先 addFontDefault() 再 merge 中文。
+            // ProggyClean 与思源黑体度量不一致时，合并后的中文常会缩成几像素高的“小点”，
+            // 缺字则回退成默认字体的 "?"。改为中文字体作为唯一主字体（自带拉丁字形）。
+            mainConfig = new ImFontConfig();
+            mainConfig.setPixelSnapH(true);
+            mainConfig.setOversampleH(1);
+            mainConfig.setOversampleV(1);
+            mainConfig.setGlyphRanges(keptCjkGlyphRanges);
 
-            boolean cjkLoaded = loadCjkFont(io, cjkConfig);
-            if (!cjkLoaded) {
-                LOGGER.warn("CJK font not found; Chinese UI text may not render correctly");
+            if (!loadPrimaryUiFont(io, mainConfig)) {
+                LOGGER.warn("CJK font not found; falling back to ImGui default font");
+                io.getFonts().clear();
+                io.getFonts().addFontDefault();
             } else {
                 symbolConfig = new ImFontConfig();
                 symbolConfig.setMergeMode(true);
                 symbolConfig.setPixelSnapH(true);
-                symbolConfig.setGlyphRanges(UI_SYMBOL_GLYPH_RANGES);
-                loadCjkFont(io, symbolConfig);
+                symbolConfig.setOversampleH(1);
+                symbolConfig.setOversampleV(1);
+                symbolConfig.setGlyphRanges(keptSymbolGlyphRanges);
+                mergeSymbolFont(io, symbolConfig);
             }
 
-            io.getFonts().build();
+            boolean built = io.getFonts().build();
+            if (!built) {
+                LOGGER.error("Font atlas build failed; retrying with simplified Chinese ranges");
+                io.getFonts().clear();
+                keptCjkGlyphRanges = io.getFonts().getGlyphRangesChineseSimplifiedCommon();
+                mainConfig.destroy();
+                mainConfig = new ImFontConfig();
+                mainConfig.setPixelSnapH(true);
+                mainConfig.setOversampleH(1);
+                mainConfig.setOversampleV(1);
+                mainConfig.setGlyphRanges(keptCjkGlyphRanges);
+                if (!loadPrimaryUiFont(io, mainConfig)) {
+                    io.getFonts().addFontDefault();
+                }
+                io.getFonts().build();
+            }
         } catch (Exception e) {
             LOGGER.error("Font init failed", e);
+            io.getFonts().clear();
             io.getFonts().addFontDefault();
             io.getFonts().build();
         } finally {
-            if (cjkConfig != null) {
-                cjkConfig.destroy();
+            if (mainConfig != null) {
+                mainConfig.destroy();
             }
             if (symbolConfig != null) {
                 symbolConfig.destroy();
@@ -252,29 +287,73 @@ public class ImGuiRenderer {
         }
     }
 
-    private boolean loadCjkFont(ImGuiIO io, ImFontConfig config) {
-        String[] systemFontPaths = {
-            "C:/Windows/Fonts/msyh.ttc",
-            "C:/Windows/Fonts/msyhbd.ttc",
-            "/System/Library/Fonts/PingFang.ttc",
-            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
+    private boolean loadPrimaryUiFont(ImGuiIO io, ImFontConfig config) {
+        // 1) 系统 TTF（由 atlas 接管拷贝，最稳）
+        String[] systemTtfPaths = {
+            "C:/Windows/Fonts/simhei.ttf",
+            "C:/Windows/Fonts/msyh.ttf",
+            "C:/Windows/Fonts/simkai.ttf"
         };
-        for (String fontPath : systemFontPaths) {
+        for (String fontPath : systemTtfPaths) {
             if (new File(fontPath).exists()) {
+                config.setFontNo(0);
+                config.setFontDataOwnedByAtlas(true);
                 io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
-                LOGGER.info("Loaded UI font from {}", fontPath);
+                LOGGER.info("Loaded primary UI font from {}", fontPath);
                 return true;
             }
         }
 
-        byte[] bundled = loadBundledFontBytes();
-        if (bundled != null) {
+        // 2) 内置 TTF：必须长期持有字节，禁止在 build 前被 GC
+        if (keptFontData == null) {
+            keptFontData = loadBundledFontBytes();
+        }
+        if (keptFontData != null) {
+            config.setFontNo(0);
             config.setFontDataOwnedByAtlas(false);
-            io.getFonts().addFontFromMemoryTTF(bundled, UI_FONT_SIZE, config);
-            LOGGER.info("Loaded bundled UI font from {}", BUNDLED_CJK_FONT);
+            io.getFonts().addFontFromMemoryTTF(keptFontData, UI_FONT_SIZE, config);
+            LOGGER.info("Loaded primary UI font from bundled {}", BUNDLED_CJK_FONT);
             return true;
         }
+
+        // 3) 最后才尝试 TTC（部分环境下字形不完整）
+        String[] systemTtcPaths = {
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simsun.ttc",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"
+        };
+        for (String fontPath : systemTtcPaths) {
+            if (new File(fontPath).exists()) {
+                config.setFontNo(0);
+                config.setFontDataOwnedByAtlas(true);
+                io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
+                LOGGER.warn("Loaded primary UI font from TTC/fallback {}; Chinese coverage may be incomplete", fontPath);
+                return true;
+            }
+        }
         return false;
+    }
+
+    private void mergeSymbolFont(ImGuiIO io, ImFontConfig config) {
+        String[] systemTtfPaths = {
+            "C:/Windows/Fonts/simhei.ttf",
+            "C:/Windows/Fonts/msyh.ttf",
+            "C:/Windows/Fonts/simkai.ttf"
+        };
+        for (String fontPath : systemTtfPaths) {
+            if (new File(fontPath).exists()) {
+                config.setFontNo(0);
+                config.setFontDataOwnedByAtlas(true);
+                io.getFonts().addFontFromFileTTF(fontPath, UI_FONT_SIZE, config);
+                return;
+            }
+        }
+        if (keptFontData != null) {
+            config.setFontNo(0);
+            config.setFontDataOwnedByAtlas(false);
+            io.getFonts().addFontFromMemoryTTF(keptFontData, UI_FONT_SIZE, config);
+        }
     }
 
     private byte[] loadBundledFontBytes() {

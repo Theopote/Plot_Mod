@@ -71,6 +71,8 @@ public class NewLayerDialog {
         this.layerManager = layerManager;
         this.showWarningDialog = showWarningDialog;
         this.layerName = new ImString(MAX_BUFFER_SIZE);
+        this.layerName.inputData.isResizable = true;
+        this.layerName.inputData.resizeFactor = 256;
     }
 
     public void show() {
