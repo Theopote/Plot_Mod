@@ -18,6 +18,9 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnap;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
+import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
+import com.plot.plugin.road.pipeline.profile.ProfileSolveSupport;
+import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -97,14 +100,14 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
         try {
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, config);
             List<PathSegment> segments = samplePath(pathPoints);
-            SegmentHeightCalculation heightCalculation = calculateSegmentHeightsForEdge(
+            ProfileSolveResult heightCalculation = calculateSegmentHeightsForEdge(
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints, terrain, crossSection, heightCalculation.heightInfos(), edge.getLength(),
                 resolveEndpointSnap(startNode, endNode, networkNodeElevations, crossSection, pathPoints),
                 edge.getId());
             result.edgeId = edge.getId();
-            result.copyProfileFrom(toProfileResult(heightCalculation));
+            result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
             return result;
         } catch (Exception e) {
             LOGGER.error("生成道路边失败: {}", e.getMessage(), e);
@@ -127,33 +130,24 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             return new RoadGenerationResult(0);
         }
         List<PathSegment> segments = samplePath(pathPoints);
-        SegmentHeightCalculation heightCalculation = manualRoadElevation != null
+        ProfileSolveResult heightCalculation = manualRoadElevation != null
             ? calculateSegmentHeightsWithManualElevation(segments, terrain, manualRoadElevation)
             : calculateSegmentHeights(segments, terrain);
         double pathLength = segments.stream().mapToDouble(s -> s.distance).sum();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(config);
         RoadGenerationResult result = buildFromCenterline(
             pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength);
-        result.copyProfileFrom(toProfileResult(heightCalculation));
+        result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
     }
 
-    private SegmentHeightCalculation calculateSegmentHeightsWithManualElevation(
+    private ProfileSolveResult calculateSegmentHeightsWithManualElevation(
             List<PathSegment> segments,
             TerrainSampler terrain,
             int manualRoadElevation) {
-        if (segments.isEmpty()) {
-            return emptyHeightCalculation();
-        }
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
-        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
-        return buildSegmentHeights(
-            segments,
-            sampleData,
-            List.of(),
-            manualRoadElevation,
-            manualRoadElevation,
-            segmentIndex -> config.getMaxSlope());
+        return RoadProfileSolver.solveWithManualElevation(
+            segments, terrain, halfWidth, manualRoadElevation, profileSupport());
     }
 
     private RoadGenerationResult buildFromCenterline(
@@ -608,17 +602,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
         return config;
     }
 
-    private record SegmentHeightCalculation(
-            List<SegmentHeightInfo> heightInfos,
-            List<Double> profileDistances,
-            List<Integer> profileGroundHeights,
-            List<Integer> profileGuideLine,
-            List<Integer> profileTargetHeights) {
-    }
-
-    /**
-     * 采样路径点，创建分段
-     */
     private List<PathSegment> samplePath(List<Vec2d> pathPoints) {
         return RoadGeometrySampler.sample(
             pathPoints,
@@ -626,40 +609,30 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             this::estimateCanvasUnitsPerBlock);
     }
 
-    /**
-     * 计算分段高度（考虑坡度限制）
-     */
-    private SegmentHeightCalculation calculateSegmentHeights(List<PathSegment> segments, TerrainSampler terrain) {
-        if (segments.isEmpty()) {
-            return emptyHeightCalculation();
-        }
-
-        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
-        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
-        return buildSegmentHeights(
-            segments,
-            sampleData,
-            List.of(),
-            null,
-            null,
-            segmentIndex -> config.getMaxSlope());
+    private ProfileSolveSupport profileSupport() {
+        return ProfileSolveSupport.fromConfig(config, segments -> estimateCanvasUnitsPerBlock(null, segments));
     }
 
-    private SegmentHeightCalculation calculateSegmentHeightsForEdge(
+    private ProfileSolveResult calculateSegmentHeights(List<PathSegment> segments, TerrainSampler terrain) {
+        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
+        return RoadProfileSolver.solveStandalone(segments, terrain, halfWidth, profileSupport());
+    }
+
+    private ProfileSolveResult calculateSegmentHeightsForEdge(
             List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode) {
         return calculateSegmentHeightsForEdge(
             segments, terrain, network, edge, startNode, endNode, true, null);
     }
 
-    private SegmentHeightCalculation calculateSegmentHeightsForEdge(
+    private ProfileSolveResult calculateSegmentHeightsForEdge(
             List<PathSegment> segments, TerrainSampler terrain, RoadNetwork network, RoadEdge edge,
             RoadNode startNode, RoadNode endNode, boolean applyGradeSeparation) {
         return calculateSegmentHeightsForEdge(
             segments, terrain, network, edge, startNode, endNode, applyGradeSeparation, null);
     }
 
-    private SegmentHeightCalculation calculateSegmentHeightsForEdge(
+    private ProfileSolveResult calculateSegmentHeightsForEdge(
             List<PathSegment> segments,
             TerrainSampler terrain,
             RoadNetwork network,
@@ -668,11 +641,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             RoadNode endNode,
             boolean applyGradeSeparation,
             Map<String, Integer> networkNodeElevations) {
-        if (segments.isEmpty()) {
-            return emptyHeightCalculation();
-        }
-
-        // 优先级：立体交叉上跨 / 手动下层标高 > 路网统一节点标高
         Integer manualStartHeight = resolveForcedHeightAtNode(
             startNode, network, edge, terrain, applyGradeSeparation);
         Integer manualEndHeight = resolveForcedHeightAtNode(
@@ -686,27 +654,16 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
 
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
             RoadModelUtils.getEffectiveWidth(network, edge, config));
-        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
-
-        List<Double> distances = new ArrayList<>();
-        List<Float> maxSlopes = new ArrayList<>();
-        double canvasUnitsPerBlock = estimateCanvasUnitsPerBlock(null, segments);
-        double accumulatedDistance = 0.0;
-        for (PathSegment segment : segments) {
-            distances.add(segment.distance / canvasUnitsPerBlock);
-            maxSlopes.add(RoadModelUtils.getEffectiveMaxSlope(network, edge, config, accumulatedDistance));
-            accumulatedDistance += segment.distance / canvasUnitsPerBlock;
-        }
-
-        return buildSegmentHeights(
+        return RoadProfileSolver.solveForEdge(
             segments,
-            sampleData,
-            maxSlopes,
+            terrain,
+            network,
+            edge,
+            config,
+            halfWidth,
             manualStartHeight,
             manualEndHeight,
-            segmentIndex -> RoadModelUtils.getEffectiveMaxSlope(
-                network, edge, config,
-                profileDistanceAtSegmentStart(sampleData, segmentIndex, canvasUnitsPerBlock)));
+            profileSupport());
     }
 
     private static Integer lookupNetworkNodeElevation(
@@ -715,169 +672,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             return null;
         }
         return networkNodeElevations.get(node.getId());
-    }
-
-    private static SegmentHeightCalculation emptyHeightCalculation() {
-        return new SegmentHeightCalculation(List.of(), List.of(), List.of(), List.of(), List.of());
-    }
-
-    private static RoadGenerationResult toProfileResult(SegmentHeightCalculation calculation) {
-        RoadGenerationResult profile = new RoadGenerationResult(0);
-        profile.profileDistances = new ArrayList<>(calculation.profileDistances());
-        profile.profileGroundHeights = new ArrayList<>(calculation.profileGroundHeights());
-        profile.profileGuideLine = new ArrayList<>(calculation.profileGuideLine());
-        profile.profileTargetHeights = new ArrayList<>(calculation.profileTargetHeights());
-        return profile;
-    }
-
-    private record HeightSampleData(
-            List<Integer> groundSamples,
-            List<Double> cumulativeDistances,
-            List<Integer> groundStarts,
-            List<Integer> groundEnds) {
-    }
-
-    private HeightSampleData collectHeightSamples(
-            List<PathSegment> segments,
-            TerrainSampler terrain,
-            double halfWidth) {
-        List<Integer> groundSamples = new ArrayList<>();
-        List<Double> cumulativeDistances = new ArrayList<>();
-        List<Integer> groundStarts = new ArrayList<>();
-        List<Integer> groundEnds = new ArrayList<>();
-        double accumulatedDistance = 0.0;
-
-        for (PathSegment segment : segments) {
-            Vec2d tangent = segment.end.subtract(segment.start);
-            int groundStart = terrain.sampleCrossSectionGroundY(segment.start, tangent, halfWidth);
-            int groundEnd = terrain.sampleCrossSectionGroundY(segment.end, tangent, halfWidth);
-            groundStarts.add(groundStart);
-            groundEnds.add(groundEnd);
-            groundSamples.add(groundStart);
-            cumulativeDistances.add(accumulatedDistance);
-            accumulatedDistance += segment.distance;
-        }
-
-        if (!groundEnds.isEmpty()) {
-            groundSamples.add(groundEnds.getLast());
-            cumulativeDistances.add(accumulatedDistance);
-        }
-
-        return new HeightSampleData(groundSamples, cumulativeDistances, groundStarts, groundEnds);
-    }
-
-    private SegmentHeightCalculation buildSegmentHeights(
-            List<PathSegment> segments,
-            HeightSampleData sampleData,
-            List<Float> maxSlopes,
-            Integer manualStartHeight,
-            Integer manualEndHeight,
-            java.util.function.IntFunction<Float> maxSlopeResolver) {
-        double canvasUnitsPerBlock = estimateCanvasUnitsPerBlock(null, segments);
-        List<Double> worldCumulativeDistances = toWorldDistances(
-            sampleData.cumulativeDistances(), canvasUnitsPerBlock);
-        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(
-            sampleData.groundSamples(),
-            worldCumulativeDistances,
-            config.getFillFactor(),
-            manualStartHeight,
-            manualEndHeight);
-
-        List<Integer> guideStarts = new ArrayList<>();
-        List<Integer> guideEnds = new ArrayList<>();
-        for (int i = 0; i < segments.size(); i++) {
-            guideStarts.add(guideLine.get(i));
-            guideEnds.add(guideLine.get(i + 1));
-        }
-
-        List<Double> distances = new ArrayList<>();
-        List<Float> effectiveMaxSlopes = new ArrayList<>();
-        for (int i = 0; i < segments.size(); i++) {
-            distances.add(segments.get(i).distance / canvasUnitsPerBlock);
-            if (maxSlopes != null && maxSlopes.size() == segments.size()) {
-                effectiveMaxSlopes.add(maxSlopes.get(i));
-            } else {
-                effectiveMaxSlopes.add(maxSlopeResolver.apply(i));
-            }
-        }
-
-        List<Integer> targetEnds = RoadSlopeUtils.computeChainedTargetHeights(
-            distances,
-            guideStarts,
-            guideEnds,
-            effectiveMaxSlopes,
-            manualStartHeight,
-            manualEndHeight,
-            config.getMaxContinuousSlopeLength(),
-            config.getRelaxedSlopeLength(),
-            config.getRelaxedSlopePercent()
-        );
-
-        List<SegmentHeightInfo> heightInfos = new ArrayList<>();
-        int currentHeight = manualStartHeight != null
-            ? manualStartHeight
-            : guideStarts.getFirst();
-
-        for (int i = 0; i < segments.size(); i++) {
-            PathSegment segment = segments.get(i);
-            int targetStart = currentHeight;
-            int targetEnd = targetEnds.get(i);
-            double actualSlope = RoadSlopeUtils.computeActualSlopePercent(
-                targetStart, targetEnd, segment.distance / canvasUnitsPerBlock);
-            heightInfos.add(new SegmentHeightInfo(
-                segment,
-                sampleData.groundStarts().get(i),
-                sampleData.groundEnds().get(i),
-                targetStart,
-                targetEnd,
-                actualSlope));
-            currentHeight = targetEnd;
-        }
-
-        return new SegmentHeightCalculation(
-            heightInfos,
-            worldCumulativeDistances,
-            new ArrayList<>(sampleData.groundSamples()),
-            new ArrayList<>(guideLine),
-            buildProfileTargetHeights(heightInfos, manualStartHeight));
-    }
-
-    private static List<Double> toWorldDistances(
-            List<Double> canvasDistances,
-            double canvasUnitsPerBlock) {
-        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
-        List<Double> worldDistances = new ArrayList<>(canvasDistances.size());
-        for (double distance : canvasDistances) {
-            worldDistances.add(distance / scale);
-        }
-        return worldDistances;
-    }
-
-    private static double profileDistanceAtSegmentStart(
-            HeightSampleData sampleData,
-            int segmentIndex,
-            double canvasUnitsPerBlock) {
-        if (segmentIndex < 0 || segmentIndex >= sampleData.cumulativeDistances().size()) {
-            return 0.0;
-        }
-        return sampleData.cumulativeDistances().get(segmentIndex)
-            / Math.max(1e-9, canvasUnitsPerBlock);
-    }
-
-    private static List<Integer> buildProfileTargetHeights(
-            List<SegmentHeightInfo> heightInfos,
-            Integer manualStartHeight) {
-        if (heightInfos.isEmpty()) {
-            return List.of();
-        }
-        List<Integer> profileTargetHeights = new ArrayList<>(heightInfos.size() + 1);
-        profileTargetHeights.add(manualStartHeight != null
-            ? manualStartHeight
-            : heightInfos.getFirst().targetStart);
-        for (SegmentHeightInfo info : heightInfos) {
-            profileTargetHeights.add(info.targetEnd);
-        }
-        return profileTargetHeights;
     }
 
     @Override

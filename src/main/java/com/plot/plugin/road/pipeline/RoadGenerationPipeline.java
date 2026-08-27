@@ -16,7 +16,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  * <pre>
  * RoadGenerationPipeline
  * ├─ RoadGeometrySampler
- * ├─ RoadProfileSolver (upstream, before pipeline)
+ * ├─ RoadProfileSolver (upstream, before build pipeline)
  * ├─ RoadConstructionClassifier
  * ├─ RoadCrossSectionBuilder
  * ├─ RoadMarkingGenerator
