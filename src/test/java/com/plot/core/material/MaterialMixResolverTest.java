@@ -95,34 +95,45 @@ class MaterialMixResolverTest {
     void differentSeedKeysChangeSelectionDistribution() {
         MaterialMix mix = new MaterialMix("primary", "accent", 0.5f);
         BlockPos origin = new BlockPos(4, 8, 16);
-        Map<String, Integer> countsBySeed = new HashMap<>();
-        int differingPositions = 0;
+        final int sampleCount = 1000;
 
-        for (String seed : java.util.List.of("edge-a", "edge-b", "edge-c")) {
-            int accentCount = 0;
-            for (int i = 0; i < 200; i++) {
-                String resolved = MaterialMixResolver.resolve(
-                    mix, new BlockPos(origin.getX() + i, origin.getY(), origin.getZ()), seed, material -> material);
-                if ("accent".equals(resolved)) {
-                    accentCount++;
-                }
-            }
-            countsBySeed.put(seed, accentCount);
-        }
+        java.util.List<String> sequenceA = resolveRange(mix, origin, "edge-a", sampleCount);
+        java.util.List<String> sequenceB = resolveRange(mix, origin, "edge-b", sampleCount);
 
-        for (int i = 0; i < 200; i++) {
-            BlockPos pos = new BlockPos(origin.getX() + i, origin.getY(), origin.getZ());
-            String a = MaterialMixResolver.resolve(mix, pos, "edge-a", material -> material);
-            String b = MaterialMixResolver.resolve(mix, pos, "edge-b", material -> material);
+        assertTrue(!sequenceA.equals(sequenceB),
+            "different seeds should produce different selection sequences");
+
+        int differences = 0;
+        Map<String, Integer> accentCounts = new HashMap<>();
+        accentCounts.put("edge-a", 0);
+        accentCounts.put("edge-b", 0);
+        for (int i = 0; i < sampleCount; i++) {
+            String a = sequenceA.get(i);
+            String b = sequenceB.get(i);
             if (!a.equals(b)) {
-                differingPositions++;
+                differences++;
+            }
+            if ("accent".equals(a)) {
+                accentCounts.merge("edge-a", 1, Integer::sum);
+            }
+            if ("accent".equals(b)) {
+                accentCounts.merge("edge-b", 1, Integer::sum);
             }
         }
 
-        assertTrue(countsBySeed.values().stream().distinct().count() > 1,
-            "different seeds should not all produce identical accent counts: " + countsBySeed);
-        // Single-cell equality is expected occasionally at 50%; require sequence divergence.
-        assertTrue(differingPositions > 0,
-            "seed keys should change the resolved sequence across a footprint");
+        // ~50% mismatch expected at ratio 0.5; require clear Hamming divergence, not a single cell.
+        assertTrue(differences > 100,
+            "expected significant sequence divergence, but only " + differences + " of " + sampleCount
+                + " positions differed; accent counts=" + accentCounts);
+    }
+
+    private static java.util.List<String> resolveRange(
+            MaterialMix mix, BlockPos origin, String seed, int count) {
+        java.util.List<String> resolved = new java.util.ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            BlockPos pos = new BlockPos(origin.getX() + i, origin.getY(), origin.getZ());
+            resolved.add(MaterialMixResolver.resolve(mix, pos, seed, material -> material));
+        }
+        return resolved;
     }
 }
