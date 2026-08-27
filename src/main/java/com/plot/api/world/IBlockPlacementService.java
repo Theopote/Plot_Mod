@@ -12,13 +12,30 @@ public interface IBlockPlacementService {
     record BlockWrite(BlockPos pos, String blockId) {
     }
 
-    record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+    record ExecutionResult(int success, int failed, int total, boolean cancelled, List<Integer> successfulWriteIndices) {
         public ExecutionResult(int success, int failed, int total) {
-            this(success, failed, total, false);
+            this(success, failed, total, false, List.of());
+        }
+
+        public ExecutionResult(int success, int failed, int total, boolean cancelled) {
+            this(success, failed, total, cancelled, List.of());
         }
 
         public static ExecutionResult cancelled(int success, int failed, int total) {
-            return new ExecutionResult(success, failed, total, true);
+            return new ExecutionResult(success, failed, total, true, List.of());
+        }
+
+        public static ExecutionResult cancelled(int success, int failed, int total, List<Integer> successfulWriteIndices) {
+            return new ExecutionResult(
+                success,
+                failed,
+                total,
+                true,
+                successfulWriteIndices != null ? List.copyOf(successfulWriteIndices) : List.of());
+        }
+
+        public boolean hasTrackedSuccessfulWrites() {
+            return !successfulWriteIndices.isEmpty();
         }
 
         public boolean isFullSuccess() {

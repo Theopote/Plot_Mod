@@ -118,9 +118,11 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
 
         int budget = BLOCKS_PER_TICK;
         while (budget > 0 && activeJob.hasNext()) {
+            int writeIndex = activeJob.index;
             BlockWrite write = activeJob.next();
             if (blockWriter.setBlockAt(write.pos(), write.blockId())) {
                 activeJob.success++;
+                activeJob.successfulWriteIndices.add(writeIndex);
             } else {
                 activeJob.failed++;
             }
@@ -135,8 +137,10 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
 
     private void completeJob(PlacementJob job, boolean cancelled) {
         ExecutionResult result = cancelled
-            ? ExecutionResult.cancelled(job.success, job.failed, job.writes.size())
-            : new ExecutionResult(job.success, job.failed, job.writes.size());
+            ? ExecutionResult.cancelled(
+                job.success, job.failed, job.writes.size(), List.copyOf(job.successfulWriteIndices))
+            : new ExecutionResult(
+                job.success, job.failed, job.writes.size(), false, List.copyOf(job.successfulWriteIndices));
         if (!cancelled) {
             LOGGER.info("方块放置批次完成: {}/{} 成功, {} 失败",
                 result.success(), result.total(), result.failed());
@@ -171,6 +175,7 @@ public final class BlockPlacementScheduler implements IBlockPlacementService {
         private int index;
         private int success;
         private int failed;
+        private final List<Integer> successfulWriteIndices = new ArrayList<>();
 
         private PlacementJob(List<BlockWrite> writes, Consumer<ExecutionResult> onComplete) {
             this.writes = writes;

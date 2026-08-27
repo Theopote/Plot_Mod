@@ -78,7 +78,7 @@ public class RoadStyle {
         if (includeSlopeBatter != null) {
             return includeSlopeBatter;
         }
-        return includeShoulder && (fillSlopeRatio > 0f || cutSlopeRatio > 0f);
+        return fillSlopeRatio > 0f || cutSlopeRatio > 0f;
     }
 
     public RoadCrossSection toCrossSection() {

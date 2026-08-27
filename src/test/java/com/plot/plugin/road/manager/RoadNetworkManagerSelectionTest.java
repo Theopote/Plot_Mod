@@ -84,6 +84,52 @@ class RoadNetworkManagerSelectionTest {
     }
 
     @Test
+    void batchApplyUpdatesSlopeBatterOnSelectedRoads() {
+        var roadA = manager.getNetwork().createRoad(manager.getConfig());
+        roadA.setIncludeSlopeBatter(false);
+        manager.getNetwork().linkEdgeToRoad(roadA.getId(), edgeA);
+        var roadB = manager.getNetwork().createRoad(manager.getConfig());
+        roadB.setIncludeSlopeBatter(false);
+        manager.getNetwork().linkEdgeToRoad(roadB.getId(), edgeB);
+
+        manager.handleEdgeSelect(edgeA, false);
+        manager.handleEdgeSelect(edgeB, true);
+
+        RoadNetworkManager.BatchEditDefaults base = manager.loadBatchEditDefaults();
+        RoadNetworkManager.BatchEditDefaults draft = new RoadNetworkManager.BatchEditDefaults(
+            base.width(),
+            base.laneCount(),
+            base.material(),
+            base.includeShoulder(),
+            base.shoulderWidth(),
+            base.includeSidewalk(),
+            base.sidewalkWidth(),
+            base.sidewalkMaterial(),
+            base.includeDrainage(),
+            base.includeBikeLane(),
+            base.bikeLaneWidth(),
+            base.includeMedian(),
+            base.medianWidth(),
+            base.streetlightSpacing(),
+            base.laneDividers(),
+            base.centerLineStyle(),
+            base.markingMaterial(),
+            true,
+            2.0f,
+            1.5f,
+            "minecraft:gravel",
+            "minecraft:dirt",
+            base.maxSlope());
+        manager.applyBatchEdit(draft);
+
+        assertTrue(roadA.getIncludeSlopeBatter());
+        assertEquals(2.0f, roadA.getFillSlopeRatio(), 0.001f);
+        assertEquals(1.5f, roadA.getCutSlopeRatio(), 0.001f);
+        assertTrue(roadB.getIncludeSlopeBatter());
+        assertEquals(2.0f, roadB.getFillSlopeRatio(), 0.001f);
+    }
+
+    @Test
     void batchDraftReloadsWhenSwitchingToDifferentSelectionOfSameSize() {
         var flatRoad = manager.getNetwork().createRoad(manager.getConfig());
         flatRoad.setMaxSlope(0f);

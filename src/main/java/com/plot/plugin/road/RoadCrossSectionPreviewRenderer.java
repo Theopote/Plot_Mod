@@ -137,15 +137,16 @@ public final class RoadCrossSectionPreviewRenderer {
         cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
         drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
 
-        if (layout.includeShoulder && layout.shoulderBlocks > 0) {
-            float leftShoulderOuterX = x0 + width * 0.5f - layout.centerOffsetBlocks(scale)
-                - layout.leftShoulderBlocks * scale;
-            float rightShoulderOuterX = x0 + width * 0.5f + layout.centerOffsetBlocks(scale)
-                + layout.roadBlocks * scale + layout.rightShoulderBlocks * scale;
+        if (layout.fillSlopeRatio > 0f || layout.cutSlopeRatio > 0f) {
+            float leftEdgeX = x0 + width * 0.5f - layout.centerOffsetBlocks(scale)
+                - (layout.includeShoulder ? layout.leftShoulderBlocks * scale : 0f);
+            float rightEdgeX = x0 + width * 0.5f + layout.centerOffsetBlocks(scale)
+                + layout.roadBlocks * scale
+                + (layout.includeShoulder ? layout.rightShoulderBlocks * scale : 0f);
 
             drawBatterSlope(
                 drawList,
-                leftShoulderOuterX,
+                leftEdgeX,
                 deckY + deckH,
                 groundY,
                 -1,
@@ -156,7 +157,7 @@ public final class RoadCrossSectionPreviewRenderer {
             );
             drawBatterSlope(
                 drawList,
-                rightShoulderOuterX,
+                rightEdgeX,
                 deckY + deckH,
                 deckY - Math.max(10f, (groundY - deckY - deckH) * 0.5f),
                 1,

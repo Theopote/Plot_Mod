@@ -38,6 +38,8 @@ public class RoadCrossSection {
         section.slopeBatter.setCutRatio(defaults.getCutSlopeRatio());
         section.slopeBatter.setFillMaterial(defaults.getFillSlopeMaterial());
         section.slopeBatter.setCutMaterial(defaults.getCutSlopeMaterial());
+        section.slopeBatter.setEnabled(
+            defaults.getFillSlopeRatio() > 0f || defaults.getCutSlopeRatio() > 0f);
         section.sidewalk.setEnabled(defaults.isIncludeSidewalk());
         section.sidewalk.setWidth(defaults.getSidewalkWidth());
         section.sidewalk.setMaterial(defaults.getSelectedSidewalkMaterial());

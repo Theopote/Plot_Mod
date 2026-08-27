@@ -5,6 +5,8 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.ui.PluginUiColors;
+import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
@@ -34,6 +36,11 @@ public final class RoadBatchCrossSectionEditor {
         boolean laneDividers = draft.laneDividers();
         CenterLineStyle centerLineStyle = draft.centerLineStyle();
         final String[] markingMaterial = {draft.markingMaterial()};
+        boolean includeSlopeBatter = draft.includeSlopeBatter();
+        float fillSlopeRatio = draft.fillSlopeRatio();
+        float cutSlopeRatio = draft.cutSlopeRatio();
+        final String[] fillSlopeMaterial = {draft.fillSlopeMaterial()};
+        final String[] cutSlopeMaterial = {draft.cutSlopeMaterial()};
 
         int[] laneCountArr = {laneCount};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.road.lane_count", laneCountArr[0]) + "##batch_lanes", laneCountArr,
@@ -75,6 +82,54 @@ public final class RoadBatchCrossSectionEditor {
                 shoulderWidth = shoulderWidthArr[0];
             }
             shoulderWidth = shoulderWidthArr[0];
+        }
+
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
+        ImBoolean slopeRef = new ImBoolean(includeSlopeBatter);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##batch_slope", slopeRef)) {
+            includeSlopeBatter = slopeRef.get();
+        }
+        if (includeSlopeBatter) {
+            float[] fillSlopeArr = {fillSlopeRatio};
+            if (EngineeringSlopeInput.render(
+                "batch_fill_slope_ratio",
+                PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
+                fillSlopeArr,
+                EngineeringSlopeInput.ValueKind.BATTER
+            )) {
+                fillSlopeRatio = fillSlopeArr[0];
+            }
+            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+
+            float[] cutSlopeArr = {cutSlopeRatio};
+            if (EngineeringSlopeInput.render(
+                "batch_cut_slope_ratio",
+                PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
+                cutSlopeArr,
+                EngineeringSlopeInput.ValueKind.BATTER
+            )) {
+                cutSlopeRatio = cutSlopeArr[0];
+            }
+            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+
+            RoadUiWidgets.renderBlockMaterialPicker(
+                ctx,
+                "##batch_fill_slope_material",
+                PlotI18n.tr("plugin.road.fill_slope_material"),
+                fillSlopeMaterial[0],
+                value -> fillSlopeMaterial[0] = value,
+                false
+            );
+            RoadUiWidgets.renderBlockMaterialPicker(
+                ctx,
+                "##batch_cut_slope_material",
+                PlotI18n.tr("plugin.road.cut_slope_material"),
+                cutSlopeMaterial[0] != null ? cutSlopeMaterial[0] : "",
+                value -> cutSlopeMaterial[0] = value,
+                false
+            );
         }
 
         ImBoolean sidewalkRef = new ImBoolean(includeSidewalk);
@@ -215,6 +270,11 @@ public final class RoadBatchCrossSectionEditor {
             laneDividers,
             centerLineStyle,
             markingMaterial[0],
+            includeSlopeBatter,
+            fillSlopeRatio,
+            cutSlopeRatio,
+            fillSlopeMaterial[0],
+            cutSlopeMaterial[0],
             draft.maxSlope());
         ctx.networkManager().updateBatchEditDraft(updatedDraft);
 

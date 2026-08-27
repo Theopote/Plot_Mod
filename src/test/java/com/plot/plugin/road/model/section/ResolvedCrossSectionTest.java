@@ -56,6 +56,40 @@ class ResolvedCrossSectionTest {
     }
 
     @Test
+    void slopeEnabledWithoutShoulder() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setIncludeShoulder(false);
+        config.setFillSlopeRatio(2.0f);
+        config.setCutSlopeRatio(1.5f);
+
+        RoadCrossSection section = new RoadCrossSection();
+        section.getShoulder().setEnabled(false);
+        section.getSlopeBatter().setEnabled(true);
+        section.getSlopeBatter().setFillRatio(2.0f);
+        section.getSlopeBatter().setCutRatio(1.5f);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+
+        assertFalse(resolved.includeShoulder);
+        assertTrue(resolved.includeSlopeBatter);
+        assertEquals(2.0f, resolved.fillSlopeRatio, 1e-3);
+    }
+
+    @Test
+    void slopeAnchorCenterOffsetUsesCarriagewayEdgeWithoutShoulder() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setWidth(7);
+        section.getShoulder().setEnabled(false);
+        section.getSlopeBatter().setEnabled(true);
+        section.getSlopeBatter().setFillRatio(1.0f);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+
+        assertEquals(3.5, resolved.slopeAnchorCenterOffset(), 1e-6);
+    }
+
+    @Test
     void nullRoadFieldsFallBackToConfig() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(6);

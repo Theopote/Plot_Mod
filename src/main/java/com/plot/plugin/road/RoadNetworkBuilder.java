@@ -99,19 +99,17 @@ public class RoadNetworkBuilder {
                         continue;
                     }
 
-                    List<Vec2d> intersections = findIntersections(edgeA, edgeB);
-                    for (Vec2d intersection : intersections) {
-                        if (isNearEdgeEndpoint(edgeA, intersection) || isNearEdgeEndpoint(edgeB, intersection)) {
+                    List<Vec2d> connectionPoints = findConnectionPoints(edgeA, edgeB);
+                    for (Vec2d connectionPoint : connectionPoints) {
+                        if (alreadyConnectedAt(network, edgeA, edgeB, connectionPoint)) {
                             continue;
                         }
-                        if (alreadyConnectedAt(network, edgeA, edgeB, intersection)) {
-                            continue;
-                        }
-
-                        RoadNode junctionNode = findOrCreateNode(network, intersection);
-                        boolean splitA = splitEdgeAtNode(network, edgeA.getId(), junctionNode.getId(), intersection, trackedEdgeIds);
-                        boolean splitB = splitEdgeAtNode(network, edgeB.getId(), junctionNode.getId(), intersection, trackedEdgeIds);
-                        if (splitA || splitB) {
+                        if (processIntersection(
+                                network,
+                                edgeA,
+                                edgeB,
+                                connectionPoint,
+                                trackedEdgeIds)) {
                             changed = true;
                         }
                     }
@@ -142,6 +140,75 @@ public class RoadNetworkBuilder {
         return network.createNode(position);
     }
 
+    private List<Vec2d> findConnectionPoints(RoadEdge edgeA, RoadEdge edgeB) {
+        List<Vec2d> points = new ArrayList<>();
+        points.addAll(findIntersections(edgeA, edgeB));
+        points.addAll(findEndpointApproaches(edgeA, edgeB));
+        points.addAll(findEndpointApproaches(edgeB, edgeA));
+        points.addAll(findNearbyEndpointPairs(edgeA, edgeB));
+        return deduplicatePoints(points, NODE_TOLERANCE);
+    }
+
+    /** 一条边的端点落在另一条边 interior 上（含容差吸附）。 */
+    private List<Vec2d> findEndpointApproaches(RoadEdge endpointEdge, RoadEdge targetEdge) {
+        List<Vec2d> approaches = new ArrayList<>();
+        List<Vec2d> targetPoints = targetEdge.getCenterlinePoints();
+        if (targetPoints.size() < 2) {
+            return approaches;
+        }
+        for (Vec2d endpoint : edgeEndpointPoints(endpointEdge)) {
+            Vec2d projected = projectOntoPolylineInterior(targetPoints, endpoint, NODE_TOLERANCE);
+            if (projected != null) {
+                approaches.add(projected);
+            }
+        }
+        return approaches;
+    }
+
+    /** 两条边端点彼此落在容差范围内。 */
+    private List<Vec2d> findNearbyEndpointPairs(RoadEdge edgeA, RoadEdge edgeB) {
+        List<Vec2d> pairs = new ArrayList<>();
+        for (Vec2d epA : edgeEndpointPoints(edgeA)) {
+            for (Vec2d epB : edgeEndpointPoints(edgeB)) {
+                if (RoadGeometryUtils.pointsNear(epA, epB, NODE_TOLERANCE)) {
+                    pairs.add(epA.copy());
+                }
+            }
+        }
+        return pairs;
+    }
+
+    private List<Vec2d> edgeEndpointPoints(RoadEdge edge) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points.isEmpty()) {
+            return List.of();
+        }
+        if (points.size() == 1) {
+            return List.of(points.getFirst().copy());
+        }
+        return List.of(points.getFirst().copy(), points.getLast().copy());
+    }
+
+    private Vec2d projectOntoPolylineInterior(List<Vec2d> polyline, Vec2d point, double tolerance) {
+        Vec2d bestProjection = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (int i = 0; i < polyline.size() - 1; i++) {
+            Vec2d projected = RoadGeometryUtils.projectPointOnSegment(
+                polyline.get(i), polyline.get(i + 1), point);
+            double distance = projected.distance(point);
+            if (distance > tolerance || distance >= bestDistance) {
+                continue;
+            }
+            if (RoadGeometryUtils.pointsNear(projected, polyline.getFirst(), tolerance)
+                    || RoadGeometryUtils.pointsNear(projected, polyline.getLast(), tolerance)) {
+                continue;
+            }
+            bestDistance = distance;
+            bestProjection = projected;
+        }
+        return bestProjection != null ? bestProjection.copy() : null;
+    }
+
     private List<Vec2d> findIntersections(RoadEdge edgeA, RoadEdge edgeB) {
         PolylineShape polyA = new PolylineShape(edgeA.getCenterlinePoints(), false);
         PolylineShape polyB = new PolylineShape(edgeB.getCenterlinePoints(), false);
@@ -164,6 +231,101 @@ public class RoadNetworkBuilder {
             }
         }
         return unique;
+    }
+
+    /**
+     * 按边分别处理交点：仅对 interior 边 split；endpoint 边复用/合并节点。
+     */
+    private boolean processIntersection(
+            RoadNetwork network,
+            RoadEdge edgeA,
+            RoadEdge edgeB,
+            Vec2d intersection,
+            Set<String> trackedEdgeIds) {
+        // 边可能在上一轮 split 后已被替换
+        RoadEdge currentA = network.getEdge(edgeA.getId());
+        RoadEdge currentB = network.getEdge(edgeB.getId());
+        if (currentA == null || currentB == null) {
+            return false;
+        }
+
+        boolean aAtEndpoint = isNearEdgeEndpoint(currentA, intersection);
+        boolean bAtEndpoint = isNearEdgeEndpoint(currentB, intersection);
+        RoadNode junctionNode = findOrCreateNode(network, intersection);
+
+        boolean changed = false;
+        if (aAtEndpoint) {
+            changed |= connectEdgeEndpointToNode(network, currentA, intersection, junctionNode);
+        } else {
+            changed |= splitEdgeAtNode(
+                network, currentA.getId(), junctionNode.getId(), intersection, trackedEdgeIds);
+        }
+        if (bAtEndpoint) {
+            changed |= connectEdgeEndpointToNode(network, currentB, intersection, junctionNode);
+        } else {
+            changed |= splitEdgeAtNode(
+                network, currentB.getId(), junctionNode.getId(), intersection, trackedEdgeIds);
+        }
+        return changed;
+    }
+
+    private boolean connectEdgeEndpointToNode(
+            RoadNetwork network,
+            RoadEdge edge,
+            Vec2d intersection,
+            RoadNode junctionNode) {
+        String endpointNodeId = findEndpointNodeId(edge, intersection);
+        if (endpointNodeId == null || endpointNodeId.equals(junctionNode.getId())) {
+            return false;
+        }
+        return mergeEdgeEndpointToNode(network, edge, endpointNodeId, junctionNode.getId());
+    }
+
+    private String findEndpointNodeId(RoadEdge edge, Vec2d intersection) {
+        List<Vec2d> points = edge.getCenterlinePoints();
+        if (points.isEmpty()) {
+            return null;
+        }
+        if (RoadGeometryUtils.pointsNear(points.getFirst(), intersection, NODE_TOLERANCE)) {
+            return edge.getStartNodeId();
+        }
+        if (RoadGeometryUtils.pointsNear(points.getLast(), intersection, NODE_TOLERANCE)) {
+            return edge.getEndNodeId();
+        }
+        return null;
+    }
+
+    private boolean mergeEdgeEndpointToNode(
+            RoadNetwork network,
+            RoadEdge edge,
+            String oldNodeId,
+            String newNodeId) {
+        if (oldNodeId.equals(newNodeId)) {
+            return false;
+        }
+        RoadNode oldNode = network.getNode(oldNodeId);
+        RoadNode newNode = network.getNode(newNodeId);
+        if (oldNode == null || newNode == null) {
+            return false;
+        }
+
+        boolean relinked = false;
+        if (edge.getStartNodeId().equals(oldNodeId)) {
+            oldNode.removeEdge(edge.getId());
+            edge.setStartNodeId(newNodeId);
+            newNode.addEdge(edge.getId());
+            relinked = true;
+        } else if (edge.getEndNodeId().equals(oldNodeId)) {
+            oldNode.removeEdge(edge.getId());
+            edge.setEndNodeId(newNodeId);
+            newNode.addEdge(edge.getId());
+            relinked = true;
+        }
+
+        if (relinked && oldNode.getDegree() == 0) {
+            network.removeNode(oldNodeId);
+        }
+        return relinked;
     }
 
     private boolean isNearEdgeEndpoint(RoadEdge edge, Vec2d point) {

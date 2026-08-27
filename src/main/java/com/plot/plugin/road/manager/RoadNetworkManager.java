@@ -60,6 +60,11 @@ public final class RoadNetworkManager {
     private CenterLineStyle batchCenterLineStyle = CenterLineStyle.NONE;
     private String batchMarkingMaterial = ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
     private float batchEditMaxSlope = 10f;
+    private boolean batchIncludeSlopeBatter = false;
+    private float batchFillSlopeRatio = 0f;
+    private float batchCutSlopeRatio = 0f;
+    private String batchFillSlopeMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
+    private String batchCutSlopeMaterial = "";
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
         this.config = config;
@@ -593,6 +598,19 @@ public final class RoadNetworkManager {
             ? road.getMarkingMaterial()
             : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
         batchEditMaxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
+        batchIncludeSlopeBatter = road.getEffectiveIncludeSlopeBatter(config);
+        batchFillSlopeRatio = road.getFillSlopeRatio() != null
+            ? road.getFillSlopeRatio()
+            : road.getEffectiveFillSlopeRatio(config);
+        batchCutSlopeRatio = road.getCutSlopeRatio() != null
+            ? road.getCutSlopeRatio()
+            : road.getEffectiveCutSlopeRatio(config);
+        batchFillSlopeMaterial = road.getFillSlopeMaterial() != null
+            ? road.getFillSlopeMaterial()
+            : road.getEffectiveFillSlopeMaterial(config);
+        batchCutSlopeMaterial = road.getCutSlopeMaterial() != null
+            ? road.getCutSlopeMaterial()
+            : road.getEffectiveCutSlopeMaterial(config);
         return currentBatchEditDefaults();
     }
 
@@ -619,6 +637,11 @@ public final class RoadNetworkManager {
             batchLaneDividers,
             batchCenterLineStyle,
             batchMarkingMaterial,
+            batchIncludeSlopeBatter,
+            batchFillSlopeRatio,
+            batchCutSlopeRatio,
+            batchFillSlopeMaterial,
+            batchCutSlopeMaterial,
             batchEditMaxSlope
         );
     }
@@ -641,6 +664,11 @@ public final class RoadNetworkManager {
         batchLaneDividers = draft.laneDividers();
         batchCenterLineStyle = draft.centerLineStyle();
         batchMarkingMaterial = draft.markingMaterial();
+        batchIncludeSlopeBatter = draft.includeSlopeBatter();
+        batchFillSlopeRatio = draft.fillSlopeRatio();
+        batchCutSlopeRatio = draft.cutSlopeRatio();
+        batchFillSlopeMaterial = draft.fillSlopeMaterial();
+        batchCutSlopeMaterial = draft.cutSlopeMaterial();
         batchEditMaxSlope = draft.maxSlope();
     }
 
@@ -698,6 +726,13 @@ public final class RoadNetworkManager {
         road.setLaneDividers(draft.laneDividers());
         road.setCenterLineStyle(draft.centerLineStyle());
         road.setMarkingMaterial(draft.markingMaterial());
+        road.setIncludeSlopeBatter(draft.includeSlopeBatter());
+        if (draft.includeSlopeBatter()) {
+            road.setFillSlopeRatio(draft.fillSlopeRatio());
+            road.setCutSlopeRatio(draft.cutSlopeRatio());
+            road.setFillSlopeMaterial(draft.fillSlopeMaterial());
+            road.setCutSlopeMaterial(draft.cutSlopeMaterial());
+        }
         // 批量面板只编辑横断面和附属设施。纵坡属于路线设计，不能因为用户只想改宽度
         // 就把第一条道路的坡度覆盖到所有选中道路。
     }
@@ -788,6 +823,11 @@ public final class RoadNetworkManager {
             boolean laneDividers,
             CenterLineStyle centerLineStyle,
             String markingMaterial,
+            boolean includeSlopeBatter,
+            float fillSlopeRatio,
+            float cutSlopeRatio,
+            String fillSlopeMaterial,
+            String cutSlopeMaterial,
             float maxSlope) {
     }
 }

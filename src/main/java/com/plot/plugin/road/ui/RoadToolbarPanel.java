@@ -1,6 +1,8 @@
 package com.plot.plugin.road.ui;
 import com.plot.plugin.ui.PluginUiColors;
 
+import com.plot.core.command.Command;
+import com.plot.core.command.commands.GenerateRoadCommand;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
@@ -26,8 +28,11 @@ public final class RoadToolbarPanel {
         if (undoDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.undo"), buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.undo_network"), buttonWidth, 0)) {
             ctx.networkManager().undo();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.undo_network"));
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -37,17 +42,36 @@ public final class RoadToolbarPanel {
         if (redoDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.redo"), buttonWidth, 0)) {
+        if (ImGui.button(PlotI18n.tr("plugin.road.redo_network"), buttonWidth, 0)) {
             ctx.networkManager().redo();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.redo_network"));
         }
         if (redoDisabled) {
             ImGui.endDisabled();
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
+
+        if (canUndoWorldPlacement()) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.undo_world"), ImGui.getContentRegionAvailX(), 0)) {
+                ctx.host().commands().undo();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(PlotI18n.tr("hint.plot.road.undo_world"));
+            }
         }
 
         if (!ctx.status().isEmpty()) {
             ImGui.textColored(PluginUiColors.STATUS_OK, ctx.status().get());
         }
         ImGui.separator();
+    }
+
+    private boolean canUndoWorldPlacement() {
+        Command command = ctx.host().commands().peekUndoCommand();
+        return command instanceof GenerateRoadCommand;
     }
 
     private void renderActivePlacementControls() {

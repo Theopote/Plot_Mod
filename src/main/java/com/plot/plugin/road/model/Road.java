@@ -269,6 +269,46 @@ public class Road {
         crossSection.getShoulder().setMaterial(shoulderMaterial);
     }
 
+    public Boolean getIncludeSlopeBatter() {
+        return crossSection.getSlopeBatter().getEnabled();
+    }
+
+    public void setIncludeSlopeBatter(Boolean includeSlopeBatter) {
+        crossSection.getSlopeBatter().setEnabled(includeSlopeBatter);
+    }
+
+    public Float getFillSlopeRatio() {
+        return crossSection.getSlopeBatter().getFillRatio();
+    }
+
+    public void setFillSlopeRatio(Float fillSlopeRatio) {
+        crossSection.getSlopeBatter().setFillRatio(fillSlopeRatio);
+    }
+
+    public Float getCutSlopeRatio() {
+        return crossSection.getSlopeBatter().getCutRatio();
+    }
+
+    public void setCutSlopeRatio(Float cutSlopeRatio) {
+        crossSection.getSlopeBatter().setCutRatio(cutSlopeRatio);
+    }
+
+    public String getFillSlopeMaterial() {
+        return crossSection.getSlopeBatter().getFillMaterial();
+    }
+
+    public void setFillSlopeMaterial(String fillSlopeMaterial) {
+        crossSection.getSlopeBatter().setFillMaterial(fillSlopeMaterial);
+    }
+
+    public String getCutSlopeMaterial() {
+        return crossSection.getSlopeBatter().getCutMaterial();
+    }
+
+    public void setCutSlopeMaterial(String cutSlopeMaterial) {
+        crossSection.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+    }
+
     public Boolean getIncludeBikeLane() {
         return crossSection.getBikeLane().getEnabled();
     }
@@ -358,6 +398,26 @@ public class Road {
 
     public boolean getEffectiveIncludeShoulder(RoadSystemConfig defaults) {
         return crossSection.resolve(defaults).includeShoulder;
+    }
+
+    public boolean getEffectiveIncludeSlopeBatter(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).includeSlopeBatter;
+    }
+
+    public float getEffectiveFillSlopeRatio(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).fillSlopeRatio;
+    }
+
+    public float getEffectiveCutSlopeRatio(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).cutSlopeRatio;
+    }
+
+    public String getEffectiveFillSlopeMaterial(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).fillSlopeMaterial;
+    }
+
+    public String getEffectiveCutSlopeMaterial(RoadSystemConfig defaults) {
+        return crossSection.resolve(defaults).cutSlopeMaterial;
     }
 
     public boolean getEffectiveIncludeBikeLane(RoadSystemConfig defaults) {

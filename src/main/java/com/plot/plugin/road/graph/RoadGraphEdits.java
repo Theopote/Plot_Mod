@@ -183,14 +183,19 @@ public final class RoadGraphEdits {
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
         String roadId = edge.getRoadId();
 
+        RoadEdge snapshot = copyEdge(edge);
         detachAndUnlink(edge);
 
-        RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
-        RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
-        firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
-        secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
-
-        return Optional.of(new SplitResult(firstEdge.getId(), secondEdge.getId(), nodeId));
+        try {
+            RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
+            RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
+            firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
+            secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
+            return Optional.of(new SplitResult(firstEdge.getId(), secondEdge.getId(), nodeId));
+        } catch (RuntimeException e) {
+            restoreEdge(snapshot);
+            return Optional.empty();
+        }
     }
 
     public static List<RoadEdge.SlopeOverride> splitSlopeOverrides(

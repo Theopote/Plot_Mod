@@ -167,6 +167,8 @@ public final class RoadCrossSectionEditor {
             }
         }
 
+        renderSlopeBatterFields(ctx, road, config, onHistory);
+
         ImBoolean bikeLaneRef = new ImBoolean(road.getEffectiveIncludeBikeLane(config));
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_bike_lane") + "##bike_lane", bikeLaneRef)) {
             if (onHistory != null) {
@@ -319,6 +321,100 @@ public final class RoadCrossSectionEditor {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
         }
+    }
+
+    private static void renderSlopeBatterFields(
+            RoadUiContext ctx,
+            Road road,
+            RoadSystemConfig config,
+            Runnable onHistory) {
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
+
+        Boolean slopeEnabledValue = road.getIncludeSlopeBatter();
+        boolean slopeEnabled = slopeEnabledValue != null
+            ? slopeEnabledValue
+            : road.getEffectiveIncludeSlopeBatter(config);
+        ImBoolean slopeRef = new ImBoolean(slopeEnabled);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##road_slope", slopeRef)) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.setIncludeSlopeBatter(slopeRef.get());
+        }
+
+        if (!slopeRef.get()) {
+            return;
+        }
+
+        float[] fillSlopeRatio = {
+            road.getFillSlopeRatio() != null
+                ? road.getFillSlopeRatio()
+                : road.getEffectiveFillSlopeRatio(config)
+        };
+        if (EngineeringSlopeInput.render(
+            "road_fill_slope_ratio",
+            PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
+            fillSlopeRatio,
+            EngineeringSlopeInput.ValueKind.BATTER
+        )) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.setFillSlopeRatio(fillSlopeRatio[0]);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+
+        float[] cutSlopeRatio = {
+            road.getCutSlopeRatio() != null
+                ? road.getCutSlopeRatio()
+                : road.getEffectiveCutSlopeRatio(config)
+        };
+        if (EngineeringSlopeInput.render(
+            "road_cut_slope_ratio",
+            PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
+            cutSlopeRatio,
+            EngineeringSlopeInput.ValueKind.BATTER
+        )) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.setCutSlopeRatio(cutSlopeRatio[0]);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+
+        RoadUiWidgets.renderBlockMaterialPicker(
+            ctx,
+            "##road_fill_slope_material",
+            PlotI18n.tr("plugin.road.fill_slope_material"),
+            road.getFillSlopeMaterial() != null
+                ? road.getFillSlopeMaterial()
+                : road.getEffectiveFillSlopeMaterial(config),
+            material -> {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setFillSlopeMaterial(material);
+            },
+            true
+        );
+
+        RoadUiWidgets.renderBlockMaterialPicker(
+            ctx,
+            "##road_cut_slope_material",
+            PlotI18n.tr("plugin.road.cut_slope_material"),
+            road.getCutSlopeMaterial() != null
+                ? road.getCutSlopeMaterial()
+                : road.getEffectiveCutSlopeMaterial(config),
+            material -> {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setCutSlopeMaterial(material);
+            },
+            true
+        );
     }
 
     private static void renderCenterLineStylePicker(Road road, Runnable onHistory) {

@@ -208,14 +208,33 @@ public final class RoadPreviewManager {
         status.set(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
+            // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
-                status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
+                if (result.success() > 0) {
+                    pushExecutedPlacementCommand(command, result);
+                    status.set(PlotI18n.tr(
+                        "plugin.road.build_cancelled_undoable", result.success(), result.total()));
+                } else {
+                    status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
+                }
+                clearPreview();
                 return;
             }
-            host.commands().pushExecuted(command);
+            pushExecutedPlacementCommand(command, result);
             applyBuildResultStatus(result);
             clearPreview();
         });
+    }
+
+    private void pushExecutedPlacementCommand(
+            GenerateRoadCommand command,
+            GenerateRoadCommand.ExecutionResult result) {
+        if (result != null && result.successfulWriteIndices() != null && !result.successfulWriteIndices().isEmpty()
+                && result.successfulWriteIndices().size() < command.getRecordCount()) {
+            host.commands().pushExecuted(command.subsetByWriteIndices(result.successfulWriteIndices()));
+            return;
+        }
+        host.commands().pushExecuted(command);
     }
 
     private void applyBuildResultStatus(GenerateRoadCommand.ExecutionResult result) {
@@ -224,7 +243,12 @@ public final class RoadPreviewManager {
             return;
         }
         if (result.cancelled()) {
-            status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
+            if (result.success() > 0) {
+                status.set(PlotI18n.tr(
+                    "plugin.road.build_cancelled_undoable", result.success(), result.total()));
+            } else {
+                status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
+            }
             return;
         }
         if (result.isFullSuccess()) {
@@ -236,7 +260,7 @@ public final class RoadPreviewManager {
             return;
         }
         status.set(PlotI18n.tr(
-            "plugin.road.build_partial",
+            "plugin.road.build_partial_undoable",
             result.success(),
             result.total(),
             result.failed()));

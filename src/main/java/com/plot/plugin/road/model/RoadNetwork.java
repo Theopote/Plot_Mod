@@ -162,8 +162,40 @@ public class RoadNetwork {
         if (road == null || edge == null) {
             return;
         }
+        String oldRoadId = edge.getRoadId();
+        if (oldRoadId != null && !oldRoadId.equals(roadId)) {
+            Road oldRoad = roads.get(oldRoadId);
+            if (oldRoad != null) {
+                oldRoad.removeSegment(edgeId);
+            }
+        }
         edge.setRoadId(roadId);
         road.addSegment(edgeId);
+    }
+
+    /**
+     * 修正 Road.segmentIds 与 RoadEdge.roadId 的双向归属一致性。
+     */
+    public void reconcileRoadSegmentLinks() {
+        for (Road road : roads.values()) {
+            for (String segmentId : List.copyOf(road.getSegmentIds())) {
+                if (!edges.containsKey(segmentId)) {
+                    road.removeSegment(segmentId);
+                }
+            }
+        }
+        for (RoadEdge edge : edges.values()) {
+            String roadId = edge.getRoadId();
+            if (roadId == null || roadId.isBlank()) {
+                continue;
+            }
+            Road road = roads.get(roadId);
+            if (road == null) {
+                edge.setRoadId(null);
+                continue;
+            }
+            road.addSegment(edge.getId());
+        }
     }
 
     public void removeEdge(String edgeId) {
@@ -833,6 +865,7 @@ public class RoadNetwork {
             }
 
             rebuildTopologyFromEdges(network);
+            network.reconcileRoadSegmentLinks();
             return network;
         }
 

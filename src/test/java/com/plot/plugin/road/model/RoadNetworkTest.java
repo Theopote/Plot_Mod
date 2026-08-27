@@ -34,6 +34,73 @@ class RoadNetworkTest {
     Path tempDir;
 
     @Test
+    void linkEdgeToRoadUnlinksFromPreviousRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), roadA.getId());
+
+        assertTrue(roadA.getSegmentIds().contains(edge.getId()));
+        assertEquals(roadA.getId(), edge.getRoadId());
+
+        network.linkEdgeToRoad(roadB.getId(), edge.getId());
+
+        assertFalse(roadA.getSegmentIds().contains(edge.getId()));
+        assertTrue(roadB.getSegmentIds().contains(edge.getId()));
+        assertEquals(roadB.getId(), edge.getRoadId());
+    }
+
+    @Test
+    void reconcileRoadSegmentLinksRemovesStaleSegments() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-a");
+        road.addSegment("missing-edge");
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        network.reconcileRoadSegmentLinks();
+
+        assertEquals(1, road.getSegmentIds().size());
+        assertTrue(road.getSegmentIds().contains(edge.getId()));
+    }
+
+    @Test
+    void jsonLoadReconcilesRoadSegmentLinks() {
+        String json = """
+            {
+              "nodes": [
+                {"id":"n1","position":{"x":0,"y":0},"connectedEdgeIds":[]},
+                {"id":"n2","position":{"x":10,"y":0},"connectedEdgeIds":[]}
+              ],
+              "edges": [
+                {
+                  "id":"e1",
+                  "startNodeId":"n1",
+                  "endNodeId":"n2",
+                  "centerlinePoints":[{"x":0,"y":0},{"x":10,"y":0}],
+                  "roadId":"road-a"
+                }
+              ],
+              "roads": [
+                {"id":"road-a","name":"A","segmentIds":["e1","stale-edge"]}
+              ]
+            }
+            """;
+
+        RoadNetwork restored = RoadNetwork.fromJson(json);
+        Road road = restored.getRoad("road-a");
+
+        assertNotNull(road);
+        assertEquals(1, road.getSegmentIds().size());
+        assertTrue(road.getSegmentIds().contains("e1"));
+    }
+
+    @Test
     void loadFromReportsMalformedJsonAsIOException() throws IOException {
         Path file = tempDir.resolve("broken.json");
         Files.writeString(file, "{not valid json");

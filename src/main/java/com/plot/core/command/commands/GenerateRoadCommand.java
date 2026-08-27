@@ -21,9 +21,13 @@ import java.util.List;
 public class GenerateRoadCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenerateRoadCommand.class);
 
-    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+    public record ExecutionResult(int success, int failed, int total, boolean cancelled, List<Integer> successfulWriteIndices) {
         public ExecutionResult(int success, int failed, int total) {
-            this(success, failed, total, false);
+            this(success, failed, total, false, List.of());
+        }
+
+        public ExecutionResult(int success, int failed, int total, boolean cancelled) {
+            this(success, failed, total, cancelled, List.of());
         }
 
         public boolean isFullSuccess() {
@@ -141,6 +145,25 @@ public class GenerateRoadCommand implements Command {
         return records.size();
     }
 
+    /**
+     * 仅保留实际成功写入的记录子集，供取消/部分失败时精确撤销。
+     */
+    public GenerateRoadCommand subsetByWriteIndices(List<Integer> writeIndices) {
+        if (writeIndices == null || writeIndices.isEmpty()) {
+            return this;
+        }
+        List<BlockRecord> subset = new ArrayList<>(writeIndices.size());
+        for (int index : writeIndices) {
+            if (index >= 0 && index < records.size()) {
+                subset.add(records.get(index));
+            }
+        }
+        if (subset.size() == records.size()) {
+            return this;
+        }
+        return new GenerateRoadCommand(subset, blockWriter, schedulePlacement, placementScheduler);
+    }
+
     public ExecutionResult getLastExecutionResult() {
         return lastExecutionResult;
     }
@@ -202,24 +225,29 @@ public class GenerateRoadCommand implements Command {
 
     private ExecutionResult applySync(List<BlockRecord> source, boolean applyNewBlocks) {
         int success = 0;
-        for (BlockRecord record : source) {
+        List<Integer> successfulWriteIndices = new ArrayList<>();
+        for (int i = 0; i < source.size(); i++) {
+            BlockRecord record = source.get(i);
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
             if (blockWriter.setBlockAt(record.pos, blockId)) {
                 success++;
+                successfulWriteIndices.add(i);
             }
         }
-        return new ExecutionResult(success, source.size() - success, source.size());
+        return new ExecutionResult(success, source.size() - success, source.size(), false, successfulWriteIndices);
     }
 
     private ExecutionResult applySyncUndo(List<BlockRecord> source) {
         int success = 0;
+        List<Integer> successfulWriteIndices = new ArrayList<>();
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
             if (blockWriter.setBlockAt(record.pos, record.previousBlockId)) {
                 success++;
+                successfulWriteIndices.add(i);
             }
         }
-        return new ExecutionResult(success, source.size() - success, source.size());
+        return new ExecutionResult(success, source.size() - success, source.size(), false, successfulWriteIndices);
     }
 
     private static ExecutionResult toExecutionResult(com.plot.api.world.IBlockPlacementService.ExecutionResult result) {
@@ -227,7 +255,7 @@ public class GenerateRoadCommand implements Command {
             result.success(),
             result.failed(),
             result.total(),
-            result.cancelled()
-        );
+            result.cancelled(),
+            result.successfulWriteIndices());
     }
 }

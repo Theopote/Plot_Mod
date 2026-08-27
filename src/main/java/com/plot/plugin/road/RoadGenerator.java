@@ -213,8 +213,12 @@ public class RoadGenerator {
                 double shoulderCenterOffset = crossSection.shoulderCenterOffset() * unitsPerBlock;
                 generateShoulderBlocks(solids, segments, heightInfos, shoulderCenterOffset,
                     shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial), unitsPerBlock);
-                generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, shoulderCenterOffset,
-                    shoulderWidth, terrain, crossSection, unitsPerBlock,
+            }
+            if (crossSection.includeSlopeBatter) {
+                double slopeAnchorOffset = crossSection.slopeAnchorCenterOffset() * unitsPerBlock;
+                int slopeAnchorBandWidth = shoulderWidth;
+                generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, slopeAnchorOffset,
+                    slopeAnchorBandWidth, terrain, crossSection, unitsPerBlock,
                     detection.constructionTypes());
             }
 

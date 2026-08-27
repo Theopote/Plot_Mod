@@ -117,6 +117,38 @@ class GenerateRoadCommandTest {
         assertEquals("minecraft:grass_block", writer.get(overlap));
     }
 
+    @Test
+    void subsetByWriteIndicesKeepsOnlyAppliedRecords() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos first = new BlockPos(0, 64, 0);
+        BlockPos second = new BlockPos(1, 64, 0);
+        BlockPos third = new BlockPos(2, 64, 0);
+        writer.seed(first, "minecraft:grass_block");
+        writer.seed(second, "minecraft:grass_block");
+        writer.seed(third, "minecraft:grass_block");
+
+        List<BlockRecord> records = List.of(
+            new BlockRecord(first, "minecraft:grass_block", "minecraft:stone"),
+            new BlockRecord(second, "minecraft:grass_block", "minecraft:gravel"),
+            new BlockRecord(third, "minecraft:grass_block", "minecraft:dirt")
+        );
+
+        GenerateRoadCommand full = new GenerateRoadCommand(records, writer);
+        GenerateRoadCommand partial = full.subsetByWriteIndices(List.of(0, 2));
+
+        assertEquals(3, full.getRecordCount());
+        assertEquals(2, partial.getRecordCount());
+
+        partial.execute();
+        assertEquals("minecraft:stone", writer.get(first));
+        assertEquals("minecraft:grass_block", writer.get(second));
+        assertEquals("minecraft:dirt", writer.get(third));
+
+        partial.undo();
+        assertEquals("minecraft:grass_block", writer.get(first));
+        assertEquals("minecraft:grass_block", writer.get(third));
+    }
+
     private static final class InMemoryBlockWriter implements GenerateRoadCommand.BlockWriter {
         private final Map<BlockPos, String> blocks = new LinkedHashMap<>();
 

@@ -58,5 +58,8 @@ class BlockPlacementSchedulerTest {
         assertTrue(result.get().cancelled());
         assertEquals(40, result.get().success());
         assertEquals(80, result.get().total());
+        assertEquals(40, result.get().successfulWriteIndices().size());
+        assertEquals(0, result.get().successfulWriteIndices().getFirst());
+        assertEquals(39, result.get().successfulWriteIndices().getLast());
     }
 }

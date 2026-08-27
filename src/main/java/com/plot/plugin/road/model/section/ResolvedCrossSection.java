@@ -169,22 +169,22 @@ public final class ResolvedCrossSection {
 
         boolean includeDrain = drain.getEnabled() != null ? drain.getEnabled() : config.isIncludeDrainage();
 
-        boolean slopeEnabled = slopeBatter.getEnabled() != null
-            ? slopeBatter.getEnabled()
-            : includeShoulder;
         float fillRatio = slopeBatter.getFillRatio() != null
             ? slopeBatter.getFillRatio()
             : config.getFillSlopeRatio();
         float cutRatio = slopeBatter.getCutRatio() != null
             ? slopeBatter.getCutRatio()
             : config.getCutSlopeRatio();
+        boolean slopeEnabled = slopeBatter.getEnabled() != null
+            ? slopeBatter.getEnabled()
+            : (fillRatio > 0f || cutRatio > 0f);
         String fillSlopeMaterial = slopeBatter.getFillMaterial() != null && !slopeBatter.getFillMaterial().isBlank()
             ? slopeBatter.getFillMaterial()
             : config.getFillSlopeMaterial();
         String cutSlopeMaterial = slopeBatter.getCutMaterial() != null
             ? slopeBatter.getCutMaterial()
             : config.getCutSlopeMaterial();
-        boolean includeSlopeBatter = slopeEnabled && includeShoulder && (fillRatio > 0f || cutRatio > 0f);
+        boolean includeSlopeBatter = slopeEnabled && (fillRatio > 0f || cutRatio > 0f);
 
         return new ResolvedCrossSection(
             laneCount,
@@ -243,6 +243,14 @@ public final class ResolvedCrossSection {
         }
         int start = RoadDimensionUtils.maxLateralOffset(carriagewayWidth) + 1;
         return stripCenterOffset(start, shoulderWidth);
+    }
+
+    /** 边坡起始锚点：有路肩时取路肩中心，否则取行车道外缘。 */
+    public double slopeAnchorCenterOffset() {
+        if (includeShoulder && shoulderWidth > 0) {
+            return shoulderCenterOffset();
+        }
+        return carriagewayHalfWidth();
     }
 
     public double bikeLaneCenterOffset() {

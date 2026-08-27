@@ -150,6 +150,10 @@ public final class CommandService {
         return currentIndex >= 0;
     }
 
+    public Command peekUndoCommand() {
+        return canUndo() ? commands.get(currentIndex) : null;
+    }
+
     public boolean canRedo() {
         return currentIndex < commands.size() - 1;
     }

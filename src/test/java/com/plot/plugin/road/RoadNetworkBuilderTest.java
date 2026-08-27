@@ -1,13 +1,27 @@
 package com.plot.plugin.road;
 
+import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNode;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkBuilderTest {
+
+    private final RoadNetworkBuilder builder = new RoadNetworkBuilder();
+    private final RoadSystemConfig config = new RoadSystemConfig("road_system");
 
     @Test
     void splitSlopeOverridesRemapsMileage() {
@@ -44,5 +58,208 @@ class RoadNetworkBuilderTest {
         assertEquals(1, second.size());
         assertEquals(10, second.getFirst().startDistance, 1e-6);
         assertEquals(15, second.getFirst().endDistance, 1e-6);
+    }
+
+    @Test
+    void adoptEndpointToMiddleCreatesTJunction() {
+        RoadNetwork network = new RoadNetwork();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
+
+        assertEquals(3, network.getEdges().size());
+        assertEquals(4, network.getNodes().size());
+        assertEquals(1, network.getJunctionCount());
+
+        RoadNode junction = findNodeNear(network, new Vec2d(5, 5));
+        assertNotNull(junction);
+        assertEquals(3, junction.getDegree());
+        assertEquals(RoadNetworkBuilder.JunctionType.T_JUNCTION, builder.classify(junction));
+    }
+
+    @Test
+    void adoptMiddleToMiddleCreatesCrossroad() {
+        RoadNetwork network = new RoadNetwork();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
+
+        assertEquals(4, network.getEdges().size());
+        assertEquals(5, network.getNodes().size());
+        assertEquals(1, network.getJunctionCount());
+
+        RoadNode junction = findNodeNear(network, new Vec2d(5, 5));
+        assertNotNull(junction);
+        assertEquals(4, junction.getDegree());
+        assertEquals(RoadNetworkBuilder.JunctionType.CROSSROAD, builder.classify(junction));
+    }
+
+    @Test
+    void adoptEndpointToEndpointMergesNodes() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 0));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 0));
+        RoadNode bStart = network.createNode(new Vec2d(10.01, 0));
+        RoadNode bEnd = network.createNode(new Vec2d(20, 0));
+
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), roadA.getId());
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(10.01, 0), new Vec2d(20, 0)), roadB.getId());
+
+        builder.detectAndSplitIntersections(network);
+
+        assertEquals(2, network.getEdges().size());
+        assertEquals(3, network.getNodes().size());
+
+        RoadNode shared = findNodeNear(network, new Vec2d(10, 0));
+        assertNotNull(shared);
+        assertEquals(2, shared.getDegree());
+    }
+
+    @Test
+    void nearEndpointWithinToleranceDoesNotCreateDuplicateNode() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        RoadNode bStart = network.createNode(new Vec2d(5, 5.01));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5.01), new Vec2d(5, 10)), roadB.getId());
+
+        builder.detectAndSplitIntersections(network);
+
+        assertEquals(3, network.getEdges().size());
+        assertEquals(4, network.getNodes().size());
+
+        long nodesNearJunction = network.getNodes().values().stream()
+            .filter(node -> RoadGeometryUtils.pointsNear(node.getPosition(), new Vec2d(5, 5), RoadNetworkBuilder.NODE_TOLERANCE))
+            .count();
+        assertEquals(1, nodesNearJunction);
+    }
+
+    @Test
+    void multipleIntersectionsAreAllSplit() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        Road roadC = network.createRoad("road-c");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(20, 5));
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(20, 5)), roadA.getId());
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        RoadNode cStart = network.createNode(new Vec2d(15, 5));
+        RoadNode cEnd = network.createNode(new Vec2d(15, 10));
+        network.createEdge(cStart.getId(), cEnd.getId(), List.of(
+            new Vec2d(15, 5), new Vec2d(15, 10)), roadC.getId());
+
+        builder.detectAndSplitIntersections(network);
+
+        assertEquals(5, network.getEdges().size());
+        assertEquals(2, network.getJunctionCount());
+
+        Set<String> roadASegments = network.getRoad(roadA.getId()).getSegmentIds();
+        assertEquals(3, roadASegments.size());
+    }
+
+    @Test
+    void intersectionPreservesRoadMembership() {
+        RoadNetwork network = new RoadNetwork();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        RoadNetworkBuilder.AdoptResult result = builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
+
+        String roadBId = result.edges().getFirst().getRoadId();
+        Road roadB = network.getRoad(roadBId);
+        assertNotNull(roadB);
+
+        Set<String> roadBSegmentIds = new HashSet<>(roadB.getSegmentIds());
+        assertEquals(1, roadBSegmentIds.size());
+
+        for (RoadEdge edge : network.getEdges().values()) {
+            if (roadBId.equals(edge.getRoadId())) {
+                assertTrue(roadBSegmentIds.contains(edge.getId()));
+            }
+        }
+
+        long roadAEdges = network.getEdges().values().stream()
+            .filter(edge -> !roadBId.equals(edge.getRoadId()))
+            .count();
+        assertEquals(2, roadAEdges);
+    }
+
+    @Test
+    void intersectionPreservesSlopeOverrides() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        RoadEdge edgeA = network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+        edgeA.setSlopeOverrides(List.of(
+            new RoadEdge.SlopeOverride(0, 5, 2.0f),
+            new RoadEdge.SlopeOverride(5, 10, 4.0f)
+        ));
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        builder.detectAndSplitIntersections(network);
+
+        List<RoadEdge> roadASegments = network.getEdges().values().stream()
+            .filter(edge -> roadA.getId().equals(edge.getRoadId()))
+            .sorted((left, right) -> Double.compare(
+                left.getCenterlinePoints().getFirst().x,
+                right.getCenterlinePoints().getFirst().x))
+            .collect(Collectors.toList());
+
+        assertEquals(2, roadASegments.size());
+
+        RoadEdge west = roadASegments.getFirst();
+        assertEquals(1, west.getSlopeOverrides().size());
+        assertEquals(0, west.getSlopeOverrides().getFirst().startDistance, 1e-6);
+        assertEquals(5, west.getSlopeOverrides().getFirst().endDistance, 1e-6);
+        assertEquals(2.0f, west.getSlopeOverrides().getFirst().maxSlope);
+
+        RoadEdge east = roadASegments.get(1);
+        assertEquals(1, east.getSlopeOverrides().size());
+        assertEquals(0, east.getSlopeOverrides().getFirst().startDistance, 1e-6);
+        assertEquals(5, east.getSlopeOverrides().getFirst().endDistance, 1e-6);
+        assertEquals(4.0f, east.getSlopeOverrides().getFirst().maxSlope);
+    }
+
+    private static RoadNode findNodeNear(RoadNetwork network, Vec2d position) {
+        for (RoadNode node : network.getNodes().values()) {
+            if (RoadGeometryUtils.pointsNear(node.getPosition(), position, RoadNetworkBuilder.NODE_TOLERANCE)) {
+                return node;
+            }
+        }
+        return null;
     }
 }
