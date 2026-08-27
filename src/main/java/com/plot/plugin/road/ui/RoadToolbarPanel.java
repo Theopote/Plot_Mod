@@ -22,6 +22,7 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_edit_section"));
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
 
         boolean undoDisabled = !ctx.networkManager().canUndo();
@@ -55,6 +56,7 @@ public final class RoadToolbarPanel {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
 
         if (canUndoWorldPlacement()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_world_section"));
             if (ImGui.button(PlotI18n.tr("plugin.road.undo_world"), ImGui.getContentRegionAvailX(), 0)) {
                 ctx.host().commands().undo();
             }

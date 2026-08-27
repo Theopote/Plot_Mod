@@ -1,16 +1,17 @@
 package com.plot.plugin.road.ui;
-import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.core.model.Shape;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.manager.RoadToolManager;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 
 import java.util.List;
 
 /**
- * 道路认领 Tab：路径选择、默认参数与认领操作。
+ * 道路认领 Tab：路径选择、主 CTA 与默认参数。
  */
 public final class RoadAdoptPanel {
     private final RoadUiContext ctx;
@@ -22,11 +23,38 @@ public final class RoadAdoptPanel {
     }
 
     public void render() {
+        ctx.toolManager().updateSelectedPaths();
         List<Shape> selectedPaths = ctx.toolManager().getSelectedPaths();
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_hint"));
-        ImGui.spacing();
+        renderPathToolButtons();
+        renderSelectionStatus(selectedPaths);
+        renderAdoptCta(selectedPaths);
 
+        ImGui.separator();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_params_section"));
+        defaultParamsPanel.render();
+    }
+
+    private void renderPathToolButtons() {
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float halfWidth = (ImGui.getContentRegionAvailX() - spacing) / 2.0f;
+        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), halfWidth, 0)) {
+            ctx.toolManager().activatePathDrawingTool();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.draw_path_hint"));
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.pick_path"), halfWidth, 0)) {
+            ctx.toolManager().activatePathPickTool();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.pick_path_hint"));
+        }
+        ImGui.spacing();
+    }
+
+    private void renderSelectionStatus(List<Shape> selectedPaths) {
         if (ctx.toolManager().getPathPickSession().isActive()) {
             int pickingCount = ctx.toolManager().getPathPickSession().getAccumulatedCount();
             if (pickingCount > 0) {
@@ -34,75 +62,82 @@ public final class RoadAdoptPanel {
                     .filter(RoadGeometryUtils::isAdoptablePath)
                     .mapToDouble(RoadToolManager::calculatePathLength)
                     .sum();
-                ImGui.text(String.format(
-                    PlotI18n.tr("plugin.road.paths_selected"),
-                    pickingCount,
-                    totalLength));
+                ImGui.text(PlotI18n.tr("plugin.road.adopt_selection_summary", pickingCount, totalLength));
+                return;
             }
-        } else {
-            ctx.toolManager().updateSelectedPaths();
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.adopt_picking_active"));
+            return;
         }
 
         if (!selectedPaths.isEmpty()) {
             if (selectedPaths.size() == 1) {
                 Shape path = selectedPaths.getFirst();
-                ImGui.text(String.format(PlotI18n.tr("plugin.road.path_selected"),
+                ImGui.text(PlotI18n.tr(
+                    "plugin.road.adopt_selection_summary",
+                    1,
                     RoadToolManager.calculatePathLength(path)));
-                ImGui.textColored(PluginUiColors.INFO_BLUE,
+                ImGui.textColored(
+                    PluginUiColors.INFO_BLUE,
                     PlotI18n.tr("plugin.road.path_type", RoadToolManager.getPathTypeName(path)));
             } else {
                 double totalLength = selectedPaths.stream()
                     .mapToDouble(RoadToolManager::calculatePathLength)
                     .sum();
-                ImGui.text(String.format(
-                    PlotI18n.tr("plugin.road.paths_selected"),
+                ImGui.text(PlotI18n.tr(
+                    "plugin.road.adopt_selection_summary",
                     selectedPaths.size(),
                     totalLength));
             }
-        } else {
-            List<Shape> availablePaths = ctx.toolManager().findAvailablePaths();
-            if (!availablePaths.isEmpty()) {
-                if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
-                    for (Shape path : availablePaths) {
-                        String label = String.format(PlotI18n.tr("plugin.road.path_combo_item"),
-                            RoadToolManager.getPathTypeName(path), RoadToolManager.calculatePathLength(path));
-                        boolean selected = selectedPaths.size() == 1 && path == selectedPaths.getFirst();
-                        if (ImGui.selectable(label, selected)) {
-                            selectedPaths.clear();
-                            selectedPaths.add(path);
-                            ctx.host().appState().setSelectedShapes(List.of(path));
-                        }
+            return;
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_selection_empty"));
+        List<Shape> availablePaths = ctx.toolManager().findAvailablePaths();
+        if (!availablePaths.isEmpty()) {
+            if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
+                for (Shape path : availablePaths) {
+                    String label = String.format(
+                        PlotI18n.tr("plugin.road.path_combo_item"),
+                        RoadToolManager.getPathTypeName(path),
+                        RoadToolManager.calculatePathLength(path));
+                    if (ImGui.selectable(label)) {
+                        selectedPaths.clear();
+                        selectedPaths.add(path);
+                        ctx.host().appState().setSelectedShapes(List.of(path));
                     }
-                    ImGui.endCombo();
                 }
-            } else {
-                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_path_found"));
-                ImGui.text(PlotI18n.tr("plugin.road.draw_path_hint"));
+                ImGui.endCombo();
             }
+        } else {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_path_found"));
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.draw_path_hint"));
         }
+    }
 
-        ImGui.separator();
-        defaultParamsPanel.render();
-
-        float itemSpacing = ImGui.getStyle().getItemSpacingX();
-        float third = (ImGui.getContentRegionAvailX() - itemSpacing * 2.0f) / 3.0f;
-        if (ImGui.button(PlotI18n.tr("plugin.road.draw_path"), third, 0)) {
-            ctx.toolManager().activatePathDrawingTool();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.pick_path"), third, 0)) {
-            ctx.toolManager().activatePathPickTool();
-        }
-        ImGui.sameLine();
+    private void renderAdoptCta(List<Shape> selectedPaths) {
         boolean canAdopt = !selectedPaths.isEmpty();
         if (!canAdopt) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.road.adopt_as_road"), third, 0)) {
+
+        ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.INFO_BLUE);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.ACCENT_BLUE);
+        float ctaHeight = ImGui.getFrameHeight() * 1.35f;
+        if (ImGui.button(
+            PlotI18n.tr("plugin.road.adopt_as_road") + "##adopt_cta",
+            ImGui.getContentRegionAvailX(),
+            ctaHeight)) {
             ctx.networkManager().adoptSelectedPaths(ctx.toolManager().getSelectedPaths());
         }
+        ImGui.popStyleColor(3);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.adopt_as_road"));
+        }
+
         if (!canAdopt) {
             ImGui.endDisabled();
         }
+        ImGui.spacing();
     }
 }
