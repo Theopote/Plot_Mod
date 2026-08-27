@@ -44,6 +44,9 @@ public class RoadCrossSection {
         section.sidewalk.setWidth(defaults.getSidewalkWidth());
         section.sidewalk.setMaterial(defaults.getSelectedSidewalkMaterial());
         section.drain.setEnabled(defaults.isIncludeDrainage());
+        section.median.setEnabled(false);
+        section.bikeLane.setEnabled(false);
+        section.streetFurniture.setStreetlightSpacing(null);
         section.markings.setLaneDividers(true);
         section.markings.setCenterLine(false);
         section.markings.setMaterial("material.plot.white_concrete");
@@ -157,15 +160,27 @@ public class RoadCrossSection {
         this.streetFurniture = streetFurniture != null ? streetFurniture : new StreetFurniture();
     }
 
+    /**
+     * 用全局配置快照替换全部横断面组件（与 {@link #fromConfig} 一致）。
+     * 新建道路时调用；组件内写入的是显式值，而非 {@code null} 继承态。
+     */
     public void applyDefaults(RoadSystemConfig defaults) {
         if (defaults == null) {
             return;
         }
-        RoadCrossSection template = fromConfig(defaults);
-        carriageway = template.carriageway;
-        shoulder = template.shoulder;
-        sidewalk = template.sidewalk;
-        drain = template.drain;
+        replaceFrom(fromConfig(defaults));
+    }
+
+    private void replaceFrom(RoadCrossSection source) {
+        carriageway = source.carriageway.copy();
+        median = source.median.copy();
+        markings = source.markings.copy();
+        shoulder = source.shoulder.copy();
+        bikeLane = source.bikeLane.copy();
+        sidewalk = source.sidewalk.copy();
+        drain = source.drain.copy();
+        slopeBatter = source.slopeBatter.copy();
+        streetFurniture = source.streetFurniture.copy();
     }
 
     public ResolvedCrossSection resolve(RoadSystemConfig defaults) {

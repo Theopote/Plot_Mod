@@ -4,6 +4,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.SlopeFormatUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.Lane;
@@ -95,6 +96,7 @@ public final class RoadCrossSectionEditor {
         }
 
         int[] width = {road.getWidth() != null ? road.getWidth() : config.getRoadWidth()};
+        boolean widthInherited = road.getWidth() == null;
         boolean widthChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.road_width", width[0]) + "##road_width", width,
             RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH, RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH, "%d");
@@ -107,6 +109,9 @@ public final class RoadCrossSectionEditor {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
         }
+        RoadUiWidgets.renderInheritanceHint(
+            widthInherited,
+            PlotI18n.tr("plugin.road.inherit_default_int", config.getRoadWidth()));
 
         if (laneCount[0] > 1) {
             road.getCrossSection().getCarriageway().syncLaneCount(laneCount[0]);
@@ -140,12 +145,18 @@ public final class RoadCrossSectionEditor {
         );
 
         ImBoolean shoulderRef = new ImBoolean(road.getEffectiveIncludeShoulder(config));
+        boolean shoulderInherited = road.getIncludeShoulder() == null;
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder") + "##shoulder", shoulderRef)) {
             if (onHistory != null) {
                 onHistory.run();
             }
             road.setIncludeShoulder(shoulderRef.get());
         }
+        RoadUiWidgets.renderInheritanceHint(
+            shoulderInherited,
+            PlotI18n.tr(config.isIncludeShoulder()
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"));
         if (road.getEffectiveIncludeShoulder(config)) {
             int rawShoulder = road.getShoulderWidth() != null
                 ? road.getShoulderWidth()
@@ -192,12 +203,18 @@ public final class RoadCrossSectionEditor {
         }
 
         ImBoolean sidewalkRef = new ImBoolean(road.getEffectiveIncludeSidewalk(config));
+        boolean sidewalkInherited = road.getIncludeSidewalk() == null;
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk") + "##sidewalk", sidewalkRef)) {
             if (onHistory != null) {
                 onHistory.run();
             }
             road.setIncludeSidewalk(sidewalkRef.get());
         }
+        RoadUiWidgets.renderInheritanceHint(
+            sidewalkInherited,
+            PlotI18n.tr(config.isIncludeSidewalk()
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"));
         if (road.getEffectiveIncludeSidewalk(config)) {
             int[] sidewalkWidth = {
                 road.getSidewalkWidth() != null ? road.getSidewalkWidth() : config.getSidewalkWidth()
@@ -287,6 +304,7 @@ public final class RoadCrossSectionEditor {
         );
 
         float[] maxSlope = {road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope()};
+        boolean maxSlopeInherited = road.getMaxSlope() == null;
         if (EngineeringSlopeInput.render(
             "road_max_slope",
             PlotI18n.tr("plugin.road.max_slope_label"),
@@ -298,6 +316,11 @@ public final class RoadCrossSectionEditor {
             }
             road.setMaxSlope(maxSlope[0]);
         }
+        RoadUiWidgets.renderInheritanceHint(
+            maxSlopeInherited,
+            PlotI18n.tr(
+                "plugin.road.inherit_default_percent",
+                SlopeFormatUtils.formatPercent(config.getMaxSlope())));
 
         // 0 = 关闭；开启时最小间距与 normalize 一致，避免设 1–7 被静默抬到 8
         int currentLights = road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0;

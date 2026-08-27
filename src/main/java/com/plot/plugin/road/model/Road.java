@@ -64,6 +64,10 @@ public class Road {
         }
     }
 
+    /**
+     * 用全局配置快照初始化道路横断面与最大坡度。
+     * 横断面组件写入显式值；若需恢复继承态，将各组件字段置 {@code null}。
+     */
     public void applyDefaults(RoadSystemConfig defaults) {
         if (defaults == null) {
             return;

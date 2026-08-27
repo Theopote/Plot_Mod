@@ -183,4 +183,12 @@ public final class RoadUiWidgets {
             ImGui.textColored(PluginUiColors.WARNING, message);
         }
     }
+
+    /** 字段处于继承默认态时在控件下方显示灰色提示。 */
+    public static void renderInheritanceHint(boolean inherited, String inheritedLabel) {
+        if (!inherited || inheritedLabel == null || inheritedLabel.isBlank()) {
+            return;
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, inheritedLabel);
+    }
 }
