@@ -16,7 +16,14 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 道路落地命令（支持撤销/重做）
+ * 道路落地命令（支持撤销/重做）。
+ *
+ * <p>区分请求集与实际写入集：
+ * <ul>
+ *   <li>{@code requestedRecords} — 预览阶段计划写入的全部记录</li>
+ *   <li>{@code appliedRecords} — 执行后真正成功写入世界的子集</li>
+ * </ul>
+ * Undo / Redo 只操作 {@code appliedRecords}，避免恢复从未改动的格子。
  */
 public class GenerateRoadCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenerateRoadCommand.class);
@@ -39,7 +46,8 @@ public class GenerateRoadCommand implements Command {
         }
     }
 
-    private final List<BlockRecord> records;
+    private final List<BlockRecord> requestedRecords;
+    private List<BlockRecord> appliedRecords = List.of();
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final boolean schedulePlacement;
@@ -76,7 +84,7 @@ public class GenerateRoadCommand implements Command {
             BlockWriter blockWriter,
             boolean schedulePlacement,
             IBlockPlacementService placementScheduler) {
-        this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
+        this.requestedRecords = records != null ? List.copyOf(records) : List.of();
         this.timestamp = new Date();
         this.blockWriter = blockWriter;
         this.schedulePlacement = schedulePlacement;
@@ -86,7 +94,7 @@ public class GenerateRoadCommand implements Command {
     }
 
     public void executeScheduled(Runnable onComplete) {
-        enqueueWrites(records, true, result -> {
+        enqueueWrites(requestedRecords, true, result -> {
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -94,7 +102,7 @@ public class GenerateRoadCommand implements Command {
     }
 
     public void undoScheduled(Runnable onComplete) {
-        enqueueWritesReverse(records, result -> {
+        enqueueWritesReverse(appliedRecords, result -> {
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -104,36 +112,53 @@ public class GenerateRoadCommand implements Command {
     @Override
     public void execute() {
         if (schedulePlacement) {
-            enqueueWrites(records, true, result -> { });
+            enqueueWrites(requestedRecords, true, result -> { });
             return;
         }
-        lastExecutionResult = applySync(records, true);
-        LOGGER.info("道路落地完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
+        lastExecutionResult = applySync(requestedRecords, true);
+        captureAppliedFromIndices(requestedRecords, lastExecutionResult.successfulWriteIndices());
+        LOGGER.info("道路落地完成: {}/{}（applied {}）",
+            lastExecutionResult.success(),
+            lastExecutionResult.total(),
+            appliedRecords.size());
     }
 
     @Override
     public void undo() {
-        if (schedulePlacement) {
-            enqueueWritesReverse(records, result -> { });
+        if (appliedRecords.isEmpty()) {
+            LOGGER.debug("道路撤销跳过：无已应用记录");
             return;
         }
-        lastExecutionResult = applySyncUndo(records);
+        if (schedulePlacement) {
+            enqueueWritesReverse(appliedRecords, result -> { });
+            return;
+        }
+        lastExecutionResult = applySyncUndo(appliedRecords);
         LOGGER.info("道路撤销完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
     public void redo() {
-        execute();
+        List<BlockRecord> toApply = appliedRecords.isEmpty() ? requestedRecords : appliedRecords;
+        if (schedulePlacement) {
+            enqueueWrites(toApply, true, result -> { });
+            return;
+        }
+        lastExecutionResult = applySync(toApply, true);
+        captureAppliedFromIndices(toApply, lastExecutionResult.successfulWriteIndices());
+        LOGGER.info("道路重做完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
     public String getDescription() {
-        return PlotI18n.tr("plugin.road.history.generate", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.road.history.generate", count);
     }
 
     @Override
     public String getDetailedDescription() {
-        return PlotI18n.tr("plugin.road.history.generate.detail", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.road.history.generate.detail", count);
     }
 
     @Override
@@ -141,48 +166,54 @@ public class GenerateRoadCommand implements Command {
         return timestamp;
     }
 
+    /** 请求写入的记录数（预览全集）。 */
     public int getRecordCount() {
-        return records.size();
+        return requestedRecords.size();
     }
 
-    /**
-     * 仅保留实际成功写入的记录子集，供取消/部分失败时精确撤销。
-     */
-    public GenerateRoadCommand subsetByWriteIndices(List<Integer> writeIndices) {
-        if (writeIndices == null || writeIndices.isEmpty()) {
-            return this;
-        }
-        List<BlockRecord> subset = new ArrayList<>(writeIndices.size());
-        for (int index : writeIndices) {
-            if (index >= 0 && index < records.size()) {
-                subset.add(records.get(index));
-            }
-        }
-        if (subset.size() == records.size()) {
-            return this;
-        }
-        return new GenerateRoadCommand(subset, blockWriter, schedulePlacement, placementScheduler);
+    /** 实际成功写入的记录数。 */
+    public int getAppliedRecordCount() {
+        return appliedRecords.size();
+    }
+
+    public boolean hasAppliedRecords() {
+        return !appliedRecords.isEmpty();
+    }
+
+    public List<BlockRecord> getAppliedRecords() {
+        return appliedRecords;
+    }
+
+    public List<BlockRecord> getRequestedRecords() {
+        return requestedRecords;
     }
 
     public ExecutionResult getLastExecutionResult() {
         return lastExecutionResult;
     }
 
-    private void enqueueWrites(List<BlockRecord> source, boolean applyNewBlocks, java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
+    private void enqueueWrites(
+            List<BlockRecord> source,
+            boolean applyNewBlocks,
+            java.util.function.Consumer<ExecutionResult> onComplete) {
+        List<IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (BlockRecord record : source) {
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
-            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(record.pos, blockId));
+            writes.add(new IBlockPlacementService.BlockWrite(record.pos, blockId));
         }
 
         if (schedulePlacement) {
+            // 异步路径：成功索引相对本次 source；首次落地 source=requested，redo 时可能是 applied。
+            List<BlockRecord> sourceSnapshot = List.copyOf(source);
             placementScheduler.enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
-                LOGGER.info("道路{}完成: {}/{} 成功, {} 失败",
+                captureAppliedFromIndices(sourceSnapshot, lastExecutionResult.successfulWriteIndices());
+                LOGGER.info("道路{}完成: {}/{} 成功, {} 失败（applied {}）",
                     applyNewBlocks ? "落地" : "撤销",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
-                    lastExecutionResult.failed());
+                    lastExecutionResult.failed(),
+                    appliedRecords.size());
                 if (onComplete != null) {
                     onComplete.accept(lastExecutionResult);
                 }
@@ -190,17 +221,22 @@ public class GenerateRoadCommand implements Command {
             return;
         }
 
-        lastExecutionResult = applySync(records, applyNewBlocks);
+        lastExecutionResult = applySync(source, applyNewBlocks);
+        if (applyNewBlocks) {
+            captureAppliedFromIndices(source, lastExecutionResult.successfulWriteIndices());
+        }
         if (onComplete != null) {
             onComplete.accept(lastExecutionResult);
         }
     }
 
-    private void enqueueWritesReverse(List<BlockRecord> source, java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
+    private void enqueueWritesReverse(
+            List<BlockRecord> source,
+            java.util.function.Consumer<ExecutionResult> onComplete) {
+        List<IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
-            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(record.pos, record.previousBlockId));
+            writes.add(new IBlockPlacementService.BlockWrite(record.pos, record.previousBlockId));
         }
 
         if (schedulePlacement) {
@@ -221,6 +257,20 @@ public class GenerateRoadCommand implements Command {
         if (onComplete != null) {
             onComplete.accept(lastExecutionResult);
         }
+    }
+
+    private void captureAppliedFromIndices(List<BlockRecord> source, List<Integer> successfulWriteIndices) {
+        if (successfulWriteIndices == null || successfulWriteIndices.isEmpty() || source.isEmpty()) {
+            appliedRecords = List.of();
+            return;
+        }
+        List<BlockRecord> applied = new ArrayList<>(successfulWriteIndices.size());
+        for (int index : successfulWriteIndices) {
+            if (index >= 0 && index < source.size()) {
+                applied.add(source.get(index));
+            }
+        }
+        appliedRecords = List.copyOf(applied);
     }
 
     private ExecutionResult applySync(List<BlockRecord> source, boolean applyNewBlocks) {
@@ -250,7 +300,7 @@ public class GenerateRoadCommand implements Command {
         return new ExecutionResult(success, source.size() - success, source.size(), false, successfulWriteIndices);
     }
 
-    private static ExecutionResult toExecutionResult(com.plot.api.world.IBlockPlacementService.ExecutionResult result) {
+    private static ExecutionResult toExecutionResult(IBlockPlacementService.ExecutionResult result) {
         return new ExecutionResult(
             result.success(),
             result.failed(),

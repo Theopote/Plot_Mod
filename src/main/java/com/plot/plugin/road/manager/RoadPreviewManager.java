@@ -208,33 +208,26 @@ public final class RoadPreviewManager {
         status.set(PlotI18n.tr("plugin.road.build_in_progress", records.size()));
         command.executeScheduled(() -> {
             GenerateRoadCommand.ExecutionResult result = command.getLastExecutionResult();
-            // 取消时若已写入部分方块，仍入历史以便撤销半成品
+            // 仅当有实际写入时入历史；Undo 只回滚 appliedRecords
             if (result != null && result.cancelled()) {
-                if (result.success() > 0) {
-                    pushExecutedPlacementCommand(command, result);
+                if (command.hasAppliedRecords()) {
+                    host.commands().pushExecuted(command);
                     status.set(PlotI18n.tr(
-                        "plugin.road.build_cancelled_undoable", result.success(), result.total()));
+                        "plugin.road.build_cancelled_undoable",
+                        command.getAppliedRecordCount(),
+                        result.total()));
                 } else {
                     status.set(PlotI18n.tr("plugin.road.build_cancelled", result.success(), result.total()));
                 }
                 clearPreview();
                 return;
             }
-            pushExecutedPlacementCommand(command, result);
+            if (command.hasAppliedRecords()) {
+                host.commands().pushExecuted(command);
+            }
             applyBuildResultStatus(result);
             clearPreview();
         });
-    }
-
-    private void pushExecutedPlacementCommand(
-            GenerateRoadCommand command,
-            GenerateRoadCommand.ExecutionResult result) {
-        if (result != null && result.successfulWriteIndices() != null && !result.successfulWriteIndices().isEmpty()
-                && result.successfulWriteIndices().size() < command.getRecordCount()) {
-            host.commands().pushExecuted(command.subsetByWriteIndices(result.successfulWriteIndices()));
-            return;
-        }
-        host.commands().pushExecuted(command);
     }
 
     private void applyBuildResultStatus(GenerateRoadCommand.ExecutionResult result) {

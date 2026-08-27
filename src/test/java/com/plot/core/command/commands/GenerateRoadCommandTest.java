@@ -8,8 +8,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GenerateRoadCommandTest {
 
@@ -31,6 +34,7 @@ class GenerateRoadCommandTest {
 
         assertEquals("minecraft:stone", writer.get(road));
         assertEquals("minecraft:oak_planks", writer.get(sidewalk));
+        assertEquals(2, command.getAppliedRecordCount());
 
         command.undo();
 
@@ -57,7 +61,7 @@ class GenerateRoadCommandTest {
     }
 
     @Test
-    void undoRestoresRecordsInReverseOrder() {
+    void undoRestoresAppliedRecordsInReverseOrder() {
         List<String> writes = new ArrayList<>();
         GenerateRoadCommand.BlockWriter writer = (pos, blockId) -> {
             writes.add(pos.getX() + ":" + blockId);
@@ -70,7 +74,10 @@ class GenerateRoadCommandTest {
             new BlockRecord(new BlockPos(2, 64, 0), "minecraft:c", "minecraft:new_c")
         );
 
-        new GenerateRoadCommand(records, writer).undo();
+        GenerateRoadCommand command = new GenerateRoadCommand(records, writer);
+        command.execute();
+        writes.clear();
+        command.undo();
 
         assertEquals(List.of(
             "2:minecraft:c",
@@ -118,7 +125,7 @@ class GenerateRoadCommandTest {
     }
 
     @Test
-    void subsetByWriteIndicesKeepsOnlyAppliedRecords() {
+    void partialFailureCapturesOnlyAppliedRecordsForUndo() {
         InMemoryBlockWriter writer = new InMemoryBlockWriter();
         BlockPos first = new BlockPos(0, 64, 0);
         BlockPos second = new BlockPos(1, 64, 0);
@@ -126,6 +133,7 @@ class GenerateRoadCommandTest {
         writer.seed(first, "minecraft:grass_block");
         writer.seed(second, "minecraft:grass_block");
         writer.seed(third, "minecraft:grass_block");
+        writer.failOn(second);
 
         List<BlockRecord> records = List.of(
             new BlockRecord(first, "minecraft:grass_block", "minecraft:stone"),
@@ -133,27 +141,57 @@ class GenerateRoadCommandTest {
             new BlockRecord(third, "minecraft:grass_block", "minecraft:dirt")
         );
 
-        GenerateRoadCommand full = new GenerateRoadCommand(records, writer);
-        GenerateRoadCommand partial = full.subsetByWriteIndices(List.of(0, 2));
+        GenerateRoadCommand command = new GenerateRoadCommand(records, writer);
+        command.execute();
 
-        assertEquals(3, full.getRecordCount());
-        assertEquals(2, partial.getRecordCount());
-
-        partial.execute();
+        assertEquals(3, command.getRecordCount());
+        assertEquals(2, command.getAppliedRecordCount());
+        assertTrue(command.hasAppliedRecords());
         assertEquals("minecraft:stone", writer.get(first));
         assertEquals("minecraft:grass_block", writer.get(second));
         assertEquals("minecraft:dirt", writer.get(third));
 
-        partial.undo();
+        // 失败格期间被其他系统改掉：undo 不应覆盖它
+        writer.seed(second, "minecraft:gold_block");
+        command.undo();
+
         assertEquals("minecraft:grass_block", writer.get(first));
+        assertEquals("minecraft:gold_block", writer.get(second),
+            "failed write must not be restored by undo");
         assertEquals("minecraft:grass_block", writer.get(third));
+    }
+
+    @Test
+    void totalFailureLeavesNoAppliedRecords() {
+        InMemoryBlockWriter writer = new InMemoryBlockWriter();
+        BlockPos pos = new BlockPos(0, 64, 0);
+        writer.seed(pos, "minecraft:grass_block");
+        writer.failOn(pos);
+
+        GenerateRoadCommand command = new GenerateRoadCommand(
+            List.of(new BlockRecord(pos, "minecraft:grass_block", "minecraft:stone")),
+            writer
+        );
+        command.execute();
+
+        assertFalse(command.hasAppliedRecords());
+        assertEquals(0, command.getAppliedRecordCount());
+        assertEquals("minecraft:grass_block", writer.get(pos));
+
+        command.undo();
+        assertEquals("minecraft:grass_block", writer.get(pos));
     }
 
     private static final class InMemoryBlockWriter implements GenerateRoadCommand.BlockWriter {
         private final Map<BlockPos, String> blocks = new LinkedHashMap<>();
+        private final Set<BlockPos> failPositions = new java.util.HashSet<>();
 
         void seed(BlockPos pos, String blockId) {
             blocks.put(pos, blockId);
+        }
+
+        void failOn(BlockPos pos) {
+            failPositions.add(pos);
         }
 
         String get(BlockPos pos) {
@@ -162,6 +200,9 @@ class GenerateRoadCommandTest {
 
         @Override
         public boolean setBlockAt(BlockPos pos, String blockId) {
+            if (failPositions.contains(pos)) {
+                return false;
+            }
             blocks.put(pos, blockId);
             return true;
         }
