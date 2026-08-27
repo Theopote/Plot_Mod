@@ -3,6 +3,8 @@ package com.plot.ui.panel.layer;
 import com.plot.api.model.ILayer;
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
+import imgui.ImGui;
+import imgui.flag.ImGuiStyleVar;
 import java.util.List;
 import java.util.Set;
 
@@ -13,7 +15,7 @@ import java.util.Set;
 public class LayerListRenderer {
     // === 常量定义 ===
     private static final float LAYER_ITEM_HEIGHT = 24.0f;
-    private static final float LAYER_ITEM_SPACING = 0.0f; // 减少图层项之间的间距
+    private static final float LAYER_ITEM_SPACING = 4.0f;
 
     // === 状态字段 ===
     private float contentHeight = -1;
@@ -46,20 +48,22 @@ public class LayerListRenderer {
             contentHeight = calculateContentHeight(layers.size());
         }
         
-        // 直接渲染图层项
-        // 从底部向顶部渲染图层（与绘图顺序相反）
-        for (int i = layers.size() - 1; i >= 0; i--) {
-            ILayer layer = layers.get(i);
-            if (layer instanceof Layer concreteLayer) {
-                boolean isActive = concreteLayer.equals(activeLayer);
-                boolean isSelected = selectedLayers.contains(layer);
-                
-                // 渲染图层项
-                layerItemRenderer.render(concreteLayer, isActive, isSelected);
-                if (i > 0) {
-                    imgui.ImGui.dummy(0.0f, LAYER_ITEM_SPACING);
+        // PropertyPanel 会把 ItemSpacing 设为 8px；每个图层项都是独立的 beginChild，
+        // ImGui 会在相邻控件之间自动插入 ItemSpacing，导致行与行之间出现明显空隙。
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0.0f, LAYER_ITEM_SPACING);
+        try {
+            // 从底部向顶部渲染图层（与绘图顺序相反）
+            for (int i = layers.size() - 1; i >= 0; i--) {
+                ILayer layer = layers.get(i);
+                if (layer instanceof Layer concreteLayer) {
+                    boolean isActive = concreteLayer.equals(activeLayer);
+                    boolean isSelected = selectedLayers.contains(layer);
+
+                    layerItemRenderer.render(concreteLayer, isActive, isSelected);
                 }
             }
+        } finally {
+            ImGui.popStyleVar();
         }
     }
 

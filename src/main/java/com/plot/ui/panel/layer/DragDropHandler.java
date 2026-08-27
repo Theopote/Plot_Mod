@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 public class DragDropHandler {
     // === 常量定义 ===
     private static final float LAYER_ITEM_HEIGHT = 24.0f;
+    private static final float LAYER_ITEM_SPACING = 4.0f;
     public static final float DRAG_THRESHOLD = 5.0f;
     
     // === 依赖项 ===
@@ -81,7 +82,7 @@ public class DragDropHandler {
         try {
             float windowY = ImGui.getWindowPosY();
             float relativeY = mouseY - windowY;
-            float itemTotalHeight = LAYER_ITEM_HEIGHT + 2;
+            float itemTotalHeight = LAYER_ITEM_HEIGHT + LAYER_ITEM_SPACING;
             
             // 计算基础索引
             int index = (int)((relativeY - ImGui.getScrollY()) / itemTotalHeight);
