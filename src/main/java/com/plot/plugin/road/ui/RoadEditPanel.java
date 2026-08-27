@@ -61,7 +61,9 @@ public final class RoadEditPanel {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
         } else {
             ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
+            ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
+            ImGui.textWrapped(PlotI18n.tr("plugin.road.edge_list_hint"));
+            ImGui.popStyleColor();
             edgeListPanel.renderToolbar("##edit");
             edgeListPanel.renderList(true, "edit_edge_list");
         }

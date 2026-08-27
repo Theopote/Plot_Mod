@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 
 /**
  * 道路概览 Tab：路网统计、缩略图点选（只读，编辑请切换到「编辑属性」Tab）。
@@ -32,6 +33,8 @@ public final class RoadOverviewPanel {
             edgeId -> ctx.networkManager().handleEdgeSelect(edgeId, ImGui.getIO().getKeyCtrl()),
             ctx.networkManager()::handleNodeSelect
         );
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_hint"));
+        ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
+        ImGui.textWrapped(PlotI18n.tr("plugin.road.network_map_hint"));
+        ImGui.popStyleColor();
     }
 }
