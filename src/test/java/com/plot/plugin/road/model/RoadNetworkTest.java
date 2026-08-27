@@ -34,7 +34,7 @@ class RoadNetworkTest {
     Path tempDir;
 
     @Test
-    void linkEdgeToRoadUnlinksFromPreviousRoad() {
+    void assignEdgeToRoadUnlinksFromPreviousRoad() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
@@ -46,11 +46,61 @@ class RoadNetworkTest {
         assertTrue(roadA.getSegmentIds().contains(edge.getId()));
         assertEquals(roadA.getId(), edge.getRoadId());
 
+        assertTrue(network.assignEdgeToRoad(edge.getId(), roadB.getId()));
+
+        assertFalse(roadA.getSegmentIds().contains(edge.getId()));
+        assertTrue(roadB.getSegmentIds().contains(edge.getId()));
+        assertEquals(roadB.getId(), edge.getRoadId());
+        assertTrue(network.validateInvariants().isValid());
+    }
+
+    @Test
+    void linkEdgeToRoadDelegatesToAssignEdgeToRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), roadA.getId());
+
         network.linkEdgeToRoad(roadB.getId(), edge.getId());
 
         assertFalse(roadA.getSegmentIds().contains(edge.getId()));
         assertTrue(roadB.getSegmentIds().contains(edge.getId()));
         assertEquals(roadB.getId(), edge.getRoadId());
+    }
+
+    @Test
+    void removeRoadUsesEdgeRoadIdNotStaleSegmentIds() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)), roadB.getId());
+
+        roadA.addSegment(edge.getId());
+
+        network.removeRoad(roadA.getId());
+
+        assertNotNull(network.getEdge(edge.getId()));
+        assertEquals(roadB.getId(), edge.getRoadId());
+        assertTrue(roadB.getSegmentIds().contains(edge.getId()));
+        assertTrue(network.validateInvariants().isValid());
+    }
+
+    @Test
+    void assignEdgeToRoadRejectsMissingRoad() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(10, 0));
+        RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0)));
+
+        assertFalse(network.assignEdgeToRoad(edge.getId(), "missing-road"));
+        assertNull(edge.getRoadId());
     }
 
     @Test

@@ -85,6 +85,7 @@ public final class RoadNetworkManager {
 
     public void setNetwork(RoadNetwork network) {
         this.network = network != null ? network : new RoadNetwork();
+        this.network.assertInvariants();
         notifyNetworkChanged();
     }
 
@@ -167,6 +168,7 @@ public final class RoadNetworkManager {
 
     public void undo() {
         network = history.undo(network);
+        network.assertInvariants();
         ensureSelectionValid();
         lastBatchSelectionKey = "";
         notifyNetworkChanged();
@@ -174,6 +176,7 @@ public final class RoadNetworkManager {
 
     public void redo() {
         network = history.redo(network);
+        network.assertInvariants();
         ensureSelectionValid();
         lastBatchSelectionKey = "";
         notifyNetworkChanged();

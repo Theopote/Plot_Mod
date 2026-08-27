@@ -119,16 +119,12 @@ public class RoadNetwork {
         }
 
         RoadEdge edge = new RoadEdge(startNodeId, endNodeId, points);
-        if (roadId != null && !roadId.isBlank()) {
-            edge.setRoadId(roadId);
-            Road road = roads.get(roadId);
-            if (road != null) {
-                road.addSegment(edge.getId());
-            }
-        }
         edges.put(edge.getId(), edge);
         start.addEdge(edge.getId());
         end.addEdge(edge.getId());
+        if (roadId != null && !roadId.isBlank()) {
+            assignEdgeToRoad(edge.getId(), roadId);
+        }
         return edge;
     }
 
@@ -149,28 +145,64 @@ public class RoadNetwork {
         end.addEdge(edge.getId());
         String roadId = edge.getRoadId();
         if (roadId != null && !roadId.isBlank()) {
-            Road road = roads.get(roadId);
-            if (road != null) {
-                road.addSegment(edge.getId());
-            }
+            assignEdgeToRoad(edge.getId(), roadId);
         }
     }
 
-    public void linkEdgeToRoad(String roadId, String edgeId) {
-        Road road = roads.get(roadId);
+    /**
+     * 维护 Road ↔ RoadEdge 双向归属的唯一入口。
+     *
+     * @return false 若 edge 不存在，或 newRoadId 非空但对应 road 不存在
+     */
+    public boolean assignEdgeToRoad(String edgeId, String newRoadId) {
         RoadEdge edge = edges.get(edgeId);
-        if (road == null || edge == null) {
-            return;
+        if (edge == null) {
+            return false;
         }
+        if (newRoadId == null || newRoadId.isBlank()) {
+            return unassignEdgeFromRoad(edgeId);
+        }
+
+        Road newRoad = roads.get(newRoadId);
+        if (newRoad == null) {
+            return false;
+        }
+
         String oldRoadId = edge.getRoadId();
-        if (oldRoadId != null && !oldRoadId.equals(roadId)) {
+        if (oldRoadId != null && !oldRoadId.equals(newRoadId)) {
             Road oldRoad = roads.get(oldRoadId);
             if (oldRoad != null) {
                 oldRoad.removeSegment(edgeId);
             }
         }
-        edge.setRoadId(roadId);
-        road.addSegment(edgeId);
+        edge.setRoadId(newRoadId);
+        newRoad.addSegment(edgeId);
+        return true;
+    }
+
+    /**
+     * 解除 edge 与 road 的双向归属，不改变拓扑。
+     */
+    public boolean unassignEdgeFromRoad(String edgeId) {
+        RoadEdge edge = edges.get(edgeId);
+        if (edge == null) {
+            return false;
+        }
+        String oldRoadId = edge.getRoadId();
+        if (oldRoadId != null) {
+            Road oldRoad = roads.get(oldRoadId);
+            if (oldRoad != null) {
+                oldRoad.removeSegment(edgeId);
+            }
+        }
+        edge.setRoadId(null);
+        return true;
+    }
+
+    /** @deprecated 使用 {@link #assignEdgeToRoad(String, String)} */
+    @Deprecated
+    public void linkEdgeToRoad(String roadId, String edgeId) {
+        assignEdgeToRoad(edgeId, roadId);
     }
 
     /**
@@ -189,26 +221,35 @@ public class RoadNetwork {
             if (roadId == null || roadId.isBlank()) {
                 continue;
             }
-            Road road = roads.get(roadId);
-            if (road == null) {
+            if (!roads.containsKey(roadId)) {
                 edge.setRoadId(null);
                 continue;
             }
-            road.addSegment(edge.getId());
+            assignEdgeToRoad(edge.getId(), roadId);
         }
+    }
+
+    public RoadNetworkValidationResult validateInvariants() {
+        return RoadNetworkInvariantValidator.validate(this);
+    }
+
+    /**
+     * 开发模式下可通过 {@code -ea} 在 load / undo / redo 后断言网络不变量。
+     */
+    public void assertInvariants() {
+        RoadNetworkValidationResult result = validateInvariants();
+        assert result.isValid() : "Road network invariant violations: " + result.violations();
     }
 
     public void removeEdge(String edgeId) {
         RoadEdge edge = edges.get(edgeId);
         String roadId = edge != null ? edge.getRoadId() : null;
+        unassignEdgeFromRoad(edgeId);
         detachEdge(edgeId);
         if (roadId != null) {
             Road road = roads.get(roadId);
-            if (road != null) {
-                road.removeSegment(edgeId);
-                if (road.getSegmentIds().isEmpty()) {
-                    roads.remove(roadId);
-                }
+            if (road != null && road.getSegmentIds().isEmpty()) {
+                roads.remove(roadId);
             }
         }
         cleanupIsolatedNodes();
@@ -222,8 +263,12 @@ public class RoadNetwork {
         if (road == null) {
             return;
         }
-        List<String> edgeIds = new ArrayList<>(road.getSegmentIds());
+        List<String> edgeIds = edges.values().stream()
+            .filter(edge -> roadId.equals(edge.getRoadId()))
+            .map(RoadEdge::getId)
+            .collect(Collectors.toCollection(ArrayList::new));
         for (String edgeId : edgeIds) {
+            unassignEdgeFromRoad(edgeId);
             detachEdge(edgeId);
         }
         roads.remove(roadId);
@@ -857,15 +902,13 @@ public class RoadNetwork {
                 if (!hasRoadData) {
                     migrateLegacyEdge(network, edgeData, edge);
                 } else if (roadId != null && !roadId.isBlank()) {
-                    Road road = network.roads.get(roadId);
-                    if (road != null) {
-                        road.addSegment(edge.getId());
-                    }
+                    network.assignEdgeToRoad(edge.getId(), roadId);
                 }
             }
 
             rebuildTopologyFromEdges(network);
             network.reconcileRoadSegmentLinks();
+            network.assertInvariants();
             return network;
         }
 
@@ -910,9 +953,8 @@ public class RoadNetwork {
                     java.util.Set.of()
                 );
                 network.roads.put(roadId, road);
-                edge.setRoadId(roadId);
             }
-            road.addSegment(edge.getId());
+            network.assignEdgeToRoad(edge.getId(), roadId);
         }
     }
 }

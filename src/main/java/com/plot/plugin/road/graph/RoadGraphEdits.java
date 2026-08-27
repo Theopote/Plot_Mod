@@ -245,14 +245,8 @@ public final class RoadGraphEdits {
     }
 
     private void detachAndUnlink(RoadEdge edge) {
-        String roadId = edge.getRoadId();
+        network.unassignEdgeFromRoad(edge.getId());
         network.detachEdge(edge.getId());
-        if (roadId != null) {
-            Road road = network.getRoad(roadId);
-            if (road != null) {
-                road.removeSegment(edge.getId());
-            }
-        }
     }
 
     private static String otherEndpoint(RoadEdge edge, String nodeId) {
