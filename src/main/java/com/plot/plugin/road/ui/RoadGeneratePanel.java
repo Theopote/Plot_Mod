@@ -21,9 +21,19 @@ import java.util.Map;
 public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private String profileEdgeId = "";
+    private boolean profileSectionForceOpen = false;
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
+    }
+
+    /** 从概览等入口跳转时，聚焦指定边的纵断面区块。 */
+    public void openProfileForEdge(String edgeId) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return;
+        }
+        profileEdgeId = edgeId;
+        profileSectionForceOpen = true;
     }
 
     public void render() {
@@ -119,9 +129,11 @@ public final class RoadGeneratePanel {
         }
 
         ensureProfileEdgeSelection(network, edgeIds);
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.longitudinal_profile"))) {
+        int headerFlags = profileSectionForceOpen ? imgui.flag.ImGuiTreeNodeFlags.DefaultOpen : 0;
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.longitudinal_profile"), headerFlags)) {
             return;
         }
+        profileSectionForceOpen = false;
 
         if (edgeIds.size() > 1) {
             renderProfileEdgeSelector(network, edgeIds);

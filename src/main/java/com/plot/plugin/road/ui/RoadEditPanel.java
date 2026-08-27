@@ -116,19 +116,93 @@ public final class RoadEditPanel {
             return;
         }
 
-        ImGui.text(PlotI18n.tr("plugin.road.single_edge_edit",
-            RoadEdgeListHelper.formatEdgeLabel(network, current)));
+        renderRoadScopeHeader(network, road);
+
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.road_properties_section"));
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.editing_road", RoadEdgeListHelper.formatRoadLabel(network, road)));
-
-        renderElevationHint(current);
+            PlotI18n.tr("plugin.road.road_properties_scope", road.getSegmentIds().size()));
 
         RoadCrossSectionEditor.renderPreview(road, ctx.networkManager().getConfig());
         RoadCrossSectionEditor.renderPresetButtons(ctx, road, null);
-        RoadCrossSectionEditor.renderFields(ctx, road, ctx.networkManager()::pushHistory);
+        if (ImGui.collapsingHeader(
+            PlotI18n.tr("plugin.road.road_cross_section_fields"),
+            ImGuiTreeNodeFlags.DefaultOpen)) {
+            RoadCrossSectionEditor.renderFields(ctx, road, ctx.networkManager()::pushHistory);
+        }
 
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.road.segment_engineering_section"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.segment_engineering_scope"));
+
+        renderSegmentSelector(network, road);
+        current = network.getEdge(ctx.networkManager().getPrimarySelectedEdgeId());
+        if (current == null) {
+            return;
+        }
+        renderSegmentSummary(network, current);
+        renderElevationHint(current);
         renderSlopeOverrides(current);
+    }
+
+    private void renderRoadScopeHeader(RoadNetwork network, Road road) {
+        String roadLabel = RoadEdgeListHelper.formatRoadLabel(network, road);
+        int segmentCount = road.getSegmentIds().size();
+        double length = RoadEdgeListHelper.computeRoadLength(network, road);
+        ImGui.text(roadLabel);
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
+    }
+
+    private void renderSegmentSelector(RoadNetwork network, Road road) {
+        List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(road);
+        if (segmentIds.isEmpty()) {
+            return;
+        }
+
+        String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
+        int currentIndex = segmentIds.indexOf(primaryId);
+        if (currentIndex < 0) {
+            currentIndex = 0;
+            ctx.networkManager().setPrimarySelectedEdge(segmentIds.getFirst());
+        }
+
+        ImGui.text(PlotI18n.tr("plugin.road.current_segment_label"));
+        String previewLabel = PlotI18n.tr("plugin.road.segment_index", currentIndex + 1, segmentIds.size());
+        String[] labels = new String[segmentIds.size()];
+        for (int i = 0; i < segmentIds.size(); i++) {
+            labels[i] = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size());
+        }
+
+        imgui.type.ImInt selected = new imgui.type.ImInt(currentIndex);
+        ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
+        if (ImGui.beginCombo("##segment_selector", previewLabel)) {
+            for (int i = 0; i < segmentIds.size(); i++) {
+                if (ImGui.selectable(labels[i] + "##seg_" + i, i == currentIndex)) {
+                    ctx.networkManager().setPrimarySelectedEdge(segmentIds.get(i));
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        RoadEdge selectedEdge = network.getEdge(segmentIds.get(currentIndex));
+        if (selectedEdge != null && segmentIds.size() > 1) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                RoadEdgeListHelper.formatEdgeLabel(network, selectedEdge));
+        }
+    }
+
+    private void renderSegmentSummary(RoadNetwork network, RoadEdge edge) {
+        ImGui.text(PlotI18n.tr("plugin.road.segment_length", edge.getLength()));
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.segment_start",
+            RoadEdgeListHelper.formatNodeLabel(network, edge.getStartNodeId())));
+        ImGui.text(PlotI18n.tr(
+            "plugin.road.segment_end",
+            RoadEdgeListHelper.formatNodeLabel(network, edge.getEndNodeId())));
     }
 
     private void renderUniformFlatElevationControls(RoadNetwork network) {
@@ -290,8 +364,9 @@ public final class RoadEditPanel {
 
     private void renderSlopeOverrides(RoadEdge edge) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
+        ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_override_hint"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_override_segment_hint"));
         List<RoadEdge.SlopeOverride> overrides = new ArrayList<>(edge.getSlopeOverrides());
         List<RoadEdge.SlopeOverride> originalOverrides = RoadNetworkManager.snapshotSlopeOverrides(overrides);
 

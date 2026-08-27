@@ -11,10 +11,12 @@ import com.plot.plugin.road.ui.RoadNodePropertyPanel;
 import com.plot.plugin.road.ui.RoadOverviewPanel;
 import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
+import com.plot.plugin.road.ui.RoadUiTab;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
+import imgui.flag.ImGuiTabItemFlags;
 
 /**
  * 道路系统 ImGui 界面编排。
@@ -63,23 +65,29 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         toolbarPanel.render();
 
         if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
-            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.overview"))) {
-                overviewPanel.render();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.adopt"))) {
-                adoptPanel.render();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.edit"))) {
-                editPanel.render();
-                ImGui.endTabItem();
-            }
-            if (ImGui.beginTabItem(PlotI18n.tr("plugin.road.tab.generate"))) {
+            renderTab(RoadUiTab.OVERVIEW, "plugin.road.tab.overview", overviewPanel::render);
+            renderTab(RoadUiTab.ADOPT, "plugin.road.tab.adopt", adoptPanel::render);
+            renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", editPanel::render);
+            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", () -> {
+                String profileEdgeId = ctx.consumePendingProfileEdgeId();
+                if (profileEdgeId != null && !profileEdgeId.isBlank()) {
+                    generatePanel.openProfileForEdge(profileEdgeId);
+                }
                 generatePanel.render();
-                ImGui.endTabItem();
-            }
+            });
             ImGui.endTabBar();
+        }
+    }
+
+    private void renderTab(RoadUiTab tab, String labelKey, Runnable renderBody) {
+        int flags = ImGuiTabItemFlags.None;
+        if (ctx.pendingTab() == tab) {
+            flags = ImGuiTabItemFlags.SetSelected;
+            ctx.clearPendingTab();
+        }
+        if (ImGui.beginTabItem(PlotI18n.tr(labelKey), flags)) {
+            renderBody.run();
+            ImGui.endTabItem();
         }
     }
 

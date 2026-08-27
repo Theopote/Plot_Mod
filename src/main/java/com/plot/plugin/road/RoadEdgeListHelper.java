@@ -72,6 +72,42 @@ public final class RoadEdgeListHelper {
             lanes, width, segmentCount);
     }
 
+    public static double computeRoadLength(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return 0.0;
+        }
+        double total = 0.0;
+        for (String segmentId : road.getSegmentIds()) {
+            RoadEdge edge = network.getEdge(segmentId);
+            if (edge != null) {
+                total += edge.getLength();
+            }
+        }
+        return total;
+    }
+
+    public static List<String> orderedSegmentIds(Road road) {
+        if (road == null) {
+            return List.of();
+        }
+        return List.copyOf(road.getSegmentIds());
+    }
+
+    public static String formatNodeLabel(RoadNetwork network, String nodeId) {
+        if (nodeId == null || nodeId.isBlank()) {
+            return "-";
+        }
+        RoadNode node = network.getNode(nodeId);
+        if (node == null) {
+            return nodeId.substring(0, Math.min(8, nodeId.length()));
+        }
+        Vec2d pos = node.getPosition();
+        if (pos == null) {
+            return nodeId.substring(0, Math.min(8, nodeId.length()));
+        }
+        return String.format(Locale.ROOT, "(%.0f, %.0f)", pos.x, pos.y);
+    }
+
     public static String formatEdgeLabel(RoadNetwork network, RoadEdge edge) {
         RoadNode start = network.getNode(edge.getStartNodeId());
         RoadNode end = network.getNode(edge.getEndNodeId());

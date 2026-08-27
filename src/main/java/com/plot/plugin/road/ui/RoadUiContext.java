@@ -38,6 +38,9 @@ public final class RoadUiContext {
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
 
+    private RoadUiTab pendingTab = null;
+    private String pendingProfileEdgeId = "";
+
     public RoadUiContext(
             RoadNetworkManager networkManager,
             RoadPreviewManager previewManager,
@@ -189,5 +192,29 @@ public final class RoadUiContext {
         if (previewManager != null) {
             previewManager.invalidatePreview();
         }
+    }
+
+    public void requestTab(RoadUiTab tab) {
+        pendingTab = tab;
+    }
+
+    public RoadUiTab pendingTab() {
+        return pendingTab;
+    }
+
+    public void clearPendingTab() {
+        pendingTab = null;
+    }
+
+    /** 跳转到生成 Tab 并聚焦指定边的纵断面。 */
+    public void requestViewProfile(String edgeId) {
+        pendingTab = RoadUiTab.GENERATE;
+        pendingProfileEdgeId = edgeId != null ? edgeId : "";
+    }
+
+    public String consumePendingProfileEdgeId() {
+        String edgeId = pendingProfileEdgeId;
+        pendingProfileEdgeId = "";
+        return edgeId;
     }
 }

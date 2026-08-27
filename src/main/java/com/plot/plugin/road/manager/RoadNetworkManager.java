@@ -413,6 +413,22 @@ public final class RoadNetworkManager {
         return "";
     }
 
+    public void setPrimarySelectedEdge(String edgeId) {
+        if (edgeId == null || edgeId.isBlank() || network.getEdge(edgeId) == null) {
+            return;
+        }
+        lastSelectedEdgeId = edgeId;
+    }
+
+    public Road getPrimarySelectedRoad() {
+        String primaryId = getPrimarySelectedEdgeId();
+        if (primaryId.isBlank()) {
+            return null;
+        }
+        RoadEdge edge = network.getEdge(primaryId);
+        return edge != null ? network.getRoadForEdge(edge) : null;
+    }
+
     public List<RoadEdge> filteredEdges(
             String searchText,
             RoadEdgeListHelper.SortMode sortMode,
