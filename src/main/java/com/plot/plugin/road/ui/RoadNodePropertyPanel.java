@@ -6,6 +6,8 @@ import com.plot.plugin.road.RoadNodeElevationUtils;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadNodeListHelper;
+import com.plot.plugin.road.AutoGradeSeparationRecommendation;
+import com.plot.plugin.road.AutoGradeSeparationRecommendationCache;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.Road;
@@ -43,6 +45,8 @@ public final class RoadNodePropertyPanel {
     private final ImBoolean filterManualElevation = new ImBoolean(false);
     private final ImBoolean filterGradeSeparated = new ImBoolean(false);
     private final ImBoolean filterInvalid = new ImBoolean(false);
+    private final AutoGradeSeparationRecommendationCache autoGradeSeparationCache =
+        new AutoGradeSeparationRecommendationCache();
 
     public RoadNodePropertyPanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -395,18 +399,24 @@ public final class RoadNodePropertyPanel {
     }
 
     private void renderAutoElevatedRoadHint(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
-        RoadGenerator generator = new RoadGenerator(
-            config, ctx.host().coordinates(), ctx.host().projection());
-        TerrainSampler terrain = resolveTerrainSampler(generator);
-        String resolvedRoadId = generator.resolveElevatedRoadId(node, network, terrain);
-        if (resolvedRoadId == null) {
+        AutoGradeSeparationRecommendation recommendation = autoGradeSeparationCache.resolve(
+            node,
+            network,
+            config,
+            ctx.host(),
+            ctx.networkManager().getNetworkRevision(),
+            config.generationInputsFingerprint(),
+            AutoGradeSeparationRecommendationCache.worldVersion(
+                RoadNetworkGenerator.getClientWorld(),
+                ctx.previewManager().getTerrainRevision()));
+        if (!recommendation.hasRecommendation()) {
             return;
         }
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.road.grade_separation_auto_result",
-                formatRoadLabel(network, resolvedRoadId)));
+                formatRoadLabel(network, recommendation.elevatedRoadId())));
     }
 
     private int resolveManualLockElevation(RoadNode node, RoadNetwork network, RoadSystemConfig config) {

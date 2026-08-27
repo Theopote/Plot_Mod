@@ -32,6 +32,7 @@ public final class RoadPreviewManager {
     private RoadGenerationResult lastGenerationResult;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
+    private long terrainRevision = 0L;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -44,6 +45,15 @@ public final class RoadPreviewManager {
 
     public Map<String, Integer> getLastNodeElevations() {
         return lastNodeElevations;
+    }
+
+    /** 地形/预览上下文变更计数，供 UI 缓存失效。 */
+    public long getTerrainRevision() {
+        return terrainRevision;
+    }
+
+    private void bumpTerrainRevision() {
+        terrainRevision++;
     }
 
     public Integer getLastNodeElevation(String nodeId) {
@@ -90,6 +100,7 @@ public final class RoadPreviewManager {
             lastGenerationResult = previewResult.aggregate();
             lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
             lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
+            bumpTerrainRevision();
         } catch (RuntimeException e) {
             lastGenerationResult = null;
             lastEdgeResults = Collections.emptyMap();
@@ -185,14 +196,12 @@ public final class RoadPreviewManager {
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
         lastGenerationResult = null;
-        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
+        clearGhostBlocksSafely();
         if (hadPreview) {
             LOGGER.debug("网络已变更，预览结果与虚影已失效");
             status.set(PlotI18n.tr("plugin.road.preview_invalidated"));
         }
+        bumpTerrainRevision();
     }
 
     public void buildRoadInWorld() {
@@ -273,5 +282,16 @@ public final class RoadPreviewManager {
             result.success(),
             result.total(),
             result.failed()));
+    }
+
+    private void clearGhostBlocksSafely() {
+        try {
+            com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
+            if (ghostBlockManager != null) {
+                ghostBlockManager.clearAllGhostBlocks();
+            }
+        } catch (IllegalStateException ignored) {
+            // 逻辑侧 PluginContext 无世界服务时跳过虚影清理
+        }
     }
 }

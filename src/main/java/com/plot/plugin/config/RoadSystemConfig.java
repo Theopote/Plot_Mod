@@ -569,6 +569,21 @@ public class RoadSystemConfig {
     public void setDefaultCrossingClearance(double defaultCrossingClearance) {
         this.defaultCrossingClearance = RoadParameterLimits.clampCrossingClearance(defaultCrossingClearance);
     }
+
+    /**
+     * 影响纵断面/自然高度推算的全局参数指纹，供 UI 缓存失效。
+     */
+    public long generationInputsFingerprint() {
+        return java.util.Objects.hash(
+            maxSlope,
+            fillFactor,
+            pathSampleDistance,
+            bridgeThreshold,
+            tunnelThreshold,
+            maxContinuousSlopeLength,
+            relaxedSlopeLength,
+            relaxedSlopePercent);
+    }
     
     /**
      * 应用道路风格到全局默认参数。

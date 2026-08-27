@@ -375,14 +375,4 @@ public class RoadNetworkBuilder {
         }
         return true;
     }
-
-    /** @deprecated 使用 {@link RoadGraphEdits#splitSlopeOverrides} */
-    @Deprecated
-    static List<RoadEdge.SlopeOverride> splitSlopeOverrides(
-            List<RoadEdge.SlopeOverride> overrides,
-            double splitDistance,
-            double totalLength,
-            boolean firstPart) {
-        return RoadGraphEdits.splitSlopeOverrides(overrides, splitDistance, totalLength, firstPart);
-    }
 }

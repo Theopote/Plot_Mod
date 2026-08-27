@@ -35,6 +35,7 @@ public final class RoadNetworkManager {
     private final RoadProjectStatus status;
 
     private RoadNetwork network = new RoadNetwork();
+    private long networkRevision = 0L;
     private final LinkedHashSet<String> selectedEdgeIds = new LinkedHashSet<>();
     private String selectedNodeId = "";
     private String lastSelectedEdgeId = "";
@@ -81,6 +82,11 @@ public final class RoadNetworkManager {
 
     public RoadNetwork getNetwork() {
         return network;
+    }
+
+    /** 路网拓扑/属性变更计数，供 UI 缓存失效。 */
+    public long getNetworkRevision() {
+        return networkRevision;
     }
 
     public void setNetwork(RoadNetwork network) {
@@ -296,6 +302,7 @@ public final class RoadNetworkManager {
     }
 
     private void notifyNetworkChanged() {
+        networkRevision++;
         if (onNetworkChanged != null) {
             onNetworkChanged.run();
         }
