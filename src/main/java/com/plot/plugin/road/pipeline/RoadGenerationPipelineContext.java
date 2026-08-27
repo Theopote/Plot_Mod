@@ -114,14 +114,6 @@ public final class RoadGenerationPipelineContext {
 
         int bridgeThreshold();
 
-        void generateMarkings(RoadGenerationPipelineContext ctx);
-
-        void generateFurniture(RoadGenerationPipelineContext ctx);
-
-        void gradeTerrain(RoadGenerationPipelineContext ctx);
-
-        void applyConstructionStats(RoadGenerationResult result, ConstructionDetection detection);
-
-        RoadGenerationResult rasterize(RoadGenerationPipelineContext ctx);
+        void flushEdgeSolids(RoadGenerationResult result, RoadSolidModel solids);
     }
 }

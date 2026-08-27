@@ -7,28 +7,21 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
-import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
-import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.RoadGenerationBuildRequest;
 import com.plot.plugin.road.pipeline.RoadGenerationPipeline;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
-import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
-import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnap;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
-import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.solid.RoadVoxelRasterizer;
-import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -242,53 +235,8 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
     }
 
     @Override
-    public void generateMarkings(RoadGenerationPipelineContext ctx) {
-        ResolvedCrossSection crossSection = ctx.request().crossSection();
-        if (crossSection.laneDividers || crossSection.centerLineStyle != CenterLineStyle.NONE) {
-            generateLaneMarkings(
-                ctx.solids(), ctx.segments(), ctx.heightInfos(), ctx.pathPoints(), crossSection, ctx.unitsPerBlock());
-        }
-    }
-
-    @Override
-    public void generateFurniture(RoadGenerationPipelineContext ctx) {
-        ResolvedCrossSection crossSection = ctx.request().crossSection();
-        Integer spacing = crossSection.streetlightSpacing;
-        if (spacing != null && spacing > 0) {
-            generateStreetlights(
-                ctx.solids(), ctx.pathPoints(), ctx.terrain(), crossSection, ctx.unitsPerBlock());
-        }
-    }
-
-    @Override
-    public void gradeTerrain(RoadGenerationPipelineContext ctx) {
-        gradeRoadEnvelope(
-            ctx.solids(),
-            ctx.metrics(),
-            ctx.segments(),
-            ctx.heightInfos(),
-            ctx.request().crossSection(),
-            ctx.terrain(),
-            ctx.unitsPerBlock(),
-            ctx.detection().constructionTypes());
-    }
-
-    @Override
-    public void applyConstructionStats(RoadGenerationResult result, ConstructionDetection detection) {
-        applyConstructionStatsInternal(result, detection);
-    }
-
-    @Override
-    public RoadGenerationResult rasterize(RoadGenerationPipelineContext ctx) {
-        RoadGenerationResult result = ctx.createResult();
-        RoadEdgeBuildMetrics metrics = ctx.metrics();
-        result.cutVolume = metrics.cutVolume;
-        result.fillVolume = metrics.fillVolume;
-        result.bridgeCount = metrics.bridgeCount;
-        result.tunnelCount = metrics.tunnelCount;
-        applyConstructionStatsInternal(result, ctx.detection());
-        RoadVoxelRasterizer.flushEdgeSolids(result, ctx.solids(), coordinateTransformer, projectionHandler);
-        return result;
+    public void flushEdgeSolids(RoadGenerationResult result, RoadSolidModel solids) {
+        RoadVoxelRasterizer.flushEdgeSolids(result, solids, coordinateTransformer, projectionHandler);
     }
 
     private EndpointElevationSnaps resolveEndpointSnap(
@@ -932,20 +880,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
         return profileTargetHeights;
     }
 
-    private static void applyConstructionStatsInternal(
-            RoadGenerationResult result,
-            ConstructionDetection detection) {
-        result.constructionTypes.addAll(detection.constructionTypes());
-        for (int i = 0; i < detection.constructionTypes().size(); i++) {
-            double distance = detection.segmentDistances().get(i);
-            switch (detection.constructionTypes().get(i)) {
-                case BRIDGE -> result.bridgeLength += distance;
-                case TUNNEL -> result.tunnelLength += distance;
-                case ROAD, CUT, FILL -> result.normalRoadLength += distance;
-            }
-        }
-    }
-
     @Override
     public double estimateCanvasUnitsPerBlock(List<Vec2d> pathPoints, List<PathSegment> segments) {
         Vec2d origin;
@@ -966,133 +900,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
         Vec2d unit = tangent.normalize();
         Vec2d normal = new Vec2d(-unit.y, unit.x);
         return RoadGeometryUtils.canvasUnitsPerWorldBlock(coordinateTransformer, origin, normal);
-    }
-
-    private void gradeRoadEnvelope(
-            RoadSolidModel solids,
-            RoadEdgeBuildMetrics metrics,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            ResolvedCrossSection crossSection,
-            TerrainSampler terrain,
-            double unitsPerBlock,
-            List<RoadConstructionType> constructionTypes) {
-        int sideBandWidth = crossSection.outerBandBlockCount();
-        int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
-        if (envelopeWidth <= 0) {
-            return;
-        }
-        int tunnelThreshold = config.getTunnelThreshold();
-        int bridgeThreshold = config.getBridgeThreshold();
-        String fillMaterialId = getBlockIdFromMaterial(
-            crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
-                ? crossSection.fillSlopeMaterial
-                : config.getFillSlopeMaterial());
-        RoadTerrainClearanceUtils.BlockColumnResolver columnResolver = new RoadTerrainClearanceUtils.BlockColumnResolver() {
-            @Override
-            public int worldX(Vec2d planPoint) {
-                return canvasToBlockPos(planPoint).getX();
-            }
-
-            @Override
-            public int worldZ(Vec2d planPoint) {
-                return canvasToBlockPos(planPoint).getZ();
-            }
-        };
-        RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
-        double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-            RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
-            // 桥面必须悬空，不能再用路基填方把沟谷整个灌满。
-            if (type == RoadConstructionType.BRIDGE) {
-                continue;
-            }
-            PathSegment segment = segments.get(i);
-            SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
-            int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            for (int j = 0; j <= samples; j++) {
-                double t = (double) j / samples;
-                Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
-                targetY = snapEndpointElevation(center, targetY);
-                total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
-                    solids, center, leftNormal, envelopeWidth, targetY,
-                    tunnelThreshold, bridgeThreshold, fillMaterialId,
-                    terrain, columnResolver, unitsPerBlock));
-            }
-        }
-        metrics.cutVolume = total.cutVolume();
-        metrics.fillVolume = total.fillVolume();
-    }
-
-    private void generateLaneMarkings(
-            RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            List<Vec2d> pathPoints,
-            ResolvedCrossSection crossSection,
-            double unitsPerBlock) {
-        String blockId = getBlockIdFromMaterial(crossSection.markingMaterial);
-        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
-        double accumulatedSegmentStart;
-
-        List<RoadMarkingPasses.Pass> passes = RoadMarkingPasses.fromCrossSection(crossSection);
-
-        for (RoadMarkingPasses.Pass pass : passes) {
-            List<Vec2d> markingLine = OffsetHandler.offsetPolyline(pathPoints, pass.offset() * unitsPerBlock);
-            accumulatedSegmentStart = 0.0;
-            for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-                SegmentHeightInfo info = heightInfos.get(i);
-                PathSegment segment = segments.get(i);
-                int samples = Math.max(2, (int) Math.ceil(segment.distance));
-                for (int j = 0; j <= samples; j++) {
-                    if (!pass.solid() && j % 2 != 0) {
-                        continue;
-                    }
-                    double t = (double) j / samples;
-                    int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                    double normalized = totalLength > 1e-9
-                        ? (accumulatedSegmentStart + t * segment.distance) / totalLength
-                        : 0.0;
-                    Vec2d point = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(markingLine, normalized);
-                    solids.add(point, targetY, RoadSolidLayer.MARKING, blockId);
-                }
-                accumulatedSegmentStart += segment.distance;
-            }
-        }
-    }
-
-    private void generateStreetlights(
-            RoadSolidModel solids,
-            List<Vec2d> pathPoints,
-            TerrainSampler terrain,
-            ResolvedCrossSection crossSection,
-            double unitsPerBlock) {
-        Integer spacingValue = crossSection.streetlightSpacing;
-        int spacing = spacingValue != null ? spacingValue : 0;
-        if (spacing <= 0) {
-            return;
-        }
-        double skipDistance = crossSection.carriagewayWidth * unitsPerBlock;
-        double offset = (RoadDimensionUtils.maxLateralOffset(crossSection.carriagewayWidth)
-            + crossSection.outerBandBlockCount()
-            + 0.5) * unitsPerBlock;
-
-        List<Vec2d> samples = RoadGeometryUtils.sampleAlongPath(pathPoints, spacing, skipDistance);
-        boolean placeLeft = true;
-
-        for (Vec2d sample : samples) {
-            int index = Math.max(0, Math.min(pathPoints.size() - 2,
-                RoadGeometryUtils.findNearestSegmentIndex(pathPoints, sample)));
-            Vec2d direction = pathPoints.get(index + 1).subtract(pathPoints.get(index)).normalize();
-            Vec2d normal = new Vec2d(-direction.y, direction.x);
-            double side = placeLeft ? offset : -offset;
-            Vec2d lightPos = sample.add(normal.multiply(side));
-            int groundY = terrain.sampleSurfaceY(lightPos);
-            solids.add(lightPos, groundY + 1, RoadSolidLayer.STREETLIGHT, "minecraft:lantern");
-            placeLeft = !placeLeft;
-        }
     }
 
     static List<BlockPos> rasterizeSpan(Vec2d left, Vec2d right, int y) {
