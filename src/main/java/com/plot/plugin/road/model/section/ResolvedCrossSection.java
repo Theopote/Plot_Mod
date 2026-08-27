@@ -245,12 +245,32 @@ public final class ResolvedCrossSection {
         return stripCenterOffset(start, shoulderWidth);
     }
 
-    /** 边坡起始锚点：有路肩时取路肩中心，否则取行车道外缘。 */
+    /** 边坡锚点：最外侧硬质横断面条带（人行道 &gt; 自行车道 &gt; 路肩 &gt; 行车道外缘）的中心线横向偏移。 */
     public double slopeAnchorCenterOffset() {
+        if (includeSidewalk && sidewalkWidth > 0) {
+            return sidewalkCenterOffset();
+        }
+        if (includeBikeLane && bikeLaneWidth > 0) {
+            return bikeLaneCenterOffset();
+        }
         if (includeShoulder && shoulderWidth > 0) {
             return shoulderCenterOffset();
         }
         return carriagewayHalfWidth();
+    }
+
+    /** 边坡锚点条带宽度；锚点在行车道外缘时为 0。 */
+    public int slopeAnchorBandWidth() {
+        if (includeSidewalk && sidewalkWidth > 0) {
+            return sidewalkWidth;
+        }
+        if (includeBikeLane && bikeLaneWidth > 0) {
+            return bikeLaneWidth;
+        }
+        if (includeShoulder && shoulderWidth > 0) {
+            return shoulderWidth;
+        }
+        return 0;
     }
 
     public double bikeLaneCenterOffset() {

@@ -76,17 +76,41 @@ class ResolvedCrossSectionTest {
     }
 
     @Test
-    void slopeAnchorCenterOffsetUsesCarriagewayEdgeWithoutShoulder() {
+    void slopeAnchorUsesOutermostHardBand() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setWidth(7);
+        section.getShoulder().setEnabled(true);
+        section.getShoulder().setWidth(2);
+        section.getBikeLane().setEnabled(true);
+        section.getBikeLane().setWidth(2);
+        section.getSidewalk().setEnabled(true);
+        section.getSidewalk().setWidth(3);
+        section.getSlopeBatter().setEnabled(true);
+        section.getSlopeBatter().setFillRatio(1.0f);
+
+        ResolvedCrossSection resolved = section.resolve(config);
+
+        assertEquals(resolved.sidewalkCenterOffset(), resolved.slopeAnchorCenterOffset(), 1e-6);
+        assertEquals(3, resolved.slopeAnchorBandWidth());
+    }
+
+    @Test
+    void slopeAnchorCenterOffsetUsesCarriagewayEdgeWithoutShoulder() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setIncludeSidewalk(false);
+        RoadCrossSection section = new RoadCrossSection();
+        section.getCarriageway().setWidth(7);
         section.getShoulder().setEnabled(false);
+        section.getBikeLane().setEnabled(false);
+        section.getSidewalk().setEnabled(false);
         section.getSlopeBatter().setEnabled(true);
         section.getSlopeBatter().setFillRatio(1.0f);
 
         ResolvedCrossSection resolved = section.resolve(config);
 
         assertEquals(3.5, resolved.slopeAnchorCenterOffset(), 1e-6);
+        assertEquals(0, resolved.slopeAnchorBandWidth());
     }
 
     @Test

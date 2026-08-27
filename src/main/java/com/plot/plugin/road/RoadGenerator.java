@@ -214,13 +214,6 @@ public class RoadGenerator {
                 generateShoulderBlocks(solids, segments, heightInfos, shoulderCenterOffset,
                     shoulderWidth, getBlockIdFromMaterial(crossSection.shoulderMaterial), unitsPerBlock);
             }
-            if (crossSection.includeSlopeBatter) {
-                double slopeAnchorOffset = crossSection.slopeAnchorCenterOffset() * unitsPerBlock;
-                int slopeAnchorBandWidth = shoulderWidth;
-                generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, slopeAnchorOffset,
-                    slopeAnchorBandWidth, terrain, crossSection, unitsPerBlock,
-                    detection.constructionTypes());
-            }
 
             if (crossSection.includeBikeLane && crossSection.bikeLaneWidth > 0) {
                 generateBikeLaneBlocks(solids, segments, heightInfos,
@@ -242,6 +235,14 @@ public class RoadGenerator {
                 double drainageOffset = crossSection.outerDrainageOffset() * unitsPerBlock;
                 generateDrainageChannels(solids, segments, heightInfos, drainageOffset,
                     getBlockIdFromMaterial("material.plot.gravel"), unitsPerBlock);
+            }
+
+            if (crossSection.includeSlopeBatter) {
+                double slopeAnchorOffset = crossSection.slopeAnchorCenterOffset() * unitsPerBlock;
+                int slopeAnchorBandWidth = crossSection.slopeAnchorBandWidth();
+                generateSlopeBatterBlocks(solids, metrics, segments, heightInfos, slopeAnchorOffset,
+                    slopeAnchorBandWidth, terrain, crossSection, unitsPerBlock,
+                    detection.constructionTypes());
             }
 
             if (crossSection.includeMedian && crossSection.medianWidth > 0) {

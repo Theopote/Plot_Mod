@@ -138,11 +138,9 @@ public final class RoadCrossSectionPreviewRenderer {
         drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
 
         if (layout.fillSlopeRatio > 0f || layout.cutSlopeRatio > 0f) {
-            float leftEdgeX = x0 + width * 0.5f - layout.centerOffsetBlocks(scale)
-                - (layout.includeShoulder ? layout.leftShoulderBlocks * scale : 0f);
-            float rightEdgeX = x0 + width * 0.5f + layout.centerOffsetBlocks(scale)
-                + layout.roadBlocks * scale
-                + (layout.includeShoulder ? layout.rightShoulderBlocks * scale : 0f);
+            float roadCenterX = x0 + width * 0.5f;
+            float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
+            float rightEdgeX = roadCenterX + layout.rightOuterHardEdgeFromCenterBlocks() * scale;
 
             drawBatterSlope(
                 drawList,
@@ -478,6 +476,16 @@ public final class RoadCrossSectionPreviewRenderer {
         public float centerOffsetBlocks(float scale) {
             float left = drainageBlocks + leftSidewalkBlocks + leftBikeBlocks + leftShoulderBlocks;
             return left * scale;
+        }
+
+        /** 从道路中心到左侧最外侧硬质路面外缘的横向距离（方块）。 */
+        public float leftOuterHardEdgeFromCenterBlocks() {
+            return roadBlocks / 2f + leftShoulderBlocks + leftBikeBlocks + leftSidewalkBlocks;
+        }
+
+        /** 从道路中心到右侧最外侧硬质路面外缘的横向距离（方块）。 */
+        public float rightOuterHardEdgeFromCenterBlocks() {
+            return roadBlocks / 2f + rightShoulderBlocks + rightBikeBlocks + rightSidewalkBlocks;
         }
 
         private static int colorForMaterial(String material, int fallback) {
