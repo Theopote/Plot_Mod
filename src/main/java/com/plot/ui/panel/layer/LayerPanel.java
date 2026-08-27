@@ -310,6 +310,8 @@ public class LayerPanel implements UIComponent {
                 
                 // 创建图层列表子窗口，只允许图层列表区域滚动
                 ImGui.beginChild("##layer_list_container", ImGui.getContentRegionAvailX(), listHeight, false, windowFlags);
+
+                layerItemRenderer.processDeferredRename();
                 
                 // 使用LayerListRenderer渲染图层列表
                 layerListRenderer.render(ImGui.getContentRegionAvailX(), listHeight);

@@ -2,6 +2,7 @@ package com.plot.ui.panel.layer;
 
 import com.plot.core.layer.Layer;
 import com.plot.core.layer.LayerManager;
+import com.plot.ui.dialog.TextDialogUtil;
 import com.plot.utils.PlotI18n;
 import com.plot.ui.theme.ThemeManager;
 import com.plot.ui.theme.UITheme;
@@ -11,6 +12,7 @@ import imgui.type.ImString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.awt.GraphicsEnvironment;
 import java.util.function.Consumer;
 
 /**
@@ -24,8 +26,11 @@ public class LayerNameRenderer {
     private static final float ACTIVE_MARKER_WIDTH = 3.0f;
     private static final float TEXT_PADDING_X = 4.0f;
     private static final long DOUBLE_CLICK_THRESHOLD = 500;
+    /** ImString 缓冲区大小（字节） */
+    private static final int MAX_BUFFER_SIZE = 512;
+    private static final int MAX_NAME_LENGTH = 50;
 
-    private final ImString nameBuffer = new ImString(1024);
+    private final ImString nameBuffer = new ImString(MAX_BUFFER_SIZE);
     private String currentEditingLayerId = null;
     private boolean setFocus = false;
     private boolean isEditing = false;
@@ -35,6 +40,13 @@ public class LayerNameRenderer {
     private long lastClickTime = 0;
     private String lastClickedLayerId = null;
 
+    private final boolean nativeInputSupported = !GraphicsEnvironment.isHeadless();
+    private volatile boolean nativeInputRequested = false;
+    private volatile boolean nativeInputCompleted = false;
+    private volatile boolean nativeInputCancelled = false;
+    private volatile String nativeInputText = null;
+    private Layer pendingNativeRenameLayer = null;
+
     private final LayerManager layerManager;
     private final Consumer<String> showWarningDialog;
 
@@ -43,6 +55,35 @@ public class LayerNameRenderer {
             Consumer<String> showWarningDialog) {
         this.layerManager = layerManager;
         this.showWarningDialog = showWarningDialog;
+    }
+
+    /**
+     * 处理系统原生重命名输入框的异步结果。
+     */
+    public void processDeferredRename() {
+        if (!nativeInputSupported || !nativeInputCompleted) {
+            return;
+        }
+
+        nativeInputCompleted = false;
+        Layer layer = pendingNativeRenameLayer;
+        pendingNativeRenameLayer = null;
+        nativeInputRequested = false;
+
+        if (layer == null) {
+            resetNativeInputState();
+            return;
+        }
+
+        if (nativeInputCancelled || nativeInputText == null) {
+            cancelEditing(layer.getId());
+            resetNativeInputState();
+            return;
+        }
+
+        nameBuffer.set(nativeInputText.trim());
+        resetNativeInputState();
+        applyNameChange(layer);
     }
 
     /**
@@ -68,7 +109,6 @@ public class LayerNameRenderer {
         float windowX = ImGui.getWindowPosX();
         float windowY = ImGui.getWindowPosY();
 
-        // 绘制边框与活动标记（不依赖控件，避免抢占输入框交互）
         ImGui.getWindowDrawList().addRect(
                 originalX + windowX,
                 originalY + windowY - scrollY,
@@ -93,8 +133,10 @@ public class LayerNameRenderer {
         float textPaddingLeft = TEXT_PADDING_X + (isActive ? ACTIVE_MARKER_WIDTH : 0);
         float availableTextWidth = Math.max(0.0f, width - TEXT_PADDING_X - textPaddingLeft);
 
-        if (isEditing && layer.getId().equals(currentEditingLayerId)) {
-            handleEditing(layer, originalX, originalY, width, height, textPaddingLeft, availableTextWidth);
+        if (!nativeInputSupported
+                && isEditing
+                && layer.getId().equals(currentEditingLayerId)) {
+            handleInlineEditing(layer, originalX, originalY, width, height, textPaddingLeft);
         } else {
             renderDisplayName(layer, originalX, originalY, width, height,
                     textPaddingLeft, availableTextWidth, isSelected, theme);
@@ -139,7 +181,7 @@ public class LayerNameRenderer {
 
         ImGui.getWindowDrawList().addText(textScreenX, textScreenY, textColor, displayName);
 
-        if (isHovered && !layer.isLocked()) {
+        if (isHovered && !layer.isLocked() && !isEditing) {
             if (ImGui.isMouseClicked(0)) {
                 long currentTime = System.currentTimeMillis();
                 String layerId = layer.getId();
@@ -162,16 +204,15 @@ public class LayerNameRenderer {
     }
 
     /**
-     * 在名称区域内直接渲染输入框，避免嵌套 beginChild 被父行高度裁剪导致无法编辑。
+     * ImGui 内联编辑仅作为无 Swing 环境时的回退方案。
      */
-    private void handleEditing(
+    private void handleInlineEditing(
             Layer layer,
             float x,
             float y,
             float width,
             float height,
-            float textPaddingLeft,
-            float availableTextWidth) {
+            float textPaddingLeft) {
         UITheme.ThemeColors theme = ThemeManager.getInstance().getCurrentTheme();
 
         float screenX = x + ImGui.getWindowPosX();
@@ -196,18 +237,19 @@ public class LayerNameRenderer {
         );
 
         float framePadY = Math.max(0.0f, (height - ImGui.getFontSize()) * 0.5f);
+        float inputWidth = Math.max(0.0f, width - textPaddingLeft);
 
         ImGui.pushStyleColor(ImGuiCol.FrameBg, 0, 0, 0, 0);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 0, 0, 0, 0);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, 0, 0, 0, 0);
         ImGui.pushStyleColor(ImGuiCol.Text, theme.text);
         ImGui.pushStyleColor(ImGuiCol.TextSelectedBg, theme.buttonSelected);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, textPaddingLeft, framePadY);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0.0f, framePadY);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 0.0f);
 
         try {
-            ImGui.setCursorPos(x, y);
-            ImGui.setNextItemWidth(width);
+            ImGui.setCursorPos(x + textPaddingLeft, y);
+            ImGui.setNextItemWidth(inputWidth);
 
             if (setFocus) {
                 ImGui.setKeyboardFocusHere();
@@ -217,9 +259,7 @@ public class LayerNameRenderer {
             boolean enterPressed = ImGui.inputText(
                     "##edit_" + layer.getId(),
                     nameBuffer,
-                    ImGuiInputTextFlags.EnterReturnsTrue
-                            | ImGuiInputTextFlags.AutoSelectAll
-                            | ImGuiInputTextFlags.CharsNoBlank
+                    ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll
             );
 
             boolean inputActive = ImGui.isItemActive();
@@ -253,7 +293,6 @@ public class LayerNameRenderer {
             ImGui.popStyleColor(5);
         }
 
-        // 占位，保持名称区域宽度，避免后续控件错位
         ImGui.setCursorPos(x, y);
         ImGui.dummy(width, height);
     }
@@ -279,12 +318,41 @@ public class LayerNameRenderer {
 
         currentEditingLayerId = layer.getId();
         isEditing = true;
+
+        if (nativeInputSupported) {
+            startNativeEditing(layer);
+            return;
+        }
+
         nameBuffer.clear();
         nameBuffer.set(layer.getName());
         setFocus = true;
-        // 双击/菜单触发当帧及随后一两帧忽略“点外部结束”，防止立刻退出
         ignoreOutsideClickFrames = 2;
-        LOGGER.info("开始编辑图层名称: '{}'", layer.getName());
+        LOGGER.info("开始内联编辑图层名称: '{}'", layer.getName());
+    }
+
+    private void startNativeEditing(Layer layer) {
+        if (nativeInputRequested) {
+            return;
+        }
+
+        pendingNativeRenameLayer = layer;
+        nativeInputRequested = true;
+        nativeInputCompleted = false;
+        nativeInputCancelled = false;
+        nativeInputText = null;
+
+        TextDialogUtil.showSingleLineTextInputAsync(
+                PlotI18n.tr("layer.plot.rename"),
+                layer.getName(),
+                MAX_NAME_LENGTH,
+                result -> {
+                    nativeInputText = result;
+                    nativeInputCancelled = (result == null);
+                    nativeInputCompleted = true;
+                }
+        );
+        LOGGER.info("打开系统重命名输入框: '{}'", layer.getName());
     }
 
     private void applyNameChange(Layer layer) {
@@ -293,19 +361,22 @@ public class LayerNameRenderer {
         if (newName.isEmpty()) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_empty"));
             nameBuffer.set(layer.getName());
+            cancelEditing(layer.getId());
             return;
         }
 
         int nameLength = calculateDisplayLength(newName);
-        if (nameLength > 50) {
+        if (nameLength > MAX_NAME_LENGTH) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_too_long"));
             nameBuffer.set(layer.getName());
+            cancelEditing(layer.getId());
             return;
         }
 
         if (!newName.equals(layer.getName()) && layerManager.isNameExists(newName)) {
             showWarningDialog.accept(PlotI18n.tr("layer.plot.name_exists"));
             nameBuffer.set(layer.getName());
+            cancelEditing(layer.getId());
             return;
         }
 
@@ -340,8 +411,15 @@ public class LayerNameRenderer {
         isEditing = false;
         setFocus = false;
         ignoreOutsideClickFrames = 0;
+        pendingNativeRenameLayer = null;
+        nativeInputRequested = false;
         nameBuffer.clear();
         LOGGER.debug("取消编辑图层: {}", layerId);
+    }
+
+    private void resetNativeInputState() {
+        nativeInputText = null;
+        nativeInputCancelled = false;
     }
 
     private String truncateWithEllipsis(String text, float maxWidth) {

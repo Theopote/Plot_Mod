@@ -101,6 +101,10 @@ public class LayerItemRenderer {
         );
     }
 
+    public void processDeferredRename() {
+        layerNameRenderer.processDeferredRename();
+    }
+
     /**
      * 渲染单个图层项
      * @param layer 要渲染的图层
