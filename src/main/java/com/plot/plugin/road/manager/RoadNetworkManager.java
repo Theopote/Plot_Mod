@@ -484,6 +484,40 @@ public final class RoadNetworkManager {
         ensureSelectionValid();
     }
 
+    /**
+     * 删除单个几何分段（拓扑移除）；若所属 Road 无剩余分段则一并移除 Road。
+     */
+    public void deleteSegment(String edgeId) {
+        deleteEdge(edgeId);
+    }
+
+    /**
+     * 在指定分段前断开逻辑道路，后续分段划入新 Road。
+     *
+     * @return 新 Road id；失败时 null
+     */
+    public String splitRoadBeforeSegment(String roadId, String segmentEdgeId) {
+        if (roadId == null || roadId.isBlank() || segmentEdgeId == null || segmentEdgeId.isBlank()) {
+            return null;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return null;
+        }
+        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        int index = segmentIds.indexOf(segmentEdgeId);
+        if (index <= 0) {
+            return null;
+        }
+        pushHistory();
+        String newRoadId = network.splitRoadBeforeSegment(roadId, segmentEdgeId);
+        if (newRoadId == null) {
+            return null;
+        }
+        notifyNetworkChanged();
+        return newRoadId;
+    }
+
     public void adoptSelectedPaths(List<Shape> selectedPaths) {
         if (selectedPaths.isEmpty()) {
             return;

@@ -459,4 +459,14 @@ public class Road {
         copy.styleId = styleId;
         return copy;
     }
+
+    /** 复制工程属性到另一条逻辑道路（不含 segment 归属）。 */
+    public void copyEngineeringFrom(Road source) {
+        if (source == null) {
+            return;
+        }
+        crossSection = source.crossSection.copy();
+        maxSlope = source.maxSlope;
+        styleId = source.styleId;
+    }
 }

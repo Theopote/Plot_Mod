@@ -285,6 +285,29 @@ public class RoadNetwork {
     }
 
     /**
+     * 在指定分段前断开逻辑道路：该分段及其后续分段移至新 Road，之前分段保留在原 Road。
+     *
+     * @return 新 Road 的 id；若无法拆分（分段不存在或为第一段）则 null
+     */
+    public String splitRoadBeforeSegment(String roadId, String segmentEdgeId) {
+        Road road = roads.get(roadId);
+        if (road == null || segmentEdgeId == null || segmentEdgeId.isBlank()) {
+            return null;
+        }
+        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        int index = segmentIds.indexOf(segmentEdgeId);
+        if (index < 0 || index == 0) {
+            return null;
+        }
+        Road newRoad = createRoad();
+        newRoad.copyEngineeringFrom(road);
+        for (int i = index; i < segmentIds.size(); i++) {
+            assignEdgeToRoad(segmentIds.get(i), newRoad.getId());
+        }
+        return newRoad.getId();
+    }
+
+    /**
      * 仅断开边连接，不清理孤立节点（供打断求交等需要立即复用端点的场景）
      */
     public void detachEdge(String edgeId) {

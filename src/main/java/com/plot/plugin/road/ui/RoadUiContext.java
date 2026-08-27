@@ -124,16 +124,45 @@ public final class RoadUiContext {
         return batchIncludeSidewalkRef;
     }
 
+    public enum RoadListAction {
+        DELETE_ENTIRE_ROAD,
+        DELETE_SEGMENT,
+        SPLIT_ROAD
+    }
+
+    private RoadListAction pendingRoadListAction = null;
+
     public void requestDeleteEdge(String edgeId) {
-        pendingDeleteEdgeId = edgeId;
+        requestDeleteSegment(edgeId);
+    }
+
+    public void requestDeleteSegment(String edgeId) {
+        pendingRoadListAction = RoadListAction.DELETE_SEGMENT;
+        pendingDeleteEdgeId = edgeId != null ? edgeId : "";
         pendingDeleteRoadId = "";
         deleteConfirmPending = true;
     }
 
     public void requestDeleteRoad(String roadId) {
-        pendingDeleteRoadId = roadId;
+        pendingRoadListAction = RoadListAction.DELETE_ENTIRE_ROAD;
+        pendingDeleteRoadId = roadId != null ? roadId : "";
         pendingDeleteEdgeId = "";
         deleteConfirmPending = true;
+    }
+
+    public void requestSplitRoad(String roadId, String segmentEdgeId) {
+        pendingRoadListAction = RoadListAction.SPLIT_ROAD;
+        pendingDeleteRoadId = roadId != null ? roadId : "";
+        pendingDeleteEdgeId = segmentEdgeId != null ? segmentEdgeId : "";
+        deleteConfirmPending = true;
+    }
+
+    public RoadListAction pendingRoadListAction() {
+        return pendingRoadListAction;
+    }
+
+    public void clearPendingRoadListAction() {
+        pendingRoadListAction = null;
     }
 
     public String pendingDeleteEdgeId() {
@@ -147,6 +176,7 @@ public final class RoadUiContext {
     public void clearPendingDeleteEdgeId() {
         pendingDeleteEdgeId = "";
         pendingDeleteRoadId = "";
+        pendingRoadListAction = null;
     }
 
     public boolean deleteConfirmPending() {
