@@ -84,6 +84,17 @@ public final class RoadCrossSectionEditor {
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
 
+        if (ImGui.button(PlotI18n.tr("plugin.road.inherit_all_defaults") + "##inherit_all")) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.inheritAllDefaults();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.inherit_all_defaults"));
+        }
+        ImGui.spacing();
+
         int[] laneCount = {road.getCrossSection().getCarriageway().getEffectiveLaneCount()};
         boolean laneCountChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.lane_count", laneCount[0]) + "##lanes", laneCount,
@@ -109,9 +120,11 @@ public final class RoadCrossSectionEditor {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
         }
-        RoadUiWidgets.renderInheritanceHint(
+        RoadUiWidgets.renderOverrideFooter(
             widthInherited,
-            PlotI18n.tr("plugin.road.inherit_default_int", config.getRoadWidth()));
+            PlotI18n.tr("plugin.road.inherit_default_int", config.getRoadWidth()),
+            "road_width",
+            withHistory(onHistory, () -> road.setWidth(null)));
 
         if (laneCount[0] > 1) {
             road.getCrossSection().getCarriageway().syncLaneCount(laneCount[0]);
@@ -152,11 +165,13 @@ public final class RoadCrossSectionEditor {
             }
             road.setIncludeShoulder(shoulderRef.get());
         }
-        RoadUiWidgets.renderInheritanceHint(
+        RoadUiWidgets.renderOverrideFooter(
             shoulderInherited,
             PlotI18n.tr(config.isIncludeShoulder()
                 ? "plugin.road.inherit_default_enabled"
-                : "plugin.road.inherit_default_disabled"));
+                : "plugin.road.inherit_default_disabled"),
+            "road_shoulder",
+            withHistory(onHistory, () -> road.setIncludeShoulder(null)));
         if (road.getEffectiveIncludeShoulder(config)) {
             int rawShoulder = road.getShoulderWidth() != null
                 ? road.getShoulderWidth()
@@ -164,6 +179,7 @@ public final class RoadCrossSectionEditor {
             int[] shoulderWidth = {
                 Math.max(RoadParameterLimits.MIN_STRIP_WIDTH, rawShoulder)
             };
+            boolean shoulderWidthInherited = road.getShoulderWidth() == null;
             boolean shoulderChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0]) + "##shoulder_w",
                 shoulderWidth,
@@ -176,17 +192,28 @@ public final class RoadCrossSectionEditor {
             if (shoulderChanged) {
                 road.setShoulderWidth(shoulderWidth[0]);
             }
+            RoadUiWidgets.renderOverrideFooter(
+                shoulderWidthInherited,
+                PlotI18n.tr("plugin.road.inherit_default_int", config.getShoulderWidth()),
+                "road_shoulder_width",
+                withHistory(onHistory, () -> road.setShoulderWidth(null)));
         }
 
         renderSlopeBatterFields(ctx, road, config, onHistory);
 
         ImBoolean bikeLaneRef = new ImBoolean(road.getEffectiveIncludeBikeLane(config));
+        boolean bikeLaneInherited = road.getIncludeBikeLane() == null;
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_bike_lane") + "##bike_lane", bikeLaneRef)) {
             if (onHistory != null) {
                 onHistory.run();
             }
             road.setIncludeBikeLane(bikeLaneRef.get());
         }
+        RoadUiWidgets.renderOverrideFooter(
+            bikeLaneInherited,
+            PlotI18n.tr("plugin.road.inherit_default_disabled"),
+            "road_bike_lane",
+            withHistory(onHistory, () -> road.setIncludeBikeLane(null)));
         if (road.getEffectiveIncludeBikeLane(config)) {
             int[] bikeWidth = {
                 road.getBikeLaneWidth() != null ? road.getBikeLaneWidth() : 1
@@ -210,15 +237,18 @@ public final class RoadCrossSectionEditor {
             }
             road.setIncludeSidewalk(sidewalkRef.get());
         }
-        RoadUiWidgets.renderInheritanceHint(
+        RoadUiWidgets.renderOverrideFooter(
             sidewalkInherited,
             PlotI18n.tr(config.isIncludeSidewalk()
                 ? "plugin.road.inherit_default_enabled"
-                : "plugin.road.inherit_default_disabled"));
+                : "plugin.road.inherit_default_disabled"),
+            "road_sidewalk",
+            withHistory(onHistory, () -> road.setIncludeSidewalk(null)));
         if (road.getEffectiveIncludeSidewalk(config)) {
             int[] sidewalkWidth = {
                 road.getSidewalkWidth() != null ? road.getSidewalkWidth() : config.getSidewalkWidth()
             };
+            boolean sidewalkWidthInherited = road.getSidewalkWidth() == null;
             boolean swChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0]) + "##sw_w",
                 sidewalkWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
@@ -228,6 +258,11 @@ public final class RoadCrossSectionEditor {
             if (swChanged) {
                 road.setSidewalkWidth(sidewalkWidth[0]);
             }
+            RoadUiWidgets.renderOverrideFooter(
+                sidewalkWidthInherited,
+                PlotI18n.tr("plugin.road.inherit_default_int", config.getSidewalkWidth()),
+                "road_sidewalk_width",
+                withHistory(onHistory, () -> road.setSidewalkWidth(null)));
 
             RoadUiWidgets.renderBlockMaterialPicker(
                 ctx,
@@ -247,22 +282,37 @@ public final class RoadCrossSectionEditor {
         }
 
         ImBoolean drainRef = new ImBoolean(road.getEffectiveIncludeDrainage(config));
+        boolean drainInherited = road.getIncludeDrainage() == null;
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage") + "##drain", drainRef)) {
             if (onHistory != null) {
                 onHistory.run();
             }
             road.setIncludeDrainage(drainRef.get());
         }
+        RoadUiWidgets.renderOverrideFooter(
+            drainInherited,
+            PlotI18n.tr(config.isIncludeDrainage()
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"),
+            "road_drain",
+            withHistory(onHistory, () -> road.setIncludeDrainage(null)));
 
         ImBoolean medianRef = new ImBoolean(road.getIncludeMedian() != null && road.getIncludeMedian());
+        boolean medianInherited = road.getIncludeMedian() == null;
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_median") + "##median", medianRef)) {
             if (onHistory != null) {
                 onHistory.run();
             }
             road.setIncludeMedian(medianRef.get());
         }
+        RoadUiWidgets.renderOverrideFooter(
+            medianInherited,
+            PlotI18n.tr("plugin.road.inherit_default_disabled"),
+            "road_median",
+            withHistory(onHistory, () -> road.setIncludeMedian(null)));
         if (medianRef.get()) {
             int[] medianWidth = {road.getMedianWidth() != null ? road.getMedianWidth() : 1};
+            boolean medianWidthInherited = road.getMedianWidth() == null;
             boolean medianChanged = ImGui.sliderInt(
                 PlotI18n.tr("plugin.road.median_width", medianWidth[0]) + "##median_w",
                 medianWidth, RoadParameterLimits.MIN_STRIP_WIDTH, RoadParameterLimits.MAX_STRIP_WIDTH, "%d");
@@ -272,6 +322,11 @@ public final class RoadCrossSectionEditor {
             if (medianChanged) {
                 road.setMedianWidth(medianWidth[0]);
             }
+            RoadUiWidgets.renderOverrideFooter(
+                medianWidthInherited,
+                PlotI18n.tr("plugin.road.inherit_default_int", 1),
+                "road_median_width",
+                withHistory(onHistory, () -> road.setMedianWidth(null)));
         }
 
         ImBoolean laneDividersRef = new ImBoolean(
@@ -316,14 +371,17 @@ public final class RoadCrossSectionEditor {
             }
             road.setMaxSlope(maxSlope[0]);
         }
-        RoadUiWidgets.renderInheritanceHint(
+        RoadUiWidgets.renderOverrideFooter(
             maxSlopeInherited,
             PlotI18n.tr(
                 "plugin.road.inherit_default_percent",
-                SlopeFormatUtils.formatPercent(config.getMaxSlope())));
+                SlopeFormatUtils.formatPercent(config.getMaxSlope())),
+            "road_max_slope",
+            withHistory(onHistory, () -> road.setMaxSlope(null)));
 
         // 0 = 关闭；开启时最小间距与 normalize 一致，避免设 1–7 被静默抬到 8
         int currentLights = road.getStreetlightSpacing() != null ? road.getStreetlightSpacing() : 0;
+        boolean streetlightInherited = road.getStreetlightSpacing() == null;
         int[] lightSpacing = {currentLights};
         boolean lightsChanged = ImGui.sliderInt(
             PlotI18n.tr("plugin.road.streetlight_spacing") + "##lights",
@@ -344,6 +402,20 @@ public final class RoadCrossSectionEditor {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
         }
+        RoadUiWidgets.renderOverrideFooter(
+            streetlightInherited,
+            PlotI18n.tr("plugin.road.inherit_default_disabled"),
+            "road_streetlight",
+            withHistory(onHistory, () -> road.setStreetlightSpacing(null)));
+    }
+
+    private static Runnable withHistory(Runnable onHistory, Runnable action) {
+        return () -> {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            action.run();
+        };
     }
 
     private static void renderSlopeBatterFields(
@@ -356,6 +428,7 @@ public final class RoadCrossSectionEditor {
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
 
         Boolean slopeEnabledValue = road.getIncludeSlopeBatter();
+        boolean slopeEnabledInherited = slopeEnabledValue == null;
         boolean slopeEnabled = slopeEnabledValue != null
             ? slopeEnabledValue
             : road.getEffectiveIncludeSlopeBatter(config);
@@ -366,6 +439,14 @@ public final class RoadCrossSectionEditor {
             }
             road.setIncludeSlopeBatter(slopeRef.get());
         }
+        boolean configSlopeEnabled = config.getFillSlopeRatio() > 0f || config.getCutSlopeRatio() > 0f;
+        RoadUiWidgets.renderOverrideFooter(
+            slopeEnabledInherited,
+            PlotI18n.tr(configSlopeEnabled
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"),
+            "road_slope_enabled",
+            withHistory(onHistory, () -> road.setIncludeSlopeBatter(null)));
 
         if (!slopeRef.get()) {
             return;
@@ -376,6 +457,7 @@ public final class RoadCrossSectionEditor {
                 ? road.getFillSlopeRatio()
                 : road.getEffectiveFillSlopeRatio(config)
         };
+        boolean fillSlopeInherited = road.getFillSlopeRatio() == null;
         if (EngineeringSlopeInput.render(
             "road_fill_slope_ratio",
             PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
@@ -388,12 +470,20 @@ public final class RoadCrossSectionEditor {
             road.setFillSlopeRatio(fillSlopeRatio[0]);
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
+        RoadUiWidgets.renderOverrideFooter(
+            fillSlopeInherited,
+            PlotI18n.tr(
+                "plugin.road.inherit_default_batter",
+                SlopeFormatUtils.formatRatio(config.getFillSlopeRatio())),
+            "road_fill_slope",
+            withHistory(onHistory, () -> road.setFillSlopeRatio(null)));
 
         float[] cutSlopeRatio = {
             road.getCutSlopeRatio() != null
                 ? road.getCutSlopeRatio()
                 : road.getEffectiveCutSlopeRatio(config)
         };
+        boolean cutSlopeInherited = road.getCutSlopeRatio() == null;
         if (EngineeringSlopeInput.render(
             "road_cut_slope_ratio",
             PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
@@ -406,6 +496,13 @@ public final class RoadCrossSectionEditor {
             road.setCutSlopeRatio(cutSlopeRatio[0]);
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
+        RoadUiWidgets.renderOverrideFooter(
+            cutSlopeInherited,
+            PlotI18n.tr(
+                "plugin.road.inherit_default_batter",
+                SlopeFormatUtils.formatRatio(config.getCutSlopeRatio())),
+            "road_cut_slope",
+            withHistory(onHistory, () -> road.setCutSlopeRatio(null)));
 
         RoadUiWidgets.renderBlockMaterialPicker(
             ctx,

@@ -65,8 +65,7 @@ public class Road {
     }
 
     /**
-     * 用全局配置快照初始化道路横断面与最大坡度。
-     * 横断面组件写入显式值；若需恢复继承态，将各组件字段置 {@code null}。
+     * 用全局配置快照初始化道路横断面与最大坡度（显式写入，非继承态）。
      */
     public void applyDefaults(RoadSystemConfig defaults) {
         if (defaults == null) {
@@ -74,6 +73,13 @@ public class Road {
         }
         crossSection.applyDefaults(defaults);
         maxSlope = defaults.getMaxSlope();
+    }
+
+    /** 清空道路级与横断面的全部显式覆盖，恢复继承全局配置。 */
+    public void inheritAllDefaults() {
+        crossSection.inheritAll();
+        maxSlope = null;
+        styleId = null;
     }
 
     public void applyStyle(RoadStyle style) {

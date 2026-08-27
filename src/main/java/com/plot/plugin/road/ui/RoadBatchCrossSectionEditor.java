@@ -23,6 +23,9 @@ public final class RoadBatchCrossSectionEditor {
     }
 
     public static void renderDraftFields(RoadUiContext ctx, RoadNetworkManager.BatchEditDefaults draft) {
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.batch_edit_writes_explicit"));
+        ImGui.spacing();
+
         int width = draft.width();
         int laneCount = draft.laneCount();
         final MaterialMix[] material = {draft.material()};

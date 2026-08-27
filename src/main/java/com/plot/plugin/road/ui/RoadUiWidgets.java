@@ -191,4 +191,23 @@ public final class RoadUiWidgets {
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, inheritedLabel);
     }
+
+    /**
+     * 继承态显示灰色提示；覆盖态显示「恢复继承」小按钮。
+     */
+    public static void renderOverrideFooter(
+            boolean inherited,
+            String inheritedLabel,
+            String resetId,
+            Runnable onReset) {
+        if (inherited) {
+            renderInheritanceHint(true, inheritedLabel);
+            return;
+        }
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.reset_to_inherit") + "##" + resetId)) {
+            if (onReset != null) {
+                onReset.run();
+            }
+        }
+    }
 }

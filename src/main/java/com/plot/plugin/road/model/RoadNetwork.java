@@ -102,8 +102,17 @@ public class RoadNetwork {
     }
 
     public Road createRoad(RoadSystemConfig defaults) {
+        return createRoad();
+    }
+
+    /**
+     * 创建道路并快照写入全局配置（显式值，不随全局配置变更而变）。
+     */
+    public Road createRoadFromDefaults(RoadSystemConfig defaults) {
         Road road = createRoad();
-        road.applyDefaults(defaults);
+        if (defaults != null) {
+            road.applyDefaults(defaults);
+        }
         return road;
     }
 

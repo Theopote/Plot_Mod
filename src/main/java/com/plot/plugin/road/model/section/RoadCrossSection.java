@@ -161,6 +161,21 @@ public class RoadCrossSection {
     }
 
     /**
+     * 清空全部横断面覆盖，恢复为继承 {@link RoadSystemConfig} 的 null 态。
+     */
+    public void inheritAll() {
+        carriageway = new LaneGroup();
+        median = new Median();
+        markings = new Markings();
+        shoulder = new Shoulder();
+        bikeLane = new BikeLane();
+        sidewalk = new Sidewalk();
+        drain = new Drain();
+        slopeBatter = new SlopeBatter();
+        streetFurniture = new StreetFurniture();
+    }
+
+    /**
      * 用全局配置快照替换全部横断面组件（与 {@link #fromConfig} 一致）。
      * 新建道路时调用；组件内写入的是显式值，而非 {@code null} 继承态。
      */
