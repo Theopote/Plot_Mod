@@ -32,6 +32,46 @@ public final class RoadNetworkInvariantValidator {
         return new RoadNetworkValidationResult(violations.isEmpty(), List.copyOf(violations));
     }
 
+    /** 拓扑不一致的节点 ID（供节点列表「Invalid」筛选）。 */
+    public static Set<String> collectInvalidNodeIds(RoadNetwork network) {
+        Set<String> invalid = new HashSet<>();
+        if (network == null) {
+            return invalid;
+        }
+        collectInvalidNodeIds(network.getNodes(), network.getEdges(), invalid);
+        return invalid;
+    }
+
+    private static void collectInvalidNodeIds(
+            Map<String, RoadNode> nodes,
+            Map<String, RoadEdge> edges,
+            Set<String> invalid) {
+        for (RoadNode node : nodes.values()) {
+            for (String edgeId : node.getConnectedEdgeIds()) {
+                RoadEdge edge = edges.get(edgeId);
+                if (edge == null) {
+                    invalid.add(node.getId());
+                    continue;
+                }
+                if (!edge.getStartNodeId().equals(node.getId())
+                        && !edge.getEndNodeId().equals(node.getId())) {
+                    invalid.add(node.getId());
+                }
+            }
+        }
+
+        for (RoadEdge edge : edges.values()) {
+            RoadNode start = nodes.get(edge.getStartNodeId());
+            RoadNode end = nodes.get(edge.getEndNodeId());
+            if (start != null && !start.getConnectedEdgeIds().contains(edge.getId())) {
+                invalid.add(start.getId());
+            }
+            if (end != null && !end.getConnectedEdgeIds().contains(edge.getId())) {
+                invalid.add(end.getId());
+            }
+        }
+    }
+
     private static void validateTopology(
             Map<String, RoadNode> nodes,
             Map<String, RoadEdge> edges,

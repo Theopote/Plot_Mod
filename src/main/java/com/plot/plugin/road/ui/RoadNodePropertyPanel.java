@@ -5,29 +5,44 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNodeElevationUtils;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.RoadNodeListHelper;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.graph.RoadGraphQueries;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.ImGuiListClipper;
+import imgui.callback.ImListClipperCallback;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
+import imgui.type.ImString;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 节点级属性编辑：选中节点详情 + 可折叠全网节点列表（巡查用）。
  */
 public final class RoadNodePropertyPanel {
+    private static final float NODE_LIST_HEIGHT = 220f;
+    private static final float NODE_ROW_HEIGHT_LINES = 5.0f;
+
     private final RoadUiContext ctx;
+    private final ImString nodeSearchBuffer = new ImString(128);
+    private final ImBoolean filterJunction = new ImBoolean(false);
+    private final ImBoolean filterEndpoint = new ImBoolean(false);
+    private final ImBoolean filterManualElevation = new ImBoolean(false);
+    private final ImBoolean filterGradeSeparated = new ImBoolean(false);
+    private final ImBoolean filterInvalid = new ImBoolean(false);
 
     public RoadNodePropertyPanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -73,34 +88,128 @@ public final class RoadNodePropertyPanel {
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        List<RoadNode> nodes = new ArrayList<>(network.getNodes().values());
-        if (nodes.isEmpty()) {
+        int totalNodes = network.getNodes().size();
+        if (totalNodes == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_nodes"));
             return;
         }
 
+        List<RoadNode> nodes = filteredNodes(network);
+        renderNodeListToolbar(nodes.size(), totalNodes);
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_list_hint"));
-        ImGui.beginChild("node_elevation_list", 0, 220, true);
-        for (RoadNode node : nodes) {
-            ImGui.pushID(node.getId());
-            boolean selected = node.getId().equals(selectedNodeId);
-            if (selected) {
-                ImGui.textColored(PluginUiColors.STATUS_INFO, "▸ " + formatNodeLabel(node));
-            } else {
-                ImGui.text(formatNodeLabel(node));
-            }
-            ImGui.sameLine();
-            if (ImGui.smallButton(PlotI18n.tr("plugin.road.locate") + "##locate")) {
-                ctx.networkManager().handleNodeSelect(node.getId());
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PlotI18n.tr("plugin.road.node_locate_hint"));
-            }
-            renderNodeElevationControls(node, network, config, false);
-            ImGui.popID();
+        ImGui.beginChild("node_elevation_list", 0, NODE_LIST_HEIGHT, true);
+        if (nodes.isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_list_empty"));
+        } else {
+            Set<String> invalidNodeIds = RoadNetworkInvariantValidator.collectInvalidNodeIds(network);
+            renderVirtualNodeList(network, config, nodes, selectedNodeId, invalidNodeIds);
         }
         ImGui.endChild();
+    }
+
+    private void renderNodeListToolbar(int shownNodes, int totalNodes) {
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.62f);
+        ImGui.inputTextWithHint(
+            "##node_search",
+            PlotI18n.tr("plugin.road.node_search_hint"),
+            nodeSearchBuffer);
+        ImGui.sameLine();
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.node_list_count", shownNodes, totalNodes));
+
+        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_junction"), filterJunction);
+        ImGui.sameLine();
+        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_endpoint"), filterEndpoint);
+        ImGui.sameLine();
+        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_manual_elevation"), filterManualElevation);
+        ImGui.sameLine();
+        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_grade_separated"), filterGradeSeparated);
+        ImGui.sameLine();
+        ImGui.checkbox(PlotI18n.tr("plugin.road.node_filter_invalid"), filterInvalid);
+    }
+
+    private RoadNodeListHelper.NodeFilter currentNodeFilter() {
+        return new RoadNodeListHelper.NodeFilter(
+            filterJunction.get(),
+            filterEndpoint.get(),
+            filterManualElevation.get(),
+            filterGradeSeparated.get(),
+            filterInvalid.get());
+    }
+
+    private List<RoadNode> filteredNodes(RoadNetwork network) {
+        return RoadNodeListHelper.filterAndSort(
+            network,
+            network.getNodes().values(),
+            nodeSearchBuffer.get(),
+            currentNodeFilter());
+    }
+
+    private void renderVirtualNodeList(
+            RoadNetwork network,
+            RoadSystemConfig config,
+            List<RoadNode> nodes,
+            String selectedNodeId,
+            Set<String> invalidNodeIds) {
+        int rowHeight = Math.round(ImGui.getTextLineHeightWithSpacing() * NODE_ROW_HEIGHT_LINES);
+        ImGuiListClipper.forEach(nodes.size(), rowHeight, new ImListClipperCallback() {
+            @Override
+            public void accept(int index) {
+                RoadNode node = nodes.get(index);
+                ImGui.pushID(node.getId());
+                renderNodeListRow(node, network, config, selectedNodeId, invalidNodeIds);
+                ImGui.popID();
+            }
+        });
+    }
+
+    private void renderNodeListRow(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config,
+            String selectedNodeId,
+            Set<String> invalidNodeIds) {
+        boolean selected = node.getId().equals(selectedNodeId);
+        if (selected) {
+            ImGui.textColored(PluginUiColors.STATUS_INFO, "▸ " + formatNodeLabel(node));
+        } else {
+            ImGui.text(formatNodeLabel(node));
+        }
+        ImGui.sameLine();
+        renderNodeBadges(node, invalidNodeIds);
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.road.locate") + "##locate")) {
+            ctx.networkManager().handleNodeSelect(node.getId());
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.node_locate_hint"));
+        }
+        renderNodeElevationControls(node, network, config, false);
+    }
+
+    private void renderNodeBadges(RoadNode node, Set<String> invalidNodeIds) {
+        if (node.isJunction()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_badge_junction"));
+            ImGui.sameLine();
+        }
+        if (RoadNodeListHelper.isEndpoint(node)) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_badge_endpoint"));
+            ImGui.sameLine();
+        }
+        if (node.getManualElevation() != null) {
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.node_badge_manual"));
+            ImGui.sameLine();
+        }
+        if (node.isGradeSeparated()) {
+            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.node_badge_grade_sep"));
+            ImGui.sameLine();
+        }
+        if (invalidNodeIds.contains(node.getId())) {
+            ImGui.textColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.node_badge_invalid"));
+            ImGui.sameLine();
+        }
     }
 
     private void renderNodeElevationControls(
