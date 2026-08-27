@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadNodeElevationUtils;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadParameterLimits;
@@ -20,6 +21,7 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 节点级属性编辑：选中节点详情 + 可折叠全网节点列表（巡查用）。
@@ -113,7 +115,7 @@ public final class RoadNodePropertyPanel {
             if (autoRef.get()) {
                 node.setManualElevation(null);
             } else {
-                node.setManualElevation(64.0);
+                node.setManualElevation((double) resolveManualLockElevation(node, network, config));
             }
         }
 
@@ -121,7 +123,7 @@ public final class RoadNodePropertyPanel {
             ImGui.sameLine();
             int initial = node.getManualElevation() != null
                 ? (int) Math.round(node.getManualElevation())
-                : 64;
+                : resolveManualLockElevation(node, network, config);
             int[] elevation = {initial};
             boolean elevationChanged = ImGui.sliderInt("##elevation", elevation,
                 RoadParameterLimits.ELEVATION_MIN,
@@ -296,6 +298,17 @@ public final class RoadNodePropertyPanel {
             PlotI18n.tr(
                 "plugin.road.grade_separation_auto_result",
                 formatRoadLabel(network, resolvedRoadId)));
+    }
+
+    private int resolveManualLockElevation(RoadNode node, RoadNetwork network, RoadSystemConfig config) {
+        RoadGenerator generator = new RoadGenerator(
+            config, ctx.host().coordinates(), ctx.host().projection());
+        TerrainSampler terrain = resolveTerrainSampler(generator);
+        Map<String, Integer> previewElevations = ctx.previewManager().hasValidPreview()
+            ? ctx.previewManager().getLastNodeElevations()
+            : null;
+        return RoadNodeElevationUtils.resolveForManualLock(
+            node, network, previewElevations, terrain, generator);
     }
 
     private static TerrainSampler resolveTerrainSampler(RoadGenerator generator) {

@@ -31,6 +31,7 @@ public final class RoadPreviewManager {
     private RoadNetworkGenerator networkGenerator;
     private RoadGenerationResult lastGenerationResult;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
+    private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
         this.status = status;
@@ -39,6 +40,17 @@ public final class RoadPreviewManager {
 
     public void setNetworkGenerator(RoadNetworkGenerator networkGenerator) {
         this.networkGenerator = networkGenerator;
+    }
+
+    public Map<String, Integer> getLastNodeElevations() {
+        return lastNodeElevations;
+    }
+
+    public Integer getLastNodeElevation(String nodeId) {
+        if (nodeId == null || lastNodeElevations.isEmpty()) {
+            return null;
+        }
+        return lastNodeElevations.get(nodeId);
     }
 
     public RoadGenerationResult getLastGenerationResult() {
@@ -77,9 +89,11 @@ public final class RoadPreviewManager {
             RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
             lastGenerationResult = previewResult.aggregate();
             lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
+            lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
         } catch (RuntimeException e) {
             lastGenerationResult = null;
             lastEdgeResults = Collections.emptyMap();
+            lastNodeElevations = Collections.emptyMap();
             status.set(PlotI18n.tr("plugin.road.generate_preview_failed"));
             LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
             return false;
@@ -151,6 +165,7 @@ public final class RoadPreviewManager {
             ghostBlockManager.clearAllGhostBlocks();
         }
         lastEdgeResults = Collections.emptyMap();
+        lastNodeElevations = Collections.emptyMap();
         lastGenerationResult = null;
     }
 
@@ -168,6 +183,7 @@ public final class RoadPreviewManager {
     public void invalidatePreview() {
         boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
         lastEdgeResults = Collections.emptyMap();
+        lastNodeElevations = Collections.emptyMap();
         lastGenerationResult = null;
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {

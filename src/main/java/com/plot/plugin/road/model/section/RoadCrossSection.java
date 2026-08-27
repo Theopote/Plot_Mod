@@ -5,6 +5,8 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.style.RoadStyle;
 
+import java.util.List;
+
 /**
  * 道路横断面模板，挂在 {@link com.plot.plugin.road.model.Road} 上。
  * 生成器读取 {@link ResolvedCrossSection} 做偏移与铺面。
@@ -28,9 +30,18 @@ public class RoadCrossSection {
             return new RoadCrossSection();
         }
         RoadCrossSection section = new RoadCrossSection();
-        section.carriageway.setLaneCount(1);
+        section.carriageway.setLaneCount(defaults.getLaneCount());
         section.carriageway.setWidth(defaults.getRoadWidth());
         section.carriageway.setMaterial(defaults.getSelectedMaterial());
+        section.carriageway.syncLaneCount(defaults.getLaneCount());
+        List<Integer> resolved = section.carriageway.resolveLaneWidths(defaults.getRoadWidth());
+        List<Integer> configuredWidths = defaults.getLaneWidths();
+        for (int i = 0; i < defaults.getLaneCount(); i++) {
+            int laneWidth = i < configuredWidths.size() && configuredWidths.get(i) > 0
+                ? configuredWidths.get(i)
+                : resolved.get(i);
+            section.carriageway.setLaneWidthAt(i, laneWidth);
+        }
         section.shoulder.setEnabled(defaults.isIncludeShoulder());
         section.shoulder.setWidth(defaults.getShoulderWidth());
         section.shoulder.setMaterial(defaults.getFillSlopeMaterial());
@@ -38,18 +49,20 @@ public class RoadCrossSection {
         section.slopeBatter.setCutRatio(defaults.getCutSlopeRatio());
         section.slopeBatter.setFillMaterial(defaults.getFillSlopeMaterial());
         section.slopeBatter.setCutMaterial(defaults.getCutSlopeMaterial());
-        section.slopeBatter.setEnabled(
-            defaults.getFillSlopeRatio() > 0f || defaults.getCutSlopeRatio() > 0f);
+        section.slopeBatter.setEnabled(defaults.isIncludeSlopeBatter());
         section.sidewalk.setEnabled(defaults.isIncludeSidewalk());
         section.sidewalk.setWidth(defaults.getSidewalkWidth());
         section.sidewalk.setMaterial(defaults.getSelectedSidewalkMaterial());
         section.drain.setEnabled(defaults.isIncludeDrainage());
-        section.median.setEnabled(false);
-        section.bikeLane.setEnabled(false);
-        section.streetFurniture.setStreetlightSpacing(null);
-        section.markings.setLaneDividers(true);
-        section.markings.setCenterLine(false);
-        section.markings.setMaterial("material.plot.white_concrete");
+        section.bikeLane.setEnabled(defaults.isIncludeBikeLane());
+        section.bikeLane.setWidth(defaults.getBikeLaneWidth());
+        section.median.setEnabled(defaults.isIncludeMedian());
+        section.median.setWidth(defaults.getMedianWidth());
+        section.streetFurniture.setStreetlightSpacing(
+            defaults.getStreetlightSpacing() > 0 ? defaults.getStreetlightSpacing() : null);
+        section.markings.setLaneDividers(defaults.isLaneDividers());
+        section.markings.setCenterLineStyle(defaults.getCenterLineStyle());
+        section.markings.setMaterial(defaults.getMarkingMaterial());
         return section;
     }
 

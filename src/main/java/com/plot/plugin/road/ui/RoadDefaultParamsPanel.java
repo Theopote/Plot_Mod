@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadCrossSectionPreviewRenderer;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
@@ -15,7 +16,6 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
-import imgui.type.ImBoolean;
 
 /**
  * 认领道路时的默认参数与预设配置。
@@ -37,17 +37,20 @@ public final class RoadDefaultParamsPanel {
         ImGui.spacing();
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.basic_params"))) {
-        int[] roadWidth = {config.getRoadWidth()};
-        if (ImGui.sliderInt("##road_width", roadWidth,
-            RoadParameterLimits.MIN_CARRIAGEWAY_WIDTH,
-            RoadParameterLimits.MAX_CARRIAGEWAY_WIDTH,
-            PlotI18n.tr("plugin.road.road_width", roadWidth[0]))) {
-            config.setRoadWidth(roadWidth[0]);
-            markCustom();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.road_width"));
-        }
+        CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
+        CrossSectionDraftEditor.render(
+            ctx,
+            draft,
+            CrossSectionDraftEditorOptions.adopt(),
+            () -> {
+                draft.applyToConfig(config);
+                ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
+                markCustom();
+            });
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
 
         float[] maxSlope = {config.getMaxSlope()};
         if (EngineeringSlopeInput.render(
@@ -101,55 +104,7 @@ public final class RoadDefaultParamsPanel {
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.relaxed_slope_percent");
 
         renderDefaultJunctionSettings();
-
-        ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_sidewalk"), ctx.adoptIncludeSidewalkRef())) {
-            config.setIncludeSidewalk(ctx.adoptIncludeSidewalkRef().get());
-            markCustom();
         }
-
-        if (config.isIncludeSidewalk()) {
-            int[] sidewalkWidth = {config.getSidewalkWidth()};
-            if (ImGui.sliderInt(
-                "##default_sidewalk_width",
-                sidewalkWidth,
-                RoadParameterLimits.MIN_STRIP_WIDTH,
-                RoadParameterLimits.MAX_STRIP_WIDTH,
-                PlotI18n.tr("plugin.road.sidewalk_width", sidewalkWidth[0])
-            )) {
-                config.setSidewalkWidth(sidewalkWidth[0]);
-                markCustom();
-            }
-        }
-
-        RoadUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "##default_road_material",
-            PlotI18n.tr("plugin.road.material"),
-            config.getSelectedMaterial(),
-            mix -> {
-                config.setSelectedMaterial(mix);
-                markCustom();
-            },
-            false
-        );
-
-        if (config.isIncludeSidewalk()) {
-            RoadUiWidgets.renderBlockMaterialPicker(
-                ctx,
-                "##default_sidewalk_material",
-                PlotI18n.tr("plugin.road.sidewalk_material"),
-                config.getSelectedSidewalkMaterial(),
-                blockId -> {
-                    config.setSelectedSidewalkMaterial(blockId);
-                    markCustom();
-                },
-                false
-            );
-        }
-        }
-
-        renderAdvancedEngineeringSettings();
     }
 
     private void renderDefaultJunctionSettings() {
@@ -285,96 +240,5 @@ public final class RoadDefaultParamsPanel {
         }
         ImGui.popID();
         return clicked;
-    }
-
-    private void renderAdvancedEngineeringSettings() {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.advanced_settings"))) {
-            return;
-        }
-
-        // 路肩（与边坡解耦）
-        ImBoolean shoulderRef = new ImBoolean(config.isIncludeShoulder());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder"), shoulderRef)) {
-            config.setIncludeShoulder(shoulderRef.get());
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.include_shoulder");
-
-        if (config.isIncludeShoulder()) {
-            int[] shoulderWidth = {Math.max(1, config.getShoulderWidth())};
-            if (ImGui.sliderInt(
-                "##road_shoulder_width",
-                shoulderWidth,
-                RoadParameterLimits.MIN_STRIP_WIDTH,
-                RoadParameterLimits.MAX_STRIP_WIDTH,
-                PlotI18n.tr("plugin.road.shoulder_width", shoulderWidth[0])
-            )) {
-                config.setShoulderWidth(shoulderWidth[0]);
-                markCustom();
-            }
-            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.shoulder_width");
-        }
-
-        // 边坡放坡：独立区块，不依赖「含路肩」
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
-
-        float[] fillSlopeRatio = {config.getFillSlopeRatio()};
-        if (EngineeringSlopeInput.render(
-            "fill_slope_ratio",
-            PlotI18n.tr("plugin.road.fill_slope_ratio_label"),
-            fillSlopeRatio,
-            EngineeringSlopeInput.ValueKind.BATTER
-        )) {
-            config.setFillSlopeRatio(fillSlopeRatio[0]);
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.fill_slope_ratio");
-
-        float[] cutSlopeRatio = {config.getCutSlopeRatio()};
-        if (EngineeringSlopeInput.render(
-            "cut_slope_ratio",
-            PlotI18n.tr("plugin.road.cut_slope_ratio_label"),
-            cutSlopeRatio,
-            EngineeringSlopeInput.ValueKind.BATTER
-        )) {
-            config.setCutSlopeRatio(cutSlopeRatio[0]);
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
-
-        RoadUiWidgets.renderBlockMaterialPicker(
-            ctx,
-            "##fill_slope_material",
-            PlotI18n.tr("plugin.road.fill_slope_material"),
-            config.getFillSlopeMaterial(),
-            blockId -> {
-                config.setFillSlopeMaterial(blockId);
-                markCustom();
-            },
-            false
-        );
-
-        RoadUiWidgets.renderBlockMaterialPicker(
-            ctx,
-            "##cut_slope_material",
-            PlotI18n.tr("plugin.road.cut_slope_material"),
-            config.getCutSlopeMaterial(),
-            blockId -> {
-                config.setCutSlopeMaterial(blockId);
-                markCustom();
-            },
-            false
-        );
-
-        ImBoolean drainageRef = new ImBoolean(config.isIncludeDrainage());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage"), drainageRef)) {
-            config.setIncludeDrainage(drainageRef.get());
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.include_drainage");
-
     }
 }

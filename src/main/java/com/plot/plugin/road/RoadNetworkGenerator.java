@@ -30,6 +30,7 @@ public class RoadNetworkGenerator {
     public static class NetworkGenerationResult {
         private final Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         private final Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
+        private Map<String, Integer> nodeElevations = Map.of();
 
         public Map<String, RoadGenerationResult> getEdgeResults() {
             return Collections.unmodifiableMap(edgeResults);
@@ -37,6 +38,16 @@ public class RoadNetworkGenerator {
 
         public Map<String, RoadJunctionGenerator.JunctionBlocks> getJunctionResults() {
             return Collections.unmodifiableMap(junctionResults);
+        }
+
+        public Map<String, Integer> getNodeElevations() {
+            return nodeElevations;
+        }
+
+        void setNodeElevations(Map<String, Integer> nodeElevations) {
+            this.nodeElevations = nodeElevations != null
+                ? Collections.unmodifiableMap(nodeElevations)
+                : Map.of();
         }
 
         public boolean isEmpty() {
@@ -62,6 +73,7 @@ public class RoadNetworkGenerator {
         // 第一遍：决议全网节点统一标高，消除路口台阶
         Map<String, Integer> nodeElevations =
             roadGenerator.resolveNetworkNodeElevations(network, terrain);
+        networkResult.setNodeElevations(nodeElevations);
 
         // 第二遍：各边端点强制对齐到统一标高
         for (RoadEdge edge : network.getEdges().values()) {
@@ -97,12 +109,13 @@ public class RoadNetworkGenerator {
     public PreviewResult generatePreview(RoadNetwork network, World world) {
         NetworkGenerationResult networkResult = generateAll(network, world);
         RoadGenerationResult aggregate = aggregateNetworkResult(network, networkResult);
-        return new PreviewResult(aggregate, networkResult.getEdgeResults());
+        return new PreviewResult(aggregate, networkResult.getEdgeResults(), networkResult.getNodeElevations());
     }
 
     public record PreviewResult(
             RoadGenerationResult aggregate,
-            Map<String, RoadGenerationResult> edgeResults) {
+            Map<String, RoadGenerationResult> edgeResults,
+            Map<String, Integer> nodeElevations) {
     }
 
     private RoadGenerationResult aggregateNetworkResult(

@@ -9,6 +9,7 @@ import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 import java.io.*;
@@ -51,6 +52,17 @@ public class RoadSystemConfig {
     private boolean includeShoulder = true; // 是否包含路肩 - 从false改为true，默认启用路肩和边坡填充
     private int shoulderWidth = 1; // 路肩宽度
     private boolean includeDrainage = false; // 是否包含排水沟
+    private int laneCount = 1;
+    private List<Integer> laneWidths = new ArrayList<>();
+    private boolean includeBikeLane = false;
+    private int bikeLaneWidth = 1;
+    private boolean includeMedian = false;
+    private int medianWidth = 1;
+    private boolean laneDividers = false;
+    private String centerLineStyle = CenterLineStyle.NONE.name();
+    private String markingMaterial = "material.plot.white_concrete";
+    private int streetlightSpacing = 0;
+    private boolean includeSlopeBatter = true;
     private double pathLength = 0.0; // 当前路径长度（米）
     private double pathSampleDistance = 1.0; // 路径采样密度（米/点），用于控制路径细分精度
 
@@ -346,7 +358,105 @@ public class RoadSystemConfig {
     public void setShoulderWidth(int shoulderWidth) {
         this.shoulderWidth = RoadParameterLimits.clampShoulderWidth(shoulderWidth);
     }
-    
+
+    public int getLaneCount() {
+        return laneCount > 0 ? laneCount : 1;
+    }
+
+    public void setLaneCount(int laneCount) {
+        this.laneCount = RoadParameterLimits.clampLaneCount(laneCount);
+    }
+
+    public List<Integer> getLaneWidths() {
+        return laneWidths != null ? List.copyOf(laneWidths) : List.of();
+    }
+
+    public void setLaneWidths(List<Integer> laneWidths) {
+        this.laneWidths = laneWidths != null ? new ArrayList<>(laneWidths) : new ArrayList<>();
+    }
+
+    public boolean isIncludeBikeLane() {
+        return includeBikeLane;
+    }
+
+    public void setIncludeBikeLane(boolean includeBikeLane) {
+        this.includeBikeLane = includeBikeLane;
+    }
+
+    public int getBikeLaneWidth() {
+        return bikeLaneWidth;
+    }
+
+    public void setBikeLaneWidth(int bikeLaneWidth) {
+        this.bikeLaneWidth = RoadParameterLimits.clampStripWidth(bikeLaneWidth);
+    }
+
+    public boolean isIncludeMedian() {
+        return includeMedian;
+    }
+
+    public void setIncludeMedian(boolean includeMedian) {
+        this.includeMedian = includeMedian;
+    }
+
+    public int getMedianWidth() {
+        return medianWidth;
+    }
+
+    public void setMedianWidth(int medianWidth) {
+        this.medianWidth = RoadParameterLimits.clampStripWidth(medianWidth);
+    }
+
+    public boolean isLaneDividers() {
+        return laneDividers;
+    }
+
+    public void setLaneDividers(boolean laneDividers) {
+        this.laneDividers = laneDividers;
+    }
+
+    public CenterLineStyle getCenterLineStyle() {
+        if (centerLineStyle == null || centerLineStyle.isBlank()) {
+            return CenterLineStyle.NONE;
+        }
+        try {
+            return CenterLineStyle.valueOf(centerLineStyle);
+        } catch (IllegalArgumentException ignored) {
+            return CenterLineStyle.NONE;
+        }
+    }
+
+    public void setCenterLineStyle(CenterLineStyle style) {
+        this.centerLineStyle = style != null ? style.name() : CenterLineStyle.NONE.name();
+    }
+
+    public String getMarkingMaterial() {
+        return markingMaterial != null && !markingMaterial.isBlank()
+            ? markingMaterial
+            : "material.plot.white_concrete";
+    }
+
+    public void setMarkingMaterial(String markingMaterial) {
+        this.markingMaterial = RoadMaterialUtils.normalizeStoredMaterial(markingMaterial);
+    }
+
+    public int getStreetlightSpacing() {
+        return streetlightSpacing;
+    }
+
+    public void setStreetlightSpacing(int streetlightSpacing) {
+        Integer normalized = RoadParameterLimits.normalizeStreetlightSpacing(streetlightSpacing);
+        this.streetlightSpacing = normalized != null ? normalized : 0;
+    }
+
+    public boolean isIncludeSlopeBatter() {
+        return includeSlopeBatter;
+    }
+
+    public void setIncludeSlopeBatter(boolean includeSlopeBatter) {
+        this.includeSlopeBatter = includeSlopeBatter;
+    }
+
     public boolean isIncludeDrainage() {
         return includeDrainage;
     }
@@ -481,6 +591,24 @@ public class RoadSystemConfig {
         this.includeShoulder = style.includeShoulder;
         setShoulderWidth(style.shoulderWidth);
         this.includeDrainage = style.includeDrainage;
+        this.includeBikeLane = style.includeBikeLane;
+        if (style.includeBikeLane) {
+            setBikeLaneWidth(style.bikeLaneWidth);
+        }
+        this.includeMedian = style.includeMedian;
+        if (style.includeMedian) {
+            setMedianWidth(style.medianWidth);
+        }
+        setLaneCount(style.resolveLaneCount());
+        this.laneDividers = style.resolveLaneDividers();
+        setCenterLineStyle(style.resolveCenterLineStyle());
+        if (style.markingMaterial != null && !style.markingMaterial.isBlank()) {
+            setMarkingMaterial(style.markingMaterial);
+        }
+        if (style.streetlightSpacing != null) {
+            setStreetlightSpacing(style.streetlightSpacing);
+        }
+        this.includeSlopeBatter = style.resolveIncludeSlopeBatter();
         if (style.maxSlope > 0f) {
             setMaxSlope(style.maxSlope);
         }

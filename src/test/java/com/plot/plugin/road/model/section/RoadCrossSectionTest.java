@@ -18,6 +18,7 @@ class RoadCrossSectionTest {
         config.setFillSlopeRatio(2.5f);
         config.setCutSlopeRatio(1.2f);
         config.setIncludeSidewalk(true);
+        config.setLaneDividers(true);
 
         RoadCrossSection section = new RoadCrossSection();
         section.getMedian().setEnabled(true);
