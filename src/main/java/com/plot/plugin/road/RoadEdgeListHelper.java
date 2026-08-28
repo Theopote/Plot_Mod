@@ -9,8 +9,10 @@ import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * 道路边列表的排序与过滤（编辑 Tab 使用）。
@@ -54,6 +56,43 @@ public final class RoadEdgeListHelper {
     public record RoadGroup(String roadId, String label, List<RoadEdge> edges) {
         public RoadGroup {
             edges = List.copyOf(edges);
+        }
+    }
+
+    public enum DisplayRowKind {
+        FLAT,
+        SINGLE_ROAD,
+        SINGLE_ROAD_DELETE,
+        GROUP_HEADER,
+        GROUP_SEGMENT
+    }
+
+    public record DisplayRow(
+            DisplayRowKind kind,
+            RoadEdge edge,
+            int segmentIndex,
+            String roadId,
+            RoadGroup group,
+            boolean hasRoadId) {
+
+        public static DisplayRow flat(RoadEdge edge, int segmentIndex, String roadId) {
+            return new DisplayRow(DisplayRowKind.FLAT, edge, segmentIndex, roadId, null, false);
+        }
+
+        public static DisplayRow singleRoad(RoadGroup group, RoadEdge edge, boolean hasRoadId) {
+            return new DisplayRow(DisplayRowKind.SINGLE_ROAD, edge, -1, group.roadId(), group, hasRoadId);
+        }
+
+        public static DisplayRow singleRoadDelete(RoadEdge edge) {
+            return new DisplayRow(DisplayRowKind.SINGLE_ROAD_DELETE, edge, -1, null, null, false);
+        }
+
+        public static DisplayRow groupHeader(RoadGroup group, boolean hasRoadId) {
+            return new DisplayRow(DisplayRowKind.GROUP_HEADER, null, -1, group.roadId(), group, hasRoadId);
+        }
+
+        public static DisplayRow groupSegment(RoadGroup group, RoadEdge edge, int segmentIndex) {
+            return new DisplayRow(DisplayRowKind.GROUP_SEGMENT, edge, segmentIndex, group.roadId(), group, false);
         }
     }
 
@@ -163,6 +202,79 @@ public final class RoadEdgeListHelper {
             groups.add(new RoadGroup(entry.getKey(), formatRoadLabel(network, road), entry.getValue()));
         }
         return groups;
+    }
+
+    public static int segmentIndex(RoadNetwork network, RoadEdge edge) {
+        String roadId = edge.getRoadId();
+        if (roadId == null || roadId.isBlank()) {
+            return -1;
+        }
+        Road road = network.getRoad(roadId);
+        if (road == null) {
+            return -1;
+        }
+        return orderedSegmentIds(road).indexOf(edge.getId());
+    }
+
+    public static List<DisplayRow> buildDisplayRows(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            SortMode sortMode,
+            Set<String> expandedSegmentGroups,
+            boolean showDelete) {
+        if (sortMode == SortMode.ROAD_GROUP) {
+            return buildGroupedDisplayRows(network, edges, expandedSegmentGroups, showDelete);
+        }
+        List<DisplayRow> rows = new ArrayList<>(edges.size());
+        for (RoadEdge edge : edges) {
+            rows.add(DisplayRow.flat(edge, segmentIndex(network, edge), edge.getRoadId()));
+        }
+        return rows;
+    }
+
+    private static List<DisplayRow> buildGroupedDisplayRows(
+            RoadNetwork network,
+            List<RoadEdge> edges,
+            Set<String> expandedSegmentGroups,
+            boolean showDelete) {
+        List<DisplayRow> rows = new ArrayList<>();
+        for (RoadGroup group : groupByRoad(network, edges)) {
+            boolean hasRoadId = group.roadId() != null && !group.roadId().isBlank();
+            if (group.edges().size() == 1) {
+                RoadEdge edge = group.edges().getFirst();
+                rows.add(DisplayRow.singleRoad(group, edge, hasRoadId));
+                if (showDelete) {
+                    rows.add(DisplayRow.singleRoadDelete(edge));
+                }
+                continue;
+            }
+
+            rows.add(DisplayRow.groupHeader(group, hasRoadId));
+            if (expandedSegmentGroups == null || !expandedSegmentGroups.contains(group.roadId())) {
+                continue;
+            }
+
+            Road road = hasRoadId ? network.getRoad(group.roadId()) : null;
+            List<String> orderedIds = road != null
+                ? orderedSegmentIds(road)
+                : group.edges().stream().map(RoadEdge::getId).toList();
+            Set<String> groupEdgeIds = new HashSet<>();
+            for (RoadEdge edge : group.edges()) {
+                groupEdgeIds.add(edge.getId());
+            }
+            for (int i = 0; i < orderedIds.size(); i++) {
+                String edgeId = orderedIds.get(i);
+                if (!groupEdgeIds.contains(edgeId)) {
+                    continue;
+                }
+                RoadEdge edge = network.getEdge(edgeId);
+                if (edge == null) {
+                    continue;
+                }
+                rows.add(DisplayRow.groupSegment(group, edge, i));
+            }
+        }
+        return rows;
     }
 
     private static boolean matchesSearch(RoadNetwork network, RoadEdge edge, String query) {

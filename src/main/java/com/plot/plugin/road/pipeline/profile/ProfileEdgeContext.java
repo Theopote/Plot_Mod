@@ -10,7 +10,7 @@ import com.plot.plugin.road.terrain.TerrainSampler;
 import java.util.List;
 
 /**
- * Host callbacks for profile / node-elevation strategies (implemented by {@link com.plot.plugin.road.RoadGenerator}).
+ * Host callbacks for profile / node-elevation strategies (implemented by {@link RoadGeneratorProfileContext}).
  */
 public interface ProfileEdgeContext {
     List<PathSegment> samplePath(List<Vec2d> pathPoints);

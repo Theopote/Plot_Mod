@@ -1,7 +1,6 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadEdgeListHelper;
-import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
@@ -15,7 +14,6 @@ import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -103,74 +101,26 @@ public final class RoadEdgeListPanel {
         if (edges.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
         } else {
-            List<DisplayRow> rows = buildDisplayRows(network, edges, showDelete);
+            List<RoadEdgeListHelper.DisplayRow> rows = RoadEdgeListHelper.buildDisplayRows(
+                network,
+                edges,
+                ctx.edgeSortMode(),
+                expandedSegmentGroups,
+                showDelete);
             renderVirtualEdgeList(network, rows, showDelete);
         }
         ImGui.endChild();
     }
 
-    private List<DisplayRow> buildDisplayRows(RoadNetwork network, List<RoadEdge> edges, boolean showDelete) {
-        if (ctx.edgeSortMode() == RoadEdgeListHelper.SortMode.ROAD_GROUP) {
-            return buildGroupedDisplayRows(network, edges, showDelete);
-        }
-        List<DisplayRow> rows = new ArrayList<>(edges.size());
-        for (RoadEdge edge : edges) {
-            int segmentIndex = resolveSegmentIndex(network, edge);
-            rows.add(DisplayRow.flat(edge, segmentIndex, edge.getRoadId()));
-        }
-        return rows;
-    }
-
-    private List<DisplayRow> buildGroupedDisplayRows(
+    private void renderVirtualEdgeList(
             RoadNetwork network,
-            List<RoadEdge> edges,
+            List<RoadEdgeListHelper.DisplayRow> rows,
             boolean showDelete) {
-        List<DisplayRow> rows = new ArrayList<>();
-        for (RoadEdgeListHelper.RoadGroup group : RoadEdgeListHelper.groupByRoad(network, edges)) {
-            boolean hasRoadId = group.roadId() != null && !group.roadId().isBlank();
-            if (group.edges().size() == 1) {
-                RoadEdge edge = group.edges().getFirst();
-                rows.add(DisplayRow.singleRoad(group, edge, hasRoadId));
-                if (showDelete) {
-                    rows.add(DisplayRow.singleRoadDelete(edge));
-                }
-                continue;
-            }
-
-            rows.add(DisplayRow.groupHeader(group, hasRoadId));
-            if (!expandedSegmentGroups.contains(group.roadId())) {
-                continue;
-            }
-
-            Road road = hasRoadId ? network.getRoad(group.roadId()) : null;
-            List<String> orderedIds = road != null
-                ? RoadEdgeListHelper.orderedSegmentIds(road)
-                : group.edges().stream().map(RoadEdge::getId).toList();
-            Set<String> groupEdgeIds = new HashSet<>();
-            for (RoadEdge edge : group.edges()) {
-                groupEdgeIds.add(edge.getId());
-            }
-            for (int i = 0; i < orderedIds.size(); i++) {
-                String edgeId = orderedIds.get(i);
-                if (!groupEdgeIds.contains(edgeId)) {
-                    continue;
-                }
-                RoadEdge edge = network.getEdge(edgeId);
-                if (edge == null) {
-                    continue;
-                }
-                rows.add(DisplayRow.groupSegment(group, edge, i));
-            }
-        }
-        return rows;
-    }
-
-    private void renderVirtualEdgeList(RoadNetwork network, List<DisplayRow> rows, boolean showDelete) {
         int rowHeight = Math.round(ImGui.getTextLineHeightWithSpacing() * EDGE_ROW_HEIGHT_LINES);
         ImGuiListClipper.forEach(rows.size(), rowHeight, new ImListClipperCallback() {
             @Override
             public void accept(int index) {
-                DisplayRow row = rows.get(index);
+                RoadEdgeListHelper.DisplayRow row = rows.get(index);
                 ImGui.pushID(index);
                 renderDisplayRow(network, row, showDelete);
                 ImGui.popID();
@@ -178,7 +128,7 @@ public final class RoadEdgeListPanel {
         });
     }
 
-    private void renderDisplayRow(RoadNetwork network, DisplayRow row, boolean showDelete) {
+    private void renderDisplayRow(RoadNetwork network, RoadEdgeListHelper.DisplayRow row, boolean showDelete) {
         switch (row.kind()) {
             case FLAT -> renderEdgeRow(
                 network,
@@ -241,18 +191,6 @@ public final class RoadEdgeListPanel {
             ctx.networkManager().selectRoad(group.roadId(), ImGui.getIO().getKeyCtrl());
         }
         ImGui.popID();
-    }
-
-    private static int resolveSegmentIndex(RoadNetwork network, RoadEdge edge) {
-        String roadId = edge.getRoadId();
-        if (roadId == null || roadId.isBlank()) {
-            return -1;
-        }
-        Road road = network.getRoad(roadId);
-        if (road == null) {
-            return -1;
-        }
-        return RoadEdgeListHelper.orderedSegmentIds(road).indexOf(edge.getId());
     }
 
     private void renderSingleSegmentRoadRow(
@@ -410,43 +348,6 @@ public final class RoadEdgeListPanel {
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();
-        }
-    }
-
-    private enum DisplayRowKind {
-        FLAT,
-        SINGLE_ROAD,
-        SINGLE_ROAD_DELETE,
-        GROUP_HEADER,
-        GROUP_SEGMENT
-    }
-
-    private record DisplayRow(
-            DisplayRowKind kind,
-            RoadEdge edge,
-            int segmentIndex,
-            String roadId,
-            RoadEdgeListHelper.RoadGroup group,
-            boolean hasRoadId) {
-
-        static DisplayRow flat(RoadEdge edge, int segmentIndex, String roadId) {
-            return new DisplayRow(DisplayRowKind.FLAT, edge, segmentIndex, roadId, null, false);
-        }
-
-        static DisplayRow singleRoad(RoadEdgeListHelper.RoadGroup group, RoadEdge edge, boolean hasRoadId) {
-            return new DisplayRow(DisplayRowKind.SINGLE_ROAD, edge, -1, group.roadId(), group, hasRoadId);
-        }
-
-        static DisplayRow singleRoadDelete(RoadEdge edge) {
-            return new DisplayRow(DisplayRowKind.SINGLE_ROAD_DELETE, edge, -1, null, null, false);
-        }
-
-        static DisplayRow groupHeader(RoadEdgeListHelper.RoadGroup group, boolean hasRoadId) {
-            return new DisplayRow(DisplayRowKind.GROUP_HEADER, null, -1, group.roadId(), group, hasRoadId);
-        }
-
-        static DisplayRow groupSegment(RoadEdgeListHelper.RoadGroup group, RoadEdge edge, int segmentIndex) {
-            return new DisplayRow(DisplayRowKind.GROUP_SEGMENT, edge, segmentIndex, group.roadId(), group, false);
         }
     }
 }

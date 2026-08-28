@@ -20,7 +20,7 @@ import java.util.function.IntFunction;
  *
  * <p>Runs before {@link com.plot.plugin.road.pipeline.RoadGenerationPipeline}. Endpoint overrides
  * (grade separation, manual elevation, network node elevations) are resolved by
- * {@link com.plot.plugin.road.RoadGenerator} and passed in as {@code manualStartHeight} /
+ * {@link RoadProfileSolveCoordinator} and passed in as {@code manualStartHeight} /
  * {@code manualEndHeight}.
  */
 public final class RoadProfileSolver {
