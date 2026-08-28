@@ -241,11 +241,17 @@ public final class RoadGeneratePanel {
             ctx.clearBuildConfirmPending();
         }
 
+        if (!ImGui.isPopupOpen("##road_build_confirm")) {
+            return;
+        }
+
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+        if (!ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
+            return;
+        }
         RoadNetworkValidationReport validationReport = validationReport();
-        if (ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
-            ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
+        int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
+        ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
             if (lastGenerationResult != null) {
                 ImGui.textColored(
@@ -288,10 +294,9 @@ public final class RoadGeneratePanel {
                 ImGui.endDisabled();
             }
             ImGui.sameLine();
-            if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
-                ImGui.closeCurrentPopup();
-            }
-            ImGui.endPopup();
+        if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {
+            ImGui.closeCurrentPopup();
         }
+        ImGui.endPopup();
     }
 }

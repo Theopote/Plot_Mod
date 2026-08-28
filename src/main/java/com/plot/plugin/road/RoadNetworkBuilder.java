@@ -30,6 +30,8 @@ public class RoadNetworkBuilder {
 
     public static final double NODE_TOLERANCE = 0.5;
     public static final int MAX_INTERSECTION_PASSES = 100;
+    /** 求交探测中边数超过此阈值则中止，避免平行重复边导致组合爆炸 OOM。 */
+    static final int MAX_INTERSECTION_EDGE_COUNT = 2_000;
 
     public enum JunctionType {
         ENDPOINT,
@@ -106,6 +108,13 @@ public class RoadNetworkBuilder {
         boolean changed = true;
         int pass = 0;
         while (changed && pass < maxPasses) {
+            if (network.getEdges().size() > MAX_INTERSECTION_EDGE_COUNT) {
+                LOGGER.error(
+                    "Intersection splitting aborted: edge count {} exceeds limit {}",
+                    network.getEdges().size(),
+                    MAX_INTERSECTION_EDGE_COUNT);
+                return IntersectionResult.INCOMPLETE;
+            }
             pass++;
             changed = false;
             RoadEdgeSpatialIndex spatialIndex = RoadEdgeSpatialIndex.build(
@@ -191,7 +200,23 @@ public class RoadNetworkBuilder {
                 && edgeA.getSourceRoadId().equals(edgeB.getSourceRoadId())) {
             return true;
         }
-        return edgeA.getRoadId() != null && edgeA.getRoadId().equals(edgeB.getRoadId());
+        if (edgeA.getRoadId() != null && edgeA.getRoadId().equals(edgeB.getRoadId())) {
+            return true;
+        }
+        // 同一对节点间的平行重复边（不同 roadId）无需互相求交，否则会沿重合线段无限切分。
+        return sharesSameEndpointPair(edgeA, edgeB);
+    }
+
+    private static boolean sharesSameEndpointPair(RoadEdge edgeA, RoadEdge edgeB) {
+        String aStart = edgeA.getStartNodeId();
+        String aEnd = edgeA.getEndNodeId();
+        String bStart = edgeB.getStartNodeId();
+        String bEnd = edgeB.getEndNodeId();
+        if (aStart == null || aEnd == null || bStart == null || bEnd == null) {
+            return false;
+        }
+        return (aStart.equals(bStart) && aEnd.equals(bEnd))
+            || (aStart.equals(bEnd) && aEnd.equals(bStart));
     }
 
     private List<Vec2d> findConnectionPoints(RoadEdge edgeA, RoadEdge edgeB) {

@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -395,6 +396,28 @@ class RoadNetworkBuilderTest {
             second.edges().getFirst().getSourceRoadId());
         assertEquals(3, network.getEdges().size());
         assertEquals(1, network.getJunctionCount());
+    }
+
+    @Test
+    void detectAndSplitIntersectionsDoesNotExplodeOnDuplicateParallelEdges() {
+        RoadNetwork network = new RoadNetwork();
+        Road road1 = network.createRoad("road-a");
+        Road road2 = network.createRoad("road-b");
+        RoadNode start = network.createNode(new Vec2d(490, 452));
+        RoadNode end = network.createNode(new Vec2d(890, 146));
+        List<Vec2d> points = List.of(
+            new Vec2d(490, 452), new Vec2d(490, 452), new Vec2d(890, 146));
+        network.createEdge(start.getId(), end.getId(), points, road1.getId());
+        network.createEdge(start.getId(), end.getId(), points, road2.getId());
+
+        int edgesBefore = network.getEdges().size();
+        IntersectionResult result = builder.detectAndSplitIntersections(network);
+        assertEquals(IntersectionResult.COMPLETE, result);
+        assertEquals(edgesBefore, network.getEdges().size());
+
+        IntersectionProbeResult probe = builder.probeIntersectionCompleteness(network);
+        assertEquals(edgesBefore, network.getEdges().size());
+        assertFalse(probe.hasPendingWork());
     }
 
     @Test
