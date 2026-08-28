@@ -40,7 +40,22 @@ import java.util.stream.Collectors;
 /**
  * 道路网络（插件私有数据模型）：拓扑几何 + 逻辑道路工程对象。
  *
- * 使用ConcurrentHashMap保证线程安全，支持多线程并发访问（UI线程、渲染线程、持久化线程）。
+ * <h3>线程模型</h3>
+ * <p><strong>单写者（client / UI 线程）</strong>：所有拓扑与属性变更（{@code createEdge}、
+ * {@code network.getRoad(id).setWidth(...)}、横断面编辑等）应在持有 {@code RoadNetworkManager}
+ * 的客户端线程上串行执行。{@link Road}、{@link RoadEdge}、{@link RoadNode}、
+ * {@link RoadCrossSection} 均为可变对象，彼此没有内部锁。
+ *
+ * <p><strong>{@code ConcurrentHashMap} 仅保证索引表安全</strong>：{@code nodes} / {@code edges} /
+ * {@code roads} 的 put/remove/get 在并发下不会破坏 Map 结构，但不构成整个路网的线程安全。
+ * 并发读写的元素引用仍指向同一可变实例；例如 UI 正在改 {@code crossSection} 的同时
+ * {@link #toJson()} 持久化，理论上可能读到中间状态。
+ *
+ * <p><strong>后台或跨线程读者</strong>：应使用 {@link #snapshot()}（或等价的 JSON 往返）取得
+ * 独立副本后再做生成、校验、探测等耗时工作，不要与 live 实例并发读写。
+ *
+ * @see RoadNetworkManager
+ * @see RoadNetworkHistory
  */
 public class RoadNetwork {
     private static final Gson GSON = new GsonBuilder()
@@ -48,8 +63,11 @@ public class RoadNetwork {
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
         .create();
 
+    /** 并发安全的 id 索引；元素 {@link RoadNode} 本身非线程安全。 */
     private final Map<String, RoadNode> nodes = new ConcurrentHashMap<>();
+    /** 并发安全的 id 索引；元素 {@link RoadEdge} 本身非线程安全。 */
     private final Map<String, RoadEdge> edges = new ConcurrentHashMap<>();
+    /** 并发安全的 id 索引；元素 {@link Road} 本身非线程安全。 */
     private final Map<String, Road> roads = new ConcurrentHashMap<>();
 
     public Map<String, RoadNode> getNodes() {
@@ -423,6 +441,9 @@ public class RoadNetwork {
         return true;
     }
 
+    /**
+     * 序列化为 JSON。非同步方法：调用方须保证单写者，或先 {@link #snapshot()} 再序列化副本。
+     */
     public String toJson() {
         NetworkData data = NetworkData.from(this);
         return GSON.toJson(data);
@@ -437,7 +458,8 @@ public class RoadNetwork {
     }
 
     /**
-     * 保存网络到文件（原子性保存，先写临时文件再重命名）
+     * 保存网络到文件（原子性保存，先写临时文件再重命名）。
+     * 应在 client 线程对 live 网络调用，或传入 {@link #snapshot()} 的副本。
      */
     public void saveTo(Path file) throws IOException {
         com.plot.core.persistence.AtomicFileWriter.write(file, toJson());
@@ -454,7 +476,10 @@ public class RoadNetwork {
         }
     }
 
-    RoadNetwork deepCopy() {
+    /**
+     * 深拷贝快照（JSON 往返），供后台生成/校验或与 live 网络隔离的只读分析使用。
+     */
+    public RoadNetwork snapshot() {
         return fromJson(toJson());
     }
 

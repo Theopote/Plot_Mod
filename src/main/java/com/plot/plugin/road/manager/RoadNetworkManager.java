@@ -25,6 +25,9 @@ import java.util.List;
 
 /**
  * 道路网络数据、选择状态与可撤销变更。
+ *
+ * <p>持有 live {@link RoadNetwork} 的<strong>单写者</strong>：变更应仅在 client / UI 线程通过本类进行。
+ * 持久化、预览生成等若需与编辑并发，应对 {@link RoadNetwork#snapshot()} 副本操作，而非共享 live 实例。
  */
 public final class RoadNetworkManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadNetwork");

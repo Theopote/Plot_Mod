@@ -18,6 +18,9 @@ import java.util.function.Consumer;
 
 /**
  * 道路网络持久化：按工程文件路径关联 networks/*.json。
+ *
+ * <p>保存时在 client 线程读取 live {@link RoadNetwork} 并 {@link RoadNetwork#toJson()}；
+ * 若将来改为异步落盘，应先 {@link RoadNetwork#snapshot()} 再写文件，避免与 UI 编辑交错。
  */
 public final class RoadPersistenceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadPersistence");
