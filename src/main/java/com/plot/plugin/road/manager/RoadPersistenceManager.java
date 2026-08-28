@@ -4,7 +4,9 @@ import com.plot.core.context.PluginContext;
 import com.plot.core.model.Project;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.core.persistence.ProjectPathResolver;
+import com.plot.plugin.road.model.CorruptedRoadNetworkException;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadNetworkFormatException;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
@@ -99,9 +101,8 @@ public final class RoadPersistenceManager {
             onSelectionReset.run();
             return loaded;
         } catch (IOException e) {
-            LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
-            status.error(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
-            return new RoadNetwork();
+            reportLoadFailure(file, e);
+            return null;
         }
     }
 
@@ -115,10 +116,18 @@ public final class RoadPersistenceManager {
             onSelectionReset.run();
             return true;
         } catch (IOException e) {
-            LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
-            status.error(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
+            reportLoadFailure(file, e);
             return false;
         }
+    }
+
+    private void reportLoadFailure(Path file, IOException e) {
+        LOGGER.error("加载道路网络失败: {}", e.getMessage(), e);
+        if (e instanceof CorruptedRoadNetworkException || e instanceof RoadNetworkFormatException) {
+            status.error(e.getMessage());
+            return;
+        }
+        status.error(PlotI18n.tr("plugin.road.network.load_failed", file.getFileName()));
     }
 
     public boolean saveNetworkFile(Path file, RoadNetwork network) {

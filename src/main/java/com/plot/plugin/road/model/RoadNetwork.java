@@ -2,7 +2,11 @@ package com.plot.plugin.road.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.JsonParser;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
@@ -24,6 +28,9 @@ import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
 
 import com.plot.plugin.road.graph.RoadGraphQueries;
+import com.plot.plugin.road.model.serialization.migration.RoadNetworkMigrationRegistry;
+import com.plot.core.persistence.AtomicFileWriter;
+import com.plot.core.persistence.PersistenceException;
 import com.plot.utils.PlotI18n;
 
 import java.io.IOException;
@@ -59,6 +66,8 @@ import java.util.stream.Collectors;
  * @see RoadNetworkHistory
  */
 public class RoadNetwork {
+    public static final int CURRENT_FORMAT_VERSION = 1;
+
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .registerTypeAdapter(MaterialMix.class, new MaterialMixTypeAdapter())
@@ -452,22 +461,22 @@ public class RoadNetwork {
 
     public static RoadNetwork fromJson(String json) throws RoadNetworkFormatException {
         if (json == null || json.isBlank()) {
-            throw new RoadNetworkFormatException(
-                RoadNetworkFormatException.Reason.EMPTY_INPUT,
-                PlotI18n.error("error.plot.road.network.empty_input"));
+            throw new CorruptedRoadNetworkException(
+                PlotI18n.error("error.plot.road.network.corrupted_file"));
         }
+
+        final JsonObject root;
         try {
-            NetworkData data = GSON.fromJson(json, NetworkData.class);
-            if (data == null) {
+            JsonElement element = JsonParser.parseString(json);
+            if (element == null || !element.isJsonObject()) {
                 throw new RoadNetworkFormatException(
                     RoadNetworkFormatException.Reason.VALIDATION_FAILED,
                     PlotI18n.error("error.plot.road.network.invalid_json"));
             }
-            validateNetworkData(data);
-            return data.toNetwork();
+            root = element.getAsJsonObject();
         } catch (RoadNetworkFormatException e) {
             throw e;
-        } catch (JsonParseException e) {
+        } catch (JsonSyntaxException e) {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.INVALID_JSON,
                 PlotI18n.error("error.plot.road.network.invalid_json"),
@@ -478,9 +487,37 @@ public class RoadNetwork {
                 PlotI18n.error("error.plot.road.network.invalid_json"),
                 e);
         }
+
+        JsonObject migrated = RoadNetworkMigrationRegistry.getInstance().migrateToCurrent(root);
+
+        final NetworkData data;
+        try {
+            data = GSON.fromJson(migrated, NetworkData.class);
+        } catch (JsonSyntaxException e) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.INVALID_JSON,
+                PlotI18n.error("error.plot.road.network.invalid_json"),
+                e);
+        }
+
+        if (data == null) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.VALIDATION_FAILED,
+                PlotI18n.error("error.plot.road.network.invalid_json"));
+        }
+        validateNetworkData(data);
+        return data.toNetwork();
     }
 
     private static void validateNetworkData(NetworkData data) throws RoadNetworkFormatException {
+        if (data.formatVersion != CURRENT_FORMAT_VERSION) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.UNSUPPORTED_FORMAT_VERSION,
+                PlotI18n.error(
+                    "error.plot.road.network.unsupported_format",
+                    data.formatVersion,
+                    CURRENT_FORMAT_VERSION));
+        }
         if (data.nodes == null || data.edges == null || data.roads == null) {
             throw new RoadNetworkFormatException(
                 RoadNetworkFormatException.Reason.VALIDATION_FAILED,
@@ -489,22 +526,39 @@ public class RoadNetwork {
     }
 
     /**
-     * 保存网络到文件（原子性保存，先写临时文件再重命名）。
-     * 应在 client 线程对 live 网络调用，或传入 {@link #snapshot()} 的副本。
+     * 保存网络到文件（原子写入 + 备份 + autosave + 保存前 round-trip 校验）。
      */
     public void saveTo(Path file) throws IOException {
-        com.plot.core.persistence.AtomicFileWriter.write(file, toJson());
+        String json = toJson();
+        try {
+            AtomicFileWriter.write(file, json, AtomicFileWriter.Options.projectDocument(RoadNetwork::fromJson));
+        } catch (PersistenceException e) {
+            throw new IOException(PlotI18n.error("error.plot.road.network.save_validation_failed"), e);
+        } catch (IOException e) {
+            if (e.getCause() instanceof RoadNetworkFormatException formatException) {
+                throw new IOException(PlotI18n.error("error.plot.road.network.save_validation_failed"), formatException);
+            }
+            throw e;
+        }
     }
 
+    /**
+     * 从 sidecar 加载路网。
+     * <ul>
+     *   <li>文件不存在 → 新工程空路网</li>
+     *   <li>文件存在但空白 → {@link CorruptedRoadNetworkException}</li>
+     *   <li>无效 JSON → {@link RoadNetworkFormatException}（{@code INVALID_JSON}）</li>
+     *   <li>合法空文档 → 空路网</li>
+     * </ul>
+     */
     public static RoadNetwork loadFrom(Path file) throws IOException {
         if (!Files.exists(file)) {
             return new RoadNetwork();
         }
         String json = Files.readString(file);
         if (json.isBlank()) {
-            throw new RoadNetworkFormatException(
-                RoadNetworkFormatException.Reason.EMPTY_INPUT,
-                PlotI18n.error("error.plot.road.network.empty_input") + " (" + file.getFileName() + ")");
+            throw new CorruptedRoadNetworkException(
+                PlotI18n.error("error.plot.road.network.corrupted_file_named", file.getFileName()));
         }
         return fromJson(json);
     }
@@ -839,12 +893,14 @@ public class RoadNetwork {
     }
 
     static class NetworkData {
+        int formatVersion = CURRENT_FORMAT_VERSION;
         List<NodeData> nodes = new ArrayList<>();
         List<EdgeData> edges = new ArrayList<>();
         List<RoadData> roads = new ArrayList<>();
 
         static NetworkData from(RoadNetwork network) {
             NetworkData data = new NetworkData();
+            data.formatVersion = CURRENT_FORMAT_VERSION;
 
             for (RoadNode node : network.nodes.values()) {
                 NodeData nodeData = new NodeData();

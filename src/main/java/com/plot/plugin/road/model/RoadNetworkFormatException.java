@@ -5,12 +5,15 @@ import java.io.IOException;
 /**
  * 道路网络 sidecar JSON 无法解析或内容无效时抛出；不得用默认空路网掩盖加载失败。
  */
-public final class RoadNetworkFormatException extends IOException {
+public class RoadNetworkFormatException extends IOException {
 
     public enum Reason {
-        EMPTY_INPUT,
+        /** 文件存在但内容为空/截断，不是合法 JSON 文档。 */
+        CORRUPTED_FILE,
         INVALID_JSON,
-        VALIDATION_FAILED
+        VALIDATION_FAILED,
+        UNSUPPORTED_FORMAT_VERSION,
+        MIGRATION_FAILED
     }
 
     private final Reason reason;

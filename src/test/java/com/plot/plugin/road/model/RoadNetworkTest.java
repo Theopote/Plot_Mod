@@ -156,38 +156,69 @@ class RoadNetworkTest {
         Path file = tempDir.resolve("broken.json");
         Files.writeString(file, "{not valid json");
 
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+        RoadNetworkFormatException error =
+            assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+        assertEquals(RoadNetworkFormatException.Reason.INVALID_JSON, error.getReason());
     }
 
     @Test
-    void loadFromReportsIncompleteDataAsIOException() throws IOException {
-        Path file = tempDir.resolve("incomplete.json");
-        Files.writeString(file, "{\"nodes\":[],\"edges\":null}");
+    void loadFromMigratesLegacyNullArraysToEmptyNetwork() throws IOException {
+        Path file = tempDir.resolve("legacy-null-arrays.json");
+        Files.writeString(file, "{\"nodes\":[],\"edges\":null,\"roads\":null}");
 
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+        RoadNetwork network = RoadNetwork.loadFrom(file);
+
+        assertTrue(network.getNodes().isEmpty());
+        assertTrue(network.getEdges().isEmpty());
+        assertTrue(network.getRoads().isEmpty());
     }
 
     @Test
-    void loadFromEmptyFileThrows() throws IOException {
+    void loadFromEmptyFileThrowsCorrupted() throws IOException {
         Path file = tempDir.resolve("empty.json");
         Files.writeString(file, "");
 
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+        assertThrows(CorruptedRoadNetworkException.class, () -> RoadNetwork.loadFrom(file));
     }
 
     @Test
-    void loadFromWhitespaceFileThrows() throws IOException {
+    void loadFromWhitespaceFileThrowsCorrupted() throws IOException {
         Path file = tempDir.resolve("whitespace.json");
         Files.writeString(file, "  \n\t");
 
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+        assertThrows(CorruptedRoadNetworkException.class, () -> RoadNetwork.loadFrom(file));
     }
 
     @Test
-    void fromJsonBlankInputThrows() {
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson(null));
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson(""));
-        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson("   "));
+    void fromJsonBlankInputThrowsCorrupted() {
+        assertThrows(CorruptedRoadNetworkException.class, () -> RoadNetwork.fromJson(null));
+        assertThrows(CorruptedRoadNetworkException.class, () -> RoadNetwork.fromJson(""));
+        assertThrows(CorruptedRoadNetworkException.class, () -> RoadNetwork.fromJson("   "));
+    }
+
+    @Test
+    void loadFromValidEmptyDocumentReturnsEmptyNetwork() throws IOException {
+        Path file = tempDir.resolve("empty-document.json");
+        Files.writeString(file, """
+            {
+              "formatVersion": 1,
+              "nodes": [],
+              "edges": [],
+              "roads": []
+            }
+            """);
+
+        RoadNetwork network = RoadNetwork.loadFrom(file);
+
+        assertTrue(network.getNodes().isEmpty());
+        assertTrue(network.getEdges().isEmpty());
+        assertTrue(network.getRoads().isEmpty());
+    }
+
+    @Test
+    void toJsonIncludesFormatVersion() {
+        RoadNetwork network = new RoadNetwork();
+        assertTrue(network.toJson().contains("\"formatVersion\": " + RoadNetwork.CURRENT_FORMAT_VERSION));
     }
 
     @Test
