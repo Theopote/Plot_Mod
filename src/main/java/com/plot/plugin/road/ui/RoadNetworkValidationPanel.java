@@ -2,12 +2,12 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
-import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,13 +18,16 @@ public final class RoadNetworkValidationPanel {
     private RoadNetworkValidationPanel() {
     }
 
-    public static void render(RoadUiContext ctx) {
+    public static RoadNetworkValidationReport analyze(RoadUiContext ctx) {
         RoadNetwork network = ctx.networkManager().getNetwork();
         Map<String, RoadGenerationResult> edgeResults = ctx.previewManager().getLastEdgeResults();
-        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+        return RoadNetworkEngineeringValidator.analyze(
             network,
             edgeResults,
             ctx.networkManager().getConfig());
+    }
+
+    public static void render(RoadNetworkValidationReport report, RoadUiContext ctx) {
         if (report.items().isEmpty()) {
             return;
         }
@@ -38,6 +41,26 @@ public final class RoadNetworkValidationPanel {
                 ctx.networkManager().reconcileIntersections();
             }
             ImGui.spacing();
+        }
+        if (report.blocksBuild()) {
+            ImGui.textColored(
+                PluginUiColors.ERROR_SOFT,
+                PlotI18n.tr("plugin.road.build_blocked_validation"));
+        }
+        ImGui.spacing();
+    }
+
+    public static void renderConfirmWarnings(RoadNetworkValidationReport report) {
+        if (report.blocksBuild()) {
+            return;
+        }
+        List<RoadNetworkValidationReport.Item> warnings = report.nonOkItems();
+        if (warnings.isEmpty()) {
+            return;
+        }
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_confirm_validation_header"));
+        for (RoadNetworkValidationReport.Item item : warnings) {
+            renderItem(item);
         }
         ImGui.spacing();
     }

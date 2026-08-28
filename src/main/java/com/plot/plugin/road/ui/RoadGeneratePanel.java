@@ -4,6 +4,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
+import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -22,6 +23,8 @@ public final class RoadGeneratePanel {
     private final RoadUiContext ctx;
     private String profileEdgeId = "";
     private boolean profileSectionForceOpen = false;
+    private long cachedValidationKey = Long.MIN_VALUE;
+    private RoadNetworkValidationReport cachedValidationReport = new RoadNetworkValidationReport(List.of());
 
     public RoadGeneratePanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -100,7 +103,8 @@ public final class RoadGeneratePanel {
                 lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
             ImGui.text(PlotI18n.tr("plugin.road.streetlight_count_result", lastGenerationResult.streetlightCount));
 
-            RoadNetworkValidationPanel.render(ctx);
+            RoadNetworkValidationReport validationReport = validationReport();
+            RoadNetworkValidationPanel.render(validationReport, ctx);
 
             renderLongitudinalProfile(network);
 
@@ -111,7 +115,8 @@ public final class RoadGeneratePanel {
 
             boolean buildDisabled = !hasPlacements
                 || !buildReadiness.ready()
-                || ctx.host().placement().isBusy();
+                || ctx.host().placement().isBusy()
+                || validationReport.blocksBuild();
             if (buildDisabled) {
                 ImGui.beginDisabled();
             }
@@ -122,6 +127,16 @@ public final class RoadGeneratePanel {
                 ImGui.endDisabled();
             }
         }
+    }
+
+    private RoadNetworkValidationReport validationReport() {
+        long key = ctx.networkManager().getNetworkRevision() * 31L
+            + ctx.previewManager().getTerrainRevision();
+        if (key != cachedValidationKey) {
+            cachedValidationReport = RoadNetworkValidationPanel.analyze(ctx);
+            cachedValidationKey = key;
+        }
+        return cachedValidationReport;
     }
 
     private void renderLongitudinalProfile(RoadNetwork network) {
@@ -221,6 +236,7 @@ public final class RoadGeneratePanel {
         }
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
+        RoadNetworkValidationReport validationReport = validationReport();
         if (ImGui.beginPopupModal("##road_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
             ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
@@ -245,13 +261,16 @@ public final class RoadGeneratePanel {
                 ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_in_progress_wait"));
             }
             RoadUiWidgets.renderRoadVisibilityWarning(ctx);
+            RoadNetworkValidationPanel.renderConfirmWarnings(validationReport);
 
             ImGui.spacing();
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_cancel_hint"));
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_undo_hint"));
 
             ImGui.separator();
-            boolean canBuild = readiness.ready() && !ctx.host().placement().isBusy();
+            boolean canBuild = readiness.ready()
+                && !ctx.host().placement().isBusy()
+                && !validationReport.blocksBuild();
             if (!canBuild) {
                 ImGui.beginDisabled();
             }

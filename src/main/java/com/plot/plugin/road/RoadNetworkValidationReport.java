@@ -33,6 +33,35 @@ public record RoadNetworkValidationReport(List<Item> items) {
         return false;
     }
 
+    public boolean hasErrors() {
+        for (Item item : items) {
+            if (item.level() == Level.ERROR) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Hard blockers that must be resolved before world placement.
+     */
+    public boolean blocksBuild() {
+        for (Item item : items) {
+            if (item.level() == Level.ERROR) {
+                return true;
+            }
+            if ("plugin.road.validation.intersections_pending".equals(item.messageKey())
+                    || "plugin.road.validation.topology_issues".equals(item.messageKey())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<Item> nonOkItems() {
+        return items.stream().filter(item -> item.level() != Level.OK).toList();
+    }
+
     public enum Level {
         OK,
         WARNING,
