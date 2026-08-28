@@ -1,5 +1,7 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.RoadNetworkEngineeringValidator;
+import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
 import com.plot.plugin.road.model.Road;
@@ -10,6 +12,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 
 import java.util.LinkedHashSet;
+import java.util.Map;
 
 /**
  * 道路概览 Tab：路网统计、缩略图点选；选中后提供进入编辑/纵断面的 workflow 捷径。
@@ -23,10 +26,14 @@ public final class RoadOverviewPanel {
 
     public void render() {
         RoadNetwork network = ctx.networkManager().getNetwork();
+
+        RoadUiSections.section("plugin.road.section.network_health");
         ImGui.text(PlotI18n.tr("plugin.road.network_stats",
             network.getRoads().size(),
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
+
+        renderHealthWarnings(network);
 
         RoadNetworkOverviewRenderer.render(
             network,
@@ -38,11 +45,48 @@ public final class RoadOverviewPanel {
             ctx.networkManager()::handleNodeSelect
         );
 
-        renderSelectionShortcuts(network);
+        ImGui.spacing();
+        if (hasSelection()) {
+            RoadUiSections.section("plugin.road.section.selected");
+            renderSelectionShortcuts(network);
+        }
 
+        ImGui.spacing();
+        ImGui.separator();
         ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
         ImGui.textWrapped(PlotI18n.tr("plugin.road.network_map_hint"));
         ImGui.popStyleColor();
+    }
+
+    private void renderHealthWarnings(RoadNetwork network) {
+        if (network.getEdges().isEmpty()) {
+            return;
+        }
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            ctx.networkManager().getConfig());
+        for (RoadNetworkValidationReport.Item item : report.nonOkItems()) {
+            int color = switch (item.level()) {
+                case WARNING -> PluginUiColors.WARNING;
+                case ERROR -> PluginUiColors.ERROR;
+                default -> PluginUiColors.HINT_GRAY;
+            };
+            ImGui.textColored(color, "\u26a0 " + PlotI18n.tr(item.messageKey(), item.args()));
+        }
+        if (ctx.networkManager().isAdoptIntersectionRepairPending()) {
+            ImGui.textColored(
+                PluginUiColors.WARNING,
+                "\u26a0 " + PlotI18n.tr("plugin.road.validation.intersections_pending"));
+        }
+    }
+
+    private boolean hasSelection() {
+        String selectedNodeId = ctx.networkManager().getSelectedNodeId();
+        if (selectedNodeId != null && !selectedNodeId.isBlank()) {
+            return true;
+        }
+        return !ctx.networkManager().getSelectedEdgeIds().isEmpty();
     }
 
     private void renderSelectionShortcuts(RoadNetwork network) {
@@ -53,10 +97,6 @@ public final class RoadOverviewPanel {
         if (ctx.networkManager().getSelectedEdgeIds().isEmpty()) {
             return;
         }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.road.overview_selection_title"));
 
         LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
         if (roadIds.size() > 1) {

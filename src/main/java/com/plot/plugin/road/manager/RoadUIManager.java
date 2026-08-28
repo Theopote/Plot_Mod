@@ -68,7 +68,7 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
             renderTab(RoadUiTab.OVERVIEW, "plugin.road.tab.overview", overviewPanel::render);
             renderTab(RoadUiTab.ADOPT, "plugin.road.tab.adopt", adoptPanel::render);
             renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", editPanel::render);
-            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", () -> {
+            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.build", () -> {
                 String profileEdgeId = ctx.consumePendingProfileEdgeId();
                 if (profileEdgeId != null && !profileEdgeId.isBlank()) {
                     generatePanel.openProfileForEdge(profileEdgeId);

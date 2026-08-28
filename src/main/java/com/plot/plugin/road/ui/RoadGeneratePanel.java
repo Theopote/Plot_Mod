@@ -44,9 +44,11 @@ public final class RoadGeneratePanel {
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean hasNetwork = !network.getEdges().isEmpty();
 
-        // 全局生成参数放在生成 Tab 顶部，便于在预览/落地前调整
+        RoadUiSections.section("plugin.road.section.generation_settings");
         RoadGenerationSettingsPanel.render(ctx, false);
         ImGui.separator();
+
+        RoadUiSections.section("plugin.road.section.preview");
 
         if (!hasNetwork) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
@@ -103,10 +105,14 @@ public final class RoadGeneratePanel {
                 lastGenerationResult.tunnelCount, lastGenerationResult.tunnelBlocks.size()));
             ImGui.text(PlotI18n.tr("plugin.road.streetlight_count_result", lastGenerationResult.streetlightCount));
 
+            RoadUiSections.section("plugin.road.section.validation");
             RoadNetworkValidationReport validationReport = validationReport();
             RoadNetworkValidationPanel.render(validationReport, ctx);
 
+            RoadUiSections.section("plugin.road.section.longitudinal_profile");
             renderLongitudinalProfile(network);
+
+            RoadUiSections.section("plugin.road.section.build");
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {

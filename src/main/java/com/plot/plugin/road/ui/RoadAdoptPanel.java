@@ -26,13 +26,18 @@ public final class RoadAdoptPanel {
         ctx.toolManager().updateSelectedPaths();
         List<Shape> selectedPaths = ctx.toolManager().getSelectedPaths();
 
+        RoadUiSections.step("plugin.road.section.adopt_step1_centerline");
         renderPathToolButtons();
         renderSelectionStatus(selectedPaths);
-        renderAdoptCta(selectedPaths);
 
         ImGui.separator();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_params_section"));
-        defaultParamsPanel.render();
+        defaultParamsPanel.renderRoadTypeStep();
+
+        ImGui.separator();
+        defaultParamsPanel.renderCrossSectionStep();
+
+        ImGui.separator();
+        renderAdoptCta(selectedPaths);
     }
 
     private void renderPathToolButtons() {
@@ -125,7 +130,7 @@ public final class RoadAdoptPanel {
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.ACCENT_BLUE);
         float ctaHeight = ImGui.getFrameHeight() * 1.35f;
         if (ImGui.button(
-            PlotI18n.tr("plugin.road.adopt_as_road") + "##adopt_cta",
+            adoptButtonLabel(selectedPaths.size()) + "##adopt_cta",
             ImGui.getContentRegionAvailX(),
             ctaHeight)) {
             ctx.networkManager().adoptSelectedPaths(ctx.toolManager().getSelectedPaths());
@@ -140,6 +145,13 @@ public final class RoadAdoptPanel {
         }
         ImGui.spacing();
         renderAdoptIntersectionRepairPrompt();
+    }
+
+    private static String adoptButtonLabel(int pathCount) {
+        if (pathCount > 1) {
+            return PlotI18n.tr("plugin.road.adopt_cta_batch", pathCount);
+        }
+        return PlotI18n.tr("plugin.road.adopt_as_road");
     }
 
     private void renderAdoptIntersectionRepairPrompt() {

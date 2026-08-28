@@ -57,6 +57,7 @@ public final class RoadEditPanel {
         renderUniformFlatElevationControls(network);
         ImGui.separator();
 
+        RoadUiSections.section("plugin.road.section.road_list");
         List<RoadEdge> allEdges = new ArrayList<>(network.getEdges().values());
         if (allEdges.isEmpty()) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
@@ -82,6 +83,7 @@ public final class RoadEditPanel {
         int selectedLogicalCount = selectedRoadCount > 0 ? selectedRoadCount : selectedEdgeCount;
 
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
+            RoadUiSections.level("plugin.road.section.node_junction");
             nodePropertyPanel.renderForSelectedNode(junctionPanel);
             return;
         }
@@ -119,7 +121,7 @@ public final class RoadEditPanel {
 
         renderRoadScopeHeader(network, road);
 
-        ImGui.separator();
+        RoadUiSections.level("plugin.road.section.road_level");
         ImGui.text(PlotI18n.tr("plugin.road.road_properties_section"));
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
@@ -133,7 +135,7 @@ public final class RoadEditPanel {
             RoadCrossSectionEditor.renderFields(ctx, road, ctx.networkManager()::pushHistory);
         }
 
-        ImGui.separator();
+        RoadUiSections.level("plugin.road.section.segment_level");
         ImGui.text(PlotI18n.tr("plugin.road.segment_engineering_section"));
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.segment_engineering_scope"));
 

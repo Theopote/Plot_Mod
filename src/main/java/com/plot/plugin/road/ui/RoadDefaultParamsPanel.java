@@ -14,7 +14,6 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
@@ -28,15 +27,34 @@ public final class RoadDefaultParamsPanel {
     }
 
     public void render() {
+        renderCrossSectionDefaults();
+    }
+
+    /** Adopt 向导 Step 2：道路类型预设。 */
+    public void renderRoadTypeStep() {
+        RoadUiSections.step("plugin.road.section.adopt_step2_road_type");
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_road_type_hint"));
+        renderPresetSelector();
+    }
+
+    /** Adopt 向导 Step 3：横断面预览与高级参数。 */
+    public void renderCrossSectionStep() {
+        RoadUiSections.step("plugin.road.section.adopt_step3_cross_section");
+        renderCrossSectionDefaults();
+    }
+
+    private void renderCrossSectionDefaults() {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.default_params_scope_hint"));
-        renderPresetSelector();
         RoadCrossSectionPreviewRenderer.render(config);
         ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
 
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.basic_params"))) {
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.adopt_advanced"))) {
+            renderAdvancedCrossSectionFields(config);
+        }
+    }
+
+    private void renderAdvancedCrossSectionFields(RoadSystemConfig config) {
         CrossSectionDraft draft = CrossSectionDraft.fromConfig(config);
         CrossSectionDraftEditor.render(
             ctx,
@@ -104,36 +122,9 @@ public final class RoadDefaultParamsPanel {
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.relaxed_slope_percent");
 
         renderDefaultJunctionSettings();
-        }
-    }
-
-    private void renderDefaultJunctionSettings() {
-        RoadSystemConfig config = ctx.networkManager().getConfig();
-        float[] defaultRadius = {config.getDefaultCornerRadius()};
-        if (ImGui.sliderFloat(
-            PlotI18n.tr("plugin.road.default_corner_radius", defaultRadius[0]),
-            defaultRadius,
-            0.0f,
-            (float) RoadNode.MAX_CORNER_RADIUS,
-            "%.1f m"
-        )) {
-            config.setDefaultCornerRadius(defaultRadius[0]);
-            markCustom();
-        }
-        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.default_corner_radius");
-    }
-
-    private void markCustom() {
-        ctx.networkManager().getConfig().markCustom();
-        // 默认/全局参数变更后失效预览，避免按过期阈值落地
-        ctx.onGenerationConfigChanged();
     }
 
     private void renderPresetSelector() {
-        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.road_presets"), ImGuiTreeNodeFlags.DefaultOpen)) {
-            return;
-        }
-
         RoadSystemConfig config = ctx.networkManager().getConfig();
         String selectedId = config.getSelectedPreset();
         boolean customSelected = selectedId == null || selectedId.isBlank();
@@ -172,6 +163,28 @@ public final class RoadDefaultParamsPanel {
                 PlotI18n.tr("preset.road." + selectedId));
         }
         ImGui.spacing();
+    }
+
+    private void renderDefaultJunctionSettings() {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        float[] defaultRadius = {config.getDefaultCornerRadius()};
+        if (ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.default_corner_radius", defaultRadius[0]),
+            defaultRadius,
+            0.0f,
+            (float) RoadNode.MAX_CORNER_RADIUS,
+            "%.1f m"
+        )) {
+            config.setDefaultCornerRadius(defaultRadius[0]);
+            markCustom();
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.default_corner_radius");
+    }
+
+    private void markCustom() {
+        ctx.networkManager().getConfig().markCustom();
+        // 默认/全局参数变更后失效预览，避免按过期阈值落地
+        ctx.onGenerationConfigChanged();
     }
 
     private static final float PRESET_CARD_PADDING_X = 4f;

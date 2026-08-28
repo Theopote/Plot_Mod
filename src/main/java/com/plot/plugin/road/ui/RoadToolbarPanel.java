@@ -22,6 +22,8 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
+        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.toolbar.title"));
+        ImGui.spacing();
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_edit_section"));
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
 
