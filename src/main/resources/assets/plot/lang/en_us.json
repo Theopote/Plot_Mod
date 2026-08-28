@@ -410,6 +410,7 @@
   "plugin.road.reconcile_intersection_incomplete": "Intersection reconcile stopped early — check topology manually",
   "plugin.road.build_blocked_validation": "Resolve blocking validation issues before building",
   "plugin.road.build_confirm_validation_header": "Engineering warnings (build can proceed):",
+  "plugin.road.preview_refreshed_after_reconcile": "Preview recalculated after intersection reconcile",
   "plugin.road.validation.topology_issues": "%d topology issue(s) detected",
   "plugin.road.longitudinal_profile": "Longitudinal Profile",
   "plugin.road.profile_edge_select": "Road Edge",

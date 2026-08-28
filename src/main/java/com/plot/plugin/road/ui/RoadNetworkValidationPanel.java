@@ -2,6 +2,7 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -38,7 +39,7 @@ public final class RoadNetworkValidationPanel {
         }
         if (report.hasIntersectionWork()) {
             if (ImGui.button(PlotI18n.tr("plugin.road.validation.reconcile_intersections"))) {
-                ctx.networkManager().reconcileIntersections();
+                RoadTopologyWorkflow.reconcileIntersections(ctx, true);
             }
             ImGui.spacing();
         }

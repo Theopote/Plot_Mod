@@ -410,6 +410,7 @@
   "plugin.road.reconcile_intersection_incomplete": "求交对齐提前结束 — 请手动检查拓扑",
   "plugin.road.build_blocked_validation": "请先解决阻断性工程检查项后再落地",
   "plugin.road.build_confirm_validation_header": "工程警告（仍可继续落地）：",
+  "plugin.road.preview_refreshed_after_reconcile": "交叉口拓扑对齐后已重新计算预览",
   "plugin.road.validation.topology_issues": "检测到 %d 处拓扑异常",
   "plugin.road.longitudinal_profile": "纵断面图",
   "plugin.road.profile_edge_select": "道路边",
