@@ -15,7 +15,8 @@ import com.plot.plugin.road.pipeline.RoadGenerationBuildRequest;
 import com.plot.plugin.road.pipeline.RoadGenerationPipeline;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.pipeline.profile.EndpointElevationSnap;
+import com.plot.plugin.road.pipeline.profile.EndpointElevationSession;
+import com.plot.plugin.road.pipeline.profile.EndpointElevationSnapResolver;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.GradeSeparationPolicy;
 import com.plot.plugin.road.pipeline.profile.NetworkNodeElevationResolver;
@@ -34,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Map;
 
 /**
@@ -57,9 +57,7 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
     private final ICoordinateService coordinateTransformer;
     private final IBlockProjectionService projectionHandler;
 
-    /** 路网边生成时用于路口端部标高平滑，仅在 {@link #buildFromCenterline} 内短暂赋值。 */
-    private EndpointElevationSnap endpointStartSnap;
-    private EndpointElevationSnap endpointEndSnap;
+    private final EndpointElevationSession endpointElevationSession = new EndpointElevationSession();
     
     public RoadSystemConfig getConfig() {
         return config;
@@ -204,14 +202,17 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
 
     @Override
     public void setEndpointSnaps(EndpointElevationSnaps endpointSnaps) {
-        endpointStartSnap = endpointSnaps != null ? endpointSnaps.start() : null;
-        endpointEndSnap = endpointSnaps != null ? endpointSnaps.end() : null;
+        endpointElevationSession.setSnaps(endpointSnaps);
     }
 
     @Override
     public void clearEndpointSnaps() {
-        endpointStartSnap = null;
-        endpointEndSnap = null;
+        endpointElevationSession.clear();
+    }
+
+    @Override
+    public int snapEndpointElevation(Vec2d center, int targetY) {
+        return endpointElevationSession.snap(center, targetY);
     }
 
     @Override
@@ -222,18 +223,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
     @Override
     public String resolveBlockId(String material) {
         return getBlockIdFromMaterial(material);
-    }
-
-    @Override
-    public int snapEndpointElevation(Vec2d center, int targetY) {
-        int snapped = targetY;
-        if (endpointStartSnap != null) {
-            snapped = blendEndpointElevation(center, endpointStartSnap, snapped);
-        }
-        if (endpointEndSnap != null) {
-            snapped = blendEndpointElevation(center, endpointEndSnap, snapped);
-        }
-        return snapped;
     }
 
     @Override
@@ -252,32 +241,14 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             Map<String, Integer> networkNodeElevations,
             ResolvedCrossSection crossSection,
             List<Vec2d> pathPoints) {
-        if (networkNodeElevations == null || networkNodeElevations.isEmpty()) {
-            return null;
-        }
         List<PathSegment> segments = samplePath(pathPoints);
         double unitsPerBlock = estimateCanvasUnitsPerBlock(pathPoints, segments);
         double halfWidth = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
-        double blendRadius = Math.max(halfWidth + 2.0, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS);
-
-        EndpointElevationSnap start = null;
-        EndpointElevationSnap end = null;
-        if (startNode != null) {
-            Integer elevation = networkNodeElevations.get(startNode.getId());
-            if (elevation != null) {
-                start = new EndpointElevationSnap(startNode.getPosition(), elevation, blendRadius);
-            }
-        }
-        if (endNode != null) {
-            Integer elevation = networkNodeElevations.get(endNode.getId());
-            if (elevation != null) {
-                end = new EndpointElevationSnap(endNode.getPosition(), elevation, blendRadius);
-            }
-        }
-        if (start == null && end == null) {
-            return null;
-        }
-        return new EndpointElevationSnaps(start, end);
+        return EndpointElevationSnapResolver.resolve(
+            startNode,
+            endNode,
+            networkNodeElevations,
+            EndpointElevationSnapResolver.blendRadius(halfWidth));
     }
 
     public void mergeResult(RoadGenerationResult target, RoadGenerationResult source) {
@@ -464,14 +435,5 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
 
     public String getBlockIdFromMaterial(String material) {
         return RoadMaterialUtils.resolveBlockId(material);
-    }
-
-    private static int blendEndpointElevation(Vec2d center, EndpointElevationSnap snap, int currentY) {
-        double distance = center.distance(snap.position());
-        if (distance >= snap.blendRadius()) {
-            return currentY;
-        }
-        double blend = 1.0 - distance / snap.blendRadius();
-        return (int) Math.round(currentY * (1.0 - blend) + snap.elevation() * blend);
     }
 }
