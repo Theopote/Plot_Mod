@@ -33,6 +33,12 @@ public final class RoadNetworkValidationPanel {
         for (RoadNetworkValidationReport.Item item : report.items()) {
             renderItem(item);
         }
+        if (report.hasIntersectionWork()) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.validation.reconcile_intersections"))) {
+                ctx.networkManager().reconcileIntersections();
+            }
+            ImGui.spacing();
+        }
         ImGui.spacing();
     }
 

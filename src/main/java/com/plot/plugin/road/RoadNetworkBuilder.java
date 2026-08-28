@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.spatial.RoadEdgeSpatialIndex;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,37 +108,31 @@ public class RoadNetworkBuilder {
         while (changed && pass < maxPasses) {
             pass++;
             changed = false;
-            List<RoadEdge> edgeList = new ArrayList<>(network.getEdges().values());
+            RoadEdgeSpatialIndex spatialIndex = RoadEdgeSpatialIndex.build(
+                network.getEdges().values(), NODE_TOLERANCE);
 
-            for (int i = 0; i < edgeList.size(); i++) {
-                for (int j = i + 1; j < edgeList.size(); j++) {
-                    RoadEdge edgeA = network.getEdge(edgeList.get(i).getId());
-                    RoadEdge edgeB = network.getEdge(edgeList.get(j).getId());
-                    if (edgeA == null || edgeB == null) {
-                        continue;
-                    }
-                    if (edgeA.getSourceRoadId() != null
-                            && edgeA.getSourceRoadId().equals(edgeB.getSourceRoadId())) {
-                        continue;
-                    }
-                    if (edgeA.getRoadId() != null
-                            && edgeA.getRoadId().equals(edgeB.getRoadId())) {
-                        continue;
-                    }
+            for (RoadEdgeSpatialIndex.CandidatePair pair : spatialIndex.candidatePairs()) {
+                RoadEdge edgeA = network.getEdge(pair.edgeIdA());
+                RoadEdge edgeB = network.getEdge(pair.edgeIdB());
+                if (edgeA == null || edgeB == null) {
+                    continue;
+                }
+                if (shouldSkipEdgePair(edgeA, edgeB)) {
+                    continue;
+                }
 
-                    List<Vec2d> connectionPoints = findConnectionPoints(edgeA, edgeB);
-                    for (Vec2d connectionPoint : connectionPoints) {
-                        if (alreadyConnectedAt(network, edgeA, edgeB, connectionPoint)) {
-                            continue;
-                        }
-                        if (processIntersection(
-                                network,
-                                edgeA,
-                                edgeB,
-                                connectionPoint,
-                                trackedEdgeIds)) {
-                            changed = true;
-                        }
+                List<Vec2d> connectionPoints = findConnectionPoints(edgeA, edgeB);
+                for (Vec2d connectionPoint : connectionPoints) {
+                    if (alreadyConnectedAt(network, edgeA, edgeB, connectionPoint)) {
+                        continue;
+                    }
+                    if (processIntersection(
+                            network,
+                            edgeA,
+                            edgeB,
+                            connectionPoint,
+                            trackedEdgeIds)) {
+                        changed = true;
                     }
                 }
             }
@@ -150,6 +145,23 @@ public class RoadNetworkBuilder {
             return IntersectionResult.INCOMPLETE;
         }
         return IntersectionResult.COMPLETE;
+    }
+
+    /**
+     * Probes whether running intersection splitting would still change topology, without mutating
+     * the live network.
+     */
+    public IntersectionProbeResult probeIntersectionCompleteness(RoadNetwork network) {
+        if (network == null || network.getEdges().isEmpty()) {
+            return IntersectionProbeResult.resolved();
+        }
+        RoadNetwork probe = RoadNetwork.fromJson(network.toJson());
+        int edgesAtStart = probe.getEdges().size();
+        int nodesAtStart = probe.getNodes().size();
+        IntersectionResult result = detectAndSplitIntersections(probe);
+        boolean topologyWouldChange = probe.getEdges().size() != edgesAtStart
+            || probe.getNodes().size() != nodesAtStart;
+        return new IntersectionProbeResult(result, topologyWouldChange);
     }
 
     public JunctionType classify(RoadNode node) {
@@ -172,6 +184,14 @@ public class RoadNetworkBuilder {
             }
         }
         return network.createNode(position);
+    }
+
+    private static boolean shouldSkipEdgePair(RoadEdge edgeA, RoadEdge edgeB) {
+        if (edgeA.getSourceRoadId() != null
+                && edgeA.getSourceRoadId().equals(edgeB.getSourceRoadId())) {
+            return true;
+        }
+        return edgeA.getRoadId() != null && edgeA.getRoadId().equals(edgeB.getRoadId());
     }
 
     private List<Vec2d> findConnectionPoints(RoadEdge edgeA, RoadEdge edgeB) {

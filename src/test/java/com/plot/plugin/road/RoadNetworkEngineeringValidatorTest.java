@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkEngineeringValidatorTest {
@@ -67,8 +68,9 @@ class RoadNetworkEngineeringValidatorTest {
         Road road = network.createRoad();
         RoadEdge edge = network.createEdge(
             a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(20, 0)), road.getId());
-        edge.getSlopeOverrides().add(new RoadEdge.SlopeOverride(0, 12, 8f));
-        edge.getSlopeOverrides().add(new RoadEdge.SlopeOverride(10, 20, 6f));
+        edge.setSlopeOverrides(List.of(
+            new RoadEdge.SlopeOverride(0, 12, 8f),
+            new RoadEdge.SlopeOverride(10, 20, 6f)));
 
         RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
             network,
@@ -124,6 +126,58 @@ class RoadNetworkEngineeringValidatorTest {
     private static boolean hasOk(RoadNetworkValidationReport report, String key) {
         return report.items().stream().anyMatch(item ->
             item.level() == RoadNetworkValidationReport.Level.OK && item.messageKey().equals(key));
+    }
+
+    @Test
+    void reportsPendingIntersectionsWhenCrossingsNotSplit() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+
+        assertTrue(hasWarning(report, "plugin.road.validation.intersections_pending"));
+        assertTrue(report.hasIntersectionWork());
+    }
+
+    @Test
+    void reportsResolvedIntersectionsAfterReconcile() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        new RoadNetworkBuilder().detectAndSplitIntersections(network);
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+
+        assertTrue(hasOk(report, "plugin.road.validation.intersections_resolved"));
+        assertFalse(report.hasIntersectionWork());
     }
 
     private static boolean hasWarning(RoadNetworkValidationReport report, String key) {

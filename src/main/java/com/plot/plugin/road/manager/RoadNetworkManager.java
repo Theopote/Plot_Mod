@@ -609,6 +609,21 @@ public final class RoadNetworkManager {
     }
 
     /**
+     * Re-runs intersection detection and splitting on the live network (e.g. after validation warns).
+     */
+    public IntersectionResult reconcileIntersections() {
+        pushHistory();
+        IntersectionResult result = networkBuilder.detectAndSplitIntersections(network);
+        notifyNetworkChanged();
+        if (result == IntersectionResult.INCOMPLETE) {
+            status.warning(PlotI18n.tr("plugin.road.reconcile_intersection_incomplete"));
+        } else {
+            status.success(PlotI18n.tr("plugin.road.reconcile_intersections_success"));
+        }
+        return result;
+    }
+
+    /**
      * 加载批量编辑的默认值（从当前选中的主要边）
      *
      * 重命名说明：原名 syncBatchEditDefaults 暗示"同步"操作，

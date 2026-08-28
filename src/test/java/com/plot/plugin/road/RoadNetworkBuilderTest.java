@@ -397,6 +397,30 @@ class RoadNetworkBuilderTest {
         assertEquals(1, network.getJunctionCount());
     }
 
+    @Test
+    void probeIntersectionCompletenessDetectsPendingWithoutMutatingNetwork() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        int edgesBefore = network.getEdges().size();
+        IntersectionProbeResult probe = builder.probeIntersectionCompleteness(network);
+
+        assertEquals(edgesBefore, network.getEdges().size());
+        assertTrue(probe.hasPendingWork());
+        assertEquals(IntersectionResult.COMPLETE, probe.result());
+    }
+
     private static RoadNode findNodeNear(RoadNetwork network, Vec2d position) {
         for (RoadNode node : network.getNodes().values()) {
             if (RoadGeometryUtils.pointsNear(node.getPosition(), position, RoadNetworkBuilder.NODE_TOLERANCE)) {

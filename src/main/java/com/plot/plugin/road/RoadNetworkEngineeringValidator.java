@@ -86,12 +86,22 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         RoadNetworkValidationResult invariants = RoadNetworkInvariantValidator.validate(network);
-        if (invariants.valid()) {
-            items.add(RoadNetworkValidationReport.Item.ok("plugin.road.validation.intersections_resolved"));
-        } else {
+        if (!invariants.valid()) {
             items.add(RoadNetworkValidationReport.Item.warning(
                 "plugin.road.validation.topology_issues",
                 invariants.violations().size()));
+        }
+
+        IntersectionProbeResult intersectionProbe =
+            new RoadNetworkBuilder().probeIntersectionCompleteness(network);
+        if (intersectionProbe.isIncomplete()) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.intersections_incomplete"));
+        } else if (intersectionProbe.hasPendingWork()) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.intersections_pending"));
+        } else if (invariants.valid()) {
+            items.add(RoadNetworkValidationReport.Item.ok("plugin.road.validation.intersections_resolved"));
         }
 
         return new RoadNetworkValidationReport(items);

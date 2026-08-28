@@ -20,6 +20,19 @@ public record RoadNetworkValidationReport(List<Item> items) {
         return false;
     }
 
+    public boolean hasIntersectionWork() {
+        for (Item item : items) {
+            if (item.level() == Level.OK) {
+                continue;
+            }
+            if ("plugin.road.validation.intersections_pending".equals(item.messageKey())
+                    || "plugin.road.validation.intersections_incomplete".equals(item.messageKey())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public enum Level {
         OK,
         WARNING,
