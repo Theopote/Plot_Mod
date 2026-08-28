@@ -946,6 +946,8 @@
   "plugin.road.adopt_success_junction": "道路认领成功，已与 %d 处路口相接",
   "plugin.road.adopt_failed": "道路认领失败",
   "plugin.road.adopt_intersection_incomplete": "道路已认领，但部分交叉点未能完全处理，请检查拓扑",
+  "plugin.road.adopt_intersection_repair_prompt": "交叉口拓扑未完全对齐，可点击下方按钮重试",
+  "plugin.road.adopt_intersection_repair_hint": "重新运行求交与切分，完成交叉口拓扑对齐",
   "plugin.road.no_edges": "尚无已认领道路",
   "plugin.road.streetlight_spacing": "路灯间距",
   "plugin.road.slope_overrides": "坡度分段覆盖",

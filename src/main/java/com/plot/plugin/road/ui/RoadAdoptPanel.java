@@ -139,5 +139,20 @@ public final class RoadAdoptPanel {
             ImGui.endDisabled();
         }
         ImGui.spacing();
+        renderAdoptIntersectionRepairPrompt();
+    }
+
+    private void renderAdoptIntersectionRepairPrompt() {
+        if (!ctx.networkManager().isAdoptIntersectionRepairPending()) {
+            return;
+        }
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.adopt_intersection_repair_prompt"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.validation.reconcile_intersections") + "##adopt_reconcile")) {
+            RoadTopologyWorkflow.reconcileIntersections(ctx, false);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.adopt_intersection_repair_hint"));
+        }
+        ImGui.spacing();
     }
 }

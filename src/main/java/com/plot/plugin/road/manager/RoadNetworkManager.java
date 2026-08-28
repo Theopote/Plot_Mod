@@ -67,6 +67,7 @@ public final class RoadNetworkManager {
     private float batchCutSlopeRatio = 0f;
     private String batchFillSlopeMaterial = com.plot.plugin.road.RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String batchCutSlopeMaterial = "";
+    private boolean adoptIntersectionRepairPending = false;
 
     public RoadNetworkManager(RoadSystemConfig config, RoadProjectStatus status) {
         this.config = config;
@@ -87,6 +88,11 @@ public final class RoadNetworkManager {
     /** 路网拓扑/属性变更计数，供 UI 缓存失效。 */
     public long getNetworkRevision() {
         return networkRevision;
+    }
+
+    /** 最近一次认领因求交 pass 上限未完全处理时为 true，直至 reconcile 成功或再次认领。 */
+    public boolean isAdoptIntersectionRepairPending() {
+        return adoptIntersectionRepairPending;
     }
 
     public void setNetwork(RoadNetwork network) {
@@ -530,6 +536,7 @@ public final class RoadNetworkManager {
             return;
         }
 
+        adoptIntersectionRepairPending = false;
         int adoptedCount = 0;
         int failedCount = 0;
         int totalJunctions = 0;
@@ -585,6 +592,17 @@ public final class RoadNetworkManager {
             return;
         }
 
+        adoptIntersectionRepairPending = intersectionIncomplete;
+
+        if (intersectionIncomplete) {
+            IntersectionResult retry = networkBuilder.detectAndSplitIntersections(network);
+            notifyNetworkChanged();
+            if (retry == IntersectionResult.COMPLETE) {
+                intersectionIncomplete = false;
+                adoptIntersectionRepairPending = false;
+            }
+        }
+
         if (failedCount > 0) {
             status.warning(String.format(
                 PlotI18n.tr("plugin.road.adopt_partial_success"),
@@ -618,6 +636,7 @@ public final class RoadNetworkManager {
         if (result == IntersectionResult.INCOMPLETE) {
             status.warning(PlotI18n.tr("plugin.road.reconcile_intersection_incomplete"));
         } else {
+            adoptIntersectionRepairPending = false;
             status.success(PlotI18n.tr("plugin.road.reconcile_intersections_success"));
         }
         return result;

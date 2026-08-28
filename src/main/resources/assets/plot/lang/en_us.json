@@ -946,6 +946,8 @@
   "plugin.road.adopt_success_junction": "Road adopted; connected at %d junction(s)",
   "plugin.road.adopt_failed": "Failed to adopt road",
   "plugin.road.adopt_intersection_incomplete": "Road adopted, but some intersections could not be fully resolved — check topology",
+  "plugin.road.adopt_intersection_repair_prompt": "Intersection topology is incomplete — use the button below to retry",
+  "plugin.road.adopt_intersection_repair_hint": "Re-run intersection detection and splitting to align crossing topology",
   "plugin.road.no_edges": "No adopted roads yet",
   "plugin.road.streetlight_spacing": "Streetlight Spacing",
   "plugin.road.slope_overrides": "Slope Overrides",
