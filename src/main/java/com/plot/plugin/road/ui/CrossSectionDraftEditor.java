@@ -31,19 +31,63 @@ public final class CrossSectionDraftEditor {
             RoadUiContext ctx,
             CrossSectionDraftMutator mutator,
             CrossSectionDraftEditorOptions options) {
-        CrossSectionDraft draft = mutator.draft();
-        if (draft == null) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor == null) {
             return;
         }
-        CrossSectionDraftFieldHooks hooks = mutator.hooks();
-        boolean roadEdit = mutator.isRoadEdit();
+        renderBanner(editor);
+        renderCrossSection(editor);
+        renderMaterials(editor);
+        renderFurniture(editor);
+    }
 
-        if (options.showBanner() && options.bannerKey() != null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(options.bannerKey()));
+    /** 几何与工程约束（车道、路肩、边坡比、最大坡度等）。 */
+    public static void renderCrossSection(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderCrossSection(editor);
+        }
+    }
+
+    /** 铺面与边坡材质。 */
+    public static void renderMaterials(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderMaterials(editor);
+        }
+    }
+
+    /** 排水、标线、路灯等附属设施。 */
+    public static void renderFurniture(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options) {
+        EditorContext editor = EditorContext.of(ctx, mutator, options);
+        if (editor != null) {
+            renderFurniture(editor);
+        }
+    }
+
+    private static void renderBanner(EditorContext editor) {
+        if (editor.options.showBanner() && editor.options.bannerKey() != null) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(editor.options.bannerKey()));
             ImGui.spacing();
         }
+    }
 
-        String id = options.idPrefix();
+    private static void renderCrossSection(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
+
         int laneCount = draft.laneCount();
         int[] laneCountArr = {laneCount};
         if (ImGui.sliderInt(
@@ -78,7 +122,7 @@ public final class CrossSectionDraftEditor {
         }
         mutator.afterWidthField();
 
-        if (options.showLaneWidths() && laneCount > 1) {
+        if (editor.options.showLaneWidths() && laneCount > 1) {
             var resolved = draft.resolveLaneWidths();
             for (int i = 0; i < laneCount; i++) {
                 int current = i < draft.laneWidths().size() && draft.laneWidths().get(i) > 0
@@ -100,16 +144,6 @@ public final class CrossSectionDraftEditor {
                 }
             }
         }
-
-        final MaterialMix[] material = {draft.material()};
-        RoadUiWidgets.renderMaterialMixPicker(
-            ctx,
-            "##" + id + "_road_material",
-            PlotI18n.tr("plugin.road.material"),
-            material[0],
-            value -> mutator.setMaterial(value),
-            hooks.pushHistoryOnPicker()
-        );
 
         ImBoolean shoulderRef = new ImBoolean(draft.includeShoulder());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_shoulder") + "##" + id + "_shoulder", shoulderRef)) {
@@ -178,25 +212,6 @@ public final class CrossSectionDraftEditor {
             }
             RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.cut_slope_ratio");
             mutator.afterCutSlopeField();
-
-            final String[] fillSlopeMaterial = {draft.fillSlopeMaterial()};
-            RoadUiWidgets.renderBlockMaterialPicker(
-                ctx,
-                "##" + id + "_fill_slope_material",
-                PlotI18n.tr("plugin.road.fill_slope_material"),
-                fillSlopeMaterial[0],
-                value -> mutator.setFillSlopeMaterial(value),
-                hooks.pushHistoryOnPicker()
-            );
-            final String[] cutSlopeMaterial = {draft.cutSlopeMaterial()};
-            RoadUiWidgets.renderBlockMaterialPicker(
-                ctx,
-                "##" + id + "_cut_slope_material",
-                PlotI18n.tr("plugin.road.cut_slope_material"),
-                cutSlopeMaterial[0] != null ? cutSlopeMaterial[0] : "",
-                value -> mutator.setCutSlopeMaterial(value),
-                hooks.pushHistoryOnPicker()
-            );
         }
 
         ImBoolean bikeRef = new ImBoolean(draft.includeBikeLane());
@@ -246,27 +261,7 @@ public final class CrossSectionDraftEditor {
                 mutator.setSidewalkWidth(sidewalkWidthArr[0]);
             }
             mutator.afterSidewalkWidthField();
-            final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
-            RoadUiWidgets.renderBlockMaterialPicker(
-                ctx,
-                "##" + id + "_sidewalk_material",
-                PlotI18n.tr("plugin.road.sidewalk_material"),
-                sidewalkMaterial[0] != null
-                    ? sidewalkMaterial[0]
-                    : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
-                value -> mutator.setSidewalkMaterial(value),
-                hooks.pushHistoryOnPicker()
-            );
         }
-
-        ImBoolean drainRef = new ImBoolean(draft.includeDrainage());
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage") + "##" + id + "_drain", drainRef)) {
-            if (roadEdit) {
-                hooks.onItemActivated();
-            }
-            mutator.setIncludeDrainage(drainRef.get());
-        }
-        mutator.afterDrainField();
 
         ImBoolean medianRef = new ImBoolean(draft.includeMedian());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_median") + "##" + id + "_median", medianRef)) {
@@ -293,6 +288,102 @@ public final class CrossSectionDraftEditor {
             }
             mutator.afterMedianWidthField();
         }
+
+        if (editor.options.showMaxSlope()) {
+            float[] maxSlopeArr = {draft.maxSlope()};
+            if (EngineeringSlopeInput.render(
+                id + "_max_slope",
+                PlotI18n.tr("plugin.road.max_slope_label"),
+                maxSlopeArr,
+                EngineeringSlopeInput.ValueKind.GRADE
+            )) {
+                if (roadEdit) {
+                    hooks.onItemActivated();
+                }
+                mutator.setMaxSlope(maxSlopeArr[0]);
+            }
+            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
+            mutator.afterMaxSlopeField();
+        }
+    }
+
+    private static void renderMaterials(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        String id = editor.id;
+
+        final MaterialMix[] material = {draft.material()};
+        RoadUiWidgets.renderMaterialMixPicker(
+            editor.ctx,
+            "##" + id + "_road_material",
+            PlotI18n.tr("plugin.road.material"),
+            material[0],
+            value -> mutator.setMaterial(value),
+            hooks.pushHistoryOnPicker()
+        );
+
+        if (draft.includeSidewalk()) {
+            final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_sidewalk_material",
+                PlotI18n.tr("plugin.road.sidewalk_material"),
+                sidewalkMaterial[0] != null
+                    ? sidewalkMaterial[0]
+                    : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL,
+                value -> mutator.setSidewalkMaterial(value),
+                hooks.pushHistoryOnPicker()
+            );
+        }
+
+        if (draft.includeSlopeBatter()) {
+            final String[] fillSlopeMaterial = {draft.fillSlopeMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_fill_slope_material",
+                PlotI18n.tr("plugin.road.fill_slope_material"),
+                fillSlopeMaterial[0],
+                value -> mutator.setFillSlopeMaterial(value),
+                hooks.pushHistoryOnPicker()
+            );
+            final String[] cutSlopeMaterial = {draft.cutSlopeMaterial()};
+            RoadUiWidgets.renderBlockMaterialPicker(
+                editor.ctx,
+                "##" + id + "_cut_slope_material",
+                PlotI18n.tr("plugin.road.cut_slope_material"),
+                cutSlopeMaterial[0] != null ? cutSlopeMaterial[0] : "",
+                value -> mutator.setCutSlopeMaterial(value),
+                hooks.pushHistoryOnPicker()
+            );
+        }
+
+        final String[] markingMaterial = {draft.markingMaterial()};
+        RoadUiWidgets.renderBlockMaterialPicker(
+            editor.ctx,
+            "##" + id + "_marking_material",
+            PlotI18n.tr("plugin.road.marking_material"),
+            markingMaterial[0],
+            value -> mutator.setMarkingMaterial(value),
+            hooks.pushHistoryOnPicker()
+        );
+    }
+
+    private static void renderFurniture(EditorContext editor) {
+        CrossSectionDraft draft = editor.draft;
+        CrossSectionDraftMutator mutator = editor.mutator;
+        CrossSectionDraftFieldHooks hooks = editor.hooks;
+        boolean roadEdit = editor.roadEdit;
+        String id = editor.id;
+
+        ImBoolean drainRef = new ImBoolean(draft.includeDrainage());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_drainage") + "##" + id + "_drain", drainRef)) {
+            if (roadEdit) {
+                hooks.onItemActivated();
+            }
+            mutator.setIncludeDrainage(drainRef.get());
+        }
+        mutator.afterDrainField();
 
         ImBoolean laneDividersRef = new ImBoolean(draft.laneDividers());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.lane_dividers") + "##" + id + "_dividers", laneDividersRef)) {
@@ -327,33 +418,6 @@ public final class CrossSectionDraftEditor {
             });
         }
 
-        final String[] markingMaterial = {draft.markingMaterial()};
-        RoadUiWidgets.renderBlockMaterialPicker(
-            ctx,
-            "##" + id + "_marking_material",
-            PlotI18n.tr("plugin.road.marking_material"),
-            markingMaterial[0],
-            value -> mutator.setMarkingMaterial(value),
-            hooks.pushHistoryOnPicker()
-        );
-
-        if (options.showMaxSlope()) {
-            float[] maxSlopeArr = {draft.maxSlope()};
-            if (EngineeringSlopeInput.render(
-                id + "_max_slope",
-                PlotI18n.tr("plugin.road.max_slope_label"),
-                maxSlopeArr,
-                EngineeringSlopeInput.ValueKind.GRADE
-            )) {
-                if (roadEdit) {
-                    hooks.onItemActivated();
-                }
-                mutator.setMaxSlope(maxSlopeArr[0]);
-            }
-            RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.max_slope");
-            mutator.afterMaxSlopeField();
-        }
-
         int[] lightSpacing = {draft.streetlightSpacing()};
         if (ImGui.sliderInt(
             PlotI18n.tr("plugin.road.streetlight_spacing") + "##" + id + "_lights",
@@ -375,5 +439,33 @@ public final class CrossSectionDraftEditor {
             ImGui.setTooltip(PlotI18n.tr("hint.plot.road.streetlight_spacing"));
         }
         mutator.afterStreetlightField();
+    }
+
+    private record EditorContext(
+            RoadUiContext ctx,
+            CrossSectionDraftMutator mutator,
+            CrossSectionDraftEditorOptions options,
+            CrossSectionDraft draft,
+            CrossSectionDraftFieldHooks hooks,
+            boolean roadEdit,
+            String id) {
+
+        static EditorContext of(
+                RoadUiContext ctx,
+                CrossSectionDraftMutator mutator,
+                CrossSectionDraftEditorOptions options) {
+            CrossSectionDraft draft = mutator.draft();
+            if (draft == null) {
+                return null;
+            }
+            return new EditorContext(
+                ctx,
+                mutator,
+                options,
+                draft,
+                mutator.hooks(),
+                mutator.isRoadEdit(),
+                options.idPrefix());
+        }
     }
 }

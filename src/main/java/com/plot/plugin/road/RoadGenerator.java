@@ -38,7 +38,6 @@ public class RoadGenerator {
 
     private final RoadGenerationPipelineHost pipelineHost;
     private final RoadEdgeBuildOrchestrator edgeBuild;
-    private final RoadGeneratorProfileContext profileContext;
     private final GradeSeparationPolicy gradeSeparationPolicy;
     private final NodeTargetHeightResolver nodeTargetHeightResolver;
     private final NetworkNodeElevationResolver networkNodeElevationResolver;
@@ -48,13 +47,13 @@ public class RoadGenerator {
             ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
         this.pipelineHost = new RoadGenerationPipelineHost(config, coordinateTransformer, projectionHandler);
-        this.profileContext = new RoadGeneratorProfileContext(config, pipelineHost::estimateCanvasUnitsPerBlock);
+        RoadGeneratorProfileContext profileContext = new RoadGeneratorProfileContext(config, pipelineHost::estimateCanvasUnitsPerBlock);
         this.gradeSeparationPolicy = new GradeSeparationPolicy(profileContext);
         this.nodeTargetHeightResolver = new NodeTargetHeightResolver(profileContext, gradeSeparationPolicy);
         this.networkNodeElevationResolver =
             new NetworkNodeElevationResolver(profileContext, gradeSeparationPolicy, nodeTargetHeightResolver);
         RoadProfileSolveCoordinator profileSolve = new RoadProfileSolveCoordinator(
-            profileContext,
+                profileContext,
             new com.plot.plugin.road.pipeline.profile.ProfileEndpointHeightResolver(
                 gradeSeparationPolicy, nodeTargetHeightResolver));
         this.edgeBuild = new RoadEdgeBuildOrchestrator(profileSolve);

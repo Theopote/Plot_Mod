@@ -122,18 +122,11 @@ public final class RoadEditPanel {
         renderRoadScopeHeader(network, road);
 
         RoadUiSections.level("plugin.road.section.road_level");
-        ImGui.text(PlotI18n.tr("plugin.road.road_properties_section"));
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_properties_scope", road.getSegmentIds().size()));
 
-        RoadCrossSectionEditor.renderPreview(road, ctx.networkManager().getConfig());
-        RoadCrossSectionEditor.renderPresetButtons(ctx, road, null);
-        if (ImGui.collapsingHeader(
-            PlotI18n.tr("plugin.road.road_cross_section_fields"),
-            ImGuiTreeNodeFlags.DefaultOpen)) {
-            RoadCrossSectionEditor.renderFields(ctx, road, ctx.networkManager()::pushHistory);
-        }
+        RoadCrossSectionEditor.renderRoadLevelCollapsibles(ctx, road, ctx.networkManager()::pushHistory);
 
         RoadUiSections.level("plugin.road.section.segment_level");
         ImGui.text(PlotI18n.tr("plugin.road.segment_engineering_section"));

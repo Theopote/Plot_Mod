@@ -11,6 +11,7 @@ import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 /**
  * 道路横断面编辑（行车道、路肩、人行道、标线等）。
@@ -71,10 +72,19 @@ public final class RoadCrossSectionEditor {
     }
 
     public static void renderFields(RoadUiContext ctx, Road road, Runnable onHistory) {
+        renderRoadLevelCollapsibles(ctx, road, onHistory);
+    }
+
+    /**
+     * Edit Tab ROAD-LEVEL：横断面 / 材质 / 附属设施三个折叠区。
+     */
+    public static void renderRoadLevelCollapsibles(RoadUiContext ctx, Road road, Runnable onHistory) {
         if (road == null) {
             return;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
+        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
+        CrossSectionDraftEditorOptions options = CrossSectionDraftEditorOptions.roadEdit();
 
         if (ImGui.button(PlotI18n.tr("plugin.road.inherit_all_defaults") + "##inherit_all")) {
             if (onHistory != null) {
@@ -87,7 +97,20 @@ public final class RoadCrossSectionEditor {
         }
         ImGui.spacing();
 
-        CrossSectionDraftMutator mutator = CrossSectionDraftMutator.forRoad(road, config, onHistory);
-        CrossSectionDraftEditor.render(ctx, mutator, CrossSectionDraftEditorOptions.roadEdit());
+        if (ImGui.collapsingHeader(
+            PlotI18n.tr("plugin.road.edit_cross_section"),
+            ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderPreview(road, config);
+            renderPresetButtons(ctx, road, null);
+            CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);
+        }
+        if (ImGui.collapsingHeader(
+            PlotI18n.tr("plugin.road.edit_materials"),
+            ImGuiTreeNodeFlags.DefaultOpen)) {
+            CrossSectionDraftEditor.renderMaterials(ctx, mutator, options);
+        }
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.edit_furniture"))) {
+            CrossSectionDraftEditor.renderFurniture(ctx, mutator, options);
+        }
     }
 }
