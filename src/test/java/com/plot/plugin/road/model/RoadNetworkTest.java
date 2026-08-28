@@ -56,7 +56,7 @@ class RoadNetworkTest {
     }
 
     @Test
-    void linkEdgeToRoadDelegatesToAssignEdgeToRoad() {
+    void assignEdgeToRoadReassignsRoadMembership() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
@@ -65,7 +65,7 @@ class RoadNetworkTest {
         RoadEdge edge = network.createEdge(start.getId(), end.getId(), List.of(
             new Vec2d(0, 0), new Vec2d(10, 0)), roadA.getId());
 
-        network.linkEdgeToRoad(roadB.getId(), edge.getId());
+        network.assignEdgeToRoad(edge.getId(), roadB.getId());
 
         assertFalse(roadA.getSegmentIds().contains(edge.getId()));
         assertTrue(roadB.getSegmentIds().contains(edge.getId()));

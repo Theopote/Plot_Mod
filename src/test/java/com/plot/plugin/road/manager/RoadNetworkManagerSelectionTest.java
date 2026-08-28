@@ -75,7 +75,7 @@ class RoadNetworkManagerSelectionTest {
         config.setMaxSlope(12f);
         var road = manager.getNetwork().createRoad(config);
         road.setMaxSlope(8f);
-        manager.getNetwork().linkEdgeToRoad(road.getId(), edgeA);
+        manager.getNetwork().assignEdgeToRoad(edgeA, road.getId());
 
         manager.applyCustomUniformFlatElevation(64);
 
@@ -87,10 +87,10 @@ class RoadNetworkManagerSelectionTest {
     void batchApplyUpdatesSlopeBatterOnSelectedRoads() {
         var roadA = manager.getNetwork().createRoad(manager.getConfig());
         roadA.setIncludeSlopeBatter(false);
-        manager.getNetwork().linkEdgeToRoad(roadA.getId(), edgeA);
+        manager.getNetwork().assignEdgeToRoad(edgeA, roadA.getId());
         var roadB = manager.getNetwork().createRoad(manager.getConfig());
         roadB.setIncludeSlopeBatter(false);
-        manager.getNetwork().linkEdgeToRoad(roadB.getId(), edgeB);
+        manager.getNetwork().assignEdgeToRoad(edgeB, roadB.getId());
 
         manager.handleEdgeSelect(edgeA, false);
         manager.handleEdgeSelect(edgeB, true);
@@ -171,10 +171,10 @@ class RoadNetworkManagerSelectionTest {
     void batchDraftReloadsWhenSwitchingToDifferentSelectionOfSameSize() {
         var flatRoad = manager.getNetwork().createRoad(manager.getConfig());
         flatRoad.setMaxSlope(0f);
-        manager.getNetwork().linkEdgeToRoad(flatRoad.getId(), edgeA);
+        manager.getNetwork().assignEdgeToRoad(edgeA, flatRoad.getId());
         var gradedRoad = manager.getNetwork().createRoad(manager.getConfig());
         gradedRoad.setMaxSlope(12f);
-        manager.getNetwork().linkEdgeToRoad(gradedRoad.getId(), edgeB);
+        manager.getNetwork().assignEdgeToRoad(edgeB, gradedRoad.getId());
 
         manager.handleEdgeSelect(edgeA, false);
         assertEquals(0f, manager.loadBatchEditDefaults().maxSlope(), 0.001f);
