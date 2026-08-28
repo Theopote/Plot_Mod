@@ -533,6 +533,7 @@ public final class RoadNetworkManager {
         int adoptedCount = 0;
         int failedCount = 0;
         int totalJunctions = 0;
+        boolean intersectionIncomplete = false;
         boolean historyPushed = false;
         selectedEdgeIds.clear();
 
@@ -550,6 +551,9 @@ public final class RoadNetworkManager {
                     networkBuilder.adoptShape(network, path, config);
                 adoptedCount++;
                 totalJunctions += result.junctionCount();
+                if (result.intersectionResult() == IntersectionResult.INCOMPLETE) {
+                    intersectionIncomplete = true;
+                }
                 for (RoadEdge edge : result.edges()) {
                     selectedEdgeIds.add(edge.getId());
                 }
@@ -586,6 +590,8 @@ public final class RoadNetworkManager {
                 PlotI18n.tr("plugin.road.adopt_partial_success"),
                 adoptedCount,
                 failedCount));
+        } else if (intersectionIncomplete) {
+            status.warning(PlotI18n.tr("plugin.road.adopt_intersection_incomplete"));
         } else if (adoptedCount > 1) {
             status.success(String.format(
                 PlotI18n.tr("plugin.road.adopt_success_batch"),

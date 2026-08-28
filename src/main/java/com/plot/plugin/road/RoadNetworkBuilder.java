@@ -10,6 +10,9 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -21,7 +24,10 @@ import java.util.Set;
  * 道路网络拓扑构建（认领、求交打断、路口分类）
  */
 public class RoadNetworkBuilder {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadNetworkBuilder");
+
     public static final double NODE_TOLERANCE = 0.5;
+    public static final int MAX_INTERSECTION_PASSES = 100;
 
     public enum JunctionType {
         ENDPOINT,
@@ -31,9 +37,15 @@ public class RoadNetworkBuilder {
         COMPLEX
     }
 
-    public record AdoptResult(List<RoadEdge> edges, int junctionCount) {
+    public record AdoptResult(
+            List<RoadEdge> edges,
+            int junctionCount,
+            IntersectionResult intersectionResult) {
         public AdoptResult {
             edges = List.copyOf(edges);
+            if (intersectionResult == null) {
+                intersectionResult = IntersectionResult.COMPLETE;
+            }
         }
     }
 
@@ -62,7 +74,8 @@ public class RoadNetworkBuilder {
 
         Set<String> adoptedEdgeIds = new HashSet<>();
         adoptedEdgeIds.add(edge.getId());
-        detectAndSplitIntersections(network, adoptedEdgeIds);
+        IntersectionResult intersectionResult =
+            detectAndSplitIntersections(network, adoptedEdgeIds);
 
         List<RoadEdge> producedEdges = adoptedEdgeIds.stream()
             .map(network::getEdge)
@@ -72,17 +85,25 @@ public class RoadNetworkBuilder {
             throw new IllegalStateException("Adopted road produced no edges after intersection processing");
         }
         int junctionCount = Math.max(0, producedEdges.size() - 1);
-        return new AdoptResult(producedEdges, junctionCount);
+        return new AdoptResult(producedEdges, junctionCount, intersectionResult);
     }
 
-    public void detectAndSplitIntersections(RoadNetwork network) {
-        detectAndSplitIntersections(network, null);
+    public IntersectionResult detectAndSplitIntersections(RoadNetwork network) {
+        return detectAndSplitIntersections(network, null);
     }
 
-    public void detectAndSplitIntersections(RoadNetwork network, Set<String> trackedEdgeIds) {
+    public IntersectionResult detectAndSplitIntersections(RoadNetwork network, Set<String> trackedEdgeIds) {
+        return detectAndSplitIntersections(network, trackedEdgeIds, MAX_INTERSECTION_PASSES);
+    }
+
+    IntersectionResult detectAndSplitIntersections(
+            RoadNetwork network,
+            Set<String> trackedEdgeIds,
+            int maxPasses) {
         boolean changed = true;
-        int safety = 0;
-        while (changed && safety++ < 100) {
+        int pass = 0;
+        while (changed && pass < maxPasses) {
+            pass++;
             changed = false;
             List<RoadEdge> edgeList = new ArrayList<>(network.getEdges().values());
 
@@ -115,6 +136,14 @@ public class RoadNetworkBuilder {
                 }
             }
         }
+        if (changed) {
+            LOGGER.error(
+                "Intersection splitting stopped after {} passes (edge count={}); topology may be incomplete",
+                maxPasses,
+                network.getEdges().size());
+            return IntersectionResult.INCOMPLETE;
+        }
+        return IntersectionResult.COMPLETE;
     }
 
     public JunctionType classify(RoadNode node) {

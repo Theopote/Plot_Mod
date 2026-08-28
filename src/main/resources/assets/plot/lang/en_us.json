@@ -937,6 +937,7 @@
   "plugin.road.adopt_partial_success": "Adopted %d road(s), %d failed",
   "plugin.road.adopt_success_junction": "Road adopted; connected at %d junction(s)",
   "plugin.road.adopt_failed": "Failed to adopt road",
+  "plugin.road.adopt_intersection_incomplete": "Road adopted, but some intersections could not be fully resolved — check topology",
   "plugin.road.no_edges": "No adopted roads yet",
   "plugin.road.streetlight_spacing": "Streetlight Spacing",
   "plugin.road.slope_overrides": "Slope Overrides",

@@ -153,7 +153,7 @@ class RoadNetworkBuilderTest {
     }
 
     @Test
-    void multipleIntersectionsAreAllSplit() {
+    void detectAndSplitIntersectionsCompletesForCascadeIntersections() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");
         Road roadB = network.createRoad("road-b");
@@ -174,13 +174,54 @@ class RoadNetworkBuilderTest {
         network.createEdge(cStart.getId(), cEnd.getId(), List.of(
             new Vec2d(15, 5), new Vec2d(15, 10)), roadC.getId());
 
-        builder.detectAndSplitIntersections(network);
+        IntersectionResult result = builder.detectAndSplitIntersections(network);
 
+        assertEquals(IntersectionResult.COMPLETE, result);
         assertEquals(5, network.getEdges().size());
         assertEquals(2, network.getJunctionCount());
 
         Set<String> roadASegments = network.getRoad(roadA.getId()).getSegmentIds();
         assertEquals(3, roadASegments.size());
+    }
+
+    @Test
+    void detectAndSplitIntersectionsReportsIncompleteWhenPassLimitReached() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+        Road roadC = network.createRoad("road-c");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(20, 5));
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(20, 5)), roadA.getId());
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        RoadNode cStart = network.createNode(new Vec2d(15, 5));
+        RoadNode cEnd = network.createNode(new Vec2d(15, 10));
+        network.createEdge(cStart.getId(), cEnd.getId(), List.of(
+            new Vec2d(15, 5), new Vec2d(15, 10)), roadC.getId());
+
+        IntersectionResult result = builder.detectAndSplitIntersections(network, null, 1);
+
+        assertEquals(IntersectionResult.INCOMPLETE, result);
+        assertTrue(network.getEdges().size() < 5);
+    }
+
+    @Test
+    void adoptShapePropagatesIntersectionResult() {
+        RoadNetwork network = new RoadNetwork();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        RoadNetworkBuilder.AdoptResult result = builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
+
+        assertEquals(IntersectionResult.COMPLETE, result.intersectionResult());
     }
 
     @Test

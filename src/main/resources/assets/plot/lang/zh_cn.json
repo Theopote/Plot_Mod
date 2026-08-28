@@ -937,6 +937,7 @@
   "plugin.road.adopt_partial_success": "成功认领 %d 条，%d 条失败",
   "plugin.road.adopt_success_junction": "道路认领成功，已与 %d 处路口相接",
   "plugin.road.adopt_failed": "道路认领失败",
+  "plugin.road.adopt_intersection_incomplete": "道路已认领，但部分交叉点未能完全处理，请检查拓扑",
   "plugin.road.no_edges": "尚无已认领道路",
   "plugin.road.streetlight_spacing": "路灯间距",
   "plugin.road.slope_overrides": "坡度分段覆盖",
