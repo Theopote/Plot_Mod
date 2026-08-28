@@ -129,6 +129,37 @@ class RoadNetworkEngineeringValidatorTest {
     }
 
     @Test
+    void overviewHealthSkipsIntersectionProbeButHonorsRepairPendingFlag() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("road-a");
+        Road roadB = network.createRoad("road-b");
+
+        RoadNode aStart = network.createNode(new Vec2d(0, 5));
+        RoadNode aEnd = network.createNode(new Vec2d(10, 5));
+        network.createEdge(aStart.getId(), aEnd.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), roadA.getId());
+
+        RoadNode bStart = network.createNode(new Vec2d(5, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(5, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(5, 5), new Vec2d(5, 10)), roadB.getId());
+
+        RoadNetworkValidationReport overview = RoadNetworkEngineeringValidator.analyzeOverviewHealth(
+            network, false);
+        assertFalse(hasWarning(overview, "plugin.road.validation.intersections_pending"));
+
+        RoadNetworkValidationReport pending = RoadNetworkEngineeringValidator.analyzeOverviewHealth(
+            network, true);
+        assertTrue(hasWarning(pending, "plugin.road.validation.intersections_pending"));
+
+        RoadNetworkValidationReport full = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+        assertTrue(hasWarning(full, "plugin.road.validation.intersections_pending"));
+    }
+
+    @Test
     void reportsPendingIntersectionsWhenCrossingsNotSplit() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");

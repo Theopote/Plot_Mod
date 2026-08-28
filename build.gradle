@@ -39,6 +39,8 @@ loom {
 
 	runConfigs.configureEach {
 		vmArgs.add("--enable-native-access=ALL-UNNAMED")
+		// Prevent OOM during large road/build projections (see crash-2026-08-28_14.13.29-server.txt).
+		vmArgs.add("-Xmx4G")
 	}
 
 	// Dedicated-server smoke: load Plot on a physical server, then exit.
@@ -74,7 +76,25 @@ difficulty=peaceful
 	}
 }
 
+def devRunDir = file("run")
+
+tasks.register("prepareDevRun") {
+	description = "Ensure dev integrated-server settings reduce chunk corruption risk on crash."
+	doLast {
+		devRunDir.mkdirs()
+		def props = new File(devRunDir, "server.properties")
+		def lines = props.exists() ? props.readLines() : []
+		lines = lines.findAll { !it.startsWith("sync-chunk-writes=") }
+		lines.add("sync-chunk-writes=true")
+		props.text = lines.join(System.lineSeparator()) + System.lineSeparator()
+	}
+}
+
 afterEvaluate {
+	tasks.matching { it.name == "runClient" }.configureEach {
+		dependsOn("prepareDevRun")
+	}
+
 	def smoke = tasks.named("runServerSmoke")
 	smoke.configure {
 		dependsOn("prepareServerSmoke")

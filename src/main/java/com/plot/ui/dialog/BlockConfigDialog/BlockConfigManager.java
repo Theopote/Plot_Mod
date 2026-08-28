@@ -24,17 +24,33 @@ import java.util.List;
 public final class BlockConfigManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BlockConfigManager");
     private static final int MAX_PALETTE_SLOTS = 14;
-    private static final BlockConfigManager INSTANCE = new BlockConfigManager();
+    private static volatile BlockConfigManager instance;
 
-    private final BlockCategoryManager categoryManager;
+    private BlockCategoryManager categoryManager;
     private final List<Block> paletteBlocks = new ArrayList<>();
 
     private BlockConfigManager() {
-        this.categoryManager = new BlockCategoryManager(null, null, message -> {});
+    }
+
+    private synchronized BlockCategoryManager categoryManager() {
+        if (categoryManager == null) {
+            categoryManager = new BlockCategoryManager(null, null, message -> {});
+        }
+        return categoryManager;
     }
 
     public static BlockConfigManager getInstance() {
-        return INSTANCE;
+        BlockConfigManager manager = instance;
+        if (manager == null) {
+            synchronized (BlockConfigManager.class) {
+                manager = instance;
+                if (manager == null) {
+                    manager = new BlockConfigManager();
+                    instance = manager;
+                }
+            }
+        }
+        return manager;
     }
 
     public List<BlockCategory> getAvailableCategories() {
@@ -42,7 +58,7 @@ public final class BlockConfigManager {
     }
 
     public List<Block> getBlocksForCategory(BlockCategory category) {
-        List<Block> blocks = categoryManager.getBlocksInCategory(category);
+        List<Block> blocks = categoryManager().getBlocksInCategory(category);
         if (blocks == null || blocks.isEmpty()) {
             return Collections.emptyList();
         }

@@ -100,14 +100,11 @@ public class ExtensionPanel implements UIComponent {
 
                 float contentHeight = ImGui.getContentRegionAvailY();
                 if (contentHeight > 0) {
-                    // 不用横向滚动：宽度不够时让文字按面板宽度自动换行
                     ImGui.beginChild("##plugin_content",
                         ImGui.getContentRegionAvailX(),
                         contentHeight,
                         false);
 
-                    // wrap_pos_x == 0：换行到当前窗口/子区域右边缘
-                    ImGui.pushTextWrapPos(0.0f);
                     try {
                         if (currentActivePlugin.isEnabled()) {
                             currentActivePlugin.render();
@@ -121,7 +118,6 @@ public class ExtensionPanel implements UIComponent {
                         ImGui.textWrapped(PlotI18n.tr("panel.plot.extension_render_error", e.getMessage()));
                         ImGui.popStyleColor();
                     } finally {
-                        ImGui.popTextWrapPos();
                         ImGui.endChild();
                     }
                 }

@@ -12,13 +12,15 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 
 import java.util.LinkedHashSet;
-import java.util.Map;
 
 /**
  * 道路概览 Tab：路网统计、缩略图点选；选中后提供进入编辑/纵断面的 workflow 捷径。
  */
 public final class RoadOverviewPanel {
     private final RoadUiContext ctx;
+    private long cachedHealthKey = Long.MIN_VALUE;
+    private RoadNetworkValidationReport cachedHealthReport =
+        new RoadNetworkValidationReport(java.util.List.of());
 
     public RoadOverviewPanel(RoadUiContext ctx) {
         this.ctx = ctx;
@@ -54,7 +56,10 @@ public final class RoadOverviewPanel {
         ImGui.spacing();
         ImGui.separator();
         ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
+        float hintWrap = ImGui.getCursorPosX() + Math.max(1f, ImGui.getContentRegionAvailX());
+        ImGui.pushTextWrapPos(hintWrap);
         ImGui.textWrapped(PlotI18n.tr("plugin.road.network_map_hint"));
+        ImGui.popTextWrapPos();
         ImGui.popStyleColor();
     }
 
@@ -62,22 +67,21 @@ public final class RoadOverviewPanel {
         if (network.getEdges().isEmpty()) {
             return;
         }
-        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
-            network,
-            Map.of(),
-            ctx.networkManager().getConfig());
-        for (RoadNetworkValidationReport.Item item : report.nonOkItems()) {
+        long healthKey = ctx.networkManager().getNetworkRevision() * 31L
+            + (ctx.networkManager().isAdoptIntersectionRepairPending() ? 1L : 0L);
+        if (healthKey != cachedHealthKey) {
+            cachedHealthReport = RoadNetworkEngineeringValidator.analyzeOverviewHealth(
+                network,
+                ctx.networkManager().isAdoptIntersectionRepairPending());
+            cachedHealthKey = healthKey;
+        }
+        for (RoadNetworkValidationReport.Item item : cachedHealthReport.nonOkItems()) {
             int color = switch (item.level()) {
                 case WARNING -> PluginUiColors.WARNING;
                 case ERROR -> PluginUiColors.ERROR;
                 default -> PluginUiColors.HINT_GRAY;
             };
             ImGui.textColored(color, "\u26a0 " + PlotI18n.tr(item.messageKey(), item.args()));
-        }
-        if (ctx.networkManager().isAdoptIntersectionRepairPending()) {
-            ImGui.textColored(
-                PluginUiColors.WARNING,
-                "\u26a0 " + PlotI18n.tr("plugin.road.validation.intersections_pending"));
         }
     }
 

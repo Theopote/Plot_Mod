@@ -66,6 +66,7 @@ public class BlockCategoryManager {
     
     // 分类后的方块
     private final Map<BlockCategory, List<Block>> categorizedBlocks = new EnumMap<>(BlockCategory.class);
+    private volatile boolean blockCategoriesInitialized;
 
     /**
      * 方块分类枚举 - 10分类精确体系
@@ -182,11 +183,21 @@ public class BlockCategoryManager {
             categorizedBlocks.put(category, new ArrayList<>());
         }
         
-        // 初始化分类规则
+        // 初始化分类规则；方块枚举推迟到首次打开方块配置面板时再执行
         initCategoryRules();
-        
-        // 初始化方块分类
-        initBlockCategories();
+    }
+
+    private void ensureBlockCategoriesInitialized() {
+        if (blockCategoriesInitialized) {
+            return;
+        }
+        synchronized (this) {
+            if (blockCategoriesInitialized) {
+                return;
+            }
+            initBlockCategories();
+            blockCategoriesInitialized = true;
+        }
     }
     
     /**
@@ -818,9 +829,10 @@ public class BlockCategoryManager {
             blocks.clear();
         }
         
-        // 测试几个常见方块的分类
-        testBlockCategorization();
-        
+        if (LOGGER.isDebugEnabled()) {
+            testBlockCategorization();
+        }
+
         int totalBlocks = 0;
         int categorizedBlocks = 0;
         int airLikeBlocks = 0;  // 🔥 统计类似AIR的块
@@ -860,10 +872,7 @@ public class BlockCategoryManager {
                     categorized = true;
                     categorizedBlocks++;
                     
-                    // 详细日志记录前几个方块的分类结果
-                    if (categorizedBlocks <= 20) {
-                        LOGGER.info("✓ 方块 {} 分类到: {}", blockId, rule.getCategory().getDisplayName());
-                    }
+                    LOGGER.debug("方块 {} 分类到: {}", blockId, rule.getCategory().getDisplayName());
                     break;
                 }
             }
@@ -873,10 +882,7 @@ public class BlockCategoryManager {
                 this.categorizedBlocks.get(defaultRule.getCategory()).add(block);
                 categorizedBlocks++;
                 
-                // 记录前几个未分类的方块
-                if (this.categorizedBlocks.get(defaultRule.getCategory()).size() <= 10) {
-                    LOGGER.info("→ 方块 {} 使用默认分类: {}", blockId, defaultRule.getCategory().getDisplayName());
-                }
+                LOGGER.debug("方块 {} 使用默认分类: {}", blockId, defaultRule.getCategory().getDisplayName());
             }
         }
         
@@ -884,27 +890,13 @@ public class BlockCategoryManager {
         for (List<Block> blocks : this.categorizedBlocks.values()) {
             blocks.sort(Comparator.comparing(block -> block.getName().getString()));
         }
-        
-        // 记录每个分类的方块数量
-        LOGGER.info("🔍 方块分类统计（总计 {} 个方块，已分类 {} 个，AIR/无Item {} 个）：", 
-                   totalBlocks, categorizedBlocks, airLikeBlocks);
-        for (BlockCategory category : BlockCategory.values()) {
-            int count = this.categorizedBlocks.get(category).size();
-            LOGGER.info("  {} : {} 个方块", category.getDisplayName(), count);
-            
-            // 显示每个分类的前几个方块作为示例
-            if (count > 0 && count < 1000) {  // 只为非杂项分类显示示例
-                List<Block> categoryBlocks = this.categorizedBlocks.get(category);
-                StringBuilder examples = new StringBuilder("    示例: ");
-                for (int i = 0; i < Math.min(5, categoryBlocks.size()); i++) {
-                    if (i > 0) examples.append(", ");
-                    examples.append(Registries.BLOCK.getId(categoryBlocks.get(i)).getPath());
-                }
-                LOGGER.info(examples.toString());
-            }
-        }
-        
-        LOGGER.info("✓ 方块分类初始化完成");
+
+        LOGGER.info(
+            "方块分类初始化完成: {} 个方块, {} 个已分类, {} 个跳过",
+            totalBlocks,
+            categorizedBlocks,
+            airLikeBlocks
+        );
     }
     
     /**
@@ -987,6 +979,7 @@ public class BlockCategoryManager {
      * @return 方块列表
      */
     public List<Block> getBlocksInCategory(BlockCategory category) {
+        ensureBlockCategoriesInitialized();
         return categorizedBlocks.getOrDefault(category, Collections.emptyList());
     }
     
@@ -995,6 +988,7 @@ public class BlockCategoryManager {
      * @return 分类到方块列表的映射
      */
     public Map<BlockCategory, List<Block>> getCategorizedBlocks() {
+        ensureBlockCategoriesInitialized();
         return Collections.unmodifiableMap(categorizedBlocks);
     }
 } 

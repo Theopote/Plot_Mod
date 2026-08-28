@@ -34,8 +34,10 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
         }
         BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, transformer);
         try {
-            BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, column);
-            return topPos != null ? topPos.getY() : DEFAULT_SEA_LEVEL;
+            if (!isChunkLoaded(column.getX(), column.getZ())) {
+                return DEFAULT_SEA_LEVEL;
+            }
+            return world.getTopY(Heightmap.Type.WORLD_SURFACE, column.getX(), column.getZ());
         } catch (Exception e) {
             LOGGER.warn("获取地形高度失败 ({}, {}): {}", column.getX(), column.getZ(), e.getMessage());
             return DEFAULT_SEA_LEVEL;
@@ -47,11 +49,18 @@ public final class MinecraftTerrainSampler implements TerrainSampler {
         if (world == null) {
             return false;
         }
+        if (!isChunkLoaded(worldX, worldZ)) {
+            return false;
+        }
         try {
             var blockState = world.getBlockState(new BlockPos(worldX, y, worldZ));
             return blockState != null && !blockState.isAir();
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private boolean isChunkLoaded(int worldX, int worldZ) {
+        return world.isChunkLoaded(worldX >> 4, worldZ >> 4);
     }
 }

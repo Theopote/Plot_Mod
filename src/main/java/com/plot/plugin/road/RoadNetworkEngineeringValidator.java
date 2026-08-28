@@ -107,6 +107,39 @@ public final class RoadNetworkEngineeringValidator {
         return new RoadNetworkValidationReport(items);
     }
 
+    /**
+     * Overview 用轻量健康摘要：不做 snapshot / 求交探测，避免每帧卡死 UI。
+     */
+    public static RoadNetworkValidationReport analyzeOverviewHealth(
+            RoadNetwork network,
+            boolean intersectionRepairPending) {
+        List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
+        if (network == null || network.getEdges().isEmpty()) {
+            return new RoadNetworkValidationReport(items);
+        }
+
+        List<RoadGraphQueries.GraphComponent> components = RoadGraphQueries.of(network).connectedComponents();
+        if (components.size() > 1) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.disconnected_components",
+                components.size() - 1));
+        }
+
+        RoadNetworkValidationResult invariants = RoadNetworkInvariantValidator.validate(network);
+        if (!invariants.valid()) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.topology_issues",
+                invariants.violations().size()));
+        }
+
+        if (intersectionRepairPending) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.intersections_pending"));
+        }
+
+        return new RoadNetworkValidationReport(items);
+    }
+
     private static boolean hasPreviewProfiles(Map<String, RoadGenerationResult> edgeResults) {
         if (edgeResults == null || edgeResults.isEmpty()) {
             return false;

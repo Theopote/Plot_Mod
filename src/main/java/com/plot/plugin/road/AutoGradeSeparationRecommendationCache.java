@@ -61,7 +61,7 @@ public final class AutoGradeSeparationRecommendationCache {
             RoadSystemConfig config,
             PluginContext host) {
         RoadGenerator generator = new RoadGenerator(
-            config, null, host.projection());
+            config, host.coordinates(), host.projection());
         TerrainSampler terrain = resolveTerrainSampler(generator);
         String elevatedRoadId = generator.resolveElevatedRoadId(node, network, terrain);
         return elevatedRoadId != null
