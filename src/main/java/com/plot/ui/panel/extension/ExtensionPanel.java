@@ -98,13 +98,9 @@ public class ExtensionPanel implements UIComponent {
                 ImGui.separator();
                 ImGui.spacing();
 
-                float contentHeight = ImGui.getContentRegionAvailY();
-                if (contentHeight > 0) {
-                    ImGui.beginChild("##plugin_content",
-                        ImGui.getContentRegionAvailX(),
-                        contentHeight,
-                        false);
-
+                // 使用 (0,0) 占满剩余区域；勿将 getContentRegionAvailY() 作为固定高度传入，
+                // 否则插件内容会反向撑大父窗口，ImGui 可能反复布局直至 OOM。
+                if (ImGui.beginChild("##plugin_content", 0, 0, false)) {
                     try {
                         if (currentActivePlugin.isEnabled()) {
                             currentActivePlugin.render();

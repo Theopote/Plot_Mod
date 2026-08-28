@@ -56,10 +56,7 @@ public final class RoadOverviewPanel {
         ImGui.spacing();
         ImGui.separator();
         ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
-        float hintWrap = ImGui.getCursorPosX() + Math.max(1f, ImGui.getContentRegionAvailX());
-        ImGui.pushTextWrapPos(hintWrap);
         ImGui.textWrapped(PlotI18n.tr("plugin.road.network_map_hint"));
-        ImGui.popTextWrapPos();
         ImGui.popStyleColor();
     }
 
