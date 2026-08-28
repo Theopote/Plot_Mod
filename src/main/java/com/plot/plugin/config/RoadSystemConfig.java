@@ -6,6 +6,7 @@ import com.google.gson.JsonParseException;
 import com.plot.core.log.LogManager;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.core.persistence.AtomicFileWriter;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
@@ -100,18 +101,22 @@ public class RoadSystemConfig {
      * 加载配置
      */
     public static <T extends RoadSystemConfig> T load(Class<T> configClass, String pluginId) {
-        Path configPath = getConfigDirectory().resolve(pluginId + ".json");
-        if (Files.exists(configPath)) {
-            try {
-                String json = Files.readString(configPath);
-                T config = GSON.fromJson(json, configClass);
-                if (config != null) {
-                    applyLoadedState(config, pluginId);
-                }
-                return config;
-            } catch (IOException | JsonParseException e) {
-                LogManager.getInstance().error("Failed to load config: " + configPath, e);
+        return loadFrom(getConfigDirectory().resolve(pluginId + ".json"), configClass, pluginId);
+    }
+
+    static <T extends RoadSystemConfig> T loadFrom(Path configPath, Class<T> configClass, String pluginId) {
+        if (!Files.exists(configPath)) {
+            return null;
+        }
+        try {
+            String json = Files.readString(configPath);
+            T config = GSON.fromJson(json, configClass);
+            if (config != null) {
+                applyLoadedState(config, pluginId);
             }
+            return config;
+        } catch (IOException | JsonParseException e) {
+            LogManager.getInstance().error("Failed to load config: " + configPath, e);
         }
         return null;
     }
@@ -152,13 +157,19 @@ public class RoadSystemConfig {
      */
     public void save() {
         try {
-            Path configPath = resolveConfigPath();
-            Files.createDirectories(configPath.getParent());
-            String json = GSON.toJson(this);
-            Files.writeString(configPath, json);
+            saveTo(resolveConfigPath());
         } catch (IOException e) {
             LogManager.getInstance().error("Failed to save config: " + resolveConfigPath(), e);
         }
+    }
+
+    void saveTo(Path configPath) throws IOException {
+        Path parent = configPath.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        String json = GSON.toJson(this);
+        AtomicFileWriter.write(configPath, json, AtomicFileWriter.Options.simple());
     }
 
     private void initDefaultPresets() {
