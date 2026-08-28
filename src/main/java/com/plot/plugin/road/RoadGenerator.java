@@ -9,7 +9,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildOrchestrator;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineHost;
-import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.GradeSeparationPolicy;
 import com.plot.plugin.road.pipeline.profile.NetworkNodeElevationResolver;
@@ -97,52 +96,8 @@ public class RoadGenerator {
         return edgeBuild.generateFromPathPoints(pathPoints, terrain, manualRoadElevation, pipelineHost);
     }
 
-    public void mergeResult(RoadGenerationResult target, RoadGenerationResult source) {
-        RoadGenerationResultAssembler.mergeResult(target, source);
-    }
-
-    public void mergeJunction(
-            RoadGenerationResult target,
-            RoadJunctionGenerator.JunctionBlocks junction,
-            String roadBlockId,
-            String sidewalkBlockId,
-            String markingBlockId) {
-        RoadGenerationResultAssembler.mergeJunction(
-            target,
-            junction,
-            pipelineHost.coordinateTransformer(),
-            pipelineHost.projectionHandler(),
-            roadBlockId,
-            sidewalkBlockId,
-            markingBlockId);
-    }
-
-    public void mergeJunctionBlocks(
-            RoadGenerationResult target,
-            RoadJunctionGenerator.JunctionBlocks junction,
-            String roadBlockId,
-            String sidewalkBlockId) {
-        RoadGenerationResultAssembler.mergeJunctionBlocks(
-            target,
-            junction,
-            pipelineHost.coordinateTransformer(),
-            pipelineHost.projectionHandler(),
-            roadBlockId,
-            sidewalkBlockId);
-    }
-
-    /**
-     * @deprecated 使用带材质参数的 {@link #mergeJunctionBlocks(RoadGenerationResult, RoadJunctionGenerator.JunctionBlocks, String, String)}
-     *             计划在 v2.0 版本移除
-     */
-    @Deprecated(since = "1.x", forRemoval = true)
-    public void mergeJunctionBlocks(RoadGenerationResult target, RoadJunctionGenerator.JunctionBlocks junction) {
-        mergeJunctionBlocks(
-            target,
-            junction,
-            getBlockIdFromMaterial(getConfig().getSelectedMaterial().getPrimaryMaterial()),
-            getBlockIdFromMaterial(getConfig().getSelectedMaterial().getPrimaryMaterial())
-        );
+    RoadGenerationPipelineHost pipelineHost() {
+        return pipelineHost;
     }
 
     public int computeJunctionTargetHeight(RoadNode node, RoadNetwork network, TerrainSampler terrain) {

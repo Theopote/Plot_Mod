@@ -1,14 +1,17 @@
 package com.plot.plugin.road.pipeline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadConstructionType;
 import com.plot.plugin.road.RoadJunctionGenerator;
+import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -89,5 +92,27 @@ class RoadGenerationResultAssemblerTest {
             null);
 
         assertTrue(target.placementRecords.size() > 0 || !target.roadBlocks.isEmpty());
+    }
+
+    @Test
+    void aggregateNetworkMergesEdgesAndJunctions() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        RoadGenerationPipelineHost host = new RoadGenerationPipelineHost(
+            config,
+            null,
+            com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+        RoadNetwork network = new RoadNetwork();
+        RoadGenerationResult edge = new RoadGenerationResult(10.0);
+        edge.bridgeCount = 1;
+        RoadJunctionGenerator.JunctionBlocks junction = new RoadJunctionGenerator.JunctionBlocks();
+        junction.getSolids().add(new Vec2d(0, 0), 64, RoadSolidLayer.ROAD, "minecraft:stone");
+
+        RoadGenerationResult aggregate = RoadGenerationResultAssembler.aggregateNetwork(
+            network,
+            List.of(edge),
+            Map.of(),
+            host);
+
+        assertEquals(1, aggregate.bridgeCount);
     }
 }

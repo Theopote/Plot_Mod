@@ -3,9 +3,9 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
-import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -45,9 +45,9 @@ class RoadNetworkGeneratorTest {
 
         assertEquals(
             "minecraft:oak_planks",
-            RoadNetworkGenerator.resolveJunctionMaterial(junction, network, config, false));
+            RoadGenerationResultAssembler.resolveJunctionMaterial(junction, network, config, false));
         assertEquals(
             "minecraft:oak_planks",
-            RoadNetworkGenerator.resolveJunctionMaterial(junction, network, config, true));
+            RoadGenerationResultAssembler.resolveJunctionMaterial(junction, network, config, true));
     }
 }

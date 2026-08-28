@@ -1,12 +1,10 @@
 package com.plot.plugin.road;
 
-import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.model.RoadEdge;
-import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -121,81 +119,11 @@ public class RoadNetworkGenerator {
     private RoadGenerationResult aggregateNetworkResult(
             RoadNetwork network,
             NetworkGenerationResult networkResult) {
-        RoadGenerationResult aggregate = new RoadGenerationResult(0);
-        RoadSystemConfig config = roadGenerator.getConfig();
-        for (RoadGenerationResult edgeResult : networkResult.getEdgeResults().values()) {
-            roadGenerator.mergeResult(aggregate, edgeResult);
-        }
-        for (Map.Entry<String, RoadJunctionGenerator.JunctionBlocks> entry
-                : networkResult.getJunctionResults().entrySet()) {
-            RoadNode node = network.getNode(entry.getKey());
-            String roadMaterial = resolveJunctionMaterial(node, network, config, false);
-            String sidewalkMaterial = resolveJunctionMaterial(node, network, config, true);
-            String markingMaterial = resolveJunctionMarkingMaterial(node, network, config);
-            roadGenerator.mergeJunction(
-                aggregate,
-                entry.getValue(),
-                roadGenerator.getBlockIdFromMaterial(roadMaterial),
-                roadGenerator.getBlockIdFromMaterial(sidewalkMaterial),
-                roadGenerator.getBlockIdFromMaterial(markingMaterial));
-        }
-        return aggregate;
-    }
-
-    static String resolveJunctionMaterial(
-            RoadNode node,
-            RoadNetwork network,
-            RoadSystemConfig config,
-            boolean sidewalk) {
-        String fallback = sidewalk
-            ? config.getSelectedSidewalkMaterial()
-            : config.getSelectedMaterial().getPrimaryMaterial();
-        if (node == null || network == null) {
-            return fallback;
-        }
-
-        String selectedMaterial = null;
-        int widestRoad = -1;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
-                continue;
-            }
-            if (sidewalk && !RoadModelUtils.getEffectiveIncludeSidewalk(network, edge, config)) {
-                continue;
-            }
-            int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
-            if (width >= widestRoad) {
-                widestRoad = width;
-                selectedMaterial = sidewalk
-                    ? RoadModelUtils.getEffectiveSidewalkMaterial(network, edge, config)
-                    : RoadModelUtils.getEffectiveMaterial(network, edge, config);
-            }
-        }
-        return selectedMaterial != null ? selectedMaterial : fallback;
-    }
-
-    static String resolveJunctionMarkingMaterial(
-            RoadNode node,
-            RoadNetwork network,
-            RoadSystemConfig config) {
-        if (node == null || network == null) {
-            return ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
-        }
-        String selectedMaterial = null;
-        int widestRoad = -1;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
-                continue;
-            }
-            int width = RoadModelUtils.getEffectiveWidth(network, edge, config);
-            if (width >= widestRoad) {
-                widestRoad = width;
-                selectedMaterial = RoadModelUtils.resolveCrossSection(network, edge, config).markingMaterial;
-            }
-        }
-        return selectedMaterial != null ? selectedMaterial : ResolvedCrossSection.DEFAULT_MARKING_MATERIAL;
+        return RoadGenerationResultAssembler.aggregateNetwork(
+            network,
+            networkResult.getEdgeResults().values(),
+            networkResult.getJunctionResults(),
+            roadGenerator.pipelineHost());
     }
 
     /**
