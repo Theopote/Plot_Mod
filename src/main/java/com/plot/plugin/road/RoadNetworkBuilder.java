@@ -155,7 +155,7 @@ public class RoadNetworkBuilder {
         if (network == null || network.getEdges().isEmpty()) {
             return IntersectionProbeResult.resolved();
         }
-        RoadNetwork probe = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork probe = network.snapshot();
         int edgesAtStart = probe.getEdges().size();
         int nodesAtStart = probe.getNodes().size();
         IntersectionResult result = detectAndSplitIntersections(probe);

@@ -14,7 +14,7 @@ class JsonSnapshotHistoryTest {
     void pushUndoRedoRoundTripsSnapshots() {
         JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
             RoadNetwork::toJson,
-            RoadNetwork::fromJson
+            RoadNetwork::parseSnapshot
         );
 
         RoadNetwork v1 = new RoadNetwork();
@@ -41,7 +41,7 @@ class JsonSnapshotHistoryTest {
     void pushClearsRedoStack() {
         JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
             RoadNetwork::toJson,
-            RoadNetwork::fromJson
+            RoadNetwork::parseSnapshot
         );
 
         RoadNetwork a = new RoadNetwork();
@@ -64,7 +64,7 @@ class JsonSnapshotHistoryTest {
     void clearEmptiesBothStacks() {
         JsonSnapshotHistory<RoadNetwork> history = new JsonSnapshotHistory<>(
             RoadNetwork::toJson,
-            RoadNetwork::fromJson,
+            RoadNetwork::parseSnapshot,
             3
         );
 

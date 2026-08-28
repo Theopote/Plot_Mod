@@ -11,7 +11,7 @@ import com.plot.plugin.common.JsonSnapshotHistory;
 public class RoadNetworkHistory {
     private final JsonSnapshotHistory<RoadNetwork> delegate = new JsonSnapshotHistory<>(
         RoadNetwork::toJson,
-        RoadNetwork::fromJson
+        RoadNetwork::parseSnapshot
     );
 
     public void push(RoadNetwork current) {

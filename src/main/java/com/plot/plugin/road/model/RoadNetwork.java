@@ -24,6 +24,7 @@ import com.plot.plugin.road.model.section.SlopeBatter;
 import com.plot.plugin.road.model.section.StreetFurniture;
 
 import com.plot.plugin.road.graph.RoadGraphQueries;
+import com.plot.utils.PlotI18n;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -449,12 +450,42 @@ public class RoadNetwork {
         return GSON.toJson(data);
     }
 
-    public static RoadNetwork fromJson(String json) {
+    public static RoadNetwork fromJson(String json) throws RoadNetworkFormatException {
         if (json == null || json.isBlank()) {
-            return new RoadNetwork();
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.EMPTY_INPUT,
+                PlotI18n.error("error.plot.road.network.empty_input"));
         }
-        NetworkData data = GSON.fromJson(json, NetworkData.class);
-        return data != null ? data.toNetwork() : new RoadNetwork();
+        try {
+            NetworkData data = GSON.fromJson(json, NetworkData.class);
+            if (data == null) {
+                throw new RoadNetworkFormatException(
+                    RoadNetworkFormatException.Reason.VALIDATION_FAILED,
+                    PlotI18n.error("error.plot.road.network.invalid_json"));
+            }
+            validateNetworkData(data);
+            return data.toNetwork();
+        } catch (RoadNetworkFormatException e) {
+            throw e;
+        } catch (JsonParseException e) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.INVALID_JSON,
+                PlotI18n.error("error.plot.road.network.invalid_json"),
+                e);
+        } catch (RuntimeException e) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.INVALID_JSON,
+                PlotI18n.error("error.plot.road.network.invalid_json"),
+                e);
+        }
+    }
+
+    private static void validateNetworkData(NetworkData data) throws RoadNetworkFormatException {
+        if (data.nodes == null || data.edges == null || data.roads == null) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.VALIDATION_FAILED,
+                PlotI18n.error("error.plot.road.network.invalid_json"));
+        }
     }
 
     /**
@@ -469,10 +500,23 @@ public class RoadNetwork {
         if (!Files.exists(file)) {
             return new RoadNetwork();
         }
+        String json = Files.readString(file);
+        if (json.isBlank()) {
+            throw new RoadNetworkFormatException(
+                RoadNetworkFormatException.Reason.EMPTY_INPUT,
+                PlotI18n.error("error.plot.road.network.empty_input") + " (" + file.getFileName() + ")");
+        }
+        return fromJson(json);
+    }
+
+    /**
+     * 解析由 {@link #toJson()} 或撤销栈产生的 JSON；损坏内容视为内部错误。
+     */
+    public static RoadNetwork parseSnapshot(String json) {
         try {
-            return fromJson(Files.readString(file));
-        } catch (JsonParseException | IllegalStateException | NullPointerException e) {
-            throw new IOException("Invalid road network JSON: " + file, e);
+            return fromJson(json);
+        } catch (RoadNetworkFormatException e) {
+            throw new IllegalStateException("Invalid road network snapshot", e);
         }
     }
 
@@ -480,7 +524,7 @@ public class RoadNetwork {
      * 深拷贝快照（JSON 往返），供后台生成/校验或与 live 网络隔离的只读分析使用。
      */
     public RoadNetwork snapshot() {
-        return fromJson(toJson());
+        return parseSnapshot(toJson());
     }
 
     static class Vec2dData {

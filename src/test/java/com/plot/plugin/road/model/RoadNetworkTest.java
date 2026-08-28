@@ -143,7 +143,7 @@ class RoadNetworkTest {
             }
             """;
 
-        RoadNetwork restored = RoadNetwork.fromJson(json);
+        RoadNetwork restored = RoadNetwork.parseSnapshot(json);
         Road road = restored.getRoad("road-a");
 
         assertNotNull(road);
@@ -156,7 +156,7 @@ class RoadNetworkTest {
         Path file = tempDir.resolve("broken.json");
         Files.writeString(file, "{not valid json");
 
-        assertThrows(IOException.class, () -> RoadNetwork.loadFrom(file));
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
     }
 
     @Test
@@ -164,7 +164,38 @@ class RoadNetworkTest {
         Path file = tempDir.resolve("incomplete.json");
         Files.writeString(file, "{\"nodes\":[],\"edges\":null}");
 
-        assertThrows(IOException.class, () -> RoadNetwork.loadFrom(file));
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+    }
+
+    @Test
+    void loadFromEmptyFileThrows() throws IOException {
+        Path file = tempDir.resolve("empty.json");
+        Files.writeString(file, "");
+
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+    }
+
+    @Test
+    void loadFromWhitespaceFileThrows() throws IOException {
+        Path file = tempDir.resolve("whitespace.json");
+        Files.writeString(file, "  \n\t");
+
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.loadFrom(file));
+    }
+
+    @Test
+    void fromJsonBlankInputThrows() {
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson(null));
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson(""));
+        assertThrows(RoadNetworkFormatException.class, () -> RoadNetwork.fromJson("   "));
+    }
+
+    @Test
+    void loadFromMissingFileReturnsEmptyNetwork() throws IOException {
+        RoadNetwork network = RoadNetwork.loadFrom(tempDir.resolve("missing.json"));
+        assertTrue(network.getNodes().isEmpty());
+        assertTrue(network.getEdges().isEmpty());
+        assertTrue(network.getRoads().isEmpty());
     }
 
     @Test
@@ -242,7 +273,7 @@ class RoadNetworkTest {
         junction.setCrosswalks(JunctionMarkingSetting.ON);
         junction.setTurnArrows(JunctionMarkingSetting.OFF);
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         RoadNode restoredNode = restored.getNode(junction.getId());
 
         assertEquals(JunctionMarkingSetting.OFF, restoredNode.getStopLines());
@@ -264,7 +295,7 @@ class RoadNetworkTest {
             new Vec2d(0, 0), new Vec2d(10, 0)
         ), road.getId());
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         Road restoredRoad = restored.getRoad(road.getId());
         RoadEdge restoredEdge = restored.getEdge(edge.getId());
 
@@ -288,7 +319,7 @@ class RoadNetworkTest {
             new Vec2d(0, 0), new Vec2d(10, 0)
         ), road.getId());
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         RoadEdge restoredEdge = restored.getEdges().values().iterator().next();
 
         assertEquals("adopt-group-123", restoredEdge.getRoadId());
@@ -385,7 +416,7 @@ class RoadNetworkTest {
             }
             """;
 
-        RoadNetwork restored = RoadNetwork.fromJson(legacyJson);
+        RoadNetwork restored = RoadNetwork.parseSnapshot(legacyJson);
         RoadEdge edge = restored.getEdge("e1");
         Road road = restored.getRoad("legacy-road-1");
 
@@ -409,7 +440,7 @@ class RoadNetworkTest {
         builder.adoptShape(network, new PolylineShape(
             List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         List<String> adoptGroups = restored.getEdges().values().stream()
             .map(RoadEdge::getSourceRoadId)
             .filter(Objects::nonNull)
@@ -454,7 +485,7 @@ class RoadNetworkTest {
         road.applyStyle(RoadStyleCatalog.mountain());
 
         String json = network.toJson();
-        RoadNetwork restored = RoadNetwork.fromJson(json);
+        RoadNetwork restored = RoadNetwork.parseSnapshot(json);
         Road restoredRoad = restored.getRoad(road.getId());
 
         assertNotNull(restoredRoad);
@@ -478,7 +509,7 @@ class RoadNetworkTest {
             new Vec2d(0, 0), new Vec2d(10, 0)
         ), road.getId());
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         Road restoredRoad = restored.getRoad(road.getId());
 
         assertNotNull(restoredRoad);
@@ -506,7 +537,7 @@ class RoadNetworkTest {
             new Vec2d(0, 0), new Vec2d(10, 0)
         ), road.getId());
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         Road restoredRoad = restored.getRoad(road.getId());
 
         assertNotNull(restoredRoad);
@@ -550,7 +581,7 @@ class RoadNetworkTest {
             }
             """;
 
-        RoadNetwork restored = RoadNetwork.fromJson(legacyJson);
+        RoadNetwork restored = RoadNetwork.parseSnapshot(legacyJson);
         Road road = restored.getRoad("r1");
 
         assertNotNull(road);
@@ -571,7 +602,7 @@ class RoadNetworkTest {
         junction.addEdge("e2");
         junction.addEdge("e3");
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         RoadNode restoredNode = restored.getNode(junction.getId());
 
         assertEquals(3.5, restoredNode.getCornerRadius());
@@ -608,7 +639,7 @@ class RoadNetworkTest {
         network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(5, 5), new Vec2d(-5, 5)), roadB.getId());
         network.setNodeGradeSeparation(junction.getId(), true, roadB.getId(), 5.0);
 
-        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        RoadNetwork restored = network.snapshot();
         RoadNode restoredNode = restored.getNode(junction.getId());
 
         assertNotNull(restoredNode);
@@ -789,7 +820,7 @@ class RoadNetworkTest {
             }
             """;
 
-        RoadNetwork network = RoadNetwork.fromJson(json);
+        RoadNetwork network = RoadNetwork.parseSnapshot(json);
         Road road = network.getRoads().values().iterator().next();
         MaterialMix material = road.getMaterial();
 
@@ -822,7 +853,7 @@ class RoadNetworkTest {
               ]
             }
             """;
-        RoadNetwork network = RoadNetwork.fromJson(json);
+        RoadNetwork network = RoadNetwork.parseSnapshot(json);
         assertEquals(1, network.getNode("n1").getDegree());
         assertEquals(1, network.getNode("n2").getDegree());
         assertTrue(network.getNode("n1").getConnectedEdgeIds().contains("e1"));
