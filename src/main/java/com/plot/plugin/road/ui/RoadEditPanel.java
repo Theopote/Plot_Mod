@@ -152,7 +152,7 @@ public final class RoadEditPanel {
     }
 
     private void renderSegmentSelector(RoadNetwork network, Road road) {
-        List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(road);
+        List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(network, road);
         if (segmentIds.isEmpty()) {
             return;
         }

@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.utils.PlotI18n;
 
 import java.util.ArrayList;
@@ -133,11 +134,8 @@ public final class RoadEdgeListHelper {
         return total;
     }
 
-    public static List<String> orderedSegmentIds(Road road) {
-        if (road == null) {
-            return List.of();
-        }
-        return List.copyOf(road.getSegmentIds());
+    public static List<String> orderedSegmentIds(RoadNetwork network, Road road) {
+        return RoadSegmentOrdering.orderedSegmentIds(network, road);
     }
 
     public static String formatNodeLabel(RoadNetwork network, String nodeId) {
@@ -213,7 +211,7 @@ public final class RoadEdgeListHelper {
         if (road == null) {
             return -1;
         }
-        return orderedSegmentIds(road).indexOf(edge.getId());
+        return orderedSegmentIds(network, road).indexOf(edge.getId());
     }
 
     public static List<DisplayRow> buildDisplayRows(
@@ -256,7 +254,7 @@ public final class RoadEdgeListHelper {
 
             Road road = hasRoadId ? network.getRoad(group.roadId()) : null;
             List<String> orderedIds = road != null
-                ? orderedSegmentIds(road)
+                ? orderedSegmentIds(network, road)
                 : group.edges().stream().map(RoadEdge::getId).toList();
             Set<String> groupEdgeIds = new HashSet<>();
             for (RoadEdge edge : group.edges()) {
@@ -302,10 +300,16 @@ public final class RoadEdgeListHelper {
     private static Comparator<RoadEdge> comparatorFor(RoadNetwork network, SortMode sortMode) {
         return switch (sortMode) {
             case INSERTION -> null;
-            case LENGTH_ASC -> Comparator.comparingDouble(RoadEdge::getLength);
-            case LENGTH_DESC -> Comparator.comparingDouble(RoadEdge::getLength).reversed();
-            case START_X -> Comparator.comparingDouble(edge -> startX(network, edge));
-            case START_Y -> Comparator.comparingDouble(edge -> startY(network, edge));
+            case LENGTH_ASC -> Comparator.comparingDouble(RoadEdge::getLength)
+                .thenComparingInt(edge -> segmentIndex(network, edge))
+                .thenComparing(RoadEdge::getId);
+            case LENGTH_DESC -> Comparator.comparingDouble(RoadEdge::getLength).reversed()
+                .thenComparingInt(edge -> segmentIndex(network, edge))
+                .thenComparing(RoadEdge::getId);
+            case START_X -> Comparator.comparingDouble((RoadEdge edge) -> startX(network, edge))
+                .thenComparing(RoadEdge::getId);
+            case START_Y -> Comparator.comparingDouble((RoadEdge edge) -> startY(network, edge))
+                .thenComparing(RoadEdge::getId);
             case ROAD_GROUP -> Comparator.comparing(edge -> edge.getRoadId() != null ? edge.getRoadId() : "");
         };
     }

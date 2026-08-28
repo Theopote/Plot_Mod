@@ -8,7 +8,9 @@ import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -389,6 +391,23 @@ public class Road {
 
     public void removeSegment(String edgeId) {
         segmentIds.remove(edgeId);
+    }
+
+    /**
+     * 按给定顺序重写 segmentIds，未出现在列表中的既有分段追加在末尾。
+     */
+    public void reorderSegments(List<String> orderedIds) {
+        if (orderedIds == null || orderedIds.isEmpty()) {
+            return;
+        }
+        List<String> remaining = new ArrayList<>(segmentIds);
+        segmentIds.clear();
+        for (String edgeId : orderedIds) {
+            if (edgeId != null && !edgeId.isBlank() && remaining.remove(edgeId)) {
+                segmentIds.add(edgeId);
+            }
+        }
+        segmentIds.addAll(remaining);
     }
 
     public int getEffectiveWidth(RoadSystemConfig defaults) {

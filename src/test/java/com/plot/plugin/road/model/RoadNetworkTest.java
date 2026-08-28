@@ -917,15 +917,22 @@ class RoadNetworkTest {
         RoadEdge edge2 = network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
         RoadEdge edge3 = network.createEdge(n3.getId(), n4.getId(), List.of(new Vec2d(20, 0), new Vec2d(30, 0)), road.getId());
 
-        List<String> order = new ArrayList<>(road.getSegmentIds());
+        List<String> order = RoadSegmentOrdering.orderedSegmentIds(network, road);
         assertEquals(3, order.size());
         String splitSegmentId = order.get(1);
 
         String newRoadId = network.splitRoadBeforeSegment(road.getId(), splitSegmentId);
 
         assertNotNull(newRoadId);
-        assertEquals(order.subList(0, 1), new ArrayList<>(network.getRoad(road.getId()).getSegmentIds()));
-        assertEquals(order.subList(1, order.size()), new ArrayList<>(network.getRoad(newRoadId).getSegmentIds()));
+        assertEquals(
+            order.subList(0, 1),
+            RoadSegmentOrdering.orderedSegmentIds(network, network.getRoad(road.getId())));
+        assertEquals(
+            order.subList(1, order.size()),
+            RoadSegmentOrdering.orderedSegmentIds(network, network.getRoad(newRoadId)));
+        assertEquals(
+            order.subList(1, order.size()),
+            new ArrayList<>(network.getRoad(newRoadId).getSegmentIds()));
         assertEquals(7, network.getRoad(newRoadId).getWidth());
         assertTrue(network.validateInvariants().isValid());
     }

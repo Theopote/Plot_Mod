@@ -322,16 +322,20 @@ public class RoadNetwork {
         if (road == null || segmentEdgeId == null || segmentEdgeId.isBlank()) {
             return null;
         }
-        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        List<String> segmentIds = RoadSegmentOrdering.orderedSegmentIds(this, road);
         int index = segmentIds.indexOf(segmentEdgeId);
         if (index < 0 || index == 0) {
             return null;
         }
+        List<String> headIds = new ArrayList<>(segmentIds.subList(0, index));
+        List<String> tailIds = new ArrayList<>(segmentIds.subList(index, segmentIds.size()));
         Road newRoad = createRoad();
         newRoad.copyEngineeringFrom(road);
-        for (int i = index; i < segmentIds.size(); i++) {
-            assignEdgeToRoad(segmentIds.get(i), newRoad.getId());
+        for (String segmentId : tailIds) {
+            assignEdgeToRoad(segmentId, newRoad.getId());
         }
+        road.reorderSegments(headIds);
+        newRoad.reorderSegments(tailIds);
         return newRoad.getId();
     }
 
