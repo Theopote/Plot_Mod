@@ -126,7 +126,8 @@ public final class RoadGraphEdits {
             edge.getEndNodeId(),
             edge.getCenterlinePoints(),
             edge.getRoadId(),
-            edge.getSlopeOverrides());
+            edge.getSlopeOverrides(),
+            edge.getSourceRoadId());
     }
 
     private void restoreEdge(RoadEdge snapshot) {
@@ -182,6 +183,7 @@ public final class RoadGraphEdits {
         double totalLength = edge.getLength();
         List<RoadEdge.SlopeOverride> slopeOverrides = edge.getSlopeOverrides();
         String roadId = edge.getRoadId();
+        String sourceRoadId = edge.getSourceRoadId();
 
         RoadEdge snapshot = copyEdge(edge);
         detachAndUnlink(edge);
@@ -189,6 +191,8 @@ public final class RoadGraphEdits {
         try {
             RoadEdge firstEdge = network.createEdge(startNodeId, nodeId, firstPart, roadId);
             RoadEdge secondEdge = network.createEdge(nodeId, endNodeId, secondPart, roadId);
+            firstEdge.setSourceRoadId(sourceRoadId);
+            secondEdge.setSourceRoadId(sourceRoadId);
             firstEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, true));
             secondEdge.setSlopeOverrides(splitSlopeOverrides(slopeOverrides, splitDistance, totalLength, false));
             return Optional.of(new SplitResult(firstEdge.getId(), secondEdge.getId(), nodeId));

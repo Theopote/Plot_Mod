@@ -16,6 +16,8 @@ public class RoadEdge {
     private String endNodeId;
     private List<Vec2d> centerlinePoints;
     private String roadId;
+    /** 同一次 {@code adoptShape} 认领产生的边共享此 ID，用于求交时跳过同源误判。 */
+    private String sourceRoadId;
     private List<SlopeOverride> slopeOverrides;
 
     public static class SlopeOverride {
@@ -48,11 +50,23 @@ public class RoadEdge {
             List<Vec2d> centerlinePoints,
             String roadId,
             List<SlopeOverride> slopeOverrides) {
+        this(id, startNodeId, endNodeId, centerlinePoints, roadId, slopeOverrides, null);
+    }
+
+    public RoadEdge(
+            String id,
+            String startNodeId,
+            String endNodeId,
+            List<Vec2d> centerlinePoints,
+            String roadId,
+            List<SlopeOverride> slopeOverrides,
+            String sourceRoadId) {
         this.id = id;
         this.startNodeId = startNodeId;
         this.endNodeId = endNodeId;
         this.centerlinePoints = copyPoints(centerlinePoints);
         this.roadId = roadId;
+        this.sourceRoadId = sourceRoadId;
         this.slopeOverrides = slopeOverrides != null
             ? slopeOverrides.stream().map(SlopeOverride::copy).toList()
             : new ArrayList<>();
@@ -94,16 +108,12 @@ public class RoadEdge {
         this.roadId = roadId;
     }
 
-    /** @deprecated 使用 {@link #getRoadId()} */
-    @Deprecated
     public String getSourceRoadId() {
-        return roadId;
+        return sourceRoadId;
     }
 
-    /** @deprecated 使用 {@link #setRoadId(String)} */
-    @Deprecated
     public void setSourceRoadId(String sourceRoadId) {
-        this.roadId = sourceRoadId;
+        this.sourceRoadId = sourceRoadId;
     }
 
     public List<SlopeOverride> getSlopeOverrides() {
@@ -136,7 +146,7 @@ public class RoadEdge {
     }
 
     RoadEdge copy() {
-        return new RoadEdge(id, startNodeId, endNodeId, centerlinePoints, roadId, slopeOverrides);
+        return new RoadEdge(id, startNodeId, endNodeId, centerlinePoints, roadId, slopeOverrides, sourceRoadId);
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {

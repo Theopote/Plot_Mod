@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -391,9 +392,34 @@ class RoadNetworkTest {
         assertNotNull(edge);
         assertNotNull(road);
         assertEquals("legacy-road-1", edge.getRoadId());
+        assertNull(edge.getSourceRoadId());
         assertEquals(7, road.getWidth());
         assertEquals(5.0f, road.getMaxSlope());
         assertEquals(List.of("e1"), List.copyOf(road.getSegmentIds()));
+    }
+
+    @Test
+    void jsonRoundTripPreservesSourceRoadId() {
+        RoadNetwork network = new RoadNetwork();
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        RoadNetworkBuilder builder = new RoadNetworkBuilder();
+
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 0), new Vec2d(5, 10)), false), config);
+
+        RoadNetwork restored = RoadNetwork.fromJson(network.toJson());
+        List<String> adoptGroups = restored.getEdges().values().stream()
+            .map(RoadEdge::getSourceRoadId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+
+        assertEquals(2, adoptGroups.size());
+        for (RoadEdge edge : restored.getEdges().values()) {
+            assertNotNull(edge.getSourceRoadId());
+        }
     }
 
     @Test

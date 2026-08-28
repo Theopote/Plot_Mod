@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 道路网络拓扑构建（认领、求交打断、路口分类）
@@ -71,6 +72,7 @@ public class RoadNetworkBuilder {
 
         Road road = network.createRoad(defaults);
         RoadEdge edge = network.createEdge(startNode.getId(), endNode.getId(), points, road.getId());
+        edge.setSourceRoadId(UUID.randomUUID().toString());
 
         Set<String> adoptedEdgeIds = new HashSet<>();
         adoptedEdgeIds.add(edge.getId());
@@ -112,6 +114,10 @@ public class RoadNetworkBuilder {
                     RoadEdge edgeA = network.getEdge(edgeList.get(i).getId());
                     RoadEdge edgeB = network.getEdge(edgeList.get(j).getId());
                     if (edgeA == null || edgeB == null) {
+                        continue;
+                    }
+                    if (edgeA.getSourceRoadId() != null
+                            && edgeA.getSourceRoadId().equals(edgeB.getSourceRoadId())) {
                         continue;
                     }
                     if (edgeA.getRoadId() != null

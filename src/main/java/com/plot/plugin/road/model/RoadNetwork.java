@@ -824,6 +824,7 @@ public class RoadNetwork {
                     edgeData.centerlinePoints.add(new Vec2dData(point));
                 }
                 edgeData.roadId = edge.getRoadId();
+                edgeData.sourceRoadId = edge.getSourceRoadId();
                 for (RoadEdge.SlopeOverride override : edge.getSlopeOverrides()) {
                     SlopeOverrideData overrideData = new SlopeOverrideData();
                     overrideData.startDistance = override.startDistance;
@@ -921,13 +922,15 @@ public class RoadNetwork {
                 }
 
                 String roadId = edgeData.roadId != null ? edgeData.roadId : edgeData.sourceRoadId;
+                String adoptGroupId = edgeData.roadId != null ? edgeData.sourceRoadId : null;
                 RoadEdge edge = new RoadEdge(
                     edgeData.id,
                     edgeData.startNodeId,
                     edgeData.endNodeId,
                     points,
                     roadId,
-                    overrides
+                    overrides,
+                    adoptGroupId
                 );
                 network.edges.put(edge.getId(), edge);
 
