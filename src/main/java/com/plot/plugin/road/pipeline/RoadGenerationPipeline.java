@@ -14,16 +14,19 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  * remains the public façade.
  *
  * <pre>
- * RoadGenerationPipeline
- * ├─ RoadGeometrySampler
- * ├─ RoadProfileSolver (upstream, before build pipeline)
- * ├─ RoadConstructionClassifier
- * ├─ RoadCrossSectionBuilder
- * ├─ RoadMarkingGenerator
- * ├─ RoadFurnitureGenerator
- * ├─ RoadTerrainGrader
- * └─ RoadVoxelRasterizerPass
+ * RoadEdgeBuildOrchestrator (profile solve + build request)
+ * └─ RoadGenerationPipeline
+ *    ├─ RoadGeometrySampler
+ *    ├─ RoadConstructionClassifier
+ *    ├─ RoadCrossSectionBuilder
+ *    ├─ RoadMarkingGenerator
+ *    ├─ RoadFurnitureGenerator
+ *    ├─ RoadTerrainGrader
+ *    └─ RoadVoxelRasterizerPass
  * </pre>
+ *
+ * <p>Profile solving runs upstream via {@link com.plot.plugin.road.pipeline.profile.RoadProfileSolveCoordinator}.
+ * {@link RoadGenerationPipelineHost} implements {@link RoadGenerationPipelineContext.Host}.
  */
 public final class RoadGenerationPipeline {
     public RoadGenerationResult execute(
