@@ -15,16 +15,14 @@ import com.plot.plugin.road.pipeline.RoadGenerationBuildRequest;
 import com.plot.plugin.road.pipeline.RoadGenerationPipeline;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnap;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.GradeSeparationPolicy;
 import com.plot.plugin.road.pipeline.profile.NetworkNodeElevationResolver;
 import com.plot.plugin.road.pipeline.profile.NodeTargetHeightResolver;
-import com.plot.plugin.road.pipeline.profile.ProfileEdgeContext;
 import com.plot.plugin.road.pipeline.profile.ProfileEndpointHeightResolver;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
-import com.plot.plugin.road.pipeline.profile.ProfileSolveSupport;
+import com.plot.plugin.road.pipeline.profile.RoadGeneratorProfileContext;
 import com.plot.plugin.road.pipeline.profile.RoadProfileSolver;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -36,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map;
 
 /**
@@ -70,54 +69,11 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
         return MinecraftTerrainSampler.of(world, coordinateTransformer);
     }
 
-    private final ProfileEdgeContext profileEdgeContext = new ProfileEdgeContext() {
-        @Override
-        public List<PathSegment> samplePath(List<Vec2d> pathPoints) {
-            return RoadGenerator.this.samplePath(pathPoints);
-        }
-
-        @Override
-        public ProfileSolveResult solveEdgeProfile(
-                List<PathSegment> segments,
-                TerrainSampler terrain,
-                RoadNetwork network,
-                RoadEdge edge,
-                RoadNode startNode,
-                RoadNode endNode,
-                Integer manualStartHeight,
-                Integer manualEndHeight) {
-            double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
-                RoadModelUtils.getEffectiveWidth(network, edge, config));
-            return RoadProfileSolver.solveForEdge(
-                segments,
-                terrain,
-                network,
-                edge,
-                config,
-                halfWidth,
-                manualStartHeight,
-                manualEndHeight,
-                profileSupport());
-        }
-
-        @Override
-        public int groundHeightAtNode(TerrainSampler terrain, RoadNode node, RoadNetwork network) {
-            return RoadGenerator.this.getGroundHeightAtNode(terrain, node, network);
-        }
-
-        @Override
-        public double defaultCrossingClearance() {
-            return config.getDefaultCrossingClearance();
-        }
-    };
-
-    private final GradeSeparationPolicy gradeSeparationPolicy = new GradeSeparationPolicy(profileEdgeContext);
-    private final NodeTargetHeightResolver nodeTargetHeightResolver =
-        new NodeTargetHeightResolver(profileEdgeContext, gradeSeparationPolicy);
-    private final NetworkNodeElevationResolver networkNodeElevationResolver =
-        new NetworkNodeElevationResolver(profileEdgeContext, gradeSeparationPolicy, nodeTargetHeightResolver);
-    private final ProfileEndpointHeightResolver profileEndpointHeightResolver =
-        new ProfileEndpointHeightResolver(gradeSeparationPolicy, nodeTargetHeightResolver);
+    private final RoadGeneratorProfileContext profileContext;
+    private final GradeSeparationPolicy gradeSeparationPolicy;
+    private final NodeTargetHeightResolver nodeTargetHeightResolver;
+    private final NetworkNodeElevationResolver networkNodeElevationResolver;
+    private final ProfileEndpointHeightResolver profileEndpointHeightResolver;
 
     public RoadGenerator(
             RoadSystemConfig config,
@@ -126,6 +82,13 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
         this.config = config;
         this.coordinateTransformer = coordinateTransformer;
         this.projectionHandler = java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
+        this.profileContext = new RoadGeneratorProfileContext(config, this::estimateCanvasUnitsPerBlock);
+        this.gradeSeparationPolicy = new GradeSeparationPolicy(profileContext);
+        this.nodeTargetHeightResolver = new NodeTargetHeightResolver(profileContext, gradeSeparationPolicy);
+        this.networkNodeElevationResolver =
+            new NetworkNodeElevationResolver(profileContext, gradeSeparationPolicy, nodeTargetHeightResolver);
+        this.profileEndpointHeightResolver =
+            new ProfileEndpointHeightResolver(gradeSeparationPolicy, nodeTargetHeightResolver);
     }
     
     /**
@@ -197,9 +160,7 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             List<PathSegment> segments,
             TerrainSampler terrain,
             int manualRoadElevation) {
-        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
-        return RoadProfileSolver.solveWithManualElevation(
-            segments, terrain, halfWidth, manualRoadElevation, profileSupport());
+        return profileContext.solveWithManualElevation(segments, terrain, manualRoadElevation);
     }
 
     private RoadGenerationResult buildFromCenterline(
@@ -416,19 +377,11 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
     }
 
     private List<PathSegment> samplePath(List<Vec2d> pathPoints) {
-        return RoadGeometrySampler.sample(
-            pathPoints,
-            config.getPathSampleDistance(),
-            this::estimateCanvasUnitsPerBlock);
-    }
-
-    private ProfileSolveSupport profileSupport() {
-        return ProfileSolveSupport.fromConfig(config, segments -> estimateCanvasUnitsPerBlock(null, segments));
+        return profileContext.samplePath(pathPoints);
     }
 
     private ProfileSolveResult calculateSegmentHeights(List<PathSegment> segments, TerrainSampler terrain) {
-        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
-        return RoadProfileSolver.solveStandalone(segments, terrain, halfWidth, profileSupport());
+        return profileContext.solveStandalone(segments, terrain);
     }
 
     private ProfileSolveResult calculateSegmentHeightsForEdge(
@@ -458,7 +411,7 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
             startNode, network, edge, terrain, applyGradeSeparation, networkNodeElevations);
         Integer manualEndHeight = profileEndpointHeightResolver.resolve(
             endNode, network, edge, terrain, applyGradeSeparation, networkNodeElevations);
-        return profileEdgeContext.solveEdgeProfile(
+        return profileContext.solveEdgeProfile(
             segments,
             terrain,
             network,
@@ -511,68 +464,6 @@ public class RoadGenerator implements RoadGenerationPipelineContext.Host {
 
     public String getBlockIdFromMaterial(String material) {
         return RoadMaterialUtils.resolveBlockId(material);
-    }
-
-    private int getGroundHeightAtNode(TerrainSampler terrain, RoadNode node, RoadNetwork network) {
-        if (node == null || terrain == null) {
-            return TerrainSampler.DEFAULT_SEA_LEVEL;
-        }
-        return terrain.sampleCrossSectionGroundY(
-            node.getPosition(),
-            resolveNodeTangent(node, network),
-            resolveNodeHalfWidth(node, network)
-        );
-    }
-
-    private Vec2d resolveNodeTangent(RoadNode node, RoadNetwork network) {
-        if (node == null || network == null) {
-            return null;
-        }
-
-        RoadEdge widestEdge = null;
-        double widest = -1.0;
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge == null) {
-                continue;
-            }
-            double width = RoadModelUtils.getEffectiveWidth(network, edge, config);
-            if (width > widest) {
-                widest = width;
-                widestEdge = edge;
-            }
-        }
-        if (widestEdge == null) {
-            return null;
-        }
-
-        List<Vec2d> points = widestEdge.getCenterlinePoints();
-        if (points.size() < 2) {
-            return null;
-        }
-        if (widestEdge.getStartNodeId().equals(node.getId())) {
-            return points.get(1).subtract(points.get(0));
-        }
-        if (widestEdge.getEndNodeId().equals(node.getId())) {
-            return points.get(points.size() - 2).subtract(points.getLast());
-        }
-        return null;
-    }
-
-    private double resolveNodeHalfWidth(RoadNode node, RoadNetwork network) {
-        double halfWidth = RoadDimensionUtils.halfExtentFromCenter(config.getRoadWidth());
-        if (node == null || network == null) {
-            return halfWidth;
-        }
-
-        for (String edgeId : node.getConnectedEdgeIds()) {
-            RoadEdge edge = network.getEdge(edgeId);
-            if (edge != null) {
-                halfWidth = Math.max(halfWidth, RoadDimensionUtils.halfExtentFromCenter(
-                    RoadModelUtils.getEffectiveWidth(network, edge, config)));
-            }
-        }
-        return halfWidth;
     }
 
     private static int blendEndpointElevation(Vec2d center, EndpointElevationSnap snap, int currentY) {

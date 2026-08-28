@@ -8,7 +8,6 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.terrain.TerrainSampler;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Host callbacks for profile / node-elevation strategies (implemented by {@link com.plot.plugin.road.RoadGenerator}).
