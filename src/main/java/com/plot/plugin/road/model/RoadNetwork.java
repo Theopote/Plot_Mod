@@ -129,19 +129,33 @@ public class RoadNetwork {
         return road;
     }
 
+    /**
+     * 创建空逻辑道路，工程参数全部为 {@code null}（动态继承 {@link RoadSystemConfig}）。
+     * <p>
+     * 认领新道路请使用 {@link #createRoadForAdopt(RoadSystemConfig)}。
+     */
     public Road createRoad(RoadSystemConfig defaults) {
         return createRoad();
     }
 
     /**
+     * 创建道路并将当前全局默认快照为显式值（不随后续修改认领默认而变）。
+     *
+     * @see RoadParameterInheritance#snapshotGlobalDefaults(Road, RoadSystemConfig)
+     */
+    public Road createRoadForAdopt(RoadSystemConfig defaults) {
+        Road road = createRoad();
+        RoadParameterInheritance.snapshotGlobalDefaults(road, defaults);
+        return road;
+    }
+
+    /**
      * 创建道路并快照写入全局配置（显式值，不随全局配置变更而变）。
+     *
+     * @see #createRoadForAdopt(RoadSystemConfig)
      */
     public Road createRoadFromDefaults(RoadSystemConfig defaults) {
-        Road road = createRoad();
-        if (defaults != null) {
-            road.applyDefaults(defaults);
-        }
-        return road;
+        return createRoadForAdopt(defaults);
     }
 
     public RoadEdge createEdge(String startNodeId, String endNodeId, List<Vec2d> points) {

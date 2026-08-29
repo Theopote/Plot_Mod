@@ -1009,7 +1009,7 @@
   "plugin.road.generate_preview_failed": "Failed to calculate the road preview. Check the road data and logs.",
   "plugin.road.generate_preview_ready": "Preview generated. You can project or build now.",
   "plugin.road.preview_invalidated": "Road network changed; preview cleared. Recalculate preview.",
-  "plugin.road.default_params_scope_hint": "Defaults for newly adopted roads only. Edit existing roads under the Edit tab.",
+  "plugin.road.default_params_scope_hint": "Defaults for newly adopted roads. Values are snapshotted onto each road at adopt time; changing these later does not affect roads already adopted. Edit existing roads under the Edit tab.",
   "plugin.road.generation_settings": "Global generation settings",
   "plugin.road.generation_settings_hint": "Affects preview and build (bridge/tunnel, profile balance, sampling). Recalculate preview after changes.",
   "plugin.road.profile_balance_factor": "Profile balance factor: %s",

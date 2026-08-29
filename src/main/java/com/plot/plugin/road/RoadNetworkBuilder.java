@@ -74,7 +74,7 @@ public class RoadNetworkBuilder {
         RoadNode startNode = findOrCreateNode(network, startPoint);
         RoadNode endNode = findOrCreateNode(network, endPoint);
 
-        Road road = network.createRoad(defaults);
+        Road road = network.createRoadForAdopt(defaults);
         RoadEdge edge = network.createEdge(startNode.getId(), endNode.getId(), points, road.getId());
         edge.setSourceRoadId(UUID.randomUUID().toString());
 

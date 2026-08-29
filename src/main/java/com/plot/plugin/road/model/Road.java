@@ -71,6 +71,8 @@ public class Road {
 
     /**
      * 用全局配置快照初始化道路横断面与最大坡度（显式写入，非继承态）。
+     *
+     * @see RoadParameterInheritance#snapshotGlobalDefaults(Road, RoadSystemConfig)
      */
     public void applyDefaults(RoadSystemConfig defaults) {
         if (defaults == null) {

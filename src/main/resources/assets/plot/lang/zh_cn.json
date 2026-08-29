@@ -1009,7 +1009,7 @@
   "plugin.road.generate_preview_failed": "道路预览计算失败，请检查道路数据并查看日志",
   "plugin.road.generate_preview_ready": "预览计算完成，可投影或生成道路",
   "plugin.road.preview_invalidated": "路网已变更，预览已失效，请重新计算预览",
-  "plugin.road.default_params_scope_hint": "以下为「新认领道路」的默认横断面与工程默认值；已有道路请到「编辑属性」修改。",
+  "plugin.road.default_params_scope_hint": "以下为「新认领道路」的默认横断面与工程默认值；认领时会冻结为道路的显式参数，之后修改此处不影响已认领道路。已有道路请到「编辑属性」修改。",
   "plugin.road.generation_settings": "全局生成参数",
   "plugin.road.generation_settings_hint": "影响预览与落地（桥/隧判定、纵断面平衡、采样密度等）。修改后需重新计算预览。",
   "plugin.road.profile_balance_factor": "纵断面平衡系数: %s",
