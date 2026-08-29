@@ -54,6 +54,50 @@ public final class RoadParameterInheritance {
         return road != null && road.getWidth() == null;
     }
 
+    /**
+     * 道路是否至少有一个工程字段处于继承态（{@code null}，随路网默认解析）。
+     * 不含 {@code bikeLaneMaterial}（解析层固定默认）与 {@code streetlightSpacing}
+     * （快照时 {@code null} 表示未启用路灯间距）。
+     */
+    public static boolean inheritsAny(Road road) {
+        if (road == null) {
+            return false;
+        }
+        if (road.getMaxSlope() == null) {
+            return true;
+        }
+        if (road.getWidth() == null || road.getLaneCount() == null || road.getMaterial() == null) {
+            return true;
+        }
+        if (road.getIncludeShoulder() == null || road.getShoulderWidth() == null
+            || road.getShoulderMaterial() == null) {
+            return true;
+        }
+        if (road.getIncludeSlopeBatter() == null || road.getFillSlopeRatio() == null
+            || road.getCutSlopeRatio() == null || road.getFillSlopeMaterial() == null
+            || road.getCutSlopeMaterial() == null) {
+            return true;
+        }
+        if (road.getIncludeBikeLane() == null || road.getBikeLaneWidth() == null) {
+            return true;
+        }
+        if (road.getIncludeSidewalk() == null || road.getSidewalkWidth() == null
+            || road.getSidewalkMaterial() == null) {
+            return true;
+        }
+        if (road.getIncludeMedian() == null || road.getMedianWidth() == null) {
+            return true;
+        }
+        if (road.getIncludeDrainage() == null) {
+            return true;
+        }
+        if (road.getLaneDividers() == null || road.getCenterLineStyle() == null
+            || road.getMarkingMaterial() == null) {
+            return true;
+        }
+        return false;
+    }
+
     public static CrossSectionFieldResolution<Integer> resolveWidth(Road road, RoadSystemConfig defaults) {
         if (defaults == null) {
             return CrossSectionFieldResolution.of(null, null, 0);

@@ -94,6 +94,19 @@ class RoadInheritanceTest {
     }
 
     @Test
+    void inheritsAnyDetectsNullOverrides() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        Road road = new Road();
+        assertTrue(RoadParameterInheritance.inheritsAny(road));
+
+        road.applyDefaults(config);
+        assertFalse(RoadParameterInheritance.inheritsAny(road));
+
+        road.setWidth(null);
+        assertTrue(RoadParameterInheritance.inheritsAny(road));
+    }
+
+    @Test
     void inheritAllDefaultsClearsExplicitOverrides() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadWidth(7);

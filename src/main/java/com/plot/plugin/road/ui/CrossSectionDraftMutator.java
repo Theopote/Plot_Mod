@@ -259,6 +259,115 @@ public final class CrossSectionDraftMutator {
             () -> road.setWidth(null));
     }
 
+    public void afterLaneCountField() {
+        if (road == null || config == null) {
+            return;
+        }
+        hooks.afterField(
+            "road_lane_count",
+            road.getLaneCount() == null,
+            PlotI18n.tr("plugin.road.inherit_default_int", config.getLaneCount()),
+            () -> road.getCrossSection().getCarriageway().setLaneCount(null));
+    }
+
+    public void afterMaterialField() {
+        if (road == null || config == null) {
+            return;
+        }
+        String inheritedMaterial = config.getSelectedMaterial() != null
+            ? config.getSelectedMaterial().getPrimaryMaterial()
+            : "";
+        hooks.afterField(
+            "road_material",
+            road.getMaterial() == null,
+            PlotI18n.tr("plugin.road.inherit_default_material", inheritedMaterial),
+            () -> road.getCrossSection().getCarriageway().setMaterial((MaterialMix) null));
+    }
+
+    public void afterSidewalkMaterialField() {
+        if (road == null || config == null || !road.getEffectiveIncludeSidewalk(config)) {
+            return;
+        }
+        hooks.afterField(
+            "road_sidewalk_material",
+            road.getSidewalkMaterial() == null,
+            PlotI18n.tr("plugin.road.inherit_default_material", config.getSelectedSidewalkMaterial()),
+            () -> road.setSidewalkMaterial(null));
+    }
+
+    public void afterFillSlopeMaterialField() {
+        if (road == null || config == null || !road.getEffectiveIncludeSlopeBatter(config)) {
+            return;
+        }
+        hooks.afterField(
+            "road_fill_slope_material",
+            road.getFillSlopeMaterial() == null,
+            PlotI18n.tr("plugin.road.inherit_default_material", config.getFillSlopeMaterial()),
+            () -> road.setFillSlopeMaterial(null));
+    }
+
+    public void afterCutSlopeMaterialField() {
+        if (road == null || config == null || !road.getEffectiveIncludeSlopeBatter(config)) {
+            return;
+        }
+        hooks.afterField(
+            "road_cut_slope_material",
+            road.getCutSlopeMaterial() == null,
+            PlotI18n.tr("plugin.road.inherit_default_material", config.getCutSlopeMaterial()),
+            () -> road.setCutSlopeMaterial(null));
+    }
+
+    public void afterMarkingMaterialField() {
+        if (road == null || config == null) {
+            return;
+        }
+        hooks.afterField(
+            "road_marking_material",
+            road.getMarkingMaterial() == null,
+            PlotI18n.tr("plugin.road.inherit_default_material", config.getMarkingMaterial()),
+            () -> road.setMarkingMaterial(null));
+    }
+
+    public void afterLaneDividersField() {
+        if (road == null || config == null) {
+            return;
+        }
+        hooks.afterField(
+            "road_lane_dividers",
+            road.getLaneDividers() == null,
+            PlotI18n.tr(config.isLaneDividers()
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"),
+            () -> road.setLaneDividers(null));
+    }
+
+    public void afterCenterLineField() {
+        if (road == null || config == null) {
+            return;
+        }
+        String inheritedLabel = PlotI18n.tr(switch (config.getCenterLineStyle()) {
+            case SINGLE_DASHED -> "plugin.road.center_line.single_dashed";
+            case DOUBLE_SOLID -> "plugin.road.center_line.double_solid";
+            default -> "plugin.road.center_line.none";
+        });
+        hooks.afterField(
+            "road_center_line",
+            road.getCenterLineStyle() == null,
+            PlotI18n.tr("plugin.road.inherit_default_center_line", inheritedLabel),
+            () -> road.setCenterLineStyle(null));
+    }
+
+    public void afterBikeLaneWidthField() {
+        if (road == null || config == null || !road.getEffectiveIncludeBikeLane(config)) {
+            return;
+        }
+        hooks.afterField(
+            "road_bike_lane_width",
+            road.getBikeLaneWidth() == null,
+            PlotI18n.tr("plugin.road.inherit_default_int", config.getBikeLaneWidth()),
+            () -> road.setBikeLaneWidth(null));
+    }
+
     public void afterShoulderIncludeField() {
         if (road == null || config == null) {
             return;
@@ -329,7 +438,9 @@ public final class CrossSectionDraftMutator {
         hooks.afterField(
             "road_bike_lane",
             road.getIncludeBikeLane() == null,
-            PlotI18n.tr("plugin.road.inherit_default_disabled"),
+            PlotI18n.tr(config.isIncludeBikeLane()
+                ? "plugin.road.inherit_default_enabled"
+                : "plugin.road.inherit_default_disabled"),
             () -> road.setIncludeBikeLane(null));
     }
 

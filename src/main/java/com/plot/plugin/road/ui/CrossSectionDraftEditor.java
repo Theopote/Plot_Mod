@@ -102,6 +102,7 @@ public final class CrossSectionDraftEditor {
             mutator.setLaneCount(laneCountArr[0]);
         }
         laneCount = draft.laneCount();
+        mutator.afterLaneCountField();
 
         int width = draft.width();
         int[] widthArr = {width};
@@ -237,6 +238,7 @@ public final class CrossSectionDraftEditor {
                 }
                 mutator.setBikeLaneWidth(bikeWidthArr[0]);
             }
+            mutator.afterBikeLaneWidthField();
         }
 
         ImBoolean sidewalkRef = new ImBoolean(draft.includeSidewalk());
@@ -322,6 +324,7 @@ public final class CrossSectionDraftEditor {
             value -> mutator.setMaterial(value),
             hooks.pushHistoryOnPicker()
         );
+        mutator.afterMaterialField();
 
         if (draft.includeSidewalk()) {
             final String[] sidewalkMaterial = {draft.sidewalkMaterial()};
@@ -335,6 +338,7 @@ public final class CrossSectionDraftEditor {
                 value -> mutator.setSidewalkMaterial(value),
                 hooks.pushHistoryOnPicker()
             );
+            mutator.afterSidewalkMaterialField();
         }
 
         if (draft.includeSlopeBatter()) {
@@ -347,6 +351,7 @@ public final class CrossSectionDraftEditor {
                 value -> mutator.setFillSlopeMaterial(value),
                 hooks.pushHistoryOnPicker()
             );
+            mutator.afterFillSlopeMaterialField();
             final String[] cutSlopeMaterial = {draft.cutSlopeMaterial()};
             RoadUiWidgets.renderBlockMaterialPicker(
                 editor.ctx,
@@ -356,6 +361,7 @@ public final class CrossSectionDraftEditor {
                 value -> mutator.setCutSlopeMaterial(value),
                 hooks.pushHistoryOnPicker()
             );
+            mutator.afterCutSlopeMaterialField();
         }
 
         final String[] markingMaterial = {draft.markingMaterial()};
@@ -367,6 +373,7 @@ public final class CrossSectionDraftEditor {
             value -> mutator.setMarkingMaterial(value),
             hooks.pushHistoryOnPicker()
         );
+        mutator.afterMarkingMaterialField();
     }
 
     private static void renderFurniture(EditorContext editor) {
@@ -392,6 +399,7 @@ public final class CrossSectionDraftEditor {
             }
             mutator.setLaneDividers(laneDividersRef.get());
         }
+        mutator.afterLaneDividersField();
 
         CenterLineStyle centerLineStyle = draft.centerLineStyle();
         String[] centerLineLabels = {
@@ -417,6 +425,7 @@ public final class CrossSectionDraftEditor {
                 default -> CenterLineStyle.NONE;
             });
         }
+        mutator.afterCenterLineField();
 
         int[] lightSpacing = {draft.streetlightSpacing()};
         if (ImGui.sliderInt(
