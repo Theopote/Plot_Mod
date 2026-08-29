@@ -10,10 +10,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 沿道路拓扑链对 {@link Road#getSegmentIds()} 排序。
+ * 沿道路拓扑链对分段排序。
  * <p>
- * {@link Road} 内部用 {@link java.util.LinkedHashSet} 保存分段，仅保证插入顺序；
- * 求交打断、拆分、重分配后插入顺序可能与几何链不一致。UI 与 split 逻辑应使用本类。
+ * {@link Road} 内部用有序列表保存分段；求交打断、拆分、重分配后存储顺序可能与几何链不一致。
+ * UI、split、里程等逻辑应使用本类，而非 {@link Road#getSegmentIds()}。
  */
 public final class RoadSegmentOrdering {
 
@@ -24,7 +24,7 @@ public final class RoadSegmentOrdering {
         if (network == null || road == null) {
             return List.of();
         }
-        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        List<String> segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
         if (segmentIds.size() <= 1) {
             return segmentIds;
         }
@@ -81,6 +81,16 @@ public final class RoadSegmentOrdering {
             return;
         }
         road.reorderSegments(orderedSegmentIds(network, road));
+    }
+
+    /** 对网络内全部逻辑道路同步拓扑链顺序到 {@link Road#getOrderedSegmentIds()} 存储。 */
+    public static void applyTopologicalOrderToAllRoads(RoadNetwork network) {
+        if (network == null) {
+            return;
+        }
+        for (Road road : network.getRoads().values()) {
+            applyTopologicalOrder(network, road);
+        }
     }
 
     private static String findChainStart(RoadNetwork network, Map<String, List<String>> nodeToEdgeIds) {

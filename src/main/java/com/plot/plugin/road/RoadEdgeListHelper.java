@@ -125,7 +125,7 @@ public final class RoadEdgeListHelper {
             return 0.0;
         }
         double total = 0.0;
-        for (String segmentId : road.getSegmentIds()) {
+        for (String segmentId : orderedSegmentIds(network, road)) {
             RoadEdge edge = network.getEdge(segmentId);
             if (edge != null) {
                 total += edge.getLength();

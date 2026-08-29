@@ -91,7 +91,7 @@ class RoadGraphTest {
 
         assertEquals(1, network.getEdges().size());
         assertEquals(1, road.getSegmentIds().size());
-        assertEquals(mergedEdgeId, road.getSegmentIds().iterator().next());
+        assertEquals(mergedEdgeId, road.getOrderedSegmentIds().getFirst());
         assertEquals(20.0, network.getEdge(mergedEdgeId).getLength(), 1e-6);
         assertEquals(null, network.getNode(mid.getId()));
     }

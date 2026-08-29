@@ -260,7 +260,7 @@ class RoadWorkflowTest {
                 other.getCrossSection().getCarriageway().getEffectiveLaneCount());
             assertEquals(road.getIncludeSidewalk(), other.getIncludeSidewalk());
             assertEquals(road.getSidewalkWidth(), other.getSidewalkWidth());
-            assertEquals(List.copyOf(road.getSegmentIds()), List.copyOf(other.getSegmentIds()));
+            assertEquals(road.getOrderedSegmentIds(), other.getOrderedSegmentIds());
         }
 
         for (RoadEdge edge : expected.getEdges().values()) {

@@ -9,6 +9,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.spatial.RoadEdgeSpatialIndex;
 
 import org.slf4j.Logger;
@@ -113,6 +114,7 @@ public class RoadNetworkBuilder {
                     "Intersection splitting aborted: edge count {} exceeds limit {}",
                     network.getEdges().size(),
                     MAX_INTERSECTION_EDGE_COUNT);
+                RoadSegmentOrdering.applyTopologicalOrderToAllRoads(network);
                 return IntersectionResult.INCOMPLETE;
             }
             pass++;
@@ -146,6 +148,7 @@ public class RoadNetworkBuilder {
                 }
             }
         }
+        RoadSegmentOrdering.applyTopologicalOrderToAllRoads(network);
         if (changed) {
             LOGGER.error(
                 "Intersection splitting stopped after {} passes (edge count={}); topology may be incomplete",

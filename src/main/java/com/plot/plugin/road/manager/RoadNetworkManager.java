@@ -11,6 +11,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -378,7 +379,7 @@ public final class RoadNetworkManager {
         if (road == null) {
             return;
         }
-        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        List<String> segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
         segmentIds.removeIf(id -> network.getEdge(id) == null);
         if (segmentIds.isEmpty()) {
             return;
@@ -491,7 +492,7 @@ public final class RoadNetworkManager {
         }
         pushHistory();
         Road road = network.getRoad(roadId);
-        List<String> edgeIds = road != null ? new ArrayList<>(road.getSegmentIds()) : List.of();
+        List<String> edgeIds = road != null ? new ArrayList<>(road.getOrderedSegmentIds()) : List.of();
         network.removeRoad(roadId);
         selectedEdgeIds.removeIf(edgeIds::contains);
         if (edgeIds.contains(lastSelectedEdgeId)) {
@@ -520,7 +521,7 @@ public final class RoadNetworkManager {
         if (road == null) {
             return null;
         }
-        List<String> segmentIds = new ArrayList<>(road.getSegmentIds());
+        List<String> segmentIds = RoadSegmentOrdering.orderedSegmentIds(network, road);
         int index = segmentIds.indexOf(segmentEdgeId);
         if (index <= 0) {
             return null;

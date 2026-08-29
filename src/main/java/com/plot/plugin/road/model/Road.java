@@ -9,6 +9,7 @@ import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,7 +24,7 @@ public class Road {
     private RoadCrossSection crossSection = new RoadCrossSection();
     private String styleId;
     private Float maxSlope;
-    private final Set<String> segmentIds = new LinkedHashSet<>();
+    private final List<String> segmentIds = new ArrayList<>();
 
     public Road() {
         this(UUID.randomUUID().toString());
@@ -62,7 +63,9 @@ public class Road {
         }
         this.maxSlope = maxSlope;
         if (segmentIds != null) {
-            this.segmentIds.addAll(segmentIds);
+            for (String segmentId : segmentIds) {
+                addSegment(segmentId);
+            }
         }
     }
 
@@ -379,12 +382,29 @@ public class Road {
         this.maxSlope = maxSlope != null ? RoadParameterLimits.clampGradePercent(maxSlope) : null;
     }
 
+    /**
+     * 分段 ID 集合，仅用于成员判定（{@code contains} / {@code size}）。
+     * <p>
+     * 需要沿道路链的顺序时，请使用 {@link #getOrderedSegmentIds()} 或
+     * {@link RoadSegmentOrdering#orderedSegmentIds(RoadNetwork, Road)}。
+     */
     public Set<String> getSegmentIds() {
-        return Set.copyOf(segmentIds);
+        return Collections.unmodifiableSet(new LinkedHashSet<>(segmentIds));
+    }
+
+    /**
+     * 按道路内部存储顺序返回分段 ID。
+     * <p>
+     * 打断、拆分、重分配后若需与几何拓扑一致，应调用
+     * {@link RoadSegmentOrdering#orderedSegmentIds(RoadNetwork, Road)} 或
+     * {@link RoadSegmentOrdering#applyTopologicalOrder(RoadNetwork, Road)}。
+     */
+    public List<String> getOrderedSegmentIds() {
+        return List.copyOf(segmentIds);
     }
 
     public void addSegment(String edgeId) {
-        if (edgeId != null && !edgeId.isBlank()) {
+        if (edgeId != null && !edgeId.isBlank() && !segmentIds.contains(edgeId)) {
             segmentIds.add(edgeId);
         }
     }
@@ -479,7 +499,7 @@ public class Road {
     }
 
     Road copy() {
-        Road copy = new Road(id, name, crossSection.copy(), maxSlope, segmentIds);
+        Road copy = new Road(id, name, crossSection.copy(), maxSlope, new LinkedHashSet<>(segmentIds));
         copy.styleId = styleId;
         return copy;
     }

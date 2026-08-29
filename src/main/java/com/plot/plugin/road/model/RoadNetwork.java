@@ -247,7 +247,7 @@ public class RoadNetwork {
      */
     public void reconcileRoadSegmentLinks() {
         for (Road road : roads.values()) {
-            for (String segmentId : List.copyOf(road.getSegmentIds())) {
+            for (String segmentId : road.getOrderedSegmentIds()) {
                 if (!edges.containsKey(segmentId)) {
                     road.removeSegment(segmentId);
                 }
@@ -940,7 +940,7 @@ public class RoadNetwork {
                 roadData.styleId = road.getStyleId();
                 roadData.crossSection = CrossSectionData.from(road.getCrossSection());
                 roadData.maxSlope = road.getMaxSlope();
-                roadData.segmentIds = new ArrayList<>(road.getSegmentIds());
+                roadData.segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
                 data.roads.add(roadData);
             }
 

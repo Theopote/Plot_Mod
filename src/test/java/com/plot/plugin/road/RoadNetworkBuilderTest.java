@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.RoadSegmentOrdering;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -186,6 +187,45 @@ class RoadNetworkBuilderTest {
 
         Set<String> roadASegments = network.getRoad(roadA.getId()).getSegmentIds();
         assertEquals(3, roadASegments.size());
+    }
+
+    @Test
+    void detectAndSplitIntersectionsSyncsRoadSegmentOrder() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-a");
+        RoadNode n1 = network.createNode(new Vec2d(0, 5));
+        RoadNode n2 = network.createNode(new Vec2d(10, 5));
+        RoadNode n3 = network.createNode(new Vec2d(20, 5));
+        RoadNode n4 = network.createNode(new Vec2d(30, 5));
+        RoadEdge e1 = network.createEdge(n1.getId(), n2.getId(), List.of(
+            new Vec2d(0, 5), new Vec2d(10, 5)), road.getId());
+        RoadEdge e2 = network.createEdge(n2.getId(), n3.getId(), List.of(
+            new Vec2d(10, 5), new Vec2d(20, 5)), road.getId());
+        RoadEdge e3 = network.createEdge(n3.getId(), n4.getId(), List.of(
+            new Vec2d(20, 5), new Vec2d(30, 5)), road.getId());
+
+        Road roadB = network.createRoad("road-b");
+        RoadNode bStart = network.createNode(new Vec2d(15, 5));
+        RoadNode bEnd = network.createNode(new Vec2d(15, 10));
+        network.createEdge(bStart.getId(), bEnd.getId(), List.of(
+            new Vec2d(15, 5), new Vec2d(15, 10)), roadB.getId());
+
+        road.reorderSegments(List.of(e3.getId(), e1.getId(), e2.getId()));
+
+        IntersectionResult result = builder.detectAndSplitIntersections(network);
+        assertEquals(IntersectionResult.COMPLETE, result);
+
+        Road syncedRoad = network.getRoad(road.getId());
+        assertEquals(
+            RoadSegmentOrdering.orderedSegmentIds(network, syncedRoad),
+            syncedRoad.getOrderedSegmentIds());
+        assertEquals(4, syncedRoad.getOrderedSegmentIds().size());
+
+        List<String> ids = syncedRoad.getOrderedSegmentIds();
+        RoadEdge first = network.getEdge(ids.get(0));
+        RoadEdge second = network.getEdge(ids.get(1));
+        assertEquals(n1.getId(), first.getStartNodeId());
+        assertEquals(second.getStartNodeId(), first.getEndNodeId());
     }
 
     @Test

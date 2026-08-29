@@ -1,9 +1,14 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.api.world.IBlockPlacementService;
+import com.plot.api.world.IBlockProjectionService;
+import com.plot.api.world.ICoordinateService;
+import com.plot.api.world.IGhostBlockService;
+import com.plot.api.world.PlacementReadiness;
+import com.plot.api.world.WorldViewBounds;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
-import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.manager.RoadPreviewManager;
@@ -11,6 +16,7 @@ import com.plot.plugin.road.manager.RoadProjectStatus;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -125,15 +131,80 @@ class AutoGradeSeparationRecommendationCacheTest {
 
     private static PluginContext testHost() {
         ApplicationContext applicationContext = ApplicationContext.getInstance();
+        ICoordinateService coordinates = new ICoordinateService() {
+            @Override
+            public Vec2d canvasToMinecraftWorld(Vec2d canvasPos) {
+                return canvasPos;
+            }
+
+            @Override
+            public WorldViewBounds getMinecraftWorldViewBounds() {
+                return new WorldViewBounds(-512, 512, -512, 512);
+            }
+        };
+        IBlockProjectionService projection = new IBlockProjectionService() {
+            @Override
+            public PlacementReadiness checkWorldModificationReadiness() {
+                return PlacementReadiness.ok();
+            }
+
+            @Override
+            public String getBlockIdAt(BlockPos pos) {
+                return "minecraft:stone";
+            }
+
+            @Override
+            public boolean setBlockAt(BlockPos pos, String blockId) {
+                return false;
+            }
+        };
+        IGhostBlockService ghosts = new IGhostBlockService() {
+            @Override
+            public void clearAllGhostBlocks() {
+            }
+
+            @Override
+            public void addGhostBlock(BlockPos position, String blockType) {
+            }
+
+            @Override
+            public void addGhostBlock(Vec2d position, double height, String blockType) {
+            }
+
+            @Override
+            public int getVisibleGhostBlockCount() {
+                return 0;
+            }
+        };
+        IBlockPlacementService placement = new IBlockPlacementService() {
+            @Override
+            public boolean isBusy() {
+                return false;
+            }
+
+            @Override
+            public ProgressSnapshot getProgressSnapshot() {
+                return new ProgressSnapshot(0, 0, 0, 0);
+            }
+
+            @Override
+            public boolean cancelAll() {
+                return false;
+            }
+
+            @Override
+            public void enqueue(List<BlockWrite> writes, java.util.function.Consumer<ExecutionResult> onComplete) {
+            }
+        };
         return new PluginContext(
             applicationContext.getAppState(),
             applicationContext.getCommandService(),
             applicationContext.getEventBus(),
             applicationContext.getToolManager(),
-            null,
-            null,
-            null,
-            BlockProjectionHandler.getInstance());
+            coordinates,
+            ghosts,
+            placement,
+            projection);
     }
 
     private record SimpleCrossFixture(

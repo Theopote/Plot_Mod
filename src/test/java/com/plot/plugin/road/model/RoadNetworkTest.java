@@ -457,7 +457,7 @@ class RoadNetworkTest {
         assertNull(edge.getSourceRoadId());
         assertEquals(7, road.getWidth());
         assertEquals(5.0f, road.getMaxSlope());
-        assertEquals(List.of("e1"), List.copyOf(road.getSegmentIds()));
+        assertEquals(List.of("e1"), road.getOrderedSegmentIds());
     }
 
     @Test
@@ -932,7 +932,7 @@ class RoadNetworkTest {
             RoadSegmentOrdering.orderedSegmentIds(network, network.getRoad(newRoadId)));
         assertEquals(
             order.subList(1, order.size()),
-            new ArrayList<>(network.getRoad(newRoadId).getSegmentIds()));
+            network.getRoad(newRoadId).getOrderedSegmentIds());
         assertEquals(7, network.getRoad(newRoadId).getWidth());
         assertTrue(network.validateInvariants().isValid());
     }
@@ -947,7 +947,7 @@ class RoadNetworkTest {
         RoadEdge edge1 = network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
         network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
 
-        List<String> order = new ArrayList<>(road.getSegmentIds());
+        List<String> order = RoadSegmentOrdering.orderedSegmentIds(network, road);
         assertNull(network.splitRoadBeforeSegment(road.getId(), order.getFirst()));
     }
 }
