@@ -105,47 +105,48 @@ public final class RoadCrossSectionPreviewRenderer {
             float height,
             MiniRenderOptions options) {
         MiniRenderOptions renderOptions = options != null ? options : MiniRenderOptions.standard();
-        float padding = renderOptions.padding;
-        float deckY = y0 + height * renderOptions.deckYRatio;
-        float deckH = height * renderOptions.deckHRatio;
-        float groundY = y0 + height * renderOptions.groundYRatio;
-        float groundBottom = padding > 0f ? y0 + height - padding : y0 + height;
-
-        float totalBlocks = layout.totalWidthBlocks();
-        if (totalBlocks <= 0f) {
+        PreviewGeometry geometry = PreviewGeometry.forBounds(
+            layout, x0, y0, width, height, renderOptions);
+        if (geometry == null) {
             return;
         }
 
-        float scale = (width - padding * 2f) / totalBlocks;
-        float cursorX = x0 + (width - totalBlocks * scale) * 0.5f;
+        float padding = renderOptions.padding;
+        float deckY = geometry.deckY();
+        float deckH = geometry.deckH();
+        float deckBottom = geometry.deckBottom();
+        float groundY = geometry.groundY();
+        float groundBottom = padding > 0f ? y0 + height - padding : y0 + height;
+        float scale = geometry.scale();
+        float cursorX = geometry.cursorX();
+        float roadCenterX = geometry.roadCenterX();
 
         float groundLeft = x0 + padding;
         float groundRight = x0 + width - padding;
         drawList.addLine(groundLeft, groundY, groundRight, groundY, COLOR_GROUND_LINE, 1.5f);
         drawList.addRectFilled(groundLeft, groundY, groundRight, groundBottom, COLOR_GROUND);
 
-        cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
-        cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
-        cursorX = drawBand(drawList, layout.leftBikeBlocks, cursorX, deckY, deckY + deckH, scale, layout.bikeColor);
-        cursorX = drawBand(drawList, layout.leftShoulderBlocks, cursorX, deckY, deckY + deckH, scale, layout.shoulderColor);
+        cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
+        cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
+        cursorX = drawBand(drawList, layout.leftBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
+        cursorX = drawBand(drawList, layout.leftShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
         float roadStartX = cursorX;
-        cursorX = drawBand(drawList, layout.roadBlocks, cursorX, deckY, deckY + deckH, scale, layout.roadColor);
+        cursorX = drawBand(drawList, layout.roadBlocks, cursorX, deckY, deckBottom, scale, layout.roadColor);
         float roadWidthPx = layout.roadBlocks * scale;
         drawRoadMarkings(drawList, layout, roadStartX, roadWidthPx, deckY, deckH);
-        cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckY + deckH, scale, layout.shoulderColor);
-        cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckY + deckH, scale, layout.bikeColor);
-        cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckY + deckH, scale, layout.sidewalkColor);
-        drawBand(drawList, layout.drainageBlocks, cursorX, deckY + deckH, groundY, scale, COLOR_DRAINAGE);
+        cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
+        cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
+        cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
+        drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
 
         if (layout.fillSlopeRatio > 0f || layout.cutSlopeRatio > 0f) {
-            float roadCenterX = x0 + width * 0.5f;
             float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
             float rightEdgeX = roadCenterX + layout.rightOuterHardEdgeFromCenterBlocks() * scale;
 
             drawBatterSlope(
                 drawList,
                 leftEdgeX,
-                deckY + deckH,
+                deckBottom,
                 groundY,
                 -1,
                 layout.fillSlopeRatio,
@@ -156,8 +157,8 @@ public final class RoadCrossSectionPreviewRenderer {
             drawBatterSlope(
                 drawList,
                 rightEdgeX,
-                deckY + deckH,
-                deckY - Math.max(10f, (groundY - deckY - deckH) * 0.5f),
+                deckBottom,
+                geometry.cutTopY(),
                 1,
                 layout.cutSlopeRatio,
                 layout.shoulderColor,
@@ -175,9 +176,177 @@ public final class RoadCrossSectionPreviewRenderer {
                 drawList.addText(x0 + width - padding - 72f, y0 + padding * 0.5f, COLOR_LABEL, gradeLabel);
             }
 
-            String label = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(totalBlocks));
+            String label = PlotI18n.tr("plugin.road.cross_section_scale", Math.round(layout.totalWidthBlocks()));
             drawList.addText(x0 + padding, y0 + padding * 0.5f, COLOR_LABEL, label);
         }
+    }
+
+    /**
+     * 预设卡片等紧凑预览的布局：计入边坡外扩，避免左右/上方被 Child 裁切。
+     */
+    static PreviewGeometry previewGeometryForTests(
+            CrossSectionLayout layout,
+            float width,
+            float height,
+            MiniRenderOptions options) {
+        return PreviewGeometry.forBounds(layout, 0f, 0f, width, height, options);
+    }
+
+    static final class PreviewGeometry {
+        private final float deckY;
+        private final float deckH;
+        private final float deckBottom;
+        private final float groundY;
+        private final float cutTopY;
+        private final float scale;
+        private final float cursorX;
+        private final float roadCenterX;
+        private final float visualWidth;
+        private final float visualLeft;
+        private final float visualRight;
+        private final float topY;
+
+        private PreviewGeometry(
+                float deckY,
+                float deckH,
+                float deckBottom,
+                float groundY,
+                float cutTopY,
+                float scale,
+                float cursorX,
+                float roadCenterX,
+                float visualWidth,
+                float visualLeft,
+                float visualRight,
+                float topY) {
+            this.deckY = deckY;
+            this.deckH = deckH;
+            this.deckBottom = deckBottom;
+            this.groundY = groundY;
+            this.cutTopY = cutTopY;
+            this.scale = scale;
+            this.cursorX = cursorX;
+            this.roadCenterX = roadCenterX;
+            this.visualWidth = visualWidth;
+            this.visualLeft = visualLeft;
+            this.visualRight = visualRight;
+            this.topY = topY;
+        }
+
+        static PreviewGeometry forBounds(
+                CrossSectionLayout layout,
+                float x0,
+                float y0,
+                float width,
+                float height,
+                MiniRenderOptions options) {
+            float totalBlocks = layout.totalWidthBlocks();
+            if (totalBlocks <= 0f || width <= 0f || height <= 0f) {
+                return null;
+            }
+
+            float padding = options.padding;
+            float deckY = y0 + height * options.deckYRatio;
+            float deckH = height * options.deckHRatio;
+            float deckBottom = deckY + deckH;
+            float groundY = y0 + height * options.groundYRatio;
+            float fillVertDrop = Math.max(0f, groundY - deckBottom);
+            float cutTopY = resolveCutTopY(deckY, deckH, deckBottom, fillVertDrop, y0, options);
+            float cutVertDrop = Math.max(0f, deckBottom - cutTopY);
+
+            float leftBatterPx = layout.fillSlopeRatio > 0f ? fillVertDrop * layout.fillSlopeRatio : 0f;
+            float rightBatterPx = layout.cutSlopeRatio > 0f ? cutVertDrop * layout.cutSlopeRatio : 0f;
+            float availableWidth = Math.max(1f, width - padding * 2f);
+            float scale = (availableWidth - leftBatterPx - rightBatterPx) / totalBlocks;
+            if (scale <= 0f) {
+                scale = availableWidth / totalBlocks;
+            }
+
+            float leftOuterBlocks = layout.leftOuterHardEdgeFromCenterBlocks();
+            float rightOuterBlocks = layout.rightOuterHardEdgeFromCenterBlocks();
+            float visualWidth = totalBlocks * scale + leftBatterPx + rightBatterPx;
+            float visualLeft = x0 + (width - visualWidth) * 0.5f;
+            float visualRight = visualLeft + visualWidth;
+            float roadCenterX = visualLeft + leftBatterPx + leftOuterBlocks * scale;
+            float cursorX = roadCenterX - totalBlocks * 0.5f * scale;
+            float topY = Math.min(deckY, cutTopY);
+
+            return new PreviewGeometry(
+                deckY,
+                deckH,
+                deckBottom,
+                groundY,
+                cutTopY,
+                scale,
+                cursorX,
+                roadCenterX,
+                visualWidth,
+                visualLeft,
+                visualRight,
+                topY);
+        }
+
+        float deckY() {
+            return deckY;
+        }
+
+        float deckH() {
+            return deckH;
+        }
+
+        float deckBottom() {
+            return deckBottom;
+        }
+
+        float groundY() {
+            return groundY;
+        }
+
+        float cutTopY() {
+            return cutTopY;
+        }
+
+        float scale() {
+            return scale;
+        }
+
+        float cursorX() {
+            return cursorX;
+        }
+
+        float roadCenterX() {
+            return roadCenterX;
+        }
+
+        float visualWidth() {
+            return visualWidth;
+        }
+
+        float visualLeft() {
+            return visualLeft;
+        }
+
+        float visualRight() {
+            return visualRight;
+        }
+
+        float topY() {
+            return topY;
+        }
+    }
+
+    private static float resolveCutTopY(
+            float deckY,
+            float deckH,
+            float deckBottom,
+            float fillVertDrop,
+            float y0,
+            MiniRenderOptions options) {
+        if (options.compactSlopes) {
+            float rise = Math.min(deckH * 0.35f, fillVertDrop * 0.4f);
+            return Math.max(y0 + 1f, deckY - rise);
+        }
+        return deckY - Math.max(10f, fillVertDrop * 0.5f);
     }
 
     private static void drawRoadMarkings(
@@ -256,6 +425,7 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float padding;
         public final boolean drawOverlayLabels;
         public final boolean drawSlopeLabels;
+        public final boolean compactSlopes;
         public final float deckYRatio;
         public final float deckHRatio;
         public final float groundYRatio;
@@ -264,24 +434,25 @@ public final class RoadCrossSectionPreviewRenderer {
                 float padding,
                 boolean drawOverlayLabels,
                 boolean drawSlopeLabels,
+                boolean compactSlopes,
                 float deckYRatio,
                 float deckHRatio,
                 float groundYRatio) {
             this.padding = padding;
             this.drawOverlayLabels = drawOverlayLabels;
             this.drawSlopeLabels = drawSlopeLabels;
+            this.compactSlopes = compactSlopes;
             this.deckYRatio = deckYRatio;
             this.deckHRatio = deckHRatio;
             this.groundYRatio = groundYRatio;
         }
 
         public static MiniRenderOptions standard() {
-            return new MiniRenderOptions(8f, true, true, 0.28f, 0.22f, 0.72f);
+            return new MiniRenderOptions(8f, true, true, false, 0.28f, 0.22f, 0.72f);
         }
 
         public static MiniRenderOptions presetCard() {
-            // 路面贴顶；地面条约占图示高度 28%（约为原先 50% 的三分之一）
-            return new MiniRenderOptions(0f, false, false, 0.02f, 0.46f, 0.714f);
+            return new MiniRenderOptions(2f, false, false, true, 0.06f, 0.42f, 0.72f);
         }
     }
 

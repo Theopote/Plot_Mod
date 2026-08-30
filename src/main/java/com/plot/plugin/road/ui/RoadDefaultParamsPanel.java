@@ -192,7 +192,7 @@ public final class RoadDefaultParamsPanel {
     private static final float PRESET_CARD_PADDING_BOTTOM = 2f;
     private static final float PRESET_PREVIEW_GAP = 1f;
     /** 图示区高度；与 {@link RoadCrossSectionPreviewRenderer.MiniRenderOptions#presetCard()} 比例配套。 */
-    private static final float PRESET_PREVIEW_HEIGHT = 28f;
+    private static final float PRESET_PREVIEW_HEIGHT = 32f;
 
     private static float presetCardHeight() {
         return PRESET_CARD_PADDING_TOP
