@@ -7,6 +7,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.ui.canvas.Canvas;
+import com.plot.ui.canvas.CanvasAccess;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -22,7 +24,9 @@ import java.util.function.ToDoubleFunction;
  * 路网概览缩略图：在 ImGui 面板内绘制节点/边的俯视图。
  */
 public final class RoadNetworkOverviewRenderer {
-    private static final float MAP_HEIGHT = 180f;
+    private static final float MIN_MAP_HEIGHT = 80f;
+    private static final float DEFAULT_CANVAS_WIDTH = 800f;
+    private static final float DEFAULT_CANVAS_HEIGHT = 600f;
     private static final float PADDING = 10f;
     private static final float NODE_RADIUS = 4f;
     private static final float SELECTED_NODE_RADIUS = 6f;
@@ -54,7 +58,9 @@ public final class RoadNetworkOverviewRenderer {
             Consumer<String> onEdgeSelected,
             Consumer<String> onNodeSelected) {
         ImGui.text(PlotI18n.tr("plugin.road.network_map"));
-        ImGui.beginChild("road_network_map", 0, MAP_HEIGHT, true);
+        float mapWidth = ImGui.getContentRegionAvail().x;
+        float mapHeight = mapHeightForWidth(mapWidth);
+        ImGui.beginChild("road_network_map", 0, mapHeight, true);
 
         float width = ImGui.getContentRegionAvail().x;
         float height = ImGui.getContentRegionAvail().y;
@@ -80,11 +86,12 @@ public final class RoadNetworkOverviewRenderer {
         }
 
         Bounds bounds = computeBounds(network);
-        drawEdges(drawList, network, bounds, originX, originY, width, height, selectedEdgeIds);
+        MapViewport viewport = buildViewport(bounds, originX, originY, width, height);
+        drawEdges(drawList, network, viewport, selectedEdgeIds);
         drawSelectedJunctionPreview(
-            drawList, network, config, bounds, originX, originY, width, height, selectedNodeId);
+            drawList, network, config, viewport, selectedNodeId);
         drawNodes(
-            drawList, network, networkBuilder, bounds, originX, originY, width, height, selectedNodeId);
+            drawList, network, networkBuilder, viewport, selectedNodeId);
 
         ImGui.invisibleButton("##road_map_hit", width, height);
         if (ImGui.isItemHovered()) {
@@ -92,14 +99,14 @@ public final class RoadNetworkOverviewRenderer {
         }
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
             ImVec2 mouse = ImGui.getMousePos();
-            double worldX = toWorldX(mouse.x, bounds, originX, width);
-            double worldY = toWorldY(mouse.y, bounds, originY, height);
+            double worldX = toWorldX(mouse.x, viewport);
+            double worldY = toWorldY(mouse.y, viewport);
 
-            String nodeHit = hitTestNode(network, worldX, worldY, bounds.hitThreshold() * 0.55);
+            String nodeHit = hitTestNode(network, worldX, worldY, viewport.hitThreshold() * 0.55);
             if (nodeHit != null && onNodeSelected != null) {
                 onNodeSelected.accept(nodeHit);
             } else if (onEdgeSelected != null) {
-                String edgeHit = hitTestEdge(network, worldX, worldY, bounds.hitThreshold());
+                String edgeHit = hitTestEdge(network, worldX, worldY, viewport.hitThreshold());
                 if (edgeHit != null) {
                     onEdgeSelected.accept(edgeHit);
                 }
@@ -114,11 +121,7 @@ public final class RoadNetworkOverviewRenderer {
             ImDrawList drawList,
             RoadNetwork network,
             RoadSystemConfig config,
-            Bounds bounds,
-            float originX,
-            float originY,
-            float width,
-            float height,
+            MapViewport viewport,
             String selectedNodeId) {
         if (selectedNodeId == null || selectedNodeId.isBlank() || config == null) {
             return;
@@ -161,8 +164,8 @@ public final class RoadNetworkOverviewRenderer {
         ImVec2[] screenPoints = new ImVec2[polygon.size()];
         for (int i = 0; i < polygon.size(); i++) {
             screenPoints[i] = new ImVec2(
-                toScreenX(polygon.get(i).x, bounds, originX, width),
-                toScreenY(polygon.get(i).y, bounds, originY, height)
+                toScreenX(polygon.get(i).x, viewport),
+                toScreenY(polygon.get(i).y, viewport)
             );
         }
         drawList.addConvexPolyFilled(screenPoints, polygon.size(), COLOR_JUNCTION_PREVIEW_FILL);
@@ -210,11 +213,7 @@ public final class RoadNetworkOverviewRenderer {
     private static void drawEdges(
             ImDrawList drawList,
             RoadNetwork network,
-            Bounds bounds,
-            float originX,
-            float originY,
-            float width,
-            float height,
+            MapViewport viewport,
             Set<String> selectedEdgeIds) {
         for (RoadEdge edge : network.getEdges().values()) {
             List<Vec2d> points = edge.getCenterlinePoints();
@@ -228,10 +227,10 @@ public final class RoadNetworkOverviewRenderer {
                 Vec2d a = points.get(i);
                 Vec2d b = points.get(i + 1);
                 drawList.addLine(
-                    toScreenX(a.x, bounds, originX, width),
-                    toScreenY(a.y, bounds, originY, height),
-                    toScreenX(b.x, bounds, originX, width),
-                    toScreenY(b.y, bounds, originY, height),
+                    toScreenX(a.x, viewport),
+                    toScreenY(a.y, viewport),
+                    toScreenX(b.x, viewport),
+                    toScreenY(b.y, viewport),
                     color,
                     thickness
                 );
@@ -243,18 +242,14 @@ public final class RoadNetworkOverviewRenderer {
             ImDrawList drawList,
             RoadNetwork network,
             RoadNetworkBuilder networkBuilder,
-            Bounds bounds,
-            float originX,
-            float originY,
-            float width,
-            float height,
+            MapViewport viewport,
             String selectedNodeId) {
         for (RoadNode node : network.getNodes().values()) {
             Vec2d pos = node.getPosition();
             boolean selected = node.getId().equals(selectedNodeId);
             int color = junctionColor(networkBuilder.classify(node));
-            float sx = toScreenX(pos.x, bounds, originX, width);
-            float sy = toScreenY(pos.y, bounds, originY, height);
+            float sx = toScreenX(pos.x, viewport);
+            float sy = toScreenY(pos.y, viewport);
             float radius = selected ? SELECTED_NODE_RADIUS : NODE_RADIUS;
             drawList.addCircleFilled(sx, sy, radius, color);
             drawList.addCircle(sx, sy, radius + 0.5f, PluginUiColors.RING_DARK, 12, 1f);
@@ -313,34 +308,74 @@ public final class RoadNetworkOverviewRenderer {
         return new Bounds(minX, minY, maxX, maxY, spanX, spanY, hitThreshold);
     }
 
-    private static float toScreenX(double worldX, Bounds bounds, float originX, float width) {
-        float inner = width - PADDING * 2f;
-        return originX + PADDING + (float) ((worldX - bounds.minX) / bounds.spanX) * inner;
+    /** 面板高度随可用宽度变化，宽高比与 Plot 画布一致。 */
+    static float mapHeightForWidth(float width) {
+        if (width < 1f) {
+            return MIN_MAP_HEIGHT;
+        }
+        return Math.max(MIN_MAP_HEIGHT, width / canvasAspectRatio());
+    }
+
+    private static float canvasAspectRatio() {
+        Canvas canvas = CanvasAccess.get();
+        if (canvas != null) {
+            int canvasWidth = canvas.getWidth();
+            int canvasHeight = canvas.getHeight();
+            if (canvasWidth > 0 && canvasHeight > 0) {
+                return (float) canvasWidth / canvasHeight;
+            }
+        }
+        return DEFAULT_CANVAS_WIDTH / DEFAULT_CANVAS_HEIGHT;
+    }
+
+    private static MapViewport buildViewport(
+            Bounds bounds,
+            float originX,
+            float originY,
+            float width,
+            float height) {
+        float innerWidth = width - PADDING * 2f;
+        float innerHeight = height - PADDING * 2f;
+        float scale = (float) Math.min(innerWidth / bounds.spanX, innerHeight / bounds.spanY);
+        float contentWidth = (float) (bounds.spanX * scale);
+        float contentHeight = (float) (bounds.spanY * scale);
+        float offsetX = (innerWidth - contentWidth) * 0.5f;
+        float offsetY = (innerHeight - contentHeight) * 0.5f;
+        return new MapViewport(bounds, scale, offsetX, offsetY, originX, originY, bounds.hitThreshold());
+    }
+
+    private static float toScreenX(double worldX, MapViewport viewport) {
+        return viewport.originX()
+            + PADDING
+            + viewport.offsetX()
+            + (float) ((worldX - viewport.bounds().minX) * viewport.scale());
     }
 
     /**
      * 与 Plot 画布一致：画布 Y 向下增大，不把世界 Y 做上下翻转。
      * （此前使用 maxY - worldY，会相对画布呈上下镜像。）
      */
-    private static float toScreenY(double worldY, Bounds bounds, float originY, float height) {
-        float inner = height - PADDING * 2f;
-        return originY + PADDING + (float) ((worldY - bounds.minY) / bounds.spanY) * inner;
+    private static float toScreenY(double worldY, MapViewport viewport) {
+        return viewport.originY()
+            + PADDING
+            + viewport.offsetY()
+            + (float) ((worldY - viewport.bounds().minY) * viewport.scale());
     }
 
-    private static double toWorldX(float screenX, Bounds bounds, float originX, float width) {
-        float inner = width - PADDING * 2f;
-        if (inner <= 0f) {
-            return bounds.minX;
+    private static double toWorldX(float screenX, MapViewport viewport) {
+        if (viewport.scale() <= 0f) {
+            return viewport.bounds().minX;
         }
-        return bounds.minX + (screenX - originX - PADDING) / inner * bounds.spanX;
+        float inner = screenX - viewport.originX() - PADDING - viewport.offsetX();
+        return viewport.bounds().minX + inner / viewport.scale();
     }
 
-    private static double toWorldY(float screenY, Bounds bounds, float originY, float height) {
-        float inner = height - PADDING * 2f;
-        if (inner <= 0f) {
-            return bounds.minY;
+    private static double toWorldY(float screenY, MapViewport viewport) {
+        if (viewport.scale() <= 0f) {
+            return viewport.bounds().minY;
         }
-        return bounds.minY + (screenY - originY - PADDING) / inner * bounds.spanY;
+        float inner = screenY - viewport.originY() - PADDING - viewport.offsetY();
+        return viewport.bounds().minY + inner / viewport.scale();
     }
 
     static String hitTestEdge(RoadNetwork network, double wx, double wy, double threshold) {
@@ -385,6 +420,16 @@ public final class RoadNetworkOverviewRenderer {
         double cx = a.x + t * abx;
         double cy = a.y + t * aby;
         return Math.hypot(px - cx, py - cy);
+    }
+
+    private record MapViewport(
+            Bounds bounds,
+            float scale,
+            float offsetX,
+            float offsetY,
+            float originX,
+            float originY,
+            double hitThreshold) {
     }
 
     private record Bounds(

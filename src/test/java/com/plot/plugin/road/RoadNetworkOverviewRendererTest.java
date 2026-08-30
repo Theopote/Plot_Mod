@@ -10,6 +10,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkOverviewRendererTest {
 
@@ -33,5 +34,17 @@ class RoadNetworkOverviewRendererTest {
         network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
 
         assertNull(RoadNetworkOverviewRenderer.hitTestEdge(network, 5, 50, 1.0));
+    }
+
+    @Test
+    void mapHeightForWidthFollowsDefaultCanvasAspectRatio() {
+        float width = 400f;
+        float height = RoadNetworkOverviewRenderer.mapHeightForWidth(width);
+        assertEquals(300f, height, 0.01f);
+    }
+
+    @Test
+    void mapHeightForWidthEnforcesMinimum() {
+        assertTrue(RoadNetworkOverviewRenderer.mapHeightForWidth(40f) >= 80f);
     }
 }
