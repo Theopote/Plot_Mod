@@ -1,0 +1,103 @@
+package com.plot.plugin.road.model;
+
+import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadNetworkBuilder;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class RoadTopologyRoadSplitterTest {
+
+    private final RoadSystemConfig config = new RoadSystemConfig("test");
+    private final RoadNetworkBuilder builder = new RoadNetworkBuilder();
+
+    @Test
+    void repairsDisconnectedComponents() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-split");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        RoadNode n4 = network.createNode(new Vec2d(110, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n3.getId(), n4.getId(), List.of(new Vec2d(100, 0), new Vec2d(110, 0)), road.getId());
+
+        assertEquals(2, road.getOrderedSegmentIds().size());
+        assertFalse(RoadTopologyInvariantValidator.validateRoad(network, road).isEmpty());
+
+        RoadTopologyRoadSplitter.RepairResult result = RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(1, result.sourceRoadsRepaired());
+        assertEquals(1, result.newRoadsCreated());
+        assertEquals(2, network.getRoads().size());
+        assertTrue(RoadTopologyInvariantValidator.validate(network).stream()
+            .noneMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_DISCONNECTED));
+    }
+
+    @Test
+    void splitsBranchingRoadAtFork() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-fork");
+        road.setName("Main");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(10, 10));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+
+        RoadTopologyRoadSplitter.RepairResult result = RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(1, result.sourceRoadsRepaired());
+        assertEquals(2, result.newRoadsCreated());
+        assertEquals(3, network.getRoads().size());
+        assertTrue(RoadTopologyInvariantValidator.validate(network).stream()
+            .noneMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_BRANCHING));
+
+        long namedBranches = network.getRoads().values().stream()
+            .filter(r -> r.getName() != null && r.getName().startsWith("Main · "))
+            .count();
+        assertEquals(2, namedBranches);
+    }
+
+    @Test
+    void promotesClosedLoopToLoopMode() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("ring");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(10, 10));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+        network.createEdge(n3.getId(), n1.getId(), List.of(new Vec2d(10, 10), new Vec2d(0, 0)), road.getId());
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(RoadTopologyMode.LOOP, road.getTopologyMode());
+        assertTrue(RoadTopologyInvariantValidator.validateRoad(network, road).stream()
+            .noneMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_CYCLE));
+    }
+
+    @Test
+    void doesNotSplitValidTJunctionAcrossRoads() {
+        RoadNetwork network = new RoadNetwork();
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(0, 5), new Vec2d(10, 5)), false), config);
+        builder.adoptShape(network, new PolylineShape(
+            List.of(new Vec2d(5, 5), new Vec2d(5, 10)), false), config);
+
+        int roadsBefore = network.getRoads().size();
+        RoadTopologyRoadSplitter.RepairResult result = RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        assertEquals(0, result.newRoadsCreated());
+        assertEquals(roadsBefore, network.getRoads().size());
+        assertTrue(RoadTopologyInvariantValidator.validate(network).isEmpty());
+    }
+}

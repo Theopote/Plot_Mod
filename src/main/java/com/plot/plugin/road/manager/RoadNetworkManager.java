@@ -12,6 +12,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkHistory;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.model.RoadTopologyRoadSplitter;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSection;
@@ -600,12 +601,15 @@ public final class RoadNetworkManager {
 
         if (intersectionIncomplete) {
             IntersectionResult retry = networkBuilder.detectAndSplitIntersections(network);
-            notifyNetworkChanged();
             if (retry == IntersectionResult.COMPLETE) {
                 intersectionIncomplete = false;
                 adoptIntersectionRepairPending = false;
             }
         }
+
+        RoadTopologyRoadSplitter.RepairResult topologyRepair =
+            RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        notifyNetworkChanged();
 
         if (failedCount > 0) {
             status.warning(String.format(
@@ -614,6 +618,12 @@ public final class RoadNetworkManager {
                 failedCount));
         } else if (intersectionIncomplete) {
             status.warning(PlotI18n.tr("plugin.road.adopt_intersection_incomplete"));
+        } else if (topologyRepair.newRoadsCreated() > 0) {
+            status.success(String.format(
+                PlotI18n.tr("plugin.road.adopt_success_topology_repaired"),
+                adoptedCount,
+                topologyRepair.sourceRoadsRepaired(),
+                topologyRepair.newRoadsCreated()));
         } else if (adoptedCount > 1) {
             status.success(String.format(
                 PlotI18n.tr("plugin.road.adopt_success_batch"),

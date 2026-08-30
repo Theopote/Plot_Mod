@@ -986,6 +986,7 @@
   "plugin.road.adopt_success_batch": "Adopted %d roads; connected at %d junction(s)",
   "plugin.road.adopt_partial_success": "Adopted %d road(s), %d failed",
   "plugin.road.adopt_success_junction": "Road adopted; connected at %d junction(s)",
+  "plugin.road.adopt_success_topology_repaired": "Adopted %d path(s); auto-split %d road(s), created %d new road(s)",
   "plugin.road.adopt_failed": "Failed to adopt road",
   "plugin.road.adopt_intersection_incomplete": "Road adopted, but some intersections could not be fully resolved — check topology",
   "plugin.road.adopt_intersection_repair_prompt": "Intersection topology is incomplete — use the button below to retry",
