@@ -11,6 +11,13 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
+import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.station.RoadStationFormat;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -138,9 +145,9 @@ public final class RoadEditPanel {
         if (current == null) {
             return;
         }
-        renderSegmentSummary(network, current);
+        renderSegmentSummary(network, road, current);
         renderElevationHint(current);
-        renderSlopeOverrides(current);
+        renderSlopeOverrides(network, road, current);
     }
 
     private void renderRoadScopeHeader(RoadNetwork network, Road road) {
@@ -150,7 +157,90 @@ public final class RoadEditPanel {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
+        if (RoadStationing.isStationable(network, road)) {
+            double total = RoadStationing.totalLength(network, road);
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.chainage_range",
+                    RoadStationing.format(0.0, RoadStationFormat.KILOMETER_PLUS),
+                    RoadStationing.format(total, RoadStationFormat.KILOMETER_PLUS)));
+        }
         renderRoadTopologyHints(network, road);
+        renderHorizontalAlignmentSummary(road);
+        renderVerticalAlignmentSummary(road);
+    }
+
+    private void renderHorizontalAlignmentSummary(Road road) {
+        RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
+        if (alignment == null || alignment.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.horizontal_alignment_none"));
+            return;
+        }
+        ImGui.spacing();
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.horizontal_alignment_section"))) {
+            double total = HorizontalAlignmentGeometry.totalLength(alignment);
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.horizontal_alignment_length",
+                    alignment.getElements().size(),
+                    total,
+                    RoadStationing.format(0.0, RoadStationFormat.KILOMETER_PLUS),
+                    RoadStationing.format(total, RoadStationFormat.KILOMETER_PLUS)));
+            int index = 0;
+            for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
+                double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
+            }
+        }
+    }
+
+    private void renderVerticalAlignmentSummary(Road road) {
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        if (alignment == null || alignment.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_none"));
+            return;
+        }
+        ImGui.spacing();
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.vertical_alignment_section"))) {
+            List<PointOfVerticalIntersection> pvis = alignment.sortedPvis();
+            if (pvis.size() < 2) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.vertical_alignment_incomplete"));
+                return;
+            }
+            double startStation = pvis.getFirst().getStation();
+            double endStation = pvis.getLast().getStation();
+            double startElevation = pvis.getFirst().getElevation();
+            double endElevation = pvis.getLast().getElevation();
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr(
+                    "plugin.road.vertical_alignment_summary",
+                    pvis.size(),
+                    RoadStationing.format(startStation, RoadStationFormat.KILOMETER_PLUS),
+                    RoadStationing.format(endStation, RoadStationFormat.KILOMETER_PLUS),
+                    startElevation,
+                    endElevation));
+            for (int i = 0; i < pvis.size(); i++) {
+                PointOfVerticalIntersection pvi = pvis.get(i);
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    VerticalAlignmentGeometry.describePvi(pvi, i, pvis.size(), RoadStationFormat.KILOMETER_PLUS));
+                String curve = VerticalAlignmentGeometry.describeCurveAtPvi(pvis, i, RoadStationFormat.KILOMETER_PLUS);
+                if (!curve.isBlank()) {
+                    RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
+                }
+            }
+        }
     }
 
     private void renderRoadTopologyHints(RoadNetwork network, Road road) {
@@ -212,8 +302,20 @@ public final class RoadEditPanel {
         }
     }
 
-    private void renderSegmentSummary(RoadNetwork network, RoadEdge edge) {
+    private void renderSegmentSummary(RoadNetwork network, Road road, RoadEdge edge) {
         ImGui.text(PlotI18n.tr("plugin.road.segment_length", edge.getLength()));
+        if (RoadStationing.isStationable(network, road)) {
+            double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
+            if (segmentStart >= 0.0) {
+                double segmentEnd = segmentStart + edge.getLength();
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr(
+                        "plugin.road.segment_chainage",
+                        RoadStationing.format(segmentStart, RoadStationFormat.KILOMETER_PLUS),
+                        RoadStationing.format(segmentEnd, RoadStationFormat.KILOMETER_PLUS)));
+            }
+        }
         ImGui.text(PlotI18n.tr(
             "plugin.road.segment_start",
             RoadEdgeListHelper.formatNodeLabel(network, edge.getStartNodeId())));
@@ -379,7 +481,7 @@ public final class RoadEditPanel {
         ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_end", endGround, endGuide));
     }
 
-    private void renderSlopeOverrides(RoadEdge edge) {
+    private void renderSlopeOverrides(RoadNetwork network, Road road, RoadEdge edge) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
@@ -459,6 +561,17 @@ public final class RoadEditPanel {
                 ctx.networkManager().pushHistory();
             }
             override.maxSlope = RoadParameterLimits.clampGradePercent(slope[0]);
+
+            if (RoadStationing.isStationable(network, road)) {
+                RoadStationing.stationAt(network, road, edge.getId(), override.startDistance)
+                    .ifPresent(startStation -> RoadStationing.stationAt(network, road, edge.getId(), override.endDistance)
+                        .ifPresent(endStation -> RoadUiWidgets.textWrappedColored(
+                            PluginUiColors.HINT_GRAY,
+                            PlotI18n.tr(
+                                "plugin.road.slope_override_station_hint",
+                                RoadStationing.format(startStation, RoadStationFormat.KILOMETER_PLUS),
+                                RoadStationing.format(endStation, RoadStationFormat.KILOMETER_PLUS)))));
+            }
 
             if (override.startDistance > override.endDistance) {
                 RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.slope_range_invalid"));

@@ -13,6 +13,10 @@ import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadMaterialMixUtils;
 import com.plot.plugin.road.RoadMaterialUtils;
+import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence;
+import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence.AlignmentData;
+import com.plot.plugin.road.vertical.VerticalAlignmentPersistence;
+import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignmentData;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.section.BikeLane;
 import com.plot.plugin.road.model.section.Drain;
@@ -919,6 +923,8 @@ public class RoadNetwork {
         Integer streetlightSpacing;
         Float maxSlope;
         String topologyMode;
+        AlignmentData horizontalAlignment;
+        VerticalAlignmentData verticalAlignment;
         List<String> segmentIds = new ArrayList<>();
     }
 
@@ -969,6 +975,8 @@ public class RoadNetwork {
                 if (road.getTopologyMode() != RoadTopologyMode.LINEAR) {
                     roadData.topologyMode = road.getTopologyMode().name();
                 }
+                roadData.horizontalAlignment = HorizontalAlignmentPersistence.toData(road.getHorizontalAlignment());
+                roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
                 roadData.segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
                 data.roads.add(roadData);
             }
@@ -1057,6 +1065,8 @@ public class RoadNetwork {
                     );
                     road.setStyleId(roadData.styleId);
                     road.setTopologyMode(RoadTopologyMode.fromStored(roadData.topologyMode));
+                    road.setHorizontalAlignment(HorizontalAlignmentPersistence.fromData(roadData.horizontalAlignment));
+                    road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
                     network.roads.put(road.getId(), road);
                 }
             }

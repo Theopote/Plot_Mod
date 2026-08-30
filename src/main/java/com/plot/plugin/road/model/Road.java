@@ -3,8 +3,10 @@ package com.plot.plugin.road.model;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
-import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.model.section.CenterLineStyle;
+import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 
@@ -25,6 +27,8 @@ public class Road {
     private String styleId;
     private Float maxSlope;
     private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
+    private RoadHorizontalAlignment horizontalAlignment;
+    private RoadVerticalAlignment verticalAlignment;
     private final List<String> segmentIds = new ArrayList<>();
 
     public Road() {
@@ -393,6 +397,22 @@ public class Road {
         this.topologyMode = topologyMode != null ? topologyMode : RoadTopologyMode.LINEAR;
     }
 
+    public RoadHorizontalAlignment getHorizontalAlignment() {
+        return horizontalAlignment;
+    }
+
+    public void setHorizontalAlignment(RoadHorizontalAlignment horizontalAlignment) {
+        this.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
+    }
+
+    public RoadVerticalAlignment getVerticalAlignment() {
+        return verticalAlignment;
+    }
+
+    public void setVerticalAlignment(RoadVerticalAlignment verticalAlignment) {
+        this.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
+    }
+
     /**
      * 分段 ID 集合，仅用于成员判定（{@code contains} / {@code size}）。
      * <p>
@@ -513,6 +533,8 @@ public class Road {
         Road copy = new Road(id, name, crossSection.copy(), maxSlope, new LinkedHashSet<>(segmentIds));
         copy.styleId = styleId;
         copy.topologyMode = getTopologyMode();
+        copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
+        copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
         return copy;
     }
 
