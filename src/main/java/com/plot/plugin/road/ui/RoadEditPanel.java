@@ -370,7 +370,22 @@ public final class RoadEditPanel {
             float[] slope = {override.maxSlope};
             ImGui.pushID(i);
 
-            ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, (float) edge.getLength(), "%.1fm");
+            float rowWidth = ImGui.getContentRegionAvailX();
+            float spacing = ImGui.getStyle().getItemSpacingX();
+            String deleteLabel = PlotI18n.tr("plugin.road.delete");
+            float deleteWidth = ImGui.calcTextSize(deleteLabel, false, 0.0f).x
+                + ImGui.getStyle().getFramePaddingX() * 2.0f;
+            boolean stackRangeSliders = rowWidth < deleteWidth + spacing + 160.0f;
+            float edgeLength = (float) edge.getLength();
+
+            if (stackRangeSliders) {
+                ImGui.setNextItemWidth(rowWidth);
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, "%.1fm");
+            } else {
+                float sliderWidth = (rowWidth - deleteWidth - spacing * 2.0f) / 2.0f;
+                ImGui.setNextItemWidth(sliderWidth);
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_start") + "##s", start, 0, edgeLength, "%.1fm");
+            }
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
             }
@@ -381,18 +396,27 @@ public final class RoadEditPanel {
                 end[0] = (float) override.endDistance;
             }
 
-            ImGui.sameLine();
-            ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], (float) edge.getLength(), "%.1fm");
+            if (stackRangeSliders) {
+                ImGui.setNextItemWidth(rowWidth);
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, "%.1fm");
+            } else {
+                ImGui.sameLine();
+                float sliderWidth = (rowWidth - deleteWidth - spacing * 2.0f) / 2.0f;
+                ImGui.setNextItemWidth(sliderWidth);
+                ImGui.sliderFloat(PlotI18n.tr("plugin.road.slope_end") + "##e", end, start[0], edgeLength, "%.1fm");
+            }
             if (ImGui.isItemActivated()) {
                 ctx.networkManager().pushHistory();
             }
             override.endDistance = end[0];
 
-            ImGui.sameLine();
+            if (!stackRangeSliders) {
+                ImGui.sameLine();
+            }
             ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
-            if (ImGui.smallButton(PlotI18n.tr("plugin.road.delete") + "##rm")) {
+            if (ImGui.smallButton(deleteLabel + "##rm")) {
                 ctx.networkManager().pushHistory();
                 overrides.remove(i);
                 edge.setSlopeOverrides(overrides);

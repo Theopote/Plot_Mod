@@ -44,20 +44,11 @@ public final class EngineeringSlopeInput {
             format = FORMAT_PREFS.getOrDefault(id, DisplayFormat.RATIO);
         }
 
-        ImGui.text(label);
-        ImGui.sameLine();
-
         String[] formatLabels = {
             PlotI18n.tr("plugin.road.slope_format_percent"),
             PlotI18n.tr("plugin.road.slope_format_ratio")
         };
         ImInt formatIndex = new ImInt(format == DisplayFormat.RATIO ? 1 : 0);
-        ImGui.setNextItemWidth(72f);
-        if (ImGui.combo("##format", formatIndex, formatLabels)) {
-            format = formatIndex.get() == 1 ? DisplayFormat.RATIO : DisplayFormat.PERCENT;
-            FORMAT_PREFS.put(id, format);
-            syncTextBuffer(id, value[0], kind, format);
-        }
 
         float sliderMin;
         float sliderMax;
@@ -89,8 +80,55 @@ public final class EngineeringSlopeInput {
             }
         }
 
+        String equivalent = kind == ValueKind.GRADE
+            ? (format == DisplayFormat.PERCENT
+                ? SlopeFormatUtils.formatRatio(SlopeFormatUtils.percentToHorizontalRatio(value[0]))
+                : SlopeFormatUtils.formatPercent(value[0]))
+            : (format == DisplayFormat.RATIO
+                ? SlopeFormatUtils.formatPercent(SlopeFormatUtils.horizontalRatioToPercent(value[0]))
+                : SlopeFormatUtils.formatRatio(value[0]));
+        String equivalentLabel = "~ " + equivalent;
+
+        float rowWidth = ImGui.getContentRegionAvailX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float labelWidth = ImGui.calcTextSize(label, false, 0.0f).x;
+        float comboWidth = 72f;
+        float equivalentWidth = ImGui.calcTextSize(equivalentLabel, false, 0.0f).x;
+        boolean stackControls = rowWidth < labelWidth + spacing + comboWidth + spacing + 48f;
+        boolean stackEquivalent = !stackControls
+            && rowWidth < labelWidth + spacing + comboWidth + spacing + equivalentWidth + spacing + 48f;
+
+        if (stackControls) {
+            ImGui.text(label);
+            ImGui.setNextItemWidth(Math.min(comboWidth, rowWidth));
+            if (ImGui.combo("##format", formatIndex, formatLabels)) {
+                format = formatIndex.get() == 1 ? DisplayFormat.RATIO : DisplayFormat.PERCENT;
+                FORMAT_PREFS.put(id, format);
+                syncTextBuffer(id, value[0], kind, format);
+            }
+            ImGui.setNextItemWidth(rowWidth);
+        } else {
+            ImGui.text(label);
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(comboWidth);
+            if (ImGui.combo("##format", formatIndex, formatLabels)) {
+                format = formatIndex.get() == 1 ? DisplayFormat.RATIO : DisplayFormat.PERCENT;
+                FORMAT_PREFS.put(id, format);
+                syncTextBuffer(id, value[0], kind, format);
+            }
+            if (stackEquivalent) {
+                ImGui.setNextItemWidth(rowWidth);
+            } else {
+                ImGui.sameLine();
+                float sliderWidth = Math.max(
+                    48f,
+                    ImGui.getContentRegionAvailX() - equivalentWidth - spacing
+                );
+                ImGui.setNextItemWidth(sliderWidth);
+            }
+        }
+
         float[] slider = {sliderValue};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x - 88f);
         if (ImGui.sliderFloat("##slope_slider", slider, sliderMin, sliderMax, sliderFormat)) {
             float canonical = toCanonical(slider[0], kind, format);
             if (Math.abs(canonical - value[0]) > 1e-4f) {
@@ -100,15 +138,12 @@ public final class EngineeringSlopeInput {
             }
         }
 
-        ImGui.sameLine();
-        String equivalent = kind == ValueKind.GRADE
-            ? (format == DisplayFormat.PERCENT
-                ? SlopeFormatUtils.formatRatio(SlopeFormatUtils.percentToHorizontalRatio(value[0]))
-                : SlopeFormatUtils.formatPercent(value[0]))
-            : (format == DisplayFormat.RATIO
-                ? SlopeFormatUtils.formatPercent(SlopeFormatUtils.horizontalRatioToPercent(value[0]))
-                : SlopeFormatUtils.formatRatio(value[0]));
-        ImGui.textDisabled("~ " + equivalent);
+        if (stackControls || stackEquivalent) {
+            ImGui.textDisabled(equivalentLabel);
+        } else {
+            ImGui.sameLine();
+            ImGui.textDisabled(equivalentLabel);
+        }
 
         ImString buffer = TEXT_BUFFERS.computeIfAbsent(id, key -> new ImString(32));
         if (!ImGui.isAnyItemActive()) {
