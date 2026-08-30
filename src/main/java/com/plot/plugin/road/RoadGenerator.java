@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public class RoadGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadGenerator");
-
+    
     private final RoadGenerationPipelineHost pipelineHost;
     private final RoadEdgeBuildOrchestrator edgeBuild;
     private final GradeSeparationPolicy gradeSeparationPolicy;
@@ -111,7 +111,7 @@ public class RoadGenerator {
             network,
             terrain,
             (nodeId, samples, spread, height) -> LOGGER.info(
-                "路口/节点 {} 自然高程散布较大 {}（spread={}），统一到 Y={}",
+                    "路口/节点 {} 自然高程散布较大 {}（spread={}），统一到 Y={}",
                 nodeId, samples, spread, height));
     }
 

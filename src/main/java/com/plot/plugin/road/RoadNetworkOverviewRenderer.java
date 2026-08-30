@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.canvas.CanvasAccess;
 import com.plot.utils.PlotI18n;
@@ -178,20 +179,28 @@ public final class RoadNetworkOverviewRenderer {
 
     private static void renderLegend() {
         ImGui.spacing();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_legend"));
-        ImGui.sameLine();
-        legendItem(COLOR_ENDPOINT, PlotI18n.tr("plugin.road.legend.endpoint"));
-        ImGui.sameLine();
-        legendItem(COLOR_THROUGH, PlotI18n.tr("plugin.road.legend.through"));
-        ImGui.sameLine();
-        legendItem(COLOR_T_JUNCTION, PlotI18n.tr("plugin.road.legend.t_junction"));
-        ImGui.sameLine();
-        legendItem(COLOR_CROSSROAD, PlotI18n.tr("plugin.road.legend.crossroad"));
-        ImGui.sameLine();
-        legendItem(COLOR_COMPLEX, PlotI18n.tr("plugin.road.legend.complex"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_legend"));
+        boolean horizontal = ImGui.getContentRegionAvailX() >= 300f;
+        legendItem(COLOR_ENDPOINT, PlotI18n.tr("plugin.road.legend.endpoint"), horizontal);
+        if (horizontal) {
+            ImGui.sameLine();
+        }
+        legendItem(COLOR_THROUGH, PlotI18n.tr("plugin.road.legend.through"), horizontal);
+        if (horizontal) {
+            ImGui.sameLine();
+        }
+        legendItem(COLOR_T_JUNCTION, PlotI18n.tr("plugin.road.legend.t_junction"), horizontal);
+        if (horizontal) {
+            ImGui.sameLine();
+        }
+        legendItem(COLOR_CROSSROAD, PlotI18n.tr("plugin.road.legend.crossroad"), horizontal);
+        if (horizontal) {
+            ImGui.sameLine();
+        }
+        legendItem(COLOR_COMPLEX, PlotI18n.tr("plugin.road.legend.complex"), horizontal);
     }
 
-    private static void legendItem(int color, String label) {
+    private static void legendItem(int color, String label, boolean horizontal) {
         ImDrawList drawList = ImGui.getWindowDrawList();
         ImVec2 pos = ImGui.getCursorScreenPos();
         float y = pos.y + ImGui.getTextLineHeight() * 0.5f;
@@ -199,7 +208,11 @@ public final class RoadNetworkOverviewRenderer {
         ImGui.dummy(10f, 0);
         ImGui.sameLine();
         ImGui.textColored(PluginUiColors.LEGEND, label);
-        ImGui.sameLine();
+        if (horizontal) {
+            ImGui.sameLine();
+        } else {
+            ImGui.dummy(0f, 2f);
+        }
     }
 
     private static void renderCenteredHint(

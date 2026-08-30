@@ -24,6 +24,36 @@ public final class RoadUiWidgets {
     private RoadUiWidgets() {
     }
 
+    /** 当前内容区右边界，供 {@link ImGui#pushTextWrapPos(float)} 使用。 */
+    public static float wrapPos() {
+        return ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
+    }
+
+    public static void textWrapped(String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ImGui.pushTextWrapPos(wrapPos());
+        ImGui.textWrapped(text);
+        ImGui.popTextWrapPos();
+    }
+
+    public static void textWrappedColored(int color, String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ImGui.pushTextWrapPos(wrapPos());
+        ImGui.textColored(color, text);
+        ImGui.popTextWrapPos();
+    }
+
+    public static float wrappedTextHeight(String text, float width) {
+        if (text == null || text.isBlank() || width <= 0f) {
+            return ImGui.getTextLineHeight();
+        }
+        return ImGui.calcTextSize(text, false, width).y;
+    }
+
     @FunctionalInterface
     public interface MaterialSetter {
         void set(String material);
@@ -41,8 +71,9 @@ public final class RoadUiWidgets {
             String currentValue,
             MaterialSetter setter,
             boolean pushHistoryOnChange) {
+        textWrappedColored(PluginUiColors.HINT_GRAY, label);
         String displayName = RoadMaterialUtils.getDisplayName(currentValue);
-        if (ImGui.button(displayName + buttonId, ImGui.getContentRegionAvailX() * 0.55f, 0)) {
+        if (ImGui.button(displayName + buttonId, ImGui.getContentRegionAvailX(), 0)) {
             UIUtils.openBlockPicker(currentValue, blockId -> {
                 if (pushHistoryOnChange) {
                     ctx.networkManager().pushHistory();
@@ -53,8 +84,6 @@ public final class RoadUiWidgets {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
     }
 
     public static void renderMaterialMixPicker(
@@ -73,7 +102,8 @@ public final class RoadUiWidgets {
         }
 
         ImGui.pushID(buttonId);
-        if (ImGui.button(displayName + "##pick", ImGui.getContentRegionAvailX() * 0.55f, 0)) {
+        textWrappedColored(PluginUiColors.HINT_GRAY, label);
+        if (ImGui.button(displayName + "##pick", ImGui.getContentRegionAvailX(), 0)) {
             List<String> initial = new ArrayList<>();
             if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
                 initial.add(mix.getPrimaryMaterial());
@@ -91,8 +121,6 @@ public final class RoadUiWidgets {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
         }
-        ImGui.sameLine();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
 
         boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
         if (hasAccentMaterial) {
@@ -180,7 +208,7 @@ public final class RoadUiWidgets {
     public static void renderRoadVisibilityWarning(RoadUiContext ctx) {
         String message = ctx.previewManager().formatVisibilityWarning();
         if (!message.isBlank()) {
-            ImGui.textColored(PluginUiColors.WARNING, message);
+            textWrappedColored(PluginUiColors.WARNING, message);
         }
     }
 
@@ -189,7 +217,7 @@ public final class RoadUiWidgets {
         if (!inherited || inheritedLabel == null || inheritedLabel.isBlank()) {
             return;
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, inheritedLabel);
+        textWrappedColored(PluginUiColors.HINT_GRAY, inheritedLabel);
     }
 
     /**

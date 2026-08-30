@@ -70,7 +70,7 @@ public final class RoadAdoptPanel {
                 ImGui.text(PlotI18n.tr("plugin.road.adopt_selection_summary", pickingCount, totalLength));
                 return;
             }
-            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.adopt_picking_active"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.adopt_picking_active"));
             return;
         }
 
@@ -96,7 +96,7 @@ public final class RoadAdoptPanel {
             return;
         }
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_selection_empty"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_selection_empty"));
         List<Shape> availablePaths = ctx.toolManager().findAvailablePaths();
         if (!availablePaths.isEmpty()) {
             if (ImGui.beginCombo("##select_path", PlotI18n.tr("plugin.road.select_path_combo"))) {
@@ -114,8 +114,8 @@ public final class RoadAdoptPanel {
                 ImGui.endCombo();
             }
         } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_path_found"));
-            ImGui.textWrapped(PlotI18n.tr("plugin.road.draw_path_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_path_found"));
+            RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.draw_path_hint"));
         }
     }
 
@@ -158,7 +158,7 @@ public final class RoadAdoptPanel {
         if (!ctx.networkManager().isAdoptIntersectionRepairPending()) {
             return;
         }
-        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.adopt_intersection_repair_prompt"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.adopt_intersection_repair_prompt"));
         if (ImGui.button(PlotI18n.tr("plugin.road.validation.reconcile_intersections") + "##adopt_reconcile")) {
             RoadTopologyWorkflow.reconcileIntersections(ctx, false);
         }

@@ -63,11 +63,11 @@ public final class RoadIdentityEditor {
         }
 
         if (hasCustomName) {
-            ImGui.textColored(
+            RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.road_name_auto_label", autoLabel));
         }
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.road_metadata_coming_soon"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.road_metadata_coming_soon"));
     }
 
     private void syncBuffer(Road road) {

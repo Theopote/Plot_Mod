@@ -51,7 +51,7 @@ public final class RoadGeneratePanel {
         RoadUiSections.section("plugin.road.section.preview");
 
         if (!hasNetwork) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
@@ -78,20 +78,20 @@ public final class RoadGeneratePanel {
         }
 
         if (!hasNetwork) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.draw_path_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.draw_path_hint"));
         }
 
         com.plot.api.world.PlacementReadiness buildReadiness =
             ctx.host().projection().checkWorldModificationReadiness();
         if (!buildReadiness.ready()) {
-            ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
+            RoadUiWidgets.textWrappedColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
         RoadUiWidgets.renderRoadVisibilityWarning(ctx);
 
         RoadGenerationResult lastGenerationResult = ctx.previewManager().getLastGenerationResult();
         if (ctx.previewManager().hasValidPreview() && lastGenerationResult != null) {
             ImGui.separator();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.preview_projection_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.road.calc_results"));
             ImGui.text(PlotI18n.tr("plugin.road.cut_volume_result", lastGenerationResult.cutVolume));
             ImGui.text(PlotI18n.tr("plugin.road.fill_volume_result", lastGenerationResult.fillVolume));
@@ -116,7 +116,7 @@ public final class RoadGeneratePanel {
 
             boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
             if (!hasPlacements) {
-                ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
+                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.road.generate_empty_result"));
             }
 
             boolean buildDisabled = !hasPlacements
@@ -254,7 +254,7 @@ public final class RoadGeneratePanel {
         ImGui.text(String.format(PlotI18n.tr("plugin.road.build_confirm"), blockCount));
 
             if (lastGenerationResult != null) {
-                ImGui.textColored(
+                RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr(
                         "plugin.road.build_confirm_volumes",
@@ -267,17 +267,17 @@ public final class RoadGeneratePanel {
             com.plot.api.world.PlacementReadiness readiness =
                 ctx.host().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
-                ImGui.textColored(PluginUiColors.ERROR, readiness.message());
+                RoadUiWidgets.textWrappedColored(PluginUiColors.ERROR, readiness.message());
             }
             if (ctx.host().placement().isBusy()) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_in_progress_wait"));
+                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_in_progress_wait"));
             }
             RoadUiWidgets.renderRoadVisibilityWarning(ctx);
             RoadNetworkValidationPanel.renderConfirmWarnings(validationReport);
 
             ImGui.spacing();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_cancel_hint"));
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_undo_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_cancel_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.build_confirm_undo_hint"));
 
             ImGui.separator();
             boolean canBuild = readiness.ready()

@@ -60,7 +60,7 @@ public final class RoadNodePropertyPanel {
 
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.road.node_selected_detail"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_hint"));
 
         RoadNetwork network = ctx.networkManager().getNetwork();
         RoadSystemConfig config = ctx.networkManager().getConfig();
@@ -94,17 +94,17 @@ public final class RoadNodePropertyPanel {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         int totalNodes = network.getNodes().size();
         if (totalNodes == 0) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_nodes"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_nodes"));
             return;
         }
 
         List<RoadNode> nodes = filteredNodes(network);
         renderNodeListToolbar(nodes.size(), totalNodes);
         String selectedNodeId = ctx.networkManager().getSelectedNodeId();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_list_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_elevation_list_hint"));
         ImGui.beginChild("node_elevation_list", 0, NODE_LIST_HEIGHT, true);
         if (nodes.isEmpty()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_list_empty"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.node_list_empty"));
         } else {
             Set<String> invalidNodeIds = RoadNetworkInvariantValidator.collectInvalidNodeIds(network);
             renderVirtualNodeList(network, config, nodes, selectedNodeId, invalidNodeIds);
@@ -293,7 +293,7 @@ public final class RoadNodePropertyPanel {
         }
 
         if (node.getManualElevation() != null && node.isGradeSeparated()) {
-            ImGui.textColored(
+            RoadUiWidgets.textWrappedColored(
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
@@ -325,7 +325,7 @@ public final class RoadNodePropertyPanel {
         }
 
         if (node.getManualElevation() != null && node.isGradeSeparated()) {
-            ImGui.textColored(
+            RoadUiWidgets.textWrappedColored(
                 PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.grade_separation_manual_override"));
         }
@@ -412,7 +412,7 @@ public final class RoadNodePropertyPanel {
         if (!recommendation.hasRecommendation()) {
             return;
         }
-        ImGui.textColored(
+        RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr(
                 "plugin.road.grade_separation_auto_result",

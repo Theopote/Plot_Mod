@@ -29,7 +29,7 @@ public final class RoadGenerationSettingsPanel {
             return;
         }
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.generation_settings_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.generation_settings_hint"));
 
         int[] bridgeThreshold = {config.getBridgeThreshold()};
         if (ImGui.sliderInt(

@@ -22,9 +22,6 @@ public final class RoadToolbarPanel {
     }
 
     private void renderToolbar() {
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.toolbar.title"));
-        ImGui.spacing();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_edit_section"));
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
 
         boolean undoDisabled = !ctx.networkManager().canUndo();
@@ -55,10 +52,10 @@ public final class RoadToolbarPanel {
             ImGui.endDisabled();
         }
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_scope_hint"));
 
         if (canUndoWorldPlacement()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_world_section"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.undo_world_section"));
             if (ImGui.button(PlotI18n.tr("plugin.road.undo_world"), ImGui.getContentRegionAvailX(), 0)) {
                 ctx.host().commands().undo();
             }
@@ -86,10 +83,10 @@ public final class RoadToolbarPanel {
 
         com.plot.api.world.IBlockPlacementService.ProgressSnapshot progress = scheduler.getProgressSnapshot();
         if (progress != null) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO,
+            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO,
                 PlotI18n.tr("plugin.road.placement_progress", progress.processed(), progress.total()));
         } else {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.build_in_progress_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.build_in_progress_hint"));
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.road.cancel_placement"), 0, 0)) {

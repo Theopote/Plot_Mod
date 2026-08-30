@@ -60,12 +60,10 @@ public final class RoadEditPanel {
         RoadUiSections.section("plugin.road.section.road_list");
         List<RoadEdge> allEdges = new ArrayList<>(network.getEdges().values());
         if (allEdges.isEmpty()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
         } else {
             ImGui.text(PlotI18n.tr("plugin.road.edge_list"));
-            ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
-            ImGui.textWrapped(PlotI18n.tr("plugin.road.edge_list_hint"));
-            ImGui.popStyleColor();
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_hint"));
             edgeListPanel.renderToolbar("##edit");
             edgeListPanel.renderList(true, "edit_edge_list");
         }
@@ -89,7 +87,7 @@ public final class RoadEditPanel {
         }
 
         if (edgesEmpty) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edit_select_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edit_select_hint"));
             return;
         }
 
@@ -104,7 +102,7 @@ public final class RoadEditPanel {
             return;
         }
 
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edit_select_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edit_select_hint"));
     }
 
     private void renderSingleEdgeDetail(RoadNetwork network) {
@@ -122,7 +120,7 @@ public final class RoadEditPanel {
         renderRoadScopeHeader(network, road);
 
         RoadUiSections.level("plugin.road.section.road_level");
-        ImGui.textColored(
+        RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_properties_scope", road.getSegmentIds().size()));
 
@@ -130,7 +128,7 @@ public final class RoadEditPanel {
 
         RoadUiSections.level("plugin.road.section.segment_level");
         ImGui.text(PlotI18n.tr("plugin.road.segment_engineering_section"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.segment_engineering_scope"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.segment_engineering_scope"));
 
         renderSegmentSelector(network, road);
         current = network.getEdge(ctx.networkManager().getPrimarySelectedEdgeId());
@@ -146,7 +144,7 @@ public final class RoadEditPanel {
         identityEditor.render(network, road, ctx.networkManager()::pushHistory);
         int segmentCount = road.getSegmentIds().size();
         double length = RoadEdgeListHelper.computeRoadLength(network, road);
-        ImGui.textColored(
+        RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
     }
@@ -205,8 +203,8 @@ public final class RoadEditPanel {
         if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.uniform_flat_elevation"))) {
             return;
         }
-        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.uniform_flat_elevation_warning"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.uniform_flat_elevation_warning"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.uniform_flat_elevation_hint"));
 
         boolean disabled = network.getEdges().isEmpty();
         if (disabled) {
@@ -231,7 +229,7 @@ public final class RoadEditPanel {
         }
 
         if (!lastRecommendationSummary.isBlank()) {
-            ImGui.textColored(PluginUiColors.STATUS_INFO, lastRecommendationSummary);
+            RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, lastRecommendationSummary);
         }
 
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
@@ -278,7 +276,7 @@ public final class RoadEditPanel {
                     uniformElevationDraft[0]));
             }
             ImGui.separator();
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.uniform_elevation_confirm_side_effect"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.uniform_elevation_confirm_side_effect"));
 
             if (ImGui.button(PlotI18n.tr("plugin.road.uniform_elevation_confirm_ok"), 120, 0)) {
                 if (uniformElevationConfirmAuto) {
@@ -345,7 +343,7 @@ public final class RoadEditPanel {
     private void renderElevationHint(RoadEdge edge) {
         RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
         if (edgeResult == null || !edgeResult.hasProfileData()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.elevation_hint_preview_required"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.elevation_hint_preview_required"));
             return;
         }
 
@@ -361,7 +359,7 @@ public final class RoadEditPanel {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_override_segment_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_override_segment_hint"));
         List<RoadEdge.SlopeOverride> overrides = new ArrayList<>(edge.getSlopeOverrides());
         List<RoadEdge.SlopeOverride> originalOverrides = RoadNetworkManager.snapshotSlopeOverrides(overrides);
 
@@ -415,9 +413,9 @@ public final class RoadEditPanel {
             override.maxSlope = RoadParameterLimits.clampGradePercent(slope[0]);
 
             if (override.startDistance > override.endDistance) {
-                ImGui.textColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.slope_range_invalid"));
+                RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, PlotI18n.tr("plugin.road.slope_range_invalid"));
             } else if (RoadNetworkManager.hasOverlappingOverride(overrides, i)) {
-                ImGui.textColored(PluginUiColors.WARNING_OVERLAP, PlotI18n.tr("plugin.road.slope_range_overlap"));
+                RoadUiWidgets.textWrappedColored(PluginUiColors.WARNING_OVERLAP, PlotI18n.tr("plugin.road.slope_range_overlap"));
             }
 
             ImGui.popID();
@@ -447,9 +445,9 @@ public final class RoadEditPanel {
         }
 
         RoadNetworkManager.BatchEditDefaults synced = ctx.networkManager().loadBatchEditDefaults();
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.batch_edit_hint", displayCount));
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.batch_cross_section_only"));
         RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);
     }

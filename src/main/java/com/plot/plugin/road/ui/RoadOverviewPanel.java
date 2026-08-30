@@ -9,7 +9,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 import java.util.LinkedHashSet;
 
@@ -30,7 +29,7 @@ public final class RoadOverviewPanel {
         RoadNetwork network = ctx.networkManager().getNetwork();
 
         RoadUiSections.section("plugin.road.section.network_health");
-        ImGui.text(PlotI18n.tr("plugin.road.network_stats",
+        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.network_stats",
             network.getRoads().size(),
             network.getJunctionCount(),
             String.format("%.1f", network.getTotalLength())));
@@ -55,9 +54,7 @@ public final class RoadOverviewPanel {
 
         ImGui.spacing();
         ImGui.separator();
-        ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.HINT_GRAY);
-        ImGui.textWrapped(PlotI18n.tr("plugin.road.network_map_hint"));
-        ImGui.popStyleColor();
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.network_map_hint"));
     }
 
     private void renderHealthWarnings(RoadNetwork network) {
@@ -78,7 +75,7 @@ public final class RoadOverviewPanel {
                 case ERROR -> PluginUiColors.ERROR;
                 default -> PluginUiColors.HINT_GRAY;
             };
-            ImGui.textColored(color, "\u26a0 " + PlotI18n.tr(item.messageKey(), item.args()));
+            RoadUiWidgets.textWrappedColored(color, "\u26a0 " + PlotI18n.tr(item.messageKey(), item.args()));
         }
     }
 
@@ -101,7 +98,7 @@ public final class RoadOverviewPanel {
 
         LinkedHashSet<String> roadIds = ctx.networkManager().getSelectedRoadIds();
         if (roadIds.size() > 1) {
-            ImGui.textColored(
+            RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.overview_multi_road_selected", roadIds.size()));
             if (ImGui.button(PlotI18n.tr("plugin.road.overview_edit_road") + "##overview_multi_edit")) {

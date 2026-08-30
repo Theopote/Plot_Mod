@@ -76,7 +76,7 @@ public final class CrossSectionDraftEditor {
 
     private static void renderBanner(EditorContext editor) {
         if (editor.options.showBanner() && editor.options.bannerKey() != null) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(editor.options.bannerKey()));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(editor.options.bannerKey()));
             ImGui.spacing();
         }
     }
@@ -174,7 +174,7 @@ public final class CrossSectionDraftEditor {
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_batter_section"));
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.slope_batter_section_hint"));
         ImBoolean slopeRef = new ImBoolean(draft.includeSlopeBatter());
         if (ImGui.checkbox(PlotI18n.tr("plugin.road.include_slope_batter") + "##" + id + "_slope", slopeRef)) {
             if (roadEdit) {

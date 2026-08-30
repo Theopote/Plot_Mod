@@ -15,7 +15,7 @@ public final class RoadUiSections {
     /** 大区块标题（Network Health、Road List 等）。 */
     public static void section(String labelKey) {
         ImGui.spacing();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(labelKey).toUpperCase());
+        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(labelKey).toUpperCase());
         ImGui.separator();
         ImGui.spacing();
     }
@@ -23,14 +23,14 @@ public final class RoadUiSections {
     /** 向导步骤标题（Step 1 — Centerline 等）。 */
     public static void step(String labelKey) {
         ImGui.spacing();
-        ImGui.text(PlotI18n.tr(labelKey));
+        RoadUiWidgets.textWrapped(PlotI18n.tr(labelKey));
         ImGui.spacing();
     }
 
     /** 编辑层级标签（ROAD-LEVEL / SEGMENT-LEVEL）。 */
     public static void level(String labelKey) {
         ImGui.spacing();
-        ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr(labelKey));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr(labelKey));
         ImGui.spacing();
     }
 }

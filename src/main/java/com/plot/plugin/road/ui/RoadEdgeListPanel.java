@@ -99,7 +99,7 @@ public final class RoadEdgeListPanel {
 
         ImGui.beginChild(childId, 0, EDGE_LIST_HEIGHT, true);
         if (edges.isEmpty()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.edge_list_empty"));
         } else {
             List<RoadEdgeListHelper.DisplayRow> rows = RoadEdgeListHelper.buildDisplayRows(
                 network,
@@ -325,7 +325,7 @@ public final class RoadEdgeListPanel {
             };
             ImGui.textWrapped(PlotI18n.tr(messageKey));
             if (action == RoadUiContext.RoadListAction.SPLIT_ROAD) {
-                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.split_road_confirm_hint"));
+                RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.split_road_confirm_hint"));
             }
             ImGui.separator();
             String confirmLabel = action == RoadUiContext.RoadListAction.SPLIT_ROAD

@@ -56,7 +56,7 @@ public final class RoadJunctionPanel {
             RoadNetworkManager.junctionTypeLabel(type), pos.x, pos.y, node.getDegree()));
 
         if (!compact) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_corner_hint"));
         }
 
         double effectiveRadius = node.getEffectiveCornerRadius(config.getDefaultCornerRadius());
@@ -91,13 +91,13 @@ public final class RoadJunctionPanel {
 
         ImGui.spacing();
         // 默认自动：只展示说明，不强迫用户点四个下拉框
-        ImGui.textColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.junction_markings_auto_status"));
+        RoadUiWidgets.textWrappedColored(PluginUiColors.STATUS_INFO, PlotI18n.tr("plugin.road.junction_markings_auto_status"));
         if (!compact) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_auto_detail"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_auto_detail"));
         }
 
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.junction_markings_advanced"))) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_hint"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.junction_markings_hint"));
             renderMarkingSetting("stop_lines", PlotI18n.tr("plugin.road.junction_stop_lines"), node.getStopLines(),
                 node::setStopLines);
             renderMarkingSetting("continued_markings", PlotI18n.tr("plugin.road.junction_continued_markings"),

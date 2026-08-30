@@ -43,7 +43,7 @@ public final class RoadCrossSectionEditor {
             width,
             height);
         ImGui.dummy(width, height);
-        ImGui.textColored(
+        RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.lane_count_summary", resolved.laneCount, resolved.carriagewayWidth));
     }
@@ -53,9 +53,11 @@ public final class RoadCrossSectionEditor {
             return;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        ImGui.text(PlotI18n.tr("plugin.road.apply_preset_to_road"));
+        RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.apply_preset_to_road"));
         float gap = ImGui.getStyle().getItemSpacingX();
-        float buttonWidth = (ImGui.getContentRegionAvail().x - gap) * 0.5f;
+        float avail = ImGui.getContentRegionAvail().x;
+        int columns = avail >= 120f ? 2 : 1;
+        float buttonWidth = columns == 2 ? (avail - gap) * 0.5f : avail;
         int column = 0;
         for (RoadStyle style : config.getStyles()) {
             if (column > 0) {
@@ -68,7 +70,7 @@ public final class RoadCrossSectionEditor {
                     onChanged.run();
                 }
             }
-            column = (column + 1) % 2;
+            column = (column + 1) % columns;
         }
     }
 
@@ -99,12 +101,12 @@ public final class RoadCrossSectionEditor {
         ImGui.spacing();
 
         if (RoadParameterInheritance.inheritsAny(road)) {
-            ImGui.textColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.inheritance_mode_active"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.inheritance_mode_active"));
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.inheritance_mode_active"));
             }
         } else {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.explicit_params_mode"));
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.explicit_params_mode"));
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.explicit_params_mode"));
             }
