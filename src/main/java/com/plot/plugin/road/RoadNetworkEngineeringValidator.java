@@ -8,6 +8,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
 import com.plot.plugin.road.model.RoadNetworkValidationResult;
+import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
+import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 
@@ -74,6 +76,8 @@ public final class RoadNetworkEngineeringValidator {
                 overlapCount));
         }
 
+        addRoadTopologyItems(items, network, true);
+
         int gradeJunctionCount = countJunctionsExceedingGrade(network, edgeResults, config);
         if (hasPreviewProfiles(edgeResults)) {
             if (gradeJunctionCount == 0) {
@@ -125,6 +129,8 @@ public final class RoadNetworkEngineeringValidator {
                 components.size() - 1));
         }
 
+        addRoadTopologyItems(items, network, false);
+
         RoadNetworkValidationResult invariants = RoadNetworkInvariantValidator.validate(network);
         if (!invariants.valid()) {
             items.add(RoadNetworkValidationReport.Item.warning(
@@ -138,6 +144,43 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         return new RoadNetworkValidationReport(items);
+    }
+
+    private static void addRoadTopologyItems(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network,
+            boolean includeOkWhenClean) {
+        Map<RoadTopologyViolationKind, Integer> counts = RoadTopologyInvariantValidator.countByKind(network);
+        int total = counts.values().stream().mapToInt(Integer::intValue).sum();
+        if (total == 0) {
+            if (includeOkWhenClean) {
+                items.add(RoadNetworkValidationReport.Item.ok("plugin.road.validation.road_topology_ok"));
+            }
+            return;
+        }
+        addRoadTopologyWarningIfPositive(
+            items, counts, RoadTopologyViolationKind.ROAD_DISCONNECTED,
+            "plugin.road.validation.road_disconnected");
+        addRoadTopologyWarningIfPositive(
+            items, counts, RoadTopologyViolationKind.ROAD_BRANCHING,
+            "plugin.road.validation.road_branching");
+        addRoadTopologyWarningIfPositive(
+            items, counts, RoadTopologyViolationKind.ROAD_CYCLE,
+            "plugin.road.validation.road_cycle");
+        addRoadTopologyWarningIfPositive(
+            items, counts, RoadTopologyViolationKind.ROAD_ORDER_MISMATCH,
+            "plugin.road.validation.road_order_mismatch");
+    }
+
+    private static void addRoadTopologyWarningIfPositive(
+            List<RoadNetworkValidationReport.Item> items,
+            Map<RoadTopologyViolationKind, Integer> counts,
+            RoadTopologyViolationKind kind,
+            String messageKey) {
+        int count = counts.getOrDefault(kind, 0);
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.warning(messageKey, count));
+        }
     }
 
     private static boolean hasPreviewProfiles(Map<String, RoadGenerationResult> edgeResults) {

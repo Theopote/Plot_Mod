@@ -61,6 +61,65 @@ class RoadNetworkEngineeringValidatorTest {
     }
 
     @Test
+    void reportsRoadSegmentTopologyWarningForForkWithinRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(10, 10));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+
+        assertEquals(1, findWarningCount(report, "plugin.road.validation.road_branching"));
+    }
+
+    @Test
+    void reportsSimpleChainTopologyOk() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        network.createEdge(b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+
+        assertTrue(hasOk(report, "plugin.road.validation.road_topology_ok"));
+    }
+
+    @Test
+    void reportsOrderMismatchWarning() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad();
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadEdge edge1 = network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        RoadEdge edge2 = network.createEdge(
+            b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        road.reorderSegments(List.of(edge2.getId(), edge1.getId()));
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+
+        assertEquals(1, findWarningCount(report, "plugin.road.validation.road_order_mismatch"));
+    }
+
+    @Test
     void reportsSlopeOverrideOverlap() {
         RoadNetwork network = new RoadNetwork();
         RoadNode a = network.createNode(new Vec2d(0, 0));

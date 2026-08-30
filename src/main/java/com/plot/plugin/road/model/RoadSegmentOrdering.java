@@ -14,6 +14,10 @@ import java.util.Set;
  * <p>
  * {@link Road} 内部用有序列表保存分段；求交打断、拆分、重分配后存储顺序可能与几何链不一致。
  * UI、split、里程等逻辑应使用本类，而非 {@link Road#getSegmentIds()}。
+ * <p>
+ * <b>前提</b>：算法假定同一 {@link Road} 的分段构成简单路径（open chain）。
+ * 闭合环、分叉、断开分量等拓扑下顺序为 best-effort，不变量见
+ * {@code docs/decisions/0004-road-topology-invariant.md}。
  */
 public final class RoadSegmentOrdering {
 
