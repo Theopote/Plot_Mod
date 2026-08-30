@@ -126,7 +126,9 @@ public final class RoadCrossSectionPreviewRenderer {
         drawList.addLine(groundLeft, groundY, groundRight, groundY, COLOR_GROUND_LINE, 1.5f);
         drawList.addRectFilled(groundLeft, groundY, groundRight, groundBottom, COLOR_GROUND);
 
-        cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
+        if (renderOptions.drawDrainage) {
+            cursorX = drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
+        }
         cursorX = drawBand(drawList, layout.leftSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
         cursorX = drawBand(drawList, layout.leftBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
         cursorX = drawBand(drawList, layout.leftShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
@@ -137,9 +139,11 @@ public final class RoadCrossSectionPreviewRenderer {
         cursorX = drawBand(drawList, layout.rightShoulderBlocks, cursorX, deckY, deckBottom, scale, layout.shoulderColor);
         cursorX = drawBand(drawList, layout.rightBikeBlocks, cursorX, deckY, deckBottom, scale, layout.bikeColor);
         cursorX = drawBand(drawList, layout.rightSidewalkBlocks, cursorX, deckY, deckBottom, scale, layout.sidewalkColor);
-        drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
+        if (renderOptions.drawDrainage) {
+            drawBand(drawList, layout.drainageBlocks, cursorX, deckBottom, groundY, scale, COLOR_DRAINAGE);
+        }
 
-        if (layout.fillSlopeRatio > 0f || layout.cutSlopeRatio > 0f) {
+        if (layout.includeSlopeBatter) {
             float leftEdgeX = roadCenterX - layout.leftOuterHardEdgeFromCenterBlocks() * scale;
             float rightEdgeX = roadCenterX + layout.rightOuterHardEdgeFromCenterBlocks() * scale;
 
@@ -150,21 +154,23 @@ public final class RoadCrossSectionPreviewRenderer {
                 groundY,
                 -1,
                 layout.fillSlopeRatio,
-                layout.shoulderColor,
+                layout.fillSlopeColor,
                 layout.fillSlopeRatio > 0f,
                 renderOptions.drawSlopeLabels
             );
-            drawBatterSlope(
-                drawList,
-                rightEdgeX,
-                deckBottom,
-                geometry.cutTopY(),
-                1,
-                layout.cutSlopeRatio,
-                layout.shoulderColor,
-                layout.cutSlopeRatio > 0f,
-                renderOptions.drawSlopeLabels
-            );
+            if (renderOptions.drawCutSlope) {
+                drawBatterSlope(
+                    drawList,
+                    rightEdgeX,
+                    deckBottom,
+                    geometry.cutTopY(),
+                    1,
+                    layout.cutSlopeRatio,
+                    layout.cutSlopeColor,
+                    layout.cutSlopeRatio > 0f,
+                    renderOptions.drawSlopeLabels
+                );
+            }
         }
 
         if (renderOptions.drawOverlayLabels) {
@@ -254,8 +260,12 @@ public final class RoadCrossSectionPreviewRenderer {
             float cutTopY = resolveCutTopY(deckY, deckH, deckBottom, fillVertDrop, y0, options);
             float cutVertDrop = Math.max(0f, deckBottom - cutTopY);
 
-            float leftBatterPx = layout.fillSlopeRatio > 0f ? fillVertDrop * layout.fillSlopeRatio : 0f;
-            float rightBatterPx = layout.cutSlopeRatio > 0f ? cutVertDrop * layout.cutSlopeRatio : 0f;
+            float leftBatterPx = layout.includeSlopeBatter && layout.fillSlopeRatio > 0f
+                ? fillVertDrop * layout.fillSlopeRatio
+                : 0f;
+            float rightBatterPx = layout.includeSlopeBatter && options.drawCutSlope && layout.cutSlopeRatio > 0f
+                ? cutVertDrop * layout.cutSlopeRatio
+                : 0f;
             float availableWidth = Math.max(1f, width - padding * 2f);
             float scale = (availableWidth - leftBatterPx - rightBatterPx) / totalBlocks;
             if (scale <= 0f) {
@@ -426,6 +436,8 @@ public final class RoadCrossSectionPreviewRenderer {
         public final boolean drawOverlayLabels;
         public final boolean drawSlopeLabels;
         public final boolean compactSlopes;
+        public final boolean drawDrainage;
+        public final boolean drawCutSlope;
         public final float deckYRatio;
         public final float deckHRatio;
         public final float groundYRatio;
@@ -435,6 +447,8 @@ public final class RoadCrossSectionPreviewRenderer {
                 boolean drawOverlayLabels,
                 boolean drawSlopeLabels,
                 boolean compactSlopes,
+                boolean drawDrainage,
+                boolean drawCutSlope,
                 float deckYRatio,
                 float deckHRatio,
                 float groundYRatio) {
@@ -442,17 +456,20 @@ public final class RoadCrossSectionPreviewRenderer {
             this.drawOverlayLabels = drawOverlayLabels;
             this.drawSlopeLabels = drawSlopeLabels;
             this.compactSlopes = compactSlopes;
+            this.drawDrainage = drawDrainage;
+            this.drawCutSlope = drawCutSlope;
             this.deckYRatio = deckYRatio;
             this.deckHRatio = deckHRatio;
             this.groundYRatio = groundYRatio;
         }
 
         public static MiniRenderOptions standard() {
-            return new MiniRenderOptions(8f, true, true, false, 0.28f, 0.22f, 0.72f);
+            return new MiniRenderOptions(8f, true, true, false, true, true, 0.28f, 0.22f, 0.72f);
         }
 
+        /** 预设卡片：隐藏排水沟、不画挖方三角，只保留填方示意。 */
         public static MiniRenderOptions presetCard() {
-            return new MiniRenderOptions(2f, false, false, true, 0.06f, 0.42f, 0.72f);
+            return new MiniRenderOptions(2f, false, false, true, false, false, 0.06f, 0.42f, 0.72f);
         }
     }
 
@@ -469,11 +486,14 @@ public final class RoadCrossSectionPreviewRenderer {
         public final float shoulderBlocks;
         public final float fillSlopeRatio;
         public final float cutSlopeRatio;
+        public final boolean includeSlopeBatter;
         public final float maxSlopePercent;
         public final int roadColor;
         public final int sidewalkColor;
         public final int bikeColor;
         public final int shoulderColor;
+        public final int fillSlopeColor;
+        public final int cutSlopeColor;
         public final float medianBlocks;
         public final int medianColor;
         public final List<Float> markingLineRatios;
@@ -492,11 +512,14 @@ public final class RoadCrossSectionPreviewRenderer {
                 float shoulderBlocks,
                 float fillSlopeRatio,
                 float cutSlopeRatio,
+                boolean includeSlopeBatter,
                 float maxSlopePercent,
                 int roadColor,
                 int sidewalkColor,
                 int bikeColor,
                 int shoulderColor,
+                int fillSlopeColor,
+                int cutSlopeColor,
                 float medianBlocks,
                 int medianColor,
                 List<Float> markingLineRatios,
@@ -513,11 +536,14 @@ public final class RoadCrossSectionPreviewRenderer {
             this.shoulderBlocks = shoulderBlocks;
             this.fillSlopeRatio = fillSlopeRatio;
             this.cutSlopeRatio = cutSlopeRatio;
+            this.includeSlopeBatter = includeSlopeBatter;
             this.maxSlopePercent = maxSlopePercent;
             this.roadColor = roadColor;
             this.sidewalkColor = sidewalkColor;
             this.bikeColor = bikeColor;
             this.shoulderColor = shoulderColor;
+            this.fillSlopeColor = fillSlopeColor;
+            this.cutSlopeColor = cutSlopeColor;
             this.medianBlocks = medianBlocks;
             this.medianColor = medianColor;
             this.markingLineRatios = markingLineRatios != null ? List.copyOf(markingLineRatios) : List.of();
@@ -555,10 +581,13 @@ public final class RoadCrossSectionPreviewRenderer {
                 shoulderBlocks,
                 fillSlopeRatio,
                 cutSlopeRatio,
+                fillSlopeRatio > 0f || cutSlopeRatio > 0f,
                 maxSlopePercent,
                 roadColor,
                 sidewalkColor,
                 bikeColor,
+                shoulderColor,
+                shoulderColor,
                 shoulderColor,
                 0f,
                 0,
@@ -582,13 +611,16 @@ public final class RoadCrossSectionPreviewRenderer {
                 drainage,
                 section.includeShoulder,
                 shoulder,
-                section.fillSlopeRatio,
-                section.cutSlopeRatio,
+                section.includeSlopeBatter ? section.fillSlopeRatio : 0f,
+                section.includeSlopeBatter ? section.cutSlopeRatio : 0f,
+                section.includeSlopeBatter,
                 maxSlopePercent,
                 colorForMaterial(section.carriagewayMaterial.getPrimaryMaterial(), 0xFF707070),
                 colorForMaterial(section.sidewalkMaterial, 0xFF989898),
                 colorForMaterial(section.bikeLaneMaterial, 0xFF6FA8D8),
                 colorForMaterial(section.shoulderMaterial, 0xFFB8A070),
+                colorForMaterial(section.fillSlopeMaterial, 0xFFB8A070),
+                colorForMaterial(section.cutSlopeMaterial, 0xFF808080),
                 section.includeMedian ? section.medianWidth : 0f,
                 colorForMaterial(section.medianMaterial, 0xFF6FA856),
                 markingRatios,

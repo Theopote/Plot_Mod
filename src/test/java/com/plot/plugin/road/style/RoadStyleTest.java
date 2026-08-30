@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,12 +25,13 @@ class RoadStyleTest {
     }
 
     @Test
-    void parkStyleIncludesBikeLane() {
+    void parkStyleIncludesBikeLaneWithoutSlopeBatter() {
         RoadStyle style = RoadStyleCatalog.park();
         RoadCrossSection section = style.toCrossSection();
 
         assertTrue(section.getBikeLane().getEnabled());
         assertEquals(1, section.getBikeLane().getWidth());
+        assertFalse(Boolean.TRUE.equals(section.getSlopeBatter().getEnabled()));
     }
 
     @Test

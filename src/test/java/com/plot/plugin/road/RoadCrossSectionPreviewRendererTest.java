@@ -1,10 +1,12 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,6 +35,26 @@ class RoadCrossSectionPreviewRendererTest {
         assertEquals(2f, layout.leftSidewalkBlocks);
         assertEquals(0.5f, layout.drainageBlocks);
         assertEquals(14f, layout.totalWidthBlocks());
+    }
+
+    @Test
+    void urbanPresetsDoNotShowSpuriousSlopeBatter() {
+        for (RoadStyle style : new RoadStyle[] {
+            RoadStyleCatalog.cityMain(),
+            RoadStyleCatalog.residential(),
+            RoadStyleCatalog.park()
+        }) {
+            var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style);
+            assertFalse(layout.includeSlopeBatter, style.id);
+        }
+    }
+
+    @Test
+    void ruralPresetShowsShoulderAndSlopeBatter() {
+        var layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
+            RoadStyleCatalog.countryRoad());
+        assertTrue(layout.includeSlopeBatter);
+        assertEquals(7f, layout.totalWidthBlocks());
     }
 
     @Test

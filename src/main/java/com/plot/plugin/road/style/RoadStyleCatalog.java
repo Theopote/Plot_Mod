@@ -203,6 +203,8 @@ public final class RoadStyleCatalog {
         style.includeDrainage = false;
         style.includeMedian = false;
         style.includeSlopeBatter = null;
+        style.fillSlopeRatio = 0f;
+        style.cutSlopeRatio = 0f;
         return style;
     }
 }
