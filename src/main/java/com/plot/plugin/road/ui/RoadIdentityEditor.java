@@ -3,10 +3,12 @@ package com.plot.plugin.road.ui;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyMode;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
+import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.Objects;
@@ -67,7 +69,36 @@ public final class RoadIdentityEditor {
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr("plugin.road.road_name_auto_label", autoLabel));
         }
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.road_metadata_coming_soon"));
+
+        renderTopologyMode(road, onHistory);
+    }
+
+    private void renderTopologyMode(Road road, Runnable onHistory) {
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.topology_mode"));
+        String[] labels = {
+            PlotI18n.tr("plugin.road.topology_mode.linear"),
+            PlotI18n.tr("plugin.road.topology_mode.loop")
+        };
+        ImInt index = new ImInt(road.getTopologyMode() == RoadTopologyMode.LOOP ? 1 : 0);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##road_topology_mode", index, labels)) {
+            RoadTopologyMode selected = index.get() == 1 ? RoadTopologyMode.LOOP : RoadTopologyMode.LINEAR;
+            if (selected != road.getTopologyMode()) {
+                if (onHistory != null) {
+                    onHistory.run();
+                }
+                road.setTopologyMode(selected);
+            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.topology_mode"));
+        }
+        if (road.getTopologyMode() == RoadTopologyMode.LOOP) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.topology_mode.loop_hint"));
+        }
     }
 
     private void syncBuffer(Road road) {

@@ -228,6 +228,13 @@ public class RoadNetwork {
         }
         edge.setRoadId(newRoadId);
         newRoad.addSegment(edgeId);
+        RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, newRoad);
+        if (oldRoadId != null && !oldRoadId.equals(newRoadId)) {
+            Road oldRoad = roads.get(oldRoadId);
+            if (oldRoad != null) {
+                RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, oldRoad);
+            }
+        }
         return true;
     }
 
@@ -299,8 +306,12 @@ public class RoadNetwork {
         detachEdge(edgeId);
         if (roadId != null) {
             Road road = roads.get(roadId);
-            if (road != null && road.getSegmentIds().isEmpty()) {
-                roads.remove(roadId);
+            if (road != null) {
+                if (road.getSegmentIds().isEmpty()) {
+                    roads.remove(roadId);
+                } else {
+                    RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, road);
+                }
             }
         }
         cleanupIsolatedNodes();
@@ -907,6 +918,7 @@ public class RoadNetwork {
         Boolean includeDrainage;
         Integer streetlightSpacing;
         Float maxSlope;
+        String topologyMode;
         List<String> segmentIds = new ArrayList<>();
     }
 
@@ -954,6 +966,9 @@ public class RoadNetwork {
                 roadData.styleId = road.getStyleId();
                 roadData.crossSection = CrossSectionData.from(road.getCrossSection());
                 roadData.maxSlope = road.getMaxSlope();
+                if (road.getTopologyMode() != RoadTopologyMode.LINEAR) {
+                    roadData.topologyMode = road.getTopologyMode().name();
+                }
                 roadData.segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
                 data.roads.add(roadData);
             }
@@ -1041,6 +1056,7 @@ public class RoadNetwork {
                         roadData.segmentIds != null ? new java.util.LinkedHashSet<>(roadData.segmentIds) : java.util.Set.of()
                     );
                     road.setStyleId(roadData.styleId);
+                    road.setTopologyMode(RoadTopologyMode.fromStored(roadData.topologyMode));
                     network.roads.put(road.getId(), road);
                 }
             }

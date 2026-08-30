@@ -8,6 +8,9 @@ import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
+import com.plot.plugin.road.model.RoadTopologyViolation;
+import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -147,6 +150,27 @@ public final class RoadEditPanel {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
+        renderRoadTopologyHints(network, road);
+    }
+
+    private void renderRoadTopologyHints(RoadNetwork network, Road road) {
+        List<RoadTopologyViolation> violations = RoadTopologyInvariantValidator.validateRoad(network, road);
+        if (violations.isEmpty()) {
+            return;
+        }
+        for (RoadTopologyViolation violation : violations) {
+            int color = violation.kind() == RoadTopologyViolationKind.ROAD_ORDER_MISMATCH
+                ? PluginUiColors.WARNING_OVERLAP
+                : PluginUiColors.WARNING;
+            RoadUiWidgets.textWrappedColored(color, PlotI18n.tr(RoadTopologyInvariantValidator.hintMessageKey(violation.kind())));
+        }
+
+        if (violations.stream().anyMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_ORDER_MISMATCH)) {
+            if (ImGui.button(PlotI18n.tr("plugin.road.sync_segment_order") + "##topo_sync")) {
+                ctx.networkManager().pushHistory();
+                RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+            }
+        }
     }
 
     private void renderSegmentSelector(RoadNetwork network, Road road) {

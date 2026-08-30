@@ -24,6 +24,7 @@ public class Road {
     private RoadCrossSection crossSection = new RoadCrossSection();
     private String styleId;
     private Float maxSlope;
+    private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
     private final List<String> segmentIds = new ArrayList<>();
 
     public Road() {
@@ -384,6 +385,14 @@ public class Road {
         this.maxSlope = maxSlope != null ? RoadParameterLimits.clampGradePercent(maxSlope) : null;
     }
 
+    public RoadTopologyMode getTopologyMode() {
+        return topologyMode != null ? topologyMode : RoadTopologyMode.LINEAR;
+    }
+
+    public void setTopologyMode(RoadTopologyMode topologyMode) {
+        this.topologyMode = topologyMode != null ? topologyMode : RoadTopologyMode.LINEAR;
+    }
+
     /**
      * 分段 ID 集合，仅用于成员判定（{@code contains} / {@code size}）。
      * <p>
@@ -503,6 +512,7 @@ public class Road {
     Road copy() {
         Road copy = new Road(id, name, crossSection.copy(), maxSlope, new LinkedHashSet<>(segmentIds));
         copy.styleId = styleId;
+        copy.topologyMode = getTopologyMode();
         return copy;
     }
 

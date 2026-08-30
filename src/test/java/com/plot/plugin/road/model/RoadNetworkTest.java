@@ -73,6 +73,30 @@ class RoadNetworkTest {
     }
 
     @Test
+    void assignEdgeToRoadSyncsSegmentOrderOnLinearRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-a");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(20, 0));
+        RoadNode n4 = network.createNode(new Vec2d(30, 0));
+        RoadEdge edge1 = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        RoadEdge edge2 = network.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId());
+        road.reorderSegments(List.of(edge2.getId(), edge1.getId()));
+
+        RoadEdge edge3 = network.createEdge(
+            n3.getId(), n4.getId(), List.of(new Vec2d(20, 0), new Vec2d(30, 0)), null);
+        network.assignEdgeToRoad(edge3.getId(), road.getId());
+
+        assertEquals(
+            List.of(edge1.getId(), edge2.getId(), edge3.getId()),
+            road.getOrderedSegmentIds());
+        assertTrue(RoadTopologyInvariantValidator.validateRoad(network, road).isEmpty());
+    }
+
+    @Test
     void removeRoadUsesEdgeRoadIdNotStaleSegmentIds() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("road-a");
@@ -507,6 +531,40 @@ class RoadNetworkTest {
         if (style.maxSlope > 0f) {
             assertEquals(style.maxSlope, road.getMaxSlope());
         }
+    }
+
+    @Test
+    void jsonRoundTripPreservesTopologyMode() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("ring-road");
+        road.setTopologyMode(RoadTopologyMode.LOOP);
+        road.setName("Ring Road");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        String json = network.toJson();
+        assertTrue(json.contains("\"topologyMode\": \"LOOP\""));
+
+        RoadNetwork restored = RoadNetwork.parseSnapshot(json);
+        Road restoredRoad = restored.getRoad("ring-road");
+
+        assertNotNull(restoredRoad);
+        assertEquals(RoadTopologyMode.LOOP, restoredRoad.getTopologyMode());
+        assertEquals("Ring Road", restoredRoad.getName());
+    }
+
+    @Test
+    void jsonRoundTripDefaultsMissingTopologyModeToLinear() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("main");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+
+        RoadNetwork restored = RoadNetwork.parseSnapshot(network.toJson());
+        assertEquals(RoadTopologyMode.LINEAR, restored.getRoad("main").getTopologyMode());
+        assertFalse(network.toJson().contains("topologyMode"));
     }
 
     @Test

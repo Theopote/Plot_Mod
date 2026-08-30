@@ -59,9 +59,9 @@ Accepted — 2026-08-30（**定义原则 + 检测框架**；enforce 与 `RoadTop
 
 ### 2. 下一阶段（非 blocker）
 
-- 在 `Road` 上增加 `RoadTopologyMode { LINEAR, LOOP }`
-- `LOOP` 模式下 `ROAD_CYCLE` 不再报 violation
-- **仍禁止** `ROAD_BRANCHING` / `ROAD_DISCONNECTED`（分叉永远属于多 Road 汇合）
+- ~~在 `Road` 上增加 `RoadTopologyMode { LINEAR, LOOP }`~~  
+  **已实现（2026-08-30）**：`Road.topologyMode` 字段 + sidecar JSON `topologyMode`（缺省/省略为 `LINEAR`）+ 编辑 Tab 下拉。
+- `LOOP` 模式下 `ROAD_CYCLE` 不再报 violation（仍禁止分叉与断开）
 - 可选：将 `ROAD_*` 从 warning 升级为 error / 阻断生成（产品决策）
 
 ### 3. 明确不做（当前）
@@ -74,7 +74,11 @@ Accepted — 2026-08-30（**定义原则 + 检测框架**；enforce 与 `RoadTop
 
 - 工程检查 UI 按 violation kind 分项提示（见 `plugin.road.validation.road_*` i18n）。
 - `RoadSegmentTopologyAnalyzer` 标记 `@Deprecated`，新代码使用 `RoadTopologyInvariantValidator`。
-- 认领 / 编辑流程可在后续迭代中 **主动维护不变量**（例如 adopt 后 `applyTopologicalOrder`、分叉时自动拆 Road）。
+- 认领 / 编辑流程可在后续迭代中 **主动维护不变量**（例如 adopt 后 `applyTopologicalOrder`、分叉时自动拆 Road）。  
+  **部分已实现（2026-08-30）**：
+  - 认领 / 求交后：`RoadNetworkBuilder` 已调用 `applyTopologicalOrderToAllRoads`
+  - `assignEdgeToRoad` / `removeEdge` 后：对连通无分叉的 Road 自动 `syncStorageOrderIfMaintainable`
+  - 编辑 Tab：选中道路时展示拓扑 hint +「同步分段顺序」按钮
 
 ## References
 

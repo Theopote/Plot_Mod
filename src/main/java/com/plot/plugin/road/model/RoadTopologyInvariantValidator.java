@@ -56,7 +56,7 @@ public final class RoadTopologyInvariantValidator {
             return List.copyOf(violations);
         }
 
-        if (subgraph.endpointCount() == 0) {
+        if (subgraph.endpointCount() == 0 && road.getTopologyMode() != RoadTopologyMode.LOOP) {
             violations.add(new RoadTopologyViolation(roadId, RoadTopologyViolationKind.ROAD_CYCLE));
         }
 
@@ -65,6 +65,37 @@ public final class RoadTopologyInvariantValidator {
         }
 
         return List.copyOf(violations);
+    }
+
+    /**
+     * 若 Road 子图连通且无分叉，将 {@link Road#getOrderedSegmentIds()} 同步为
+     * {@link RoadSegmentOrdering} 拓扑序（消除 {@link RoadTopologyViolationKind#ROAD_ORDER_MISMATCH}）。
+     *
+     * @return 是否改写了 storage 顺序
+     */
+    public static boolean syncStorageOrderIfMaintainable(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return false;
+        }
+        RoadSubgraph subgraph = RoadSubgraph.build(network, road);
+        if (!subgraph.isMaintainableChain()) {
+            return false;
+        }
+        List<String> topological = RoadSegmentOrdering.orderedSegmentIds(network, road);
+        if (road.getOrderedSegmentIds().equals(topological)) {
+            return false;
+        }
+        road.reorderSegments(topological);
+        return true;
+    }
+
+    public static String hintMessageKey(RoadTopologyViolationKind kind) {
+        return switch (kind) {
+            case ROAD_DISCONNECTED -> "plugin.road.topology_hint.disconnected";
+            case ROAD_BRANCHING -> "plugin.road.topology_hint.branching";
+            case ROAD_CYCLE -> "plugin.road.topology_hint.cycle";
+            case ROAD_ORDER_MISMATCH -> "plugin.road.topology_hint.order_mismatch";
+        };
     }
 
     public static Map<RoadTopologyViolationKind, Integer> countByKind(RoadNetwork network) {
@@ -153,6 +184,11 @@ public final class RoadTopologyInvariantValidator {
 
         boolean isChainLike() {
             return componentCount <= 1 && !hasBranching;
+        }
+
+        /** 连通且无分叉：可安全同步 storage 顺序（含 open chain 与 loop）。 */
+        boolean isMaintainableChain() {
+            return isChainLike();
         }
 
         private static int connectedComponentCount(
