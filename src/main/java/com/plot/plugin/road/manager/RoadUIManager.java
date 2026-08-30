@@ -13,10 +13,10 @@ import com.plot.plugin.road.ui.RoadToolbarPanel;
 import com.plot.plugin.road.ui.RoadUiContext;
 import com.plot.plugin.road.ui.RoadUiTab;
 import com.plot.plugin.road.model.RoadNode;
-import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiTabBarFlags;
+import imgui.flag.ImGuiTabItemFlags;
 
 /**
  * 道路系统 ImGui 界面编排。
@@ -31,7 +31,6 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
     private final RoadEdgeListPanel edgeListPanel;
     private final RoadJunctionPanel junctionPanel;
     private final RoadNodePropertyPanel nodePropertyPanel;
-    private RoadUiTab activeTab = RoadUiTab.OVERVIEW;
 
     public RoadUIManager(
             RoadNetworkManager networkManager,
@@ -66,66 +65,34 @@ public final class RoadUIManager implements RoadJunctionPropertyProvider {
         toolbarPanel.render();
 
         RoadUiTab pendingTab = ctx.pendingTab();
+
+        if (ImGui.beginTabBar("##road_tabs", ImGuiTabBarFlags.None)) {
+            renderTab(RoadUiTab.OVERVIEW, "plugin.road.tab.overview", pendingTab, overviewPanel::render);
+            renderTab(RoadUiTab.ADOPT, "plugin.road.tab.adopt", pendingTab, adoptPanel::render);
+            renderTab(RoadUiTab.EDIT, "plugin.road.tab.edit", pendingTab, editPanel::render);
+            renderTab(RoadUiTab.GENERATE, "plugin.road.tab.generate", pendingTab, this::renderGenerateTab);
+            ImGui.endTabBar();
+        }
+
         if (pendingTab != null) {
-            activeTab = pendingTab;
             ctx.clearPendingTab();
         }
-
-        renderTabSelector();
-        ImGui.separator();
-        renderActiveTabBody();
     }
 
-    /**
-     * 用按钮切换 Tab，避免嵌套 Child 内 ImGui TabBar + 每帧 SetSelected 导致原生层卡死。
-     */
-    private void renderTabSelector() {
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float buttonWidth = (ImGui.getContentRegionAvailX() - spacing * 3f) / 4f;
-        if (tabButton(RoadUiTab.OVERVIEW, "plugin.road.tab.overview", buttonWidth)) {
-            activeTab = RoadUiTab.OVERVIEW;
-        }
-        ImGui.sameLine(0, spacing);
-        if (tabButton(RoadUiTab.ADOPT, "plugin.road.tab.adopt", buttonWidth)) {
-            activeTab = RoadUiTab.ADOPT;
-        }
-        ImGui.sameLine(0, spacing);
-        if (tabButton(RoadUiTab.EDIT, "plugin.road.tab.edit", buttonWidth)) {
-            activeTab = RoadUiTab.EDIT;
-        }
-        ImGui.sameLine(0, spacing);
-        if (tabButton(RoadUiTab.GENERATE, "plugin.road.tab.build", buttonWidth)) {
-            activeTab = RoadUiTab.GENERATE;
+    private void renderTab(RoadUiTab tab, String labelKey, RoadUiTab pendingTab, Runnable body) {
+        int flags = pendingTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        if (ImGui.beginTabItem(PlotI18n.tr(labelKey), flags)) {
+            body.run();
+            ImGui.endTabItem();
         }
     }
 
-    private boolean tabButton(RoadUiTab tab, String labelKey, float width) {
-        boolean selected = activeTab == tab;
-        if (selected) {
-            ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.INFO_BLUE);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.ACCENT_BLUE);
+    private void renderGenerateTab() {
+        String profileEdgeId = ctx.consumePendingProfileEdgeId();
+        if (profileEdgeId != null && !profileEdgeId.isBlank()) {
+            generatePanel.openProfileForEdge(profileEdgeId);
         }
-        boolean clicked = ImGui.button(PlotI18n.tr(labelKey) + "##road_tab_" + tab.name(), width, 0);
-        if (selected) {
-            ImGui.popStyleColor(3);
-        }
-        return clicked;
-    }
-
-    private void renderActiveTabBody() {
-        switch (activeTab) {
-            case OVERVIEW -> overviewPanel.render();
-            case ADOPT -> adoptPanel.render();
-            case EDIT -> editPanel.render();
-            case GENERATE -> {
-                String profileEdgeId = ctx.consumePendingProfileEdgeId();
-                if (profileEdgeId != null && !profileEdgeId.isBlank()) {
-                    generatePanel.openProfileForEdge(profileEdgeId);
-                }
-                generatePanel.render();
-            }
-        }
+        generatePanel.render();
     }
 
     public void renderDeferredModals() {
