@@ -17,6 +17,7 @@ import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -152,7 +154,7 @@ class RoadCenterlineEditorTest {
     }
 
     @Test
-    void reverseEdgeMirrorsStationDataForSingleSegmentRoad() {
+    void reverseEdgePreservesStationDataForSingleSegmentRoad() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(100, 0));
@@ -168,13 +170,13 @@ class RoadCenterlineEditorTest {
         CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, edge.getId());
 
         assertTrue(result.isSuccess());
-        StationFacilityRun mirrored = road.getStationFacilities().sortedRuns().getFirst();
-        assertEquals(70.0, mirrored.getStartStation(), 1e-6);
-        assertEquals(RoadFacilitySide.RIGHT, mirrored.getSide());
+        StationFacilityRun preserved = road.getStationFacilities().sortedRuns().getFirst();
+        assertEquals(10.0, preserved.getStartStation(), 1e-6);
+        assertEquals(RoadFacilitySide.LEFT, preserved.getSide());
     }
 
     @Test
-    void reverseEdgeMirrorsOnlySelectedSegmentRange() {
+    void reverseEdgePreservesFacilitiesOutsideReversedSegment() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(50, 0));
@@ -196,11 +198,12 @@ class RoadCenterlineEditorTest {
         List<StationFacilityRun> runs = road.getStationFacilities().sortedRuns();
         assertEquals(10.0, runs.get(0).getStartStation(), 1e-6);
         assertEquals(60.0, runs.get(1).getStartStation(), 1e-6);
-        assertEquals(RoadFacilitySide.RIGHT, runs.get(1).getSide());
+        assertEquals(RoadFacilitySide.LEFT, runs.get(0).getSide());
+        assertEquals(RoadFacilitySide.LEFT, runs.get(1).getSide());
     }
 
     @Test
-    void reverseEdgeMirrorsVerticalAlignmentOnSingleSegmentRoad() {
+    void reverseEdgePreservesVerticalAlignmentOnSingleSegmentRoad() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));
         RoadNode n2 = network.createNode(new Vec2d(100, 0));
@@ -216,10 +219,32 @@ class RoadCenterlineEditorTest {
         assertTrue(result.isSuccess());
 
         List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
-        assertEquals(100.0, pvis.get(1).getStation(), 1e-6);
         assertEquals(0.0, pvis.get(0).getStation(), 1e-6);
-        assertEquals(64.0, pvis.get(1).getElevation(), 1e-6);
-        assertEquals(72.0, pvis.get(0).getElevation(), 1e-6);
+        assertEquals(100.0, pvis.get(1).getStation(), 1e-6);
+        assertEquals(64.0, pvis.get(0).getElevation(), 1e-6);
+        assertEquals(72.0, pvis.get(1).getElevation(), 1e-6);
+    }
+
+    @Test
+    void reverseEdgeFlipsOrientedForwardWithoutChangingChainage() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        RoadEdge edge = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        OrientedRoadSegment before = RoadStationing.orientedSegment(network, road, edge.getId()).orElseThrow();
+        assertTrue(before.forward());
+        assertEquals(0.0, before.startStation(), 1e-6);
+
+        CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, edge.getId());
+        assertTrue(result.isSuccess());
+
+        OrientedRoadSegment after = RoadStationing.orientedSegment(network, road, edge.getId()).orElseThrow();
+        assertFalse(after.forward());
+        assertEquals(before.startStation(), after.startStation(), 1e-6);
+        assertEquals(before.length(), after.length(), 1e-6);
     }
 
     @Test

@@ -24,7 +24,7 @@ import com.plot.plugin.road.station.RoadStationMirroring;
  *   <tr><td>Merge edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Split road</td><td>{@link CenterlineEditStationPolicy#PARTITION_AND_RESET_TAIL}</td><td>clear + refit</td></tr>
  *   <tr><td>Merge road</td><td>{@link CenterlineEditStationPolicy#OFFSET_BY_HEAD_LENGTH}</td><td>clear + refit</td></tr>
- *   <tr><td>Reverse edge</td><td>{@link CenterlineEditStationPolicy#MIRROR_IN_RANGE}</td><td>refit / clear</td></tr>
+ *   <tr><td>Reverse edge</td><td>{@link CenterlineEditStationPolicy#PRESERVE_STATION}</td><td>refit / clear</td></tr>
  *   <tr><td>Reverse road</td><td>{@link CenterlineEditStationPolicy#MIRROR_FULL_ROAD}</td><td>explicit reverse</td></tr>
  * </table>
  */

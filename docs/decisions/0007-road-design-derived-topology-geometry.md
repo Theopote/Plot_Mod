@@ -150,9 +150,13 @@ Road Generation Pipeline
 | Graph split / merge | refit 或清除 | 不变（总链长不变） |
 | Road split / merge | 清除 + 折线 refit | `RoadStationDataTransforms` 分区/拼接 |
 | Reverse road | 线元逆序 | 整路镜像 |
-| Reverse edge | refit 或清除 | 段内镜像（含 VA） |
+| Reverse edge | refit 或清除 | **不变**（`OrientedRoadSegment.forward` 取反；LEFT/RIGHT 由 `chainLeftNormal` 解析） |
 
-**物理位置原则**：沿桩号数据绑定链上位置，而非列表索引；段长变化用仿射 rescale，反向用 mirror，逻辑拆路用 station split/merge。
+**Canonical chainage**：模型仅存自链起点 K0+000 的桩号；`ChainageDisplayMode.FROM_END`（EK…）仅为 UI 展示变换。
+
+**OrientedRoadSegment（Phase 2 基础设施）**：`forward == false` 时几何方向与链相反；生成管线须用 `PathSegmentGeometry.chainLeftNormal(segment, forward)` 解析相对链的 LEFT/RIGHT，禁止直接用几何 `leftNormal`。
+
+**物理位置原则**：沿桩号数据绑定链上位置，而非列表索引；段长变化用仿射 rescale，整路反向用 mirror，单段几何反向不改变 canonical 桩号。
 
 ### Station policy 枚举（2026-08-31）
 

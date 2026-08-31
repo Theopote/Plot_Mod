@@ -13,7 +13,7 @@ import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySna
  *   <li>{@link #REPARAMETERIZE_STATION} — 编辑段内按<strong>弧长比例</strong>重映射，段后整体平移 ΔL（非绝对 chainage）</li>
  *   <li>{@link #PARTITION_AND_RESET_TAIL} — 在 splitStation 切分；head 保留 [0, split)，tail 取 [split, total) 并重置为 K0+</li>
  *   <li>{@link #OFFSET_BY_HEAD_LENGTH} — tail 全部桩号 += headLength 后拼入 head</li>
- *   <li>{@link #MIRROR_IN_RANGE} — 单段反向：段内桩号区间镜像</li>
+ *   <li>{@link #MIRROR_IN_RANGE} — 段内桩号区间镜像（显式工具；单段几何反向不再使用）</li>
  *   <li>{@link #MIRROR_FULL_ROAD} — 整路反向：全链镜像</li>
  * </ul>
  */
@@ -38,7 +38,7 @@ public enum CenterlineEditStationPolicy {
      */
     OFFSET_BY_HEAD_LENGTH,
 
-    /** 单段 edge 反向：仅镜像该段桩号区间（多分段）或整路（单分段）。 */
+    /** 段内桩号区间镜像（显式工具；{@code reverseEdge} 已改为 {@link #PRESERVE_STATION}）。 */
     MIRROR_IN_RANGE,
 
     /** 整路反向：VA / VCS / 设施全链镜像。 */
@@ -118,11 +118,10 @@ public enum CenterlineEditStationPolicy {
     }
 
     public void applyReverseEdge(RoadNetwork network, String edgeId) {
-        if (this != MIRROR_IN_RANGE) {
-            throw new IllegalStateException("Expected MIRROR_IN_RANGE, got " + this);
+        if (this != PRESERVE_STATION) {
+            throw new IllegalStateException("reverseEdge expects PRESERVE_STATION, got " + this);
         }
-        RoadStationMirroring.mirrorStationDataForReversedEdge(network, edgeId);
-        RoadStationMirroring.mirrorVerticalAlignmentForReversedEdge(network, edgeId);
+        // Canonical station data unchanged; OrientedRoadSegment.forward flips for generation.
     }
 
     public void applyReverseRoad(Road road, double totalLength) {

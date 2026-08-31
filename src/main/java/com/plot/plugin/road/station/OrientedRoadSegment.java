@@ -5,8 +5,9 @@ import java.util.OptionalDouble;
 /**
  * 道路链上的定向分段：除拓扑顺序外，还携带沿链行进方向。
  * <p>
- * {@code forward == true} 表示 {@link com.plot.plugin.road.model.RoadEdge} 的几何方向
- * （start→end）与道路桩号链一致；否则几何起点在链出口，几何终点在链入口。
+ * {@code forward == false} 表示几何方向与链方向相反；生成时须用
+ * {@link com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry#chainLeftNormal}
+ * 解析相对链的 LEFT/RIGHT，而非几何 {@code leftNormal}。
  */
 public record OrientedRoadSegment(
         String edgeId,

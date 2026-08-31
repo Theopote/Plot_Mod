@@ -26,8 +26,8 @@ public enum CenterlineEditOperation {
     /** {@code mergeRoadTailIntoHead} → {@link CenterlineEditStationPolicy#OFFSET_BY_HEAD_LENGTH}。 */
     MERGE_ROAD(CenterlineEditStationPolicy.OFFSET_BY_HEAD_LENGTH),
 
-    /** 单段反向 → {@link CenterlineEditStationPolicy#MIRROR_IN_RANGE}。 */
-    REVERSE_EDGE(CenterlineEditStationPolicy.MIRROR_IN_RANGE),
+    /** 单段几何反向：仅翻转 edge 存储；canonical 桩号不变（{@link OrientedRoadSegment#forward} 取反）。 */
+    REVERSE_EDGE(CenterlineEditStationPolicy.PRESERVE_STATION),
 
     /** 整路反向 → {@link CenterlineEditStationPolicy#MIRROR_FULL_ROAD}。 */
     REVERSE_ROAD(CenterlineEditStationPolicy.MIRROR_FULL_ROAD);

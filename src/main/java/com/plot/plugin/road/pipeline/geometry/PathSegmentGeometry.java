@@ -14,4 +14,12 @@ public final class PathSegmentGeometry {
         Vec2d unit = tangent.normalize();
         return new Vec2d(-unit.y, unit.x);
     }
+
+    /**
+     * 相对道路链方向的左侧法向：{@code forward == false} 时与几何 leftNormal 相反。
+     */
+    public static Vec2d chainLeftNormal(PathSegment segment, boolean forward) {
+        Vec2d geometryLeft = leftNormal(segment);
+        return forward ? geometryLeft : geometryLeft.multiply(-1);
+    }
 }

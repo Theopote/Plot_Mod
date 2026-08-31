@@ -32,7 +32,7 @@ class CenterlineEditStationPolicyTest {
             CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy());
         assertEquals(CenterlineEditStationPolicy.OFFSET_BY_HEAD_LENGTH,
             CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy());
-        assertEquals(CenterlineEditStationPolicy.MIRROR_IN_RANGE,
+        assertEquals(CenterlineEditStationPolicy.PRESERVE_STATION,
             CenterlineEditOperation.REVERSE_EDGE.defaultStationPolicy());
         assertEquals(CenterlineEditStationPolicy.MIRROR_FULL_ROAD,
             CenterlineEditOperation.REVERSE_ROAD.defaultStationPolicy());

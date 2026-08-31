@@ -100,6 +100,7 @@ public final class RoadTerrainGrader {
         int bridgeThreshold = config.getBridgeThreshold();
 
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
+        boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
@@ -110,7 +111,7 @@ public final class RoadTerrainGrader {
             }
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
+            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;

@@ -149,7 +149,14 @@ public final class RoadEditPanel {
         RoadUiSections.group("plugin.road.design_stack.identity");
         identityEditor.render(network, road, ctx.networkManager()::pushHistory);
         renderRoadIdentitySummary(network, road, chainageDisplay);
-        renderRoadDirectionControls(network, road);
+        RoadDirectionIndicator.render(
+            network,
+            road,
+            () -> {
+                CenterlineEditResult result = ctx.networkManager().reverseRoad(road);
+                lastCenterlineEditMessage = formatCenterlineEditResult(result);
+            },
+            () -> lastCenterlineEditMessage);
         renderRoadTopologyHints(network, road);
 
         RoadUiSections.group("plugin.road.design_stack.alignment");
@@ -198,16 +205,17 @@ public final class RoadEditPanel {
         }
     }
 
-    private void renderRoadDirectionControls(RoadNetwork network, Road road) {
-        ImGui.spacing();
-        ImGui.text(PlotI18n.tr("plugin.road.design_stack.direction"));
-        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_road") + "##road_reverse")) {
-            CenterlineEditResult result = ctx.networkManager().reverseRoad(road);
-            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+    private void renderChainageDisplayToggle() {
+        boolean fromEnd = chainageDisplayMode == ChainageDisplayMode.FROM_END;
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.chainage_display_from_end"), fromEnd)) {
+            chainageDisplayMode = fromEnd ? ChainageDisplayMode.FROM_START : ChainageDisplayMode.FROM_END;
         }
-        if (!lastCenterlineEditMessage.isBlank()) {
-            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastCenterlineEditMessage);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("hint.plot.road.chainage_display_mode"));
         }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.chainage_display_format_hint"));
     }
 
     private ChainageDisplayContext chainageContext(RoadNetwork network, Road road) {
@@ -222,13 +230,6 @@ public final class RoadEditPanel {
             return null;
         }
         return chainageContext(network, road);
-    }
-
-    private void renderChainageDisplayToggle() {
-        boolean fromEnd = chainageDisplayMode == ChainageDisplayMode.FROM_END;
-        if (ImGui.checkbox(PlotI18n.tr("plugin.road.chainage_display_from_end"), fromEnd)) {
-            chainageDisplayMode = fromEnd ? ChainageDisplayMode.FROM_START : ChainageDisplayMode.FROM_END;
-        }
     }
 
     private void renderHorizontalAlignmentSummary(

@@ -89,7 +89,7 @@ public final class RoadStationFacilityGenerator {
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
+            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, oriented.forward());
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;

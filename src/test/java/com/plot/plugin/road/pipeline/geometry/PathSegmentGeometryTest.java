@@ -16,4 +16,17 @@ class PathSegmentGeometryTest {
         assertEquals(0.0, normal.dot(tangent), 1e-9);
         assertEquals(1.0, normal.length(), 1e-9);
     }
+
+    @Test
+    void chainLeftNormalFlipsWhenChainRunsBackwardAlongGeometry() {
+        PathSegment segment = new PathSegment(new Vec2d(0, 0), new Vec2d(10, 0));
+        Vec2d geometryLeft = PathSegmentGeometry.leftNormal(segment);
+        Vec2d chainLeft = PathSegmentGeometry.chainLeftNormal(segment, true);
+        Vec2d chainRight = PathSegmentGeometry.chainLeftNormal(segment, false);
+
+        assertEquals(geometryLeft.x, chainLeft.x, 1e-9);
+        assertEquals(geometryLeft.y, chainLeft.y, 1e-9);
+        assertEquals(-geometryLeft.x, chainRight.x, 1e-9);
+        assertEquals(-geometryLeft.y, chainRight.y, 1e-9);
+    }
 }

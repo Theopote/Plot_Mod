@@ -148,12 +148,13 @@ public final class RoadCrossSectionBuilder {
         metrics.bridgeCount = bridges.size();
         metrics.tunnelCount = tunnels.size();
 
+        boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d normal = PathSegmentGeometry.leftNormal(segment);
+            Vec2d normal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             Vec2d previousCenter = null;
             MaterialMix previousMaterial = null;
@@ -346,6 +347,7 @@ public final class RoadCrossSectionBuilder {
             List<RoadConstructionType> constructionTypes,
             DesignElevationSource designElevation) {
         int maxHorizontalRun = 16;
+        boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
@@ -356,7 +358,7 @@ public final class RoadCrossSectionBuilder {
             }
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
-            Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
+            Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
             for (int j = 1; j < samples; j++) {
                 double t = (double) j / samples;
@@ -557,7 +559,9 @@ public final class RoadCrossSectionBuilder {
             globalDistance,
             t);
         Vec2d center = segment.start.lerp(segment.end, t);
-        Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
+        Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(
+            segment,
+            crossSections.samplingOriented().forward());
         double chainage = crossSections.chainageAtGeometryLocal(globalDistance);
         ResolvedCrossSection crossSection = crossSections.resolve(chainage);
         double halfExtent = RoadDimensionUtils.halfExtentFromCenter(crossSection.carriagewayWidth) * unitsPerBlock;
