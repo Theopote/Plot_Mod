@@ -6,6 +6,7 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.*;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
@@ -609,6 +610,18 @@ public final class RoadNetworkManager {
         }
         pushHistory();
         CenterlineEditResult result = RoadCenterlineEditor.reverseRoad(network, road);
+        if (result.isSuccess()) {
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult materializeHorizontalAlignment(Road road) {
+        if (road == null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
+        }
+        pushHistory();
+        CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
         if (result.isSuccess()) {
             notifyNetworkChanged();
         }

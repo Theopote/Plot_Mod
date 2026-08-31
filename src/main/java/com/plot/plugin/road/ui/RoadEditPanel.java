@@ -15,6 +15,7 @@ import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineConsistency;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.station.ChainageDisplayContext;
@@ -58,6 +59,7 @@ public final class RoadEditPanel {
     private float centerlineFilletRadius = 2f;
     private int centerlineVertexIndex = 1;
     private String lastCenterlineEditMessage = "";
+    private String lastHorizontalAlignmentMessage = "";
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
 
     public RoadEditPanel(
@@ -253,6 +255,20 @@ public final class RoadEditPanel {
                     }
                 }
             }
+            if (!lastHorizontalAlignmentMessage.isBlank()) {
+                RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastHorizontalAlignmentMessage);
+            }
+            if (RoadStationing.isStationable(network, road)
+                && HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, road)) {
+                if (ImGui.button(PlotI18n.tr("plugin.road.horizontal_alignment_materialize") + "##ha_mat")) {
+                    CenterlineEditResult result = ctx.networkManager().materializeHorizontalAlignment(road);
+                    lastHorizontalAlignmentMessage = formatCenterlineEditResult(result);
+                }
+                ImGui.sameLine();
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.horizontal_alignment_materialize_hint"));
+            }
             int index = 0;
             for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
                 double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
@@ -444,6 +460,9 @@ public final class RoadEditPanel {
             return PlotI18n.tr("plugin.road.centerline_edit_failed");
         }
         if (result.isSuccess()) {
+            if (result.detailMessageKey() != null && !result.detailMessageKey().isBlank()) {
+                return PlotI18n.tr(result.detailMessageKey());
+            }
             if (result.mergedEdgeId() != null) {
                 return PlotI18n.tr("plugin.road.centerline_edit_merged");
             }
@@ -460,6 +479,8 @@ public final class RoadEditPanel {
             case SPLIT_FAILED -> "plugin.road.centerline_edit_split_failed";
             case MERGE_FAILED -> "plugin.road.centerline_edit_merge_failed";
             case ALIGNMENT_STATIONS_INVALID -> "plugin.road.centerline_edit_alignment_invalid";
+            case HORIZONTAL_ALIGNMENT_NOT_DEFINED -> "plugin.road.horizontal_alignment_materialize_no_alignment";
+            case ROAD_NOT_STATIONABLE -> "plugin.road.horizontal_alignment_materialize_not_stationable";
             default -> "plugin.road.centerline_edit_failed";
         };
         return PlotI18n.tr(key);

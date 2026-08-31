@@ -35,6 +35,8 @@
 - [x] JSON 往返
 - [x] 编辑 UI 线形摘要
 - [x] 线形与 polyline 偏差检查（`HorizontalAlignmentCenterlineConsistency`）
+- [x] 线形写回中心线（`HorizontalAlignmentCenterlineMaterializer`）
+- [x] materialize 后 HA 原点对齐链起点（`HorizontalAlignmentChainOriginAligner`）
 
 ## References
 
