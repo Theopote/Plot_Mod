@@ -15,6 +15,7 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
@@ -196,6 +197,35 @@ class RoadCenterlineEditorTest {
         assertEquals(10.0, runs.get(0).getStartStation(), 1e-6);
         assertEquals(60.0, runs.get(1).getStartStation(), 1e-6);
         assertEquals(RoadFacilitySide.RIGHT, runs.get(1).getSide());
+    }
+
+    @Test
+    void filletRescalesStationDataOnEditedSegment() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(40, 0));
+        RoadNode n3 = network.createNode(new Vec2d(40, 40));
+        Road road = network.createRoad("r1");
+        RoadEdge edge = network.createEdge(
+            n1.getId(),
+            n3.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(40, 0), new Vec2d(40, 40)),
+            road.getId());
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(55.0, 65.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        )));
+
+        double oldLength = RoadStationing.totalLength(network, road);
+        CenterlineEditResult result = RoadCenterlineEditor.filletVertex(network, edge.getId(), 1, 5.0);
+        assertTrue(result.isSuccess());
+
+        double newLength = RoadStationing.totalLength(network, road);
+        assertTrue(newLength > 0.0);
+        assertNotNull(road.getStationFacilities());
+        StationFacilityRun run = road.getStationFacilities().sortedRuns().getFirst();
+        double expectedStart = 55.0 * (newLength / oldLength);
+        assertEquals(expectedStart, run.getStartStation(), 1e-3);
+        assertEquals(65.0 * (newLength / oldLength), run.getEndStation(), 1e-3);
     }
 
     @Test

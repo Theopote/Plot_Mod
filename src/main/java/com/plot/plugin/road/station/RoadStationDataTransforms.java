@@ -3,6 +3,7 @@ package com.plot.plugin.road.station;
 import com.plot.plugin.road.alignment.HorizontalAlignmentChainOriginAligner;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPolylineFitter;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
@@ -148,6 +149,201 @@ public final class RoadStationDataTransforms {
         if (refit) {
             refitHorizontalAlignmentFromCenterline(network, head);
         }
+    }
+
+    /**
+     * 分段几何长度变化后，对受影响桩号区间做仿射重映射：
+     * {@code [rangeStart, rangeStart + oldSegmentLength)} 内按比例缩放，其后整体平移差值。
+     */
+    public static void rescaleAfterGeometryEdit(
+            Road road,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength,
+            double totalLengthBefore) {
+        if (road == null || oldSegmentLength <= EPSILON) {
+            return;
+        }
+        if (Math.abs(oldSegmentLength - newSegmentLength) <= EPSILON) {
+            return;
+        }
+        if (!hasStationEngineeringData(road)) {
+            return;
+        }
+
+        road.setVerticalAlignment(rescaleVerticalAlignment(
+            road.getVerticalAlignment(),
+            rangeStart,
+            oldSegmentLength,
+            newSegmentLength));
+        road.setVariableCrossSections(rescaleVariableCrossSections(
+            road.getVariableCrossSections(),
+            road.getCrossSection(),
+            totalLengthBefore,
+            rangeStart,
+            oldSegmentLength,
+            newSegmentLength));
+        road.setStationFacilities(rescaleStationFacilities(
+            road.getStationFacilities(),
+            totalLengthBefore,
+            rangeStart,
+            oldSegmentLength,
+            newSegmentLength));
+    }
+
+    public static void rescaleAfterGeometryEdit(
+            RoadNetwork network,
+            Road road,
+            String edgeId,
+            double oldSegmentLength,
+            double newSegmentLength) {
+        if (network == null || road == null || edgeId == null || oldSegmentLength <= EPSILON) {
+            return;
+        }
+        double rangeStart = RoadStationing.segmentStartStation(network, road, edgeId);
+        if (rangeStart < 0.0) {
+            return;
+        }
+        double totalLengthBefore = RoadStationing.totalLength(network, road) - newSegmentLength + oldSegmentLength;
+        rescaleAfterGeometryEdit(road, rangeStart, oldSegmentLength, newSegmentLength, totalLengthBefore);
+    }
+
+    public record SegmentGeometrySnapshot(
+            double rangeStart,
+            double oldSegmentLength,
+            double totalLengthBefore) {
+
+        public static SegmentGeometrySnapshot capture(RoadNetwork network, String edgeId) {
+            if (network == null || edgeId == null || edgeId.isBlank()) {
+                return null;
+            }
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null || edge.getRoadId() == null) {
+                return null;
+            }
+            Road road = network.getRoad(edge.getRoadId());
+            if (road == null) {
+                return null;
+            }
+            double rangeStart = RoadStationing.segmentStartStation(network, road, edgeId);
+            if (rangeStart < 0.0) {
+                return null;
+            }
+            return new SegmentGeometrySnapshot(
+                rangeStart,
+                edge.getLength(),
+                RoadStationing.totalLength(network, road));
+        }
+    }
+
+    static double remapStationAfterSegmentEdit(
+            double station,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength) {
+        if (!Double.isFinite(station)) {
+            return station;
+        }
+        double rangeEnd = rangeStart + oldSegmentLength;
+        if (station < rangeStart - EPSILON) {
+            return station;
+        }
+        if (station < rangeEnd - EPSILON) {
+            return rangeStart + (station - rangeStart) * (newSegmentLength / oldSegmentLength);
+        }
+        return station + (newSegmentLength - oldSegmentLength);
+    }
+
+    private static boolean hasStationEngineeringData(Road road) {
+        return road.getVerticalAlignment() != null
+            || road.getVariableCrossSections() != null
+            || road.getStationFacilities() != null;
+    }
+
+    static RoadVerticalAlignment rescaleVerticalAlignment(
+            RoadVerticalAlignment source,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength) {
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+        List<PointOfVerticalIntersection> remapped = new ArrayList<>();
+        for (PointOfVerticalIntersection pvi : source.sortedPvis()) {
+            double station = remapStationAfterSegmentEdit(
+                pvi.getStation(), rangeStart, oldSegmentLength, newSegmentLength);
+            if (!remapped.isEmpty()) {
+                PointOfVerticalIntersection last = remapped.getLast();
+                if (Math.abs(last.getStation() - station) <= EPSILON) {
+                    continue;
+                }
+            }
+            remapped.add(new PointOfVerticalIntersection(
+                station,
+                pvi.getElevation(),
+                pvi.getCurveLength()));
+        }
+        return remapped.isEmpty() ? null : new RoadVerticalAlignment(remapped);
+    }
+
+    static RoadVariableCrossSections rescaleVariableCrossSections(
+            RoadVariableCrossSections source,
+            RoadCrossSection roadDefault,
+            double totalLengthBefore,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength) {
+        RoadCrossSection defaultSection = roadDefault != null ? roadDefault : new RoadCrossSection();
+        List<Interval> intervals = buildIntervals(
+            source != null ? source.sortedStations() : List.of(),
+            defaultSection,
+            totalLengthBefore);
+        List<Interval> remapped = new ArrayList<>(intervals.size());
+        for (Interval interval : intervals) {
+            double start = remapStationAfterSegmentEdit(
+                interval.start, rangeStart, oldSegmentLength, newSegmentLength);
+            double end = remapStationAfterSegmentEdit(
+                interval.end, rangeStart, oldSegmentLength, newSegmentLength);
+            if (end > start + EPSILON) {
+                remapped.add(new Interval(start, end, interval.template));
+            }
+        }
+        remapped = mergeAdjacentIntervals(remapped);
+        return intervalsToVariableCrossSections(remapped, defaultSection);
+    }
+
+    static RoadStationFacilities rescaleStationFacilities(
+            RoadStationFacilities source,
+            double totalLengthBefore,
+            double rangeStart,
+            double oldSegmentLength,
+            double newSegmentLength) {
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+        List<StationFacilityRun> remapped = new ArrayList<>();
+        for (StationFacilityRun run : source.getRuns()) {
+            double start = remapStationAfterSegmentEdit(
+                run.getStartStation(), rangeStart, oldSegmentLength, newSegmentLength);
+            Double endStation = run.getEndStation() == null
+                ? null
+                : remapStationAfterSegmentEdit(
+                    run.getEndStation(), rangeStart, oldSegmentLength, newSegmentLength);
+            if (endStation != null && endStation <= start + EPSILON) {
+                continue;
+            }
+            remapped.add(new StationFacilityRun(
+                start,
+                endStation,
+                run.getKind(),
+                run.getSide(),
+                run.getMaterial(),
+                run.getHeight()));
+        }
+        remapped.sort(Comparator
+            .comparingDouble(StationFacilityRun::getStartStation)
+            .thenComparing(run -> run.getEndStation() == null ? Double.MAX_VALUE : run.getEndStation()));
+        return remapped.isEmpty() ? null : new RoadStationFacilities(remapped);
     }
 
     /**

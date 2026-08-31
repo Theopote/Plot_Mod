@@ -128,7 +128,10 @@ class RoadTopologyRoadSplitterTest {
 
         RoadTopologyRoadSplitter.repairAfterAdopt(network);
 
-        Road keptRoad = network.getRoad(road.getId());
+        Road keptRoad = network.getRoads().values().stream()
+            .filter(candidate -> RoadSegmentOrdering.orderedSegmentIds(network, candidate).contains(edgeNear))
+            .findFirst()
+            .orElseThrow();
         assertNotNull(keptRoad.getStationFacilities());
         assertEquals(1, keptRoad.getStationFacilities().runCount());
         assertEquals(2.0, keptRoad.getStationFacilities().sortedRuns().getFirst().getStartStation(), 1e-6);

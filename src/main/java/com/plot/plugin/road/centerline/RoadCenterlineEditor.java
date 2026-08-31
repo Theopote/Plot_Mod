@@ -13,6 +13,8 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.station.RoadStationDataTransforms;
+import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.RoadStationMirroring;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
@@ -52,8 +54,9 @@ public final class RoadCenterlineEditor {
         if (updated.isEmpty()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE);
         }
+        SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
         edge.setCenterlinePoints(updated.get());
-        return finishEdit(network, edgeId, CenterlineEditResult.success());
+        return finishEdit(network, edgeId, before, CenterlineEditResult.success());
     }
 
     public static CenterlineEditResult insertPiAtRoadStation(
@@ -128,8 +131,9 @@ public final class RoadCenterlineEditor {
         if (filleted == null || filleted.size() < 2) {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_RADIUS);
         }
+        SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
         edge.setCenterlinePoints(filleted);
-        return finishEdit(network, edgeId, CenterlineEditResult.success());
+        return finishEdit(network, edgeId, before, CenterlineEditResult.success());
     }
 
     public static CenterlineEditResult mergeThroughNode(RoadNetwork network, String nodeId) {
@@ -329,7 +333,29 @@ public final class RoadCenterlineEditor {
             RoadNetwork network,
             String edgeId,
             CenterlineEditResult result) {
+        return finishEdit(network, edgeId, null, result);
+    }
+
+    private static CenterlineEditResult finishEdit(
+            RoadNetwork network,
+            String edgeId,
+            SegmentGeometrySnapshot before,
+            CenterlineEditResult result) {
         if (result.isSuccess()) {
+            if (before != null) {
+                RoadEdge edge = network != null ? network.getEdge(edgeId) : null;
+                if (edge != null && edge.getRoadId() != null) {
+                    Road road = network.getRoad(edge.getRoadId());
+                    if (road != null) {
+                        RoadStationDataTransforms.rescaleAfterGeometryEdit(
+                            road,
+                            before.rangeStart(),
+                            before.oldSegmentLength(),
+                            edge.getLength(),
+                            before.totalLengthBefore());
+                    }
+                }
+            }
             CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, edgeId);
         }
         return result;

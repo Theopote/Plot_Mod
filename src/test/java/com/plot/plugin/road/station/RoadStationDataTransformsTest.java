@@ -161,6 +161,61 @@ class RoadStationDataTransformsTest {
     }
 
     @Test
+    void rescaleSegmentRangeAffineMapsInsideAndShiftsTail() {
+        Road road = new Road("road");
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(50.0, 70.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT),
+            StationFacilityRun.of(90.0, 95.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT)
+        )));
+
+        RoadStationDataTransforms.rescaleAfterGeometryEdit(road, 40.0, 30.0, 36.0, 100.0);
+
+        List<StationFacilityRun> runs = road.getStationFacilities().sortedRuns();
+        assertEquals(2, runs.size());
+        assertEquals(52.0, runs.get(0).getStartStation(), 1e-6);
+        assertEquals(76.0, runs.get(0).getEndStation(), 1e-6);
+        assertEquals(96.0, runs.get(1).getStartStation(), 1e-6);
+        assertEquals(101.0, runs.get(1).getEndStation(), 1e-6);
+    }
+
+    @Test
+    void rescaleSegmentRangeRemapsVerticalAlignment() {
+        Road road = new Road("road");
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(20.0, 10.0),
+            PointOfVerticalIntersection.of(50.0, 11.0),
+            PointOfVerticalIntersection.of(80.0, 12.0)
+        )));
+
+        RoadStationDataTransforms.rescaleAfterGeometryEdit(road, 40.0, 20.0, 30.0, 100.0);
+
+        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().sortedPvis();
+        assertEquals(3, pvis.size());
+        assertEquals(20.0, pvis.get(0).getStation(), 1e-6);
+        assertEquals(55.0, pvis.get(1).getStation(), 1e-6);
+        assertEquals(90.0, pvis.get(2).getStation(), 1e-6);
+    }
+
+    @Test
+    void rescaleSegmentRangeRemapsVariableCrossSectionBreakpoints() {
+        RoadCrossSection narrow = sectionWithWidth(6);
+        RoadCrossSection wide = sectionWithWidth(12);
+        Road road = new Road("road");
+        road.setCrossSection(narrow.copy());
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(50.0, wide),
+            StationCrossSection.at(80.0, narrow)
+        )));
+
+        RoadStationDataTransforms.rescaleAfterGeometryEdit(road, 40.0, 20.0, 30.0, 100.0);
+
+        assertNotNull(road.getVariableCrossSections());
+        List<StationCrossSection> stations = road.getVariableCrossSections().sortedStations();
+        assertEquals(55.0, stations.get(0).getStation(), 1e-6);
+        assertEquals(90.0, stations.get(1).getStation(), 1e-6);
+    }
+
+    @Test
     void mergeStitchesTailStationDataAfterHead() {
         Road head = new Road("head");
         Road tail = new Road("tail");

@@ -181,6 +181,8 @@ public final class RoadTopologyRoadSplitter {
             StationRange keepRange = ranges.get(keepIndex);
             if (keepRange.isValid()) {
                 snapshot.applyRangeTo(road, totalLength, keepRange);
+            } else {
+                clearStationEngineeringData(road);
             }
             if (snapshot.hadHorizontalAlignment()) {
                 road.setHorizontalAlignment(null);
@@ -220,6 +222,15 @@ public final class RoadTopologyRoadSplitter {
             }
         }
         return created;
+    }
+
+    private static void clearStationEngineeringData(Road road) {
+        if (road == null) {
+            return;
+        }
+        road.setVerticalAlignment(null);
+        road.setVariableCrossSections(null);
+        road.setStationFacilities(null);
     }
 
     private static void applyBranchName(Road parent, Road splitRoad, int branchIndex) {
