@@ -9,6 +9,9 @@ import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
+import com.plot.plugin.road.station.RoadDesignDirection;
+import com.plot.plugin.road.station.OrientedRoadSegment;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 
@@ -17,10 +20,25 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * 逻辑道路（工程对象）。一条认领的道路可对应多条几何 {@link RoadEdge} 段。
+ * <p>
+ * <strong>核心工程模型</strong>（逻辑视图，不一定全部持久化）：
+ * <pre>
+ * Road
+ * ├ DesignDirection          → {@link #designDirection(RoadNetwork)}
+ * ├ Oriented Segments        → {@link #orientedSegments(RoadNetwork)}（动态 derive）
+ * │    edgeId, forward, startStation, length
+ * ├ HorizontalAlignment      → {@link #getHorizontalAlignment()}
+ * ├ VerticalAlignment        → {@link #getVerticalAlignment()}
+ * ├ TypicalCrossSection      → {@link #getCrossSection()}
+ * ├ VariableCrossSections    → {@link #getVariableCrossSections()}
+ * └ StationFacilities        → {@link #getStationFacilities()}
+ * </pre>
+ * {@code segmentIds} 仅记录几何段归属与存储顺序；链方向与桩号坐标见 {@link RoadStationing}。
  */
 public class Road {
     private final String id;
@@ -431,6 +449,25 @@ public class Road {
 
     public void setStationFacilities(RoadStationFacilities stationFacilities) {
         this.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
+    }
+
+    /**
+     * 设计链方向（入口 → 出口节点）；不可桩号化时返回 empty。
+     */
+    public Optional<RoadDesignDirection> designDirection(RoadNetwork network) {
+        Optional<String> entry = RoadStationing.chainEntryNodeId(network, this);
+        Optional<String> exit = RoadStationing.chainExitNodeId(network, this);
+        if (entry.isEmpty() || exit.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new RoadDesignDirection(entry.get(), exit.get()));
+    }
+
+    /**
+     * 沿设计链的定向分段（edgeId、forward、startStation、length）；动态 derive，不持久化。
+     */
+    public List<OrientedRoadSegment> orientedSegments(RoadNetwork network) {
+        return RoadStationing.orientedSegments(network, this);
     }
 
     /**

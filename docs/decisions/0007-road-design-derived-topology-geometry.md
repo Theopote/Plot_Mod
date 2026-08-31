@@ -124,6 +124,27 @@ Road Generation Pipeline
 
 [ADR 0006](0006-road-phase-2-direction.md) §2「当前几何仍以 polyline centerline 为主」**已由本 ADR  supersede**：有 HA 时设计层为平面权威；polyline 降为 Derived + fallback。
 
+## Core engineering model（2026-08-31）
+
+逻辑道路工程视图（`Road` + `RoadStationing`）：
+
+```
+Road
+├ DesignDirection          entryNode → exitNode（derive）
+├ Oriented Segments        edgeId, forward, startStation, length（derive）
+├ HorizontalAlignment
+├ VerticalAlignment
+├ TypicalCrossSection
+├ VariableCrossSections
+└ StationFacilities
+```
+
+- `segmentIds` 仅几何段归属；链方向与桩号不依赖 edge start/end 存储。
+- `OrientedRoadSegment` 与 `RoadDesignDirection` 可不持久化，但概念与 API 必须存在。
+- 生成管线用 `PathSegmentGeometry.chainLeftNormal(segment, forward)` 解析链相对 LEFT/RIGHT。
+
+测试：`RoadOrientationInvariantTest` — 8 种边存储方向组合下桩号 / VA / VCS / 设施 / 链左向不变。
+
 ## Implementation map（Phase 2.2b，2026-08-31）
 
 | 组件 | 层 |
