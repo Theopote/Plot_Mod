@@ -17,6 +17,8 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
+import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -292,6 +294,62 @@ public final class RoadNetworkEngineeringValidator {
                 "plugin.road.validation.vertical_alignment_grade_exceeds",
                 gradeExceedCount));
         }
+
+        addVerticalAlignmentTopologyItems(items, network);
+    }
+
+    private static void addVerticalAlignmentTopologyItems(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        int curveOverlapCount = countVerticalAlignmentViolations(network, VerticalAlignmentViolationKind.VERTICAL_CURVE_OVERLAP);
+        if (curveOverlapCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.vertical_alignment_curve_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.vertical_alignment_curve_overlap",
+                curveOverlapCount));
+        }
+
+        int curveRangeCount = countVerticalAlignmentViolations(network, VerticalAlignmentViolationKind.VERTICAL_CURVE_OUT_OF_RANGE);
+        if (curveRangeCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.vertical_alignment_curve_range_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.vertical_alignment_curve_out_of_range",
+                curveRangeCount));
+        }
+
+        int stationOrderCount = countVerticalAlignmentViolations(network, VerticalAlignmentViolationKind.PVI_STATION_NOT_INCREASING)
+            + countVerticalAlignmentViolations(network, VerticalAlignmentViolationKind.PVI_STATION_DUPLICATE);
+        if (stationOrderCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.vertical_alignment_station_order_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.vertical_alignment_station_order_invalid",
+                stationOrderCount));
+        }
+    }
+
+    private static int countVerticalAlignmentViolations(
+            RoadNetwork network,
+            VerticalAlignmentViolationKind kind) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            RoadVerticalAlignment alignment = road.getVerticalAlignment();
+            if (alignment == null || alignment.isEmpty() || !RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            double totalLength = RoadStationing.totalLength(network, road);
+            boolean hasKind = VerticalAlignmentValidator.validate(alignment, totalLength).stream()
+                .anyMatch(violation -> violation.kind() == kind);
+            if (hasKind) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static int countVerticalAlignmentLengthMismatches(RoadNetwork network) {

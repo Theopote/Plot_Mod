@@ -1,7 +1,6 @@
 package com.plot.plugin.road.vertical;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -56,27 +55,29 @@ public final class RoadVerticalAlignment {
     }
 
     /**
-     * 按桩号升序返回 PVI；若桩号非严格递增则返回 empty。
+     * 存储顺序桩号是否严格递增（无重复、无乱序）。
      */
-    public List<PointOfVerticalIntersection> sortedPvis() {
-        if (pvis.size() < 2) {
-            return List.copyOf(pvis);
-        }
-        List<PointOfVerticalIntersection> sorted = new ArrayList<>(pvis);
-        sorted.sort(Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
-        for (int i = 1; i < sorted.size(); i++) {
-            if (sorted.get(i).getStation() <= sorted.get(i - 1).getStation()) {
-                return List.of();
+    public boolean hasStrictlyIncreasingStorageOrder() {
+        for (int i = 1; i < pvis.size(); i++) {
+            if (pvis.get(i).getStation() <= pvis.get(i - 1).getStation() + 1e-9) {
+                return false;
             }
         }
-        return List.copyOf(sorted);
+        return true;
+    }
+
+    /**
+     * 按桩号升序返回 PVI；仅当存储顺序已严格递增时与 {@link #getPvis()} 一致，否则 empty。
+     */
+    public List<PointOfVerticalIntersection> sortedPvis() {
+        if (!hasStrictlyIncreasingStorageOrder()) {
+            return List.of();
+        }
+        return List.copyOf(pvis);
     }
 
     public boolean isValid() {
-        if (pvis.size() <= 1) {
-            return true;
-        }
-        return sortedPvis().size() == pvis.size();
+        return pvis.size() <= 1 || hasStrictlyIncreasingStorageOrder();
     }
 
     public RoadVerticalAlignment copy() {

@@ -94,15 +94,22 @@ public final class VerticalAlignmentGeometry {
     }
 
     public static boolean isEvaluable(RoadVerticalAlignment alignment) {
-        return alignment != null && alignment.sortedPvis().size() >= 2;
+        return VerticalAlignmentValidator.isEvaluable(alignment);
+    }
+
+    private static List<PointOfVerticalIntersection> orderedPvis(RoadVerticalAlignment alignment) {
+        if (alignment == null || !alignment.hasStrictlyIncreasingStorageOrder()) {
+            return List.of();
+        }
+        return alignment.getPvis();
     }
 
     public static OptionalDouble elevationAt(RoadVerticalAlignment alignment, double station) {
-        if (!isEvaluable(alignment) || station < alignment.startStation() - EPSILON) {
+        if (alignment == null || station < alignment.startStation() - EPSILON) {
             return OptionalDouble.empty();
         }
-        List<PointOfVerticalIntersection> pvis = alignment.sortedPvis();
-        if (pvis.isEmpty()) {
+        List<PointOfVerticalIntersection> pvis = orderedPvis(alignment);
+        if (pvis.size() < 2) {
             return OptionalDouble.empty();
         }
         if (station > pvis.getLast().getStation() + EPSILON) {
@@ -117,10 +124,13 @@ public final class VerticalAlignmentGeometry {
     }
 
     public static OptionalDouble gradeAt(RoadVerticalAlignment alignment, double station) {
-        if (!isEvaluable(alignment) || station < alignment.startStation() - EPSILON) {
+        if (alignment == null || station < alignment.startStation() - EPSILON) {
             return OptionalDouble.empty();
         }
-        List<PointOfVerticalIntersection> pvis = alignment.sortedPvis();
+        List<PointOfVerticalIntersection> pvis = orderedPvis(alignment);
+        if (pvis.size() < 2) {
+            return OptionalDouble.empty();
+        }
         if (station > pvis.getLast().getStation() + EPSILON) {
             return OptionalDouble.empty();
         }

@@ -13,13 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class VerticalAlignmentEditorTest {
 
     @Test
-    void buildPvisSortsAndAppliesCurveOnlyOnMiddlePoints() {
+    void buildPvisPreservesDraftOrderAndAppliesCurveOnlyOnMiddlePoints() {
         List<VerticalAlignmentEditor.PviDraft> drafts = new ArrayList<>();
-        VerticalAlignmentEditor.PviDraft end = new VerticalAlignmentEditor.PviDraft();
-        end.station = 100f;
-        end.elevation = 100f;
-        drafts.add(end);
-
         VerticalAlignmentEditor.PviDraft start = new VerticalAlignmentEditor.PviDraft();
         start.station = 0f;
         start.elevation = 80f;
@@ -31,12 +26,38 @@ class VerticalAlignmentEditorTest {
         middle.curveLength = 20f;
         drafts.add(middle);
 
+        VerticalAlignmentEditor.PviDraft end = new VerticalAlignmentEditor.PviDraft();
+        end.station = 100f;
+        end.elevation = 100f;
+        drafts.add(end);
+
         List<PointOfVerticalIntersection> pvis = VerticalAlignmentEditor.buildPvis(drafts);
         assertEquals(3, pvis.size());
-        assertEquals(0.0, pvis.getFirst().getStation(), 1e-6);
+        assertEquals(0.0, pvis.get(0).getStation(), 1e-6);
+        assertEquals(50.0, pvis.get(1).getStation(), 1e-6);
+        assertEquals(100.0, pvis.get(2).getStation(), 1e-6);
         assertTrue(pvis.get(1).hasCurve());
         assertEquals(20.0, pvis.get(1).getCurveLength(), 1e-6);
         assertTrue(!pvis.getLast().hasCurve());
+    }
+
+    @Test
+    void buildPvisDoesNotSortByStation() {
+        List<VerticalAlignmentEditor.PviDraft> drafts = new ArrayList<>();
+        VerticalAlignmentEditor.PviDraft end = new VerticalAlignmentEditor.PviDraft();
+        end.station = 100f;
+        end.elevation = 100f;
+        drafts.add(end);
+
+        VerticalAlignmentEditor.PviDraft start = new VerticalAlignmentEditor.PviDraft();
+        start.station = 0f;
+        start.elevation = 80f;
+        drafts.add(start);
+
+        List<PointOfVerticalIntersection> pvis = VerticalAlignmentEditor.buildPvis(drafts);
+        assertEquals(2, pvis.size());
+        assertEquals(100.0, pvis.getFirst().getStation(), 1e-6);
+        assertEquals(0.0, pvis.getLast().getStation(), 1e-6);
     }
 
     @Test
