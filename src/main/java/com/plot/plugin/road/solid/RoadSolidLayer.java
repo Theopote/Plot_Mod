@@ -11,6 +11,8 @@ public enum RoadSolidLayer {
     SHOULDER,
     MEDIAN,
     DRAIN,
+    GUARDRAIL,
+    RETAINING_WALL,
     BRIDGE,
     TUNNEL,
     SUBGRADE,

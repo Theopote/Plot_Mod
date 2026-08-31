@@ -11,8 +11,13 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
+import com.plot.plugin.road.centerline.CenterlineEditStatus;
+import com.plot.plugin.road.centerline.CenterlineEditResult;
+import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -48,6 +53,11 @@ public final class RoadEditPanel {
     /** true = 自动采样应用；false = 自定义 Y */
     private boolean uniformElevationConfirmAuto = true;
     private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
+    private final StationFacilityEditor stationFacilityEditor = new StationFacilityEditor();
+    private float centerlineEditDistance = 10f;
+    private float centerlineFilletRadius = 2f;
+    private int centerlineVertexIndex = 1;
+    private String lastCenterlineEditMessage = "";
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -146,6 +156,7 @@ public final class RoadEditPanel {
             return;
         }
         renderSegmentSummary(network, road, current);
+        renderCenterlineEditTools(network, road, current);
         renderElevationHint(current);
         renderSlopeOverrides(network, road, current);
     }
@@ -169,6 +180,8 @@ public final class RoadEditPanel {
         renderRoadTopologyHints(network, road);
         renderHorizontalAlignmentSummary(road);
         renderVerticalAlignmentSummary(road);
+        renderVariableCrossSectionSummary(road);
+        stationFacilityEditor.render(network, road, ctx.networkManager()::pushHistory);
     }
 
     private void renderHorizontalAlignmentSummary(Road road) {
@@ -239,6 +252,33 @@ public final class RoadEditPanel {
                 if (!curve.isBlank()) {
                     RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
                 }
+            }
+        }
+    }
+
+    private void renderVariableCrossSectionSummary(Road road) {
+        if (road.getVariableCrossSections() == null || road.getVariableCrossSections().isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.variable_cross_section_none"));
+            return;
+        }
+        ImGui.spacing();
+        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.variable_cross_section_section"))) {
+            List<StationCrossSection> stations = road.getVariableCrossSections().sortedStations();
+            if (stations.isEmpty()) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.road.variable_cross_section_invalid"));
+                return;
+            }
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.variable_cross_section_count", stations.size()));
+            for (StationCrossSection entry : stations) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    VariableCrossSectionResolver.describe(entry, RoadStationFormat.KILOMETER_PLUS));
             }
         }
     }
@@ -322,6 +362,121 @@ public final class RoadEditPanel {
         ImGui.text(PlotI18n.tr(
             "plugin.road.segment_end",
             RoadEdgeListHelper.formatNodeLabel(network, edge.getEndNodeId())));
+    }
+
+    private void renderCenterlineEditTools(RoadNetwork network, Road road, RoadEdge edge) {
+        ImGui.spacing();
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.centerline_edit_section"))) {
+            return;
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.centerline_edit_hint"));
+
+        if (!lastCenterlineEditMessage.isBlank()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastCenterlineEditMessage);
+        }
+
+        float edgeLength = (float) edge.getLength();
+        float[] distance = {centerlineEditDistance};
+        ImGui.setNextItemWidth(Math.min(220f, ImGui.getContentRegionAvailX()));
+        if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_distance") + "##cl_dist", distance, 0f, Math.max(edgeLength, 1f), "%.1fm")) {
+            centerlineEditDistance = distance[0];
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_insert_pi") + "##cl_pi")) {
+            CenterlineEditResult result = ctx.networkManager().insertPiAtLocalDistance(edge.getId(), centerlineEditDistance);
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_split") + "##cl_split")) {
+            CenterlineEditResult result = ctx.networkManager().splitEdgeAtLocalDistance(edge.getId(), centerlineEditDistance);
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+
+        List<com.plot.api.geometry.Vec2d> points = edge.getCenterlinePoints();
+        int interiorCount = Math.max(0, points.size() - 2);
+        if (interiorCount > 0) {
+            centerlineVertexIndex = Math.min(centerlineVertexIndex, interiorCount);
+            centerlineVertexIndex = Math.max(1, centerlineVertexIndex);
+            ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
+            int[] vertexValue = {centerlineVertexIndex};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.road.centerline_vertex") + "##cl_vtx", vertexValue, 1, interiorCount)) {
+                centerlineVertexIndex = vertexValue[0];
+            }
+            float[] radius = {centerlineFilletRadius};
+            ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
+            if (ImGui.sliderFloat(PlotI18n.tr("plugin.road.centerline_fillet_radius") + "##cl_r", radius, 0.5f, 20f, "%.1fm")) {
+                centerlineFilletRadius = radius[0];
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.road.centerline_fillet") + "##cl_fillet")) {
+                CenterlineEditResult result = ctx.networkManager().filletCenterlineVertex(
+                    edge.getId(),
+                    centerlineVertexIndex,
+                    centerlineFilletRadius
+                );
+                lastCenterlineEditMessage = formatCenterlineEditResult(result);
+            }
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_segment") + "##cl_rev_seg")) {
+            CenterlineEditResult result = ctx.networkManager().reverseEdge(edge.getId());
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_road") + "##cl_rev_road")) {
+            CenterlineEditResult result = ctx.networkManager().reverseRoad(road);
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+
+        renderMergeButtons(network, edge);
+    }
+
+    private void renderMergeButtons(RoadNetwork network, RoadEdge edge) {
+        String startNodeId = edge.getStartNodeId();
+        String endNodeId = edge.getEndNodeId();
+        boolean canMergeStart = RoadCenterlineEditor.canMergeAtNode(network, startNodeId);
+        boolean canMergeEnd = RoadCenterlineEditor.canMergeAtNode(network, endNodeId);
+        if (!canMergeStart && !canMergeEnd) {
+            return;
+        }
+        if (canMergeStart && ImGui.button(PlotI18n.tr("plugin.road.centerline_merge_start") + "##cl_m_s")) {
+            CenterlineEditResult result = ctx.networkManager().mergeSegmentsAtNode(startNodeId);
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+        if (canMergeStart && canMergeEnd) {
+            ImGui.sameLine();
+        }
+        if (canMergeEnd && ImGui.button(PlotI18n.tr("plugin.road.centerline_merge_end") + "##cl_m_e")) {
+            CenterlineEditResult result = ctx.networkManager().mergeSegmentsAtNode(endNodeId);
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+    }
+
+    private String formatCenterlineEditResult(CenterlineEditResult result) {
+        if (result == null) {
+            return PlotI18n.tr("plugin.road.centerline_edit_failed");
+        }
+        if (result.isSuccess()) {
+            if (result.mergedEdgeId() != null) {
+                return PlotI18n.tr("plugin.road.centerline_edit_merged");
+            }
+            if (result.secondEdgeId() != null) {
+                return PlotI18n.tr("plugin.road.centerline_edit_split");
+            }
+            return PlotI18n.tr("plugin.road.centerline_edit_success");
+        }
+        String key = switch (result.status()) {
+            case EDGE_NOT_FOUND -> "plugin.road.centerline_edit_edge_not_found";
+            case INVALID_DISTANCE -> "plugin.road.centerline_edit_invalid_distance";
+            case INVALID_VERTEX -> "plugin.road.centerline_edit_invalid_vertex";
+            case INVALID_RADIUS -> "plugin.road.centerline_edit_invalid_radius";
+            case SPLIT_FAILED -> "plugin.road.centerline_edit_split_failed";
+            case MERGE_FAILED -> "plugin.road.centerline_edit_merge_failed";
+            case ALIGNMENT_STATIONS_INVALID -> "plugin.road.centerline_edit_alignment_invalid";
+            default -> "plugin.road.centerline_edit_failed";
+        };
+        return PlotI18n.tr(key);
     }
 
     private void renderUniformFlatElevationControls(RoadNetwork network) {

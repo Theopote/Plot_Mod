@@ -7,6 +7,8 @@ import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
 
@@ -29,6 +31,8 @@ public class Road {
     private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
+    private RoadVariableCrossSections variableCrossSections;
+    private RoadStationFacilities stationFacilities;
     private final List<String> segmentIds = new ArrayList<>();
 
     public Road() {
@@ -413,6 +417,22 @@ public class Road {
         this.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
     }
 
+    public RoadVariableCrossSections getVariableCrossSections() {
+        return variableCrossSections;
+    }
+
+    public void setVariableCrossSections(RoadVariableCrossSections variableCrossSections) {
+        this.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
+    }
+
+    public RoadStationFacilities getStationFacilities() {
+        return stationFacilities;
+    }
+
+    public void setStationFacilities(RoadStationFacilities stationFacilities) {
+        this.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
+    }
+
     /**
      * 分段 ID 集合，仅用于成员判定（{@code contains} / {@code size}）。
      * <p>
@@ -535,6 +555,8 @@ public class Road {
         copy.topologyMode = getTopologyMode();
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
+        copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
+        copy.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
         return copy;
     }
 

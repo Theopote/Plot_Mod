@@ -23,11 +23,11 @@ public final class RoadModelUtils {
             RoadNetwork network,
             RoadEdge edge,
             RoadSystemConfig defaults) {
-        Road road = resolveRoad(network, edge);
-        if (road != null) {
-            return road.getCrossSection().resolve(defaults);
-        }
-        return ResolvedCrossSection.fromConfig(defaults);
+        return com.plot.plugin.road.model.section.VariableCrossSectionResolver.resolveForEdge(
+            network,
+            edge,
+            defaults
+        );
     }
 
     public static RoadCrossSection resolveCrossSectionTemplate(

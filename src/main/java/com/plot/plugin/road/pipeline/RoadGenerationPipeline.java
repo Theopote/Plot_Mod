@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.crosssection.RoadCrossSectionBuilder;
 import com.plot.plugin.road.pipeline.furniture.RoadFurnitureGenerator;
+import com.plot.plugin.road.pipeline.facility.RoadStationFacilityGenerator;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
 import com.plot.plugin.road.pipeline.marking.RoadMarkingGenerator;
 import com.plot.plugin.road.pipeline.raster.RoadVoxelRasterizerPass;
@@ -21,6 +22,7 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
  *    ├─ RoadCrossSectionBuilder
  *    ├─ RoadMarkingGenerator
  *    ├─ RoadFurnitureGenerator
+ *    ├─ RoadStationFacilityGenerator
  *    ├─ RoadTerrainGrader
  *    └─ RoadVoxelRasterizerPass
  * </pre>
@@ -54,6 +56,7 @@ public final class RoadGenerationPipeline {
             RoadCrossSectionBuilder.build(ctx, host);
             RoadMarkingGenerator.generate(ctx, host);
             RoadFurnitureGenerator.generate(ctx, host);
+            RoadStationFacilityGenerator.generate(ctx, host);
             RoadTerrainGrader.grade(ctx, host);
             return RoadVoxelRasterizerPass.rasterize(ctx, host);
         } finally {

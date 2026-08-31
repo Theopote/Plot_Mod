@@ -18,5 +18,12 @@ public record RoadGenerationBuildRequest(
         List<SegmentHeightInfo> heightInfos,
         double pathLength,
         EndpointElevationSnaps endpointSnaps,
-        String carriagewaySeedKey) {
+        String carriagewaySeedKey,
+        StationFacilityBuildContext stationFacilities) {
+
+    public RoadGenerationBuildRequest {
+        if (stationFacilities == null) {
+            stationFacilities = StationFacilityBuildContext.EMPTY;
+        }
+    }
 }

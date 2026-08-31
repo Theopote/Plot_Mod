@@ -359,6 +359,91 @@ public final class RoadGeometryUtils {
     }
 
     /**
+     * 在折线上按弧长插入顶点（不拆分拓扑边）。距端点过近时返回 empty。
+     */
+    public static java.util.Optional<List<Vec2d>> insertVertexAtDistance(
+            List<Vec2d> points,
+            double targetDistance,
+            double endpointClearance) {
+        if (points == null || points.size() < 2) {
+            return java.util.Optional.empty();
+        }
+        double totalLength = calculatePathLength(points);
+        if (targetDistance <= endpointClearance
+                || targetDistance >= totalLength - endpointClearance) {
+            return java.util.Optional.empty();
+        }
+
+        double accumulated = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d start = points.get(i);
+            Vec2d end = points.get(i + 1);
+            double segmentLength = start.distance(end);
+            if (segmentLength < 1e-9) {
+                continue;
+            }
+            if (accumulated + segmentLength >= targetDistance) {
+                double t = (targetDistance - accumulated) / segmentLength;
+                Vec2d insertPoint = start.lerp(end, t);
+                List<Vec2d> result = new ArrayList<>();
+                for (int j = 0; j <= i; j++) {
+                    result.add(points.get(j).copy());
+                }
+                result.add(insertPoint);
+                for (int j = i + 1; j < points.size(); j++) {
+                    result.add(points.get(j).copy());
+                }
+                return java.util.Optional.of(result);
+            }
+            accumulated += segmentLength;
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * 求点到折线的最近弧长位置。
+     */
+    public static double distanceAlongPolyline(List<Vec2d> points, Vec2d query) {
+        if (points == null || points.size() < 2 || query == null) {
+            return -1.0;
+        }
+        double bestDistance = -1.0;
+        double bestOffset = -1.0;
+        double accumulated = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec2d start = points.get(i);
+            Vec2d end = points.get(i + 1);
+            Vec2d projected = projectPointOnSegment(start, end, query);
+            double segmentDistance = projected.distance(query);
+            if (bestDistance < 0.0 || segmentDistance < bestDistance) {
+                bestDistance = segmentDistance;
+                bestOffset = accumulated + start.distance(projected);
+            }
+            accumulated += start.distance(end);
+        }
+        return bestOffset;
+    }
+
+    /**
+     * 最近内部顶点索引（排除首尾），无匹配返回 -1。
+     */
+    public static int nearestInteriorVertexIndex(List<Vec2d> points, Vec2d query) {
+        if (points == null || points.size() < 3 || query == null) {
+            return -1;
+        }
+        int bestIndex = -1;
+        double bestDistance = Double.MAX_VALUE;
+        for (int i = 1; i < points.size() - 1; i++) {
+            double distance = points.get(i).distance(query);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    /**
      * 按归一化弧长（0~1）在折线上插值取点
      */
     public static Vec2d interpolatePolylineByNormalizedDistance(List<Vec2d> polyline, double normalizedDistance) {

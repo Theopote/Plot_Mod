@@ -264,9 +264,6 @@ public final class VerticalAlignmentGeometry {
 
             if (tangentEndStation > cursorStation + EPSILON) {
                 double grade = tangentGrades[i];
-                if (i > 0 && pvis.get(i).hasCurve()) {
-                    grade = tangentGrades[i - 1];
-                }
                 segments.add(new TangentSegment(cursorStation, tangentEndStation, cursorElevation, grade));
                 cursorElevation += (grade / 100.0) * (tangentEndStation - cursorStation);
                 cursorStation = tangentEndStation;

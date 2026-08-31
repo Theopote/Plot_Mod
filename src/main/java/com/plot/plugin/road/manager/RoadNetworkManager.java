@@ -6,6 +6,9 @@ import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.*;
+import com.plot.plugin.road.centerline.CenterlineEditResult;
+import com.plot.plugin.road.centerline.CenterlineEditStatus;
+import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -534,6 +537,82 @@ public final class RoadNetworkManager {
         }
         notifyNetworkChanged();
         return newRoadId;
+    }
+
+    public CenterlineEditResult insertPiAtLocalDistance(String edgeId, double localDistance) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
+        }
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.insertPiAtLocalDistance(network, edgeId, localDistance);
+        if (result.isSuccess()) {
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult insertPiAtRoadStation(Road road, String edgeId, double roadStation) {
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.insertPiAtRoadStation(network, road, edgeId, roadStation);
+        if (result.isSuccess()) {
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult splitEdgeAtLocalDistance(String edgeId, double localDistance) {
+        if (edgeId == null || edgeId.isBlank()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
+        }
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.splitAtLocalDistance(network, edgeId, localDistance);
+        if (result.isSuccess()) {
+            if (result.secondEdgeId() != null) {
+                setPrimarySelectedEdge(result.secondEdgeId());
+            }
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult filletCenterlineVertex(String edgeId, int vertexIndex, double radius) {
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.filletVertex(network, edgeId, vertexIndex, radius);
+        if (result.isSuccess()) {
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult mergeSegmentsAtNode(String nodeId) {
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.mergeThroughNode(network, nodeId);
+        if (result.isSuccess() && result.mergedEdgeId() != null) {
+            setPrimarySelectedEdge(result.mergedEdgeId());
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult reverseEdge(String edgeId) {
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, edgeId);
+        if (result.isSuccess()) {
+            notifyNetworkChanged();
+        }
+        return result;
+    }
+
+    public CenterlineEditResult reverseRoad(Road road) {
+        if (road == null) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
+        }
+        pushHistory();
+        CenterlineEditResult result = RoadCenterlineEditor.reverseRoad(network, road);
+        if (result.isSuccess()) {
+            notifyNetworkChanged();
+        }
+        return result;
     }
 
     public void adoptSelectedPaths(List<Shape> selectedPaths) {

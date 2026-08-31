@@ -8,6 +8,8 @@ import com.plot.plugin.road.RoadDimensionUtils;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.model.facility.StationFacilityResolver;
+import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.BridgeSegment;
@@ -98,7 +100,7 @@ public final class RoadCrossSectionBuilder {
                 unitsPerBlock);
         }
 
-        if (crossSection.includeDrain) {
+        if (crossSection.includeDrain && !usesStationGatedDrainage(ctx.request().stationFacilities())) {
             generateDrainageChannels(
                 crossSectionHost,
                 solids,
@@ -573,5 +575,12 @@ public final class RoadCrossSectionBuilder {
                 consumer.accept(center, leftNormal, targetY);
             }
         }
+    }
+
+    private static boolean usesStationGatedDrainage(StationFacilityBuildContext stationFacilities) {
+        if (stationFacilities == null || !stationFacilities.isActive()) {
+            return false;
+        }
+        return StationFacilityResolver.usesStationGatedDrainage(stationFacilities.road());
     }
 }

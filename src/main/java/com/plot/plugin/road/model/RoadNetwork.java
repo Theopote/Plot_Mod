@@ -17,6 +17,10 @@ import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence;
 import com.plot.plugin.road.alignment.HorizontalAlignmentPersistence.AlignmentData;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence;
 import com.plot.plugin.road.vertical.VerticalAlignmentPersistence.VerticalAlignmentData;
+import com.plot.plugin.road.model.VariableCrossSectionPersistence;
+import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossSectionsData;
+import com.plot.plugin.road.model.StationFacilityPersistence;
+import com.plot.plugin.road.model.StationFacilityPersistence.StationFacilitiesData;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.section.BikeLane;
 import com.plot.plugin.road.model.section.Drain;
@@ -925,6 +929,8 @@ public class RoadNetwork {
         String topologyMode;
         AlignmentData horizontalAlignment;
         VerticalAlignmentData verticalAlignment;
+        VariableCrossSectionsData variableCrossSections;
+        StationFacilitiesData stationFacilities;
         List<String> segmentIds = new ArrayList<>();
     }
 
@@ -977,6 +983,8 @@ public class RoadNetwork {
                 }
                 roadData.horizontalAlignment = HorizontalAlignmentPersistence.toData(road.getHorizontalAlignment());
                 roadData.verticalAlignment = VerticalAlignmentPersistence.toData(road.getVerticalAlignment());
+                roadData.variableCrossSections = VariableCrossSectionPersistence.toData(road.getVariableCrossSections());
+                roadData.stationFacilities = StationFacilityPersistence.toData(road.getStationFacilities());
                 roadData.segmentIds = new ArrayList<>(road.getOrderedSegmentIds());
                 data.roads.add(roadData);
             }
@@ -1067,6 +1075,8 @@ public class RoadNetwork {
                     road.setTopologyMode(RoadTopologyMode.fromStored(roadData.topologyMode));
                     road.setHorizontalAlignment(HorizontalAlignmentPersistence.fromData(roadData.horizontalAlignment));
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));
+                    road.setVariableCrossSections(VariableCrossSectionPersistence.fromData(roadData.variableCrossSections));
+                    road.setStationFacilities(StationFacilityPersistence.fromData(roadData.stationFacilities));
                     network.roads.put(road.getId(), road);
                 }
             }

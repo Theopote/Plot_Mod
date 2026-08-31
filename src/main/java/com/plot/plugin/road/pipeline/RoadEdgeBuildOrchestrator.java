@@ -72,6 +72,7 @@ public final class RoadEdgeBuildOrchestrator {
                     crossSection,
                     host.estimateCanvasUnitsPerBlock(pathPoints, segments)),
                 edge.getId(),
+                StationFacilityBuildContext.forEdge(network, edge),
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -97,7 +98,9 @@ public final class RoadEdgeBuildOrchestrator {
         double pathLength = segments.stream().mapToDouble(segment -> segment.distance).sum();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
         RoadGenerationResult result = buildFromCenterline(
-            pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength, null, "standalone", host);
+            pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength, null, "standalone",
+            StationFacilityBuildContext.EMPTY,
+            host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
     }
@@ -110,6 +113,7 @@ public final class RoadEdgeBuildOrchestrator {
             double pathLength,
             EndpointElevationSnaps endpointSnaps,
             String carriagewaySeedKey,
+            StationFacilityBuildContext stationFacilities,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(
@@ -119,7 +123,8 @@ public final class RoadEdgeBuildOrchestrator {
                 heightInfos,
                 pathLength,
                 endpointSnaps,
-                carriagewaySeedKey),
+                carriagewaySeedKey,
+                stationFacilities),
             host);
     }
 
