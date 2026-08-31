@@ -10,6 +10,8 @@ import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -84,6 +86,85 @@ public final class RoadStationMirroring {
             segmentStart,
             segmentStart + edge.getLength(),
             totalLength);
+    }
+
+    /**
+     * 单段反向后纵断面联动：单分段整路镜像，多分段仅镜像该段桩号区间内的 PVI。
+     */
+    public static void mirrorVerticalAlignmentForReversedEdge(RoadNetwork network, String edgeId) {
+        if (network == null || edgeId == null || edgeId.isBlank()) {
+            return;
+        }
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null || edge.getRoadId() == null) {
+            return;
+        }
+        Road road = network.getRoad(edge.getRoadId());
+        if (road == null || road.getVerticalAlignment() == null || !RoadStationing.isStationable(network, road)) {
+            return;
+        }
+        double segmentStart = RoadStationing.segmentStartStation(network, road, edgeId);
+        if (segmentStart < 0.0) {
+            return;
+        }
+        double totalLength = RoadStationing.totalLength(network, road);
+        List<String> ordered = com.plot.plugin.road.model.RoadSegmentOrdering.orderedSegmentIds(network, road);
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        if (ordered.size() == 1) {
+            RoadVerticalAlignment reversed = mirrorVerticalAlignment(alignment, totalLength);
+            road.setVerticalAlignment(reversed);
+            return;
+        }
+        double rangeEnd = segmentStart + edge.getLength();
+        road.setVerticalAlignment(mirrorVerticalAlignmentInRange(alignment, segmentStart, rangeEnd));
+    }
+
+    public static RoadVerticalAlignment mirrorVerticalAlignment(
+            RoadVerticalAlignment source,
+            double totalLength) {
+        if (source == null || source.isEmpty() || totalLength <= EPSILON) {
+            return source;
+        }
+        List<PointOfVerticalIntersection> sorted = source.sortedPvis();
+        if (sorted.isEmpty()) {
+            return null;
+        }
+        if (sorted.size() < 2 && sorted.size() != source.pviCount()) {
+            return null;
+        }
+        double startStation = sorted.getFirst().getStation();
+        List<PointOfVerticalIntersection> reversed = new ArrayList<>();
+        for (int i = sorted.size() - 1; i >= 0; i--) {
+            PointOfVerticalIntersection pvi = sorted.get(i);
+            double mirroredStation = totalLength - (pvi.getStation() - startStation);
+            reversed.add(new PointOfVerticalIntersection(
+                mirroredStation,
+                pvi.getElevation(),
+                pvi.getCurveLength()));
+        }
+        return new RoadVerticalAlignment(reversed);
+    }
+
+    public static RoadVerticalAlignment mirrorVerticalAlignmentInRange(
+            RoadVerticalAlignment source,
+            double rangeStart,
+            double rangeEnd) {
+        if (source == null || source.isEmpty() || rangeEnd <= rangeStart + EPSILON) {
+            return source;
+        }
+        List<PointOfVerticalIntersection> mirrored = new ArrayList<>();
+        for (PointOfVerticalIntersection pvi : source.getPvis()) {
+            double station = pvi.getStation();
+            if (station >= rangeStart - EPSILON && station <= rangeEnd + EPSILON) {
+                mirrored.add(new PointOfVerticalIntersection(
+                    rangeStart + rangeEnd - station,
+                    pvi.getElevation(),
+                    pvi.getCurveLength()));
+            } else {
+                mirrored.add(pvi.copy());
+            }
+        }
+        return new RoadVerticalAlignment(mirrored);
     }
 
     public static RoadVariableCrossSections mirrorVariableCrossSectionsInRange(

@@ -30,7 +30,8 @@ public final class RoadStationDataTransforms {
     }
 
     /**
-     * 在 {@code splitStation} 处拆分工程数据：{@code head} 保留链头 [0, split)，{@code tail} 获得 [split, total) 并重映射为 K0+000 起。
+     * 在 {@code splitStation} 处拆分工程数据（{@link CenterlineEditStationPolicy#PARTITION_AND_RESET_TAIL}）：
+     * {@code head} 保留链头 [0, split)，{@code tail} 获得 [split, total) 并重映射为 K0+000 起。
      *
      * @return 是否应基于折线重新拟合平面线形
      */
@@ -93,8 +94,8 @@ public final class RoadStationDataTransforms {
     }
 
     /**
-     * 将 {@code tail} 的沿桩号工程数据拼接到 {@code head} 之后，写入 {@code target}（通常为 head）。
-     * {@code head} 占 [0, headLength)，{@code tail} 整体平移 {@code headLength}。
+     * 将 {@code tail} 的沿桩号工程数据拼接到 {@code head} 之后（{@link CenterlineEditStationPolicy#OFFSET_BY_HEAD_LENGTH}），
+     * 写入 {@code target}（通常为 head）。{@code head} 占 [0, headLength)，{@code tail} 整体平移 {@code headLength}。
      *
      * @return 是否应基于折线重新拟合平面线形
      */
@@ -152,8 +153,8 @@ public final class RoadStationDataTransforms {
     }
 
     /**
-     * 分段几何长度变化后，对受影响桩号区间做仿射重映射：
-     * {@code [rangeStart, rangeStart + oldSegmentLength)} 内按比例缩放，其后整体平移差值。
+     * 分段几何长度变化后，按 {@link CenterlineEditStationPolicy#REPARAMETERIZE_STATION} 对 VA / VCS / 设施做仿射重映射：
+     * {@code [rangeStart, rangeStart + oldSegmentLength)} 内按弧长比例缩放，其后整体平移差值。
      */
     public static void rescaleAfterGeometryEdit(
             Road road,

@@ -38,6 +38,9 @@ import java.util.List;
 
 /**
  * 道路编辑 Tab：网络级批量操作、边列表、基于选中态的节点/边属性编辑。
+ * <p>
+ * 选中单条道路时采用 Road Design Stack 分组（Identity → Alignment → Typical Section →
+ * Station Controls → Segments），不增加顶层 Tab。
  */
 public final class RoadEditPanel {
     private final RoadUiContext ctx;
@@ -104,7 +107,7 @@ public final class RoadEditPanel {
         int selectedLogicalCount = selectedRoadCount > 0 ? selectedRoadCount : selectedEdgeCount;
 
         if (selectedNodeId != null && !selectedNodeId.isBlank()) {
-            RoadUiSections.level("plugin.road.section.node_junction");
+            RoadUiSections.group("plugin.road.section.node_junction");
             nodePropertyPanel.renderForSelectedNode(junctionPanel);
             return;
         }
@@ -140,40 +143,52 @@ public final class RoadEditPanel {
             return;
         }
 
-        renderRoadScopeHeader(network, road);
+        RoadUiSections.roadHeader();
+        ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
 
-        RoadUiSections.level("plugin.road.section.road_level");
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.road.road_properties_scope", road.getSegmentIds().size()));
+        RoadUiSections.group("plugin.road.design_stack.identity");
+        identityEditor.render(network, road, ctx.networkManager()::pushHistory);
+        renderRoadIdentitySummary(network, road, chainageDisplay);
+        renderRoadDirectionControls(network, road);
+        renderRoadTopologyHints(network, road);
 
+        RoadUiSections.group("plugin.road.design_stack.alignment");
+        renderHorizontalAlignmentSummary(network, road, chainageDisplay);
+        verticalAlignmentEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
+
+        RoadUiSections.group("plugin.road.design_stack.typical_section");
         RoadCrossSectionEditor.renderRoadLevelCollapsibles(ctx, road, ctx.networkManager()::pushHistory);
 
-        RoadUiSections.level("plugin.road.section.segment_level");
-        ImGui.text(PlotI18n.tr("plugin.road.segment_engineering_section"));
-        RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.segment_engineering_scope"));
+        RoadUiSections.group("plugin.road.design_stack.station_controls");
+        if (chainageDisplay != null) {
+            renderChainageDisplayToggle();
+        }
+        variableCrossSectionEditor.render(ctx, network, road, chainageDisplay, ctx.networkManager()::pushHistory);
+        stationFacilityEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
 
-        renderSegmentSelector(network, road);
+        RoadUiSections.group("plugin.road.design_stack.segments");
+        renderSegmentList(network, road);
         current = network.getEdge(ctx.networkManager().getPrimarySelectedEdgeId());
         if (current == null) {
             return;
         }
-        renderSegmentSummary(network, road, current, chainageContextOrNull(network, road));
+        renderSegmentSummary(network, road, current, chainageDisplay);
         renderCenterlineEditTools(network, road, current);
         renderElevationHint(current);
-        renderSlopeOverrides(network, road, current, chainageContextOrNull(network, road));
+        renderSlopeOverrides(network, road, current, chainageDisplay);
     }
 
-    private void renderRoadScopeHeader(RoadNetwork network, Road road) {
-        identityEditor.render(network, road, ctx.networkManager()::pushHistory);
+    private void renderRoadIdentitySummary(
+            RoadNetwork network,
+            Road road,
+            ChainageDisplayContext chainageDisplay) {
         int segmentCount = road.getSegmentIds().size();
         double length = RoadEdgeListHelper.computeRoadLength(network, road);
+        ImGui.text(PlotI18n.tr("plugin.road.design_stack.length", length));
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
-        if (RoadStationing.isStationable(network, road)) {
-            ChainageDisplayContext chainageDisplay = chainageContext(network, road);
-            renderChainageDisplayToggle();
+        if (chainageDisplay != null) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
@@ -181,12 +196,18 @@ public final class RoadEditPanel {
                     chainageDisplay.format(0.0),
                     chainageDisplay.format(chainageDisplay.totalLength())));
         }
-        renderRoadTopologyHints(network, road);
-        ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
-        renderHorizontalAlignmentSummary(network, road, chainageDisplay);
-        verticalAlignmentEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
-        variableCrossSectionEditor.render(ctx, network, road, chainageDisplay, ctx.networkManager()::pushHistory);
-        stationFacilityEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
+    }
+
+    private void renderRoadDirectionControls(RoadNetwork network, Road road) {
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.road.design_stack.direction"));
+        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_road") + "##road_reverse")) {
+            CenterlineEditResult result = ctx.networkManager().reverseRoad(road);
+            lastCenterlineEditMessage = formatCenterlineEditResult(result);
+        }
+        if (!lastCenterlineEditMessage.isBlank()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, lastCenterlineEditMessage);
+        }
     }
 
     private ChainageDisplayContext chainageContext(RoadNetwork network, Road road) {
@@ -301,43 +322,36 @@ public final class RoadEditPanel {
         }
     }
 
-    private void renderSegmentSelector(RoadNetwork network, Road road) {
+    private void renderSegmentList(RoadNetwork network, Road road) {
         List<String> segmentIds = RoadEdgeListHelper.orderedSegmentIds(network, road);
         if (segmentIds.isEmpty()) {
             return;
         }
 
         String primaryId = ctx.networkManager().getPrimarySelectedEdgeId();
-        int currentIndex = segmentIds.indexOf(primaryId);
-        if (currentIndex < 0) {
-            currentIndex = 0;
+        if (!segmentIds.contains(primaryId)) {
             ctx.networkManager().setPrimarySelectedEdge(segmentIds.getFirst());
+            primaryId = segmentIds.getFirst();
         }
-
-        ImGui.text(PlotI18n.tr("plugin.road.current_segment_label"));
-        String previewLabel = PlotI18n.tr("plugin.road.segment_index", currentIndex + 1, segmentIds.size());
-        String[] labels = new String[segmentIds.size()];
         for (int i = 0; i < segmentIds.size(); i++) {
-            labels[i] = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size());
-        }
-
-        imgui.type.ImInt selected = new imgui.type.ImInt(currentIndex);
-        ImGui.setNextItemWidth(Math.min(160f, ImGui.getContentRegionAvailX()));
-        if (ImGui.beginCombo("##segment_selector", previewLabel)) {
-            for (int i = 0; i < segmentIds.size(); i++) {
-                if (ImGui.selectable(labels[i] + "##seg_" + i, i == currentIndex)) {
-                    ctx.networkManager().setPrimarySelectedEdge(segmentIds.get(i));
-                }
+            String segmentId = segmentIds.get(i);
+            RoadEdge edge = network.getEdge(segmentId);
+            if (edge == null) {
+                continue;
             }
-            ImGui.endCombo();
+            boolean selected = segmentId.equals(primaryId);
+            String label = PlotI18n.tr("plugin.road.segment_index", i + 1, segmentIds.size())
+                + " · " + PlotI18n.tr("plugin.road.segment_length", edge.getLength());
+            if (ImGui.selectable(label + "##seg_pick_" + i, selected)) {
+                ctx.networkManager().setPrimarySelectedEdge(segmentId);
+            }
+            if (selected && segmentIds.size() > 1) {
+                RoadUiWidgets.textWrappedColored(
+                    PluginUiColors.HINT_GRAY,
+                    RoadEdgeListHelper.formatEdgeLabel(network, edge));
+            }
         }
-
-        RoadEdge selectedEdge = network.getEdge(segmentIds.get(currentIndex));
-        if (selectedEdge != null && segmentIds.size() > 1) {
-            ImGui.textColored(
-                PluginUiColors.HINT_GRAY,
-                RoadEdgeListHelper.formatEdgeLabel(network, selectedEdge));
-        }
+        ImGui.spacing();
     }
 
     private void renderSegmentSummary(
@@ -423,11 +437,6 @@ public final class RoadEditPanel {
 
         if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_segment") + "##cl_rev_seg")) {
             CenterlineEditResult result = ctx.networkManager().reverseEdge(edge.getId());
-            lastCenterlineEditMessage = formatCenterlineEditResult(result);
-        }
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.road.centerline_reverse_road") + "##cl_rev_road")) {
-            CenterlineEditResult result = ctx.networkManager().reverseRoad(road);
             lastCenterlineEditMessage = formatCenterlineEditResult(result);
         }
 

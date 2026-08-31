@@ -138,6 +138,33 @@ Road Generation Pipeline
 | `RoadEdge.centerlinePoints` | Derived |
 | `RoadNode`, `RoadEdge`（拓扑字段） | Topology |
 | `RoadStationing`, `OrientedRoadSegment` | 桩号 / 链方向（跨层坐标系） |
+| `CenterlinePhase2ConsistencyPolicy` | 中心线编辑 → Phase 2 联动规则 |
+
+### 6. 中心线编辑 → Phase 2 一致性（2026-08-31）
+
+中心线编辑不得静默破坏沿桩号工程数据或 HA 双轨。统一规则由 `CenterlinePhase2ConsistencyPolicy` 执行：
+
+| 操作 | HA | VA / VCS / 设施 |
+|------|----|-----------------|
+| Insert PI / Fillet | refit 或清除 | 编辑段内仿射重映射（保持物理链位置） |
+| Graph split / merge | refit 或清除 | 不变（总链长不变） |
+| Road split / merge | 清除 + 折线 refit | `RoadStationDataTransforms` 分区/拼接 |
+| Reverse road | 线元逆序 | 整路镜像 |
+| Reverse edge | refit 或清除 | 段内镜像（含 VA） |
+
+**物理位置原则**：沿桩号数据绑定链上位置，而非列表索引；段长变化用仿射 rescale，反向用 mirror，逻辑拆路用 station split/merge。
+
+### Station policy 枚举（2026-08-31）
+
+| 策略 | 含义 |
+|------|------|
+| `PRESERVE_STATION` | 桩号不变 |
+| `REPARAMETERIZE_STATION` | 编辑段内弧长比例重映射 + 段后平移 ΔL（**非**绝对 chainage） |
+| `PARTITION_AND_RESET_TAIL` | 逻辑拆路：tail 桩号归零 |
+| `OFFSET_BY_HEAD_LENGTH` | 并路：B 桩号 += A 长度 |
+| `MIRROR_IN_RANGE` / `MIRROR_FULL_ROAD` | 反向镜像 |
+
+实现：`CenterlineEditStationPolicy`、`CenterlineEditOperation`。
 
 ## References
 

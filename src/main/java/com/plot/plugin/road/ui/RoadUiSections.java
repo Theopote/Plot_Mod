@@ -33,4 +33,19 @@ public final class RoadUiSections {
         RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr(labelKey));
         ImGui.spacing();
     }
+
+    /** 选中道路后的设计栈顶栏（ROAD）。 */
+    public static void roadHeader() {
+        ImGui.spacing();
+        RoadUiWidgets.textWrappedColored(PluginUiColors.ACCENT_BLUE, PlotI18n.tr("plugin.road.design_stack.road_header"));
+        ImGui.separator();
+        ImGui.spacing();
+    }
+
+    /** 设计栈分组标题（Identity / Alignment / …）。 */
+    public static void group(String labelKey) {
+        ImGui.spacing();
+        RoadUiWidgets.textWrapped(PlotI18n.tr(labelKey));
+        ImGui.spacing();
+    }
 }

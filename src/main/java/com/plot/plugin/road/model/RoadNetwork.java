@@ -22,6 +22,8 @@ import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossS
 import com.plot.plugin.road.model.StationFacilityPersistence;
 import com.plot.plugin.road.model.StationFacilityPersistence.StationFacilitiesData;
 import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.station.CenterlineEditOperation;
+import com.plot.plugin.road.station.CenterlineEditStationPolicy;
 import com.plot.plugin.road.station.RoadStationDataTransforms;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.model.section.BikeLane;
@@ -369,7 +371,8 @@ public class RoadNetwork {
         Road newRoad = createRoad();
         newRoad.copyEngineeringFrom(road);
         if (splitStation >= 0.0) {
-            RoadStationDataTransforms.applyRoadSplit(this, road, newRoad, splitStation);
+            CenterlineEditOperation.SPLIT_ROAD.defaultStationPolicy()
+                .applyRoadSplit(this, road, newRoad, splitStation);
         }
         for (String segmentId : tailIds) {
             assignEdgeToRoad(segmentId, newRoad.getId());
@@ -413,7 +416,7 @@ public class RoadNetwork {
         }
 
         if (appendTail) {
-            RoadStationDataTransforms.applyRoadMerge(this, head, tail);
+            CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy().applyRoadMerge(this, head, tail);
             List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
             mergedSegments.addAll(headSegments);
             mergedSegments.addAll(tailSegments);
@@ -424,7 +427,8 @@ public class RoadNetwork {
         } else {
             double tailLength = RoadStationing.totalLength(this, tail);
             double headLength = RoadStationing.totalLength(this, head);
-            boolean refit = RoadStationDataTransforms.applyRoadMerge(head, tail, head, tailLength, headLength);
+            boolean refit = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
+                .applyRoadMerge(head, tail, head, tailLength, headLength);
             List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
             mergedSegments.addAll(tailSegments);
             mergedSegments.addAll(headSegments);

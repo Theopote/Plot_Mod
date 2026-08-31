@@ -200,6 +200,47 @@ class RoadCenterlineEditorTest {
     }
 
     @Test
+    void reverseEdgeMirrorsVerticalAlignmentOnSingleSegmentRoad() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        RoadEdge edge = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 64.0),
+            PointOfVerticalIntersection.of(100.0, 72.0)
+        )));
+
+        CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, edge.getId());
+        assertTrue(result.isSuccess());
+
+        List<PointOfVerticalIntersection> pvis = road.getVerticalAlignment().getPvis();
+        assertEquals(100.0, pvis.get(1).getStation(), 1e-6);
+        assertEquals(0.0, pvis.get(0).getStation(), 1e-6);
+        assertEquals(64.0, pvis.get(1).getElevation(), 1e-6);
+        assertEquals(72.0, pvis.get(0).getElevation(), 1e-6);
+    }
+
+    @Test
+    void splitEdgeRefitsHorizontalAlignmentFromCenterline() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        RoadEdge edge = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment();
+        alignment.addElement(HorizontalAlignmentElement.tangent(50.0));
+        road.setHorizontalAlignment(alignment);
+
+        CenterlineEditResult result = RoadCenterlineEditor.splitAtLocalDistance(network, edge.getId(), 40.0);
+        assertTrue(result.isSuccess());
+        assertNotNull(road.getHorizontalAlignment());
+        assertEquals(100.0, road.getHorizontalAlignment().totalLength(), 2.0);
+    }
+
+    @Test
     void filletRescalesStationDataOnEditedSegment() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));

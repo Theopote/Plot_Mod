@@ -2,7 +2,6 @@ package com.plot.plugin.road.centerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
-import com.plot.plugin.road.alignment.CenterlineHorizontalAlignmentSync;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElementType;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
@@ -13,11 +12,10 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
-import com.plot.plugin.road.station.RoadStationDataTransforms;
+import com.plot.plugin.road.station.CenterlineEditOperation;
 import com.plot.plugin.road.station.RoadStationDataTransforms.SegmentGeometrySnapshot;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.station.RoadStationMirroring;
-import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 
 import java.util.ArrayList;
@@ -27,7 +25,8 @@ import java.util.Optional;
 /**
  * 道路中心线编辑：插入 PI、圆角、拆分/合并、反向。
  * <p>
- * v1 直接操作 {@link RoadEdge} 折线中心线；平面/纵断面线形在反向时同步镜像桩号。
+ * v1 直接操作 {@link RoadEdge} 折线中心线。Phase 2 工程数据联动见
+ * {@link CenterlinePhase2ConsistencyPolicy}。
  */
 public final class RoadCenterlineEditor {
 
@@ -56,7 +55,12 @@ public final class RoadCenterlineEditor {
         }
         SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
         edge.setCenterlinePoints(updated.get());
-        return finishEdit(network, edgeId, before, CenterlineEditResult.success());
+        return finishEdit(
+            network,
+            edgeId,
+            before,
+            CenterlineEditResult.success(),
+            CenterlineEditOperation.INSERT_PI);
     }
 
     public static CenterlineEditResult insertPiAtRoadStation(
@@ -93,8 +97,9 @@ public final class RoadCenterlineEditor {
         RoadGraphEdits.SplitResult result = split.get();
         return finishEdit(
             network,
-            edgeId,
-            CenterlineEditResult.split(result.firstEdgeId(), result.secondEdgeId(), result.nodeId()));
+            result.firstEdgeId(),
+            CenterlineEditResult.split(result.firstEdgeId(), result.secondEdgeId(), result.nodeId()),
+            CenterlineEditOperation.SPLIT_EDGE);
     }
 
     public static CenterlineEditResult splitAtRoadStation(
@@ -133,7 +138,12 @@ public final class RoadCenterlineEditor {
         }
         SegmentGeometrySnapshot before = SegmentGeometrySnapshot.capture(network, edgeId);
         edge.setCenterlinePoints(filleted);
-        return finishEdit(network, edgeId, before, CenterlineEditResult.success());
+        return finishEdit(
+            network,
+            edgeId,
+            before,
+            CenterlineEditResult.success(),
+            CenterlineEditOperation.FILLET);
     }
 
     public static CenterlineEditResult mergeThroughNode(RoadNetwork network, String nodeId) {
@@ -144,7 +154,7 @@ public final class RoadCenterlineEditor {
         if (merged.isEmpty()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
         }
-        return finishEdit(network, merged.get(), CenterlineEditResult.merged(merged.get()));
+        return finishEdit(network, merged.get(), CenterlineEditResult.merged(merged.get()), CenterlineEditOperation.MERGE_EDGE);
     }
 
     public static CenterlineEditResult reverseEdge(RoadNetwork network, String edgeId) {
@@ -152,7 +162,7 @@ public final class RoadCenterlineEditor {
         if (!result.isSuccess()) {
             return result;
         }
-        RoadStationMirroring.mirrorStationDataForReversedEdge(network, edgeId);
+        CenterlinePhase2ConsistencyPolicy.afterReverseEdge(network, edgeId);
         return result;
     }
 
@@ -205,7 +215,7 @@ public final class RoadCenterlineEditor {
             road.setHorizontalAlignment(reverseHorizontalAlignment(road.getHorizontalAlignment()));
         }
         if (road.getVerticalAlignment() != null) {
-            RoadVerticalAlignment reversedVertical = reverseVerticalAlignment(
+            RoadVerticalAlignment reversedVertical = RoadStationMirroring.mirrorVerticalAlignment(
                 road.getVerticalAlignment(),
                 totalLength
             );
@@ -214,7 +224,7 @@ public final class RoadCenterlineEditor {
             }
             road.setVerticalAlignment(reversedVertical);
         }
-        RoadStationMirroring.mirrorRoadStationData(road, totalLength);
+        CenterlineEditOperation.REVERSE_ROAD.defaultStationPolicy().applyReverseRoad(road, totalLength);
         return CenterlineEditResult.success();
     }
 
@@ -300,22 +310,10 @@ public final class RoadCenterlineEditor {
         if (alignment == null || alignment.isEmpty()) {
             return alignment != null ? alignment.copy() : null;
         }
-        List<PointOfVerticalIntersection> sorted = alignment.sortedPvis();
-        if (sorted.size() < 2 && sorted.size() != alignment.pviCount()) {
+        if (!alignment.hasStrictlyIncreasingStorageOrder()) {
             return null;
         }
-        double startStation = sorted.getFirst().getStation();
-        List<PointOfVerticalIntersection> reversed = new ArrayList<>();
-        for (int i = sorted.size() - 1; i >= 0; i--) {
-            PointOfVerticalIntersection pvi = sorted.get(i);
-            double mirroredStation = totalLength - (pvi.getStation() - startStation);
-            reversed.add(new PointOfVerticalIntersection(
-                mirroredStation,
-                pvi.getElevation(),
-                pvi.getCurveLength()
-            ));
-        }
-        return new RoadVerticalAlignment(reversed);
+        return RoadStationMirroring.mirrorVerticalAlignment(alignment, totalLength);
     }
 
     private static double normalizeAngle(double radians) {
@@ -332,31 +330,27 @@ public final class RoadCenterlineEditor {
     private static CenterlineEditResult finishEdit(
             RoadNetwork network,
             String edgeId,
-            CenterlineEditResult result) {
-        return finishEdit(network, edgeId, null, result);
+            CenterlineEditResult result,
+            CenterlineEditOperation operation) {
+        return finishEdit(network, edgeId, null, result, operation);
     }
 
     private static CenterlineEditResult finishEdit(
             RoadNetwork network,
             String edgeId,
             SegmentGeometrySnapshot before,
-            CenterlineEditResult result) {
+            CenterlineEditResult result,
+            CenterlineEditOperation operation) {
         if (result.isSuccess()) {
             if (before != null) {
-                RoadEdge edge = network != null ? network.getEdge(edgeId) : null;
-                if (edge != null && edge.getRoadId() != null) {
-                    Road road = network.getRoad(edge.getRoadId());
-                    if (road != null) {
-                        RoadStationDataTransforms.rescaleAfterGeometryEdit(
-                            road,
-                            before.rangeStart(),
-                            before.oldSegmentLength(),
-                            edge.getLength(),
-                            before.totalLengthBefore());
-                    }
-                }
+                CenterlinePhase2ConsistencyPolicy.afterSegmentGeometryEdit(
+                    network,
+                    operation,
+                    edgeId,
+                    before);
+            } else {
+                CenterlinePhase2ConsistencyPolicy.afterGraphTopologyEdit(network, operation, edgeId);
             }
-            CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, edgeId);
         }
         return result;
     }
