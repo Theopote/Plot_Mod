@@ -56,18 +56,26 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
         RoadModelUtils.getEffectiveWidth(network, edge, config));
     Road road = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
     if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
-      double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-      return VerticalAlignmentProfileSolver.solveForEdge(
-          road.getVerticalAlignment(),
-          segmentStart,
-          edge.getLength(),
-          segments,
-          terrain,
-          halfWidth,
-          manualStartHeight,
-          manualEndHeight,
-          profileSupport,
-          RoadStationing.segmentFlowsWithGeometry(network, road, edge.getId()));
+      return RoadStationing.orientedSegment(network, road, edge.getId())
+          .map(oriented -> VerticalAlignmentProfileSolver.solveForEdge(
+              road.getVerticalAlignment(),
+              oriented,
+              segments,
+              terrain,
+              halfWidth,
+              manualStartHeight,
+              manualEndHeight,
+              profileSupport))
+          .orElseGet(() -> RoadProfileSolver.solveForEdge(
+              segments,
+              terrain,
+              network,
+              edge,
+              config,
+              halfWidth,
+              manualStartHeight,
+              manualEndHeight,
+              profileSupport));
     }
     return RoadProfileSolver.solveForEdge(
         segments,

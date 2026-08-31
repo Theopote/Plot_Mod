@@ -29,19 +29,17 @@ public final class VerticalAlignmentEndpointHeight {
         if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return OptionalInt.empty();
         }
-        OptionalDouble chainLocal = RoadStationing.nodeChainLocalDistance(network, road, edge, node.getId());
-        if (chainLocal.isEmpty() || !RoadStationing.isStationable(network, road)) {
+        if (!RoadStationing.isStationable(network, road)) {
             return OptionalInt.empty();
         }
-        double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-        if (segmentStart < 0.0) {
+        OptionalDouble station = RoadStationing.stationAtNode(network, road, edge, node.getId());
+        if (station.isEmpty()) {
             return OptionalInt.empty();
         }
         DesignElevationSource source = new DesignElevationSource(
             road.getVerticalAlignment(),
-            segmentStart,
-            edge.getLength(),
+            RoadStationing.orientedSegment(network, road, edge.getId()).orElseThrow(),
             edge.getLength());
-        return OptionalInt.of(source.elevationAtChainage(segmentStart + chainLocal.getAsDouble()));
+        return OptionalInt.of(source.elevationAtChainage(station.getAsDouble()));
     }
 }

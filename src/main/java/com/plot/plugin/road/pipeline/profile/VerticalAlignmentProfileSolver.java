@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
@@ -29,28 +30,24 @@ public final class VerticalAlignmentProfileSolver {
             ProfileSolveSupport support) {
         return solveForEdge(
             alignment,
-            segmentStartChainage,
-            edgeLength,
+            new OrientedRoadSegment(null, true, null, null, segmentStartChainage, edgeLength),
             segments,
             terrain,
             halfWidth,
             manualStartHeight,
             manualEndHeight,
-            support,
-            true);
+            support);
     }
 
     public static ProfileSolveResult solveForEdge(
             RoadVerticalAlignment alignment,
-            double segmentStartChainage,
-            double edgeLength,
+            OrientedRoadSegment oriented,
             List<PathSegment> segments,
             TerrainSampler terrain,
             double halfWidth,
             Integer manualStartHeight,
             Integer manualEndHeight,
-            ProfileSolveSupport support,
-            boolean flowsWithGeometry) {
+            ProfileSolveSupport support) {
         if (segments.isEmpty() || !VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return ProfileSolveResult.empty();
         }
@@ -60,10 +57,8 @@ public final class VerticalAlignmentProfileSolver {
         double sampledPathLength = ProfileGroundSampler.sampledPathLength(segments);
         DesignElevationSource designElevation = new DesignElevationSource(
             alignment,
-            segmentStartChainage,
-            edgeLength,
-            sampledPathLength,
-            flowsWithGeometry);
+            oriented,
+            sampledPathLength);
 
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(
@@ -99,8 +94,6 @@ public final class VerticalAlignmentProfileSolver {
 
         List<Integer> designTargets = buildDesignProfileTargets(
             alignment,
-            segmentStartChainage,
-            edgeLength,
             sampleData,
             manualStartHeight,
             manualEndHeight,
@@ -116,8 +109,6 @@ public final class VerticalAlignmentProfileSolver {
 
     private static List<Integer> buildDesignProfileTargets(
             RoadVerticalAlignment alignment,
-            double segmentStartChainage,
-            double edgeLength,
             ProfileGroundSampler.SampleData sampleData,
             Integer manualStartHeight,
             Integer manualEndHeight,

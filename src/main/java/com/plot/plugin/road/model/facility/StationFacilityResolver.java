@@ -87,16 +87,13 @@ public final class StationFacilityResolver {
         if (!RoadStationing.isStationable(network, road)) {
             return List.of();
         }
-        double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-        if (segmentStart < 0.0) {
-            return List.of();
-        }
-        double segmentEnd = segmentStart + edge.getLength();
-        return activeInRange(
-            road,
-            segmentStart,
-            segmentEnd,
-            RoadStationing.totalLength(network, road));
+        return RoadStationing.orientedSegment(network, road, edge.getId())
+            .map(oriented -> activeInRange(
+                road,
+                oriented.startStation(),
+                oriented.endStation(),
+                RoadStationing.totalLength(network, road)))
+            .orElse(List.of());
     }
 
     public static boolean hasActiveKind(

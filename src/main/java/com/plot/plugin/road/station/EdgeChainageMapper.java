@@ -9,6 +9,27 @@ public final class EdgeChainageMapper {
     }
 
     public static double toChainage(
+            OrientedRoadSegment oriented,
+            double geometryLocalCanvasDistance,
+            double sampledPathLength) {
+        if (oriented == null) {
+            return geometryLocalCanvasDistance;
+        }
+        if (geometryLocalCanvasDistance <= 0.0) {
+            return oriented.startStation();
+        }
+        double geometryLocal = geometryLocalCanvasDistance;
+        if (sampledPathLength > 1e-9 && oriented.length() > 1e-9) {
+            geometryLocal = geometryLocalCanvasDistance / sampledPathLength * oriented.length();
+        }
+        return oriented.roadStationAtGeometryLocal(geometryLocal);
+    }
+
+    /**
+     * @deprecated 使用 {@link #toChainage(OrientedRoadSegment, double, double)}。
+     */
+    @Deprecated
+    public static double toChainage(
             double segmentStartChainage,
             double localCanvasDistance,
             double sampledPathLength,

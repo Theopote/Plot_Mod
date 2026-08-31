@@ -52,7 +52,7 @@ public final class RoadMarkingGenerator {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
-            crossSections.segmentStartStation(),
+            crossSections.samplingOriented(),
             unitsPerBlock,
             designElevation,
             null,

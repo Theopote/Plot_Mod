@@ -101,31 +101,28 @@ public final class RoadTerrainGrader {
 
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
             if (type == RoadConstructionType.BRIDGE) {
+                geometryLocalBase += segments.get(i).distance;
                 continue;
             }
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            double chainageBase = crossSections.segmentStartStation();
-            for (int k = 0; k < i; k++) {
-                chainageBase += segments.get(k).distance;
-            }
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                double segmentLocalBase = chainageBase - crossSections.segmentStartStation();
-                double localCanvas = segmentLocalBase + segment.distance * t;
+                double geometryLocal = geometryLocalBase + segment.distance * t;
                 int targetY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     info,
-                    localCanvas,
+                    geometryLocal,
                     t);
                 targetY = host.snapEndpointElevation(center, targetY);
-                double chainage = chainageBase + segment.distance * t;
+                double chainage = crossSections.chainageAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
                 int sideBandWidth = crossSection.outerBandBlockCount();
                 int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
@@ -141,6 +138,7 @@ public final class RoadTerrainGrader {
                     tunnelThreshold, bridgeThreshold, fillMaterialId,
                     terrain, host.columnResolver(), unitsPerBlock));
             }
+            geometryLocalBase += segment.distance;
         }
         metrics.cutVolume = total.cutVolume();
         metrics.fillVolume = total.fillVolume();

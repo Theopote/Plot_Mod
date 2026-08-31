@@ -5,6 +5,7 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 
 import java.util.List;
 
@@ -36,7 +37,7 @@ public final class RoadPathStationSampler {
         forEach(
             segments,
             heightInfos,
-            segmentStartStation,
+            new OrientedRoadSegment(null, true, null, null, segmentStartStation, Double.POSITIVE_INFINITY),
             unitsPerBlock,
             DesignElevationSource.inactive(),
             elevationSnapper,
@@ -51,33 +52,50 @@ public final class RoadPathStationSampler {
             DesignElevationSource designElevation,
             ElevationSnapper elevationSnapper,
             StationSampleConsumer consumer) {
-        if (segments == null || heightInfos == null || consumer == null) {
+        forEach(
+            segments,
+            heightInfos,
+            new OrientedRoadSegment(null, true, null, null, segmentStartStation, Double.POSITIVE_INFINITY),
+            unitsPerBlock,
+            designElevation,
+            elevationSnapper,
+            consumer);
+    }
+
+    public static void forEach(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            OrientedRoadSegment oriented,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            ElevationSnapper elevationSnapper,
+            StationSampleConsumer consumer) {
+        if (segments == null || heightInfos == null || consumer == null || oriented == null) {
             return;
         }
-        double chainageBase = segmentStartStation;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
+        double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
-            double segmentLocalBase = chainageBase - segmentStartStation;
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                double localCanvas = segmentLocalBase + segment.distance * t;
+                double geometryLocal = geometryLocalBase + segment.distance * t;
                 int targetY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     info,
-                    localCanvas,
+                    geometryLocal,
                     t);
                 if (elevationSnapper != null) {
                     targetY = elevationSnapper.snap(center, targetY);
                 }
-                double chainage = chainageBase + segment.distance * t;
+                double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
                 consumer.accept(center, leftNormal, targetY, chainage);
             }
-            chainageBase += segment.distance;
+            geometryLocalBase += segment.distance;
         }
     }
 }

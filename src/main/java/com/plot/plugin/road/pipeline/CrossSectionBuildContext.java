@@ -6,6 +6,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 /**
@@ -16,24 +17,24 @@ public final class CrossSectionBuildContext {
     private final ResolvedCrossSection fallback;
     private final RoadNetwork network;
     private final Road road;
-    private final double segmentStartStation;
+    private final OrientedRoadSegment oriented;
     private final RoadSystemConfig config;
 
     private CrossSectionBuildContext(
             ResolvedCrossSection fallback,
             RoadNetwork network,
             Road road,
-            double segmentStartStation,
+            OrientedRoadSegment oriented,
             RoadSystemConfig config) {
         this.fallback = fallback;
         this.network = network;
         this.road = road;
-        this.segmentStartStation = segmentStartStation;
+        this.oriented = oriented;
         this.config = config;
     }
 
     public static CrossSectionBuildContext fixed(ResolvedCrossSection section) {
-        return new CrossSectionBuildContext(section, null, null, 0.0, null);
+        return new CrossSectionBuildContext(section, null, null, null, null);
     }
 
     public static CrossSectionBuildContext forEdge(
@@ -51,17 +52,16 @@ public final class CrossSectionBuildContext {
             || !RoadStationing.isStationable(network, road)) {
             return fixed(start);
         }
-        double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-        if (segmentStart < 0.0) {
-            return fixed(start);
-        }
-        return new CrossSectionBuildContext(start, network, road, segmentStart, config);
+        return RoadStationing.orientedSegment(network, road, edge.getId())
+            .map(oriented -> new CrossSectionBuildContext(start, network, road, oriented, config))
+            .orElseGet(() -> fixed(start));
     }
 
     public boolean isVariable() {
         return network != null
             && road != null
             && config != null
+            && oriented != null
             && VariableCrossSectionResolver.hasVariableSections(road);
     }
 
@@ -69,8 +69,26 @@ public final class CrossSectionBuildContext {
         return fallback;
     }
 
+    public OrientedRoadSegment orientedSegment() {
+        return oriented;
+    }
+
     public double segmentStartStation() {
-        return segmentStartStation;
+        return oriented != null ? oriented.startStation() : 0.0;
+    }
+
+    public OrientedRoadSegment samplingOriented() {
+        if (oriented != null) {
+            return oriented;
+        }
+        return new OrientedRoadSegment(null, true, null, null, 0.0, Double.POSITIVE_INFINITY);
+    }
+
+    public double chainageAtGeometryLocal(double geometryLocalDistance) {
+        if (oriented == null) {
+            return geometryLocalDistance;
+        }
+        return oriented.roadStationAtGeometryLocal(geometryLocalDistance);
     }
 
     public ResolvedCrossSection resolve(double chainageMeters) {

@@ -14,6 +14,7 @@ import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineConsistency;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.station.ChainageDisplayContext;
@@ -180,7 +181,7 @@ public final class RoadEditPanel {
         }
         renderRoadTopologyHints(network, road);
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
-        renderHorizontalAlignmentSummary(road, chainageDisplay);
+        renderHorizontalAlignmentSummary(network, road, chainageDisplay);
         verticalAlignmentEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
         variableCrossSectionEditor.render(ctx, network, road, chainageDisplay, ctx.networkManager()::pushHistory);
         stationFacilityEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
@@ -207,7 +208,10 @@ public final class RoadEditPanel {
         }
     }
 
-    private void renderHorizontalAlignmentSummary(Road road, ChainageDisplayContext chainageDisplay) {
+    private void renderHorizontalAlignmentSummary(
+            RoadNetwork network,
+            Road road,
+            ChainageDisplayContext chainageDisplay) {
         RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
         if (alignment == null || alignment.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -226,6 +230,29 @@ public final class RoadEditPanel {
                     total,
                     formatAlignmentChainage(chainageDisplay, total, 0.0),
                     formatAlignmentChainage(chainageDisplay, total, total)));
+            if (RoadStationing.isStationable(network, road)) {
+                HorizontalAlignmentCenterlineConsistency.Report consistency =
+                    HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
+                if (consistency.evaluable()) {
+                    int color = consistency.isConsistent()
+                        ? PluginUiColors.HINT_GRAY
+                        : PluginUiColors.WARNING;
+                    RoadUiWidgets.textWrappedColored(
+                        color,
+                        PlotI18n.tr(
+                            "plugin.road.horizontal_alignment_centerline_deviation",
+                            consistency.maxDeviationMeters(),
+                            consistency.meanDeviationMeters()));
+                    if (!consistency.lengthMatches()) {
+                        RoadUiWidgets.textWrappedColored(
+                            PluginUiColors.WARNING,
+                            PlotI18n.tr(
+                                "plugin.road.horizontal_alignment_length_mismatch_hint",
+                                consistency.roadLengthMeters(),
+                                consistency.alignmentLengthMeters()));
+                    }
+                }
+            }
             int index = 0;
             for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
                 double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);

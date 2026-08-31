@@ -5,6 +5,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.station.EdgeChainageMapper;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -18,17 +19,36 @@ import java.util.OptionalDouble;
  */
 public record DesignElevationSource(
         RoadVerticalAlignment alignment,
-        double segmentStartChainage,
-        double edgeLength,
-        double sampledPathLength,
-        boolean flowsWithGeometry) {
+        OrientedRoadSegment oriented,
+        double sampledPathLength) {
 
     public DesignElevationSource(
             RoadVerticalAlignment alignment,
             double segmentStartChainage,
             double edgeLength,
             double sampledPathLength) {
-        this(alignment, segmentStartChainage, edgeLength, sampledPathLength, true);
+        this(
+            alignment,
+            new OrientedRoadSegment(null, true, null, null, segmentStartChainage, edgeLength),
+            sampledPathLength);
+    }
+
+    public DesignElevationSource(
+            RoadVerticalAlignment alignment,
+            double segmentStartChainage,
+            double edgeLength,
+            double sampledPathLength,
+            boolean flowsWithGeometry) {
+        this(
+            alignment,
+            new OrientedRoadSegment(
+                null,
+                flowsWithGeometry,
+                null,
+                null,
+                segmentStartChainage,
+                edgeLength),
+            sampledPathLength);
     }
 
     public boolean isActive() {
@@ -36,7 +56,13 @@ public record DesignElevationSource(
     }
 
     public static DesignElevationSource inactive() {
-        return new DesignElevationSource(null, 0.0, 0.0, 0.0, true);
+        return new DesignElevationSource(null, (OrientedRoadSegment) null, 0.0);
+    }
+
+    public DesignElevationSource {
+        if (oriented == null) {
+            oriented = new OrientedRoadSegment(null, true, null, null, 0.0, 0.0);
+        }
     }
 
     public static DesignElevationSource forEdge(
@@ -54,27 +80,28 @@ public record DesignElevationSource(
         if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return inactive();
         }
-        double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-        if (segmentStart < 0.0) {
-            return inactive();
-        }
-        return new DesignElevationSource(
-            road.getVerticalAlignment(),
-            segmentStart,
-            edge.getLength(),
-            ProfileGroundSampler.sampledPathLength(segments),
-            RoadStationing.segmentFlowsWithGeometry(network, road, edge.getId()));
+        return RoadStationing.orientedSegment(network, road, edge.getId())
+            .map(segment -> new DesignElevationSource(
+                road.getVerticalAlignment(),
+                segment,
+                ProfileGroundSampler.sampledPathLength(segments)))
+            .orElse(inactive());
+    }
+
+    public double segmentStartChainage() {
+        return oriented.startStation();
+    }
+
+    public double edgeLength() {
+        return oriented.length();
+    }
+
+    public boolean flowsWithGeometry() {
+        return oriented.forward();
     }
 
     public double mapLocalToChainage(double localCanvasDistance) {
-        double chainLocal = flowsWithGeometry
-            ? localCanvasDistance
-            : edgeLength - localCanvasDistance;
-        return EdgeChainageMapper.toChainage(
-            segmentStartChainage,
-            chainLocal,
-            sampledPathLength,
-            edgeLength);
+        return EdgeChainageMapper.toChainage(oriented, localCanvasDistance, sampledPathLength);
     }
 
     public int elevationAtChainage(double chainageMeters) {

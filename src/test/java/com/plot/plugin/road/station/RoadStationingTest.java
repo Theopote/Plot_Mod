@@ -3,6 +3,7 @@ package com.plot.plugin.road.station;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
@@ -129,6 +130,34 @@ class RoadStationingTest {
         Optional<SegmentStation> end = RoadStationing.resolve(network, road, total);
         assertTrue(end.isPresent());
         assertEquals(10.0, end.get().localDistance(), 1e-6);
+    }
+
+    @Test
+    void orientedSegmentsExposeForwardFlagsAlongChain() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-a");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(30, 0));
+        RoadNode d = network.createNode(new Vec2d(30, 20));
+        RoadEdge edge1 = network.createEdge(
+            a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        RoadEdge edge2 = network.createEdge(
+            c.getId(), b.getId(), List.of(new Vec2d(30, 0), new Vec2d(10, 0)), road.getId());
+        RoadEdge edge3 = network.createEdge(
+            c.getId(), d.getId(), List.of(new Vec2d(30, 0), new Vec2d(30, 20)), road.getId());
+
+        List<OrientedRoadSegment> oriented = RoadStationing.orientedSegments(network, road);
+        assertEquals(3, oriented.size());
+        assertEquals(edge1.getId(), oriented.get(0).edgeId());
+        assertTrue(oriented.get(0).forward());
+        assertEquals(edge2.getId(), oriented.get(1).edgeId());
+        assertFalse(oriented.get(1).forward());
+        assertEquals(edge3.getId(), oriented.get(2).edgeId());
+        assertTrue(oriented.get(2).forward());
+        assertEquals(0.0, oriented.get(0).startStation(), 1e-6);
+        assertEquals(10.0, oriented.get(1).startStation(), 1e-6);
+        assertEquals(30.0, oriented.get(2).startStation(), 1e-6);
     }
 
     @Test

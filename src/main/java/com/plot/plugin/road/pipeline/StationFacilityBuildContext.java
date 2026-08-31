@@ -4,6 +4,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.facility.StationFacilityResolver;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 /**
@@ -12,13 +13,20 @@ import com.plot.plugin.road.station.RoadStationing;
 public record StationFacilityBuildContext(
         RoadNetwork network,
         Road road,
-        String edgeId,
-        double segmentStartStation) {
+        OrientedRoadSegment oriented) {
 
-    public static final StationFacilityBuildContext EMPTY = new StationFacilityBuildContext(null, null, null, 0.0);
+    public static final StationFacilityBuildContext EMPTY = new StationFacilityBuildContext(null, null, null);
 
     public boolean isActive() {
-        return network != null && road != null && StationFacilityResolver.hasStationFacilities(road);
+        return network != null && road != null && oriented != null && StationFacilityResolver.hasStationFacilities(road);
+    }
+
+    public String edgeId() {
+        return oriented != null ? oriented.edgeId() : null;
+    }
+
+    public double segmentStartStation() {
+        return oriented != null ? oriented.startStation() : 0.0;
     }
 
     public double roadEndStation() {
@@ -43,10 +51,8 @@ public record StationFacilityBuildContext(
         if (!RoadStationing.isStationable(network, road)) {
             return EMPTY;
         }
-        double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-        if (segmentStart < 0.0) {
-            return EMPTY;
-        }
-        return new StationFacilityBuildContext(network, road, edge.getId(), segmentStart);
+        return RoadStationing.orientedSegment(network, road, edge.getId())
+            .map(oriented -> new StationFacilityBuildContext(network, road, oriented))
+            .orElse(EMPTY);
     }
 }

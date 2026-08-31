@@ -34,7 +34,7 @@
 - [x] 线元模型 + 几何求值 + 单元测试
 - [x] JSON 往返
 - [x] 编辑 UI 线形摘要
-- [ ] 线形与 polyline 偏差检查（后续）
+- [x] 线形与 polyline 偏差检查（`HorizontalAlignmentCenterlineConsistency`）
 
 ## References
 

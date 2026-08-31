@@ -57,7 +57,7 @@ public final class RoadFurnitureGenerator {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
-            crossSections.segmentStartStation(),
+            crossSections.samplingOriented(),
             unitsPerBlock,
             designElevation,
             null,

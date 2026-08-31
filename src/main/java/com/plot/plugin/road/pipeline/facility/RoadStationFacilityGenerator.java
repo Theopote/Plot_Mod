@@ -11,6 +11,7 @@ import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
@@ -45,7 +46,7 @@ public final class RoadStationFacilityGenerator {
             ctx.heightInfos(),
             ctx.request().crossSections(),
             stationContext.road(),
-            stationContext.segmentStartStation(),
+            stationContext.oriented(),
             stationContext.roadEndStation(),
             ctx.pathLength(),
             StationFacilityJunctionTrim.forEdge(
@@ -67,7 +68,7 @@ public final class RoadStationFacilityGenerator {
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
             Road road,
-            double segmentStartStation,
+            OrientedRoadSegment oriented,
             double roadEndStation,
             double edgeLength,
             StationFacilityJunctionTrim.FacilityEndpointTrim trim,
@@ -78,13 +79,13 @@ public final class RoadStationFacilityGenerator {
         if (trim == null) {
             trim = StationFacilityJunctionTrim.FacilityEndpointTrim.NONE;
         }
-        if (solids == null || segments == null || heightInfos == null || crossSections == null || road == null) {
+        if (solids == null || segments == null || heightInfos == null || crossSections == null || road == null
+                || oriented == null) {
             return;
         }
 
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        double chainageBase = segmentStartStation;
-        double segmentLocalBase = 0.0;
+        double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
@@ -93,17 +94,16 @@ public final class RoadStationFacilityGenerator {
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                double localCanvas = segmentLocalBase + segment.distance * t;
+                double geometryLocal = geometryLocalBase + segment.distance * t;
                 int targetY = DesignElevationSource.resolveTargetElevation(
                     designElevation,
                     info,
-                    localCanvas,
+                    geometryLocal,
                     t);
                 targetY = elevationSnapper.snap(center, targetY);
-                double chainage = chainageBase + segment.distance * t;
+                double chainage = oriented.roadStationAtGeometryLocal(geometryLocal);
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
-                double localDistance = chainage - segmentStartStation;
-                if (!trim.shouldPlace(localDistance, edgeLength)) {
+                if (!trim.shouldPlace(geometryLocal, edgeLength)) {
                     continue;
                 }
                 double drainageOffset = crossSection.outerDrainageOffset() * scale;
@@ -123,8 +123,7 @@ public final class RoadStationFacilityGenerator {
                     scale,
                     materialResolver);
             }
-            chainageBase += segment.distance;
-            segmentLocalBase += segment.distance;
+            geometryLocalBase += segment.distance;
         }
     }
 

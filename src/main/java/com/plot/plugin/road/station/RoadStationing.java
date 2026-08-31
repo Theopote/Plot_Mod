@@ -1,5 +1,7 @@
 package com.plot.plugin.road.station;
 
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -21,11 +23,15 @@ import java.util.OptionalDouble;
 import java.util.Set;
 
 /**
- * Road-local 里程（chainage）计算：沿有序分段链累计弧长。
+ * Road-local 里程（chainage）权威坐标转换器：沿有序分段链累计弧长，并处理分段方向。
  * <p>
  * 单位与 {@link RoadEdge#getLength()} 一致（canvas 平面距离，与纵断面 profile 里程对齐）。
  * 仅对拓扑可维护的道路（无分叉、无断开）保证语义；分叉/断开时 {@link #isStationable} 为 false。
+ * <p>
+ * Phase 2 沿程模块（纵断面、可变横断面、设施、标线等）应通过本类换算桩号，
+ * 禁止自行拼接 {@code segmentStart + localDistance}。
  *
+ * @see OrientedRoadSegment
  * @see docs/development/task-assignments/RoadSystemPlugin_Phase2_Stationing_v1.md
  */
 public final class RoadStationing {
@@ -39,16 +45,56 @@ public final class RoadStationing {
         return RoadSegmentOrdering.orderedSegmentIds(network, road);
     }
 
+    /**
+     * 带方向的沿程分段列表；道路链的唯一拓扑+方向真相。
+     */
+    public static List<OrientedRoadSegment> orientedSegments(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return List.of();
+        }
+        List<OrientedRoadSegment> oriented = new ArrayList<>();
+        double station = 0.0;
+        for (SegmentChainBinding binding : segmentChainBindings(network, road)) {
+            RoadEdge edge = network.getEdge(binding.segmentId());
+            if (edge == null) {
+                continue;
+            }
+            boolean forward = binding.entryNodeId().equals(edge.getStartNodeId());
+            String exitNodeId = forward ? edge.getEndNodeId() : edge.getStartNodeId();
+            oriented.add(new OrientedRoadSegment(
+                binding.segmentId(),
+                forward,
+                binding.entryNodeId(),
+                exitNodeId,
+                station,
+                edge.getLength()));
+            station += edge.getLength();
+        }
+        return List.copyOf(oriented);
+    }
+
+    public static Optional<OrientedRoadSegment> orientedSegment(
+            RoadNetwork network,
+            Road road,
+            String segmentId) {
+        if (segmentId == null || segmentId.isBlank()) {
+            return Optional.empty();
+        }
+        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
+            if (segment.edgeId().equals(segmentId)) {
+                return Optional.of(segment);
+            }
+        }
+        return Optional.empty();
+    }
+
     public static double totalLength(RoadNetwork network, Road road) {
         if (network == null || road == null) {
             return 0.0;
         }
         double total = 0.0;
-        for (String segmentId : orderedSegments(network, road)) {
-            RoadEdge edge = network.getEdge(segmentId);
-            if (edge != null) {
-                total += edge.getLength();
-            }
+        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
+            total += segment.length();
         }
         return total;
     }
@@ -73,7 +119,7 @@ public final class RoadStationing {
                 return false;
             }
         }
-        return orderedSegments(network, road).size() > 0;
+        return !orientedSegments(network, road).isEmpty();
     }
 
     public static boolean isValid(RoadNetwork network, RoadStation station) {
@@ -89,133 +135,155 @@ public final class RoadStationing {
             && station.chainageMeters() <= total + STATION_EPSILON;
     }
 
-    /**
-     * 分段几何方向（start→end）是否与道路链方向一致。
-     * <p>
-     * 桩号沿拓扑链累计；边内 {@code localDistance} 仍以几何起点计量。
-     * 当本方法为 false 时，需用 {@link #chainLocalFromGeometryLocal} 换算后再参与桩号查询。
-     */
     public static boolean segmentFlowsWithGeometry(RoadNetwork network, Road road, String segmentId) {
-        Optional<String> entryNodeId = segmentChainEntryNodeId(network, road, segmentId);
-        if (entryNodeId.isEmpty()) {
-            return true;
-        }
-        RoadEdge edge = network.getEdge(segmentId);
-        if (edge == null) {
-            return true;
-        }
-        return entryNodeId.get().equals(edge.getStartNodeId());
+        return orientedSegment(network, road, segmentId)
+            .map(OrientedRoadSegment::forward)
+            .orElse(true);
     }
 
-    /**
-     * 该分段在道路链上的入口节点（桩号沿链从此节点离开）。
-     */
     public static Optional<String> segmentChainEntryNodeId(RoadNetwork network, Road road, String segmentId) {
-        if (network == null || road == null || segmentId == null || segmentId.isBlank()) {
-            return Optional.empty();
-        }
-        for (SegmentChainBinding binding : segmentChainBindings(network, road)) {
-            if (binding.segmentId().equals(segmentId)) {
-                return Optional.of(binding.entryNodeId());
-            }
-        }
-        return Optional.empty();
+        return orientedSegment(network, road, segmentId).map(OrientedRoadSegment::entryNodeId);
     }
 
-    /**
-     * 边内几何局部距离（从 {@link RoadEdge#getStartNodeId()} 起）→ 链局部距离（从链入口起）。
-     */
+    public static Optional<String> segmentChainExitNodeId(RoadNetwork network, Road road, String segmentId) {
+        return orientedSegment(network, road, segmentId).map(OrientedRoadSegment::exitNodeId);
+    }
+
     public static double chainLocalFromGeometryLocal(
             RoadNetwork network,
             Road road,
             RoadEdge edge,
             double geometryLocalDistance) {
-        if (edge == null || !Double.isFinite(geometryLocalDistance)) {
-            return 0.0;
-        }
-        double clamped = Math.max(0.0, Math.min(geometryLocalDistance, edge.getLength()));
-        if (segmentFlowsWithGeometry(network, road, edge.getId())) {
-            return clamped;
-        }
-        return edge.getLength() - clamped;
+        return orientedSegment(network, road, edge.getId())
+            .map(segment -> segment.chainLocalFromGeometryLocal(geometryLocalDistance))
+            .orElse(Math.max(0.0, geometryLocalDistance));
     }
 
-    /**
-     * 链局部距离（从链入口起）→ 边内几何局部距离（从几何起点起）。
-     */
     public static double geometryLocalFromChainLocal(
             RoadNetwork network,
             Road road,
             RoadEdge edge,
             double chainLocalDistance) {
-        return chainLocalFromGeometryLocal(network, road, edge, chainLocalDistance);
+        return orientedSegment(network, road, edge.getId())
+            .map(segment -> segment.geometryLocalFromChainLocal(chainLocalDistance))
+            .orElse(Math.max(0.0, chainLocalDistance));
     }
 
-    /**
-     * 节点在该分段链方向上的局部距离；非端点返回 empty。
-     */
     public static OptionalDouble nodeChainLocalDistance(
             RoadNetwork network,
             Road road,
             RoadEdge edge,
             String nodeId) {
-        if (edge == null || nodeId == null || nodeId.isBlank()) {
+        Optional<OrientedRoadSegment> oriented = orientedSegment(network, road, edge.getId());
+        if (oriented.isEmpty() || nodeId == null || nodeId.isBlank()) {
             return OptionalDouble.empty();
         }
-        if (edge.getStartNodeId().equals(nodeId)) {
-            return OptionalDouble.of(segmentFlowsWithGeometry(network, road, edge.getId()) ? 0.0 : edge.getLength());
+        OptionalDouble station = oriented.get().roadStationAtNode(nodeId);
+        if (station.isEmpty()) {
+            return OptionalDouble.empty();
         }
-        if (edge.getEndNodeId().equals(nodeId)) {
-            return OptionalDouble.of(segmentFlowsWithGeometry(network, road, edge.getId()) ? edge.getLength() : 0.0);
+        return OptionalDouble.of(station.getAsDouble() - oriented.get().startStation());
+    }
+
+    public static OptionalDouble stationAtNode(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            String nodeId) {
+        Optional<OrientedRoadSegment> oriented = orientedSegment(network, road, edge.getId());
+        if (oriented.isEmpty()) {
+            return OptionalDouble.empty();
         }
-        return OptionalDouble.empty();
+        return oriented.get().roadStationAtNode(nodeId);
+    }
+
+    /**
+     * 道路链起点（首段入口节点）世界坐标。
+     */
+    public static Optional<Vec2d> chainOrigin(RoadNetwork network, Road road) {
+        List<OrientedRoadSegment> segments = orientedSegments(network, road);
+        if (segments.isEmpty()) {
+            return Optional.empty();
+        }
+        RoadNode node = network.getNode(segments.getFirst().entryNodeId());
+        if (node == null || node.getPosition() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(node.getPosition().copy());
+    }
+
+    /**
+     * 道路桩号处折线中心线平面坐标（实例几何 {@link RoadGeometryAuthority#INSTANCE_CENTERLINE}）。
+     */
+    public static Optional<Vec2d> pointAtStation(RoadNetwork network, Road road, double chainageMeters) {
+        return edgeLocalDistanceAtRoadStation(network, road, chainageMeters)
+            .flatMap(segment -> {
+                RoadEdge edge = network.getEdge(segment.segmentId());
+                if (edge == null) {
+                    return Optional.empty();
+                }
+                Vec2d point = RoadGeometryUtils.pointAtDistance(
+                    edge.getCenterlinePoints(),
+                    segment.localDistance());
+                return point != null ? Optional.of(point) : Optional.empty();
+            });
     }
 
     public static double segmentStartStation(RoadNetwork network, Road road, String segmentId) {
-        if (network == null || road == null || segmentId == null || segmentId.isBlank()) {
-            return 0.0;
-        }
-        double station = 0.0;
-        for (String orderedId : orderedSegments(network, road)) {
-            if (orderedId.equals(segmentId)) {
-                return station;
-            }
-            RoadEdge edge = network.getEdge(orderedId);
-            if (edge != null) {
-                station += edge.getLength();
-            }
-        }
-        return -1.0;
+        return orientedSegment(network, road, segmentId)
+            .map(OrientedRoadSegment::startStation)
+            .orElse(-1.0);
+    }
+
+    /**
+     * 边内几何局部距离 → 道路桩号。
+     */
+    public static Optional<RoadStation> roadStationAtEdgeLocalDistance(
+            RoadNetwork network,
+            Road road,
+            String segmentId,
+            double geometryLocalDistance) {
+        return stationAt(network, road, segmentId, geometryLocalDistance);
     }
 
     public static Optional<RoadStation> stationAt(
             RoadNetwork network,
             Road road,
             String segmentId,
-            double localDistance) {
+            double geometryLocalDistance) {
         if (!isStationable(network, road) || segmentId == null || segmentId.isBlank()) {
             return Optional.empty();
         }
-        if (!Double.isFinite(localDistance)) {
+        if (!Double.isFinite(geometryLocalDistance)) {
             return Optional.empty();
         }
-        double segmentStart = segmentStartStation(network, road, segmentId);
-        if (segmentStart < 0.0) {
+        Optional<OrientedRoadSegment> oriented = orientedSegment(network, road, segmentId);
+        if (oriented.isEmpty()) {
             return Optional.empty();
         }
         RoadEdge edge = network.getEdge(segmentId);
         if (edge == null) {
             return Optional.empty();
         }
-        if (localDistance < -STATION_EPSILON || localDistance > edge.getLength() + STATION_EPSILON) {
+        if (geometryLocalDistance < -STATION_EPSILON
+                || geometryLocalDistance > edge.getLength() + STATION_EPSILON) {
             return Optional.empty();
         }
-        double chainLocal = chainLocalFromGeometryLocal(network, road, edge, localDistance);
-        double chainage = segmentStart + chainLocal;
+        double chainage = oriented.get().roadStationAtGeometryLocal(geometryLocalDistance);
         if (!isValid(network, new RoadStation(road.getId(), chainage))) {
             return Optional.empty();
         }
         return Optional.of(new RoadStation(road.getId(), chainage));
+    }
+
+    /**
+     * 道路桩号 → 边内几何局部距离。
+     */
+    public static Optional<SegmentStation> edgeLocalDistanceAtRoadStation(
+            RoadNetwork network,
+            Road road,
+            double chainageMeters) {
+        return resolve(network, road, chainageMeters);
     }
 
     public static Optional<SegmentStation> resolve(RoadNetwork network, Road road, double chainageMeters) {
@@ -226,22 +294,17 @@ public final class RoadStationing {
             return Optional.empty();
         }
 
-        double remaining = chainageMeters;
-        List<String> segments = orderedSegments(network, road);
+        List<OrientedRoadSegment> segments = orientedSegments(network, road);
         for (int i = 0; i < segments.size(); i++) {
-            String segmentId = segments.get(i);
-            RoadEdge edge = network.getEdge(segmentId);
-            if (edge == null) {
-                return Optional.empty();
-            }
-            double length = edge.getLength();
+            OrientedRoadSegment segment = segments.get(i);
             boolean isLast = i == segments.size() - 1;
-            if (remaining < length - STATION_EPSILON || isLast) {
-                double chainLocal = Math.min(Math.max(0.0, remaining), length);
-                double geometryLocal = geometryLocalFromChainLocal(network, road, edge, chainLocal);
-                return Optional.of(new SegmentStation(segmentId, geometryLocal));
+            if (chainageMeters < segment.endStation() - STATION_EPSILON || isLast) {
+                OptionalDouble geometryLocal = segment.geometryLocalAtRoadStation(chainageMeters);
+                if (geometryLocal.isEmpty()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new SegmentStation(segment.edgeId(), geometryLocal.getAsDouble()));
             }
-            remaining -= length;
         }
         return Optional.empty();
     }
@@ -309,16 +372,8 @@ public final class RoadStationing {
 
     public static List<Double> segmentStartStations(RoadNetwork network, Road road) {
         List<Double> stations = new ArrayList<>();
-        if (network == null || road == null) {
-            return stations;
-        }
-        double station = 0.0;
-        for (String segmentId : orderedSegments(network, road)) {
-            stations.add(station);
-            RoadEdge edge = network.getEdge(segmentId);
-            if (edge != null) {
-                station += edge.getLength();
-            }
+        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
+            stations.add(segment.startStation());
         }
         return stations;
     }
@@ -378,7 +433,7 @@ public final class RoadStationing {
 
     private static String findChainStart(RoadNetwork network, Map<String, List<String>> nodeToEdgeIds) {
         String endpoint = null;
-        com.plot.api.geometry.Vec2d endpointPos = null;
+        Vec2d endpointPos = null;
         for (Map.Entry<String, List<String>> entry : nodeToEdgeIds.entrySet()) {
             if (entry.getValue().size() != 1) {
                 continue;
@@ -387,7 +442,7 @@ public final class RoadStationing {
             if (node == null || node.getPosition() == null) {
                 continue;
             }
-            com.plot.api.geometry.Vec2d pos = node.getPosition();
+            Vec2d pos = node.getPosition();
             if (endpointPos == null || comparePosition(pos, endpointPos) < 0) {
                 endpointPos = pos;
                 endpoint = entry.getKey();
@@ -398,13 +453,13 @@ public final class RoadStationing {
         }
 
         String fallback = null;
-        com.plot.api.geometry.Vec2d fallbackPos = null;
+        Vec2d fallbackPos = null;
         for (String nodeId : nodeToEdgeIds.keySet()) {
             RoadNode node = network.getNode(nodeId);
             if (node == null || node.getPosition() == null) {
                 continue;
             }
-            com.plot.api.geometry.Vec2d pos = node.getPosition();
+            Vec2d pos = node.getPosition();
             if (fallbackPos == null || comparePosition(pos, fallbackPos) < 0) {
                 fallbackPos = pos;
                 fallback = nodeId;
@@ -413,7 +468,7 @@ public final class RoadStationing {
         return fallback;
     }
 
-    private static int comparePosition(com.plot.api.geometry.Vec2d left, com.plot.api.geometry.Vec2d right) {
+    private static int comparePosition(Vec2d left, Vec2d right) {
         int byX = Double.compare(left.x, right.x);
         return byX != 0 ? byX : Double.compare(left.y, right.y);
     }

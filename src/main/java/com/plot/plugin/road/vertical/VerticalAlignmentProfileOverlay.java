@@ -4,6 +4,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.profile.VerticalAlignmentProfileSupport;
+import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
@@ -49,48 +50,41 @@ public final class VerticalAlignmentProfileOverlay {
         if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return Optional.empty();
         }
-        double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
-        if (segmentStart < 0.0) {
-            return Optional.empty();
-        }
-        double edgeLength = edge.getLength();
+        return RoadStationing.orientedSegment(network, road, edge.getId()).flatMap(oriented -> {
+        double segmentStart = oriented.startStation();
+        double edgeLength = oriented.length();
         double spacing = Math.max(MIN_SAMPLE_SPACING, edgeLength / 40.0);
         RoadVerticalAlignment alignment = road.getVerticalAlignment();
         List<Double> localDistances = new ArrayList<>();
         List<Integer> localHeights = new ArrayList<>();
-        double segmentEnd = segmentStart + edgeLength;
+        double segmentEnd = oriented.endStation();
         for (VerticalAlignmentGeometry.ProfileSample sample : VerticalAlignmentGeometry.sample(alignment, spacing)) {
             if (sample.station() < segmentStart - 1e-6 || sample.station() > segmentEnd + 1e-6) {
                 continue;
             }
             double chainLocal = sample.station() - segmentStart;
-            double geometryLocal = RoadStationing.geometryLocalFromChainLocal(network, road, edge, chainLocal);
-            localDistances.add(geometryLocal);
+            localDistances.add(oriented.geometryLocalFromChainLocal(chainLocal));
             localHeights.add((int) Math.round(sample.elevation()));
         }
-        appendEndpointIfMissing(network, road, edge, localDistances, localHeights, 0.0, alignment, segmentStart);
-        appendEndpointIfMissing(network, road, edge, localDistances, localHeights, edgeLength, alignment, segmentStart);
+        appendEndpointIfMissing(oriented, localDistances, localHeights, 0.0, alignment);
+        appendEndpointIfMissing(oriented, localDistances, localHeights, edgeLength, alignment);
         if (localDistances.size() < 2) {
             return Optional.empty();
         }
         return Optional.of(new VerticalAlignmentProfileOverlay(localDistances, localHeights));
+        });
     }
 
     private static void appendEndpointIfMissing(
-            RoadNetwork network,
-            Road road,
-            RoadEdge edge,
+            OrientedRoadSegment oriented,
             List<Double> distances,
             List<Integer> heights,
             double geometryLocalDistance,
-            RoadVerticalAlignment alignment,
-            double segmentStart) {
+            RoadVerticalAlignment alignment) {
         if (distances.stream().anyMatch(distance -> Math.abs(distance - geometryLocalDistance) < 1e-6)) {
             return;
         }
-        double chainLocal = RoadStationing.chainLocalFromGeometryLocal(
-            network, road, edge, geometryLocalDistance);
-        double chainage = segmentStart + chainLocal;
+        double chainage = oriented.roadStationAtGeometryLocal(geometryLocalDistance);
         int height = (int) Math.round(VerticalAlignmentGeometry.elevationAt(alignment, chainage)
             .orElse(heights.isEmpty() ? 64.0 : heights.getLast()));
         distances.add(geometryLocalDistance);

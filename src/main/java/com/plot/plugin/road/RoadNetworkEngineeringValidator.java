@@ -11,6 +11,8 @@ import com.plot.plugin.road.model.RoadNetworkValidationResult;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineConsistency;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -29,6 +31,8 @@ import java.util.Set;
 public final class RoadNetworkEngineeringValidator {
     private static final float GRADE_TOLERANCE_PERCENT = 0.05f;
     private static final double VERTICAL_ALIGNMENT_LENGTH_TOLERANCE = 1.0;
+    private static final double HORIZONTAL_ALIGNMENT_LENGTH_TOLERANCE = 1.0;
+    private static final double HORIZONTAL_ALIGNMENT_POINT_TOLERANCE = 1.0;
     private static final double VERTICAL_ALIGNMENT_GRADE_SAMPLE_SPACING = 5.0;
 
     private RoadNetworkEngineeringValidator() {
@@ -84,6 +88,8 @@ public final class RoadNetworkEngineeringValidator {
         addRoadTopologyItems(items, network, true);
 
         addVerticalAlignmentItems(items, network, config);
+
+        addHorizontalAlignmentItems(items, network);
 
         int gradeJunctionCount = countJunctionsExceedingGrade(network, edgeResults, config);
         if (hasPreviewProfiles(edgeResults)) {
@@ -188,6 +194,76 @@ public final class RoadNetworkEngineeringValidator {
         if (count > 0) {
             items.add(RoadNetworkValidationReport.Item.warning(messageKey, count));
         }
+    }
+
+    private static void addHorizontalAlignmentItems(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        if (!hasHorizontalAlignmentRoads(network)) {
+            return;
+        }
+
+        int lengthMismatchCount = countHorizontalAlignmentLengthMismatches(network);
+        if (lengthMismatchCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.horizontal_alignment_length_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.horizontal_alignment_length_mismatch",
+                lengthMismatchCount));
+        }
+
+        int deviationCount = countHorizontalAlignmentCenterlineDeviations(network);
+        if (deviationCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.horizontal_alignment_centerline_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.horizontal_alignment_centerline_deviation",
+                deviationCount));
+        }
+    }
+
+    private static int countHorizontalAlignmentLengthMismatches(RoadNetwork network) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            if (!HorizontalAlignmentCenterlineConsistency.isEvaluable(network, road)) {
+                continue;
+            }
+            HorizontalAlignmentCenterlineConsistency.Report report =
+                HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
+            if (!report.lengthMatches()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countHorizontalAlignmentCenterlineDeviations(RoadNetwork network) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            if (!HorizontalAlignmentCenterlineConsistency.isEvaluable(network, road)) {
+                continue;
+            }
+            HorizontalAlignmentCenterlineConsistency.Report report =
+                HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
+            if (!report.isConsistent(
+                    HORIZONTAL_ALIGNMENT_LENGTH_TOLERANCE,
+                    HORIZONTAL_ALIGNMENT_POINT_TOLERANCE)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean hasHorizontalAlignmentRoads(RoadNetwork network) {
+        for (Road road : network.getRoads().values()) {
+            RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
+            if (alignment != null && !alignment.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void addVerticalAlignmentItems(
