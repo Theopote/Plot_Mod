@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -171,7 +172,11 @@ public final class RoadGeneratePanel {
 
         RoadGenerationResult profileResult = ctx.previewManager().getLastEdgeResult(profileEdgeId);
         if (profileResult != null && profileResult.hasProfileData()) {
-            RoadLongitudinalProfileRenderer.render(profileResult, false);
+            RoadEdge edge = network.getEdge(profileEdgeId);
+            VerticalAlignmentProfileOverlay designOverlay = edge != null
+                ? VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null)
+                : null;
+            RoadLongitudinalProfileRenderer.render(profileResult, false, designOverlay);
         }
     }
 

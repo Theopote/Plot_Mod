@@ -16,9 +16,6 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
-import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
-import com.plot.plugin.road.vertical.RoadVerticalAlignment;
-import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.ChainageDisplayMode;
 import com.plot.plugin.road.station.RoadStationFormat;
@@ -55,6 +52,7 @@ public final class RoadEditPanel {
     private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
     private final StationFacilityEditor stationFacilityEditor = new StationFacilityEditor();
     private final VariableCrossSectionEditor variableCrossSectionEditor = new VariableCrossSectionEditor();
+    private final VerticalAlignmentEditor verticalAlignmentEditor = new VerticalAlignmentEditor();
     private float centerlineEditDistance = 10f;
     private float centerlineFilletRadius = 2f;
     private int centerlineVertexIndex = 1;
@@ -183,7 +181,7 @@ public final class RoadEditPanel {
         renderRoadTopologyHints(network, road);
         ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
         renderHorizontalAlignmentSummary(road, chainageDisplay);
-        renderVerticalAlignmentSummary(road, chainageDisplay);
+        verticalAlignmentEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
         variableCrossSectionEditor.render(ctx, network, road, chainageDisplay, ctx.networkManager()::pushHistory);
         stationFacilityEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
     }
@@ -236,56 +234,6 @@ public final class RoadEditPanel {
                     chainageDisplay != null
                         ? HorizontalAlignmentGeometry.describeElement(element, start, chainageDisplay)
                         : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
-            }
-        }
-    }
-
-    private void renderVerticalAlignmentSummary(Road road, ChainageDisplayContext chainageDisplay) {
-        RoadVerticalAlignment alignment = road.getVerticalAlignment();
-        if (alignment == null || alignment.isEmpty()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_alignment_none"));
-            return;
-        }
-        ImGui.spacing();
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.vertical_alignment_section"))) {
-            List<PointOfVerticalIntersection> pvis = alignment.sortedPvis();
-            if (pvis.size() < 2) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.road.vertical_alignment_incomplete"));
-                return;
-            }
-            double startStation = pvis.getFirst().getStation();
-            double endStation = pvis.getLast().getStation();
-            double startElevation = pvis.getFirst().getElevation();
-            double endElevation = pvis.getLast().getElevation();
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr(
-                    "plugin.road.vertical_alignment_summary",
-                    pvis.size(),
-                    formatChainage(chainageDisplay, startStation),
-                    formatChainage(chainageDisplay, endStation),
-                    startElevation,
-                    endElevation));
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.vertical_alignment_generation_hint"));
-            for (int i = 0; i < pvis.size(); i++) {
-                PointOfVerticalIntersection pvi = pvis.get(i);
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    chainageDisplay != null
-                        ? VerticalAlignmentGeometry.describePvi(pvi, i, pvis.size(), chainageDisplay)
-                        : VerticalAlignmentGeometry.describePvi(pvi, i, pvis.size(), RoadStationFormat.KILOMETER_PLUS));
-                String curve = chainageDisplay != null
-                    ? VerticalAlignmentGeometry.describeCurveAtPvi(pvis, i, chainageDisplay)
-                    : VerticalAlignmentGeometry.describeCurveAtPvi(pvis, i, RoadStationFormat.KILOMETER_PLUS);
-                if (!curve.isBlank()) {
-                    RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
-                }
             }
         }
     }

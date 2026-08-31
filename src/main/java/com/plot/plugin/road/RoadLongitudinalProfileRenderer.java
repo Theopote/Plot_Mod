@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -19,6 +20,7 @@ public final class RoadLongitudinalProfileRenderer {
     private static final int COLOR_GROUND = 0xFF8B5A2B;
     private static final int COLOR_GUIDE = 0xFF4DA3FF;
     private static final int COLOR_TARGET = 0xFFB0B0B0;
+    private static final int COLOR_DESIGN = 0xFF5FD35F;
     private static final int COLOR_LABEL = 0xFFAAAAAA;
 
     private RoadLongitudinalProfileRenderer() {
@@ -29,6 +31,13 @@ public final class RoadLongitudinalProfileRenderer {
     }
 
     public static void render(RoadGenerationResult result, boolean showTitle) {
+        render(result, showTitle, null);
+    }
+
+    public static void render(
+            RoadGenerationResult result,
+            boolean showTitle,
+            VerticalAlignmentProfileOverlay designOverlay) {
         if (result == null || !result.hasProfileData()) {
             return;
         }
@@ -57,6 +66,7 @@ public final class RoadLongitudinalProfileRenderer {
             result.profileGroundHeights,
             result.profileGuideLine,
             result.profileTargetHeights,
+            designOverlay,
             x0,
             y0,
             width,
@@ -68,6 +78,10 @@ public final class RoadLongitudinalProfileRenderer {
         ImGui.textColored(COLOR_GUIDE, "--- " + PlotI18n.tr("plugin.road.profile_guide"));
         ImGui.sameLine();
         ImGui.textColored(COLOR_TARGET, "■ " + PlotI18n.tr("plugin.road.profile_target"));
+        if (designOverlay != null && !designOverlay.isEmpty()) {
+            ImGui.sameLine();
+            ImGui.textColored(COLOR_DESIGN, "■ " + PlotI18n.tr("plugin.road.profile_design"));
+        }
     }
 
     static void drawProfile(
@@ -76,6 +90,20 @@ public final class RoadLongitudinalProfileRenderer {
             List<Integer> groundHeights,
             List<Integer> guideLine,
             List<Integer> targetHeights,
+            float x0,
+            float y0,
+            float width,
+            float height) {
+        drawProfile(drawList, distances, groundHeights, guideLine, targetHeights, null, x0, y0, width, height);
+    }
+
+    static void drawProfile(
+            ImDrawList drawList,
+            List<Double> distances,
+            List<Integer> groundHeights,
+            List<Integer> guideLine,
+            List<Integer> targetHeights,
+            VerticalAlignmentProfileOverlay designOverlay,
             float x0,
             float y0,
             float width,
@@ -108,6 +136,12 @@ public final class RoadLongitudinalProfileRenderer {
                 maxHeight = Math.max(maxHeight, targetHeights.get(i));
             }
         }
+        if (designOverlay != null && !designOverlay.isEmpty()) {
+            for (int designHeight : designOverlay.heights()) {
+                minHeight = Math.min(minHeight, designHeight);
+                maxHeight = Math.max(maxHeight, designHeight);
+            }
+        }
         if (minHeight == maxHeight) {
             minHeight -= 2;
             maxHeight += 2;
@@ -129,6 +163,23 @@ public final class RoadLongitudinalProfileRenderer {
             : buildTargetDistances(distances, targetHeights.size());
         drawPolyline(drawList, targetDistances, targetHeights, maxDistance, minHeight, maxHeight,
             plotX0, plotY0, plotWidth, plotHeight, COLOR_TARGET, 2.4f, false);
+
+        if (designOverlay != null && !designOverlay.isEmpty()) {
+            drawPolyline(
+                drawList,
+                designOverlay.distances(),
+                designOverlay.heights(),
+                maxDistance,
+                minHeight,
+                maxHeight,
+                plotX0,
+                plotY0,
+                plotWidth,
+                plotHeight,
+                COLOR_DESIGN,
+                2.0f,
+                false);
+        }
 
         drawList.addText(plotX0, plotY0 - 2f, COLOR_LABEL, "Y=" + maxHeight);
         drawList.addText(plotX0, plotY1 - ImGui.getTextLineHeight(), COLOR_LABEL, "Y=" + minHeight);

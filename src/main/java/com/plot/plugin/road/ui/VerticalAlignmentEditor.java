@@ -1,0 +1,340 @@
+package com.plot.plugin.road.ui;
+
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.station.ChainageDisplayContext;
+import com.plot.plugin.road.station.RoadStationFormat;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.ui.PluginUiColors;
+import com.plot.utils.PlotI18n;
+import imgui.ImGui;
+import imgui.flag.ImGuiCol;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * 纵断面 PVI CRUD：桩号、标高、中间变坡点竖曲线长度。
+ */
+public final class VerticalAlignmentEditor {
+
+    private String syncedRoadId = "";
+    private final List<PviDraft> drafts = new ArrayList<>();
+
+    public void render(
+            RoadNetwork network,
+            Road road,
+            ChainageDisplayContext chainageDisplay,
+            Runnable onHistory) {
+        if (road == null || network == null) {
+            return;
+        }
+
+        ImGui.spacing();
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.road.vertical_alignment_section"))) {
+            return;
+        }
+
+        if (!RoadStationing.isStationable(network, road)) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_requires_stationing"));
+            return;
+        }
+
+        syncDrafts(road);
+        double roadLength = RoadStationing.totalLength(network, road);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_alignment_hint"));
+
+        if (drafts.isEmpty()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_none"));
+        }
+
+        if (drafts.size() > 0 && drafts.size() < 2) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_incomplete"));
+        }
+
+        if (drafts.size() >= 2) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_generation_hint"));
+        }
+
+        for (int i = 0; i < drafts.size(); i++) {
+            renderDraftRow(road, drafts.get(i), i, drafts.size(), (float) roadLength, chainageDisplay, onHistory);
+            if (i < drafts.size() - 1) {
+                ImGui.separator();
+            }
+        }
+
+        applyDraftsIfChanged(road);
+
+        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_add"))) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            drafts.add(PviDraft.defaultEntry(drafts, roadLength));
+            applyDraftsIfChanged(road);
+        }
+    }
+
+    private void renderDraftRow(
+            Road road,
+            PviDraft draft,
+            int index,
+            int total,
+            float roadLength,
+            ChainageDisplayContext chainageDisplay,
+            Runnable onHistory) {
+        ImGui.pushID(index);
+
+        float[] station = {draft.station};
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        ImGui.sliderFloat(
+            PlotI18n.tr("plugin.road.vertical_alignment_station") + "##station",
+            station,
+            0,
+            roadLength,
+            "%.1fm");
+        if (ImGui.isItemActivated() && onHistory != null) {
+            onHistory.run();
+        }
+        draft.station = station[0];
+
+        float[] elevation = {(float) draft.elevation};
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        ImGui.dragFloat(
+            PlotI18n.tr("plugin.road.vertical_alignment_elevation") + "##elevation",
+            elevation,
+            0.5f,
+            -64f,
+            320f,
+            "%.1f");
+        if (ImGui.isItemActivated() && onHistory != null) {
+            onHistory.run();
+        }
+        draft.elevation = elevation[0];
+
+        boolean middlePvi = index > 0 && index < total - 1;
+        if (middlePvi) {
+            float[] curveLength = {draft.curveLength};
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            ImGui.sliderFloat(
+                PlotI18n.tr("plugin.road.vertical_alignment_curve_length") + "##curve",
+                curveLength,
+                0,
+                Math.max(10f, roadLength / 2f),
+                "%.1fm");
+            if (ImGui.isItemActivated() && onHistory != null) {
+                onHistory.run();
+            }
+            draft.curveLength = Math.max(0f, curveLength[0]);
+        }
+
+        String validation = validateDraft(draft, drafts, index, roadLength);
+        if (validation != null) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.INVALID, validation);
+        } else {
+            PointOfVerticalIntersection pvi = draft.toPvi(middlePvi);
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                chainageDisplay != null
+                    ? VerticalAlignmentGeometry.describePvi(pvi, index, total, chainageDisplay)
+                    : VerticalAlignmentGeometry.describePvi(pvi, index, total, RoadStationFormat.KILOMETER_PLUS));
+            if (middlePvi && draft.curveLength > 0f) {
+                String curve = chainageDisplay != null
+                    ? VerticalAlignmentGeometry.describeCurveAtPvi(
+                        buildSortedPvis(drafts), index, chainageDisplay)
+                    : VerticalAlignmentGeometry.describeCurveAtPvi(
+                        buildSortedPvis(drafts), index, RoadStationFormat.KILOMETER_PLUS);
+                if (!curve.isBlank()) {
+                    RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
+                }
+            }
+        }
+
+        ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, PluginUiColors.DELETE_HOVER);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, PluginUiColors.DELETE_ACTIVE);
+        if (ImGui.button(PlotI18n.tr("plugin.road.delete") + "##va_delete")) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            drafts.remove(index);
+            applyDraftsIfChanged(road);
+            ImGui.popStyleColor(3);
+            ImGui.popID();
+            return;
+        }
+        ImGui.popStyleColor(3);
+
+        ImGui.popID();
+    }
+
+    private void applyDraftsIfChanged(Road road) {
+        if (road == null) {
+            return;
+        }
+        List<PointOfVerticalIntersection> built = buildPvis(drafts);
+        List<PointOfVerticalIntersection> current = road.getVerticalAlignment() != null
+            ? road.getVerticalAlignment().sortedPvis()
+            : List.of();
+        if (pvisEqual(current, built)) {
+            return;
+        }
+        road.setVerticalAlignment(built.isEmpty() ? null : new RoadVerticalAlignment(built));
+    }
+
+    private void syncDrafts(Road road) {
+        if (Objects.equals(syncedRoadId, road.getId())) {
+            return;
+        }
+        syncedRoadId = road.getId();
+        drafts.clear();
+        RoadVerticalAlignment alignment = road.getVerticalAlignment();
+        if (alignment == null) {
+            return;
+        }
+        List<PointOfVerticalIntersection> pvis = alignment.sortedPvis();
+        if (pvis.isEmpty() && !alignment.isEmpty()) {
+            pvis = alignment.getPvis();
+        }
+        for (int i = 0; i < pvis.size(); i++) {
+            drafts.add(PviDraft.from(pvis.get(i), i, pvis.size()));
+        }
+    }
+
+    static List<PointOfVerticalIntersection> buildPvis(List<PviDraft> drafts) {
+        List<PviDraft> valid = new ArrayList<>();
+        for (int i = 0; i < drafts.size(); i++) {
+            PviDraft draft = drafts.get(i);
+            if (!isStructurallyValid(draft, drafts, i)) {
+                continue;
+            }
+            valid.add(draft);
+        }
+        valid.sort(Comparator.comparingDouble(d -> d.station));
+        List<PointOfVerticalIntersection> pvis = new ArrayList<>();
+        for (int i = 0; i < valid.size(); i++) {
+            boolean middle = i > 0 && i < valid.size() - 1;
+            try {
+                pvis.add(valid.get(i).toPvi(middle));
+            } catch (IllegalArgumentException ignored) {
+                // Skip until user fixes invalid values.
+            }
+        }
+        return pvis;
+    }
+
+    static boolean pvisEqual(List<PointOfVerticalIntersection> left, List<PointOfVerticalIntersection> right) {
+        if (left.size() != right.size()) {
+            return false;
+        }
+        for (int i = 0; i < left.size(); i++) {
+            PointOfVerticalIntersection a = left.get(i);
+            PointOfVerticalIntersection b = right.get(i);
+            if (Double.compare(a.getStation(), b.getStation()) != 0
+                || Double.compare(a.getElevation(), b.getElevation()) != 0) {
+                return false;
+            }
+            Double curveA = a.getCurveLength();
+            Double curveB = b.getCurveLength();
+            if (curveA == null && curveB == null) {
+                continue;
+            }
+            if (curveA == null || curveB == null
+                || Double.compare(curveA, curveB) != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String validateDraft(PviDraft draft, List<PviDraft> all, int index, float roadLength) {
+        if (draft.station < 0.0f || draft.station > roadLength + 1e-6f) {
+            return PlotI18n.tr("plugin.road.vertical_alignment_station_invalid");
+        }
+        for (int i = 0; i < all.size(); i++) {
+            if (i != index && Math.abs(all.get(i).station - draft.station) < 1e-6f) {
+                return PlotI18n.tr("plugin.road.vertical_alignment_duplicate");
+            }
+        }
+        return null;
+    }
+
+    private static boolean isStructurallyValid(PviDraft draft, List<PviDraft> all, int index) {
+        if (draft.station < 0.0f) {
+            return false;
+        }
+        for (int i = 0; i < index; i++) {
+            if (Math.abs(all.get(i).station - draft.station) < 1e-6f) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<PointOfVerticalIntersection> buildSortedPvis(List<PviDraft> drafts) {
+        List<PviDraft> sorted = new ArrayList<>(drafts);
+        sorted.sort(Comparator.comparingDouble(d -> d.station));
+        List<PointOfVerticalIntersection> pvis = new ArrayList<>();
+        for (int i = 0; i < sorted.size(); i++) {
+            boolean middle = i > 0 && i < sorted.size() - 1;
+            pvis.add(sorted.get(i).toPvi(middle));
+        }
+        return pvis;
+    }
+
+    static final class PviDraft {
+        float station;
+        float elevation;
+        float curveLength;
+
+        static PviDraft from(PointOfVerticalIntersection pvi, int index, int total) {
+            PviDraft draft = new PviDraft();
+            draft.station = (float) pvi.getStation();
+            draft.elevation = (float) pvi.getElevation();
+            boolean middle = index > 0 && index < total - 1;
+            draft.curveLength = middle && pvi.hasCurve() ? pvi.getCurveLength().floatValue() : 0f;
+            return draft;
+        }
+
+        static PviDraft defaultEntry(List<PviDraft> existing, double roadLength) {
+            PviDraft draft = new PviDraft();
+            if (existing.isEmpty()) {
+                draft.station = 0f;
+                draft.elevation = 64f;
+            } else if (existing.size() == 1) {
+                draft.station = (float) roadLength;
+                draft.elevation = existing.getFirst().elevation;
+            } else {
+                float maxStation = 0f;
+                for (PviDraft entry : existing) {
+                    maxStation = Math.max(maxStation, entry.station);
+                }
+                draft.station = Math.min((float) roadLength, maxStation + 10f);
+                draft.elevation = 64f;
+            }
+            draft.curveLength = 0f;
+            return draft;
+        }
+
+        PointOfVerticalIntersection toPvi(boolean allowCurve) {
+            if (allowCurve && curveLength > 0f) {
+                return PointOfVerticalIntersection.withCurve(station, elevation, curveLength);
+            }
+            return PointOfVerticalIntersection.of(station, elevation);
+        }
+    }
+}
