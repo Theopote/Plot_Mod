@@ -2,7 +2,6 @@ package com.plot.plugin.road.pipeline.profile;
 
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.station.EdgeChainageMapper;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -28,6 +27,30 @@ public final class VerticalAlignmentProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             ProfileSolveSupport support) {
+        return solveForEdge(
+            alignment,
+            segmentStartChainage,
+            edgeLength,
+            segments,
+            terrain,
+            halfWidth,
+            manualStartHeight,
+            manualEndHeight,
+            support,
+            true);
+    }
+
+    public static ProfileSolveResult solveForEdge(
+            RoadVerticalAlignment alignment,
+            double segmentStartChainage,
+            double edgeLength,
+            List<PathSegment> segments,
+            TerrainSampler terrain,
+            double halfWidth,
+            Integer manualStartHeight,
+            Integer manualEndHeight,
+            ProfileSolveSupport support,
+            boolean flowsWithGeometry) {
         if (segments.isEmpty() || !VerticalAlignmentGeometry.isEvaluable(alignment)) {
             return ProfileSolveResult.empty();
         }
@@ -39,7 +62,8 @@ public final class VerticalAlignmentProfileSolver {
             alignment,
             segmentStartChainage,
             edgeLength,
-            sampledPathLength);
+            sampledPathLength,
+            flowsWithGeometry);
 
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(
@@ -106,11 +130,7 @@ public final class VerticalAlignmentProfileSolver {
             double localDistance = i < sampleData.cumulativeDistances().size()
                 ? sampleData.cumulativeDistances().get(i)
                 : sampledPathLength;
-            double chainage = EdgeChainageMapper.toChainage(
-                segmentStartChainage,
-                localDistance,
-                sampledPathLength,
-                edgeLength);
+            double chainage = designElevation.mapLocalToChainage(localDistance);
             int target = designElevation.elevationAtChainage(chainage);
             if (i == 0 && manualStartHeight != null) {
                 target = manualStartHeight;

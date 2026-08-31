@@ -20,14 +20,23 @@ public record DesignElevationSource(
         RoadVerticalAlignment alignment,
         double segmentStartChainage,
         double edgeLength,
-        double sampledPathLength) {
+        double sampledPathLength,
+        boolean flowsWithGeometry) {
+
+    public DesignElevationSource(
+            RoadVerticalAlignment alignment,
+            double segmentStartChainage,
+            double edgeLength,
+            double sampledPathLength) {
+        this(alignment, segmentStartChainage, edgeLength, sampledPathLength, true);
+    }
 
     public boolean isActive() {
         return alignment != null && VerticalAlignmentGeometry.isEvaluable(alignment);
     }
 
     public static DesignElevationSource inactive() {
-        return new DesignElevationSource(null, 0.0, 0.0, 0.0);
+        return new DesignElevationSource(null, 0.0, 0.0, 0.0, true);
     }
 
     public static DesignElevationSource forEdge(
@@ -53,13 +62,17 @@ public record DesignElevationSource(
             road.getVerticalAlignment(),
             segmentStart,
             edge.getLength(),
-            ProfileGroundSampler.sampledPathLength(segments));
+            ProfileGroundSampler.sampledPathLength(segments),
+            RoadStationing.segmentFlowsWithGeometry(network, road, edge.getId()));
     }
 
     public double mapLocalToChainage(double localCanvasDistance) {
+        double chainLocal = flowsWithGeometry
+            ? localCanvasDistance
+            : edgeLength - localCanvasDistance;
         return EdgeChainageMapper.toChainage(
             segmentStartChainage,
-            localCanvasDistance,
+            chainLocal,
             sampledPathLength,
             edgeLength);
     }

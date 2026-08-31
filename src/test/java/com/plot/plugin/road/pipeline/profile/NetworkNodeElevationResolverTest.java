@@ -3,8 +3,10 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NetworkNodeElevationResolverTest {
@@ -34,11 +37,33 @@ class NetworkNodeElevationResolverTest {
     @Test
     void endpointHeightMatchesVerticalAlignmentAtNode() {
         RoadNetwork network = buildTwoSegmentRoad();
-        var edge = network.getEdges().values().iterator().next();
-        RoadNode start = network.getNode(edge.getStartNodeId());
+        RoadEdge firstEdge = network.getEdge(
+            RoadStationing.orderedSegments(network, network.getRoad("design")).getFirst());
+        RoadNode start = network.getNode(firstEdge.getStartNodeId());
 
-        assertTrue(VerticalAlignmentEndpointHeight.atNode(network, edge, start).isPresent());
-        assertEquals(80, VerticalAlignmentEndpointHeight.atNode(network, edge, start).getAsInt());
+        assertTrue(VerticalAlignmentEndpointHeight.atNode(network, firstEdge, start).isPresent());
+        assertEquals(80, VerticalAlignmentEndpointHeight.atNode(network, firstEdge, start).getAsInt());
+    }
+
+    @Test
+    void endpointHeightRespectsSegmentChainDirection() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("design");
+        road.setVerticalAlignment(new RoadVerticalAlignment(java.util.List.of(
+            PointOfVerticalIntersection.of(0.0, 80.0),
+            PointOfVerticalIntersection.of(100.0, 100.0)
+        )));
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(50, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), java.util.List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
+        RoadEdge reversedTail = network.createEdge(
+            n3.getId(), n2.getId(), java.util.List.of(new Vec2d(100, 0), new Vec2d(50, 0)), road.getId());
+
+        assertFalse(RoadStationing.segmentFlowsWithGeometry(network, road, reversedTail.getId()));
+        RoadNode junction = network.getNode(n2.getId());
+        assertEquals(90, VerticalAlignmentEndpointHeight.atNode(network, reversedTail, junction).getAsInt());
     }
 
     private static NetworkNodeElevationResolver createResolver() {

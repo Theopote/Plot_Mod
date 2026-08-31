@@ -63,11 +63,13 @@ public final class VerticalAlignmentProfileOverlay {
             if (sample.station() < segmentStart - 1e-6 || sample.station() > segmentEnd + 1e-6) {
                 continue;
             }
-            localDistances.add(sample.station() - segmentStart);
+            double chainLocal = sample.station() - segmentStart;
+            double geometryLocal = RoadStationing.geometryLocalFromChainLocal(network, road, edge, chainLocal);
+            localDistances.add(geometryLocal);
             localHeights.add((int) Math.round(sample.elevation()));
         }
-        appendEndpointIfMissing(localDistances, localHeights, 0.0, alignment, segmentStart);
-        appendEndpointIfMissing(localDistances, localHeights, edgeLength, alignment, segmentStart);
+        appendEndpointIfMissing(network, road, edge, localDistances, localHeights, 0.0, alignment, segmentStart);
+        appendEndpointIfMissing(network, road, edge, localDistances, localHeights, edgeLength, alignment, segmentStart);
         if (localDistances.size() < 2) {
             return Optional.empty();
         }
@@ -75,18 +77,23 @@ public final class VerticalAlignmentProfileOverlay {
     }
 
     private static void appendEndpointIfMissing(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
             List<Double> distances,
             List<Integer> heights,
-            double localDistance,
+            double geometryLocalDistance,
             RoadVerticalAlignment alignment,
             double segmentStart) {
-        if (distances.stream().anyMatch(distance -> Math.abs(distance - localDistance) < 1e-6)) {
+        if (distances.stream().anyMatch(distance -> Math.abs(distance - geometryLocalDistance) < 1e-6)) {
             return;
         }
-        double chainage = segmentStart + localDistance;
+        double chainLocal = RoadStationing.chainLocalFromGeometryLocal(
+            network, road, edge, geometryLocalDistance);
+        double chainage = segmentStart + chainLocal;
         int height = (int) Math.round(VerticalAlignmentGeometry.elevationAt(alignment, chainage)
             .orElse(heights.isEmpty() ? 64.0 : heights.getLast()));
-        distances.add(localDistance);
+        distances.add(geometryLocalDistance);
         heights.add(height);
         List<Integer> indices = new ArrayList<>();
         for (int i = 0; i < distances.size(); i++) {

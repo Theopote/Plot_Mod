@@ -130,4 +130,27 @@ class RoadStationingTest {
         assertTrue(end.isPresent());
         assertEquals(10.0, end.get().localDistance(), 1e-6);
     }
+
+    @Test
+    void reversedSegmentGeometryUsesChainDirectionForStationLookup() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-a");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(30, 0));
+        RoadEdge head = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        RoadEdge tail = network.createEdge(
+            n3.getId(), n2.getId(), List.of(new Vec2d(30, 0), new Vec2d(10, 0)), road.getId());
+
+        assertFalse(RoadStationing.segmentFlowsWithGeometry(network, road, tail.getId()));
+        assertEquals(25.0, RoadStationing.stationAt(network, road, tail.getId(), 5.0).get().chainageMeters(), 1e-6);
+
+        Optional<SegmentStation> resolved = RoadStationing.resolve(network, road, 15.0);
+        assertTrue(resolved.isPresent());
+        assertEquals(tail.getId(), resolved.get().segmentId());
+        assertEquals(15.0, resolved.get().localDistance(), 1e-6);
+
+        assertEquals(0.0, RoadStationing.segmentStartStation(network, road, head.getId()), 1e-6);
+    }
 }

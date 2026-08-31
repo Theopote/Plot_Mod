@@ -66,7 +66,8 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
           halfWidth,
           manualStartHeight,
           manualEndHeight,
-          profileSupport);
+          profileSupport,
+          RoadStationing.segmentFlowsWithGeometry(network, road, edge.getId()));
     }
     return RoadProfileSolver.solveForEdge(
         segments,
