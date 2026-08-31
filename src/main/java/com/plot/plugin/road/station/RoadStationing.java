@@ -1,7 +1,7 @@
 package com.plot.plugin.road.station;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -89,14 +89,30 @@ public final class RoadStationing {
     }
 
     public static double totalLength(RoadNetwork network, Road road) {
-        if (network == null || road == null) {
-            return 0.0;
+        return RoadPlanGeometry.instanceChainLength(network, road);
+    }
+
+    public static Optional<String> chainEntryNodeId(RoadNetwork network, Road road) {
+        List<OrientedRoadSegment> segments = orientedSegments(network, road);
+        if (segments.isEmpty()) {
+            return Optional.empty();
         }
-        double total = 0.0;
-        for (OrientedRoadSegment segment : orientedSegments(network, road)) {
-            total += segment.length();
+        return Optional.of(segments.getFirst().entryNodeId());
+    }
+
+    public static Optional<String> chainExitNodeId(RoadNetwork network, Road road) {
+        List<OrientedRoadSegment> segments = orientedSegments(network, road);
+        if (segments.isEmpty()) {
+            return Optional.empty();
         }
-        return total;
+        return Optional.of(segments.getLast().exitNodeId());
+    }
+
+    /**
+     * 道路平面设计长度；有平面线形时取线形总长，否则与 {@link #totalLength} 相同。
+     */
+    public static double planLength(RoadNetwork network, Road road) {
+        return RoadPlanGeometry.planLength(network, road);
     }
 
     /**
@@ -213,20 +229,17 @@ public final class RoadStationing {
     }
 
     /**
-     * 道路桩号处折线中心线平面坐标（实例几何 {@link RoadGeometryAuthority#INSTANCE_CENTERLINE}）。
+     * 道路桩号处平面坐标；有设计平面线形时读 {@link RoadPlanGeometry}，否则读实例折线。
      */
     public static Optional<Vec2d> pointAtStation(RoadNetwork network, Road road, double chainageMeters) {
-        return edgeLocalDistanceAtRoadStation(network, road, chainageMeters)
-            .flatMap(segment -> {
-                RoadEdge edge = network.getEdge(segment.segmentId());
-                if (edge == null) {
-                    return Optional.empty();
-                }
-                Vec2d point = RoadGeometryUtils.pointAtDistance(
-                    edge.getCenterlinePoints(),
-                    segment.localDistance());
-                return point != null ? Optional.of(point) : Optional.empty();
-            });
+        return RoadPlanGeometry.pointAtStation(network, road, chainageMeters);
+    }
+
+    /**
+     * 道路桩号处实例折线平面坐标（忽略设计线形）。
+     */
+    public static Optional<Vec2d> instancePointAtStation(RoadNetwork network, Road road, double chainageMeters) {
+        return RoadPlanGeometry.instancePointAtStation(network, road, chainageMeters);
     }
 
     public static double segmentStartStation(RoadNetwork network, Road road, String segmentId) {

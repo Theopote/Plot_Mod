@@ -30,7 +30,7 @@ public final class HorizontalAlignmentChainOriginAligner {
         }
 
         Optional<Vec2d> chainOrigin = RoadStationing.chainOrigin(network, road);
-        Optional<Vec2d> centerlineStart = RoadStationing.pointAtStation(network, road, 0.0);
+        Optional<Vec2d> centerlineStart = RoadPlanGeometry.instancePointAtStation(network, road, 0.0);
         if (chainOrigin.isEmpty() || centerlineStart.isEmpty()) {
             return false;
         }

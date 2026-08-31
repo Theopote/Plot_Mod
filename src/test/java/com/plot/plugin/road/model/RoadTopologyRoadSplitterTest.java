@@ -4,12 +4,20 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadNetworkBuilder;
+import com.plot.plugin.road.model.facility.RoadFacilityKind;
+import com.plot.plugin.road.model.facility.RoadFacilitySide;
+import com.plot.plugin.road.model.facility.RoadStationFacilities;
+import com.plot.plugin.road.model.facility.StationFacilityRun;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadTopologyRoadSplitterTest {
@@ -99,5 +107,75 @@ class RoadTopologyRoadSplitterTest {
         assertEquals(0, result.newRoadsCreated());
         assertEquals(roadsBefore, network.getRoads().size());
         assertTrue(RoadTopologyInvariantValidator.validate(network).isEmpty());
+    }
+
+    @Test
+    void repairsDisconnectedComponentsPreservesStationFacilitiesOnFirstChain() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-split");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        RoadNode n4 = network.createNode(new Vec2d(110, 0));
+        String edgeNear = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId()).getId();
+        network.createEdge(
+            n3.getId(), n4.getId(), List.of(new Vec2d(100, 0), new Vec2d(110, 0)), road.getId());
+
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(2.0, 8.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        )));
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        Road keptRoad = network.getRoad(road.getId());
+        assertNotNull(keptRoad.getStationFacilities());
+        assertEquals(1, keptRoad.getStationFacilities().runCount());
+        assertEquals(2.0, keptRoad.getStationFacilities().sortedRuns().getFirst().getStartStation(), 1e-6);
+
+        Road farRoad = network.getRoads().values().stream()
+            .filter(candidate -> candidate != keptRoad)
+            .findFirst()
+            .orElseThrow();
+        assertNull(farRoad.getStationFacilities());
+        assertEquals(edgeNear, RoadSegmentOrdering.orderedSegmentIds(network, keptRoad).getFirst());
+    }
+
+    @Test
+    void splitsBranchingRoadPreservesStationDataOnBranch() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("road-fork");
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(10, 0));
+        RoadNode c = network.createNode(new Vec2d(20, 0));
+        RoadNode d = network.createNode(new Vec2d(10, 10));
+        network.createEdge(a.getId(), b.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
+        String edgeBc = network.createEdge(
+            b.getId(), c.getId(), List.of(new Vec2d(10, 0), new Vec2d(20, 0)), road.getId()).getId();
+        network.createEdge(b.getId(), d.getId(), List.of(new Vec2d(10, 0), new Vec2d(10, 10)), road.getId());
+
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(10.0, 10.0),
+            PointOfVerticalIntersection.of(20.0, 12.0)
+        )));
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(12.0, 18.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.RIGHT)
+        )));
+
+        RoadTopologyRoadSplitter.repairAfterAdopt(network);
+
+        Road branchRoad = network.getRoads().values().stream()
+            .filter(candidate -> candidate.getOrderedSegmentIds().contains(edgeBc))
+            .findFirst()
+            .orElseThrow();
+
+        assertNotNull(branchRoad.getStationFacilities());
+        StationFacilityRun run = branchRoad.getStationFacilities().sortedRuns().getFirst();
+        assertEquals(2.0, run.getStartStation(), 1e-6);
+        assertEquals(8.0, run.getEndStation(), 1e-6);
+        assertNotNull(branchRoad.getVerticalAlignment());
+        assertEquals(2, branchRoad.getVerticalAlignment().sortedPvis().size());
+        assertEquals(0.0, branchRoad.getVerticalAlignment().sortedPvis().getFirst().getStation(), 1e-6);
+        assertEquals(10.0, branchRoad.getVerticalAlignment().sortedPvis().getLast().getStation(), 1e-6);
     }
 }

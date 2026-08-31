@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -91,7 +92,8 @@ public final class NetworkNodeElevationResolver {
             if (startNode == null || endNode == null) {
                 continue;
             }
-            List<PathSegment> segments = context.samplePath(edge.getCenterlinePoints());
+            List<PathSegment> segments = context.samplePath(
+                RoadPlanGeometry.resolveEdgeCenterline(network, edge));
             if (segments.isEmpty()) {
                 continue;
             }

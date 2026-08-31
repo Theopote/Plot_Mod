@@ -41,6 +41,8 @@ Accepted — 2026-08-30
 
 当前几何仍以 **polyline centerline** 为主；A/B 是逐步替换/增强 centerline 的语义层。
 
+> **Superseded（平面）**：[ADR 0007](0007-road-design-derived-topology-geometry.md) — 有 `RoadHorizontalAlignment` 时设计层为平面权威；`RoadEdge.centerlinePoints` 降为派生缓存。纵断面仍以 Phase 2.3 演进为准。
+
 ### 3. 推荐实施顺序
 
 | 阶段 | 内容 | 理由 |

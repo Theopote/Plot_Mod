@@ -22,6 +22,8 @@ import com.plot.plugin.road.model.VariableCrossSectionPersistence.VariableCrossS
 import com.plot.plugin.road.model.StationFacilityPersistence;
 import com.plot.plugin.road.model.StationFacilityPersistence.StationFacilitiesData;
 import com.plot.plugin.road.manager.RoadNetworkManager;
+import com.plot.plugin.road.station.RoadStationDataTransforms;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.model.section.BikeLane;
 import com.plot.plugin.road.model.section.Drain;
 import com.plot.plugin.road.model.section.Lane;
@@ -48,6 +50,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -362,14 +365,81 @@ public class RoadNetwork {
         }
         List<String> headIds = new ArrayList<>(segmentIds.subList(0, index));
         List<String> tailIds = new ArrayList<>(segmentIds.subList(index, segmentIds.size()));
+        double splitStation = RoadStationing.segmentStartStation(this, road, segmentEdgeId);
         Road newRoad = createRoad();
         newRoad.copyEngineeringFrom(road);
+        if (splitStation >= 0.0) {
+            RoadStationDataTransforms.applyRoadSplit(this, road, newRoad, splitStation);
+        }
         for (String segmentId : tailIds) {
             assignEdgeToRoad(segmentId, newRoad.getId());
         }
         road.reorderSegments(headIds);
         newRoad.reorderSegments(tailIds);
         return newRoad.getId();
+    }
+
+    /**
+     * 在链端点将 {@code tailRoadId} 并入 {@code headRoadId}：保留 head 的 id，删除 tail。
+     * 支持 tail 接在 head 之后，或接在 head 之前。
+     *
+     * @return 合并后的 road id（即 head）；无法合并时 null
+     */
+    public String mergeRoadTailIntoHead(String headRoadId, String tailRoadId) {
+        if (headRoadId == null || tailRoadId == null || headRoadId.equals(tailRoadId)) {
+            return null;
+        }
+        Road head = roads.get(headRoadId);
+        Road tail = roads.get(tailRoadId);
+        if (head == null || tail == null) {
+            return null;
+        }
+
+        List<String> headSegments = new ArrayList<>(RoadSegmentOrdering.orderedSegmentIds(this, head));
+        List<String> tailSegments = new ArrayList<>(RoadSegmentOrdering.orderedSegmentIds(this, tail));
+        if (headSegments.isEmpty() || tailSegments.isEmpty()) {
+            return null;
+        }
+
+        Optional<String> headExit = RoadStationing.chainExitNodeId(this, head);
+        Optional<String> tailEntry = RoadStationing.chainEntryNodeId(this, tail);
+        Optional<String> headEntry = RoadStationing.chainEntryNodeId(this, head);
+        Optional<String> tailExit = RoadStationing.chainExitNodeId(this, tail);
+
+        boolean appendTail = headExit.isPresent() && headExit.equals(tailEntry);
+        boolean prependTail = headEntry.isPresent() && headEntry.equals(tailExit);
+        if (!appendTail && !prependTail) {
+            return null;
+        }
+
+        if (appendTail) {
+            RoadStationDataTransforms.applyRoadMerge(this, head, tail);
+            List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
+            mergedSegments.addAll(headSegments);
+            mergedSegments.addAll(tailSegments);
+            for (String segmentId : tailSegments) {
+                assignEdgeToRoad(segmentId, headRoadId);
+            }
+            head.reorderSegments(mergedSegments);
+        } else {
+            double tailLength = RoadStationing.totalLength(this, tail);
+            double headLength = RoadStationing.totalLength(this, head);
+            boolean refit = RoadStationDataTransforms.applyRoadMerge(head, tail, head, tailLength, headLength);
+            List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());
+            mergedSegments.addAll(tailSegments);
+            mergedSegments.addAll(headSegments);
+            for (String segmentId : tailSegments) {
+                assignEdgeToRoad(segmentId, headRoadId);
+            }
+            head.reorderSegments(mergedSegments);
+            if (refit) {
+                RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(this, head);
+            }
+        }
+
+        roads.remove(tailRoadId);
+        RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(this, head);
+        return headRoadId;
     }
 
     /**

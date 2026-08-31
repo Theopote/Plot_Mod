@@ -67,7 +67,7 @@ public final class HorizontalAlignmentCenterlineConsistency {
         }
 
         RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
-        double roadLength = RoadStationing.totalLength(network, road);
+        double roadLength = RoadPlanGeometry.instanceChainLength(network, road);
         double alignmentLength = HorizontalAlignmentGeometry.totalLength(alignment);
         boolean lengthMatches = Math.abs(alignmentLength - roadLength) <= lengthToleranceMeters;
 
@@ -82,7 +82,7 @@ public final class HorizontalAlignmentCenterlineConsistency {
 
         for (double chainage = 0.0; chainage <= roadLength + 1e-6; chainage += spacing) {
             double clamped = Math.min(chainage, roadLength);
-            Optional<Vec2d> centerlinePoint = RoadStationing.pointAtStation(network, road, clamped);
+            Optional<Vec2d> centerlinePoint = RoadPlanGeometry.instancePointAtStation(network, road, clamped);
             Optional<AlignmentPose> designPose = HorizontalAlignmentGeometry.poseAt(alignment, clamped);
             if (centerlinePoint.isEmpty() || designPose.isEmpty()) {
                 continue;

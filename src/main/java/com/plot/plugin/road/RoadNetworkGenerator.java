@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
@@ -68,6 +69,12 @@ public class RoadNetworkGenerator {
         }
 
         TerrainSampler terrain = roadGenerator.createTerrainSampler(world);
+        int synchronizedRoads = DerivedCenterlineSynchronizer.synchronizeAll(
+            network,
+            roadGenerator.getConfig().getPathSampleDistance());
+        if (synchronizedRoads > 0) {
+            LOGGER.debug("生成前已同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
+        }
         // 第一遍：决议全网节点统一标高，消除路口台阶
         Map<String, Integer> nodeElevations =
             roadGenerator.resolveNetworkNodeElevations(network, terrain);

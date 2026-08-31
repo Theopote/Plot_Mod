@@ -4,9 +4,11 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildOrchestrator;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineHost;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -77,8 +79,23 @@ public class RoadGenerator {
             RoadNode endNode,
             TerrainSampler terrain,
             Map<String, Integer> networkNodeElevations) {
+        synchronizeDerivedCenterline(network, edge);
         return edgeBuild.generateEdge(
             network, edge, startNode, endNode, terrain, networkNodeElevations, pipelineHost);
+    }
+
+    private void synchronizeDerivedCenterline(RoadNetwork network, RoadEdge edge) {
+        if (network == null || edge == null || edge.getRoadId() == null) {
+            return;
+        }
+        Road road = network.getRoad(edge.getRoadId());
+        if (road == null) {
+            return;
+        }
+        DerivedCenterlineSynchronizer.synchronizeRoad(
+            network,
+            road,
+            pipelineHost.config().getPathSampleDistance());
     }
 
     /**

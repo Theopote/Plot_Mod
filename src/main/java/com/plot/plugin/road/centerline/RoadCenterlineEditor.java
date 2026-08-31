@@ -2,6 +2,7 @@ package com.plot.plugin.road.centerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.CenterlineHorizontalAlignmentSync;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
 import com.plot.plugin.road.alignment.HorizontalAlignmentElementType;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
@@ -52,7 +53,7 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_DISTANCE);
         }
         edge.setCenterlinePoints(updated.get());
-        return CenterlineEditResult.success();
+        return finishEdit(network, edgeId, CenterlineEditResult.success());
     }
 
     public static CenterlineEditResult insertPiAtRoadStation(
@@ -87,7 +88,10 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.SPLIT_FAILED);
         }
         RoadGraphEdits.SplitResult result = split.get();
-        return CenterlineEditResult.split(result.firstEdgeId(), result.secondEdgeId(), result.nodeId());
+        return finishEdit(
+            network,
+            edgeId,
+            CenterlineEditResult.split(result.firstEdgeId(), result.secondEdgeId(), result.nodeId()));
     }
 
     public static CenterlineEditResult splitAtRoadStation(
@@ -125,7 +129,7 @@ public final class RoadCenterlineEditor {
             return CenterlineEditResult.failure(CenterlineEditStatus.INVALID_RADIUS);
         }
         edge.setCenterlinePoints(filleted);
-        return CenterlineEditResult.success();
+        return finishEdit(network, edgeId, CenterlineEditResult.success());
     }
 
     public static CenterlineEditResult mergeThroughNode(RoadNetwork network, String nodeId) {
@@ -136,7 +140,7 @@ public final class RoadCenterlineEditor {
         if (merged.isEmpty()) {
             return CenterlineEditResult.failure(CenterlineEditStatus.MERGE_FAILED);
         }
-        return CenterlineEditResult.merged(merged.get());
+        return finishEdit(network, merged.get(), CenterlineEditResult.merged(merged.get()));
     }
 
     public static CenterlineEditResult reverseEdge(RoadNetwork network, String edgeId) {
@@ -319,5 +323,15 @@ public final class RoadCenterlineEditor {
             angle -= 2.0 * Math.PI;
         }
         return angle;
+    }
+
+    private static CenterlineEditResult finishEdit(
+            RoadNetwork network,
+            String edgeId,
+            CenterlineEditResult result) {
+        if (result.isSuccess()) {
+            CenterlineHorizontalAlignmentSync.syncAfterCenterlineEdit(network, edgeId);
+        }
+        return result;
     }
 }

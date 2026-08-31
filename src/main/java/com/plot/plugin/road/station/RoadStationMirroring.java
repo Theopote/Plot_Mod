@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.facility.RoadFacilitySide;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
 import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadCrossSectionEngineeringEquality;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 
@@ -347,12 +348,7 @@ public final class RoadStationMirroring {
     }
 
     private static boolean crossSectionEquivalent(RoadCrossSection left, RoadCrossSection right) {
-        if (left == null || right == null) {
-            return false;
-        }
-        Integer leftWidth = left.getCarriageway().getWidth();
-        Integer rightWidth = right.getCarriageway().getWidth();
-        return leftWidth != null && leftWidth.equals(rightWidth);
+        return RoadCrossSectionEngineeringEquality.equals(left, right);
     }
 
     private record Interval(double start, double end, RoadCrossSection template) {

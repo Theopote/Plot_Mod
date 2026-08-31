@@ -22,12 +22,11 @@
 | CIRCULAR_ARC | `length`, `radius`（正）, `direction` LEFT/RIGHT |
 | SPIRAL | `length`, `spiralParameterA`（clothoid A；κ(s)=κ₀+s/A²） |
 
-### 不包含
+### 不包含（v1 范围外 / 后续）
 
-- 中心线编辑工具（Phase 2.4）
-- 从 polyline 自动拟合线形
-- 线形驱动 `RoadEdge` 几何替换（仍用现有 centerline）
-- 竖曲线
+- 中心线编辑工具完整 UX（Phase 2.4；基础 PI/Fillet 已有）
+- Spiral / fillet 圆弧的精确反算拟合（v1 为 T-A-T PI 链近似）
+- 竖曲线（Phase 2.3）
 
 ## 验收标准
 
@@ -37,8 +36,13 @@
 - [x] 线形与 polyline 偏差检查（`HorizontalAlignmentCenterlineConsistency`）
 - [x] 线形写回中心线（`HorizontalAlignmentCenterlineMaterializer`）
 - [x] materialize 后 HA 原点对齐链起点（`HorizontalAlignmentChainOriginAligner`）
+- [x] 生成管线读取设计线形（`RoadPlanGeometry` → `RoadEdgeBuildOrchestrator`）
+- [x] 生成前自动 materialize 派生中心线（`DerivedCenterlineSynchronizer`）
+- [x] centerline 编辑后 refit / invalidate HA（`CenterlineHorizontalAlignmentSync`）
+- [x] `RoadStationing` 平面查询委托 `RoadPlanGeometry`
 
 ## References
 
 - [ADR 0006](../../decisions/0006-road-phase-2-direction.md)
+- [ADR 0007](../../decisions/0007-road-design-derived-topology-geometry.md) — 三层几何模型
 - [Phase 2.1 Stationing](RoadSystemPlugin_Phase2_Stationing_v1.md)

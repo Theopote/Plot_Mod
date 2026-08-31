@@ -2,6 +2,8 @@ package com.plot.plugin.road.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.RoadGeometryUtils;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -49,7 +51,10 @@ public final class RoadEdgeBuildOrchestrator {
             return new RoadGenerationResult(0);
         }
 
-        List<Vec2d> pathPoints = edge.getCenterlinePoints();
+        List<Vec2d> pathPoints = RoadPlanGeometry.resolveEdgeCenterline(
+            network,
+            edge,
+            host.config().getPathSampleDistance());
         if (pathPoints.size() < 2) {
             LOGGER.warn("道路中心线点数不足");
             return new RoadGenerationResult(0);
@@ -62,13 +67,14 @@ public final class RoadEdgeBuildOrchestrator {
             ProfileSolveResult heightCalculation = profileSolve.solveForEdge(
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
             DesignElevationSource designElevation = DesignElevationSource.forEdge(network, edge, segments);
+            double pathLength = RoadGeometryUtils.calculatePathLength(pathPoints);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
                 terrain,
                 crossSection,
                 crossSections,
                 heightCalculation.heightInfos(),
-                edge.getLength(),
+                pathLength,
                 resolveEndpointSnaps(
                     startNode,
                     endNode,

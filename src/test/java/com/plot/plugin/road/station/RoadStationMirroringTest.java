@@ -16,8 +16,37 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadStationMirroringTest {
+
+    @Test
+    void mirrorDoesNotMergeSameWidthDifferentEngineeringSections() {
+        RoadCrossSection base = sectionWithWidth(9);
+        base.getCarriageway().setLaneCount(2);
+        base.getSidewalk().setEnabled(true);
+
+        RoadCrossSection other = sectionWithWidth(9);
+        other.getCarriageway().setLaneCount(4);
+        other.getSidewalk().setEnabled(false);
+
+        RoadVariableCrossSections source = new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(40.0, other),
+            StationCrossSection.at(60.0, base)
+        ));
+
+        RoadVariableCrossSections mirrored = RoadStationMirroring.mirrorVariableCrossSections(
+            source, base, 100.0);
+
+        assertNotNull(mirrored);
+        assertTrue(mirrored.stationCount() >= 2);
+        List<StationCrossSection> stations = mirrored.sortedStations();
+        boolean hasFourLanes = stations.stream()
+            .anyMatch(station -> Integer.valueOf(4).equals(station.getCrossSection().getCarriageway().getLaneCount()));
+        boolean hasTwoLanes = stations.stream()
+            .anyMatch(station -> Integer.valueOf(2).equals(station.getCrossSection().getCarriageway().getLaneCount()));
+        assertTrue(hasFourLanes && hasTwoLanes);
+    }
 
     @Test
     void mirrorVariableCrossSectionSwapsStepRegions() {

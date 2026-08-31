@@ -1,5 +1,10 @@
 package com.plot.plugin.road.model;
 
+import com.plot.plugin.road.station.RoadStationDataTransforms;
+import com.plot.plugin.road.station.RoadStationDataTransforms.StationDataSnapshot;
+import com.plot.plugin.road.station.RoadStationDataTransforms.StationRange;
+import com.plot.plugin.road.station.RoadStationing;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -113,18 +118,7 @@ public final class RoadTopologyRoadSplitter {
             .reversed());
 
         Set<String> keepComponent = components.getFirst();
-        reassignComponent(network, road, keepComponent);
-
-        int branchIndex = 1;
-        int created = 0;
-        for (int i = 1; i < components.size(); i++) {
-            Road splitRoad = network.createRoad();
-            splitRoad.copyEngineeringFrom(road);
-            splitRoad.setTopologyMode(RoadTopologyMode.LINEAR);
-            applyBranchName(road, splitRoad, branchIndex++);
-            reassignComponent(network, splitRoad, components.get(i));
-            created++;
-        }
+        int created = distributeComponents(network, road, components, keepComponent, 1);
         return created;
     }
 
@@ -154,17 +148,76 @@ public final class RoadTopologyRoadSplitter {
             .thenComparing(chain -> -chainLength(network, chain))
             .reversed());
 
-        reassignComponent(network, road, chains.getFirst());
+        return distributeComponents(network, road, chains, chains.getFirst(), 1);
+    }
 
-        int branchIndex = 1;
+    /**
+     * 将 {@code components} 拆到多条 Road：首项保留在 {@code road}，其余新建。
+     *
+     * @return 新创建的 Road 数量
+     */
+    private static int distributeComponents(
+            RoadNetwork network,
+            Road road,
+            List<Set<String>> components,
+            Set<String> keepComponent,
+            int branchIndexStart) {
+        StationDataSnapshot snapshot = StationDataSnapshot.capture(road);
+        double totalLength = RoadStationing.totalLength(network, road);
+        boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
+
+        List<StationRange> ranges = new ArrayList<>(components.size());
+        for (Set<String> component : components) {
+            ranges.add(mapStationData
+                ? RoadStationDataTransforms.computeComponentStationRange(network, road, component)
+                : StationRange.invalid());
+        }
+
+        int keepIndex = components.indexOf(keepComponent);
+        if (keepIndex < 0) {
+            keepIndex = 0;
+        }
+        if (mapStationData) {
+            StationRange keepRange = ranges.get(keepIndex);
+            if (keepRange.isValid()) {
+                snapshot.applyRangeTo(road, totalLength, keepRange);
+            }
+            if (snapshot.hadHorizontalAlignment()) {
+                road.setHorizontalAlignment(null);
+            }
+        }
+        reassignComponent(network, road, components.get(keepIndex));
+
+        int branchIndex = branchIndexStart;
         int created = 0;
-        for (int i = 1; i < chains.size(); i++) {
+        List<Road> splitRoads = new ArrayList<>();
+        for (int i = 0; i < components.size(); i++) {
+            if (i == keepIndex) {
+                continue;
+            }
             Road splitRoad = network.createRoad();
             splitRoad.copyEngineeringFrom(road);
             splitRoad.setTopologyMode(RoadTopologyMode.LINEAR);
             applyBranchName(road, splitRoad, branchIndex++);
-            reassignComponent(network, splitRoad, chains.get(i));
+            if (mapStationData) {
+                StationRange range = ranges.get(i);
+                if (range.isValid()) {
+                    snapshot.applyRangeTo(splitRoad, totalLength, range);
+                }
+                if (snapshot.hadHorizontalAlignment()) {
+                    splitRoad.setHorizontalAlignment(null);
+                }
+            }
+            reassignComponent(network, splitRoad, components.get(i));
+            splitRoads.add(splitRoad);
             created++;
+        }
+
+        if (mapStationData && snapshot.hadHorizontalAlignment()) {
+            RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(network, road);
+            for (Road splitRoad : splitRoads) {
+                RoadStationDataTransforms.refitHorizontalAlignmentFromCenterline(network, splitRoad);
+            }
         }
         return created;
     }
