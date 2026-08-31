@@ -3,6 +3,7 @@ package com.plot.plugin.road.model.facility;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -142,6 +143,21 @@ public final class StationFacilityResolver {
         String end = run.getEndStation() != null
             ? RoadStationing.format(run.getEndStation(), format)
             : "END";
+        return describeRun(run, start, end);
+    }
+
+    public static String describe(StationFacilityRun run, ChainageDisplayContext display) {
+        if (run == null || display == null) {
+            return "";
+        }
+        String start = display.format(run.getStartStation());
+        String end = run.getEndStation() != null
+            ? display.format(run.getEndStation())
+            : display.format(display.totalLength());
+        return describeRun(run, start, end);
+    }
+
+    private static String describeRun(StationFacilityRun run, String start, String end) {
         StringBuilder line = new StringBuilder()
             .append(start)
             .append('-')

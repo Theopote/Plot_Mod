@@ -151,6 +151,54 @@ class RoadCenterlineEditorTest {
     }
 
     @Test
+    void reverseEdgeMirrorsStationDataForSingleSegmentRoad() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        road.setWidth(6);
+        road.getCrossSection().getCarriageway().setWidth(6);
+        RoadEdge edge = network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        )));
+
+        CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, edge.getId());
+
+        assertTrue(result.isSuccess());
+        StationFacilityRun mirrored = road.getStationFacilities().sortedRuns().getFirst();
+        assertEquals(70.0, mirrored.getStartStation(), 1e-6);
+        assertEquals(RoadFacilitySide.RIGHT, mirrored.getSide());
+    }
+
+    @Test
+    void reverseEdgeMirrorsOnlySelectedSegmentRange() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(50, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        road.setWidth(6);
+        road.getCrossSection().getCarriageway().setWidth(6);
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
+        RoadEdge tail = network.createEdge(
+            n2.getId(), n3.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT),
+            StationFacilityRun.of(60.0, 90.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        )));
+
+        CenterlineEditResult result = RoadCenterlineEditor.reverseEdge(network, tail.getId());
+        assertTrue(result.isSuccess());
+
+        List<StationFacilityRun> runs = road.getStationFacilities().sortedRuns();
+        assertEquals(10.0, runs.get(0).getStartStation(), 1e-6);
+        assertEquals(60.0, runs.get(1).getStartStation(), 1e-6);
+        assertEquals(RoadFacilitySide.RIGHT, runs.get(1).getSide());
+    }
+
+    @Test
     void mergeThroughDegreeTwoNode() {
         RoadNetwork network = new RoadNetwork();
         RoadNode n1 = network.createNode(new Vec2d(0, 0));

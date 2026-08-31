@@ -103,6 +103,13 @@ class RoadStationingTest {
     }
 
     @Test
+    void formatFromEndUsesEPrefix() {
+        assertEquals("EK0+000", RoadStationing.formatFromEnd(0.0, RoadStationFormat.KILOMETER_PLUS));
+        assertEquals("EK0+020", RoadStationing.formatFromEnd(20.0, RoadStationFormat.KILOMETER_PLUS));
+        assertEquals("EK0+100", RoadStationing.format(0.0, 100.0, RoadStationFormat.KILOMETER_PLUS, ChainageDisplayMode.FROM_END));
+    }
+
+    @Test
     void formatStationLabels() {
         assertEquals("K0+000", RoadStationing.format(0.0, RoadStationFormat.KILOMETER_PLUS));
         assertEquals("K0+020", RoadStationing.format(20.0, RoadStationFormat.KILOMETER_PLUS));

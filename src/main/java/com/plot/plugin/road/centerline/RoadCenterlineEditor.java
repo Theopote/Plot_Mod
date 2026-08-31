@@ -140,6 +140,15 @@ public final class RoadCenterlineEditor {
     }
 
     public static CenterlineEditResult reverseEdge(RoadNetwork network, String edgeId) {
+        CenterlineEditResult result = reverseEdgeGeometry(network, edgeId);
+        if (!result.isSuccess()) {
+            return result;
+        }
+        RoadStationMirroring.mirrorStationDataForReversedEdge(network, edgeId);
+        return result;
+    }
+
+    static CenterlineEditResult reverseEdgeGeometry(RoadNetwork network, String edgeId) {
         RoadEdge edge = network != null ? network.getEdge(edgeId) : null;
         if (edge == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
@@ -173,7 +182,7 @@ public final class RoadCenterlineEditor {
         }
 
         for (String edgeId : ordered) {
-            CenterlineEditResult result = reverseEdge(network, edgeId);
+            CenterlineEditResult result = reverseEdgeGeometry(network, edgeId);
             if (!result.isSuccess()) {
                 return result;
             }

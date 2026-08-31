@@ -19,6 +19,8 @@ import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.station.ChainageDisplayContext;
+import com.plot.plugin.road.station.ChainageDisplayMode;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -57,6 +59,7 @@ public final class RoadEditPanel {
     private float centerlineFilletRadius = 2f;
     private int centerlineVertexIndex = 1;
     private String lastCenterlineEditMessage = "";
+    private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -154,10 +157,10 @@ public final class RoadEditPanel {
         if (current == null) {
             return;
         }
-        renderSegmentSummary(network, road, current);
+        renderSegmentSummary(network, road, current, chainageContextOrNull(network, road));
         renderCenterlineEditTools(network, road, current);
         renderElevationHint(current);
-        renderSlopeOverrides(network, road, current);
+        renderSlopeOverrides(network, road, current, chainageContextOrNull(network, road));
     }
 
     private void renderRoadScopeHeader(RoadNetwork network, Road road) {
@@ -168,22 +171,45 @@ public final class RoadEditPanel {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.road_scope_summary", segmentCount, length));
         if (RoadStationing.isStationable(network, road)) {
-            double total = RoadStationing.totalLength(network, road);
+            ChainageDisplayContext chainageDisplay = chainageContext(network, road);
+            renderChainageDisplayToggle();
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(
                     "plugin.road.chainage_range",
-                    RoadStationing.format(0.0, RoadStationFormat.KILOMETER_PLUS),
-                    RoadStationing.format(total, RoadStationFormat.KILOMETER_PLUS)));
+                    chainageDisplay.format(0.0),
+                    chainageDisplay.format(chainageDisplay.totalLength())));
         }
         renderRoadTopologyHints(network, road);
-        renderHorizontalAlignmentSummary(road);
-        renderVerticalAlignmentSummary(road);
-        variableCrossSectionEditor.render(ctx, network, road, ctx.networkManager()::pushHistory);
-        stationFacilityEditor.render(network, road, ctx.networkManager()::pushHistory);
+        ChainageDisplayContext chainageDisplay = chainageContextOrNull(network, road);
+        renderHorizontalAlignmentSummary(road, chainageDisplay);
+        renderVerticalAlignmentSummary(road, chainageDisplay);
+        variableCrossSectionEditor.render(ctx, network, road, chainageDisplay, ctx.networkManager()::pushHistory);
+        stationFacilityEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
     }
 
-    private void renderHorizontalAlignmentSummary(Road road) {
+    private ChainageDisplayContext chainageContext(RoadNetwork network, Road road) {
+        return new ChainageDisplayContext(
+            RoadStationing.totalLength(network, road),
+            chainageDisplayMode,
+            RoadStationFormat.KILOMETER_PLUS);
+    }
+
+    private ChainageDisplayContext chainageContextOrNull(RoadNetwork network, Road road) {
+        if (!RoadStationing.isStationable(network, road)) {
+            return null;
+        }
+        return chainageContext(network, road);
+    }
+
+    private void renderChainageDisplayToggle() {
+        boolean fromEnd = chainageDisplayMode == ChainageDisplayMode.FROM_END;
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.chainage_display_from_end"), fromEnd)) {
+            chainageDisplayMode = fromEnd ? ChainageDisplayMode.FROM_START : ChainageDisplayMode.FROM_END;
+        }
+    }
+
+    private void renderHorizontalAlignmentSummary(Road road, ChainageDisplayContext chainageDisplay) {
         RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
         if (alignment == null || alignment.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -200,19 +226,21 @@ public final class RoadEditPanel {
                     "plugin.road.horizontal_alignment_length",
                     alignment.getElements().size(),
                     total,
-                    RoadStationing.format(0.0, RoadStationFormat.KILOMETER_PLUS),
-                    RoadStationing.format(total, RoadStationFormat.KILOMETER_PLUS)));
+                    formatAlignmentChainage(chainageDisplay, total, 0.0),
+                    formatAlignmentChainage(chainageDisplay, total, total)));
             int index = 0;
             for (com.plot.plugin.road.alignment.HorizontalAlignmentElement element : alignment.getElements()) {
                 double start = HorizontalAlignmentGeometry.elementStartChainage(alignment, index++);
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
-                    HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
+                    chainageDisplay != null
+                        ? HorizontalAlignmentGeometry.describeElement(element, start, chainageDisplay)
+                        : HorizontalAlignmentGeometry.describeElement(element, start, RoadStationFormat.KILOMETER_PLUS));
             }
         }
     }
 
-    private void renderVerticalAlignmentSummary(Road road) {
+    private void renderVerticalAlignmentSummary(Road road, ChainageDisplayContext chainageDisplay) {
         RoadVerticalAlignment alignment = road.getVerticalAlignment();
         if (alignment == null || alignment.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -238,16 +266,20 @@ public final class RoadEditPanel {
                 PlotI18n.tr(
                     "plugin.road.vertical_alignment_summary",
                     pvis.size(),
-                    RoadStationing.format(startStation, RoadStationFormat.KILOMETER_PLUS),
-                    RoadStationing.format(endStation, RoadStationFormat.KILOMETER_PLUS),
+                    formatChainage(chainageDisplay, startStation),
+                    formatChainage(chainageDisplay, endStation),
                     startElevation,
                     endElevation));
             for (int i = 0; i < pvis.size(); i++) {
                 PointOfVerticalIntersection pvi = pvis.get(i);
                 RoadUiWidgets.textWrappedColored(
                     PluginUiColors.HINT_GRAY,
-                    VerticalAlignmentGeometry.describePvi(pvi, i, pvis.size(), RoadStationFormat.KILOMETER_PLUS));
-                String curve = VerticalAlignmentGeometry.describeCurveAtPvi(pvis, i, RoadStationFormat.KILOMETER_PLUS);
+                    chainageDisplay != null
+                        ? VerticalAlignmentGeometry.describePvi(pvi, i, pvis.size(), chainageDisplay)
+                        : VerticalAlignmentGeometry.describePvi(pvi, i, pvis.size(), RoadStationFormat.KILOMETER_PLUS));
+                String curve = chainageDisplay != null
+                    ? VerticalAlignmentGeometry.describeCurveAtPvi(pvis, i, chainageDisplay)
+                    : VerticalAlignmentGeometry.describeCurveAtPvi(pvis, i, RoadStationFormat.KILOMETER_PLUS);
                 if (!curve.isBlank()) {
                     RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
                 }
@@ -314,7 +346,11 @@ public final class RoadEditPanel {
         }
     }
 
-    private void renderSegmentSummary(RoadNetwork network, Road road, RoadEdge edge) {
+    private void renderSegmentSummary(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            ChainageDisplayContext chainageDisplay) {
         ImGui.text(PlotI18n.tr("plugin.road.segment_length", edge.getLength()));
         if (RoadStationing.isStationable(network, road)) {
             double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
@@ -324,8 +360,8 @@ public final class RoadEditPanel {
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr(
                         "plugin.road.segment_chainage",
-                        RoadStationing.format(segmentStart, RoadStationFormat.KILOMETER_PLUS),
-                        RoadStationing.format(segmentEnd, RoadStationFormat.KILOMETER_PLUS)));
+                        formatChainage(chainageDisplay, segmentStart),
+                        formatChainage(chainageDisplay, segmentEnd)));
             }
         }
         ImGui.text(PlotI18n.tr(
@@ -608,7 +644,11 @@ public final class RoadEditPanel {
         ImGui.text(PlotI18n.tr("plugin.road.elevation_hint_end", endGround, endGuide));
     }
 
-    private void renderSlopeOverrides(RoadNetwork network, Road road, RoadEdge edge) {
+    private void renderSlopeOverrides(
+            RoadNetwork network,
+            Road road,
+            RoadEdge edge,
+            ChainageDisplayContext chainageDisplay) {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.road.slope_overrides"));
@@ -696,8 +736,8 @@ public final class RoadEditPanel {
                             PluginUiColors.HINT_GRAY,
                             PlotI18n.tr(
                                 "plugin.road.slope_override_station_hint",
-                                RoadStationing.format(startStation, RoadStationFormat.KILOMETER_PLUS),
-                                RoadStationing.format(endStation, RoadStationFormat.KILOMETER_PLUS)))));
+                                formatChainage(chainageDisplay, startStation.chainageMeters()),
+                                formatChainage(chainageDisplay, endStation.chainageMeters())))));
             }
 
             if (override.startDistance > override.endDistance) {
@@ -738,5 +778,22 @@ public final class RoadEditPanel {
         RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.batch_cross_section_only"));
         RoadBatchCrossSectionEditor.renderDraftFields(ctx, synced);
+    }
+
+    private static String formatChainage(ChainageDisplayContext display, double chainageMeters) {
+        if (display != null) {
+            return display.format(chainageMeters);
+        }
+        return RoadStationing.format(chainageMeters, RoadStationFormat.KILOMETER_PLUS);
+    }
+
+    private static String formatAlignmentChainage(
+            ChainageDisplayContext display,
+            double alignmentTotal,
+            double chainageMeters) {
+        if (display != null) {
+            return new ChainageDisplayContext(alignmentTotal, display.mode(), display.format()).format(chainageMeters);
+        }
+        return RoadStationing.format(chainageMeters, RoadStationFormat.KILOMETER_PLUS);
     }
 }

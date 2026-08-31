@@ -1,6 +1,7 @@
 package com.plot.plugin.road.alignment;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -91,6 +92,22 @@ public final class HorizontalAlignmentGeometry {
             RoadStationFormat format) {
         String start = RoadStationing.format(startChainage, format);
         String end = RoadStationing.format(startChainage + element.getLength(), format);
+        return describeElementRange(element, start, end);
+    }
+
+    public static String describeElement(
+            HorizontalAlignmentElement element,
+            double startChainage,
+            ChainageDisplayContext display) {
+        String start = display.format(startChainage);
+        String end = display.format(startChainage + element.getLength());
+        return describeElementRange(element, start, end);
+    }
+
+    private static String describeElementRange(
+            HorizontalAlignmentElement element,
+            String start,
+            String end) {
         return switch (element.getType()) {
             case TANGENT -> start + "–" + end + " T";
             case CIRCULAR_ARC -> start + "–" + end + " R="

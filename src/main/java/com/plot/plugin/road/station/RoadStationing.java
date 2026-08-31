@@ -175,6 +175,37 @@ public final class RoadStationing {
         return String.format(Locale.ROOT, "%d+%06.2f", kilometers, meters);
     }
 
+    public static String format(
+            double chainageMeters,
+            double totalLengthMeters,
+            RoadStationFormat format,
+            ChainageDisplayMode displayMode) {
+        if (displayMode == ChainageDisplayMode.FROM_END) {
+            double fromEnd = Math.max(0.0, totalLengthMeters - chainageMeters);
+            return formatFromEnd(fromEnd, format);
+        }
+        return format(chainageMeters, format);
+    }
+
+    public static String formatFromEnd(double metersFromEnd, RoadStationFormat format) {
+        if (!Double.isFinite(metersFromEnd)) {
+            return "-";
+        }
+        int kilometers = (int) Math.floor(metersFromEnd / 1000.0);
+        double meters = metersFromEnd - kilometers * 1000.0;
+        if (Math.abs(meters - Math.rint(meters)) < 0.05) {
+            meters = Math.rint(meters);
+            if (format == RoadStationFormat.KILOMETER_PLUS) {
+                return String.format(Locale.ROOT, "EK%d+%03.0f", kilometers, meters);
+            }
+            return String.format(Locale.ROOT, "E%d+%03.0f", kilometers, meters);
+        }
+        if (format == RoadStationFormat.KILOMETER_PLUS) {
+            return String.format(Locale.ROOT, "EK%d+%06.2f", kilometers, meters);
+        }
+        return String.format(Locale.ROOT, "E%d+%06.2f", kilometers, meters);
+    }
+
     public static String format(RoadStation station, RoadStationFormat format) {
         if (station == null) {
             return "-";

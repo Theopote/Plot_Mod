@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.ui.PluginUiColors;
@@ -28,7 +29,12 @@ public final class VariableCrossSectionEditor {
     private String syncedRoadId = "";
     private final List<StationDraft> drafts = new ArrayList<>();
 
-    public void render(RoadUiContext ctx, RoadNetwork network, Road road, Runnable onHistory) {
+    public void render(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            ChainageDisplayContext chainageDisplay,
+            Runnable onHistory) {
         if (road == null || network == null || ctx == null) {
             return;
         }
@@ -59,7 +65,7 @@ public final class VariableCrossSectionEditor {
             PlotI18n.tr("plugin.road.variable_cross_section_hint"));
 
         for (int i = 0; i < drafts.size(); i++) {
-            renderDraftRow(ctx, road, drafts.get(i), i, (float) roadLength, onHistory);
+            renderDraftRow(ctx, road, drafts.get(i), i, (float) roadLength, chainageDisplay, onHistory);
             if (i < drafts.size() - 1) {
                 ImGui.separator();
             }
@@ -82,6 +88,7 @@ public final class VariableCrossSectionEditor {
             StationDraft draft,
             int index,
             float roadLength,
+            ChainageDisplayContext chainageDisplay,
             Runnable onHistory) {
         ImGui.pushID(index);
 
@@ -104,9 +111,13 @@ public final class VariableCrossSectionEditor {
         } else {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
-                VariableCrossSectionResolver.describe(
-                    new StationCrossSection(draft.station, draft.crossSectionDraft.toCrossSection()),
-                    RoadStationFormat.KILOMETER_PLUS));
+                chainageDisplay != null
+                    ? VariableCrossSectionResolver.describe(
+                        new StationCrossSection(draft.station, draft.crossSectionDraft.toCrossSection()),
+                        chainageDisplay)
+                    : VariableCrossSectionResolver.describe(
+                        new StationCrossSection(draft.station, draft.crossSectionDraft.toCrossSection()),
+                        RoadStationFormat.KILOMETER_PLUS));
         }
 
         int treeFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.FramePadding;

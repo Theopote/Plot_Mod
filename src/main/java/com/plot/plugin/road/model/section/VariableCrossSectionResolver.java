@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -89,6 +90,19 @@ public final class VariableCrossSectionResolver {
             : 0;
         int lanes = section.getCarriageway().getEffectiveLaneCount();
         return RoadStationing.format(entry.getStation(), format)
+            + " W=" + width + " L=" + lanes;
+    }
+
+    public static String describe(StationCrossSection entry, ChainageDisplayContext display) {
+        if (entry == null || display == null) {
+            return "";
+        }
+        RoadCrossSection section = entry.getCrossSection();
+        int width = section.getCarriageway().getWidth() != null
+            ? section.getCarriageway().getWidth()
+            : 0;
+        int lanes = section.getCarriageway().getEffectiveLaneCount();
+        return display.format(entry.getStation())
             + " W=" + width + " L=" + lanes;
     }
 }

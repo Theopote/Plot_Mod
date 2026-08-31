@@ -7,6 +7,7 @@ import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
 import com.plot.plugin.road.model.facility.StationFacilityResolver;
 import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.ui.PluginUiColors;
@@ -34,7 +35,11 @@ public final class StationFacilityEditor {
     private String syncedRoadId = "";
     private final List<FacilityRunDraft> drafts = new ArrayList<>();
 
-    public void render(RoadNetwork network, Road road, Runnable onHistory) {
+    public void render(
+            RoadNetwork network,
+            Road road,
+            ChainageDisplayContext chainageDisplay,
+            Runnable onHistory) {
         if (road == null || network == null) {
             return;
         }
@@ -58,7 +63,7 @@ public final class StationFacilityEditor {
             PlotI18n.tr("plugin.road.station_facility_hint"));
 
         for (int i = 0; i < drafts.size(); i++) {
-            renderDraftRow(road, drafts.get(i), i, (float) roadLength, onHistory);
+            renderDraftRow(road, drafts.get(i), i, (float) roadLength, chainageDisplay, onHistory);
             if (i < drafts.size() - 1) {
                 ImGui.separator();
             }
@@ -80,6 +85,7 @@ public final class StationFacilityEditor {
             FacilityRunDraft draft,
             int index,
             float roadLength,
+            ChainageDisplayContext chainageDisplay,
             Runnable onHistory) {
         ImGui.pushID(index);
 
@@ -172,7 +178,9 @@ public final class StationFacilityEditor {
         } else {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
-                StationFacilityResolver.describe(toRun(draft), RoadStationFormat.KILOMETER_PLUS));
+                chainageDisplay != null
+                    ? StationFacilityResolver.describe(toRun(draft), chainageDisplay)
+                    : StationFacilityResolver.describe(toRun(draft), RoadStationFormat.KILOMETER_PLUS));
         }
 
         ImGui.pushStyleColor(ImGuiCol.Button, PluginUiColors.DELETE);

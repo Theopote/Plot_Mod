@@ -1,5 +1,6 @@
 package com.plot.plugin.road.vertical;
 
+import com.plot.plugin.road.station.ChainageDisplayContext;
 import com.plot.plugin.road.station.RoadStationFormat;
 import com.plot.plugin.road.station.RoadStationing;
 
@@ -190,7 +191,22 @@ public final class VerticalAlignmentGeometry {
             int index,
             int total,
             RoadStationFormat format) {
-        String station = RoadStationing.format(pvi.getStation(), format);
+        return describePviStation(RoadStationing.format(pvi.getStation(), format), pvi, index, total);
+    }
+
+    public static String describePvi(
+            PointOfVerticalIntersection pvi,
+            int index,
+            int total,
+            ChainageDisplayContext display) {
+        return describePviStation(display.format(pvi.getStation()), pvi, index, total);
+    }
+
+    private static String describePviStation(
+            String station,
+            PointOfVerticalIntersection pvi,
+            int index,
+            int total) {
         String elevation = String.format("%.2f", pvi.getElevation());
         if (pvi.hasCurve() && index > 0 && index < total - 1) {
             return station + " EL=" + elevation + " L=" + String.format("%.0f", pvi.getCurveLength());
@@ -209,13 +225,45 @@ public final class VerticalAlignmentGeometry {
         if (!pvi.hasCurve()) {
             return "";
         }
+        double half = pvi.getCurveLength() * 0.5;
+        return describeCurveRange(
+            pvi,
+            pvis,
+            pviIndex,
+            RoadStationing.format(pvi.getStation() - half, format),
+            RoadStationing.format(pvi.getStation() + half, format));
+    }
+
+    public static String describeCurveAtPvi(
+            List<PointOfVerticalIntersection> pvis,
+            int pviIndex,
+            ChainageDisplayContext display) {
+        if (pviIndex <= 0 || pviIndex >= pvis.size() - 1) {
+            return "";
+        }
+        PointOfVerticalIntersection pvi = pvis.get(pviIndex);
+        if (!pvi.hasCurve()) {
+            return "";
+        }
+        double half = pvi.getCurveLength() * 0.5;
+        return describeCurveRange(
+            pvi,
+            pvis,
+            pviIndex,
+            display.format(pvi.getStation() - half),
+            display.format(pvi.getStation() + half));
+    }
+
+    private static String describeCurveRange(
+            PointOfVerticalIntersection pvi,
+            List<PointOfVerticalIntersection> pvis,
+            int pviIndex,
+            String bvc,
+            String evc) {
         double incoming = tangentGradePercent(pvis.get(pviIndex - 1), pvi);
         double outgoing = tangentGradePercent(pvi, pvis.get(pviIndex + 1));
         double k = kValue(pvi.getCurveLength(), incoming, outgoing);
         VerticalCurveType type = VerticalCurveType.fromGradesPercent(incoming, outgoing);
-        double half = pvi.getCurveLength() * 0.5;
-        String bvc = RoadStationing.format(pvi.getStation() - half, format);
-        String evc = RoadStationing.format(pvi.getStation() + half, format);
         String typeLabel = type == VerticalCurveType.CREST ? "Crest" : "Sag";
         return bvc + "–" + evc + " " + typeLabel + " K=" + String.format("%.1f", k)
             + " g" + formatGrade(incoming) + "→" + formatGrade(outgoing);

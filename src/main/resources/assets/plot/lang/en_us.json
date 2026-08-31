@@ -884,6 +884,7 @@
   "plugin.road.overview_view_profile": "View Profile",
   "plugin.road.road_scope_summary": "%d segments · %.0f m",
   "plugin.road.chainage_range": "Chainage: %s – %s",
+  "plugin.road.chainage_display_from_end": "Display chainage from road end (E prefix)",
   "plugin.road.segment_chainage": "Chainage: %s – %s",
   "plugin.road.slope_override_station_hint": "Road chainage %s – %s",
   "plugin.road.horizontal_alignment_section": "Horizontal Alignment",

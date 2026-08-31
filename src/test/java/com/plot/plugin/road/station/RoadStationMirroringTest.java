@@ -84,6 +84,44 @@ class RoadStationMirroringTest {
         assertEquals(1, road.getStationFacilities().runCount());
     }
 
+    @Test
+    void mirrorVariableCrossSectionWithinSegmentRange() {
+        RoadCrossSection base = sectionWithWidth(6);
+        RoadCrossSection wide = sectionWithWidth(12);
+        RoadVariableCrossSections source = new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(80.0, wide)
+        ));
+
+        RoadVariableCrossSections mirrored = RoadStationMirroring.mirrorVariableCrossSectionsInRange(
+            source, base, 100.0, 50.0, 100.0);
+
+        assertNotNull(mirrored);
+        assertEquals(12, widthOf(VariableCrossSectionResolver.resolveTemplate(
+            roadWithSections(mirrored, base), 60.0)));
+        assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(
+            roadWithSections(mirrored, base), 40.0)));
+        assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(
+            roadWithSections(mirrored, base), 90.0)));
+    }
+
+    @Test
+    void mirrorFacilityRunWithinSegmentRangeKeepsOutsideRuns() {
+        RoadStationFacilities source = new RoadStationFacilities(List.of(
+            StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT),
+            StationFacilityRun.of(60.0, 90.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        ));
+
+        RoadStationFacilities mirrored = RoadStationMirroring.mirrorStationFacilitiesInRange(
+            source, 100.0, 50.0, 100.0);
+
+        assertNotNull(mirrored);
+        assertEquals(2, mirrored.runCount());
+        assertEquals(10.0, mirrored.sortedRuns().get(0).getStartStation(), 1e-6);
+        assertEquals(60.0, mirrored.sortedRuns().get(1).getStartStation(), 1e-6);
+        assertEquals(RoadFacilitySide.RIGHT, mirrored.sortedRuns().get(1).getSide());
+        assertEquals(90.0, mirrored.sortedRuns().get(1).getEndStation(), 1e-6);
+    }
+
     private static Road roadWithSections(RoadVariableCrossSections sections, RoadCrossSection base) {
         Road road = new Road("r1");
         road.setWidth(widthOf(base));
