@@ -3,6 +3,7 @@ package com.plot.plugin.road.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 
 import java.util.List;
@@ -32,6 +33,24 @@ public final class RoadPathStationSampler {
             double unitsPerBlock,
             ElevationSnapper elevationSnapper,
             StationSampleConsumer consumer) {
+        forEach(
+            segments,
+            heightInfos,
+            segmentStartStation,
+            unitsPerBlock,
+            DesignElevationSource.inactive(),
+            elevationSnapper,
+            consumer);
+    }
+
+    public static void forEach(
+            List<PathSegment> segments,
+            List<SegmentHeightInfo> heightInfos,
+            double segmentStartStation,
+            double unitsPerBlock,
+            DesignElevationSource designElevation,
+            ElevationSnapper elevationSnapper,
+            StationSampleConsumer consumer) {
         if (segments == null || heightInfos == null || consumer == null) {
             return;
         }
@@ -42,10 +61,16 @@ public final class RoadPathStationSampler {
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            double segmentLocalBase = chainageBase - segmentStartStation;
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                double localCanvas = segmentLocalBase + segment.distance * t;
+                int targetY = DesignElevationSource.resolveTargetElevation(
+                    designElevation,
+                    info,
+                    localCanvas,
+                    t);
                 if (elevationSnapper != null) {
                     targetY = elevationSnapper.snap(center, targetY);
                 }

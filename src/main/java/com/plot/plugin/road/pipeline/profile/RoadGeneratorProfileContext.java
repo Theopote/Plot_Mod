@@ -3,12 +3,14 @@ package com.plot.plugin.road.pipeline.profile;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadDimensionUtils;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.RoadGeometrySampler;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.terrain.TerrainSampler;
 
 import java.util.List;
@@ -52,6 +54,20 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
       Integer manualEndHeight) {
     double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
         RoadModelUtils.getEffectiveWidth(network, edge, config));
+    Road road = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
+    if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
+      double segmentStart = RoadStationing.segmentStartStation(network, road, edge.getId());
+      return VerticalAlignmentProfileSolver.solveForEdge(
+          road.getVerticalAlignment(),
+          segmentStart,
+          edge.getLength(),
+          segments,
+          terrain,
+          halfWidth,
+          manualStartHeight,
+          manualEndHeight,
+          profileSupport);
+    }
     return RoadProfileSolver.solveForEdge(
         segments,
         terrain,

@@ -12,6 +12,7 @@ import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -35,6 +36,7 @@ public final class RoadTerrainGrader {
             ctx.terrain(),
             ctx.unitsPerBlock(),
             ctx.detection().constructionTypes(),
+            ctx.request().designElevation(),
             GradingHost.from(host));
     }
 
@@ -91,6 +93,7 @@ public final class RoadTerrainGrader {
             TerrainSampler terrain,
             double unitsPerBlock,
             List<RoadConstructionType> constructionTypes,
+            DesignElevationSource designElevation,
             GradingHost host) {
         RoadSystemConfig config = host.config();
         int tunnelThreshold = config.getTunnelThreshold();
@@ -114,7 +117,13 @@ public final class RoadTerrainGrader {
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                double segmentLocalBase = chainageBase - crossSections.segmentStartStation();
+                double localCanvas = segmentLocalBase + segment.distance * t;
+                int targetY = DesignElevationSource.resolveTargetElevation(
+                    designElevation,
+                    info,
+                    localCanvas,
+                    t);
                 targetY = host.snapEndpointElevation(center, targetY);
                 double chainage = chainageBase + segment.distance * t;
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);

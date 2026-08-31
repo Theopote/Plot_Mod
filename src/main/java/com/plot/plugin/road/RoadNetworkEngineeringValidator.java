@@ -11,7 +11,10 @@ import com.plot.plugin.road.model.RoadNetworkValidationResult;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,6 +28,8 @@ import java.util.Set;
  */
 public final class RoadNetworkEngineeringValidator {
     private static final float GRADE_TOLERANCE_PERCENT = 0.05f;
+    private static final double VERTICAL_ALIGNMENT_LENGTH_TOLERANCE = 1.0;
+    private static final double VERTICAL_ALIGNMENT_GRADE_SAMPLE_SPACING = 5.0;
 
     private RoadNetworkEngineeringValidator() {
     }
@@ -77,6 +82,8 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         addRoadTopologyItems(items, network, true);
+
+        addVerticalAlignmentItems(items, network, config);
 
         int gradeJunctionCount = countJunctionsExceedingGrade(network, edgeResults, config);
         if (hasPreviewProfiles(edgeResults)) {
@@ -181,6 +188,89 @@ public final class RoadNetworkEngineeringValidator {
         if (count > 0) {
             items.add(RoadNetworkValidationReport.Item.warning(messageKey, count));
         }
+    }
+
+    private static void addVerticalAlignmentItems(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        if (!hasVerticalAlignmentRoads(network)) {
+            return;
+        }
+        int lengthMismatchCount = countVerticalAlignmentLengthMismatches(network);
+        if (lengthMismatchCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.vertical_alignment_length_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.vertical_alignment_length_mismatch",
+                lengthMismatchCount));
+        }
+
+        int gradeExceedCount = countVerticalAlignmentsExceedingGrade(network, config);
+        if (gradeExceedCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.vertical_alignment_grade_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.vertical_alignment_grade_exceeds",
+                gradeExceedCount));
+        }
+    }
+
+    private static int countVerticalAlignmentLengthMismatches(RoadNetwork network) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            RoadVerticalAlignment alignment = road.getVerticalAlignment();
+            if (!VerticalAlignmentGeometry.isEvaluable(alignment)
+                || !RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            double totalLength = RoadStationing.totalLength(network, road);
+            if (Math.abs(alignment.startStation()) > VERTICAL_ALIGNMENT_LENGTH_TOLERANCE
+                || Math.abs(alignment.endStation() - totalLength) > VERTICAL_ALIGNMENT_LENGTH_TOLERANCE) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countVerticalAlignmentsExceedingGrade(RoadNetwork network, RoadSystemConfig config) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            RoadVerticalAlignment alignment = road.getVerticalAlignment();
+            if (!VerticalAlignmentGeometry.isEvaluable(alignment)
+                || !RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            float limit = road.getEffectiveMaxSlope(config);
+            double maxAbsGrade = 0.0;
+            double end = alignment.endStation();
+            for (double station = alignment.startStation();
+                 station <= end + VERTICAL_ALIGNMENT_LENGTH_TOLERANCE;
+                 station += VERTICAL_ALIGNMENT_GRADE_SAMPLE_SPACING) {
+                maxAbsGrade = Math.max(
+                    maxAbsGrade,
+                    Math.abs(VerticalAlignmentGeometry.gradeAt(alignment, station).orElse(0.0)));
+            }
+            maxAbsGrade = Math.max(
+                maxAbsGrade,
+                Math.abs(VerticalAlignmentGeometry.gradeAt(alignment, end).orElse(0.0)));
+            if (maxAbsGrade > limit + GRADE_TOLERANCE_PERCENT) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean hasVerticalAlignmentRoads(RoadNetwork network) {
+        for (Road road : network.getRoads().values()) {
+            if (VerticalAlignmentGeometry.isEvaluable(road.getVerticalAlignment())
+                && RoadStationing.isStationable(network, road)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasPreviewProfiles(Map<String, RoadGenerationResult> edgeResults) {

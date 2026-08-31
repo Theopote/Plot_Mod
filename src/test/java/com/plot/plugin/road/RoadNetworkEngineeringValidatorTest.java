@@ -173,6 +173,56 @@ class RoadNetworkEngineeringValidatorTest {
         assertEquals(1, findWarningCount(report, "plugin.road.validation.junctions_exceed_grade"));
     }
 
+    @Test
+    void reportsVerticalAlignmentLengthMismatch() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("design");
+        road.setVerticalAlignment(new com.plot.plugin.road.vertical.RoadVerticalAlignment(java.util.List.of(
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(0.0, 80.0),
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(80.0, 90.0)
+        )));
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            a.getId(), b.getId(), java.util.List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            new RoadSystemConfig("test"));
+
+        assertEquals(
+            1,
+            findWarningCount(report, "plugin.road.validation.vertical_alignment_length_mismatch"));
+    }
+
+    @Test
+    void reportsVerticalAlignmentGradeExceedance() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setMaxSlope(5.0f);
+
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("steep");
+        road.setMaxSlope(5.0f);
+        road.setVerticalAlignment(new com.plot.plugin.road.vertical.RoadVerticalAlignment(java.util.List.of(
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(0.0, 0.0),
+            com.plot.plugin.road.vertical.PointOfVerticalIntersection.of(100.0, 20.0)
+        )));
+        RoadNode a = network.createNode(new Vec2d(0, 0));
+        RoadNode b = network.createNode(new Vec2d(100, 0));
+        network.createEdge(
+            a.getId(), b.getId(), java.util.List.of(new Vec2d(0, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network,
+            Map.of(),
+            config);
+
+        assertEquals(
+            1,
+            findWarningCount(report, "plugin.road.validation.vertical_alignment_grade_exceeds"));
+    }
+
     private static RoadGenerationResult profileResult(double pathLength, List<Double> distances, List<Integer> heights) {
         RoadGenerationResult result = new RoadGenerationResult(pathLength);
         result.profileDistances = distances;

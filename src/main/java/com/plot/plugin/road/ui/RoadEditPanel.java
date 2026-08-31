@@ -270,6 +270,9 @@ public final class RoadEditPanel {
                     formatChainage(chainageDisplay, endStation),
                     startElevation,
                     endElevation));
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_generation_hint"));
             for (int i = 0; i < pvis.size(); i++) {
                 PointOfVerticalIntersection pvi = pvis.get(i);
                 RoadUiWidgets.textWrappedColored(

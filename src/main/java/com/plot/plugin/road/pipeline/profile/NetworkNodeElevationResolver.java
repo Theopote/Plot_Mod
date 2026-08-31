@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 
 /**
  * First-pass network node elevation consensus from natural edge endpoint heights.
@@ -94,6 +95,18 @@ public final class NetworkNodeElevationResolver {
             if (segments.isEmpty()) {
                 continue;
             }
+            OptionalInt startDesign = VerticalAlignmentEndpointHeight.atNode(network, edge, startNode);
+            OptionalInt endDesign = VerticalAlignmentEndpointHeight.atNode(network, edge, endNode);
+            if (startDesign.isPresent() && endDesign.isPresent()) {
+                collectNaturalHeightSample(
+                    naturalHeightsByNode, startNode, edge, startDesign.getAsInt(),
+                    network, terrain, naturalRoadHeight);
+                collectNaturalHeightSample(
+                    naturalHeightsByNode, endNode, edge, endDesign.getAsInt(),
+                    network, terrain, naturalRoadHeight);
+                continue;
+            }
+
             ProfileSolveResult profile = context.solveEdgeProfile(
                 segments,
                 terrain,

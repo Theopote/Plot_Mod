@@ -1,6 +1,5 @@
 package com.plot.plugin.road.pipeline.profile;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGuideLineUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
@@ -35,7 +34,8 @@ public final class RoadProfileSolver {
         if (segments.isEmpty()) {
             return ProfileSolveResult.empty();
         }
-        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
+        HeightSampleData sampleData = toHeightSampleData(
+            ProfileGroundSampler.collect(segments, terrain, halfWidth));
         return buildSegmentHeights(
             segments,
             sampleData,
@@ -55,7 +55,8 @@ public final class RoadProfileSolver {
         if (segments.isEmpty()) {
             return ProfileSolveResult.empty();
         }
-        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
+        HeightSampleData sampleData = toHeightSampleData(
+            ProfileGroundSampler.collect(segments, terrain, halfWidth));
         return buildSegmentHeights(
             segments,
             sampleData,
@@ -80,7 +81,8 @@ public final class RoadProfileSolver {
             return ProfileSolveResult.empty();
         }
 
-        HeightSampleData sampleData = collectHeightSamples(segments, terrain, halfWidth);
+        HeightSampleData sampleData = toHeightSampleData(
+            ProfileGroundSampler.collect(segments, terrain, halfWidth));
 
         List<Float> maxSlopes = new ArrayList<>();
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
@@ -113,40 +115,19 @@ public final class RoadProfileSolver {
         return profile;
     }
 
+    private static HeightSampleData toHeightSampleData(ProfileGroundSampler.SampleData sampleData) {
+        return new HeightSampleData(
+            sampleData.groundSamples(),
+            sampleData.cumulativeDistances(),
+            sampleData.groundStarts(),
+            sampleData.groundEnds());
+    }
+
     private record HeightSampleData(
             List<Integer> groundSamples,
             List<Double> cumulativeDistances,
             List<Integer> groundStarts,
             List<Integer> groundEnds) {
-    }
-
-    private static HeightSampleData collectHeightSamples(
-            List<PathSegment> segments,
-            TerrainSampler terrain,
-            double halfWidth) {
-        List<Integer> groundSamples = new ArrayList<>();
-        List<Double> cumulativeDistances = new ArrayList<>();
-        List<Integer> groundStarts = new ArrayList<>();
-        List<Integer> groundEnds = new ArrayList<>();
-        double accumulatedDistance = 0.0;
-
-        for (PathSegment segment : segments) {
-            Vec2d tangent = segment.end.subtract(segment.start);
-            int groundStart = terrain.sampleCrossSectionGroundY(segment.start, tangent, halfWidth);
-            int groundEnd = terrain.sampleCrossSectionGroundY(segment.end, tangent, halfWidth);
-            groundStarts.add(groundStart);
-            groundEnds.add(groundEnd);
-            groundSamples.add(groundStart);
-            cumulativeDistances.add(accumulatedDistance);
-            accumulatedDistance += segment.distance;
-        }
-
-        if (!groundEnds.isEmpty()) {
-            groundSamples.add(groundEnds.getLast());
-            cumulativeDistances.add(accumulatedDistance);
-        }
-
-        return new HeightSampleData(groundSamples, cumulativeDistances, groundStarts, groundEnds);
     }
 
     private static ProfileSolveResult buildSegmentHeights(

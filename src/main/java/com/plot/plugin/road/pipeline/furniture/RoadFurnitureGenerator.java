@@ -7,6 +7,7 @@ import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -35,7 +36,8 @@ public final class RoadFurnitureGenerator {
             crossSections,
             ctx.terrain(),
             spacing,
-            ctx.unitsPerBlock());
+            ctx.unitsPerBlock(),
+            ctx.request().designElevation());
     }
 
     private static void generateStreetlights(
@@ -45,7 +47,8 @@ public final class RoadFurnitureGenerator {
             CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
             int spacing,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         Vec2d[] previous = {null};
         double[] traveledHolder = {0.0};
         double[] nextPlacementHolder = {0.0};
@@ -56,6 +59,7 @@ public final class RoadFurnitureGenerator {
             heightInfos,
             crossSections.segmentStartStation(),
             unitsPerBlock,
+            designElevation,
             null,
             (center, leftNormal, targetY, chainage) -> {
                 if (previous[0] != null) {

@@ -19,6 +19,7 @@ import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.construction.TunnelSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -47,6 +48,7 @@ public final class RoadCrossSectionBuilder {
         RoadEdgeBuildMetrics metrics = ctx.metrics();
         double unitsPerBlock = ctx.unitsPerBlock();
         CrossSectionHost crossSectionHost = CrossSectionHost.from(host);
+        DesignElevationSource designElevation = ctx.request().designElevation();
 
         generateCarriagewayBlocks(
             crossSectionHost,
@@ -59,14 +61,19 @@ public final class RoadCrossSectionBuilder {
             terrain,
             crossSections,
             ctx.carriagewaySeedKey(),
-            unitsPerBlock);
+            unitsPerBlock,
+            designElevation);
 
-        generateShoulderBlocks(crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock);
-        generateBikeLaneBlocks(crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock);
-        generateSidewalkBlocks(crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock);
+        generateShoulderBlocks(
+            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation);
+        generateBikeLaneBlocks(
+            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation);
+        generateSidewalkBlocks(
+            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation);
 
         if (!usesStationGatedDrainage(ctx.request().stationFacilities())) {
-            generateDrainageChannels(crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock);
+            generateDrainageChannels(
+                crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation);
         }
 
         generateSlopeBatterBlocks(
@@ -77,9 +84,11 @@ public final class RoadCrossSectionBuilder {
             crossSections,
             terrain,
             unitsPerBlock,
-            detection.constructionTypes());
+            detection.constructionTypes(),
+            designElevation);
 
-        generateMedianBlocks(crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock);
+        generateMedianBlocks(
+            crossSectionHost, solids, segments, heightInfos, crossSections, unitsPerBlock, designElevation);
     }
 
     private interface CrossSectionHost {
@@ -134,7 +143,8 @@ public final class RoadCrossSectionBuilder {
             TerrainSampler terrain,
             CrossSectionBuildContext crossSections,
             String seedKey,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         metrics.bridgeCount = bridges.size();
         metrics.tunnelCount = tunnels.size();
 
@@ -155,7 +165,13 @@ public final class RoadCrossSectionBuilder {
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                double segmentLocalBase = chainageBase - crossSections.segmentStartStation();
+                double localCanvas = segmentLocalBase + segment.distance * t;
+                int targetY = DesignElevationSource.resolveTargetElevation(
+                    designElevation,
+                    info,
+                    localCanvas,
+                    t);
                 targetY = host.snapEndpointElevation(center, targetY);
                 double chainage = chainageBase + segment.distance * t;
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -190,7 +206,7 @@ public final class RoadCrossSectionBuilder {
         }
 
         generateBridgeStructures(
-            host, solids, bridges, segments, heightInfos, crossSections, terrain, unitsPerBlock);
+            host, solids, bridges, segments, heightInfos, crossSections, terrain, unitsPerBlock, designElevation);
     }
 
     private static void generateShoulderBlocks(
@@ -199,12 +215,14 @@ public final class RoadCrossSectionBuilder {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
             crossSections.segmentStartStation(),
             unitsPerBlock,
+            designElevation,
             host::snapEndpointElevation,
             (center, leftNormal, targetY, chainage) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -230,12 +248,14 @@ public final class RoadCrossSectionBuilder {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
             crossSections.segmentStartStation(),
             unitsPerBlock,
+            designElevation,
             host::snapEndpointElevation,
             (center, leftNormal, targetY, chainage) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -261,12 +281,14 @@ public final class RoadCrossSectionBuilder {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
             crossSections.segmentStartStation(),
             unitsPerBlock,
+            designElevation,
             host::snapEndpointElevation,
             (center, leftNormal, targetY, chainage) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -292,13 +314,15 @@ public final class RoadCrossSectionBuilder {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         String blockId = host.resolveBlockId("material.plot.gravel");
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
             crossSections.segmentStartStation(),
             unitsPerBlock,
+            designElevation,
             host::snapEndpointElevation,
             (center, leftNormal, targetY, chainage) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -322,7 +346,8 @@ public final class RoadCrossSectionBuilder {
             CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
             double unitsPerBlock,
-            List<RoadConstructionType> constructionTypes) {
+            List<RoadConstructionType> constructionTypes,
+            DesignElevationSource designElevation) {
         int maxHorizontalRun = 16;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
@@ -341,7 +366,13 @@ public final class RoadCrossSectionBuilder {
             for (int j = 1; j < samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                double segmentLocalBase = chainageBase - crossSections.segmentStartStation();
+                double localCanvas = segmentLocalBase + segment.distance * t;
+                int targetY = DesignElevationSource.resolveTargetElevation(
+                    designElevation,
+                    info,
+                    localCanvas,
+                    t);
                 targetY = host.snapEndpointElevation(center, targetY);
                 double chainage = chainageBase + segment.distance * t;
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -438,12 +469,14 @@ public final class RoadCrossSectionBuilder {
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         RoadPathStationSampler.forEach(
             segments,
             heightInfos,
             crossSections.segmentStartStation(),
             unitsPerBlock,
+            designElevation,
             host::snapEndpointElevation,
             (center, leftNormal, targetY, chainage) -> {
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -466,7 +499,8 @@ public final class RoadCrossSectionBuilder {
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         if (bridges.isEmpty()) {
             return;
         }
@@ -494,13 +528,13 @@ public final class RoadCrossSectionBuilder {
                 while (nextPillarDistance <= segmentEnd + 1e-9) {
                     placeBridgePillarCrossSection(
                         host, solids, segment, info, nextPillarDistance, accumulated,
-                        crossSections, terrain, pillarBlockId, unitsPerBlock);
+                        crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation);
                     nextPillarDistance += pillarSpacing;
                 }
                 if (!nextIsBridge && nextPillarDistance - pillarSpacing < segmentEnd - 1e-6) {
                     placeBridgePillarCrossSection(
                         host, solids, segment, info, segmentEnd, accumulated,
-                        crossSections, terrain, pillarBlockId, unitsPerBlock);
+                        crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation);
                 }
             }
             accumulated = segmentEnd;
@@ -517,11 +551,16 @@ public final class RoadCrossSectionBuilder {
             CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
             String pillarBlockId,
-            double unitsPerBlock) {
+            double unitsPerBlock,
+            DesignElevationSource designElevation) {
         double t = segment.distance > 1e-9
             ? Math.max(0.0, Math.min(1.0, (globalDistance - segmentStartDistance) / segment.distance))
             : 0.0;
-        int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+        int targetY = DesignElevationSource.resolveTargetElevation(
+            designElevation,
+            info,
+            globalDistance,
+            t);
         Vec2d center = segment.start.lerp(segment.end, t);
         Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
         double chainage = crossSections.segmentStartStation() + globalDistance;

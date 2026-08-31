@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnapResolver;
 import com.plot.plugin.road.pipeline.profile.EndpointElevationSnaps;
 import com.plot.plugin.road.pipeline.profile.ProfileSolveResult;
@@ -60,6 +61,7 @@ public final class RoadEdgeBuildOrchestrator {
             List<PathSegment> segments = samplePath(pathPoints, host);
             ProfileSolveResult heightCalculation = profileSolve.solveForEdge(
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
+            DesignElevationSource designElevation = DesignElevationSource.forEdge(network, edge, segments);
             RoadGenerationResult result = buildFromCenterline(
                 pathPoints,
                 terrain,
@@ -75,6 +77,7 @@ public final class RoadEdgeBuildOrchestrator {
                     host.estimateCanvasUnitsPerBlock(pathPoints, segments)),
                 edge.getId(),
                 StationFacilityBuildContext.forEdge(network, edge),
+                designElevation,
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -103,6 +106,7 @@ public final class RoadEdgeBuildOrchestrator {
         RoadGenerationResult result = buildFromCenterline(
             pathPoints, terrain, crossSection, crossSections, heightCalculation.heightInfos(), pathLength, null, "standalone",
             StationFacilityBuildContext.EMPTY,
+            DesignElevationSource.inactive(),
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
         return result;
@@ -118,6 +122,7 @@ public final class RoadEdgeBuildOrchestrator {
             EndpointElevationSnaps endpointSnaps,
             String carriagewaySeedKey,
             StationFacilityBuildContext stationFacilities,
+            DesignElevationSource designElevation,
             RoadGenerationPipelineHost host) {
         return pipeline.execute(
             new RoadGenerationBuildRequest(
@@ -129,7 +134,8 @@ public final class RoadEdgeBuildOrchestrator {
                 pathLength,
                 endpointSnaps,
                 carriagewaySeedKey,
-                stationFacilities),
+                stationFacilities,
+                designElevation),
             host);
     }
 

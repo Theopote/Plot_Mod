@@ -9,6 +9,7 @@ import com.plot.plugin.road.terrain.TerrainSampler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Resolves target elevation at a node along a specific edge (with or without grade separation).
@@ -89,6 +90,11 @@ public final class NodeTargetHeightResolver {
             RoadNetwork network,
             TerrainSampler terrain,
             boolean applyGradeSeparation) {
+        OptionalInt designHeight = VerticalAlignmentEndpointHeight.atNode(network, edge, node);
+        if (designHeight.isPresent()) {
+            return designHeight.getAsInt();
+        }
+
         RoadNode edgeStart = network != null ? network.getNode(edge.getStartNodeId()) : null;
         RoadNode edgeEnd = network != null ? network.getNode(edge.getEndNodeId()) : null;
         List<PathSegment> segments = context.samplePath(edge.getCenterlinePoints());

@@ -13,6 +13,7 @@ import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
+import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
@@ -55,6 +56,7 @@ public final class RoadStationFacilityGenerator {
                 host.config(),
                 ctx.unitsPerBlock()),
             ctx.unitsPerBlock(),
+            ctx.request().designElevation(),
             host::resolveBlockId,
             host::snapEndpointElevation);
     }
@@ -70,6 +72,7 @@ public final class RoadStationFacilityGenerator {
             double edgeLength,
             StationFacilityJunctionTrim.FacilityEndpointTrim trim,
             double unitsPerBlock,
+            DesignElevationSource designElevation,
             MaterialResolver materialResolver,
             ElevationSnapper elevationSnapper) {
         if (trim == null) {
@@ -81,6 +84,7 @@ public final class RoadStationFacilityGenerator {
 
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double chainageBase = segmentStartStation;
+        double segmentLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
@@ -89,7 +93,12 @@ public final class RoadStationFacilityGenerator {
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
-                int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
+                double localCanvas = segmentLocalBase + segment.distance * t;
+                int targetY = DesignElevationSource.resolveTargetElevation(
+                    designElevation,
+                    info,
+                    localCanvas,
+                    t);
                 targetY = elevationSnapper.snap(center, targetY);
                 double chainage = chainageBase + segment.distance * t;
                 ResolvedCrossSection crossSection = crossSections.resolve(chainage);
@@ -115,6 +124,7 @@ public final class RoadStationFacilityGenerator {
                     materialResolver);
             }
             chainageBase += segment.distance;
+            segmentLocalBase += segment.distance;
         }
     }
 
