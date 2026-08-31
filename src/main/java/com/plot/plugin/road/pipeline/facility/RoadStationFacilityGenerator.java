@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.facility.RoadFacilitySide;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
 import com.plot.plugin.road.model.facility.StationFacilityResolver;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -41,10 +42,18 @@ public final class RoadStationFacilityGenerator {
             ctx.solids(),
             ctx.segments(),
             ctx.heightInfos(),
-            ctx.request().crossSection(),
+            ctx.request().crossSections(),
             stationContext.road(),
             stationContext.segmentStartStation(),
             stationContext.roadEndStation(),
+            ctx.pathLength(),
+            StationFacilityJunctionTrim.forEdge(
+                stationContext.network(),
+                stationContext.road(),
+                stationContext.network().getEdge(stationContext.edgeId()),
+                ctx.request().crossSection(),
+                host.config(),
+                ctx.unitsPerBlock()),
             ctx.unitsPerBlock(),
             host::resolveBlockId,
             host::snapEndpointElevation);
@@ -54,23 +63,23 @@ public final class RoadStationFacilityGenerator {
             RoadSolidModel solids,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
-            ResolvedCrossSection crossSection,
+            CrossSectionBuildContext crossSections,
             Road road,
             double segmentStartStation,
             double roadEndStation,
+            double edgeLength,
+            StationFacilityJunctionTrim.FacilityEndpointTrim trim,
             double unitsPerBlock,
             MaterialResolver materialResolver,
             ElevationSnapper elevationSnapper) {
-        if (solids == null || segments == null || heightInfos == null || crossSection == null || road == null) {
+        if (trim == null) {
+            trim = StationFacilityJunctionTrim.FacilityEndpointTrim.NONE;
+        }
+        if (solids == null || segments == null || heightInfos == null || crossSections == null || road == null) {
             return;
         }
 
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
-        double drainageOffset = crossSection.outerDrainageOffset() * scale;
-        double outerOffset = (RoadDimensionUtils.maxLateralOffset(crossSection.carriagewayWidth)
-            + crossSection.outerBandBlockCount()
-            + 0.5) * scale;
-
         double chainageBase = segmentStartStation;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
@@ -83,6 +92,15 @@ public final class RoadStationFacilityGenerator {
                 int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
                 targetY = elevationSnapper.snap(center, targetY);
                 double chainage = chainageBase + segment.distance * t;
+                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
+                double localDistance = chainage - segmentStartStation;
+                if (!trim.shouldPlace(localDistance, edgeLength)) {
+                    continue;
+                }
+                double drainageOffset = crossSection.outerDrainageOffset() * scale;
+                double outerOffset = (RoadDimensionUtils.maxLateralOffset(crossSection.carriagewayWidth)
+                    + crossSection.outerBandBlockCount()
+                    + 0.5) * scale;
                 placeActiveFacilities(
                     solids,
                     center,

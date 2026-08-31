@@ -16,8 +16,6 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
 import com.plot.plugin.road.alignment.HorizontalAlignmentGeometry;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
-import com.plot.plugin.road.model.section.StationCrossSection;
-import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
@@ -54,6 +52,7 @@ public final class RoadEditPanel {
     private boolean uniformElevationConfirmAuto = true;
     private final RoadIdentityEditor identityEditor = new RoadIdentityEditor();
     private final StationFacilityEditor stationFacilityEditor = new StationFacilityEditor();
+    private final VariableCrossSectionEditor variableCrossSectionEditor = new VariableCrossSectionEditor();
     private float centerlineEditDistance = 10f;
     private float centerlineFilletRadius = 2f;
     private int centerlineVertexIndex = 1;
@@ -180,7 +179,7 @@ public final class RoadEditPanel {
         renderRoadTopologyHints(network, road);
         renderHorizontalAlignmentSummary(road);
         renderVerticalAlignmentSummary(road);
-        renderVariableCrossSectionSummary(road);
+        variableCrossSectionEditor.render(ctx, network, road, ctx.networkManager()::pushHistory);
         stationFacilityEditor.render(network, road, ctx.networkManager()::pushHistory);
     }
 
@@ -252,33 +251,6 @@ public final class RoadEditPanel {
                 if (!curve.isBlank()) {
                     RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, "  " + curve);
                 }
-            }
-        }
-    }
-
-    private void renderVariableCrossSectionSummary(Road road) {
-        if (road.getVariableCrossSections() == null || road.getVariableCrossSections().isEmpty()) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.variable_cross_section_none"));
-            return;
-        }
-        ImGui.spacing();
-        if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.variable_cross_section_section"))) {
-            List<StationCrossSection> stations = road.getVariableCrossSections().sortedStations();
-            if (stations.isEmpty()) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    PlotI18n.tr("plugin.road.variable_cross_section_invalid"));
-                return;
-            }
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY,
-                PlotI18n.tr("plugin.road.variable_cross_section_count", stations.size()));
-            for (StationCrossSection entry : stations) {
-                RoadUiWidgets.textWrappedColored(
-                    PluginUiColors.HINT_GRAY,
-                    VariableCrossSectionResolver.describe(entry, RoadStationFormat.KILOMETER_PLUS));
             }
         }
     }

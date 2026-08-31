@@ -15,6 +15,7 @@ public record RoadGenerationBuildRequest(
         List<Vec2d> pathPoints,
         TerrainSampler terrain,
         ResolvedCrossSection crossSection,
+        CrossSectionBuildContext crossSections,
         List<SegmentHeightInfo> heightInfos,
         double pathLength,
         EndpointElevationSnaps endpointSnaps,
@@ -24,6 +25,9 @@ public record RoadGenerationBuildRequest(
     public RoadGenerationBuildRequest {
         if (stationFacilities == null) {
             stationFacilities = StationFacilityBuildContext.EMPTY;
+        }
+        if (crossSections == null) {
+            crossSections = CrossSectionBuildContext.fixed(crossSection);
         }
     }
 }

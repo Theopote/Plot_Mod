@@ -26,4 +26,8 @@ public record CrossSectionDraftEditorOptions(
     public static CrossSectionDraftEditorOptions roadEdit() {
         return new CrossSectionDraftEditorOptions("road", false, null, true, true);
     }
+
+    public static CrossSectionDraftEditorOptions stationVariable(int index) {
+        return new CrossSectionDraftEditorOptions("var_xs_" + index, false, null, true, false);
+    }
 }

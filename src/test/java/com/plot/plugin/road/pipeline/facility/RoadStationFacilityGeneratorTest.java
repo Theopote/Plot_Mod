@@ -11,6 +11,7 @@ import com.plot.plugin.road.model.facility.RoadFacilityKind;
 import com.plot.plugin.road.model.facility.RoadFacilitySide;
 import com.plot.plugin.road.model.facility.RoadStationFacilities;
 import com.plot.plugin.road.model.facility.StationFacilityRun;
+import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
@@ -29,7 +30,6 @@ class RoadStationFacilityGeneratorTest {
     @Test
     void generateAlongStationsPlacesGuardrailAndRetainingWall() {
         RoadSolidModel solids = new RoadSolidModel();
-        ResolvedCrossSection crossSection = sectionWithoutExtras();
         Road road = new Road("r1");
         road.setStationFacilities(new RoadStationFacilities(List.of(
             StationFacilityRun.of(0.0, 20.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT),
@@ -45,10 +45,12 @@ class RoadStationFacilityGeneratorTest {
             solids,
             segments,
             heightInfos,
-            crossSection,
+            CrossSectionBuildContext.fixed(sectionWithoutExtras()),
             road,
             0.0,
             20.0,
+            20.0,
+            StationFacilityJunctionTrim.FacilityEndpointTrim.NONE,
             1.0,
             material -> material,
             (center, targetY) -> targetY);

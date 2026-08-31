@@ -56,6 +56,7 @@ public final class RoadEdgeBuildOrchestrator {
 
         try {
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(network, edge, host.config());
+            CrossSectionBuildContext crossSections = CrossSectionBuildContext.forEdge(network, edge, host.config());
             List<PathSegment> segments = samplePath(pathPoints, host);
             ProfileSolveResult heightCalculation = profileSolve.solveForEdge(
                 segments, terrain, network, edge, startNode, endNode, true, networkNodeElevations);
@@ -63,6 +64,7 @@ public final class RoadEdgeBuildOrchestrator {
                 pathPoints,
                 terrain,
                 crossSection,
+                crossSections,
                 heightCalculation.heightInfos(),
                 edge.getLength(),
                 resolveEndpointSnaps(
@@ -97,8 +99,9 @@ public final class RoadEdgeBuildOrchestrator {
             : profileSolve.solveStandalone(segments, terrain);
         double pathLength = segments.stream().mapToDouble(segment -> segment.distance).sum();
         ResolvedCrossSection crossSection = ResolvedCrossSection.fromConfig(host.config());
+        CrossSectionBuildContext crossSections = CrossSectionBuildContext.fixed(crossSection);
         RoadGenerationResult result = buildFromCenterline(
-            pathPoints, terrain, crossSection, heightCalculation.heightInfos(), pathLength, null, "standalone",
+            pathPoints, terrain, crossSection, crossSections, heightCalculation.heightInfos(), pathLength, null, "standalone",
             StationFacilityBuildContext.EMPTY,
             host);
         result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
@@ -109,6 +112,7 @@ public final class RoadEdgeBuildOrchestrator {
             List<Vec2d> pathPoints,
             TerrainSampler terrain,
             ResolvedCrossSection crossSection,
+            CrossSectionBuildContext crossSections,
             List<SegmentHeightInfo> heightInfos,
             double pathLength,
             EndpointElevationSnaps endpointSnaps,
@@ -120,6 +124,7 @@ public final class RoadEdgeBuildOrchestrator {
                 pathPoints,
                 terrain,
                 crossSection,
+                crossSections,
                 heightInfos,
                 pathLength,
                 endpointSnaps,

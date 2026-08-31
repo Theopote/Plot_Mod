@@ -302,6 +302,44 @@ public final class CrossSectionDraft {
         return draft;
     }
 
+    public static CrossSectionDraft fromCrossSection(RoadCrossSection section, RoadSystemConfig defaults) {
+        CrossSectionDraft draft = fromConfig(defaults);
+        if (section == null) {
+            return draft;
+        }
+        ResolvedCrossSection resolved = section.resolve(defaults);
+        draft.width = resolved.carriagewayWidth;
+        draft.laneCount = resolved.laneCount;
+        draft.laneWidths.clear();
+        draft.laneWidths.addAll(section.getCarriageway().resolveLaneWidths(draft.width));
+        draft.material = section.getCarriageway().getMaterial() != null
+            ? section.getCarriageway().getMaterial()
+            : resolved.carriagewayMaterial;
+        draft.includeShoulder = resolved.includeShoulder;
+        draft.shoulderWidth = resolved.shoulderWidth;
+        draft.includeSidewalk = resolved.includeSidewalk;
+        draft.sidewalkWidth = resolved.sidewalkWidth;
+        draft.sidewalkMaterial = resolved.sidewalkMaterial;
+        draft.includeDrainage = resolved.includeDrain;
+        draft.includeBikeLane = resolved.includeBikeLane;
+        draft.bikeLaneWidth = resolved.bikeLaneWidth;
+        draft.includeMedian = resolved.includeMedian;
+        draft.medianWidth = resolved.medianWidth;
+        draft.streetlightSpacing = resolved.streetlightSpacing != null ? resolved.streetlightSpacing : 0;
+        draft.laneDividers = resolved.laneDividers;
+        draft.centerLineStyle = resolved.centerLineStyle != null
+            ? resolved.centerLineStyle
+            : CenterLineStyle.NONE;
+        draft.markingMaterial = resolved.markingMaterial;
+        draft.includeSlopeBatter = resolved.includeSlopeBatter;
+        draft.fillSlopeRatio = resolved.fillSlopeRatio;
+        draft.cutSlopeRatio = resolved.cutSlopeRatio;
+        draft.fillSlopeMaterial = resolved.fillSlopeMaterial;
+        draft.cutSlopeMaterial = resolved.cutSlopeMaterial;
+        draft.syncLaneWidthList();
+        return draft;
+    }
+
     public void applyToRoad(Road road) {
         if (road == null) {
             return;

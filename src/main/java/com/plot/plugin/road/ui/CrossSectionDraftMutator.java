@@ -35,6 +35,13 @@ public final class CrossSectionDraftMutator {
         return new CrossSectionDraftMutator(draft, onChanged, CrossSectionDraftFieldHooks.NONE, null, null);
     }
 
+    public static CrossSectionDraftMutator forDraftWithHistory(CrossSectionDraft draft, Runnable onHistory) {
+        CrossSectionDraftFieldHooks hooks = onHistory != null
+            ? new DraftHistoryHooks(onHistory)
+            : CrossSectionDraftFieldHooks.NONE;
+        return new CrossSectionDraftMutator(draft, null, hooks, null, null);
+    }
+
     public static CrossSectionDraftMutator forRoad(
             Road road,
             RoadSystemConfig config,
@@ -532,6 +539,26 @@ public final class CrossSectionDraftMutator {
     private void notifyChanged() {
         if (onChanged != null) {
             onChanged.run();
+        }
+    }
+
+    private static final class DraftHistoryHooks implements CrossSectionDraftFieldHooks {
+        private final Runnable onHistory;
+
+        private DraftHistoryHooks(Runnable onHistory) {
+            this.onHistory = onHistory;
+        }
+
+        @Override
+        public void onItemActivated() {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+        }
+
+        @Override
+        public boolean pushHistoryOnPicker() {
+            return true;
         }
     }
 

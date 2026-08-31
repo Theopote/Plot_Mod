@@ -1,18 +1,17 @@
 package com.plot.plugin.road.pipeline.marking;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadMarkingPasses;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
+import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
-import com.plot.plugin.road.pipeline.geometry.PathSegment;
-import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
+import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
-import com.plot.ui.tools.impl.modify.helper.OffsetHandler;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Lane dividers and centerline markings.
@@ -22,8 +21,11 @@ public final class RoadMarkingGenerator {
     }
 
     public static void generate(RoadGenerationPipelineContext ctx, RoadGenerationPipelineContext.Host host) {
-        ResolvedCrossSection crossSection = ctx.request().crossSection();
-        if (!crossSection.laneDividers && crossSection.centerLineStyle == CenterLineStyle.NONE) {
+        CrossSectionBuildContext crossSections = ctx.request().crossSections();
+        ResolvedCrossSection fallback = crossSections.fallback();
+        if (!crossSections.isVariable()
+            && !fallback.laneDividers
+            && fallback.centerLineStyle == CenterLineStyle.NONE) {
             return;
         }
 
@@ -31,48 +33,41 @@ public final class RoadMarkingGenerator {
             ctx.solids(),
             ctx.segments(),
             ctx.heightInfos(),
-            ctx.pathPoints(),
-            crossSection,
+            crossSections,
             ctx.unitsPerBlock(),
             host::resolveBlockId);
     }
 
     private static void generateLaneMarkings(
             RoadSolidModel solids,
-            List<PathSegment> segments,
-            List<SegmentHeightInfo> heightInfos,
-            List<Vec2d> pathPoints,
-            ResolvedCrossSection crossSection,
+            List<com.plot.plugin.road.pipeline.geometry.PathSegment> segments,
+            List<com.plot.plugin.road.pipeline.profile.SegmentHeightInfo> heightInfos,
+            CrossSectionBuildContext crossSections,
             double unitsPerBlock,
             MaterialResolver materialResolver) {
-        String blockId = materialResolver.resolve(crossSection.markingMaterial);
-        double totalLength = segments.stream().mapToDouble(s -> s.distance).sum();
-        double accumulatedSegmentStart;
-
-        List<RoadMarkingPasses.Pass> passes = RoadMarkingPasses.fromCrossSection(crossSection);
-
-        for (RoadMarkingPasses.Pass pass : passes) {
-            List<Vec2d> markingLine = OffsetHandler.offsetPolyline(pathPoints, pass.offset() * unitsPerBlock);
-            accumulatedSegmentStart = 0.0;
-            for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
-                SegmentHeightInfo info = heightInfos.get(i);
-                PathSegment segment = segments.get(i);
-                int samples = Math.max(2, (int) Math.ceil(segment.distance));
-                for (int j = 0; j <= samples; j++) {
-                    if (!pass.solid() && j % 2 != 0) {
+        AtomicInteger sampleIndex = new AtomicInteger();
+        RoadPathStationSampler.forEach(
+            segments,
+            heightInfos,
+            crossSections.segmentStartStation(),
+            unitsPerBlock,
+            null,
+            (center, leftNormal, targetY, chainage) -> {
+                int index = sampleIndex.getAndIncrement();
+                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
+                if (!crossSection.laneDividers && crossSection.centerLineStyle == CenterLineStyle.NONE) {
+                    return;
+                }
+                String blockId = materialResolver.resolve(crossSection.markingMaterial);
+                for (RoadMarkingPasses.Pass pass : RoadMarkingPasses.fromCrossSection(crossSection)) {
+                    if (!pass.solid() && index % 2 != 0) {
                         continue;
                     }
-                    double t = (double) j / samples;
-                    int targetY = (int) (info.targetStart * (1 - t) + info.targetEnd * t);
-                    double normalized = totalLength > 1e-9
-                        ? (accumulatedSegmentStart + t * segment.distance) / totalLength
-                        : 0.0;
-                    Vec2d point = RoadGeometryUtils.interpolatePolylineByNormalizedDistance(markingLine, normalized);
+                    Vec2d direction = leftNormal.multiply(-1);
+                    Vec2d point = center.add(direction.multiply(pass.offset() * unitsPerBlock));
                     solids.add(point, targetY, RoadSolidLayer.MARKING, blockId);
                 }
-                accumulatedSegmentStart += segment.distance;
-            }
-        }
+            });
     }
 
     @FunctionalInterface

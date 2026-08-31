@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadRoadbedGradingUtils;
 import com.plot.plugin.road.RoadTerrainClearanceUtils;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
+import com.plot.plugin.road.pipeline.CrossSectionBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -30,7 +31,7 @@ public final class RoadTerrainGrader {
             ctx.metrics(),
             ctx.segments(),
             ctx.heightInfos(),
-            ctx.request().crossSection(),
+            ctx.request().crossSections(),
             ctx.terrain(),
             ctx.unitsPerBlock(),
             ctx.detection().constructionTypes(),
@@ -86,24 +87,14 @@ public final class RoadTerrainGrader {
             RoadEdgeBuildMetrics metrics,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
-            ResolvedCrossSection crossSection,
+            CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
             double unitsPerBlock,
             List<RoadConstructionType> constructionTypes,
             GradingHost host) {
-        int sideBandWidth = crossSection.outerBandBlockCount();
-        int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
-        if (envelopeWidth <= 0) {
-            return;
-        }
-
         RoadSystemConfig config = host.config();
         int tunnelThreshold = config.getTunnelThreshold();
         int bridgeThreshold = config.getBridgeThreshold();
-        String fillMaterialId = host.resolveBlockId(
-            crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
-                ? crossSection.fillSlopeMaterial
-                : config.getFillSlopeMaterial());
 
         RoadRoadbedGradingUtils.GradingVolumes total = RoadRoadbedGradingUtils.GradingVolumes.ZERO;
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
@@ -116,11 +107,26 @@ public final class RoadTerrainGrader {
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.leftNormal(segment);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
+            double chainageBase = crossSections.segmentStartStation();
+            for (int k = 0; k < i; k++) {
+                chainageBase += segments.get(k).distance;
+            }
             for (int j = 0; j <= samples; j++) {
                 double t = (double) j / samples;
                 Vec2d center = segment.start.lerp(segment.end, t);
                 int targetY = (int) Math.round(info.targetStart * (1 - t) + info.targetEnd * t);
                 targetY = host.snapEndpointElevation(center, targetY);
+                double chainage = chainageBase + segment.distance * t;
+                ResolvedCrossSection crossSection = crossSections.resolve(chainage);
+                int sideBandWidth = crossSection.outerBandBlockCount();
+                int envelopeWidth = crossSection.carriagewayWidth + sideBandWidth * 2;
+                if (envelopeWidth <= 0) {
+                    continue;
+                }
+                String fillMaterialId = host.resolveBlockId(
+                    crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
+                        ? crossSection.fillSlopeMaterial
+                        : config.getFillSlopeMaterial());
                 total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
                     solids, center, leftNormal, envelopeWidth, targetY,
                     tunnelThreshold, bridgeThreshold, fillMaterialId,

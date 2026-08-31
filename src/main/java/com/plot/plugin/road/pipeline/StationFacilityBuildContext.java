@@ -12,9 +12,10 @@ import com.plot.plugin.road.station.RoadStationing;
 public record StationFacilityBuildContext(
         RoadNetwork network,
         Road road,
+        String edgeId,
         double segmentStartStation) {
 
-    public static final StationFacilityBuildContext EMPTY = new StationFacilityBuildContext(null, null, 0.0);
+    public static final StationFacilityBuildContext EMPTY = new StationFacilityBuildContext(null, null, null, 0.0);
 
     public boolean isActive() {
         return network != null && road != null && StationFacilityResolver.hasStationFacilities(road);
@@ -46,6 +47,6 @@ public record StationFacilityBuildContext(
         if (segmentStart < 0.0) {
             return EMPTY;
         }
-        return new StationFacilityBuildContext(network, road, segmentStart);
+        return new StationFacilityBuildContext(network, road, edge.getId(), segmentStart);
     }
 }
