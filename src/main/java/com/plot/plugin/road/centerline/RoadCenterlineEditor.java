@@ -13,6 +13,7 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
 import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.station.RoadStationMirroring;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 
@@ -196,6 +197,7 @@ public final class RoadCenterlineEditor {
             }
             road.setVerticalAlignment(reversedVertical);
         }
+        RoadStationMirroring.mirrorRoadStationData(road, totalLength);
         return CenterlineEditResult.success();
     }
 

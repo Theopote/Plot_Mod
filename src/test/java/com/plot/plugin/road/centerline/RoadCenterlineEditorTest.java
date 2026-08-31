@@ -7,7 +7,16 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.model.facility.RoadFacilityKind;
+import com.plot.plugin.road.model.facility.RoadFacilitySide;
+import com.plot.plugin.road.model.facility.RoadStationFacilities;
+import com.plot.plugin.road.model.facility.StationFacilityRun;
+import com.plot.plugin.road.model.section.RoadCrossSection;
+import com.plot.plugin.road.model.section.RoadVariableCrossSections;
+import com.plot.plugin.road.model.section.StationCrossSection;
+import com.plot.plugin.road.model.section.VariableCrossSectionResolver;
 import com.plot.plugin.road.model.RoadSegmentOrdering;
+import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import org.junit.jupiter.api.Test;
@@ -96,6 +105,49 @@ class RoadCenterlineEditorTest {
         assertEquals(before.reversed(), road.getOrderedSegmentIds());
         assertNotNull(road.getHorizontalAlignment());
         assertEquals(100.0, road.getVerticalAlignment().endStation(), 1e-6);
+    }
+
+    @Test
+    void reverseRoadMirrorsStationBasedData() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(50, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        Road road = network.createRoad("r1");
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(50, 0)), road.getId());
+        network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(50, 0), new Vec2d(100, 0)), road.getId());
+
+        RoadCrossSection base = new RoadCrossSection();
+        base.getCarriageway().setWidth(6);
+        RoadCrossSection wide = new RoadCrossSection();
+        wide.getCarriageway().setWidth(12);
+        road.setWidth(6);
+        road.getCrossSection().getCarriageway().setWidth(6);
+        road.setVariableCrossSections(new RoadVariableCrossSections(List.of(
+            StationCrossSection.at(80.0, wide)
+        )));
+        road.setStationFacilities(new RoadStationFacilities(List.of(
+            StationFacilityRun.of(10.0, 30.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
+        )));
+
+        CenterlineEditResult result = RoadCenterlineEditor.reverseRoad(network, road);
+
+        assertTrue(result.isSuccess());
+        List<StationCrossSection> stations = road.getVariableCrossSections().sortedStations();
+        assertEquals(0.0, stations.getFirst().getStation(), 1e-6);
+        assertEquals(12, widthOf(stations.getFirst().getCrossSection()));
+        StationFacilityRun mirrored = road.getStationFacilities().sortedRuns().getFirst();
+        assertEquals(70.0, mirrored.getStartStation(), 1e-6);
+        assertEquals(RoadFacilitySide.RIGHT, mirrored.getSide());
+
+        double total = RoadStationing.totalLength(network, road);
+        assertEquals(12, widthOf(VariableCrossSectionResolver.resolveTemplate(road, 10.0)));
+        assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(road, total - 10.0)));
+    }
+
+    private static int widthOf(RoadCrossSection section) {
+        Integer width = section.getCarriageway().getWidth();
+        return width != null ? width : 0;
     }
 
     @Test
