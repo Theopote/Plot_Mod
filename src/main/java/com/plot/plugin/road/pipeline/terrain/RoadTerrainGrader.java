@@ -105,10 +105,6 @@ public final class RoadTerrainGrader {
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             RoadConstructionType type = RoadConstructionClassifier.constructionTypeAt(constructionTypes, i);
-            if (type == RoadConstructionType.BRIDGE) {
-                geometryLocalBase += segments.get(i).distance;
-                continue;
-            }
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d leftNormal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
@@ -130,11 +126,16 @@ public final class RoadTerrainGrader {
                 if (envelopeWidth <= 0) {
                     continue;
                 }
+                RoadRoadbedGradingUtils.clearRoadDecorations(
+                    solids, center, leftNormal, envelopeWidth,
+                    terrain, host.columnResolver(), unitsPerBlock);
                 String fillMaterialId = host.resolveBlockId(
                     crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
                         ? crossSection.fillSlopeMaterial
                         : config.getFillSlopeMaterial());
-                if (type == RoadConstructionType.TUNNEL) {
+                if (type == RoadConstructionType.BRIDGE) {
+                    continue;
+                } else if (type == RoadConstructionType.TUNNEL) {
                     String liningMaterial = config.getTunnelLiningMaterial();
                     int accentSpacing = config.getTunnelAccentSpacing();
                     if (accentSpacing > 0 && !config.getTunnelAccentMaterial().isBlank()

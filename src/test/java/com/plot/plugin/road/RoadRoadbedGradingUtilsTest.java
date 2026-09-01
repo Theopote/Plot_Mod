@@ -59,6 +59,32 @@ class RoadRoadbedGradingUtilsTest {
     }
 
     @Test
+    void roadEnvelopeClearsNaturalDecorationsAboveEngineeringGround() {
+        RoadSolidModel solids = new RoadSolidModel();
+        TerrainSampler woodedColumn = new TerrainSampler() {
+            @Override public int sampleSurfaceY(Vec2d point) { return 64; }
+            @Override public int sampleColumnTopY(Vec2d point) { return 70; }
+            @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 64; }
+            @Override public boolean isRoadClearableDecoration(int x, int y, int z) {
+                return y >= 65 && y <= 70;
+            }
+        };
+
+        RoadRoadbedGradingUtils.clearRoadDecorations(
+            solids, new Vec2d(0, 0), new Vec2d(0, 1), 3,
+            woodedColumn, new RoadTerrainClearanceUtils.BlockColumnResolver() {
+                @Override public int worldX(Vec2d point) { return (int) Math.round(point.x); }
+                @Override public int worldZ(Vec2d point) { return (int) Math.round(point.y); }
+            }, 1.0);
+
+        assertEquals(18, solids.primitives().stream()
+            .filter(p -> p.materialId().equals("minecraft:air"))
+            .count());
+        assertTrue(solids.primitives().stream().noneMatch(p -> p.elevation() <= 64),
+            "engineering ground must not be removed as vegetation");
+    }
+
+    @Test
     void fillColumnPlacesSubgradeBelowRoad() {
         RoadSolidModel solids = new RoadSolidModel();
         TerrainSampler terrain = columnTerrain(60, 64, 100);

@@ -24,6 +24,19 @@ public interface TerrainSampler {
      */
     boolean isSolidBlock(int worldX, int y, int worldZ);
 
+    /** Highest block that may need inspection/clearing; defaults to the engineering surface. */
+    default int sampleColumnTopY(Vec2d planPoint) {
+        return sampleSurfaceY(planPoint);
+    }
+
+    /**
+     * Whether a block is natural, non-load-bearing decoration that road construction may remove.
+     * Implementations without block-type information remain conservative.
+     */
+    default boolean isRoadClearableDecoration(int worldX, int y, int worldZ) {
+        return false;
+    }
+
     /**
      * 沿道路横断面采样地表高度并取平均（覆盖 [-halfWidth, +halfWidth]）。
      */

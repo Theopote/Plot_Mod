@@ -210,6 +210,35 @@ public final class RoadRoadbedGradingUtils {
         return new GradingVolumes(cut, 0);
     }
 
+    /** Removes trees, foliage, plants, snow and fluids without treating them as earthwork. */
+    public static void clearRoadDecorations(
+            RoadSolidModel solids,
+            Vec2d center,
+            Vec2d leftNormal,
+            int widthBlocks,
+            TerrainSampler terrain,
+            RoadTerrainClearanceUtils.BlockColumnResolver columnResolver,
+            double canvasUnitsPerBlock) {
+        if (solids == null || center == null || leftNormal == null || widthBlocks <= 0
+                || terrain == null || columnResolver == null) return;
+        double scale = canvasUnitsPerBlock > 1e-9 ? canvasUnitsPerBlock : 1.0;
+        Vec2d normal = leftNormal.lengthSquared() > 1e-12 ? leftNormal.normalize() : new Vec2d(0, 1);
+        int minOffset = RoadDimensionUtils.minLateralOffset(widthBlocks);
+        int maxOffset = RoadDimensionUtils.maxLateralOffset(widthBlocks);
+        for (int lateral = minOffset; lateral <= maxOffset; lateral++) {
+            Vec2d point = center.add(normal.multiply(lateral * scale));
+            int worldX = columnResolver.worldX(point);
+            int worldZ = columnResolver.worldZ(point);
+            int groundY = terrain.sampleSurfaceY(point);
+            int topY = terrain.sampleColumnTopY(point);
+            for (int y = groundY + 1; y <= topY; y++) {
+                if (terrain.isRoadClearableDecoration(worldX, y, worldZ)) {
+                    solids.add(point, y, RoadSolidLayer.TUNNEL, "minecraft:air");
+                }
+            }
+        }
+    }
+
     private static GradingVolumes cutColumn(
             RoadSolidModel solids,
             Vec2d planPoint,
