@@ -180,6 +180,7 @@ public final class RoadEditPanel {
         renderHorizontalAlignmentSummary(network, road, chainageDisplay);
         verticalAlignmentEditor.render(
             network, road, chainageDisplay, ctx.networkManager().getConfig(),
+            this::requireTerrainOrNull,
             ctx.networkManager()::pushHistory);
         renderInlineVerticalProfile(network, current);
 

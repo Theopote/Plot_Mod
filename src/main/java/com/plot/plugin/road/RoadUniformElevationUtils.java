@@ -3,6 +3,7 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -38,6 +39,54 @@ public final class RoadUniformElevationUtils {
             boolean usedMode) {
     }
 
+    /** Road-local median recommendation; average is informational only. */
+    public record FlatRoadRecommendation(int elevation, double average, int sampleCount) { }
+
+    public static FlatRoadRecommendation recommendMedianForRoad(
+            RoadNetwork network,
+            Road road,
+            TerrainSampler terrain,
+            RoadSystemConfig config) {
+        if (network == null || road == null || terrain == null) {
+            return new FlatRoadRecommendation(TerrainSampler.DEFAULT_SEA_LEVEL, 0.0, 0);
+        }
+        // Sampling is read-only; filter the existing network directly instead of cloning topology.
+        List<Integer> samples = sampleRoadGroundHeights(network, road, terrain, config);
+        return recommendMedianElevation(samples);
+    }
+
+    public static FlatRoadRecommendation recommendMedianElevation(List<Integer> samples) {
+        if (samples == null || samples.isEmpty()) {
+            return new FlatRoadRecommendation(TerrainSampler.DEFAULT_SEA_LEVEL, 0.0, 0);
+        }
+        List<Integer> sorted = new ArrayList<>(samples);
+        sorted.sort(Integer::compareTo);
+        int middle = sorted.size() / 2;
+        int median = sorted.size() % 2 == 1
+            ? sorted.get(middle)
+            : (int) Math.round((sorted.get(middle - 1) + sorted.get(middle)) / 2.0);
+        double average = sorted.stream().mapToInt(Integer::intValue).average().orElse(median);
+        return new FlatRoadRecommendation(median, average, sorted.size());
+    }
+
+    public static List<Integer> sampleRoadGroundHeights(
+            RoadNetwork network,
+            Road road,
+            TerrainSampler terrain,
+            RoadSystemConfig config) {
+        if (network == null || road == null || terrain == null) return List.of();
+        double spacing = config != null
+            ? Math.max(0.5, config.getPathSampleDistance())
+            : DEFAULT_SAMPLE_SPACING;
+        Map<Long, Integer> uniqueByCell = new HashMap<>();
+        for (String edgeId : road.getSegmentIds()) {
+            RoadEdge edge = network.getEdge(edgeId);
+            if (edge == null) continue;
+            sampleEdge(network, edge, terrain, config, spacing, uniqueByCell);
+        }
+        return List.copyOf(uniqueByCell.values());
+    }
+
     /**
      * 沿路网所有边中心线采样途经地表高度（按横断面宽度取平均地表）。
      * 按整数格 (x,z) 去重，避免路口端点被多条边重复计权。
@@ -58,9 +107,22 @@ public final class RoadUniformElevationUtils {
         Map<Long, Integer> uniqueByCell = new HashMap<>();
 
         for (RoadEdge edge : network.getEdges().values()) {
+            sampleEdge(network, edge, terrain, config, spacing, uniqueByCell);
+        }
+        samples.addAll(uniqueByCell.values());
+        return samples;
+    }
+
+    private static void sampleEdge(
+            RoadNetwork network,
+            RoadEdge edge,
+            TerrainSampler terrain,
+            RoadSystemConfig config,
+            double spacing,
+            Map<Long, Integer> uniqueByCell) {
             List<Vec2d> centerline = edge.getCenterlinePoints();
             if (centerline == null || centerline.size() < 2) {
-                continue;
+                return;
             }
             int width = config != null
                 ? RoadModelUtils.getEffectiveWidth(network, edge, config)
@@ -91,9 +153,6 @@ public final class RoadUniformElevationUtils {
             Vec2d last = centerline.getLast();
             Vec2d prev = centerline.get(centerline.size() - 2);
             putSample(uniqueByCell, terrain, last, last.subtract(prev), halfWidth);
-        }
-        samples.addAll(uniqueByCell.values());
-        return samples;
     }
 
     private static void putSample(

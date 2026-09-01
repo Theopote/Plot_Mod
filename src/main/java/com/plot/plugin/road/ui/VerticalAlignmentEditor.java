@@ -1,6 +1,7 @@
 package com.plot.plugin.road.ui;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.RoadUniformElevationUtils;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
@@ -17,6 +18,7 @@ import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
+import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -25,6 +27,7 @@ import imgui.flag.ImGuiCol;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * 纵断面 PVI CRUD：桩号、标高、中间变坡点竖曲线长度。
@@ -34,12 +37,15 @@ public final class VerticalAlignmentEditor {
     private String syncedRoadId = "";
     private final List<PviDraft> drafts = new ArrayList<>();
     private float flatElevation = 64f;
+    private String recommendedFlatRoadId = "";
+    private RoadUniformElevationUtils.FlatRoadRecommendation flatRecommendation;
 
     public void render(
             RoadNetwork network,
             Road road,
             ChainageDisplayContext chainageDisplay,
             RoadSystemConfig config,
+            Supplier<TerrainSampler> terrainSupplier,
             Runnable onHistory) {
         if (road == null || network == null) {
             return;
@@ -68,7 +74,7 @@ public final class VerticalAlignmentEditor {
 
         renderVerticalMode(road, roadLength, onHistory);
 
-        renderFlatProfileAction(road, roadLength, onHistory);
+        renderFlatProfileAction(network, road, roadLength, config, terrainSupplier, onHistory);
 
         if (drafts.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -155,7 +161,13 @@ public final class VerticalAlignmentEditor {
         return PlotI18n.tr("plugin.road.vertical_mode_" + mode.name().toLowerCase());
     }
 
-    private void renderFlatProfileAction(Road road, double roadLength, Runnable onHistory) {
+    private void renderFlatProfileAction(
+            RoadNetwork network,
+            Road road,
+            double roadLength,
+            RoadSystemConfig config,
+            Supplier<TerrainSampler> terrainSupplier,
+            Runnable onHistory) {
         float[] elevation = {flatElevation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         ImGui.dragFloat(
@@ -176,6 +188,37 @@ public final class VerticalAlignmentEditor {
             road.setVerticalMode(RoadVerticalMode.FLAT);
             syncedRoadId = "";
             syncDrafts(road);
+        }
+
+        if (!road.getId().equals(recommendedFlatRoadId)) {
+            recommendedFlatRoadId = road.getId();
+            flatRecommendation = null;
+        }
+        if (roadLength > 1e-6 && ImGui.button(
+                PlotI18n.tr("plugin.road.vertical_alignment_recommend_flat"))) {
+            TerrainSampler terrain = terrainSupplier != null ? terrainSupplier.get() : null;
+            if (terrain != null) {
+                flatRecommendation = RoadUniformElevationUtils.recommendMedianForRoad(
+                    network, road, terrain, config);
+            }
+        }
+        if (flatRecommendation != null && flatRecommendation.sampleCount() > 0) {
+            ImGui.sameLine();
+            ImGui.textColored(
+                PluginUiColors.STATUS_INFO,
+                PlotI18n.tr(
+                    "plugin.road.vertical_alignment_flat_recommendation",
+                    flatRecommendation.elevation(),
+                    flatRecommendation.sampleCount()));
+            if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_adopt_recommendation"))) {
+                if (onHistory != null) onHistory.run();
+                flatElevation = flatRecommendation.elevation();
+                road.setVerticalAlignment(
+                    VerticalProfileDesignRules.flatAlignment(roadLength, flatElevation));
+                road.setVerticalMode(RoadVerticalMode.FLAT);
+                syncedRoadId = "";
+                syncDrafts(road);
+            }
         }
     }
 

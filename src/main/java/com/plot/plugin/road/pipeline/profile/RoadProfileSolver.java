@@ -154,6 +154,8 @@ public final class RoadProfileSolver {
         List<Double> worldCumulativeDistances = toWorldDistances(
             sampleData.cumulativeDistances(), canvasUnitsPerBlock);
         List<Integer> guideLine;
+        // Terrain Fit means terrain-targeted, not an unconstrained copy of every terrain sample.
+        // The shared grade solver below still enforces effective slopes and endpoint constraints.
         if (verticalMode == RoadVerticalMode.FIT_TERRAIN
                 && VerticalProfileDesignRules.slopeAllowed(worldCumulativeDistances.getLast())) {
             guideLine = new ArrayList<>(sampleData.groundSamples());

@@ -17,6 +17,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoadUniformElevationUtilsTest {
 
     @Test
+    void roadFlatRecommendationUsesMedianAgainstTerrainOutliers() {
+        var result = RoadUniformElevationUtils.recommendMedianElevation(
+            List.of(65, 66, 65, 70, 72, 66, 65));
+
+        assertEquals(66, result.elevation());
+        assertEquals(7, result.sampleCount());
+    }
+
+    @Test
     void recommendElevationPrefersUniqueMode() {
         List<Integer> samples = List.of(70, 70, 70, 70, 65, 65, 80);
         var result = RoadUniformElevationUtils.recommendElevation(samples);
