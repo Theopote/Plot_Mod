@@ -15,6 +15,7 @@ import com.plot.plugin.road.model.section.RoadVariableCrossSections;
 import com.plot.plugin.road.model.section.StationCrossSection;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -36,6 +37,7 @@ class RoadPhase2PersistenceTest {
         assertTrue(json.contains("\"topologyMode\": \"LOOP\""));
         assertTrue(json.contains("\"horizontalAlignment\""));
         assertTrue(json.contains("\"verticalAlignment\""));
+        assertTrue(json.contains("\"verticalMode\": \"MANUAL_PROFILE\""));
         assertTrue(json.contains("\"variableCrossSections\""));
         assertTrue(json.contains("\"stationFacilities\""));
         assertTrue(json.contains("\"segmentIds\""));
@@ -109,6 +111,7 @@ class RoadPhase2PersistenceTest {
 
     private static void assertPhase2RoadEngineeringEquals(Road expected, Road actual) {
         assertEquals(expected.getTopologyMode(), actual.getTopologyMode());
+        assertEquals(expected.getVerticalMode(), actual.getVerticalMode());
         assertEquals(expected.getOrderedSegmentIds(), actual.getOrderedSegmentIds());
 
         assertHorizontalAlignmentEquals(expected.getHorizontalAlignment(), actual.getHorizontalAlignment());

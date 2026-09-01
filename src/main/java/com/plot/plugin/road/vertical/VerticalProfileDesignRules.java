@@ -53,6 +53,15 @@ public final class VerticalProfileDesignRules {
             PointOfVerticalIntersection.of(roadLength, elevation)));
     }
 
+    public static boolean isFlat(RoadVerticalAlignment alignment) {
+        if (alignment == null || alignment.pviCount() < 2) {
+            return false;
+        }
+        double elevation = alignment.getPvis().getFirst().getElevation();
+        return alignment.getPvis().stream()
+            .allMatch(pvi -> Math.abs(pvi.getElevation() - elevation) <= EPSILON);
+    }
+
     public static List<Issue> assess(RoadVerticalAlignment alignment, double roadLength,
             double maxGradePercent) {
         if (alignment == null || alignment.pviCount() < 2

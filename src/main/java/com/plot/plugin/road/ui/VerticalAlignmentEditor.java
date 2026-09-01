@@ -12,6 +12,7 @@ import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
@@ -58,6 +59,8 @@ public final class VerticalAlignmentEditor {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_hint"));
+
+        renderVerticalMode(road, roadLength, onHistory);
 
         renderFlatProfileAction(road, roadLength, onHistory);
 
@@ -107,6 +110,44 @@ public final class VerticalAlignmentEditor {
         }
     }
 
+    private void renderVerticalMode(Road road, double roadLength, Runnable onHistory) {
+        RoadVerticalMode current = road.getVerticalMode();
+        if (ImGui.beginCombo(
+                PlotI18n.tr("plugin.road.vertical_mode"),
+                verticalModeLabel(current))) {
+            for (RoadVerticalMode mode : RoadVerticalMode.values()) {
+                if (!VerticalProfileDesignRules.slopeAllowed(roadLength)
+                        && mode != RoadVerticalMode.FLAT) {
+                    continue;
+                }
+                if (ImGui.selectable(verticalModeLabel(mode), mode == current)) {
+                    if (onHistory != null) {
+                        onHistory.run();
+                    }
+                    road.setVerticalMode(mode);
+                    if (mode == RoadVerticalMode.FLAT && roadLength > 1e-6) {
+                        double elevation = road.getVerticalAlignment() != null
+                            && !road.getVerticalAlignment().isEmpty()
+                            ? road.getVerticalAlignment().getPvis().getFirst().getElevation()
+                            : flatElevation;
+                        road.setVerticalAlignment(
+                            VerticalProfileDesignRules.flatAlignment(roadLength, elevation));
+                        syncedRoadId = "";
+                        syncDrafts(road);
+                    }
+                }
+            }
+            ImGui.endCombo();
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_mode_hint_" + current.name().toLowerCase()));
+    }
+
+    private static String verticalModeLabel(RoadVerticalMode mode) {
+        return PlotI18n.tr("plugin.road.vertical_mode_" + mode.name().toLowerCase());
+    }
+
     private void renderFlatProfileAction(Road road, double roadLength, Runnable onHistory) {
         float[] elevation = {flatElevation};
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
@@ -125,6 +166,7 @@ public final class VerticalAlignmentEditor {
             }
             road.setVerticalAlignment(
                 VerticalProfileDesignRules.flatAlignment(roadLength, flatElevation));
+            road.setVerticalMode(RoadVerticalMode.FLAT);
             syncedRoadId = "";
             syncDrafts(road);
         }
@@ -235,6 +277,9 @@ public final class VerticalAlignmentEditor {
             return;
         }
         road.setVerticalAlignment(built.isEmpty() ? null : new RoadVerticalAlignment(built));
+        if (!built.isEmpty()) {
+            road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+        }
     }
 
     private void syncDrafts(Road road) {

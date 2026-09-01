@@ -5,6 +5,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.model.section.RoadCrossSection;
 import com.plot.plugin.road.model.section.RoadVariableCrossSections;
@@ -50,6 +51,7 @@ public class Road {
     private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
     private RoadHorizontalAlignment horizontalAlignment;
     private RoadVerticalAlignment verticalAlignment;
+    private RoadVerticalMode verticalMode;
     private RoadVariableCrossSections variableCrossSections;
     private RoadStationFacilities stationFacilities;
     private final List<String> segmentIds = new ArrayList<>();
@@ -461,6 +463,19 @@ public class Road {
         this.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
     }
 
+    public RoadVerticalMode getVerticalMode() {
+        if (verticalMode != null) {
+            return verticalMode;
+        }
+        return verticalAlignment != null && !verticalAlignment.isEmpty()
+            ? RoadVerticalMode.MANUAL_PROFILE
+            : RoadVerticalMode.AUTO_SMOOTH;
+    }
+
+    public void setVerticalMode(RoadVerticalMode verticalMode) {
+        this.verticalMode = verticalMode;
+    }
+
     public RoadVariableCrossSections getVariableCrossSections() {
         return variableCrossSections;
     }
@@ -619,6 +634,7 @@ public class Road {
         copy.topologyMode = getTopologyMode();
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
+        copy.verticalMode = verticalMode;
         copy.variableCrossSections = variableCrossSections != null ? variableCrossSections.copy() : null;
         copy.stationFacilities = stationFacilities != null ? stationFacilities.copy() : null;
         return copy;

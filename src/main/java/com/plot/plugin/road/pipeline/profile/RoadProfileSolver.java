@@ -9,6 +9,8 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +45,8 @@ public final class RoadProfileSolver {
             null,
             null,
             segmentIndex -> support.defaultMaxSlope(),
-            support);
+            support,
+            RoadVerticalMode.AUTO_SMOOTH);
     }
 
     public static ProfileSolveResult solveWithManualElevation(
@@ -64,7 +67,8 @@ public final class RoadProfileSolver {
             manualRoadElevation,
             manualRoadElevation,
             segmentIndex -> support.defaultMaxSlope(),
-            support);
+            support,
+            RoadVerticalMode.AUTO_SMOOTH);
     }
 
     public static ProfileSolveResult solveForEdge(
@@ -103,7 +107,10 @@ public final class RoadProfileSolver {
                 edge,
                 config,
                 profileDistanceAtSegmentStart(sampleData, segmentIndex, canvasUnitsPerBlock)),
-            support);
+            support,
+            network.getRoad(edge.getRoadId()) != null
+                ? network.getRoad(edge.getRoadId()).getVerticalMode()
+                : RoadVerticalMode.AUTO_SMOOTH);
     }
 
     public static RoadGenerationResult toProfileSnapshot(ProfileSolveResult result) {
@@ -137,16 +144,29 @@ public final class RoadProfileSolver {
             Integer manualStartHeight,
             Integer manualEndHeight,
             IntFunction<Float> maxSlopeResolver,
-            ProfileSolveSupport support) {
+            ProfileSolveSupport support,
+            RoadVerticalMode verticalMode) {
         double canvasUnitsPerBlock = support.canvasUnitsPerBlock(segments);
         List<Double> worldCumulativeDistances = toWorldDistances(
             sampleData.cumulativeDistances(), canvasUnitsPerBlock);
-        List<Integer> guideLine = RoadGuideLineUtils.computeGuideLine(
-            sampleData.groundSamples(),
-            worldCumulativeDistances,
-            support.fillFactor(),
-            manualStartHeight,
-            manualEndHeight);
+        List<Integer> guideLine;
+        if (verticalMode == RoadVerticalMode.FIT_TERRAIN
+                && VerticalProfileDesignRules.slopeAllowed(worldCumulativeDistances.getLast())) {
+            guideLine = new ArrayList<>(sampleData.groundSamples());
+            if (manualStartHeight != null && !guideLine.isEmpty()) {
+                guideLine.set(0, manualStartHeight);
+            }
+            if (manualEndHeight != null && !guideLine.isEmpty()) {
+                guideLine.set(guideLine.size() - 1, manualEndHeight);
+            }
+        } else {
+            guideLine = RoadGuideLineUtils.computeGuideLine(
+                sampleData.groundSamples(),
+                worldCumulativeDistances,
+                support.fillFactor(),
+                manualStartHeight,
+                manualEndHeight);
+        }
 
         List<Integer> guideStarts = new ArrayList<>();
         List<Integer> guideEnds = new ArrayList<>();
