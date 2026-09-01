@@ -12,7 +12,10 @@ import java.util.UUID;
  */
 public class GradingRegion {
     public static final String DEFAULT_FILL_MATERIAL = "minecraft:dirt";
-    public static final int DEFAULT_GRID_SIZE = 5;
+    public static final int DEFAULT_PREVIEW_GRID_SIZE = 5;
+    /** @deprecated 请改用 {@link #DEFAULT_PREVIEW_GRID_SIZE} */
+    @Deprecated
+    public static final int DEFAULT_GRID_SIZE = DEFAULT_PREVIEW_GRID_SIZE;
     public static final int DEFAULT_SLOPE_PITCH_RATIO = 4;
     private static final int CONTROL_POINT_COUNT = 3;
 
@@ -25,7 +28,7 @@ public class GradingRegion {
     private EarthMaterialProperties materialProperties = EarthMaterialProperties.DEFAULT;
     private String cutExposeMaterial = "";
     private String fillMaterial = DEFAULT_FILL_MATERIAL;
-    private int gridSize = DEFAULT_GRID_SIZE;
+    private int previewGridSize = DEFAULT_PREVIEW_GRID_SIZE;
 
     private double slopeDirectionDegrees = 0.0;
     private int slopePitchRatio = DEFAULT_SLOPE_PITCH_RATIO;
@@ -128,12 +131,24 @@ public class GradingRegion {
             : DEFAULT_FILL_MATERIAL;
     }
 
-    public int getGridSize() {
-        return gridSize;
+    public int getPreviewGridSize() {
+        return previewGridSize;
     }
 
+    public void setPreviewGridSize(int previewGridSize) {
+        this.previewGridSize = Math.max(1, Math.min(20, previewGridSize));
+    }
+
+    /** @deprecated 请改用 {@link #getPreviewGridSize()} */
+    @Deprecated
+    public int getGridSize() {
+        return getPreviewGridSize();
+    }
+
+    /** @deprecated 请改用 {@link #setPreviewGridSize(int)} */
+    @Deprecated
     public void setGridSize(int gridSize) {
-        this.gridSize = Math.max(1, Math.min(20, gridSize));
+        setPreviewGridSize(gridSize);
     }
 
     public double getSlopeDirectionDegrees() {

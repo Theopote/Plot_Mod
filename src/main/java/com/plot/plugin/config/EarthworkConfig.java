@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.plugin.earthwork.model.GradingRegion;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -16,7 +17,10 @@ public class EarthworkConfig {
     private final String pluginId;
 
     // 网格设置
-    private int gridSize = 5;
+    private int previewGridSize = GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
+    /** @deprecated 旧 JSON 字段 */
+    @Deprecated
+    private int gridSize;
     private boolean showGrid = true;
 
     // 计算设置
@@ -82,12 +86,31 @@ public class EarthworkConfig {
     }
 
     // Getters and setters
-    public int getGridSize() {
-        return gridSize;
+    public int getPreviewGridSize() {
+        if (previewGridSize > 0) {
+            return previewGridSize;
+        }
+        if (gridSize > 0) {
+            return gridSize;
+        }
+        return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
     }
 
+    public void setPreviewGridSize(int previewGridSize) {
+        this.previewGridSize = Math.max(1, Math.min(20, previewGridSize));
+        this.gridSize = 0;
+    }
+
+    /** @deprecated 请改用 {@link #getPreviewGridSize()} */
+    @Deprecated
+    public int getGridSize() {
+        return getPreviewGridSize();
+    }
+
+    /** @deprecated 请改用 {@link #setPreviewGridSize(int)} */
+    @Deprecated
     public void setGridSize(int gridSize) {
-        this.gridSize = gridSize;
+        setPreviewGridSize(gridSize);
     }
 
     public boolean isShowGrid() {

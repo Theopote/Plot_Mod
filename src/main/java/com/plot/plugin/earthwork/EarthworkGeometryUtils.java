@@ -123,6 +123,22 @@ public final class EarthworkGeometryUtils {
         return PolygonRegionUtils.collectFootprintCellCenters(points);
     }
 
+    public static List<Vec2d> collectPreviewGridCenters(List<Vec2d> points, int previewGridSize) {
+        return collectSampleCenters(points, previewGridSize);
+    }
+
+    public static boolean matchesPreviewGrid(Vec2d center, int previewGridSize) {
+        if (center == null) {
+            return false;
+        }
+        if (previewGridSize <= 1) {
+            return true;
+        }
+        int blockX = (int) Math.floor(center.x);
+        int blockZ = (int) Math.floor(center.y);
+        return blockX % previewGridSize == 0 && blockZ % previewGridSize == 0;
+    }
+
     public static List<Vec2d> collectSampleCenters(List<Vec2d> points, int gridSize) {
         List<Vec2d> allCenters = collectFootprintCellCenters(points);
         if (gridSize <= 1 || allCenters.isEmpty()) {

@@ -32,7 +32,7 @@ class EarthworkProjectTest {
         region.setMaterialProperties(new EarthMaterialProperties(0.85f, 0.88f));
         region.setCutExposeMaterial("minecraft:sand");
         region.setFillMaterial("minecraft:grass_block");
-        region.setGridSize(3);
+        region.setPreviewGridSize(3);
         region.setSurfaceMode(GradingSurfaceMode.FIXED_SLOPE);
         region.setSlopeDirectionDegrees(90.0);
         region.setSlopePitchRatio(8);
@@ -54,7 +54,7 @@ class EarthworkProjectTest {
         assertEquals(0.88f, restoredRegion.getMaterialProperties().cutToCompactedFillRatio(), 1e-6f);
         assertEquals("minecraft:sand", restoredRegion.getCutExposeMaterial());
         assertEquals("minecraft:grass_block", restoredRegion.getFillMaterial());
-        assertEquals(3, restoredRegion.getGridSize());
+        assertEquals(3, restoredRegion.getPreviewGridSize());
         assertEquals(GradingSurfaceMode.FIXED_SLOPE, restoredRegion.getSurfaceMode());
         assertEquals(90.0, restoredRegion.getSlopeDirectionDegrees(), 1e-6);
         assertEquals(8, restoredRegion.getSlopePitchRatio());
@@ -89,6 +89,26 @@ class EarthworkProjectTest {
         GradingRegion region = project.getRegion("r1");
         assertEquals(1.0f, region.getMaterialProperties().reusableRatio(), 1e-6f);
         assertEquals(0.8f, region.getMaterialProperties().cutToCompactedFillRatio(), 1e-6f);
+    }
+
+    @Test
+    void legacyGridSizeMigratesToPreviewGridSize() {
+        String json = """
+            {
+              "regions": [{
+                "id": "r1",
+                "name": "Legacy Grid",
+                "outerPoints": [
+                  {"x": 0, "y": 0},
+                  {"x": 10, "y": 0},
+                  {"x": 10, "y": 10}
+                ],
+                "gridSize": 7
+              }]
+            }
+            """;
+        EarthworkProject project = EarthworkProject.fromJson(json);
+        assertEquals(7, project.getRegion("r1").getPreviewGridSize());
     }
 
     @Test

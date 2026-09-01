@@ -122,7 +122,10 @@ public class EarthworkProject {
         Float fillFactor;
         String cutExposeMaterial = "";
         String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
-        int gridSize = GradingRegion.DEFAULT_GRID_SIZE;
+        int previewGridSize;
+        /** @deprecated 旧字段，读取时回退到 {@link #previewGridSize} */
+        @Deprecated
+        Integer gridSize;
         double slopeDirectionDegrees = 0.0;
         int slopePitchRatio = GradingRegion.DEFAULT_SLOPE_PITCH_RATIO;
         Double slopeAnchorCanvasX;
@@ -153,7 +156,7 @@ public class EarthworkProject {
                 regionData.cutToCompactedFillRatio = region.getMaterialProperties().cutToCompactedFillRatio();
                 regionData.cutExposeMaterial = region.getCutExposeMaterial();
                 regionData.fillMaterial = region.getFillMaterial();
-                regionData.gridSize = region.getGridSize();
+                regionData.previewGridSize = region.getPreviewGridSize();
                 regionData.slopeDirectionDegrees = region.getSlopeDirectionDegrees();
                 regionData.slopePitchRatio = region.getSlopePitchRatio();
                 if (region.getSlopeAnchorCanvas() != null) {
@@ -205,7 +208,7 @@ public class EarthworkProject {
                 if (regionData.fillMaterial != null) {
                     region.setFillMaterial(regionData.fillMaterial);
                 }
-                region.setGridSize(regionData.gridSize);
+                region.setPreviewGridSize(resolvePreviewGridSize(regionData));
                 region.setSlopeDirectionDegrees(regionData.slopeDirectionDegrees);
                 region.setSlopePitchRatio(regionData.slopePitchRatio);
                 if (regionData.slopeAnchorCanvasX != null && regionData.slopeAnchorCanvasY != null) {
@@ -225,6 +228,16 @@ public class EarthworkProject {
             }
             return project;
         }
+    }
+
+    private static int resolvePreviewGridSize(RegionData regionData) {
+        if (regionData.previewGridSize > 0) {
+            return regionData.previewGridSize;
+        }
+        if (regionData.gridSize != null && regionData.gridSize > 0) {
+            return regionData.gridSize;
+        }
+        return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
     }
 
     private static EarthMaterialProperties resolveMaterialProperties(RegionData regionData) {

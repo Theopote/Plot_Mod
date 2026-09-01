@@ -57,6 +57,7 @@ public class EarthworkGenerator {
         public int resolvedElevationMax;
         public boolean slopedSurface;
         public final List<String> warnings = new ArrayList<>();
+        public int calculationCellCount;
     }
 
     public EarthworkGenerationResult generate(GradingRegion region, World world) {
@@ -73,17 +74,15 @@ public class EarthworkGenerator {
         }
 
         Polygon polygon = EarthworkGeometryUtils.toPolygon(outerPoints);
-        List<Vec2d> allCenters = EarthworkGeometryUtils.collectFootprintCellCenters(outerPoints);
-        List<Vec2d> sampleCenters = EarthworkGeometryUtils.collectSampleCenters(outerPoints, region.getGridSize());
-
-        List<Integer> sampleHeights = new ArrayList<>();
-        for (Vec2d center : sampleCenters) {
-            BlockPos column = EarthworkGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
-            sampleHeights.add(getTopHeight(world, column));
+        TerrainSnapshot terrain = TerrainSnapshot.capture(world, polygon, outerPoints, coordinateTransformer);
+        if (terrain.isEmpty()) {
+            LOGGER.warn("整平区域无有效 footprint 格点");
+            return result;
         }
+        result.calculationCellCount = terrain.columnCount();
 
         GradingSurfaceResolver.ResolvedSurface surface = GradingSurfaceResolver.resolve(
-            region, sampleCenters, sampleHeights, coordinateTransformer);
+            region, terrain.centers(), terrain.groundHeights(), coordinateTransformer);
         GradingPlane plane = surface.plane();
         result.resolvedElevation = plane.isFlat()
             ? surface.elevationMin()
@@ -100,13 +99,9 @@ public class EarthworkGenerator {
         long cutChangedBlocks = 0L;
         long fillChangedBlocks = 0L;
 
-        for (Vec2d center : allCenters) {
-            if (!polygon.contains(center)) {
-                continue;
-            }
-            BlockPos column = EarthworkGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
-            int groundY = getTopHeight(world, column);
-            int targetElevation = plane.evaluateAt(column.getX(), column.getZ());
+        for (TerrainSnapshot.Column column : terrain.columns()) {
+            int groundY = column.groundY();
+            int targetElevation = plane.evaluateAt(column.worldX(), column.worldZ());
 
             ChangeType sampleType = ChangeType.FILL;
             if (groundY > targetElevation) {
@@ -115,20 +110,21 @@ public class EarthworkGenerator {
                 sampleType = null;
             }
 
-            if (matchesSampleGrid(center, region.getGridSize()) && sampleType != null) {
-                result.gridSamples.add(new GridSample(center, groundY, sampleType));
+            if (EarthworkGeometryUtils.matchesPreviewGrid(column.center(), region.getPreviewGridSize())
+                && sampleType != null) {
+                result.gridSamples.add(new GridSample(column.center(), groundY, sampleType));
             }
 
             if (groundY > targetElevation) {
                 geometricCutVolume += groundY - targetElevation;
                 for (int y = targetElevation + 1; y <= groundY; y++) {
-                    BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
+                    BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
                     if (recordBlock(result, world, pos, EarthworkGeometryUtils.EXCAVATION_BLOCK_ID, ChangeType.CUT)) {
                         cutChangedBlocks++;
                     }
                 }
                 if (cutSurfaceBlockId != null) {
-                    BlockPos surfacePos = new BlockPos(column.getX(), targetElevation, column.getZ());
+                    BlockPos surfacePos = new BlockPos(column.worldX(), targetElevation, column.worldZ());
                     if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, ChangeType.CUT)) {
                         cutChangedBlocks++;
                     }
@@ -136,7 +132,7 @@ public class EarthworkGenerator {
             } else if (groundY < targetElevation) {
                 geometricFillVolume += targetElevation - groundY;
                 for (int y = groundY + 1; y <= targetElevation; y++) {
-                    BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
+                    BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
                     if (recordBlock(result, world, pos, fillBlockId, ChangeType.FILL)) {
                         fillChangedBlocks++;
                     }
@@ -155,15 +151,6 @@ public class EarthworkGenerator {
         region.setLastResolvedElevationMin(result.resolvedElevationMin);
         region.setLastResolvedElevationMax(result.resolvedElevationMax);
         return result;
-    }
-
-    private boolean matchesSampleGrid(Vec2d center, int gridSize) {
-        if (gridSize <= 1) {
-            return true;
-        }
-        int blockX = (int) Math.floor(center.x);
-        int blockZ = (int) Math.floor(center.y);
-        return blockX % gridSize == 0 && blockZ % gridSize == 0;
     }
 
     /**
@@ -208,15 +195,6 @@ public class EarthworkGenerator {
         } catch (Exception e) {
             LOGGER.warn("读取方块失败 {}: {}", pos, e.getMessage());
             return Registries.BLOCK.getId(Blocks.AIR).toString();
-        }
-    }
-
-    private int getTopHeight(World world, BlockPos pos) {
-        try {
-            return TerrainSurfaceSampler.sampleAtBlock(world, pos.getX(), pos.getZ());
-        } catch (Exception e) {
-            LOGGER.warn("获取地形高度失败 ({}, {}): {}", pos.getX(), pos.getZ(), e.getMessage());
-            return 64;
         }
     }
 }

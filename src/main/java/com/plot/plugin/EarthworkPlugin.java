@@ -20,7 +20,8 @@ import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.TerrainSurfaceSampler;
+import com.plot.core.geometry.shapes.Polygon;
+import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -377,17 +378,17 @@ public class EarthworkPlugin extends Plugin {
 
         renderMaterialPropertiesSettings(region);
 
-        int[] gridSize = {region.getGridSize()};
-        boolean gridSizeChanged = ImGui.sliderInt("##region_grid_size", gridSize, 1, 20,
-            PlotI18n.tr("plugin.earthwork.grid_size", gridSize[0]));
+        int[] previewGridSize = {region.getPreviewGridSize()};
+        boolean previewGridChanged = ImGui.sliderInt("##preview_grid_size", previewGridSize, 1, 20,
+            PlotI18n.tr("plugin.earthwork.preview_grid_size", previewGridSize[0]));
         if (ImGui.isItemActivated()) {
             projectHistory.push(project);
         }
-        if (gridSizeChanged) {
-            region.setGridSize(gridSize[0]);
+        if (previewGridChanged) {
+            region.setPreviewGridSize(previewGridSize[0]);
             invalidatePreview();
         }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.grid_size");
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.preview_grid_size");
 
         renderMaterialButton(PlotI18n.tr("plugin.earthwork.cut_material"), region.getCutExposeMaterial(),
             blockId -> {
@@ -611,34 +612,24 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void initializeSurfaceDefaults(GradingRegion region, GradingSurfaceMode mode) {
-        List<Vec2d> sampleCenters = EarthworkGeometryUtils.collectSampleCenters(
-            region.getOuterPoints(), region.getGridSize());
-        List<Integer> sampleHeights = sampleHeightsFromWorld(region, sampleCenters);
         com.plot.api.world.ICoordinateService transformer = ctx().coordinates();
+        World world = getClientWorld();
+        if (world == null || transformer == null) {
+            return;
+        }
+        Polygon polygon = EarthworkGeometryUtils.toPolygon(region.getOuterPoints());
+        TerrainSnapshot terrain = TerrainSnapshot.capture(world, polygon, region.getOuterPoints(), transformer);
+        if (terrain.isEmpty()) {
+            return;
+        }
 
         if (mode == GradingSurfaceMode.THREE_POINT) {
             GradingSurfaceResolver.initializeThreePointDefaults(
-                region, sampleCenters, sampleHeights, transformer);
+                region, terrain.centers(), terrain.groundHeights(), transformer);
         } else if (mode == GradingSurfaceMode.FIXED_SLOPE) {
             GradingSurfaceResolver.initializeFixedSlopeDefaults(
-                region, sampleCenters, sampleHeights, transformer);
+                region, terrain.centers(), terrain.groundHeights(), transformer);
         }
-    }
-
-    private List<Integer> sampleHeightsFromWorld(GradingRegion region, List<Vec2d> sampleCenters) {
-        List<Integer> sampleHeights = new ArrayList<>();
-        World world = getClientWorld();
-        com.plot.api.world.ICoordinateService transformer = ctx().coordinates();
-        if (world == null || transformer == null) {
-            for (int i = 0; i < sampleCenters.size(); i++) {
-                sampleHeights.add(64);
-            }
-            return sampleHeights;
-        }
-        for (Vec2d center : sampleCenters) {
-            sampleHeights.add(TerrainSurfaceSampler.sampleAtCanvas(world, center, transformer));
-        }
-        return sampleHeights;
     }
 
     private void renderGlobalGridSettings() {
@@ -700,6 +691,7 @@ public class EarthworkPlugin extends Plugin {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
             EarthworkVolumeReport volumes = lastGenerationResult.volumeReport;
+            ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", lastGenerationResult.calculationCellCount));
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_cut_volume", volumes.geometricCutVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_fill_volume", volumes.geometricFillVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
@@ -1017,7 +1009,7 @@ public class EarthworkPlugin extends Plugin {
             region.setName(PlotI18n.tr("plugin.earthwork.default_name", adopted + 1));
             region.setAutoBalance(config.isAutoBalance());
             region.setMaterialProperties(config.getDefaultMaterialProperties());
-            region.setGridSize(config.getGridSize());
+            region.setPreviewGridSize(config.getPreviewGridSize());
             if (!config.isAutoBalance()) {
                 region.setManualTargetElevation(Math.round(config.getTargetElevation()));
             }
