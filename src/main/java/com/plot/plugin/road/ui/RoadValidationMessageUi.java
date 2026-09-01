@@ -6,6 +6,7 @@ import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
+import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import com.plot.plugin.road.validation.RoadValidationAction;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.ui.PluginUiColors;
@@ -86,7 +87,29 @@ public final class RoadValidationMessageUi {
                 yield false;
             }
             case SMOOTH_GRADE -> {
-                ctx.status().info(PlotI18n.tr("plugin.road.issue.action.smooth_grade_pending"));
+                var config = ctx.networkManager().getConfig();
+                var net = network != null ? network : ctx.networkManager().getNetwork();
+                ctx.networkManager().pushHistory();
+                if (road != null) {
+                    if (VerticalAlignmentGradeSmoother.smoothRoad(net, road, config)) {
+                        ctx.onGenerationConfigChanged();
+                        float limit = road.getEffectiveMaxSlope(config);
+                        if (VerticalAlignmentGradeSmoother.exceedsGradeLimit(road.getVerticalAlignment(), limit)) {
+                            ctx.status().warning(PlotI18n.tr("plugin.road.smooth_grade_partial"));
+                        } else {
+                            ctx.status().success(PlotI18n.tr("plugin.road.smooth_grade_success", 1));
+                        }
+                        yield true;
+                    }
+                } else {
+                    int count = VerticalAlignmentGradeSmoother.smoothAllExceeding(net, config);
+                    if (count > 0) {
+                        ctx.onGenerationConfigChanged();
+                        ctx.status().success(PlotI18n.tr("plugin.road.smooth_grade_success", count));
+                        yield true;
+                    }
+                }
+                ctx.status().warning(PlotI18n.tr("plugin.road.smooth_grade_failed"));
                 yield false;
             }
         };
