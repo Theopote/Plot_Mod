@@ -56,4 +56,11 @@ class VerticalProfileControlPointsTest {
         assertEquals(0, endpoint.getPvis().getFirst().getStation(), 1e-6);
         assertEquals(72, endpoint.getPvis().getFirst().getElevation(), 1e-6);
     }
+
+    @Test void movingEitherEndpointOfShortRoadKeepsWholeProfileFlat() {
+        RoadVerticalAlignment source = VerticalProfileDesignRules.flatAlignment(18, 70);
+        RoadVerticalAlignment moved = VerticalProfileControlPoints.move(source, 1, 18, 74, 18);
+        assertEquals(74, moved.getPvis().getFirst().getElevation(), 1e-6);
+        assertEquals(74, moved.getPvis().getLast().getElevation(), 1e-6);
+    }
 }

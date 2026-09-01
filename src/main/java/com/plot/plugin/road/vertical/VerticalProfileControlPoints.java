@@ -21,7 +21,8 @@ public final class VerticalProfileControlPoints {
             double elevation,
             Double leftGradePercent,
             Double rightGradePercent,
-            boolean endpoint) { }
+            boolean endpoint,
+            boolean sharedJunction) { }
 
     private VerticalProfileControlPoints() { }
 
@@ -49,7 +50,9 @@ public final class VerticalProfileControlPoints {
                 : null;
             result.add(new ControlPoint(
                 i, pvi.getStation(), local.getAsDouble(), pvi.getElevation(), left, right,
-                i == 0 || i == pvis.size() - 1));
+                i == 0 || i == pvis.size() - 1,
+                VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
+                    network, road, pvi.getStation())));
         }
         return List.copyOf(result);
     }
@@ -83,6 +86,9 @@ public final class VerticalProfileControlPoints {
         if (source == null || pviIndex < 0 || pviIndex >= source.pviCount()
                 || !Double.isFinite(requestedStation) || !Double.isFinite(elevation)) {
             throw new IllegalArgumentException("invalid PVI move");
+        }
+        if (!VerticalProfileDesignRules.slopeAllowed(roadLength)) {
+            return VerticalProfileDesignRules.flatAlignment(roadLength, elevation);
         }
         List<PointOfVerticalIntersection> pvis = source.getPvis();
         double station;

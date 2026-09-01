@@ -54,6 +54,9 @@ public final class VerticalAlignmentEditor {
             return;
         }
 
+        if (VerticalAlignmentJunctionSynchronizer.applySharedJunctionConstraints(network, road) > 0) {
+            syncedRoadId = "";
+        }
         syncDrafts(road);
         double roadLength = RoadStationing.canonicalLength(network, road);
         RoadUiWidgets.textWrappedColored(

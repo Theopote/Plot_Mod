@@ -209,8 +209,9 @@ public final class RoadLongitudinalProfileRenderer {
             int color = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade)
                 ? COLOR_CONTROL_INVALID
                 : point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_CONTROL;
-            drawList.addCircleFilled(x, y, point.endpoint() ? 5f : 4f, color);
-            drawList.addCircle(x, y, point.endpoint() ? 6f : 5f, COLOR_BG, 12, 1.5f);
+            float radius = point.sharedJunction() ? 6f : point.endpoint() ? 5f : 4f;
+            drawList.addCircleFilled(x, y, radius, color);
+            drawList.addCircle(x, y, radius + 1f, COLOR_BG, 12, 1.5f);
         }
     }
 

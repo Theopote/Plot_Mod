@@ -269,6 +269,13 @@ public final class RoadEditPanel {
                 .map(segment -> segment.roadStationAtGeometryLocal(
                     interaction.draggedLocalDistance()))
                 .orElse(currentStation);
+            VerticalProfileControlPoints.ControlPoint draggedPoint = points.stream()
+                .filter(point -> point.pviIndex() == selectedProfilePvi)
+                .findFirst()
+                .orElse(null);
+            if (draggedPoint != null && draggedPoint.sharedJunction()) {
+                requestedStation = currentStation;
+            }
             road.setVerticalAlignment(VerticalProfileControlPoints.move(
                 road.getVerticalAlignment(), selectedProfilePvi, requestedStation,
                 interaction.draggedElevation(), RoadStationing.canonicalLength(network, road)));
@@ -281,6 +288,9 @@ public final class RoadEditPanel {
         for (VerticalProfileControlPoints.ControlPoint point : points) {
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
             String grades = formatControlPointGrades(point);
+            if (point.sharedJunction()) {
+                grades += " · " + PlotI18n.tr("plugin.road.vertical_alignment_shared_junction");
+            }
             String label = PlotI18n.tr(
                 "plugin.road.vertical_alignment_control_point",
                 point.pviIndex() + 1,

@@ -21,6 +21,42 @@ class VerticalAlignmentJunctionSynchronizerTest {
         assertNull(f.junction.getManualElevation());
     }
 
+    @Test void internalJunctionPviPropagatesIntoConnectedManualRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road eastWest = network.createRoad("east-west");
+        Road northSouth = network.createRoad("north-south");
+        eastWest.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.of(20, 76),
+            PointOfVerticalIntersection.of(40, 72))));
+        northSouth.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 68),
+            PointOfVerticalIntersection.of(40, 69))));
+        var west = network.createNode(new Vec2d(-20, 0));
+        var junction = network.createNode(new Vec2d(0, 0));
+        var east = network.createNode(new Vec2d(20, 0));
+        var north = network.createNode(new Vec2d(0, 20));
+        var south = network.createNode(new Vec2d(0, -20));
+        network.createEdge(west.getId(), junction.getId(),
+            List.of(new Vec2d(-20, 0), new Vec2d(0, 0)), eastWest.getId());
+        network.createEdge(junction.getId(), east.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)), eastWest.getId());
+        network.createEdge(south.getId(), junction.getId(),
+            List.of(new Vec2d(0, -20), new Vec2d(0, 0)), northSouth.getId());
+        network.createEdge(junction.getId(), north.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 20)), northSouth.getId());
+
+        assertTrue(VerticalAlignmentJunctionSynchronizer.synchronize(network, eastWest) >= 2);
+        assertEquals(76, junction.getManualElevation(), 1e-6);
+        assertEquals(3, northSouth.getVerticalAlignment().pviCount());
+        PointOfVerticalIntersection shared = northSouth.getVerticalAlignment().getPvis().stream()
+            .filter(pvi -> Math.abs(pvi.getStation() - 20) < 1e-6)
+            .findFirst().orElseThrow();
+        assertEquals(76, shared.getElevation(), 1e-6);
+        assertTrue(VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
+            network, northSouth, 20));
+    }
+
     private static Fixture fixture(boolean gradeSeparated) {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("main");

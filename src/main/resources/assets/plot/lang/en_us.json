@@ -1099,6 +1099,7 @@
   "plugin.road.vertical_alignment_profile_legend_hint": "The horizontal axis is cumulative distance along the selected segment. Green is the manual design profile; polylines and curves are unfolded by arc length.",
   "plugin.road.vertical_alignment_control_points": "Profile control points (middle points drag in 2D; endpoints vertically only; red when over grade)",
   "plugin.road.vertical_alignment_control_point": "PVI %1$d · %2$.1f blocks from segment start · Y=%3$.2f · left/right grade %4$s",
+  "plugin.road.vertical_alignment_shared_junction": "◆ fixed at-grade junction",
   "plugin.road.vertical_alignment_selected_elevation": "Selected control point elevation",
   "plugin.road.vertical_alignment_apply_control_point": "Apply Control Point Elevation",
   "plugin.road.vertical_alignment_auto_fix_grade": "Automatically Extend Grade Runs",
