@@ -85,7 +85,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
             && RoadStationing.isStationable(network, road);
     }
 
-    static Map<String, Double> junctionStations(RoadNetwork network, Road road) {
+    public static Map<String, Double> junctionStations(RoadNetwork network, Road road) {
         Map<String, Double> result = new LinkedHashMap<>();
         if (network == null || road == null || !RoadStationing.isStationable(network, road)) return result;
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {

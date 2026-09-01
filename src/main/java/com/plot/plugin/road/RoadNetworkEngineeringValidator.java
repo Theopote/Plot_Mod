@@ -23,6 +23,7 @@ import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
+import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -51,6 +52,7 @@ public final class RoadNetworkEngineeringValidator {
         List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
         if (network != null) {
             addShortRoadVerticalAlignmentBlocker(items, network);
+            addFlatRoadJunctionConflictBlocker(items, network);
         }
         return new RoadNetworkValidationReport(items);
     }
@@ -331,6 +333,7 @@ public final class RoadNetworkEngineeringValidator {
             return;
         }
         addShortRoadVerticalAlignmentBlocker(items, network);
+        addFlatRoadJunctionConflictBlocker(items, network);
         int lengthMismatchCount = countVerticalAlignmentLengthMismatches(network);
         if (lengthMismatchCount == 0) {
             items.add(RoadNetworkValidationReport.Item.ok(
@@ -352,6 +355,16 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         addVerticalAlignmentTopologyItems(items, network);
+    }
+
+    private static void addFlatRoadJunctionConflictBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        int count = FlatRoadJunctionConflictResolver.find(network).size();
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.flat_junction_conflict", count));
+        }
     }
 
     private static void addShortRoadVerticalAlignmentBlocker(

@@ -16,6 +16,7 @@ import com.plot.plugin.road.model.RoadNetworkInvariantValidator;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -229,6 +230,7 @@ public final class RoadNodePropertyPanel {
                 node.setManualElevation(null);
             } else {
                 node.setManualElevation((double) resolveManualLockElevation(node, network, config));
+                propagateNodeElevation(node, network, config);
             }
         }
 
@@ -248,6 +250,7 @@ public final class RoadNodePropertyPanel {
             }
             if (elevationChanged) {
                 node.setManualElevation((double) elevation[0]);
+                propagateNodeElevation(node, network, config);
             }
             if (!inline && ImGui.isItemHovered()) {
                 ImGui.setTooltip(PlotI18n.tr("hint.plot.road.node_elevation"));
@@ -259,6 +262,14 @@ public final class RoadNodePropertyPanel {
         } else {
             renderGradeSeparationControlsBlock(node, network, config);
         }
+    }
+
+    private static void propagateNodeElevation(
+            RoadNode node,
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        VerticalProfileNetworkPropagator.propagateNode(
+            network, node, road -> road.getEffectiveMaxSlope(config));
     }
 
     private static String formatNodeLabel(RoadNode node) {

@@ -12,6 +12,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
+import com.plot.plugin.road.vertical.FlatRoadJunctionConflictResolver;
 import com.plot.plugin.road.validation.RoadValidationAction;
 import com.plot.plugin.road.validation.RoadValidationDrillDown;
 import com.plot.plugin.road.validation.RoadValidationMessage;
@@ -69,6 +70,10 @@ public final class RoadValidationMessageUi {
         if (message.hasDetail()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(message.detailKey(), message.args()));
         }
+        if ("flat_junction_conflict".equals(issueId) && ctx != null) {
+            renderFlatJunctionConflictActions(ctx, network, suffix);
+            return;
+        }
         if (message.hasAction() && ctx != null) {
             ImGui.indent();
             String actionLabel = PlotI18n.tr(message.actionKey());
@@ -77,6 +82,28 @@ public final class RoadValidationMessageUi {
             }
             ImGui.unindent();
         }
+    }
+
+    private static void renderFlatJunctionConflictActions(
+            RoadUiContext ctx,
+            RoadNetwork network,
+            String suffix) {
+        ImGui.indent();
+        RoadValidationAction[] actions = {
+            RoadValidationAction.FLAT_TO_JUNCTION_ELEVATION,
+            RoadValidationAction.ALLOW_FLAT_ROADS_TO_SLOPE,
+            RoadValidationAction.CANCEL_JUNCTION_ELEVATION_CHANGE
+        };
+        for (int i = 0; i < actions.length; i++) {
+            RoadValidationAction action = actions[i];
+            if (i > 0) ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr(
+                    "plugin.road.issue.action." + action.name().toLowerCase())
+                    + "##flat_conflict_" + action.name() + suffix)) {
+                executeAction(action, ctx, network, null);
+            }
+        }
+        ImGui.unindent();
     }
 
     private static void renderTitle(RoadValidationMessage message) {
@@ -237,6 +264,37 @@ public final class RoadValidationMessageUi {
                     yield true;
                 }
                 yield false;
+            }
+            case FLAT_TO_JUNCTION_ELEVATION -> {
+                RoadNetwork net = network != null ? network : ctx.networkManager().getNetwork();
+                if (FlatRoadJunctionConflictResolver.find(net).isEmpty()) yield false;
+                ctx.networkManager().pushHistory();
+                int changed = FlatRoadJunctionConflictResolver.makeRoadsFlatAtJunctionElevation(net);
+                if (changed > 0) {
+                    ctx.onGenerationConfigChanged();
+                    ctx.status().success(PlotI18n.tr("plugin.road.flat_junction_adopted", changed));
+                    yield true;
+                }
+                ctx.status().warning(PlotI18n.tr("plugin.road.flat_junction_multiple_elevations"));
+                yield false;
+            }
+            case ALLOW_FLAT_ROADS_TO_SLOPE -> {
+                RoadNetwork net = network != null ? network : ctx.networkManager().getNetwork();
+                if (FlatRoadJunctionConflictResolver.find(net).isEmpty()) yield false;
+                ctx.networkManager().pushHistory();
+                int changed = FlatRoadJunctionConflictResolver.allowConflictingRoadsToSlope(net);
+                if (changed > 0) {
+                    ctx.onGenerationConfigChanged();
+                    ctx.status().success(PlotI18n.tr("plugin.road.flat_junction_slope_allowed", changed));
+                    yield true;
+                }
+                yield false;
+            }
+            case CANCEL_JUNCTION_ELEVATION_CHANGE -> {
+                if (!ctx.networkManager().canUndo()) yield false;
+                ctx.networkManager().undo();
+                ctx.status().info(PlotI18n.tr("plugin.road.flat_junction_change_cancelled"));
+                yield true;
             }
             case REPAIR_ROAD_TOPOLOGY -> RoadTopologyWorkflow.repairTopology(ctx, road);
         };
