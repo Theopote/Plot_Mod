@@ -53,6 +53,20 @@ class RoadNetworkEngineeringValidatorTest {
         assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(network).hasErrors());
     }
 
+    @Test
+    void reportsVoxelInvisibleElevationChangeAsWarningWithoutBlocking() {
+        RoadNetwork network = shortProfileNetwork(
+            100.0, 70.0, 70.3, RoadVerticalMode.MANUAL_PROFILE);
+
+        RoadNetworkValidationReport report = RoadNetworkEngineeringValidator.analyze(
+            network, Map.of(), new RoadSystemConfig("test"));
+
+        assertTrue(hasWarning(
+            report, "plugin.road.validation.vertical_alignment_elevation_change_not_visible"));
+        assertFalse(report.hasErrors());
+        assertFalse(report.blocksBuild());
+    }
+
     private static RoadNetwork shortProfileNetwork(
             double length,
             double startElevation,

@@ -73,7 +73,8 @@ public class RoadSystemConfig {
     private float cutSlopeRatio = 1.0f;
     private String fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
     private String cutSlopeMaterial = "";
-    private double maxContinuousSlopeLength = 30.0;
+    /** AUTO_SMOOTH v1 preferred continuous grade run; 300 m remains a manual-design warning. */
+    private double maxContinuousSlopeLength = 180.0;
     private double relaxedSlopeLength = 5.0;
     private float relaxedSlopePercent = 1.0f;
     private float defaultCornerRadius = (float) RoadNode.DEFAULT_CORNER_RADIUS;

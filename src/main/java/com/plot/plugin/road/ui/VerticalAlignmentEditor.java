@@ -378,9 +378,13 @@ public final class VerticalAlignmentEditor {
                 case GRADE_EXCEEDS_LIMIT -> "plugin.road.vertical_alignment_grade_exceeds";
                 case GRADE_RUN_TOO_SHORT -> "plugin.road.vertical_alignment_grade_run_short";
                 case CONTINUOUS_GRADE_TOO_LONG -> "plugin.road.vertical_alignment_grade_run_long";
+                case ELEVATION_CHANGE_NOT_VISIBLE ->
+                    "plugin.road.vertical_alignment_elevation_change_not_visible";
             };
             RoadUiWidgets.textWrappedColored(
-                PluginUiColors.INVALID,
+                issue.kind() == VerticalProfileDesignRules.IssueKind.ELEVATION_CHANGE_NOT_VISIBLE
+                    ? PluginUiColors.WARNING_LIGHT
+                    : PluginUiColors.INVALID,
                 PlotI18n.tr(key, issue.fromPviIndex() + 1, issue.toPviIndex() + 1,
                     issue.actual(), issue.limit()));
         }

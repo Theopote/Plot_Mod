@@ -15,6 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class RoadSystemConfigTest {
 
     @Test
+    void defaultsToPreferredAutoGradeRunLength() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+        assertEquals(180.0, config.getMaxContinuousSlopeLength(), 0.001);
+    }
+
+    @Test
     void slopeMaterialGettersHandleNullFromJson() {
         RoadSystemConfig config = new Gson().fromJson(
             "{\"fillSlopeMaterial\":null,\"cutSlopeMaterial\":null}",

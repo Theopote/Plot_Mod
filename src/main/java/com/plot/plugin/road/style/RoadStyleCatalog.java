@@ -43,7 +43,7 @@ public final class RoadStyleCatalog {
         style.width = 3;
         style.laneCount = 1;
         style.hasSidewalk = false;
-        style.maxSlope = 8.0f;
+        style.maxSlope = 16.0f;
         style.roadMaterial = "minecraft:dirt_path";
         style.laneDividers = false;
         style.centerLineStyle = CenterLineStyle.NONE.name();
@@ -70,7 +70,7 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = true;
         style.sidewalkWidth = 1;
         style.includeShoulder = false;
-        style.maxSlope = 10.0f;
+        style.maxSlope = 8.0f;
         style.roadMaterial = "minecraft:gray_concrete";
         style.sidewalkMaterial = "minecraft:stone";
         style.streetlightSpacing = 16;
@@ -85,7 +85,7 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = true;
         style.sidewalkWidth = 1;
         style.includeShoulder = false;
-        style.maxSlope = 8.0f;
+        style.maxSlope = 6.0f;
         style.roadMaterial = "minecraft:gray_concrete";
         style.sidewalkMaterial = "minecraft:smooth_stone";
         style.streetlightSpacing = 12;
@@ -103,7 +103,7 @@ public final class RoadStyleCatalog {
         style.includeShoulder = false;
         style.includeMedian = true;
         style.medianWidth = 1;
-        style.maxSlope = 6.0f;
+        style.maxSlope = 5.0f;
         style.roadMaterial = "minecraft:black_concrete";
         style.sidewalkMaterial = "minecraft:stone_bricks";
         style.centerLineStyle = CenterLineStyle.DOUBLE_SOLID.name();
@@ -135,7 +135,7 @@ public final class RoadStyleCatalog {
         style.hasSidewalk = true;
         style.sidewalkWidth = 2;
         style.includeShoulder = false;
-        style.maxSlope = 8.0f;
+        style.maxSlope = 6.0f;
         style.roadMaterial = "minecraft:white_concrete";
         style.sidewalkMaterial = "minecraft:smooth_stone";
         style.streetlightSpacing = 12;
@@ -236,7 +236,7 @@ public final class RoadStyleCatalog {
         style.includeSlopeBatter = true;
         style.fillSlopeRatio = 2.5f;
         style.cutSlopeRatio = 2.0f;
-        style.maxSlope = 18.0f;
+        style.maxSlope = 12.0f;
         style.roadMaterial = "minecraft:gravel";
         style.shoulderMaterial = "minecraft:stone";
         style.fillSlopeMaterial = "minecraft:stone";

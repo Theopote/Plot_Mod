@@ -24,7 +24,7 @@ public final class RoadParameterLimits {
     public static final double MIN_PATH_SAMPLE_DISTANCE = 0.5;
     public static final double MAX_PATH_SAMPLE_DISTANCE = 5.0;
     public static final double MIN_CONTINUOUS_SLOPE_LENGTH = 5.0;
-    public static final double MAX_CONTINUOUS_SLOPE_LENGTH = 100.0;
+    public static final double MAX_CONTINUOUS_SLOPE_LENGTH = 300.0;
     public static final double MIN_RELAXED_SLOPE_LENGTH = 1.0;
     public static final double MAX_RELAXED_SLOPE_LENGTH = 30.0;
 

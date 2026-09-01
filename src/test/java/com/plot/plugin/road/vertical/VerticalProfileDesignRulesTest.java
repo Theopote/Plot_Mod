@@ -38,4 +38,18 @@ class VerticalProfileDesignRulesTest {
         assertTrue(issues.stream().anyMatch(i -> i.kind() == VerticalProfileDesignRules.IssueKind.GRADE_EXCEEDS_LIMIT));
         assertTrue(issues.stream().anyMatch(i -> i.kind() == VerticalProfileDesignRules.IssueKind.CONTINUOUS_GRADE_TOO_LONG));
     }
+
+    @Test void warnsForNonZeroElevationChangeBelowOneBlock() {
+        RoadVerticalAlignment subtle = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, 70.0),
+            PointOfVerticalIntersection.of(100.0, 70.3)));
+
+        assertTrue(VerticalProfileDesignRules.assess(subtle, 100.0, 8.0).stream()
+            .anyMatch(issue -> issue.kind()
+                == VerticalProfileDesignRules.IssueKind.ELEVATION_CHANGE_NOT_VISIBLE));
+        assertFalse(VerticalProfileDesignRules.assess(
+            VerticalProfileDesignRules.flatAlignment(100.0, 70.0), 100.0, 8.0).stream()
+            .anyMatch(issue -> issue.kind()
+                == VerticalProfileDesignRules.IssueKind.ELEVATION_CHANGE_NOT_VISIBLE));
+    }
 }

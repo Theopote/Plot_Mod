@@ -21,7 +21,7 @@ class RoadStyleTest {
         assertTrue(section.getShoulder().getEnabled());
         assertTrue(section.getSlopeBatter().getEnabled());
         assertEquals(2.5f, section.getSlopeBatter().getFillRatio(), 1e-3);
-        assertEquals(18.0f, style.maxSlope, 1e-3);
+        assertEquals(12.0f, style.maxSlope, 1e-3);
     }
 
     @Test

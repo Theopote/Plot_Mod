@@ -354,6 +354,14 @@ public final class RoadNetworkEngineeringValidator {
                 gradeExceedCount));
         }
 
+        int invisibleChangeCount = countVerticalAlignmentsWithInvisibleElevationChange(network, config);
+        if (invisibleChangeCount > 0) {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.vertical_alignment_elevation_change_not_visible",
+                invisibleChangeCount,
+                (int) VerticalProfileDesignRules.MIN_MEANINGFUL_ELEVATION_CHANGE));
+        }
+
         addVerticalAlignmentTopologyItems(items, network);
     }
 
@@ -498,6 +506,27 @@ public final class RoadNetworkEngineeringValidator {
             if (maxAbsGrade > limit + GRADE_TOLERANCE_PERCENT) {
                 count++;
             }
+        }
+        return count;
+    }
+
+    private static int countVerticalAlignmentsWithInvisibleElevationChange(
+            RoadNetwork network,
+            RoadSystemConfig config) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            RoadVerticalMode mode = road.getVerticalMode();
+            if (mode != RoadVerticalMode.FLAT && mode != RoadVerticalMode.MANUAL_PROFILE) continue;
+            RoadVerticalAlignment alignment = road.getVerticalAlignment();
+            if (!VerticalAlignmentGeometry.isEvaluable(alignment)
+                    || !RoadStationing.isStationable(network, road)) continue;
+            double length = RoadStationing.canonicalLength(network, road);
+            double maxGrade = road.getEffectiveMaxSlope(config);
+            boolean hasInvisibleChange = VerticalProfileDesignRules
+                .assess(alignment, length, maxGrade).stream()
+                .anyMatch(issue -> issue.kind()
+                    == VerticalProfileDesignRules.IssueKind.ELEVATION_CHANGE_NOT_VISIBLE);
+            if (hasInvisibleChange) count++;
         }
         return count;
     }

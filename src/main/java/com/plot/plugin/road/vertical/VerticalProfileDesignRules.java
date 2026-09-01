@@ -9,13 +9,15 @@ public final class VerticalProfileDesignRules {
     public static final double MIN_GRADE_RUN_LENGTH = 12.0;
     public static final double MIN_VERTICAL_TRANSITION_LENGTH = 8.0;
     public static final double WARNING_CONTINUOUS_GRADE_LENGTH = 300.0;
+    public static final double MIN_MEANINGFUL_ELEVATION_CHANGE = 1.0;
     private static final double EPSILON = 1e-6;
 
     public enum IssueKind {
         SHORT_ROAD_MUST_BE_FLAT,
         GRADE_EXCEEDS_LIMIT,
         GRADE_RUN_TOO_SHORT,
-        CONTINUOUS_GRADE_TOO_LONG
+        CONTINUOUS_GRADE_TOO_LONG,
+        ELEVATION_CHANGE_NOT_VISIBLE
     }
 
     public record Issue(IssueKind kind, int fromPviIndex, int toPviIndex, double actual, double limit) { }
@@ -74,7 +76,13 @@ public final class VerticalProfileDesignRules {
             PointOfVerticalIntersection from = pvis.get(i - 1);
             PointOfVerticalIntersection to = pvis.get(i);
             double run = to.getStation() - from.getStation();
+            double elevationChange = Math.abs(to.getElevation() - from.getElevation());
             double grade = Math.abs(VerticalAlignmentGeometry.tangentGradePercent(from, to));
+            if (elevationChange > EPSILON
+                    && elevationChange + EPSILON < MIN_MEANINGFUL_ELEVATION_CHANGE) {
+                issues.add(new Issue(IssueKind.ELEVATION_CHANGE_NOT_VISIBLE, i - 1, i,
+                    elevationChange, MIN_MEANINGFUL_ELEVATION_CHANGE));
+            }
             if (!slopeAllowed(roadLength) && grade > EPSILON) {
                 issues.add(new Issue(IssueKind.SHORT_ROAD_MUST_BE_FLAT, i - 1, i,
                     roadLength, MIN_ROAD_LENGTH_FOR_SLOPE));
