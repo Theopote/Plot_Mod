@@ -7,6 +7,7 @@ import com.plot.core.geometry.shapes.CircleShape;
 import com.plot.core.geometry.shapes.EllipseShape;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.geometry.shapes.SpiralShape;
 import com.plot.core.geometry.shapes.SpiralType;
@@ -23,6 +24,36 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadGeometryUtilsTest {
+
+    @Test
+    void extractClosedPolygonAddsExplicitClosingSegment() {
+        Polygon hexagon = new Polygon(List.of(
+            new Vec2d(10, 0),
+            new Vec2d(5, 8.66),
+            new Vec2d(-5, 8.66),
+            new Vec2d(-10, 0),
+            new Vec2d(-5, -8.66),
+            new Vec2d(5, -8.66)));
+
+        List<Vec2d> points = RoadGeometryUtils.extractShapePoints(hexagon);
+
+        assertEquals(7, points.size());
+        assertTrue(RoadGeometryUtils.pointsNear(points.getFirst(), points.getLast(), 1e-6));
+    }
+
+    @Test
+    void extractClosedPolylineClosesButOpenPolylineDoesNot() {
+        List<Vec2d> vertices = List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10));
+
+        List<Vec2d> closed = RoadGeometryUtils.extractShapePoints(
+            new PolylineShape(vertices, true));
+        List<Vec2d> open = RoadGeometryUtils.extractShapePoints(
+            new PolylineShape(vertices, false));
+
+        assertTrue(RoadGeometryUtils.pointsNear(closed.getFirst(), closed.getLast(), 1e-6));
+        assertFalse(RoadGeometryUtils.pointsNear(open.getFirst(), open.getLast(), 1e-6));
+    }
 
     @Test
     void sampleBezierCurveReturnsCurvePointsNotControlHandles() {

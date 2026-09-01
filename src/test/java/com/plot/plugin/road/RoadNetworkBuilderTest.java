@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.graph.RoadGraphEdits;
 import com.plot.plugin.road.model.Road;
@@ -28,6 +29,27 @@ class RoadNetworkBuilderTest {
 
     private final RoadNetworkBuilder builder = new RoadNetworkBuilder();
     private final RoadSystemConfig config = new RoadSystemConfig("road_system");
+
+    @Test
+    void adoptClosedPolygonCreatesLoopEdgeWithoutPreviewGap() {
+        RoadNetwork network = new RoadNetwork();
+        Polygon hexagon = new Polygon(List.of(
+            new Vec2d(10, 0),
+            new Vec2d(5, 8.66),
+            new Vec2d(-5, 8.66),
+            new Vec2d(-10, 0),
+            new Vec2d(-5, -8.66),
+            new Vec2d(5, -8.66)));
+
+        RoadNetworkBuilder.AdoptResult adopted = builder.adoptShape(network, hexagon, config);
+
+        assertEquals(1, adopted.edges().size());
+        RoadEdge edge = adopted.edges().getFirst();
+        assertEquals(edge.getStartNodeId(), edge.getEndNodeId());
+        assertEquals(7, edge.getCenterlinePoints().size());
+        assertTrue(RoadGeometryUtils.pointsNear(
+            edge.getCenterlinePoints().getFirst(), edge.getCenterlinePoints().getLast(), 1e-6));
+    }
 
     @Test
     void splitSlopeOverridesRemapsMileage() {

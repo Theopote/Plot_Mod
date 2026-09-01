@@ -110,11 +110,16 @@ public final class RoadGeometryUtils {
 
         // 贝塞尔：密采样 + RDP 简化（控制点序列不能当中心线）
         if (shape instanceof BezierCurveShape bezier) {
-            return sampleBezierCurve(bezier);
+            List<Vec2d> sampled = sampleBezierCurve(bezier);
+            return bezier.isClosed() ? ensureClosed(sampled) : sampled;
         }
 
         // 折线 / 自由绘：原样取点（自由绘已在绘制时简化）
-        if (shape instanceof PolylineShape || shape instanceof FreeDrawPath) {
+        if (shape instanceof PolylineShape polyline) {
+            List<Vec2d> points = copyAndSanitizePoints(polyline.getPoints());
+            return polyline.isClosed() ? ensureClosed(points) : points;
+        }
+        if (shape instanceof FreeDrawPath) {
             return copyAndSanitizePoints(shape.getPoints());
         }
 
@@ -138,11 +143,15 @@ public final class RoadGeometryUtils {
             if (sanitized.size() < 2) {
                 return sanitized;
             }
+            boolean closed = isClosedRoadShape(shape);
             // 矩形/多边形顶点少，不必强行简化；圆/螺旋等密采样再 RDP
             if (sanitized.size() <= 8) {
-                return sanitized;
+                return closed ? ensureClosed(sanitized) : sanitized;
             }
-            return simplifyPolyline(sanitized, ROAD_CENTERLINE_SIMPLIFY_EPSILON);
+            List<Vec2d> simplified = simplifyPolyline(
+                closed ? ensureClosed(sanitized) : sanitized,
+                ROAD_CENTERLINE_SIMPLIFY_EPSILON);
+            return closed ? ensureClosed(simplified) : simplified;
         }
 
         // 其它未知 Shape：尽量用 getPoints()，失败再回退端点
@@ -158,6 +167,31 @@ public final class RoadGeometryUtils {
         }
         List<Vec2d> endpoints = shape.getEndpoints();
         return endpoints != null ? copyAndSanitizePoints(endpoints) : List.of();
+    }
+
+    private static boolean isClosedRoadShape(Shape shape) {
+        if (shape instanceof Polygon polygon) {
+            return polygon.isClosed();
+        }
+        return shape instanceof CircleShape
+            || shape instanceof EllipseShape
+            || shape instanceof RectangleShape;
+    }
+
+    /** Returns a copied point list whose final point explicitly closes back to the first. */
+    static List<Vec2d> ensureClosed(List<Vec2d> points) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+        List<Vec2d> result = new ArrayList<>(points.size() + 1);
+        for (Vec2d point : points) {
+            if (point != null) result.add(point.copy());
+        }
+        if (result.size() >= 2
+                && !pointsNear(result.getFirst(), result.getLast(), 1e-6)) {
+            result.add(result.getFirst().copy());
+        }
+        return result;
     }
 
     /**
