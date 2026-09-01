@@ -29,6 +29,8 @@ import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
+import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
+import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -68,6 +70,10 @@ public final class RoadEditPanel {
     private String lastCenterlineEditMessage = "";
     private String lastHorizontalAlignmentMessage = "";
     private ChainageDisplayMode chainageDisplayMode = ChainageDisplayMode.FROM_START;
+    private RoadGenerationResult cachedEditProfile;
+    private String cachedEditProfileEdgeId = "";
+    private int selectedProfilePvi = -1;
+    private final float[] selectedProfileElevation = {64f};
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -199,6 +205,12 @@ public final class RoadEditPanel {
             return;
         }
         RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
+        if (edgeResult != null && edgeResult.hasProfileData()) {
+            cachedEditProfile = edgeResult;
+            cachedEditProfileEdgeId = edge.getId();
+        } else if (edge.getId().equals(cachedEditProfileEdgeId)) {
+            edgeResult = cachedEditProfile;
+        }
         if (edgeResult == null || !edgeResult.hasProfileData()) {
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
@@ -211,9 +223,70 @@ public final class RoadEditPanel {
         VerticalAlignmentProfileOverlay design =
             VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
         RoadLongitudinalProfileRenderer.render(edgeResult, false, design);
+        renderProfileControlPoints(network, edge);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_profile_legend_hint"));
+    }
+
+    private void renderProfileControlPoints(RoadNetwork network, RoadEdge edge) {
+        Road road = network.getRoad(edge.getRoadId());
+        List<VerticalProfileControlPoints.ControlPoint> points =
+            VerticalProfileControlPoints.forEdge(network, road, edge);
+        if (points.isEmpty()) {
+            return;
+        }
+        float maxGrade = road.getMaxSlope() != null
+            ? road.getMaxSlope()
+            : ctx.networkManager().getConfig().getMaxSlope();
+        ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
+        for (VerticalProfileControlPoints.ControlPoint point : points) {
+            boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
+            String grades = formatControlPointGrades(point);
+            String label = PlotI18n.tr(
+                "plugin.road.vertical_alignment_control_point",
+                point.pviIndex() + 1,
+                point.localDistance(),
+                point.elevation(),
+                grades);
+            if (invalid) {
+                ImGui.pushStyleColor(ImGuiCol.Text, PluginUiColors.INVALID);
+            }
+            if (ImGui.selectable(label + "##profile_pvi_" + point.pviIndex(),
+                    selectedProfilePvi == point.pviIndex())) {
+                selectedProfilePvi = point.pviIndex();
+                selectedProfileElevation[0] = (float) point.elevation();
+            }
+            if (invalid) {
+                ImGui.popStyleColor();
+            }
+        }
+        if (selectedProfilePvi < 0 || road.getVerticalAlignment() == null
+                || selectedProfilePvi >= road.getVerticalAlignment().pviCount()) {
+            return;
+        }
+        ImGui.dragFloat(
+            PlotI18n.tr("plugin.road.vertical_alignment_selected_elevation"),
+            selectedProfileElevation,
+            0.25f,
+            RoadParameterLimits.ELEVATION_MIN,
+            RoadParameterLimits.ELEVATION_MAX,
+            "Y=%.2f");
+        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_apply_control_point"))) {
+            ctx.networkManager().pushHistory();
+            road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
+                road.getVerticalAlignment(), selectedProfilePvi, selectedProfileElevation[0]));
+            VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+        }
+    }
+
+    private static String formatControlPointGrades(
+            VerticalProfileControlPoints.ControlPoint point) {
+        String left = point.leftGradePercent() != null
+            ? String.format("%.1f%%", point.leftGradePercent()) : "—";
+        String right = point.rightGradePercent() != null
+            ? String.format("%.1f%%", point.rightGradePercent()) : "—";
+        return left + " / " + right;
     }
 
     private void renderRoadIdentitySummary(
