@@ -224,6 +224,14 @@ public final class RoadUiContext {
         }
     }
 
+    /** 跳转到编辑 Tab 并选中指定逻辑道路。 */
+    public void requestEditRoad(String roadId) {
+        if (roadId != null && !roadId.isBlank()) {
+            networkManager.selectRoad(roadId, false);
+        }
+        requestTab(RoadUiTab.EDIT);
+    }
+
     public void requestTab(RoadUiTab tab) {
         pendingTab = tab;
     }

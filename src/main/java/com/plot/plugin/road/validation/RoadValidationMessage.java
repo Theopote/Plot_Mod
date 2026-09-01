@@ -55,4 +55,14 @@ public record RoadValidationMessage(
     public String actionKey() {
         return action != null ? "plugin.road.issue.action." + action.name().toLowerCase() : null;
     }
+
+    /** 从 titleKey 解析 issue id，例如 {@code road_disconnected}。 */
+    public String issueId() {
+        String prefix = "plugin.road.issue.";
+        String suffix = ".title";
+        if (titleKey != null && titleKey.startsWith(prefix) && titleKey.endsWith(suffix)) {
+            return titleKey.substring(prefix.length(), titleKey.length() - suffix.length());
+        }
+        return null;
+    }
 }

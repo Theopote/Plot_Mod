@@ -71,17 +71,14 @@ public final class RoadOverviewPanel {
                 ctx.networkManager().isAdoptIntersectionRepairPending());
             cachedHealthKey = healthKey;
         }
+        int index = 0;
         for (RoadNetworkValidationReport.Item item : cachedHealthReport.nonOkItems()) {
             RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
             if (message == null) {
                 continue;
             }
-            int color = switch (message.severity()) {
-                case WARNING -> PluginUiColors.WARNING;
-                case ERROR -> PluginUiColors.ERROR;
-                default -> PluginUiColors.HINT_GRAY;
-            };
-            RoadUiWidgets.textWrappedColored(color, "\u26a0 " + PlotI18n.tr(message.titleKey(), message.args()));
+            RoadValidationMessageUi.render(
+                message, ctx, network, null, "##val_overview_" + index++);
         }
     }
 

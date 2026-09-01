@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
@@ -8,10 +9,14 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
 import com.plot.plugin.road.validation.RoadValidationAction;
+import com.plot.plugin.road.validation.RoadValidationDrillDown;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
+
+import java.util.List;
 
 /**
  * 将 {@link RoadValidationMessage} 渲染为 ImGui 人话提示与可选修复按钮。
@@ -22,7 +27,7 @@ public final class RoadValidationMessageUi {
     }
 
     public static void render(RoadValidationMessage message) {
-        render(message, null, null, null);
+        render(message, null, null, null, "");
     }
 
     public static void render(
@@ -30,22 +35,105 @@ public final class RoadValidationMessageUi {
             RoadUiContext ctx,
             RoadNetwork network,
             Road road) {
+        render(message, ctx, network, road, "");
+    }
+
+    public static void render(
+            RoadValidationMessage message,
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road,
+            String imguiSuffix) {
         if (message == null) {
             return;
         }
-        int color = severityColor(message.severity());
-        String prefix = severityPrefix(message.severity());
-        ImGui.textColored(color, prefix + PlotI18n.tr(message.titleKey(), message.args()));
+        String suffix = imguiSuffix != null ? imguiSuffix : "";
+        boolean networkLevel = road == null && ctx != null && network != null;
+        String issueId = message.issueId();
+        List<String> affectedRoadIds = networkLevel && issueId != null && RoadValidationDrillDown.supports(issueId)
+            ? RoadValidationDrillDown.affectedRoadIds(issueId, network, ctx.networkManager().getConfig())
+            : List.of();
+
+        if (networkLevel && affectedRoadIds.size() == 1) {
+            renderDrillDownTitle(message, ctx, network, affectedRoadIds.getFirst(), suffix);
+        } else if (networkLevel && affectedRoadIds.size() > 1) {
+            renderDrillDownTree(message, ctx, network, affectedRoadIds, suffix);
+        } else {
+            renderTitle(message);
+        }
+
         if (message.hasDetail()) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(message.detailKey(), message.args()));
         }
         if (message.hasAction() && ctx != null) {
             ImGui.indent();
             String actionLabel = PlotI18n.tr(message.actionKey());
-            if (ImGui.smallButton(actionLabel + "##val_action_" + message.action().name())) {
+            if (ImGui.smallButton(actionLabel + "##val_action_" + message.action().name() + suffix)) {
                 executeAction(message.action(), ctx, network, road);
             }
             ImGui.unindent();
+        }
+    }
+
+    private static void renderTitle(RoadValidationMessage message) {
+        int color = severityColor(message.severity());
+        String prefix = severityPrefix(message.severity());
+        ImGui.textColored(color, prefix + PlotI18n.tr(message.titleKey(), message.args()));
+    }
+
+    private static void renderDrillDownTitle(
+            RoadValidationMessage message,
+            RoadUiContext ctx,
+            RoadNetwork network,
+            String roadId,
+            String suffix) {
+        int color = severityColor(message.severity());
+        String prefix = severityPrefix(message.severity());
+        String title = prefix + PlotI18n.tr(message.titleKey(), message.args());
+        Road road = network.getRoad(roadId);
+        String roadLabel = road != null
+            ? RoadEdgeListHelper.formatRoadLabel(network, road)
+            : roadId;
+        if (ImGui.selectable(title + "##val_drill_title_" + roadId + suffix, false)) {
+            ctx.requestEditRoad(roadId);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_single", roadLabel));
+        }
+        ImGui.sameLine();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, "\u2192 " + roadLabel);
+    }
+
+    private static void renderDrillDownTree(
+            RoadValidationMessage message,
+            RoadUiContext ctx,
+            RoadNetwork network,
+            List<String> affectedRoadIds,
+            String suffix) {
+        int color = severityColor(message.severity());
+        String prefix = severityPrefix(message.severity());
+        String title = prefix + PlotI18n.tr(message.titleKey(), message.args());
+        int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        if (ImGui.treeNodeEx(title + "##val_drill_tree" + suffix, flags)) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, color);
+            for (String roadId : affectedRoadIds) {
+                Road road = network.getRoad(roadId);
+                if (road == null) {
+                    continue;
+                }
+                String label = RoadEdgeListHelper.formatRoadLabel(network, road);
+                if (ImGui.selectable(label + "##val_drill_road_" + roadId + suffix)) {
+                    ctx.requestEditRoad(roadId);
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_road"));
+                }
+            }
+            ImGui.popStyleColor();
+            ImGui.treePop();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.validation_drill_down_expand"));
         }
     }
 

@@ -36,10 +36,12 @@ public final class RoadNetworkValidationPanel {
         }
 
         ImGui.text(PlotI18n.tr("plugin.road.validation_section"));
+        int index = 0;
         for (RoadNetworkValidationReport.Item item : report.items()) {
             RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
             if (message != null) {
-                RoadValidationMessageUi.render(message, ctx, ctx.networkManager().getNetwork(), null);
+                RoadValidationMessageUi.render(
+                    message, ctx, ctx.networkManager().getNetwork(), null, "##val_gen_" + index++);
             }
         }
         if (report.blocksBuild()) {
