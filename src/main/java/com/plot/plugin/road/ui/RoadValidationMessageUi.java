@@ -1,0 +1,110 @@
+package com.plot.plugin.road.ui;
+
+import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineMaterializer;
+import com.plot.plugin.road.centerline.CenterlineEditResult;
+import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadNetwork;
+import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
+import com.plot.plugin.road.validation.RoadValidationAction;
+import com.plot.plugin.road.validation.RoadValidationMessage;
+import com.plot.plugin.ui.PluginUiColors;
+import com.plot.utils.PlotI18n;
+import imgui.ImGui;
+
+/**
+ * 将 {@link RoadValidationMessage} 渲染为 ImGui 人话提示与可选修复按钮。
+ */
+public final class RoadValidationMessageUi {
+
+    private RoadValidationMessageUi() {
+    }
+
+    public static void render(RoadValidationMessage message) {
+        render(message, null, null, null);
+    }
+
+    public static void render(
+            RoadValidationMessage message,
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road) {
+        if (message == null) {
+            return;
+        }
+        int color = severityColor(message.severity());
+        String prefix = severityPrefix(message.severity());
+        ImGui.textColored(color, prefix + PlotI18n.tr(message.titleKey(), message.args()));
+        if (message.hasDetail()) {
+            RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(message.detailKey(), message.args()));
+        }
+        if (message.hasAction() && ctx != null) {
+            ImGui.indent();
+            String actionLabel = PlotI18n.tr(message.actionKey());
+            if (ImGui.smallButton(actionLabel + "##val_action_" + message.action().name())) {
+                executeAction(message.action(), ctx, network, road);
+            }
+            ImGui.unindent();
+        }
+    }
+
+    public static boolean executeAction(
+            RoadValidationAction action,
+            RoadUiContext ctx,
+            RoadNetwork network,
+            Road road) {
+        if (action == null || ctx == null) {
+            return false;
+        }
+        return switch (action) {
+            case RECONCILE_INTERSECTIONS -> {
+                RoadTopologyWorkflow.reconcileIntersections(ctx, true);
+                yield true;
+            }
+            case SYNC_SEGMENT_ORDER -> {
+                if (network == null || road == null) {
+                    yield false;
+                }
+                ctx.networkManager().pushHistory();
+                boolean synced = RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+                if (synced) {
+                    ctx.status().success(PlotI18n.tr("plugin.road.sync_segment_order_success"));
+                }
+                yield synced;
+            }
+            case SNAP_TO_JUNCTION, MATERIALIZE_ALIGNMENT -> {
+                if (road == null || network == null) {
+                    yield false;
+                }
+                ctx.networkManager().pushHistory();
+                CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, road);
+                if (result.isSuccess()) {
+                    ctx.status().success(PlotI18n.tr("plugin.road.horizontal_alignment_materialize_success"));
+                    yield true;
+                }
+                ctx.status().warning(PlotI18n.tr("plugin.road.horizontal_alignment_materialize_failed"));
+                yield false;
+            }
+            case SMOOTH_GRADE -> {
+                ctx.status().info(PlotI18n.tr("plugin.road.issue.action.smooth_grade_pending"));
+                yield false;
+            }
+        };
+    }
+
+    private static int severityColor(RoadNetworkValidationReport.Level severity) {
+        return switch (severity) {
+            case OK -> PluginUiColors.STATUS_OK;
+            case WARNING -> PluginUiColors.WARNING;
+            case ERROR -> PluginUiColors.ERROR;
+        };
+    }
+
+    private static String severityPrefix(RoadNetworkValidationReport.Level severity) {
+        return switch (severity) {
+            case OK -> "\u2713 ";
+            case WARNING -> "\u26a0 ";
+            case ERROR -> "\u2717 ";
+        };
+    }
+}

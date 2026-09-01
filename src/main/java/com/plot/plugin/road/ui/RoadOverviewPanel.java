@@ -2,6 +2,8 @@ package com.plot.plugin.road.ui;
 
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.validation.RoadValidationMessage;
+import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkOverviewRenderer;
 import com.plot.plugin.road.model.Road;
@@ -70,12 +72,16 @@ public final class RoadOverviewPanel {
             cachedHealthKey = healthKey;
         }
         for (RoadNetworkValidationReport.Item item : cachedHealthReport.nonOkItems()) {
-            int color = switch (item.level()) {
+            RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
+            if (message == null) {
+                continue;
+            }
+            int color = switch (message.severity()) {
                 case WARNING -> PluginUiColors.WARNING;
                 case ERROR -> PluginUiColors.ERROR;
                 default -> PluginUiColors.HINT_GRAY;
             };
-            RoadUiWidgets.textWrappedColored(color, "\u26a0 " + PlotI18n.tr(item.messageKey(), item.args()));
+            RoadUiWidgets.textWrappedColored(color, "\u26a0 " + PlotI18n.tr(message.titleKey(), message.args()));
         }
     }
 

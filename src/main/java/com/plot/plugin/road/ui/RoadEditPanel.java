@@ -10,7 +10,8 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
-import com.plot.plugin.road.model.RoadTopologyViolationKind;
+import com.plot.plugin.road.validation.RoadValidationMessage;
+import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
@@ -309,16 +310,9 @@ public final class RoadEditPanel {
             return;
         }
         for (RoadTopologyViolation violation : violations) {
-            int color = violation.kind() == RoadTopologyViolationKind.ROAD_ORDER_MISMATCH
-                ? PluginUiColors.WARNING_OVERLAP
-                : PluginUiColors.WARNING;
-            RoadUiWidgets.textWrappedColored(color, PlotI18n.tr(RoadTopologyInvariantValidator.hintMessageKey(violation.kind())));
-        }
-
-        if (violations.stream().anyMatch(v -> v.kind() == RoadTopologyViolationKind.ROAD_ORDER_MISMATCH)) {
-            if (ImGui.button(PlotI18n.tr("plugin.road.sync_segment_order") + "##topo_sync")) {
-                ctx.networkManager().pushHistory();
-                RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
+            RoadValidationMessage message = RoadValidationMessageCatalog.fromTopologyKind(violation.kind());
+            if (message != null) {
+                RoadValidationMessageUi.render(message, ctx, network, road);
             }
         }
     }
@@ -491,9 +485,17 @@ public final class RoadEditPanel {
             case ALIGNMENT_STATIONS_INVALID -> "plugin.road.centerline_edit_alignment_invalid";
             case HORIZONTAL_ALIGNMENT_NOT_DEFINED -> "plugin.road.horizontal_alignment_materialize_no_alignment";
             case ROAD_NOT_STATIONABLE -> "plugin.road.horizontal_alignment_materialize_not_stationable";
-            case JUNCTION_ENDPOINT_CONFLICT -> "plugin.road.horizontal_alignment_materialize_junction_conflict";
+            case JUNCTION_ENDPOINT_CONFLICT -> null;
             default -> "plugin.road.centerline_edit_failed";
         };
+        if (key == null) {
+            RoadValidationMessage message = RoadValidationMessageCatalog.fromCenterlineStatus(result.status());
+            if (message != null) {
+                return PlotI18n.tr(message.titleKey(), message.args())
+                    + "\n" + PlotI18n.tr(message.detailKey(), message.args());
+            }
+            return PlotI18n.tr("plugin.road.centerline_edit_failed");
+        }
         return PlotI18n.tr(key);
     }
 

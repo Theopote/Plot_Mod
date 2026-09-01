@@ -10,6 +10,8 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
+import com.plot.plugin.road.validation.RoadValidationMessage;
+import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -220,23 +222,19 @@ public final class VerticalAlignmentEditor {
         }
         RoadVerticalAlignment preview = new RoadVerticalAlignment(buildPvis(drafts));
         for (VerticalAlignmentViolation violation : VerticalAlignmentValidator.validate(preview, roadLength)) {
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.WARNING,
-                formatViolation(violation));
+            RoadValidationMessage message = RoadValidationMessageCatalog.fromVerticalKind(violation.kind());
+            if (message != null) {
+                Object[] args = violation.relatedPviIndex() != null
+                    ? new Object[] {violation.pviIndex() + 1, violation.relatedPviIndex() + 1}
+                    : new Object[] {violation.pviIndex() + 1};
+                RoadValidationMessageUi.render(new RoadValidationMessage(
+                    message.severity(),
+                    message.titleKey(),
+                    message.detailKey(),
+                    args,
+                    message.action()));
+            }
         }
-    }
-
-    private static String formatViolation(VerticalAlignmentViolation violation) {
-        String key = switch (violation.kind()) {
-            case PVI_STATION_DUPLICATE -> "plugin.road.vertical_alignment_duplicate";
-            case PVI_STATION_NOT_INCREASING -> "plugin.road.vertical_alignment_station_not_increasing";
-            case VERTICAL_CURVE_OVERLAP -> "plugin.road.vertical_alignment_curve_overlap";
-            case VERTICAL_CURVE_OUT_OF_RANGE -> "plugin.road.vertical_alignment_curve_out_of_range";
-        };
-        if (violation.relatedPviIndex() != null) {
-            return PlotI18n.tr(key, violation.pviIndex() + 1, violation.relatedPviIndex() + 1);
-        }
-        return PlotI18n.tr(key, violation.pviIndex() + 1);
     }
 
     static List<PointOfVerticalIntersection> buildPvis(List<PviDraft> drafts) {

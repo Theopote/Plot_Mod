@@ -4,6 +4,8 @@ import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.validation.RoadValidationMessage;
+import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -35,13 +37,10 @@ public final class RoadNetworkValidationPanel {
 
         ImGui.text(PlotI18n.tr("plugin.road.validation_section"));
         for (RoadNetworkValidationReport.Item item : report.items()) {
-            renderItem(item);
-        }
-        if (report.hasIntersectionWork()) {
-            if (ImGui.button(PlotI18n.tr("plugin.road.validation.reconcile_intersections"))) {
-                RoadTopologyWorkflow.reconcileIntersections(ctx, true);
+            RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
+            if (message != null) {
+                RoadValidationMessageUi.render(message, ctx, ctx.networkManager().getNetwork(), null);
             }
-            ImGui.spacing();
         }
         if (report.blocksBuild()) {
             ImGui.textColored(
@@ -61,22 +60,11 @@ public final class RoadNetworkValidationPanel {
         }
         ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.road.build_confirm_validation_header"));
         for (RoadNetworkValidationReport.Item item : warnings) {
-            renderItem(item);
+            RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
+            if (message != null) {
+                RoadValidationMessageUi.render(message);
+            }
         }
         ImGui.spacing();
-    }
-
-    private static void renderItem(RoadNetworkValidationReport.Item item) {
-        int color = switch (item.level()) {
-            case OK -> PluginUiColors.STATUS_OK;
-            case WARNING -> PluginUiColors.WARNING;
-            case ERROR -> PluginUiColors.ERROR;
-        };
-        String prefix = switch (item.level()) {
-            case OK -> "\u2713 ";
-            case WARNING -> "\u26a0 ";
-            case ERROR -> "\u2717 ";
-        };
-        ImGui.textColored(color, prefix + PlotI18n.tr(item.messageKey(), item.args()));
     }
 }
