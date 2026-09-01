@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,8 @@ class GradingSurfaceResolverTest {
             new GradingSurfaceResolver.HeightSample(4, 0, 60),
             new GradingSurfaceResolver.HeightSample(5, 0, 60));
 
-        GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(base, samples, 1.0f);
+        GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(
+            base, samples, new EarthMaterialProperties(1.0f, 1.0f));
         assertNotNull(balanced);
         // 高地更多 → 平衡标高倾向抬高（相对 64 的残差多为正），intercept 应上升
         assertTrue(balanced.intercept() > base.intercept() - 0.01);
@@ -93,7 +95,8 @@ class GradingSurfaceResolverTest {
             new GradingSurfaceResolver.HeightSample(5, 0, 65),
             new GradingSurfaceResolver.HeightSample(0, 5, 65),
             new GradingSurfaceResolver.HeightSample(5, 5, 65));
-        GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(base, samples, 1.1f);
+        GradingPlane balanced = GradingSurfaceResolver.balancePlaneIntercept(
+            base, samples, EarthMaterialProperties.fromLegacyFillFactor(1.1f));
         assertEquals(65, balanced.evaluateAt(0, 0));
     }
 

@@ -29,7 +29,7 @@ class EarthworkProjectTest {
         region.setName("North Pad");
         region.setAutoBalance(false);
         region.setManualTargetElevation(68);
-        region.setFillFactor(1.25f);
+        region.setMaterialProperties(new EarthMaterialProperties(0.85f, 0.88f));
         region.setCutExposeMaterial("minecraft:sand");
         region.setFillMaterial("minecraft:grass_block");
         region.setGridSize(3);
@@ -50,7 +50,8 @@ class EarthworkProjectTest {
         assertEquals("North Pad", restoredRegion.getName());
         assertEquals(false, restoredRegion.isAutoBalance());
         assertEquals(68, restoredRegion.getManualTargetElevation());
-        assertEquals(1.25f, restoredRegion.getFillFactor(), 1e-6f);
+        assertEquals(0.85f, restoredRegion.getMaterialProperties().reusableRatio(), 1e-6f);
+        assertEquals(0.88f, restoredRegion.getMaterialProperties().cutToCompactedFillRatio(), 1e-6f);
         assertEquals("minecraft:sand", restoredRegion.getCutExposeMaterial());
         assertEquals("minecraft:grass_block", restoredRegion.getFillMaterial());
         assertEquals(3, restoredRegion.getGridSize());
@@ -66,6 +67,28 @@ class EarthworkProjectTest {
         assertEquals(false, restoredRegion.isFitSlopeBalanceCutFill());
         assertEquals(4, restoredRegion.getOuterPoints().size());
         assertTrue(restoredRegion.computeArea() > 0.0);
+    }
+
+    @Test
+    void legacyFillFactorMigratesToMaterialProperties() {
+        String json = """
+            {
+              "regions": [{
+                "id": "r1",
+                "name": "Legacy",
+                "outerPoints": [
+                  {"x": 0, "y": 0},
+                  {"x": 10, "y": 0},
+                  {"x": 10, "y": 10}
+                ],
+                "fillFactor": 1.25
+              }]
+            }
+            """;
+        EarthworkProject project = EarthworkProject.fromJson(json);
+        GradingRegion region = project.getRegion("r1");
+        assertEquals(1.0f, region.getMaterialProperties().reusableRatio(), 1e-6f);
+        assertEquals(0.8f, region.getMaterialProperties().cutToCompactedFillRatio(), 1e-6f);
     }
 
     @Test

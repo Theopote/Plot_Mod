@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 
@@ -90,11 +91,11 @@ public final class GradingSurfaceResolver {
     private static GradingPlane resolveFlat(GradingRegion region, List<HeightSample> samples) {
         int elevation;
         if (region.isAutoBalance()) {
-            elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), region.getFillFactor());
+            elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), region.getMaterialProperties());
         } else if (region.getManualTargetElevation() != null) {
             elevation = region.getManualTargetElevation();
         } else {
-            elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), region.getFillFactor());
+            elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), region.getMaterialProperties());
         }
         return GradingPlane.flat(elevation);
     }
@@ -155,7 +156,7 @@ public final class GradingSurfaceResolver {
         if (!region.isFitSlopeBalanceCutFill()) {
             return leastSquares;
         }
-        return balancePlaneIntercept(leastSquares, samples, region.getFillFactor());
+        return balancePlaneIntercept(leastSquares, samples, region.getMaterialProperties());
     }
 
     static GradingPlane solveThreePointPlane(
@@ -225,7 +226,7 @@ public final class GradingSurfaceResolver {
     static GradingPlane balancePlaneIntercept(
             GradingPlane basePlane,
             List<HeightSample> samples,
-            float fillFactor) {
+            EarthMaterialProperties materials) {
         if (basePlane == null || samples == null || samples.isEmpty()) {
             return basePlane;
         }
@@ -234,7 +235,7 @@ public final class GradingSurfaceResolver {
             int planeY = basePlane.evaluateAt(sample.worldX(), sample.worldZ());
             residuals.add(sample.groundY() - planeY);
         }
-        int delta = EarthworkBalanceUtils.findBalancedElevation(residuals, fillFactor);
+        int delta = EarthworkBalanceUtils.findBalancedElevation(residuals, materials);
         return new GradingPlane(
             basePlane.coeffX(),
             basePlane.coeffZ(),

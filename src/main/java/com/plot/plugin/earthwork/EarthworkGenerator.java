@@ -147,7 +147,7 @@ public class EarthworkGenerator {
         result.volumeReport = EarthworkVolumeReport.fromMetrics(
             geometricCutVolume,
             geometricFillVolume,
-            region.getFillFactor(),
+            region.getMaterialProperties(),
             cutChangedBlocks,
             fillChangedBlocks);
         region.setLastVolumeReport(result.volumeReport);

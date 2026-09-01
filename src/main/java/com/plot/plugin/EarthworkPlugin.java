@@ -22,6 +22,7 @@ import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.core.persistence.ContentFingerprint;
@@ -374,17 +375,7 @@ public class EarthworkPlugin extends Plugin {
 
         renderSurfaceModeSettings(region);
 
-        float[] fillFactor = {region.getFillFactor()};
-        boolean fillFactorChanged = ImGui.sliderFloat("##fill_factor", fillFactor, 1.0f, 2.0f,
-            PlotI18n.tr("plugin.earthwork.fill_factor", String.format("%.2f", fillFactor[0])));
-        if (ImGui.isItemActivated()) {
-            projectHistory.push(project);
-        }
-        if (fillFactorChanged) {
-            region.setFillFactor(fillFactor[0]);
-            invalidatePreview();
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fill_factor");
+        renderMaterialPropertiesSettings(region);
 
         int[] gridSize = {region.getGridSize()};
         boolean gridSizeChanged = ImGui.sliderInt("##region_grid_size", gridSize, 1, 20,
@@ -437,6 +428,37 @@ public class EarthworkPlugin extends Plugin {
             case THREE_POINT -> renderThreePointSurfaceSettings(region);
             case FIT_SLOPE -> renderFitSlopeSettings(region);
         }
+    }
+
+    private void renderMaterialPropertiesSettings(GradingRegion region) {
+        EarthMaterialProperties materials = region.getMaterialProperties();
+        float[] reusableRatio = {materials.reusableRatio()};
+        boolean reusableChanged = ImGui.sliderFloat("##reusable_ratio", reusableRatio, 0.50f, 1.00f,
+            PlotI18n.tr("plugin.earthwork.reusable_ratio", String.format("%.2f", reusableRatio[0])));
+        if (ImGui.isItemActivated()) {
+            projectHistory.push(project);
+        }
+        if (reusableChanged) {
+            region.setMaterialProperties(materials.withReusableRatio(reusableRatio[0]));
+            invalidatePreview();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.reusable_ratio");
+
+        float[] cutToFillRatio = {materials.cutToCompactedFillRatio()};
+        boolean cutToFillChanged = ImGui.sliderFloat("##cut_to_compacted_fill_ratio", cutToFillRatio, 0.50f, 1.00f,
+            PlotI18n.tr("plugin.earthwork.cut_to_compacted_fill_ratio", String.format("%.2f", cutToFillRatio[0])));
+        if (ImGui.isItemActivated()) {
+            projectHistory.push(project);
+        }
+        if (cutToFillChanged) {
+            region.setMaterialProperties(materials.withCutToCompactedFillRatio(cutToFillRatio[0]));
+            invalidatePreview();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_to_compacted_fill_ratio");
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.earthwork.effective_cut_to_fill_ratio",
+            region.getMaterialProperties().effectiveCutToCompactedFillRatio()));
     }
 
     private void renderFlatSurfaceSettings(GradingRegion region) {
@@ -683,7 +705,7 @@ public class EarthworkPlugin extends Plugin {
             ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", volumes.exportVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", volumes.importVolume()));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.required_fill_material", volumes.requiredFillMaterial()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.compacted_fill_demand", volumes.compactedFillDemand()));
             if (lastGenerationResult.slopedSurface) {
                 ImGui.text(PlotI18n.tr(
                     "plugin.earthwork.resolved_elevation_slope_result",
@@ -994,7 +1016,7 @@ public class EarthworkPlugin extends Plugin {
             GradingRegion region = new GradingRegion(points);
             region.setName(PlotI18n.tr("plugin.earthwork.default_name", adopted + 1));
             region.setAutoBalance(config.isAutoBalance());
-            region.setFillFactor(config.getFillFactor());
+            region.setMaterialProperties(config.getDefaultMaterialProperties());
             region.setGridSize(config.getGridSize());
             if (!config.isAutoBalance()) {
                 region.setManualTargetElevation(Math.round(config.getTargetElevation()));

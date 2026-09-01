@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+
 import java.util.List;
 
 /**
@@ -7,12 +9,12 @@ import java.util.List;
  */
 public final class EarthworkBalanceUtils {
     private static final int DEFAULT_ELEVATION = 64;
-    private static final float DEFAULT_FILL_FACTOR = 1.1f;
 
     private EarthworkBalanceUtils() {
     }
 
-    public static int findBalancedElevation(List<Integer> groundHeightSamples, float fillFactor) {
+    public static int findBalancedElevation(List<Integer> groundHeightSamples, EarthMaterialProperties materials) {
+        EarthMaterialProperties safeMaterials = materials != null ? materials : EarthMaterialProperties.DEFAULT;
         if (groundHeightSamples == null || groundHeightSamples.isEmpty()) {
             return DEFAULT_ELEVATION;
         }
@@ -28,7 +30,7 @@ public final class EarthworkBalanceUtils {
         int hi = maxZ;
         while (lo < hi) {
             int mid = lo + (hi - lo) / 2;
-            if (computeBalanceDiff(groundHeightSamples, mid, fillFactor) > 0) {
+            if (computeBalanceDiff(groundHeightSamples, mid, safeMaterials) > 0) {
                 lo = mid + 1;
             } else {
                 hi = mid;
@@ -36,14 +38,21 @@ public final class EarthworkBalanceUtils {
         }
 
         int bestZ = lo;
-        long bestAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo, fillFactor));
+        long bestAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo, safeMaterials));
         if (lo - 1 >= minZ) {
-            long prevAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo - 1, fillFactor));
+            long prevAbs = Math.abs(computeBalanceDiff(groundHeightSamples, lo - 1, safeMaterials));
             if (prevAbs < bestAbs) {
                 bestZ = lo - 1;
             }
         }
         return bestZ;
+    }
+
+    /**
+     * 道路纵断面等模块沿用的旧参数入口；{@code fillFactor} 为历史松散系数，内部转换为材料属性。
+     */
+    public static int findBalancedElevation(List<Integer> groundHeightSamples, float fillFactor) {
+        return findBalancedElevation(groundHeightSamples, EarthMaterialProperties.fromLegacyFillFactor(fillFactor));
     }
 
     public static long computeCutVolume(List<Integer> groundHeightSamples, int targetElevation) {
@@ -72,20 +81,30 @@ public final class EarthworkBalanceUtils {
         return total;
     }
 
-    public static long computeFillVolumeRequired(List<Integer> groundHeightSamples, int targetElevation, float fillFactor) {
-        return Math.round(computeFillVolume(groundHeightSamples, targetElevation) * fillFactor);
+    /**
+     * 挖方可形成的填方压实方量。
+     */
+    public static long computeCompactedFillSupplyFromCut(
+            List<Integer> groundHeightSamples,
+            int targetElevation,
+            EarthMaterialProperties materials) {
+        EarthMaterialProperties safeMaterials = materials != null ? materials : EarthMaterialProperties.DEFAULT;
+        return Math.round(computeCutVolume(groundHeightSamples, targetElevation)
+            * safeMaterials.effectiveCutToCompactedFillRatio());
     }
 
     static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation) {
-        return computeBalanceDiff(groundHeightSamples, targetElevation, DEFAULT_FILL_FACTOR);
+        return computeBalanceDiff(groundHeightSamples, targetElevation, EarthMaterialProperties.DEFAULT);
     }
 
     /**
-     * 计算平衡差值（挖方量 - 换算后的填方需求量）。
-     * fillFactor 用于将填方几何体积换算为所需松散方量，与平衡标高求解语义一致。
+     * 平衡差值 = 挖方可形成压实方 - 填方压实需求。
      */
-    static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation, float fillFactor) {
-        return computeCutVolume(groundHeightSamples, targetElevation)
-            - computeFillVolumeRequired(groundHeightSamples, targetElevation, fillFactor);
+    static long computeBalanceDiff(
+            List<Integer> groundHeightSamples,
+            int targetElevation,
+            EarthMaterialProperties materials) {
+        return computeCompactedFillSupplyFromCut(groundHeightSamples, targetElevation, materials)
+            - computeFillVolume(groundHeightSamples, targetElevation);
     }
 }

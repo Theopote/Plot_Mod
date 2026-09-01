@@ -3,6 +3,7 @@ package com.plot.plugin.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
+import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -21,7 +22,12 @@ public class EarthworkConfig {
     // 计算设置
     private boolean autoBalance = true;
     private float targetElevation = 0.0f;
-    private float fillFactor = 1.1f;
+    /** 新格式材料参数；为 0 时表示 JSON 未写入，回退 legacy {@link #fillFactor} 或默认值。 */
+    private float reusableRatio;
+    private float cutToCompactedFillRatio;
+    /** @deprecated 旧版填方松散系数，仅用于读取 legacy 配置。 */
+    @Deprecated
+    private float fillFactor;
 
     // 统计数据
     private float cutVolume = 0.0f;
@@ -108,12 +114,56 @@ public class EarthworkConfig {
         this.targetElevation = targetElevation;
     }
 
-    public float getFillFactor() {
-        return fillFactor;
+    public EarthMaterialProperties getDefaultMaterialProperties() {
+        if (reusableRatio > 0.0f && cutToCompactedFillRatio > 0.0f) {
+            return new EarthMaterialProperties(reusableRatio, cutToCompactedFillRatio);
+        }
+        if (fillFactor >= 1.0f) {
+            return EarthMaterialProperties.fromLegacyFillFactor(fillFactor);
+        }
+        return EarthMaterialProperties.DEFAULT;
     }
 
+    public void setDefaultMaterialProperties(EarthMaterialProperties materialProperties) {
+        if (materialProperties == null) {
+            reusableRatio = 0.0f;
+            cutToCompactedFillRatio = 0.0f;
+            fillFactor = 0.0f;
+            return;
+        }
+        reusableRatio = materialProperties.reusableRatio();
+        cutToCompactedFillRatio = materialProperties.cutToCompactedFillRatio();
+        fillFactor = 0.0f;
+    }
+
+    public float getReusableRatio() {
+        return getDefaultMaterialProperties().reusableRatio();
+    }
+
+    public void setReusableRatio(float reusableRatio) {
+        this.reusableRatio = reusableRatio;
+    }
+
+    public float getCutToCompactedFillRatio() {
+        return getDefaultMaterialProperties().cutToCompactedFillRatio();
+    }
+
+    public void setCutToCompactedFillRatio(float cutToCompactedFillRatio) {
+        this.cutToCompactedFillRatio = cutToCompactedFillRatio;
+    }
+
+    /** @deprecated 请改用 {@link #getDefaultMaterialProperties()}。 */
+    @Deprecated
+    public float getFillFactor() {
+        EarthMaterialProperties properties = getDefaultMaterialProperties();
+        return 1.0f / Math.max(0.01f, properties.cutToCompactedFillRatio());
+    }
+
+    /** @deprecated 请改用 {@link #setDefaultMaterialProperties(EarthMaterialProperties)}。 */
+    @Deprecated
     public void setFillFactor(float fillFactor) {
-        this.fillFactor = fillFactor;
+        EarthMaterialProperties migrated = EarthMaterialProperties.fromLegacyFillFactor(fillFactor);
+        setDefaultMaterialProperties(migrated);
     }
 
     public float getCutVolume() {

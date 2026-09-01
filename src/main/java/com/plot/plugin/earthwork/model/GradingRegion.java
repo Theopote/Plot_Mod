@@ -12,7 +12,6 @@ import java.util.UUID;
  */
 public class GradingRegion {
     public static final String DEFAULT_FILL_MATERIAL = "minecraft:dirt";
-    public static final float DEFAULT_FILL_FACTOR = 1.1f;
     public static final int DEFAULT_GRID_SIZE = 5;
     public static final int DEFAULT_SLOPE_PITCH_RATIO = 4;
     private static final int CONTROL_POINT_COUNT = 3;
@@ -23,7 +22,7 @@ public class GradingRegion {
     private GradingSurfaceMode surfaceMode = GradingSurfaceMode.FLAT;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
-    private float fillFactor = DEFAULT_FILL_FACTOR;
+    private EarthMaterialProperties materialProperties = EarthMaterialProperties.DEFAULT;
     private String cutExposeMaterial = "";
     private String fillMaterial = DEFAULT_FILL_MATERIAL;
     private int gridSize = DEFAULT_GRID_SIZE;
@@ -99,12 +98,14 @@ public class GradingRegion {
         this.manualTargetElevation = manualTargetElevation;
     }
 
-    public float getFillFactor() {
-        return fillFactor;
+    public EarthMaterialProperties getMaterialProperties() {
+        return materialProperties != null ? materialProperties : EarthMaterialProperties.DEFAULT;
     }
 
-    public void setFillFactor(float fillFactor) {
-        this.fillFactor = Math.max(1.0f, Math.min(2.0f, fillFactor));
+    public void setMaterialProperties(EarthMaterialProperties materialProperties) {
+        this.materialProperties = materialProperties != null
+            ? materialProperties
+            : EarthMaterialProperties.DEFAULT;
     }
 
     public String getCutExposeMaterial() {

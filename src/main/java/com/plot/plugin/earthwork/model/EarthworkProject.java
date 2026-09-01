@@ -115,7 +115,11 @@ public class EarthworkProject {
         String surfaceMode = GradingSurfaceMode.FLAT.name();
         boolean autoBalance = true;
         Integer manualTargetElevation;
-        float fillFactor = GradingRegion.DEFAULT_FILL_FACTOR;
+        float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;
+        float cutToCompactedFillRatio = EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
+        /** @deprecated 仅用于读取旧工程；新工程请使用 {@link #reusableRatio} 与 {@link #cutToCompactedFillRatio} */
+        @Deprecated
+        Float fillFactor;
         String cutExposeMaterial = "";
         String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
         int gridSize = GradingRegion.DEFAULT_GRID_SIZE;
@@ -145,7 +149,8 @@ public class EarthworkProject {
                 regionData.autoBalance = region.isAutoBalance();
                 regionData.manualTargetElevation = region.getManualTargetElevation();
                 regionData.surfaceMode = region.getSurfaceMode().name();
-                regionData.fillFactor = region.getFillFactor();
+                regionData.reusableRatio = region.getMaterialProperties().reusableRatio();
+                regionData.cutToCompactedFillRatio = region.getMaterialProperties().cutToCompactedFillRatio();
                 regionData.cutExposeMaterial = region.getCutExposeMaterial();
                 regionData.fillMaterial = region.getFillMaterial();
                 regionData.gridSize = region.getGridSize();
@@ -193,7 +198,7 @@ public class EarthworkProject {
                 region.setAutoBalance(regionData.autoBalance);
                 region.setManualTargetElevation(regionData.manualTargetElevation);
                 region.setSurfaceMode(GradingSurfaceMode.fromId(regionData.surfaceMode));
-                region.setFillFactor(regionData.fillFactor);
+                region.setMaterialProperties(resolveMaterialProperties(regionData));
                 if (regionData.cutExposeMaterial != null) {
                     region.setCutExposeMaterial(regionData.cutExposeMaterial);
                 }
@@ -220,5 +225,12 @@ public class EarthworkProject {
             }
             return project;
         }
+    }
+
+    private static EarthMaterialProperties resolveMaterialProperties(RegionData regionData) {
+        if (regionData.fillFactor != null && regionData.fillFactor > 0.0f) {
+            return EarthMaterialProperties.fromLegacyFillFactor(regionData.fillFactor);
+        }
+        return new EarthMaterialProperties(regionData.reusableRatio, regionData.cutToCompactedFillRatio);
     }
 }
