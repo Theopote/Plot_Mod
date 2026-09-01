@@ -151,9 +151,14 @@ public final class EarthworkGeometryUtils {
         return material.trim();
     }
 
-    public static String resolveCutBlockId(String material) {
+    public static final String EXCAVATION_BLOCK_ID = "minecraft:air";
+
+    /**
+     * 挖方裸露地表材质；空表示不替换设计面标高处的现有方块。
+     */
+    public static String resolveCutSurfaceBlockId(String material) {
         if (material == null || material.isBlank()) {
-            return "minecraft:air";
+            return null;
         }
         return material.trim();
     }

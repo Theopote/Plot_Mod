@@ -51,13 +51,11 @@ public class EarthworkGenerator {
         public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
         public final Map<BlockPos, ChangeType> changeTypes = new LinkedHashMap<>();
         public final List<GridSample> gridSamples = new ArrayList<>();
-        public long cutVolume;
-        public long fillVolume;
+        public EarthworkVolumeReport volumeReport = EarthworkVolumeReport.empty();
         public int resolvedElevation;
         public int resolvedElevationMin;
         public int resolvedElevationMax;
         public boolean slopedSurface;
-        public int blockCount;
         public final List<String> warnings = new ArrayList<>();
     }
 
@@ -95,7 +93,12 @@ public class EarthworkGenerator {
         result.slopedSurface = !plane.isFlat();
 
         String fillBlockId = EarthworkGeometryUtils.resolveFillBlockId(region.getFillMaterial());
-        String cutBlockId = EarthworkGeometryUtils.resolveCutBlockId(region.getCutExposeMaterial());
+        String cutSurfaceBlockId = EarthworkGeometryUtils.resolveCutSurfaceBlockId(region.getCutExposeMaterial());
+
+        long geometricCutVolume = 0L;
+        long geometricFillVolume = 0L;
+        long cutChangedBlocks = 0L;
+        long fillChangedBlocks = 0L;
 
         for (Vec2d center : allCenters) {
             if (!polygon.contains(center)) {
@@ -117,32 +120,40 @@ public class EarthworkGenerator {
             }
 
             if (groundY > targetElevation) {
-                int cutBlocks = 0;
+                geometricCutVolume += groundY - targetElevation;
                 for (int y = targetElevation + 1; y <= groundY; y++) {
                     BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
-                    if (recordBlock(result, world, pos, cutBlockId, ChangeType.CUT)) {
-                        cutBlocks++;
+                    if (recordBlock(result, world, pos, EarthworkGeometryUtils.EXCAVATION_BLOCK_ID, ChangeType.CUT)) {
+                        cutChangedBlocks++;
                     }
                 }
-                result.cutVolume += cutBlocks;
+                if (cutSurfaceBlockId != null) {
+                    BlockPos surfacePos = new BlockPos(column.getX(), targetElevation, column.getZ());
+                    if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, ChangeType.CUT)) {
+                        cutChangedBlocks++;
+                    }
+                }
             } else if (groundY < targetElevation) {
-                int fillBlocks = 0;
+                geometricFillVolume += targetElevation - groundY;
                 for (int y = groundY + 1; y <= targetElevation; y++) {
                     BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
                     if (recordBlock(result, world, pos, fillBlockId, ChangeType.FILL)) {
-                        fillBlocks++;
+                        fillChangedBlocks++;
                     }
                 }
-                result.fillVolume += fillBlocks;
             }
         }
 
-        region.setLastCutVolume(result.cutVolume);
-        region.setLastFillVolume(result.fillVolume);
+        result.volumeReport = EarthworkVolumeReport.fromMetrics(
+            geometricCutVolume,
+            geometricFillVolume,
+            region.getFillFactor(),
+            cutChangedBlocks,
+            fillChangedBlocks);
+        region.setLastVolumeReport(result.volumeReport);
         region.setLastResolvedElevation(result.resolvedElevation);
         region.setLastResolvedElevationMin(result.resolvedElevationMin);
         region.setLastResolvedElevationMax(result.resolvedElevationMax);
-        result.blockCount = result.placementRecords.size();
         return result;
     }
 

@@ -14,6 +14,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkGeometryUtilsTest {
@@ -91,6 +92,18 @@ class EarthworkGeometryUtilsTest {
         );
         List<Vec2d> centers = EarthworkGeometryUtils.collectFootprintCellCenters(rectangle);
         assertEquals(12, centers.size());
+    }
+
+    @Test
+    void resolveCutSurfaceBlockIdReturnsNullWhenUnset() {
+        assertNull(EarthworkGeometryUtils.resolveCutSurfaceBlockId(null));
+        assertNull(EarthworkGeometryUtils.resolveCutSurfaceBlockId(""));
+        assertNull(EarthworkGeometryUtils.resolveCutSurfaceBlockId("   "));
+    }
+
+    @Test
+    void resolveCutSurfaceBlockIdTrimsMaterialId() {
+        assertEquals("minecraft:dirt", EarthworkGeometryUtils.resolveCutSurfaceBlockId(" minecraft:dirt "));
     }
 
     @Test

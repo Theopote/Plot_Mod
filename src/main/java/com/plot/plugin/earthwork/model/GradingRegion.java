@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.EarthworkVolumeReport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,8 +40,7 @@ public class GradingRegion {
 
     private boolean fitSlopeBalanceCutFill = true;
 
-    private transient long lastCutVolume;
-    private transient long lastFillVolume;
+    private transient EarthworkVolumeReport lastVolumeReport = EarthworkVolumeReport.empty();
     private transient int lastResolvedElevation;
     private transient int lastResolvedElevationMin;
     private transient int lastResolvedElevationMax;
@@ -217,20 +217,12 @@ public class GradingRegion {
         this.fitSlopeBalanceCutFill = fitSlopeBalanceCutFill;
     }
 
-    public long getLastCutVolume() {
-        return lastCutVolume;
+    public EarthworkVolumeReport getLastVolumeReport() {
+        return lastVolumeReport != null ? lastVolumeReport : EarthworkVolumeReport.empty();
     }
 
-    public void setLastCutVolume(long lastCutVolume) {
-        this.lastCutVolume = Math.max(0L, lastCutVolume);
-    }
-
-    public long getLastFillVolume() {
-        return lastFillVolume;
-    }
-
-    public void setLastFillVolume(long lastFillVolume) {
-        this.lastFillVolume = Math.max(0L, lastFillVolume);
+    public void setLastVolumeReport(EarthworkVolumeReport lastVolumeReport) {
+        this.lastVolumeReport = lastVolumeReport != null ? lastVolumeReport : EarthworkVolumeReport.empty();
     }
 
     public int getLastResolvedElevation() {

@@ -19,6 +19,7 @@ import com.plot.plugin.earthwork.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -284,9 +285,11 @@ public class EarthworkPlugin extends Plugin {
             }
 
             ImGui.sameLine();
-            String stats = region.getLastCutVolume() > 0 || region.getLastFillVolume() > 0
+            String stats = region.getLastVolumeReport().hasGeometricVolume()
                 ? PlotI18n.tr("plugin.earthwork.overview_stats",
-                    region.getLastCutVolume(), region.getLastFillVolume(), region.getLastResolvedElevation())
+                    region.getLastVolumeReport().geometricCutVolume(),
+                    region.getLastVolumeReport().geometricFillVolume(),
+                    region.getLastResolvedElevation())
                 : PlotI18n.tr("plugin.earthwork.overview_no_stats");
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.earthwork.overview_item",
@@ -674,8 +677,13 @@ public class EarthworkPlugin extends Plugin {
             ImGui.separator();
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.cut_volume_result", lastGenerationResult.cutVolume));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.fill_volume_result", lastGenerationResult.fillVolume));
+            EarthworkVolumeReport volumes = lastGenerationResult.volumeReport;
+            ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_cut_volume", volumes.geometricCutVolume()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_fill_volume", volumes.geometricFillVolume()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", volumes.exportVolume()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", volumes.importVolume()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.required_fill_material", volumes.requiredFillMaterial()));
             if (lastGenerationResult.slopedSurface) {
                 ImGui.text(PlotI18n.tr(
                     "plugin.earthwork.resolved_elevation_slope_result",
@@ -686,7 +694,11 @@ public class EarthworkPlugin extends Plugin {
                     "plugin.earthwork.resolved_elevation_result",
                     lastGenerationResult.resolvedElevation));
             }
-            ImGui.text(PlotI18n.tr("plugin.earthwork.block_count_result", lastGenerationResult.blockCount));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.block_count_result", volumes.totalChangedBlocks()));
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.block_change_breakdown",
+                volumes.cutChangedBlocks(),
+                volumes.fillChangedBlocks()));
 
             for (String warningKey : lastGenerationResult.warnings) {
                 ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
@@ -772,7 +784,9 @@ public class EarthworkPlugin extends Plugin {
         }
 
         if (ImGui.beginPopupModal("##earthwork_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
+            long blockCount = lastGenerationResult != null
+                ? lastGenerationResult.volumeReport.totalChangedBlocks()
+                : 0L;
             ImGui.text(String.format(PlotI18n.tr("plugin.earthwork.build_confirm"), blockCount));
 
             com.plot.api.world.PlacementReadiness readiness =
@@ -1058,8 +1072,7 @@ public class EarthworkPlugin extends Plugin {
         clearPreview();
         if (project != null) {
             for (GradingRegion region : project.getRegions().values()) {
-                region.setLastCutVolume(0);
-                region.setLastFillVolume(0);
+                region.setLastVolumeReport(EarthworkVolumeReport.empty());
             }
         }
         if (hadPreview) {
