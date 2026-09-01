@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadParameterInheritance;
 import com.plot.plugin.road.model.section.ResolvedCrossSection;
 import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.style.RoadStyleCatalog;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -25,7 +26,7 @@ public final class RoadCrossSectionEditor {
         if (road == null) {
             return;
         }
-        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
+        String styleId = road.getStyleId();
         float maxSlope = road.getMaxSlope() != null ? road.getMaxSlope() : config.getMaxSlope();
         ImGui.text(PlotI18n.tr("plugin.road.cross_section_preview"));
         float width = ImGui.getContentRegionAvail().x;
@@ -35,14 +36,27 @@ public final class RoadCrossSectionEditor {
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
         float height = 56f;
+        RoadCrossSectionPreviewRenderer.CrossSectionLayout layout;
+        if (styleId != null && !styleId.isBlank()) {
+            RoadStyle style = RoadStyleCatalog.findById(config, styleId);
+            layout = style != null
+                ? RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(
+                    style, road.getEffectiveThemeId(config))
+                : RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+                    road.getCrossSection().resolve(config), maxSlope);
+        } else {
+            layout = RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(
+                road.getCrossSection().resolve(config), maxSlope);
+        }
         RoadCrossSectionPreviewRenderer.renderMini(
             drawList,
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromResolved(resolved, maxSlope),
+            layout,
             origin.x,
             origin.y,
             width,
             height);
         ImGui.dummy(width, height);
+        ResolvedCrossSection resolved = road.getCrossSection().resolve(config);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.lane_count_summary", resolved.laneCount, resolved.carriagewayWidth));
@@ -53,6 +67,7 @@ public final class RoadCrossSectionEditor {
             return;
         }
         RoadSystemConfig config = ctx.networkManager().getConfig();
+        String themeId = road.getEffectiveThemeId(config);
         RoadUiWidgets.textWrapped(PlotI18n.tr("plugin.road.apply_preset_to_road"));
         float gap = ImGui.getStyle().getItemSpacingX();
         float avail = ImGui.getContentRegionAvail().x;
@@ -65,7 +80,7 @@ public final class RoadCrossSectionEditor {
             }
             if (ImGui.button(PlotI18n.tr("preset.road." + style.id) + "##road_style_" + style.id, buttonWidth, 0)) {
                 ctx.networkManager().pushHistory();
-                road.applyStyle(style);
+                road.applyStyle(style, themeId);
                 if (onChanged != null) {
                     onChanged.run();
                 }
@@ -116,6 +131,8 @@ public final class RoadCrossSectionEditor {
         if (ImGui.collapsingHeader(
             PlotI18n.tr("plugin.road.edit_cross_section"),
             ImGuiTreeNodeFlags.DefaultOpen)) {
+            RoadThemeSelector.renderForRoad(road, config, onHistory);
+            ImGui.spacing();
             renderPreview(road, config);
             renderPresetButtons(ctx, road, null);
             CrossSectionDraftEditor.renderCrossSection(ctx, mutator, options);

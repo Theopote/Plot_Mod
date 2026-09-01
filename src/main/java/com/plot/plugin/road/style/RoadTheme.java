@@ -17,6 +17,7 @@ public class RoadTheme {
     public String fillSlopeMaterial;
     public String cutSlopeMaterial;
     public String markingMaterial;
+    public String streetlightBlock;
 
     public RoadTheme() {
     }
@@ -49,6 +50,9 @@ public class RoadTheme {
         }
         if (isSet(markingMaterial)) {
             style.markingMaterial = markingMaterial;
+        }
+        if (isSet(streetlightBlock)) {
+            style.streetlightBlock = streetlightBlock;
         }
     }
 

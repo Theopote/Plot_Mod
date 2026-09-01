@@ -78,7 +78,7 @@ public final class RoadFurnitureGenerator {
                 double side = placeLeftHolder[0] ? offset : -offset;
                 Vec2d lightPos = center.add(leftNormal.multiply(side));
                 int groundY = terrain.sampleSurfaceY(lightPos);
-                solids.add(lightPos, groundY + 1, RoadSolidLayer.STREETLIGHT, "minecraft:lantern");
+                solids.add(lightPos, groundY + 1, RoadSolidLayer.STREETLIGHT, crossSection.streetlightBlock);
                 placeLeftHolder[0] = !placeLeftHolder[0];
             });
     }

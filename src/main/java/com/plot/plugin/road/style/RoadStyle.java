@@ -37,6 +37,7 @@ public class RoadStyle {
     public String fillSlopeMaterial;
     public String cutSlopeMaterial;
     public String markingMaterial = "material.plot.white_concrete";
+    public String streetlightBlock;
     public String centerLineStyle;
     public Boolean laneDividers;
     public Integer streetlightSpacing;
@@ -120,6 +121,7 @@ public class RoadStyle {
         copy.fillSlopeMaterial = fillSlopeMaterial;
         copy.cutSlopeMaterial = cutSlopeMaterial;
         copy.markingMaterial = markingMaterial;
+        copy.streetlightBlock = streetlightBlock;
         copy.centerLineStyle = centerLineStyle;
         copy.laneDividers = laneDividers;
         copy.streetlightSpacing = streetlightSpacing;
@@ -193,6 +195,11 @@ public class RoadStyle {
         } else {
             section.getStreetFurniture().setStreetlightSpacing(null);
         }
+        if (style.streetlightBlock != null && !style.streetlightBlock.isBlank()) {
+            section.getStreetFurniture().setStreetlightBlock(style.streetlightBlock);
+        } else {
+            section.getStreetFurniture().setStreetlightBlock(null);
+        }
         return section;
     }
 
@@ -206,6 +213,10 @@ public class RoadStyle {
         }
         road.setCrossSection(toCrossSection(themeIdOverride));
         road.setStyleId(id);
+        String resolvedThemeId = themeIdOverride != null && !themeIdOverride.isBlank()
+            ? themeIdOverride
+            : (this.themeId != null && !this.themeId.isBlank() ? this.themeId : RoadThemeCatalog.MODERN_ID);
+        road.setThemeId(resolvedThemeId);
         if (maxSlope > 0f) {
             road.setMaxSlope(maxSlope);
         }

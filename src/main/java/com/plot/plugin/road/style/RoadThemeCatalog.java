@@ -1,6 +1,7 @@
 package com.plot.plugin.road.style;
 
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.model.Road;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,7 +35,9 @@ public final class RoadThemeCatalog {
 
     /** 现代默认：不覆盖 preset 内建材质。 */
     public static RoadTheme modern() {
-        return new RoadTheme(MODERN_ID);
+        RoadTheme theme = new RoadTheme(MODERN_ID);
+        theme.streetlightBlock = "minecraft:lantern";
+        return theme;
     }
 
     public static RoadTheme medieval() {
@@ -45,6 +48,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:smooth_stone";
         theme.fillSlopeMaterial = "minecraft:cobblestone";
         theme.cutSlopeMaterial = "minecraft:stone";
+        theme.streetlightBlock = "minecraft:torch";
         return theme;
     }
 
@@ -56,6 +60,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:white_concrete";
         theme.fillSlopeMaterial = "minecraft:coarse_dirt";
         theme.cutSlopeMaterial = "minecraft:andesite";
+        theme.streetlightBlock = "minecraft:lantern";
         return theme;
     }
 
@@ -67,6 +72,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:yellow_concrete";
         theme.fillSlopeMaterial = "minecraft:gravel";
         theme.cutSlopeMaterial = "minecraft:deepslate_bricks";
+        theme.streetlightBlock = "minecraft:iron_bars";
         return theme;
     }
 
@@ -78,6 +84,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:glowstone";
         theme.fillSlopeMaterial = "minecraft:grass_block";
         theme.cutSlopeMaterial = "minecraft:rooted_dirt";
+        theme.streetlightBlock = "minecraft:glowstone";
         return theme;
     }
 
@@ -90,6 +97,7 @@ public final class RoadThemeCatalog {
         theme.bikeLaneMaterial = "minecraft:blue_concrete";
         theme.fillSlopeMaterial = "minecraft:deepslate";
         theme.cutSlopeMaterial = "minecraft:polished_deepslate";
+        theme.streetlightBlock = "minecraft:sea_lantern";
         return theme;
     }
 
@@ -101,6 +109,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:packed_mud";
         theme.fillSlopeMaterial = "minecraft:coarse_dirt";
         theme.cutSlopeMaterial = "minecraft:dirt";
+        theme.streetlightBlock = "minecraft:oak_fence";
         return theme;
     }
 
@@ -112,6 +121,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:cut_sandstone";
         theme.fillSlopeMaterial = "minecraft:sand";
         theme.cutSlopeMaterial = "minecraft:red_sandstone";
+        theme.streetlightBlock = "minecraft:soul_lantern";
         return theme;
     }
 
@@ -123,6 +133,7 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:blue_ice";
         theme.fillSlopeMaterial = "minecraft:snow_block";
         theme.cutSlopeMaterial = "minecraft:ice";
+        theme.streetlightBlock = "minecraft:soul_lantern";
         return theme;
     }
 
@@ -134,7 +145,12 @@ public final class RoadThemeCatalog {
         theme.markingMaterial = "minecraft:crimson_planks";
         theme.fillSlopeMaterial = "minecraft:netherrack";
         theme.cutSlopeMaterial = "minecraft:blackstone";
+        theme.streetlightBlock = "minecraft:shroomlight";
         return theme;
+    }
+
+    public static String defaultStreetlightBlock() {
+        return modern().streetlightBlock;
     }
 
     public static RoadTheme findById(String themeId) {
@@ -183,6 +199,57 @@ public final class RoadThemeCatalog {
         RoadTheme theme = findById(themeId);
         if (theme != null && !MODERN_ID.equals(theme.id)) {
             theme.applyToConfig(config);
+        }
+    }
+
+    /**
+     * 无 preset 的自定义道路：将主题调色板覆盖到道路横断面材质字段。
+     */
+    public static void overlayThemeOnRoad(String themeId, Road road, RoadSystemConfig config) {
+        if (road == null || config == null) {
+            return;
+        }
+        RoadTheme theme = findById(themeId);
+        if (theme == null || MODERN_ID.equals(theme.id)) {
+            return;
+        }
+        RoadStyle scratch = new RoadStyle();
+        var resolved = road.getCrossSection().resolve(config);
+        scratch.roadMaterial = resolved.carriagewayMaterial.getPrimaryMaterial();
+        scratch.sidewalkMaterial = resolved.sidewalkMaterial;
+        scratch.shoulderMaterial = resolved.shoulderMaterial;
+        scratch.bikeLaneMaterial = resolved.bikeLaneMaterial;
+        scratch.markingMaterial = resolved.markingMaterial;
+        scratch.fillSlopeMaterial = resolved.fillSlopeMaterial;
+        scratch.cutSlopeMaterial = resolved.cutSlopeMaterial;
+        scratch.streetlightBlock = resolved.streetlightBlock;
+        theme.applyPalette(scratch);
+
+        var section = road.getCrossSection();
+        if (scratch.roadMaterial != null) {
+            section.getCarriageway().setMaterial(
+                com.plot.core.material.MaterialMix.single(scratch.roadMaterial));
+        }
+        if (scratch.sidewalkMaterial != null) {
+            section.getSidewalk().setMaterial(scratch.sidewalkMaterial);
+        }
+        if (scratch.shoulderMaterial != null) {
+            section.getShoulder().setMaterial(scratch.shoulderMaterial);
+        }
+        if (scratch.bikeLaneMaterial != null) {
+            section.getBikeLane().setMaterial(scratch.bikeLaneMaterial);
+        }
+        if (scratch.markingMaterial != null) {
+            section.getMarkings().setMaterial(scratch.markingMaterial);
+        }
+        if (scratch.fillSlopeMaterial != null) {
+            section.getSlopeBatter().setFillMaterial(scratch.fillSlopeMaterial);
+        }
+        if (scratch.cutSlopeMaterial != null) {
+            section.getSlopeBatter().setCutMaterial(scratch.cutSlopeMaterial);
+        }
+        if (scratch.streetlightBlock != null) {
+            section.getStreetFurniture().setStreetlightBlock(scratch.streetlightBlock);
         }
     }
 }

@@ -806,6 +806,7 @@ public class RoadNetwork {
 
     static class StreetFurnitureData {
         Integer streetlightSpacing;
+        String streetlightBlock;
     }
 
     static class CrossSectionData {
@@ -893,6 +894,7 @@ public class RoadNetwork {
             if (furniture != null) {
                 data.streetFurniture = new StreetFurnitureData();
                 data.streetFurniture.streetlightSpacing = furniture.getStreetlightSpacing();
+                data.streetFurniture.streetlightBlock = furniture.getStreetlightBlock();
             }
             return data;
         }
@@ -977,6 +979,7 @@ public class RoadNetwork {
             if (streetFurniture != null) {
                 StreetFurniture furniture = new StreetFurniture();
                 furniture.setStreetlightSpacing(streetFurniture.streetlightSpacing);
+                furniture.setStreetlightBlock(streetFurniture.streetlightBlock);
                 section.setStreetFurniture(furniture);
             }
             return section;
@@ -987,6 +990,7 @@ public class RoadNetwork {
         String id;
         String name;
         String styleId;
+        String themeId;
         CrossSectionData crossSection;
         // Legacy flat fields (v1) — read for migration, not written on save
         Integer width;
@@ -1050,6 +1054,7 @@ public class RoadNetwork {
                 roadData.id = road.getId();
                 roadData.name = road.getName();
                 roadData.styleId = road.getStyleId();
+                roadData.themeId = road.getThemeId();
                 roadData.crossSection = CrossSectionData.from(road.getCrossSection());
                 roadData.maxSlope = road.getMaxSlope();
                 if (road.getTopologyMode() != RoadTopologyMode.LINEAR) {
@@ -1146,6 +1151,7 @@ public class RoadNetwork {
                         roadData.segmentIds != null ? new java.util.LinkedHashSet<>(roadData.segmentIds) : java.util.Set.of()
                     );
                     road.setStyleId(roadData.styleId);
+                    road.setThemeId(roadData.themeId);
                     road.setTopologyMode(RoadTopologyMode.fromStored(roadData.topologyMode));
                     road.setHorizontalAlignment(HorizontalAlignmentPersistence.fromData(roadData.horizontalAlignment));
                     road.setVerticalAlignment(VerticalAlignmentPersistence.fromData(roadData.verticalAlignment));

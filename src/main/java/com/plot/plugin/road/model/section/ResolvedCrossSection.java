@@ -14,6 +14,7 @@ import java.util.List;
 public final class ResolvedCrossSection {
     public static final String DEFAULT_MARKING_MATERIAL = "material.plot.white_concrete";
     public static final String DEFAULT_BIKE_LANE_MATERIAL = "minecraft:light_blue_concrete";
+    public static final String DEFAULT_STREETLIGHT_BLOCK = "minecraft:lantern";
 
     public final int laneCount;
     public final List<Integer> laneWidths;
@@ -37,6 +38,7 @@ public final class ResolvedCrossSection {
     public final String sidewalkMaterial;
     public final boolean includeDrain;
     public final Integer streetlightSpacing;
+    public final String streetlightBlock;
     public final boolean includeSlopeBatter;
     public final float fillSlopeRatio;
     public final float cutSlopeRatio;
@@ -66,6 +68,7 @@ public final class ResolvedCrossSection {
             String sidewalkMaterial,
             boolean includeDrain,
             Integer streetlightSpacing,
+            String streetlightBlock,
             boolean includeSlopeBatter,
             float fillSlopeRatio,
             float cutSlopeRatio,
@@ -93,6 +96,7 @@ public final class ResolvedCrossSection {
         this.sidewalkMaterial = sidewalkMaterial;
         this.includeDrain = includeDrain;
         this.streetlightSpacing = streetlightSpacing;
+        this.streetlightBlock = streetlightBlock;
         this.includeSlopeBatter = includeSlopeBatter;
         this.fillSlopeRatio = fillSlopeRatio;
         this.cutSlopeRatio = cutSlopeRatio;
@@ -169,6 +173,10 @@ public final class ResolvedCrossSection {
 
         boolean includeDrain = drain.getEnabled() != null ? drain.getEnabled() : config.isIncludeDrainage();
 
+        String streetlightBlock = furniture.getStreetlightBlock() != null
+            ? furniture.getStreetlightBlock()
+            : DEFAULT_STREETLIGHT_BLOCK;
+
         float fillRatio = slopeBatter.getFillRatio() != null
             ? slopeBatter.getFillRatio()
             : config.getFillSlopeRatio();
@@ -209,6 +217,7 @@ public final class ResolvedCrossSection {
             RoadMaterialUtils.normalizeStoredMaterial(sidewalkMaterial),
             includeDrain,
             furniture.getStreetlightSpacing(),
+            RoadMaterialUtils.normalizeStoredMaterial(streetlightBlock),
             includeSlopeBatter,
             includeSlopeBatter ? fillRatio : 0f,
             includeSlopeBatter ? cutRatio : 0f,

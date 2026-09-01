@@ -860,6 +860,8 @@
   "plugin.road.adopt_road_type_hint": "Choose a preset or Custom for the roads you are about to adopt.",
   "plugin.road.theme_label": "Road Theme",
   "plugin.road.theme_hint": "Theme swaps materials and markings while keeping the same cross-section geometry.",
+  "plugin.road.theme_road_hint": "Per-road theme overrides the network default for this road only.",
+  "plugin.road.preset_section": "Road Presets",
   "plugin.road.adopt_advanced": "Advanced",
   "plugin.road.adopt_cta_batch": "ADOPT %d ROADS",
   "plugin.road.edit_cross_section": "Cross Section",

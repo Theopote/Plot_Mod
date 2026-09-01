@@ -7,7 +7,6 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.style.RoadStyle;
-import com.plot.plugin.road.style.RoadThemeCatalog;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -15,6 +14,7 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
@@ -142,38 +142,10 @@ public final class RoadDefaultParamsPanel {
 
     private void renderThemeSelector() {
         RoadSystemConfig config = ctx.networkManager().getConfig();
-        String selectedThemeId = config.getRoadThemeId();
-        if (ImGui.beginCombo(
-            PlotI18n.tr("plugin.road.theme_label") + "##road_theme",
-            PlotI18n.tr("theme.road." + selectedThemeId))) {
-            for (var theme : RoadThemeCatalog.defaultThemes()) {
-                boolean selected = theme.id.equals(selectedThemeId);
-                if (ImGui.selectable(PlotI18n.tr("theme.road." + theme.id) + "##theme_" + theme.id, selected)) {
-                    config.setRoadThemeId(theme.id);
-                    reapplyThemeToConfig(config);
-                    ctx.onGenerationConfigChanged();
-                }
-                if (selected) {
-                    ImGui.setItemDefaultFocus();
-                }
-            }
-            ImGui.endCombo();
-        }
-        RoadUiWidgets.textWrappedColored(
-            PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.theme_hint"));
-    }
-
-    private void reapplyThemeToConfig(RoadSystemConfig config) {
-        String presetId = config.getSelectedPreset();
-        if (presetId != null && !presetId.isBlank()) {
-            RoadStyle style = config.findStyle(presetId);
-            if (style != null) {
-                config.applyStyle(style);
-                ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
-                return;
-            }
-        }
-        RoadThemeCatalog.applyThemeToConfig(config.getRoadThemeId(), config);
+        RoadThemeSelector.renderForConfig(config, () -> {
+            ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
+            ctx.onGenerationConfigChanged();
+        });
     }
 
     private void renderPresetSelector() {
@@ -181,13 +153,44 @@ public final class RoadDefaultParamsPanel {
         String selectedId = config.getSelectedPreset();
         boolean customSelected = selectedId == null || selectedId.isBlank();
 
+        String header = PlotI18n.tr("plugin.road.preset_section");
+        if (!customSelected) {
+            header += " — " + PlotI18n.tr("preset.road." + selectedId);
+        } else {
+            header += " — " + PlotI18n.tr("plugin.road.preset_custom");
+        }
+
+        if (!ImGui.collapsingHeader(header + "##road_preset_section", ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+
         float gap = PRESET_CARD_PADDING_X;
         float avail = ImGui.getContentRegionAvail().x;
         int columns = avail >= PRESET_CARD_MIN_WIDTH * 2f + gap ? 2 : 1;
         float cardWidth = columns == 2 ? (avail - gap) * 0.5f : avail;
-
-        List<RoadStyle> styles = config.getStyles();
         String themeId = config.getRoadThemeId();
+
+        renderPresetCardGrid(config, config.getStyles(), selectedId, cardWidth, columns, gap, themeId);
+
+        ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.road.preset_custom") + "##road_preset_custom")) {
+            config.markCustom();
+        }
+        if (customSelected) {
+            ImGui.sameLine();
+            ImGui.textColored(PluginUiColors.ACCENT_BLUE, "●");
+        }
+        ImGui.spacing();
+    }
+
+    private void renderPresetCardGrid(
+            RoadSystemConfig config,
+            List<RoadStyle> styles,
+            String selectedId,
+            float cardWidth,
+            int columns,
+            float gap,
+            String themeId) {
         List<PresetCardLayout> layouts = new ArrayList<>(styles.size());
         for (RoadStyle style : styles) {
             layouts.add(buildPresetCardLayout(style, cardWidth, themeId));
@@ -214,20 +217,6 @@ public final class RoadDefaultParamsPanel {
                 ctx.onGenerationConfigChanged();
             }
         }
-
-        ImGui.spacing();
-        if (ImGui.button(PlotI18n.tr("plugin.road.preset_custom") + "##road_preset_custom")) {
-            config.markCustom();
-        }
-        if (customSelected) {
-            ImGui.sameLine();
-            ImGui.textColored(PluginUiColors.ACCENT_BLUE, "●");
-        } else if (!selectedId.isBlank()) {
-            ImGui.sameLine();
-            RoadUiWidgets.textWrappedColored(
-                PluginUiColors.HINT_GRAY, PlotI18n.tr("preset.road." + selectedId));
-        }
-        ImGui.spacing();
     }
 
     private void renderDefaultJunctionSettings() {

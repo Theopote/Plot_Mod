@@ -43,6 +43,8 @@ public final class RoadParameterInheritance {
         String styleId = defaults.getSelectedPreset();
         if (styleId != null && !styleId.isBlank()) {
             road.applyStyle(styleId, defaults);
+        } else {
+            road.setThemeId(defaults.getRoadThemeId());
         }
     }
 

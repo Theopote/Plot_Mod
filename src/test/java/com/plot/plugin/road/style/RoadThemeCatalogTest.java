@@ -41,6 +41,12 @@ class RoadThemeCatalogTest {
     }
 
     @Test
+    void cyberpunkThemeSetsSeaLanternStreetlight() {
+        RoadCrossSection section = RoadStyleCatalog.cityStreet().toCrossSection("cyberpunk");
+        assertEquals("minecraft:sea_lantern", section.getStreetFurniture().getStreetlightBlock());
+    }
+
+    @Test
     void configApplyStyleUsesSelectedTheme() {
         RoadSystemConfig config = new RoadSystemConfig("road_system");
         config.setRoadThemeId("snow");

@@ -103,7 +103,8 @@ public final class RoadCrossSectionEngineeringEquality {
         if (left == null || right == null) {
             return false;
         }
-        return Objects.equals(left.getStreetlightSpacing(), right.getStreetlightSpacing());
+        return Objects.equals(left.getStreetlightSpacing(), right.getStreetlightSpacing())
+            && Objects.equals(left.getStreetlightBlock(), right.getStreetlightBlock());
     }
 
     private static boolean equalsEnabledWidthMaterial(

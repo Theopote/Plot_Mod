@@ -45,6 +45,7 @@ public class Road {
     private String name;
     private RoadCrossSection crossSection = new RoadCrossSection();
     private String styleId;
+    private String themeId;
     private Float maxSlope;
     private RoadTopologyMode topologyMode = RoadTopologyMode.LINEAR;
     private RoadHorizontalAlignment horizontalAlignment;
@@ -114,6 +115,7 @@ public class Road {
         crossSection.inheritAll();
         maxSlope = null;
         styleId = null;
+        themeId = null;
     }
 
     public void applyStyle(RoadStyle style) {
@@ -151,6 +153,25 @@ public class Road {
 
     public void clearStyleId() {
         this.styleId = null;
+    }
+
+    public String getThemeId() {
+        return themeId;
+    }
+
+    public void setThemeId(String themeId) {
+        this.themeId = themeId != null && !themeId.isBlank() ? themeId : null;
+    }
+
+    public void clearThemeId() {
+        this.themeId = null;
+    }
+
+    public String getEffectiveThemeId(RoadSystemConfig defaults) {
+        if (themeId != null && !themeId.isBlank()) {
+            return themeId;
+        }
+        return defaults != null ? defaults.getRoadThemeId() : com.plot.plugin.road.style.RoadThemeCatalog.MODERN_ID;
     }
 
     public String getId() {
@@ -594,6 +615,7 @@ public class Road {
     Road copy() {
         Road copy = new Road(id, name, crossSection.copy(), maxSlope, new LinkedHashSet<>(segmentIds));
         copy.styleId = styleId;
+        copy.themeId = themeId;
         copy.topologyMode = getTopologyMode();
         copy.horizontalAlignment = horizontalAlignment != null ? horizontalAlignment.copy() : null;
         copy.verticalAlignment = verticalAlignment != null ? verticalAlignment.copy() : null;
@@ -610,5 +632,6 @@ public class Road {
         crossSection = source.crossSection.copy();
         maxSlope = source.maxSlope;
         styleId = source.styleId;
+        themeId = source.themeId;
     }
 }
