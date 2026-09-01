@@ -12,6 +12,7 @@ import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolation;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
+import com.plot.plugin.road.repair.RoadAutoRepair;
 import com.plot.plugin.road.centerline.CenterlineEditStatus;
 import com.plot.plugin.road.centerline.CenterlineEditResult;
 import com.plot.plugin.road.centerline.RoadCenterlineEditor;
@@ -158,6 +159,7 @@ public final class RoadEditPanel {
                 lastCenterlineEditMessage = formatCenterlineEditResult(result);
             },
             () -> lastCenterlineEditMessage);
+        renderRoadAutoRepair(network, road);
         renderRoadTopologyHints(network, road);
 
         RoadUiSections.group("plugin.road.design_stack.alignment");
@@ -304,7 +306,19 @@ public final class RoadEditPanel {
         }
     }
 
+    private void renderRoadAutoRepair(RoadNetwork network, Road road) {
+        RoadAutoRepairUi.render(ctx, network, road);
+    }
+
     private void renderRoadTopologyHints(RoadNetwork network, Road road) {
+        if (!RoadAutoRepair.diagnose(
+                network,
+                road,
+                ctx.networkManager().getConfig(),
+                new com.plot.plugin.road.RoadNetworkBuilder().probeIntersectionCompleteness(network),
+                ctx.networkManager().isAdoptIntersectionRepairPending()).isEmpty()) {
+            return;
+        }
         List<RoadTopologyViolation> violations = RoadTopologyInvariantValidator.validateRoad(network, road);
         if (violations.isEmpty()) {
             return;

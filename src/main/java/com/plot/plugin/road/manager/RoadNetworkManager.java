@@ -762,6 +762,24 @@ public final class RoadNetworkManager {
     }
 
     /**
+     * 单条道路一键自动修复（单次撤销步）。
+     */
+    public com.plot.plugin.road.repair.RoadAutoRepair.Result fixRoad(Road road) {
+        if (road == null) {
+            return new com.plot.plugin.road.repair.RoadAutoRepair.Result("", List.of(), List.of(), 0);
+        }
+        pushHistory();
+        com.plot.plugin.road.repair.RoadAutoRepair.Result result = com.plot.plugin.road.repair.RoadAutoRepair.fix(
+            network,
+            road,
+            config,
+            networkBuilder,
+            () -> adoptIntersectionRepairPending = false);
+        notifyNetworkChanged();
+        return result;
+    }
+
+    /**
      * 加载批量编辑的默认值（从当前选中的主要边）
      *
      * 重命名说明：原名 syncBatchEditDefaults 暗示"同步"操作，
