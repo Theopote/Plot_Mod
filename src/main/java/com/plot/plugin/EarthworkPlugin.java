@@ -20,8 +20,8 @@ import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
-import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -68,6 +68,7 @@ public class EarthworkPlugin extends Plugin {
     private final EarthworkRegionPickSession pickSession = new EarthworkRegionPickSession();
     private final EarthworkThreePointPickSession threePointPickSession = new EarthworkThreePointPickSession();
     private EarthworkGenerator earthworkGenerator;
+    private final TerrainSnapshotCache terrainSnapshotCache = new TerrainSnapshotCache();
 
     // 多线程访问的字段需要同步保护（UI线程 + 异步方块放置）
     private final Object projectLock = new Object();
@@ -617,8 +618,7 @@ public class EarthworkPlugin extends Plugin {
         if (world == null || transformer == null) {
             return;
         }
-        Polygon polygon = EarthworkGeometryUtils.toPolygon(region.getOuterPoints());
-        TerrainSnapshot terrain = TerrainSnapshot.capture(world, polygon, region.getOuterPoints(), transformer);
+        TerrainSnapshot terrain = terrainSnapshotCache.getOrCapture(region, world, transformer);
         if (terrain.isEmpty()) {
             return;
         }
@@ -842,6 +842,7 @@ public class EarthworkPlugin extends Plugin {
                 if (!pendingDeleteRegionId.isEmpty()) {
                     projectHistory.push(project);
                     project.removeRegion(pendingDeleteRegionId);
+                    terrainSnapshotCache.invalidateRegion(pendingDeleteRegionId);
                     if (pendingDeleteRegionId.equals(selectedRegionId)) {
                         selectedRegionId = project.getRegions().isEmpty()
                             ? ""
@@ -1038,7 +1039,9 @@ public class EarthworkPlugin extends Plugin {
         }
 
         try {
-            lastGenerationResult = earthworkGenerator.generate(region, world);
+            TerrainSnapshot terrain = terrainSnapshotCache.getOrCapture(
+                region, world, ctx().coordinates());
+            lastGenerationResult = earthworkGenerator.generate(region, world, terrain);
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
             lastGenerationResult = null;
@@ -1118,6 +1121,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
+        final String builtRegionId = selectedRegionId;
         EarthworkGenerateCommand command = new EarthworkGenerateCommand(records, ctx().projection(), ctx().placement());
         projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress", records.size());
         command.executeScheduled(() -> {
@@ -1126,6 +1130,7 @@ public class EarthworkPlugin extends Plugin {
             if (result != null && result.cancelled()) {
                 if (result.success() > 0) {
                     ctx().commands().pushExecuted(command);
+                    terrainSnapshotCache.invalidateRegion(builtRegionId);
                 }
                 projectStatus = PlotI18n.tr(
                     "plugin.earthwork.build_cancelled", result.success(), result.total());
@@ -1133,6 +1138,9 @@ public class EarthworkPlugin extends Plugin {
                 return;
             }
             ctx().commands().pushExecuted(command);
+            if (result != null && result.success() > 0) {
+                terrainSnapshotCache.invalidateRegion(builtRegionId);
+            }
             applyBuildResultStatus(result);
             clearPreview();
         });
@@ -1228,6 +1236,7 @@ public class EarthworkPlugin extends Plugin {
             pickSession.cancel();
             threePointPickSession.cancel();
             selectedRegions.clear();
+            terrainSnapshotCache.clear();
             clearPreview();
             return true;
         } catch (IOException e) {

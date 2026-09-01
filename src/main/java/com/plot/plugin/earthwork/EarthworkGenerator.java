@@ -61,6 +61,13 @@ public class EarthworkGenerator {
     }
 
     public EarthworkGenerationResult generate(GradingRegion region, World world) {
+        return generate(region, world, null);
+    }
+
+    public EarthworkGenerationResult generate(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot terrainSnapshot) {
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         if (region == null || world == null) {
             LOGGER.warn("整平区域或世界为空");
@@ -74,7 +81,10 @@ public class EarthworkGenerator {
         }
 
         Polygon polygon = EarthworkGeometryUtils.toPolygon(outerPoints);
-        TerrainSnapshot terrain = TerrainSnapshot.capture(world, polygon, outerPoints, coordinateTransformer);
+        TerrainSnapshot terrain = terrainSnapshot;
+        if (terrain == null || terrain.isEmpty()) {
+            terrain = TerrainSnapshot.capture(world, polygon, outerPoints, coordinateTransformer);
+        }
         if (terrain.isEmpty()) {
             LOGGER.warn("整平区域无有效 footprint 格点");
             return result;
