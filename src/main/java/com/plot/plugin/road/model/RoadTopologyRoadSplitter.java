@@ -28,7 +28,10 @@ public final class RoadTopologyRoadSplitter {
     private RoadTopologyRoadSplitter() {
     }
 
-    public record RepairResult(int sourceRoadsRepaired, int newRoadsCreated) {
+    public record RepairResult(int sourceRoadsRepaired, int newRoadsCreated, int loopsPromoted) {
+        public RepairResult(int sourceRoadsRepaired, int newRoadsCreated) {
+            this(sourceRoadsRepaired, newRoadsCreated, 0);
+        }
     }
 
     /**
@@ -39,7 +42,7 @@ public final class RoadTopologyRoadSplitter {
             return new RepairResult(0, 0);
         }
 
-        promoteClosedLoopsToLoopMode(network);
+        int loopsPromoted = promoteClosedLoopsToLoopMode(network);
 
         int sourceRoadsRepaired = 0;
         int newRoadsCreated = 0;
@@ -82,7 +85,7 @@ public final class RoadTopologyRoadSplitter {
             RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, road);
         }
 
-        return new RepairResult(sourceRoadsRepaired, newRoadsCreated);
+        return new RepairResult(sourceRoadsRepaired, newRoadsCreated, loopsPromoted);
     }
 
     /**
@@ -97,7 +100,7 @@ public final class RoadTopologyRoadSplitter {
             return new RepairResult(0, 0);
         }
 
-        promoteClosedLoopsToLoopMode(network);
+        int loopsPromoted = promoteClosedLoopsToLoopMode(network, road.getId());
 
         int sourceRoadsRepaired = 0;
         int newRoadsCreated = 0;
@@ -118,11 +121,19 @@ public final class RoadTopologyRoadSplitter {
             RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, current);
         }
 
-        return new RepairResult(sourceRoadsRepaired, newRoadsCreated);
+        return new RepairResult(sourceRoadsRepaired, newRoadsCreated, loopsPromoted);
     }
 
-    private static void promoteClosedLoopsToLoopMode(RoadNetwork network) {
+    private static int promoteClosedLoopsToLoopMode(RoadNetwork network) {
+        return promoteClosedLoopsToLoopMode(network, null);
+    }
+
+    private static int promoteClosedLoopsToLoopMode(RoadNetwork network, String roadIdFilter) {
+        int promoted = 0;
         for (Road road : network.getRoads().values()) {
+            if (roadIdFilter != null && !roadIdFilter.equals(road.getId())) {
+                continue;
+            }
             if (road.getTopologyMode() == RoadTopologyMode.LOOP) {
                 continue;
             }
@@ -134,8 +145,10 @@ public final class RoadTopologyRoadSplitter {
                     && !subgraph.hasBranching
                     && subgraph.endpointCount == 0) {
                 road.setTopologyMode(RoadTopologyMode.LOOP);
+                promoted++;
             }
         }
+        return promoted;
     }
 
     /**

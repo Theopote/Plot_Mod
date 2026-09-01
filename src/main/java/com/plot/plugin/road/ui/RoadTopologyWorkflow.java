@@ -32,10 +32,24 @@ public final class RoadTopologyWorkflow {
         RoadTopologyRoadSplitter.RepairResult result = ctx.networkManager().repairTopology(road);
         ctx.onGenerationConfigChanged();
         if (result.sourceRoadsRepaired() > 0 || result.newRoadsCreated() > 0) {
+            if (result.loopsPromoted() > 0) {
+                ctx.status().success(PlotI18n.tr(
+                    "plugin.road.repair_topology_success_mixed",
+                    result.sourceRoadsRepaired(),
+                    result.newRoadsCreated(),
+                    result.loopsPromoted()));
+            } else {
+                ctx.status().success(PlotI18n.tr(
+                    "plugin.road.repair_topology_success",
+                    result.sourceRoadsRepaired(),
+                    result.newRoadsCreated()));
+            }
+            return true;
+        }
+        if (result.loopsPromoted() > 0) {
             ctx.status().success(PlotI18n.tr(
-                "plugin.road.repair_topology_success",
-                result.sourceRoadsRepaired(),
-                result.newRoadsCreated()));
+                "plugin.road.repair_topology_loop_promoted",
+                result.loopsPromoted()));
             return true;
         }
         ctx.status().info(PlotI18n.tr("plugin.road.repair_topology_noop"));

@@ -50,4 +50,16 @@ class RoadValidationMessageCatalogTest {
         assertNotNull(message);
         assertEquals(RoadValidationAction.REPAIR_ROAD_TOPOLOGY, message.action());
     }
+
+    @Test
+    void roadCycleIncludesRepairAction() {
+        RoadValidationMessage single = RoadValidationMessageCatalog.fromTopologyKind(
+            RoadTopologyViolationKind.ROAD_CYCLE);
+        assertEquals(RoadValidationAction.REPAIR_ROAD_TOPOLOGY, single.action());
+
+        RoadNetworkValidationReport.Item item = RoadNetworkValidationReport.Item.warning(
+            "plugin.road.validation.road_cycle", 1);
+        RoadValidationMessage network = RoadValidationMessageCatalog.fromReportItem(item);
+        assertEquals(RoadValidationAction.REPAIR_ROAD_TOPOLOGY, network.action());
+    }
 }
