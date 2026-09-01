@@ -10,6 +10,7 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
@@ -28,6 +29,7 @@ public final class VerticalAlignmentEditor {
 
     private String syncedRoadId = "";
     private final List<PviDraft> drafts = new ArrayList<>();
+    private float flatElevation = 64f;
 
     public void render(
             RoadNetwork network,
@@ -55,6 +57,8 @@ public final class VerticalAlignmentEditor {
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_hint"));
+
+        renderFlatProfileAction(road, roadLength, onHistory);
 
         if (drafts.isEmpty()) {
             RoadUiWidgets.textWrappedColored(
@@ -84,12 +88,43 @@ public final class VerticalAlignmentEditor {
         applyDraftsIfChanged(road);
         renderValidationMessages(road, roadLength);
 
-        if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_add"))) {
+        boolean slopeAllowed = VerticalProfileDesignRules.slopeAllowed(roadLength);
+        if (!slopeAllowed) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.INVALID,
+                PlotI18n.tr("plugin.road.vertical_alignment_short_road",
+                    (int) VerticalProfileDesignRules.MIN_ROAD_LENGTH_FOR_SLOPE));
+        }
+
+        if (slopeAllowed && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_add"))) {
             if (onHistory != null) {
                 onHistory.run();
             }
             drafts.add(PviDraft.defaultEntry(drafts, roadLength));
             applyDraftsIfChanged(road);
+        }
+    }
+
+    private void renderFlatProfileAction(Road road, double roadLength, Runnable onHistory) {
+        float[] elevation = {flatElevation};
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        ImGui.dragFloat(
+            PlotI18n.tr("plugin.road.vertical_alignment_flat_elevation"),
+            elevation,
+            0.5f,
+            -64f,
+            320f,
+            "%.1f");
+        flatElevation = elevation[0];
+        if (roadLength > 1e-6
+                && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_make_flat"))) {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+            road.setVerticalAlignment(
+                VerticalProfileDesignRules.flatAlignment(roadLength, flatElevation));
+            syncedRoadId = "";
+            syncDrafts(road);
         }
     }
 
@@ -214,6 +249,9 @@ public final class VerticalAlignmentEditor {
             int index = drafts.size();
             drafts.add(PviDraft.from(pvi, index, alignment.pviCount()));
         }
+        if (!drafts.isEmpty()) {
+            flatElevation = drafts.getFirst().elevation;
+        }
     }
 
     private void renderValidationMessages(Road road, double roadLength) {
@@ -234,6 +272,20 @@ public final class VerticalAlignmentEditor {
                     args,
                     message.action()));
             }
+        }
+        double maxGrade = road.getMaxSlope() != null ? road.getMaxSlope() : 8.0;
+        for (VerticalProfileDesignRules.Issue issue
+                : VerticalProfileDesignRules.assess(preview, roadLength, maxGrade)) {
+            String key = switch (issue.kind()) {
+                case SHORT_ROAD_MUST_BE_FLAT -> "plugin.road.vertical_alignment_short_road_detail";
+                case GRADE_EXCEEDS_LIMIT -> "plugin.road.vertical_alignment_grade_exceeds";
+                case GRADE_RUN_TOO_SHORT -> "plugin.road.vertical_alignment_grade_run_short";
+                case CONTINUOUS_GRADE_TOO_LONG -> "plugin.road.vertical_alignment_grade_run_long";
+            };
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.INVALID,
+                PlotI18n.tr(key, issue.fromPviIndex() + 1, issue.toPviIndex() + 1,
+                    issue.actual(), issue.limit()));
         }
     }
 
