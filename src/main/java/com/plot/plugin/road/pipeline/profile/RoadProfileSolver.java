@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadGuideLineUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
 import com.plot.plugin.road.model.RoadEdge;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
@@ -96,6 +97,7 @@ public final class RoadProfileSolver {
             accumulatedDistance += segment.distance / canvasUnitsPerBlock;
         }
 
+        Road owningRoad = network.getRoadForEdge(edge);
         return buildSegmentHeights(
             segments,
             sampleData,
@@ -108,8 +110,8 @@ public final class RoadProfileSolver {
                 config,
                 profileDistanceAtSegmentStart(sampleData, segmentIndex, canvasUnitsPerBlock)),
             support,
-            network.getRoad(edge.getRoadId()) != null
-                ? network.getRoad(edge.getRoadId()).getVerticalMode()
+            owningRoad != null
+                ? owningRoad.getVerticalMode()
                 : RoadVerticalMode.AUTO_SMOOTH);
     }
 

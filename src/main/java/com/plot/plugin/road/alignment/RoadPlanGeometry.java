@@ -40,7 +40,7 @@ public final class RoadPlanGeometry {
         if (edge == null || edge.getRoadId() == null) {
             return false;
         }
-        Road road = network != null ? network.getRoad(edge.getRoadId()) : null;
+        Road road = network != null ? network.getRoadForEdge(edge) : null;
         return hasDesignAlignment(network, road);
     }
 
@@ -185,7 +185,7 @@ public final class RoadPlanGeometry {
         if (oriented.isEmpty()) {
             return edge.getCenterlinePoints();
         }
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
         List<Vec2d> sampled = HorizontalAlignmentCenterlineMaterializer.sampleGeometryPoints(
             alignment,
@@ -285,6 +285,6 @@ public final class RoadPlanGeometry {
         if (!usesDesignAlignment(network, edge)) {
             return Optional.empty();
         }
-        return RoadStationing.orientedSegment(network, network.getRoad(edge.getRoadId()), edge.getId());
+        return RoadStationing.orientedSegment(network, network.getRoadForEdge(edge), edge.getId());
     }
 }

@@ -54,7 +54,7 @@ public final class RoadGeneratorProfileContext implements ProfileEdgeContext {
       Integer manualEndHeight) {
     double halfWidth = RoadDimensionUtils.halfExtentFromCenter(
         RoadModelUtils.getEffectiveWidth(network, edge, config));
-    Road road = edge.getRoadId() != null ? network.getRoad(edge.getRoadId()) : null;
+    Road road = network.getRoadForEdge(edge);
     if (VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
       return RoadStationing.orientedSegment(network, road, edge.getId())
           .map(oriented -> VerticalAlignmentProfileSolver.solveForEdge(

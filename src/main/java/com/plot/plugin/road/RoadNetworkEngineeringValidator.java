@@ -531,7 +531,7 @@ public final class RoadNetworkEngineeringValidator {
 
     private static float maxSlopeForEdge(RoadNetwork network, RoadEdge edge, RoadSystemConfig config) {
         if (edge.getRoadId() != null) {
-            Road road = network.getRoad(edge.getRoadId());
+            Road road = network.getRoadForEdge(edge);
             if (road != null) {
                 return road.getEffectiveMaxSlope(config);
             }

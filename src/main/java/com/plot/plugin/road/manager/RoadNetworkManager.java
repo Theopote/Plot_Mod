@@ -924,7 +924,7 @@ public final class RoadNetworkManager {
             if (!updatedRoadIds.add(edge.getRoadId())) {
                 continue;
             }
-            Road road = network.getRoad(edge.getRoadId());
+            Road road = network.getRoadForEdge(edge);
             if (road == null) {
                 continue;
             }

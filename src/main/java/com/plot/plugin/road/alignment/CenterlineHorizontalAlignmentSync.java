@@ -47,7 +47,7 @@ public final class CenterlineHorizontalAlignmentSync {
         if (edge == null || edge.getRoadId() == null) {
             return Outcome.UNCHANGED;
         }
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         return syncAfterCenterlineEdit(network, road);
     }
 }

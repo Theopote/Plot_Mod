@@ -88,7 +88,7 @@ public class RoadGenerator {
         if (network == null || edge == null || edge.getRoadId() == null) {
             return;
         }
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         if (road == null) {
             return;
         }

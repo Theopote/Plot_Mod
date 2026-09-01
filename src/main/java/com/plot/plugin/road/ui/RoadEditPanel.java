@@ -241,7 +241,7 @@ public final class RoadEditPanel {
             RoadEdge edge,
             RoadGenerationResult edgeResult,
             VerticalAlignmentProfileOverlay design) {
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         if (road == null) {
             return;
         }

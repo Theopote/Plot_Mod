@@ -16,7 +16,7 @@ public final class RoadModelUtils {
         if (network == null || edge == null || edge.getRoadId() == null) {
             return null;
         }
-        return network.getRoad(edge.getRoadId());
+        return network.getRoadForEdge(edge);
     }
 
     public static ResolvedCrossSection resolveCrossSection(

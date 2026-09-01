@@ -226,7 +226,7 @@ public final class RoadStationDataTransforms {
             if (edge == null || edge.getRoadId() == null) {
                 return null;
             }
-            Road road = network.getRoad(edge.getRoadId());
+            Road road = network.getRoadForEdge(edge);
             if (road == null) {
                 return null;
             }

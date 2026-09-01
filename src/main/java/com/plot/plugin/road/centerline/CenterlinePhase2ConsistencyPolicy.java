@@ -48,7 +48,7 @@ public final class CenterlinePhase2ConsistencyPolicy {
         if (edge == null || edge.getRoadId() == null) {
             return;
         }
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         if (road == null) {
             return;
         }
@@ -100,6 +100,6 @@ public final class CenterlinePhase2ConsistencyPolicy {
         if (edge == null || edge.getRoadId() == null) {
             return null;
         }
-        return network.getRoad(edge.getRoadId());
+        return network.getRoadForEdge(edge);
     }
 }

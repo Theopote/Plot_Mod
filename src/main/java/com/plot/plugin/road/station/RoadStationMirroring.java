@@ -67,7 +67,7 @@ public final class RoadStationMirroring {
         if (edge == null || edge.getRoadId() == null) {
             return;
         }
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         if (road == null || !RoadStationing.isStationable(network, road)) {
             return;
         }
@@ -99,7 +99,7 @@ public final class RoadStationMirroring {
         if (edge == null || edge.getRoadId() == null) {
             return;
         }
-        Road road = network.getRoad(edge.getRoadId());
+        Road road = network.getRoadForEdge(edge);
         if (road == null || road.getVerticalAlignment() == null || !RoadStationing.isStationable(network, road)) {
             return;
         }
