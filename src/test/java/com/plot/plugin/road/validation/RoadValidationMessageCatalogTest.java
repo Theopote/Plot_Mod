@@ -38,5 +38,16 @@ class RoadValidationMessageCatalogTest {
             RoadTopologyViolationKind.ROAD_DISCONNECTED);
 
         assertEquals("plugin.road.issue.road_disconnected_single.title", message.titleKey());
+        assertEquals(RoadValidationAction.REPAIR_ROAD_TOPOLOGY, message.action());
+    }
+
+    @Test
+    void reportItemDisconnectedIncludesRepairAction() {
+        RoadNetworkValidationReport.Item item = RoadNetworkValidationReport.Item.warning(
+            "plugin.road.validation.road_disconnected", 2);
+        RoadValidationMessage message = RoadValidationMessageCatalog.fromReportItem(item);
+
+        assertNotNull(message);
+        assertEquals(RoadValidationAction.REPAIR_ROAD_TOPOLOGY, message.action());
     }
 }

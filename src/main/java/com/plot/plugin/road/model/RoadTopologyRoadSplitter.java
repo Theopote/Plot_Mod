@@ -85,6 +85,42 @@ public final class RoadTopologyRoadSplitter {
         return new RepairResult(sourceRoadsRepaired, newRoadsCreated);
     }
 
+    /**
+     * 修复单条道路的断开分量 / 内部分叉，并同步分段顺序。
+     */
+    public static RepairResult repairRoad(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return new RepairResult(0, 0);
+        }
+        Road current = network.getRoad(road.getId());
+        if (current == null) {
+            return new RepairResult(0, 0);
+        }
+
+        promoteClosedLoopsToLoopMode(network);
+
+        int sourceRoadsRepaired = 0;
+        int newRoadsCreated = 0;
+
+        int disconnectedCreated = repairDisconnectedRoad(network, current);
+        if (disconnectedCreated > 0) {
+            sourceRoadsRepaired++;
+            newRoadsCreated += disconnectedCreated;
+        }
+
+        current = network.getRoad(road.getId());
+        if (current != null) {
+            int branchingCreated = splitBranchingRoad(network, current);
+            if (branchingCreated > 0) {
+                sourceRoadsRepaired++;
+                newRoadsCreated += branchingCreated;
+            }
+            RoadTopologyInvariantValidator.syncStorageOrderIfMaintainable(network, current);
+        }
+
+        return new RepairResult(sourceRoadsRepaired, newRoadsCreated);
+    }
+
     private static void promoteClosedLoopsToLoopMode(RoadNetwork network) {
         for (Road road : network.getRoads().values()) {
             if (road.getTopologyMode() == RoadTopologyMode.LOOP) {

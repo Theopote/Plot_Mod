@@ -749,6 +749,19 @@ public final class RoadNetworkManager {
     }
 
     /**
+     * 批量修复道路拓扑：断开分量拆分、内部分叉拆分、闭合环提升、分段顺序同步。
+     * 与认领末尾的 {@link RoadTopologyRoadSplitter#repairAfterAdopt} 相同。
+     */
+    public RoadTopologyRoadSplitter.RepairResult repairTopology(Road road) {
+        pushHistory();
+        RoadTopologyRoadSplitter.RepairResult result = road != null
+            ? RoadTopologyRoadSplitter.repairRoad(network, road)
+            : RoadTopologyRoadSplitter.repairAfterAdopt(network);
+        notifyNetworkChanged();
+        return result;
+    }
+
+    /**
      * 加载批量编辑的默认值（从当前选中的主要边）
      *
      * 重命名说明：原名 syncBatchEditDefaults 暗示"同步"操作，

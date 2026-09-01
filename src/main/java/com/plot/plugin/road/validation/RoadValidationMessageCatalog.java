@@ -33,9 +33,13 @@ public final class RoadValidationMessageCatalog {
     public static RoadValidationMessage fromTopologyKind(RoadTopologyViolationKind kind) {
         return switch (kind) {
             case ROAD_DISCONNECTED -> RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING, "road_disconnected_single");
+                RoadNetworkValidationReport.Level.WARNING,
+                "road_disconnected_single",
+                RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
             case ROAD_BRANCHING -> RoadValidationMessage.of(
-                RoadNetworkValidationReport.Level.WARNING, "road_branching_single");
+                RoadNetworkValidationReport.Level.WARNING,
+                "road_branching_single",
+                RoadValidationAction.REPAIR_ROAD_TOPOLOGY);
             case ROAD_CYCLE -> RoadValidationMessage.of(
                 RoadNetworkValidationReport.Level.WARNING, "road_cycle_single");
             case ROAD_ORDER_MISMATCH -> RoadValidationMessage.of(
@@ -105,12 +109,12 @@ public final class RoadValidationMessageCatalog {
         map.put("plugin.road.validation.intersections_incomplete",
             IssueTemplate.error("intersections_incomplete", RoadValidationAction.RECONCILE_INTERSECTIONS));
         map.put("plugin.road.validation.topology_issues",
-            IssueTemplate.warning("topology_issues"));
+            IssueTemplate.warning("topology_issues", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.road_topology_ok", IssueTemplate.ok("road_topology_ok"));
         map.put("plugin.road.validation.road_disconnected",
-            IssueTemplate.warning("road_disconnected"));
+            IssueTemplate.warning("road_disconnected", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.road_branching",
-            IssueTemplate.warning("road_branching"));
+            IssueTemplate.warning("road_branching", RoadValidationAction.REPAIR_ROAD_TOPOLOGY));
         map.put("plugin.road.validation.road_cycle",
             IssueTemplate.warning("road_cycle"));
         map.put("plugin.road.validation.road_order_mismatch",

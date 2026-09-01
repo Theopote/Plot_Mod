@@ -110,6 +110,32 @@ class RoadTopologyRoadSplitterTest {
     }
 
     @Test
+    void repairRoadSplitsOnlyTargetRoad() {
+        RoadNetwork network = new RoadNetwork();
+        Road broken = network.createRoad("broken");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(10, 0));
+        RoadNode n3 = network.createNode(new Vec2d(100, 0));
+        RoadNode n4 = network.createNode(new Vec2d(110, 0));
+        network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), broken.getId());
+        network.createEdge(n3.getId(), n4.getId(), List.of(new Vec2d(100, 0), new Vec2d(110, 0)), broken.getId());
+
+        Road healthy = network.createRoad("healthy");
+        RoadNode h1 = network.createNode(new Vec2d(0, 50));
+        RoadNode h2 = network.createNode(new Vec2d(10, 50));
+        network.createEdge(h1.getId(), h2.getId(), List.of(new Vec2d(0, 50), new Vec2d(10, 50)), healthy.getId());
+
+        RoadTopologyRoadSplitter.RepairResult result = RoadTopologyRoadSplitter.repairRoad(network, broken);
+
+        assertEquals(1, result.sourceRoadsRepaired());
+        assertEquals(1, result.newRoadsCreated());
+        assertEquals(3, network.getRoads().size());
+        assertTrue(RoadTopologyInvariantValidator.validateRoad(network, broken).isEmpty()
+            || network.getRoad(broken.getId()) == null);
+        assertTrue(RoadTopologyInvariantValidator.validateRoad(network, healthy).isEmpty());
+    }
+
+    @Test
     void repairsDisconnectedComponentsPreservesStationFacilitiesOnFirstChain() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("road-split");

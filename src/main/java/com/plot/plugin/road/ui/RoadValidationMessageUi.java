@@ -112,6 +112,7 @@ public final class RoadValidationMessageUi {
                 ctx.status().warning(PlotI18n.tr("plugin.road.smooth_grade_failed"));
                 yield false;
             }
+            case REPAIR_ROAD_TOPOLOGY -> RoadTopologyWorkflow.repairTopology(ctx, road);
         };
     }
 
