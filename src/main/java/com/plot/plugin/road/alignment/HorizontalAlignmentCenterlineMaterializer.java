@@ -26,8 +26,9 @@ import java.util.Optional;
  * 物化前要求 {@link HorizontalAlignmentCenterlineConsistency#isMaterializable}：
  * 设计线形总长须与实例折线链长一致（默认容差 1 m），避免桩号超出 HA 域导致部分写边失败。
  * <p>
- * 多 Road 共用的 junction node 不移动 {@link RoadNode#getPosition()}，但会将相连
- * {@link RoadEdge} 端点钉合（snap）至该节点，保持拓扑-几何一致。
+ * 多 Road 共用的 junction node：{@link RoadNode#getPosition()} 为拓扑权威。
+ * HA 采样端点须在容差内与节点一致方可物化；通过后强制 snap 至节点位置。
+ * 偏差超容差时拒绝物化（{@link com.plot.plugin.road.centerline.CenterlineEditStatus#JUNCTION_ENDPOINT_CONFLICT}）。
  */
 public final class HorizontalAlignmentCenterlineMaterializer {
 
@@ -48,7 +49,8 @@ public final class HorizontalAlignmentCenterlineMaterializer {
     }
 
     public static boolean canMaterialize(RoadNetwork network, Road road) {
-        return HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road);
+        return HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road)
+            && !HorizontalAlignmentJunctionConsistency.hasConflicts(network, road);
     }
 
     public static CenterlineEditResult materialize(RoadNetwork network, Road road) {
@@ -70,6 +72,9 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             road.getHorizontalAlignment(),
             sampleSpacingMeters);
         if (prepared.isEmpty()) {
+            if (HorizontalAlignmentJunctionConsistency.hasConflicts(network, road)) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.JUNCTION_ENDPOINT_CONFLICT);
+            }
             return CenterlineEditResult.failure(CenterlineEditStatus.TOO_FEW_POINTS);
         }
 
@@ -106,6 +111,10 @@ public final class HorizontalAlignmentCenterlineMaterializer {
                 return Optional.empty();
             }
             centerlinesByEdgeId.put(oriented.edgeId(), geometryPoints);
+        }
+
+        if (!HorizontalAlignmentJunctionConsistency.findConflicts(network, road, spacing).isEmpty()) {
+            return Optional.empty();
         }
 
         snapSharedNodeEndpoints(network, road.getId(), orientedSegments, centerlinesByEdgeId);

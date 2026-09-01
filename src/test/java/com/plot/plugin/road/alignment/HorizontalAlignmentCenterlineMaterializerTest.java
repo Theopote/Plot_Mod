@@ -82,24 +82,52 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         network.createEdge(shared.getId(), endA.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), roadA.getId());
         network.createEdge(shared.getId(), endB.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 100)), roadB.getId());
 
-        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 5), 0.0, List.of());
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0.5), 0.0, List.of());
         alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
         roadA.setHorizontalAlignment(alignment);
 
         RoadEdge edgeA = network.getEdge(roadA.getOrderedSegmentIds().getFirst());
+
+        assertTrue(HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, roadA));
 
         CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, roadA);
 
         assertTrue(result.isSuccess());
         assertEquals("plugin.road.horizontal_alignment_materialize_partial", result.detailMessageKey());
         assertEquals(0.0, shared.getPosition().y, 1e-6);
-        assertEquals(5.0, endA.getPosition().y, 0.1);
+        assertEquals(0.5, endA.getPosition().y, 0.1);
         assertTrue(edgeA.getCenterlinePoints().getFirst().distance(shared.getPosition()) < 1e-6);
-        assertTrue(roadA.getHorizontalAlignment().getOrigin().distance(shared.getPosition()) < 1e-6);
     }
 
     @Test
-    void materializeSnapsSharedJunctionEndpointToNodePosition() {
+    void materializeRejectsSharedJunctionWhenHaEndpointConflicts() {
+        RoadNetwork network = new RoadNetwork();
+        Road roadA = network.createRoad("a");
+        Road roadB = network.createRoad("b");
+        RoadNode shared = network.createNode(new Vec2d(0, 0));
+        RoadNode endA = network.createNode(new Vec2d(100, 0));
+        RoadNode endB = network.createNode(new Vec2d(0, 100));
+        RoadEdge edgeA = network.createEdge(
+            shared.getId(), endA.getId(), List.of(new Vec2d(0, 0), new Vec2d(100, 0)), roadA.getId());
+        network.createEdge(shared.getId(), endB.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 100)), roadB.getId());
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 5), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
+        roadA.setHorizontalAlignment(alignment);
+
+        List<Vec2d> before = List.copyOf(edgeA.getCenterlinePoints());
+
+        assertFalse(HorizontalAlignmentCenterlineMaterializer.canMaterialize(network, roadA));
+        assertFalse(HorizontalAlignmentJunctionConsistency.findConflicts(network, roadA, 2.0).isEmpty());
+
+        CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, roadA);
+
+        assertEquals(CenterlineEditStatus.JUNCTION_ENDPOINT_CONFLICT, result.status());
+        assertEquals(before, edgeA.getCenterlinePoints());
+    }
+
+    @Test
+    void materializeRejectsLargeSharedJunctionDeviation() {
         RoadNetwork network = new RoadNetwork();
         Road roadA = network.createRoad("a");
         Road roadB = network.createRoad("b");
@@ -119,14 +147,11 @@ class HorizontalAlignmentCenterlineMaterializerTest {
         alignment.addElement(HorizontalAlignmentElement.tangent(100.0));
         roadA.setHorizontalAlignment(alignment);
 
+        List<Vec2d> before = List.copyOf(edgeA.getCenterlinePoints());
         CenterlineEditResult result = HorizontalAlignmentCenterlineMaterializer.materialize(network, roadA);
 
-        assertTrue(result.isSuccess());
-        Vec2d junctionPosition = junction.getPosition();
-        assertEquals(100.0, junctionPosition.x, 1e-6);
-        assertEquals(100.0, junctionPosition.y, 1e-6);
-        assertTrue(edgeA.getCenterlinePoints().getFirst().distance(junctionPosition) < 1e-6);
-        assertTrue(edgeA.getCenterlinePoints().getLast().distance(endA.getPosition()) < 0.1);
+        assertEquals(CenterlineEditStatus.JUNCTION_ENDPOINT_CONFLICT, result.status());
+        assertEquals(before, edgeA.getCenterlinePoints());
     }
 
     @Test

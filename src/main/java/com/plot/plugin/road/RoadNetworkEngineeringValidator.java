@@ -12,6 +12,7 @@ import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.model.RoadTopologyViolationKind;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.alignment.HorizontalAlignmentCenterlineConsistency;
+import com.plot.plugin.road.alignment.HorizontalAlignmentJunctionConsistency;
 import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
@@ -224,6 +225,26 @@ public final class RoadNetworkEngineeringValidator {
                 "plugin.road.validation.horizontal_alignment_centerline_deviation",
                 deviationCount));
         }
+
+        int junctionConflictCount = countHorizontalAlignmentJunctionConflicts(network);
+        if (junctionConflictCount == 0) {
+            items.add(RoadNetworkValidationReport.Item.ok(
+                "plugin.road.validation.horizontal_alignment_junction_ok"));
+        } else {
+            items.add(RoadNetworkValidationReport.Item.warning(
+                "plugin.road.validation.horizontal_alignment_junction_conflict",
+                junctionConflictCount));
+        }
+    }
+
+    private static int countHorizontalAlignmentJunctionConflicts(RoadNetwork network) {
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            if (HorizontalAlignmentJunctionConsistency.hasConflicts(network, road)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static int countHorizontalAlignmentLengthMismatches(RoadNetwork network) {

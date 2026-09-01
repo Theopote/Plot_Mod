@@ -491,6 +491,7 @@ public final class RoadEditPanel {
             case ALIGNMENT_STATIONS_INVALID -> "plugin.road.centerline_edit_alignment_invalid";
             case HORIZONTAL_ALIGNMENT_NOT_DEFINED -> "plugin.road.horizontal_alignment_materialize_no_alignment";
             case ROAD_NOT_STATIONABLE -> "plugin.road.horizontal_alignment_materialize_not_stationable";
+            case JUNCTION_ENDPOINT_CONFLICT -> "plugin.road.horizontal_alignment_materialize_junction_conflict";
             default -> "plugin.road.centerline_edit_failed";
         };
         return PlotI18n.tr(key);

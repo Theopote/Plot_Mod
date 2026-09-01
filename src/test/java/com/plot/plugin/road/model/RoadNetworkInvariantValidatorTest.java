@@ -130,7 +130,7 @@ class RoadNetworkInvariantValidatorTest {
             roadB.getId());
 
         var alignment = new com.plot.plugin.road.alignment.RoadHorizontalAlignment(
-            new Vec2d(101.2, 100.4), 0.0, List.of());
+            new Vec2d(100, 100.5), 0.0, List.of());
         alignment.addElement(com.plot.plugin.road.alignment.HorizontalAlignmentElement.tangent(100.0));
         roadA.setHorizontalAlignment(alignment);
 
