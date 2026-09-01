@@ -18,6 +18,12 @@ public final class VerticalProfileCurveFitter {
         PointOfVerticalIntersection previous = pvis.get(pviIndex - 1);
         PointOfVerticalIntersection current = pvis.get(pviIndex);
         PointOfVerticalIntersection next = pvis.get(pviIndex + 1);
+        // A symmetric curve generally does not pass through its tangent-intersection elevation.
+        // Shared junctions must preserve their exact network elevation, so transition curves belong
+        // on adjacent free PVIs instead.
+        if (current.getConstraint() == VerticalControlPointConstraint.JUNCTION_FIXED) {
+            return new Result(source.copy(), false, false);
+        }
         double leftBoundary = previous.getStation()
             + (previous.hasCurve() ? previous.getCurveLength() * 0.5 : 0.0);
         double rightBoundary = next.getStation()
@@ -31,7 +37,8 @@ public final class VerticalProfileCurveFitter {
         for (int i = 0; i < pvis.size(); i++) {
             PointOfVerticalIntersection pvi = pvis.get(i);
             edited.add(i == pviIndex
-                ? PointOfVerticalIntersection.withCurve(pvi.getStation(), pvi.getElevation(), length)
+                ? new PointOfVerticalIntersection(
+                    pvi.getStation(), pvi.getElevation(), length, pvi.getConstraint())
                 : pvi.copy());
         }
         boolean changed = !current.hasCurve() || Math.abs(current.getCurveLength() - length) > EPSILON;

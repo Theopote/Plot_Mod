@@ -72,9 +72,10 @@ public final class VerticalAlignmentJunctionSynchronizer {
             if (index >= 0) {
                 PointOfVerticalIntersection old = pvis.get(index);
                 if (Math.abs(old.getElevation() - node.getManualElevation()) > 1e-6
-                        || old.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED) {
+                        || old.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED
+                        || old.hasCurve()) {
                     pvis.set(index, new PointOfVerticalIntersection(
-                        old.getStation(), node.getManualElevation(), old.getCurveLength(),
+                        old.getStation(), node.getManualElevation(), null,
                         VerticalControlPointConstraint.JUNCTION_FIXED));
                     changed++;
                 }
