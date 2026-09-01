@@ -85,7 +85,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
             && RoadStationing.isStationable(network, road);
     }
 
-    private static Map<String, Double> junctionStations(RoadNetwork network, Road road) {
+    static Map<String, Double> junctionStations(RoadNetwork network, Road road) {
         Map<String, Double> result = new LinkedHashMap<>();
         if (network == null || road == null || !RoadStationing.isStationable(network, road)) return result;
         for (OrientedRoadSegment segment : RoadStationing.orientedSegments(network, road)) {
@@ -103,7 +103,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
         }
     }
 
-    private static int matchingPviIndex(List<PointOfVerticalIntersection> pvis, double station) {
+    static int matchingPviIndex(List<PointOfVerticalIntersection> pvis, double station) {
         for (int i = 0; i < pvis.size(); i++) {
             if (Math.abs(pvis.get(i).getStation() - station) <= STATION_TOLERANCE) return i;
         }

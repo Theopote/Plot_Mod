@@ -1,5 +1,6 @@
 package com.plot.plugin.road.ui;
 
+import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.station.ChainageDisplayContext;
@@ -13,6 +14,7 @@ import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
@@ -37,6 +39,7 @@ public final class VerticalAlignmentEditor {
             RoadNetwork network,
             Road road,
             ChainageDisplayContext chainageDisplay,
+            RoadSystemConfig config,
             Runnable onHistory) {
         if (road == null || network == null) {
             return;
@@ -93,7 +96,8 @@ public final class VerticalAlignmentEditor {
         }
 
         applyDraftsIfChanged(road);
-        VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+        VerticalProfileNetworkPropagator.propagate(
+            network, road, connected -> connected.getEffectiveMaxSlope(config));
         renderValidationMessages(road, roadLength);
 
         boolean slopeAllowed = VerticalProfileDesignRules.slopeAllowed(roadLength);

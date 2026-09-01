@@ -1100,6 +1100,8 @@
   "plugin.road.vertical_alignment_control_points": "Profile control points (middle points drag in 2D; endpoints vertically only; red when over grade)",
   "plugin.road.vertical_alignment_control_point": "PVI %1$d · %2$.1f blocks from segment start · Y=%3$.2f · left/right grade %4$s",
   "plugin.road.vertical_alignment_shared_junction": "◆ fixed at-grade junction",
+  "plugin.road.vertical_alignment_network_adjusted": "Automatically adjusted grade runs on %d connected road(s).",
+  "plugin.road.vertical_alignment_network_unresolved": "%d connected road(s) lack enough space to reach this junction elevation within their grade limit.",
   "plugin.road.vertical_alignment_selected_elevation": "Selected control point elevation",
   "plugin.road.vertical_alignment_apply_control_point": "Apply Control Point Elevation",
   "plugin.road.vertical_alignment_auto_fix_grade": "Automatically Extend Grade Runs",

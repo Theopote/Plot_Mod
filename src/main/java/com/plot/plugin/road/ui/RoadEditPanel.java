@@ -34,6 +34,7 @@ import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.plugin.road.vertical.VerticalProfileAutoFixer;
 import com.plot.plugin.road.vertical.VerticalProfileCurveFitter;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalProfileNetworkPropagator;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -177,7 +178,9 @@ public final class RoadEditPanel {
 
         RoadUiSections.group("plugin.road.design_stack.alignment");
         renderHorizontalAlignmentSummary(network, road, chainageDisplay);
-        verticalAlignmentEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
+        verticalAlignmentEditor.render(
+            network, road, chainageDisplay, ctx.networkManager().getConfig(),
+            ctx.networkManager()::pushHistory);
         renderInlineVerticalProfile(network, current);
 
         RoadUiSections.group("plugin.road.design_stack.typical_section");
@@ -282,7 +285,7 @@ public final class RoadEditPanel {
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
         }
         if (interaction.dragFinished()) {
-            VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+            propagateJunctionGrades(network, road);
         }
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
         for (VerticalProfileControlPoints.ControlPoint point : points) {
@@ -325,7 +328,7 @@ public final class RoadEditPanel {
                 RoadStationing.canonicalLength(network, road), maxGrade);
             road.setVerticalAlignment(fixed.alignment());
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+            propagateJunctionGrades(network, road);
             profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
                 ? "plugin.road.vertical_alignment_auto_fix_success"
                 : "plugin.road.vertical_alignment_auto_fix_insufficient");
@@ -362,7 +365,7 @@ public final class RoadEditPanel {
                 road.getVerticalAlignment(), selectedProfilePvi, station,
                 selectedProfileElevation[0], RoadStationing.canonicalLength(network, road)));
             road.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
-            VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+            propagateJunctionGrades(network, road);
             profileAutoFixMessage = "";
         }
     }
@@ -374,6 +377,22 @@ public final class RoadEditPanel {
         String right = point.rightGradePercent() != null
             ? String.format("%.1f%%", point.rightGradePercent()) : "—";
         return left + " / " + right;
+    }
+
+    private void propagateJunctionGrades(RoadNetwork network, Road road) {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        VerticalProfileNetworkPropagator.Result result =
+            VerticalProfileNetworkPropagator.propagate(
+                network, road, connected -> connected.getEffectiveMaxSlope(config));
+        if (result.unresolvedRoadCount() > 0) {
+            profileAutoFixMessage = PlotI18n.tr(
+                "plugin.road.vertical_alignment_network_unresolved",
+                result.unresolvedRoadCount());
+        } else if (result.adjustedRoadCount() > 0) {
+            profileAutoFixMessage = PlotI18n.tr(
+                "plugin.road.vertical_alignment_network_adjusted",
+                result.adjustedRoadCount());
+        }
     }
 
     private void renderRoadIdentitySummary(

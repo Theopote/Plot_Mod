@@ -2,6 +2,7 @@ package com.plot.plugin.road.vertical;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntPredicate;
 
 /** Extends grade runs around a fixed-elevation PVI until they meet the grade limit. */
 public final class VerticalProfileAutoFixer {
@@ -24,6 +25,15 @@ public final class VerticalProfileAutoFixer {
             int anchorIndex,
             double roadLength,
             double maxGradePercent) {
+        return extendAdjacentRuns(source, anchorIndex, roadLength, maxGradePercent, index -> true);
+    }
+
+    public static Result extendAdjacentRuns(
+            RoadVerticalAlignment source,
+            int anchorIndex,
+            double roadLength,
+            double maxGradePercent,
+            IntPredicate movablePvi) {
         if (source == null || !source.hasStrictlyIncreasingStorageOrder()
                 || anchorIndex < 0 || anchorIndex >= source.pviCount()
                 || maxGradePercent <= EPSILON || roadLength <= EPSILON) {
@@ -37,7 +47,7 @@ public final class VerticalProfileAutoFixer {
         }
         PointOfVerticalIntersection anchor = original.get(anchorIndex);
 
-        if (anchorIndex > 0) {
+        if (anchorIndex > 0 && movablePvi.test(anchorIndex - 1)) {
             int neighborIndex = anchorIndex - 1;
             PointOfVerticalIntersection neighbor = original.get(neighborIndex);
             double required = Math.max(
@@ -57,7 +67,7 @@ public final class VerticalProfileAutoFixer {
             }
         }
 
-        if (anchorIndex + 1 < original.size()) {
+        if (anchorIndex + 1 < original.size() && movablePvi.test(anchorIndex + 1)) {
             int neighborIndex = anchorIndex + 1;
             PointOfVerticalIntersection neighbor = original.get(neighborIndex);
             double required = Math.max(

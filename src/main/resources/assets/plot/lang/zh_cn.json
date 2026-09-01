@@ -1100,6 +1100,8 @@
   "plugin.road.vertical_alignment_control_points": "剖面控制点（中间点可二维拖动，端点仅可上下拖动；超坡时标红）",
   "plugin.road.vertical_alignment_control_point": "PVI %1$d · 距本段起点 %2$.1f 格 · Y=%3$.2f · 左/右坡度 %4$s",
   "plugin.road.vertical_alignment_shared_junction": "◆ 平交固定点",
+  "plugin.road.vertical_alignment_network_adjusted": "已自动调整 %d 条相连道路的起坡范围。",
+  "plugin.road.vertical_alignment_network_unresolved": "%d 条相连道路空间不足，仍无法在最大坡度内连接该路口标高。",
   "plugin.road.vertical_alignment_selected_elevation": "所选控制点标高",
   "plugin.road.vertical_alignment_apply_control_point": "应用控制点标高",
   "plugin.road.vertical_alignment_auto_fix_grade": "自动延长起坡范围",
