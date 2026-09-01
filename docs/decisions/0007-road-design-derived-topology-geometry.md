@@ -169,6 +169,8 @@ Road
 | `RoadNode`, `RoadEdge`（拓扑字段） | Topology |
 | `RoadStationing`, `OrientedRoadSegment` | 桩号 / 链方向（跨层坐标系） |
 | `CenterlinePhase2ConsistencyPolicy` | 中心线编辑 → Phase 2 联动规则 |
+| `RoadCrossSectionEngineeringEquality` | 横断面工程语义相等（VCS 合并 / 镜像） |
+| `RoadStationDataTransforms`, `CenterlineEditStationPolicy` | split/merge 沿桩号数据生命周期 |
 
 ### 6. 中心线编辑 → Phase 2 一致性（2026-08-31）
 
@@ -201,6 +203,53 @@ Road
 | `MIRROR_IN_RANGE` / `MIRROR_FULL_ROAD` | 反向镜像 |
 
 实现：`CenterlineEditStationPolicy`、`CenterlineEditOperation`。
+
+### 7. Phase 2 工程数据生命周期（2026-09-01）
+
+**横断面工程相等**（原 `crossSectionEquivalent` 问题已关闭）：`RoadCrossSectionEngineeringEquality` 比较完整工程语义 — 行车道、车道数/宽度、材质、中央分隔带、标线、路肩、自行车道、人行道、排水、边坡、街道家具；VCS 区间合并与 split/merge 镜像均委托此类。
+
+**Road split / merge**（原仅 `copyEngineeringFrom` 丢失 VA/HA/VCS/设施问题已关闭）：
+
+| 操作 | 入口 | Phase 2 数据 |
+|------|------|----------------|
+| Split | `CenterlineEditOperation.SPLIT_ROAD` → `PARTITION_AND_RESET_TAIL` | `RoadStationDataTransforms.applyRoadSplit` 分区 VA/VCS/设施；HA 清除后 `refitHorizontalAlignmentFromCenterline` |
+| Merge | `OFFSET_BY_HEAD_LENGTH` | `applyRoadMerge` + 桩号平移拼接 |
+
+当前 `splitRoadBeforeSegment` 在**分段界**桩号切分（`segmentStartStation`），head/tail 拓扑明确。
+
+**任意桩号切分（未来，非 blocker）**：当支持「在 K0+123.4 切路」时，须统一 **half-open 链域**：
+
+| 道路 | 桩号域 |
+|------|--------|
+| head | `[0, split)` |
+| tail | `[split, total)`，并重映射为 K0+ |
+
+边界点 `station == split` 的归属（目标规则）：
+
+| 数据 | 在 `split` 处 |
+|------|----------------|
+| PVI（点事件） | **tail** |
+| `StationCrossSection` 区间起点 `== split` | **tail** |
+| `StationCrossSection` 区间终点 `== split` | **head**（区间 `[a, split)`） |
+| 设施 `startStation == split` | **tail** |
+| 设施 `endStation == split` | **head**（区间 `[a, split)`） |
+
+VCS / 设施裁剪已按区间 half-open 实现（`remapVariableCrossSections` / `remapStationFacilities`）。PVI 的 head `trim` 现用 `<= split`（边界点暂入 head），**任意桩号切分上线前须改为严格 `< split`**，与上表一致。实现前须补「边界点恰在 split」单测矩阵。
+
+### 8. Phase 2.1 Stabilization（2026-09-01）
+
+在 Phase 2 v1 功能齐备（VA 验证、持久化/工作流测试、CI 全绿）后，基础层收紧为四个 stabilization 主题 — **均已完成**，可宣布 Phase 2.1 基础稳定：
+
+| ID | 主题 | 交付 |
+|----|------|------|
+| ROAD-P2.1-01 | Bearing invariant | 移除 `instanceBearingAtEdgeLocal` 双重翻转；`RoadBearingInvariantTest` |
+| ROAD-P2.1-02 | Canonical station domain | `instanceLength` / `designLength` / `canonicalLength`；VA/VCS/设施/`RoadStation` 统一 `canonicalLength` |
+| ROAD-P2.1-03 | Transactional materialization | `prepareMaterialization` → `commitMaterialization`；`isMaterializable` 长度门禁 |
+| ROAD-P2.1-04 | Endpoint invariants | `EDGE_*_GEOMETRY_MISMATCH`；`ALIGNMENT_TOPOLOGY_MISMATCH`；共享路口 authoritative + 超容差拒绝物化 |
+
+**Phase 2 v1 验证栈**：`VerticalAlignmentValidator`；`RoadCrossSectionEngineeringEquality`；`HorizontalAlignmentTopologyValidator`；`RoadNetworkInvariantValidator` 几何端点；`RoadPhase2PersistenceTest` + `RoadPhase2WorkflowTest`。
+
+**下一批功能**（超高、车道渐变、复杂交叉口等）应在 Phase 2.1 稳定基线上增量开发，不宜再动 station/geometry 权威分层。
 
 ## References
 

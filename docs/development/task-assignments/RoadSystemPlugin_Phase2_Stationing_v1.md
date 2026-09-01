@@ -89,3 +89,13 @@ v1 仅提供 `stationAt` / `resolve` 供显示与校验。
 
 - `HorizontalAlignment`：线元列表挂到 Road，每元带 `startStation` / `length`
 - `RoadPI` / `CircularCurve` / `Spiral` 数据结构草案与 station 对齐
+
+## Road split / merge 与桩号域（2026-09-01）
+
+**已实现**：`splitRoadBeforeSegment` 在分段界切分；`CenterlineEditOperation.SPLIT_ROAD` /
+`PARTITION_AND_RESET_TAIL` 经 `RoadStationDataTransforms` 分区 VA、VCS、设施；merge 经
+`OFFSET_BY_HEAD_LENGTH` 拼接。HA 清除后折线 refit。
+
+**任意桩号切分（未来）**：统一 half-open — head `[0, split)`、tail `[split, total)`。
+边界点 `station == split`：点事件（PVI、设施起点、VCS 区间起点）归 **tail**；区间终点 /
+设施终点归 **head**。详见 [ADR 0007 §7](../../decisions/0007-road-design-derived-topology-geometry.md)。

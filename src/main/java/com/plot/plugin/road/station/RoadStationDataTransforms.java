@@ -32,6 +32,10 @@ public final class RoadStationDataTransforms {
     /**
      * 在 {@code splitStation} 处拆分工程数据（{@link CenterlineEditStationPolicy#PARTITION_AND_RESET_TAIL}）：
      * {@code head} 保留链头 [0, split)，{@code tail} 获得 [split, total) 并重映射为 K0+000 起。
+     * <p>
+     * 目标域规则为 half-open；VCS / 设施裁剪已按区间语义实现。PVI head 裁剪暂用
+     * {@code station <= split}（分段界切分时通常无 PVI 落点）；任意桩号切分上线前须改为
+     * {@code station < split}，见 ADR 0007 §7。
      *
      * @return 是否应基于折线重新拟合平面线形
      */
