@@ -45,6 +45,12 @@ class RoadSystemConfigTest {
     void saveToUsesAtomicWriter(@TempDir Path dir) throws IOException {
         RoadSystemConfig config = new RoadSystemConfig("workflow_test");
         config.setLaneCount(4);
+        config.setTunnelClearanceHeight(7);
+        config.setTunnelSideClearance(2);
+        config.setTunnelLiningThickness(2);
+        config.setTunnelLiningMaterial("minecraft:deepslate_bricks");
+        config.setTunnelAccentMaterial("minecraft:polished_andesite");
+        config.setTunnelAccentSpacing(6);
 
         Path file = dir.resolve("workflow_test.json");
         config.saveTo(file);
@@ -55,5 +61,27 @@ class RoadSystemConfigTest {
         RoadSystemConfig loaded = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "workflow_test");
         assertNotNull(loaded);
         assertEquals(4, loaded.getLaneCount());
+        assertEquals(7, loaded.getTunnelClearanceHeight());
+        assertEquals(2, loaded.getTunnelSideClearance());
+        assertEquals(2, loaded.getTunnelLiningThickness());
+        assertEquals("minecraft:deepslate_bricks", loaded.getTunnelLiningMaterial());
+        assertEquals("minecraft:polished_andesite", loaded.getTunnelAccentMaterial());
+        assertEquals(6, loaded.getTunnelAccentSpacing());
+    }
+
+    @Test
+    void tunnelGeometrySettingsClampAndNullMaterialsRemainSafe() {
+        RoadSystemConfig config = new Gson().fromJson(
+            "{\"tunnelClearanceHeight\":99,\"tunnelSideClearance\":-2,"
+                + "\"tunnelLiningThickness\":0,\"tunnelLiningMaterial\":null,"
+                + "\"tunnelAccentMaterial\":null,\"tunnelAccentSpacing\":99}",
+            RoadSystemConfig.class);
+
+        assertEquals(12, config.getTunnelClearanceHeight());
+        assertEquals(0, config.getTunnelSideClearance());
+        assertEquals(1, config.getTunnelLiningThickness());
+        assertEquals("minecraft:stone_bricks", config.getTunnelLiningMaterial());
+        assertEquals("", config.getTunnelAccentMaterial());
+        assertEquals(32, config.getTunnelAccentSpacing());
     }
 }

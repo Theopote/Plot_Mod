@@ -73,7 +73,43 @@ public final class RoadConstructionClassifier {
             }
         }
 
-        return new ConstructionDetection(bridges, tunnels, resolvedTypes, segmentDistances);
+        return new ConstructionDetection(
+            bridges,
+            tunnels,
+            resolvedTypes,
+            segmentDistances,
+            buildRuns(resolvedTypes, segmentDistances, groundHeights, targetHeights));
+    }
+
+    private static List<ConstructionRun> buildRuns(
+            List<RoadConstructionType> types,
+            List<Double> distances,
+            List<Integer> groundHeights,
+            List<Integer> targetHeights) {
+        List<ConstructionRun> runs = new ArrayList<>();
+        double station = 0.0;
+        int index = 0;
+        while (index < types.size()) {
+            int start = index;
+            double startStation = station;
+            int maximum = 0;
+            double weightedDifference = 0.0;
+            double length = 0.0;
+            RoadConstructionType type = types.get(index);
+            while (index < types.size() && types.get(index) == type) {
+                double distance = distances.get(index);
+                int difference = targetHeights.get(index) - groundHeights.get(index);
+                maximum = Math.max(maximum, Math.abs(difference));
+                weightedDifference += difference * distance;
+                length += distance;
+                station += distance;
+                index++;
+            }
+            runs.add(new ConstructionRun(
+                type, start, index, startStation, station, maximum,
+                length > 1e-9 ? weightedDifference / length : 0.0));
+        }
+        return List.copyOf(runs);
     }
 
     public static RoadConstructionType constructionTypeAt(

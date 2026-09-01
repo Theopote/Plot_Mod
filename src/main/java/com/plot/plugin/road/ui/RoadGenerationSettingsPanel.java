@@ -57,6 +57,58 @@ public final class RoadGenerationSettingsPanel {
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.tunnel_threshold");
 
+        int[] tunnelClearance = {config.getTunnelClearanceHeight()};
+        if (ImGui.sliderInt(
+            "##road_tunnel_clearance_height",
+            tunnelClearance,
+            3,
+            12,
+            PlotI18n.tr("plugin.road.tunnel_clearance_height", tunnelClearance[0])
+        )) {
+            config.setTunnelClearanceHeight(tunnelClearance[0]);
+            markChanged(ctx);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.tunnel_clearance_height");
+
+        int[] tunnelSideClearance = {config.getTunnelSideClearance()};
+        if (ImGui.sliderInt(
+            "##road_tunnel_side_clearance",
+            tunnelSideClearance,
+            0,
+            4,
+            PlotI18n.tr("plugin.road.tunnel_side_clearance", tunnelSideClearance[0])
+        )) {
+            config.setTunnelSideClearance(tunnelSideClearance[0]);
+            markChanged(ctx);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.tunnel_side_clearance");
+
+        int[] tunnelLiningThickness = {config.getTunnelLiningThickness()};
+        if (ImGui.sliderInt(
+            "##road_tunnel_lining_thickness",
+            tunnelLiningThickness,
+            1,
+            3,
+            PlotI18n.tr("plugin.road.tunnel_lining_thickness", tunnelLiningThickness[0])
+        )) {
+            config.setTunnelLiningThickness(tunnelLiningThickness[0]);
+            markChanged(ctx);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.tunnel_lining_thickness");
+
+        int[] tunnelAccentSpacing = {config.getTunnelAccentSpacing()};
+        if (ImGui.sliderInt(
+            "##road_tunnel_accent_spacing",
+            tunnelAccentSpacing,
+            0,
+            32,
+            PlotI18n.tr("plugin.road.tunnel_accent_spacing", tunnelAccentSpacing[0])
+        )) {
+            config.setTunnelAccentSpacing(tunnelAccentSpacing[0]);
+            markChanged(ctx);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.tunnel_accent_spacing");
+
         float[] fillFactor = {config.getFillFactor()};
         if (ImGui.sliderFloat(
             "##road_profile_fill_factor",

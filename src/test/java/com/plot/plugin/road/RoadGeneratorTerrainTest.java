@@ -162,11 +162,39 @@ class RoadGeneratorTerrainTest {
         assertTrue(result.roadBlocks.stream().allMatch(pos -> pos.getY() == 64),
             "a level design profile must produce one continuous deck elevation");
         long supportStations = result.bridgeBlocks.stream()
+            .filter(pos -> pos.getY() < 63)
             .map(pos -> pos.getX())
             .collect(Collectors.toSet())
             .size();
         assertTrue(supportStations <= 4,
             "pillar spacing must continue across sampled segments instead of restarting every metre");
+    }
+
+    @Test
+    void costSelectedBridgeStillGetsDeckAndPillarsBelowHeightThreshold() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(3);
+        config.setIncludeSidewalk(false);
+        config.setIncludeShoulder(false);
+        config.setBridgeThreshold(3);
+        config.setMinimumConsiderationHeight(0.0);
+        config.setMinimumConstructionRunLength(1.0);
+        config.setBridgeBaseCost(0.0);
+        config.setBridgeCostPerLength(0.0);
+        RoadGenerator generator = new RoadGenerator(
+            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+
+        RoadGenerationResult result = generator.generateFromPathPoints(
+            List.of(new Vec2d(0, 0), new Vec2d(12, 0)),
+            new FlatTerrainSampler(61),
+            64);
+
+        assertTrue(result.constructionTypes.contains(RoadConstructionType.BRIDGE));
+        assertEquals(1, result.bridgeCount);
+        assertTrue(result.bridgeBlocks.stream().anyMatch(pos -> pos.getY() == 63),
+            "bridge deck plate or pillar must support a cost-selected bridge");
+        assertTrue(result.bridgeBlocks.stream().anyMatch(pos -> pos.getY() == 62),
+            "pillars must not be rejected by the height threshold after BRIDGE is finalized");
     }
 
     @Test

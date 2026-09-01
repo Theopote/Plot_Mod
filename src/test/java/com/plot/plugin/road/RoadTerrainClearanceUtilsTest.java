@@ -83,6 +83,7 @@ class RoadTerrainClearanceUtilsTest {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setRoadWidth(3);
         config.setTunnelThreshold(8);
+        config.setTunnelClearanceHeight(8);
         config.setIncludeShoulder(false);
         config.setIncludeSidewalk(false);
         config.setIncludeDrainage(false);
@@ -97,7 +98,13 @@ class RoadTerrainClearanceUtilsTest {
         assertTrue(result.tunnelBlocks.size() > 0);
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 65));
         assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 72));
-        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 72));
+        assertTrue(result.tunnelBlocks.stream().anyMatch(pos -> pos.getY() == 73),
+            "one-block lining should cap the tunnel clearance");
+        assertTrue(result.tunnelBlocks.stream().noneMatch(pos -> pos.getY() > 73));
+        assertTrue(result.placementRecords.values().stream().anyMatch(record ->
+            record.pos.getY() == 72 && record.newBlockId.equals("minecraft:air")));
+        assertTrue(result.placementRecords.values().stream().anyMatch(record ->
+            record.pos.getY() == 73 && record.newBlockId.equals("minecraft:stone_bricks")));
     }
 
     @Test

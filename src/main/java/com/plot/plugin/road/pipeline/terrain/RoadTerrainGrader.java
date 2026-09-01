@@ -134,10 +134,24 @@ public final class RoadTerrainGrader {
                     crossSection.fillSlopeMaterial != null && !crossSection.fillSlopeMaterial.isBlank()
                         ? crossSection.fillSlopeMaterial
                         : config.getFillSlopeMaterial());
-                total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
-                    solids, center, leftNormal, envelopeWidth, targetY,
-                    tunnelThreshold, bridgeThreshold, fillMaterialId,
-                    terrain, host.columnResolver(), unitsPerBlock));
+                if (type == RoadConstructionType.TUNNEL) {
+                    String liningMaterial = config.getTunnelLiningMaterial();
+                    int accentSpacing = config.getTunnelAccentSpacing();
+                    if (accentSpacing > 0 && !config.getTunnelAccentMaterial().isBlank()
+                            && Math.floorMod((int) Math.round(chainage), accentSpacing) == 0) {
+                        liningMaterial = config.getTunnelAccentMaterial();
+                    }
+                    total = total.add(RoadRoadbedGradingUtils.gradeTunnelCrossSection(
+                        solids, center, leftNormal, envelopeWidth, targetY,
+                        config.getTunnelClearanceHeight(), config.getTunnelSideClearance(),
+                        config.getTunnelLiningThickness(), host.resolveBlockId(liningMaterial),
+                        terrain, host.columnResolver(), unitsPerBlock));
+                } else {
+                    total = total.add(RoadRoadbedGradingUtils.gradeCrossSectionEnvelope(
+                        solids, center, leftNormal, envelopeWidth, targetY,
+                        tunnelThreshold, bridgeThreshold, fillMaterialId,
+                        terrain, host.columnResolver(), unitsPerBlock, type));
+                }
             }
             geometryLocalBase += segment.distance;
         }

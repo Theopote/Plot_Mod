@@ -13,10 +13,8 @@ import com.plot.plugin.road.pipeline.RoadEdgeBuildMetrics;
 import com.plot.plugin.road.pipeline.RoadPathStationSampler;
 import com.plot.plugin.road.pipeline.StationFacilityBuildContext;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineContext;
-import com.plot.plugin.road.pipeline.construction.BridgeSegment;
 import com.plot.plugin.road.pipeline.construction.ConstructionDetection;
 import com.plot.plugin.road.pipeline.construction.RoadConstructionClassifier;
-import com.plot.plugin.road.pipeline.construction.TunnelSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.geometry.PathSegmentGeometry;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
@@ -26,10 +24,7 @@ import com.plot.plugin.road.solid.RoadSolidModel;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Builds cross-section layers: Carriageway, Shoulder, BikeLane, Median, Sidewalk, drainage, slope batter.
@@ -49,15 +44,19 @@ public final class RoadCrossSectionBuilder {
         double unitsPerBlock = ctx.unitsPerBlock();
         CrossSectionHost crossSectionHost = CrossSectionHost.from(host);
         DesignElevationSource designElevation = ctx.request().designElevation();
+        metrics.bridgeCount = detection.runs().isEmpty()
+            ? detection.bridges().size()
+            : (int) detection.runCount(RoadConstructionType.BRIDGE);
+        metrics.tunnelCount = detection.runs().isEmpty()
+            ? detection.tunnels().size()
+            : (int) detection.runCount(RoadConstructionType.TUNNEL);
 
         generateCarriagewayBlocks(
             crossSectionHost,
             solids,
-            metrics,
             segments,
             heightInfos,
-            detection.bridges(),
-            detection.tunnels(),
+            detection.constructionTypes(),
             terrain,
             crossSections,
             ctx.carriagewaySeedKey(),
@@ -135,24 +134,22 @@ public final class RoadCrossSectionBuilder {
     private static void generateCarriagewayBlocks(
             CrossSectionHost host,
             RoadSolidModel solids,
-            RoadEdgeBuildMetrics metrics,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
-            List<BridgeSegment> bridges,
-            List<TunnelSegment> tunnels,
+            List<RoadConstructionType> constructionTypes,
             TerrainSampler terrain,
             CrossSectionBuildContext crossSections,
             String seedKey,
             double unitsPerBlock,
             DesignElevationSource designElevation) {
-        metrics.bridgeCount = bridges.size();
-        metrics.tunnelCount = tunnels.size();
-
+        String bridgeStructureBlockId = host.resolveBlockId("material.plot.stone");
         boolean chainForward = crossSections.samplingOriented().forward();
         double scale = unitsPerBlock > 1e-9 ? unitsPerBlock : 1.0;
         double geometryLocalBase = 0.0;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
+            boolean bridgeSegment = RoadConstructionClassifier.constructionTypeAt(
+                constructionTypes, i) == RoadConstructionType.BRIDGE;
             SegmentHeightInfo info = heightInfos.get(i);
             Vec2d normal = PathSegmentGeometry.chainLeftNormal(segment, chainForward);
             int samples = Math.max(2, (int) Math.ceil(segment.distance / scale));
@@ -182,6 +179,18 @@ public final class RoadCrossSectionBuilder {
                     String blockId = MaterialMixResolver.resolve(
                         carriagewayMaterial, pos, seedKey, host::resolveBlockId);
                     solids.add(planPoint, targetY, RoadSolidLayer.ROAD, blockId);
+                    // A shallow, cost-selected bridge may sit directly on existing ground at
+                    // individual voxels. Only add a structural deck plate where a real gap
+                    // exceeds the hard bridge threshold; pillars still follow the finalized
+                    // construction run. This also keeps output stable when an edge is split.
+                    if (bridgeSegment
+                            && targetY - terrain.sampleSurfaceY(planPoint) > host.bridgeThreshold()) {
+                        solids.add(
+                            planPoint,
+                            targetY - 1,
+                            RoadSolidLayer.BRIDGE,
+                            bridgeStructureBlockId);
+                    }
                     if (previousCenter != null
                         && lateral >= previousMinOffset
                         && lateral <= previousMaxOffset
@@ -204,7 +213,8 @@ public final class RoadCrossSectionBuilder {
         }
 
         generateBridgeStructures(
-            host, solids, bridges, segments, heightInfos, crossSections, terrain, unitsPerBlock, designElevation);
+            host, solids, constructionTypes, segments, heightInfos,
+            crossSections, terrain, unitsPerBlock, designElevation);
     }
 
     private static void generateShoulderBlocks(
@@ -491,47 +501,42 @@ public final class RoadCrossSectionBuilder {
     private static void generateBridgeStructures(
             CrossSectionHost host,
             RoadSolidModel solids,
-            List<BridgeSegment> bridges,
+            List<RoadConstructionType> constructionTypes,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
             TerrainSampler terrain,
             double unitsPerBlock,
             DesignElevationSource designElevation) {
-        if (bridges.isEmpty()) {
+        if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
             return;
         }
         String pillarBlockId = host.resolveBlockId("material.plot.stone");
         double pillarSpacing = Math.max(unitsPerBlock, 6.0 * unitsPerBlock);
-        Set<PathSegment> bridgeSegments = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (BridgeSegment bridge : bridges) {
-            bridgeSegments.add(bridge.segment());
-        }
-
         double accumulated = 0.0;
-        double nextPillarDistance = Double.NaN;
         for (int i = 0; i < segments.size() && i < heightInfos.size(); i++) {
             PathSegment segment = segments.get(i);
             SegmentHeightInfo info = heightInfos.get(i);
-            boolean isBridge = bridgeSegments.contains(segment);
-            boolean previousIsBridge = i > 0 && bridgeSegments.contains(segments.get(i - 1));
-            boolean nextIsBridge = i + 1 < segments.size() && bridgeSegments.contains(segments.get(i + 1));
+            boolean isBridge = RoadConstructionClassifier.constructionTypeAt(
+                constructionTypes, i) == RoadConstructionType.BRIDGE;
             double segmentEnd = accumulated + segment.distance;
 
             if (isBridge) {
-                if (!previousIsBridge) {
-                    nextPillarDistance = accumulated;
-                }
-                while (nextPillarDistance <= segmentEnd + 1e-9) {
+                double chainageA = crossSections.chainageAtGeometryLocal(accumulated);
+                double chainageB = crossSections.chainageAtGeometryLocal(segmentEnd);
+                double minChainage = Math.min(chainageA, chainageB);
+                double maxChainage = Math.max(chainageA, chainageB);
+                double pillarChainage = Math.ceil((minChainage - 1e-9) / pillarSpacing) * pillarSpacing;
+                while (pillarChainage <= maxChainage + 1e-9) {
+                    double geometryDistance = crossSections.orientedSegment() != null
+                        ? crossSections.orientedSegment()
+                            .geometryLocalAtRoadStation(pillarChainage)
+                            .orElse(accumulated)
+                        : pillarChainage;
                     placeBridgePillarCrossSection(
-                        host, solids, segment, info, nextPillarDistance, accumulated,
+                        host, solids, segment, info, geometryDistance, accumulated,
                         crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation);
-                    nextPillarDistance += pillarSpacing;
-                }
-                if (!nextIsBridge && nextPillarDistance - pillarSpacing < segmentEnd - 1e-6) {
-                    placeBridgePillarCrossSection(
-                        host, solids, segment, info, segmentEnd, accumulated,
-                        crossSections, terrain, pillarBlockId, unitsPerBlock, designElevation);
+                    pillarChainage += pillarSpacing;
                 }
             }
             accumulated = segmentEnd;
@@ -580,9 +585,6 @@ public final class RoadCrossSectionBuilder {
             TerrainSampler terrain,
             String blockId) {
         int groundY = terrain.sampleSurfaceY(canvasPos);
-        if (deckY - groundY <= host.bridgeThreshold()) {
-            return;
-        }
         for (int y = groundY + 1; y < deckY; y++) {
             solids.add(canvasPos, y, RoadSolidLayer.BRIDGE, blockId);
         }

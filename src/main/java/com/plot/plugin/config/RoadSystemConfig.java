@@ -44,6 +44,12 @@ public class RoadSystemConfig {
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private int bridgeThreshold = 3; // 桥阈值（方块高度差）- 从5改为3，更容易触发桥梁
     private int tunnelThreshold = 4; // 隧道阈值（方块高度差）- 从8改为4，山体覆盖4格即形成隧道
+    private int tunnelClearanceHeight = 5;
+    private int tunnelSideClearance = 1;
+    private int tunnelLiningThickness = 1;
+    private String tunnelLiningMaterial = "minecraft:stone_bricks";
+    private String tunnelAccentMaterial = "";
+    private int tunnelAccentSpacing = 0;
     private double fillCostPerVolume = 1.0;
     private double bridgeBaseCost = 15.0;
     private double bridgeCostPerLength = 0.8;
@@ -294,6 +300,56 @@ public class RoadSystemConfig {
         this.tunnelThreshold = Math.max(
             RoadParameterLimits.MIN_TUNNEL_THRESHOLD,
             Math.min(RoadParameterLimits.MAX_TUNNEL_THRESHOLD, tunnelThreshold));
+    }
+
+    public int getTunnelClearanceHeight() {
+        return Math.max(3, Math.min(12, tunnelClearanceHeight));
+    }
+
+    public void setTunnelClearanceHeight(int tunnelClearanceHeight) {
+        this.tunnelClearanceHeight = Math.max(3, Math.min(12, tunnelClearanceHeight));
+    }
+
+    public int getTunnelSideClearance() {
+        return Math.max(0, Math.min(4, tunnelSideClearance));
+    }
+
+    public void setTunnelSideClearance(int tunnelSideClearance) {
+        this.tunnelSideClearance = Math.max(0, Math.min(4, tunnelSideClearance));
+    }
+
+    public int getTunnelLiningThickness() {
+        return Math.max(1, Math.min(3, tunnelLiningThickness));
+    }
+
+    public void setTunnelLiningThickness(int tunnelLiningThickness) {
+        this.tunnelLiningThickness = Math.max(1, Math.min(3, tunnelLiningThickness));
+    }
+
+    public String getTunnelLiningMaterial() {
+        return tunnelLiningMaterial == null || tunnelLiningMaterial.isBlank()
+            ? "minecraft:stone_bricks"
+            : tunnelLiningMaterial;
+    }
+
+    public void setTunnelLiningMaterial(String tunnelLiningMaterial) {
+        this.tunnelLiningMaterial = tunnelLiningMaterial;
+    }
+
+    public String getTunnelAccentMaterial() {
+        return tunnelAccentMaterial == null ? "" : tunnelAccentMaterial;
+    }
+
+    public void setTunnelAccentMaterial(String tunnelAccentMaterial) {
+        this.tunnelAccentMaterial = tunnelAccentMaterial;
+    }
+
+    public int getTunnelAccentSpacing() {
+        return Math.max(0, Math.min(32, tunnelAccentSpacing));
+    }
+
+    public void setTunnelAccentSpacing(int tunnelAccentSpacing) {
+        this.tunnelAccentSpacing = Math.max(0, Math.min(32, tunnelAccentSpacing));
     }
 
     public double getFillCostPerVolume() {

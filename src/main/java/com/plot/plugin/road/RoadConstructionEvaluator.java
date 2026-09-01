@@ -115,7 +115,37 @@ public final class RoadConstructionEvaluator {
             }
         }
 
+        normalizeShortStructureRuns(result, segmentDistances, minimumRunLength);
         return List.of(result);
+    }
+
+    /** Applies minimum length to every bridge/tunnel run, including hard-threshold decisions. */
+    private static void normalizeShortStructureRuns(
+            RoadConstructionType[] types,
+            List<Double> distances,
+            double minimumRunLength) {
+        if (minimumRunLength <= 0.0) return;
+        int index = 0;
+        while (index < types.length) {
+            RoadConstructionType type = types[index];
+            int end = index + 1;
+            double length = distances.get(index);
+            while (end < types.length && types[end] == type) {
+                length += distances.get(end);
+                end++;
+            }
+            if (length + 1e-9 < minimumRunLength) {
+                RoadConstructionType replacement = switch (type) {
+                    case BRIDGE -> RoadConstructionType.FILL;
+                    case TUNNEL -> RoadConstructionType.CUT;
+                    default -> null;
+                };
+                if (replacement != null) {
+                    for (int i = index; i < end; i++) types[i] = replacement;
+                }
+            }
+            index = end;
+        }
     }
 
     private static RoadConstructionType classifyImmediate(

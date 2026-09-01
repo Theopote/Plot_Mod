@@ -38,5 +38,8 @@ class RoadConstructionClassifierTest {
         assertEquals(RoadConstructionType.BRIDGE, detection.constructionTypes().getFirst());
         assertEquals(1, detection.bridges().size());
         assertTrue(detection.tunnels().isEmpty());
+        assertEquals(1, detection.runCount(RoadConstructionType.BRIDGE));
+        assertEquals(0.0, detection.runs().getFirst().startStation(), 1e-6);
+        assertEquals(10.0, detection.runs().getFirst().endStation(), 1e-6);
     }
 }
