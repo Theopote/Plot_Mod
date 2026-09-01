@@ -117,16 +117,21 @@ public class Road {
     }
 
     public void applyStyle(RoadStyle style) {
+        applyStyle(style, null);
+    }
+
+    public void applyStyle(RoadStyle style, String themeIdOverride) {
         if (style == null) {
             return;
         }
-        style.applyTo(this);
+        style.applyTo(this, themeIdOverride);
     }
 
     public void applyStyle(String styleId, RoadSystemConfig defaults) {
         RoadStyle style = RoadStyleCatalog.findById(defaults, styleId);
         if (style != null) {
-            applyStyle(style);
+            String themeId = defaults != null ? defaults.getRoadThemeId() : null;
+            applyStyle(style, themeId);
         }
     }
 

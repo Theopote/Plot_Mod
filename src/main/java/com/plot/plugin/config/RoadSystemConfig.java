@@ -13,6 +13,7 @@ import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CenterLineStyle;
 import com.plot.plugin.road.style.RoadStyle;
 import com.plot.plugin.road.style.RoadStyleCatalog;
+import com.plot.plugin.road.style.RoadThemeCatalog;
 import java.io.*;
 import java.nio.file.*;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ public class RoadSystemConfig {
     private MaterialMix selectedMaterial = MaterialMix.single(RoadMaterialUtils.DEFAULT_ROAD_BLOCK);
     private String selectedSidewalkMaterial = RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
     private String selectedPreset = "";
+    private String roadThemeId = RoadThemeCatalog.MODERN_ID;
     private List<RoadStyle> presets;
     
     // 新增参数
@@ -141,6 +143,9 @@ public class RoadSystemConfig {
         if (config.fillSlopeMaterial.isBlank()) {
             config.fillSlopeMaterial = DEFAULT_FILL_SLOPE_MATERIAL;
         }
+        if (config.roadThemeId == null || config.roadThemeId.isBlank()) {
+            config.roadThemeId = RoadThemeCatalog.MODERN_ID;
+        }
     }
 
     private static void mergeMissingBuiltinStyles(RoadSystemConfig config) {
@@ -236,6 +241,16 @@ public class RoadSystemConfig {
 
     public void markCustom() {
         this.selectedPreset = "";
+    }
+
+    public String getRoadThemeId() {
+        return roadThemeId != null && !roadThemeId.isBlank() ? roadThemeId : RoadThemeCatalog.MODERN_ID;
+    }
+
+    public void setRoadThemeId(String roadThemeId) {
+        this.roadThemeId = roadThemeId != null && !roadThemeId.isBlank()
+            ? roadThemeId
+            : RoadThemeCatalog.MODERN_ID;
     }
 
     public List<RoadStyle> getStyles() {
@@ -603,49 +618,53 @@ public class RoadSystemConfig {
         if (style == null) {
             return;
         }
-        String resolvedRoadMaterial = style.roadMaterial != null && !style.roadMaterial.isBlank()
-            ? style.roadMaterial
+        RoadStyle effective = RoadThemeCatalog.applyTheme(getRoadThemeId(), style);
+        String resolvedRoadMaterial = effective.roadMaterial != null && !effective.roadMaterial.isBlank()
+            ? effective.roadMaterial
             : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
-        String resolvedSidewalkMaterial = style.sidewalkMaterial != null && !style.sidewalkMaterial.isBlank()
-            ? style.sidewalkMaterial
+        String resolvedSidewalkMaterial = effective.sidewalkMaterial != null && !effective.sidewalkMaterial.isBlank()
+            ? effective.sidewalkMaterial
             : resolvedRoadMaterial;
-        setRoadWidth(style.width);
-        this.includeSidewalk = style.hasSidewalk;
-        if (style.hasSidewalk) {
-            setSidewalkWidth(style.sidewalkWidth);
+        setRoadWidth(effective.width);
+        this.includeSidewalk = effective.hasSidewalk;
+        if (effective.hasSidewalk) {
+            setSidewalkWidth(effective.sidewalkWidth);
         }
-        this.includeShoulder = style.includeShoulder;
-        setShoulderWidth(style.shoulderWidth);
-        this.includeDrainage = style.includeDrainage;
-        this.includeBikeLane = style.includeBikeLane;
-        if (style.includeBikeLane) {
-            setBikeLaneWidth(style.bikeLaneWidth);
+        this.includeShoulder = effective.includeShoulder;
+        setShoulderWidth(effective.shoulderWidth);
+        this.includeDrainage = effective.includeDrainage;
+        this.includeBikeLane = effective.includeBikeLane;
+        if (effective.includeBikeLane) {
+            setBikeLaneWidth(effective.bikeLaneWidth);
         }
-        this.includeMedian = style.includeMedian;
-        if (style.includeMedian) {
-            setMedianWidth(style.medianWidth);
+        this.includeMedian = effective.includeMedian;
+        if (effective.includeMedian) {
+            setMedianWidth(effective.medianWidth);
         }
-        setLaneCount(style.resolveLaneCount());
-        this.laneDividers = style.resolveLaneDividers();
-        setCenterLineStyle(style.resolveCenterLineStyle());
-        if (style.markingMaterial != null && !style.markingMaterial.isBlank()) {
-            setMarkingMaterial(style.markingMaterial);
+        setLaneCount(effective.resolveLaneCount());
+        this.laneDividers = effective.resolveLaneDividers();
+        setCenterLineStyle(effective.resolveCenterLineStyle());
+        if (effective.markingMaterial != null && !effective.markingMaterial.isBlank()) {
+            setMarkingMaterial(effective.markingMaterial);
         }
-        if (style.streetlightSpacing != null) {
-            setStreetlightSpacing(style.streetlightSpacing);
+        if (effective.streetlightSpacing != null) {
+            setStreetlightSpacing(effective.streetlightSpacing);
         }
-        this.includeSlopeBatter = style.resolveIncludeSlopeBatter();
-        if (style.maxSlope > 0f) {
-            setMaxSlope(style.maxSlope);
+        this.includeSlopeBatter = effective.resolveIncludeSlopeBatter();
+        if (effective.maxSlope > 0f) {
+            setMaxSlope(effective.maxSlope);
         }
-        if (style.fillSlopeRatio > 0f) {
-            this.fillSlopeRatio = style.fillSlopeRatio;
+        if (effective.fillSlopeRatio > 0f) {
+            this.fillSlopeRatio = effective.fillSlopeRatio;
         }
-        if (style.cutSlopeRatio > 0f) {
-            this.cutSlopeRatio = style.cutSlopeRatio;
+        if (effective.cutSlopeRatio > 0f) {
+            this.cutSlopeRatio = effective.cutSlopeRatio;
         }
-        if (style.fillSlopeMaterial != null && !style.fillSlopeMaterial.isBlank()) {
-            this.fillSlopeMaterial = style.fillSlopeMaterial;
+        if (effective.fillSlopeMaterial != null && !effective.fillSlopeMaterial.isBlank()) {
+            this.fillSlopeMaterial = effective.fillSlopeMaterial;
+        }
+        if (effective.cutSlopeMaterial != null && !effective.cutSlopeMaterial.isBlank()) {
+            this.cutSlopeMaterial = effective.cutSlopeMaterial;
         }
         this.selectedMaterial = MaterialMix.single(resolvedRoadMaterial);
         this.selectedSidewalkMaterial = resolvedSidewalkMaterial;

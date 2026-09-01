@@ -7,6 +7,7 @@ import com.plot.plugin.road.RoadParameterLimits;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.model.section.CrossSectionDraft;
 import com.plot.plugin.road.style.RoadStyle;
+import com.plot.plugin.road.style.RoadThemeCatalog;
 import com.plot.ui.component.EngineeringSlopeInput;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
@@ -46,6 +47,8 @@ public final class RoadDefaultParamsPanel {
         RoadUiSections.step("plugin.road.section.adopt_step2_road_type");
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.adopt_road_type_hint"));
+        renderThemeSelector();
+        ImGui.spacing();
         renderPresetSelector();
     }
 
@@ -137,6 +140,42 @@ public final class RoadDefaultParamsPanel {
         renderDefaultJunctionSettings();
     }
 
+    private void renderThemeSelector() {
+        RoadSystemConfig config = ctx.networkManager().getConfig();
+        String selectedThemeId = config.getRoadThemeId();
+        if (ImGui.beginCombo(
+            PlotI18n.tr("plugin.road.theme_label") + "##road_theme",
+            PlotI18n.tr("theme.road." + selectedThemeId))) {
+            for (var theme : RoadThemeCatalog.defaultThemes()) {
+                boolean selected = theme.id.equals(selectedThemeId);
+                if (ImGui.selectable(PlotI18n.tr("theme.road." + theme.id) + "##theme_" + theme.id, selected)) {
+                    config.setRoadThemeId(theme.id);
+                    reapplyThemeToConfig(config);
+                    ctx.onGenerationConfigChanged();
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.theme_hint"));
+    }
+
+    private void reapplyThemeToConfig(RoadSystemConfig config) {
+        String presetId = config.getSelectedPreset();
+        if (presetId != null && !presetId.isBlank()) {
+            RoadStyle style = config.findStyle(presetId);
+            if (style != null) {
+                config.applyStyle(style);
+                ctx.adoptIncludeSidewalkRef().set(config.isIncludeSidewalk());
+                return;
+            }
+        }
+        RoadThemeCatalog.applyThemeToConfig(config.getRoadThemeId(), config);
+    }
+
     private void renderPresetSelector() {
         RoadSystemConfig config = ctx.networkManager().getConfig();
         String selectedId = config.getSelectedPreset();
@@ -148,9 +187,10 @@ public final class RoadDefaultParamsPanel {
         float cardWidth = columns == 2 ? (avail - gap) * 0.5f : avail;
 
         List<RoadStyle> styles = config.getStyles();
+        String themeId = config.getRoadThemeId();
         List<PresetCardLayout> layouts = new ArrayList<>(styles.size());
         for (RoadStyle style : styles) {
-            layouts.add(buildPresetCardLayout(style, cardWidth));
+            layouts.add(buildPresetCardLayout(style, cardWidth, themeId));
         }
 
         for (int index = 0; index < layouts.size(); index++) {
@@ -211,9 +251,9 @@ public final class RoadDefaultParamsPanel {
         ctx.onGenerationConfigChanged();
     }
 
-    private static PresetCardLayout buildPresetCardLayout(RoadStyle style, float cardWidth) {
+    private static PresetCardLayout buildPresetCardLayout(RoadStyle style, float cardWidth, String themeId) {
         RoadCrossSectionPreviewRenderer.CrossSectionLayout sectionLayout =
-            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style);
+            RoadCrossSectionPreviewRenderer.CrossSectionLayout.fromStyle(style, themeId);
         String presetName = PlotI18n.tr("preset.road." + style.id);
         String caption = presetName + " ("
             + RoadCrossSectionPreviewRenderer.formatPresetCaption(sectionLayout) + ")";

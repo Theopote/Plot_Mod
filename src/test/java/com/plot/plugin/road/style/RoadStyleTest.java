@@ -78,5 +78,22 @@ class RoadStyleTest {
         assertTrue(config.getStyles().stream().anyMatch(s -> "mountain".equals(s.id)));
         assertTrue(config.getStyles().stream().anyMatch(s -> "residential".equals(s.id)));
         assertTrue(config.getStyles().stream().anyMatch(s -> "industrial".equals(s.id)));
+        assertTrue(config.getStyles().stream().anyMatch(s -> "path".equals(s.id)));
+        assertTrue(config.getStyles().stream().anyMatch(s -> "city_street".equals(s.id)));
+        assertTrue(config.getStyles().stream().anyMatch(s -> "boulevard".equals(s.id)));
+    }
+
+    @Test
+    void avenuePresetHasMedian() {
+        RoadCrossSection section = RoadStyleCatalog.avenue().toCrossSection();
+        assertTrue(section.getMedian().getEnabled());
+        assertEquals(1, section.getMedian().getWidth());
+    }
+
+    @Test
+    void pathPresetIsMinimalWidth() {
+        RoadStyle style = RoadStyleCatalog.path();
+        assertEquals(3, style.width);
+        assertFalse(style.hasSidewalk);
     }
 }

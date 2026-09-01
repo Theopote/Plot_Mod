@@ -652,12 +652,16 @@ public final class RoadCrossSectionPreviewRenderer {
         }
 
         public static CrossSectionLayout fromStyle(RoadStyle style) {
+            return fromStyle(style, null);
+        }
+
+        public static CrossSectionLayout fromStyle(RoadStyle style, String themeId) {
             if (style == null) {
                 return fromResolved(ResolvedCrossSection.fromConfig(new RoadSystemConfig("preview")), 10.0f);
             }
             RoadSystemConfig defaults = new RoadSystemConfig("preview");
             return fromResolved(
-                ResolvedCrossSection.resolve(style.toCrossSection(), defaults),
+                ResolvedCrossSection.resolve(style.toCrossSection(themeId), defaults),
                 style.maxSlope > 0f ? style.maxSlope : defaults.getMaxSlope()
             );
         }

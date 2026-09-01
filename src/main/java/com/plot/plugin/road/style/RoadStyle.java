@@ -40,6 +40,8 @@ public class RoadStyle {
     public String centerLineStyle;
     public Boolean laneDividers;
     public Integer streetlightSpacing;
+    /** 可选默认主题；全局主题见 {@link com.plot.plugin.config.RoadSystemConfig#getRoadThemeId()}。 */
+    public String themeId;
 
     public RoadStyle() {
     }
@@ -82,68 +84,112 @@ public class RoadStyle {
     }
 
     public RoadCrossSection toCrossSection() {
-        String roadMat = roadMaterial != null && !roadMaterial.isBlank()
-            ? roadMaterial
+        return toCrossSection(null);
+    }
+
+    public RoadCrossSection toCrossSection(String themeIdOverride) {
+        String resolvedThemeId = themeIdOverride != null && !themeIdOverride.isBlank()
+            ? themeIdOverride
+            : (this.themeId != null && !this.themeId.isBlank() ? this.themeId : RoadThemeCatalog.MODERN_ID);
+        return buildCrossSectionFrom(RoadThemeCatalog.applyTheme(resolvedThemeId, this));
+    }
+
+    public RoadStyle copy() {
+        RoadStyle copy = new RoadStyle();
+        copy.id = id;
+        copy.name = name;
+        copy.width = width;
+        copy.laneCount = laneCount;
+        copy.hasSidewalk = hasSidewalk;
+        copy.sidewalkWidth = sidewalkWidth;
+        copy.includeShoulder = includeShoulder;
+        copy.shoulderWidth = shoulderWidth;
+        copy.includeBikeLane = includeBikeLane;
+        copy.bikeLaneWidth = bikeLaneWidth;
+        copy.includeDrainage = includeDrainage;
+        copy.includeMedian = includeMedian;
+        copy.medianWidth = medianWidth;
+        copy.maxSlope = maxSlope;
+        copy.includeSlopeBatter = includeSlopeBatter;
+        copy.fillSlopeRatio = fillSlopeRatio;
+        copy.cutSlopeRatio = cutSlopeRatio;
+        copy.roadMaterial = roadMaterial;
+        copy.sidewalkMaterial = sidewalkMaterial;
+        copy.shoulderMaterial = shoulderMaterial;
+        copy.bikeLaneMaterial = bikeLaneMaterial;
+        copy.fillSlopeMaterial = fillSlopeMaterial;
+        copy.cutSlopeMaterial = cutSlopeMaterial;
+        copy.markingMaterial = markingMaterial;
+        copy.centerLineStyle = centerLineStyle;
+        copy.laneDividers = laneDividers;
+        copy.streetlightSpacing = streetlightSpacing;
+        copy.themeId = themeId;
+        return copy;
+    }
+
+    private RoadCrossSection buildCrossSectionFrom(RoadStyle style) {
+        String roadMat = style.roadMaterial != null && !style.roadMaterial.isBlank()
+            ? style.roadMaterial
             : RoadMaterialUtils.DEFAULT_ROAD_BLOCK;
-        String sidewalkMat = sidewalkMaterial != null && !sidewalkMaterial.isBlank()
-            ? sidewalkMaterial
+        String sidewalkMat = style.sidewalkMaterial != null && !style.sidewalkMaterial.isBlank()
+            ? style.sidewalkMaterial
             : roadMat;
-        String shoulderMat = shoulderMaterial != null && !shoulderMaterial.isBlank()
-            ? shoulderMaterial
+        String shoulderMat = style.shoulderMaterial != null && !style.shoulderMaterial.isBlank()
+            ? style.shoulderMaterial
             : "material.plot.gravel";
-        String bikeMat = bikeLaneMaterial != null && !bikeLaneMaterial.isBlank()
-            ? bikeLaneMaterial
+        String bikeMat = style.bikeLaneMaterial != null && !style.bikeLaneMaterial.isBlank()
+            ? style.bikeLaneMaterial
             : ResolvedCrossSection.DEFAULT_BIKE_LANE_MATERIAL;
 
-        int lanes = resolveLaneCount();
+        int lanes = style.resolveLaneCount();
         RoadCrossSection section = new RoadCrossSection();
         section.getCarriageway().setLaneCount(lanes);
-        section.getCarriageway().setWidth(width);
+        section.getCarriageway().setWidth(style.width);
         section.getCarriageway().setMaterial(MaterialMix.single(roadMat));
         section.getCarriageway().syncLaneCount(lanes);
 
-        section.getShoulder().setEnabled(includeShoulder);
-        section.getShoulder().setWidth(shoulderWidth);
+        section.getShoulder().setEnabled(style.includeShoulder);
+        section.getShoulder().setWidth(style.shoulderWidth);
         section.getShoulder().setMaterial(shoulderMat);
 
-        section.getBikeLane().setEnabled(includeBikeLane);
-        section.getBikeLane().setWidth(includeBikeLane ? Math.max(1, bikeLaneWidth) : 0);
+        section.getBikeLane().setEnabled(style.includeBikeLane);
+        section.getBikeLane().setWidth(style.includeBikeLane ? Math.max(1, style.bikeLaneWidth) : 0);
         section.getBikeLane().setMaterial(bikeMat);
 
-        section.getSidewalk().setEnabled(hasSidewalk);
-        section.getSidewalk().setWidth(hasSidewalk ? Math.max(1, sidewalkWidth) : 0);
+        section.getSidewalk().setEnabled(style.hasSidewalk);
+        section.getSidewalk().setWidth(style.hasSidewalk ? Math.max(1, style.sidewalkWidth) : 0);
         section.getSidewalk().setMaterial(sidewalkMat);
 
-        section.getDrain().setEnabled(includeDrainage);
+        section.getDrain().setEnabled(style.includeDrainage);
 
-        section.getMedian().setEnabled(includeMedian);
-        section.getMedian().setWidth(includeMedian ? Math.max(1, medianWidth) : 0);
+        section.getMedian().setEnabled(style.includeMedian);
+        section.getMedian().setWidth(style.includeMedian ? Math.max(1, style.medianWidth) : 0);
 
-        section.getMarkings().setLaneDividers(resolveLaneDividers());
-        section.getMarkings().setCenterLineStyle(resolveCenterLineStyle());
+        section.getMarkings().setLaneDividers(style.resolveLaneDividers());
+        section.getMarkings().setCenterLineStyle(style.resolveCenterLineStyle());
         section.getMarkings().setMaterial(
-            markingMaterial != null && !markingMaterial.isBlank()
-                ? markingMaterial
+            style.markingMaterial != null && !style.markingMaterial.isBlank()
+                ? style.markingMaterial
                 : "material.plot.white_concrete"
         );
 
-        boolean slopeBatter = resolveIncludeSlopeBatter();
+        boolean slopeBatter = style.resolveIncludeSlopeBatter();
         section.getSlopeBatter().setEnabled(slopeBatter);
         if (slopeBatter) {
-            section.getSlopeBatter().setFillRatio(fillSlopeRatio);
-            section.getSlopeBatter().setCutRatio(cutSlopeRatio);
+            section.getSlopeBatter().setFillRatio(style.fillSlopeRatio);
+            section.getSlopeBatter().setCutRatio(style.cutSlopeRatio);
             section.getSlopeBatter().setFillMaterial(
-                fillSlopeMaterial != null && !fillSlopeMaterial.isBlank()
-                    ? fillSlopeMaterial
+                style.fillSlopeMaterial != null && !style.fillSlopeMaterial.isBlank()
+                    ? style.fillSlopeMaterial
                     : shoulderMat
             );
-            if (cutSlopeMaterial != null && !cutSlopeMaterial.isBlank()) {
-                section.getSlopeBatter().setCutMaterial(cutSlopeMaterial);
+            if (style.cutSlopeMaterial != null && !style.cutSlopeMaterial.isBlank()) {
+                section.getSlopeBatter().setCutMaterial(style.cutSlopeMaterial);
             }
         }
 
-        if (streetlightSpacing != null && streetlightSpacing > 0) {
-            section.getStreetFurniture().setStreetlightSpacing(streetlightSpacing);
+        if (style.streetlightSpacing != null && style.streetlightSpacing > 0) {
+            section.getStreetFurniture().setStreetlightSpacing(style.streetlightSpacing);
         } else {
             section.getStreetFurniture().setStreetlightSpacing(null);
         }
@@ -151,10 +197,14 @@ public class RoadStyle {
     }
 
     public void applyTo(Road road) {
+        applyTo(road, null);
+    }
+
+    public void applyTo(Road road, String themeIdOverride) {
         if (road == null) {
             return;
         }
-        road.setCrossSection(toCrossSection());
+        road.setCrossSection(toCrossSection(themeIdOverride));
         road.setStyleId(id);
         if (maxSlope > 0f) {
             road.setMaxSlope(maxSlope);
