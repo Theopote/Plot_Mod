@@ -10,6 +10,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.VoxelGradeDiscretizer;
 
 import java.util.List;
 import java.util.OptionalDouble;
@@ -105,7 +106,7 @@ public record DesignElevationSource(
     }
 
     public int elevationAtChainage(double chainageMeters) {
-        return (int) Math.round(resolveElevation(chainageMeters));
+        return VoxelGradeDiscretizer.quantizeContinuous(resolveElevation(chainageMeters));
     }
 
     public int elevationAtLocalDistance(double localCanvasDistance) {
@@ -120,8 +121,8 @@ public record DesignElevationSource(
         if (designElevation != null && designElevation.isActive()) {
             return designElevation.elevationAtLocalDistance(localCanvasDistanceOnEdge);
         }
-        return (int) Math.round(
-            info.targetStart * (1.0 - segmentInterpolation) + info.targetEnd * segmentInterpolation);
+        return VoxelGradeDiscretizer.linearElevationAtRatio(
+            info.targetStart, info.targetEnd, segmentInterpolation);
     }
 
     private double resolveElevation(double chainageMeters) {
