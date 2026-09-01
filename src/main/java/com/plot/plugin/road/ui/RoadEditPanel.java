@@ -4,6 +4,7 @@ import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.RoadParameterLimits;
+import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.manager.RoadNetworkManager;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -27,6 +28,7 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.terrain.MinecraftTerrainSampler;
 import com.plot.plugin.road.terrain.TerrainSampler;
+import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -165,6 +167,7 @@ public final class RoadEditPanel {
         RoadUiSections.group("plugin.road.design_stack.alignment");
         renderHorizontalAlignmentSummary(network, road, chainageDisplay);
         verticalAlignmentEditor.render(network, road, chainageDisplay, ctx.networkManager()::pushHistory);
+        renderInlineVerticalProfile(network, current);
 
         RoadUiSections.group("plugin.road.design_stack.typical_section");
         RoadCrossSectionEditor.renderRoadLevelCollapsibles(ctx, road, ctx.networkManager()::pushHistory);
@@ -186,6 +189,31 @@ public final class RoadEditPanel {
         renderCenterlineEditTools(network, road, current);
         renderElevationHint(current);
         renderSlopeOverrides(network, road, current, chainageDisplay);
+    }
+
+    private void renderInlineVerticalProfile(RoadNetwork network, RoadEdge edge) {
+        ImGui.spacing();
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.road.vertical_alignment_profile_editor"),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+        RoadGenerationResult edgeResult = ctx.previewManager().getLastEdgeResult(edge.getId());
+        if (edgeResult == null || !edgeResult.hasProfileData()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.road.vertical_alignment_profile_preview_required"));
+            if (ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_calculate_profile"))) {
+                ctx.previewManager().calculateNetworkPreview(network);
+            }
+            return;
+        }
+        VerticalAlignmentProfileOverlay design =
+            VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
+        RoadLongitudinalProfileRenderer.render(edgeResult, false, design);
+        RoadUiWidgets.textWrappedColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.road.vertical_alignment_profile_legend_hint"));
     }
 
     private void renderRoadIdentitySummary(

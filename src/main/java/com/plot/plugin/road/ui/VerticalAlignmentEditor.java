@@ -11,6 +11,7 @@ import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolation;
 import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
+import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.validation.RoadValidationMessage;
 import com.plot.plugin.road.validation.RoadValidationMessageCatalog;
 import com.plot.plugin.ui.PluginUiColors;
@@ -86,6 +87,7 @@ public final class VerticalAlignmentEditor {
         }
 
         applyDraftsIfChanged(road);
+        VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
         renderValidationMessages(road, roadLength);
 
         boolean slopeAllowed = VerticalProfileDesignRules.slopeAllowed(roadLength);
