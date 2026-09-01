@@ -73,6 +73,43 @@ public final class VerticalProfileControlPoints {
         return new RoadVerticalAlignment(edited);
     }
 
+    /** Moves one control point while preserving endpoint stations and minimum neighbor spacing. */
+    public static RoadVerticalAlignment move(
+            RoadVerticalAlignment source,
+            int pviIndex,
+            double requestedStation,
+            double elevation,
+            double roadLength) {
+        if (source == null || pviIndex < 0 || pviIndex >= source.pviCount()
+                || !Double.isFinite(requestedStation) || !Double.isFinite(elevation)) {
+            throw new IllegalArgumentException("invalid PVI move");
+        }
+        List<PointOfVerticalIntersection> pvis = source.getPvis();
+        double station;
+        if (pviIndex == 0 || pviIndex == pvis.size() - 1) {
+            station = pvis.get(pviIndex).getStation();
+        } else {
+            double minimum = pvis.get(pviIndex - 1).getStation()
+                + VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+            double maximum = pvis.get(pviIndex + 1).getStation()
+                - VerticalProfileDesignRules.MIN_GRADE_RUN_LENGTH;
+            maximum = Math.min(maximum, roadLength);
+            if (minimum > maximum) {
+                station = pvis.get(pviIndex).getStation();
+            } else {
+                station = Math.max(minimum, Math.min(maximum, requestedStation));
+            }
+        }
+        List<PointOfVerticalIntersection> edited = new ArrayList<>();
+        for (int i = 0; i < pvis.size(); i++) {
+            PointOfVerticalIntersection pvi = pvis.get(i);
+            edited.add(i == pviIndex
+                ? new PointOfVerticalIntersection(station, elevation, pvi.getCurveLength())
+                : pvi.copy());
+        }
+        return new RoadVerticalAlignment(edited);
+    }
+
     public static boolean exceedsGradeLimit(ControlPoint point, double maxGradePercent) {
         if (point == null || maxGradePercent <= EPSILON) {
             return false;

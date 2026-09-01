@@ -31,6 +31,7 @@ public final class RoadLongitudinalProfileRenderer {
             int selectedPviIndex,
             int activePviIndex,
             Double draggedElevation,
+            Double draggedLocalDistance,
             boolean dragStarted,
             boolean dragFinished) { }
 
@@ -103,11 +104,11 @@ public final class RoadLongitudinalProfileRenderer {
             int activePviIndex,
             double maxGradePercent) {
         if (result == null || !result.hasProfileData()) {
-            return new ControlInteraction(selectedPviIndex, -1, null, false, false);
+            return new ControlInteraction(selectedPviIndex, -1, null, null, false, false);
         }
         float width = ImGui.getContentRegionAvail().x;
         if (width < 40f) {
-            return new ControlInteraction(selectedPviIndex, activePviIndex, null, false, false);
+            return new ControlInteraction(selectedPviIndex, activePviIndex, null, null, false, false);
         }
         ImVec2 origin = ImGui.getCursorScreenPos();
         ImDrawList drawList = ImGui.getWindowDrawList();
@@ -129,6 +130,7 @@ public final class RoadLongitudinalProfileRenderer {
         boolean started = false;
         boolean finished = false;
         Double elevation = null;
+        Double localDistance = null;
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
             int nearest = nearestControl(controls, range, x0, y0, width, PREVIEW_HEIGHT,
                 ImGui.getMousePosX(), ImGui.getMousePosY());
@@ -141,12 +143,14 @@ public final class RoadLongitudinalProfileRenderer {
         if (active >= 0 && ImGui.isMouseDown(0)) {
             elevation = elevationAtMouseY(
                 ImGui.getMousePosY(), range, y0, PREVIEW_HEIGHT);
+            localDistance = distanceAtMouseX(
+                ImGui.getMousePosX(), range, x0, width);
         }
         if (active >= 0 && ImGui.isMouseReleased(0)) {
             finished = true;
             active = -1;
         }
-        return new ControlInteraction(selected, active, elevation, started, finished);
+        return new ControlInteraction(selected, active, elevation, localDistance, started, finished);
     }
 
     private record PlotRange(double maxDistance, int minHeight, int maxHeight) { }
@@ -239,6 +243,14 @@ public final class RoadLongitudinalProfileRenderer {
         double ratio = 1.0 - Math.max(0.0, Math.min(1.0, (mouseY - top) / plotHeight));
         double raw = range.minHeight() + ratio * (range.maxHeight() - range.minHeight());
         return Math.rint(raw * 4.0) / 4.0;
+    }
+
+    private static double distanceAtMouseX(float mouseX, PlotRange range, float x0, float width) {
+        float padding = 10f;
+        float left = x0 + padding;
+        float plotWidth = width - 2 * padding;
+        double ratio = Math.max(0.0, Math.min(1.0, (mouseX - left) / plotWidth));
+        return Math.rint(ratio * range.maxDistance() * 4.0) / 4.0;
     }
 
     static void drawProfile(

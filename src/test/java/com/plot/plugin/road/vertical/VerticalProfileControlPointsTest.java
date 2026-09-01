@@ -41,4 +41,19 @@ class VerticalProfileControlPointsTest {
         assertEquals(50, edited.getPvis().get(1).getStation(), 1e-6);
         assertEquals(12, edited.getPvis().get(1).getCurveLength(), 1e-6);
     }
+
+    @Test void moveClampsMiddlePviAndKeepsEndpointsFixed() {
+        RoadVerticalAlignment source = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0, 70),
+            PointOfVerticalIntersection.withCurve(50, 75, 12),
+            PointOfVerticalIntersection.of(100, 70)));
+        RoadVerticalAlignment middle = VerticalProfileControlPoints.move(source, 1, 95, 78, 100);
+        assertEquals(88, middle.getPvis().get(1).getStation(), 1e-6);
+        assertEquals(78, middle.getPvis().get(1).getElevation(), 1e-6);
+        assertEquals(12, middle.getPvis().get(1).getCurveLength(), 1e-6);
+
+        RoadVerticalAlignment endpoint = VerticalProfileControlPoints.move(source, 0, 30, 72, 100);
+        assertEquals(0, endpoint.getPvis().getFirst().getStation(), 1e-6);
+        assertEquals(72, endpoint.getPvis().getFirst().getElevation(), 1e-6);
+    }
 }

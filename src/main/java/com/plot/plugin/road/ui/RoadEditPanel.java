@@ -31,6 +31,8 @@ import com.plot.plugin.road.terrain.TerrainSampler;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
 import com.plot.plugin.road.vertical.VerticalAlignmentJunctionSynchronizer;
 import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
+import com.plot.plugin.road.vertical.VerticalProfileAutoFixer;
+import com.plot.plugin.road.vertical.VerticalProfileCurveFitter;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
@@ -75,6 +77,7 @@ public final class RoadEditPanel {
     private int selectedProfilePvi = -1;
     private int activeProfilePvi = -1;
     private final float[] selectedProfileElevation = {64f};
+    private String profileAutoFixMessage = "";
 
     public RoadEditPanel(
             RoadUiContext ctx,
@@ -254,12 +257,20 @@ public final class RoadEditPanel {
         }
         selectedProfilePvi = interaction.selectedPviIndex();
         activeProfilePvi = interaction.activePviIndex();
-        if (interaction.draggedElevation() != null && selectedProfilePvi >= 0
+        if (interaction.draggedElevation() != null && interaction.draggedLocalDistance() != null
+                && selectedProfilePvi >= 0
                 && road.getVerticalAlignment() != null
                 && selectedProfilePvi < road.getVerticalAlignment().pviCount()) {
             selectedProfileElevation[0] = interaction.draggedElevation().floatValue();
-            road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
-                road.getVerticalAlignment(), selectedProfilePvi, interaction.draggedElevation()));
+            double currentStation = road.getVerticalAlignment().getPvis()
+                .get(selectedProfilePvi).getStation();
+            double requestedStation = RoadStationing.orientedSegment(network, road, edge.getId())
+                .map(segment -> segment.roadStationAtGeometryLocal(
+                    interaction.draggedLocalDistance()))
+                .orElse(currentStation);
+            road.setVerticalAlignment(VerticalProfileControlPoints.move(
+                road.getVerticalAlignment(), selectedProfilePvi, requestedStation,
+                interaction.draggedElevation(), RoadStationing.canonicalLength(network, road)));
         }
         if (interaction.dragFinished()) {
             VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
@@ -290,6 +301,38 @@ public final class RoadEditPanel {
                 || selectedProfilePvi >= road.getVerticalAlignment().pviCount()) {
             return;
         }
+        VerticalProfileControlPoints.ControlPoint selectedPoint = points.stream()
+            .filter(point -> point.pviIndex() == selectedProfilePvi)
+            .findFirst()
+            .orElse(null);
+        if (VerticalProfileControlPoints.exceedsGradeLimit(selectedPoint, maxGrade)
+                && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_fix_grade"))) {
+            ctx.networkManager().pushHistory();
+            VerticalProfileAutoFixer.Result fixed = VerticalProfileAutoFixer.extendAdjacentRuns(
+                road.getVerticalAlignment(), selectedProfilePvi,
+                RoadStationing.canonicalLength(network, road), maxGrade);
+            road.setVerticalAlignment(fixed.alignment());
+            VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+            profileAutoFixMessage = PlotI18n.tr(fixed.fullyResolved()
+                ? "plugin.road.vertical_alignment_auto_fix_success"
+                : "plugin.road.vertical_alignment_auto_fix_insufficient");
+        }
+        if (selectedProfilePvi > 0
+                && selectedProfilePvi < road.getVerticalAlignment().pviCount() - 1
+                && ImGui.button(PlotI18n.tr("plugin.road.vertical_alignment_auto_smooth"))) {
+            ctx.networkManager().pushHistory();
+            VerticalProfileCurveFitter.Result fitted = VerticalProfileCurveFitter.fitAt(
+                road.getVerticalAlignment(), selectedProfilePvi);
+            road.setVerticalAlignment(fitted.alignment());
+            profileAutoFixMessage = PlotI18n.tr(fitted.hasSpace()
+                ? "plugin.road.vertical_alignment_auto_smooth_success"
+                : "plugin.road.vertical_alignment_auto_smooth_no_space");
+        }
+        if (!profileAutoFixMessage.isBlank()) {
+            RoadUiWidgets.textWrappedColored(
+                PluginUiColors.HINT_GRAY,
+                profileAutoFixMessage);
+        }
         ImGui.dragFloat(
             PlotI18n.tr("plugin.road.vertical_alignment_selected_elevation"),
             selectedProfileElevation,
@@ -302,6 +345,7 @@ public final class RoadEditPanel {
             road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
                 road.getVerticalAlignment(), selectedProfilePvi, selectedProfileElevation[0]));
             VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+            profileAutoFixMessage = "";
         }
     }
 
