@@ -425,8 +425,8 @@ public class RoadNetwork {
             }
             head.reorderSegments(mergedSegments);
         } else {
-            double tailLength = RoadStationing.totalLength(this, tail);
-            double headLength = RoadStationing.totalLength(this, head);
+            double tailLength = RoadStationing.canonicalLength(this, tail);
+            double headLength = RoadStationing.canonicalLength(this, head);
             boolean refit = CenterlineEditOperation.MERGE_ROAD.defaultStationPolicy()
                 .applyRoadMerge(head, tail, head, tailLength, headLength);
             List<String> mergedSegments = new ArrayList<>(headSegments.size() + tailSegments.size());

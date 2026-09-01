@@ -15,6 +15,8 @@ import java.util.Optional;
 /**
  * 道路平面几何统一查询：有设计平面线形时以 {@link RoadHorizontalAlignment} 为权威，
  * 否则回退到 {@link RoadEdge#getCenterlinePoints()}。
+ * <p>
+ * 工程桩号域长度见 {@link #canonicalLength}；实例折线链长见 {@link #instanceLength}。
  */
 public final class RoadPlanGeometry {
 
@@ -47,7 +49,20 @@ public final class RoadPlanGeometry {
             : RoadGeometryAuthority.INSTANCE_CENTERLINE;
     }
 
-    public static double instanceChainLength(RoadNetwork network, Road road) {
+    /**
+     * Canonical 道路链长（工程桩号域）：有有效 HA 时取设计线形总长，否则取实例折线链长。
+     */
+    public static double canonicalLength(RoadNetwork network, Road road) {
+        if (hasDesignAlignment(network, road)) {
+            return HorizontalAlignmentGeometry.totalLength(road.getHorizontalAlignment());
+        }
+        return instanceLength(network, road);
+    }
+
+    /**
+     * 实例折线链长（{@link RoadEdge} 派生几何累计弧长）。
+     */
+    public static double instanceLength(RoadNetwork network, Road road) {
         if (network == null || road == null) {
             return 0.0;
         }
@@ -58,11 +73,16 @@ public final class RoadPlanGeometry {
         return total;
     }
 
+    /** @deprecated 使用 {@link #canonicalLength} */
+    @Deprecated
     public static double planLength(RoadNetwork network, Road road) {
-        if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.totalLength(road.getHorizontalAlignment());
-        }
-        return instanceChainLength(network, road);
+        return canonicalLength(network, road);
+    }
+
+    /** @deprecated 使用 {@link #instanceLength} */
+    @Deprecated
+    public static double instanceChainLength(RoadNetwork network, Road road) {
+        return instanceLength(network, road);
     }
 
     public static Optional<Vec2d> pointAtStation(RoadNetwork network, Road road, double chainageMeters) {

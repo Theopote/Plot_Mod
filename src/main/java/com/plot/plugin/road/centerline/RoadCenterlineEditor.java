@@ -210,7 +210,7 @@ public final class RoadCenterlineEditor {
         java.util.Collections.reverse(reversedOrder);
         road.reorderSegments(reversedOrder);
 
-        double totalLength = RoadStationing.totalLength(network, road);
+        double totalLength = RoadStationing.canonicalLength(network, road);
         if (road.getHorizontalAlignment() != null) {
             road.setHorizontalAlignment(reverseHorizontalAlignment(road.getHorizontalAlignment()));
         }

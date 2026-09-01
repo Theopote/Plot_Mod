@@ -53,7 +53,7 @@ public final class VariableCrossSectionEditor {
 
         RoadSystemConfig config = ctx.networkManager().getConfig();
         syncDrafts(road, config);
-        double roadLength = RoadStationing.totalLength(network, road);
+        double roadLength = RoadStationing.canonicalLength(network, road);
 
         if (drafts.isEmpty()) {
             RoadUiWidgets.textWrappedColored(

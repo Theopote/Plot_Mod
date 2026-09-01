@@ -38,8 +38,7 @@ class RoadStationingCanonicalLengthTest {
             0.0,
             List.of(HorizontalAlignmentElement.tangent(DESIGN_LENGTH))));
 
-        assertEquals(DESIGN_LENGTH, RoadStationing.totalLength(network, road), 1e-6);
-        assertEquals(DESIGN_LENGTH, RoadStationing.planLength(network, road), 1e-6);
+        assertEquals(DESIGN_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(INSTANCE_LENGTH, RoadStationing.instanceLength(network, road), 1e-6);
     }
 
@@ -73,7 +72,7 @@ class RoadStationingCanonicalLengthTest {
 
         assertTrue(RoadStationing.isValid(network, new RoadStation("long-instance", 299.7)));
         assertFalse(RoadStationing.isValid(network, new RoadStation("long-instance", 300.3)));
-        assertEquals(DESIGN_LENGTH, RoadStationing.totalLength(network, road), 1e-6);
+        assertEquals(DESIGN_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(instanceLength, RoadStationing.instanceLength(network, road), 1e-6);
     }
 
@@ -112,7 +111,7 @@ class RoadStationingCanonicalLengthTest {
             List.of(new Vec2d(0, 0), new Vec2d(100, 0)),
             road.getId());
 
-        assertEquals(100.0, RoadStationing.totalLength(network, road), 1e-6);
+        assertEquals(100.0, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(100.0, RoadStationing.instanceLength(network, road), 1e-6);
         assertEquals(50.0, RoadStationing.toCanonicalChainage(network, road, 50.0), 1e-6);
         assertEquals(50.0, RoadStationing.toInstanceChainage(network, road, 50.0), 1e-6);

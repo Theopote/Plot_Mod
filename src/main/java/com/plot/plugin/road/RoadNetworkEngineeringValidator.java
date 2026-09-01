@@ -342,7 +342,7 @@ public final class RoadNetworkEngineeringValidator {
             if (alignment == null || alignment.isEmpty() || !RoadStationing.isStationable(network, road)) {
                 continue;
             }
-            double totalLength = RoadStationing.totalLength(network, road);
+            double totalLength = RoadStationing.canonicalLength(network, road);
             boolean hasKind = VerticalAlignmentValidator.validate(alignment, totalLength).stream()
                 .anyMatch(violation -> violation.kind() == kind);
             if (hasKind) {
@@ -360,7 +360,7 @@ public final class RoadNetworkEngineeringValidator {
                 || !RoadStationing.isStationable(network, road)) {
                 continue;
             }
-            double totalLength = RoadStationing.totalLength(network, road);
+            double totalLength = RoadStationing.canonicalLength(network, road);
             if (Math.abs(alignment.startStation()) > VERTICAL_ALIGNMENT_LENGTH_TOLERANCE
                 || Math.abs(alignment.endStation() - totalLength) > VERTICAL_ALIGNMENT_LENGTH_TOLERANCE) {
                 count++;

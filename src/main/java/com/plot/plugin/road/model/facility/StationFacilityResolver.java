@@ -55,7 +55,7 @@ public final class StationFacilityResolver {
         if (network == null || road == null) {
             return List.of();
         }
-        return activeAt(road, chainage, RoadStationing.totalLength(network, road));
+        return activeAt(road, chainage, RoadStationing.canonicalLength(network, road));
     }
 
     public static List<StationFacilityRun> activeInRange(
@@ -92,7 +92,7 @@ public final class StationFacilityResolver {
                 road,
                 oriented.startStation(),
                 oriented.endStation(),
-                RoadStationing.totalLength(network, road)))
+                RoadStationing.canonicalLength(network, road)))
             .orElse(List.of());
     }
 

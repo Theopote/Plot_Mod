@@ -25,7 +25,7 @@ import java.util.Set;
 /**
  * Road-local 里程（chainage）权威坐标转换器：沿有序分段链累计弧长，并处理分段方向。
  * <p>
- * <strong>Canonical chainage 域</strong>：{@link #totalLength} / {@link #planLength} — 有平面线形时取
+ * <strong>Canonical chainage 域</strong>：{@link #canonicalLength} — 有平面线形时取
  * {@link com.plot.plugin.road.alignment.RoadHorizontalAlignment} 总长，否则取实例折线链长。
  * 所有 {@link RoadStation}、VA/VCS/设施桩号、{@link #isValid} 均在此域。
  * <p>
@@ -94,17 +94,33 @@ public final class RoadStationing {
     }
 
     /**
-     * Canonical 道路链长（工程桩号域上界）：有平面线形时取设计总长，否则取实例折线链长。
+     * Canonical 道路链长（工程桩号域上界）。
+     *
+     * @see RoadPlanGeometry#canonicalLength
      */
-    public static double totalLength(RoadNetwork network, Road road) {
-        return planLength(network, road);
+    public static double canonicalLength(RoadNetwork network, Road road) {
+        return RoadPlanGeometry.canonicalLength(network, road);
     }
 
     /**
      * 实例折线链长（{@link RoadEdge} 派生几何累计弧长）。
+     *
+     * @see RoadPlanGeometry#instanceLength
      */
     public static double instanceLength(RoadNetwork network, Road road) {
-        return RoadPlanGeometry.instanceChainLength(network, road);
+        return RoadPlanGeometry.instanceLength(network, road);
+    }
+
+    /** @deprecated 使用 {@link #canonicalLength} */
+    @Deprecated
+    public static double totalLength(RoadNetwork network, Road road) {
+        return canonicalLength(network, road);
+    }
+
+    /** @deprecated 使用 {@link #canonicalLength} */
+    @Deprecated
+    public static double planLength(RoadNetwork network, Road road) {
+        return canonicalLength(network, road);
     }
 
     public static Optional<String> chainEntryNodeId(RoadNetwork network, Road road) {
@@ -121,13 +137,6 @@ public final class RoadStationing {
             return Optional.empty();
         }
         return Optional.of(segments.getLast().exitNodeId());
-    }
-
-    /**
-     * 道路平面设计长度；与 {@link #totalLength} 相同（canonical chainage 域）。
-     */
-    public static double planLength(RoadNetwork network, Road road) {
-        return RoadPlanGeometry.planLength(network, road);
     }
 
     /**
@@ -161,7 +170,7 @@ public final class RoadStationing {
         if (!isStationable(network, road)) {
             return false;
         }
-        double total = totalLength(network, road);
+        double total = canonicalLength(network, road);
         return station.chainageMeters() >= -STATION_EPSILON
             && station.chainageMeters() <= total + STATION_EPSILON;
     }
@@ -416,32 +425,32 @@ public final class RoadStationing {
      * Canonical 桩号 → 实例折线链上弧长（{@link OrientedRoadSegment} 域）。
      */
     static double toInstanceChainage(RoadNetwork network, Road road, double canonicalChainage) {
-        double canonicalLength = planLength(network, road);
-        double instanceLength = instanceLength(network, road);
-        if (!Double.isFinite(canonicalChainage) || canonicalLength <= STATION_EPSILON) {
+        double canonicalTotal = canonicalLength(network, road);
+        double instanceTotal = instanceLength(network, road);
+        if (!Double.isFinite(canonicalChainage) || canonicalTotal <= STATION_EPSILON) {
             return 0.0;
         }
-        if (Math.abs(canonicalLength - instanceLength) <= STATION_EPSILON) {
+        if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
             return canonicalChainage;
         }
-        double ratio = Math.max(0.0, Math.min(1.0, canonicalChainage / canonicalLength));
-        return ratio * instanceLength;
+        double ratio = Math.max(0.0, Math.min(1.0, canonicalChainage / canonicalTotal));
+        return ratio * instanceTotal;
     }
 
     /**
      * 实例折线链上弧长 → canonical 桩号。
      */
     static double toCanonicalChainage(RoadNetwork network, Road road, double instanceChainage) {
-        double canonicalLength = planLength(network, road);
-        double instanceLength = instanceLength(network, road);
-        if (!Double.isFinite(instanceChainage) || instanceLength <= STATION_EPSILON) {
+        double canonicalTotal = canonicalLength(network, road);
+        double instanceTotal = instanceLength(network, road);
+        if (!Double.isFinite(instanceChainage) || instanceTotal <= STATION_EPSILON) {
             return 0.0;
         }
-        if (Math.abs(canonicalLength - instanceLength) <= STATION_EPSILON) {
+        if (Math.abs(canonicalTotal - instanceTotal) <= STATION_EPSILON) {
             return instanceChainage;
         }
-        double ratio = Math.max(0.0, Math.min(1.0, instanceChainage / instanceLength));
-        return ratio * canonicalLength;
+        double ratio = Math.max(0.0, Math.min(1.0, instanceChainage / instanceTotal));
+        return ratio * canonicalTotal;
     }
 
     private record SegmentChainBinding(String segmentId, String entryNodeId) {

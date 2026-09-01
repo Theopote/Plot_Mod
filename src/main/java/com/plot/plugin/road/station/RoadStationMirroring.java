@@ -75,7 +75,7 @@ public final class RoadStationMirroring {
         if (segmentStart < 0.0) {
             return;
         }
-        double totalLength = RoadStationing.totalLength(network, road);
+        double totalLength = RoadStationing.canonicalLength(network, road);
         List<String> ordered = com.plot.plugin.road.model.RoadSegmentOrdering.orderedSegmentIds(network, road);
         if (ordered.size() == 1) {
             mirrorRoadStationData(road, totalLength);
@@ -107,7 +107,7 @@ public final class RoadStationMirroring {
         if (segmentStart < 0.0) {
             return;
         }
-        double totalLength = RoadStationing.totalLength(network, road);
+        double totalLength = RoadStationing.canonicalLength(network, road);
         List<String> ordered = com.plot.plugin.road.model.RoadSegmentOrdering.orderedSegmentIds(network, road);
         RoadVerticalAlignment alignment = road.getVerticalAlignment();
         if (ordered.size() == 1) {

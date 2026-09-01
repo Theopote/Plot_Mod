@@ -129,8 +129,7 @@ class RoadPhase2WorkflowTest {
 
     private static void establishOrientedStationing(RoadNetwork network, Road road) {
         assertTrue(RoadStationing.isStationable(network, road));
-        assertEquals(ROAD_LENGTH, RoadStationing.totalLength(network, road), 1e-6);
-        assertEquals(ROAD_LENGTH, RoadStationing.planLength(network, road), 1e-6);
+        assertEquals(ROAD_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
 
         RoadDesignDirection direction = road.designDirection(network).orElseThrow();
         assertEquals(direction.entryNodeId(),
@@ -217,7 +216,7 @@ class RoadPhase2WorkflowTest {
         assertTrue(RoadCenterlineEditor.splitAtRoadStation(
             network, road, edgeId, SPLIT_STATION).isSuccess());
         assertEquals(2, road.getSegmentIds().size());
-        assertEquals(ROAD_LENGTH, RoadStationing.totalLength(network, road), 1e-6);
+        assertEquals(ROAD_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
     }
 
     private static void reverseTailEdgeStorage(RoadNetwork network, Road road) {
@@ -228,7 +227,7 @@ class RoadPhase2WorkflowTest {
     }
 
     private static void assertMirroredStationDataAfterWholeRoadReverse(RoadNetwork network, Road road) {
-        double total = RoadStationing.totalLength(network, road);
+        double total = RoadStationing.canonicalLength(network, road);
         assertEquals(ROAD_LENGTH, total, 1e-6);
 
         List<StationCrossSection> stations = road.getVariableCrossSections().sortedStations();

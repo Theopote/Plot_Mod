@@ -220,7 +220,7 @@ public final class RoadEditPanel {
 
     private ChainageDisplayContext chainageContext(RoadNetwork network, Road road) {
         return new ChainageDisplayContext(
-            RoadStationing.totalLength(network, road),
+            RoadStationing.canonicalLength(network, road),
             chainageDisplayMode,
             RoadStationFormat.KILOMETER_PLUS);
     }
@@ -245,7 +245,7 @@ public final class RoadEditPanel {
         }
         ImGui.spacing();
         if (ImGui.collapsingHeader(PlotI18n.tr("plugin.road.horizontal_alignment_section"))) {
-            double total = HorizontalAlignmentGeometry.totalLength(alignment);
+            double total = RoadStationing.canonicalLength(network, road);
             RoadUiWidgets.textWrappedColored(
                 PluginUiColors.HINT_GRAY,
                 PlotI18n.tr(

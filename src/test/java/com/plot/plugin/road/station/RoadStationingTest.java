@@ -29,7 +29,7 @@ class RoadStationingTest {
         RoadEdge e1 = network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
         network.createEdge(n2.getId(), n3.getId(), List.of(new Vec2d(10, 0), new Vec2d(30, 0)), road.getId());
 
-        assertEquals(30.0, RoadStationing.totalLength(network, road), 1e-6);
+        assertEquals(30.0, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(0.0, RoadStationing.segmentStartStation(network, road, e1.getId()), 1e-6);
         assertEquals(10.0, RoadStationing.segmentStartStation(network, road, network.getEdge(road.getOrderedSegmentIds().get(1)).getId()), 1e-6);
     }
@@ -84,7 +84,7 @@ class RoadStationingTest {
         network.createEdge(n3.getId(), n1.getId(), List.of(new Vec2d(10, 10), new Vec2d(0, 0)), road.getId());
 
         assertTrue(RoadStationing.isStationable(network, road));
-        assertEquals(10.0 + 10.0 + Math.hypot(10, 10), RoadStationing.totalLength(network, road), 1e-4);
+        assertEquals(10.0 + 10.0 + Math.hypot(10, 10), RoadStationing.canonicalLength(network, road), 1e-4);
     }
 
     @Test
@@ -126,7 +126,7 @@ class RoadStationingTest {
         RoadNode n2 = network.createNode(new Vec2d(10, 0));
         network.createEdge(n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)), road.getId());
 
-        double total = RoadStationing.totalLength(network, road);
+        double total = RoadStationing.canonicalLength(network, road);
         Optional<SegmentStation> end = RoadStationing.resolve(network, road, total);
         assertTrue(end.isPresent());
         assertEquals(10.0, end.get().localDistance(), 1e-6);

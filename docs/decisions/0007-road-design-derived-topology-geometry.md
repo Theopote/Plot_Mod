@@ -72,7 +72,8 @@ Road Generation Pipeline
 | `RoadPlanGeometry.pointAtStation` | 桩号处平面坐标（设计优先） |
 | `RoadPlanGeometry.instancePointAtStation` | 实例折线坐标（一致性校验、双轨检测） |
 | `RoadPlanGeometry.resolveEdgeCenterline` | 单边生成用折线采样 |
-| `RoadPlanGeometry.planLength` | 设计平面总长 |
+| `RoadPlanGeometry.canonicalLength` | 工程桩号域链长（有 HA 时取设计总长，否则实例链长） |
+| `RoadPlanGeometry.instanceLength` | 实例折线链长（`RoadEdge` 派生几何累计） |
 | `RoadStationing.*` | 桩号拓扑与格式化；平面坐标查询 **委托** `RoadPlanGeometry` |
 
 ### 3. 同步策略（消除双轨的操作路径）
@@ -93,7 +94,8 @@ Road Generation Pipeline
 
 ### 4. 桩号（Chainage）坐标系
 
-- **拓扑桩号域**：`RoadStationing.totalLength` / `orientedSegments` 仍基于实例折线分段弧长累计（与 `OrientedRoadSegment` 一致），保证 `resolve(chainage)` 与边拓扑对齐。
+- **Canonical 桩号域**：`RoadStationing.canonicalLength` / `RoadPlanGeometry.canonicalLength` — 有 HA 时取设计线形总长，否则取实例折线链长；`isValid`、`resolve`、`stationAt`、节点桩号、VA/VCS/设施均在此域。
+- **Instance 桩号域**：`RoadStationing.instanceLength` / `orientedSegments` 分段弧长累计（与 `OrientedRoadSegment` 一致）；内部几何换算基于此域，对外 API 在边界按比例换算。
 - **设计桩号查询**：`RoadPlanGeometry.pointAtStation(chainage)` 在有 HA 时读 `HorizontalAlignmentGeometry.poseAt`。
 - 沿程模块（纵断面、可变横断面、设施、标线）换算桩号 **只经 `RoadStationing`**，禁止自行 `segmentStart + localDistance`。
 
@@ -117,8 +119,8 @@ Road Generation Pipeline
 ### 代价与限制
 
 - v1 polyline fit（`HorizontalAlignmentPolylineFitter`）为切线 + 圆曲线 PI 链近似；fillet 后的真实圆弧 / 缓和曲线 **尚未** 反算回 Spiral 线元。
-- 拓扑桩号域与 HA 总长不一致时（未 materialize、共享路口节点未移动），`resolve` 与 `poseAt` 可能在极端桩号 diverge；工程检查应报告。
-- `orientedSegments.length` 仍来自实例折线；未来若需纯设计链长驱动分段界，需单独 ADR 修订。
+- 拓扑 instance 域与 HA 总长不一致时（未 materialize、共享路口节点未移动），`resolve` 与 `poseAt` 可能在极端桩号 diverge；工程检查应报告；边界通过 `toCanonicalChainage` / `toInstanceChainage` 比例换算。
+- `orientedSegments.length` 仍来自实例折线；canonical 域由 `canonicalLength` 统一提供。
 
 ### 对 ADR 0006 的修订
 
@@ -175,7 +177,7 @@ Road
 
 **Canonical chainage**：模型仅存自链起点 K0+000 的桩号；`ChainageDisplayMode.FROM_END`（EK…）仅为 UI 展示变换。
 
-**Canonical vs instance length**（2026-09-01）：`RoadStationing.totalLength` / `planLength` 为工程桩号域上界（有 HA 时取设计总长）；`instanceLength` 为 `RoadEdge` 派生折线累计弧长。二者不一致时，对外 API（`isValid`、`resolve`、`stationAt`、节点桩号）使用 canonical 域，并在边界按比例换算至 `OrientedRoadSegment` 实例域。
+**Canonical vs instance length**（2026-09-01）：统一入口 `RoadStationing.canonicalLength` / `RoadPlanGeometry.canonicalLength` 为工程桩号域上界（有 HA 时取设计总长）；`instanceLength` 为 `RoadEdge` 派生折线累计弧长。`totalLength` / `planLength` / `instanceChainLength` 已弃用并委托至上述 API。二者不一致时，对外 API 使用 canonical 域，并在边界按比例换算至 `OrientedRoadSegment` 实例域。
 
 **OrientedRoadSegment（Phase 2 基础设施）**：`forward == false` 时几何方向与链相反；生成管线须用 `PathSegmentGeometry.chainLeftNormal(segment, forward)` 解析相对链的 LEFT/RIGHT，禁止直接用几何 `leftNormal`。
 

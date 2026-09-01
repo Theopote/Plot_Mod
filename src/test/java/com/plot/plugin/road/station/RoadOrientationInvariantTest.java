@@ -81,7 +81,7 @@ class RoadOrientationInvariantTest {
         AbcdRoad chain = buildAbcdChain(spec);
         applyCanonicalPhase2Data(chain.road);
 
-        assertEquals(TOTAL_LENGTH, RoadStationing.totalLength(chain.network, chain.road), 1e-6);
+        assertEquals(TOTAL_LENGTH, RoadStationing.canonicalLength(chain.network, chain.road), 1e-6);
         assertEquals(chain.a.getId(),
             RoadStationing.chainEntryNodeId(chain.network, chain.road).orElseThrow());
         assertEquals(chain.d.getId(),
@@ -121,7 +121,7 @@ class RoadOrientationInvariantTest {
 
         assertEquals(0.0, chainageAtNode(chain.network, chain.road, chain.a.getId()), 1e-6);
         assertEquals(300.0, chainageAtNode(chain.network, chain.road, chain.d.getId()), 1e-6);
-        assertEquals(TOTAL_LENGTH, RoadStationing.totalLength(chain.network, chain.road), 1e-6);
+        assertEquals(TOTAL_LENGTH, RoadStationing.canonicalLength(chain.network, chain.road), 1e-6);
     }
 
     private static AbcdRoad buildAbcdChain(OrientationSpec spec) {

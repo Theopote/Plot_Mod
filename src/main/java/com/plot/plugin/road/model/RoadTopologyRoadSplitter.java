@@ -163,7 +163,7 @@ public final class RoadTopologyRoadSplitter {
             Set<String> keepComponent,
             int branchIndexStart) {
         StationDataSnapshot snapshot = StationDataSnapshot.capture(road);
-        double totalLength = RoadStationing.totalLength(network, road);
+        double totalLength = RoadStationing.canonicalLength(network, road);
         boolean mapStationData = snapshot.hasPhase2Data() && totalLength > 1e-6;
 
         List<StationRange> ranges = new ArrayList<>(components.size());

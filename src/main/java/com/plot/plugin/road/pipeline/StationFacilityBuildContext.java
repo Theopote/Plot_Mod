@@ -33,7 +33,7 @@ public record StationFacilityBuildContext(
         if (network == null || road == null) {
             return 0.0;
         }
-        return RoadStationing.totalLength(network, road);
+        return RoadStationing.canonicalLength(network, road);
     }
 
     public static StationFacilityBuildContext forEdge(RoadNetwork network, RoadEdge edge) {

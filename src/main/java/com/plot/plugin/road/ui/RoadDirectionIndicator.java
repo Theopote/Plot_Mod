@@ -48,7 +48,7 @@ public final class RoadDirectionIndicator {
             return;
         }
 
-        double totalLength = RoadStationing.totalLength(network, road);
+        double totalLength = RoadStationing.canonicalLength(network, road);
         String chainStart = RoadStationing.format(0.0, totalLength, RoadStationFormat.KILOMETER_PLUS, ChainageDisplayMode.FROM_START);
         String chainEnd = RoadStationing.format(totalLength, totalLength, RoadStationFormat.KILOMETER_PLUS, ChainageDisplayMode.FROM_START);
 

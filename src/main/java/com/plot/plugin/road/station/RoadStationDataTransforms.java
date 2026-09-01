@@ -85,7 +85,7 @@ public final class RoadStationDataTransforms {
         if (network == null || head == null || tail == null) {
             return;
         }
-        double totalLength = RoadStationing.totalLength(network, head);
+        double totalLength = RoadStationing.canonicalLength(network, head);
         boolean refit = applyRoadSplit(head, tail, splitStation, totalLength);
         if (refit) {
             refitHorizontalAlignmentFromCenterline(network, head);
@@ -144,8 +144,8 @@ public final class RoadStationDataTransforms {
         if (network == null || head == null || tail == null) {
             return;
         }
-        double headLength = RoadStationing.totalLength(network, head);
-        double tailLength = RoadStationing.totalLength(network, tail);
+        double headLength = RoadStationing.canonicalLength(network, head);
+        double tailLength = RoadStationing.canonicalLength(network, tail);
         boolean refit = applyRoadMerge(head, head, tail, headLength, tailLength);
         if (refit) {
             refitHorizontalAlignmentFromCenterline(network, head);
@@ -205,7 +205,7 @@ public final class RoadStationDataTransforms {
         if (rangeStart < 0.0) {
             return;
         }
-        double totalLengthBefore = RoadStationing.totalLength(network, road) - newSegmentLength + oldSegmentLength;
+        double totalLengthBefore = RoadStationing.canonicalLength(network, road) - newSegmentLength + oldSegmentLength;
         rescaleAfterGeometryEdit(road, rangeStart, oldSegmentLength, newSegmentLength, totalLengthBefore);
     }
 
@@ -233,7 +233,7 @@ public final class RoadStationDataTransforms {
             return new SegmentGeometrySnapshot(
                 rangeStart,
                 edge.getLength(),
-                RoadStationing.totalLength(network, road));
+                RoadStationing.canonicalLength(network, road));
         }
     }
 

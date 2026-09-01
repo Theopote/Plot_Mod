@@ -49,7 +49,7 @@ public final class VerticalAlignmentEditor {
         }
 
         syncDrafts(road);
-        double roadLength = RoadStationing.totalLength(network, road);
+        double roadLength = RoadStationing.canonicalLength(network, road);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_hint"));

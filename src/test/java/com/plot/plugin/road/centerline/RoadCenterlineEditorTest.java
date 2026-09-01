@@ -143,7 +143,7 @@ class RoadCenterlineEditorTest {
         assertEquals(70.0, mirrored.getStartStation(), 1e-6);
         assertEquals(RoadFacilitySide.RIGHT, mirrored.getSide());
 
-        double total = RoadStationing.totalLength(network, road);
+        double total = RoadStationing.canonicalLength(network, road);
         assertEquals(12, widthOf(VariableCrossSectionResolver.resolveTemplate(road, 10.0)));
         assertEquals(6, widthOf(VariableCrossSectionResolver.resolveTemplate(road, total - 10.0)));
     }
@@ -281,11 +281,11 @@ class RoadCenterlineEditorTest {
             StationFacilityRun.of(55.0, 65.0, RoadFacilityKind.GUARDRAIL, RoadFacilitySide.LEFT)
         )));
 
-        double oldLength = RoadStationing.totalLength(network, road);
+        double oldLength = RoadStationing.canonicalLength(network, road);
         CenterlineEditResult result = RoadCenterlineEditor.filletVertex(network, edge.getId(), 1, 5.0);
         assertTrue(result.isSuccess());
 
-        double newLength = RoadStationing.totalLength(network, road);
+        double newLength = RoadStationing.canonicalLength(network, road);
         assertTrue(newLength > 0.0);
         assertNotNull(road.getStationFacilities());
         StationFacilityRun run = road.getStationFacilities().sortedRuns().getFirst();

@@ -67,7 +67,7 @@ public final class HorizontalAlignmentCenterlineConsistency {
         }
 
         RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
-        double roadLength = RoadPlanGeometry.instanceChainLength(network, road);
+        double roadLength = RoadPlanGeometry.instanceLength(network, road);
         double alignmentLength = HorizontalAlignmentGeometry.totalLength(alignment);
         boolean lengthMatches = Math.abs(alignmentLength - roadLength) <= lengthToleranceMeters;
 
