@@ -24,7 +24,7 @@ class HorizontalAlignmentJunctionConsistencyTest {
 
         assertFalse(conflicts.isEmpty());
         assertEquals("a", conflicts.getFirst().roadId());
-        assertTrue(conflicts.getFirst().deviationMeters() > HorizontalAlignmentJunctionConsistency.SHARED_JUNCTION_TOLERANCE_METERS);
+        assertTrue(conflicts.getFirst().deviationMeters() > HorizontalAlignmentTopologyValidator.TOPOLOGY_TOLERANCE_METERS);
     }
 
     @Test

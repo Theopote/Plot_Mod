@@ -96,6 +96,7 @@ Road Generation Pipeline
 - **物化事务性**：`prepareMaterialization`（采样 / 端点校验）与 `commitMaterialization`（统一写回 `RoadEdge`）两阶段分离，all-or-nothing 派生几何同步。
 - **共享路口**：`RoadNode.position` 为拓扑权威。物化前 `HorizontalAlignmentJunctionConsistency` 校验 HA 端点与共享路口偏差（默认 1 m）；超容差拒绝物化并报告 `horizontal_alignment_junction_conflict`；在容差内则 snap `RoadEdge` 端点至节点。
 - **几何端点不变量**：`RoadNetworkInvariantValidator` 校验 `EDGE_START_GEOMETRY_MISMATCH` / `EDGE_END_GEOMETRY_MISMATCH`（中心线端点须与 `startNode` / `endNode` 位置一致）。
+- **HA 拓扑约束**：`HorizontalAlignmentTopologyValidator` 校验链入口/出口及内部分段界节点满足 `node.position ≈ HA.poseAt(canonicalChainage)`；违反 `ALIGNMENT_TOPOLOGY_MISMATCH`。共享路口物化冲突为其在共享节点上的子集。
 
 ### 4. 桩号（Chainage）坐标系
 

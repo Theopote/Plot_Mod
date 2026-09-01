@@ -433,6 +433,8 @@
   "plugin.road.validation.horizontal_alignment_centerline_deviation": "%d road(s) with horizontal alignment / centerline deviation",
   "plugin.road.validation.horizontal_alignment_junction_ok": "Horizontal alignment agrees with shared junction nodes",
   "plugin.road.validation.horizontal_alignment_junction_conflict": "%d road(s) with horizontal alignment / shared junction conflict",
+  "plugin.road.validation.horizontal_alignment_topology_ok": "Horizontal alignment matches road chain node boundaries",
+  "plugin.road.validation.horizontal_alignment_topology_mismatch": "%d road(s) with horizontal alignment topology mismatch",
   "plugin.road.horizontal_alignment_centerline_deviation": "Centerline deviation: max %.2f m · mean %.2f m (build uses polyline centerline)",
   "plugin.road.horizontal_alignment_length_mismatch_hint": "Length mismatch: road %.1f m vs alignment %.1f m",
   "plugin.road.horizontal_alignment_materialize": "Apply to centerline",

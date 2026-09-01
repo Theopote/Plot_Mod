@@ -433,6 +433,8 @@
   "plugin.road.validation.horizontal_alignment_centerline_deviation": "%d 条道路平面线形与折线中心线存在偏差",
   "plugin.road.validation.horizontal_alignment_junction_ok": "平面线形与共享路口节点一致",
   "plugin.road.validation.horizontal_alignment_junction_conflict": "%d 条道路平面线形端点与共享路口冲突",
+  "plugin.road.validation.horizontal_alignment_topology_ok": "平面线形与道路链节点界一致",
+  "plugin.road.validation.horizontal_alignment_topology_mismatch": "%d 条道路平面线形与链拓扑节点不一致",
   "plugin.road.horizontal_alignment_centerline_deviation": "中心线偏差：最大 %.2f m · 平均 %.2f m（生成仍以折线中心线为准）",
   "plugin.road.horizontal_alignment_length_mismatch_hint": "总长不一致：道路 %.1f m · 线形 %.1f m",
   "plugin.road.horizontal_alignment_materialize": "同步到中心线",
