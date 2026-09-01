@@ -12,6 +12,7 @@ public final class VerticalAlignmentPersistence {
         public double station;
         public double elevation;
         public Double curveLength;
+        public VerticalControlPointConstraint constraint;
     }
 
     public static final class VerticalAlignmentData {
@@ -32,6 +33,9 @@ public final class VerticalAlignmentPersistence {
             pviData.elevation = pvi.getElevation();
             if (pvi.hasCurve()) {
                 pviData.curveLength = pvi.getCurveLength();
+            }
+            if (pvi.getConstraint() != VerticalControlPointConstraint.FREE) {
+                pviData.constraint = pvi.getConstraint();
             }
             data.pvis.add(pviData);
         }
@@ -54,7 +58,8 @@ public final class VerticalAlignmentPersistence {
             alignment.addPvi(new PointOfVerticalIntersection(
                 pviData.station,
                 pviData.elevation,
-                curveLength
+                curveLength,
+                pviData.constraint
             ));
         }
         return alignment.isEmpty() ? null : alignment;

@@ -419,7 +419,8 @@ public final class VerticalAlignmentEditor {
             PointOfVerticalIntersection a = left.get(i);
             PointOfVerticalIntersection b = right.get(i);
             if (Double.compare(a.getStation(), b.getStation()) != 0
-                || Double.compare(a.getElevation(), b.getElevation()) != 0) {
+                || Double.compare(a.getElevation(), b.getElevation()) != 0
+                || a.getConstraint() != b.getConstraint()) {
                 return false;
             }
             Double curveA = a.getCurveLength();
@@ -466,6 +467,8 @@ public final class VerticalAlignmentEditor {
         float station;
         float elevation;
         float curveLength;
+        com.plot.plugin.road.vertical.VerticalControlPointConstraint constraint =
+            com.plot.plugin.road.vertical.VerticalControlPointConstraint.FREE;
 
         static PviDraft from(PointOfVerticalIntersection pvi, int index, int total) {
             PviDraft draft = new PviDraft();
@@ -473,6 +476,7 @@ public final class VerticalAlignmentEditor {
             draft.elevation = (float) pvi.getElevation();
             boolean middle = index > 0 && index < total - 1;
             draft.curveLength = middle && pvi.hasCurve() ? pvi.getCurveLength().floatValue() : 0f;
+            draft.constraint = pvi.getConstraint();
             return draft;
         }
 
@@ -497,10 +501,8 @@ public final class VerticalAlignmentEditor {
         }
 
         PointOfVerticalIntersection toPvi(boolean allowCurve) {
-            if (allowCurve && curveLength > 0f) {
-                return PointOfVerticalIntersection.withCurve(station, elevation, curveLength);
-            }
-            return PointOfVerticalIntersection.of(station, elevation);
+            Double curve = allowCurve && curveLength > 0f ? (double) curveLength : null;
+            return new PointOfVerticalIntersection(station, elevation, curve, constraint);
         }
     }
 }

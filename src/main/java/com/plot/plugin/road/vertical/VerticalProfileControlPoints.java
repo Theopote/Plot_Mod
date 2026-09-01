@@ -70,7 +70,8 @@ public final class VerticalProfileControlPoints {
         for (int i = 0; i < source.pviCount(); i++) {
             PointOfVerticalIntersection pvi = source.getPvis().get(i);
             edited.add(i == pviIndex
-                ? new PointOfVerticalIntersection(pvi.getStation(), elevation, pvi.getCurveLength())
+                ? new PointOfVerticalIntersection(
+                    pvi.getStation(), elevation, pvi.getCurveLength(), pvi.getConstraint())
                 : pvi.copy());
         }
         return new RoadVerticalAlignment(edited);
@@ -110,7 +111,8 @@ public final class VerticalProfileControlPoints {
         for (int i = 0; i < pvis.size(); i++) {
             PointOfVerticalIntersection pvi = pvis.get(i);
             edited.add(i == pviIndex
-                ? new PointOfVerticalIntersection(station, elevation, pvi.getCurveLength())
+                ? new PointOfVerticalIntersection(
+                    station, elevation, pvi.getCurveLength(), pvi.getConstraint())
                 : pvi.copy());
         }
         return new RoadVerticalAlignment(edited);

@@ -21,6 +21,7 @@ public final class VerticalAlignmentJunctionSynchronizer {
             return 0;
         }
         List<String> changedNodeIds = publishJunctionElevations(network, road);
+        applySharedJunctionConstraints(network, road);
         int changed = changedNodeIds.size();
         for (String nodeId : changedNodeIds) {
             RoadNode node = network.getNode(nodeId);
@@ -70,13 +71,17 @@ public final class VerticalAlignmentJunctionSynchronizer {
             int index = matchingPviIndex(pvis, entry.getValue());
             if (index >= 0) {
                 PointOfVerticalIntersection old = pvis.get(index);
-                if (Math.abs(old.getElevation() - node.getManualElevation()) > 1e-6) {
+                if (Math.abs(old.getElevation() - node.getManualElevation()) > 1e-6
+                        || old.getConstraint() != VerticalControlPointConstraint.JUNCTION_FIXED) {
                     pvis.set(index, new PointOfVerticalIntersection(
-                        old.getStation(), node.getManualElevation(), old.getCurveLength()));
+                        old.getStation(), node.getManualElevation(), old.getCurveLength(),
+                        VerticalControlPointConstraint.JUNCTION_FIXED));
                     changed++;
                 }
             } else {
-                pvis.add(PointOfVerticalIntersection.of(entry.getValue(), node.getManualElevation()));
+                pvis.add(new PointOfVerticalIntersection(
+                    entry.getValue(), node.getManualElevation(), null,
+                    VerticalControlPointConstraint.JUNCTION_FIXED));
                 pvis.sort(java.util.Comparator.comparingDouble(PointOfVerticalIntersection::getStation));
                 changed++;
             }

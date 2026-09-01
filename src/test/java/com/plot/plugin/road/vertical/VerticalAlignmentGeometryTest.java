@@ -77,7 +77,8 @@ class VerticalAlignmentGeometryTest {
     void persistenceRoundTrip() {
         RoadVerticalAlignment alignment = new RoadVerticalAlignment(List.of(
             PointOfVerticalIntersection.of(0.0, 50.0),
-            PointOfVerticalIntersection.withCurve(80.0, 62.0, 24.0),
+            PointOfVerticalIntersection.withCurve(80.0, 62.0, 24.0)
+                .withConstraint(VerticalControlPointConstraint.USER_LOCKED),
             PointOfVerticalIntersection.of(160.0, 58.0)
         ));
 
@@ -90,6 +91,8 @@ class VerticalAlignmentGeometryTest {
             alignment.sortedPvis().get(1).getCurveLength(),
             restored.sortedPvis().get(1).getCurveLength(),
             1e-6);
+        assertEquals(VerticalControlPointConstraint.USER_LOCKED,
+            restored.sortedPvis().get(1).getConstraint());
     }
 
     @Test

@@ -47,7 +47,8 @@ public final class VerticalProfileAutoFixer {
         }
         PointOfVerticalIntersection anchor = original.get(anchorIndex);
 
-        if (anchorIndex > 0 && movablePvi.test(anchorIndex - 1)) {
+        if (anchorIndex > 0 && original.get(anchorIndex - 1).isAutomaticallyMovable()
+                && movablePvi.test(anchorIndex - 1)) {
             int neighborIndex = anchorIndex - 1;
             PointOfVerticalIntersection neighbor = original.get(neighborIndex);
             double required = Math.max(
@@ -67,7 +68,9 @@ public final class VerticalProfileAutoFixer {
             }
         }
 
-        if (anchorIndex + 1 < original.size() && movablePvi.test(anchorIndex + 1)) {
+        if (anchorIndex + 1 < original.size()
+                && original.get(anchorIndex + 1).isAutomaticallyMovable()
+                && movablePvi.test(anchorIndex + 1)) {
             int neighborIndex = anchorIndex + 1;
             PointOfVerticalIntersection neighbor = original.get(neighborIndex);
             double required = Math.max(
@@ -98,7 +101,8 @@ public final class VerticalProfileAutoFixer {
     private static PointOfVerticalIntersection copyAtStation(
             PointOfVerticalIntersection source,
             double station) {
-        return new PointOfVerticalIntersection(station, source.getElevation(), source.getCurveLength());
+        return new PointOfVerticalIntersection(
+            station, source.getElevation(), source.getCurveLength(), source.getConstraint());
     }
 
     private static boolean withinLimit(

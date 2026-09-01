@@ -40,4 +40,18 @@ class VerticalProfileAutoFixerTest {
         assertEquals(12, result.alignment().getPvis().get(1).getStation(), 1e-6);
         assertFalse(result.leftWithinLimit());
     }
+
+    @Test void doesNotMovePersistentlyConstrainedNeighbor() {
+        RoadVerticalAlignment source = new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(20, 70)
+                .withConstraint(VerticalControlPointConstraint.USER_LOCKED),
+            PointOfVerticalIntersection.of(40, 80)));
+
+        VerticalProfileAutoFixer.Result result =
+            VerticalProfileAutoFixer.extendAdjacentRuns(source, 1, 200, 8);
+
+        assertFalse(result.changed());
+        assertEquals(20, result.alignment().getPvis().getFirst().getStation(), 1e-6);
+        assertFalse(result.leftWithinLimit());
+    }
 }

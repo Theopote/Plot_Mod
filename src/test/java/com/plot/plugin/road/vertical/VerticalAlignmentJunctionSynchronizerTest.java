@@ -13,6 +13,8 @@ class VerticalAlignmentJunctionSynchronizerTest {
         Fixture f = fixture(false);
         assertEquals(1, VerticalAlignmentJunctionSynchronizer.synchronize(f.network, f.road));
         assertEquals(76.0, f.junction.getManualElevation(), 1e-6);
+        assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED,
+            f.road.getVerticalAlignment().getPvis().getFirst().getConstraint());
     }
 
     @Test void doesNotCollapseGradeSeparatedCrossingLayers() {
@@ -53,6 +55,7 @@ class VerticalAlignmentJunctionSynchronizerTest {
             .filter(pvi -> Math.abs(pvi.getStation() - 20) < 1e-6)
             .findFirst().orElseThrow();
         assertEquals(76, shared.getElevation(), 1e-6);
+        assertEquals(VerticalControlPointConstraint.JUNCTION_FIXED, shared.getConstraint());
         assertTrue(VerticalAlignmentJunctionSynchronizer.isSharedJunctionAtStation(
             network, northSouth, 20));
     }

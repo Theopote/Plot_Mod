@@ -10,12 +10,21 @@ public final class PointOfVerticalIntersection {
     private final double station;
     private final double elevation;
     private final Double curveLength;
+    private final VerticalControlPointConstraint constraint;
 
     public PointOfVerticalIntersection(double station, double elevation) {
         this(station, elevation, null);
     }
 
     public PointOfVerticalIntersection(double station, double elevation, Double curveLength) {
+        this(station, elevation, curveLength, VerticalControlPointConstraint.FREE);
+    }
+
+    public PointOfVerticalIntersection(
+            double station,
+            double elevation,
+            Double curveLength,
+            VerticalControlPointConstraint constraint) {
         if (!Double.isFinite(station) || !Double.isFinite(elevation)) {
             throw new IllegalArgumentException("station and elevation must be finite");
         }
@@ -25,6 +34,7 @@ public final class PointOfVerticalIntersection {
         this.station = station;
         this.elevation = elevation;
         this.curveLength = curveLength;
+        this.constraint = constraint != null ? constraint : VerticalControlPointConstraint.FREE;
     }
 
     public static PointOfVerticalIntersection of(double station, double elevation) {
@@ -51,7 +61,20 @@ public final class PointOfVerticalIntersection {
         return curveLength != null && curveLength > 0.0;
     }
 
+    /** Missing values in legacy JSON are interpreted as FREE. */
+    public VerticalControlPointConstraint getConstraint() {
+        return constraint != null ? constraint : VerticalControlPointConstraint.FREE;
+    }
+
+    public boolean isAutomaticallyMovable() {
+        return getConstraint().isAutomaticallyMovable();
+    }
+
+    public PointOfVerticalIntersection withConstraint(VerticalControlPointConstraint constraint) {
+        return new PointOfVerticalIntersection(station, elevation, curveLength, constraint);
+    }
+
     public PointOfVerticalIntersection copy() {
-        return new PointOfVerticalIntersection(station, elevation, curveLength);
+        return new PointOfVerticalIntersection(station, elevation, curveLength, getConstraint());
     }
 }

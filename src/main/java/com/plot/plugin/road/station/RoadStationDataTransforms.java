@@ -286,7 +286,8 @@ public final class RoadStationDataTransforms {
             remapped.add(new PointOfVerticalIntersection(
                 station,
                 pvi.getElevation(),
-                pvi.getCurveLength()));
+                pvi.getCurveLength(),
+                pvi.getConstraint()));
         }
         return remapped.isEmpty() ? null : new RoadVerticalAlignment(remapped);
     }
@@ -487,7 +488,8 @@ public final class RoadStationDataTransforms {
             remapped.add(new PointOfVerticalIntersection(
                 station + stationOffset,
                 pvi.getElevation(),
-                pvi.getCurveLength()));
+                pvi.getCurveLength(),
+                pvi.getConstraint()));
         }
         return remapped.isEmpty() ? null : new RoadVerticalAlignment(remapped);
     }
@@ -531,7 +533,8 @@ public final class RoadStationDataTransforms {
             tail.add(new PointOfVerticalIntersection(
                 pvi.getStation() - splitStation,
                 pvi.getElevation(),
-                pvi.getCurveLength()));
+                pvi.getCurveLength(),
+                pvi.getConstraint()));
         }
         return tail.isEmpty() ? null : new RoadVerticalAlignment(tail);
     }
@@ -594,7 +597,8 @@ public final class RoadStationDataTransforms {
                 merged.add(new PointOfVerticalIntersection(
                     station,
                     pvi.getElevation(),
-                    pvi.getCurveLength()));
+                    pvi.getCurveLength(),
+                    pvi.getConstraint()));
             }
         }
         return merged.isEmpty() ? null : new RoadVerticalAlignment(merged);

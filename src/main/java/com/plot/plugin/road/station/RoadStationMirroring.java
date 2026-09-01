@@ -140,7 +140,8 @@ public final class RoadStationMirroring {
             reversed.add(new PointOfVerticalIntersection(
                 mirroredStation,
                 pvi.getElevation(),
-                pvi.getCurveLength()));
+                pvi.getCurveLength(),
+                pvi.getConstraint()));
         }
         return new RoadVerticalAlignment(reversed);
     }
@@ -159,7 +160,8 @@ public final class RoadStationMirroring {
                 mirrored.add(new PointOfVerticalIntersection(
                     rangeStart + rangeEnd - station,
                     pvi.getElevation(),
-                    pvi.getCurveLength()));
+                    pvi.getCurveLength(),
+                    pvi.getConstraint()));
             } else {
                 mirrored.add(pvi.copy());
             }
