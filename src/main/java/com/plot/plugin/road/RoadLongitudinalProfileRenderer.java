@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
+import com.plot.plugin.road.vertical.VerticalProfileControlPoints;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -22,6 +23,16 @@ public final class RoadLongitudinalProfileRenderer {
     private static final int COLOR_TARGET = 0xFFB0B0B0;
     private static final int COLOR_DESIGN = 0xFF5FD35F;
     private static final int COLOR_LABEL = 0xFFAAAAAA;
+    private static final int COLOR_CONTROL = 0xFFFFC04D;
+    private static final int COLOR_CONTROL_SELECTED = 0xFFFFFFFF;
+    private static final int COLOR_CONTROL_INVALID = 0xFF4D4DFF;
+
+    public record ControlInteraction(
+            int selectedPviIndex,
+            int activePviIndex,
+            Double draggedElevation,
+            boolean dragStarted,
+            boolean dragFinished) { }
 
     private RoadLongitudinalProfileRenderer() {
     }
@@ -82,6 +93,152 @@ public final class RoadLongitudinalProfileRenderer {
             ImGui.sameLine();
             ImGui.textColored(COLOR_DESIGN, "■ " + PlotI18n.tr("plugin.road.profile_design"));
         }
+    }
+
+    public static ControlInteraction renderInteractive(
+            RoadGenerationResult result,
+            VerticalAlignmentProfileOverlay designOverlay,
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int selectedPviIndex,
+            int activePviIndex,
+            double maxGradePercent) {
+        if (result == null || !result.hasProfileData()) {
+            return new ControlInteraction(selectedPviIndex, -1, null, false, false);
+        }
+        float width = ImGui.getContentRegionAvail().x;
+        if (width < 40f) {
+            return new ControlInteraction(selectedPviIndex, activePviIndex, null, false, false);
+        }
+        ImVec2 origin = ImGui.getCursorScreenPos();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float x0 = origin.x;
+        float y0 = origin.y;
+        drawList.addRectFilled(x0, y0, x0 + width, y0 + PREVIEW_HEIGHT, COLOR_BG);
+        drawList.addRect(x0, y0, x0 + width, y0 + PREVIEW_HEIGHT, COLOR_BORDER);
+        drawProfile(drawList, result.profileDistances, result.profileGroundHeights,
+            result.profileGuideLine, result.profileTargetHeights, designOverlay,
+            x0, y0, width, PREVIEW_HEIGHT);
+
+        PlotRange range = plotRange(result, designOverlay, controls);
+        drawControlPoints(drawList, controls, selectedPviIndex, maxGradePercent,
+            range, x0, y0, width, PREVIEW_HEIGHT);
+        ImGui.invisibleButton("##road_profile_control_surface", width, PREVIEW_HEIGHT);
+
+        int selected = selectedPviIndex;
+        int active = activePviIndex;
+        boolean started = false;
+        boolean finished = false;
+        Double elevation = null;
+        if (ImGui.isItemHovered() && ImGui.isMouseClicked(0)) {
+            int nearest = nearestControl(controls, range, x0, y0, width, PREVIEW_HEIGHT,
+                ImGui.getMousePosX(), ImGui.getMousePosY());
+            if (nearest >= 0) {
+                selected = nearest;
+                active = nearest;
+                started = true;
+            }
+        }
+        if (active >= 0 && ImGui.isMouseDown(0)) {
+            elevation = elevationAtMouseY(
+                ImGui.getMousePosY(), range, y0, PREVIEW_HEIGHT);
+        }
+        if (active >= 0 && ImGui.isMouseReleased(0)) {
+            finished = true;
+            active = -1;
+        }
+        return new ControlInteraction(selected, active, elevation, started, finished);
+    }
+
+    private record PlotRange(double maxDistance, int minHeight, int maxHeight) { }
+
+    private static PlotRange plotRange(
+            RoadGenerationResult result,
+            VerticalAlignmentProfileOverlay overlay,
+            List<VerticalProfileControlPoints.ControlPoint> controls) {
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        for (List<Integer> values : List.of(
+                result.profileGroundHeights, result.profileGuideLine, result.profileTargetHeights)) {
+            for (int value : values) {
+                min = Math.min(min, value);
+                max = Math.max(max, value);
+            }
+        }
+        if (overlay != null) {
+            for (int value : overlay.heights()) {
+                min = Math.min(min, value);
+                max = Math.max(max, value);
+            }
+        }
+        if (controls != null) {
+            for (VerticalProfileControlPoints.ControlPoint point : controls) {
+                min = Math.min(min, (int) Math.floor(point.elevation()));
+                max = Math.max(max, (int) Math.ceil(point.elevation()));
+            }
+        }
+        if (min == Integer.MAX_VALUE) {
+            min = 62;
+            max = 66;
+        } else if (min == max) {
+            min -= 2;
+            max += 2;
+        } else {
+            min--;
+            max++;
+        }
+        return new PlotRange(result.profileDistances.getLast(), min, max);
+    }
+
+    private static void drawControlPoints(
+            ImDrawList drawList,
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            int selected,
+            double maxGrade,
+            PlotRange range,
+            float x0, float y0, float width, float height) {
+        if (controls == null) return;
+        float padding = 10f;
+        for (VerticalProfileControlPoints.ControlPoint point : controls) {
+            float x = toPlotX(point.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float y = toPlotY((int) Math.round(point.elevation()), range.minHeight(), range.maxHeight(),
+                y0 + padding, height - 2 * padding);
+            int color = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade)
+                ? COLOR_CONTROL_INVALID
+                : point.pviIndex() == selected ? COLOR_CONTROL_SELECTED : COLOR_CONTROL;
+            drawList.addCircleFilled(x, y, point.endpoint() ? 5f : 4f, color);
+            drawList.addCircle(x, y, point.endpoint() ? 6f : 5f, COLOR_BG, 12, 1.5f);
+        }
+    }
+
+    private static int nearestControl(
+            List<VerticalProfileControlPoints.ControlPoint> controls,
+            PlotRange range,
+            float x0, float y0, float width, float height,
+            float mouseX, float mouseY) {
+        if (controls == null) return -1;
+        float padding = 10f;
+        double best = 9.0 * 9.0;
+        int nearest = -1;
+        for (VerticalProfileControlPoints.ControlPoint point : controls) {
+            float x = toPlotX(point.localDistance(), range.maxDistance(), x0 + padding, width - 2 * padding);
+            float y = toPlotY((int) Math.round(point.elevation()), range.minHeight(), range.maxHeight(),
+                y0 + padding, height - 2 * padding);
+            double distance = (mouseX - x) * (mouseX - x) + (mouseY - y) * (mouseY - y);
+            if (distance <= best) {
+                best = distance;
+                nearest = point.pviIndex();
+            }
+        }
+        return nearest;
+    }
+
+    private static double elevationAtMouseY(float mouseY, PlotRange range, float y0, float height) {
+        float padding = 10f;
+        float top = y0 + padding;
+        float plotHeight = height - 2 * padding;
+        double ratio = 1.0 - Math.max(0.0, Math.min(1.0, (mouseY - top) / plotHeight));
+        double raw = range.minHeight() + ratio * (range.maxHeight() - range.minHeight());
+        return Math.rint(raw * 4.0) / 4.0;
     }
 
     static void drawProfile(

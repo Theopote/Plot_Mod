@@ -73,6 +73,7 @@ public final class RoadEditPanel {
     private RoadGenerationResult cachedEditProfile;
     private String cachedEditProfileEdgeId = "";
     private int selectedProfilePvi = -1;
+    private int activeProfilePvi = -1;
     private final float[] selectedProfileElevation = {64f};
 
     public RoadEditPanel(
@@ -222,15 +223,21 @@ public final class RoadEditPanel {
         }
         VerticalAlignmentProfileOverlay design =
             VerticalAlignmentProfileOverlay.forEdge(network, edge).orElse(null);
-        RoadLongitudinalProfileRenderer.render(edgeResult, false, design);
-        renderProfileControlPoints(network, edge);
+        renderProfileControlPoints(network, edge, edgeResult, design);
         RoadUiWidgets.textWrappedColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.road.vertical_alignment_profile_legend_hint"));
     }
 
-    private void renderProfileControlPoints(RoadNetwork network, RoadEdge edge) {
+    private void renderProfileControlPoints(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadGenerationResult edgeResult,
+            VerticalAlignmentProfileOverlay design) {
         Road road = network.getRoad(edge.getRoadId());
+        if (road == null) {
+            return;
+        }
         List<VerticalProfileControlPoints.ControlPoint> points =
             VerticalProfileControlPoints.forEdge(network, road, edge);
         if (points.isEmpty()) {
@@ -239,6 +246,24 @@ public final class RoadEditPanel {
         float maxGrade = road.getMaxSlope() != null
             ? road.getMaxSlope()
             : ctx.networkManager().getConfig().getMaxSlope();
+        RoadLongitudinalProfileRenderer.ControlInteraction interaction =
+            RoadLongitudinalProfileRenderer.renderInteractive(
+                edgeResult, design, points, selectedProfilePvi, activeProfilePvi, maxGrade);
+        if (interaction.dragStarted()) {
+            ctx.networkManager().pushHistory();
+        }
+        selectedProfilePvi = interaction.selectedPviIndex();
+        activeProfilePvi = interaction.activePviIndex();
+        if (interaction.draggedElevation() != null && selectedProfilePvi >= 0
+                && road.getVerticalAlignment() != null
+                && selectedProfilePvi < road.getVerticalAlignment().pviCount()) {
+            selectedProfileElevation[0] = interaction.draggedElevation().floatValue();
+            road.setVerticalAlignment(VerticalProfileControlPoints.withElevation(
+                road.getVerticalAlignment(), selectedProfilePvi, interaction.draggedElevation()));
+        }
+        if (interaction.dragFinished()) {
+            VerticalAlignmentJunctionSynchronizer.synchronize(network, road);
+        }
         ImGui.text(PlotI18n.tr("plugin.road.vertical_alignment_control_points"));
         for (VerticalProfileControlPoints.ControlPoint point : points) {
             boolean invalid = VerticalProfileControlPoints.exceedsGradeLimit(point, maxGrade);
