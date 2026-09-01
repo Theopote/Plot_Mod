@@ -216,6 +216,7 @@ public final class RoadPlanGeometry {
                 to = aheadPoint;
             }
         } else {
+            // geometryLocalDistance 是链局部距离；point→behindPoint 已沿 Road chain 方向。
             double geometryFromEnd = edge.getLength() - clamped;
             Vec2d point = RoadGeometryUtils.pointAtDistance(points, geometryFromEnd);
             if (point == null) {
@@ -235,11 +236,7 @@ public final class RoadPlanGeometry {
         if (direction.lengthSquared() < STATION_EPSILON * STATION_EPSILON) {
             return Optional.empty();
         }
-        double bearing = Math.atan2(direction.y, direction.x);
-        if (!oriented.get().forward()) {
-            bearing += Math.PI;
-        }
-        return Optional.of(bearing);
+        return Optional.of(Math.atan2(direction.y, direction.x));
     }
 
     private static Optional<OrientedRoadSegment> resolveOrientedSegment(

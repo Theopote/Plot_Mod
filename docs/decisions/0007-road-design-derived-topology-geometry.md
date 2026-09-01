@@ -175,6 +175,8 @@ Road
 
 **Canonical chainage**：模型仅存自链起点 K0+000 的桩号；`ChainageDisplayMode.FROM_END`（EK…）仅为 UI 展示变换。
 
+**Canonical vs instance length**（2026-09-01）：`RoadStationing.totalLength` / `planLength` 为工程桩号域上界（有 HA 时取设计总长）；`instanceLength` 为 `RoadEdge` 派生折线累计弧长。二者不一致时，对外 API（`isValid`、`resolve`、`stationAt`、节点桩号）使用 canonical 域，并在边界按比例换算至 `OrientedRoadSegment` 实例域。
+
 **OrientedRoadSegment（Phase 2 基础设施）**：`forward == false` 时几何方向与链相反；生成管线须用 `PathSegmentGeometry.chainLeftNormal(segment, forward)` 解析相对链的 LEFT/RIGHT，禁止直接用几何 `leftNormal`。
 
 **物理位置原则**：沿桩号数据绑定链上位置，而非列表索引；段长变化用仿射 rescale，整路反向用 mirror，单段几何反向不改变 canonical 桩号。

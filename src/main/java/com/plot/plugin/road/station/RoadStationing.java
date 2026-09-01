@@ -25,11 +25,16 @@ import java.util.Set;
 /**
  * Road-local 里程（chainage）权威坐标转换器：沿有序分段链累计弧长，并处理分段方向。
  * <p>
- * 单位与 {@link RoadEdge#getLength()} 一致（canvas 平面距离，与纵断面 profile 里程对齐）。
+ * <strong>Canonical chainage 域</strong>：{@link #totalLength} / {@link #planLength} — 有平面线形时取
+ * {@link com.plot.plugin.road.alignment.RoadHorizontalAlignment} 总长，否则取实例折线链长。
+ * 所有 {@link RoadStation}、VA/VCS/设施桩号、{@link #isValid} 均在此域。
+ * <p>
+ * <strong>Instance chainage 域</strong>：{@link #instanceLength} — {@link com.plot.plugin.road.model.RoadEdge}
+ * 派生折线累计弧长；{@link OrientedRoadSegment} 内部几何换算仍基于此域，对外 API 自动换算。
+ * <p>
  * 仅对拓扑可维护的道路（无分叉、无断开）保证语义；分叉/断开时 {@link #isStationable} 为 false。
  * <p>
- * Phase 2 沿程模块（纵断面、可变横断面、设施、标线等）应通过本类换算桩号，
- * 禁止自行拼接 {@code segmentStart + localDistance}。
+ * Phase 2 沿程模块应通过本类换算桩号，禁止自行拼接 {@code segmentStart + localDistance}。
  *
  * @see OrientedRoadSegment
  * @see docs/development/task-assignments/RoadSystemPlugin_Phase2_Stationing_v1.md
@@ -88,7 +93,17 @@ public final class RoadStationing {
         return Optional.empty();
     }
 
+    /**
+     * Canonical 道路链长（工程桩号域上界）：有平面线形时取设计总长，否则取实例折线链长。
+     */
     public static double totalLength(RoadNetwork network, Road road) {
+        return planLength(network, road);
+    }
+
+    /**
+     * 实例折线链长（{@link RoadEdge} 派生几何累计弧长）。
+     */
+    public static double instanceLength(RoadNetwork network, Road road) {
         return RoadPlanGeometry.instanceChainLength(network, road);
     }
 
@@ -109,7 +124,7 @@ public final class RoadStationing {
     }
 
     /**
-     * 道路平面设计长度；有平面线形时取线形总长，否则与 {@link #totalLength} 相同。
+     * 道路平面设计长度；与 {@link #totalLength} 相同（canonical chainage 域）。
      */
     public static double planLength(RoadNetwork network, Road road) {
         return RoadPlanGeometry.planLength(network, road);
@@ -210,7 +225,11 @@ public final class RoadStationing {
         if (oriented.isEmpty()) {
             return OptionalDouble.empty();
         }
-        return oriented.get().roadStationAtNode(nodeId);
+        OptionalDouble station = oriented.get().roadStationAtNode(nodeId);
+        if (station.isEmpty()) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of(toCanonicalChainage(network, road, station.getAsDouble()));
     }
 
     /**
@@ -244,7 +263,7 @@ public final class RoadStationing {
 
     public static double segmentStartStation(RoadNetwork network, Road road, String segmentId) {
         return orientedSegment(network, road, segmentId)
-            .map(OrientedRoadSegment::startStation)
+            .map(segment -> toCanonicalChainage(network, road, segment.startStation()))
             .orElse(-1.0);
     }
 
@@ -282,7 +301,8 @@ public final class RoadStationing {
                 || geometryLocalDistance > edge.getLength() + STATION_EPSILON) {
             return Optional.empty();
         }
-        double chainage = oriented.get().roadStationAtGeometryLocal(geometryLocalDistance);
+        double instanceChainage = oriented.get().roadStationAtGeometryLocal(geometryLocalDistance);
+        double chainage = toCanonicalChainage(network, road, instanceChainage);
         if (!isValid(network, new RoadStation(road.getId(), chainage))) {
             return Optional.empty();
         }
@@ -307,12 +327,13 @@ public final class RoadStationing {
             return Optional.empty();
         }
 
+        double instanceChainage = toInstanceChainage(network, road, chainageMeters);
         List<OrientedRoadSegment> segments = orientedSegments(network, road);
         for (int i = 0; i < segments.size(); i++) {
             OrientedRoadSegment segment = segments.get(i);
             boolean isLast = i == segments.size() - 1;
-            if (chainageMeters < segment.endStation() - STATION_EPSILON || isLast) {
-                OptionalDouble geometryLocal = segment.geometryLocalAtRoadStation(chainageMeters);
+            if (instanceChainage < segment.endStation() - STATION_EPSILON || isLast) {
+                OptionalDouble geometryLocal = segment.geometryLocalAtRoadStation(instanceChainage);
                 if (geometryLocal.isEmpty()) {
                     return Optional.empty();
                 }
@@ -386,9 +407,41 @@ public final class RoadStationing {
     public static List<Double> segmentStartStations(RoadNetwork network, Road road) {
         List<Double> stations = new ArrayList<>();
         for (OrientedRoadSegment segment : orientedSegments(network, road)) {
-            stations.add(segment.startStation());
+            stations.add(toCanonicalChainage(network, road, segment.startStation()));
         }
         return stations;
+    }
+
+    /**
+     * Canonical 桩号 → 实例折线链上弧长（{@link OrientedRoadSegment} 域）。
+     */
+    static double toInstanceChainage(RoadNetwork network, Road road, double canonicalChainage) {
+        double canonicalLength = planLength(network, road);
+        double instanceLength = instanceLength(network, road);
+        if (!Double.isFinite(canonicalChainage) || canonicalLength <= STATION_EPSILON) {
+            return 0.0;
+        }
+        if (Math.abs(canonicalLength - instanceLength) <= STATION_EPSILON) {
+            return canonicalChainage;
+        }
+        double ratio = Math.max(0.0, Math.min(1.0, canonicalChainage / canonicalLength));
+        return ratio * instanceLength;
+    }
+
+    /**
+     * 实例折线链上弧长 → canonical 桩号。
+     */
+    static double toCanonicalChainage(RoadNetwork network, Road road, double instanceChainage) {
+        double canonicalLength = planLength(network, road);
+        double instanceLength = instanceLength(network, road);
+        if (!Double.isFinite(instanceChainage) || instanceLength <= STATION_EPSILON) {
+            return 0.0;
+        }
+        if (Math.abs(canonicalLength - instanceLength) <= STATION_EPSILON) {
+            return instanceChainage;
+        }
+        double ratio = Math.max(0.0, Math.min(1.0, instanceChainage / instanceLength));
+        return ratio * canonicalLength;
     }
 
     private record SegmentChainBinding(String segmentId, String entryNodeId) {
