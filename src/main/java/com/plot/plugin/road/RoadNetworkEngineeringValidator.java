@@ -21,6 +21,8 @@ import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VerticalAlignmentValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentViolationKind;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -40,6 +42,17 @@ public final class RoadNetworkEngineeringValidator {
     private static final double VERTICAL_ALIGNMENT_GRADE_SAMPLE_SPACING = 5.0;
 
     private RoadNetworkEngineeringValidator() {
+    }
+
+    /**
+     * 不依赖地形采样的生成前硬校验。所有预览/落地入口都应先执行此检查。
+     */
+    public static RoadNetworkValidationReport analyzePreGeneration(RoadNetwork network) {
+        List<RoadNetworkValidationReport.Item> items = new ArrayList<>();
+        if (network != null) {
+            addShortRoadVerticalAlignmentBlocker(items, network);
+        }
+        return new RoadNetworkValidationReport(items);
     }
 
     public static RoadNetworkValidationReport analyze(
@@ -317,6 +330,7 @@ public final class RoadNetworkEngineeringValidator {
         if (!hasVerticalAlignmentRoads(network)) {
             return;
         }
+        addShortRoadVerticalAlignmentBlocker(items, network);
         int lengthMismatchCount = countVerticalAlignmentLengthMismatches(network);
         if (lengthMismatchCount == 0) {
             items.add(RoadNetworkValidationReport.Item.ok(
@@ -338,6 +352,42 @@ public final class RoadNetworkEngineeringValidator {
         }
 
         addVerticalAlignmentTopologyItems(items, network);
+    }
+
+    private static void addShortRoadVerticalAlignmentBlocker(
+            List<RoadNetworkValidationReport.Item> items,
+            RoadNetwork network) {
+        int count = countShortRoadsWithNonFlatActiveAlignment(network);
+        if (count > 0) {
+            items.add(RoadNetworkValidationReport.Item.error(
+                "plugin.road.validation.short_road_non_flat",
+                count,
+                (int) VerticalProfileDesignRules.MIN_ROAD_LENGTH_FOR_SLOPE));
+        }
+    }
+
+    public static int countShortRoadsWithNonFlatActiveAlignment(RoadNetwork network) {
+        if (network == null) {
+            return 0;
+        }
+        int count = 0;
+        for (Road road : network.getRoads().values()) {
+            RoadVerticalMode mode = road.getVerticalMode();
+            if (mode != RoadVerticalMode.FLAT && mode != RoadVerticalMode.MANUAL_PROFILE) {
+                continue;
+            }
+            RoadVerticalAlignment alignment = road.getVerticalAlignment();
+            if (!VerticalAlignmentGeometry.isEvaluable(alignment)
+                    || !RoadStationing.isStationable(network, road)) {
+                continue;
+            }
+            double length = RoadStationing.canonicalLength(network, road);
+            if (!VerticalProfileDesignRules.slopeAllowed(length)
+                    && !VerticalProfileDesignRules.isFlat(alignment)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static void addVerticalAlignmentTopologyItems(

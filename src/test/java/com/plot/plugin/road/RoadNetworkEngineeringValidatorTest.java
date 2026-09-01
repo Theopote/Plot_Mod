@@ -7,6 +7,9 @@ import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.solid.RoadGenerationResult;
+import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
+import com.plot.plugin.road.vertical.RoadVerticalAlignment;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -18,6 +21,55 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkEngineeringValidatorTest {
+
+    @Test
+    void preGenerationBlocksShortRoadWithNonFlatActiveProfile() {
+        RoadNetwork network = shortProfileNetwork(18.0, 70.0, 72.0, RoadVerticalMode.MANUAL_PROFILE);
+
+        RoadNetworkValidationReport report =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+
+        assertTrue(report.hasErrors());
+        assertTrue(report.blocksBuild());
+        assertTrue(report.items().stream().anyMatch(item ->
+            item.level() == RoadNetworkValidationReport.Level.ERROR
+                && item.messageKey().equals("plugin.road.validation.short_road_non_flat")));
+    }
+
+    @Test
+    void preGenerationAllowsFlatShortRoadAndSlopeAtMinimumLength() {
+        RoadNetwork flat = shortProfileNetwork(18.0, 70.0, 70.0, RoadVerticalMode.FLAT);
+        RoadNetwork minimumLength =
+            shortProfileNetwork(20.0, 70.0, 72.0, RoadVerticalMode.MANUAL_PROFILE);
+
+        assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(flat).hasErrors());
+        assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(minimumLength).hasErrors());
+    }
+
+    @Test
+    void preGenerationIgnoresDormantManualProfileInAutomaticMode() {
+        RoadNetwork network = shortProfileNetwork(18.0, 70.0, 72.0, RoadVerticalMode.AUTO_SMOOTH);
+
+        assertFalse(RoadNetworkEngineeringValidator.analyzePreGeneration(network).hasErrors());
+    }
+
+    private static RoadNetwork shortProfileNetwork(
+            double length,
+            double startElevation,
+            double endElevation,
+            RoadVerticalMode mode) {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("short-profile");
+        road.setVerticalMode(mode);
+        road.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(0.0, startElevation),
+            PointOfVerticalIntersection.of(length, endElevation))));
+        RoadNode start = network.createNode(new Vec2d(0, 0));
+        RoadNode end = network.createNode(new Vec2d(length, 0));
+        network.createEdge(start.getId(), end.getId(), List.of(
+            new Vec2d(0, 0), new Vec2d(length, 0)), road.getId());
+        return network;
+    }
 
     @Test
     void reportsConnectedRoadsAndDeadEnds() {

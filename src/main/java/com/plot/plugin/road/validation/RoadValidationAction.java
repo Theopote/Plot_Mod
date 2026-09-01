@@ -9,5 +9,6 @@ public enum RoadValidationAction {
     SNAP_TO_JUNCTION,
     MATERIALIZE_ALIGNMENT,
     SMOOTH_GRADE,
+    MAKE_SHORT_ROADS_FLAT,
     REPAIR_ROAD_TOPOLOGY
 }

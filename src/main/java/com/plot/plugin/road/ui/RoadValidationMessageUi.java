@@ -8,6 +8,10 @@ import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadTopologyInvariantValidator;
 import com.plot.plugin.road.vertical.VerticalAlignmentGradeSmoother;
+import com.plot.plugin.road.station.RoadStationing;
+import com.plot.plugin.road.vertical.RoadVerticalMode;
+import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
+import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 import com.plot.plugin.road.validation.RoadValidationAction;
 import com.plot.plugin.road.validation.RoadValidationDrillDown;
 import com.plot.plugin.road.validation.RoadValidationMessage;
@@ -198,6 +202,40 @@ public final class RoadValidationMessageUi {
                     }
                 }
                 ctx.status().warning(PlotI18n.tr("plugin.road.smooth_grade_failed"));
+                yield false;
+            }
+            case MAKE_SHORT_ROADS_FLAT -> {
+                RoadNetwork net = network != null ? network : ctx.networkManager().getNetwork();
+                int invalidCount = com.plot.plugin.road.RoadNetworkEngineeringValidator
+                    .countShortRoadsWithNonFlatActiveAlignment(net);
+                if (invalidCount == 0) {
+                    ctx.status().warning(PlotI18n.tr("plugin.road.short_roads_flat_failed"));
+                    yield false;
+                }
+                int changed = 0;
+                ctx.networkManager().pushHistory();
+                for (Road candidate : net.getRoads().values()) {
+                    var alignment = candidate.getVerticalAlignment();
+                    if ((candidate.getVerticalMode() == RoadVerticalMode.FLAT
+                            || candidate.getVerticalMode() == RoadVerticalMode.MANUAL_PROFILE)
+                            && RoadStationing.isStationable(net, candidate)
+                            && VerticalAlignmentGeometry.isEvaluable(alignment)
+                            && !VerticalProfileDesignRules.slopeAllowed(
+                                RoadStationing.canonicalLength(net, candidate))
+                            && !VerticalProfileDesignRules.isFlat(alignment)) {
+                        double length = RoadStationing.canonicalLength(net, candidate);
+                        double elevation = alignment.getPvis().getFirst().getElevation();
+                        candidate.setVerticalAlignment(
+                            VerticalProfileDesignRules.flatAlignment(length, elevation));
+                        candidate.setVerticalMode(RoadVerticalMode.FLAT);
+                        changed++;
+                    }
+                }
+                if (changed > 0) {
+                    ctx.onGenerationConfigChanged();
+                    ctx.status().success(PlotI18n.tr("plugin.road.short_roads_flat_success", changed));
+                    yield true;
+                }
                 yield false;
             }
             case REPAIR_ROAD_TOPOLOGY -> RoadTopologyWorkflow.repairTopology(ctx, road);

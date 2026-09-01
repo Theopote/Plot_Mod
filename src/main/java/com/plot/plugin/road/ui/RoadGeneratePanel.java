@@ -5,6 +5,7 @@ import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.RoadEdgeListHelper;
 import com.plot.plugin.road.RoadLongitudinalProfileRenderer;
 import com.plot.plugin.road.RoadNetworkValidationReport;
+import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.vertical.VerticalAlignmentProfileOverlay;
@@ -51,8 +52,17 @@ public final class RoadGeneratePanel {
 
         RoadUiSections.section("plugin.road.section.preview");
 
+        RoadNetworkValidationReport preflight =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+        if (!preflight.items().isEmpty()) {
+            RoadNetworkValidationPanel.render(preflight, ctx);
+        }
+
+        boolean previewBlocked = !hasNetwork || preflight.blocksBuild();
         if (!hasNetwork) {
             RoadUiWidgets.textWrappedColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.road.no_edges"));
+        }
+        if (previewBlocked) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.road.calc_preview"), half, 0)) {
@@ -61,7 +71,7 @@ public final class RoadGeneratePanel {
                 ctx.previewManager().projectRoadPreview();
             }
         }
-        if (!hasNetwork) {
+        if (previewBlocked) {
             ImGui.endDisabled();
         }
 

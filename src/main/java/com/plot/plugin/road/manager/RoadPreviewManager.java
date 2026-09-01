@@ -6,6 +6,8 @@ import com.plot.core.context.PluginContext;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.RoadNetworkGenerator;
+import com.plot.plugin.road.RoadNetworkEngineeringValidator;
+import com.plot.plugin.road.RoadNetworkValidationReport;
 import com.plot.plugin.road.RoadPlacementVisibility;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.utils.PlotI18n;
@@ -30,6 +32,7 @@ public final class RoadPreviewManager {
     private final PluginContext host;
     private RoadNetworkGenerator networkGenerator;
     private RoadGenerationResult lastGenerationResult;
+    private RoadNetwork previewNetwork;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
     private long terrainRevision = 0L;
@@ -84,6 +87,14 @@ public final class RoadPreviewManager {
             return false;
         }
 
+        RoadNetworkValidationReport preflight =
+            RoadNetworkEngineeringValidator.analyzePreGeneration(network);
+        if (preflight.blocksBuild()) {
+            invalidatePreview();
+            status.error(PlotI18n.tr("plugin.road.preview_blocked_validation"));
+            return false;
+        }
+
         World world = RoadNetworkGenerator.getClientWorld();
         if (world == null || networkGenerator == null) {
             LOGGER.warn("世界或生成器未就绪");
@@ -98,11 +109,13 @@ public final class RoadPreviewManager {
         try {
             RoadNetworkGenerator.PreviewResult previewResult = networkGenerator.generatePreview(network, world);
             lastGenerationResult = previewResult.aggregate();
+            previewNetwork = network;
             lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
             lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
             bumpTerrainRevision();
         } catch (RuntimeException e) {
             lastGenerationResult = null;
+            previewNetwork = null;
             lastEdgeResults = Collections.emptyMap();
             lastNodeElevations = Collections.emptyMap();
             status.error(PlotI18n.tr("plugin.road.generate_preview_failed"));
@@ -181,6 +194,7 @@ public final class RoadPreviewManager {
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
         lastGenerationResult = null;
+        previewNetwork = null;
     }
 
     /**
@@ -199,6 +213,7 @@ public final class RoadPreviewManager {
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
         lastGenerationResult = null;
+        previewNetwork = null;
         clearGhostBlocksSafely();
         if (hadPreview) {
             LOGGER.debug("网络已变更，预览结果与虚影已失效");
@@ -210,6 +225,12 @@ public final class RoadPreviewManager {
     public void buildRoadInWorld() {
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             status.warning(PlotI18n.tr("plugin.road.build_no_blocks"));
+            return;
+        }
+        if (previewNetwork != null
+                && RoadNetworkEngineeringValidator.analyzePreGeneration(previewNetwork).blocksBuild()) {
+            invalidatePreview();
+            status.error(PlotI18n.tr("plugin.road.build_blocked_validation"));
             return;
         }
 

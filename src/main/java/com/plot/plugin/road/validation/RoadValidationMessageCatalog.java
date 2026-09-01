@@ -129,6 +129,8 @@ public final class RoadValidationMessageCatalog {
             IssueTemplate.ok("vertical_grade_ok"));
         map.put("plugin.road.validation.vertical_alignment_grade_exceeds",
             IssueTemplate.warning("vertical_grade_exceeds", RoadValidationAction.SMOOTH_GRADE));
+        map.put("plugin.road.validation.short_road_non_flat",
+            IssueTemplate.error("short_road_non_flat", RoadValidationAction.MAKE_SHORT_ROADS_FLAT));
         map.put("plugin.road.validation.vertical_alignment_curve_ok",
             IssueTemplate.ok("vertical_curve_ok"));
         map.put("plugin.road.validation.vertical_alignment_curve_overlap",

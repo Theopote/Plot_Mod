@@ -6,7 +6,6 @@ import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.RoadVerticalMode;
-import com.plot.plugin.road.vertical.VerticalProfileDesignRules;
 
 /**
  * 判断是否对当前道路启用设计纵断面求解。
@@ -22,11 +21,6 @@ public final class VerticalAlignmentProfileSupport {
         }
         RoadVerticalAlignment alignment = road.getVerticalAlignment();
         RoadVerticalMode mode = road.getVerticalMode();
-        double roadLength = RoadStationing.canonicalLength(network, road);
-        if (!VerticalProfileDesignRules.slopeAllowed(roadLength)
-                && !VerticalProfileDesignRules.isFlat(alignment)) {
-            return false;
-        }
         return (mode == RoadVerticalMode.FLAT || mode == RoadVerticalMode.MANUAL_PROFILE)
             && RoadStationing.isStationable(network, road)
             && VerticalAlignmentGeometry.isEvaluable(alignment);
