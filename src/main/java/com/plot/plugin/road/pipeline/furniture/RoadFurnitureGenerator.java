@@ -11,7 +11,6 @@ import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
 import com.plot.plugin.road.pipeline.profile.SegmentHeightInfo;
 import com.plot.plugin.road.solid.RoadSolidLayer;
 import com.plot.plugin.road.solid.RoadSolidModel;
-import com.plot.plugin.road.terrain.TerrainSampler;
 
 import java.util.List;
 
@@ -34,18 +33,16 @@ public final class RoadFurnitureGenerator {
             ctx.segments(),
             ctx.heightInfos(),
             crossSections,
-            ctx.terrain(),
             spacing,
             ctx.unitsPerBlock(),
             ctx.request().designElevation());
     }
 
-    private static void generateStreetlights(
+    static void generateStreetlights(
             RoadSolidModel solids,
             List<PathSegment> segments,
             List<SegmentHeightInfo> heightInfos,
             CrossSectionBuildContext crossSections,
-            TerrainSampler terrain,
             int spacing,
             double unitsPerBlock,
             DesignElevationSource designElevation) {
@@ -77,8 +74,11 @@ public final class RoadFurnitureGenerator {
                     + 0.5) * unitsPerBlock;
                 double side = placeLeftHolder[0] ? offset : -offset;
                 Vec2d lightPos = center.add(leftNormal.multiply(side));
-                int groundY = terrain.sampleSurfaceY(lightPos);
-                solids.add(lightPos, groundY + 1, RoadSolidLayer.STREETLIGHT, crossSection.streetlightBlock);
+                solids.add(
+                    lightPos,
+                    targetY + 1,
+                    RoadSolidLayer.STREETLIGHT,
+                    crossSection.streetlightBlock);
                 placeLeftHolder[0] = !placeLeftHolder[0];
             });
     }

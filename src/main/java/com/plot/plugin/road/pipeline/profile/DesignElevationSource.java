@@ -85,11 +85,7 @@ public record DesignElevationSource(
         if (network == null || edge == null || segments == null || segments.isEmpty()) {
             return inactive();
         }
-        String roadId = edge.getRoadId();
-        if (roadId == null) {
-            return inactive();
-        }
-        Road road = network.getRoad(roadId);
+        Road road = network.getRoadForEdge(edge);
         if (!VerticalAlignmentProfileSupport.shouldUseVerticalAlignment(network, road)) {
             return inactive();
         }
