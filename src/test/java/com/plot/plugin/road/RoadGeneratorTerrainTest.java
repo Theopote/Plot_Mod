@@ -198,6 +198,36 @@ class RoadGeneratorTerrainTest {
     }
 
     @Test
+    void bridgePillarsReachBedBelowWaterAndCanBeDisabled() {
+        RoadSystemConfig config = new RoadSystemConfig("test");
+        config.setRoadWidth(3);
+        config.setIncludeSidewalk(false);
+        config.setIncludeShoulder(false);
+        config.setBridgeThreshold(3);
+        config.setMinimumConstructionRunLength(1.0);
+        TerrainSampler water = new TerrainSampler() {
+            @Override public int sampleSurfaceY(Vec2d point) { return 50; }
+            @Override public int sampleColumnTopY(Vec2d point) { return 63; }
+            @Override public boolean isSolidBlock(int x, int y, int z) { return y <= 50; }
+        };
+        RoadGenerator generator = new RoadGenerator(
+            config, null, com.plot.infrastructure.event.block.BlockProjectionHandler.getInstance());
+
+        RoadGenerationResult supported = generator.generateFromPathPoints(
+            List.of(new Vec2d(0, 0), new Vec2d(12, 0)), water, 64);
+        assertTrue(supported.bridgeBlocks.stream().anyMatch(pos -> pos.getY() == 51),
+            "pillars must continue through water and stop on the bed");
+        assertTrue(supported.bridgeBlocks.stream().noneMatch(pos -> pos.getY() <= 50),
+            "the bed itself must remain the pillar foundation");
+
+        config.setGenerateBridgePillars(false);
+        RoadGenerationResult unsupported = generator.generateFromPathPoints(
+            List.of(new Vec2d(0, 0), new Vec2d(12, 0)), water, 64);
+        assertTrue(unsupported.bridgeBlocks.stream().noneMatch(pos -> pos.getY() < 63),
+            "disabling pillars must leave only the deck structure above the opening");
+    }
+
+    @Test
     void targetHeightDoesNotFollowSteepTerrainFully() {
         RoadSystemConfig config = new RoadSystemConfig("test");
         config.setMaxSlope(10.0f);

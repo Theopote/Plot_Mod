@@ -6,6 +6,7 @@ import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 
 /**
  * 全局生成参数（桥/隧阈值、采样、纵断面平衡系数、默认净空等）。
@@ -43,6 +44,13 @@ public final class RoadGenerationSettingsPanel {
             markChanged(ctx);
         }
         RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.bridge_threshold");
+
+        ImBoolean bridgePillars = new ImBoolean(config.isGenerateBridgePillars());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.road.generate_bridge_pillars"), bridgePillars)) {
+            config.setGenerateBridgePillars(bridgePillars.get());
+            markChanged(ctx);
+        }
+        RoadUiWidgets.renderEngineeringTooltip("hint.plot.road.generate_bridge_pillars");
 
         int[] tunnelThreshold = {config.getTunnelThreshold()};
         if (ImGui.sliderInt(

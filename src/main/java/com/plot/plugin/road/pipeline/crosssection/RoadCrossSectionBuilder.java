@@ -101,6 +101,8 @@ public final class RoadCrossSectionBuilder {
 
         int bridgeThreshold();
 
+        boolean generateBridgePillars();
+
         static CrossSectionHost from(RoadGenerationPipelineContext.Host host) {
             return new CrossSectionHost() {
                 @Override
@@ -126,6 +128,11 @@ public final class RoadCrossSectionBuilder {
                 @Override
                 public int bridgeThreshold() {
                     return host.bridgeThreshold();
+                }
+
+                @Override
+                public boolean generateBridgePillars() {
+                    return host.config().isGenerateBridgePillars();
                 }
             };
         }
@@ -509,6 +516,9 @@ public final class RoadCrossSectionBuilder {
             double unitsPerBlock,
             DesignElevationSource designElevation) {
         if (constructionTypes.stream().noneMatch(type -> type == RoadConstructionType.BRIDGE)) {
+            return;
+        }
+        if (!host.generateBridgePillars()) {
             return;
         }
         String pillarBlockId = host.resolveBlockId("material.plot.stone");

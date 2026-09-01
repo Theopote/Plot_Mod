@@ -45,6 +45,7 @@ class RoadSystemConfigTest {
     void saveToUsesAtomicWriter(@TempDir Path dir) throws IOException {
         RoadSystemConfig config = new RoadSystemConfig("workflow_test");
         config.setLaneCount(4);
+        config.setGenerateBridgePillars(false);
         config.setTunnelClearanceHeight(7);
         config.setTunnelSideClearance(2);
         config.setTunnelLiningThickness(2);
@@ -61,6 +62,7 @@ class RoadSystemConfigTest {
         RoadSystemConfig loaded = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "workflow_test");
         assertNotNull(loaded);
         assertEquals(4, loaded.getLaneCount());
+        assertFalse(loaded.isGenerateBridgePillars());
         assertEquals(7, loaded.getTunnelClearanceHeight());
         assertEquals(2, loaded.getTunnelSideClearance());
         assertEquals(2, loaded.getTunnelLiningThickness());

@@ -43,6 +43,7 @@ public class RoadSystemConfig {
     // 新增参数
     private float maxSlope = 10.0f; // 最大坡度（百分比）
     private int bridgeThreshold = 3; // 桥阈值（方块高度差）- 从5改为3，更容易触发桥梁
+    private boolean generateBridgePillars = true;
     private int tunnelThreshold = 4; // 隧道阈值（方块高度差）- 从8改为4，山体覆盖4格即形成隧道
     private int tunnelClearanceHeight = 5;
     private int tunnelSideClearance = 1;
@@ -290,6 +291,14 @@ public class RoadSystemConfig {
         this.bridgeThreshold = Math.max(
             RoadParameterLimits.MIN_BRIDGE_THRESHOLD,
             Math.min(RoadParameterLimits.MAX_BRIDGE_THRESHOLD, bridgeThreshold));
+    }
+
+    public boolean isGenerateBridgePillars() {
+        return generateBridgePillars;
+    }
+
+    public void setGenerateBridgePillars(boolean generateBridgePillars) {
+        this.generateBridgePillars = generateBridgePillars;
     }
     
     public int getTunnelThreshold() {
