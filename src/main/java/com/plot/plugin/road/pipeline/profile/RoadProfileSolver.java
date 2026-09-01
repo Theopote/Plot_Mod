@@ -19,6 +19,8 @@ import java.util.function.IntFunction;
 
 /**
  * Longitudinal profile solving: ground sampling, guide line, slope limits, target heights.
+ * AUTO_SMOOTH v1 produces a grade-limited discrete elevation chain; continuous PVI/vertical-curve
+ * synthesis is intentionally reserved for a later solver.
  *
  * <p>Runs before {@link com.plot.plugin.road.pipeline.RoadGenerationPipeline}. Endpoint overrides
  * (grade separation, manual elevation, network node elevations) are resolved by

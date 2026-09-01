@@ -7,13 +7,12 @@ import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.station.EdgeChainageMapper;
 import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
-import com.plot.plugin.road.vertical.PointOfVerticalIntersection;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
 import com.plot.plugin.road.vertical.VoxelGradeDiscretizer;
+import com.plot.plugin.road.vertical.VoxelVerticalProfile;
 
 import java.util.List;
-import java.util.OptionalDouble;
 
 /**
  * 生成阶段按道路桩号查询设计纵断面高程。
@@ -21,7 +20,15 @@ import java.util.OptionalDouble;
 public record DesignElevationSource(
         RoadVerticalAlignment alignment,
         OrientedRoadSegment oriented,
-        double sampledPathLength) {
+        double sampledPathLength,
+        VoxelVerticalProfile voxelProfile) {
+
+    public DesignElevationSource(
+            RoadVerticalAlignment alignment,
+            OrientedRoadSegment oriented,
+            double sampledPathLength) {
+        this(alignment, oriented, sampledPathLength, VoxelVerticalProfile.fromAlignment(alignment));
+    }
 
     public DesignElevationSource(
             RoadVerticalAlignment alignment,
@@ -53,16 +60,21 @@ public record DesignElevationSource(
     }
 
     public boolean isActive() {
-        return alignment != null && VerticalAlignmentGeometry.isEvaluable(alignment);
+        return alignment != null && VerticalAlignmentGeometry.isEvaluable(alignment)
+            && voxelProfile.isActive();
     }
 
     public static DesignElevationSource inactive() {
-        return new DesignElevationSource(null, (OrientedRoadSegment) null, 0.0);
+        return new DesignElevationSource(
+            null, (OrientedRoadSegment) null, 0.0, VoxelVerticalProfile.inactive());
     }
 
     public DesignElevationSource {
         if (oriented == null) {
             oriented = new OrientedRoadSegment(null, true, null, null, 0.0, 0.0);
+        }
+        if (voxelProfile == null) {
+            voxelProfile = VoxelVerticalProfile.fromAlignment(alignment);
         }
     }
 
@@ -106,7 +118,7 @@ public record DesignElevationSource(
     }
 
     public int elevationAtChainage(double chainageMeters) {
-        return VoxelGradeDiscretizer.quantizeContinuous(resolveElevation(chainageMeters));
+        return voxelProfile.elevationAt(chainageMeters);
     }
 
     public int elevationAtLocalDistance(double localCanvasDistance) {
@@ -125,22 +137,4 @@ public record DesignElevationSource(
             info.targetStart, info.targetEnd, segmentInterpolation);
     }
 
-    private double resolveElevation(double chainageMeters) {
-        OptionalDouble exact = VerticalAlignmentGeometry.elevationAt(alignment, chainageMeters);
-        if (exact.isPresent()) {
-            return exact.getAsDouble();
-        }
-        List<PointOfVerticalIntersection> pvis = alignment.sortedPvis();
-        if (pvis.size() < 2) {
-            return pvis.isEmpty() ? 0.0 : pvis.getFirst().getElevation();
-        }
-        PointOfVerticalIntersection first = pvis.getFirst();
-        PointOfVerticalIntersection last = pvis.getLast();
-        if (chainageMeters < first.getStation()) {
-            double grade = VerticalAlignmentGeometry.tangentGradePercent(first, pvis.get(1));
-            return first.getElevation() + (grade / 100.0) * (chainageMeters - first.getStation());
-        }
-        double grade = VerticalAlignmentGeometry.tangentGradePercent(pvis.get(pvis.size() - 2), last);
-        return last.getElevation() + (grade / 100.0) * (chainageMeters - last.getStation());
-    }
 }

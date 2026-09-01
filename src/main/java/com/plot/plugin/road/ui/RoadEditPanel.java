@@ -384,7 +384,11 @@ public final class RoadEditPanel {
         VerticalProfileNetworkPropagator.Result result =
             VerticalProfileNetworkPropagator.propagate(
                 network, road, connected -> connected.getEffectiveMaxSlope(config));
-        if (result.unresolvedRoadCount() > 0) {
+        if (result.limitReached()) {
+            profileAutoFixMessage = PlotI18n.tr(
+                "plugin.road.vertical_alignment_network_limit",
+                VerticalProfileNetworkPropagator.MAX_PROPAGATION_PASSES);
+        } else if (result.unresolvedRoadCount() > 0) {
             profileAutoFixMessage = PlotI18n.tr(
                 "plugin.road.vertical_alignment_network_unresolved",
                 result.unresolvedRoadCount());

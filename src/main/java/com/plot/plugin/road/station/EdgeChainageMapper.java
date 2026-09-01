@@ -15,9 +15,6 @@ public final class EdgeChainageMapper {
         if (oriented == null) {
             return geometryLocalCanvasDistance;
         }
-        if (geometryLocalCanvasDistance <= 0.0) {
-            return oriented.startStation();
-        }
         double geometryLocal = geometryLocalCanvasDistance;
         if (sampledPathLength > 1e-9 && oriented.length() > 1e-9) {
             geometryLocal = geometryLocalCanvasDistance / sampledPathLength * oriented.length();

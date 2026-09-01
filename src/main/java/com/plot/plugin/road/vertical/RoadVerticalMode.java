@@ -4,6 +4,7 @@ package com.plot.plugin.road.vertical;
 public enum RoadVerticalMode {
     FLAT,
     FIT_TERRAIN,
+    /** v1 automatic grade-limited voxel elevations; does not synthesize PVIs or vertical curves. */
     AUTO_SMOOTH,
     MANUAL_PROFILE;
 

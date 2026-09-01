@@ -9,6 +9,56 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.plot.plugin.road.RoadNetworkEngineeringValidator;
 
 class VerticalProfileNetworkPropagatorTest {
+    @Test void propagationQueueCarriesConstraintAcrossMultipleJunctions() {
+        RoadNetwork network = new RoadNetwork();
+        var j1 = network.createNode(new Vec2d(0, 0));
+        var j2 = network.createNode(new Vec2d(100, 0));
+        j1.setManualElevation(76.0);
+
+        Road bridge = network.createRoad("bridge");
+        network.createEdge(j1.getId(), j2.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(100, 0)), bridge.getId());
+        addBareSpur(network, j1, new Vec2d(0, 20));
+        addBareSpur(network, j1, new Vec2d(0, -20));
+        addBareSpur(network, j2, new Vec2d(100, 20));
+        addBareSpur(network, j2, new Vec2d(100, -20));
+
+        double bridgeJ1 = VerticalAlignmentJunctionSynchronizer
+            .junctionStations(network, bridge).get(j1.getId());
+        double bridgeJ2 = VerticalAlignmentJunctionSynchronizer
+            .junctionStations(network, bridge).get(j2.getId());
+        bridge.setVerticalAlignment(new RoadVerticalAlignment(List.of(
+            PointOfVerticalIntersection.of(Math.min(bridgeJ1, bridgeJ2),
+                bridgeJ1 < bridgeJ2 ? 70 : 75),
+            PointOfVerticalIntersection.of(Math.max(bridgeJ1, bridgeJ2),
+                bridgeJ1 < bridgeJ2 ? 75 : 70))));
+        bridge.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+
+        Road downstream = roadFromJunction(network, j2, "downstream", new Vec2d(200, 0));
+        downstream.setVerticalAlignment(VerticalProfileDesignRules.flatAlignment(100, 70));
+        downstream.setVerticalMode(RoadVerticalMode.MANUAL_PROFILE);
+
+        VerticalProfileNetworkPropagator.Result result =
+            VerticalProfileNetworkPropagator.propagateNode(network, j1, ignored -> 20.0);
+
+        assertFalse(result.limitReached());
+        assertTrue(result.passes() >= 2);
+        assertEquals(75, j2.getManualElevation(), 1e-6);
+        assertTrue(result.roads().stream().anyMatch(item ->
+            item.roadId().equals(downstream.getId())));
+        assertTrue(downstream.getVerticalAlignment().getPvis().stream()
+            .anyMatch(pvi -> Math.abs(pvi.getElevation() - 75) < 1e-6));
+    }
+
+    private static void addBareSpur(
+            RoadNetwork network,
+            com.plot.plugin.road.model.RoadNode junction,
+            Vec2d endPosition) {
+        var end = network.createNode(endPosition);
+        network.createEdge(junction.getId(), end.getId(),
+            List.of(junction.getPosition(), endPosition));
+    }
+
     @Test void dispatchesSharedJunctionChangeByVerticalModeAndBlocksFlatConflict() {
         RoadNetwork network = new RoadNetwork();
         var junction = network.createNode(new Vec2d(0, 0));

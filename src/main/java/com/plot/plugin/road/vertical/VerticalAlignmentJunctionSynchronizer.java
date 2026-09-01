@@ -20,22 +20,11 @@ public final class VerticalAlignmentJunctionSynchronizer {
         if (!canSynchronize(network, road)) {
             return 0;
         }
-        Map<String, Double> junctionStations = junctionStations(network, road);
-        List<RoadNode> changedNodes = new ArrayList<>();
-        for (PointOfVerticalIntersection pvi : road.getVerticalAlignment().getPvis()) {
-            for (Map.Entry<String, Double> entry : junctionStations.entrySet()) {
-                if (Math.abs(pvi.getStation() - entry.getValue()) > STATION_TOLERANCE) continue;
-                RoadNode node = network.getNode(entry.getKey());
-                if (node == null) continue;
-                Double previous = node.getManualElevation();
-                node.setManualElevation(pvi.getElevation());
-                if (previous == null || Math.abs(previous - node.getManualElevation()) > 1e-6) {
-                    changedNodes.add(node);
-                }
-            }
-        }
-        int changed = changedNodes.size();
-        for (RoadNode node : changedNodes) {
+        List<String> changedNodeIds = publishJunctionElevations(network, road);
+        int changed = changedNodeIds.size();
+        for (String nodeId : changedNodeIds) {
+            RoadNode node = network.getNode(nodeId);
+            if (node == null) continue;
             for (String roadId : network.getDistinctRoadIdsAtNode(node.getId())) {
                 Road connected = network.getRoad(roadId);
                 if (connected != null && connected != road) {
@@ -44,6 +33,29 @@ public final class VerticalAlignmentJunctionSynchronizer {
             }
         }
         return changed;
+    }
+
+    /** Publishes matching manual-profile PVIs into shared at-grade junction constraints. */
+    public static List<String> publishJunctionElevations(RoadNetwork network, Road road) {
+        if (!canSynchronize(network, road)
+                || road.getVerticalMode() != RoadVerticalMode.MANUAL_PROFILE) {
+            return List.of();
+        }
+        Map<String, Double> junctionStations = junctionStations(network, road);
+        List<String> changedNodeIds = new ArrayList<>();
+        for (PointOfVerticalIntersection pvi : road.getVerticalAlignment().getPvis()) {
+            for (Map.Entry<String, Double> entry : junctionStations.entrySet()) {
+                if (Math.abs(pvi.getStation() - entry.getValue()) > STATION_TOLERANCE) continue;
+                RoadNode node = network.getNode(entry.getKey());
+                if (node == null) continue;
+                Double previous = node.getManualElevation();
+                node.setManualElevation(pvi.getElevation());
+                if (previous == null || Math.abs(previous - node.getManualElevation()) > 1e-6) {
+                    changedNodeIds.add(node.getId());
+                }
+            }
+        }
+        return List.copyOf(changedNodeIds);
     }
 
     public static int applySharedJunctionConstraints(RoadNetwork network, Road road) {
