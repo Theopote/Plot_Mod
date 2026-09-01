@@ -53,6 +53,21 @@ public final class HorizontalAlignmentCenterlineConsistency {
             && RoadStationing.isStationable(network, road);
     }
 
+    /**
+     * 设计线形总长与实例折线链长是否一致到可安全物化（{@link HorizontalAlignmentCenterlineMaterializer}）。
+     */
+    public static boolean isMaterializable(RoadNetwork network, Road road) {
+        return isMaterializable(network, road, DEFAULT_LENGTH_TOLERANCE_METERS);
+    }
+
+    public static boolean isMaterializable(
+            RoadNetwork network,
+            Road road,
+            double lengthToleranceMeters) {
+        Report report = evaluate(network, road, DEFAULT_SAMPLE_SPACING_METERS, lengthToleranceMeters);
+        return report.evaluable() && report.lengthMatches();
+    }
+
     public static Report evaluate(RoadNetwork network, Road road) {
         return evaluate(network, road, DEFAULT_SAMPLE_SPACING_METERS, DEFAULT_LENGTH_TOLERANCE_METERS);
     }

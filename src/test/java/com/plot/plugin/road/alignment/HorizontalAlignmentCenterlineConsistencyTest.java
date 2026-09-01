@@ -79,6 +79,27 @@ class HorizontalAlignmentCenterlineConsistencyTest {
     }
 
     @Test
+    void lengthMismatchIsNotMaterializable() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("r1");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(300, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(), List.of(new Vec2d(0, 0), new Vec2d(300, 0)), road.getId());
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 0), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(200.0));
+        road.setHorizontalAlignment(alignment);
+
+        HorizontalAlignmentCenterlineConsistency.Report report =
+            HorizontalAlignmentCenterlineConsistency.evaluate(network, road);
+
+        assertTrue(report.evaluable());
+        assertFalse(report.lengthMatches());
+        assertFalse(HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road));
+    }
+
+    @Test
     void pointAtStationFollowsOrientedChain() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("r1");

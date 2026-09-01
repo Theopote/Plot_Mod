@@ -92,6 +92,10 @@ Road Generation Pipeline
 - centerline 编辑后：若道路原有 HA → `HorizontalAlignmentPolylineFitter` refit；失败则 **清除 HA**（退回 polyline 模式）。
 - 生成前 auto-materialize **不** push history（派生缓存刷新）；用户主动 materialize **要** push history。
 - auto-materialize 期间 **不** `notifyNetworkChanged()`，避免刚计算的预览被 `invalidatePreview` 清掉。
+- **物化前置条件**：`HorizontalAlignmentCenterlineMaterializer.canMaterialize` 要求 `HorizontalAlignmentCenterlineConsistency.isMaterializable`（设计总长 ≈ 实例链长）；长度不一致时拒绝物化，避免桩号超出 HA 域导致部分写边。
+- **物化事务性**：`prepareMaterialization`（采样 / 端点校验）与 `commitMaterialization`（统一写回 `RoadEdge`）两阶段分离，all-or-nothing 派生几何同步。
+- **共享路口**：多 Road 共用的 junction node 不移动 `node.position`；物化时将相连 `RoadEdge` 端点 snap 至该节点，避免拓扑-几何分离。
+- **几何端点不变量**：`RoadNetworkInvariantValidator` 校验 `EDGE_START_GEOMETRY_MISMATCH` / `EDGE_END_GEOMETRY_MISMATCH`（中心线端点须与 `startNode` / `endNode` 位置一致）。
 
 ### 4. 桩号（Chainage）坐标系
 

@@ -1,5 +1,7 @@
 package com.plot.plugin.road.model;
 
+import com.plot.api.geometry.Vec2d;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -8,9 +10,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 校验道路网络图模型不变量：拓扑、Road↔Edge 双向归属、坡度 override 范围等。
+ * 校验道路网络图模型不变量：拓扑、Road↔Edge 双向归属、坡度 override 范围、
+ * Edge 中心线端点与节点位置一致等。
  */
 public final class RoadNetworkInvariantValidator {
+
+    /** Edge 中心线端点须与相连 {@link RoadNode} 位置一致（米）。 */
+    public static final double GEOMETRY_ENDPOINT_TOLERANCE_METERS = 1e-3;
+
     private RoadNetworkInvariantValidator() {
     }
 
@@ -28,8 +35,36 @@ public final class RoadNetworkInvariantValidator {
         validateTopology(nodes, edges, violations);
         validateRoadEdgeMembership(edges, roads, violations);
         validateSlopeOverrides(edges, violations);
+        validateEdgeGeometryEndpoints(nodes, edges, violations);
 
         return new RoadNetworkValidationResult(violations.isEmpty(), List.copyOf(violations));
+    }
+
+    /** 中心线端点与节点位置不一致的 Edge ID。 */
+    public static Set<String> collectGeometryMismatchEdgeIds(RoadNetwork network) {
+        Set<String> mismatched = new HashSet<>();
+        if (network == null) {
+            return mismatched;
+        }
+        List<String> violations = new ArrayList<>();
+        validateEdgeGeometryEndpoints(network.getNodes(), network.getEdges(), violations);
+        for (String violation : violations) {
+            String edgeId = parseEdgeId(violation);
+            if (edgeId != null) {
+                mismatched.add(edgeId);
+            }
+        }
+        return mismatched;
+    }
+
+    private static String parseEdgeId(String violation) {
+        int edgeMarker = violation.indexOf(" edge ");
+        if (edgeMarker < 0) {
+            return null;
+        }
+        int start = edgeMarker + " edge ".length();
+        int end = violation.indexOf(' ', start);
+        return end < 0 ? violation.substring(start) : violation.substring(start, end);
     }
 
     /** 拓扑不一致的节点 ID（供节点列表「Invalid」筛选）。 */
@@ -177,6 +212,53 @@ public final class RoadNetworkInvariantValidator {
         for (String segmentId : segmentsWithoutRoadId) {
             violations.add("segment " + segmentId + " in road.segmentIds but edge.roadId is null");
         }
+    }
+
+    private static void validateEdgeGeometryEndpoints(
+            Map<String, RoadNode> nodes,
+            Map<String, RoadEdge> edges,
+            List<String> violations) {
+        for (RoadEdge edge : edges.values()) {
+            List<Vec2d> points = edge.getCenterlinePoints();
+            if (points == null || points.isEmpty()) {
+                continue;
+            }
+
+            Vec2d first = points.getFirst();
+            Vec2d last = points.getLast();
+
+            RoadNode start = nodes.get(edge.getStartNodeId());
+            if (start != null && start.getPosition() != null) {
+                double distance = first.distance(start.getPosition());
+                if (distance > GEOMETRY_ENDPOINT_TOLERANCE_METERS) {
+                    violations.add(formatGeometryMismatch(
+                        RoadNetworkViolationKind.EDGE_START_GEOMETRY_MISMATCH,
+                        edge.getId(),
+                        distance));
+                }
+            }
+
+            RoadNode end = nodes.get(edge.getEndNodeId());
+            if (end != null && end.getPosition() != null) {
+                double distance = last.distance(end.getPosition());
+                if (distance > GEOMETRY_ENDPOINT_TOLERANCE_METERS) {
+                    violations.add(formatGeometryMismatch(
+                        RoadNetworkViolationKind.EDGE_END_GEOMETRY_MISMATCH,
+                        edge.getId(),
+                        distance));
+                }
+            }
+        }
+    }
+
+    private static String formatGeometryMismatch(
+            RoadNetworkViolationKind kind,
+            String edgeId,
+            double distanceMeters) {
+        return kind.name()
+            + " edge " + edgeId
+            + " distance " + distanceMeters
+            + " tolerance " + GEOMETRY_ENDPOINT_TOLERANCE_METERS;
     }
 
     private static void validateSlopeOverrides(

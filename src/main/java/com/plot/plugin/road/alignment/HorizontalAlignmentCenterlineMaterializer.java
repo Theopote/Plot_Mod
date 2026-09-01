@@ -12,21 +12,43 @@ import com.plot.plugin.road.station.RoadStationing;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * 将设计平面线形采样并写回 {@link RoadEdge} 折线中心线，消除与实例几何的偏差。
+ * <p>
+ * 物化采用两阶段 all-or-nothing 语义：{@link #prepareMaterialization} 完成采样与校验，
+ * {@link #commitMaterialization} 统一写回派生几何。
+ * <p>
+ * 物化前要求 {@link HorizontalAlignmentCenterlineConsistency#isMaterializable}：
+ * 设计线形总长须与实例折线链长一致（默认容差 1 m），避免桩号超出 HA 域导致部分写边失败。
+ * <p>
+ * 多 Road 共用的 junction node 不移动 {@link RoadNode#getPosition()}，但会将相连
+ * {@link RoadEdge} 端点钉合（snap）至该节点，保持拓扑-几何一致。
  */
 public final class HorizontalAlignmentCenterlineMaterializer {
 
     public static final double DEFAULT_SAMPLE_SPACING_METERS = 2.0;
     private static final double MIN_POINT_SPACING = 1e-3;
+    private static final double ENDPOINT_TOLERANCE_METERS = 1e-3;
 
     private HorizontalAlignmentCenterlineMaterializer() {
     }
 
+    /**
+     * 待提交的派生中心线物化计划（Phase A 产物）。
+     */
+    record MaterializationPlan(
+            Map<String, List<Vec2d>> centerlinesByEdgeId,
+            Map<String, Vec2d> exclusiveNodePositions,
+            int skippedNodeUpdates) {
+    }
+
     public static boolean canMaterialize(RoadNetwork network, Road road) {
-        return HorizontalAlignmentCenterlineConsistency.isEvaluable(network, road);
+        return HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road);
     }
 
     public static CenterlineEditResult materialize(RoadNetwork network, Road road) {
@@ -37,6 +59,95 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             RoadNetwork network,
             Road road,
             double sampleSpacingMeters) {
+        CenterlineEditResult validationFailure = validateMaterializationRequest(network, road);
+        if (validationFailure != null) {
+            return validationFailure;
+        }
+
+        Optional<MaterializationPlan> prepared = prepareMaterialization(
+            network,
+            road,
+            road.getHorizontalAlignment(),
+            sampleSpacingMeters);
+        if (prepared.isEmpty()) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.TOO_FEW_POINTS);
+        }
+
+        return commitMaterialization(network, road, prepared.get());
+    }
+
+    /**
+     * Phase A — 对所有 {@link OrientedRoadSegment} 采样、校验端点连续性，生成待写回计划。
+     * 不修改 {@link RoadNetwork}。
+     */
+    static Optional<MaterializationPlan> prepareMaterialization(
+            RoadNetwork network,
+            Road road,
+            RoadHorizontalAlignment alignment,
+            double sampleSpacingMeters) {
+        if (network == null || road == null || alignment == null || alignment.isEmpty()) {
+            return Optional.empty();
+        }
+
+        double spacing = sampleSpacingMeters > MIN_POINT_SPACING
+            ? sampleSpacingMeters
+            : DEFAULT_SAMPLE_SPACING_METERS;
+
+        List<OrientedRoadSegment> orientedSegments = RoadStationing.orientedSegments(network, road);
+        Map<String, List<Vec2d>> centerlinesByEdgeId = new LinkedHashMap<>();
+
+        for (OrientedRoadSegment oriented : orientedSegments) {
+            if (network.getEdge(oriented.edgeId()) == null) {
+                return Optional.empty();
+            }
+
+            List<Vec2d> geometryPoints = sampleGeometryPoints(alignment, oriented, spacing);
+            if (geometryPoints.size() < 2) {
+                return Optional.empty();
+            }
+            centerlinesByEdgeId.put(oriented.edgeId(), geometryPoints);
+        }
+
+        snapSharedNodeEndpoints(network, road.getId(), orientedSegments, centerlinesByEdgeId);
+
+        if (!validateInteriorJunctions(orientedSegments, centerlinesByEdgeId)) {
+            return Optional.empty();
+        }
+
+        NodeUpdatePlan nodeUpdatePlan = planExclusiveNodeUpdates(network, road.getId(), orientedSegments, centerlinesByEdgeId);
+        return Optional.of(new MaterializationPlan(
+            Map.copyOf(centerlinesByEdgeId),
+            Map.copyOf(nodeUpdatePlan.positionsByNodeId()),
+            nodeUpdatePlan.skippedUpdates()));
+    }
+
+    /**
+     * Phase B — 统一写回派生中心线与独占节点位置。
+     */
+    static CenterlineEditResult commitMaterialization(
+            RoadNetwork network,
+            Road road,
+            MaterializationPlan plan) {
+        for (Map.Entry<String, List<Vec2d>> entry : plan.centerlinesByEdgeId().entrySet()) {
+            RoadEdge edge = network.getEdge(entry.getKey());
+            if (edge == null) {
+                return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
+            }
+            edge.setCenterlinePoints(entry.getValue());
+        }
+
+        for (Map.Entry<String, Vec2d> entry : plan.exclusiveNodePositions().entrySet()) {
+            RoadNode node = network.getNode(entry.getKey());
+            if (node != null) {
+                node.setPosition(entry.getValue());
+            }
+        }
+
+        HorizontalAlignmentChainOriginAligner.alignToChainStart(network, road);
+        return materializeSuccess(plan.skippedNodeUpdates());
+    }
+
+    private static CenterlineEditResult validateMaterializationRequest(RoadNetwork network, Road road) {
         if (network == null || road == null || network.getRoad(road.getId()) == null) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_FOUND);
         }
@@ -47,29 +158,115 @@ public final class HorizontalAlignmentCenterlineMaterializer {
         if (!RoadStationing.isStationable(network, road)) {
             return CenterlineEditResult.failure(CenterlineEditStatus.ROAD_NOT_STATIONABLE);
         }
+        if (!HorizontalAlignmentCenterlineConsistency.isMaterializable(network, road)) {
+            return CenterlineEditResult.failure(CenterlineEditStatus.ALIGNMENT_STATIONS_INVALID);
+        }
+        return null;
+    }
 
-        double spacing = sampleSpacingMeters > MIN_POINT_SPACING
-            ? sampleSpacingMeters
-            : DEFAULT_SAMPLE_SPACING_METERS;
-        int skippedNodeUpdates = 0;
+    private record NodeUpdatePlan(Map<String, Vec2d> positionsByNodeId, int skippedUpdates) {
+    }
 
-        for (OrientedRoadSegment oriented : RoadStationing.orientedSegments(network, road)) {
-            RoadEdge edge = network.getEdge(oriented.edgeId());
-            if (edge == null) {
-                return CenterlineEditResult.failure(CenterlineEditStatus.EDGE_NOT_FOUND);
-            }
+    private static NodeUpdatePlan planExclusiveNodeUpdates(
+            RoadNetwork network,
+            String roadId,
+            List<OrientedRoadSegment> orientedSegments,
+            Map<String, List<Vec2d>> centerlinesByEdgeId) {
+        Map<String, Vec2d> positionsByNodeId = new LinkedHashMap<>();
+        int skippedUpdates = 0;
 
-            List<Vec2d> geometryPoints = sampleGeometryPoints(alignment, oriented, spacing);
-            if (geometryPoints.size() < 2) {
-                return CenterlineEditResult.failure(CenterlineEditStatus.TOO_FEW_POINTS);
-            }
-
-            edge.setCenterlinePoints(geometryPoints);
-            skippedNodeUpdates += updateEndpointNodes(network, road, edge, geometryPoints);
+        for (OrientedRoadSegment oriented : orientedSegments) {
+            List<Vec2d> geometryPoints = centerlinesByEdgeId.get(oriented.edgeId());
+            skippedUpdates += planEndpointNode(
+                network, roadId, oriented.entryNodeId(), chainEndpoint(oriented, geometryPoints, true), positionsByNodeId);
+            skippedUpdates += planEndpointNode(
+                network, roadId, oriented.exitNodeId(), chainEndpoint(oriented, geometryPoints, false), positionsByNodeId);
         }
 
-        HorizontalAlignmentChainOriginAligner.alignToChainStart(network, road);
-        return materializeSuccess(skippedNodeUpdates);
+        return new NodeUpdatePlan(positionsByNodeId, skippedUpdates);
+    }
+
+    private static int planEndpointNode(
+            RoadNetwork network,
+            String roadId,
+            String nodeId,
+            Vec2d position,
+            Map<String, Vec2d> positionsByNodeId) {
+        if (!isNodeExclusiveToRoad(network, nodeId, roadId)) {
+            return 1;
+        }
+        Vec2d existing = positionsByNodeId.get(nodeId);
+        if (existing != null && existing.distance(position) > ENDPOINT_TOLERANCE_METERS) {
+            return 1;
+        }
+        positionsByNodeId.put(nodeId, position);
+        return 0;
+    }
+
+    private static void snapSharedNodeEndpoints(
+            RoadNetwork network,
+            String roadId,
+            List<OrientedRoadSegment> orientedSegments,
+            Map<String, List<Vec2d>> centerlinesByEdgeId) {
+        for (OrientedRoadSegment oriented : orientedSegments) {
+            List<Vec2d> geometryPoints = new ArrayList<>(centerlinesByEdgeId.get(oriented.edgeId()));
+            snapEndpointToSharedNode(network, roadId, oriented.entryNodeId(), geometryPoints, oriented, true);
+            snapEndpointToSharedNode(network, roadId, oriented.exitNodeId(), geometryPoints, oriented, false);
+            centerlinesByEdgeId.put(oriented.edgeId(), List.copyOf(geometryPoints));
+        }
+    }
+
+    private static void snapEndpointToSharedNode(
+            RoadNetwork network,
+            String roadId,
+            String nodeId,
+            List<Vec2d> geometryPoints,
+            OrientedRoadSegment oriented,
+            boolean chainEntry) {
+        if (isNodeExclusiveToRoad(network, nodeId, roadId) || geometryPoints.isEmpty()) {
+            return;
+        }
+        RoadNode node = network.getNode(nodeId);
+        if (node == null) {
+            return;
+        }
+        int endpointIndex = geometryEndpointIndex(oriented, geometryPoints.size(), chainEntry);
+        geometryPoints.set(endpointIndex, node.getPosition().copy());
+    }
+
+    private static int geometryEndpointIndex(OrientedRoadSegment oriented, int pointCount, boolean chainEntry) {
+        if (oriented.forward()) {
+            return chainEntry ? 0 : pointCount - 1;
+        }
+        return chainEntry ? pointCount - 1 : 0;
+    }
+
+    private static boolean validateInteriorJunctions(
+            List<OrientedRoadSegment> orientedSegments,
+            Map<String, List<Vec2d>> centerlinesByEdgeId) {
+        for (int index = 0; index < orientedSegments.size() - 1; index++) {
+            OrientedRoadSegment upstream = orientedSegments.get(index);
+            OrientedRoadSegment downstream = orientedSegments.get(index + 1);
+            if (!upstream.exitNodeId().equals(downstream.entryNodeId())) {
+                return false;
+            }
+
+            List<Vec2d> upstreamPoints = centerlinesByEdgeId.get(upstream.edgeId());
+            List<Vec2d> downstreamPoints = centerlinesByEdgeId.get(downstream.edgeId());
+            Vec2d upstreamExit = chainEndpoint(upstream, upstreamPoints, false);
+            Vec2d downstreamEntry = chainEndpoint(downstream, downstreamPoints, true);
+            if (upstreamExit.distance(downstreamEntry) > ENDPOINT_TOLERANCE_METERS) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Vec2d chainEndpoint(OrientedRoadSegment oriented, List<Vec2d> geometryPoints, boolean entry) {
+        if (oriented.forward()) {
+            return entry ? geometryPoints.getFirst() : geometryPoints.getLast();
+        }
+        return entry ? geometryPoints.getLast() : geometryPoints.getFirst();
     }
 
     static List<Vec2d> sampleGeometryPoints(
@@ -101,35 +298,6 @@ public final class HorizontalAlignmentCenterlineMaterializer {
             Collections.reverse(alongChain);
         }
         return List.copyOf(alongChain);
-    }
-
-    private static int updateEndpointNodes(
-            RoadNetwork network,
-            Road road,
-            RoadEdge edge,
-            List<Vec2d> geometryPoints) {
-        int skipped = 0;
-        skipped += updateNodeIfRoadExclusive(
-            network, road.getId(), edge.getStartNodeId(), geometryPoints.getFirst());
-        skipped += updateNodeIfRoadExclusive(
-            network, road.getId(), edge.getEndNodeId(), geometryPoints.getLast());
-        return skipped;
-    }
-
-    private static int updateNodeIfRoadExclusive(
-            RoadNetwork network,
-            String roadId,
-            String nodeId,
-            Vec2d position) {
-        if (!isNodeExclusiveToRoad(network, nodeId, roadId)) {
-            return 1;
-        }
-        RoadNode node = network.getNode(nodeId);
-        if (node == null) {
-            return 0;
-        }
-        node.setPosition(position);
-        return 0;
     }
 
     static boolean isNodeExclusiveToRoad(RoadNetwork network, String nodeId, String roadId) {
