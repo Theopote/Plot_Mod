@@ -18,7 +18,9 @@
    - `roadId` + `chainageMeters`（从道路链起点沿拓扑序累计，单位：米，与 `RoadEdge.getLength()` 一致）。
 
 2. **`RoadStationing` 工具类 / 小服务**（`com.plot.plugin.road.station` 或 `model` 包）
-   - `totalLength(network, road)`
+   - `canonicalLength(network, road)` — 工程桩号域权威上界
+   - `designLength(network, road)` — HA 线形总长
+   - `instanceLength(network, road)` — 实例折线链长
    - `orderedSegments(network, road)` — 委托 `RoadSegmentOrdering`
    - `segmentStartStation(network, road, segmentId)` → double
    - `resolve(network, road, station)` → `SegmentStation(segmentId, localDistance)` 或 empty

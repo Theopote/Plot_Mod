@@ -38,6 +38,7 @@ class RoadStationingCanonicalLengthTest {
             0.0,
             List.of(HorizontalAlignmentElement.tangent(DESIGN_LENGTH))));
 
+        assertEquals(DESIGN_LENGTH, RoadStationing.designLength(network, road), 1e-6);
         assertEquals(DESIGN_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(INSTANCE_LENGTH, RoadStationing.instanceLength(network, road), 1e-6);
     }
@@ -72,6 +73,7 @@ class RoadStationingCanonicalLengthTest {
 
         assertTrue(RoadStationing.isValid(network, new RoadStation("long-instance", 299.7)));
         assertFalse(RoadStationing.isValid(network, new RoadStation("long-instance", 300.3)));
+        assertEquals(DESIGN_LENGTH, RoadStationing.designLength(network, road), 1e-6);
         assertEquals(DESIGN_LENGTH, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(instanceLength, RoadStationing.instanceLength(network, road), 1e-6);
     }
@@ -101,6 +103,22 @@ class RoadStationingCanonicalLengthTest {
     }
 
     @Test
+    void canonicalLengthFallsBackToInstanceWhenNoDesignAlignment() {
+        RoadNetwork network = new RoadNetwork();
+        Road road = network.createRoad("polyline");
+        RoadNode n1 = network.createNode(new Vec2d(0, 0));
+        RoadNode n2 = network.createNode(new Vec2d(60, 0));
+        network.createEdge(
+            n1.getId(), n2.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(60, 0)),
+            road.getId());
+
+        assertEquals(0.0, RoadStationing.designLength(network, road), 1e-6);
+        assertEquals(60.0, RoadStationing.instanceLength(network, road), 1e-6);
+        assertEquals(60.0, RoadStationing.canonicalLength(network, road), 1e-6);
+    }
+
+    @Test
     void chainageConversionIsIdentityWhenLengthsMatch() {
         RoadNetwork network = new RoadNetwork();
         Road road = network.createRoad("aligned");
@@ -111,6 +129,7 @@ class RoadStationingCanonicalLengthTest {
             List.of(new Vec2d(0, 0), new Vec2d(100, 0)),
             road.getId());
 
+        assertEquals(0.0, RoadStationing.designLength(network, road), 1e-6);
         assertEquals(100.0, RoadStationing.canonicalLength(network, road), 1e-6);
         assertEquals(100.0, RoadStationing.instanceLength(network, road), 1e-6);
         assertEquals(50.0, RoadStationing.toCanonicalChainage(network, road, 50.0), 1e-6);

@@ -16,7 +16,8 @@ import java.util.Optional;
  * 道路平面几何统一查询：有设计平面线形时以 {@link RoadHorizontalAlignment} 为权威，
  * 否则回退到 {@link RoadEdge#getCenterlinePoints()}。
  * <p>
- * 工程桩号域长度见 {@link #canonicalLength}；实例折线链长见 {@link #instanceLength}。
+ * 工程桩号域长度见 {@link #canonicalLength}；设计线形长见 {@link #designLength}；
+ * 实例折线链长见 {@link #instanceLength}。
  */
 public final class RoadPlanGeometry {
 
@@ -50,13 +51,29 @@ public final class RoadPlanGeometry {
     }
 
     /**
-     * Canonical 道路链长（工程桩号域）：有有效 HA 时取设计线形总长，否则取实例折线链长。
+     * Canonical 道路链长（工程桩号域权威上界）。
+     * <p>
+     * 有有效 HA 时取 {@link #designLength}，否则取 {@link #instanceLength}。
      */
     public static double canonicalLength(RoadNetwork network, Road road) {
         if (hasDesignAlignment(network, road)) {
-            return HorizontalAlignmentGeometry.totalLength(road.getHorizontalAlignment());
+            return designLength(network, road);
         }
         return instanceLength(network, road);
+    }
+
+    /**
+     * 设计平面线形总长（{@link RoadHorizontalAlignment}）；无 HA 时为 0。
+     */
+    public static double designLength(RoadNetwork network, Road road) {
+        if (network == null || road == null) {
+            return 0.0;
+        }
+        RoadHorizontalAlignment alignment = road.getHorizontalAlignment();
+        if (alignment == null || alignment.isEmpty()) {
+            return 0.0;
+        }
+        return HorizontalAlignmentGeometry.totalLength(alignment);
     }
 
     /**
@@ -73,10 +90,10 @@ public final class RoadPlanGeometry {
         return total;
     }
 
-    /** @deprecated 使用 {@link #canonicalLength} */
+    /** @deprecated 使用 {@link #designLength} */
     @Deprecated
     public static double planLength(RoadNetwork network, Road road) {
-        return canonicalLength(network, road);
+        return designLength(network, road);
     }
 
     /** @deprecated 使用 {@link #instanceLength} */

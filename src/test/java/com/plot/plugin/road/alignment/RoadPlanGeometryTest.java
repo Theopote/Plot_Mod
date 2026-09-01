@@ -105,6 +105,8 @@ class RoadPlanGeometryTest {
 
         assertEquals(7.0, planPoint.y, 1e-6);
         assertEquals(0.0, instancePoint.y, 1e-6);
+        assertEquals(80.0, RoadStationing.designLength(network, road), 1e-6);
         assertEquals(80.0, RoadStationing.canonicalLength(network, road), 1e-6);
+        assertEquals(80.0, RoadStationing.instanceLength(network, road), 1e-6);
     }
 }

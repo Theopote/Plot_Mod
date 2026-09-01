@@ -25,9 +25,12 @@ import java.util.Set;
 /**
  * Road-local 里程（chainage）权威坐标转换器：沿有序分段链累计弧长，并处理分段方向。
  * <p>
- * <strong>Canonical chainage 域</strong>：{@link #canonicalLength} — 有平面线形时取
- * {@link com.plot.plugin.road.alignment.RoadHorizontalAlignment} 总长，否则取实例折线链长。
+ * <strong>Canonical chainage 域</strong>：{@link #canonicalLength} — 工程桩号权威上界
+ * （有有效 HA 时取 {@link #designLength}，否则取 {@link #instanceLength}）。
  * 所有 {@link RoadStation}、VA/VCS/设施桩号、{@link #isValid} 均在此域。
+ * <p>
+ * <strong>Design length</strong>：{@link #designLength} — {@link com.plot.plugin.road.alignment.RoadHorizontalAlignment}
+ * 线形总长（无 HA 时为 0）。
  * <p>
  * <strong>Instance chainage 域</strong>：{@link #instanceLength} — {@link com.plot.plugin.road.model.RoadEdge}
  * 派生折线累计弧长；{@link OrientedRoadSegment} 内部几何换算仍基于此域，对外 API 自动换算。
@@ -94,12 +97,21 @@ public final class RoadStationing {
     }
 
     /**
-     * Canonical 道路链长（工程桩号域上界）。
+     * Canonical 道路链长（工程桩号域权威上界）。
      *
      * @see RoadPlanGeometry#canonicalLength
      */
     public static double canonicalLength(RoadNetwork network, Road road) {
         return RoadPlanGeometry.canonicalLength(network, road);
+    }
+
+    /**
+     * 设计平面线形总长。
+     *
+     * @see RoadPlanGeometry#designLength
+     */
+    public static double designLength(RoadNetwork network, Road road) {
+        return RoadPlanGeometry.designLength(network, road);
     }
 
     /**
@@ -117,10 +129,10 @@ public final class RoadStationing {
         return canonicalLength(network, road);
     }
 
-    /** @deprecated 使用 {@link #canonicalLength} */
+    /** @deprecated 使用 {@link #designLength} */
     @Deprecated
     public static double planLength(RoadNetwork network, Road road) {
-        return canonicalLength(network, road);
+        return designLength(network, road);
     }
 
     public static Optional<String> chainEntryNodeId(RoadNetwork network, Road road) {
