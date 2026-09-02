@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.core.model.Shape;
 import com.plot.core.state.AppState;
 import com.plot.core.tool.BaseTool;

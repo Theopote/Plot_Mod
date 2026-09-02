@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext;

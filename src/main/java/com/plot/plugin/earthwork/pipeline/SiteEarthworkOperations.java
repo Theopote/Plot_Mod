@@ -2,10 +2,10 @@ package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.earthwork.DesignSurfaceResolver;
-import com.plot.plugin.earthwork.DesignTerrainGrid;
+import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;

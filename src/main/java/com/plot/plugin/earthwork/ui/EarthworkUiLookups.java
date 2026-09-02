@@ -15,6 +15,8 @@ import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
+import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;

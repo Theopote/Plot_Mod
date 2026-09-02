@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.terrain.TerrainSurfaceSampler;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.state.AppState;

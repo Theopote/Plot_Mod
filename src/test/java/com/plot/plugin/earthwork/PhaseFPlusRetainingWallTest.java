@@ -1,5 +1,10 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.geometry.ZoneBoundaryRetainingEdgeAdapter;
+import com.plot.plugin.earthwork.grading.DesignTerrainCell;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.model.DesignSurface;
 import com.plot.plugin.earthwork.model.EarthworkSite;

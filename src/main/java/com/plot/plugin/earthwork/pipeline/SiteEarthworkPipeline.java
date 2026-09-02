@@ -2,6 +2,9 @@ package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.*;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
+import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.grading.DesignTerrainBuilder;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;

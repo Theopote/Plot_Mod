@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;

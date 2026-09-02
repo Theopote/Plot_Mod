@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;

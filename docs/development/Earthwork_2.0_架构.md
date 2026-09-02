@@ -36,55 +36,47 @@ com.plot.plugin.earthwork
 ├── persistence/        # 已有：schema 迁移（保持）
 │
 ├── terrain/            # 现状地形
-│   ├── TerrainSnapshot              ← 已有（迁入）
-│   ├── TerrainSnapshotCache         ← 已有（迁入）
-│   ├── TerrainSurfaceSampler        ← 已有（迁入）
-│   └── EngineeringTerrainSampler    ← 新门面；统一委托 core.terrain.EngineeringTerrainService
-│
-├── geometry/           # 场地几何（无 World）
-│   ├── GradingBoundary              ← RegionGeometry + site/zone 轮廓的运算门面
-│   ├── RegionRasterizer             ← PolygonRegionUtils.collectFootprintCellCenters 等
-│   └── EdgeTreatmentApplicator      ← ZoneBoundarySlopeApplicator 等边界处理
+│   ├── TerrainSnapshot
+│   ├── TerrainSnapshotCache
+│   ├── TerrainSurfaceSampler
+│   ├── TerrainBoundaryBlender
+│   └── SiteTerrainCapture
 │
 ├── design/             # 设计面解析（纯函数）
-│   ├── DesignSurface                ← model 已有；此处放 *Evaluator / *Resolver 实现
-│   ├── FlatSurfaceEvaluator         ← LEVEL_PAD
-│   ├── SlopedPlaneSurfaceEvaluator  ← SINGLE_SLOPE_PLANE
-│   ├── ThreePointSurfaceEvaluator
-│   ├── BestFitSurfaceEvaluator
-│   ├── MultiPlaneSurfaceEvaluator   ← 已有
-│   ├── ExcavationPitSurfaceEvaluator← 已有
-│   └── DesignTerrainComposer        ← 已有（场地级合成，归 design 层）
+│   ├── DesignSurfaceResolver / GradingSurfaceResolver
+│   ├── DesignTerrainComposer
+│   ├── MultiPlaneSurfaceEvaluator / ExcavationPitSurfaceEvaluator
+│   ├── RegionSurfaceEvaluator / ZoneSurfaceEvaluatorRegistry
+│   └── BuildingFootprint* / RoadSurface* / RoadCorridor*
 │
 ├── solver/             # 土方平衡求解
-│   ├── BalanceElevationSolver       ← EarthworkBalanceUtils.findBalancedElevation
-│   ├── BalanceOffsetSolver          ← SiteWideBalanceAdjuster
-│   ├── ZoneAllocationSolver         ← ZoneAllocationBalanceAdjuster + EarthworkAllocationMatrix
-│   └── EarthworkOptimizationSolver  ← 预留：非整格 ΔY、分区平面优化
+│   ├── EarthworkBalanceUtils
+│   ├── SiteWideBalanceAdjuster / ZoneAllocationBalanceAdjuster
+│   └── EarthworkAllocationMatrix
 │
-├── volume/             # 方量（几何 + 材料换算）
-│   ├── EarthworkVolumeCalculator    ← 从 Generator 抽出列差累加
-│   ├── MaterialConversionModel      ← EarthMaterialProperties 运算
-│   ├── EarthworkVolumeReport        ← 已有
-│   ├── SiteEarthworkReport          ← 已有
-│   └── EarthworkProjectReport       ← 已有
+├── volume/             # 方量
+│   ├── EarthworkVolumeCalculator
+│   └── EarthworkVolumeReport / SiteEarthworkReport / EarthworkProjectReport
 │
 ├── grading/            # 设计地形格网 + 挖填分类
-│   ├── DesignTerrainGrid            ← 已有
-│   ├── DesignTerrainCell            ← 已有
-│   ├── DesignTerrainBuilder         ← compose + balance 步骤编排（从 Composer/Generator 抽出）
-│   ├── CutFillClassifier            ← 列 groundY vs targetY → CUT/FILL/NONE
-│   └── SlopeDaylightSolver          ← 边坡放坡可达距离；SlopeBenchProfile 等
+│   ├── DesignTerrainGrid / DesignTerrainCell
+│   ├── DesignTerrainBuilder / CutFillClassifier
+│   ├── SlopeBenchProfile / GradingPlane / BreaklineClassifier
+│   └── ZoneOverlapAnalyzer
 │
-├── voxel/              # 体素落地（唯一接触 World / BlockRecord 的层）
-│   ├── EarthworkVoxelizer           ← 从 EarthworkGenerator 抽出 applyColumnEarthwork
-│   ├── EarthworkGenerationResult    ← 从 Generator 内嵌类提升
-│   └── RetainingWallVoxelizer       ← RetainingWallGenerator 迁入
+├── geometry/           # 场地几何（无 World）
+│   ├── EarthworkGeometryUtils
+│   ├── ZoneBoundarySlopeApplicator
+│   └── ZoneBoundaryRetainingEdgeAdapter / RetainingEdgeBreaklineAdapter
 │
-├── pipeline/           # 管线编排（对外主入口，替代 God Generator）
-│   ├── SiteEarthworkPipeline        ← 文档 §8 已规划，尚未独立成类
-│   ├── LegacyRegionPipeline         ← 单 Region 委托路径
-│   └── EarthworkPipelineContext     ← World / Snapshot / BlockSampler / 建筑&道路 Lookup
+├── voxel/              # 体素落地
+│   ├── EarthworkVoxelizer
+│   └── RetainingWallGenerator
+│
+├── pipeline/           # 管线编排
+│   └── SiteEarthworkPipeline / EarthworkPipelines / …
+│
+├── ui/                 # ImGui 各 Panel + EarthworkUiContext
 │
 └── manager/            # 插件侧编排（对标 road.manager）
     ├── EarthworkProjectManager      ← 加载/保存/历史/activeSite
@@ -267,7 +259,7 @@ public final class EarthworkGenerator {
 - [x] `EarthworkGenerator` 标记 `@Deprecated`，委托 `EarthworkPipelines`
 - [x] `EarthworkGenerationResult` 迁至 `pipeline/` 包
 - [x] `EarthworkPipelines` 作为 2.0 推荐工厂；`EarthworkPlugin` / `EarthworkPreviewManager` 已改调管线
-- [ ] 包路径迁移（`terrain/`、`design/` 等）可用 IDE 重构批量完成
+- [x] 包路径迁移（`terrain/`、`design/`、`solver/`、`volume/`、`grading/`、`geometry/`、`voxel/`）
 
 ---
 

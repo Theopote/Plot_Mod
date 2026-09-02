@@ -1,5 +1,12 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.grading.DesignTerrainCell;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.grading.GradingPlane;
+import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;

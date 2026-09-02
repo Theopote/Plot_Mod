@@ -1,5 +1,9 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.design.ExcavationPitSurfaceEvaluator;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.earthwork.model.DesignSurface;

@@ -1,8 +1,8 @@
 package com.plot.plugin.earthwork.design;
 
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.earthwork.GradingSurfaceResolver;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.GradingRegion;
 
 /**

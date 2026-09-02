@@ -1,5 +1,7 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.grading.DesignTerrainBuilder;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import org.junit.jupiter.api.Test;

@@ -6,7 +6,7 @@ import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
-import com.plot.plugin.earthwork.TerrainSnapshotCache;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.manager.EarthworkBuildManager;
 import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
 import com.plot.plugin.earthwork.model.EarthworkProject;

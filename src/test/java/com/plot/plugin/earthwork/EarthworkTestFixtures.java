@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
 import com.plot.plugin.earthwork.model.CompositionPolicy;

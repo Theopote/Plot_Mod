@@ -3,7 +3,7 @@ package com.plot.plugin.earthwork.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.RegionGeometry;
-import com.plot.plugin.earthwork.EarthworkVolumeReport;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 
 import java.util.ArrayList;
 import java.util.List;

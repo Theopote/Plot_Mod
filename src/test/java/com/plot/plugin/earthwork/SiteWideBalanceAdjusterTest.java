@@ -1,5 +1,10 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.grading.DesignTerrainCell;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.solver.EarthworkBalanceUtils;
+import com.plot.plugin.earthwork.solver.SiteWideBalanceAdjuster;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import org.junit.jupiter.api.Test;

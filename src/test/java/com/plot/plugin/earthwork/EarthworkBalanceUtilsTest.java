@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.solver.EarthworkBalanceUtils;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import org.junit.jupiter.api.Test;
 

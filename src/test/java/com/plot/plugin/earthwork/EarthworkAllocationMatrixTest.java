@@ -1,5 +1,9 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
+import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import org.junit.jupiter.api.Test;
 

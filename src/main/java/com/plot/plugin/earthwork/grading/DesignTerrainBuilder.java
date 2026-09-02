@@ -1,12 +1,12 @@
 package com.plot.plugin.earthwork.grading;
 
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.earthwork.BuildingFootprintLookup;
-import com.plot.plugin.earthwork.DesignSurfaceResolver;
-import com.plot.plugin.earthwork.DesignTerrainComposer;
-import com.plot.plugin.earthwork.DesignTerrainGrid;
-import com.plot.plugin.earthwork.RoadSurfaceLookup;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
+import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 
 import java.util.Map;

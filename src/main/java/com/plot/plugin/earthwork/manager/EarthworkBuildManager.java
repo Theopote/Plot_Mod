@@ -5,7 +5,7 @@ import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.TerrainSnapshotCache;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;

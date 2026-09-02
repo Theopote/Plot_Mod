@@ -2,9 +2,9 @@ package com.plot.plugin.earthwork.voxel;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.EarthworkGeometryUtils;
-import com.plot.plugin.earthwork.SiteEarthworkReport;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.grading.CutFillClassifier;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.block.Block;

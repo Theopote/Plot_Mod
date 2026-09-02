@@ -1,14 +1,14 @@
 package com.plot.plugin.earthwork.volume;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.earthwork.DesignTerrainCell;
-import com.plot.plugin.earthwork.DesignTerrainGrid;
+import com.plot.plugin.earthwork.grading.DesignTerrainCell;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.EarthworkProjectReport;
-import com.plot.plugin.earthwork.GradingPlane;
-import com.plot.plugin.earthwork.SiteEarthworkReport;
-import com.plot.plugin.earthwork.TerrainSnapshot;
-import com.plot.plugin.earthwork.ZoneBoundarySlopeApplicator;
+import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.grading.GradingPlane;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
+import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;

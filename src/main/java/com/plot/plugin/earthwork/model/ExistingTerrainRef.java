@@ -1,6 +1,6 @@
 package com.plot.plugin.earthwork.model;
 
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 
 /**
  * 现状地形快照引用（元数据 + 可选侧车文件路径）。

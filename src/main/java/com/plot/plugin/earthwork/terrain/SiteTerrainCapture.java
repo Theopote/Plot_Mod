@@ -3,8 +3,8 @@ package com.plot.plugin.earthwork.terrain;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.plugin.earthwork.EarthworkGeometryUtils;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import net.minecraft.world.World;
 

@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork.pipeline;
 
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeCalculator;

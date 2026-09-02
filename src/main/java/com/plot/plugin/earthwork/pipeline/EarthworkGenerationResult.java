@@ -2,11 +2,11 @@ package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
-import com.plot.plugin.earthwork.DesignTerrainGrid;
-import com.plot.plugin.earthwork.EarthworkProjectReport;
-import com.plot.plugin.earthwork.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.SiteEarthworkReport;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
+import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;

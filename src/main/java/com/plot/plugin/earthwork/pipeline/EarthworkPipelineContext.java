@@ -1,8 +1,8 @@
 package com.plot.plugin.earthwork.pipeline;
 
-import com.plot.plugin.earthwork.BuildingFootprintLookup;
-import com.plot.plugin.earthwork.RoadSurfaceLookup;
-import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.world.World;

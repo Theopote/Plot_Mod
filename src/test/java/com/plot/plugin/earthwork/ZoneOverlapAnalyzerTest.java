@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
