@@ -23,6 +23,7 @@ import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
+import com.plot.plugin.earthwork.ZoneBoundaryRetainingEdgeAdapter;
 import com.plot.plugin.earthwork.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
@@ -602,7 +603,42 @@ public class EarthworkPlugin extends Plugin {
             invalidatePreview();
         }
 
+        if (settings.getDefaultTreatment() == EdgeTreatment.RETAINING_WALL
+            || hasRetainingWallEdgeOverride(settings)) {
+            ImBoolean useZoneFill = new ImBoolean(settings.isUseLinkedZoneFillMaterial());
+            if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.edge_use_zone_fill_material"), useZoneFill)) {
+                projectHistory.push(project);
+                settings.setUseLinkedZoneFillMaterial(useZoneFill.get());
+                invalidatePreview();
+            }
+            if (!settings.isUseLinkedZoneFillMaterial()) {
+                renderMaterialButton(PlotI18n.tr("plugin.earthwork.edge_wall_material"), settings.getWallMaterial(),
+                    blockId -> {
+                        projectHistory.push(project);
+                        settings.setWallMaterial(blockId);
+                        invalidatePreview();
+                    });
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.edge_sync_retaining_edges"), 0, 0)) {
+                projectHistory.push(project);
+                EarthworkSite site = project.getActiveSite();
+                int synced = ZoneBoundaryRetainingEdgeAdapter.syncZoneToSite(site, zone);
+                projectStatus = PlotI18n.tr("plugin.earthwork.edge_sync_retaining_edges_done", synced);
+                invalidatePreview();
+            }
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.edge_sync_retaining_edges");
+        }
+
         renderBoundaryEdgeOverrides(region, zone, settings, treatments, treatmentLabels);
+    }
+
+    private static boolean hasRetainingWallEdgeOverride(ZoneEdgeSettings settings) {
+        for (BoundaryEdgeOverride override : settings.getEdgeOverrides()) {
+            if (override != null && override.getTreatment() == EdgeTreatment.RETAINING_WALL) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void renderBoundaryEdgeOverrides(
@@ -748,6 +784,12 @@ public class EarthworkPlugin extends Plugin {
         }
 
         ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.edge_sync_all_retaining_edges"), 0, 0)) {
+            projectHistory.push(project);
+            int synced = ZoneBoundaryRetainingEdgeAdapter.syncAllZonesToSite(site);
+            projectStatus = PlotI18n.tr("plugin.earthwork.edge_sync_retaining_edges_done", synced);
+            invalidatePreview();
+        }
         renderRetainingEdgeSettings(site);
     }
 

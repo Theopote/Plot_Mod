@@ -202,7 +202,8 @@ public class EarthworkGenerator {
             ? previewRegion.getPreviewGridSize()
             : GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
         computeEarthworkFromDesignGrid(site, world, composed.grid(), result, previewGridSize);
-        RetainingWallGenerator.generate(site, world, coordinateTransformer, result);
+        RetainingWallGenerator.generate(
+            site, world, coordinateTransformer, result, composed.grid(), composed.zoneEvaluators());
 
         site.setLastReport(result.siteVolumeReport.totals());
         for (GradingZone zone : site.getGradingZones().values()) {

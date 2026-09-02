@@ -18,6 +18,8 @@ public class ZoneEdgeSettings {
   private int fillSlopePitchDenominator = DEFAULT_FILL_SLOPE_DENOMINATOR;
   private int maximumReachBlocks = DEFAULT_MAX_REACH_BLOCKS;
   private int benchWidthBlocks;
+  private String wallMaterial = "minecraft:stone_bricks";
+  private boolean useLinkedZoneFillMaterial = true;
   private List<BoundaryEdgeOverride> edgeOverrides = new ArrayList<>();
 
   public EdgeTreatment getDefaultTreatment() {
@@ -71,6 +73,22 @@ public class ZoneEdgeSettings {
 
   public void setBenchWidthBlocks(int benchWidthBlocks) {
     this.benchWidthBlocks = Math.max(0, Math.min(32, benchWidthBlocks));
+  }
+
+  public String getWallMaterial() {
+    return wallMaterial != null && !wallMaterial.isBlank() ? wallMaterial : "minecraft:stone_bricks";
+  }
+
+  public void setWallMaterial(String wallMaterial) {
+    this.wallMaterial = wallMaterial != null ? wallMaterial.trim() : "";
+  }
+
+  public boolean isUseLinkedZoneFillMaterial() {
+    return useLinkedZoneFillMaterial;
+  }
+
+  public void setUseLinkedZoneFillMaterial(boolean useLinkedZoneFillMaterial) {
+    this.useLinkedZoneFillMaterial = useLinkedZoneFillMaterial;
   }
 
   public List<BoundaryEdgeOverride> getEdgeOverrides() {

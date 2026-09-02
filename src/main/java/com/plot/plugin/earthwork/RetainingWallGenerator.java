@@ -9,9 +9,11 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -28,15 +30,27 @@ public final class RetainingWallGenerator {
             World world,
             ICoordinateService transformer,
             EarthworkGenerator.EarthworkGenerationResult result) {
+        generate(site, world, transformer, result, null, Map.of());
+    }
+
+    public static void generate(
+            EarthworkSite site,
+            World world,
+            ICoordinateService transformer,
+            EarthworkGenerator.EarthworkGenerationResult result,
+            DesignTerrainGrid grid,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators) {
         if (site == null || world == null || result == null || transformer == null) {
             return;
         }
+        List<RetainingEdge> edges = new ArrayList<>(site.getRetainingEdges());
+        edges.addAll(ZoneBoundaryRetainingEdgeAdapter.deriveVirtualEdges(site, grid, evaluators));
         Set<Long> placedColumns = new HashSet<>();
-        for (RetainingEdge edge : site.getRetainingEdges()) {
+        for (RetainingEdge edge : edges) {
             if (edge == null) {
                 continue;
             }
-            generateWall(edge, site, world, transformer, result, placedColumns);
+            generateWall(edge, site, world, transformer, result, placedColumns, grid);
         }
     }
 
@@ -46,16 +60,14 @@ public final class RetainingWallGenerator {
             World world,
             ICoordinateService transformer,
             EarthworkGenerator.EarthworkGenerationResult result,
-            Set<Long> placedColumns) {
+            Set<Long> placedColumns,
+            DesignTerrainGrid grid) {
         List<Vec2d> polyline = edge.getPolyline();
         if (polyline.size() < 2) {
             return;
         }
-        int bottom = Math.min(edge.getBottomElevation(), edge.getTopElevation());
-        int top = Math.max(edge.getBottomElevation(), edge.getTopElevation());
-        if (top < bottom) {
-            return;
-        }
+        int fallbackBottom = Math.min(edge.getBottomElevation(), edge.getTopElevation());
+        int fallbackTop = Math.max(edge.getBottomElevation(), edge.getTopElevation());
         String wallBlockId = resolveWallBlockId(edge, site);
 
         for (int segmentIndex = 0; segmentIndex < polyline.size() - 1; segmentIndex++) {
@@ -72,6 +84,18 @@ public final class RetainingWallGenerator {
                 BlockPos column = EarthworkGeometryUtils.canvasToBlockXZ(canvasPoint, transformer);
                 long columnKey = columnKey(column.getX(), column.getZ());
                 if (!placedColumns.add(columnKey)) {
+                    continue;
+                }
+                int bottom = fallbackBottom;
+                int top = fallbackTop;
+                if (grid != null) {
+                    DesignTerrainCell cell = grid.get(column.getX(), column.getZ());
+                    if (cell != null) {
+                        bottom = Math.min(cell.existingGroundY(), cell.targetY());
+                        top = Math.max(cell.existingGroundY(), cell.targetY());
+                    }
+                }
+                if (top <= bottom) {
                     continue;
                 }
                 for (int y = bottom; y <= top; y++) {

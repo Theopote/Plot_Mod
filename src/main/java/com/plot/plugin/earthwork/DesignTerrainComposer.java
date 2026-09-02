@@ -74,6 +74,7 @@ public final class DesignTerrainComposer {
     private static List<Breakline> mergeEffectiveBreaklines(EarthworkSite site) {
         List<Breakline> breaklines = new ArrayList<>(site.getBreaklines());
         breaklines.addAll(RetainingEdgeBreaklineAdapter.toNoBlendBreaklines(site.getRetainingEdges()));
+        breaklines.addAll(ZoneBoundaryRetainingEdgeAdapter.toNoBlendBreaklines(site.getGradingZones().values()));
         return breaklines;
     }
 

@@ -2,7 +2,7 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase F 已实施（分区边界放坡 + 逐边覆盖）  
+> **状态**：Phase F+ 已实施（挡土墙边界联动 + 分区边界同步）  
 > **版本**：`schemaVersion: 2`  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
@@ -844,8 +844,9 @@ project.activeSiteId = site.id
 | **E** | 道路标高烘焙、`BakedElevationGrid`、挡土墙实体生成 | ✅ 已完成 |
 | **E+** | 道路走廊轮廓导入、中心线折线、挡土墙分区材质联动 | ✅ 已完成 |
 | **F** | 分区边界处理（`EdgeTreatment`、挖填放坡、逐边覆盖） | ✅ 已完成 |
+| **F+** | `RETAINING_WALL` 边界联动、虚拟挡土边、按格墙高、同步 UI | ✅ 已完成 |
 
-**建议下一步**：多 Site 支持、侧车 snapshot 强制策略、挡土墙与 `RETAINING_WALL` 边界联动。
+**建议下一步**：画布逐边可视化、多级平台（bench）细部几何。
 
 ---
 

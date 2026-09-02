@@ -679,6 +679,8 @@ public class EarthworkProject {
         int fillSlopePitchDenominator = ZoneEdgeSettings.DEFAULT_FILL_SLOPE_DENOMINATOR;
         int maximumReachBlocks = ZoneEdgeSettings.DEFAULT_MAX_REACH_BLOCKS;
         int benchWidthBlocks;
+        String wallMaterial = "minecraft:stone_bricks";
+        boolean useLinkedZoneFillMaterial = true;
         List<BoundaryEdgeOverrideData> edgeOverrides = new ArrayList<>();
 
         static ZoneEdgeSettingsData from(ZoneEdgeSettings settings) {
@@ -692,6 +694,8 @@ public class EarthworkProject {
             data.fillSlopePitchDenominator = settings.getFillSlopePitchDenominator();
             data.maximumReachBlocks = settings.getMaximumReachBlocks();
             data.benchWidthBlocks = settings.getBenchWidthBlocks();
+            data.wallMaterial = settings.getWallMaterial();
+            data.useLinkedZoneFillMaterial = settings.isUseLinkedZoneFillMaterial();
             for (BoundaryEdgeOverride override : settings.getEdgeOverrides()) {
                 if (override != null) {
                     data.edgeOverrides.add(BoundaryEdgeOverrideData.from(override));
@@ -708,6 +712,8 @@ public class EarthworkProject {
             settings.setFillSlopePitchDenominator(fillSlopePitchDenominator);
             settings.setMaximumReachBlocks(maximumReachBlocks);
             settings.setBenchWidthBlocks(benchWidthBlocks);
+            settings.setWallMaterial(wallMaterial);
+            settings.setUseLinkedZoneFillMaterial(useLinkedZoneFillMaterial);
             if (edgeOverrides != null) {
                 List<BoundaryEdgeOverride> overrides = new ArrayList<>();
                 for (BoundaryEdgeOverrideData item : edgeOverrides) {
