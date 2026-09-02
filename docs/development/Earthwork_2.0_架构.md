@@ -260,7 +260,7 @@ public final class EarthworkGenerator {
 
 - [x] `earthwork/ui/EarthworkUiContext` + `manager/EarthworkUIManager` 承接全部 Tab / 工具栏 / 弹窗
 - [x] `EarthworkPlugin` 仅生命周期、持久化、画布叠加（~260 行）
-- [ ] 后续可拆 `earthwork/ui/*Panel`（对标道路 `Road*Panel`）
+- [x] `earthwork/ui/*Panel` 拆分（对标道路 `Road*Panel`：`EarthworkToolbarPanel`、`EarthworkOverviewPanel`、`EarthworkAdoptPanel`、`EarthworkEditPanel`、`EarthworkGeneratePanel`；共享 `EarthworkUiWidgets` / `EarthworkUiLookups`）
 
 ### 17f — 弃用旧入口（P2）
 
