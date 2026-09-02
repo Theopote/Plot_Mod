@@ -5,8 +5,10 @@ import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.core.material.MaterialConversionModel;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,8 +34,12 @@ public final class ZoneAllocationBalanceAdjuster {
         EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
             snapshot.byZone(),
             site);
-        Map<String, Integer> cellCounts = countCellsByZone(grid);
-        Map<String, Integer> zoneOffsets = computeZoneOffsets(matrix, cellCounts);
+        Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone = collectSamplesByZone(grid);
+        Map<String, Integer> zoneOffsets = computeZoneOffsets(
+            matrix,
+            countCellsByZone(grid),
+            samplesByZone,
+            site.getMaterialModel());
         applyZoneOffsets(grid, zoneOffsets);
 
         int residual = 0;
@@ -46,6 +52,14 @@ public final class ZoneAllocationBalanceAdjuster {
     public static Map<String, Integer> computeZoneOffsets(
             EarthworkAllocationMatrix matrix,
             Map<String, Integer> cellCountByZone) {
+        return computeZoneOffsets(matrix, cellCountByZone, null, MaterialConversionModel.DEFAULT);
+    }
+
+    public static Map<String, Integer> computeZoneOffsets(
+            EarthworkAllocationMatrix matrix,
+            Map<String, Integer> cellCountByZone,
+            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
+            MaterialConversionModel materials) {
         if (matrix == null || matrix.isEmpty() || cellCountByZone == null || cellCountByZone.isEmpty()) {
             return Map.of();
         }
@@ -66,16 +80,44 @@ public final class ZoneAllocationBalanceAdjuster {
 
         Map<String, Integer> offsets = new LinkedHashMap<>();
         for (Map.Entry<String, Long> entry : volumeIntent.entrySet()) {
-            int cellCount = cellCountByZone.getOrDefault(entry.getKey(), 0);
+            String zoneId = entry.getKey();
+            int cellCount = cellCountByZone.getOrDefault(zoneId, 0);
             if (cellCount <= 0) {
                 continue;
             }
-            int offset = (int) Math.round(entry.getValue() / (double) cellCount);
+            long intent = entry.getValue();
+            int offset;
+            List<SiteWideBalanceAdjuster.CellSample> zoneSamples = samplesByZone != null
+                ? samplesByZone.get(zoneId)
+                : null;
+            if (zoneSamples != null && !zoneSamples.isEmpty()) {
+                offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
+                    zoneSamples, intent, materials);
+            } else {
+                offset = (int) Math.round(intent / (double) cellCount);
+            }
             if (offset != 0) {
-                offsets.put(entry.getKey(), offset);
+                offsets.put(zoneId, offset);
             }
         }
         return Map.copyOf(offsets);
+    }
+
+    public static Map<String, List<SiteWideBalanceAdjuster.CellSample>> collectSamplesByZone(
+            DesignTerrainGrid grid) {
+        Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone = new LinkedHashMap<>();
+        if (grid == null) {
+            return samplesByZone;
+        }
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
+                continue;
+            }
+            samplesByZone
+                .computeIfAbsent(cell.zoneId(), ignored -> new ArrayList<>())
+                .add(new SiteWideBalanceAdjuster.CellSample(cell.existingGroundY(), cell.targetY()));
+        }
+        return samplesByZone;
     }
 
     public static void applyZoneOffsets(DesignTerrainGrid grid, Map<String, Integer> zoneOffsets) {

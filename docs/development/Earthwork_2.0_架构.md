@@ -281,13 +281,20 @@ public final class EarthworkGenerator {
 - [x] 道路 `RoadSystemConfig.getProfileBalanceMaterial()` 与土方平衡同语义
 - [x] `MaterialConversionModelTest`、`EngineeringTerrainSamplerTest`
 
+### 17j — 加权平衡（P0-6）
+
+- [x] 全 footprint 求解/算量一致（`previewGridSize` 仅影响预览着色）
+- [x] `solver/WeightedBalanceSolver`：按格点几何方量搜索分区竖向偏移（替代 `round(intent/cellCount)`）
+- [x] `EarthworkBalanceUtils.BalanceSample` + `findBalancedElevationWeighted`
+- [x] `ZoneAllocationBalanceAdjuster` 接入加权偏移；`WeightedBalanceSolverTest`
+
 ---
 
 ## 8. 测试策略
 
 | 层级 | 测试类型 | 已有 |
 |------|----------|------|
-| `solver/` | 单元：手算平衡标高 | `EarthworkBalanceUtilsTest` |
+| `solver/` | 单元：手算平衡标高 + 加权分区偏移 | `EarthworkBalanceUtilsTest`、`WeightedBalanceSolverTest` |
 | `design/` | 单元：平面过控制点 | `GradingSurfaceResolverTest` |
 | `grading/` | 集成：多 Zone 合成 | `DesignTerrainComposerTest` |
 | `volume/` | 解析解基准 | `EarthworkAnalyticalBenchmarkTest` |

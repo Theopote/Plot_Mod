@@ -6,6 +6,7 @@ import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.solver.ZoneAllocationBalanceAdjuster;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
+import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -67,6 +68,35 @@ class ZoneAllocationBalanceAdjusterTest {
         assertEquals(10L, report.zoneReport("a").geometricCutVolume());
         assertEquals(10L, report.zoneReport("b").geometricFillVolume());
         assertTrue(report.totals().hasGeometricVolume());
+    }
+
+    @Test
+    void weightedOffsetBeatsUniformRoundingWhenSamplesProvided() {
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        for (int i = 0; i < 100; i++) {
+            DesignTerrainCell cell = new DesignTerrainCell(i, 0,
+                new com.plot.api.geometry.Vec2d(i + 0.5, 0.5), 70);
+            cell.setTargetY(60);
+            cell.setZoneId("a");
+            grid.put(i, 0, cell);
+        }
+
+        Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
+        byZone.put("a", report(550L, 0L));
+        byZone.put("b", report(0L, 330L));
+        byZone.put("c", report(0L, 220L));
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
+
+        Map<String, Integer> uniform = ZoneAllocationBalanceAdjuster.computeZoneOffsets(
+            matrix, Map.of("a", 100, "b", 60, "c", 40));
+        Map<String, Integer> weighted = ZoneAllocationBalanceAdjuster.computeZoneOffsets(
+            matrix,
+            Map.of("a", 100, "b", 60, "c", 40),
+            ZoneAllocationBalanceAdjuster.collectSamplesByZone(grid),
+            MaterialConversionModel.DEFAULT);
+
+        assertEquals(6, uniform.get("a"));
+        assertEquals(5, weighted.get("a"));
     }
 
     private static EarthworkVolumeReport report(long cut, long fill) {

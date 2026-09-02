@@ -66,6 +66,18 @@ class EarthworkBalanceUtilsTest {
     }
 
     @Test
+    void weightedSamplesEmphasizeHighCutCells() {
+        List<EarthworkBalanceUtils.BalanceSample> samples = List.of(
+            new EarthworkBalanceUtils.BalanceSample(74, 3),
+            new EarthworkBalanceUtils.BalanceSample(64, 1));
+        int weighted = EarthworkBalanceUtils.findBalancedElevationWeighted(
+            samples, MaterialConversionModel.DEFAULT);
+        int unweighted = EarthworkBalanceUtils.findBalancedElevation(
+            List.of(74, 64, 64, 64), MaterialConversionModel.DEFAULT);
+        assertTrue(weighted >= unweighted);
+    }
+
+    @Test
     void emptySamplesReturnDefaultElevation() {
         int balanced = EarthworkBalanceUtils.findBalancedElevation(List.of(), DEFAULT_MATERIALS);
         assertTrue(balanced >= -64 && balanced <= 320);
