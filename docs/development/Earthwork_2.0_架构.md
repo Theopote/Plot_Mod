@@ -267,6 +267,12 @@ public final class EarthworkGenerator {
 - [x] `EarthworkPreviewManager.calculatePreview` 预览前硬校验；ERROR 阻断、WARNING 写入 `EarthworkGenerationResult.warnings`
 - [x] `EarthworkValidatorTest`；i18n `plugin.earthwork.validation.*`
 
+### 17h — 报表导出（P2-5）
+
+- [x] `volume/EarthworkReportExporter`：预览结果导出 CSV + JSON 至 `<gameDir>/plot/earthwork-reports/`
+- [x] 生成 Tab「导出方量报表」按钮；`EarthworkPreviewManager.exportLastReport`
+- [x] `EarthworkReportExporterTest`
+
 ---
 
 ## 8. 测试策略
@@ -281,6 +287,7 @@ public final class EarthworkGenerator {
 | `pipeline/` | 管线工厂 | `SiteEarthworkPipelineTest` |
 | `manager/` | 预览失效 / 无预览构建 | `EarthworkManagerTest` |
 | `validation/` | 预览前工程检查 | `EarthworkValidatorTest` |
+| `volume/` | 报表文件导出 | `EarthworkReportExporterTest` |
 | `voxel/` | 列挖填 + BlockSampler | `EarthworkVoxelizerTest` |
 
 **规则**：新类必须从第一天起可在 `world == null` + `TerrainSnapshot` 下测试。

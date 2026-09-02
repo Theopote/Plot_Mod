@@ -133,6 +133,10 @@ public final class EarthworkGeneratePanel {
                         renderProjectBalanceReport(preview.projectReport);
                     }
 
+                    if (ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
+                        ctx.previewManager().exportLastReport(ctx.project(), region);
+                    }
+
                     for (String warningKey : preview.warnings) {
                         ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
                     }

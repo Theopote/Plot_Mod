@@ -4,20 +4,21 @@ import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
-import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.model.EarthworkProject;
+import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.pipeline.LegacyRegionPipeline;
 import com.plot.plugin.earthwork.pipeline.SiteEarthworkPipeline;
-import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshotCache;
-import com.plot.plugin.earthwork.model.EarthworkProject;
-import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.validation.EarthworkValidationReport;
 import com.plot.plugin.earthwork.validation.EarthworkValidator;
+import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
+import com.plot.plugin.earthwork.volume.EarthworkReportExporter;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
@@ -200,6 +201,32 @@ public final class EarthworkPreviewManager {
             return null;
         }
         return result.existingTerrainSnapshot.compareWithCurrentWorld(world);
+    }
+
+    /**
+     * 将当前预览报告导出为 CSV + JSON，写入默认目录 {@link EarthworkReportExporter#defaultExportDirectory()}。
+     *
+     * @return 是否成功
+     */
+    public boolean exportLastReport(EarthworkProject project, GradingRegion region) {
+        EarthworkGenerationResult result = lastGenerationResult;
+        if (result == null || result.volumeReport == null || !result.volumeReport.hasGeometricVolume()) {
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.export_report_no_preview"));
+            return false;
+        }
+        try {
+            EarthworkReportExporter.ExportResult paths =
+                EarthworkReportExporter.exportPreview(result, project, region);
+            statusSink.accept(PlotI18n.tr(
+                "plugin.earthwork.export_report_success",
+                paths.csvPath().getFileName().toString(),
+                paths.csvPath().getParent().toString()));
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("土方报表导出失败: {}", e.getMessage(), e);
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.export_report_failed", e.getMessage()));
+            return false;
+        }
     }
 
     private static World getClientWorld() {
