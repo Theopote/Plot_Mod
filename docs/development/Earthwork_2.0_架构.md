@@ -233,20 +233,22 @@ public final class EarthworkGenerator {
 
 ### 17a — 管线入口（P0）
 
-- [ ] 新建 `pipeline/SiteEarthworkPipeline` + `EarthworkPipelineContext`
-- [ ] `EarthworkGenerator.generateSite` 委托 pipeline（内部仍调现有方法）
-- [ ] 测试：`EarthworkPipelineE2ETest` / `EarthworkAnalyticalBenchmarkTest` 全绿
+- [x] 新建 `pipeline/SiteEarthworkPipeline` + `EarthworkPipelineContext`
+- [x] `EarthworkGenerator.generateSite` 委托 pipeline（内部仍调现有方法）
+- [x] 测试：`SiteEarthworkPipelineTest` + `EarthworkPipelineE2ETest` / `EarthworkAnalyticalBenchmarkTest` 全绿
 
 ### 17b — 方量与体素分离（P0）
 
-- [ ] 抽出 `volume/EarthworkVolumeCalculator`
-- [ ] 抽出 `voxel/EarthworkVoxelizer` + `grading/CutFillClassifier`
-- [ ] `EarthworkGenerator` 仅编排调用
+- [x] 抽出 `volume/EarthworkVolumeCalculator`
+- [x] 抽出 `voxel/EarthworkVoxelizer` + `grading/CutFillClassifier`
+- [x] `EarthworkGenerator` 仅编排调用；`shouldApplyBlockChange` 委托 Voxelizer
 
 ### 17c — 设计面 Evaluator 整理（P1）
 
-- [ ] `GradingSurfaceResolver` → `design/*Evaluator` 命名统一
-- [ ] `DesignTerrainBuilder` 包装 `DesignTerrainComposer` + balance solvers
+- [x] `GradingSurfaceResolver` → `design/RegionSurfaceEvaluator` 门面；`design/ZoneSurfaceEvaluatorRegistry` 分区求值
+- [x] `grading/DesignTerrainBuilder` 包装 `DesignTerrainComposer` + balance（Composer 内 `applySiteBalance`）
+- [x] `terrain/SiteTerrainCapture` 捕获现状；`pipeline/DefaultSiteEarthworkOperations` 脱离 Generator 内部类
+- [x] `pipeline/LegacyRegionPipeline` 承载单分区 `generate(region)` 逻辑
 
 ### 17d — Manager 层（P1）
 

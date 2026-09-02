@@ -5,6 +5,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.RetainingEdge;
+import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -115,7 +116,7 @@ public final class RetainingWallGenerator {
             return;
         }
         String previous = Registries.BLOCK.getId(world.getBlockState(pos).getBlock()).toString();
-        if (!EarthworkGenerator.shouldApplyBlockChange(previous, blockId)) {
+        if (!EarthworkVoxelizer.shouldApplyBlockChange(previous, blockId)) {
             return;
         }
         result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));

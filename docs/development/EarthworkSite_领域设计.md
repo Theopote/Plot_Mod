@@ -1047,7 +1047,7 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 | **14** | 解析解基准（8 场景）+ 管线 E2E（3 场景 apply/undo）；见 §10.1 | ✅ 已完成 |
 | **15** | `EarthworkGenerateCommand` 取消后仅撤销 `appliedRecords` | ✅ 已完成 |
 | **16** | `schemaVersion` 正式化 + `EarthworkProjectMigrator` v1→v2→v3 链 | ✅ 已完成 |
-| **17** | Earthwork 2.0 架构：管线拆分 + Manager 层 + Plugin 瘦身；见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) | 📋 设计定稿 |
+| **17** | Earthwork 2.0 架构：管线拆分 + Manager 层 + Plugin 瘦身；见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) | 🚧 17a–17b 已完成 |
 
 ### 10.1 Phase 14 测试矩阵
 
@@ -1094,7 +1094,9 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 
 **运行**：`.\gradlew.bat test --tests "com.plot.plugin.earthwork.*"`
 
-**建议下一步（Phase 17a）**：落地 `SiteEarthworkPipeline`；抽出 `EarthworkVolumeCalculator` / `EarthworkVoxelizer`；`EarthworkGenerator` 改为委托。详见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) §7。
+**Phase 17c 已完成**：`RegionSurfaceEvaluator` / `DesignTerrainBuilder` / `DefaultSiteEarthworkOperations` / `LegacyRegionPipeline`。详见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) §7。
+
+**建议下一步（Phase 17d）**：`EarthworkPreviewManager` + `EarthworkBuildManager`，瘦身 `EarthworkPlugin`。
 
 ---
 
