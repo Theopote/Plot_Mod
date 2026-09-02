@@ -261,6 +261,12 @@ public final class EarthworkGenerator {
 - [x] `EarthworkPipelines` 作为 2.0 推荐工厂；`EarthworkPlugin` / `EarthworkPreviewManager` 已改调管线
 - [x] 包路径迁移（`terrain/`、`design/`、`solver/`、`volume/`、`grading/`、`geometry/`、`voxel/`）
 
+### 17g — 预览前校验（P1-1）
+
+- [x] `validation/EarthworkValidator` + `EarthworkValidationReport`（对标 `RoadNetworkEngineeringValidator`）
+- [x] `EarthworkPreviewManager.calculatePreview` 预览前硬校验；ERROR 阻断、WARNING 写入 `EarthworkGenerationResult.warnings`
+- [x] `EarthworkValidatorTest`；i18n `plugin.earthwork.validation.*`
+
 ---
 
 ## 8. 测试策略
@@ -274,6 +280,7 @@ public final class EarthworkGenerator {
 | `pipeline/` | E2E apply/undo | `EarthworkPipelineE2ETest` |
 | `pipeline/` | 管线工厂 | `SiteEarthworkPipelineTest` |
 | `manager/` | 预览失效 / 无预览构建 | `EarthworkManagerTest` |
+| `validation/` | 预览前工程检查 | `EarthworkValidatorTest` |
 | `voxel/` | 列挖填 + BlockSampler | `EarthworkVoxelizerTest` |
 
 **规则**：新类必须从第一天起可在 `world == null` + `TerrainSnapshot` 下测试。

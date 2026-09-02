@@ -16,6 +16,8 @@ import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.model.GradingRegion;
+import com.plot.plugin.earthwork.validation.EarthworkValidationReport;
+import com.plot.plugin.earthwork.validation.EarthworkValidator;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
@@ -41,6 +43,11 @@ public final class EarthworkPreviewManager {
     private final Consumer<String> statusSink;
 
     private volatile EarthworkGenerationResult lastGenerationResult;
+    private volatile EarthworkValidationReport lastValidationReport = EarthworkValidationReport.empty();
+
+    public EarthworkValidationReport getLastValidationReport() {
+        return lastValidationReport;
+    }
 
     public EarthworkPreviewManager(
             PluginContext host,
@@ -87,6 +94,13 @@ public final class EarthworkPreviewManager {
             return false;
         }
 
+        EarthworkValidationReport validation = EarthworkValidator.analyzePrePreview(project, region);
+        lastValidationReport = validation;
+        if (validation.blocksPreview()) {
+            statusSink.accept(validation.firstBlockingMessage());
+            return false;
+        }
+
         IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
@@ -116,6 +130,7 @@ public final class EarthworkPreviewManager {
         }
 
         enrichProjectReport(site, region, lastGenerationResult);
+        lastGenerationResult.warnings.addAll(validation.warningKeys());
         statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_preview_ready"));
         return true;
     }
@@ -158,6 +173,7 @@ public final class EarthworkPreviewManager {
             ghostBlockManager.clearAllGhostBlocks();
         }
         lastGenerationResult = null;
+        lastValidationReport = EarthworkValidationReport.empty();
     }
 
     /**
