@@ -3,7 +3,7 @@ import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
-import com.plot.plugin.earthwork.grading.SlopeBenchProfile;
+import com.plot.plugin.earthwork.grading.SlopeDaylightSolver;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.GeometryUtils;
 import com.plot.core.geometry.shapes.Polygon;
@@ -44,7 +44,7 @@ public final class ZoneBoundarySlopeApplicator {
         continue;
       }
       applyInteriorMatchExisting(cell, contexts, zonePolygons);
-      applyExteriorSlopes(cell, contexts, zonePolygons);
+      applyExteriorSlopes(grid, cell, contexts, zonePolygons);
     }
     grid.finalizeStats();
   }
@@ -72,6 +72,7 @@ public final class ZoneBoundarySlopeApplicator {
   }
 
   private static void applyExteriorSlopes(
+      DesignTerrainGrid grid,
       DesignTerrainCell cell,
       List<ZoneContext> contexts,
       List<ZonePolygon> zonePolygons) {
@@ -100,9 +101,10 @@ public final class ZoneBoundarySlopeApplicator {
       }
       int toeY = evaluator.evaluateAt(cell);
       int slopeTarget = computeExteriorSlopeTarget(
-          cell.existingGroundY(),
+          grid,
+          cell,
           toeY,
-          proximity.distance(),
+          proximity,
           context.settings());
       if (slopeTarget == cell.targetY()) {
         continue;
@@ -121,6 +123,32 @@ public final class ZoneBoundarySlopeApplicator {
   }
 
   static int computeExteriorSlopeTarget(
+      DesignTerrainGrid grid,
+      DesignTerrainCell cell,
+      int toeY,
+      BoundaryProximity proximity,
+      ZoneEdgeSettings settings) {
+    if (proximity.distance() <= 0.0) {
+      return toeY;
+    }
+    SlopeDaylightSolver.SlopeMode mode = SlopeDaylightSolver.modeFor(
+        cell.existingGroundY(), toeY);
+    double pitchRatio = mode == SlopeDaylightSolver.SlopeMode.CUT
+        ? settings.getCutSlopePitchRatio()
+        : settings.getFillSlopePitchRatio();
+    return SlopeDaylightSolver.resolveExteriorTargetY(
+        toeY,
+        cell.existingGroundY(),
+        proximity.distance(),
+        mode,
+        pitchRatio,
+        settings.getBenchWidthBlocks(),
+        buildGroundProfile(grid, cell, proximity.closestPoint()),
+        settings.getMaximumReachBlocks());
+  }
+
+  /** 无格网上下文时的退化入口（沿射线假设现状高程不变）。 */
+  static int computeExteriorSlopeTarget(
       int existingGroundY,
       int toeY,
       double distanceToBoundary,
@@ -128,17 +156,49 @@ public final class ZoneBoundarySlopeApplicator {
     if (distanceToBoundary <= 0.0) {
       return toeY;
     }
-    if (existingGroundY > toeY) {
-      int rise = SlopeBenchProfile.computeRiseAtDistance(
-          distanceToBoundary, settings.getCutSlopePitchRatio(), settings.getBenchWidthBlocks());
-      return Math.min(toeY + rise, existingGroundY);
+    SlopeDaylightSolver.SlopeMode mode = SlopeDaylightSolver.modeFor(existingGroundY, toeY);
+    double pitchRatio = mode == SlopeDaylightSolver.SlopeMode.CUT
+        ? settings.getCutSlopePitchRatio()
+        : settings.getFillSlopePitchRatio();
+    return SlopeDaylightSolver.resolveExteriorTargetY(
+        toeY,
+        existingGroundY,
+        distanceToBoundary,
+        mode,
+        pitchRatio,
+        settings.getBenchWidthBlocks(),
+        offset -> existingGroundY,
+        settings.getMaximumReachBlocks());
+  }
+
+  private static java.util.function.IntUnaryOperator buildGroundProfile(
+      DesignTerrainGrid grid,
+      DesignTerrainCell cell,
+      Vec2d closestBoundaryPoint) {
+    if (grid == null || cell == null || closestBoundaryPoint == null) {
+      return offset -> cell != null ? cell.existingGroundY() : 64;
     }
-    if (existingGroundY < toeY) {
-      int drop = SlopeBenchProfile.computeRiseAtDistance(
-          distanceToBoundary, settings.getFillSlopePitchRatio(), settings.getBenchWidthBlocks());
-      return Math.max(toeY - drop, existingGroundY);
+    Vec2d delta = cell.center().subtract(closestBoundaryPoint);
+    double length = delta.length();
+    if (length < 1e-9) {
+      return offset -> cell.existingGroundY();
     }
-    return toeY;
+    Vec2d unit = delta.multiply(1.0 / length);
+    int fallback = cell.existingGroundY();
+    return offset -> sampleGroundAt(grid, closestBoundaryPoint, unit, offset, fallback);
+  }
+
+  private static int sampleGroundAt(
+      DesignTerrainGrid grid,
+      Vec2d origin,
+      Vec2d unitDir,
+      int offset,
+      int fallback) {
+    Vec2d point = origin.add(unitDir.multiply(offset));
+    int worldX = (int) Math.floor(point.x);
+    int worldZ = (int) Math.floor(point.y);
+    DesignTerrainCell sample = grid.get(worldX, worldZ);
+    return sample != null ? sample.existingGroundY() : fallback;
   }
 
   private static boolean isInsideAnotherZone(Vec2d point, String ownerZoneId, List<ZonePolygon> zones) {

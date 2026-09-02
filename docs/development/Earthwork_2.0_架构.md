@@ -61,7 +61,7 @@ com.plot.plugin.earthwork
 ├── grading/            # 设计地形格网 + 挖填分类
 │   ├── DesignTerrainGrid / DesignTerrainCell
 │   ├── DesignTerrainBuilder / CutFillClassifier
-│   ├── SlopeBenchProfile / GradingPlane / BreaklineClassifier
+│   ├── SlopeBenchProfile / SlopeDaylightSolver / GradingPlane / BreaklineClassifier
 │   └── ZoneOverlapAnalyzer
 │
 ├── geometry/           # 场地几何（无 World）
@@ -288,6 +288,13 @@ public final class EarthworkGenerator {
 - [x] `EarthworkBalanceUtils.BalanceSample` + `findBalancedElevationWeighted`
 - [x] `ZoneAllocationBalanceAdjuster` 接入加权偏移；`WeightedBalanceSolverTest`
 
+### 17k — 边坡日照线求解（P1-2）
+
+- [x] `grading/SlopeDaylightSolver`：沿边界外法向搜索坡面与现状地面的首次交点（daylight line）
+- [x] 支持 `SlopeBenchProfile` 多级平台剖面
+- [x] `ZoneBoundarySlopeApplicator` 接入：超出日照线格点保持现状，不再无限延伸坡面
+- [x] `SlopeDaylightSolverTest`（含不规则地形与 composer 集成）
+
 ---
 
 ## 8. 测试策略
@@ -296,7 +303,7 @@ public final class EarthworkGenerator {
 |------|----------|------|
 | `solver/` | 单元：手算平衡标高 + 加权分区偏移 | `EarthworkBalanceUtilsTest`、`WeightedBalanceSolverTest` |
 | `design/` | 单元：平面过控制点 | `GradingSurfaceResolverTest` |
-| `grading/` | 集成：多 Zone 合成 | `DesignTerrainComposerTest` |
+| `grading/` | 集成：多 Zone 合成 + 日照线 | `DesignTerrainComposerTest`、`SlopeDaylightSolverTest` |
 | `volume/` | 解析解基准 | `EarthworkAnalyticalBenchmarkTest` |
 | `pipeline/` | E2E apply/undo | `EarthworkPipelineE2ETest` |
 | `pipeline/` | 管线工厂 | `SiteEarthworkPipelineTest` |
