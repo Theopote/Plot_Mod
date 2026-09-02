@@ -15,6 +15,7 @@ import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -76,6 +77,47 @@ public final class EarthworkUiWidgets {
                     currentBlockId == null || currentBlockId.isBlank() ? "minecraft:air" : currentBlockId,
                     onSelected);
             }
+        }
+
+        /**
+         * 渲染材料换算滑块（可利用率 + 挖转填系数）。
+         *
+         * @return 是否修改了材料参数
+         */
+        public static boolean renderMaterialConversionSliders(
+                EarthworkUiContext ctx,
+                MaterialConversionModel materials,
+                Consumer<MaterialConversionModel> onChange) {
+            MaterialConversionModel current = materials != null ? materials : MaterialConversionModel.DEFAULT;
+            float[] reusableRatio = {current.reusableRatio()};
+            boolean changed = false;
+            boolean reusableChanged = ImGui.sliderFloat("##reusable_ratio", reusableRatio, 0.50f, 1.00f,
+                PlotI18n.tr("plugin.earthwork.reusable_ratio", String.format("%.2f", reusableRatio[0])));
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            if (reusableChanged) {
+                onChange.accept(current.withReusableRatio(reusableRatio[0]));
+                changed = true;
+            }
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.reusable_ratio");
+
+            float[] cutToFillRatio = {current.cutToCompactedFillRatio()};
+            boolean cutToFillChanged = ImGui.sliderFloat("##cut_to_compacted_fill_ratio", cutToFillRatio, 0.50f, 1.00f,
+                PlotI18n.tr("plugin.earthwork.cut_to_compacted_fill_ratio", String.format("%.2f", cutToFillRatio[0])));
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            if (cutToFillChanged) {
+                onChange.accept(current.withCutToCompactedFillRatio(cutToFillRatio[0]));
+                changed = true;
+            }
+            UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_to_compacted_fill_ratio");
+
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.earthwork.effective_cut_to_fill_ratio",
+                (materials != null ? materials : current).effectiveCutToCompactedFillRatio()));
+            return changed;
         }
 
         public static void locateRegion(EarthworkUiContext ctx, GradingRegion region) {

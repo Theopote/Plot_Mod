@@ -129,7 +129,7 @@ flowchart TD
 |--------|----------|------|
 | `TerrainSnapshot` | `terrain/` | 已是核心抽象 |
 | `TerrainSnapshotCache` | `terrain/` | |
-| `TerrainSurfaceSampler` | `terrain/` | 可重命名为 `EngineeringTerrainSampler` |
+| `TerrainSurfaceSampler` | `terrain/` | 已迁至 `core/terrain/EngineeringTerrainSampler` |
 | `DesignTerrainComposer` | `design/` | 场地合成 |
 | `DesignSurfaceResolver` / `GradingSurfaceResolver` | `design/` | 单分区平面解析 |
 | `MultiPlaneSurfaceEvaluator` | `design/` | |
@@ -272,6 +272,14 @@ public final class EarthworkGenerator {
 - [x] `volume/EarthworkReportExporter`：预览结果导出 CSV + JSON 至 `<gameDir>/plot/earthwork-reports/`
 - [x] 生成 Tab「导出方量报表」按钮；`EarthworkPreviewManager.exportLastReport`
 - [x] `EarthworkReportExporterTest`
+
+### 17i — 材料模型与工程地形采样统一（P0-3 / P0-5）
+
+- [x] `core/material/MaterialConversionModel`：取代 `fillFactor` / `EarthMaterialProperties`
+- [x] `core/terrain/EngineeringTerrainSampler`：道路/土方/建筑统一现状地面采样门面
+- [x] 场地默认材料模型（总览 Tab）+ 区域继承 `resolveMaterialModel`
+- [x] 道路 `RoadSystemConfig.getProfileBalanceMaterial()` 与土方平衡同语义
+- [x] `MaterialConversionModelTest`、`EngineeringTerrainSamplerTest`
 
 ---
 

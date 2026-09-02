@@ -6,6 +6,7 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.model.Shape;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.tool.BaseTool;
@@ -1125,34 +1126,16 @@ public final class EarthworkEditPanel {
     }
 
     private void renderMaterialPropertiesSettings(GradingRegion region) {
-        EarthMaterialProperties materials = region.getMaterialProperties();
-        float[] reusableRatio = {materials.reusableRatio()};
-        boolean reusableChanged = ImGui.sliderFloat("##reusable_ratio", reusableRatio, 0.50f, 1.00f,
-            PlotI18n.tr("plugin.earthwork.reusable_ratio", String.format("%.2f", reusableRatio[0])));
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+        MaterialConversionModel siteModel = ctx.project().getActiveSite().getMaterialModel();
+        if (region.usesSiteMaterialDefault()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.material_inherit_site"));
         }
-        if (reusableChanged) {
-            region.setMaterialProperties(materials.withReusableRatio(reusableRatio[0]));
+        MaterialConversionModel display = region.resolveMaterialModel(siteModel);
+        EarthworkUiWidgets.renderMaterialConversionSliders(ctx, display, updated -> {
+            region.setMaterialProperties(updated);
             ctx.invalidatePreview();
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.reusable_ratio");
-
-        float[] cutToFillRatio = {materials.cutToCompactedFillRatio()};
-        boolean cutToFillChanged = ImGui.sliderFloat("##cut_to_compacted_fill_ratio", cutToFillRatio, 0.50f, 1.00f,
-            PlotI18n.tr("plugin.earthwork.cut_to_compacted_fill_ratio", String.format("%.2f", cutToFillRatio[0])));
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
-        }
-        if (cutToFillChanged) {
-            region.setMaterialProperties(materials.withCutToCompactedFillRatio(cutToFillRatio[0]));
-            ctx.invalidatePreview();
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_to_compacted_fill_ratio");
-
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-            "plugin.earthwork.effective_cut_to_fill_ratio",
-            region.getMaterialProperties().effectiveCutToCompactedFillRatio()));
+        });
     }
 
     private void renderFlatSurfaceSettings(GradingRegion region) {

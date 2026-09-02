@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.persistence.EarthworkProjectMigrator;
 import com.plot.plugin.earthwork.persistence.EarthworkProjectSchema;
 
@@ -270,14 +271,14 @@ public class EarthworkProject {
 
             EarthworkSite site = new EarthworkSite();
             site.setName("Imported Site");
-            EarthMaterialProperties siteMaterial = EarthMaterialProperties.DEFAULT;
+            MaterialConversionModel siteMaterial = MaterialConversionModel.DEFAULT;
 
             for (RegionData regionData : regions) {
                 GradingRegion region = regionData.toRegion();
                 if (region == null) {
                     continue;
                 }
-                if (siteMaterial == EarthMaterialProperties.DEFAULT) {
+                if (siteMaterial == MaterialConversionModel.DEFAULT) {
                     siteMaterial = region.getMaterialProperties();
                 }
                 GradingZone zone = GradingZone.fromGradingRegion(region);
@@ -341,7 +342,7 @@ public class EarthworkProject {
             site.setSiteBoundary(readPoints(siteBoundary));
             site.setMaterialModel(materialModel != null
                 ? materialModel.toProperties()
-                : EarthMaterialProperties.DEFAULT);
+                : MaterialConversionModel.DEFAULT);
             if (existingTerrainRef != null) {
                 site.setExistingTerrainRef(existingTerrainRef.toRef());
             }
@@ -479,18 +480,18 @@ public class EarthworkProject {
     }
 
     static class MaterialData {
-        float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;
-        float cutToCompactedFillRatio = EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
+        float reusableRatio = MaterialConversionModel.DEFAULT_REUSABLE_RATIO;
+        float cutToCompactedFillRatio = MaterialConversionModel.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
 
-        static MaterialData from(EarthMaterialProperties properties) {
+        static MaterialData from(MaterialConversionModel properties) {
             MaterialData data = new MaterialData();
             data.reusableRatio = properties.reusableRatio();
             data.cutToCompactedFillRatio = properties.cutToCompactedFillRatio();
             return data;
         }
 
-        EarthMaterialProperties toProperties() {
-            return new EarthMaterialProperties(reusableRatio, cutToCompactedFillRatio);
+        MaterialConversionModel toProperties() {
+            return new MaterialConversionModel(reusableRatio, cutToCompactedFillRatio);
         }
     }
 
@@ -1004,8 +1005,8 @@ public class EarthworkProject {
         String surfaceMode = GradingSurfaceMode.LEVEL_PAD.name();
         boolean autoBalance = true;
         Integer manualTargetElevation;
-        float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;
-        float cutToCompactedFillRatio = EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
+        float reusableRatio = MaterialConversionModel.DEFAULT_REUSABLE_RATIO;
+        float cutToCompactedFillRatio = MaterialConversionModel.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
         /** @deprecated 仅用于读取旧工程 */
         @Deprecated
         Float fillFactor;
@@ -1075,11 +1076,11 @@ public class EarthworkProject {
             return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
         }
 
-        private EarthMaterialProperties resolveMaterialProperties() {
+        private MaterialConversionModel resolveMaterialProperties() {
             if (fillFactor != null && fillFactor > 0.0f) {
-                return EarthMaterialProperties.fromLegacyFillFactor(fillFactor);
+                return MaterialConversionModel.fromLegacyFillFactor(fillFactor);
             }
-            return new EarthMaterialProperties(reusableRatio, cutToCompactedFillRatio);
+            return new MaterialConversionModel(reusableRatio, cutToCompactedFillRatio);
         }
     }
 }

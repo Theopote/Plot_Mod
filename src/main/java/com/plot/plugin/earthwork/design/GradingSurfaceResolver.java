@@ -4,7 +4,7 @@ import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.solver.EarthworkBalanceUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 
@@ -39,12 +39,25 @@ public final class GradingSurfaceResolver {
             List<Integer> sampleHeights,
             ICoordinateService transformer,
             boolean deferBalanceToSite) {
+        return resolve(region, sampleCenters, sampleHeights, transformer, deferBalanceToSite, null);
+    }
+
+    public static ResolvedSurface resolve(
+            GradingRegion region,
+            List<Vec2d> sampleCenters,
+            List<Integer> sampleHeights,
+            ICoordinateService transformer,
+            boolean deferBalanceToSite,
+            MaterialConversionModel balanceMaterials) {
+        MaterialConversionModel materials = balanceMaterials != null
+            ? balanceMaterials
+            : region.getMaterialProperties();
         List<HeightSample> samples = buildSamples(sampleCenters, sampleHeights, transformer);
         GradingPlane plane = switch (region.getSurfaceMode()) {
-            case LEVEL_PAD -> resolveFlat(region, samples, deferBalanceToSite);
+            case LEVEL_PAD -> resolveFlat(region, samples, deferBalanceToSite, materials);
             case SINGLE_SLOPE_PLANE -> resolveFixedSlope(region, samples, transformer);
             case THREE_POINT_PLANE -> resolveThreePoint(region, transformer);
-            case BEST_FIT_PLANE, DRAINAGE_SURFACE -> resolveFitSlope(region, samples, deferBalanceToSite);
+            case BEST_FIT_PLANE, DRAINAGE_SURFACE -> resolveFitSlope(region, samples, deferBalanceToSite, materials);
             case MATCH_EXISTING -> GradingPlane.flat(0);
             case MULTI_PLANE -> GradingPlane.flat(64);
         };
@@ -105,10 +118,11 @@ public final class GradingSurfaceResolver {
     private static GradingPlane resolveFlat(
             GradingRegion region,
             List<HeightSample> samples,
-            boolean deferBalanceToSite) {
+            boolean deferBalanceToSite,
+            MaterialConversionModel materials) {
         int elevation;
         if (region.isAutoBalance() && !deferBalanceToSite) {
-            elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), region.getMaterialProperties());
+            elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), materials);
         } else if (region.isAutoBalance() && deferBalanceToSite) {
             elevation = averageGroundElevation(samples);
         } else if (region.getManualTargetElevation() != null) {
@@ -116,9 +130,16 @@ public final class GradingSurfaceResolver {
         } else {
             elevation = deferBalanceToSite
                 ? averageGroundElevation(samples)
-                : EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), region.getMaterialProperties());
+                : EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), materials);
         }
         return GradingPlane.flat(elevation);
+    }
+
+    private static GradingPlane resolveFlat(
+            GradingRegion region,
+            List<HeightSample> samples,
+            boolean deferBalanceToSite) {
+        return resolveFlat(region, samples, deferBalanceToSite, region.getMaterialProperties());
     }
 
     private static int averageGroundElevation(List<HeightSample> samples) {
@@ -187,7 +208,8 @@ public final class GradingSurfaceResolver {
     private static GradingPlane resolveFitSlope(
             GradingRegion region,
             List<HeightSample> samples,
-            boolean deferBalanceToSite) {
+            boolean deferBalanceToSite,
+            MaterialConversionModel materials) {
         if (samples.isEmpty()) {
             return GradingPlane.flat(64);
         }
@@ -195,7 +217,14 @@ public final class GradingSurfaceResolver {
         if (!region.isFitSlopeBalanceCutFill() || deferBalanceToSite) {
             return leastSquares;
         }
-        return balancePlaneIntercept(leastSquares, samples, region.getMaterialProperties());
+        return balancePlaneIntercept(leastSquares, samples, materials);
+    }
+
+    private static GradingPlane resolveFitSlope(
+            GradingRegion region,
+            List<HeightSample> samples,
+            boolean deferBalanceToSite) {
+        return resolveFitSlope(region, samples, deferBalanceToSite, region.getMaterialProperties());
     }
 
     private static GradingPlane resolveFitSlope(GradingRegion region, List<HeightSample> samples) {
@@ -269,7 +298,7 @@ public final class GradingSurfaceResolver {
     public static GradingPlane balancePlaneIntercept(
             GradingPlane basePlane,
             List<HeightSample> samples,
-            EarthMaterialProperties materials) {
+            MaterialConversionModel materials) {
         if (basePlane == null || samples == null || samples.isEmpty()) {
             return basePlane;
         }

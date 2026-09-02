@@ -1,6 +1,6 @@
 package com.plot.plugin.earthwork.solver;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 

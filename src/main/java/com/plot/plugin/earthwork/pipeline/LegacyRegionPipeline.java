@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
@@ -39,6 +40,15 @@ public final class LegacyRegionPipeline {
             World world,
             TerrainSnapshot terrainSnapshot,
             ZoneEdgeSettings edgeSettings) {
+        return execute(region, world, terrainSnapshot, edgeSettings, null);
+    }
+
+    public EarthworkGenerationResult execute(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot terrainSnapshot,
+            ZoneEdgeSettings edgeSettings,
+            MaterialConversionModel siteMaterialModel) {
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         if (region == null) {
             LOGGER.warn("整平区域为空");
@@ -48,6 +58,8 @@ public final class LegacyRegionPipeline {
             LOGGER.warn("整平区域或现状快照为空");
             return result;
         }
+
+        MaterialConversionModel balanceMaterials = region.resolveMaterialModel(siteMaterialModel);
 
         List<Vec2d> outerPoints = region.getOuterPoints();
         if (outerPoints.size() < 3) {
@@ -69,7 +81,7 @@ public final class LegacyRegionPipeline {
         result.calculationCellCount = terrain.columnCount();
 
         GradingSurfaceResolver.ResolvedSurface surface = RegionSurfaceEvaluator.resolve(
-            region, terrain, coordinateService);
+            region, terrain, coordinateService, false, balanceMaterials);
         GradingPlane plane = surface.plane();
         result.resolvedElevation = plane.isFlat()
             ? surface.elevationMin()
@@ -79,7 +91,7 @@ public final class LegacyRegionPipeline {
         result.slopedSurface = !plane.isFlat();
 
         volumeCalculator.computeFromPlane(
-            region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings);
+            region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, balanceMaterials);
 
         region.setLastVolumeReport(result.volumeReport);
         region.setLastResolvedElevation(result.resolvedElevation);

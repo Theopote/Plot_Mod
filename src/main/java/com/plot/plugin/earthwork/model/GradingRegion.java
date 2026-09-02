@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.RegionGeometry;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ public class GradingRegion {
     private GradingSurfaceMode surfaceMode = GradingSurfaceMode.LEVEL_PAD;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
-    private EarthMaterialProperties materialProperties = EarthMaterialProperties.DEFAULT;
+    private MaterialConversionModel materialProperties = MaterialConversionModel.DEFAULT;
     private String cutExposeMaterial = "";
     private String fillMaterial = DEFAULT_FILL_MATERIAL;
     private int previewGridSize = DEFAULT_PREVIEW_GRID_SIZE;
@@ -129,14 +130,29 @@ public class GradingRegion {
         this.manualTargetElevation = manualTargetElevation;
     }
 
-    public EarthMaterialProperties getMaterialProperties() {
-        return materialProperties != null ? materialProperties : EarthMaterialProperties.DEFAULT;
+    public MaterialConversionModel getMaterialProperties() {
+        return materialProperties != null ? materialProperties : MaterialConversionModel.DEFAULT;
     }
 
-    public void setMaterialProperties(EarthMaterialProperties materialProperties) {
+    public void setMaterialProperties(MaterialConversionModel materialProperties) {
         this.materialProperties = materialProperties != null
             ? materialProperties
-            : EarthMaterialProperties.DEFAULT;
+            : MaterialConversionModel.DEFAULT;
+    }
+
+    /**
+     * 解析用于平衡/方量换算的材料模型：区域未单独设置时继承场地默认。
+     */
+    public MaterialConversionModel resolveMaterialModel(MaterialConversionModel siteDefault) {
+        MaterialConversionModel site = siteDefault != null ? siteDefault : MaterialConversionModel.DEFAULT;
+        if (usesSiteMaterialDefault()) {
+            return site;
+        }
+        return getMaterialProperties();
+    }
+
+    public boolean usesSiteMaterialDefault() {
+        return materialProperties == null || materialProperties == MaterialConversionModel.DEFAULT;
     }
 
     public String getCutExposeMaterial() {

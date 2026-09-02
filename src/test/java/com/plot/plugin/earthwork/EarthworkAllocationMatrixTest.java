@@ -4,7 +4,7 @@ import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -49,7 +49,7 @@ class EarthworkAllocationMatrixTest {
         byZone.put("b", report(0L, 6_000L));
         byZone.put("c", report(0L, 3_000L));
         SiteEarthworkReport siteReport = new SiteEarthworkReport(
-            EarthworkVolumeReport.fromMetrics(10_000L, 9_000L, EarthMaterialProperties.DEFAULT, 0L, 0L),
+            EarthworkVolumeReport.fromMetrics(10_000L, 9_000L, MaterialConversionModel.DEFAULT, 0L, 0L),
             byZone);
 
         EarthworkProjectReport report = EarthworkProjectReport.Builder.build(null, siteReport);
@@ -80,6 +80,6 @@ class EarthworkAllocationMatrixTest {
     }
 
     private static EarthworkVolumeReport report(long cut, long fill) {
-        return EarthworkVolumeReport.fromMetrics(cut, fill, EarthMaterialProperties.DEFAULT, 0L, 0L);
+        return EarthworkVolumeReport.fromMetrics(cut, fill, MaterialConversionModel.DEFAULT, 0L, 0L);
     }
 }

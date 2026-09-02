@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkVolumeReportTest {
 
-    private static final EarthMaterialProperties LEGACY_LIKE =
-        EarthMaterialProperties.fromLegacyFillFactor(1.1f);
+    private static final MaterialConversionModel LEGACY_LIKE =
+        MaterialConversionModel.fromLegacyFillFactor(1.1f);
 
     @Test
     void materialBalanceWhenCutExceedsFillRequirement() {
@@ -41,7 +41,7 @@ class EarthworkVolumeReportTest {
     @Test
     void defaultMaterialPropertiesMatchUserExample() {
         EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
-            1000L, 828L, EarthMaterialProperties.DEFAULT, 0L, 0L);
+            1000L, 828L, MaterialConversionModel.DEFAULT, 0L, 0L);
 
         assertEquals(900.0, report.reusableCutVolume(), 1e-6);
         assertEquals(0.0, report.importVolume(), 0.05);
@@ -51,7 +51,7 @@ class EarthworkVolumeReportTest {
     @Test
     void geometricVolumeIndependentFromChangedBlocks() {
         EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
-            10L, 6L, new EarthMaterialProperties(1.0f, 1.0f), 0L, 0L);
+            10L, 6L, new MaterialConversionModel(1.0f, 1.0f), 0L, 0L);
 
         assertTrue(report.hasGeometricVolume());
         assertEquals(0L, report.totalChangedBlocks());

@@ -6,6 +6,7 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.model.Shape;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.tool.BaseTool;
@@ -151,7 +152,7 @@ public final class EarthworkAdoptPanel {
             GradingRegion region = new GradingRegion(points);
             region.setName(PlotI18n.tr("plugin.earthwork.default_name", adopted + 1));
             region.setAutoBalance(ctx.config().isAutoBalance());
-            region.setMaterialProperties(ctx.config().getDefaultMaterialProperties());
+            region.setMaterialProperties(MaterialConversionModel.DEFAULT);
             region.setPreviewGridSize(ctx.config().getPreviewGridSize());
             if (!ctx.config().isAutoBalance()) {
                 region.setManualTargetElevation(Math.round(ctx.config().getTargetElevation()));

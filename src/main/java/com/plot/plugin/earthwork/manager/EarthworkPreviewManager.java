@@ -111,7 +111,8 @@ public final class EarthworkPreviewManager {
         try {
             if (site.delegatesToLegacyGenerator()) {
                 TerrainSnapshot terrain = terrainCache.captureFresh(region, world, host.coordinates());
-                lastGenerationResult = legacyPipeline.execute(region, world, terrain, null);
+                lastGenerationResult = legacyPipeline.execute(
+                    region, world, terrain, null, site.getMaterialModel());
             } else {
                 TerrainSnapshot terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
                 lastGenerationResult = sitePipeline.execute(

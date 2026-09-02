@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 
 /**
@@ -137,8 +137,8 @@ public final class EarthworkProjectMigrator {
 
     private static JsonObject defaultMaterialModel() {
         JsonObject material = new JsonObject();
-        material.addProperty("reusableRatio", EarthMaterialProperties.DEFAULT_REUSABLE_RATIO);
-        material.addProperty("cutToCompactedFillRatio", EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO);
+        material.addProperty("reusableRatio", MaterialConversionModel.DEFAULT_REUSABLE_RATIO);
+        material.addProperty("cutToCompactedFillRatio", MaterialConversionModel.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO);
         return material;
     }
 }

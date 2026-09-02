@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ public class EarthworkSite {
     private final String id;
     private String name;
     private List<Vec2d> siteBoundary = new ArrayList<>();
-    private EarthMaterialProperties materialModel = EarthMaterialProperties.DEFAULT;
+    private MaterialConversionModel materialModel = MaterialConversionModel.DEFAULT;
     private ExistingTerrainRef existingTerrainRef = new ExistingTerrainRef();
     private CompositionPolicy compositionPolicy = CompositionPolicy.DEFAULT;
     private final Map<String, GradingZone> gradingZones = new LinkedHashMap<>();
@@ -87,12 +88,12 @@ public class EarthworkSite {
         this.siteBoundary = copyPoints(siteBoundary);
     }
 
-    public EarthMaterialProperties getMaterialModel() {
-        return materialModel != null ? materialModel : EarthMaterialProperties.DEFAULT;
+    public MaterialConversionModel getMaterialModel() {
+        return materialModel != null ? materialModel : MaterialConversionModel.DEFAULT;
     }
 
-    public void setMaterialModel(EarthMaterialProperties materialModel) {
-        this.materialModel = materialModel != null ? materialModel : EarthMaterialProperties.DEFAULT;
+    public void setMaterialModel(MaterialConversionModel materialModel) {
+        this.materialModel = materialModel != null ? materialModel : MaterialConversionModel.DEFAULT;
     }
 
     public ExistingTerrainRef getExistingTerrainRef() {

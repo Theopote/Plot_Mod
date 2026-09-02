@@ -3,7 +3,7 @@ import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -97,7 +97,7 @@ public final class ZoneAllocationBalanceAdjuster {
         Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new LinkedHashMap<>();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
         if (grid == null) {
-            return SiteEarthworkReport.fromMetrics(totals, zoneMetrics, EarthMaterialProperties.DEFAULT);
+            return SiteEarthworkReport.fromMetrics(totals, zoneMetrics, MaterialConversionModel.DEFAULT);
         }
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
@@ -118,7 +118,7 @@ public final class ZoneAllocationBalanceAdjuster {
                 zoneVolume.addFill(fill, 0L);
             }
         }
-        return SiteEarthworkReport.fromMetrics(totals, zoneMetrics, EarthMaterialProperties.DEFAULT);
+        return SiteEarthworkReport.fromMetrics(totals, zoneMetrics, MaterialConversionModel.DEFAULT);
     }
 
     public static Map<String, Integer> countCellsByZone(DesignTerrainGrid grid) {
@@ -137,7 +137,7 @@ public final class ZoneAllocationBalanceAdjuster {
 
     private static int applyResidualUniformOffset(
             DesignTerrainGrid grid,
-            EarthMaterialProperties materials) {
+            MaterialConversionModel materials) {
         java.util.List<SiteWideBalanceAdjuster.CellSample> samples = new java.util.ArrayList<>();
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {

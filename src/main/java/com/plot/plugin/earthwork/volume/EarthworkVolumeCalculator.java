@@ -9,7 +9,7 @@ import com.plot.plugin.earthwork.grading.GradingPlane;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
@@ -39,6 +39,23 @@ public final class EarthworkVolumeCalculator {
             EarthworkGenerationResult result,
             int previewGridSize,
             ZoneEdgeSettings edgeSettings) {
+        computeFromPlane(
+            region, world, terrain, plane, result, previewGridSize, edgeSettings,
+            region.getMaterialProperties());
+    }
+
+    public void computeFromPlane(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot terrain,
+            GradingPlane plane,
+            EarthworkGenerationResult result,
+            int previewGridSize,
+            ZoneEdgeSettings edgeSettings,
+            MaterialConversionModel balanceMaterials) {
+        MaterialConversionModel materials = balanceMaterials != null
+            ? balanceMaterials
+            : region.getMaterialProperties();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
         List<Vec2d> regionOutline = region.getOuterPoints();
         for (TerrainSnapshot.Column column : terrain.columns()) {
@@ -59,7 +76,7 @@ public final class EarthworkVolumeCalculator {
                 totals,
                 null);
         }
-        result.volumeReport = totals.toReport(region.getMaterialProperties());
+        result.volumeReport = totals.toReport(materials);
         result.siteVolumeReport = new SiteEarthworkReport(result.volumeReport, Map.of());
     }
 
@@ -72,7 +89,7 @@ public final class EarthworkVolumeCalculator {
         Map<String, GradingZone> zonesById = site.getGradingZones();
         Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new HashMap<>();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
-        EarthMaterialProperties siteMaterial = site.getMaterialModel();
+        MaterialConversionModel siteMaterial = site.getMaterialModel();
 
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork()) {
@@ -99,7 +116,7 @@ public final class EarthworkVolumeCalculator {
         }
 
         result.volumeReport = totals.toReport(siteMaterial);
-        result.siteVolumeReport = SiteEarthworkReport.fromMetrics(totals, zoneMetrics, siteMaterial);
+        result.siteVolumeReport = SiteEarthworkReport.fromMetrics(site, totals, zoneMetrics);
         result.projectReport = EarthworkProjectReport.Builder.build(site, result.siteVolumeReport);
     }
 

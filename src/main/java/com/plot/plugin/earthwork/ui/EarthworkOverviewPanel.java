@@ -6,6 +6,7 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.model.Shape;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.tool.BaseTool;
@@ -53,6 +54,7 @@ public final class EarthworkOverviewPanel {
                     String.format("%.1f", ctx.project().getTotalArea())));
                 renderSiteOverlapWarnings();
                 EarthworkSite site = ctx.project().getActiveSite();
+                renderSiteMaterialModel(site);
                 if (!site.getExclusionZones().isEmpty()) {
                     ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                         "plugin.earthwork.exclusions_count",
@@ -176,5 +178,26 @@ public final class EarthworkOverviewPanel {
             }
             ImGui.endPopup();
         }
+    }
+
+    private void renderSiteMaterialModel(EarthworkSite site) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.site_material_model"));
+        EarthworkUiWidgets.renderMaterialConversionSliders(ctx, site.getMaterialModel(), updated -> {
+            site.setMaterialModel(updated);
+            ctx.config().setDefaultMaterialProperties(updated);
+            ctx.config().save();
+            ctx.invalidatePreview();
+        });
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.apply_site_material_to_regions"), 0, 0)) {
+            ctx.projectHistory().push(ctx.project());
+            MaterialConversionModel siteModel = site.getMaterialModel();
+            for (GradingRegion region : ctx.project().getRegions().values()) {
+                region.setMaterialProperties(siteModel);
+            }
+            ctx.invalidatePreview();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.site_material_model");
+        ImGui.separator();
     }
 }

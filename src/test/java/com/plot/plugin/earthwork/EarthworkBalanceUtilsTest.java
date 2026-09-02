@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.solver.EarthworkBalanceUtils;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkBalanceUtilsTest {
 
-    private static final EarthMaterialProperties DEFAULT_MATERIALS = EarthMaterialProperties.DEFAULT;
+    private static final MaterialConversionModel DEFAULT_MATERIALS = MaterialConversionModel.DEFAULT;
 
     @Test
     void balancedElevationWithinRangeAndLocallyOptimal() {
@@ -37,8 +37,8 @@ class EarthworkBalanceUtilsTest {
     @Test
     void lowerEffectiveConversionLowersBalancedElevation() {
         List<Integer> samples = List.of(60, 62, 64, 66, 68, 70, 72, 74);
-        EarthMaterialProperties efficient = new EarthMaterialProperties(1.0f, 1.0f);
-        EarthMaterialProperties inefficient = new EarthMaterialProperties(1.0f, 0.70f);
+        MaterialConversionModel efficient = new MaterialConversionModel(1.0f, 1.0f);
+        MaterialConversionModel inefficient = new MaterialConversionModel(1.0f, 0.70f);
         int efficientBalance = EarthworkBalanceUtils.findBalancedElevation(samples, efficient);
         int inefficientBalance = EarthworkBalanceUtils.findBalancedElevation(samples, inefficient);
         assertTrue(inefficientBalance <= efficientBalance);
@@ -49,7 +49,7 @@ class EarthworkBalanceUtilsTest {
         List<Integer> samples = List.of(60, 62, 64, 66, 68, 70, 72, 74);
         int fromLegacy = EarthworkBalanceUtils.findBalancedElevation(samples, 1.25f);
         int fromMaterials = EarthworkBalanceUtils.findBalancedElevation(
-            samples, EarthMaterialProperties.fromLegacyFillFactor(1.25f));
+            samples, MaterialConversionModel.fromLegacyFillFactor(1.25f));
         assertTrue(fromLegacy == fromMaterials);
     }
 

@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
+import com.plot.core.material.MaterialConversionModel;
 
 import java.util.List;
 
@@ -15,7 +16,7 @@ public class GradingZone {
     private GradingZoneType type = GradingZoneType.FLAT;
     private int priority = DEFAULT_PRIORITY;
     private boolean enabled = true;
-    private EarthMaterialProperties materialOverride;
+    private MaterialConversionModel materialOverride;
     private DesignSurface designSurface = new DesignSurface();
     private String buildingFootprintRef = "";
     private String roadEdgeRef = "";
@@ -163,19 +164,19 @@ public class GradingZone {
         this.enabled = enabled;
     }
 
-    public EarthMaterialProperties getMaterialOverride() {
+    public MaterialConversionModel getMaterialOverride() {
         return materialOverride;
     }
 
-    public void setMaterialOverride(EarthMaterialProperties materialOverride) {
+    public void setMaterialOverride(MaterialConversionModel materialOverride) {
         this.materialOverride = materialOverride;
     }
 
-    public EarthMaterialProperties resolveMaterialModel(EarthMaterialProperties siteDefault) {
+    public MaterialConversionModel resolveMaterialModel(MaterialConversionModel siteDefault) {
         if (materialOverride != null) {
             return materialOverride;
         }
-        return siteDefault != null ? siteDefault : EarthMaterialProperties.DEFAULT;
+        return siteDefault != null ? siteDefault : MaterialConversionModel.DEFAULT;
     }
 
     public String getCutExposeMaterial() {

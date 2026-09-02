@@ -1,5 +1,5 @@
 package com.plot.plugin.earthwork.solver;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 
 import java.util.List;
 
@@ -12,8 +12,8 @@ public final class EarthworkBalanceUtils {
     private EarthworkBalanceUtils() {
     }
 
-    public static int findBalancedElevation(List<Integer> groundHeightSamples, EarthMaterialProperties materials) {
-        EarthMaterialProperties safeMaterials = materials != null ? materials : EarthMaterialProperties.DEFAULT;
+    public static int findBalancedElevation(List<Integer> groundHeightSamples, MaterialConversionModel materials) {
+        MaterialConversionModel safeMaterials = materials != null ? materials : MaterialConversionModel.DEFAULT;
         if (groundHeightSamples == null || groundHeightSamples.isEmpty()) {
             return DEFAULT_ELEVATION;
         }
@@ -51,7 +51,7 @@ public final class EarthworkBalanceUtils {
      * 道路纵断面等模块沿用的旧参数入口；{@code fillFactor} 为历史松散系数，内部转换为材料属性。
      */
     public static int findBalancedElevation(List<Integer> groundHeightSamples, float fillFactor) {
-        return findBalancedElevation(groundHeightSamples, EarthMaterialProperties.fromLegacyFillFactor(fillFactor));
+        return findBalancedElevation(groundHeightSamples, MaterialConversionModel.fromLegacyFillFactor(fillFactor));
     }
 
     public static long computeCutVolume(List<Integer> groundHeightSamples, int targetElevation) {
@@ -86,14 +86,14 @@ public final class EarthworkBalanceUtils {
     public static long computeCompactedFillSupplyFromCut(
             List<Integer> groundHeightSamples,
             int targetElevation,
-            EarthMaterialProperties materials) {
-        EarthMaterialProperties safeMaterials = materials != null ? materials : EarthMaterialProperties.DEFAULT;
+            MaterialConversionModel materials) {
+        MaterialConversionModel safeMaterials = materials != null ? materials : MaterialConversionModel.DEFAULT;
         return Math.round(computeCutVolume(groundHeightSamples, targetElevation)
             * safeMaterials.effectiveCutToCompactedFillRatio());
     }
 
     public static long computeBalanceDiff(List<Integer> groundHeightSamples, int targetElevation) {
-        return computeBalanceDiff(groundHeightSamples, targetElevation, EarthMaterialProperties.DEFAULT);
+        return computeBalanceDiff(groundHeightSamples, targetElevation, MaterialConversionModel.DEFAULT);
     }
 
     /**
@@ -102,7 +102,7 @@ public final class EarthworkBalanceUtils {
     public static long computeBalanceDiff(
             List<Integer> groundHeightSamples,
             int targetElevation,
-            EarthMaterialProperties materials) {
+            MaterialConversionModel materials) {
         return computeCompactedFillSupplyFromCut(groundHeightSamples, targetElevation, materials)
             - computeFillVolume(groundHeightSamples, targetElevation);
     }

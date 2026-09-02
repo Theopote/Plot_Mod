@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.design;
 
 import com.plot.api.world.ICoordinateService;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -27,11 +28,21 @@ public final class RegionSurfaceEvaluator {
             TerrainSnapshot terrain,
             ICoordinateService transformer,
             boolean deferBalanceToSite) {
+        return resolve(region, terrain, transformer, deferBalanceToSite, null);
+    }
+
+    public static GradingSurfaceResolver.ResolvedSurface resolve(
+            GradingRegion region,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            boolean deferBalanceToSite,
+            MaterialConversionModel balanceMaterials) {
         return GradingSurfaceResolver.resolve(
             region,
             terrain.centers(),
             terrain.groundHeights(),
             transformer,
-            deferBalanceToSite);
+            deferBalanceToSite,
+            balanceMaterials);
     }
 }

@@ -1,5 +1,5 @@
 package com.plot.plugin.earthwork.volume;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 
 /**
  * 土方算量报告：几何挖填、材料调配与世界方块修改数分离统计。
@@ -49,10 +49,10 @@ public final class EarthworkVolumeReport {
     public static EarthworkVolumeReport fromMetrics(
             long geometricCutVolume,
             long geometricFillVolume,
-            EarthMaterialProperties materials,
+            MaterialConversionModel materials,
             long cutChangedBlocks,
             long fillChangedBlocks) {
-        EarthMaterialProperties safeMaterials = materials != null ? materials : EarthMaterialProperties.DEFAULT;
+        MaterialConversionModel safeMaterials = materials != null ? materials : MaterialConversionModel.DEFAULT;
         double reusableCutVolume = geometricCutVolume * safeMaterials.reusableRatio();
         double compactedFillSupplyFromCut = reusableCutVolume * safeMaterials.cutToCompactedFillRatio();
         double compactedFillDemand = geometricFillVolume;

@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork.solver;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +25,7 @@ public final class SiteWideBalanceAdjuster {
      */
     public static int findBalancedVerticalOffset(
             List<CellSample> samples,
-            EarthMaterialProperties materials) {
+            MaterialConversionModel materials) {
         if (samples == null || samples.isEmpty()) {
             return 0;
         }

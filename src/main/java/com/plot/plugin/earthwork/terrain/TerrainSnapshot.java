@@ -4,6 +4,7 @@ import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.terrain.EngineeringTerrainSampler;
 import com.plot.core.terrain.EngineeringTerrainService;
 import net.minecraft.block.Block;
 import net.minecraft.registry.Registries;
@@ -97,7 +98,7 @@ public final class TerrainSnapshot {
             int worldX = block.getX();
             int worldZ = block.getZ();
             boolean chunkLoaded = terrainService.isChunkLoaded(worldX, worldZ);
-            int groundY = terrainService.sampleGroundSurface(worldX, worldZ);
+            int groundY = EngineeringTerrainSampler.sampleGroundSurface(world, worldX, worldZ);
             String surfaceBlockId = chunkLoaded
                 ? resolveBlockId(world, worldX, groundY, worldZ)
                 : "";
@@ -202,7 +203,8 @@ public final class TerrainSnapshot {
             if (!column.chunkLoaded()) {
                 continue;
             }
-            int currentGroundY = terrainService.sampleGroundSurface(column.worldX(), column.worldZ());
+            int currentGroundY = EngineeringTerrainSampler.sampleGroundSurface(
+                world, column.worldX(), column.worldZ());
             String currentSurfaceBlockId = resolveBlockId(world, column.worldX(), currentGroundY, column.worldZ());
             if (column.groundY() != currentGroundY
                 || !normalizeBlockId(column.surfaceBlockId()).equals(normalizeBlockId(currentSurfaceBlockId))) {

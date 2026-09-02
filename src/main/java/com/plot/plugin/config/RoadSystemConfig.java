@@ -654,6 +654,11 @@ public class RoadSystemConfig {
         this.fillFactor = Math.max(1.0f, Math.min(2.0f, fillFactor));
     }
 
+    /** 纵断面平衡用的材料换算模型（与土方 {@link com.plot.core.material.MaterialConversionModel} 同语义）。 */
+    public com.plot.core.material.MaterialConversionModel getProfileBalanceMaterial() {
+        return com.plot.core.material.MaterialConversionModel.fromLegacyFillFactor(fillFactor);
+    }
+
     public double getDefaultCrossingClearance() {
         return defaultCrossingClearance;
     }

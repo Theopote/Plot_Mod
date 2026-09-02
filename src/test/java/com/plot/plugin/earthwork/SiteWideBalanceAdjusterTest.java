@@ -25,11 +25,11 @@ class SiteWideBalanceAdjusterTest {
             new SiteWideBalanceAdjuster.CellSample(53, 60));
         int offset = SiteWideBalanceAdjuster.findBalancedVerticalOffset(
             samples,
-            new com.plot.plugin.earthwork.model.EarthMaterialProperties(1.0f, 1.0f));
+            new com.plot.core.material.MaterialConversionModel(1.0f, 1.0f));
         assertTrue(Math.abs(EarthworkBalanceUtils.computeBalanceDiff(
             samples.stream().map(s -> s.existingGroundY() - s.rawDesignTargetY()).toList(),
             offset,
-            new com.plot.plugin.earthwork.model.EarthMaterialProperties(1.0f, 1.0f))) <= 3L);
+            new com.plot.core.material.MaterialConversionModel(1.0f, 1.0f))) <= 3L);
     }
 
     @Test

@@ -3,7 +3,7 @@ package com.plot.plugin.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -146,17 +146,17 @@ public class EarthworkConfig {
         this.targetElevation = targetElevation;
     }
 
-    public EarthMaterialProperties getDefaultMaterialProperties() {
+    public MaterialConversionModel getDefaultMaterialProperties() {
         if (reusableRatio > 0.0f && cutToCompactedFillRatio > 0.0f) {
-            return new EarthMaterialProperties(reusableRatio, cutToCompactedFillRatio);
+            return new MaterialConversionModel(reusableRatio, cutToCompactedFillRatio);
         }
         if (fillFactor >= 1.0f) {
-            return EarthMaterialProperties.fromLegacyFillFactor(fillFactor);
+            return MaterialConversionModel.fromLegacyFillFactor(fillFactor);
         }
-        return EarthMaterialProperties.DEFAULT;
+        return MaterialConversionModel.DEFAULT;
     }
 
-    public void setDefaultMaterialProperties(EarthMaterialProperties materialProperties) {
+    public void setDefaultMaterialProperties(MaterialConversionModel materialProperties) {
         if (materialProperties == null) {
             reusableRatio = 0.0f;
             cutToCompactedFillRatio = 0.0f;
@@ -187,14 +187,14 @@ public class EarthworkConfig {
     /** @deprecated 请改用 {@link #getDefaultMaterialProperties()}。 */
     @Deprecated
     public float getFillFactor() {
-        EarthMaterialProperties properties = getDefaultMaterialProperties();
+        MaterialConversionModel properties = getDefaultMaterialProperties();
         return 1.0f / Math.max(0.01f, properties.cutToCompactedFillRatio());
     }
 
-    /** @deprecated 请改用 {@link #setDefaultMaterialProperties(EarthMaterialProperties)}。 */
+    /** @deprecated 请改用 {@link #setDefaultMaterialProperties(MaterialConversionModel)}。 */
     @Deprecated
     public void setFillFactor(float fillFactor) {
-        EarthMaterialProperties migrated = EarthMaterialProperties.fromLegacyFillFactor(fillFactor);
+        MaterialConversionModel migrated = MaterialConversionModel.fromLegacyFillFactor(fillFactor);
         setDefaultMaterialProperties(migrated);
     }
 

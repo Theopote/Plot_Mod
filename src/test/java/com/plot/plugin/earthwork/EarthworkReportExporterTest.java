@@ -1,6 +1,6 @@
 package com.plot.plugin.earthwork;
 
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EarthworkReportExporterTest {
 
-    private static final EarthMaterialProperties LEGACY_LIKE =
-        EarthMaterialProperties.fromLegacyFillFactor(1.1f);
+    private static final MaterialConversionModel LEGACY_LIKE =
+        MaterialConversionModel.fromLegacyFillFactor(1.1f);
 
     @Test
     void exportsCsvAndJson(@TempDir Path dir) throws Exception {

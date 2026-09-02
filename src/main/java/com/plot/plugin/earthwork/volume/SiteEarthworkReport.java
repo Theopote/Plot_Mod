@@ -1,5 +1,5 @@
 package com.plot.plugin.earthwork.volume;
-import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
@@ -50,17 +50,42 @@ public final class SiteEarthworkReport {
     public static SiteEarthworkReport fromMetrics(
             VolumeMetrics totalsMetrics,
             Map<String, VolumeMetrics> zoneMetrics,
-            EarthMaterialProperties siteMaterialModel) {
-        EarthMaterialProperties materials = siteMaterialModel != null
+            MaterialConversionModel siteMaterialModel) {
+        return fromMetrics(null, totalsMetrics, zoneMetrics, siteMaterialModel);
+    }
+
+    public static SiteEarthworkReport fromMetrics(
+            EarthworkSite site,
+            VolumeMetrics totalsMetrics,
+            Map<String, VolumeMetrics> zoneMetrics) {
+        MaterialConversionModel siteMaterial = site != null
+            ? site.getMaterialModel()
+            : MaterialConversionModel.DEFAULT;
+        return fromMetrics(site, totalsMetrics, zoneMetrics, siteMaterial);
+    }
+
+    private static SiteEarthworkReport fromMetrics(
+            EarthworkSite site,
+            VolumeMetrics totalsMetrics,
+            Map<String, VolumeMetrics> zoneMetrics,
+            MaterialConversionModel siteMaterialModel) {
+        MaterialConversionModel materials = siteMaterialModel != null
             ? siteMaterialModel
-            : EarthMaterialProperties.DEFAULT;
+            : MaterialConversionModel.DEFAULT;
         Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
         if (zoneMetrics != null) {
             for (Map.Entry<String, VolumeMetrics> entry : zoneMetrics.entrySet()) {
                 if (entry.getKey() == null || entry.getValue() == null) {
                     continue;
                 }
-                byZone.put(entry.getKey(), entry.getValue().toReport(materials));
+                MaterialConversionModel zoneMaterials = materials;
+                if (site != null) {
+                    GradingZone zone = site.getZone(entry.getKey());
+                    if (zone != null) {
+                        zoneMaterials = zone.resolveMaterialModel(materials);
+                    }
+                }
+                byZone.put(entry.getKey(), entry.getValue().toReport(zoneMaterials));
             }
         }
         return new SiteEarthworkReport(totalsMetrics.toReport(materials), byZone);
@@ -95,7 +120,7 @@ public final class SiteEarthworkReport {
             fillChangedBlocks += other.fillChangedBlocks;
         }
 
-        public EarthworkVolumeReport toReport(EarthMaterialProperties materials) {
+        public EarthworkVolumeReport toReport(MaterialConversionModel materials) {
             return EarthworkVolumeReport.fromMetrics(
                 geometricCutVolume,
                 geometricFillVolume,

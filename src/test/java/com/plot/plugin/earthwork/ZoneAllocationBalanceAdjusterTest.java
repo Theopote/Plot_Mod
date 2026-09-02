@@ -73,7 +73,7 @@ class ZoneAllocationBalanceAdjusterTest {
         return EarthworkVolumeReport.fromMetrics(
             cut,
             fill,
-            com.plot.plugin.earthwork.model.EarthMaterialProperties.DEFAULT,
+            com.plot.core.material.MaterialConversionModel.DEFAULT,
             0L,
             0L);
     }

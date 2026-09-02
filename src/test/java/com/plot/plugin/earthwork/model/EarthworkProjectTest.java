@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,7 +30,7 @@ class EarthworkProjectTest {
         region.setName("North Pad");
         region.setAutoBalance(false);
         region.setManualTargetElevation(68);
-        region.setMaterialProperties(new EarthMaterialProperties(0.85f, 0.88f));
+        region.setMaterialProperties(new MaterialConversionModel(0.85f, 0.88f));
         region.setCutExposeMaterial("minecraft:sand");
         region.setFillMaterial("minecraft:grass_block");
         region.setPreviewGridSize(3);
@@ -168,7 +169,7 @@ class EarthworkProjectTest {
         zone.setPriority(80);
         zone.getRegion().setSurfaceMode(GradingSurfaceMode.SINGLE_SLOPE_PLANE);
         zone.getRegion().setSlopeDirectionDegrees(45.0);
-        zone.getRegion().setMaterialProperties(new EarthMaterialProperties(0.88f, 0.91f));
+        zone.getRegion().setMaterialProperties(new MaterialConversionModel(0.88f, 0.91f));
         site.addZone(zone);
 
         String json = project.toJson();

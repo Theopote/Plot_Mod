@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
-import com.plot.plugin.earthwork.terrain.TerrainSurfaceSampler;
+import com.plot.core.terrain.EngineeringTerrainSampler;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.state.AppState;
@@ -139,7 +139,8 @@ public final class EarthworkThreePointPickSession {
             return Outcome.failed(Result.WORLD_UNAVAILABLE, controlPointIndex);
         }
 
-        int elevation = TerrainSurfaceSampler.sampleAtCanvas(world, canvasPoint, transformer);
+        var block = EarthworkGeometryUtils.canvasToBlockXZ(canvasPoint, transformer);
+        int elevation = EngineeringTerrainSampler.sampleGroundSurface(world, block.getX(), block.getZ());
         int index = controlPointIndex;
         PickResult pick = new PickResult(canvasPoint, elevation);
         cancel();
