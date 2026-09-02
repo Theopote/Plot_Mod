@@ -252,9 +252,9 @@ public final class EarthworkGenerator {
 
 ### 17d — Manager 层（P1）
 
-- [ ] `EarthworkPreviewManager` + `EarthworkBuildManager`
-- [ ] `EarthworkPlugin` 构建/预览路径改调 Manager
-- [ ] Plugin 行数目标：< 1,500（第一步）
+- [x] `EarthworkPreviewManager` + `EarthworkBuildManager`（`manager/` 包）
+- [x] `EarthworkPlugin` 预览/构建/失效路径改调 Manager（移除 ~170 行重复逻辑）
+- [ ] Plugin 行数目标：< 1,500（当前 ~2,400；UI 迁出见 17e）
 
 ### 17e — UI 迁出（P2）
 
@@ -278,6 +278,7 @@ public final class EarthworkGenerator {
 | `grading/` | 集成：多 Zone 合成 | `DesignTerrainComposerTest` |
 | `volume/` | 解析解基准 | `EarthworkAnalyticalBenchmarkTest` |
 | `pipeline/` | E2E apply/undo | `EarthworkPipelineE2ETest` |
+| `manager/` | 预览失效 / 无预览构建 | `EarthworkManagerTest` |
 | `voxel/` | 列挖填 + BlockSampler | `EarthworkGeneratorTest`（迁移后改名） |
 
 **规则**：新类必须从第一天起可在 `world == null` + `TerrainSnapshot` 下测试。

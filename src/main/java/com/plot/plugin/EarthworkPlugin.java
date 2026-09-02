@@ -1,8 +1,6 @@
 package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
-import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.core.model.Project;
 import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
@@ -18,6 +16,7 @@ import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
@@ -31,7 +30,8 @@ import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
 import com.plot.plugin.earthwork.EarthworkEdgeTreatmentColors;
 import com.plot.plugin.earthwork.ZoneBoundaryRetainingEdgeAdapter;
 import com.plot.plugin.earthwork.ZoneOverlapAnalyzer;
-import com.plot.plugin.earthwork.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.manager.EarthworkBuildManager;
+import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.RoadCorridorBaker;
 import com.plot.plugin.earthwork.RoadSurfaceLookup;
@@ -94,8 +94,6 @@ import java.util.function.Consumer;
 public class EarthworkPlugin extends Plugin {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkPlugin");
     private static final String DEFAULT_PROJECT_FILE = "default.json";
-    private static final String CUT_GHOST_BLOCK = "minecraft:red_stained_glass";
-    private static final String FILL_GHOST_BLOCK = "minecraft:light_blue_stained_glass";
 
     private EarthworkConfig config;
     private EarthworkProject project = new EarthworkProject();
@@ -104,6 +102,8 @@ public class EarthworkPlugin extends Plugin {
     private final EarthworkThreePointPickSession threePointPickSession = new EarthworkThreePointPickSession();
     private EarthworkGenerator earthworkGenerator;
     private final TerrainSnapshotCache terrainSnapshotCache = new TerrainSnapshotCache();
+    private EarthworkPreviewManager previewManager;
+    private EarthworkBuildManager buildManager;
 
     // 多线程访问的字段需要同步保护（UI线程 + 异步方块放置）
     private final Object projectLock = new Object();
@@ -112,7 +112,6 @@ public class EarthworkPlugin extends Plugin {
     private volatile String projectStatus = "";
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
-    private volatile EarthworkGenerator.EarthworkGenerationResult lastGenerationResult;
     private String regionNameEditingRegionId = "";
     private String pendingDeleteRegionId = "";
     private boolean deleteConfirmPending = false;
@@ -166,6 +165,10 @@ public class EarthworkPlugin extends Plugin {
             LOGGER.error("初始化土方生成器失败: {}", e.getMessage(), e);
             throw new RuntimeException("土方插件初始化失败", e);
         }
+        previewManager = new EarthworkPreviewManager(
+            ctx(), earthworkGenerator, terrainSnapshotCache, msg -> projectStatus = msg);
+        buildManager = new EarthworkBuildManager(
+            ctx(), terrainSnapshotCache, previewManager, msg -> projectStatus = msg);
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
@@ -1859,10 +1862,11 @@ public class EarthworkPlugin extends Plugin {
         ImGui.spacing();
 
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.calc_preview"), half, 0)) {
-            calculatePreview(region);
+            previewManager.calculatePreview(
+                project, region, createBuildingFootprintLookup(), createRoadSurfaceLookup());
         }
         ImGui.sameLine();
-        boolean hasPreview = lastGenerationResult != null;
+        boolean hasPreview = previewManager.getLastGenerationResult() != null;
         if (!hasPreview) {
             ImGui.beginDisabled();
         }
@@ -1874,7 +1878,8 @@ public class EarthworkPlugin extends Plugin {
         }
 
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-            if (calculatePreview(region)) {
+            if (previewManager.calculatePreview(
+                project, region, createBuildingFootprintLookup(), createRoadSurfaceLookup())) {
                 buildConfirmPending = true;
             }
         }
@@ -1885,32 +1890,33 @@ public class EarthworkPlugin extends Plugin {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
 
-        if (config.isShowGrid() && lastGenerationResult != null) {
-            renderGridPreview(region, lastGenerationResult);
+        EarthworkGenerator.EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+        if (config.isShowGrid() && preview != null) {
+            renderGridPreview(region, preview);
         }
 
-        if (lastGenerationResult != null) {
+        if (preview != null) {
             ImGui.separator();
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.preview_projection_hint"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
-            EarthworkVolumeReport volumes = lastGenerationResult.volumeReport;
-            ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", lastGenerationResult.calculationCellCount));
-            renderTerrainSnapshotInfo(lastGenerationResult.existingTerrainSnapshot);
+            EarthworkVolumeReport volumes = preview.volumeReport;
+            ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
+            renderTerrainSnapshotInfo(preview.existingTerrainSnapshot);
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_cut_volume", volumes.geometricCutVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_fill_volume", volumes.geometricFillVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", volumes.exportVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", volumes.importVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.compacted_fill_demand", volumes.compactedFillDemand()));
-            if (lastGenerationResult.slopedSurface) {
+            if (preview.slopedSurface) {
                 ImGui.text(PlotI18n.tr(
                     "plugin.earthwork.resolved_elevation_slope_result",
-                    lastGenerationResult.resolvedElevationMin,
-                    lastGenerationResult.resolvedElevationMax));
+                    preview.resolvedElevationMin,
+                    preview.resolvedElevationMax));
             } else {
                 ImGui.text(PlotI18n.tr(
                     "plugin.earthwork.resolved_elevation_result",
-                    lastGenerationResult.resolvedElevation));
+                    preview.resolvedElevation));
             }
             ImGui.text(PlotI18n.tr("plugin.earthwork.block_count_result", volumes.totalChangedBlocks()));
             ImGui.text(PlotI18n.tr(
@@ -1918,16 +1924,16 @@ public class EarthworkPlugin extends Plugin {
                 volumes.cutChangedBlocks(),
                 volumes.fillChangedBlocks()));
 
-            if (lastGenerationResult.projectReport != null
-                && lastGenerationResult.projectReport.hasZoneBreakdown()) {
-                renderProjectBalanceReport(lastGenerationResult.projectReport);
+            if (preview.projectReport != null
+                && preview.projectReport.hasZoneBreakdown()) {
+                renderProjectBalanceReport(preview.projectReport);
             }
 
-            for (String warningKey : lastGenerationResult.warnings) {
+            for (String warningKey : preview.warnings) {
                 ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
             }
 
-            boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
+            boolean hasPlacements = !preview.placementRecords.isEmpty();
             if (!hasPlacements) {
                 ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
             }
@@ -1936,7 +1942,7 @@ public class EarthworkPlugin extends Plugin {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.projection_ref"), half, 0)) {
-                projectPreview();
+                previewManager.projectPreview();
             }
             if (!hasPlacements) {
                 ImGui.endDisabled();
@@ -2007,12 +2013,14 @@ public class EarthworkPlugin extends Plugin {
         }
 
         if (ImGui.beginPopupModal("##earthwork_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            long blockCount = lastGenerationResult != null
-                ? lastGenerationResult.volumeReport.totalChangedBlocks()
+            EarthworkGenerator.EarthworkGenerationResult preview = previewManager.getLastGenerationResult();
+            long blockCount = preview != null
+                ? preview.volumeReport.totalChangedBlocks()
                 : 0L;
             ImGui.text(String.format(PlotI18n.tr("plugin.earthwork.build_confirm"), blockCount));
 
-            TerrainSnapshot.ComparisonResult terrainComparison = comparePreviewTerrainWithWorld();
+            TerrainSnapshot.ComparisonResult terrainComparison =
+                previewManager.comparePreviewTerrainWithWorld(getClientWorld());
             boolean terrainStale = terrainComparison != null && terrainComparison.terrainChanged();
             if (terrainStale) {
                 ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
@@ -2033,7 +2041,8 @@ public class EarthworkPlugin extends Plugin {
                 if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), 180, 0)) {
                     GradingRegion region = project.getRegion(selectedRegionId);
                     if (region != null) {
-                        calculatePreview(region);
+                        previewManager.calculatePreview(
+                            project, region, createBuildingFootprintLookup(), createRoadSurfaceLookup());
                     }
                     ImGui.closeCurrentPopup();
                 }
@@ -2043,7 +2052,7 @@ public class EarthworkPlugin extends Plugin {
                 ImGui.beginDisabled();
             }
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.build"), 120, 0)) {
-                buildInWorld();
+                buildManager.buildInWorld(project, selectedRegionId);
                 ImGui.closeCurrentPopup();
             }
             if (!canBuild) {
@@ -2066,24 +2075,14 @@ public class EarthworkPlugin extends Plugin {
             "plugin.earthwork.terrain_snapshot_info",
             formatTerrainSnapshotTime(metadata.capturedAtEpochMs()),
             metadata.columnCount()));
-        TerrainSnapshot.ComparisonResult comparison = comparePreviewTerrainWithWorld();
+        TerrainSnapshot.ComparisonResult comparison =
+            previewManager.comparePreviewTerrainWithWorld(getClientWorld());
         if (comparison != null && comparison.terrainChanged()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
                 "plugin.earthwork.terrain_changed_since_preview",
                 comparison.changedColumns(),
                 comparison.totalColumns()));
         }
-    }
-
-    private TerrainSnapshot.ComparisonResult comparePreviewTerrainWithWorld() {
-        if (lastGenerationResult == null || lastGenerationResult.existingTerrainSnapshot.isEmpty()) {
-            return null;
-        }
-        World world = getClientWorld();
-        if (world == null) {
-            return null;
-        }
-        return lastGenerationResult.existingTerrainSnapshot.compareWithCurrentWorld(world);
     }
 
     private static String formatTerrainSnapshotTime(long epochMs) {
@@ -2293,171 +2292,12 @@ public class EarthworkPlugin extends Plugin {
             : PlotI18n.tr("plugin.earthwork.adopt_success");
     }
 
-    private boolean calculatePreview(GradingRegion region) {
-        World world = getClientWorld();
-        if (world == null || earthworkGenerator == null) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.generate_world_unavailable");
-            return false;
-        }
-
-        com.plot.api.world.IGhostBlockService ghostBlockManager = ctx().ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
-
-        EarthworkSite site = project.getActiveSite();
-        try {
-            if (site.delegatesToLegacyGenerator()) {
-                TerrainSnapshot terrain = terrainSnapshotCache.captureFresh(
-                    region, world, ctx().coordinates());
-                lastGenerationResult = earthworkGenerator.generate(region, world, terrain);
-            } else {
-                TerrainSnapshot terrain = terrainSnapshotCache.captureFreshSite(
-                    site, world, ctx().coordinates());
-                lastGenerationResult = earthworkGenerator.generateSite(
-                    site, world, terrain, region,
-                    createBuildingFootprintLookup(),
-                    createRoadSurfaceLookup());
-            }
-        } catch (Exception e) {
-            LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
-            lastGenerationResult = null;
-            projectStatus = PlotI18n.tr("plugin.earthwork.generate_empty_result");
-            return false;
-        }
-        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.generate_empty_result");
-            return false;
-        }
-
-        if (lastGenerationResult.siteVolumeReport.byZone().isEmpty()) {
-            lastGenerationResult.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
-                site, region.getId(), lastGenerationResult.volumeReport);
-        } else if (lastGenerationResult.projectReport == null
-            || lastGenerationResult.projectReport == EarthworkProjectReport.empty()) {
-            lastGenerationResult.projectReport = EarthworkProjectReport.Builder.build(
-                site, lastGenerationResult.siteVolumeReport);
-        }
-
-        projectStatus = PlotI18n.tr("plugin.earthwork.generate_preview_ready");
-        return true;
-    }
-
-    private void projectPreview() {
-        if (lastGenerationResult == null) {
-            return;
-        }
-        com.plot.api.world.IGhostBlockService ghostBlockManager = ctx().ghosts();
-        if (ghostBlockManager == null) {
-            return;
-        }
-        ghostBlockManager.clearAllGhostBlocks();
-        for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
-            EarthworkGenerator.ChangeType changeType = lastGenerationResult.changeTypes.get(record.pos);
-            String ghostBlock = changeType == EarthworkGenerator.ChangeType.CUT
-                ? CUT_GHOST_BLOCK
-                : FILL_GHOST_BLOCK;
-            ghostBlockManager.addGhostBlock(record.pos, ghostBlock);
-        }
-    }
-
     private void clearPreview() {
-        com.plot.api.world.IGhostBlockService ghostBlockManager = ctx().ghosts();
-        if (ghostBlockManager != null) {
-            ghostBlockManager.clearAllGhostBlocks();
-        }
-        lastGenerationResult = null;
+        previewManager.clearPreview();
     }
 
-    /** 参数/工程变更后使预览失效，并清零区域上次统计，避免陈旧数据误导。 */
     private void invalidatePreview() {
-        boolean hadPreview = lastGenerationResult != null;
-        clearPreview();
-        if (project != null) {
-            EarthworkSite site = project.getActiveSite();
-            site.setLastReport(EarthworkVolumeReport.empty());
-            for (GradingRegion region : project.getRegions().values()) {
-                region.setLastVolumeReport(EarthworkVolumeReport.empty());
-            }
-        }
-        if (hadPreview) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.preview_invalidated");
-        }
-    }
-
-    private void buildInWorld() {
-        // 创建不可变快照，避免异步任务中的并发问题
-        final EarthworkGenerator.EarthworkGenerationResult resultSnapshot;
-        synchronized (projectLock) {
-            if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
-                projectStatus = PlotI18n.tr("plugin.earthwork.build_no_blocks");
-                return;
-            }
-            resultSnapshot = lastGenerationResult;
-        }
-
-        com.plot.api.world.PlacementReadiness readiness =
-            ctx().projection().checkWorldModificationReadiness();
-        if (!readiness.ready()) {
-            projectStatus = readiness.message();
-            return;
-        }
-
-        if (ctx().placement().isBusy()) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress_wait");
-            return;
-        }
-
-        List<BlockRecord> records = new ArrayList<>(resultSnapshot.placementRecords.values());
-        final String builtRegionId = selectedRegionId;
-        EarthworkGenerateCommand command = new EarthworkGenerateCommand(records, ctx().projection(), ctx().placement());
-        projectStatus = PlotI18n.tr("plugin.earthwork.build_in_progress", records.size());
-        command.executeScheduled(() -> {
-            EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
-            // 取消时若已写入部分方块，仍入历史以便撤销半成品
-            if (result != null && result.cancelled()) {
-                if (command.hasAppliedRecords()) {
-                    ctx().commands().pushExecuted(command);
-                    terrainSnapshotCache.invalidateRegion(builtRegionId);
-                    terrainSnapshotCache.invalidateSite(project.getActiveSiteId());
-                }
-                projectStatus = PlotI18n.tr(
-                    "plugin.earthwork.build_cancelled", result.success(), result.total());
-                clearPreview();
-                return;
-            }
-            ctx().commands().pushExecuted(command);
-            if (result != null && result.success() > 0) {
-                terrainSnapshotCache.invalidateRegion(builtRegionId);
-                terrainSnapshotCache.invalidateSite(project.getActiveSiteId());
-            }
-            applyBuildResultStatus(result);
-            clearPreview();
-        });
-    }
-
-    private void applyBuildResultStatus(EarthworkGenerateCommand.ExecutionResult result) {
-        if (result == null || result.total() == 0) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.build_no_blocks");
-            return;
-        }
-        if (result.cancelled()) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.build_cancelled", result.success(), result.total());
-            return;
-        }
-        if (result.isFullSuccess()) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.build_success", result.success());
-            return;
-        }
-        if (result.isTotalFailure()) {
-            projectStatus = PlotI18n.tr("plugin.earthwork.build_failed", result.total());
-            return;
-        }
-        projectStatus = PlotI18n.tr(
-            "plugin.earthwork.build_partial",
-            result.success(),
-            result.total(),
-            result.failed());
+        previewManager.invalidatePreview(project);
     }
 
     private void locateRegion(GradingRegion region) {

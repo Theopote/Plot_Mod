@@ -1096,7 +1096,9 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 
 **Phase 17c 已完成**：`RegionSurfaceEvaluator` / `DesignTerrainBuilder` / `DefaultSiteEarthworkOperations` / `LegacyRegionPipeline`。详见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) §7。
 
-**建议下一步（Phase 17d）**：`EarthworkPreviewManager` + `EarthworkBuildManager`，瘦身 `EarthworkPlugin`。
+**Phase 17d 已完成**：`EarthworkPreviewManager` / `EarthworkBuildManager`；Plugin 预览与构建路径已委托 Manager。
+
+**建议下一步（Phase 17e）**：`EarthworkUIManager` 承接 Tab 渲染，继续瘦身 Plugin。
 
 ---
 

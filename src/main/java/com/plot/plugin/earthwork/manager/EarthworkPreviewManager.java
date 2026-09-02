@@ -1,0 +1,178 @@
+package com.plot.plugin.earthwork.manager;
+
+import com.plot.api.world.IGhostBlockService;
+import com.plot.core.command.BlockRecord;
+import com.plot.core.context.PluginContext;
+import com.plot.plugin.earthwork.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.EarthworkProjectReport;
+import com.plot.plugin.earthwork.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.TerrainSnapshot;
+import com.plot.plugin.earthwork.TerrainSnapshotCache;
+import com.plot.plugin.earthwork.model.EarthworkProject;
+import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.EarthworkVolumeReport;
+import com.plot.plugin.earthwork.model.GradingRegion;
+import com.plot.utils.PlotI18n;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.World;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * 土方预览生成、虚影投影与结果缓存（对标 {@link com.plot.plugin.road.manager.RoadPreviewManager}）。
+ */
+public final class EarthworkPreviewManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkPreview");
+
+    public static final String CUT_GHOST_BLOCK = "minecraft:red_stained_glass";
+    public static final String FILL_GHOST_BLOCK = "minecraft:light_blue_stained_glass";
+
+    private final PluginContext host;
+    private final EarthworkGenerator generator;
+    private final TerrainSnapshotCache terrainCache;
+    private final Consumer<String> statusSink;
+
+    private volatile EarthworkGenerator.EarthworkGenerationResult lastGenerationResult;
+
+    public EarthworkPreviewManager(
+            PluginContext host,
+            EarthworkGenerator generator,
+            TerrainSnapshotCache terrainCache,
+            Consumer<String> statusSink) {
+        this.host = Objects.requireNonNull(host, "host");
+        this.generator = Objects.requireNonNull(generator, "generator");
+        this.terrainCache = Objects.requireNonNull(terrainCache, "terrainCache");
+        this.statusSink = statusSink != null ? statusSink : msg -> {};
+    }
+
+    public EarthworkGenerator.EarthworkGenerationResult getLastGenerationResult() {
+        return lastGenerationResult;
+    }
+
+    public boolean hasValidPreview() {
+        EarthworkGenerator.EarthworkGenerationResult result = lastGenerationResult;
+        return result != null && !result.placementRecords.isEmpty();
+    }
+
+    public boolean calculatePreview(
+            EarthworkProject project,
+            GradingRegion region,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup) {
+        World world = getClientWorld();
+        if (world == null || generator == null) {
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_world_unavailable"));
+            return false;
+        }
+        if (project == null || region == null) {
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            return false;
+        }
+
+        IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearAllGhostBlocks();
+        }
+
+        EarthworkSite site = project.getActiveSite();
+        try {
+            if (site.delegatesToLegacyGenerator()) {
+                TerrainSnapshot terrain = terrainCache.captureFresh(region, world, host.coordinates());
+                lastGenerationResult = generator.generate(region, world, terrain);
+            } else {
+                TerrainSnapshot terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
+                lastGenerationResult = generator.generateSite(
+                    site, world, terrain, region, buildingLookup, roadLookup);
+            }
+        } catch (Exception e) {
+            LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
+            lastGenerationResult = null;
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            return false;
+        }
+
+        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            return false;
+        }
+
+        enrichProjectReport(site, region, lastGenerationResult);
+        statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_preview_ready"));
+        return true;
+    }
+
+    private static void enrichProjectReport(
+            EarthworkSite site,
+            GradingRegion region,
+            EarthworkGenerator.EarthworkGenerationResult result) {
+        if (result.siteVolumeReport.byZone().isEmpty()) {
+            result.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
+                site, region.getId(), result.volumeReport);
+        } else if (result.projectReport == null
+            || result.projectReport == EarthworkProjectReport.empty()) {
+            result.projectReport = EarthworkProjectReport.Builder.build(site, result.siteVolumeReport);
+        }
+    }
+
+    public void projectPreview() {
+        EarthworkGenerator.EarthworkGenerationResult result = lastGenerationResult;
+        if (result == null) {
+            return;
+        }
+        IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager == null) {
+            return;
+        }
+        ghostBlockManager.clearAllGhostBlocks();
+        for (BlockRecord record : result.placementRecords.values()) {
+            EarthworkGenerator.ChangeType changeType = result.changeTypes.get(record.pos);
+            String ghostBlock = changeType == EarthworkGenerator.ChangeType.CUT
+                ? CUT_GHOST_BLOCK
+                : FILL_GHOST_BLOCK;
+            ghostBlockManager.addGhostBlock(record.pos, ghostBlock);
+        }
+    }
+
+    public void clearPreview() {
+        IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearAllGhostBlocks();
+        }
+        lastGenerationResult = null;
+    }
+
+    /**
+     * 参数/工程变更后使预览失效，并清零区域上次统计，避免陈旧数据误导。
+     */
+    public void invalidatePreview(EarthworkProject project) {
+        boolean hadPreview = lastGenerationResult != null;
+        clearPreview();
+        if (project != null) {
+            EarthworkSite site = project.getActiveSite();
+            site.setLastReport(EarthworkVolumeReport.empty());
+            for (GradingRegion region : project.getRegions().values()) {
+                region.setLastVolumeReport(EarthworkVolumeReport.empty());
+            }
+        }
+        if (hadPreview) {
+            statusSink.accept(PlotI18n.tr("plugin.earthwork.preview_invalidated"));
+        }
+    }
+
+    public TerrainSnapshot.ComparisonResult comparePreviewTerrainWithWorld(World world) {
+        EarthworkGenerator.EarthworkGenerationResult result = lastGenerationResult;
+        if (result == null || result.existingTerrainSnapshot.isEmpty() || world == null) {
+            return null;
+        }
+        return result.existingTerrainSnapshot.compareWithCurrentWorld(world);
+    }
+
+    private static World getClientWorld() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client != null ? client.world : null;
+    }
+}
