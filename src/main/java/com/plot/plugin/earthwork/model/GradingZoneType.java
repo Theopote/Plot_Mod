@@ -28,8 +28,9 @@ public enum GradingZoneType {
             return FLAT;
         }
         return switch (surfaceMode) {
-            case FLAT, FIT_SLOPE -> FLAT;
-            case FIXED_SLOPE, THREE_POINT -> SLOPED;
+            case LEVEL_PAD, BEST_FIT_PLANE, MATCH_EXISTING, DRAINAGE_SURFACE -> FLAT;
+            case SINGLE_SLOPE_PLANE, THREE_POINT_PLANE -> SLOPED;
+            case MULTI_PLANE -> SLOPED;
         };
     }
 

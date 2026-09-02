@@ -58,7 +58,7 @@ public final class BuildingFootprintResolver {
 
     public static DesignSurfaceKind effectiveKind(GradingZone zone) {
         if (zone == null) {
-            return DesignSurfaceKind.FLAT;
+            return DesignSurfaceKind.LEVEL_PAD;
         }
         return switch (zone.getType()) {
             case BUILDING_PAD -> DesignSurfaceKind.CONSTANT_ELEVATION;

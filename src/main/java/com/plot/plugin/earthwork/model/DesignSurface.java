@@ -2,11 +2,14 @@ package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 分区设计面定义（JSON v2 显式结构）。
  */
 public class DesignSurface {
-    private DesignSurfaceKind kind = DesignSurfaceKind.FLAT;
+    private DesignSurfaceKind kind = DesignSurfaceKind.LEVEL_PAD;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
     private boolean fitSlopeBalanceCutFill = true;
@@ -28,13 +31,15 @@ public class DesignSurface {
     private Integer bottomElevation;
     private int workingMarginBlocks = 1;
     private BakedElevationGrid bakedElevationGrid = new BakedElevationGrid();
+    private int verticalOffset;
+    private List<DesignSurfaceFacet> facets = new ArrayList<>();
 
     public DesignSurfaceKind getKind() {
-        return kind != null ? kind : DesignSurfaceKind.FLAT;
+        return kind != null ? kind : DesignSurfaceKind.LEVEL_PAD;
     }
 
     public void setKind(DesignSurfaceKind kind) {
-        this.kind = kind != null ? kind : DesignSurfaceKind.FLAT;
+        this.kind = kind != null ? kind : DesignSurfaceKind.LEVEL_PAD;
     }
 
     public boolean isAutoBalance() {
@@ -181,6 +186,22 @@ public class DesignSurface {
 
     public boolean hasBakedElevation() {
         return getBakedElevationGrid().sampleCount() > 0;
+    }
+
+    public int getVerticalOffset() {
+        return verticalOffset;
+    }
+
+    public void setVerticalOffset(int verticalOffset) {
+        this.verticalOffset = verticalOffset;
+    }
+
+    public List<DesignSurfaceFacet> getFacets() {
+        return facets != null ? facets : List.of();
+    }
+
+    public void setFacets(List<DesignSurfaceFacet> facets) {
+        this.facets = facets != null ? new ArrayList<>(facets) : new ArrayList<>();
     }
 
     public static DesignSurface fromGradingRegion(GradingRegion region) {

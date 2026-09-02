@@ -45,7 +45,7 @@ public final class RoadCorridorBaker {
 
         zone.getDesignSurface().setBakedElevationGrid(grid);
         zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BAKED_ROAD);
-        zone.getDesignSurface().setKind(DesignSurfaceKind.FIT_SLOPE);
+        zone.getDesignSurface().setKind(DesignSurfaceKind.BEST_FIT_PLANE);
         zone.setType(GradingZoneType.TERRAIN_FIT);
         return bakedCount;
     }

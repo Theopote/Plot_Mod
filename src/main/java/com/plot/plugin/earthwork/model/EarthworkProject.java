@@ -474,7 +474,7 @@ public class EarthworkProject {
     }
 
     static class DesignSurfaceData {
-        String kind = DesignSurfaceKind.FLAT.name();
+        String kind = DesignSurfaceKind.LEVEL_PAD.name();
         boolean autoBalance = true;
         Integer manualTargetElevation;
         boolean fitSlopeBalanceCutFill = true;
@@ -492,7 +492,9 @@ public class EarthworkProject {
         String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
         Integer bottomElevation;
         int workingMarginBlocks = 1;
+        int verticalOffset;
         List<BakedSampleData> bakedSamples = new ArrayList<>();
+        List<DesignSurfaceFacetData> facets = new ArrayList<>();
 
         static DesignSurfaceData from(DesignSurface surface) {
             DesignSurfaceData data = new DesignSurfaceData();
@@ -519,8 +521,14 @@ public class EarthworkProject {
             data.elevationSource = surface.getElevationSource().name();
             data.bottomElevation = surface.getBottomElevation();
             data.workingMarginBlocks = surface.getWorkingMarginBlocks();
+            data.verticalOffset = surface.getVerticalOffset();
             for (BakedElevationGrid.Sample sample : surface.getBakedElevationGrid().toSamples()) {
                 data.bakedSamples.add(BakedSampleData.from(sample));
+            }
+            for (DesignSurfaceFacet facet : surface.getFacets()) {
+                if (facet != null) {
+                    data.facets.add(DesignSurfaceFacetData.from(facet));
+                }
             }
             return data;
         }
@@ -551,8 +559,26 @@ public class EarthworkProject {
             surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
             surface.setBottomElevation(bottomElevation);
             surface.setWorkingMarginBlocks(workingMarginBlocks);
+            surface.setVerticalOffset(verticalOffset);
             surface.setBakedElevationGrid(BakedElevationGrid.fromSamples(readBakedSamples(bakedSamples)));
+            surface.setFacets(readFacets(facets));
             return surface;
+        }
+
+        private static List<DesignSurfaceFacet> readFacets(List<DesignSurfaceFacetData> items) {
+            List<DesignSurfaceFacet> result = new ArrayList<>();
+            if (items == null) {
+                return result;
+            }
+            for (DesignSurfaceFacetData item : items) {
+                if (item != null) {
+                    DesignSurfaceFacet facet = item.toFacet();
+                    if (facet != null) {
+                        result.add(facet);
+                    }
+                }
+            }
+            return result;
         }
 
         private static List<BakedElevationGrid.Sample> readBakedSamples(List<BakedSampleData> items) {
@@ -566,6 +592,39 @@ public class EarthworkProject {
                 }
             }
             return samples;
+        }
+    }
+
+    static class DesignSurfaceFacetData {
+        String id;
+        String name = "";
+        List<Vec2dData> outerPoints = new ArrayList<>();
+        DesignSurfaceData plane = new DesignSurfaceData();
+
+        static DesignSurfaceFacetData from(DesignSurfaceFacet facet) {
+            DesignSurfaceFacetData data = new DesignSurfaceFacetData();
+            data.id = facet.getId();
+            data.name = facet.getName();
+            for (Vec2d point : facet.getOuterPoints()) {
+                data.outerPoints.add(new Vec2dData(point));
+            }
+            data.plane = DesignSurfaceData.from(facet.getPlane());
+            return data;
+        }
+
+        DesignSurfaceFacet toFacet() {
+            List<Vec2d> points = readPoints(outerPoints);
+            if (points.size() < 3) {
+                return null;
+            }
+            DesignSurfaceFacet facet = new DesignSurfaceFacet(
+                id != null && !id.isBlank() ? id : UUID.randomUUID().toString(),
+                points);
+            facet.setName(name);
+            if (plane != null) {
+                facet.setPlane(plane.toSurface());
+            }
+            return facet;
         }
     }
 
@@ -605,7 +664,7 @@ public class EarthworkProject {
         ZoneEdgeSettingsData edgeSettings = new ZoneEdgeSettingsData();
 
         static ZoneData from(GradingZone zone) {
-            zone.syncDesignSurfaceFromRegion();
+            zone.syncDesignSurfaceToRegion();
             ZoneData data = new ZoneData();
             data.id = zone.getId();
             data.name = zone.getName();
@@ -850,7 +909,7 @@ public class EarthworkProject {
         String id;
         String name;
         List<Vec2dData> outerPoints = new ArrayList<>();
-        String surfaceMode = GradingSurfaceMode.FLAT.name();
+        String surfaceMode = GradingSurfaceMode.LEVEL_PAD.name();
         boolean autoBalance = true;
         Integer manualTargetElevation;
         float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;

@@ -30,10 +30,12 @@ public final class GradingSurfaceResolver {
             ICoordinateService transformer) {
         List<HeightSample> samples = buildSamples(sampleCenters, sampleHeights, transformer);
         GradingPlane plane = switch (region.getSurfaceMode()) {
-            case FLAT -> resolveFlat(region, samples);
-            case FIXED_SLOPE -> resolveFixedSlope(region, samples, transformer);
-            case THREE_POINT -> resolveThreePoint(region, transformer);
-            case FIT_SLOPE -> resolveFitSlope(region, samples);
+            case LEVEL_PAD -> resolveFlat(region, samples);
+            case SINGLE_SLOPE_PLANE -> resolveFixedSlope(region, samples, transformer);
+            case THREE_POINT_PLANE -> resolveThreePoint(region, transformer);
+            case BEST_FIT_PLANE, DRAINAGE_SURFACE -> resolveFitSlope(region, samples);
+            case MATCH_EXISTING -> GradingPlane.flat(0);
+            case MULTI_PLANE -> GradingPlane.flat(64);
         };
         return summarize(plane, samples);
     }

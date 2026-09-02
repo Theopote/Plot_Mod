@@ -18,7 +18,7 @@ class GradingSurfaceResolverTest {
     @Test
     void flatModeProducesConstantElevation() {
         GradingRegion region = new GradingRegion(square(10));
-        region.setSurfaceMode(GradingSurfaceMode.FLAT);
+        region.setSurfaceMode(GradingSurfaceMode.LEVEL_PAD);
         region.setAutoBalance(false);
         region.setManualTargetElevation(72);
 
@@ -37,7 +37,7 @@ class GradingSurfaceResolverTest {
     @Test
     void fixedSlopeChangesElevationAlongDirection() {
         GradingRegion region = new GradingRegion(square(10));
-        region.setSurfaceMode(GradingSurfaceMode.FIXED_SLOPE);
+        region.setSurfaceMode(GradingSurfaceMode.SINGLE_SLOPE_PLANE);
         region.setSlopeDirectionDegrees(0.0);
         region.setSlopePitchRatio(4);
         region.setSlopeAnchorCanvas(new Vec2d(0, 0));
@@ -103,7 +103,7 @@ class GradingSurfaceResolverTest {
     @Test
     void fitSlopeUsesLeastSquaresTrend() {
         GradingRegion region = new GradingRegion(square(10));
-        region.setSurfaceMode(GradingSurfaceMode.FIT_SLOPE);
+        region.setSurfaceMode(GradingSurfaceMode.BEST_FIT_PLANE);
         region.setFitSlopeBalanceCutFill(false);
 
         List<GradingSurfaceResolver.HeightSample> samples = List.of(

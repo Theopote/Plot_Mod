@@ -5,6 +5,7 @@ import com.plot.plugin.earthwork.model.BakedElevationGrid;
 import com.plot.plugin.earthwork.model.DesignSurface;
 import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
 
 import java.util.HashMap;
@@ -83,6 +84,30 @@ public final class DesignSurfaceResolver {
                     buildingLookup,
                     siteDefaultElevation);
                 yield cell -> elevation;
+            }
+            case MATCH_EXISTING -> {
+                int offset = surface.getVerticalOffset();
+                yield cell -> cell.existingGroundY() + offset;
+            }
+            case MULTI_PLANE -> {
+                DesignSurfaceResolver.ZoneTargetEvaluator multi =
+                    MultiPlaneSurfaceEvaluator.createEvaluator(zone, surface, terrain, transformer);
+                if (multi != null) {
+                    yield multi;
+                }
+                yield cell -> cell.existingGroundY();
+            }
+            case DRAINAGE_SURFACE -> {
+                ZoneSamples samples = collectZoneSamples(terrain, zone.getOuterPoints());
+                GradingRegion drainageRegion = zone.getRegion();
+                drainageRegion.setSurfaceMode(DesignSurfaceKind.BEST_FIT_PLANE.toSurfaceMode());
+                drainageRegion.setFitSlopeBalanceCutFill(surface.isFitSlopeBalanceCutFill());
+                GradingPlane plane = GradingSurfaceResolver.resolve(
+                    drainageRegion,
+                    samples.centers(),
+                    samples.heights(),
+                    transformer).plane();
+                yield cell -> plane.evaluateAt(cell.worldX(), cell.worldZ());
             }
             case EXCAVATION_PIT -> {
                 int bottom = surface.getBottomElevation() != null

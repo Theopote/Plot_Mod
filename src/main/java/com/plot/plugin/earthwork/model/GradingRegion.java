@@ -22,7 +22,7 @@ public class GradingRegion {
     private final String id;
     private String name;
     private List<Vec2d> outerPoints;
-    private GradingSurfaceMode surfaceMode = GradingSurfaceMode.FLAT;
+    private GradingSurfaceMode surfaceMode = GradingSurfaceMode.LEVEL_PAD;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
     private EarthMaterialProperties materialProperties = EarthMaterialProperties.DEFAULT;
@@ -78,11 +78,11 @@ public class GradingRegion {
     }
 
     public GradingSurfaceMode getSurfaceMode() {
-        return surfaceMode != null ? surfaceMode : GradingSurfaceMode.FLAT;
+        return surfaceMode != null ? surfaceMode : GradingSurfaceMode.LEVEL_PAD;
     }
 
     public void setSurfaceMode(GradingSurfaceMode surfaceMode) {
-        this.surfaceMode = surfaceMode != null ? surfaceMode : GradingSurfaceMode.FLAT;
+        this.surfaceMode = surfaceMode != null ? surfaceMode : GradingSurfaceMode.LEVEL_PAD;
     }
 
     public boolean isAutoBalance() {

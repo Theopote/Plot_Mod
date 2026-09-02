@@ -115,8 +115,8 @@ public class GradingZone {
         } else if (zoneType == GradingZoneType.EXCAVATION_PIT) {
             surface.setKind(DesignSurfaceKind.EXCAVATION_PIT);
         } else if (zoneType == GradingZoneType.TERRAIN_FIT || zoneType == GradingZoneType.LANDSCAPE) {
-            surface.setKind(DesignSurfaceKind.FIT_SLOPE);
-            region.setSurfaceMode(GradingSurfaceMode.FIT_SLOPE);
+            surface.setKind(DesignSurfaceKind.BEST_FIT_PLANE);
+            region.setSurfaceMode(GradingSurfaceMode.BEST_FIT_PLANE);
         } else if (zoneType == GradingZoneType.ROAD_CORRIDOR) {
             surface.setKind(DesignSurfaceKind.ROAD_CORRIDOR);
         }
@@ -226,7 +226,19 @@ public class GradingZone {
     }
 
     public boolean isDelegatableToLegacyGenerator() {
-        return enabled && getType().isSupportedInMvp();
+        if (!enabled || !getType().isSupportedInMvp()) {
+            return false;
+        }
+        DesignSurfaceKind kind = getDesignSurface().getKind();
+        if (kind == DesignSurfaceKind.MATCH_EXISTING
+            || kind == DesignSurfaceKind.MULTI_PLANE
+            || kind == DesignSurfaceKind.DRAINAGE_SURFACE) {
+            return false;
+        }
+        GradingSurfaceMode mode = region.getSurfaceMode();
+        return mode != GradingSurfaceMode.MATCH_EXISTING
+            && mode != GradingSurfaceMode.MULTI_PLANE
+            && mode != GradingSurfaceMode.DRAINAGE_SURFACE;
     }
 
     public boolean isSupportedInComposer() {

@@ -33,7 +33,7 @@ class EarthworkProjectTest {
         region.setCutExposeMaterial("minecraft:sand");
         region.setFillMaterial("minecraft:grass_block");
         region.setPreviewGridSize(3);
-        region.setSurfaceMode(GradingSurfaceMode.FIXED_SLOPE);
+        region.setSurfaceMode(GradingSurfaceMode.SINGLE_SLOPE_PLANE);
         region.setSlopeDirectionDegrees(90.0);
         region.setSlopePitchRatio(8);
         region.setSlopeAnchorCanvas(new Vec2d(6, 5));
@@ -55,7 +55,7 @@ class EarthworkProjectTest {
         assertEquals("minecraft:sand", restoredRegion.getCutExposeMaterial());
         assertEquals("minecraft:grass_block", restoredRegion.getFillMaterial());
         assertEquals(3, restoredRegion.getPreviewGridSize());
-        assertEquals(GradingSurfaceMode.FIXED_SLOPE, restoredRegion.getSurfaceMode());
+        assertEquals(GradingSurfaceMode.SINGLE_SLOPE_PLANE, restoredRegion.getSurfaceMode());
         assertEquals(90.0, restoredRegion.getSlopeDirectionDegrees(), 1e-6);
         assertEquals(8, restoredRegion.getSlopePitchRatio());
         assertEquals(70, restoredRegion.getSlopeAnchorElevation());
@@ -166,7 +166,7 @@ class EarthworkProjectTest {
         zone.setName("Pad");
         zone.setType(GradingZoneType.SLOPED);
         zone.setPriority(80);
-        zone.getRegion().setSurfaceMode(GradingSurfaceMode.FIXED_SLOPE);
+        zone.getRegion().setSurfaceMode(GradingSurfaceMode.SINGLE_SLOPE_PLANE);
         zone.getRegion().setSlopeDirectionDegrees(45.0);
         zone.getRegion().setMaterialProperties(new EarthMaterialProperties(0.88f, 0.91f));
         site.addZone(zone);
@@ -186,8 +186,39 @@ class EarthworkProjectTest {
         assertEquals("Pad", restoredZone.getName());
         assertEquals(GradingZoneType.SLOPED, restoredZone.getType());
         assertEquals(80, restoredZone.getPriority());
-        assertEquals(GradingSurfaceMode.FIXED_SLOPE, restoredZone.getRegion().getSurfaceMode());
+        assertEquals(GradingSurfaceMode.SINGLE_SLOPE_PLANE, restoredZone.getRegion().getSurfaceMode());
         assertEquals(0.88f, restoredZone.getRegion().getMaterialProperties().reusableRatio(), 1e-6f);
+    }
+
+    @Test
+    void v2JsonPreservesMatchExistingAndMultiPlaneFacets() {
+        EarthworkProject project = new EarthworkProject();
+        GradingZone zone = new GradingZone(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(12, 0),
+            new Vec2d(12, 12),
+            new Vec2d(0, 12)
+        ));
+        zone.getDesignSurface().setKind(DesignSurfaceKind.MULTI_PLANE);
+        DesignSurfaceFacet facet = new DesignSurfaceFacet("pad-a", List.of(
+            new Vec2d(2, 2),
+            new Vec2d(10, 2),
+            new Vec2d(10, 10),
+            new Vec2d(2, 10)
+        ));
+        facet.getPlane().setKind(DesignSurfaceKind.MATCH_EXISTING);
+        facet.getPlane().setVerticalOffset(5);
+        zone.getDesignSurface().setFacets(List.of(facet));
+        zone.syncDesignSurfaceToRegion();
+        project.getActiveSite().addZone(zone);
+
+        EarthworkProject restored = EarthworkProject.fromJson(project.toJson());
+        GradingZone restoredZone = restored.getActiveSite().getZone(zone.getId());
+        assertEquals(DesignSurfaceKind.MULTI_PLANE, restoredZone.getDesignSurface().getKind());
+        assertEquals(1, restoredZone.getDesignSurface().getFacets().size());
+        assertEquals(5, restoredZone.getDesignSurface().getFacets().getFirst().getPlane().getVerticalOffset());
+        assertEquals(DesignSurfaceKind.MATCH_EXISTING,
+            restoredZone.getDesignSurface().getFacets().getFirst().getPlane().getKind());
     }
 
     @Test

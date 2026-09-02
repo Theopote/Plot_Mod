@@ -52,7 +52,9 @@ import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.model.GradingZoneType;
+import com.plot.plugin.earthwork.model.DesignSurface;
 import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
+import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.core.plugin.PluginManager;
 import com.plot.ui.canvas.Canvas;
@@ -476,6 +478,10 @@ public class EarthworkPlugin extends Plugin {
             if (selected >= 0 && selected < modes.length && modes[selected] != region.getSurfaceMode()) {
                 projectHistory.push(project);
                 region.setSurfaceMode(modes[selected]);
+                if (zone != null) {
+                    zone.getDesignSurface().setKind(DesignSurfaceKind.fromSurfaceMode(modes[selected]));
+                    zone.syncDesignSurfaceToRegion();
+                }
                 initializeSurfaceDefaults(region, modes[selected]);
                 invalidatePreview();
             }
@@ -483,11 +489,42 @@ public class EarthworkPlugin extends Plugin {
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.surface_mode");
 
         switch (region.getSurfaceMode()) {
-            case FLAT -> renderFlatSurfaceSettings(region);
-            case FIXED_SLOPE -> renderFixedSlopeSettings(region);
-            case THREE_POINT -> renderThreePointSurfaceSettings(region);
-            case FIT_SLOPE -> renderFitSlopeSettings(region);
+            case LEVEL_PAD -> renderFlatSurfaceSettings(region);
+            case SINGLE_SLOPE_PLANE -> renderFixedSlopeSettings(region);
+            case THREE_POINT_PLANE -> renderThreePointSurfaceSettings(region);
+            case BEST_FIT_PLANE, DRAINAGE_SURFACE -> renderFitSlopeSettings(region);
+            case MATCH_EXISTING -> renderMatchExistingSettings(region);
+            case MULTI_PLANE -> renderMultiPlaneSettings(region);
         }
+    }
+
+    private void renderMatchExistingSettings(GradingRegion region) {
+        GradingZone zone = project.getZone(region.getId());
+        if (zone == null) {
+            return;
+        }
+        DesignSurface surface = zone.getDesignSurface();
+        int[] offset = {surface.getVerticalOffset()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.vertical_offset"), offset, -64, 128,
+            PlotI18n.tr("plugin.earthwork.vertical_offset_value", offset[0]))) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            surface.setVerticalOffset(offset[0]);
+            zone.syncDesignSurfaceToRegion();
+            invalidatePreview();
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.match_existing_hint"));
+    }
+
+    private void renderMultiPlaneSettings(GradingRegion region) {
+        GradingZone zone = project.getZone(region.getId());
+        if (zone == null) {
+            return;
+        }
+        int facetCount = zone.getDesignSurface().getFacets().size();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.multi_plane_facet_count", facetCount));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.multi_plane_hint"));
     }
 
     private void renderZoneTypeSettings(GradingRegion region) {
@@ -1333,7 +1370,7 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.slope_reset_anchor"))) {
             projectHistory.push(project);
             region.setSlopeAnchorCanvas(EarthworkGeometryUtils.computeCentroid(region.getOuterPoints()));
-            initializeSurfaceDefaults(region, GradingSurfaceMode.FIXED_SLOPE);
+            initializeSurfaceDefaults(region, GradingSurfaceMode.SINGLE_SLOPE_PLANE);
             invalidatePreview();
         }
     }
@@ -1341,7 +1378,7 @@ public class EarthworkPlugin extends Plugin {
     private void renderThreePointSurfaceSettings(GradingRegion region) {
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.three_point_reset"))) {
             projectHistory.push(project);
-            initializeSurfaceDefaults(region, GradingSurfaceMode.THREE_POINT);
+            initializeSurfaceDefaults(region, GradingSurfaceMode.THREE_POINT_PLANE);
             invalidatePreview();
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.three_point_reset");
@@ -1424,10 +1461,10 @@ public class EarthworkPlugin extends Plugin {
             return;
         }
 
-        if (mode == GradingSurfaceMode.THREE_POINT) {
+        if (mode == GradingSurfaceMode.THREE_POINT_PLANE) {
             GradingSurfaceResolver.initializeThreePointDefaults(
                 region, terrain.centers(), terrain.groundHeights(), transformer);
-        } else if (mode == GradingSurfaceMode.FIXED_SLOPE) {
+        } else if (mode == GradingSurfaceMode.SINGLE_SLOPE_PLANE) {
             GradingSurfaceResolver.initializeFixedSlopeDefaults(
                 region, terrain.centers(), terrain.groundHeights(), transformer);
         }
