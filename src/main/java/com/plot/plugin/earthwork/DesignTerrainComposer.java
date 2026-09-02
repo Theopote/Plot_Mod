@@ -62,7 +62,7 @@ public final class DesignTerrainComposer {
         List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
             applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines);
-        int siteWideOffset = applySiteWideBalance(grid, site);
+        int siteWideOffset = applySiteBalance(grid, site);
         if (siteWideOffset != 0) {
             site.setLastSiteWideVerticalOffset(siteWideOffset);
         } else {
@@ -170,13 +170,26 @@ public final class DesignTerrainComposer {
         return coverageByCellKey;
     }
 
-    private static int applySiteWideBalance(DesignTerrainGrid grid, EarthworkSite site) {
+    private static int applySiteBalance(DesignTerrainGrid grid, EarthworkSite site) {
         if (site == null || grid == null) {
             return 0;
         }
         if (!site.getCompositionPolicy().isSiteWideBalance() || site.getZoneCount() < 2) {
+            site.clearLastZoneVerticalOffsets();
             return 0;
         }
+        CompositionPolicy policy = site.getCompositionPolicy();
+        if (policy.isZoneAllocationBalance()) {
+            ZoneAllocationBalanceAdjuster.BalanceResult result =
+                ZoneAllocationBalanceAdjuster.balance(grid, site);
+            site.setLastZoneVerticalOffsets(result.zoneOffsets());
+            return result.residualUniformOffset();
+        }
+        site.clearLastZoneVerticalOffsets();
+        return applyUniformSiteBalance(grid, site);
+    }
+
+    private static int applyUniformSiteBalance(DesignTerrainGrid grid, EarthworkSite site) {
         List<SiteWideBalanceAdjuster.CellSample> samples = new ArrayList<>();
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
@@ -195,6 +208,7 @@ public final class DesignTerrainComposer {
         SiteWideBalanceAdjuster.applyOffset(grid, offset);
         return offset;
     }
+
 
     private static List<ZoneCandidate> collectCoveringCandidates(
             List<ZoneCandidate> candidates,

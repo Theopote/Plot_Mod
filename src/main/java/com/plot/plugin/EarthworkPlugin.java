@@ -815,6 +815,17 @@ public class EarthworkPlugin extends Plugin {
                 "plugin.earthwork.site_wide_vertical_offset",
                 report.siteWideVerticalOffset()));
         }
+        if (report.hasZoneVerticalOffsets()) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.zone_vertical_offsets_header"));
+            for (Map.Entry<String, Integer> entry : report.zoneVerticalOffsets().entrySet()) {
+                GradingRegion zoneRegion = project.getRegion(entry.getKey());
+                String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
+                ImGui.bulletText(PlotI18n.tr(
+                    "plugin.earthwork.zone_vertical_offset_item",
+                    zoneName,
+                    entry.getValue()));
+            }
+        }
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
@@ -928,12 +939,39 @@ public class EarthworkPlugin extends Plugin {
         ImGui.spacing();
     }
 
+    private void renderBalanceMethodSettings(CompositionPolicy policy) {
+        if (!policy.isSiteWideBalance() || project.getRegionCount() < 2) {
+            return;
+        }
+        String[] methods = {
+            CompositionPolicy.BALANCE_METHOD_ZONE_ALLOCATION,
+            CompositionPolicy.BALANCE_METHOD_UNIFORM
+        };
+        String[] labels = {
+            PlotI18n.tr("plugin.earthwork.balance_method.zone_allocation"),
+            PlotI18n.tr("plugin.earthwork.balance_method.uniform_offset")
+        };
+        int selected = policy.isZoneAllocationBalance() ? 0 : 1;
+        ImInt methodIndex = new ImInt(selected);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.balance_method_label"), methodIndex, labels)) {
+            int picked = methodIndex.get();
+            if (picked >= 0 && picked < methods.length) {
+                projectHistory.push(project);
+                policy.setBalanceMethod(methods[picked]);
+                invalidatePreview();
+            }
+        }
+        ImGui.spacing();
+    }
+
     private void renderCompositionSettings() {
         EarthworkSite site = project.getActiveSite();
         CompositionPolicy policy = site.getCompositionPolicy();
 
         ImGui.text(PlotI18n.tr("plugin.earthwork.composition_settings"));
         renderBalanceScopeSettings(policy);
+        renderBalanceMethodSettings(policy);
         renderOverlapResolutionSettings(policy);
         int[] blendWidth = {policy.getBlendWidthBlocks()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.blend_width_blocks"), blendWidth, 0, 16)) {

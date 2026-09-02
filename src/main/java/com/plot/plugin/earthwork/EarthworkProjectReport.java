@@ -18,7 +18,8 @@ public final class EarthworkProjectReport {
         List.of(),
         EarthworkAllocationMatrix.EMPTY,
         CompositionPolicy.BALANCE_SCOPE_SITE_WIDE,
-        0);
+        0,
+        Map.of());
 
     private final long totalCut;
     private final long totalFill;
@@ -31,6 +32,7 @@ public final class EarthworkProjectReport {
     private final EarthworkAllocationMatrix allocationMatrix;
     private final String balanceScope;
     private final int siteWideVerticalOffset;
+    private final Map<String, Integer> zoneVerticalOffsets;
 
     public EarthworkProjectReport(
             long totalCut,
@@ -43,7 +45,8 @@ public final class EarthworkProjectReport {
             List<OverlapConflict> overlaps,
             EarthworkAllocationMatrix allocationMatrix,
             String balanceScope,
-            int siteWideVerticalOffset) {
+            int siteWideVerticalOffset,
+            Map<String, Integer> zoneVerticalOffsets) {
         this.totalCut = Math.max(0L, totalCut);
         this.totalFill = Math.max(0L, totalFill);
         this.reusableCut = Math.max(0.0, reusableCut);
@@ -55,6 +58,7 @@ public final class EarthworkProjectReport {
         this.allocationMatrix = allocationMatrix != null ? allocationMatrix : EarthworkAllocationMatrix.EMPTY;
         this.balanceScope = balanceScope != null ? balanceScope : CompositionPolicy.BALANCE_SCOPE_SITE_WIDE;
         this.siteWideVerticalOffset = siteWideVerticalOffset;
+        this.zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
     }
 
     public static EarthworkProjectReport empty() {
@@ -107,6 +111,14 @@ public final class EarthworkProjectReport {
 
     public int siteWideVerticalOffset() {
         return siteWideVerticalOffset;
+    }
+
+    public Map<String, Integer> zoneVerticalOffsets() {
+        return zoneVerticalOffsets;
+    }
+
+    public boolean hasZoneVerticalOffsets() {
+        return !zoneVerticalOffsets.isEmpty();
     }
 
     public boolean hasZoneBreakdown() {
@@ -166,6 +178,9 @@ public final class EarthworkProjectReport {
                 : List.of();
             EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, site);
             int siteWideOffset = site != null ? site.getLastSiteWideVerticalOffset() : 0;
+            Map<String, Integer> zoneOffsets = site != null
+                ? site.getLastZoneVerticalOffsets()
+                : Map.of();
             return new EarthworkProjectReport(
                 totals.geometricCutVolume(),
                 totals.geometricFillVolume(),
@@ -177,7 +192,8 @@ public final class EarthworkProjectReport {
                 overlaps,
                 matrix,
                 policy.getBalanceScope(),
-                siteWideOffset);
+                siteWideOffset,
+                zoneOffsets);
         }
 
         public static EarthworkProjectReport buildFromSingleZone(

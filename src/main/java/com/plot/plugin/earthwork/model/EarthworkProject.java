@@ -448,6 +448,8 @@ public class EarthworkProject {
     static class CompositionPolicyData {
         String overlapResolution = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS;
         String balanceScope = CompositionPolicy.BALANCE_SCOPE_SITE_WIDE;
+        String balanceMethod = CompositionPolicy.BALANCE_METHOD_ZONE_ALLOCATION;
+        boolean balanceResidualUniformPolish = true;
         String outsideSiteBoundary = CompositionPolicy.OUTSIDE_IGNORE;
         String exclusionPrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;
         String breaklinePrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;
@@ -457,6 +459,8 @@ public class EarthworkProject {
             CompositionPolicyData data = new CompositionPolicyData();
             data.overlapResolution = policy.getOverlapResolution();
             data.balanceScope = policy.getBalanceScope();
+            data.balanceMethod = policy.getBalanceMethod();
+            data.balanceResidualUniformPolish = policy.isBalanceResidualUniformPolish();
             data.outsideSiteBoundary = policy.getOutsideSiteBoundary();
             data.exclusionPrecedence = policy.getExclusionPrecedence();
             data.breaklinePrecedence = policy.getBreaklinePrecedence();
@@ -468,6 +472,8 @@ public class EarthworkProject {
             CompositionPolicy policy = new CompositionPolicy();
             policy.setOverlapResolution(overlapResolution);
             policy.setBalanceScope(balanceScope);
+            policy.setBalanceMethod(balanceMethod);
+            policy.setBalanceResidualUniformPolish(balanceResidualUniformPolish);
             policy.setOutsideSiteBoundary(outsideSiteBoundary);
             policy.setExclusionPrecedence(exclusionPrecedence);
             policy.setBreaklinePrecedence(breaklinePrecedence);
