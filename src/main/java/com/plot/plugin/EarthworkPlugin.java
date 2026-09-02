@@ -26,6 +26,7 @@ import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
+import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.plugin.ui.PluginUiColors;
@@ -51,6 +52,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -715,6 +717,24 @@ public class EarthworkPlugin extends Plugin {
                 volumes.cutChangedBlocks(),
                 volumes.fillChangedBlocks()));
 
+            if (lastGenerationResult.siteGeneration
+                && lastGenerationResult.siteVolumeReport != null
+                && lastGenerationResult.siteVolumeReport.byZone().size() > 1) {
+                ImGui.separator();
+                ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
+                for (Map.Entry<String, EarthworkVolumeReport> entry
+                    : lastGenerationResult.siteVolumeReport.byZone().entrySet()) {
+                    GradingRegion zoneRegion = project.getRegion(entry.getKey());
+                    String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
+                    EarthworkVolumeReport zoneVolumes = entry.getValue();
+                    ImGui.text(PlotI18n.tr(
+                        "plugin.earthwork.zone_volume_item",
+                        zoneName,
+                        zoneVolumes.geometricCutVolume(),
+                        zoneVolumes.geometricFillVolume()));
+                }
+            }
+
             for (String warningKey : lastGenerationResult.warnings) {
                 ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
             }
@@ -901,6 +921,7 @@ public class EarthworkPlugin extends Plugin {
                     projectHistory.push(project);
                     project.removeRegion(pendingDeleteRegionId);
                     terrainSnapshotCache.invalidateRegion(pendingDeleteRegionId);
+                    terrainSnapshotCache.invalidateSite(project.getActiveSiteId());
                     if (pendingDeleteRegionId.equals(selectedRegionId)) {
                         selectedRegionId = project.getRegions().isEmpty()
                             ? ""
@@ -1096,10 +1117,18 @@ public class EarthworkPlugin extends Plugin {
             ghostBlockManager.clearAllGhostBlocks();
         }
 
+        EarthworkSite site = project.getActiveSite();
         try {
-            TerrainSnapshot terrain = terrainSnapshotCache.captureFresh(
-                region, world, ctx().coordinates());
-            lastGenerationResult = earthworkGenerator.generate(region, world, terrain);
+            if (site.delegatesToLegacyGenerator()) {
+                TerrainSnapshot terrain = terrainSnapshotCache.captureFresh(
+                    region, world, ctx().coordinates());
+                lastGenerationResult = earthworkGenerator.generate(region, world, terrain);
+            } else {
+                TerrainSnapshot terrain = terrainSnapshotCache.captureFreshSite(
+                    site, world, ctx().coordinates());
+                lastGenerationResult = earthworkGenerator.generateSite(
+                    site, world, terrain, region);
+            }
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
             lastGenerationResult = null;
@@ -1146,6 +1175,8 @@ public class EarthworkPlugin extends Plugin {
         boolean hadPreview = lastGenerationResult != null;
         clearPreview();
         if (project != null) {
+            EarthworkSite site = project.getActiveSite();
+            site.setLastReport(EarthworkVolumeReport.empty());
             for (GradingRegion region : project.getRegions().values()) {
                 region.setLastVolumeReport(EarthworkVolumeReport.empty());
             }
@@ -1189,6 +1220,7 @@ public class EarthworkPlugin extends Plugin {
                 if (result.success() > 0) {
                     ctx().commands().pushExecuted(command);
                     terrainSnapshotCache.invalidateRegion(builtRegionId);
+                    terrainSnapshotCache.invalidateSite(project.getActiveSiteId());
                 }
                 projectStatus = PlotI18n.tr(
                     "plugin.earthwork.build_cancelled", result.success(), result.total());
@@ -1198,6 +1230,7 @@ public class EarthworkPlugin extends Plugin {
             ctx().commands().pushExecuted(command);
             if (result != null && result.success() > 0) {
                 terrainSnapshotCache.invalidateRegion(builtRegionId);
+                terrainSnapshotCache.invalidateSite(project.getActiveSiteId());
             }
             applyBuildResultStatus(result);
             clearPreview();

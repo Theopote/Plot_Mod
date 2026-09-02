@@ -186,4 +186,11 @@ public final class EarthworkGeometryUtils {
     public static Vec2d computeCentroid(List<Vec2d> points) {
         return PolygonRegionUtils.computeCentroid(points);
     }
+
+    public static boolean containsCanvasPoint(List<Vec2d> outerPoints, Vec2d canvasPoint) {
+        if (canvasPoint == null || outerPoints == null || outerPoints.size() < 3) {
+            return false;
+        }
+        return toPolygon(outerPoints).contains(canvasPoint);
+    }
 }

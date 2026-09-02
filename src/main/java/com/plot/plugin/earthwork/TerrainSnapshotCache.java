@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
@@ -32,6 +33,47 @@ public final class TerrainSnapshotCache {
     }
 
     private final Map<String, Entry> byRegionId = new HashMap<>();
+    private final Map<String, Entry> bySiteId = new HashMap<>();
+
+    public TerrainSnapshot captureFreshSite(
+            EarthworkSite site,
+            World world,
+            ICoordinateService transformer) {
+        TerrainSnapshot snapshot = captureForSite(site, world, transformer);
+        if (site != null && !snapshot.isEmpty()) {
+            String siteId = site.getId();
+            bySiteId.put(siteId, new Entry(
+                TerrainSnapshotCache.outlineFingerprint(site.getSiteBoundary()),
+                worldKey(world),
+                snapshot));
+        }
+        return snapshot;
+    }
+
+    public TerrainSnapshot getOrCaptureSite(
+            EarthworkSite site,
+            World world,
+            ICoordinateService transformer) {
+        if (site == null) {
+            return TerrainSnapshot.empty();
+        }
+        List<Vec2d> siteBoundary = site.getSiteBoundary();
+        if (siteBoundary.size() < 3) {
+            return TerrainSnapshot.empty();
+        }
+
+        String siteId = site.getId();
+        long outlineFingerprint = outlineFingerprint(siteBoundary);
+        String worldKey = worldKey(world);
+        Entry cached = bySiteId.get(siteId);
+        if (cached != null && cached.matches(outlineFingerprint, worldKey)) {
+            return cached.snapshot;
+        }
+
+        TerrainSnapshot snapshot = captureForSite(site, world, transformer);
+        bySiteId.put(siteId, new Entry(outlineFingerprint, worldKey, snapshot));
+        return snapshot;
+    }
 
     public TerrainSnapshot captureFresh(
             GradingRegion region,
@@ -74,6 +116,21 @@ public final class TerrainSnapshotCache {
         return snapshot;
     }
 
+    private TerrainSnapshot captureForSite(
+            EarthworkSite site,
+            World world,
+            ICoordinateService transformer) {
+        if (site == null) {
+            return TerrainSnapshot.empty();
+        }
+        List<Vec2d> siteBoundary = site.getSiteBoundary();
+        if (siteBoundary.size() < 3) {
+            return TerrainSnapshot.empty();
+        }
+        Polygon polygon = EarthworkGeometryUtils.toPolygon(siteBoundary);
+        return TerrainSnapshot.capture(world, polygon, siteBoundary, transformer);
+    }
+
     private TerrainSnapshot captureForRegion(
             GradingRegion region,
             World world,
@@ -109,8 +166,15 @@ public final class TerrainSnapshotCache {
         }
     }
 
+    public void invalidateSite(String siteId) {
+        if (siteId != null && !siteId.isBlank()) {
+            bySiteId.remove(siteId);
+        }
+    }
+
     public void clear() {
         byRegionId.clear();
+        bySiteId.clear();
     }
 
     public boolean isCached(String regionId) {

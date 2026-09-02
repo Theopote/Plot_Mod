@@ -15,39 +15,123 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 土方平衡项目（管理已认领的多个整平区域）
+ * 土方平衡项目（管理场地与设计分区）。
+ * <p>
+ * Phase A：内部以 {@link EarthworkSite} 为聚合根，保留 {@link GradingRegion} 兼容 API。
  */
 public class EarthworkProject {
+    public static final int SCHEMA_VERSION_V1 = 1;
+    public static final int SCHEMA_VERSION_V2 = 2;
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final Map<String, GradingRegion> regions = new LinkedHashMap<>();
+    private int schemaVersion = SCHEMA_VERSION_V2;
+    private final Map<String, EarthworkSite> sites = new LinkedHashMap<>();
+    private String activeSiteId = "";
+
+    public int getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    public Map<String, EarthworkSite> getSites() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(sites));
+    }
+
+    public EarthworkSite getSite(String siteId) {
+        return sites.get(siteId);
+    }
+
+    public EarthworkSite getActiveSite() {
+        ensureActiveSite();
+        return sites.get(activeSiteId);
+    }
+
+    public String getActiveSiteId() {
+        ensureActiveSite();
+        return activeSiteId;
+    }
+
+    public void setActiveSiteId(String siteId) {
+        if (siteId != null && sites.containsKey(siteId)) {
+            activeSiteId = siteId;
+        }
+    }
+
+    public EarthworkSite addSite(EarthworkSite site) {
+        if (site == null) {
+            throw new IllegalArgumentException("Earthwork site cannot be null");
+        }
+        sites.put(site.getId(), site);
+        if (activeSiteId == null || activeSiteId.isBlank() || !sites.containsKey(activeSiteId)) {
+            activeSiteId = site.getId();
+        }
+        return site;
+    }
+
+    public void removeSite(String siteId) {
+        sites.remove(siteId);
+        if (siteId != null && siteId.equals(activeSiteId)) {
+            activeSiteId = sites.isEmpty() ? "" : sites.keySet().iterator().next();
+        }
+    }
+
+    public int getSiteCount() {
+        return sites.size();
+    }
+
+    // --- GradingRegion 兼容 API（委托给当前 Site 的分区） ---
 
     public Map<String, GradingRegion> getRegions() {
-        return Collections.unmodifiableMap(new LinkedHashMap<>(regions));
+        EarthworkSite site = getActiveSite();
+        Map<String, GradingRegion> regions = new LinkedHashMap<>();
+        for (GradingZone zone : site.getGradingZones().values()) {
+            regions.put(zone.getId(), zone.getRegion());
+        }
+        return Collections.unmodifiableMap(regions);
     }
 
     public GradingRegion getRegion(String id) {
-        return regions.get(id);
+        GradingZone zone = getActiveSite().getZone(id);
+        return zone != null ? zone.getRegion() : null;
     }
 
     public GradingRegion addRegion(GradingRegion region) {
         if (region == null) {
             throw new IllegalArgumentException("Grading region cannot be null");
         }
-        regions.put(region.getId(), region);
-        return region;
+        EarthworkSite site = getActiveSite();
+        GradingZone zone = GradingZone.fromGradingRegion(region);
+        site.addZone(zone);
+        site.recomputeSiteBoundaryFromZones();
+        return zone.getRegion();
     }
 
     public void removeRegion(String id) {
-        regions.remove(id);
+        EarthworkSite site = getActiveSite();
+        site.removeZone(id);
+        if (site.getZoneCount() > 0) {
+            site.recomputeSiteBoundaryFromZones();
+        }
     }
 
     public int getRegionCount() {
-        return regions.size();
+        return getActiveSite().getZoneCount();
     }
 
     public double getTotalArea() {
-        return regions.values().stream().mapToDouble(GradingRegion::computeArea).sum();
+        return getActiveSite().getTotalArea();
+    }
+
+    public void ensureActiveSite() {
+        if (!activeSiteId.isBlank() && sites.containsKey(activeSiteId)) {
+            return;
+        }
+        if (!sites.isEmpty()) {
+            activeSiteId = sites.keySet().iterator().next();
+            return;
+        }
+        EarthworkSite site = new EarthworkSite();
+        addSite(site);
     }
 
     public String toJson() {
@@ -108,6 +192,506 @@ public class EarthworkProject {
         }
     }
 
+    static class ProjectData {
+        int schemaVersion;
+        List<SiteData> sites = new ArrayList<>();
+        String activeSiteId = "";
+        List<RegionData> regions = new ArrayList<>();
+
+        static ProjectData from(EarthworkProject project) {
+            ProjectData data = new ProjectData();
+            data.schemaVersion = SCHEMA_VERSION_V2;
+            data.activeSiteId = project.activeSiteId;
+            for (EarthworkSite site : project.sites.values()) {
+                data.sites.add(SiteData.from(site));
+            }
+            return data;
+        }
+
+        EarthworkProject toProject() {
+            if (isV2Payload()) {
+                return loadV2();
+            }
+            return migrateV1();
+        }
+
+        private boolean isV2Payload() {
+            return schemaVersion >= SCHEMA_VERSION_V2
+                || (sites != null && !sites.isEmpty());
+        }
+
+        private EarthworkProject loadV2() {
+            EarthworkProject project = new EarthworkProject();
+            project.schemaVersion = SCHEMA_VERSION_V2;
+            if (sites != null) {
+                for (SiteData siteData : sites) {
+                    EarthworkSite site = siteData != null ? siteData.toSite() : null;
+                    if (site != null) {
+                        project.addSite(site);
+                    }
+                }
+            }
+            if (activeSiteId != null && !activeSiteId.isBlank() && project.getSite(activeSiteId) != null) {
+                project.activeSiteId = activeSiteId;
+            }
+            project.ensureActiveSite();
+            return project;
+        }
+
+        private EarthworkProject migrateV1() {
+            EarthworkProject project = new EarthworkProject();
+            project.schemaVersion = SCHEMA_VERSION_V2;
+            if (regions == null || regions.isEmpty()) {
+                project.ensureActiveSite();
+                return project;
+            }
+
+            EarthworkSite site = new EarthworkSite();
+            site.setName("Imported Site");
+            EarthMaterialProperties siteMaterial = EarthMaterialProperties.DEFAULT;
+
+            for (RegionData regionData : regions) {
+                GradingRegion region = regionData.toRegion();
+                if (region == null) {
+                    continue;
+                }
+                if (siteMaterial == EarthMaterialProperties.DEFAULT) {
+                    siteMaterial = region.getMaterialProperties();
+                }
+                GradingZone zone = GradingZone.fromGradingRegion(region);
+                zone.setPriority(GradingZone.DEFAULT_PRIORITY);
+                site.addZone(zone);
+            }
+
+            if (site.getZoneCount() == 0) {
+                project.ensureActiveSite();
+                return project;
+            }
+
+            site.setMaterialModel(siteMaterial);
+            site.recomputeSiteBoundaryFromZones();
+            project.addSite(site);
+            return project;
+        }
+    }
+
+    static class SiteData {
+        String id;
+        String name;
+        List<Vec2dData> siteBoundary = new ArrayList<>();
+        MaterialData materialModel = new MaterialData();
+        ExistingTerrainRefData existingTerrainRef;
+        CompositionPolicyData compositionPolicy = new CompositionPolicyData();
+        List<ZoneData> gradingZones = new ArrayList<>();
+        List<BreaklineData> breaklines = new ArrayList<>();
+        List<RetainingEdgeData> retainingEdges = new ArrayList<>();
+        List<ExclusionZoneData> exclusionZones = new ArrayList<>();
+
+        static SiteData from(EarthworkSite site) {
+            SiteData data = new SiteData();
+            data.id = site.getId();
+            data.name = site.getName();
+            for (Vec2d point : site.getSiteBoundary()) {
+                data.siteBoundary.add(new Vec2dData(point));
+            }
+            data.materialModel = MaterialData.from(site.getMaterialModel());
+            data.existingTerrainRef = ExistingTerrainRefData.from(site.getExistingTerrainRef());
+            data.compositionPolicy = CompositionPolicyData.from(site.getCompositionPolicy());
+            for (GradingZone zone : site.getGradingZones().values()) {
+                data.gradingZones.add(ZoneData.from(zone));
+            }
+            for (Breakline breakline : site.getBreaklines()) {
+                data.breaklines.add(BreaklineData.from(breakline));
+            }
+            for (RetainingEdge edge : site.getRetainingEdges()) {
+                data.retainingEdges.add(RetainingEdgeData.from(edge));
+            }
+            for (ExclusionZone exclusion : site.getExclusionZones()) {
+                data.exclusionZones.add(ExclusionZoneData.from(exclusion));
+            }
+            return data;
+        }
+
+        EarthworkSite toSite() {
+            String siteId = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
+            EarthworkSite site = new EarthworkSite(siteId);
+            site.setName(name);
+            site.setSiteBoundary(readPoints(siteBoundary));
+            site.setMaterialModel(materialModel != null
+                ? materialModel.toProperties()
+                : EarthMaterialProperties.DEFAULT);
+            if (existingTerrainRef != null) {
+                site.setExistingTerrainRef(existingTerrainRef.toRef());
+            }
+            site.setCompositionPolicy(compositionPolicy != null
+                ? compositionPolicy.toPolicy()
+                : CompositionPolicy.DEFAULT);
+            if (gradingZones != null) {
+                for (ZoneData zoneData : gradingZones) {
+                    GradingZone zone = zoneData != null ? zoneData.toZone() : null;
+                    if (zone != null) {
+                        site.addZone(zone);
+                    }
+                }
+            }
+            site.setBreaklines(readBreaklines(breaklines));
+            site.setRetainingEdges(readRetainingEdges(retainingEdges));
+            site.setExclusionZones(readExclusionZones(exclusionZones));
+            site.refreshSiteBoundaryIfNeeded();
+            return site;
+        }
+
+        private static List<Breakline> readBreaklines(List<BreaklineData> items) {
+            List<Breakline> result = new ArrayList<>();
+            if (items == null) {
+                return result;
+            }
+            for (BreaklineData item : items) {
+                if (item != null) {
+                    result.add(item.toBreakline());
+                }
+            }
+            return result;
+        }
+
+        private static List<RetainingEdge> readRetainingEdges(List<RetainingEdgeData> items) {
+            List<RetainingEdge> result = new ArrayList<>();
+            if (items == null) {
+                return result;
+            }
+            for (RetainingEdgeData item : items) {
+                if (item != null) {
+                    result.add(item.toRetainingEdge());
+                }
+            }
+            return result;
+        }
+
+        private static List<ExclusionZone> readExclusionZones(List<ExclusionZoneData> items) {
+            List<ExclusionZone> result = new ArrayList<>();
+            if (items == null) {
+                return result;
+            }
+            for (ExclusionZoneData item : items) {
+                if (item != null) {
+                    result.add(item.toExclusionZone());
+                }
+            }
+            return result;
+        }
+    }
+
+    private static List<Vec2d> readPoints(List<Vec2dData> pointData) {
+        List<Vec2d> points = new ArrayList<>();
+        if (pointData == null) {
+            return points;
+        }
+        for (Vec2dData data : pointData) {
+            if (data != null) {
+                points.add(data.toVec2d());
+            }
+        }
+        return points;
+    }
+
+    static class MaterialData {
+        float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;
+        float cutToCompactedFillRatio = EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
+
+        static MaterialData from(EarthMaterialProperties properties) {
+            MaterialData data = new MaterialData();
+            data.reusableRatio = properties.reusableRatio();
+            data.cutToCompactedFillRatio = properties.cutToCompactedFillRatio();
+            return data;
+        }
+
+        EarthMaterialProperties toProperties() {
+            return new EarthMaterialProperties(reusableRatio, cutToCompactedFillRatio);
+        }
+    }
+
+    static class ExistingTerrainRefData {
+        long capturedAtEpochMs;
+        String worldKey = "";
+        long outlineFingerprint;
+        long contentFingerprint;
+        int columnCount;
+        String snapshotFile = "";
+
+        static ExistingTerrainRefData from(ExistingTerrainRef ref) {
+            ExistingTerrainRefData data = new ExistingTerrainRefData();
+            data.capturedAtEpochMs = ref.getCapturedAtEpochMs();
+            data.worldKey = ref.getWorldKey();
+            data.outlineFingerprint = ref.getOutlineFingerprint();
+            data.contentFingerprint = ref.getContentFingerprint();
+            data.columnCount = ref.getColumnCount();
+            data.snapshotFile = ref.getSnapshotFile();
+            return data;
+        }
+
+        ExistingTerrainRef toRef() {
+            ExistingTerrainRef ref = new ExistingTerrainRef();
+            ref.setCapturedAtEpochMs(capturedAtEpochMs);
+            ref.setWorldKey(worldKey);
+            ref.setOutlineFingerprint(outlineFingerprint);
+            ref.setContentFingerprint(contentFingerprint);
+            ref.setColumnCount(columnCount);
+            ref.setSnapshotFile(snapshotFile);
+            return ref;
+        }
+    }
+
+    static class CompositionPolicyData {
+        String overlapResolution = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS;
+        String outsideSiteBoundary = CompositionPolicy.OUTSIDE_IGNORE;
+        String exclusionPrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;
+        String breaklinePrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;
+        int blendWidthBlocks;
+
+        static CompositionPolicyData from(CompositionPolicy policy) {
+            CompositionPolicyData data = new CompositionPolicyData();
+            data.overlapResolution = policy.getOverlapResolution();
+            data.outsideSiteBoundary = policy.getOutsideSiteBoundary();
+            data.exclusionPrecedence = policy.getExclusionPrecedence();
+            data.breaklinePrecedence = policy.getBreaklinePrecedence();
+            data.blendWidthBlocks = policy.getBlendWidthBlocks();
+            return data;
+        }
+
+        CompositionPolicy toPolicy() {
+            CompositionPolicy policy = new CompositionPolicy();
+            policy.setOverlapResolution(overlapResolution);
+            policy.setOutsideSiteBoundary(outsideSiteBoundary);
+            policy.setExclusionPrecedence(exclusionPrecedence);
+            policy.setBreaklinePrecedence(breaklinePrecedence);
+            policy.setBlendWidthBlocks(blendWidthBlocks);
+            return policy;
+        }
+    }
+
+    static class DesignSurfaceData {
+        String kind = DesignSurfaceKind.FLAT.name();
+        boolean autoBalance = true;
+        Integer manualTargetElevation;
+        boolean fitSlopeBalanceCutFill = true;
+        double slopeDirectionDegrees;
+        int slopePitchRatio = GradingRegion.DEFAULT_SLOPE_PITCH_RATIO;
+        Double anchorCanvasX;
+        Double anchorCanvasY;
+        Integer anchorElevation;
+        double[] threePointCanvasX = new double[3];
+        double[] threePointCanvasY = new double[3];
+        int[] threePointElevation = new int[] {64, 64, 64};
+
+        static DesignSurfaceData from(DesignSurface surface) {
+            DesignSurfaceData data = new DesignSurfaceData();
+            data.kind = surface.getKind().name();
+            data.autoBalance = surface.isAutoBalance();
+            data.manualTargetElevation = surface.getManualTargetElevation();
+            data.fitSlopeBalanceCutFill = surface.isFitSlopeBalanceCutFill();
+            data.slopeDirectionDegrees = surface.getSlopeDirectionDegrees();
+            data.slopePitchRatio = surface.getSlopePitchRatio();
+            Vec2d anchor = surface.getAnchorCanvas();
+            if (anchor != null) {
+                data.anchorCanvasX = anchor.x;
+                data.anchorCanvasY = anchor.y;
+            }
+            data.anchorElevation = surface.getAnchorElevation();
+            for (int i = 0; i < 3; i++) {
+                data.threePointCanvasX[i] = surface.getThreePointCanvasX(i);
+                data.threePointCanvasY[i] = surface.getThreePointCanvasY(i);
+                data.threePointElevation[i] = surface.getThreePointElevation(i);
+            }
+            return data;
+        }
+
+        DesignSurface toSurface() {
+            DesignSurface surface = new DesignSurface();
+            surface.setKind(DesignSurfaceKind.fromId(kind));
+            surface.setAutoBalance(autoBalance);
+            surface.setManualTargetElevation(manualTargetElevation);
+            surface.setFitSlopeBalanceCutFill(fitSlopeBalanceCutFill);
+            surface.setSlopeDirectionDegrees(slopeDirectionDegrees);
+            surface.setSlopePitchRatio(slopePitchRatio);
+            if (anchorCanvasX != null && anchorCanvasY != null) {
+                surface.setAnchorCanvas(new Vec2d(anchorCanvasX, anchorCanvasY));
+            }
+            surface.setAnchorElevation(anchorElevation);
+            if (threePointCanvasX != null && threePointCanvasY != null && threePointElevation != null) {
+                for (int i = 0; i < 3; i++) {
+                    surface.setThreePointControl(
+                        i,
+                        new Vec2d(threePointCanvasX[i], threePointCanvasY[i]),
+                        threePointElevation[i]);
+                }
+            }
+            return surface;
+        }
+    }
+
+    static class ZoneData {
+        String id;
+        String name;
+        String type = GradingZoneType.FLAT.name();
+        int priority = GradingZone.DEFAULT_PRIORITY;
+        boolean enabled = true;
+        List<Vec2dData> outerPoints = new ArrayList<>();
+        MaterialData materialOverride;
+        MaterialData materialModel = new MaterialData();
+        String cutExposeMaterial = "";
+        String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
+        int previewGridSize;
+        DesignSurfaceData designSurface = new DesignSurfaceData();
+
+        static ZoneData from(GradingZone zone) {
+            zone.syncDesignSurfaceFromRegion();
+            ZoneData data = new ZoneData();
+            data.id = zone.getId();
+            data.name = zone.getName();
+            data.type = zone.getType().name();
+            data.priority = zone.getPriority();
+            data.enabled = zone.isEnabled();
+            for (Vec2d point : zone.getOuterPoints()) {
+                data.outerPoints.add(new Vec2dData(point));
+            }
+            if (zone.getMaterialOverride() != null) {
+                data.materialOverride = MaterialData.from(zone.getMaterialOverride());
+            }
+            data.materialModel = MaterialData.from(zone.getRegion().getMaterialProperties());
+            data.cutExposeMaterial = zone.getCutExposeMaterial();
+            data.fillMaterial = zone.getFillMaterial();
+            data.previewGridSize = zone.getPreviewGridSize();
+            data.designSurface = DesignSurfaceData.from(zone.getDesignSurface());
+            return data;
+        }
+
+        GradingZone toZone() {
+            List<Vec2d> points = readPoints(outerPoints);
+            if (points.size() < 3) {
+                return null;
+            }
+            String zoneId = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
+            GradingZone zone = new GradingZone(zoneId, points);
+            zone.setName(name);
+            zone.setType(GradingZoneType.fromId(type));
+            zone.setPriority(priority);
+            zone.setEnabled(enabled);
+            if (materialOverride != null) {
+                zone.setMaterialOverride(materialOverride.toProperties());
+            }
+            if (materialModel != null) {
+                zone.getRegion().setMaterialProperties(materialModel.toProperties());
+            }
+            if (cutExposeMaterial != null) {
+                zone.setCutExposeMaterial(cutExposeMaterial);
+            }
+            if (fillMaterial != null) {
+                zone.setFillMaterial(fillMaterial);
+            }
+            zone.setPreviewGridSize(resolvePreviewGridSize());
+            zone.setDesignSurface(designSurface != null ? designSurface.toSurface() : new DesignSurface());
+            return zone;
+        }
+
+        private int resolvePreviewGridSize() {
+            if (previewGridSize > 0) {
+                return previewGridSize;
+            }
+            return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
+        }
+    }
+
+    static class BreaklineData {
+        String id;
+        String name;
+        List<Vec2dData> points = new ArrayList<>();
+        String role = Breakline.ROLE_HARD_BOUNDARY;
+        String leftZoneId = "";
+        String rightZoneId = "";
+
+        static BreaklineData from(Breakline breakline) {
+            BreaklineData data = new BreaklineData();
+            data.id = breakline.getId();
+            data.name = breakline.getName();
+            for (Vec2d point : breakline.getPoints()) {
+                data.points.add(new Vec2dData(point));
+            }
+            data.role = breakline.getRole();
+            data.leftZoneId = breakline.getLeftZoneId();
+            data.rightZoneId = breakline.getRightZoneId();
+            return data;
+        }
+
+        Breakline toBreakline() {
+            Breakline breakline = new Breakline(id);
+            breakline.setName(name);
+            breakline.setPoints(readPoints(points));
+            breakline.setRole(role);
+            breakline.setLeftZoneId(leftZoneId);
+            breakline.setRightZoneId(rightZoneId);
+            return breakline;
+        }
+    }
+
+    static class ExclusionZoneData {
+        String id;
+        String name;
+        List<Vec2dData> outerPoints = new ArrayList<>();
+        String mode = ExclusionZone.MODE_PRESERVE_EXISTING;
+
+        static ExclusionZoneData from(ExclusionZone exclusion) {
+            ExclusionZoneData data = new ExclusionZoneData();
+            data.id = exclusion.getId();
+            data.name = exclusion.getName();
+            for (Vec2d point : exclusion.getOuterPoints()) {
+                data.outerPoints.add(new Vec2dData(point));
+            }
+            data.mode = exclusion.getMode();
+            return data;
+        }
+
+        ExclusionZone toExclusionZone() {
+            ExclusionZone exclusion = new ExclusionZone(id);
+            exclusion.setName(name);
+            exclusion.setOuterPoints(readPoints(outerPoints));
+            exclusion.setMode(mode);
+            return exclusion;
+        }
+    }
+
+    static class RetainingEdgeData {
+        String id;
+        String name;
+        List<Vec2dData> polyline = new ArrayList<>();
+        int topElevation;
+        int bottomElevation;
+        String side = RetainingEdge.SIDE_CUT;
+
+        static RetainingEdgeData from(RetainingEdge edge) {
+            RetainingEdgeData data = new RetainingEdgeData();
+            data.id = edge.getId();
+            data.name = edge.getName();
+            for (Vec2d point : edge.getPolyline()) {
+                data.polyline.add(new Vec2dData(point));
+            }
+            data.topElevation = edge.getTopElevation();
+            data.bottomElevation = edge.getBottomElevation();
+            data.side = edge.getSide();
+            return data;
+        }
+
+        RetainingEdge toRetainingEdge() {
+            RetainingEdge edge = new RetainingEdge(id);
+            edge.setName(name);
+            edge.setPolyline(readPoints(polyline));
+            edge.setTopElevation(topElevation);
+            edge.setBottomElevation(bottomElevation);
+            edge.setSide(side);
+            return edge;
+        }
+    }
+
+  /** v1 兼容字段 */
     static class RegionData {
         String id;
         String name;
@@ -117,16 +701,16 @@ public class EarthworkProject {
         Integer manualTargetElevation;
         float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;
         float cutToCompactedFillRatio = EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
-        /** @deprecated 仅用于读取旧工程；新工程请使用 {@link #reusableRatio} 与 {@link #cutToCompactedFillRatio} */
+        /** @deprecated 仅用于读取旧工程 */
         @Deprecated
         Float fillFactor;
         String cutExposeMaterial = "";
         String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
         int previewGridSize;
-        /** @deprecated 旧字段，读取时回退到 {@link #previewGridSize} */
+        /** @deprecated 旧字段 */
         @Deprecated
         Integer gridSize;
-        double slopeDirectionDegrees = 0.0;
+        double slopeDirectionDegrees;
         int slopePitchRatio = GradingRegion.DEFAULT_SLOPE_PITCH_RATIO;
         Double slopeAnchorCanvasX;
         Double slopeAnchorCanvasY;
@@ -135,115 +719,62 @@ public class EarthworkProject {
         double[] threePointCanvasY = new double[3];
         int[] threePointElevation = new int[] {64, 64, 64};
         boolean fitSlopeBalanceCutFill = true;
-    }
 
-    static class ProjectData {
-        List<RegionData> regions = new ArrayList<>();
-
-        static ProjectData from(EarthworkProject project) {
-            ProjectData data = new ProjectData();
-            for (GradingRegion region : project.regions.values()) {
-                RegionData regionData = new RegionData();
-                regionData.id = region.getId();
-                regionData.name = region.getName();
-                for (Vec2d point : region.getOuterPoints()) {
-                    regionData.outerPoints.add(new Vec2dData(point));
-                }
-                regionData.autoBalance = region.isAutoBalance();
-                regionData.manualTargetElevation = region.getManualTargetElevation();
-                regionData.surfaceMode = region.getSurfaceMode().name();
-                regionData.reusableRatio = region.getMaterialProperties().reusableRatio();
-                regionData.cutToCompactedFillRatio = region.getMaterialProperties().cutToCompactedFillRatio();
-                regionData.cutExposeMaterial = region.getCutExposeMaterial();
-                regionData.fillMaterial = region.getFillMaterial();
-                regionData.previewGridSize = region.getPreviewGridSize();
-                regionData.slopeDirectionDegrees = region.getSlopeDirectionDegrees();
-                regionData.slopePitchRatio = region.getSlopePitchRatio();
-                if (region.getSlopeAnchorCanvas() != null) {
-                    regionData.slopeAnchorCanvasX = region.getSlopeAnchorCanvas().x;
-                    regionData.slopeAnchorCanvasY = region.getSlopeAnchorCanvas().y;
-                }
-                regionData.slopeAnchorElevation = region.getSlopeAnchorElevation();
+        GradingRegion toRegion() {
+            if (outerPoints == null) {
+                return null;
+            }
+            List<Vec2d> points = readPoints(outerPoints);
+            if (points.size() < 3) {
+                return null;
+            }
+            String regionId = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
+            GradingRegion region = new GradingRegion(regionId, points);
+            region.setName(name);
+            region.setAutoBalance(autoBalance);
+            region.setManualTargetElevation(manualTargetElevation);
+            region.setSurfaceMode(GradingSurfaceMode.fromId(surfaceMode));
+            region.setMaterialProperties(resolveMaterialProperties());
+            if (cutExposeMaterial != null) {
+                region.setCutExposeMaterial(cutExposeMaterial);
+            }
+            if (fillMaterial != null) {
+                region.setFillMaterial(fillMaterial);
+            }
+            region.setPreviewGridSize(resolvePreviewGridSize());
+            region.setSlopeDirectionDegrees(slopeDirectionDegrees);
+            region.setSlopePitchRatio(slopePitchRatio);
+            if (slopeAnchorCanvasX != null && slopeAnchorCanvasY != null) {
+                region.setSlopeAnchorCanvas(new Vec2d(slopeAnchorCanvasX, slopeAnchorCanvasY));
+            }
+            region.setSlopeAnchorElevation(slopeAnchorElevation);
+            if (threePointCanvasX != null && threePointCanvasY != null && threePointElevation != null) {
                 for (int i = 0; i < 3; i++) {
-                    regionData.threePointCanvasX[i] = region.getThreePointCanvasX(i);
-                    regionData.threePointCanvasY[i] = region.getThreePointCanvasY(i);
-                    regionData.threePointElevation[i] = region.getThreePointElevation(i);
+                    region.setThreePointControl(
+                        i,
+                        new Vec2d(threePointCanvasX[i], threePointCanvasY[i]),
+                        threePointElevation[i]);
                 }
-                regionData.fitSlopeBalanceCutFill = region.isFitSlopeBalanceCutFill();
-                data.regions.add(regionData);
             }
-            return data;
+            region.setFitSlopeBalanceCutFill(fitSlopeBalanceCutFill);
+            return region;
         }
 
-        EarthworkProject toProject() {
-            EarthworkProject project = new EarthworkProject();
-            if (regions == null) {
-                return project;
+        private int resolvePreviewGridSize() {
+            if (previewGridSize > 0) {
+                return previewGridSize;
             }
-            for (RegionData regionData : regions) {
-                if (regionData == null || regionData.outerPoints == null) {
-                    continue;
-                }
-                List<Vec2d> points = new ArrayList<>();
-                for (Vec2dData pointData : regionData.outerPoints) {
-                    if (pointData != null) {
-                        points.add(pointData.toVec2d());
-                    }
-                }
-                if (points.size() < 3) {
-                    continue;
-                }
-                String id = regionData.id != null && !regionData.id.isBlank()
-                    ? regionData.id
-                    : UUID.randomUUID().toString();
-                GradingRegion region = new GradingRegion(id, points);
-                region.setName(regionData.name);
-                region.setAutoBalance(regionData.autoBalance);
-                region.setManualTargetElevation(regionData.manualTargetElevation);
-                region.setSurfaceMode(GradingSurfaceMode.fromId(regionData.surfaceMode));
-                region.setMaterialProperties(resolveMaterialProperties(regionData));
-                if (regionData.cutExposeMaterial != null) {
-                    region.setCutExposeMaterial(regionData.cutExposeMaterial);
-                }
-                if (regionData.fillMaterial != null) {
-                    region.setFillMaterial(regionData.fillMaterial);
-                }
-                region.setPreviewGridSize(resolvePreviewGridSize(regionData));
-                region.setSlopeDirectionDegrees(regionData.slopeDirectionDegrees);
-                region.setSlopePitchRatio(regionData.slopePitchRatio);
-                if (regionData.slopeAnchorCanvasX != null && regionData.slopeAnchorCanvasY != null) {
-                    region.setSlopeAnchorCanvas(new Vec2d(regionData.slopeAnchorCanvasX, regionData.slopeAnchorCanvasY));
-                }
-                region.setSlopeAnchorElevation(regionData.slopeAnchorElevation);
-                if (regionData.threePointCanvasX != null && regionData.threePointCanvasY != null && regionData.threePointElevation != null) {
-                    for (int i = 0; i < 3; i++) {
-                        region.setThreePointControl(
-                            i,
-                            new Vec2d(regionData.threePointCanvasX[i], regionData.threePointCanvasY[i]),
-                            regionData.threePointElevation[i]);
-                    }
-                }
-                region.setFitSlopeBalanceCutFill(regionData.fitSlopeBalanceCutFill);
-                project.addRegion(region);
+            if (gridSize != null && gridSize > 0) {
+                return gridSize;
             }
-            return project;
+            return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
         }
-    }
 
-    private static int resolvePreviewGridSize(RegionData regionData) {
-        if (regionData.previewGridSize > 0) {
-            return regionData.previewGridSize;
+        private EarthMaterialProperties resolveMaterialProperties() {
+            if (fillFactor != null && fillFactor > 0.0f) {
+                return EarthMaterialProperties.fromLegacyFillFactor(fillFactor);
+            }
+            return new EarthMaterialProperties(reusableRatio, cutToCompactedFillRatio);
         }
-        if (regionData.gridSize != null && regionData.gridSize > 0) {
-            return regionData.gridSize;
-        }
-        return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
-    }
-
-    private static EarthMaterialProperties resolveMaterialProperties(RegionData regionData) {
-        if (regionData.fillFactor != null && regionData.fillFactor > 0.0f) {
-            return EarthMaterialProperties.fromLegacyFillFactor(regionData.fillFactor);
-        }
-        return new EarthMaterialProperties(regionData.reusableRatio, regionData.cutToCompactedFillRatio);
     }
 }

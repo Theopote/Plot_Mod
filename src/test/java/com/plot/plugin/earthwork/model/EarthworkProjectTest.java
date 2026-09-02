@@ -144,4 +144,84 @@ class EarthworkProjectTest {
         assertEquals(1, loaded.getRegionCount());
         assertEquals("Pad", loaded.getRegion(region.getId()).getName());
     }
+
+    @Test
+    void v2JsonRoundTripPreservesSiteAndZones() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        site.setName("Main Site");
+        site.setSiteBoundary(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(20, 0),
+            new Vec2d(20, 15),
+            new Vec2d(0, 15)
+        ));
+
+        GradingZone zone = new GradingZone(List.of(
+            new Vec2d(2, 2),
+            new Vec2d(18, 2),
+            new Vec2d(18, 12),
+            new Vec2d(2, 12)
+        ));
+        zone.setName("Pad");
+        zone.setType(GradingZoneType.SLOPED);
+        zone.setPriority(80);
+        zone.getRegion().setSurfaceMode(GradingSurfaceMode.FIXED_SLOPE);
+        zone.getRegion().setSlopeDirectionDegrees(45.0);
+        zone.getRegion().setMaterialProperties(new EarthMaterialProperties(0.88f, 0.91f));
+        site.addZone(zone);
+
+        String json = project.toJson();
+        assertTrue(json.contains("\"schemaVersion\": 2"));
+        assertTrue(json.contains("\"sites\""));
+
+        EarthworkProject restored = EarthworkProject.fromJson(json);
+        assertEquals(EarthworkProject.SCHEMA_VERSION_V2, restored.getSchemaVersion());
+        assertEquals(1, restored.getSiteCount());
+        EarthworkSite restoredSite = restored.getActiveSite();
+        assertEquals("Main Site", restoredSite.getName());
+        assertEquals(1, restoredSite.getZoneCount());
+        GradingZone restoredZone = restoredSite.getZone(zone.getId());
+        assertNotNull(restoredZone);
+        assertEquals("Pad", restoredZone.getName());
+        assertEquals(GradingZoneType.SLOPED, restoredZone.getType());
+        assertEquals(80, restoredZone.getPriority());
+        assertEquals(GradingSurfaceMode.FIXED_SLOPE, restoredZone.getRegion().getSurfaceMode());
+        assertEquals(0.88f, restoredZone.getRegion().getMaterialProperties().reusableRatio(), 1e-6f);
+    }
+
+    @Test
+    void v1RegionsMigrateToSiteWithZones() {
+        String json = """
+            {
+              "regions": [{
+                "id": "r1",
+                "name": "North",
+                "outerPoints": [
+                  {"x": 0, "y": 0},
+                  {"x": 10, "y": 0},
+                  {"x": 10, "y": 8}
+                ],
+                "surfaceMode": "THREE_POINT"
+              }, {
+                "id": "r2",
+                "name": "South",
+                "outerPoints": [
+                  {"x": 0, "y": 10},
+                  {"x": 10, "y": 10},
+                  {"x": 10, "y": 18}
+                ],
+                "surfaceMode": "FLAT"
+              }]
+            }
+            """;
+        EarthworkProject project = EarthworkProject.fromJson(json);
+        assertEquals(2, project.getRegionCount());
+        EarthworkSite site = project.getActiveSite();
+        assertEquals(2, site.getZoneCount());
+        assertEquals(4, site.getSiteBoundary().size());
+        assertEquals(GradingZoneType.SLOPED, site.getZone("r1").getType());
+        assertEquals(GradingZoneType.FLAT, site.getZone("r2").getType());
+        assertTrue(site.getSiteBoundaryArea() > 0.0);
+    }
 }

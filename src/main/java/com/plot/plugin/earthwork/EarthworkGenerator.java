@@ -4,7 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
+import com.plot.plugin.earthwork.model.GradingZone;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
@@ -14,9 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -53,10 +56,13 @@ public class EarthworkGenerator {
         public final Map<BlockPos, ChangeType> changeTypes = new LinkedHashMap<>();
         public final List<GridSample> gridSamples = new ArrayList<>();
         public EarthworkVolumeReport volumeReport = EarthworkVolumeReport.empty();
+        public SiteEarthworkReport siteVolumeReport = SiteEarthworkReport.empty();
+        public DesignTerrainGrid designTerrainGrid;
         public int resolvedElevation;
         public int resolvedElevationMin;
         public int resolvedElevationMax;
         public boolean slopedSurface;
+        public boolean siteGeneration;
         public final List<String> warnings = new ArrayList<>();
         public int calculationCellCount;
     }
@@ -81,7 +87,6 @@ public class EarthworkGenerator {
             return result;
         }
 
-        // STEP 1 — Capture existing terrain
         TerrainSnapshot terrain = captureExistingTerrain(region, world, outerPoints, terrainSnapshot);
         if (terrain.isEmpty()) {
             LOGGER.warn("整平区域无有效 footprint 格点");
@@ -90,7 +95,6 @@ public class EarthworkGenerator {
         result.existingTerrainSnapshot = terrain;
         result.calculationCellCount = terrain.columnCount();
 
-        // STEP 2 — Solve design surface
         GradingSurfaceResolver.ResolvedSurface surface = solveDesignSurface(region, terrain);
         GradingPlane plane = surface.plane();
         result.resolvedElevation = plane.isFlat()
@@ -100,14 +104,89 @@ public class EarthworkGenerator {
         result.resolvedElevationMax = surface.elevationMax();
         result.slopedSurface = !plane.isFlat();
 
-        // STEP 3 & 4 — Compute earthwork + generate voxel changes
-        computeEarthworkAndVoxelChanges(region, world, terrain, plane, result);
+        computeEarthworkFromPlane(region, world, terrain, plane, result, region.getPreviewGridSize());
 
         region.setLastVolumeReport(result.volumeReport);
         region.setLastResolvedElevation(result.resolvedElevation);
         region.setLastResolvedElevationMin(result.resolvedElevationMin);
         region.setLastResolvedElevationMax(result.resolvedElevationMax);
         return result;
+    }
+
+    public EarthworkGenerationResult generateSite(EarthworkSite site, World world) {
+        return generateSite(site, world, null, null);
+    }
+
+    public EarthworkGenerationResult generateSite(
+            EarthworkSite site,
+            World world,
+            TerrainSnapshot terrainSnapshot,
+            GradingRegion previewRegion) {
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
+        if (site == null || world == null) {
+            LOGGER.warn("场地或世界为空");
+            return result;
+        }
+
+        if (site.delegatesToLegacyGenerator()) {
+            GradingZone zone = site.getLegacyDelegateZone();
+            EarthworkGenerationResult delegated = generate(zone.getRegion(), world, terrainSnapshot);
+            copyResult(result, delegated);
+            site.setLastReport(result.siteVolumeReport.totals());
+            return result;
+        }
+
+        List<Vec2d> siteBoundary = site.getSiteBoundary();
+        if (siteBoundary.size() < 3) {
+            LOGGER.warn("场地红线点数不足");
+            return result;
+        }
+
+        result.siteGeneration = true;
+        TerrainSnapshot terrain = captureSiteTerrain(site, world, siteBoundary, terrainSnapshot);
+        if (terrain.isEmpty()) {
+            LOGGER.warn("场地无有效 footprint 格点");
+            return result;
+        }
+        result.existingTerrainSnapshot = terrain;
+        result.calculationCellCount = terrain.columnCount();
+
+        DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(site, terrain, coordinateTransformer);
+        result.designTerrainGrid = composed.grid();
+        result.resolvedElevationMin = composed.grid().minTargetY();
+        result.resolvedElevationMax = composed.grid().maxTargetY();
+        result.resolvedElevation = (result.resolvedElevationMin + result.resolvedElevationMax) / 2;
+        result.slopedSurface = result.resolvedElevationMin != result.resolvedElevationMax;
+
+        int previewGridSize = previewRegion != null
+            ? previewRegion.getPreviewGridSize()
+            : GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
+        computeEarthworkFromDesignGrid(site, world, composed.grid(), result, previewGridSize);
+
+        site.setLastReport(result.siteVolumeReport.totals());
+        for (GradingZone zone : site.getGradingZones().values()) {
+            EarthworkVolumeReport zoneReport = result.siteVolumeReport.zoneReport(zone.getId());
+            zone.getRegion().setLastVolumeReport(zoneReport);
+            zone.getRegion().setLastResolvedElevation(result.resolvedElevation);
+            zone.getRegion().setLastResolvedElevationMin(result.resolvedElevationMin);
+            zone.getRegion().setLastResolvedElevationMax(result.resolvedElevationMax);
+        }
+        return result;
+    }
+
+    private static void copyResult(EarthworkGenerationResult target, EarthworkGenerationResult source) {
+        target.existingTerrainSnapshot = source.existingTerrainSnapshot;
+        target.placementRecords.putAll(source.placementRecords);
+        target.changeTypes.putAll(source.changeTypes);
+        target.gridSamples.addAll(source.gridSamples);
+        target.volumeReport = source.volumeReport;
+        target.siteVolumeReport = new SiteEarthworkReport(source.volumeReport, Map.of());
+        target.resolvedElevation = source.resolvedElevation;
+        target.resolvedElevationMin = source.resolvedElevationMin;
+        target.resolvedElevationMax = source.resolvedElevationMax;
+        target.slopedSurface = source.slopedSurface;
+        target.calculationCellCount = source.calculationCellCount;
+        target.warnings.addAll(source.warnings);
     }
 
     private TerrainSnapshot captureExistingTerrain(
@@ -122,6 +201,18 @@ public class EarthworkGenerator {
         return TerrainSnapshot.capture(world, polygon, outerPoints, coordinateTransformer);
     }
 
+    private TerrainSnapshot captureSiteTerrain(
+            EarthworkSite site,
+            World world,
+            List<Vec2d> siteBoundary,
+            TerrainSnapshot terrainSnapshot) {
+        if (terrainSnapshot != null && !terrainSnapshot.isEmpty()) {
+            return terrainSnapshot;
+        }
+        Polygon polygon = EarthworkGeometryUtils.toPolygon(siteBoundary);
+        return TerrainSnapshot.capture(world, polygon, siteBoundary, coordinateTransformer);
+    }
+
     private GradingSurfaceResolver.ResolvedSurface solveDesignSurface(
             GradingRegion region,
             TerrainSnapshot terrain) {
@@ -132,72 +223,155 @@ public class EarthworkGenerator {
             coordinateTransformer);
     }
 
-    private void computeEarthworkAndVoxelChanges(
+    private void computeEarthworkFromPlane(
             GradingRegion region,
             World world,
             TerrainSnapshot terrain,
             GradingPlane plane,
-            EarthworkGenerationResult result) {
+            EarthworkGenerationResult result,
+            int previewGridSize) {
+        SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
+        for (TerrainSnapshot.Column column : terrain.columns()) {
+            applyColumnEarthwork(
+                region,
+                world,
+                column,
+                plane.evaluateAt(column.worldX(), column.worldZ()),
+                previewGridSize,
+                result,
+                totals,
+                null);
+        }
+        result.volumeReport = totals.toReport(region.getMaterialProperties());
+        result.siteVolumeReport = new SiteEarthworkReport(result.volumeReport, Map.of());
+    }
+
+    private void computeEarthworkFromDesignGrid(
+            EarthworkSite site,
+            World world,
+            DesignTerrainGrid grid,
+            EarthworkGenerationResult result,
+            int previewGridSize) {
+        Map<String, GradingZone> zonesById = site.getGradingZones();
+        Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new HashMap<>();
+        SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
+        EarthMaterialProperties siteMaterial = site.getMaterialModel();
+
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork()) {
+                continue;
+            }
+            GradingZone zone = zonesById.get(cell.zoneId());
+            if (zone == null) {
+                continue;
+            }
+            GradingRegion region = zone.getRegion();
+            SiteEarthworkReport.VolumeMetrics zoneVolume = zoneMetrics.computeIfAbsent(
+                zone.getId(),
+                ignored -> new SiteEarthworkReport.VolumeMetrics());
+
+            ColumnChange change = applyColumnEarthwork(
+                region,
+                world,
+                toColumn(cell),
+                cell.targetY(),
+                previewGridSize,
+                result,
+                totals,
+                zoneVolume);
+            if (change == null) {
+                continue;
+            }
+        }
+
+        result.volumeReport = totals.toReport(siteMaterial);
+        result.siteVolumeReport = SiteEarthworkReport.fromMetrics(totals, zoneMetrics, siteMaterial);
+    }
+
+    private static TerrainSnapshot.Column toColumn(DesignTerrainCell cell) {
+        return new TerrainSnapshot.Column(
+            cell.center(),
+            cell.worldX(),
+            cell.worldZ(),
+            cell.existingGroundY());
+    }
+
+    private ColumnChange applyColumnEarthwork(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot.Column column,
+            int targetElevation,
+            int previewGridSize,
+            EarthworkGenerationResult result,
+            SiteEarthworkReport.VolumeMetrics totals,
+            SiteEarthworkReport.VolumeMetrics zoneMetrics) {
+        int groundY = column.groundY();
+        ChangeType sampleType = ChangeType.FILL;
+        if (groundY > targetElevation) {
+            sampleType = ChangeType.CUT;
+        } else if (groundY == targetElevation) {
+            sampleType = null;
+        }
+
+        if (EarthworkGeometryUtils.matchesPreviewGrid(column.center(), previewGridSize)
+            && sampleType != null) {
+            result.gridSamples.add(new GridSample(column.center(), groundY, sampleType));
+        }
+
         String fillBlockId = EarthworkGeometryUtils.resolveFillBlockId(region.getFillMaterial());
         String cutSurfaceBlockId = EarthworkGeometryUtils.resolveCutSurfaceBlockId(region.getCutExposeMaterial());
 
-        long geometricCutVolume = 0L;
-        long geometricFillVolume = 0L;
-        long cutChangedBlocks = 0L;
-        long fillChangedBlocks = 0L;
+        long cutVolume = 0L;
+        long fillVolume = 0L;
+        long cutChanged = 0L;
+        long fillChanged = 0L;
 
-        for (TerrainSnapshot.Column column : terrain.columns()) {
-            int groundY = column.groundY();
-            int targetElevation = plane.evaluateAt(column.worldX(), column.worldZ());
-
-            ChangeType sampleType = ChangeType.FILL;
-            if (groundY > targetElevation) {
-                sampleType = ChangeType.CUT;
-            } else if (groundY == targetElevation) {
-                sampleType = null;
-            }
-
-            if (EarthworkGeometryUtils.matchesPreviewGrid(column.center(), region.getPreviewGridSize())
-                && sampleType != null) {
-                result.gridSamples.add(new GridSample(column.center(), groundY, sampleType));
-            }
-
-            if (groundY > targetElevation) {
-                geometricCutVolume += groundY - targetElevation;
-                for (int y = targetElevation + 1; y <= groundY; y++) {
-                    BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-                    if (recordBlock(result, world, pos, EarthworkGeometryUtils.EXCAVATION_BLOCK_ID, ChangeType.CUT)) {
-                        cutChangedBlocks++;
-                    }
+        if (groundY > targetElevation) {
+            cutVolume = groundY - targetElevation;
+            for (int y = targetElevation + 1; y <= groundY; y++) {
+                BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
+                if (recordBlock(result, world, pos, EarthworkGeometryUtils.EXCAVATION_BLOCK_ID, ChangeType.CUT)) {
+                    cutChanged++;
                 }
-                if (cutSurfaceBlockId != null) {
-                    BlockPos surfacePos = new BlockPos(column.worldX(), targetElevation, column.worldZ());
-                    if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, ChangeType.CUT)) {
-                        cutChangedBlocks++;
-                    }
+            }
+            if (cutSurfaceBlockId != null) {
+                BlockPos surfacePos = new BlockPos(column.worldX(), targetElevation, column.worldZ());
+                if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, ChangeType.CUT)) {
+                    cutChanged++;
                 }
-            } else if (groundY < targetElevation) {
-                geometricFillVolume += targetElevation - groundY;
-                for (int y = groundY + 1; y <= targetElevation; y++) {
-                    BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-                    if (recordBlock(result, world, pos, fillBlockId, ChangeType.FILL)) {
-                        fillChangedBlocks++;
-                    }
+            }
+        } else if (groundY < targetElevation) {
+            fillVolume = targetElevation - groundY;
+            for (int y = groundY + 1; y <= targetElevation; y++) {
+                BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
+                if (recordBlock(result, world, pos, fillBlockId, ChangeType.FILL)) {
+                    fillChanged++;
                 }
             }
         }
 
-        result.volumeReport = EarthworkVolumeReport.fromMetrics(
-            geometricCutVolume,
-            geometricFillVolume,
-            region.getMaterialProperties(),
-            cutChangedBlocks,
-            fillChangedBlocks);
+        if (cutVolume > 0L) {
+            totals.addCut(cutVolume, cutChanged);
+            if (zoneMetrics != null) {
+                zoneMetrics.addCut(cutVolume, cutChanged);
+            }
+        }
+        if (fillVolume > 0L) {
+            totals.addFill(fillVolume, fillChanged);
+            if (zoneMetrics != null) {
+                zoneMetrics.addFill(fillVolume, fillChanged);
+            }
+        }
+
+        if (cutVolume == 0L && fillVolume == 0L) {
+            return null;
+        }
+        return new ColumnChange(cutVolume, fillVolume);
     }
 
-    /**
-     * @return 是否写入了一条需要落地的变更
-     */
+    private record ColumnChange(long cutVolume, long fillVolume) {
+    }
+
     private boolean recordBlock(
             EarthworkGenerationResult result,
             World world,
@@ -224,7 +398,7 @@ public class EarthworkGenerator {
         if (blockId == null || blockId.isBlank()) {
             return Registries.BLOCK.getId(Blocks.AIR).toString();
         }
-        return blockId.trim().toLowerCase(Locale.ROOT);
+        return blockId.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private String getBlockIdAt(World world, BlockPos pos) {
