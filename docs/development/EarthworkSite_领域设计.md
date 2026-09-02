@@ -2,9 +2,9 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase 14 已实施（解析解基准 + 管线 E2E 测试矩阵）  
-> **版本**：`schemaVersion: 2`（JSON 增量字段 `outerRing` / `holes`，兼容 `outerPoints`）  
-> **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
+> **状态**：Phase 16 已实施（`schemaVersion` 正式化 + v1→v2→v3 迁移链）  
+> **版本**：`schemaVersion: 3`（当前）；加载时自动迁移 v1/v2  
+> **架构**：Phase 17 设计定稿 → 见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md)
 
 ---
 
@@ -47,7 +47,7 @@ RegionGeometry { outerRing, holes[] }
 1. **一个工程一个场地**（`EarthworkSite`），统一 Site Boundary 与现状地形基准。
 2. **多分区设计面**（`GradingZone`），各 Zone 独立定义设计曲面/设计体。
 3. **可复现的 Design Terrain 合成**，输出逐格 `targetY[x,z]` 及来源 Zone。
-4. **JSON 可版本迁移**：`schemaVersion: 1`（现有 `regions[]`）→ `schemaVersion: 2`（`site`）。
+4. **JSON 可版本迁移**：`schemaVersion: 1`（`regions[]`）→ `2`（`sites[]`）→ `3`（完整场地模型，见 §7）。
 5. **与建筑/道路插件可对接**（引用外轮廓与标高，不复制几何引擎）。
 
 ### 2.2 非目标（本阶段不做）
@@ -715,25 +715,24 @@ Breakline 可沿道路红线导入。
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "sites": [ { ... EarthworkSite ... } ],
-  "activeSiteId": "site-uuid",
-  "regions": []
+  "activeSiteId": "site-uuid"
 }
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `schemaVersion` | `1` = 仅 `regions[]`（当前）；`2` = `sites[]` |
+| `schemaVersion` | `1` = 仅 `regions[]`；`2` = `sites[]`；`3` = 当前完整模型（见 §7.3） |
 | `sites` | 场地列表 |
 | `activeSiteId` | UI 当前编辑的 Site |
-| `regions` | **只写不读**（迁移后清空）或只读兼容 v1 导入 |
+| `regions` | **v1 遗留**；加载后迁移并丢弃，保存时不写出 |
 
 ### 6.2 EarthworkSite 完整示例
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "sites": [
     {
       "id": "site-main",
@@ -886,9 +885,19 @@ CONSTANT_ELEVATION | EXCAVATION_PIT                    (Phase C+)
 
 ---
 
-## 7. 从 schemaVersion 1 迁移
+## 7. Schema 版本迁移
 
-### 7.1 当前 v1 形状
+实现：`EarthworkProjectSchema`（版本常量）+ `EarthworkProjectMigrator`（`normalizeJson` / `load` 链式升级）。
+
+加载任意历史 JSON 时：
+
+```
+detect version → while (version < CURRENT) migrate(version → version+1) → parse
+```
+
+高于 `CURRENT` 的版本直接拒绝（避免静默丢字段）。
+
+### 7.1 v1 形状（legacy `regions[]`）
 
 ```json
 {
@@ -905,11 +914,9 @@ CONSTANT_ELEVATION | EXCAVATION_PIT                    (Phase C+)
 }
 ```
 
-（无 `schemaVersion` 字段时视为 `1`。）
+（无 `schemaVersion` 且无 `sites[]` 时视为 `1`；有 `sites[]` 无版本号时视为 `2`。）
 
-### 7.2 自动迁移规则
-
-加载 v1 时：
+### 7.2 v1 → v2
 
 ```
 site = new EarthworkSite()
@@ -937,14 +944,38 @@ project.activeSiteId = site.id
 
 **注意**：v1 多 Region 互不相交时，`siteBoundary` 取并集包围盒矩形或凸包；UI 提示用户修正红线。
 
-### 7.3 保存策略
+### 7.3 v2 → v3
 
-- 首次以 v2 保存：写 `schemaVersion: 2`，`regions: []`。
+v3 为**当前写入版本**，在 v2 基础上规范化：
+
+| 步骤 | 动作 |
+|------|------|
+| 清理 | 移除顶层 `regions[]` |
+| 几何 | `outerPoints` → 补齐 `outerRing`；`holes` 保持 |
+| 分区 | 确保 `designSurface`、`edgeSettings`、`materialModel` 对象存在 |
+| 场地 | 确保 `compositionPolicy`、`materialModel` 对象存在 |
+| 元数据 | `existingTerrainRef` 侧车引用、`compositionPolicy.balanceMethod` 等已在 v2 DTO 中，v3 起视为稳定字段 |
+
+**v3 涵盖的持久化能力**（后续增量字段应触发 v4+）：
+
+- 孔洞几何（`outerRing` / `holes`）
+- 材料换算（`materialModel` / `materialOverride`）
+- 边界处理（`edgeSettings`）
+- 坡度 / 设计面（`designSurface`）
+- 现状快照元数据（`existingTerrainRef`）
+- 全场平衡策略（`compositionPolicy`）
+
+### 7.4 保存策略
+
+- 新保存始终写 `schemaVersion: 3`，不写出 `regions[]`。
+- 加载 v1/v2 后内存模型为 v3；用户下次保存即完成持久化升级。
 - 保留 v1 只读导入至少两个大版本周期。
 
 ---
 
 ## 8. 管线集成
+
+> **2.0 目标架构**（包结构、Manager 分层、迁移步骤）见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md)。
 
 ### 8.1 新管线类职责
 
@@ -1013,7 +1044,10 @@ project.activeSiteId = site.id
 | **12c** | 按调配矩阵分区 ΔY（`ZoneAllocationBalanceAdjuster`）+ 残余抛光 + UI/报告 | ✅ 已完成 |
 | **13** | `RegionGeometry`（`outerRing` + `holes`）、孔洞感知合成/面积/JSON、`ExclusionZone` 正式几何 | ✅ 已完成 |
 | **13b** | 孔洞/排除区 UI（选区添加孔洞、排除区管理、画布轮廓叠加） | ✅ 已完成 |
-| **14** | 解析解基准（8 场景）+ 管线 E2E（3 场景 apply/undo）；见下表 | ✅ 已完成 |
+| **14** | 解析解基准（8 场景）+ 管线 E2E（3 场景 apply/undo）；见 §10.1 | ✅ 已完成 |
+| **15** | `EarthworkGenerateCommand` 取消后仅撤销 `appliedRecords` | ✅ 已完成 |
+| **16** | `schemaVersion` 正式化 + `EarthworkProjectMigrator` v1→v2→v3 链 | ✅ 已完成 |
+| **17** | Earthwork 2.0 架构：管线拆分 + Manager 层 + Plugin 瘦身；见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) | 📋 设计定稿 |
 
 ### 10.1 Phase 14 测试矩阵
 
@@ -1060,7 +1094,7 @@ project.activeSiteId = site.id
 
 **运行**：`.\gradlew.bat test --tests "com.plot.plugin.earthwork.*"`
 
-**建议下一步**：多 Site 支持、侧车 snapshot 强制策略、`MULTI_PLANE` 分面绘制 UI、孔洞边放坡策略。
+**建议下一步（Phase 17a）**：落地 `SiteEarthworkPipeline`；抽出 `EarthworkVolumeCalculator` / `EarthworkVoxelizer`；`EarthworkGenerator` 改为委托。详见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md) §7。
 
 ---
 
@@ -1087,8 +1121,10 @@ project.activeSiteId = site.id
 - 建筑对接：`BuildingFootprint`、`BuildingFoundationUtils.computeBaseElevation`
 - 道路对接：`TerrainSampler.sampleSurfaceY`、`RoadGenerator`
 - 集成测试：`DesignTerrainComposerTest`（重叠、排除区、孔洞分区、全场平衡端到端）、`PolygonRegionUtilsTest`、`EarthworkProjectTest`（`holes` JSON 往返）
-- Phase 14 基准：`EarthworkAnalyticalBenchmarkTest`（8 解析解）、`EarthworkPipelineE2ETest`（3 管线 undo）、夹具 `EarthworkTestFixtures`
+- Phase 14 基准：`EarthworkAnalyticalBenchmarkTest`、`EarthworkPipelineE2ETest`、`EarthworkTestFixtures`
+- 持久化迁移：`EarthworkProjectSchema`、`EarthworkProjectMigrator`、`EarthworkProjectMigratorTest`
+- 2.0 架构：[Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md)
 
 ---
 
-*文档维护：土方插件领域演进；Phase G / 12 / 13 / 14 实施时同步更新本节与 JSON 示例。*
+*文档维护：土方插件领域演进；Phase G / 12 / 13 / 14 / 16 实施时同步更新本节与 JSON 示例。*

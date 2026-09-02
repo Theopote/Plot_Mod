@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
+import com.plot.plugin.earthwork.persistence.EarthworkProjectMigrator;
+import com.plot.plugin.earthwork.persistence.EarthworkProjectSchema;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,12 +23,14 @@ import java.util.UUID;
  * Phase A：内部以 {@link EarthworkSite} 为聚合根，保留 {@link GradingRegion} 兼容 API。
  */
 public class EarthworkProject {
-    public static final int SCHEMA_VERSION_V1 = 1;
-    public static final int SCHEMA_VERSION_V2 = 2;
+    public static final int SCHEMA_VERSION_V1 = EarthworkProjectSchema.V1;
+    public static final int SCHEMA_VERSION_V2 = EarthworkProjectSchema.V2;
+    public static final int SCHEMA_VERSION_V3 = EarthworkProjectSchema.V3;
+    public static final int SCHEMA_VERSION_CURRENT = EarthworkProjectSchema.CURRENT;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private int schemaVersion = SCHEMA_VERSION_V2;
+    private int schemaVersion = SCHEMA_VERSION_CURRENT;
     private final Map<String, EarthworkSite> sites = new LinkedHashMap<>();
     private String activeSiteId = "";
 
@@ -145,17 +149,38 @@ public class EarthworkProject {
 
     /**
      * 解析 JSON。损坏内容抛 {@link IllegalArgumentException}，不得静默变成空项目。
+     * 自动执行 schema v1 → v2 → v3 迁移链。
      */
     public static EarthworkProject fromJson(String json) {
         if (json == null || json.isBlank()) {
             return new EarthworkProject();
         }
         try {
-            ProjectData data = GSON.fromJson(json, ProjectData.class);
-            return data != null ? data.toProject() : new EarthworkProject();
+            return EarthworkProjectMigrator.load(json);
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("Invalid earthwork project JSON", e);
         }
+    }
+
+    /**
+     * 由 {@link EarthworkProjectMigrator} 在迁移完成后调用；不再执行版本升级。
+     */
+    public static EarthworkProject fromNormalizedJson(String json) {
+        ProjectData data = GSON.fromJson(json, ProjectData.class);
+        EarthworkProjectSchema.assertSupported(data.schemaVersion);
+        return data.toProject();
+    }
+
+    /**
+     * v1 → v2 迁移（供 {@link EarthworkProjectMigrator} 使用）。
+     */
+    public static String migrateV1JsonToV2Json(String json) {
+        ProjectData data = GSON.fromJson(json, ProjectData.class);
+        EarthworkProject project = data.migrateV1();
+        ProjectData v2 = ProjectData.from(project);
+        v2.schemaVersion = SCHEMA_VERSION_V2;
+        v2.regions = new ArrayList<>();
+        return GSON.toJson(v2);
     }
 
     /**
@@ -205,7 +230,7 @@ public class EarthworkProject {
 
         static ProjectData from(EarthworkProject project) {
             ProjectData data = new ProjectData();
-            data.schemaVersion = SCHEMA_VERSION_V2;
+            data.schemaVersion = SCHEMA_VERSION_CURRENT;
             data.activeSiteId = project.activeSiteId;
             for (EarthworkSite site : project.sites.values()) {
                 data.sites.add(SiteData.from(site));
@@ -214,20 +239,12 @@ public class EarthworkProject {
         }
 
         EarthworkProject toProject() {
-            if (isV2Payload()) {
-                return loadV2();
-            }
-            return migrateV1();
+            return loadCurrent();
         }
 
-        private boolean isV2Payload() {
-            return schemaVersion >= SCHEMA_VERSION_V2
-                || (sites != null && !sites.isEmpty());
-        }
-
-        private EarthworkProject loadV2() {
+        private EarthworkProject loadCurrent() {
             EarthworkProject project = new EarthworkProject();
-            project.schemaVersion = SCHEMA_VERSION_V2;
+            project.schemaVersion = SCHEMA_VERSION_CURRENT;
             if (sites != null) {
                 for (SiteData siteData : sites) {
                     EarthworkSite site = siteData != null ? siteData.toSite() : null;

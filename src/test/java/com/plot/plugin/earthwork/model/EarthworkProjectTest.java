@@ -172,11 +172,11 @@ class EarthworkProjectTest {
         site.addZone(zone);
 
         String json = project.toJson();
-        assertTrue(json.contains("\"schemaVersion\": 2"));
+        assertTrue(json.contains("\"schemaVersion\": 3"));
         assertTrue(json.contains("\"sites\""));
 
         EarthworkProject restored = EarthworkProject.fromJson(json);
-        assertEquals(EarthworkProject.SCHEMA_VERSION_V2, restored.getSchemaVersion());
+        assertEquals(EarthworkProject.SCHEMA_VERSION_CURRENT, restored.getSchemaVersion());
         assertEquals(1, restored.getSiteCount());
         EarthworkSite restoredSite = restored.getActiveSite();
         assertEquals("Main Site", restoredSite.getName());
