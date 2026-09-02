@@ -28,7 +28,10 @@ import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.RoadCorridorBaker;
 import com.plot.plugin.earthwork.RoadSurfaceLookup;
+import com.plot.plugin.earthwork.model.BoundaryEdgeOverride;
 import com.plot.plugin.earthwork.model.Breakline;
+import com.plot.plugin.earthwork.model.EdgeTreatment;
+import com.plot.plugin.earthwork.model.ZoneEdgeSettings;
 import com.plot.plugin.earthwork.model.RetainingEdge;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
@@ -402,6 +405,7 @@ public class EarthworkPlugin extends Plugin {
 
         renderSurfaceModeSettings(region);
         renderZoneTypeSettings(region);
+        renderZoneEdgeSettings(region);
 
         renderMaterialPropertiesSettings(region);
 
@@ -523,6 +527,126 @@ public class EarthworkPlugin extends Plugin {
         } else if (zone.getType() == GradingZoneType.ROAD_CORRIDOR) {
             renderRoadCorridorSettings(zone);
         }
+    }
+
+    private void renderZoneEdgeSettings(GradingRegion region) {
+        GradingZone zone = project.getZone(region.getId());
+        if (zone == null) {
+            return;
+        }
+        ZoneEdgeSettings settings = zone.getEdgeSettings();
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.edge_settings_header"));
+
+        EdgeTreatment[] treatments = EdgeTreatment.values();
+        String[] treatmentLabels = new String[treatments.length];
+        int defaultIndex = settings.getDefaultTreatment().ordinal();
+        for (int i = 0; i < treatments.length; i++) {
+            treatmentLabels[i] = PlotI18n.tr(treatments[i].i18nKey());
+            if (treatments[i] == settings.getDefaultTreatment()) {
+                defaultIndex = i;
+            }
+        }
+        ImInt treatmentIndex = new ImInt(defaultIndex);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.edge_default_treatment"), treatmentIndex, treatmentLabels)) {
+            int picked = treatmentIndex.get();
+            if (picked >= 0 && picked < treatments.length) {
+                projectHistory.push(project);
+                settings.setDefaultTreatment(treatments[picked]);
+                invalidatePreview();
+            }
+        }
+
+        int[] cutPitch = {settings.getCutSlopePitchRatio()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.edge_cut_slope_pitch"), cutPitch, 1, 16)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            settings.setCutSlopePitchRatio(cutPitch[0]);
+            invalidatePreview();
+        }
+
+        int[] fillNumerator = {settings.getFillSlopePitchNumerator()};
+        int[] fillDenominator = {settings.getFillSlopePitchDenominator()};
+        boolean fillChanged = ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.edge_fill_slope_run"), fillNumerator, 1, 16);
+        fillChanged |= ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.edge_fill_slope_rise"), fillDenominator, 1, 16);
+        if (fillChanged) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            settings.setFillSlopePitchNumerator(fillNumerator[0]);
+            settings.setFillSlopePitchDenominator(fillDenominator[0]);
+            invalidatePreview();
+        }
+        ImGui.textDisabled(PlotI18n.tr(
+            "plugin.earthwork.edge_fill_slope_ratio",
+            fillNumerator[0],
+            fillDenominator[0]));
+
+        int[] maxReach = {settings.getMaximumReachBlocks()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.edge_max_reach"), maxReach, 0, 32)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            settings.setMaximumReachBlocks(maxReach[0]);
+            invalidatePreview();
+        }
+
+        int[] benchWidth = {settings.getBenchWidthBlocks()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.edge_bench_width"), benchWidth, 0, 16)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            settings.setBenchWidthBlocks(benchWidth[0]);
+            invalidatePreview();
+        }
+
+        renderBoundaryEdgeOverrides(region, zone, settings, treatments, treatmentLabels);
+    }
+
+    private void renderBoundaryEdgeOverrides(
+            GradingRegion region,
+            GradingZone zone,
+            ZoneEdgeSettings settings,
+            EdgeTreatment[] treatments,
+            String[] treatmentLabels) {
+        List<Vec2d> points = region.getOuterPoints();
+        if (points.size() < 3) {
+            return;
+        }
+        if (!ImGui.treeNode(PlotI18n.tr("plugin.earthwork.edge_per_edge_overrides"))) {
+            return;
+        }
+        int edgeCount = points.size();
+        for (int edgeIndex = 0; edgeIndex < edgeCount; edgeIndex++) {
+            EdgeTreatment current = settings.resolveTreatment(edgeIndex);
+            ImInt edgeTreatmentIndex = new ImInt(current.ordinal());
+            String label = PlotI18n.tr("plugin.earthwork.edge_item", edgeIndex + 1);
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.combo(label, edgeTreatmentIndex, treatmentLabels)) {
+                int picked = edgeTreatmentIndex.get();
+                if (picked >= 0 && picked < treatments.length) {
+                    projectHistory.push(project);
+                    setEdgeOverride(settings, edgeIndex, treatments[picked], settings.getDefaultTreatment());
+                    invalidatePreview();
+                }
+            }
+        }
+        ImGui.treePop();
+    }
+
+    private static void setEdgeOverride(
+            ZoneEdgeSettings settings,
+            int edgeIndex,
+            EdgeTreatment treatment,
+            EdgeTreatment defaultTreatment) {
+        List<BoundaryEdgeOverride> overrides = new ArrayList<>(settings.getEdgeOverrides());
+        overrides.removeIf(item -> item != null && item.getEdgeIndex() == edgeIndex);
+        if (treatment != defaultTreatment) {
+            overrides.add(new BoundaryEdgeOverride(edgeIndex, treatment));
+        }
+        settings.setEdgeOverrides(overrides);
     }
 
     private void renderSiteOverlapWarnings() {

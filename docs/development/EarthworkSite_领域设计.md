@@ -2,7 +2,7 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase E+ 已实施（道路走廊导入 + 挡土墙材质联动）  
+> **状态**：Phase F 已实施（分区边界放坡 + 逐边覆盖）  
 > **版本**：`schemaVersion: 2`  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
@@ -170,6 +170,34 @@ class EarthworkSite {
 | `cutExposeMaterial` | string | 挖方裸露地表 |
 | `fillMaterial` | string | 填方材质 |
 | `designSurface` | DesignSurface | 设计面定义 |
+| `edgeSettings` | ZoneEdgeSettings | 边界处理策略（Phase F） |
+
+### 4.3.1 ZoneEdgeSettings（Phase F）
+
+分区边界默认策略与逐边覆盖：
+
+```json
+{
+  "defaultTreatment": "CUT_FILL_SLOPE",
+  "cutSlopePitchRatio": 1,
+  "fillSlopePitchNumerator": 3,
+  "fillSlopePitchDenominator": 2,
+  "maximumReachBlocks": 8,
+  "benchWidthBlocks": 0,
+  "edgeOverrides": [
+    { "edgeIndex": 0, "treatment": "RETAINING_WALL" }
+  ]
+}
+```
+
+| `EdgeTreatment` | 行为 |
+|-----------------|------|
+| `VERTICAL` | 垂直切填（第一版默认） |
+| `CUT_FILL_SLOPE` | 分区外侧按挖/填坡比放坡 |
+| `RETAINING_WALL` | 垂直截止（实体墙由 `RetainingWallGenerator`） |
+| `MATCH_EXISTING` | 边界带内贴合现状高程 |
+
+`edgeIndex` 对应 `outerPoints[i] → outerPoints[i+1]`。合成后由 `ZoneBoundarySlopeApplicator` 修正 `DesignTerrainGrid`。
 
 ### 4.4 GradingZone 类型（MVP → 完整）
 
@@ -815,8 +843,9 @@ project.activeSiteId = site.id
 
 | **E** | 道路标高烘焙、`BakedElevationGrid`、挡土墙实体生成 | ✅ 已完成 |
 | **E+** | 道路走廊轮廓导入、中心线折线、挡土墙分区材质联动 | ✅ 已完成 |
+| **F** | 分区边界处理（`EdgeTreatment`、挖填放坡、逐边覆盖） | ✅ 已完成 |
 
-**建议下一步**：多 Site 支持、侧车 snapshot 强制策略。
+**建议下一步**：多 Site 支持、侧车 snapshot 强制策略、挡土墙与 `RETAINING_WALL` 边界联动。
 
 ---
 

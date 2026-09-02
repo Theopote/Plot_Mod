@@ -85,4 +85,50 @@ public final class EarthworkSiteBoundaryUtils {
     public static double computeBoundaryArea(List<Vec2d> boundary) {
         return Math.abs(GradingRegion.signedArea(boundary));
     }
+
+    /**
+     * 将轴对齐包围盒向外扩展指定格距，用于边坡放坡带采样。
+     */
+    public static List<Vec2d> expandAxisAlignedBoundary(List<Vec2d> boundary, int marginBlocks) {
+        if (boundary == null || boundary.size() < 3 || marginBlocks <= 0) {
+            return boundary != null ? new ArrayList<>(boundary) : List.of();
+        }
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        for (Vec2d point : boundary) {
+            if (point == null) {
+                continue;
+            }
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        }
+        double margin = marginBlocks;
+        return List.of(
+            new Vec2d(minX - margin, minY - margin),
+            new Vec2d(maxX + margin, minY - margin),
+            new Vec2d(maxX + margin, maxY + margin),
+            new Vec2d(minX - margin, maxY + margin)
+        );
+    }
+
+    public static int resolveEdgeSlopeMarginBlocks(Collection<GradingZone> zones) {
+        int margin = 0;
+        if (zones == null) {
+            return margin;
+        }
+        for (GradingZone zone : zones) {
+            if (zone == null || !zone.isEnabled()) {
+                continue;
+            }
+            ZoneEdgeSettings settings = zone.getEdgeSettings();
+            if (settings != null && settings.hasActiveTreatment()) {
+                margin = Math.max(margin, settings.getMaximumReachBlocks());
+            }
+        }
+        return margin;
+    }
 }

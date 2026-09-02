@@ -602,6 +602,7 @@ public class EarthworkProject {
         String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
         int previewGridSize;
         DesignSurfaceData designSurface = new DesignSurfaceData();
+        ZoneEdgeSettingsData edgeSettings = new ZoneEdgeSettingsData();
 
         static ZoneData from(GradingZone zone) {
             zone.syncDesignSurfaceFromRegion();
@@ -624,6 +625,7 @@ public class EarthworkProject {
             data.fillMaterial = zone.getFillMaterial();
             data.previewGridSize = zone.getPreviewGridSize();
             data.designSurface = DesignSurfaceData.from(zone.getDesignSurface());
+            data.edgeSettings = ZoneEdgeSettingsData.from(zone.getEdgeSettings());
             return data;
         }
 
@@ -658,6 +660,7 @@ public class EarthworkProject {
             }
             zone.setPreviewGridSize(resolvePreviewGridSize());
             zone.setDesignSurface(designSurface != null ? designSurface.toSurface() : new DesignSurface());
+            zone.setEdgeSettings(edgeSettings != null ? edgeSettings.toSettings() : new ZoneEdgeSettings());
             return zone;
         }
 
@@ -666,6 +669,74 @@ public class EarthworkProject {
                 return previewGridSize;
             }
             return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
+        }
+    }
+
+    static class ZoneEdgeSettingsData {
+        String defaultTreatment = EdgeTreatment.VERTICAL.name();
+        int cutSlopePitchRatio = ZoneEdgeSettings.DEFAULT_CUT_SLOPE_PITCH;
+        int fillSlopePitchNumerator = ZoneEdgeSettings.DEFAULT_FILL_SLOPE_NUMERATOR;
+        int fillSlopePitchDenominator = ZoneEdgeSettings.DEFAULT_FILL_SLOPE_DENOMINATOR;
+        int maximumReachBlocks = ZoneEdgeSettings.DEFAULT_MAX_REACH_BLOCKS;
+        int benchWidthBlocks;
+        List<BoundaryEdgeOverrideData> edgeOverrides = new ArrayList<>();
+
+        static ZoneEdgeSettingsData from(ZoneEdgeSettings settings) {
+            ZoneEdgeSettingsData data = new ZoneEdgeSettingsData();
+            if (settings == null) {
+                return data;
+            }
+            data.defaultTreatment = settings.getDefaultTreatment().name();
+            data.cutSlopePitchRatio = settings.getCutSlopePitchRatio();
+            data.fillSlopePitchNumerator = settings.getFillSlopePitchNumerator();
+            data.fillSlopePitchDenominator = settings.getFillSlopePitchDenominator();
+            data.maximumReachBlocks = settings.getMaximumReachBlocks();
+            data.benchWidthBlocks = settings.getBenchWidthBlocks();
+            for (BoundaryEdgeOverride override : settings.getEdgeOverrides()) {
+                if (override != null) {
+                    data.edgeOverrides.add(BoundaryEdgeOverrideData.from(override));
+                }
+            }
+            return data;
+        }
+
+        ZoneEdgeSettings toSettings() {
+            ZoneEdgeSettings settings = new ZoneEdgeSettings();
+            settings.setDefaultTreatment(EdgeTreatment.fromId(defaultTreatment));
+            settings.setCutSlopePitchRatio(cutSlopePitchRatio);
+            settings.setFillSlopePitchNumerator(fillSlopePitchNumerator);
+            settings.setFillSlopePitchDenominator(fillSlopePitchDenominator);
+            settings.setMaximumReachBlocks(maximumReachBlocks);
+            settings.setBenchWidthBlocks(benchWidthBlocks);
+            if (edgeOverrides != null) {
+                List<BoundaryEdgeOverride> overrides = new ArrayList<>();
+                for (BoundaryEdgeOverrideData item : edgeOverrides) {
+                    if (item != null) {
+                        overrides.add(item.toOverride());
+                    }
+                }
+                settings.setEdgeOverrides(overrides);
+            }
+            return settings;
+        }
+    }
+
+    static class BoundaryEdgeOverrideData {
+        int edgeIndex;
+        String treatment = EdgeTreatment.VERTICAL.name();
+
+        static BoundaryEdgeOverrideData from(BoundaryEdgeOverride override) {
+            BoundaryEdgeOverrideData data = new BoundaryEdgeOverrideData();
+            data.edgeIndex = override.getEdgeIndex();
+            data.treatment = override.getTreatment().name();
+            return data;
+        }
+
+        BoundaryEdgeOverride toOverride() {
+            BoundaryEdgeOverride override = new BoundaryEdgeOverride();
+            override.setEdgeIndex(edgeIndex);
+            override.setTreatment(EdgeTreatment.fromId(treatment));
+            return override;
         }
     }
 

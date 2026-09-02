@@ -18,6 +18,7 @@ public class GradingZone {
     private DesignSurface designSurface = new DesignSurface();
     private String buildingFootprintRef = "";
     private String roadEdgeRef = "";
+    private ZoneEdgeSettings edgeSettings = new ZoneEdgeSettings();
 
     public GradingZone(List<Vec2d> outerPoints) {
         this(new GradingRegion(outerPoints));
@@ -89,6 +90,17 @@ public class GradingZone {
         if (!this.roadEdgeRef.isBlank()) {
             getDesignSurface().setRoadEdgeRef(this.roadEdgeRef);
         }
+    }
+
+    public ZoneEdgeSettings getEdgeSettings() {
+        if (edgeSettings == null) {
+            edgeSettings = new ZoneEdgeSettings();
+        }
+        return edgeSettings;
+    }
+
+    public void setEdgeSettings(ZoneEdgeSettings edgeSettings) {
+        this.edgeSettings = edgeSettings != null ? edgeSettings : new ZoneEdgeSettings();
     }
 
     private void applyDefaultDesignSurfaceForType(GradingZoneType zoneType) {

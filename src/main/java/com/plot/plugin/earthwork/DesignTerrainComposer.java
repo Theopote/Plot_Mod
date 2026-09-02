@@ -63,6 +63,10 @@ public final class DesignTerrainComposer {
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
             applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines);
         TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines);
+        ZoneBoundarySlopeApplicator.apply(
+            grid,
+            new ArrayList<>(site.getGradingZones().values()),
+            zoneEvaluators);
         grid.finalizeStats();
         return new ComposeResult(grid, zoneEvaluators);
     }

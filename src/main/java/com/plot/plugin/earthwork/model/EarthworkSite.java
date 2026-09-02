@@ -197,6 +197,7 @@ public class EarthworkSite {
         }
         GradingZone onlyZone = gradingZones.values().iterator().next();
         return onlyZone.isDelegatableToLegacyGenerator()
+            && !onlyZone.getEdgeSettings().hasActiveTreatment()
             && breaklines.isEmpty()
             && exclusionZones.isEmpty();
     }

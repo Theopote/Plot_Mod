@@ -6,8 +6,10 @@ import com.plot.core.geometry.shapes.Polygon;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.ZoneEdgeSettings;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
@@ -75,6 +77,14 @@ public class EarthworkGenerator {
             GradingRegion region,
             World world,
             TerrainSnapshot terrainSnapshot) {
+        return generate(region, world, terrainSnapshot, null);
+    }
+
+    public EarthworkGenerationResult generate(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot terrainSnapshot,
+            ZoneEdgeSettings edgeSettings) {
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         if (region == null || world == null) {
             LOGGER.warn("整平区域或世界为空");
@@ -85,6 +95,10 @@ public class EarthworkGenerator {
         if (outerPoints.size() < 3) {
             LOGGER.warn("整平区域轮廓点数不足");
             return result;
+        }
+        if (edgeSettings != null && edgeSettings.hasActiveTreatment()) {
+            outerPoints = EarthworkSiteBoundaryUtils.expandAxisAlignedBoundary(
+                outerPoints, edgeSettings.getMaximumReachBlocks());
         }
 
         TerrainSnapshot terrain = captureExistingTerrain(region, world, outerPoints, terrainSnapshot);
@@ -104,7 +118,7 @@ public class EarthworkGenerator {
         result.resolvedElevationMax = surface.elevationMax();
         result.slopedSurface = !plane.isFlat();
 
-        computeEarthworkFromPlane(region, world, terrain, plane, result, region.getPreviewGridSize());
+        computeEarthworkFromPlane(region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings);
 
         region.setLastVolumeReport(result.volumeReport);
         region.setLastResolvedElevation(result.resolvedElevation);
@@ -149,7 +163,8 @@ public class EarthworkGenerator {
 
         if (site.delegatesToLegacyGenerator()) {
             GradingZone zone = site.getLegacyDelegateZone();
-            EarthworkGenerationResult delegated = generate(zone.getRegion(), world, terrainSnapshot);
+            EarthworkGenerationResult delegated = generate(
+                zone.getRegion(), world, terrainSnapshot, zone.getEdgeSettings());
             copyResult(result, delegated);
             site.setLastReport(result.siteVolumeReport.totals());
             return result;
@@ -159,6 +174,11 @@ public class EarthworkGenerator {
         if (siteBoundary.size() < 3) {
             LOGGER.warn("场地红线点数不足");
             return result;
+        }
+
+        int edgeMargin = EarthworkSiteBoundaryUtils.resolveEdgeSlopeMarginBlocks(site.getGradingZones().values());
+        if (edgeMargin > 0) {
+            siteBoundary = EarthworkSiteBoundaryUtils.expandAxisAlignedBoundary(siteBoundary, edgeMargin);
         }
 
         result.siteGeneration = true;
@@ -250,14 +270,23 @@ public class EarthworkGenerator {
             TerrainSnapshot terrain,
             GradingPlane plane,
             EarthworkGenerationResult result,
-            int previewGridSize) {
+            int previewGridSize,
+            ZoneEdgeSettings edgeSettings) {
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
+        List<Vec2d> regionOutline = region.getOuterPoints();
         for (TerrainSnapshot.Column column : terrain.columns()) {
+            int designTarget = plane.evaluateAt(column.worldX(), column.worldZ());
+            int targetElevation = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
+                column.center(),
+                column.groundY(),
+                designTarget,
+                regionOutline,
+                edgeSettings);
             applyColumnEarthwork(
                 region,
                 world,
                 column,
-                plane.evaluateAt(column.worldX(), column.worldZ()),
+                targetElevation,
                 previewGridSize,
                 result,
                 totals,
