@@ -2416,7 +2416,7 @@ public class EarthworkPlugin extends Plugin {
             EarthworkGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
             // 取消时若已写入部分方块，仍入历史以便撤销半成品
             if (result != null && result.cancelled()) {
-                if (result.success() > 0) {
+                if (command.hasAppliedRecords()) {
                     ctx().commands().pushExecuted(command);
                     terrainSnapshotCache.invalidateRegion(builtRegionId);
                     terrainSnapshotCache.invalidateSite(project.getActiveSiteId());

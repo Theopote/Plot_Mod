@@ -15,14 +15,25 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 土方整平落地命令（支持撤销/重做）
+ * 土方整平落地命令（支持撤销/重做）。
+ *
+ * <p>区分请求集与实际写入集：
+ * <ul>
+ *   <li>{@code requestedRecords} — 预览阶段计划写入的全部记录</li>
+ *   <li>{@code appliedRecords} — 执行后真正成功写入世界的子集</li>
+ * </ul>
+ * Undo / Redo 只操作 {@code appliedRecords}，避免取消半成品后撤销未改动的格子。
  */
 public class EarthworkGenerateCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(EarthworkGenerateCommand.class);
 
-    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+    public record ExecutionResult(int success, int failed, int total, boolean cancelled, List<Integer> successfulWriteIndices) {
         public ExecutionResult(int success, int failed, int total) {
-            this(success, failed, total, false);
+            this(success, failed, total, false, List.of());
+        }
+
+        public ExecutionResult(int success, int failed, int total, boolean cancelled) {
+            this(success, failed, total, cancelled, List.of());
         }
 
         public boolean isFullSuccess() {
@@ -39,7 +50,8 @@ public class EarthworkGenerateCommand implements Command {
         boolean setBlockAt(net.minecraft.util.math.BlockPos pos, String blockId);
     }
 
-    private final List<BlockRecord> records;
+    private final List<BlockRecord> requestedRecords;
+    private List<BlockRecord> appliedRecords = List.of();
     private final Date timestamp;
     private final BlockWriter blockWriter;
     private final boolean schedulePlacement;
@@ -66,12 +78,12 @@ public class EarthworkGenerateCommand implements Command {
         this(records, blockWriter, schedulePlacement, BlockPlacementScheduler.getInstance());
     }
 
-    private EarthworkGenerateCommand(
+    EarthworkGenerateCommand(
             List<BlockRecord> records,
             BlockWriter blockWriter,
             boolean schedulePlacement,
             IBlockPlacementService placementScheduler) {
-        this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
+        this.requestedRecords = records != null ? List.copyOf(records) : List.of();
         this.timestamp = new Date();
         this.blockWriter = blockWriter;
         this.schedulePlacement = schedulePlacement;
@@ -81,7 +93,7 @@ public class EarthworkGenerateCommand implements Command {
     }
 
     public void executeScheduled(Runnable onComplete) {
-        enqueueWrites(records, true, result -> {
+        enqueueWrites(requestedRecords, true, result -> {
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -89,7 +101,7 @@ public class EarthworkGenerateCommand implements Command {
     }
 
     public void undoScheduled(Runnable onComplete) {
-        enqueueWritesReverse(records, result -> {
+        enqueueWritesReverse(appliedRecords, result -> {
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -99,36 +111,53 @@ public class EarthworkGenerateCommand implements Command {
     @Override
     public void execute() {
         if (schedulePlacement) {
-            enqueueWrites(records, true, result -> { });
+            enqueueWrites(requestedRecords, true, result -> { });
             return;
         }
-        lastExecutionResult = applySync(records, true);
-        LOGGER.info("土方落地完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
+        lastExecutionResult = applySync(requestedRecords, true);
+        captureAppliedFromIndices(requestedRecords, lastExecutionResult.successfulWriteIndices());
+        LOGGER.info("土方落地完成: {}/{}（applied {}）",
+            lastExecutionResult.success(),
+            lastExecutionResult.total(),
+            appliedRecords.size());
     }
 
     @Override
     public void undo() {
-        if (schedulePlacement) {
-            enqueueWritesReverse(records, result -> { });
+        if (appliedRecords.isEmpty()) {
+            LOGGER.debug("土方撤销跳过：无已应用记录");
             return;
         }
-        lastExecutionResult = applySyncUndo(records);
+        if (schedulePlacement) {
+            enqueueWritesReverse(appliedRecords, result -> { });
+            return;
+        }
+        lastExecutionResult = applySyncUndo(appliedRecords);
         LOGGER.info("土方撤销完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
     public void redo() {
-        execute();
+        List<BlockRecord> toApply = appliedRecords.isEmpty() ? requestedRecords : appliedRecords;
+        if (schedulePlacement) {
+            enqueueWrites(toApply, true, result -> { });
+            return;
+        }
+        lastExecutionResult = applySync(toApply, true);
+        captureAppliedFromIndices(toApply, lastExecutionResult.successfulWriteIndices());
+        LOGGER.info("土方重做完成: {}/{}", lastExecutionResult.success(), lastExecutionResult.total());
     }
 
     @Override
     public String getDescription() {
-        return PlotI18n.tr("plugin.earthwork.history.generate", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.earthwork.history.generate", count);
     }
 
     @Override
     public String getDetailedDescription() {
-        return PlotI18n.tr("plugin.earthwork.history.generate.detail", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.earthwork.history.generate.detail", count);
     }
 
     @Override
@@ -136,8 +165,26 @@ public class EarthworkGenerateCommand implements Command {
         return timestamp;
     }
 
+    /** 请求写入的记录数（预览全集）。 */
     public int getRecordCount() {
-        return records.size();
+        return requestedRecords.size();
+    }
+
+    /** 实际成功写入的记录数。 */
+    public int getAppliedRecordCount() {
+        return appliedRecords.size();
+    }
+
+    public boolean hasAppliedRecords() {
+        return !appliedRecords.isEmpty();
+    }
+
+    public List<BlockRecord> getAppliedRecords() {
+        return appliedRecords;
+    }
+
+    public List<BlockRecord> getRequestedRecords() {
+        return requestedRecords;
     }
 
     public ExecutionResult getLastExecutionResult() {
@@ -148,20 +195,25 @@ public class EarthworkGenerateCommand implements Command {
             List<BlockRecord> source,
             boolean applyNewBlocks,
             java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
+        List<IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (BlockRecord record : source) {
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
-            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(record.pos, blockId));
+            writes.add(new IBlockPlacementService.BlockWrite(record.pos, blockId));
         }
 
         if (schedulePlacement) {
+            List<BlockRecord> sourceSnapshot = List.copyOf(source);
             placementScheduler.enqueue(writes, result -> {
                 lastExecutionResult = toExecutionResult(result);
-                LOGGER.info("土方{}完成: {}/{} 成功, {} 失败",
+                if (applyNewBlocks) {
+                    captureAppliedFromIndices(sourceSnapshot, lastExecutionResult.successfulWriteIndices());
+                }
+                LOGGER.info("土方{}完成: {}/{} 成功, {} 失败（applied {}）",
                     applyNewBlocks ? "落地" : "撤销",
                     lastExecutionResult.success(),
                     lastExecutionResult.total(),
-                    lastExecutionResult.failed());
+                    lastExecutionResult.failed(),
+                    appliedRecords.size());
                 if (onComplete != null) {
                     onComplete.accept(lastExecutionResult);
                 }
@@ -169,7 +221,10 @@ public class EarthworkGenerateCommand implements Command {
             return;
         }
 
-        lastExecutionResult = applySync(records, applyNewBlocks);
+        lastExecutionResult = applySync(source, applyNewBlocks);
+        if (applyNewBlocks) {
+            captureAppliedFromIndices(source, lastExecutionResult.successfulWriteIndices());
+        }
         if (onComplete != null) {
             onComplete.accept(lastExecutionResult);
         }
@@ -178,10 +233,10 @@ public class EarthworkGenerateCommand implements Command {
     private void enqueueWritesReverse(
             List<BlockRecord> source,
             java.util.function.Consumer<ExecutionResult> onComplete) {
-        List<com.plot.api.world.IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
+        List<IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
-            writes.add(new com.plot.api.world.IBlockPlacementService.BlockWrite(record.pos, record.previousBlockId));
+            writes.add(new IBlockPlacementService.BlockWrite(record.pos, record.previousBlockId));
         }
 
         if (schedulePlacement) {
@@ -204,34 +259,53 @@ public class EarthworkGenerateCommand implements Command {
         }
     }
 
+    private void captureAppliedFromIndices(List<BlockRecord> source, List<Integer> successfulWriteIndices) {
+        if (successfulWriteIndices == null || successfulWriteIndices.isEmpty() || source.isEmpty()) {
+            appliedRecords = List.of();
+            return;
+        }
+        List<BlockRecord> applied = new ArrayList<>(successfulWriteIndices.size());
+        for (int index : successfulWriteIndices) {
+            if (index >= 0 && index < source.size()) {
+                applied.add(source.get(index));
+            }
+        }
+        appliedRecords = List.copyOf(applied);
+    }
+
     private ExecutionResult applySync(List<BlockRecord> source, boolean applyNewBlocks) {
         int success = 0;
-        for (BlockRecord record : source) {
+        List<Integer> successfulWriteIndices = new ArrayList<>();
+        for (int i = 0; i < source.size(); i++) {
+            BlockRecord record = source.get(i);
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
             if (blockWriter.setBlockAt(record.pos, blockId)) {
                 success++;
+                successfulWriteIndices.add(i);
             }
         }
-        return new ExecutionResult(success, source.size() - success, source.size());
+        return new ExecutionResult(success, source.size() - success, source.size(), false, successfulWriteIndices);
     }
 
     private ExecutionResult applySyncUndo(List<BlockRecord> source) {
         int success = 0;
+        List<Integer> successfulWriteIndices = new ArrayList<>();
         for (int i = source.size() - 1; i >= 0; i--) {
             BlockRecord record = source.get(i);
             if (blockWriter.setBlockAt(record.pos, record.previousBlockId)) {
                 success++;
+                successfulWriteIndices.add(i);
             }
         }
-        return new ExecutionResult(success, source.size() - success, source.size());
+        return new ExecutionResult(success, source.size() - success, source.size(), false, successfulWriteIndices);
     }
 
-    private static ExecutionResult toExecutionResult(com.plot.api.world.IBlockPlacementService.ExecutionResult result) {
+    private static ExecutionResult toExecutionResult(IBlockPlacementService.ExecutionResult result) {
         return new ExecutionResult(
             result.success(),
             result.failed(),
             result.total(),
-            result.cancelled()
-        );
+            result.cancelled(),
+            result.successfulWriteIndices());
     }
 }
