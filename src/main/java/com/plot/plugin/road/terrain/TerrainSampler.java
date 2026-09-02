@@ -1,6 +1,7 @@
 package com.plot.plugin.road.terrain;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.RoadSlopeUtils;
 
@@ -12,7 +13,7 @@ import java.util.List;
  */
 public interface TerrainSampler {
 
-    int DEFAULT_SEA_LEVEL = 64;
+    int DEFAULT_SEA_LEVEL = EngineeringTerrainService.DEFAULT_GROUND_ELEVATION;
 
     /**
      * 平面坐标处的地表高度（工程坐标系）。

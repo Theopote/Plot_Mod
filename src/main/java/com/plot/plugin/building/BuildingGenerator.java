@@ -4,10 +4,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.earthwork.TerrainSurfaceSampler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -386,10 +386,9 @@ public class BuildingGenerator {
 
     private int getTopHeight(World world, BlockPos pos) {
         if (world == null || pos == null) {
-            return TerrainSurfaceSampler.sampleAtBlock(null, 0, 0);
+            return EngineeringTerrainService.DEFAULT_GROUND_ELEVATION;
         }
-        // 与土方一致：实面标高，失败时内部已降级默认 64
-        return TerrainSurfaceSampler.sampleAtBlock(world, pos.getX(), pos.getZ());
+        return EngineeringTerrainService.of(world).sampleGroundSurface(pos.getX(), pos.getZ());
     }
 
     private record GridCell(Vec2d center) {
