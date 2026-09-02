@@ -1098,7 +1098,9 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 
 **Phase 17d 已完成**：`EarthworkPreviewManager` / `EarthworkBuildManager`；Plugin 预览与构建路径已委托 Manager。
 
-**建议下一步（Phase 17e）**：`EarthworkUIManager` 承接 Tab 渲染，继续瘦身 Plugin。
+**Phase 17e 已完成**：`EarthworkUIManager` + `EarthworkUiContext`；Plugin 降至 ~260 行。
+
+**建议下一步（Phase 17f）**：`EarthworkGenerator` 标记 `@Deprecated`，外部改 `SiteEarthworkPipeline`。
 
 ---
 
