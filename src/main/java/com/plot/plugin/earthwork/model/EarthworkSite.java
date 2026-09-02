@@ -26,6 +26,19 @@ public class EarthworkSite {
     private final List<ExclusionZone> exclusionZones = new ArrayList<>();
 
     private transient EarthworkVolumeReport lastReport = EarthworkVolumeReport.empty();
+    private transient int lastSiteWideVerticalOffset;
+
+    public int getLastSiteWideVerticalOffset() {
+        return lastSiteWideVerticalOffset;
+    }
+
+    public void setLastSiteWideVerticalOffset(int lastSiteWideVerticalOffset) {
+        this.lastSiteWideVerticalOffset = lastSiteWideVerticalOffset;
+    }
+
+    public void clearLastSiteWideVerticalOffset() {
+        this.lastSiteWideVerticalOffset = 0;
+    }
 
     public EarthworkSite() {
         this(UUID.randomUUID().toString());

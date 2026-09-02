@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
@@ -45,6 +46,7 @@ class DesignTerrainComposerTest {
 
         site.addZone(yard);
         site.addZone(pad);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65),
@@ -137,6 +139,7 @@ class DesignTerrainComposerTest {
 
         site.addZone(large);
         site.addZone(small);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 65)

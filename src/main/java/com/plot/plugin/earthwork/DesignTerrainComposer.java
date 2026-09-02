@@ -62,6 +62,12 @@ public final class DesignTerrainComposer {
         List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
             applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines);
+        int siteWideOffset = applySiteWideBalance(grid, site);
+        if (siteWideOffset != 0) {
+            site.setLastSiteWideVerticalOffset(siteWideOffset);
+        } else {
+            site.clearLastSiteWideVerticalOffset();
+        }
         TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines);
         ZoneBoundarySlopeApplicator.apply(
             grid,
@@ -162,6 +168,32 @@ public final class DesignTerrainComposer {
                 new TerrainBoundaryBlender.ZoneCoverage(winnerTarget, runnerUpTarget));
         }
         return coverageByCellKey;
+    }
+
+    private static int applySiteWideBalance(DesignTerrainGrid grid, EarthworkSite site) {
+        if (site == null || grid == null) {
+            return 0;
+        }
+        if (!site.getCompositionPolicy().isSiteWideBalance() || site.getZoneCount() < 2) {
+            return 0;
+        }
+        List<SiteWideBalanceAdjuster.CellSample> samples = new ArrayList<>();
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
+                continue;
+            }
+            samples.add(new SiteWideBalanceAdjuster.CellSample(
+                cell.existingGroundY(),
+                cell.targetY()));
+        }
+        if (samples.isEmpty()) {
+            return 0;
+        }
+        int offset = SiteWideBalanceAdjuster.findBalancedVerticalOffset(
+            samples,
+            site.getMaterialModel());
+        SiteWideBalanceAdjuster.applyOffset(grid, offset);
+        return offset;
     }
 
     private static List<ZoneCandidate> collectCoveringCandidates(

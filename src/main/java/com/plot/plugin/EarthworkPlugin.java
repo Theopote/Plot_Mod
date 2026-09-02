@@ -810,6 +810,11 @@ public class EarthworkPlugin extends Plugin {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.earthwork.project_balance_scope",
                 PlotI18n.tr("plugin.earthwork.balance_scope." + report.balanceScope().toLowerCase())));
+        if (report.siteWideVerticalOffset() != 0) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.site_wide_vertical_offset",
+                report.siteWideVerticalOffset()));
+        }
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
@@ -874,11 +879,62 @@ public class EarthworkPlugin extends Plugin {
         ImGui.spacing();
     }
 
+    private void renderBalanceScopeSettings(CompositionPolicy policy) {
+        String[] scopes = {
+            CompositionPolicy.BALANCE_SCOPE_SITE_WIDE,
+            CompositionPolicy.BALANCE_SCOPE_PER_ZONE
+        };
+        String[] labels = {
+            PlotI18n.tr("plugin.earthwork.balance_scope.site_wide"),
+            PlotI18n.tr("plugin.earthwork.balance_scope.per_zone")
+        };
+        int selected = CompositionPolicy.BALANCE_SCOPE_PER_ZONE.equals(policy.getBalanceScope()) ? 1 : 0;
+        ImInt scopeIndex = new ImInt(selected);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.balance_scope_label"), scopeIndex, labels)) {
+            int picked = scopeIndex.get();
+            if (picked >= 0 && picked < scopes.length) {
+                projectHistory.push(project);
+                policy.setBalanceScope(scopes[picked]);
+                invalidatePreview();
+            }
+        }
+        ImGui.spacing();
+    }
+
+    private void renderOverlapResolutionSettings(CompositionPolicy policy) {
+        if (project.getRegionCount() < 2) {
+            return;
+        }
+        String[] modes = {
+            CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS,
+            CompositionPolicy.OVERLAP_LARGEST_ZONE_WINS
+        };
+        String[] labels = {
+            PlotI18n.tr("plugin.earthwork.overlap_resolution.highest_priority_wins"),
+            PlotI18n.tr("plugin.earthwork.overlap_resolution.largest_zone_wins")
+        };
+        int selected = CompositionPolicy.OVERLAP_LARGEST_ZONE_WINS.equals(policy.getOverlapResolution()) ? 1 : 0;
+        ImInt modeIndex = new ImInt(selected);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.overlap_resolution_label"), modeIndex, labels)) {
+            int picked = modeIndex.get();
+            if (picked >= 0 && picked < modes.length) {
+                projectHistory.push(project);
+                policy.setOverlapResolution(modes[picked]);
+                invalidatePreview();
+            }
+        }
+        ImGui.spacing();
+    }
+
     private void renderCompositionSettings() {
         EarthworkSite site = project.getActiveSite();
         CompositionPolicy policy = site.getCompositionPolicy();
 
         ImGui.text(PlotI18n.tr("plugin.earthwork.composition_settings"));
+        renderBalanceScopeSettings(policy);
+        renderOverlapResolutionSettings(policy);
         int[] blendWidth = {policy.getBlendWidthBlocks()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.blend_width_blocks"), blendWidth, 0, 16)) {
             if (ImGui.isItemActivated()) {

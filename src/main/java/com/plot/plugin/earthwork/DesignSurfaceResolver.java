@@ -44,6 +44,8 @@ public final class DesignSurfaceResolver {
             return evaluators;
         }
         int siteDefaultElevation = resolveSiteDefaultElevation(terrain);
+        boolean deferBalanceToSite = site.getCompositionPolicy().isSiteWideBalance()
+            && site.getZoneCount() >= 2;
         for (GradingZone zone : site.getGradingZones().values()) {
             if (zone == null || !zone.isEnabled() || !zone.getType().isSupportedInComposer()) {
                 continue;
@@ -54,7 +56,8 @@ public final class DesignSurfaceResolver {
                 buildingLookup,
                 roadLookup,
                 transformer,
-                siteDefaultElevation);
+                siteDefaultElevation,
+                deferBalanceToSite);
             if (evaluator != null) {
                 evaluators.put(zone.getId(), evaluator);
             }
@@ -68,7 +71,8 @@ public final class DesignSurfaceResolver {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup,
             ICoordinateService transformer,
-            int siteDefaultElevation) {
+            int siteDefaultElevation,
+            boolean deferBalanceToSite) {
         DesignSurface surface = zone.getDesignSurface();
         DesignSurfaceKind kind = BuildingFootprintResolver.effectiveKind(zone);
         if (surface.hasBakedElevation()) {
@@ -106,7 +110,8 @@ public final class DesignSurfaceResolver {
                     drainageRegion,
                     samples.centers(),
                     samples.heights(),
-                    transformer).plane();
+                    transformer,
+                    deferBalanceToSite).plane();
                 yield cell -> plane.evaluateAt(cell.worldX(), cell.worldZ());
             }
             case EXCAVATION_PIT -> {
@@ -137,7 +142,8 @@ public final class DesignSurfaceResolver {
                     zone.getRegion(),
                     samples.centers(),
                     samples.heights(),
-                    transformer);
+                    transformer,
+                    deferBalanceToSite);
                 GradingPlane plane = resolved.plane();
                 yield cell -> plane.evaluateAt(cell.worldX(), cell.worldZ());
             }

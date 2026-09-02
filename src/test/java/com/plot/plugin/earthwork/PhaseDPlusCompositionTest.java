@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.model.GradingZoneType;
@@ -82,6 +83,7 @@ class PhaseDPlusCompositionTest {
         site.addZone(yard);
         site.addZone(pad);
         site.getCompositionPolicy().setBlendWidthBlocks(3);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
 
         RetainingEdge retainingEdge = new RetainingEdge("ret-1");
         retainingEdge.setPolyline(List.of(new Vec2d(2, 2), new Vec2d(2, 8)));

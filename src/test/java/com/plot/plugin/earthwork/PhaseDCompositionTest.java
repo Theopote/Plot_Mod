@@ -74,6 +74,7 @@ class PhaseDCompositionTest {
         site.addZone(yard);
         site.addZone(pad);
         site.getCompositionPolicy().setBlendWidthBlocks(3);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 65),
@@ -127,7 +128,9 @@ class PhaseDCompositionTest {
 
         site.addZone(yard);
         site.addZone(pad);
-        site.setCompositionPolicy(new CompositionPolicy());
+        CompositionPolicy policy = new CompositionPolicy();
+        policy.setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
+        site.setCompositionPolicy(policy);
         return site;
     }
 }
