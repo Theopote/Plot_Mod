@@ -253,6 +253,36 @@ public final class EarthworkReportExporter {
             appendRow(csv, "project_balance", "balance_scope", projectReport.balanceScope());
             appendRow(csv, "project_balance", "site_wide_vertical_offset", projectReport.siteWideVerticalOffset());
 
+            appendRow(csv, "project_balance", "sites_with_volume", projectReport.sitesWithVolume());
+
+            if (!projectReport.bySite().isEmpty()) {
+                csv.append("\nsection,site_id,site_name,geometric_cut,geometric_fill,reusable_cut,import,export,balance_scope,site_wide_offset\n");
+                for (var entry : projectReport.bySite().entrySet()) {
+                    var snapshot = entry.getValue();
+                    EarthworkVolumeReport siteVolumes = snapshot.volumes();
+                    csv.append(csvCell("site_volume"))
+                        .append(',')
+                        .append(csvCell(entry.getKey()))
+                        .append(',')
+                        .append(csvCell(snapshot.siteName()))
+                        .append(',')
+                        .append(siteVolumes.geometricCutVolume())
+                        .append(',')
+                        .append(siteVolumes.geometricFillVolume())
+                        .append(',')
+                        .append(siteVolumes.reusableCutVolume())
+                        .append(',')
+                        .append(siteVolumes.importVolume())
+                        .append(',')
+                        .append(siteVolumes.exportVolume())
+                        .append(',')
+                        .append(csvCell(snapshot.balanceScope()))
+                        .append(',')
+                        .append(snapshot.siteWideVerticalOffset())
+                        .append('\n');
+                }
+            }
+
             csv.append("\nsection,zone_id,zone_name,geometric_cut,geometric_fill,reusable_cut,import,export,total_changed_blocks\n");
             for (Map.Entry<String, EarthworkVolumeReport> entry : projectReport.byZone().entrySet()) {
                 EarthworkVolumeReport zoneReport = entry.getValue();
@@ -293,8 +323,36 @@ public final class EarthworkReportExporter {
                         .append('\n');
                 }
             }
+            if (!projectReport.crossSiteAllocationMatrix().isEmpty()) {
+                csv.append("\nsection,source_site_id,source_site_name,destination_site_id,destination_site_name,volume\n");
+                for (EarthworkAllocationMatrix.Transfer transfer : projectReport.crossSiteAllocationMatrix().transfers()) {
+                    csv.append(csvCell("cross_site_allocation"))
+                        .append(',')
+                        .append(csvCell(transfer.sourceZoneId()))
+                        .append(',')
+                        .append(csvCell(resolveSiteName(projectReport, transfer.sourceZoneId())))
+                        .append(',')
+                        .append(csvCell(transfer.destinationZoneId()))
+                        .append(',')
+                        .append(csvCell(resolveSiteName(projectReport, transfer.destinationZoneId())))
+                        .append(',')
+                        .append(transfer.volume())
+                        .append('\n');
+                }
+            }
         }
         return csv.toString();
+    }
+
+    private static String resolveSiteName(EarthworkProjectReport report, String siteId) {
+        if (EarthworkAllocationMatrix.EXPORT.equals(siteId)) {
+            return "EXPORT";
+        }
+        if (EarthworkAllocationMatrix.IMPORT.equals(siteId)) {
+            return "IMPORT";
+        }
+        var snapshot = report.bySite().get(siteId);
+        return snapshot != null ? snapshot.siteName() : siteId;
     }
 
     private static void appendRow(StringBuilder csv, String section, String key, Object value) {

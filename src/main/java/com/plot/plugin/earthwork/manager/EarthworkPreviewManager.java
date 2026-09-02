@@ -131,22 +131,24 @@ public final class EarthworkPreviewManager {
             return false;
         }
 
-        enrichProjectReport(site, region, lastGenerationResult);
+        enrichProjectReport(project, site, region, lastGenerationResult);
         lastGenerationResult.warnings.addAll(validation.warningKeys());
         statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_preview_ready"));
         return true;
     }
 
     private static void enrichProjectReport(
+            EarthworkProject project,
             EarthworkSite site,
             GradingRegion region,
             EarthworkGenerationResult result) {
         if (result.siteVolumeReport.byZone().isEmpty()) {
             result.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
-                site, region.getId(), result.volumeReport);
+                project, site, region.getId(), result.volumeReport);
         } else if (result.projectReport == null
             || result.projectReport == EarthworkProjectReport.empty()) {
-            result.projectReport = EarthworkProjectReport.Builder.build(site, result.siteVolumeReport);
+            result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
+                project, site, result.siteVolumeReport);
         }
     }
 

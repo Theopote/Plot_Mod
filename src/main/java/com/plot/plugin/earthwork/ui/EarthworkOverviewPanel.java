@@ -19,6 +19,7 @@ import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.ui.PluginUiColors;
@@ -53,6 +54,7 @@ public final class EarthworkOverviewPanel {
                     ctx.project().getRegionCount(),
                     String.format("%.1f", ctx.project().getTotalArea())));
                 renderSiteOverlapWarnings();
+                renderProjectGlobalBalance(ctx.project());
                 EarthworkSite site = ctx.project().getActiveSite();
                 renderSiteMaterialModel(site);
                 if (!site.getExclusionZones().isEmpty()) {
@@ -143,6 +145,42 @@ public final class EarthworkOverviewPanel {
                 PlotI18n.tr("plugin.earthwork.overlap_resolution." + ctx.project().getActiveSite()
                     .getCompositionPolicy().getOverlapResolution().toLowerCase())));
         ImGui.endChild();
+        ImGui.spacing();
+    }
+
+    private void renderProjectGlobalBalance(EarthworkProject project) {
+        if (project == null || project.getSiteCount() == 0) {
+            return;
+        }
+        ProjectGlobalBalanceAggregator.AggregatedBalance balance =
+            ProjectGlobalBalanceAggregator.aggregate(project);
+        if (balance.sitesWithVolume() == 0) {
+            return;
+        }
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_global_balance_header"));
+        if (balance.sitesWithVolume() > 1) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.project_global_balance_sites", balance.sitesWithVolume()));
+        }
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", balance.totalCut()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", balance.totalFill()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", balance.totalCut() - balance.totalFill()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", balance.reusableCut()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", balance.exportRequired()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", balance.importRequired()));
+        if (balance.sitesWithVolume() > 1) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.site_volume_header"));
+            for (var snapshot : balance.bySite().values()) {
+                ImGui.bulletText(PlotI18n.tr(
+                    "plugin.earthwork.site_volume_item",
+                    snapshot.siteName(),
+                    snapshot.volumes().geometricCutVolume(),
+                    snapshot.volumes().geometricFillVolume()));
+            }
+        }
         ImGui.spacing();
     }
 

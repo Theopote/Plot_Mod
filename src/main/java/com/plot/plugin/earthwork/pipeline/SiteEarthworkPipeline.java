@@ -106,7 +106,8 @@ public final class SiteEarthworkPipeline {
         result.siteVolumeReport = new SiteEarthworkReport(
             delegated.volumeReport,
             Map.of(zone.getId(), delegated.volumeReport));
-        result.projectReport = EarthworkProjectReport.Builder.build(site, result.siteVolumeReport);
+        result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
+            null, site, result.siteVolumeReport);
         site.setLastReport(result.siteVolumeReport.totals());
         return result;
     }

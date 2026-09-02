@@ -51,7 +51,7 @@ com.plot.plugin.earthwork
 │
 ├── solver/             # 土方平衡求解
 │   ├── EarthworkBalanceUtils
-│   ├── SiteWideBalanceAdjuster / ZoneAllocationBalanceAdjuster
+│   ├── SiteWideBalanceAdjuster / ZoneAllocationBalanceAdjuster / ProjectGlobalBalanceAggregator
 │   └── EarthworkAllocationMatrix
 │
 ├── volume/             # 方量
@@ -294,6 +294,13 @@ public final class EarthworkGenerator {
 - [x] 支持 `SlopeBenchProfile` 多级平台剖面
 - [x] `ZoneBoundarySlopeApplicator` 接入：超出日照线格点保持现状，不再无限延伸坡面
 - [x] `SlopeDaylightSolverTest`（含不规则地形与 composer 集成）
+
+### 17l — 项目全局平衡（P2-1）
+
+- [x] `solver/ProjectGlobalBalanceAggregator`：合并多场地挖填量 + 跨场地调配矩阵
+- [x] `EarthworkProjectReport.Builder.buildFromProject`：预览时汇总项目级合计
+- [x] 总览 Tab / 生成 Tab / CSV 导出展示分场地方量与跨场地调配
+- [x] `ProjectGlobalBalanceAggregatorTest`
 
 ---
 

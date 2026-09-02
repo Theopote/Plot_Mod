@@ -1,8 +1,10 @@
 package com.plot.plugin.earthwork.volume;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
-import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
+import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
+import com.plot.plugin.earthwork.solver.ProjectGlobalBalanceAggregator;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +22,10 @@ public final class EarthworkProjectReport {
         EarthworkAllocationMatrix.EMPTY,
         CompositionPolicy.BALANCE_SCOPE_SITE_WIDE,
         0,
-        Map.of());
+        Map.of(),
+        Map.of(),
+        EarthworkAllocationMatrix.EMPTY,
+        0);
 
     private final long totalCut;
     private final long totalFill;
@@ -34,6 +39,9 @@ public final class EarthworkProjectReport {
     private final String balanceScope;
     private final int siteWideVerticalOffset;
     private final Map<String, Integer> zoneVerticalOffsets;
+    private final Map<String, ProjectGlobalBalanceAggregator.SiteBalanceSnapshot> bySite;
+    private final EarthworkAllocationMatrix crossSiteAllocationMatrix;
+    private final int sitesWithVolume;
 
     public EarthworkProjectReport(
             long totalCut,
@@ -47,7 +55,10 @@ public final class EarthworkProjectReport {
             EarthworkAllocationMatrix allocationMatrix,
             String balanceScope,
             int siteWideVerticalOffset,
-            Map<String, Integer> zoneVerticalOffsets) {
+            Map<String, Integer> zoneVerticalOffsets,
+            Map<String, ProjectGlobalBalanceAggregator.SiteBalanceSnapshot> bySite,
+            EarthworkAllocationMatrix crossSiteAllocationMatrix,
+            int sitesWithVolume) {
         this.totalCut = Math.max(0L, totalCut);
         this.totalFill = Math.max(0L, totalFill);
         this.reusableCut = Math.max(0.0, reusableCut);
@@ -60,6 +71,11 @@ public final class EarthworkProjectReport {
         this.balanceScope = balanceScope != null ? balanceScope : CompositionPolicy.BALANCE_SCOPE_SITE_WIDE;
         this.siteWideVerticalOffset = siteWideVerticalOffset;
         this.zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
+        this.bySite = bySite != null ? Map.copyOf(bySite) : Map.of();
+        this.crossSiteAllocationMatrix = crossSiteAllocationMatrix != null
+            ? crossSiteAllocationMatrix
+            : EarthworkAllocationMatrix.EMPTY;
+        this.sitesWithVolume = Math.max(0, sitesWithVolume);
     }
 
     public static EarthworkProjectReport empty() {
@@ -118,12 +134,28 @@ public final class EarthworkProjectReport {
         return zoneVerticalOffsets;
     }
 
+    public Map<String, ProjectGlobalBalanceAggregator.SiteBalanceSnapshot> bySite() {
+        return bySite;
+    }
+
+    public EarthworkAllocationMatrix crossSiteAllocationMatrix() {
+        return crossSiteAllocationMatrix;
+    }
+
+    public int sitesWithVolume() {
+        return sitesWithVolume;
+    }
+
     public boolean hasZoneVerticalOffsets() {
         return !zoneVerticalOffsets.isEmpty();
     }
 
     public boolean hasZoneBreakdown() {
         return byZone.size() > 1;
+    }
+
+    public boolean hasCrossSiteBreakdown() {
+        return sitesWithVolume > 1;
     }
 
     public record OverlapConflict(
@@ -164,9 +196,61 @@ public final class EarthworkProjectReport {
         public static EarthworkProjectReport build(
                 EarthworkSite site,
                 SiteEarthworkReport siteReport) {
-            if (siteReport == null) {
+            return buildFromProject(null, site, siteReport);
+        }
+
+        public static EarthworkProjectReport buildFromProject(
+                EarthworkProject project,
+                EarthworkSite activeSite,
+                SiteEarthworkReport activeSiteReport) {
+            if (activeSiteReport == null) {
                 return empty();
             }
+            EarthworkProjectReport active = buildActiveSiteReport(activeSite, activeSiteReport);
+            if (project == null || project.getSiteCount() <= 1) {
+                ProjectGlobalBalanceAggregator.AggregatedBalance global =
+                    ProjectGlobalBalanceAggregator.aggregate(project, activeSite != null ? activeSite.getId() : null, activeSiteReport);
+                return withGlobalBalance(active, global);
+            }
+
+            ProjectGlobalBalanceAggregator.AggregatedBalance global =
+                ProjectGlobalBalanceAggregator.aggregate(project, activeSite.getId(), activeSiteReport);
+            return new EarthworkProjectReport(
+                global.totalCut(),
+                global.totalFill(),
+                global.reusableCut(),
+                global.importRequired(),
+                global.exportRequired(),
+                active.volumeReport(),
+                active.byZone(),
+                active.overlaps(),
+                active.allocationMatrix(),
+                active.balanceScope(),
+                active.siteWideVerticalOffset(),
+                active.zoneVerticalOffsets(),
+                global.bySite(),
+                global.crossSiteAllocationMatrix(),
+                global.sitesWithVolume());
+        }
+
+        public static EarthworkProjectReport buildFromSingleZone(
+                EarthworkProject project,
+                EarthworkSite site,
+                String zoneId,
+                EarthworkVolumeReport zoneReport) {
+            if (zoneReport == null) {
+                return empty();
+            }
+            Map<String, EarthworkVolumeReport> byZone = zoneId != null && !zoneId.isBlank()
+                ? Map.of(zoneId, zoneReport)
+                : Collections.emptyMap();
+            SiteEarthworkReport siteReport = new SiteEarthworkReport(zoneReport, byZone);
+            return buildFromProject(project, site, siteReport);
+        }
+
+        private static EarthworkProjectReport buildActiveSiteReport(
+                EarthworkSite site,
+                SiteEarthworkReport siteReport) {
             CompositionPolicy policy = site != null
                 ? site.getCompositionPolicy()
                 : CompositionPolicy.DEFAULT;
@@ -194,21 +278,34 @@ public final class EarthworkProjectReport {
                 matrix,
                 policy.getBalanceScope(),
                 siteWideOffset,
-                zoneOffsets);
+                zoneOffsets,
+                Map.of(),
+                EarthworkAllocationMatrix.EMPTY,
+                0);
         }
 
-        public static EarthworkProjectReport buildFromSingleZone(
-                EarthworkSite site,
-                String zoneId,
-                EarthworkVolumeReport zoneReport) {
-            if (zoneReport == null) {
-                return empty();
+        private static EarthworkProjectReport withGlobalBalance(
+                EarthworkProjectReport active,
+                ProjectGlobalBalanceAggregator.AggregatedBalance global) {
+            if (global == null || global.sitesWithVolume() == 0) {
+                return active;
             }
-            Map<String, EarthworkVolumeReport> byZone = zoneId != null && !zoneId.isBlank()
-                ? Map.of(zoneId, zoneReport)
-                : Collections.emptyMap();
-            SiteEarthworkReport siteReport = new SiteEarthworkReport(zoneReport, byZone);
-            return build(site, siteReport);
+            return new EarthworkProjectReport(
+                global.totalCut(),
+                global.totalFill(),
+                global.reusableCut(),
+                global.importRequired(),
+                global.exportRequired(),
+                active.volumeReport(),
+                active.byZone(),
+                active.overlaps(),
+                active.allocationMatrix(),
+                active.balanceScope(),
+                active.siteWideVerticalOffset(),
+                active.zoneVerticalOffsets(),
+                global.bySite(),
+                global.crossSiteAllocationMatrix(),
+                global.sitesWithVolume());
         }
     }
 }

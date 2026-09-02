@@ -304,7 +304,15 @@ public final class EarthworkGeneratePanel {
 
     private void renderProjectBalanceReport(EarthworkProjectReport report) {
         ImGui.separator();
-        ImGui.text(PlotI18n.tr("plugin.earthwork.project_balance_header"));
+        String headerKey = report.hasCrossSiteBreakdown()
+            ? "plugin.earthwork.project_global_balance_header"
+            : "plugin.earthwork.project_balance_header";
+        ImGui.text(PlotI18n.tr(headerKey));
+        if (report.hasCrossSiteBreakdown()) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.project_global_balance_sites", report.sitesWithVolume()));
+        }
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totalCut()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
@@ -332,6 +340,19 @@ public final class EarthworkGeneratePanel {
             }
         }
 
+        if (report.hasCrossSiteBreakdown()) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.site_volume_header"));
+            for (var entry : report.bySite().entrySet()) {
+                var snapshot = entry.getValue();
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.site_volume_item",
+                    snapshot.siteName(),
+                    snapshot.volumes().geometricCutVolume(),
+                    snapshot.volumes().geometricFillVolume()));
+            }
+        }
+
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
         for (Map.Entry<String, EarthworkVolumeReport> entry : report.byZone().entrySet()) {
@@ -356,6 +377,39 @@ public final class EarthworkGeneratePanel {
                     transfer.volume()));
             }
         }
+
+        if (!report.crossSiteAllocationMatrix().isEmpty()) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.cross_site_allocation_header"));
+            for (EarthworkAllocationMatrix.Transfer transfer : report.crossSiteAllocationMatrix().transfers()) {
+                ImGui.bulletText(PlotI18n.tr(
+                    "plugin.earthwork.allocation_transfer",
+                    resolveSiteAllocationEndpoint(transfer.sourceZoneId(), true, report),
+                    resolveSiteAllocationEndpoint(transfer.destinationZoneId(), false, report),
+                    transfer.volume()));
+            }
+        }
+    }
+
+    private String resolveSiteAllocationEndpoint(
+            String siteId,
+            boolean source,
+            EarthworkProjectReport report) {
+        if (EarthworkAllocationMatrix.EXPORT.equals(siteId)) {
+            return PlotI18n.tr("plugin.earthwork.allocation_export");
+        }
+        if (EarthworkAllocationMatrix.IMPORT.equals(siteId)) {
+            return PlotI18n.tr("plugin.earthwork.allocation_import");
+        }
+        var snapshot = report.bySite().get(siteId);
+        if (snapshot != null && snapshot.siteName() != null && !snapshot.siteName().isBlank()) {
+            return snapshot.siteName();
+        }
+        EarthworkSite site = ctx.project().getSite(siteId);
+        if (site != null && site.getName() != null && !site.getName().isBlank()) {
+            return site.getName();
+        }
+        return siteId != null ? siteId : "";
     }
 
     private String resolveAllocationEndpoint(String zoneId, boolean source) {

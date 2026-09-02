@@ -30,7 +30,7 @@ public final class ZoneAllocationBalanceAdjuster {
         if (grid == null || site == null || site.getZoneCount() < 2) {
             return new BalanceResult(Map.of(), 0);
         }
-        SiteEarthworkReport snapshot = collectZoneVolumes(grid);
+        SiteEarthworkReport snapshot = collectZoneVolumes(grid, site);
         EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
             snapshot.byZone(),
             site);
@@ -136,10 +136,14 @@ public final class ZoneAllocationBalanceAdjuster {
     }
 
     public static SiteEarthworkReport collectZoneVolumes(DesignTerrainGrid grid) {
+        return collectZoneVolumes(grid, null);
+    }
+
+    public static SiteEarthworkReport collectZoneVolumes(DesignTerrainGrid grid, EarthworkSite site) {
         Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new LinkedHashMap<>();
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
         if (grid == null) {
-            return SiteEarthworkReport.fromMetrics(totals, zoneMetrics, MaterialConversionModel.DEFAULT);
+            return SiteEarthworkReport.fromMetrics(site, totals, zoneMetrics);
         }
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
@@ -160,7 +164,7 @@ public final class ZoneAllocationBalanceAdjuster {
                 zoneVolume.addFill(fill, 0L);
             }
         }
-        return SiteEarthworkReport.fromMetrics(totals, zoneMetrics, MaterialConversionModel.DEFAULT);
+        return SiteEarthworkReport.fromMetrics(site, totals, zoneMetrics);
     }
 
     public static Map<String, Integer> countCellsByZone(DesignTerrainGrid grid) {

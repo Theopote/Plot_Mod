@@ -30,7 +30,7 @@ class EarthworkReportExporterTest {
         EarthworkGenerationResult preview = new EarthworkGenerationResult();
         preview.volumeReport = EarthworkVolumeReport.fromMetrics(12L, 8L, LEGACY_LIKE, 4L, 3L);
         preview.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
-            project.getActiveSite(), region.getId(), preview.volumeReport);
+            project, project.getActiveSite(), region.getId(), preview.volumeReport);
         preview.calculationCellCount = 16;
         preview.resolvedElevation = 65;
         preview.resolvedElevationMin = 65;
