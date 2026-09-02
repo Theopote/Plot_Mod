@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.plugin.earthwork.model.Breakline;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.ExclusionZone;
@@ -10,6 +11,7 @@ import com.plot.plugin.earthwork.model.GradingZone;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +50,9 @@ public final class DesignTerrainComposer {
         applyExclusionZones(grid, site.getExclusionZones());
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators =
             DesignSurfaceResolver.resolveZoneEvaluators(site, terrain, buildingLookup, transformer);
-        applyZoneCoverage(grid, site, zoneEvaluators);
+        Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
+            applyZoneCoverage(grid, site, zoneEvaluators);
+        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey);
         grid.finalizeStats();
         return new ComposeResult(grid, zoneEvaluators);
     }
@@ -97,27 +101,33 @@ public final class DesignTerrainComposer {
         }
     }
 
-    private static void applyZoneCoverage(
+    private static Map<Long, TerrainBoundaryBlender.ZoneCoverage> applyZoneCoverage(
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
+        Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey = new HashMap<>();
         List<ZoneCandidate> candidates = buildZoneCandidates(site);
         CompositionPolicy policy = site.getCompositionPolicy();
         boolean highestPriorityWins = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS
             .equals(policy.getOverlapResolution());
+        List<Breakline> breaklines = site.getBreaklines();
+        boolean applyBreaklinePrecedence = !breaklines.isEmpty()
+            && CompositionPolicy.PRECEDENCE_ABSOLUTE.equals(policy.getBreaklinePrecedence());
+        double breaklineInfluence = resolveBreaklineInfluenceDistance(policy);
 
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (cell.excluded()) {
                 continue;
             }
-            List<ZoneCandidate> covering = new ArrayList<>();
-            for (ZoneCandidate candidate : candidates) {
-                if (candidate.polygon.contains(cell.center())) {
-                    covering.add(candidate);
-                }
-            }
+            List<ZoneCandidate> covering = collectCoveringCandidates(candidates, cell);
             if (covering.isEmpty()) {
                 continue;
+            }
+            if (applyBreaklinePrecedence) {
+                covering = filterByBreaklineSide(cell.center(), covering, breaklines, breaklineInfluence);
+                if (covering.isEmpty()) {
+                    continue;
+                }
             }
             ZoneCandidate winner = highestPriorityWins
                 ? selectWinnerByPriority(covering)
@@ -126,9 +136,75 @@ public final class DesignTerrainComposer {
             if (evaluator == null) {
                 continue;
             }
-            cell.setTargetY(evaluator.evaluateAt(cell));
+            int winnerTarget = evaluator.evaluateAt(cell);
+            Integer runnerUpTarget = resolveRunnerUpTarget(covering, winner, zoneEvaluators, cell);
+            cell.setTargetY(winnerTarget);
             cell.setZoneId(winner.zoneId());
+            coverageByCellKey.put(
+                DesignTerrainGrid.cellKey(cell.worldX(), cell.worldZ()),
+                new TerrainBoundaryBlender.ZoneCoverage(winnerTarget, runnerUpTarget));
         }
+        return coverageByCellKey;
+    }
+
+    private static List<ZoneCandidate> collectCoveringCandidates(
+            List<ZoneCandidate> candidates,
+            DesignTerrainCell cell) {
+        List<ZoneCandidate> covering = new ArrayList<>();
+        for (ZoneCandidate candidate : candidates) {
+            if (candidate.polygon.contains(cell.center())) {
+                covering.add(candidate);
+            }
+        }
+        return covering;
+    }
+
+    private static List<ZoneCandidate> filterByBreaklineSide(
+            Vec2d point,
+            List<ZoneCandidate> covering,
+            List<Breakline> breaklines,
+            double influenceDistance) {
+        String mandatedZoneId = BreaklineClassifier.resolveMandatedZoneId(point, breaklines, influenceDistance);
+        if (mandatedZoneId == null || mandatedZoneId.isBlank()) {
+            return covering;
+        }
+        List<ZoneCandidate> filtered = new ArrayList<>();
+        for (ZoneCandidate candidate : covering) {
+            if (mandatedZoneId.equals(candidate.zoneId())) {
+                filtered.add(candidate);
+            }
+        }
+        return filtered.isEmpty() ? covering : filtered;
+    }
+
+    private static Integer resolveRunnerUpTarget(
+            List<ZoneCandidate> covering,
+            ZoneCandidate winner,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+            DesignTerrainCell cell) {
+        if (covering.size() < 2) {
+            return null;
+        }
+        List<ZoneCandidate> ranked = new ArrayList<>(covering);
+        ranked.sort(Comparator
+            .comparingInt(ZoneCandidate::priority).reversed()
+            .thenComparingDouble(ZoneCandidate::area)
+            .thenComparing(ZoneCandidate::zoneId, String.CASE_INSENSITIVE_ORDER));
+        for (ZoneCandidate candidate : ranked) {
+            if (candidate.zoneId().equals(winner.zoneId())) {
+                continue;
+            }
+            DesignSurfaceResolver.ZoneTargetEvaluator evaluator = zoneEvaluators.get(candidate.zoneId());
+            if (evaluator != null) {
+                return evaluator.evaluateAt(cell);
+            }
+        }
+        return null;
+    }
+
+    private static double resolveBreaklineInfluenceDistance(CompositionPolicy policy) {
+        int blendWidth = policy != null ? policy.getBlendWidthBlocks() : 0;
+        return Math.max(1.0, blendWidth);
     }
 
     private static ZoneCandidate selectWinnerByPriority(List<ZoneCandidate> covering) {

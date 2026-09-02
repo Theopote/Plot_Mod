@@ -25,6 +25,8 @@ import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.plugin.earthwork.model.Breakline;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -59,6 +61,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -365,6 +368,8 @@ public class EarthworkPlugin extends Plugin {
         ImGui.separator();
         renderGlobalGridSettings();
         ImGui.separator();
+        renderCompositionSettings();
+        ImGui.separator();
 
         GradingRegion region = project.getRegion(selectedRegionId);
         if (region == null) {
@@ -455,7 +460,8 @@ public class EarthworkPlugin extends Plugin {
             GradingZoneType.FLAT,
             GradingZoneType.SLOPED,
             GradingZoneType.BUILDING_PAD,
-            GradingZoneType.EXCAVATION_PIT
+            GradingZoneType.EXCAVATION_PIT,
+            GradingZoneType.TERRAIN_FIT
         };
         String[] labels = new String[types.length];
         int selectedIndex = 0;
@@ -491,7 +497,87 @@ public class EarthworkPlugin extends Plugin {
             renderBuildingPadSettings(zone);
         } else if (zone.getType() == GradingZoneType.EXCAVATION_PIT) {
             renderExcavationPitSettings(zone);
+        } else if (zone.getType() == GradingZoneType.TERRAIN_FIT) {
+            renderFitSlopeSettings(zone.getRegion());
         }
+    }
+
+    private void renderCompositionSettings() {
+        EarthworkSite site = project.getActiveSite();
+        CompositionPolicy policy = site.getCompositionPolicy();
+
+        ImGui.text(PlotI18n.tr("plugin.earthwork.composition_settings"));
+        int[] blendWidth = {policy.getBlendWidthBlocks()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.blend_width_blocks"), blendWidth, 0, 16)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            policy.setBlendWidthBlocks(blendWidth[0]);
+            invalidatePreview();
+        }
+
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.breaklines_header"));
+        List<GradingZone> zones = new ArrayList<>(site.getGradingZones().values());
+        if (zones.size() < 2) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.breaklines_need_two_zones"));
+        } else {
+            for (Breakline breakline : site.getBreaklines()) {
+                renderBreaklineRow(site, breakline, zones);
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.add_breakline"), 0, 0)) {
+                projectHistory.push(project);
+                Breakline breakline = new Breakline(UUID.randomUUID().toString());
+                breakline.setName(PlotI18n.tr("plugin.earthwork.breakline_default_name", site.getBreaklines().size() + 1));
+                breakline.setPoints(List.of(new Vec2d(5, 0), new Vec2d(5, 10)));
+                breakline.setLeftZoneId(zones.get(0).getId());
+                breakline.setRightZoneId(zones.get(1).getId());
+                site.addBreakline(breakline);
+                invalidatePreview();
+            }
+        }
+    }
+
+    private void renderBreaklineRow(EarthworkSite site, Breakline breakline, List<GradingZone> zones) {
+        ImGui.pushID(breakline.getId());
+        ImGui.text(breakline.getName());
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.delete"))) {
+            projectHistory.push(project);
+            site.removeBreakline(breakline.getId());
+            invalidatePreview();
+            ImGui.popID();
+            return;
+        }
+
+        String[] zoneLabels = zones.stream().map(GradingZone::getName).toArray(String[]::new);
+        String[] zoneIds = zones.stream().map(GradingZone::getId).toArray(String[]::new);
+
+        ImInt leftIndex = new ImInt(indexOfZone(zoneIds, breakline.getLeftZoneId()));
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.48f);
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.breakline_left_zone"), leftIndex, zoneLabels)) {
+            projectHistory.push(project);
+            breakline.setLeftZoneId(zoneIds[leftIndex.get()]);
+            invalidatePreview();
+        }
+        ImGui.sameLine();
+        ImInt rightIndex = new ImInt(indexOfZone(zoneIds, breakline.getRightZoneId()));
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.breakline_right_zone"), rightIndex, zoneLabels)) {
+            projectHistory.push(project);
+            breakline.setRightZoneId(zoneIds[rightIndex.get()]);
+            invalidatePreview();
+        }
+        ImGui.popID();
+    }
+
+    private static int indexOfZone(String[] zoneIds, String zoneId) {
+        for (int i = 0; i < zoneIds.length; i++) {
+            if (zoneIds[i].equals(zoneId)) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     private void renderBuildingPadSettings(GradingZone zone) {

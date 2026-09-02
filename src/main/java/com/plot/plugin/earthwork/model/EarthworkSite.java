@@ -120,6 +120,21 @@ public class EarthworkSite {
         }
     }
 
+    public Breakline addBreakline(Breakline breakline) {
+        if (breakline == null) {
+            throw new IllegalArgumentException("Breakline cannot be null");
+        }
+        breaklines.add(breakline);
+        return breakline;
+    }
+
+    public void removeBreakline(String breaklineId) {
+        if (breaklineId == null || breaklineId.isBlank()) {
+            return;
+        }
+        breaklines.removeIf(line -> breaklineId.equals(line.getId()));
+    }
+
     public List<RetainingEdge> getRetainingEdges() {
         return List.copyOf(retainingEdges);
     }

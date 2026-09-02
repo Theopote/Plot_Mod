@@ -90,6 +90,9 @@ public class GradingZone {
             }
         } else if (zoneType == GradingZoneType.EXCAVATION_PIT) {
             surface.setKind(DesignSurfaceKind.EXCAVATION_PIT);
+        } else if (zoneType == GradingZoneType.TERRAIN_FIT || zoneType == GradingZoneType.LANDSCAPE) {
+            surface.setKind(DesignSurfaceKind.FIT_SLOPE);
+            region.setSurfaceMode(GradingSurfaceMode.FIT_SLOPE);
         }
     }
 
@@ -181,7 +184,10 @@ public class GradingZone {
      * 从 {@link GradingRegion} 同步设计面（UI 编辑后调用）。
      */
     public void syncDesignSurfaceFromRegion() {
-        if (type == GradingZoneType.BUILDING_PAD || type == GradingZoneType.EXCAVATION_PIT) {
+        if (type == GradingZoneType.BUILDING_PAD
+            || type == GradingZoneType.EXCAVATION_PIT
+            || type == GradingZoneType.TERRAIN_FIT
+            || type == GradingZoneType.LANDSCAPE) {
             return;
         }
         getDesignSurface().syncFrom(region);

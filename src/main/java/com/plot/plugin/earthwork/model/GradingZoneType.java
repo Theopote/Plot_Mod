@@ -41,6 +41,8 @@ public enum GradingZoneType {
         return this == FLAT
             || this == SLOPED
             || this == BUILDING_PAD
-            || this == EXCAVATION_PIT;
+            || this == EXCAVATION_PIT
+            || this == TERRAIN_FIT
+            || this == LANDSCAPE;
     }
 }

@@ -193,4 +193,11 @@ public final class EarthworkGeometryUtils {
         }
         return toPolygon(outerPoints).contains(canvasPoint);
     }
+
+    /**
+     * 点到多边形边界的最短距离（画布坐标 / 方块平面）。
+     */
+    public static double distanceToPolygonBoundary(List<Vec2d> polygon, Vec2d point) {
+        return ExcavationPitSurfaceEvaluator.distanceToPolygonBoundary(polygon, point);
+    }
 }
