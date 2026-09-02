@@ -125,30 +125,16 @@ public final class ZoneBoundarySlopeApplicator {
       return toeY;
     }
     if (existingGroundY > toeY) {
-      int rise = computeSlopeRise(distanceToBoundary, settings.getCutSlopePitchRatio(), settings);
+      int rise = SlopeBenchProfile.computeRiseAtDistance(
+          distanceToBoundary, settings.getCutSlopePitchRatio(), settings.getBenchWidthBlocks());
       return Math.min(toeY + rise, existingGroundY);
     }
     if (existingGroundY < toeY) {
-      int drop = computeSlopeRise(distanceToBoundary, settings.getFillSlopePitchRatio(), settings);
+      int drop = SlopeBenchProfile.computeRiseAtDistance(
+          distanceToBoundary, settings.getFillSlopePitchRatio(), settings.getBenchWidthBlocks());
       return Math.max(toeY - drop, existingGroundY);
     }
     return toeY;
-  }
-
-  private static int computeSlopeRise(double distance, double pitchRatio, ZoneEdgeSettings settings) {
-    double safePitch = Math.max(0.5, pitchRatio);
-    int benchWidth = settings.getBenchWidthBlocks();
-    if (benchWidth <= 0) {
-      return (int) Math.ceil(distance / safePitch);
-    }
-    double remaining = distance;
-    int totalRise = 0;
-    while (remaining > 1e-6) {
-      double segment = Math.min(remaining, benchWidth);
-      totalRise += (int) Math.ceil(segment / safePitch);
-      remaining -= segment;
-    }
-    return totalRise;
   }
 
   private static boolean isInsideAnotherZone(Vec2d point, String ownerZoneId, List<ZonePolygon> zones) {

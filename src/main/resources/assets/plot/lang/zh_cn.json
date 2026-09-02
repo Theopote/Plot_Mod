@@ -966,7 +966,7 @@
   "plugin.earthwork.edge_fill_slope_rise": "填方坡比竖直",
   "plugin.earthwork.edge_fill_slope_ratio": "填方坡比: %d:%d（水平:竖直）",
   "plugin.earthwork.edge_max_reach": "最大放坡距离（格）",
-  "plugin.earthwork.edge_bench_width": "平台宽度（格，0=关闭）",
+  "plugin.earthwork.edge_bench_width": "平台宽度（格，0=连续坡；>0 坡面/平台交替）",
   "plugin.earthwork.edge_per_edge_overrides": "逐边覆盖",
   "plugin.earthwork.edge_item": "边 %d",
   "plugin.earthwork.edge_show_canvas_overlay": "在画布显示边界策略着色",

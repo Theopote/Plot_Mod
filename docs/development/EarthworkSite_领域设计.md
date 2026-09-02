@@ -197,6 +197,8 @@ class EarthworkSite {
 | `RETAINING_WALL` | 垂直截止（实体墙由 `RetainingWallGenerator`） |
 | `MATCH_EXISTING` | 边界带内贴合现状高程 |
 
+`benchWidthBlocks > 0` 时，外侧放坡按 **坡面段（宽 = benchWidth，按坡比升高）→ 水平平台段（宽 = benchWidth，高程不变）** 周期交替（`SlopeBenchProfile`）。
+
 `edgeIndex` 对应 `outerPoints[i] → outerPoints[i+1]`。合成后由 `ZoneBoundarySlopeApplicator` 修正 `DesignTerrainGrid`；画布上以颜色区分各边策略（见 `EarthworkEdgeTreatmentCanvasRenderer`）。
 
 ### 4.4 GradingZone 类型（MVP → 完整）
@@ -846,7 +848,7 @@ project.activeSiteId = site.id
 | **F** | 分区边界处理（`EdgeTreatment`、挖填放坡、逐边覆盖） | ✅ 已完成 |
 | **F+** | `RETAINING_WALL` 边界联动、虚拟挡土边、按格墙高、同步 UI | ✅ 已完成 |
 
-**建议下一步**：画布逐边可视化、多级平台（bench）细部几何。
+**建议下一步**：多 Site 支持、侧车 snapshot 强制策略。
 
 ---
 

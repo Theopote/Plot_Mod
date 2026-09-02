@@ -966,7 +966,7 @@
   "plugin.earthwork.edge_fill_slope_rise": "Fill slope vertical",
   "plugin.earthwork.edge_fill_slope_ratio": "Fill slope ratio: %d:%d (H:V)",
   "plugin.earthwork.edge_max_reach": "Maximum slope reach (blocks)",
-  "plugin.earthwork.edge_bench_width": "Bench width (blocks, 0=off)",
+  "plugin.earthwork.edge_bench_width": "Bench width (blocks, 0=off; slope/bench alternation)",
   "plugin.earthwork.edge_per_edge_overrides": "Per-edge overrides",
   "plugin.earthwork.edge_item": "Edge %d",
   "plugin.earthwork.edge_show_canvas_overlay": "Show edge treatment on canvas",
