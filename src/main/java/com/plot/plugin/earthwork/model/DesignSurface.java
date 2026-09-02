@@ -27,6 +27,7 @@ public class DesignSurface {
     private String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
     private Integer bottomElevation;
     private int workingMarginBlocks = 1;
+    private BakedElevationGrid bakedElevationGrid = new BakedElevationGrid();
 
     public DesignSurfaceKind getKind() {
         return kind != null ? kind : DesignSurfaceKind.FLAT;
@@ -168,6 +169,18 @@ public class DesignSurface {
 
     public void setWorkingMarginBlocks(int workingMarginBlocks) {
         this.workingMarginBlocks = Math.max(0, workingMarginBlocks);
+    }
+
+    public BakedElevationGrid getBakedElevationGrid() {
+        return bakedElevationGrid != null ? bakedElevationGrid : new BakedElevationGrid();
+    }
+
+    public void setBakedElevationGrid(BakedElevationGrid bakedElevationGrid) {
+        this.bakedElevationGrid = bakedElevationGrid != null ? bakedElevationGrid : new BakedElevationGrid();
+    }
+
+    public boolean hasBakedElevation() {
+        return getBakedElevationGrid().sampleCount() > 0;
     }
 
     public static DesignSurface fromGradingRegion(GradingRegion region) {

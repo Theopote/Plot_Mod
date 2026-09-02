@@ -492,6 +492,7 @@ public class EarthworkProject {
         String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
         Integer bottomElevation;
         int workingMarginBlocks = 1;
+        List<BakedSampleData> bakedSamples = new ArrayList<>();
 
         static DesignSurfaceData from(DesignSurface surface) {
             DesignSurfaceData data = new DesignSurfaceData();
@@ -518,6 +519,9 @@ public class EarthworkProject {
             data.elevationSource = surface.getElevationSource().name();
             data.bottomElevation = surface.getBottomElevation();
             data.workingMarginBlocks = surface.getWorkingMarginBlocks();
+            for (BakedElevationGrid.Sample sample : surface.getBakedElevationGrid().toSamples()) {
+                data.bakedSamples.add(BakedSampleData.from(sample));
+            }
             return data;
         }
 
@@ -547,7 +551,39 @@ public class EarthworkProject {
             surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
             surface.setBottomElevation(bottomElevation);
             surface.setWorkingMarginBlocks(workingMarginBlocks);
+            surface.setBakedElevationGrid(BakedElevationGrid.fromSamples(readBakedSamples(bakedSamples)));
             return surface;
+        }
+
+        private static List<BakedElevationGrid.Sample> readBakedSamples(List<BakedSampleData> items) {
+            List<BakedElevationGrid.Sample> samples = new ArrayList<>();
+            if (items == null) {
+                return samples;
+            }
+            for (BakedSampleData item : items) {
+                if (item != null) {
+                    samples.add(item.toSample());
+                }
+            }
+            return samples;
+        }
+    }
+
+    static class BakedSampleData {
+        int worldX;
+        int worldZ;
+        int targetY;
+
+        static BakedSampleData from(BakedElevationGrid.Sample sample) {
+            BakedSampleData data = new BakedSampleData();
+            data.worldX = sample.worldX();
+            data.worldZ = sample.worldZ();
+            data.targetY = sample.targetY();
+            return data;
+        }
+
+        BakedElevationGrid.Sample toSample() {
+            return new BakedElevationGrid.Sample(worldX, worldZ, targetY);
         }
     }
 
@@ -698,6 +734,7 @@ public class EarthworkProject {
         int topElevation;
         int bottomElevation;
         String side = RetainingEdge.SIDE_CUT;
+        String wallMaterial = "minecraft:stone_bricks";
 
         static RetainingEdgeData from(RetainingEdge edge) {
             RetainingEdgeData data = new RetainingEdgeData();
@@ -709,6 +746,7 @@ public class EarthworkProject {
             data.topElevation = edge.getTopElevation();
             data.bottomElevation = edge.getBottomElevation();
             data.side = edge.getSide();
+            data.wallMaterial = edge.getWallMaterial();
             return data;
         }
 
@@ -719,6 +757,7 @@ public class EarthworkProject {
             edge.setTopElevation(topElevation);
             edge.setBottomElevation(bottomElevation);
             edge.setSide(side);
+            edge.setWallMaterial(wallMaterial);
             return edge;
         }
     }

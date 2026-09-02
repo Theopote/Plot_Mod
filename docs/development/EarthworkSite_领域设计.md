@@ -2,7 +2,7 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase D+ 已实施（道路走廊引用 + 挡土界 + 选区导入折线）  
+> **状态**：Phase E 已实施（道路标高烘焙 + 挡土墙生成）  
 > **版本**：`schemaVersion: 2`  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
@@ -813,7 +813,9 @@ project.activeSiteId = site.id
 | **D** | Breakline 侧归属、交界混合、`TERRAIN_FIT` 分区 | ✅ 已完成 |
 | **D+** | `ROAD_CORRIDOR` 道路引用、挡土界混合抑制、折线/挡土界选区导入 | ✅ 已完成 |
 
-**建议下一步**：道路烘焙模式（从道路导入为 `TERRAIN_FIT` 缓存）、挡土墙实体生成。
+| **E** | 道路标高烘焙、`BakedElevationGrid`、挡土墙实体生成 | ✅ 已完成 |
+
+**建议下一步**：道路走廊轮廓自动导入、挡土墙与分区材质联动优化。
 
 ---
 

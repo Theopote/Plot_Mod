@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.earthwork.model.BakedElevationGrid;
 import com.plot.plugin.earthwork.model.DesignSurface;
 import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -69,6 +70,10 @@ public final class DesignSurfaceResolver {
             int siteDefaultElevation) {
         DesignSurface surface = zone.getDesignSurface();
         DesignSurfaceKind kind = BuildingFootprintResolver.effectiveKind(zone);
+        if (surface.hasBakedElevation()) {
+            BakedElevationGrid bakedGrid = surface.getBakedElevationGrid();
+            return cell -> bakedGrid.evaluateAt(cell.worldX(), cell.worldZ(), siteDefaultElevation);
+        }
         return switch (kind) {
             case CONSTANT_ELEVATION -> {
                 int elevation = BuildingFootprintResolver.resolveConstantElevation(

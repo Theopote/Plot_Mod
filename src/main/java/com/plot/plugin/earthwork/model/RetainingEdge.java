@@ -18,6 +18,7 @@ public class RetainingEdge {
     private int topElevation;
     private int bottomElevation;
     private String side = SIDE_CUT;
+    private String wallMaterial = "minecraft:stone_bricks";
 
     public RetainingEdge() {
     }
@@ -72,6 +73,14 @@ public class RetainingEdge {
 
     public void setSide(String side) {
         this.side = side;
+    }
+
+    public String getWallMaterial() {
+        return wallMaterial != null && !wallMaterial.isBlank() ? wallMaterial : "minecraft:stone_bricks";
+    }
+
+    public void setWallMaterial(String wallMaterial) {
+        this.wallMaterial = wallMaterial != null ? wallMaterial.trim() : "";
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> source) {

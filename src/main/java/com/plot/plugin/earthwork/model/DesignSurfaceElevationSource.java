@@ -4,6 +4,7 @@ package com.plot.plugin.earthwork.model;
  * 常数设计面标高来源。
  */
 public enum DesignSurfaceElevationSource {
+    BAKED_ROAD,
     MANUAL,
     BUILDING_BASE_ELEVATION;
 

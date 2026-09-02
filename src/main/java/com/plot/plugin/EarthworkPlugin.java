@@ -25,6 +25,7 @@ import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.plugin.earthwork.RoadCorridorBaker;
 import com.plot.plugin.earthwork.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.model.Breakline;
 import com.plot.plugin.earthwork.model.RetainingEdge;
@@ -507,7 +508,13 @@ public class EarthworkPlugin extends Plugin {
             renderExcavationPitSettings(zone);
         } else if (zone.getType() == GradingZoneType.TERRAIN_FIT
             || zone.getType() == GradingZoneType.LANDSCAPE) {
-            renderFitSlopeSettings(zone.getRegion());
+            if (zone.getDesignSurface().hasBakedElevation()) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.baked_samples",
+                    zone.getDesignSurface().getBakedElevationGrid().sampleCount()));
+            } else {
+                renderFitSlopeSettings(zone.getRegion());
+            }
         } else if (zone.getType() == GradingZoneType.ROAD_CORRIDOR) {
             renderRoadCorridorSettings(zone);
         }
@@ -579,6 +586,28 @@ public class EarthworkPlugin extends Plugin {
                 ImGui.popID();
                 continue;
             }
+            int[] topElevation = {edge.getTopElevation()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.retaining_top_elevation"), topElevation, -64, 320)) {
+                if (ImGui.isItemActivated()) {
+                    projectHistory.push(project);
+                }
+                edge.setTopElevation(topElevation[0]);
+                invalidatePreview();
+            }
+            int[] bottomElevation = {edge.getBottomElevation()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.retaining_bottom_elevation"), bottomElevation, -64, 320)) {
+                if (ImGui.isItemActivated()) {
+                    projectHistory.push(project);
+                }
+                edge.setBottomElevation(bottomElevation[0]);
+                invalidatePreview();
+            }
+            renderMaterialButton(PlotI18n.tr("plugin.earthwork.retaining_wall_material"), edge.getWallMaterial(),
+                blockId -> {
+                    projectHistory.push(project);
+                    edge.setWallMaterial(blockId);
+                    invalidatePreview();
+                });
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.add_retaining_edge"), 0, 0)) {
@@ -648,6 +677,35 @@ public class EarthworkPlugin extends Plugin {
                 invalidatePreview();
             }
         }
+        if (zone.getDesignSurface().hasBakedElevation()) {
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.baked_samples",
+                zone.getDesignSurface().getBakedElevationGrid().sampleCount()));
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.bake_road_elevations"), 0, 0)) {
+            bakeRoadCorridorElevations(zone);
+        }
+    }
+
+    private void bakeRoadCorridorElevations(GradingZone zone) {
+        if (zone == null || zone.getRoadEdgeRef().isBlank()) {
+            return;
+        }
+        World world = getClientWorld();
+        if (world == null) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.generate_world_unavailable");
+            return;
+        }
+        projectHistory.push(project);
+        EarthworkSite site = project.getActiveSite();
+        TerrainSnapshot terrain = terrainSnapshotCache.captureFreshSite(site, world, ctx().coordinates());
+        int bakedCount = RoadCorridorBaker.bake(zone, terrain, createRoadSurfaceLookup());
+        if (bakedCount <= 0) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.bake_road_failed");
+        } else {
+            projectStatus = PlotI18n.tr("plugin.earthwork.bake_road_success", bakedCount);
+        }
+        invalidatePreview();
     }
 
     private void renderBreaklineRow(EarthworkSite site, Breakline breakline, List<GradingZone> zones) {
