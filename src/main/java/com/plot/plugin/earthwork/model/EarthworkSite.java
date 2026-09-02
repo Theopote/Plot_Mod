@@ -200,6 +200,21 @@ public class EarthworkSite {
         }
     }
 
+    public ExclusionZone addExclusionZone(ExclusionZone exclusionZone) {
+        if (exclusionZone == null) {
+            throw new IllegalArgumentException("Exclusion zone cannot be null");
+        }
+        exclusionZones.add(exclusionZone);
+        return exclusionZone;
+    }
+
+    public void removeExclusionZone(String exclusionZoneId) {
+        if (exclusionZoneId == null || exclusionZoneId.isBlank()) {
+            return;
+        }
+        exclusionZones.removeIf(zone -> exclusionZoneId.equals(zone.getId()));
+    }
+
     public EarthworkVolumeReport getLastReport() {
         return lastReport != null ? lastReport : EarthworkVolumeReport.empty();
     }

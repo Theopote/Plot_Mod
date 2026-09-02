@@ -8,6 +8,8 @@ import com.plot.core.model.Shape;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.core.geometry.PolygonRegionUtils;
+import com.plot.core.geometry.RegionGeometry;
+import com.plot.plugin.earthwork.EarthworkRegionGeometryCanvasRenderer;
 import com.plot.api.world.ICoordinateService;
 import com.plot.infrastructure.event.EventListener;
 import com.plot.api.world.IBlockProjectionService;
@@ -36,6 +38,7 @@ import com.plot.plugin.earthwork.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.model.BoundaryEdgeOverride;
 import com.plot.plugin.earthwork.model.Breakline;
 import com.plot.plugin.earthwork.model.EdgeTreatment;
+import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.ZoneEdgeSettings;
 import com.plot.plugin.earthwork.model.RetainingEdge;
 import com.plot.core.geometry.shapes.FreeDrawPath;
@@ -196,14 +199,17 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void renderEdgeTreatmentOverlay(imgui.ImDrawList drawList, CanvasCamera camera) {
-        if (!isEnabled() || config == null || !config.isShowEdgeTreatmentOverlay()) {
+        if (!isEnabled() || config == null) {
             return;
         }
         synchronized (projectLock) {
             if (project.getRegionCount() <= 0) {
                 return;
             }
-            EarthworkEdgeTreatmentCanvasRenderer.render(drawList, camera, project, selectedRegionId);
+            if (config.isShowEdgeTreatmentOverlay()) {
+                EarthworkEdgeTreatmentCanvasRenderer.render(drawList, camera, project, selectedRegionId);
+            }
+            EarthworkRegionGeometryCanvasRenderer.render(drawList, camera, project, selectedRegionId);
         }
     }
 
@@ -313,6 +319,12 @@ public class EarthworkPlugin extends Plugin {
             project.getRegionCount(),
             String.format("%.1f", project.getTotalArea())));
         renderSiteOverlapWarnings();
+        EarthworkSite site = project.getActiveSite();
+        if (!site.getExclusionZones().isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.earthwork.exclusions_count",
+                site.getExclusionZones().size()));
+        }
 
         if (project.getRegionCount() == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.no_regions"));
@@ -345,9 +357,13 @@ public class EarthworkPlugin extends Plugin {
                     region.getLastVolumeReport().geometricFillVolume(),
                     region.getLastResolvedElevation())
                 : PlotI18n.tr("plugin.earthwork.overview_no_stats");
+            String areaText = String.format("%.1f", region.computeArea());
+            if (!region.getHoles().isEmpty()) {
+                areaText += PlotI18n.tr("plugin.earthwork.overview_holes_suffix", region.getHoles().size());
+            }
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                 "plugin.earthwork.overview_item",
-                String.format("%.1f", region.computeArea()),
+                areaText,
                 stats));
 
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.locate"), 60, 0)) {
@@ -429,6 +445,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         renderSelectedZoneOverlapWarnings(region.getId());
+        renderRegionGeometrySettings(region);
 
         renderSurfaceModeSettings(region);
         renderZoneTypeSettings(region);
@@ -983,6 +1000,8 @@ public class EarthworkPlugin extends Plugin {
         }
 
         ImGui.spacing();
+        renderExclusionZoneSettings(site);
+        ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.earthwork.breaklines_header"));
         List<GradingZone> zones = new ArrayList<>(site.getGradingZones().values());
         if (zones.size() < 2) {
@@ -1112,6 +1131,196 @@ public class EarthworkPlugin extends Plugin {
                 invalidatePreview();
             }
         }
+    }
+
+    private void renderRegionGeometrySettings(GradingRegion region) {
+        RegionGeometry geometry = region.getGeometry();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_header"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.earthwork.geometry_outer_summary",
+            geometry.outerRing().size(),
+            geometry.area()));
+        if (geometry.hasHoles()) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.geometry_hole_count", geometry.holes().size()));
+        }
+        ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.geometry_add_hole_from_selection"), 0, 0)) {
+            addHoleToRegion(region);
+        }
+        ImGui.sameLine();
+        boolean clearDisabled = !geometry.hasHoles();
+        if (clearDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.geometry_clear_holes"), 0, 0)) {
+            projectHistory.push(project);
+            region.setHoles(List.of());
+            invalidatePreview();
+        }
+        if (clearDisabled) {
+            ImGui.endDisabled();
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.geometry_holes");
+
+        if (!geometry.hasHoles()) {
+            return;
+        }
+        ImGui.beginChild("earthwork_region_holes", 0, 72, true);
+        List<List<Vec2d>> holes = region.getHoles();
+        for (int i = 0; i < holes.size(); i++) {
+            ImGui.pushID("hole_" + i);
+            List<Vec2d> hole = holes.get(i);
+            double holeArea = Math.abs(GradingRegion.signedArea(hole));
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.geometry_hole_item",
+                i + 1,
+                hole.size(),
+                holeArea));
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.delete"))) {
+                projectHistory.push(project);
+                List<List<Vec2d>> updated = new ArrayList<>(holes);
+                updated.remove(i);
+                region.setHoles(updated);
+                invalidatePreview();
+                ImGui.popID();
+                break;
+            }
+            ImGui.popID();
+        }
+        ImGui.endChild();
+        ImGui.spacing();
+    }
+
+    private void renderExclusionZoneSettings(EarthworkSite site) {
+        ImGui.text(PlotI18n.tr("plugin.earthwork.exclusions_header"));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.exclusions_hint"));
+        List<ExclusionZone> exclusions = site.getExclusionZones();
+        if (exclusions.isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.exclusions_empty"));
+        } else {
+            for (ExclusionZone exclusion : exclusions) {
+                renderExclusionZoneRow(site, exclusion);
+            }
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.exclusion_add_from_selection"), 0, 0)) {
+            addExclusionFromSelection(site);
+        }
+    }
+
+    private void renderExclusionZoneRow(EarthworkSite site, ExclusionZone exclusion) {
+        ImGui.pushID(exclusion.getId());
+        ImGui.text(exclusion.getName().isBlank() ? exclusion.getId() : exclusion.getName());
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.delete"))) {
+            projectHistory.push(project);
+            site.removeExclusionZone(exclusion.getId());
+            invalidatePreview();
+            ImGui.popID();
+            return;
+        }
+
+        String[] modes = {
+            ExclusionZone.MODE_PRESERVE_EXISTING,
+            ExclusionZone.MODE_NO_TOUCH
+        };
+        String[] modeLabels = {
+            PlotI18n.tr("plugin.earthwork.exclusion_mode.preserve_existing"),
+            PlotI18n.tr("plugin.earthwork.exclusion_mode.no_touch")
+        };
+        int modeIndex = ExclusionZone.MODE_NO_TOUCH.equals(exclusion.getMode()) ? 1 : 0;
+        ImInt selectedMode = new ImInt(modeIndex);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.48f);
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.exclusion_mode_label"), selectedMode, modeLabels)) {
+            int picked = selectedMode.get();
+            if (picked >= 0 && picked < modes.length) {
+                projectHistory.push(project);
+                exclusion.setMode(modes[picked]);
+                invalidatePreview();
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.geometry_add_hole_from_selection"), 0, 0)) {
+            addHoleToExclusion(exclusion);
+        }
+
+        RegionGeometry geometry = exclusion.getGeometry();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.earthwork.exclusion_geometry_summary",
+            geometry.outerRing().size(),
+            geometry.holes().size(),
+            geometry.area()));
+        ImGui.popID();
+    }
+
+    private void addHoleToRegion(GradingRegion region) {
+        List<Vec2d> hole = extractRegionOutlineFromSelection();
+        if (hole.size() < 3) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection");
+            return;
+        }
+        RegionGeometry geometry = region.getGeometry();
+        Vec2d centroid = PolygonRegionUtils.computeCentroid(hole);
+        if (!geometry.contains(centroid)) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.geometry_hole_outside_outer");
+            return;
+        }
+        projectHistory.push(project);
+        List<List<Vec2d>> holes = new ArrayList<>(region.getHoles());
+        holes.add(hole);
+        region.setHoles(holes);
+        invalidatePreview();
+        projectStatus = PlotI18n.tr("plugin.earthwork.geometry_hole_added");
+    }
+
+    private void addHoleToExclusion(ExclusionZone exclusion) {
+        List<Vec2d> hole = extractRegionOutlineFromSelection();
+        if (hole.size() < 3) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection");
+            return;
+        }
+        RegionGeometry geometry = exclusion.getGeometry();
+        if (geometry.isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.exclusion_needs_outer_ring");
+            return;
+        }
+        Vec2d centroid = PolygonRegionUtils.computeCentroid(hole);
+        if (!geometry.contains(centroid)) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.geometry_hole_outside_outer");
+            return;
+        }
+        projectHistory.push(project);
+        List<List<Vec2d>> holes = new ArrayList<>(exclusion.getHoles());
+        holes.add(hole);
+        exclusion.setHoles(holes);
+        invalidatePreview();
+        projectStatus = PlotI18n.tr("plugin.earthwork.geometry_hole_added");
+    }
+
+    private void addExclusionFromSelection(EarthworkSite site) {
+        List<Vec2d> outer = extractRegionOutlineFromSelection();
+        if (outer.size() < 3) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.geometry_no_valid_selection");
+            return;
+        }
+        projectHistory.push(project);
+        ExclusionZone exclusion = new ExclusionZone(UUID.randomUUID().toString(), outer);
+        exclusion.setName(PlotI18n.tr(
+            "plugin.earthwork.exclusion_default_name",
+            site.getExclusionZones().size() + 1));
+        site.addExclusionZone(exclusion);
+        invalidatePreview();
+        projectStatus = PlotI18n.tr("plugin.earthwork.exclusion_added");
+    }
+
+    private List<Vec2d> extractRegionOutlineFromSelection() {
+        for (Shape shape : ctx().appState().getSelectedShapes()) {
+            List<Vec2d> points = EarthworkGeometryUtils.extractRegionPoints(shape);
+            if (points.size() >= 3) {
+                return points;
+            }
+        }
+        return List.of();
     }
 
     private List<Vec2d> extractBreaklinePointsFromSelection() {

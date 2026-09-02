@@ -989,7 +989,7 @@ project.activeSiteId = site.id
 
 单 Zone 时 UI 与现版几乎相同，降低迁移成本。
 
-**Phase 12 UI**：合成设置中可切换 `balanceScope`（分区自平衡 / 全场统筹）、`balanceMethod`（分区调配 / 统一 ΔY）、`overlapResolution`；生成报告展示 `allocationMatrix` 与 `zoneVerticalOffsets`。
+**Phase 13 UI**：编辑 Tab 可为当前分区「从选区添加孔洞」；场地合成区可管理 `ExclusionZone`（从选区添加、模式、孔洞）。画布叠加显示孔洞与排除区轮廓。
 
 ---
 
@@ -1012,6 +1012,7 @@ project.activeSiteId = site.id
 | **12b** | `SITE_WIDE` 合成阶段全场统一 ΔY（`SiteWideBalanceAdjuster`） | ✅ 已完成 |
 | **12c** | 按调配矩阵分区 ΔY（`ZoneAllocationBalanceAdjuster`）+ 残余抛光 + UI/报告 | ✅ 已完成 |
 | **13** | `RegionGeometry`（`outerRing` + `holes`）、孔洞感知合成/面积/JSON、`ExclusionZone` 正式几何 | ✅ 已完成 |
+| **13b** | 孔洞/排除区 UI（选区添加孔洞、排除区管理、画布轮廓叠加） | ✅ 已完成 |
 
 **建议下一步**：多 Site 支持、侧车 snapshot 强制策略、`MULTI_PLANE` 分面绘制 UI、孔洞边放坡策略。
 
