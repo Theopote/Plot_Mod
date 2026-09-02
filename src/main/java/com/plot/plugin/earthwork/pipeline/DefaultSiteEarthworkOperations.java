@@ -4,7 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.DesignSurfaceResolver;
 import com.plot.plugin.earthwork.DesignTerrainGrid;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.RetainingWallGenerator;
 import com.plot.plugin.earthwork.TerrainSnapshot;
@@ -53,7 +53,7 @@ public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperat
     }
 
     @Override
-    public EarthworkGenerator.EarthworkGenerationResult generateLegacyRegion(
+    public EarthworkGenerationResult generateLegacyRegion(
             GradingRegion region,
             World world,
             TerrainSnapshot terrainSnapshot,
@@ -63,8 +63,8 @@ public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperat
 
     @Override
     public void copyGenerationResult(
-            EarthworkGenerator.EarthworkGenerationResult target,
-            EarthworkGenerator.EarthworkGenerationResult source) {
+            EarthworkGenerationResult target,
+            EarthworkGenerationResult source) {
         EarthworkGenerationResults.copyInto(target, source);
     }
 
@@ -73,7 +73,7 @@ public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperat
             EarthworkSite site,
             World world,
             DesignTerrainGrid grid,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             int previewGridSize) {
         volumeCalculator.computeFromDesignGrid(site, world, grid, result, previewGridSize);
     }
@@ -82,7 +82,7 @@ public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperat
     public void generateRetainingWalls(
             EarthworkSite site,
             World world,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
         RetainingWallGenerator.generate(
@@ -92,7 +92,7 @@ public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperat
     @Override
     public void applyZoneLastReports(
             EarthworkSite site,
-            EarthworkGenerator.EarthworkGenerationResult result) {
+            EarthworkGenerationResult result) {
         site.setLastReport(result.siteVolumeReport.totals());
         for (GradingZone zone : site.getGradingZones().values()) {
             EarthworkVolumeReport zoneReport = result.siteVolumeReport.zoneReport(zone.getId());

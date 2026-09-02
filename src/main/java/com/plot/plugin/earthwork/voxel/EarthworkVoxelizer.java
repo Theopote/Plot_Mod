@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork.voxel;
 
 import com.plot.core.command.BlockRecord;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.SiteEarthworkReport;
 import com.plot.plugin.earthwork.TerrainSnapshot;
@@ -22,7 +22,7 @@ public final class EarthworkVoxelizer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkVoxelizer");
 
   /**
-   * 与 {@link EarthworkGenerator.BlockSampler} 兼容的方块采样入口。
+   * 测试/兼容用方块采样入口。
    */
     @FunctionalInterface
     public interface BlockSampler {
@@ -35,8 +35,12 @@ public final class EarthworkVoxelizer {
         this.blockSampler = blockSampler;
     }
 
-    public EarthworkVoxelizer(EarthworkGenerator.BlockSampler blockSampler) {
-        this.blockSampler = blockSampler != null ? blockSampler::sampleBlockId : null;
+    /**
+     * @deprecated 使用 {@link BlockSampler}。
+     */
+    @Deprecated
+    public EarthworkVoxelizer(com.plot.plugin.earthwork.EarthworkGenerator.BlockSampler legacySampler) {
+        this.blockSampler = legacySampler != null ? legacySampler::sampleBlockId : null;
     }
 
     /**
@@ -48,14 +52,14 @@ public final class EarthworkVoxelizer {
             TerrainSnapshot.Column column,
             int targetElevation,
             int previewGridSize,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             SiteEarthworkReport.VolumeMetrics totals,
             SiteEarthworkReport.VolumeMetrics zoneMetrics) {
         int groundY = column.groundY();
         CutFillClassifier.Kind kind = CutFillClassifier.kind(groundY, targetElevation);
         if (kind != CutFillClassifier.Kind.NONE
             && EarthworkGeometryUtils.matchesPreviewGrid(column.center(), previewGridSize)) {
-            result.gridSamples.add(new EarthworkGenerator.GridSample(
+            result.gridSamples.add(new EarthworkGenerationResult.GridSample(
                 column.center(),
                 groundY,
                 toLegacyChangeType(kind)));
@@ -75,20 +79,20 @@ public final class EarthworkVoxelizer {
             for (int y = targetElevation + 1; y <= groundY; y++) {
                 BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
                 if (recordBlock(result, world, pos, EarthworkGeometryUtils.EXCAVATION_BLOCK_ID,
-                    EarthworkGenerator.ChangeType.CUT)) {
+                    EarthworkGenerationResult.ChangeType.CUT)) {
                     cutChanged++;
                 }
             }
             if (cutSurfaceBlockId != null) {
                 BlockPos surfacePos = new BlockPos(column.worldX(), targetElevation, column.worldZ());
-                if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, EarthworkGenerator.ChangeType.CUT)) {
+                if (recordBlock(result, world, surfacePos, cutSurfaceBlockId, EarthworkGenerationResult.ChangeType.CUT)) {
                     cutChanged++;
                 }
             }
         } else if (delta.fillVolume() > 0L) {
             for (int y = groundY + 1; y <= targetElevation; y++) {
                 BlockPos pos = new BlockPos(column.worldX(), y, column.worldZ());
-                if (recordBlock(result, world, pos, fillBlockId, EarthworkGenerator.ChangeType.FILL)) {
+                if (recordBlock(result, world, pos, fillBlockId, EarthworkGenerationResult.ChangeType.FILL)) {
                     fillChanged++;
                 }
             }
@@ -110,11 +114,11 @@ public final class EarthworkVoxelizer {
     }
 
     public boolean recordBlock(
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             World world,
             BlockPos pos,
             String newBlockId,
-            EarthworkGenerator.ChangeType changeType) {
+            EarthworkGenerationResult.ChangeType changeType) {
         if (result.placementRecords.containsKey(pos)) {
             return false;
         }
@@ -157,10 +161,10 @@ public final class EarthworkVoxelizer {
         }
     }
 
-    private static EarthworkGenerator.ChangeType toLegacyChangeType(CutFillClassifier.Kind kind) {
+    private static EarthworkGenerationResult.ChangeType toLegacyChangeType(CutFillClassifier.Kind kind) {
         return switch (kind) {
-            case CUT -> EarthworkGenerator.ChangeType.CUT;
-            case FILL -> EarthworkGenerator.ChangeType.FILL;
+            case CUT -> EarthworkGenerationResult.ChangeType.CUT;
+            case FILL -> EarthworkGenerationResult.ChangeType.FILL;
             case NONE -> null;
         };
     }

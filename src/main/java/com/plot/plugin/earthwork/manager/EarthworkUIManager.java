@@ -15,6 +15,7 @@ import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
@@ -1717,7 +1718,7 @@ public final class EarthworkUIManager {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
 
-        EarthworkGenerator.EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
+        EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
         if (ctx.config().isShowGrid() && preview != null) {
             renderGridPreview(region, preview);
         }
@@ -1791,7 +1792,7 @@ public final class EarthworkUIManager {
         }
     }
 
-    private void renderGridPreview(GradingRegion region, EarthworkGenerator.EarthworkGenerationResult result) {
+    private void renderGridPreview(GradingRegion region, EarthworkGenerationResult result) {
         List<Vec2d> points = region.getOuterPoints();
         if (points.size() < 3 || result.gridSamples.isEmpty()) {
             return;
@@ -1816,11 +1817,11 @@ public final class EarthworkUIManager {
         int fillColor = 0x804040FF;
         int borderColor = 0xFF606060;
 
-        for (EarthworkGenerator.GridSample sample : result.gridSamples) {
+        for (EarthworkGenerationResult.GridSample sample : result.gridSamples) {
             float cellX = originX + 8.0f + (float) ((sample.center.x - bounds.minX()) * scale);
             float cellY = originY + 8.0f + (float) ((sample.center.y - bounds.minZ()) * scale);
             float cellSize = Math.max(3.0f, scale * 0.8f);
-            int color = sample.changeType == EarthworkGenerator.ChangeType.CUT ? cutColor : fillColor;
+            int color = sample.changeType == EarthworkGenerationResult.ChangeType.CUT ? cutColor : fillColor;
             drawList.addRectFilled(cellX, cellY, cellX + cellSize, cellY + cellSize, color);
         }
 
@@ -1840,7 +1841,7 @@ public final class EarthworkUIManager {
         }
 
         if (ImGui.beginPopupModal("##earthwork_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            EarthworkGenerator.EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
+            EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
             long blockCount = preview != null
                 ? preview.volumeReport.totalChangedBlocks()
                 : 0L;

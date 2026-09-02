@@ -1100,7 +1100,9 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 
 **Phase 17e 已完成**：`EarthworkUIManager` + `EarthworkUiContext`；Plugin 降至 ~260 行。
 
-**建议下一步（Phase 17f）**：`EarthworkGenerator` 标记 `@Deprecated`，外部改 `SiteEarthworkPipeline`。
+**Phase 17f 已完成**：`EarthworkGenerator` 已弃用；生产路径经 `EarthworkPipelines` → `SiteEarthworkPipeline` / `LegacyRegionPipeline`。
+
+**Earthwork 2.0 迁移主线已收尾**；后续可按需拆 `earthwork/ui/*Panel` 或做包路径 IDE 重构。
 
 ---
 

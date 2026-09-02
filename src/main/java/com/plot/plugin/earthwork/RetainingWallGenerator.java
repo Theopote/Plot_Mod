@@ -5,6 +5,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.RetainingEdge;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
@@ -30,7 +31,7 @@ public final class RetainingWallGenerator {
             EarthworkSite site,
             World world,
             ICoordinateService transformer,
-            EarthworkGenerator.EarthworkGenerationResult result) {
+            EarthworkGenerationResult result) {
         generate(site, world, transformer, result, null, Map.of());
     }
 
@@ -38,7 +39,7 @@ public final class RetainingWallGenerator {
             EarthworkSite site,
             World world,
             ICoordinateService transformer,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             DesignTerrainGrid grid,
             Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluators) {
         if (site == null || world == null || result == null || transformer == null) {
@@ -60,7 +61,7 @@ public final class RetainingWallGenerator {
             EarthworkSite site,
             World world,
             ICoordinateService transformer,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             Set<Long> placedColumns,
             DesignTerrainGrid grid) {
         List<Vec2d> polyline = edge.getPolyline();
@@ -108,7 +109,7 @@ public final class RetainingWallGenerator {
     }
 
     private static void recordWallBlock(
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             World world,
             BlockPos pos,
             String blockId) {
@@ -120,7 +121,7 @@ public final class RetainingWallGenerator {
             return;
         }
         result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));
-        result.changeTypes.put(pos, EarthworkGenerator.ChangeType.FILL);
+        result.changeTypes.put(pos, EarthworkGenerationResult.ChangeType.FILL);
     }
 
     private static String resolveWallBlockId(RetainingEdge edge, EarthworkSite site) {

@@ -10,7 +10,7 @@ import com.plot.api.world.WorldViewBounds;
 import com.plot.core.context.ApplicationContext;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.BuildingFootprintLookup;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
@@ -80,7 +80,7 @@ class EarthworkManagerTest {
 
     private static EarthworkPreviewManager newPreviewManager(List<String> status) {
         return new EarthworkPreviewManager(
-            testHost(), new EarthworkGenerator(null), new TerrainSnapshotCache(), status::add);
+            testHost(), EarthworkPipelines.create(null), new TerrainSnapshotCache(), status::add);
     }
 
     private static PluginContext testHost() {

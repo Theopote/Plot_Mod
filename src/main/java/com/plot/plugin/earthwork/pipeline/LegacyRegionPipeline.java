@@ -2,7 +2,7 @@ package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.GradingPlane;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.TerrainSnapshot;
@@ -34,12 +34,12 @@ public final class LegacyRegionPipeline {
         this.volumeCalculator = volumeCalculator;
     }
 
-    public EarthworkGenerator.EarthworkGenerationResult execute(
+    public EarthworkGenerationResult execute(
             GradingRegion region,
             World world,
             TerrainSnapshot terrainSnapshot,
             ZoneEdgeSettings edgeSettings) {
-        EarthworkGenerator.EarthworkGenerationResult result = new EarthworkGenerator.EarthworkGenerationResult();
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
         if (region == null) {
             LOGGER.warn("整平区域为空");
             return result;

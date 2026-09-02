@@ -4,7 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.DesignSurfaceResolver;
 import com.plot.plugin.earthwork.DesignTerrainGrid;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -27,31 +27,31 @@ public interface SiteEarthworkOperations {
             List<Vec2d> siteBoundary,
             TerrainSnapshot terrainSnapshot);
 
-    EarthworkGenerator.EarthworkGenerationResult generateLegacyRegion(
+    EarthworkGenerationResult generateLegacyRegion(
             GradingRegion region,
             World world,
             TerrainSnapshot terrainSnapshot,
             ZoneEdgeSettings edgeSettings);
 
     void copyGenerationResult(
-            EarthworkGenerator.EarthworkGenerationResult target,
-            EarthworkGenerator.EarthworkGenerationResult source);
+            EarthworkGenerationResult target,
+            EarthworkGenerationResult source);
 
     void computeEarthworkFromDesignGrid(
             EarthworkSite site,
             World world,
             DesignTerrainGrid grid,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             int previewGridSize);
 
     void generateRetainingWalls(
             EarthworkSite site,
             World world,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             DesignTerrainGrid grid,
             java.util.Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators);
 
     void applyZoneLastReports(
             EarthworkSite site,
-            EarthworkGenerator.EarthworkGenerationResult result);
+            EarthworkGenerationResult result);
 }

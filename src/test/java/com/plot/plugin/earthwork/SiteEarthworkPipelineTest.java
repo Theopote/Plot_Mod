@@ -1,7 +1,9 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import org.junit.jupiter.api.Test;
 
 import static com.plot.plugin.earthwork.EarthworkTestFixtures.STONE;
@@ -17,25 +19,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SiteEarthworkPipelineTest {
 
     @Test
-    void executeProducesSameResultAsGeneratorGenerateSite() {
+    void executeProducesStableSiteGenerationResult() {
         EarthworkSite site = twoZoneSiteForCompose();
         site.addZone(donutZone("donut", 9, 3, 6, 60));
         site.addZone(tinyCompanionZone("companion"));
 
         TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
-        EarthworkGenerator generator = new EarthworkGenerator(null, solidColumnSampler(terrain, STONE));
+        EarthworkPipelines.Bundle pipelines = EarthworkPipelines.create(
+            null, solidColumnSampler(terrain, STONE));
         EarthworkPipelineContext context = EarthworkPipelineContext.of(site, null, terrain);
 
-        EarthworkGenerator.EarthworkGenerationResult fromPipeline = generator.sitePipeline().execute(context);
-        EarthworkGenerator.EarthworkGenerationResult fromGenerator = generator.generateSite(site, null, terrain, null);
+        EarthworkGenerationResult first = pipelines.site().execute(context);
+        EarthworkGenerationResult second = pipelines.site().execute(context);
 
-        assertTrue(fromPipeline.siteGeneration);
-        assertEquals(fromGenerator.volumeReport.geometricCutVolume(), fromPipeline.volumeReport.geometricCutVolume());
-        assertEquals(fromGenerator.volumeReport.geometricFillVolume(), fromPipeline.volumeReport.geometricFillVolume());
-        assertEquals(fromGenerator.placementRecords.size(), fromPipeline.placementRecords.size());
-        assertNotNull(fromPipeline.designTerrainGrid);
+        assertTrue(first.siteGeneration);
+        assertEquals(first.volumeReport.geometricCutVolume(), second.volumeReport.geometricCutVolume());
+        assertEquals(first.volumeReport.geometricFillVolume(), second.volumeReport.geometricFillVolume());
+        assertEquals(first.placementRecords.size(), second.placementRecords.size());
+        assertNotNull(first.designTerrainGrid);
         assertEquals(
-            fromGenerator.designTerrainGrid.get(5, 5).targetY(),
-            fromPipeline.designTerrainGrid.get(5, 5).targetY());
+            first.designTerrainGrid.get(5, 5).targetY(),
+            second.designTerrainGrid.get(5, 5).targetY());
     }
 }

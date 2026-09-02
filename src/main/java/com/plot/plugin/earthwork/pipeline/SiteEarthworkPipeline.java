@@ -1,7 +1,7 @@
 package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.grading.DesignTerrainBuilder;
 import com.plot.plugin.earthwork.EarthworkProjectReport;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
@@ -32,8 +32,8 @@ public final class SiteEarthworkPipeline {
         this.operations = operations;
     }
 
-    public EarthworkGenerator.EarthworkGenerationResult execute(EarthworkPipelineContext context) {
-        EarthworkGenerator.EarthworkGenerationResult result = new EarthworkGenerator.EarthworkGenerationResult();
+    public EarthworkGenerationResult execute(EarthworkPipelineContext context) {
+        EarthworkGenerationResult result = new EarthworkGenerationResult();
         if (context == null || context.site() == null) {
             LOGGER.warn("场地为空");
             return result;
@@ -94,12 +94,12 @@ public final class SiteEarthworkPipeline {
         return result;
     }
 
-    private EarthworkGenerator.EarthworkGenerationResult executeLegacyDelegate(
+    private EarthworkGenerationResult executeLegacyDelegate(
             EarthworkSite site,
             EarthworkPipelineContext context,
-            EarthworkGenerator.EarthworkGenerationResult result) {
+            EarthworkGenerationResult result) {
         GradingZone zone = site.getLegacyDelegateZone();
-        EarthworkGenerator.EarthworkGenerationResult delegated = operations.generateLegacyRegion(
+        EarthworkGenerationResult delegated = operations.generateLegacyRegion(
             zone.getRegion(),
             context.world(),
             context.terrainSnapshot(),

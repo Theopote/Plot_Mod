@@ -3,7 +3,7 @@ package com.plot.plugin.earthwork.volume;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.DesignTerrainCell;
 import com.plot.plugin.earthwork.DesignTerrainGrid;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.EarthworkProjectReport;
 import com.plot.plugin.earthwork.GradingPlane;
 import com.plot.plugin.earthwork.SiteEarthworkReport;
@@ -36,7 +36,7 @@ public final class EarthworkVolumeCalculator {
             World world,
             TerrainSnapshot terrain,
             GradingPlane plane,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             int previewGridSize,
             ZoneEdgeSettings edgeSettings) {
         SiteEarthworkReport.VolumeMetrics totals = new SiteEarthworkReport.VolumeMetrics();
@@ -67,7 +67,7 @@ public final class EarthworkVolumeCalculator {
             EarthworkSite site,
             World world,
             DesignTerrainGrid grid,
-            EarthworkGenerator.EarthworkGenerationResult result,
+            EarthworkGenerationResult result,
             int previewGridSize) {
         Map<String, GradingZone> zonesById = site.getGradingZones();
         Map<String, SiteEarthworkReport.VolumeMetrics> zoneMetrics = new HashMap<>();

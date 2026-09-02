@@ -1,9 +1,9 @@
 package com.plot.plugin.earthwork.pipeline;
 
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 
 /**
- * {@link EarthworkGenerator.EarthworkGenerationResult} 复制工具。
+ * {@link EarthworkGenerationResult} 复制工具。
  */
 public final class EarthworkGenerationResults {
 
@@ -11,8 +11,8 @@ public final class EarthworkGenerationResults {
     }
 
     public static void copyInto(
-            EarthworkGenerator.EarthworkGenerationResult target,
-            EarthworkGenerator.EarthworkGenerationResult source) {
+            EarthworkGenerationResult target,
+            EarthworkGenerationResult source) {
         target.existingTerrainSnapshot = source.existingTerrainSnapshot;
         target.placementRecords.putAll(source.placementRecords);
         target.changeTypes.putAll(source.changeTypes);

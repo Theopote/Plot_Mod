@@ -4,7 +4,7 @@ import com.plot.api.world.PlacementReadiness;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.EarthworkGenerateCommand;
 import com.plot.core.context.PluginContext;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.utils.PlotI18n;
@@ -39,7 +39,7 @@ public final class EarthworkBuildManager {
     }
 
     public void buildInWorld(EarthworkProject project, String builtRegionId) {
-        EarthworkGenerator.EarthworkGenerationResult resultSnapshot = previewManager.getLastGenerationResult();
+        EarthworkGenerationResult resultSnapshot = previewManager.getLastGenerationResult();
         if (resultSnapshot == null || resultSnapshot.placementRecords.isEmpty()) {
             statusSink.accept(PlotI18n.tr("plugin.earthwork.build_no_blocks"));
             return;

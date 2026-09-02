@@ -8,7 +8,8 @@ import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
-import com.plot.plugin.earthwork.EarthworkGenerator;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.EarthworkRegionGeometryCanvasRenderer;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
@@ -77,18 +78,18 @@ public class EarthworkPlugin extends Plugin {
             config = new EarthworkConfig(getId());
         }
 
-        EarthworkGenerator earthworkGenerator;
+        EarthworkPipelines.Bundle pipelines;
         try {
-            earthworkGenerator = new EarthworkGenerator(ctx().coordinates());
+            pipelines = EarthworkPipelines.create(ctx().coordinates());
         } catch (Exception e) {
-            LOGGER.error("初始化土方生成器失败: {}", e.getMessage(), e);
+            LOGGER.error("初始化土方管线失败: {}", e.getMessage(), e);
             throw new RuntimeException("土方插件初始化失败", e);
         }
 
         EarthworkProject project = new EarthworkProject();
         final EarthworkUiContext[] contextHolder = new EarthworkUiContext[1];
         EarthworkPreviewManager previewManager = new EarthworkPreviewManager(
-            ctx(), earthworkGenerator, terrainSnapshotCache,
+            ctx(), pipelines, terrainSnapshotCache,
             msg -> {
                 if (contextHolder[0] != null) {
                     contextHolder[0].setProjectStatus(msg);

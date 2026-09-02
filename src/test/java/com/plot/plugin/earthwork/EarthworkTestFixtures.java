@@ -2,12 +2,14 @@ package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
-import com.plot.plugin.earthwork.EarthworkGenerator.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
+import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -81,7 +83,7 @@ public final class EarthworkTestFixtures {
         return region;
     }
 
-    public static EarthworkGenerator.BlockSampler solidColumnSampler(TerrainSnapshot terrain, String solidBlockId) {
+    public static EarthworkVoxelizer.BlockSampler solidColumnSampler(TerrainSnapshot terrain, String solidBlockId) {
         Map<BlockPos, String> blocks = new HashMap<>();
         for (TerrainSnapshot.Column column : terrain.columns()) {
             for (int y = 1; y <= column.groundY(); y++) {
@@ -94,9 +96,8 @@ public final class EarthworkTestFixtures {
     public static EarthworkGenerationResult generateLegacy(
             GradingRegion region,
             TerrainSnapshot terrain,
-            EarthworkGenerator.BlockSampler sampler) {
-        EarthworkGenerator generator = new EarthworkGenerator(null, sampler);
-        return generator.generate(region, null, terrain);
+            EarthworkVoxelizer.BlockSampler sampler) {
+        return EarthworkPipelines.create(null, sampler).legacy().execute(region, null, terrain, null);
     }
 
     public static EarthworkSite twoZoneSiteForCompose() {
@@ -118,10 +119,11 @@ public final class EarthworkTestFixtures {
     }
 
     public static GradingZone tinyCompanionZone(String id) {
-        GradingZone zone = new GradingZone(id, rectangleOutline(9, 9, 9, 9));
+        GradingZone zone = new GradingZone(id, RegionGeometry.of(rectangleOutline(8, 9, 8, 9)));
         zone.getRegion().setAutoBalance(false);
         zone.getRegion().setManualTargetElevation(64);
         zone.getRegion().setPreviewGridSize(1);
+        zone.getRegion().setFillMaterial(DIRT);
         return zone;
     }
 

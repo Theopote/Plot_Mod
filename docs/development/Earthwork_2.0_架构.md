@@ -264,8 +264,9 @@ public final class EarthworkGenerator {
 
 ### 17f — 弃用旧入口（P2）
 
-- [ ] `EarthworkGenerator` 标记 `@Deprecated`
-- [ ] 外部调用改 `SiteEarthworkPipeline`
+- [x] `EarthworkGenerator` 标记 `@Deprecated`，委托 `EarthworkPipelines`
+- [x] `EarthworkGenerationResult` 迁至 `pipeline/` 包
+- [x] `EarthworkPipelines` 作为 2.0 推荐工厂；`EarthworkPlugin` / `EarthworkPreviewManager` 已改调管线
 - [ ] 包路径迁移（`terrain/`、`design/` 等）可用 IDE 重构批量完成
 
 ---
@@ -279,6 +280,7 @@ public final class EarthworkGenerator {
 | `grading/` | 集成：多 Zone 合成 | `DesignTerrainComposerTest` |
 | `volume/` | 解析解基准 | `EarthworkAnalyticalBenchmarkTest` |
 | `pipeline/` | E2E apply/undo | `EarthworkPipelineE2ETest` |
+| `pipeline/` | 管线工厂 | `SiteEarthworkPipelineTest` |
 | `manager/` | 预览失效 / 无预览构建 | `EarthworkManagerTest` |
 | `voxel/` | 列挖填 + BlockSampler | `EarthworkGeneratorTest`（迁移后改名） |
 

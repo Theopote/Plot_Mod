@@ -4,8 +4,11 @@ import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.BuildingFootprintLookup;
-import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkProjectReport;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
+import com.plot.plugin.earthwork.pipeline.LegacyRegionPipeline;
+import com.plot.plugin.earthwork.pipeline.SiteEarthworkPipeline;
 import com.plot.plugin.earthwork.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
@@ -32,29 +35,40 @@ public final class EarthworkPreviewManager {
     public static final String FILL_GHOST_BLOCK = "minecraft:light_blue_stained_glass";
 
     private final PluginContext host;
-    private final EarthworkGenerator generator;
+    private final SiteEarthworkPipeline sitePipeline;
+    private final LegacyRegionPipeline legacyPipeline;
     private final TerrainSnapshotCache terrainCache;
     private final Consumer<String> statusSink;
 
-    private volatile EarthworkGenerator.EarthworkGenerationResult lastGenerationResult;
+    private volatile EarthworkGenerationResult lastGenerationResult;
 
     public EarthworkPreviewManager(
             PluginContext host,
-            EarthworkGenerator generator,
+            EarthworkPipelines.Bundle pipelines,
+            TerrainSnapshotCache terrainCache,
+            Consumer<String> statusSink) {
+        this(host, pipelines.site(), pipelines.legacy(), terrainCache, statusSink);
+    }
+
+    public EarthworkPreviewManager(
+            PluginContext host,
+            SiteEarthworkPipeline sitePipeline,
+            LegacyRegionPipeline legacyPipeline,
             TerrainSnapshotCache terrainCache,
             Consumer<String> statusSink) {
         this.host = Objects.requireNonNull(host, "host");
-        this.generator = Objects.requireNonNull(generator, "generator");
+        this.sitePipeline = Objects.requireNonNull(sitePipeline, "sitePipeline");
+        this.legacyPipeline = Objects.requireNonNull(legacyPipeline, "legacyPipeline");
         this.terrainCache = Objects.requireNonNull(terrainCache, "terrainCache");
         this.statusSink = statusSink != null ? statusSink : msg -> {};
     }
 
-    public EarthworkGenerator.EarthworkGenerationResult getLastGenerationResult() {
+    public EarthworkGenerationResult getLastGenerationResult() {
         return lastGenerationResult;
     }
 
     public boolean hasValidPreview() {
-        EarthworkGenerator.EarthworkGenerationResult result = lastGenerationResult;
+        EarthworkGenerationResult result = lastGenerationResult;
         return result != null && !result.placementRecords.isEmpty();
     }
 
@@ -64,7 +78,7 @@ public final class EarthworkPreviewManager {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
         World world = getClientWorld();
-        if (world == null || generator == null) {
+        if (world == null) {
             statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_world_unavailable"));
             return false;
         }
@@ -82,11 +96,12 @@ public final class EarthworkPreviewManager {
         try {
             if (site.delegatesToLegacyGenerator()) {
                 TerrainSnapshot terrain = terrainCache.captureFresh(region, world, host.coordinates());
-                lastGenerationResult = generator.generate(region, world, terrain);
+                lastGenerationResult = legacyPipeline.execute(region, world, terrain, null);
             } else {
                 TerrainSnapshot terrain = terrainCache.captureFreshSite(site, world, host.coordinates());
-                lastGenerationResult = generator.generateSite(
-                    site, world, terrain, region, buildingLookup, roadLookup);
+                lastGenerationResult = sitePipeline.execute(
+                    com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext.of(
+                        site, world, terrain, region, buildingLookup, roadLookup));
             }
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
@@ -108,7 +123,7 @@ public final class EarthworkPreviewManager {
     private static void enrichProjectReport(
             EarthworkSite site,
             GradingRegion region,
-            EarthworkGenerator.EarthworkGenerationResult result) {
+            EarthworkGenerationResult result) {
         if (result.siteVolumeReport.byZone().isEmpty()) {
             result.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
                 site, region.getId(), result.volumeReport);
@@ -119,7 +134,7 @@ public final class EarthworkPreviewManager {
     }
 
     public void projectPreview() {
-        EarthworkGenerator.EarthworkGenerationResult result = lastGenerationResult;
+        EarthworkGenerationResult result = lastGenerationResult;
         if (result == null) {
             return;
         }
@@ -129,8 +144,8 @@ public final class EarthworkPreviewManager {
         }
         ghostBlockManager.clearAllGhostBlocks();
         for (BlockRecord record : result.placementRecords.values()) {
-            EarthworkGenerator.ChangeType changeType = result.changeTypes.get(record.pos);
-            String ghostBlock = changeType == EarthworkGenerator.ChangeType.CUT
+            EarthworkGenerationResult.ChangeType changeType = result.changeTypes.get(record.pos);
+            String ghostBlock = changeType == EarthworkGenerationResult.ChangeType.CUT
                 ? CUT_GHOST_BLOCK
                 : FILL_GHOST_BLOCK;
             ghostBlockManager.addGhostBlock(record.pos, ghostBlock);
@@ -164,7 +179,7 @@ public final class EarthworkPreviewManager {
     }
 
     public TerrainSnapshot.ComparisonResult comparePreviewTerrainWithWorld(World world) {
-        EarthworkGenerator.EarthworkGenerationResult result = lastGenerationResult;
+        EarthworkGenerationResult result = lastGenerationResult;
         if (result == null || result.existingTerrainSnapshot.isEmpty() || world == null) {
             return null;
         }

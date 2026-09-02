@@ -2,7 +2,9 @@ package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
-import com.plot.plugin.earthwork.EarthworkGenerator.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -141,8 +143,9 @@ class EarthworkAnalyticalBenchmarkTest {
     site.addZone(tinyCompanionZone("companion"));
 
     TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
-    EarthworkGenerator generator = new EarthworkGenerator(null, solidColumnSampler(terrain, STONE));
-    EarthworkGenerationResult result = generator.generateSite(site, null, terrain, null);
+    EarthworkGenerationResult result = EarthworkPipelines.create(
+        null, solidColumnSampler(terrain, STONE))
+        .site().execute(EarthworkPipelineContext.of(site, null, terrain, null));
 
     assertFalse(result.placementRecords.isEmpty());
     for (BlockPos pos : result.placementRecords.keySet()) {

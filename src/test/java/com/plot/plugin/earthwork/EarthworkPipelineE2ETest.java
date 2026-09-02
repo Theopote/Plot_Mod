@@ -2,7 +2,10 @@ package com.plot.plugin.earthwork;
 
 import com.plot.core.command.BlockRecord;
 import com.plot.core.command.commands.EarthworkGenerateCommand;
-import com.plot.plugin.earthwork.EarthworkGenerator.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext;
+import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
+import com.plot.plugin.earthwork.voxel.EarthworkVoxelizer;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.util.math.BlockPos;
@@ -36,8 +39,8 @@ class EarthworkPipelineE2ETest {
     GradingRegion region = levelPadRegion(0, 3, 0, 3, 65, false);
     InMemoryBlockWorld world = InMemoryBlockWorld.fromTerrain(terrain, STONE);
 
-    EarthworkGenerationResult result = new EarthworkGenerator(null, world.sampler())
-        .generate(region, null, terrain);
+    EarthworkGenerationResult result = EarthworkPipelines.create(null, world.sampler())
+        .legacy().execute(region, null, terrain, null);
 
     assertEquals(16L, result.volumeReport.geometricFillVolume());
     assertEquals(16, result.placementRecords.size());
@@ -54,8 +57,8 @@ class EarthworkPipelineE2ETest {
     TerrainSnapshot terrain = rectangleTerrain(0, 9, 0, 9, 64);
     InMemoryBlockWorld world = InMemoryBlockWorld.fromTerrain(terrain, STONE);
 
-    EarthworkGenerationResult result = new EarthworkGenerator(null, world.sampler())
-        .generateSite(site, null, terrain, null);
+    EarthworkGenerationResult result = EarthworkPipelines.create(null, world.sampler())
+        .site().execute(EarthworkPipelineContext.of(site, null, terrain, null));
 
     assertTrue(result.siteGeneration);
     assertTrue(result.volumeReport.geometricCutVolume() > 0L);
@@ -70,8 +73,8 @@ class EarthworkPipelineE2ETest {
     GradingRegion region = levelPadRegion(0, 3, 0, 3, 64, false);
     InMemoryBlockWorld world = InMemoryBlockWorld.fromTerrain(terrain, STONE);
 
-    EarthworkGenerationResult result = new EarthworkGenerator(null, world.sampler())
-        .generate(region, null, terrain);
+    EarthworkGenerationResult result = EarthworkPipelines.create(null, world.sampler())
+        .legacy().execute(region, null, terrain, null);
 
     assertEquals(8L, result.volumeReport.geometricCutVolume());
     assertEquals(8L, result.volumeReport.geometricFillVolume());
@@ -119,7 +122,7 @@ class EarthworkPipelineE2ETest {
       return world;
     }
 
-    EarthworkGenerator.BlockSampler sampler() {
+    EarthworkVoxelizer.BlockSampler sampler() {
       return pos -> blocks.getOrDefault(pos, AIR);
     }
 
