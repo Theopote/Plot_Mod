@@ -29,6 +29,7 @@ public class DesignSurface {
     private String roadEdgeRef = "";
     private String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
     private Integer bottomElevation;
+    private int basementDepthBlocks = 3;
     private int workingMarginBlocks = 1;
     private BakedElevationGrid bakedElevationGrid = new BakedElevationGrid();
     private int verticalOffset;
@@ -166,6 +167,14 @@ public class DesignSurface {
 
     public void setBottomElevation(Integer bottomElevation) {
         this.bottomElevation = bottomElevation;
+    }
+
+    public int getBasementDepthBlocks() {
+        return Math.max(0, basementDepthBlocks);
+    }
+
+    public void setBasementDepthBlocks(int basementDepthBlocks) {
+        this.basementDepthBlocks = Math.max(0, Math.min(64, basementDepthBlocks));
     }
 
     public int getWorkingMarginBlocks() {

@@ -61,6 +61,43 @@ class PhaseCDesignSurfaceTest {
     }
 
     @Test
+    void excavationPitResolvesBottomFromBuildingBaseMinusDepth() {
+        EarthworkSite site = createSite();
+        GradingZone pit = createZone("pit", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        pit.setType(GradingZoneType.EXCAVATION_PIT);
+        pit.setBuildingFootprintRef("b1");
+        DesignSurface surface = pit.getDesignSurface();
+        surface.setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+        surface.setBasementDepthBlocks(5);
+        surface.setWorkingMarginBlocks(0);
+        surface.setSlopePitchRatio(1);
+        site.addZone(pit);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70)));
+
+        BuildingFootprint footprint = new BuildingFootprint("b1", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)), false);
+        footprint.setManualBaseElevation(70);
+
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(
+            site, terrain, null, id -> footprint).grid();
+        assertEquals(65, grid.get(5, 5).targetY());
+    }
+
+    @Test
+    void pitBottomResolverUsesManualWhenNotLinkedToBuilding() {
+        DesignSurface surface = new DesignSurface();
+        surface.setElevationSource(DesignSurfaceElevationSource.MANUAL);
+        surface.setBottomElevation(48);
+
+        int bottom = com.plot.plugin.earthwork.design.BuildingFootprintResolver.resolvePitBottomElevation(
+            null, surface, TerrainSnapshot.empty(), id -> null, 64);
+        assertEquals(48, bottom);
+    }
+
+    @Test
     void excavationPitRaisesTargetNearWalls() {
         EarthworkSite site = createSite();
         GradingZone pit = createZone("pit", List.of(

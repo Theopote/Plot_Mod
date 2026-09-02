@@ -581,6 +581,7 @@ public class EarthworkProject {
         String roadEdgeRef = "";
         String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
         Integer bottomElevation;
+        int basementDepthBlocks = 3;
         int workingMarginBlocks = 1;
         int verticalOffset;
         List<BakedSampleData> bakedSamples = new ArrayList<>();
@@ -610,6 +611,7 @@ public class EarthworkProject {
             data.roadEdgeRef = surface.getRoadEdgeRef();
             data.elevationSource = surface.getElevationSource().name();
             data.bottomElevation = surface.getBottomElevation();
+            data.basementDepthBlocks = surface.getBasementDepthBlocks();
             data.workingMarginBlocks = surface.getWorkingMarginBlocks();
             data.verticalOffset = surface.getVerticalOffset();
             for (BakedElevationGrid.Sample sample : surface.getBakedElevationGrid().toSamples()) {
@@ -648,6 +650,7 @@ public class EarthworkProject {
             surface.setRoadEdgeRef(roadEdgeRef);
             surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
             surface.setBottomElevation(bottomElevation);
+            surface.setBasementDepthBlocks(basementDepthBlocks);
             surface.setWorkingMarginBlocks(workingMarginBlocks);
             surface.setVerticalOffset(verticalOffset);
             surface.setBakedElevationGrid(BakedElevationGrid.fromSamples(readBakedSamples(bakedSamples)));

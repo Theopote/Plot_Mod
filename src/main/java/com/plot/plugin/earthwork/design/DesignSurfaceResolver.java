@@ -119,9 +119,12 @@ public final class DesignSurfaceResolver {
                 yield cell -> plane.evaluateAt(cell.worldX(), cell.worldZ());
             }
             case EXCAVATION_PIT -> {
-                int bottom = surface.getBottomElevation() != null
-                    ? surface.getBottomElevation()
-                    : siteDefaultElevation;
+                int bottom = BuildingFootprintResolver.resolvePitBottomElevation(
+                    zone,
+                    surface,
+                    terrain,
+                    buildingLookup,
+                    siteDefaultElevation);
                 int workingMargin = surface.getWorkingMarginBlocks();
                 int slopePitch = surface.getSlopePitchRatio();
                 List<com.plot.api.geometry.Vec2d> polygon = zone.getOuterPoints();

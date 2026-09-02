@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork.validation;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
+import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.ExclusionZone;
@@ -192,6 +193,14 @@ public final class EarthworkValidator {
             && zone.getDesignSurface().getElevation() == null) {
             items.add(EarthworkValidationReport.Item.warning(
                 "plugin.earthwork.validation.building_pad_no_reference",
+                zone.getName()));
+        }
+
+        if (type == GradingZoneType.EXCAVATION_PIT
+            && zone.getDesignSurface().getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION
+            && isBlank(zone.getBuildingFootprintRef())) {
+            items.add(EarthworkValidationReport.Item.warning(
+                "plugin.earthwork.validation.excavation_pit_no_reference",
                 zone.getName()));
         }
 

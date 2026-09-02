@@ -302,6 +302,13 @@ public final class EarthworkGenerator {
 - [x] 总览 Tab / 生成 Tab / CSV 导出展示分场地方量与跨场地调配
 - [x] `ProjectGlobalBalanceAggregatorTest`
 
+### 17m — 建筑地坪 / 基坑自动坑底（P2-2）
+
+- [x] `BuildingFootprintResolver.resolvePitBottomElevation`：建筑基础底 − `basementDepthBlocks`
+- [x] `EXCAVATION_PIT` 分区关联建筑轮廓 + 埋深；`DesignSurfaceResolver` 接入
+- [x] 编辑 Tab 基坑设置（关联建筑、自动坑底、埋深滑条）
+- [x] JSON `basementDepthBlocks` 持久化；`BuildingFootprintResolverTest` / `PhaseCDesignSurfaceTest`
+
 ---
 
 ## 8. 测试策略

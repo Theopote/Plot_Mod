@@ -1096,14 +1096,73 @@ public final class EarthworkEditPanel {
     }
 
     private void renderExcavationPitSettings(GradingZone zone) {
-        Integer bottom = zone.getDesignSurface().getBottomElevation();
-        int[] bottomElevation = {bottom != null ? bottom : 60};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_bottom_elevation"), bottomElevation, -64, 320)) {
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
+        List<BuildingFootprint> buildings = EarthworkUiLookups.listAvailableBuildings();
+        if (!buildings.isEmpty()) {
+            String[] labels = buildings.stream().map(BuildingFootprint::getName).toArray(String[]::new);
+            String[] ids = buildings.stream().map(BuildingFootprint::getId).toArray(String[]::new);
+            int currentIndex = 0;
+            String currentRef = zone.getBuildingFootprintRef();
+            for (int i = 0; i < ids.length; i++) {
+                if (ids[i].equals(currentRef)) {
+                    currentIndex = i;
+                    break;
+                }
             }
-            zone.getDesignSurface().setBottomElevation(bottomElevation[0]);
+            ImInt buildingIndex = new ImInt(currentIndex);
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.combo(PlotI18n.tr("plugin.earthwork.building_footprint_ref"), buildingIndex, labels)) {
+                int picked = buildingIndex.get();
+                if (picked >= 0 && picked < ids.length) {
+                    ctx.projectHistory().push(ctx.project());
+                    zone.setBuildingFootprintRef(ids[picked]);
+                    zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+                    ctx.invalidatePreview();
+                }
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.import_building_outline"), 0, 0)) {
+                BuildingFootprint footprint = buildings.get(buildingIndex.get());
+                if (footprint != null) {
+                    ctx.projectHistory().push(ctx.project());
+                    zone.setOuterPoints(footprint.getOuterPoints());
+                    zone.setBuildingFootprintRef(footprint.getId());
+                    zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+                    ctx.invalidatePreview();
+                }
+            }
+        } else {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.no_buildings_available"));
+        }
+
+        boolean useBuildingBottom = zone.getDesignSurface().getElevationSource()
+            == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION;
+        ImBoolean useBuildingRef = new ImBoolean(useBuildingBottom);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.use_building_pit_bottom"), useBuildingRef)) {
+            ctx.projectHistory().push(ctx.project());
+            zone.getDesignSurface().setElevationSource(useBuildingRef.get()
+                ? DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION
+                : DesignSurfaceElevationSource.MANUAL);
             ctx.invalidatePreview();
+        }
+
+        if (useBuildingRef.get()) {
+            int[] basementDepth = {zone.getDesignSurface().getBasementDepthBlocks()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.basement_depth_blocks"), basementDepth, 0, 32)) {
+                if (ImGui.isItemActivated()) {
+                    ctx.projectHistory().push(ctx.project());
+                }
+                zone.getDesignSurface().setBasementDepthBlocks(basementDepth[0]);
+                ctx.invalidatePreview();
+            }
+        } else {
+            Integer bottom = zone.getDesignSurface().getBottomElevation();
+            int[] bottomElevation = {bottom != null ? bottom : 60};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_bottom_elevation"), bottomElevation, -64, 320)) {
+                if (ImGui.isItemActivated()) {
+                    ctx.projectHistory().push(ctx.project());
+                }
+                zone.getDesignSurface().setBottomElevation(bottomElevation[0]);
+                ctx.invalidatePreview();
+            }
         }
 
         int[] workingMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};

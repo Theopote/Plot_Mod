@@ -32,17 +32,55 @@ public final class BuildingFootprintResolver {
             return surface.getElevation();
         }
         if (surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
-            String ref = resolveFootprintRef(zone, surface);
-            BuildingFootprint footprint = lookup != null ? lookup.getFootprint(ref) : null;
-            if (footprint != null) {
-                List<Integer> samples = collectFootprintGroundSamples(terrain, footprint.getOuterPoints());
-                return BuildingFoundationUtils.computeBaseElevation(
-                    samples,
-                    footprint.getManualBaseElevation());
-            }
+            return resolveBuildingBaseElevation(zone, surface, terrain, lookup, siteDefaultElevation);
         }
         if (surface.getManualTargetElevation() != null) {
             return surface.getManualTargetElevation();
+        }
+        return siteDefaultElevation;
+    }
+
+    /**
+     * 基坑坑底标高：手动 {@link DesignSurface#getBottomElevation()}，或建筑基础底 − 埋深。
+     */
+    public static int resolvePitBottomElevation(
+            GradingZone zone,
+            DesignSurface surface,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup lookup,
+            int siteDefaultElevation) {
+        if (surface == null) {
+            return siteDefaultElevation;
+        }
+        if (surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
+            if (zone == null) {
+                return siteDefaultElevation;
+            }
+            int baseElevation = resolveBuildingBaseElevation(zone, surface, terrain, lookup, siteDefaultElevation);
+            return baseElevation - surface.getBasementDepthBlocks();
+        }
+        if (surface.getBottomElevation() != null) {
+            return surface.getBottomElevation();
+        }
+        return siteDefaultElevation;
+    }
+
+    private static int resolveBuildingBaseElevation(
+            GradingZone zone,
+            DesignSurface surface,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup lookup,
+            int siteDefaultElevation) {
+        if (surface.getElevation() != null) {
+            return surface.getElevation();
+        }
+        String ref = resolveFootprintRef(zone, surface);
+        BuildingFootprint footprint = lookup != null ? lookup.getFootprint(ref) : null;
+        if (footprint != null) {
+            List<Integer> samples = collectFootprintGroundSamples(terrain, footprint.getOuterPoints());
+            return BuildingFoundationUtils.computeBaseElevation(
+                samples,
+                footprint.getManualBaseElevation());
         }
         return siteDefaultElevation;
     }

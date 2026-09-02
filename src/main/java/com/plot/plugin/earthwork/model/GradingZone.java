@@ -140,6 +140,11 @@ public class GradingZone {
             }
         } else if (zoneType == GradingZoneType.EXCAVATION_PIT) {
             surface.setKind(DesignSurfaceKind.EXCAVATION_PIT);
+            if (!getBuildingFootprintRef().isBlank()
+                && surface.getElevationSource() == DesignSurfaceElevationSource.MANUAL
+                && surface.getBottomElevation() == null) {
+                surface.setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+            }
         } else if (zoneType == GradingZoneType.TERRAIN_FIT || zoneType == GradingZoneType.LANDSCAPE) {
             surface.setKind(DesignSurfaceKind.BEST_FIT_PLANE);
             region.setSurfaceMode(GradingSurfaceMode.BEST_FIT_PLANE);
