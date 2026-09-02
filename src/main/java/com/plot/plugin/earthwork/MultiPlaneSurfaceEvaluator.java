@@ -52,7 +52,7 @@ public final class MultiPlaneSurfaceEvaluator {
             ICoordinateService transformer) {
         List<FacetContext> contexts = new ArrayList<>();
         for (DesignSurfaceFacet facet : surface.getFacets()) {
-            if (facet == null || facet.getOuterPoints().size() < 3) {
+            if (facet == null || facet.getGeometry().isEmpty()) {
                 continue;
             }
             DesignSurfaceResolver.ZoneTargetEvaluator evaluator = resolveFacetEvaluator(
@@ -60,7 +60,7 @@ public final class MultiPlaneSurfaceEvaluator {
             if (evaluator == null) {
                 continue;
             }
-            double area = Math.abs(GradingRegion.signedArea(facet.getOuterPoints()));
+            double area = facet.getGeometry().area();
             contexts.add(new FacetContext(facet, area, evaluator));
         }
         contexts.sort(Comparator.comparingDouble(FacetContext::area));
@@ -85,7 +85,7 @@ public final class MultiPlaneSurfaceEvaluator {
         List<Vec2d> centers = new ArrayList<>();
         List<Integer> heights = new ArrayList<>();
         for (TerrainSnapshot.Column column : terrain.columns()) {
-            if (!EarthworkGeometryUtils.containsCanvasPoint(facet.getOuterPoints(), column.center())) {
+            if (!facet.containsCanvasPoint(column.center())) {
                 continue;
             }
             centers.add(column.center());
@@ -103,7 +103,7 @@ public final class MultiPlaneSurfaceEvaluator {
             DesignSurface plane) {
         GradingRegion region = new GradingRegion(
             zone.getId() + ":" + facet.getId(),
-            facet.getOuterPoints());
+            facet.getGeometry());
         plane.applyTo(region);
         return region;
     }
@@ -112,7 +112,7 @@ public final class MultiPlaneSurfaceEvaluator {
         DesignSurfaceFacet winner = null;
         double winnerArea = Double.MAX_VALUE;
         for (FacetContext context : facets) {
-            if (!EarthworkGeometryUtils.containsCanvasPoint(context.facet().getOuterPoints(), point)) {
+            if (!context.facet().containsCanvasPoint(point)) {
                 continue;
             }
             if (context.area() < winnerArea) {

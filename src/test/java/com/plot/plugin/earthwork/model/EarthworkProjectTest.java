@@ -255,4 +255,47 @@ class EarthworkProjectTest {
         assertEquals(GradingZoneType.FLAT, site.getZone("r2").getType());
         assertTrue(site.getSiteBoundaryArea() > 0.0);
     }
+
+    @Test
+    void jsonRoundTripPreservesRegionHoles() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = project.getActiveSite();
+        GradingZone zone = new GradingZone("zone-donut", com.plot.core.geometry.RegionGeometry.of(
+            List.of(
+                new Vec2d(0, 0),
+                new Vec2d(12, 0),
+                new Vec2d(12, 12),
+                new Vec2d(0, 12)),
+            List.of(List.of(
+                new Vec2d(4, 4),
+                new Vec2d(8, 4),
+                new Vec2d(8, 8),
+                new Vec2d(4, 8)))));
+        site.addZone(zone);
+
+        ExclusionZone exclusion = new ExclusionZone("courtyard");
+        exclusion.setGeometry(com.plot.core.geometry.RegionGeometry.of(
+            List.of(
+                new Vec2d(2, 2),
+                new Vec2d(10, 2),
+                new Vec2d(10, 10),
+                new Vec2d(2, 10)),
+            List.of(List.of(
+                new Vec2d(5, 5),
+                new Vec2d(7, 5),
+                new Vec2d(7, 7),
+                new Vec2d(5, 7)))));
+        site.setExclusionZones(List.of(exclusion));
+
+        EarthworkProject restored = EarthworkProject.fromJson(project.toJson());
+        GradingZone restoredZone = restored.getActiveSite().getZone("zone-donut");
+        ExclusionZone restoredExclusion = restored.getActiveSite().getExclusionZones().getFirst();
+
+        assertEquals(1, restoredZone.getHoles().size());
+        assertEquals(4, restoredZone.getHoles().getFirst().size());
+        assertEquals(128.0, restoredZone.computeArea(), 1e-6);
+        assertEquals(1, restoredExclusion.getHoles().size());
+        assertFalse(restoredExclusion.containsCanvasPoint(new Vec2d(6.5, 6.5)));
+        assertTrue(restoredExclusion.containsCanvasPoint(new Vec2d(3.5, 3.5)));
+    }
 }

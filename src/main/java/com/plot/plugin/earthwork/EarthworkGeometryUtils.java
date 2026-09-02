@@ -188,10 +188,22 @@ public final class EarthworkGeometryUtils {
     }
 
     public static boolean containsCanvasPoint(List<Vec2d> outerPoints, Vec2d canvasPoint) {
-        if (canvasPoint == null || outerPoints == null || outerPoints.size() < 3) {
-            return false;
-        }
-        return toPolygon(outerPoints).contains(canvasPoint);
+        return containsCanvasPoint(com.plot.core.geometry.RegionGeometry.of(outerPoints), canvasPoint);
+    }
+
+    public static boolean containsCanvasPoint(
+            List<Vec2d> outerPoints,
+            List<List<Vec2d>> holes,
+            Vec2d canvasPoint) {
+        return containsCanvasPoint(com.plot.core.geometry.RegionGeometry.of(outerPoints, holes), canvasPoint);
+    }
+
+    public static boolean containsCanvasPoint(com.plot.core.geometry.RegionGeometry geometry, Vec2d canvasPoint) {
+        return geometry != null && geometry.contains(canvasPoint);
+    }
+
+    public static List<Vec2d> collectFootprintCellCenters(com.plot.core.geometry.RegionGeometry geometry) {
+        return PolygonRegionUtils.collectFootprintCellCenters(geometry);
     }
 
     /**

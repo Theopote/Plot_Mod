@@ -1,6 +1,8 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.PolygonRegionUtils;
+import com.plot.core.geometry.RegionGeometry;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 
 import java.util.ArrayList;
@@ -21,7 +23,7 @@ public class GradingRegion {
 
     private final String id;
     private String name;
-    private List<Vec2d> outerPoints;
+    private RegionGeometry geometry = RegionGeometry.empty();
     private GradingSurfaceMode surfaceMode = GradingSurfaceMode.LEVEL_PAD;
     private boolean autoBalance = true;
     private Integer manualTargetElevation;
@@ -53,7 +55,13 @@ public class GradingRegion {
 
     public GradingRegion(String id, List<Vec2d> outerPoints) {
         this.id = id;
-        this.outerPoints = copyPoints(outerPoints);
+        this.geometry = RegionGeometry.of(copyPoints(outerPoints));
+        this.name = id.substring(0, Math.min(8, id.length()));
+    }
+
+    public GradingRegion(String id, RegionGeometry geometry) {
+        this.id = id;
+        this.geometry = geometry != null ? geometry : RegionGeometry.empty();
         this.name = id.substring(0, Math.min(8, id.length()));
     }
 
@@ -70,11 +78,31 @@ public class GradingRegion {
     }
 
     public List<Vec2d> getOuterPoints() {
-        return copyPoints(outerPoints);
+        return geometry.outerRing();
     }
 
     public void setOuterPoints(List<Vec2d> outerPoints) {
-        this.outerPoints = copyPoints(outerPoints);
+        this.geometry = geometry.withOuterRing(copyPoints(outerPoints));
+    }
+
+    public RegionGeometry getGeometry() {
+        return geometry;
+    }
+
+    public void setGeometry(RegionGeometry geometry) {
+        this.geometry = geometry != null ? geometry : RegionGeometry.empty();
+    }
+
+    public List<List<Vec2d>> getHoles() {
+        return geometry.holes();
+    }
+
+    public void setHoles(List<List<Vec2d>> holes) {
+        this.geometry = geometry.withHoles(holes);
+    }
+
+    public boolean containsCanvasPoint(Vec2d canvasPoint) {
+        return geometry.contains(canvasPoint);
     }
 
     public GradingSurfaceMode getSurfaceMode() {
@@ -266,21 +294,11 @@ public class GradingRegion {
     }
 
     public double computeArea() {
-        return Math.abs(signedArea(outerPoints));
+        return geometry.area();
     }
 
     public static double signedArea(List<Vec2d> points) {
-        if (points == null || points.size() < 3) {
-            return 0.0;
-        }
-        double area = 0.0;
-        int n = points.size();
-        for (int i = 0; i < n; i++) {
-            Vec2d a = points.get(i);
-            Vec2d b = points.get((i + 1) % n);
-            area += a.x * b.y - b.x * a.y;
-        }
-        return area / 2.0;
+        return PolygonRegionUtils.signedAreaOfRing(points);
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> points) {

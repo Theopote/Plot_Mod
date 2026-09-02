@@ -1,8 +1,8 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.RegionGeometry;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -11,7 +11,7 @@ import java.util.List;
 public class DesignSurfaceFacet {
     private String id;
     private String name = "";
-    private List<Vec2d> outerPoints = new ArrayList<>();
+    private RegionGeometry geometry = RegionGeometry.empty();
     private DesignSurface plane = new DesignSurface();
 
     public DesignSurfaceFacet() {
@@ -19,8 +19,12 @@ public class DesignSurfaceFacet {
     }
 
     public DesignSurfaceFacet(String id, List<Vec2d> outerPoints) {
+        this(id, RegionGeometry.of(outerPoints));
+    }
+
+    public DesignSurfaceFacet(String id, RegionGeometry geometry) {
         this.id = id;
-        setOuterPoints(outerPoints);
+        setGeometry(geometry);
         plane.setKind(DesignSurfaceKind.LEVEL_PAD);
     }
 
@@ -41,11 +45,31 @@ public class DesignSurfaceFacet {
     }
 
     public List<Vec2d> getOuterPoints() {
-        return copyPoints(outerPoints);
+        return geometry.outerRing();
     }
 
     public void setOuterPoints(List<Vec2d> outerPoints) {
-        this.outerPoints = copyPoints(outerPoints);
+        this.geometry = geometry.withOuterRing(outerPoints);
+    }
+
+    public RegionGeometry getGeometry() {
+        return geometry;
+    }
+
+    public void setGeometry(RegionGeometry geometry) {
+        this.geometry = geometry != null ? geometry : RegionGeometry.empty();
+    }
+
+    public List<List<Vec2d>> getHoles() {
+        return geometry.holes();
+    }
+
+    public void setHoles(List<List<Vec2d>> holes) {
+        this.geometry = geometry.withHoles(holes);
+    }
+
+    public boolean containsCanvasPoint(Vec2d canvasPoint) {
+        return geometry.contains(canvasPoint);
     }
 
     public DesignSurface getPlane() {
@@ -58,17 +82,5 @@ public class DesignSurfaceFacet {
 
     public void setPlane(DesignSurface plane) {
         this.plane = plane != null ? plane : new DesignSurface();
-    }
-
-    private static List<Vec2d> copyPoints(List<Vec2d> source) {
-        List<Vec2d> copy = new ArrayList<>();
-        if (source != null) {
-            for (Vec2d point : source) {
-                if (point != null) {
-                    copy.add(new Vec2d(point.x, point.y));
-                }
-            }
-        }
-        return copy;
     }
 }

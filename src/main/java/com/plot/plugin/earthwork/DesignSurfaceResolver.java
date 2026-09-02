@@ -7,6 +7,7 @@ import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.core.geometry.RegionGeometry;
 
 import java.util.HashMap;
 import java.util.List;
@@ -102,7 +103,7 @@ public final class DesignSurfaceResolver {
                 yield cell -> cell.existingGroundY();
             }
             case DRAINAGE_SURFACE -> {
-                ZoneSamples samples = collectZoneSamples(terrain, zone.getOuterPoints());
+                ZoneSamples samples = collectZoneSamples(terrain, zone.getGeometry());
                 GradingRegion drainageRegion = zone.getRegion();
                 drainageRegion.setSurfaceMode(DesignSurfaceKind.BEST_FIT_PLANE.toSurfaceMode());
                 drainageRegion.setFitSlopeBalanceCutFill(surface.isFitSlopeBalanceCutFill());
@@ -137,7 +138,7 @@ public final class DesignSurfaceResolver {
                     siteDefaultElevation);
             }
             default -> {
-                ZoneSamples samples = collectZoneSamples(terrain, zone.getOuterPoints());
+                ZoneSamples samples = collectZoneSamples(terrain, zone.getGeometry());
                 GradingSurfaceResolver.ResolvedSurface resolved = GradingSurfaceResolver.resolve(
                     zone.getRegion(),
                     samples.centers(),
@@ -163,11 +164,11 @@ public final class DesignSurfaceResolver {
         return count > 0 ? (int) Math.round(sum / (double) count) : 64;
     }
 
-    private static ZoneSamples collectZoneSamples(TerrainSnapshot terrain, List<com.plot.api.geometry.Vec2d> zonePolygon) {
+    private static ZoneSamples collectZoneSamples(TerrainSnapshot terrain, RegionGeometry zoneGeometry) {
         List<com.plot.api.geometry.Vec2d> centers = new java.util.ArrayList<>();
         List<Integer> heights = new java.util.ArrayList<>();
         for (TerrainSnapshot.Column column : terrain.columns()) {
-            if (!EarthworkGeometryUtils.containsCanvasPoint(zonePolygon, column.center())) {
+            if (!EarthworkGeometryUtils.containsCanvasPoint(zoneGeometry, column.center())) {
                 continue;
             }
             centers.add(column.center());

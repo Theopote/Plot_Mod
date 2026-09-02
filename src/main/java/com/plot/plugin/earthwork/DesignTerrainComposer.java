@@ -2,7 +2,7 @@ package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.geometry.RegionGeometry;
 import com.plot.plugin.earthwork.model.Breakline;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -103,8 +103,7 @@ public final class DesignTerrainComposer {
             if (exclusion == null) {
                 continue;
             }
-            List<Vec2d> polygon = exclusion.getOuterPoints();
-            if (polygon.size() < 3) {
+            if (exclusion.getGeometry().isEmpty()) {
                 continue;
             }
             boolean preserveExisting = ExclusionZone.MODE_PRESERVE_EXISTING.equals(exclusion.getMode());
@@ -113,7 +112,7 @@ public final class DesignTerrainComposer {
                 if (cell.excluded()) {
                     continue;
                 }
-                if (!EarthworkGeometryUtils.containsCanvasPoint(polygon, cell.center())) {
+                if (!exclusion.containsCanvasPoint(cell.center())) {
                     continue;
                 }
                 cell.setExcluded(true);
@@ -215,7 +214,7 @@ public final class DesignTerrainComposer {
             DesignTerrainCell cell) {
         List<ZoneCandidate> covering = new ArrayList<>();
         for (ZoneCandidate candidate : candidates) {
-            if (candidate.polygon.contains(cell.center())) {
+            if (candidate.geometry().contains(cell.center())) {
                 covering.add(candidate);
             }
         }
@@ -305,19 +304,19 @@ public final class DesignTerrainComposer {
             if (zone == null || !zone.isSupportedInComposer()) {
                 continue;
             }
-            List<Vec2d> points = zone.getOuterPoints();
-            if (points.size() < 3) {
+            RegionGeometry geometry = zone.getGeometry();
+            if (geometry.isEmpty()) {
                 continue;
             }
             candidates.add(new ZoneCandidate(
                 zone.getId(),
                 zone.getPriority(),
-                Math.abs(zone.computeArea()),
-                EarthworkGeometryUtils.toPolygon(points)));
+                geometry.area(),
+                geometry));
         }
         return candidates;
     }
 
-    private record ZoneCandidate(String zoneId, int priority, double area, Polygon polygon) {
+    private record ZoneCandidate(String zoneId, int priority, double area, RegionGeometry geometry) {
     }
 }

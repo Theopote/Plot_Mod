@@ -1,6 +1,7 @@
 package com.plot.core.geometry;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.Polygon;
 import org.junit.jupiter.api.Test;
 
@@ -50,9 +51,41 @@ class PolygonRegionUtilsTest {
     }
 
     @Test
-    void openPolylineOutlineIsTreatedAsClosedForSampling() {
-        List<Vec2d> openTriangle = List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(2, 3));
-        List<Vec2d> centers = PolygonRegionUtils.collectFootprintCellCenters(openTriangle);
-        assertFalse(centers.isEmpty());
+    void holedRectangleExcludesInteriorHole() {
+        List<Vec2d> outer = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)
+        );
+        List<Vec2d> hole = List.of(
+            new Vec2d(3, 3),
+            new Vec2d(7, 3),
+            new Vec2d(7, 7),
+            new Vec2d(3, 7)
+        );
+        RegionGeometry geometry = RegionGeometry.of(outer, List.of(hole));
+
+        assertTrue(geometry.contains(new Vec2d(1.5, 1.5)));
+        assertFalse(geometry.contains(new Vec2d(5.5, 5.5)));
+        assertEquals(84.0, geometry.area(), 1e-6);
+        assertEquals(84, PolygonRegionUtils.collectFootprintCellCenters(geometry).size());
+    }
+
+    @Test
+    void signedAreaSubtractsHoles() {
+        List<Vec2d> outer = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(4, 0),
+            new Vec2d(4, 4),
+            new Vec2d(0, 4)
+        );
+        List<Vec2d> hole = List.of(
+            new Vec2d(1, 1),
+            new Vec2d(3, 1),
+            new Vec2d(3, 3),
+            new Vec2d(1, 3)
+        );
+        assertEquals(12.0, PolygonRegionUtils.computeSignedArea(outer, List.of(hole)), 1e-6);
     }
 }

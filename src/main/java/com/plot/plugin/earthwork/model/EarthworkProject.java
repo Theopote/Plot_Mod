@@ -3,6 +3,7 @@ package com.plot.plugin.earthwork.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.RegionGeometry;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -398,6 +399,68 @@ public class EarthworkProject {
         return points;
     }
 
+    private static List<List<Vec2d>> readHoleRings(List<List<Vec2dData>> holeData) {
+        List<List<Vec2d>> rings = new ArrayList<>();
+        if (holeData == null) {
+            return rings;
+        }
+        for (List<Vec2dData> ringData : holeData) {
+            List<Vec2d> ring = readPoints(ringData);
+            if (ring.size() >= 3) {
+                rings.add(ring);
+            }
+        }
+        return rings;
+    }
+
+    private static RegionGeometry readRegionGeometry(
+            List<Vec2dData> outerRing,
+            List<Vec2dData> outerPoints,
+            List<List<Vec2dData>> holes) {
+        List<Vec2d> outer = readPoints(outerRing != null && !outerRing.isEmpty() ? outerRing : outerPoints);
+        return RegionGeometry.of(outer, readHoleRings(holes));
+    }
+
+    private static void writeOuterRing(
+            RegionGeometry geometry,
+            List<Vec2dData> outerRing,
+            List<Vec2dData> outerPoints) {
+        if (outerRing != null) {
+            outerRing.clear();
+        }
+        if (outerPoints != null) {
+            outerPoints.clear();
+        }
+        if (geometry == null) {
+            return;
+        }
+        for (Vec2d point : geometry.outerRing()) {
+            if (outerRing != null) {
+                outerRing.add(new Vec2dData(point));
+            }
+            if (outerPoints != null) {
+                outerPoints.add(new Vec2dData(point));
+            }
+        }
+    }
+
+    private static void writeHoles(RegionGeometry geometry, List<List<Vec2dData>> holes) {
+        if (holes == null) {
+            return;
+        }
+        holes.clear();
+        if (geometry == null) {
+            return;
+        }
+        for (List<Vec2d> ring : geometry.holes()) {
+            List<Vec2dData> ringData = new ArrayList<>();
+            for (Vec2d point : ring) {
+                ringData.add(new Vec2dData(point));
+            }
+            holes.add(ringData);
+        }
+    }
+
     static class MaterialData {
         float reusableRatio = EarthMaterialProperties.DEFAULT_REUSABLE_RATIO;
         float cutToCompactedFillRatio = EarthMaterialProperties.DEFAULT_CUT_TO_COMPACTED_FILL_RATIO;
@@ -607,28 +670,29 @@ public class EarthworkProject {
     static class DesignSurfaceFacetData {
         String id;
         String name = "";
+        List<Vec2dData> outerRing = new ArrayList<>();
         List<Vec2dData> outerPoints = new ArrayList<>();
+        List<List<Vec2dData>> holes = new ArrayList<>();
         DesignSurfaceData plane = new DesignSurfaceData();
 
         static DesignSurfaceFacetData from(DesignSurfaceFacet facet) {
             DesignSurfaceFacetData data = new DesignSurfaceFacetData();
             data.id = facet.getId();
             data.name = facet.getName();
-            for (Vec2d point : facet.getOuterPoints()) {
-                data.outerPoints.add(new Vec2dData(point));
-            }
+            writeOuterRing(facet.getGeometry(), data.outerRing, data.outerPoints);
+            writeHoles(facet.getGeometry(), data.holes);
             data.plane = DesignSurfaceData.from(facet.getPlane());
             return data;
         }
 
         DesignSurfaceFacet toFacet() {
-            List<Vec2d> points = readPoints(outerPoints);
-            if (points.size() < 3) {
+            RegionGeometry geometry = readRegionGeometry(outerRing, outerPoints, holes);
+            if (geometry.isEmpty()) {
                 return null;
             }
             DesignSurfaceFacet facet = new DesignSurfaceFacet(
                 id != null && !id.isBlank() ? id : UUID.randomUUID().toString(),
-                points);
+                geometry);
             facet.setName(name);
             if (plane != null) {
                 facet.setPlane(plane.toSurface());
@@ -663,7 +727,9 @@ public class EarthworkProject {
         boolean enabled = true;
         String buildingFootprintRef = "";
         String roadEdgeRef = "";
+        List<Vec2dData> outerRing = new ArrayList<>();
         List<Vec2dData> outerPoints = new ArrayList<>();
+        List<List<Vec2dData>> holes = new ArrayList<>();
         MaterialData materialOverride;
         MaterialData materialModel = new MaterialData();
         String cutExposeMaterial = "";
@@ -682,9 +748,8 @@ public class EarthworkProject {
             data.enabled = zone.isEnabled();
             data.buildingFootprintRef = zone.getBuildingFootprintRef();
             data.roadEdgeRef = zone.getRoadEdgeRef();
-            for (Vec2d point : zone.getOuterPoints()) {
-                data.outerPoints.add(new Vec2dData(point));
-            }
+            writeOuterRing(zone.getGeometry(), data.outerRing, data.outerPoints);
+            writeHoles(zone.getGeometry(), data.holes);
             if (zone.getMaterialOverride() != null) {
                 data.materialOverride = MaterialData.from(zone.getMaterialOverride());
             }
@@ -698,12 +763,12 @@ public class EarthworkProject {
         }
 
         GradingZone toZone() {
-            List<Vec2d> points = readPoints(outerPoints);
-            if (points.size() < 3) {
+            RegionGeometry geometry = readRegionGeometry(outerRing, outerPoints, holes);
+            if (geometry.isEmpty()) {
                 return null;
             }
             String zoneId = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
-            GradingZone zone = new GradingZone(zoneId, points);
+            GradingZone zone = new GradingZone(zoneId, geometry);
             zone.setName(name);
             zone.setType(GradingZoneType.fromId(type));
             zone.setPriority(priority);
@@ -849,16 +914,17 @@ public class EarthworkProject {
     static class ExclusionZoneData {
         String id;
         String name;
+        List<Vec2dData> outerRing = new ArrayList<>();
         List<Vec2dData> outerPoints = new ArrayList<>();
+        List<List<Vec2dData>> holes = new ArrayList<>();
         String mode = ExclusionZone.MODE_PRESERVE_EXISTING;
 
         static ExclusionZoneData from(ExclusionZone exclusion) {
             ExclusionZoneData data = new ExclusionZoneData();
             data.id = exclusion.getId();
             data.name = exclusion.getName();
-            for (Vec2d point : exclusion.getOuterPoints()) {
-                data.outerPoints.add(new Vec2dData(point));
-            }
+            writeOuterRing(exclusion.getGeometry(), data.outerRing, data.outerPoints);
+            writeHoles(exclusion.getGeometry(), data.holes);
             data.mode = exclusion.getMode();
             return data;
         }
@@ -866,7 +932,7 @@ public class EarthworkProject {
         ExclusionZone toExclusionZone() {
             ExclusionZone exclusion = new ExclusionZone(id);
             exclusion.setName(name);
-            exclusion.setOuterPoints(readPoints(outerPoints));
+            exclusion.setGeometry(readRegionGeometry(outerRing, outerPoints, holes));
             exclusion.setMode(mode);
             return exclusion;
         }

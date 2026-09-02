@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.RegionGeometry;
 
 import java.util.List;
 
@@ -26,6 +27,10 @@ public class GradingZone {
 
     public GradingZone(String id, List<Vec2d> outerPoints) {
         this(new GradingRegion(id, outerPoints));
+    }
+
+    public GradingZone(String id, RegionGeometry geometry) {
+        this(new GradingRegion(id, geometry));
     }
 
     public GradingZone(GradingRegion region) {
@@ -59,6 +64,26 @@ public class GradingZone {
 
     public void setOuterPoints(List<Vec2d> outerPoints) {
         region.setOuterPoints(outerPoints);
+    }
+
+    public RegionGeometry getGeometry() {
+        return region.getGeometry();
+    }
+
+    public void setGeometry(RegionGeometry geometry) {
+        region.setGeometry(geometry);
+    }
+
+    public List<List<Vec2d>> getHoles() {
+        return region.getHoles();
+    }
+
+    public void setHoles(List<List<Vec2d>> holes) {
+        region.setHoles(holes);
+    }
+
+    public boolean containsCanvasPoint(Vec2d canvasPoint) {
+        return region.containsCanvasPoint(canvasPoint);
     }
 
     public GradingZoneType getType() {

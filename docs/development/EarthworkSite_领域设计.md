@@ -2,8 +2,8 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase F+ 已实施（挡土墙边界联动 + 分区边界同步）  
-> **版本**：`schemaVersion: 2`  
+> **状态**：Phase 13 已实施（RegionGeometry 带孔洞 + ExclusionZone 正式几何）  
+> **版本**：`schemaVersion: 2`（JSON 增量字段 `outerRing` / `holes`，兼容 `outerPoints`）  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
 ---
@@ -15,12 +15,12 @@
 `GradingRegion` 表达的是：
 
 ```
-二维多边形 outerPoints
-    + 单一设计曲面（GradingPlane）
-    → 整块区域统一挖填到该曲面
+RegionGeometry { outerRing, holes[] }
+    + 设计曲面 / 排除模式
+    → 有效参与挖填的格点子集
 ```
 
-对应代码：`GradingSurfaceResolver` + `EarthworkGenerator` 四步管线（Capture → Solve → Compute → Voxel）。
+对应代码：`RegionGeometry` + `PolygonRegionUtils` + `DesignTerrainComposer`。
 
 ### 1.2 真实建筑场地的语义缺口
 
@@ -31,7 +31,8 @@
 | Basement Excavation | 基坑底 + 工作面 + 放坡 | ❌ |
 | Road / Plaza / Landscape | 分区不同设计标高 | ❌（道路在 Road 插件） |
 | Retaining Wall | 挡土 / 垂直界 | ❌ |
-| Exclusion Zone | 不动土区 | ❌ |
+| Exclusion Zone | 不动土区 / 保留岛 / 中庭 | ✅ `ExclusionZone` + `RegionGeometry.holes` |
+| Region holes | 建筑保留区、水池、已建构筑物 | ✅ `GradingZone.holes` |
 | **Design Terrain** | 多分区合成后的最终设计地形 | ❌（仅单平面） |
 | Existing Terrain | 可审计的现状基准 | ✅ `TerrainSnapshot`（未入持久化模型） |
 
@@ -154,6 +155,53 @@ class EarthworkSite {
 - 无侧车文件时，预览必须重新 `captureFresh()`。
 - `contentFingerprint` 算法与 `TerrainSnapshot.computeContentFingerprint()` 一致。
 
+### 4.2.1 RegionGeometry（Phase 13）
+
+所有平面分区（`GradingZone`、`ExclusionZone`、`DesignSurfaceFacet`）共享的几何模型：
+
+```java
+class RegionGeometry {
+    List<Vec2d> outerRing;          // 外环（≥3 点）
+    List<List<Vec2d>> holes;        // 内环孔洞（可空）
+}
+```
+
+```json
+{
+  "outerRing": [
+    { "x": 0, "y": 0 },
+    { "x": 20, "y": 0 },
+    { "x": 20, "y": 20 },
+    { "x": 0, "y": 20 }
+  ],
+  "holes": [
+    [
+      { "x": 6, "y": 6 },
+      { "x": 14, "y": 6 },
+      { "x": 14, "y": 14 },
+      { "x": 6, "y": 14 }
+    ]
+  ]
+}
+```
+
+**语义**
+
+- 格点 `(x,z)` 在区域内 ⟺ 位于 `outerRing` 内且不在任一 `holes` 内。
+- 净面积 = `|outerRing|` − Σ`|hole|`（`GradingZone.computeArea()`、`ZoneOverlapAnalyzer` 面积裁决）。
+- `outerPoints` 为 **读兼容别名**：反序列化时若 `outerRing` 为空则回退 `outerPoints`；序列化时同时写出两者。
+
+**典型孔洞用途**
+
+| 场景 | 建模方式 |
+|------|---------|
+| 建筑保留区 / 已建构筑物 | `GradingZone.holes` 或独立 `ExclusionZone` |
+| 水池 / 禁挖区 | `ExclusionZone`（`PRESERVE_EXISTING` / `NO_TOUCH`） |
+| 中庭（场地内岛，不整平） | `GradingZone` 外环 + `holes`，或环形 `ExclusionZone` |
+| `MULTI_PLANE` 子面片 | `DesignSurfaceFacet` 同样支持 `holes` |
+
+**边界放坡**：`ZoneEdgeSettings.edgeIndex` 仅索引 **外环** 边；孔洞边默认垂直截止（后续可扩展 `holeEdgeOverrides`）。
+
 ### 4.3 GradingZone（抽象）
 
 所有设计分区共享：
@@ -163,7 +211,8 @@ class EarthworkSite {
 | `id` | string | UUID |
 | `name` | string | 显示名 |
 | `type` | enum | 见 4.4 |
-| `outerPoints` | Vec2d[] | 分区平面范围 |
+| `outerRing` / `outerPoints` | Vec2d[] | 外环；`outerPoints` 为兼容字段 |
+| `holes` | Vec2d[][] | 内环孔洞（可选） |
 | `priority` | int | 合成优先级，越大越优先 |
 | `enabled` | bool | 是否参与合成 |
 | `materialOverride` | MaterialModel? | 空则用 Site 默认 |
@@ -277,6 +326,42 @@ class EarthworkSite {
 
 求解器：`DesignSurfaceResolver`（从 `GradingSurfaceResolver` 演进），输入 Zone + `ExistingTerrain` 采样，输出 `GradingPlane` 或 `DesignVolume`（基坑体）。
 
+**Phase G 重命名与扩展**（`DesignSurfaceKind` / `GradingSurfaceMode`，旧 ID 反序列化兼容）：
+
+| 旧 kind | 新 kind | 说明 |
+|---------|---------|------|
+| `FLAT` | `LEVEL_PAD` | 水平整平 |
+| `FIXED_SLOPE` | `SINGLE_SLOPE_PLANE` | 单向放坡平面 |
+| `THREE_POINT` | `THREE_POINT_PLANE` | 三点定面 |
+| `FIT_SLOPE` | `BEST_FIT_PLANE` | 最佳拟合平面 |
+| — | `MATCH_EXISTING` | `DesignY = ExistingY + verticalOffset` |
+| — | `MULTI_PLANE` | `facets[]` 多面片，最小包含面片优先 |
+| — | `DRAINAGE_SURFACE` | 排水面（当前委托 `BEST_FIT_PLANE`） |
+
+`MULTI_PLANE` 示例：
+
+```json
+{
+  "kind": "MULTI_PLANE",
+  "facets": [
+    {
+      "outerPoints": [ {"x":0,"y":0}, {"x":10,"y":0}, {"x":10,"y":10}, {"x":0,"y":10} ],
+      "kind": "LEVEL_PAD",
+      "manualTargetElevation": 68
+    }
+  ]
+}
+```
+
+`MATCH_EXISTING` 示例：
+
+```json
+{
+  "kind": "MATCH_EXISTING",
+  "verticalOffset": 2
+}
+```
+
 ### 4.6 Breakline
 
 场地内**不可随意跨区插值**的折线（挡土墙脚、道路红线、建筑退线等）。
@@ -314,15 +399,18 @@ class EarthworkSite {
 
 Phase D 才生成挡土墙实体；MVP 仅影响 Design Terrain 在边缘的截止方式。
 
-### 4.8 ExclusionZone
+### 4.8 ExclusionZone（正式排除区）
 
-不参与挖填的分区（保留现状或保护构筑物）。
+Site 级**排除区**实体：不参与（或单独处理）挖填的子区域，优先级高于 `GradingZone`（`exclusionPrecedence: ABSOLUTE`）。
+
+适用：建筑保留区、水池、已建构筑物、中庭、禁挖区等。几何使用 `RegionGeometry`（外环 + 孔洞），例如环形保留带 = 外环减去中心孔洞。
 
 ```json
 {
   "id": "ex-001",
-  "name": "Protected trees",
-  "outerPoints": [ ... ],
+  "name": "Courtyard preserve",
+  "outerRing": [ ... ],
+  "holes": [ [ ... ] ],
   "mode": "PRESERVE_EXISTING"
 }
 ```
@@ -339,6 +427,9 @@ Site 级合成策略（可配置，MVP 用默认值）。
 ```json
 {
   "overlapResolution": "HIGHEST_PRIORITY_WINS",
+  "balanceScope": "SITE_WIDE",
+  "balanceMethod": "ZONE_ALLOCATION",
+  "balanceResidualUniformPolish": true,
   "outsideSiteBoundary": "IGNORE",
   "exclusionPrecedence": "ABSOLUTE",
   "breaklinePrecedence": "ABSOLUTE",
@@ -348,7 +439,10 @@ Site 级合成策略（可配置，MVP 用默认值）。
 
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
-| `overlapResolution` | `HIGHEST_PRIORITY_WINS` | 多 Zone 覆盖同一格时的裁决 |
+| `overlapResolution` | `HIGHEST_PRIORITY_WINS` | 多 Zone 覆盖同一格时的裁决；`LARGEST_ZONE_WINS` 为面积较小者优先 |
+| `balanceScope` | `SITE_WIDE` | `PER_ZONE`：各分区在设计面解析阶段自平衡；`SITE_WIDE`：合成后全场统筹 |
+| `balanceMethod` | `ZONE_ALLOCATION` | 仅 `SITE_WIDE` 生效：`ZONE_ALLOCATION` 按调配矩阵分区 ΔY；`UNIFORM_OFFSET` 全场统一 ΔY |
+| `balanceResidualUniformPolish` | `true` | `ZONE_ALLOCATION` 后是否对残余挖填差再做一次全场统一抛光 |
 | `exclusionPrecedence` | `ABSOLUTE` | 排除区永远优先 |
 | `breaklinePrecedence` | `ABSOLUTE` | Breakline 侧归属优先于纯距离 |
 | `blendWidthBlocks` | `0` | MVP 不混合；>0 时在交界做高程混合（Phase D） |
@@ -392,9 +486,34 @@ class DesignTerrainGrid {
   },
   "byZone": {
     "zone-pad": { "geometricCutVolume": 8000, "..." : "..." }
+  },
+  "allocationMatrix": {
+    "transfers": [
+      { "sourceZoneId": "zone-cut", "destinationZoneId": "zone-fill", "volume": 6000 },
+      { "sourceZoneId": "zone-cut", "destinationZoneId": "__EXPORT__", "volume": 1000 }
+    ]
+  },
+  "balanceScope": "SITE_WIDE",
+  "siteWideVerticalOffset": 0,
+  "zoneVerticalOffsets": {
+    "zone-cut": 10,
+    "zone-fill": -12
   }
 }
 ```
+
+`EarthworkProjectReport`（Phase 12）在 `EarthworkVolumeReport` 基础上增加：
+
+| 字段 | 说明 |
+|------|------|
+| `totalCut` / `totalFill` | 全场几何挖填合计 |
+| `reusableCut` / `importRequired` / `exportRequired` | 材料调配后的可再利用挖方、缺方外借、余方外运 |
+| `byZone` | 分区分项方量 |
+| `overlaps` | 分区重叠冲突摘要（`ZoneOverlapAnalyzer`） |
+| `allocationMatrix` | 贪心调配矩阵 A→B / 进出口（`EarthworkAllocationMatrix`） |
+| `balanceScope` | 本次合成使用的平衡范围 |
+| `siteWideVerticalOffset` | 全场统一竖向调整量（`UNIFORM_OFFSET` 或残余抛光） |
+| `zoneVerticalOffsets` | 分区竖向调整量（`ZONE_ALLOCATION`） |
 
 ---
 
@@ -431,7 +550,7 @@ cell.excluded        = false
 
 **Step 1 — 排除区（最高优先级）**
 
-对每个 `ExclusionZone` 多边形 `E`：
+对每个 `ExclusionZone` 区域 `E`（`RegionGeometry`，含孔洞）：
 
 ```
 if E.contains(x,z):
@@ -464,7 +583,7 @@ cell.zoneId = side == LEFT ? breakline.leftZoneId : breakline.rightZoneId
 对每个未排除格点 `(x,z)`：
 
 ```
-candidates = [ z ∈ gradingZones | z.enabled && z.outerPoints.contains(x,z) ]
+candidates = [ z ∈ gradingZones | z.enabled && z.geometry.contains(x,z) ]
 if candidates empty:
     keep cell.targetY = existingGroundY
 else:
@@ -480,11 +599,42 @@ else:
 - 若并列，取面积较小者（更具体的分区赢）；
 - 若仍并列，取 `id` 字典序（确定性）。
 
-**Step 4 — 裁剪到 Site Boundary**
+**Step 4 — 全场土方平衡（Phase 12，可选）**
+
+在 Zone 覆盖之后、交界混合之前，根据 `compositionPolicy.balanceScope`：
+
+```
+if balanceScope == PER_ZONE:
+    // 各 Zone 已在 DesignSurfaceResolver 内自平衡，跳过
+    pass
+else if balanceScope == SITE_WIDE && zoneCount >= 2:
+    if balanceMethod == ZONE_ALLOCATION:
+        matrix = EarthworkAllocationMatrix.fromZoneReports(byZoneVolumes)
+        ∀ zone: ΔY_zone = round(allocationIntent_zone / cellCount_zone)
+        apply ΔY_zone to cells where cell.zoneId == zone.id
+        if balanceResidualUniformPolish:
+            δ = SiteWideBalanceAdjuster.findBalancedVerticalOffset(all cells)
+            apply uniform δ
+    else if balanceMethod == UNIFORM_OFFSET:
+        δ = SiteWideBalanceAdjuster.findBalancedVerticalOffset(all cells)
+        apply uniform δ to all participating cells
+```
+
+`SITE_WIDE` 时 `DesignSurfaceResolver` 传入 `deferBalanceToSite=true`：水平分区用平均地面代替逐区 `autoBalance`，拟合坡面跳过逐区截距平衡。
+
+**Step 5 — 交界混合（Phase D）**
+
+`TerrainBoundaryBlender` 在 `blendWidthBlocks > 0` 时，对 overlap 格点在 winner / runner-up 标高间插值。
+
+**Step 6 — 分区边界放坡（Phase F）**
+
+`ZoneBoundarySlopeApplicator` 按 `ZoneEdgeSettings` 处理挖填放坡、挡土边等。
+
+**Step 7 — 裁剪到 Site Boundary**
 
 格点已在 Step 0 限制在 `siteBoundary` 内；`outsideSiteBoundary: IGNORE` 不生成 cell。
 
-**Step 5 — 输出校验**
+**Step 8 — 输出校验**
 
 ```
 ∀ cell: cell.targetY ∈ [world.bottomY, world.topY]（或软警告）
@@ -705,9 +855,12 @@ FLAT | SLOPED | BUILDING_PAD | EXCAVATION_PIT | TERRAIN_FIT | ROAD_CORRIDOR | LA
 ### 6.4 DesignSurface.kind 枚举
 
 ```
-FLAT | FIXED_SLOPE | THREE_POINT | FIT_SLOPE
-CONSTANT_ELEVATION | EXCAVATION_PIT    (Phase C+)
+LEVEL_PAD | SINGLE_SLOPE_PLANE | THREE_POINT_PLANE | BEST_FIT_PLANE
+MATCH_EXISTING | MULTI_PLANE | DRAINAGE_SURFACE          (Phase G)
+CONSTANT_ELEVATION | EXCAVATION_PIT                    (Phase C+)
 ```
+
+旧 JSON 值 `FLAT` / `FIXED_SLOPE` / `THREE_POINT` / `FIT_SLOPE` 反序列化时自动映射为新枚举。
 
 ### 6.5 侧车文件：`snapshots/*.json`
 
@@ -800,6 +953,11 @@ project.activeSiteId = site.id
 | `TerrainSnapshotCapture` | Step 1（已有） |
 | `DesignSurfaceResolver` | 每 Zone 解析 `GradingPlane`（自 `GradingSurfaceResolver`） |
 | `DesignTerrainComposer` | 第 5 节合成算法 |
+| `SiteWideBalanceAdjuster` | 全场统一 ΔY 平衡（Phase 12b） |
+| `ZoneAllocationBalanceAdjuster` | 按调配矩阵分区 ΔY + 可选残余抛光（Phase 12c） |
+| `EarthworkAllocationMatrix` | 分区→分区 / 进出口贪心调配（Phase 12） |
+| `ZoneOverlapAnalyzer` | 重叠检测与 priority 裁决（Phase 12） |
+| `EarthworkProjectReport` | 项目级平衡报告与调配摘要（Phase 12） |
 | `EarthworkVolumeCalculator` | 几何方量 + `EarthworkVolumeReport` |
 | `EarthworkVoxelGenerator` | `BlockRecord`（自 `EarthworkGenerator` Step 4） |
 | `SiteEarthworkPipeline` | 编排上述步骤 |
@@ -827,9 +985,11 @@ project.activeSiteId = site.id
 | 概览 | Site 列表 + Zone 树状结构 |
 | 认领 | 认领进当前 Site（不再裸建 Region） |
 | 编辑 | Site 红线 / Zone 边界 / Breakline / Exclusion |
-| 生成 | 显示 `existingTerrainRef` 时间 + 全场合计 + 分 Zone 方量 |
+| 生成 | 显示 `existingTerrainRef` 时间 + 全场合计 + 分 Zone 方量 + 调配矩阵 + 分区 ΔY |
 
 单 Zone 时 UI 与现版几乎相同，降低迁移成本。
+
+**Phase 12 UI**：合成设置中可切换 `balanceScope`（分区自平衡 / 全场统筹）、`balanceMethod`（分区调配 / 统一 ΔY）、`overlapResolution`；生成报告展示 `allocationMatrix` 与 `zoneVerticalOffsets`。
 
 ---
 
@@ -847,18 +1007,26 @@ project.activeSiteId = site.id
 | **E+** | 道路走廊轮廓导入、中心线折线、挡土墙分区材质联动 | ✅ 已完成 |
 | **F** | 分区边界处理（`EdgeTreatment`、挖填放坡、逐边覆盖） | ✅ 已完成 |
 | **F+** | `RETAINING_WALL` 边界联动、虚拟挡土边、按格墙高、同步 UI | ✅ 已完成 |
+| **G** | 设计面分类重命名、`MATCH_EXISTING` / `MULTI_PLANE` / `DRAINAGE_SURFACE`、体素离散统一 | ✅ 已完成 |
+| **12** | 分区重叠检测、`EarthworkProjectReport`、调配矩阵 A→B / 进出口 | ✅ 已完成 |
+| **12b** | `SITE_WIDE` 合成阶段全场统一 ΔY（`SiteWideBalanceAdjuster`） | ✅ 已完成 |
+| **12c** | 按调配矩阵分区 ΔY（`ZoneAllocationBalanceAdjuster`）+ 残余抛光 + UI/报告 | ✅ 已完成 |
+| **13** | `RegionGeometry`（`outerRing` + `holes`）、孔洞感知合成/面积/JSON、`ExclusionZone` 正式几何 | ✅ 已完成 |
 
-**建议下一步**：多 Site 支持、侧车 snapshot 强制策略。
+**建议下一步**：多 Site 支持、侧车 snapshot 强制策略、`MULTI_PLANE` 分面绘制 UI、孔洞边放坡策略。
 
 ---
 
 ## 11. 开放问题
 
 1. **一个 Project 多个 Site？** 建议 MVP 限制为 1 个，JSON 仍用数组。
-2. **Zone 允许重叠吗？** 允许，靠 `priority` 裁决；UI 已在概览/编辑 Tab 显示重叠警告。
+2. **Zone 允许重叠吗？** 允许，靠 `priority`（或 `LARGEST_ZONE_WINS`）裁决；UI 在概览/编辑 Tab 显示重叠警告与 `EarthworkProjectReport.overlaps`。
 3. **侧车 snapshot 是否强制？** 建议预览成功后写入；无侧车时禁止离线查看断面，但允许重新捕获。
 4. **竖向基准 ±0.000 如何定义？** 建议与建筑 `baseElevation` 共用整数 Y，文档化「工程标高 = 方块 Y」。
 5. **基坑放坡与道路边坡边界？** 土方放坡改变 Design Terrain；道路边坡改变路面结构 — 两者在 `ROAD_CORRIDOR` 交界用 Breakline 分开。
+6. **全场平衡算法选型？** 已实现 `UNIFORM_OFFSET` 与 `ZONE_ALLOCATION`；更复杂的分区平面优化（非整格 ΔY）留作后续。
+7. **`MULTI_PLANE` 编辑体验？** 当前 JSON 可配置分面，画布分面绘制 UI 未实现。
+8. **孔洞边放坡？** 当前 `edgeIndex` 仅外环；孔洞边界默认垂直截止，复杂内边界放坡留作后续。
 
 ---
 
@@ -866,9 +1034,13 @@ project.activeSiteId = site.id
 
 - 现有任务书：`docs/development/task-assignments/EarthworkPlugin_开发任务书.md`
 - 代码入口：`EarthworkProject`、`GradingRegion`、`TerrainSnapshot`、`EarthworkGenerator`
+- 合成与平衡：`DesignTerrainComposer`、`DesignSurfaceResolver`、`SiteWideBalanceAdjuster`、`ZoneAllocationBalanceAdjuster`、`EarthworkAllocationMatrix`、`EarthworkProjectReport`
+- 区域几何：`RegionGeometry`、`PolygonRegionUtils`（孔洞感知 `contains` / 面积 / 格点采样）
+- 体素离散：`com.plot.core.geometry.VoxelElevationDiscretizer`（道路 `VoxelGradeDiscretizer` 委托）
 - 建筑对接：`BuildingFootprint`、`BuildingFoundationUtils.computeBaseElevation`
 - 道路对接：`TerrainSampler.sampleSurfaceY`、`RoadGenerator`
+- 集成测试：`DesignTerrainComposerTest`（重叠、排除区、孔洞分区、全场平衡端到端）、`PolygonRegionUtilsTest`、`EarthworkProjectTest`（`holes` JSON 往返）
 
 ---
 
-*文档维护：土方插件领域演进；实施 Phase A 时同步更新本节与 JSON 示例。*
+*文档维护：土方插件领域演进；Phase G / 12 / 13 实施时同步更新本节与 JSON 示例。*
