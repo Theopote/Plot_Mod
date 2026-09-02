@@ -50,6 +50,21 @@ class TerrainSnapshotTest {
     }
 
     @Test
+    void contentFingerprintDetectsGroundHeightChange() {
+        TerrainSnapshot before = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(0.5, 0.5), 0, 0, 64, "minecraft:grass_block", true)));
+        TerrainSnapshot after = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(0.5, 0.5), 0, 0, 70, "minecraft:grass_block", true)));
+        assertTrue(before.contentFingerprint() != after.contentFingerprint());
+    }
+
+    @Test
+    void emptySnapshotComparisonMatches() {
+        TerrainSnapshot.ComparisonResult result = TerrainSnapshot.empty().compareWithCurrentWorld(null);
+        assertTrue(result.matches());
+    }
+
+    @Test
     void matchesPreviewGridDelegatesToGeometryUtils() {
         Vec2d center = new Vec2d(10.5, 15.5);
         assertTrue(EarthworkGeometryUtils.matchesPreviewGrid(center, 1));

@@ -692,6 +692,7 @@ public class EarthworkPlugin extends Plugin {
             ImGui.text(PlotI18n.tr("plugin.earthwork.calc_results"));
             EarthworkVolumeReport volumes = lastGenerationResult.volumeReport;
             ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", lastGenerationResult.calculationCellCount));
+            renderTerrainSnapshotInfo(lastGenerationResult.existingTerrainSnapshot);
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_cut_volume", volumes.geometricCutVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_fill_volume", volumes.geometricFillVolume()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
@@ -803,6 +804,15 @@ public class EarthworkPlugin extends Plugin {
                 : 0L;
             ImGui.text(String.format(PlotI18n.tr("plugin.earthwork.build_confirm"), blockCount));
 
+            TerrainSnapshot.ComparisonResult terrainComparison = comparePreviewTerrainWithWorld();
+            boolean terrainStale = terrainComparison != null && terrainComparison.terrainChanged();
+            if (terrainStale) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.earthwork.terrain_changed_since_preview",
+                    terrainComparison.changedColumns(),
+                    terrainComparison.totalColumns()));
+            }
+
             com.plot.api.world.PlacementReadiness readiness =
                 ctx().projection().checkWorldModificationReadiness();
             if (!readiness.ready()) {
@@ -810,7 +820,17 @@ public class EarthworkPlugin extends Plugin {
             }
 
             ImGui.separator();
-            boolean canBuild = readiness.ready() && !ctx().placement().isBusy();
+            boolean canBuild = readiness.ready() && !ctx().placement().isBusy() && !terrainStale;
+            if (terrainStale) {
+                if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), 180, 0)) {
+                    GradingRegion region = project.getRegion(selectedRegionId);
+                    if (region != null) {
+                        calculatePreview(region);
+                    }
+                    ImGui.closeCurrentPopup();
+                }
+                ImGui.sameLine();
+            }
             if (!canBuild) {
                 ImGui.beginDisabled();
             }
@@ -827,6 +847,44 @@ public class EarthworkPlugin extends Plugin {
             }
             ImGui.endPopup();
         }
+    }
+
+    private void renderTerrainSnapshotInfo(TerrainSnapshot snapshot) {
+        if (snapshot == null || snapshot.isEmpty()) {
+            return;
+        }
+        TerrainSnapshot.Metadata metadata = snapshot.metadata();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.earthwork.terrain_snapshot_info",
+            formatTerrainSnapshotTime(metadata.capturedAtEpochMs()),
+            metadata.columnCount()));
+        TerrainSnapshot.ComparisonResult comparison = comparePreviewTerrainWithWorld();
+        if (comparison != null && comparison.terrainChanged()) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.earthwork.terrain_changed_since_preview",
+                comparison.changedColumns(),
+                comparison.totalColumns()));
+        }
+    }
+
+    private TerrainSnapshot.ComparisonResult comparePreviewTerrainWithWorld() {
+        if (lastGenerationResult == null || lastGenerationResult.existingTerrainSnapshot.isEmpty()) {
+            return null;
+        }
+        World world = getClientWorld();
+        if (world == null) {
+            return null;
+        }
+        return lastGenerationResult.existingTerrainSnapshot.compareWithCurrentWorld(world);
+    }
+
+    private static String formatTerrainSnapshotTime(long epochMs) {
+        if (epochMs <= 0L) {
+            return "-";
+        }
+        return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(java.time.ZoneId.systemDefault())
+            .format(java.time.Instant.ofEpochMilli(epochMs));
     }
 
     private void renderDeleteConfirmPopup() {
@@ -1039,7 +1097,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         try {
-            TerrainSnapshot terrain = terrainSnapshotCache.getOrCapture(
+            TerrainSnapshot terrain = terrainSnapshotCache.captureFresh(
                 region, world, ctx().coordinates());
             lastGenerationResult = earthworkGenerator.generate(region, world, terrain);
         } catch (Exception e) {

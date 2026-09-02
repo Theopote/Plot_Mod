@@ -48,6 +48,7 @@ public class EarthworkGenerator {
     }
 
     public static class EarthworkGenerationResult {
+        public TerrainSnapshot existingTerrainSnapshot = TerrainSnapshot.empty();
         public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
         public final Map<BlockPos, ChangeType> changeTypes = new LinkedHashMap<>();
         public final List<GridSample> gridSamples = new ArrayList<>();
@@ -80,19 +81,17 @@ public class EarthworkGenerator {
             return result;
         }
 
-        Polygon polygon = EarthworkGeometryUtils.toPolygon(outerPoints);
-        TerrainSnapshot terrain = terrainSnapshot;
-        if (terrain == null || terrain.isEmpty()) {
-            terrain = TerrainSnapshot.capture(world, polygon, outerPoints, coordinateTransformer);
-        }
+        // STEP 1 — Capture existing terrain
+        TerrainSnapshot terrain = captureExistingTerrain(region, world, outerPoints, terrainSnapshot);
         if (terrain.isEmpty()) {
             LOGGER.warn("整平区域无有效 footprint 格点");
             return result;
         }
+        result.existingTerrainSnapshot = terrain;
         result.calculationCellCount = terrain.columnCount();
 
-        GradingSurfaceResolver.ResolvedSurface surface = GradingSurfaceResolver.resolve(
-            region, terrain.centers(), terrain.groundHeights(), coordinateTransformer);
+        // STEP 2 — Solve design surface
+        GradingSurfaceResolver.ResolvedSurface surface = solveDesignSurface(region, terrain);
         GradingPlane plane = surface.plane();
         result.resolvedElevation = plane.isFlat()
             ? surface.elevationMin()
@@ -101,6 +100,44 @@ public class EarthworkGenerator {
         result.resolvedElevationMax = surface.elevationMax();
         result.slopedSurface = !plane.isFlat();
 
+        // STEP 3 & 4 — Compute earthwork + generate voxel changes
+        computeEarthworkAndVoxelChanges(region, world, terrain, plane, result);
+
+        region.setLastVolumeReport(result.volumeReport);
+        region.setLastResolvedElevation(result.resolvedElevation);
+        region.setLastResolvedElevationMin(result.resolvedElevationMin);
+        region.setLastResolvedElevationMax(result.resolvedElevationMax);
+        return result;
+    }
+
+    private TerrainSnapshot captureExistingTerrain(
+            GradingRegion region,
+            World world,
+            List<Vec2d> outerPoints,
+            TerrainSnapshot terrainSnapshot) {
+        if (terrainSnapshot != null && !terrainSnapshot.isEmpty()) {
+            return terrainSnapshot;
+        }
+        Polygon polygon = EarthworkGeometryUtils.toPolygon(outerPoints);
+        return TerrainSnapshot.capture(world, polygon, outerPoints, coordinateTransformer);
+    }
+
+    private GradingSurfaceResolver.ResolvedSurface solveDesignSurface(
+            GradingRegion region,
+            TerrainSnapshot terrain) {
+        return GradingSurfaceResolver.resolve(
+            region,
+            terrain.centers(),
+            terrain.groundHeights(),
+            coordinateTransformer);
+    }
+
+    private void computeEarthworkAndVoxelChanges(
+            GradingRegion region,
+            World world,
+            TerrainSnapshot terrain,
+            GradingPlane plane,
+            EarthworkGenerationResult result) {
         String fillBlockId = EarthworkGeometryUtils.resolveFillBlockId(region.getFillMaterial());
         String cutSurfaceBlockId = EarthworkGeometryUtils.resolveCutSurfaceBlockId(region.getCutExposeMaterial());
 
@@ -156,11 +193,6 @@ public class EarthworkGenerator {
             region.getMaterialProperties(),
             cutChangedBlocks,
             fillChangedBlocks);
-        region.setLastVolumeReport(result.volumeReport);
-        region.setLastResolvedElevation(result.resolvedElevation);
-        region.setLastResolvedElevationMin(result.resolvedElevationMin);
-        region.setLastResolvedElevationMax(result.resolvedElevationMax);
-        return result;
     }
 
     /**

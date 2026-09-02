@@ -33,6 +33,21 @@ public final class TerrainSnapshotCache {
 
     private final Map<String, Entry> byRegionId = new HashMap<>();
 
+    public TerrainSnapshot captureFresh(
+            GradingRegion region,
+            World world,
+            ICoordinateService transformer) {
+        TerrainSnapshot snapshot = captureForRegion(region, world, transformer);
+        if (region != null && !snapshot.isEmpty()) {
+            String regionId = region.getId();
+            byRegionId.put(regionId, new Entry(
+                TerrainSnapshotCache.outlineFingerprint(region.getOuterPoints()),
+                worldKey(world),
+                snapshot));
+        }
+        return snapshot;
+    }
+
     public TerrainSnapshot getOrCapture(
             GradingRegion region,
             World world,
@@ -59,18 +74,19 @@ public final class TerrainSnapshotCache {
         return snapshot;
     }
 
-    public void invalidateRegion(String regionId) {
-        if (regionId != null && !regionId.isBlank()) {
-            byRegionId.remove(regionId);
+    private TerrainSnapshot captureForRegion(
+            GradingRegion region,
+            World world,
+            ICoordinateService transformer) {
+        if (region == null) {
+            return TerrainSnapshot.empty();
         }
-    }
-
-    public void clear() {
-        byRegionId.clear();
-    }
-
-    public boolean isCached(String regionId) {
-        return regionId != null && byRegionId.containsKey(regionId);
+        List<Vec2d> outerPoints = region.getOuterPoints();
+        if (outerPoints.size() < 3) {
+            return TerrainSnapshot.empty();
+        }
+        Polygon polygon = EarthworkGeometryUtils.toPolygon(outerPoints);
+        return TerrainSnapshot.capture(world, polygon, outerPoints, transformer);
     }
 
     static long outlineFingerprint(List<Vec2d> outerPoints) {
@@ -85,6 +101,20 @@ public final class TerrainSnapshotCache {
             }
         }
         return hash;
+    }
+
+    public void invalidateRegion(String regionId) {
+        if (regionId != null && !regionId.isBlank()) {
+            byRegionId.remove(regionId);
+        }
+    }
+
+    public void clear() {
+        byRegionId.clear();
+    }
+
+    public boolean isCached(String regionId) {
+        return regionId != null && byRegionId.containsKey(regionId);
     }
 
     static String worldKey(World world) {

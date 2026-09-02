@@ -8,6 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerrainSnapshotCacheTest {
@@ -65,6 +66,20 @@ class TerrainSnapshotCacheTest {
         );
         assertTrue(TerrainSnapshotCache.outlineFingerprint(points)
             == TerrainSnapshotCache.outlineFingerprint(points));
+    }
+
+    @Test
+    void captureFreshReplacesCachedSnapshot() {
+        TerrainSnapshotCache cache = new TerrainSnapshotCache();
+        GradingRegion region = rectangleRegion();
+
+        TerrainSnapshot first = cache.captureFresh(region, null, null);
+        TerrainSnapshot second = cache.getOrCapture(region, null, null);
+        assertSame(first, second);
+
+        TerrainSnapshot refreshed = cache.captureFresh(region, null, null);
+        assertTrue(refreshed.metadata().capturedAtEpochMs() >= first.metadata().capturedAtEpochMs());
+        assertTrue(refreshed.columnCount() == first.columnCount());
     }
 
     private static GradingRegion rectangleRegion() {
