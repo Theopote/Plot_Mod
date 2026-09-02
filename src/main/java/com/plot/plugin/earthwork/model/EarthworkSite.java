@@ -232,7 +232,7 @@ public class EarthworkSite {
     }
 
     /**
-     * MVP：单分区且类型受支持时，直接委托现有 {@code EarthworkGenerator}。
+     * MVP：单分区且类型受支持时，委托 {@code LegacyRegionPipeline}。
      */
     public boolean delegatesToLegacyGenerator() {
         if (gradingZones.size() != 1) {

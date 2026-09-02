@@ -36,14 +36,6 @@ public final class EarthworkVoxelizer {
     }
 
     /**
-     * @deprecated 使用 {@link BlockSampler}。
-     */
-    @Deprecated
-    public EarthworkVoxelizer(com.plot.plugin.earthwork.EarthworkGenerator.BlockSampler legacySampler) {
-        this.blockSampler = legacySampler != null ? legacySampler::sampleBlockId : null;
-    }
-
-    /**
      * 对单列应用挖填；返回非零方量时表明该列参与了土方。
      */
     public CutFillClassifier.ColumnDelta applyColumn(

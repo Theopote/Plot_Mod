@@ -1,7 +1,6 @@
 package com.plot.plugin.earthwork.pipeline;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
@@ -19,7 +18,7 @@ import java.util.Map;
 /**
  * 场地级土方管线：Capture → Compose → Volume/Voxel → Retaining Wall。
  * <p>
- * Phase 17a：从 {@link EarthworkGenerator#generateSite} 抽出的编排入口；
+ * Phase 17a：场地级土方编排入口；
  * Phase 17c：设计面合成经 {@link DesignTerrainBuilder}，步骤实现见 {@link DefaultSiteEarthworkOperations}。
  */
 public final class SiteEarthworkPipeline {

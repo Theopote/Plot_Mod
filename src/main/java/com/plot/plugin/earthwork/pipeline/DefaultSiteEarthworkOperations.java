@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@link SiteEarthworkPipeline} 默认步骤实现，不依赖 {@link EarthworkGenerator} 内部类。
+ * {@link SiteEarthworkPipeline} 默认步骤实现。
  */
 public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperations {
 
