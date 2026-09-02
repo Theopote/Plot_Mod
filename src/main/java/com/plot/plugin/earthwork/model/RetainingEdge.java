@@ -19,6 +19,8 @@ public class RetainingEdge {
     private int bottomElevation;
     private String side = SIDE_CUT;
     private String wallMaterial = "minecraft:stone_bricks";
+    private String linkedZoneId = "";
+    private boolean useLinkedZoneFillMaterial;
 
     public RetainingEdge() {
     }
@@ -81,6 +83,22 @@ public class RetainingEdge {
 
     public void setWallMaterial(String wallMaterial) {
         this.wallMaterial = wallMaterial != null ? wallMaterial.trim() : "";
+    }
+
+    public String getLinkedZoneId() {
+        return linkedZoneId != null ? linkedZoneId : "";
+    }
+
+    public void setLinkedZoneId(String linkedZoneId) {
+        this.linkedZoneId = linkedZoneId != null ? linkedZoneId.trim() : "";
+    }
+
+    public boolean isUseLinkedZoneFillMaterial() {
+        return useLinkedZoneFillMaterial;
+    }
+
+    public void setUseLinkedZoneFillMaterial(boolean useLinkedZoneFillMaterial) {
+        this.useLinkedZoneFillMaterial = useLinkedZoneFillMaterial;
     }
 
     private static List<Vec2d> copyPoints(List<Vec2d> source) {

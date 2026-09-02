@@ -36,12 +36,13 @@ public final class RetainingWallGenerator {
             if (edge == null) {
                 continue;
             }
-            generateWall(edge, world, transformer, result, placedColumns);
+            generateWall(edge, site, world, transformer, result, placedColumns);
         }
     }
 
     private static void generateWall(
             RetainingEdge edge,
+            EarthworkSite site,
             World world,
             ICoordinateService transformer,
             EarthworkGenerator.EarthworkGenerationResult result,
@@ -55,7 +56,7 @@ public final class RetainingWallGenerator {
         if (top < bottom) {
             return;
         }
-        String wallBlockId = resolveWallBlockId(edge.getWallMaterial());
+        String wallBlockId = resolveWallBlockId(edge, site);
 
         for (int segmentIndex = 0; segmentIndex < polyline.size() - 1; segmentIndex++) {
             Vec2d start = polyline.get(segmentIndex);
@@ -95,6 +96,22 @@ public final class RetainingWallGenerator {
         }
         result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));
         result.changeTypes.put(pos, EarthworkGenerator.ChangeType.FILL);
+    }
+
+    private static String resolveWallBlockId(RetainingEdge edge, EarthworkSite site) {
+        if (edge != null && edge.isUseLinkedZoneFillMaterial() && site != null) {
+            String linkedZoneId = edge.getLinkedZoneId();
+            if (!linkedZoneId.isBlank()) {
+                var zone = site.getZone(linkedZoneId);
+                if (zone != null) {
+                    String fillMaterial = EarthworkGeometryUtils.resolveFillBlockId(zone.getFillMaterial());
+                    if (fillMaterial != null && !fillMaterial.isBlank()) {
+                        return fillMaterial;
+                    }
+                }
+            }
+        }
+        return resolveWallBlockId(edge != null ? edge.getWallMaterial() : "");
     }
 
     private static String resolveWallBlockId(String material) {

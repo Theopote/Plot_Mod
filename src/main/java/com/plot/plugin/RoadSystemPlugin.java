@@ -2,6 +2,7 @@ package com.plot.plugin;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.earthwork.RoadEarthworkCorridorResolver;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
@@ -16,6 +17,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.ui.component.ExtensionPanelIcons;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,5 +180,25 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
             return null;
         }
         return RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(networkManager.getNetwork(), edgeId, planPoint);
+    }
+
+    public List<Vec2d> resolveEarthworkCorridorOutline(String edgeId, int extraMarginBlocks) {
+        if (networkManager == null || config == null || edgeId == null || edgeId.isBlank()) {
+            return List.of();
+        }
+        return RoadEarthworkCorridorResolver.resolveOutline(
+            networkManager.getNetwork(),
+            networkManager.getNetwork().getEdge(edgeId),
+            config,
+            extraMarginBlocks);
+    }
+
+    public List<Vec2d> resolveEarthworkRoadCenterline(String edgeId) {
+        if (networkManager == null || edgeId == null || edgeId.isBlank()) {
+            return List.of();
+        }
+        return RoadEarthworkCorridorResolver.resolveCenterline(
+            networkManager.getNetwork(),
+            networkManager.getNetwork().getEdge(edgeId));
     }
 }

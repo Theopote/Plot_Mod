@@ -735,6 +735,8 @@ public class EarthworkProject {
         int bottomElevation;
         String side = RetainingEdge.SIDE_CUT;
         String wallMaterial = "minecraft:stone_bricks";
+        String linkedZoneId = "";
+        boolean useLinkedZoneFillMaterial;
 
         static RetainingEdgeData from(RetainingEdge edge) {
             RetainingEdgeData data = new RetainingEdgeData();
@@ -747,6 +749,8 @@ public class EarthworkProject {
             data.bottomElevation = edge.getBottomElevation();
             data.side = edge.getSide();
             data.wallMaterial = edge.getWallMaterial();
+            data.linkedZoneId = edge.getLinkedZoneId();
+            data.useLinkedZoneFillMaterial = edge.isUseLinkedZoneFillMaterial();
             return data;
         }
 
@@ -758,6 +762,8 @@ public class EarthworkProject {
             edge.setBottomElevation(bottomElevation);
             edge.setSide(side);
             edge.setWallMaterial(wallMaterial);
+            edge.setLinkedZoneId(linkedZoneId);
+            edge.setUseLinkedZoneFillMaterial(useLinkedZoneFillMaterial);
             return edge;
         }
     }

@@ -32,6 +32,7 @@ import com.plot.plugin.earthwork.model.RetainingEdge;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -602,12 +603,32 @@ public class EarthworkPlugin extends Plugin {
                 edge.setBottomElevation(bottomElevation[0]);
                 invalidatePreview();
             }
-            renderMaterialButton(PlotI18n.tr("plugin.earthwork.retaining_wall_material"), edge.getWallMaterial(),
-                blockId -> {
+            List<GradingZone> zones = new ArrayList<>(site.getGradingZones().values());
+            if (!zones.isEmpty()) {
+                String[] zoneLabels = zones.stream().map(GradingZone::getName).toArray(String[]::new);
+                String[] zoneIds = zones.stream().map(GradingZone::getId).toArray(String[]::new);
+                ImInt linkedIndex = new ImInt(indexOfZone(zoneIds, edge.getLinkedZoneId()));
+                ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+                if (ImGui.combo(PlotI18n.tr("plugin.earthwork.retaining_linked_zone"), linkedIndex, zoneLabels)) {
                     projectHistory.push(project);
-                    edge.setWallMaterial(blockId);
+                    edge.setLinkedZoneId(zoneIds[linkedIndex.get()]);
                     invalidatePreview();
-                });
+                }
+            }
+            ImBoolean useZoneFill = new ImBoolean(edge.isUseLinkedZoneFillMaterial());
+            if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.retaining_use_zone_fill_material"), useZoneFill)) {
+                projectHistory.push(project);
+                edge.setUseLinkedZoneFillMaterial(useZoneFill.get());
+                invalidatePreview();
+            }
+            if (!edge.isUseLinkedZoneFillMaterial()) {
+                renderMaterialButton(PlotI18n.tr("plugin.earthwork.retaining_wall_material"), edge.getWallMaterial(),
+                    blockId -> {
+                        projectHistory.push(project);
+                        edge.setWallMaterial(blockId);
+                        invalidatePreview();
+                    });
+            }
             ImGui.popID();
         }
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.add_retaining_edge"), 0, 0)) {
@@ -682,9 +703,77 @@ public class EarthworkPlugin extends Plugin {
                 "plugin.earthwork.baked_samples",
                 zone.getDesignSurface().getBakedElevationGrid().sampleCount()));
         }
+        int[] corridorMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.corridor_margin_blocks"), corridorMargin, 0, 8)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            zone.getDesignSurface().setWorkingMarginBlocks(corridorMargin[0]);
+            invalidatePreview();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.import_corridor_outline"), 0, 0)) {
+            importRoadCorridorOutline(zone);
+        }
+        ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.bake_road_elevations"), 0, 0)) {
             bakeRoadCorridorElevations(zone);
         }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.import_road_centerline_breakline"), 0, 0)) {
+            importRoadCenterlineBreakline(zone);
+        }
+    }
+
+    private void importRoadCorridorOutline(GradingZone zone) {
+        if (zone == null || zone.getRoadEdgeRef().isBlank()) {
+            return;
+        }
+        com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("road_system");
+        if (!(plugin instanceof RoadSystemPlugin roadPlugin)) {
+            return;
+        }
+        List<Vec2d> outline = roadPlugin.resolveEarthworkCorridorOutline(
+            zone.getRoadEdgeRef(),
+            zone.getDesignSurface().getWorkingMarginBlocks());
+        if (outline.size() < 3) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.import_corridor_failed");
+            return;
+        }
+        projectHistory.push(project);
+        zone.setOuterPoints(outline);
+        projectStatus = PlotI18n.tr("plugin.earthwork.import_corridor_success");
+        invalidatePreview();
+    }
+
+    private void importRoadCenterlineBreakline(GradingZone zone) {
+        if (zone == null || zone.getRoadEdgeRef().isBlank()) {
+            return;
+        }
+        EarthworkSite site = project.getActiveSite();
+        List<GradingZone> zones = new ArrayList<>(site.getGradingZones().values());
+        if (zones.size() < 2) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.breaklines_need_two_zones");
+            return;
+        }
+        com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("road_system");
+        if (!(plugin instanceof RoadSystemPlugin roadPlugin)) {
+            return;
+        }
+        List<Vec2d> centerline = roadPlugin.resolveEarthworkRoadCenterline(zone.getRoadEdgeRef());
+        if (centerline.size() < 2) {
+            projectStatus = PlotI18n.tr("plugin.earthwork.import_corridor_failed");
+            return;
+        }
+        projectHistory.push(project);
+        Breakline breakline = new Breakline(UUID.randomUUID().toString());
+        breakline.setName(PlotI18n.tr("plugin.earthwork.road_centerline_breakline_name", zone.getName()));
+        breakline.setPoints(centerline);
+        breakline.setRole(Breakline.ROLE_NO_BLENDING);
+        breakline.setLeftZoneId(zones.get(0).getId());
+        breakline.setRightZoneId(zones.get(1).getId());
+        site.addBreakline(breakline);
+        projectStatus = PlotI18n.tr("plugin.earthwork.import_road_centerline_success");
+        invalidatePreview();
     }
 
     private void bakeRoadCorridorElevations(GradingZone zone) {
