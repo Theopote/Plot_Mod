@@ -969,6 +969,7 @@
   "plugin.earthwork.edge_bench_width": "平台宽度（格，0=关闭）",
   "plugin.earthwork.edge_per_edge_overrides": "逐边覆盖",
   "plugin.earthwork.edge_item": "边 %d",
+  "plugin.earthwork.edge_show_canvas_overlay": "在画布显示边界策略着色",
   "plugin.earthwork.edge_use_zone_fill_material": "挡土墙使用分区填方材质",
   "plugin.earthwork.edge_wall_material": "挡土墙材质",
   "plugin.earthwork.edge_sync_retaining_edges": "从分区边界同步挡土边",

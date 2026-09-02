@@ -197,7 +197,7 @@ class EarthworkSite {
 | `RETAINING_WALL` | 垂直截止（实体墙由 `RetainingWallGenerator`） |
 | `MATCH_EXISTING` | 边界带内贴合现状高程 |
 
-`edgeIndex` 对应 `outerPoints[i] → outerPoints[i+1]`。合成后由 `ZoneBoundarySlopeApplicator` 修正 `DesignTerrainGrid`。
+`edgeIndex` 对应 `outerPoints[i] → outerPoints[i+1]`。合成后由 `ZoneBoundarySlopeApplicator` 修正 `DesignTerrainGrid`；画布上以颜色区分各边策略（见 `EarthworkEdgeTreatmentCanvasRenderer`）。
 
 ### 4.4 GradingZone 类型（MVP → 完整）
 

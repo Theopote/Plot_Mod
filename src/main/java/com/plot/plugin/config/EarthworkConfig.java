@@ -22,6 +22,7 @@ public class EarthworkConfig {
     @Deprecated
     private int gridSize;
     private boolean showGrid = true;
+    private boolean showEdgeTreatmentOverlay = true;
 
     // 计算设置
     private boolean autoBalance = true;
@@ -119,6 +120,14 @@ public class EarthworkConfig {
 
     public void setShowGrid(boolean showGrid) {
         this.showGrid = showGrid;
+    }
+
+    public boolean isShowEdgeTreatmentOverlay() {
+        return showEdgeTreatmentOverlay;
+    }
+
+    public void setShowEdgeTreatmentOverlay(boolean showEdgeTreatmentOverlay) {
+        this.showEdgeTreatmentOverlay = showEdgeTreatmentOverlay;
     }
 
     public boolean isAutoBalance() {

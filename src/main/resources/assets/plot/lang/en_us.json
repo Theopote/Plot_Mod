@@ -969,6 +969,7 @@
   "plugin.earthwork.edge_bench_width": "Bench width (blocks, 0=off)",
   "plugin.earthwork.edge_per_edge_overrides": "Per-edge overrides",
   "plugin.earthwork.edge_item": "Edge %d",
+  "plugin.earthwork.edge_show_canvas_overlay": "Show edge treatment on canvas",
   "plugin.earthwork.edge_use_zone_fill_material": "Use zone fill material for wall",
   "plugin.earthwork.edge_wall_material": "Retaining wall material",
   "plugin.earthwork.edge_sync_retaining_edges": "Sync retaining edges from zone boundary",

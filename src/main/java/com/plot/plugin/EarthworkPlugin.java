@@ -23,6 +23,8 @@ import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
+import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
+import com.plot.plugin.earthwork.EarthworkEdgeTreatmentColors;
 import com.plot.plugin.earthwork.ZoneBoundaryRetainingEdgeAdapter;
 import com.plot.plugin.earthwork.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
@@ -54,6 +56,8 @@ import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.core.plugin.PluginManager;
 import com.plot.ui.canvas.Canvas;
+import com.plot.ui.canvas.CanvasCamera;
+import com.plot.ui.canvas.CanvasOverlayRegistry;
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
@@ -114,6 +118,7 @@ public class EarthworkPlugin extends Plugin {
 
     private final ImBoolean autoBalanceRef = new ImBoolean(true);
     private final ImBoolean showGridRef = new ImBoolean(true);
+    private final ImBoolean showEdgeTreatmentOverlayRef = new ImBoolean(true);
     private final ImString regionNameBuffer = new ImString(64);
 
     private final EventListener projectLoadedListener = event -> {
@@ -126,6 +131,8 @@ public class EarthworkPlugin extends Plugin {
             onProjectSaved(saved.getFilePath());
         }
     };
+
+    private final CanvasOverlayRegistry.Overlay edgeTreatmentOverlay = this::renderEdgeTreatmentOverlay;
 
     public EarthworkPlugin() {
         super(
@@ -144,6 +151,7 @@ public class EarthworkPlugin extends Plugin {
         }
         autoBalanceRef.set(config.isAutoBalance());
         showGridRef.set(config.isShowGrid());
+        showEdgeTreatmentOverlayRef.set(config.isShowEdgeTreatmentOverlay());
 
         try {
             earthworkGenerator = new EarthworkGenerator(ctx().coordinates());
@@ -154,6 +162,7 @@ public class EarthworkPlugin extends Plugin {
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
+        CanvasOverlayRegistry.register(edgeTreatmentOverlay);
         loadProjectForCurrentProject();
     }
 
@@ -178,6 +187,19 @@ public class EarthworkPlugin extends Plugin {
             ctx().events().unsubscribeOwner(this);
         } catch (Exception e) {
             LOGGER.error("取消事件订阅失败: {}", e.getMessage(), e);
+        }
+        CanvasOverlayRegistry.unregister(edgeTreatmentOverlay);
+    }
+
+    private void renderEdgeTreatmentOverlay(imgui.ImDrawList drawList, CanvasCamera camera) {
+        if (!isEnabled() || config == null || !config.isShowEdgeTreatmentOverlay()) {
+            return;
+        }
+        synchronized (projectLock) {
+            if (project.getRegionCount() <= 0) {
+                return;
+            }
+            EarthworkEdgeTreatmentCanvasRenderer.render(drawList, camera, project, selectedRegionId);
         }
     }
 
@@ -538,6 +560,12 @@ public class EarthworkPlugin extends Plugin {
         ZoneEdgeSettings settings = zone.getEdgeSettings();
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.earthwork.edge_settings_header"));
+        showEdgeTreatmentOverlayRef.set(config.isShowEdgeTreatmentOverlay());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.edge_show_canvas_overlay"), showEdgeTreatmentOverlayRef)) {
+            config.setShowEdgeTreatmentOverlay(showEdgeTreatmentOverlayRef.get());
+            config.save();
+        }
+        renderEdgeTreatmentLegend();
 
         EdgeTreatment[] treatments = EdgeTreatment.values();
         String[] treatmentLabels = new String[treatments.length];
@@ -639,6 +667,19 @@ public class EarthworkPlugin extends Plugin {
             }
         }
         return false;
+    }
+
+    private void renderEdgeTreatmentLegend() {
+        EdgeTreatment[] treatments = EdgeTreatment.values();
+        for (int i = 0; i < treatments.length; i++) {
+            EdgeTreatment treatment = treatments[i];
+            if (i > 0) {
+                ImGui.sameLine();
+            }
+            ImGui.textColored(
+                EarthworkEdgeTreatmentColors.colorFor(treatment),
+                "■ " + PlotI18n.tr(treatment.i18nKey()));
+        }
     }
 
     private void renderBoundaryEdgeOverrides(

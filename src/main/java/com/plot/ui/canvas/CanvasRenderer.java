@@ -354,6 +354,7 @@ public class CanvasRenderer implements EventListener {
                     renderBackground(drawList);
                     renderGrid(drawList);
                     renderLayersBatch(drawList);
+                    CanvasOverlayRegistry.renderAll(drawList, core.getCamera());
 
                     if (core.isDirty(CanvasCore.DirtyType.CONTENT)) {
                         core.clearDirty(CanvasCore.DirtyType.CONTENT);
@@ -439,6 +440,8 @@ public class CanvasRenderer implements EventListener {
 
                                 // 【优化】批量渲染图层内容，提升效率
                                 renderLayersBatch(drawList);
+
+                                CanvasOverlayRegistry.renderAll(drawList, core.getCamera());
 
                                 // 清除内容脏标记（如果有的话）
                                 if (core.isDirty(CanvasCore.DirtyType.CONTENT)) {
