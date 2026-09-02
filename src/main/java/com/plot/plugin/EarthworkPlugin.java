@@ -23,6 +23,7 @@ import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
+import com.plot.plugin.earthwork.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
 import com.plot.plugin.earthwork.RoadCorridorBaker;
@@ -281,6 +282,7 @@ public class EarthworkPlugin extends Plugin {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_stats",
             project.getRegionCount(),
             String.format("%.1f", project.getTotalArea())));
+        renderSiteOverlapWarnings();
 
         if (project.getRegionCount() == 0) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.no_regions"));
@@ -395,6 +397,8 @@ public class EarthworkPlugin extends Plugin {
         if (ImGui.isItemActivated()) {
             projectHistory.push(project);
         }
+
+        renderSelectedZoneOverlapWarnings(region.getId());
 
         renderSurfaceModeSettings(region);
         renderZoneTypeSettings(region);
@@ -519,6 +523,55 @@ public class EarthworkPlugin extends Plugin {
         } else if (zone.getType() == GradingZoneType.ROAD_CORRIDOR) {
             renderRoadCorridorSettings(zone);
         }
+    }
+
+    private void renderSiteOverlapWarnings() {
+        if (project.getRegionCount() < 2) {
+            return;
+        }
+        List<ZoneOverlapAnalyzer.ZoneOverlap> overlaps =
+            ZoneOverlapAnalyzer.findOverlaps(project.getActiveSite());
+        if (overlaps.isEmpty()) {
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.WARNING_OVERLAP,
+            PlotI18n.tr("plugin.earthwork.zone_overlap_header", overlaps.size()));
+        float childHeight = Math.min(140f, overlaps.size() * 22f + 12f);
+        ImGui.beginChild("earthwork_site_overlap_warnings", 0, childHeight, true);
+        for (ZoneOverlapAnalyzer.ZoneOverlap overlap : overlaps) {
+            ImGui.bulletText(PlotI18n.tr(
+                "plugin.earthwork.zone_overlap_item",
+                overlap.zoneNameA(),
+                overlap.zoneNameB(),
+                overlap.winnerZoneName(),
+                overlap.overlapCells()));
+        }
+        ImGui.endChild();
+        ImGui.spacing();
+    }
+
+    private void renderSelectedZoneOverlapWarnings(String zoneId) {
+        if (zoneId == null || zoneId.isBlank() || project.getRegionCount() < 2) {
+            return;
+        }
+        List<ZoneOverlapAnalyzer.ZoneOverlap> overlaps =
+            ZoneOverlapAnalyzer.findOverlapsInvolving(project.getActiveSite(), zoneId);
+        if (overlaps.isEmpty()) {
+            return;
+        }
+        ImGui.textColored(
+            PluginUiColors.WARNING_OVERLAP,
+            PlotI18n.tr("plugin.earthwork.zone_overlap_selected_header"));
+        for (ZoneOverlapAnalyzer.ZoneOverlap overlap : overlaps) {
+            String otherName = overlap.zoneIdA().equals(zoneId) ? overlap.zoneNameB() : overlap.zoneNameA();
+            ImGui.bulletText(PlotI18n.tr(
+                "plugin.earthwork.zone_overlap_selected_item",
+                otherName,
+                overlap.winnerZoneName(),
+                overlap.overlapCells()));
+        }
+        ImGui.spacing();
     }
 
     private void renderCompositionSettings() {

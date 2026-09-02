@@ -816,14 +816,14 @@ project.activeSiteId = site.id
 | **E** | 道路标高烘焙、`BakedElevationGrid`、挡土墙实体生成 | ✅ 已完成 |
 | **E+** | 道路走廊轮廓导入、中心线折线、挡土墙分区材质联动 | ✅ 已完成 |
 
-**建议下一步**：多 Site 支持、重叠分区 UI 警告、侧车 snapshot 强制策略。
+**建议下一步**：多 Site 支持、侧车 snapshot 强制策略。
 
 ---
 
 ## 11. 开放问题
 
 1. **一个 Project 多个 Site？** 建议 MVP 限制为 1 个，JSON 仍用数组。
-2. **Zone 允许重叠吗？** 允许，靠 `priority` 裁决；UI 需显示重叠警告。
+2. **Zone 允许重叠吗？** 允许，靠 `priority` 裁决；UI 已在概览/编辑 Tab 显示重叠警告。
 3. **侧车 snapshot 是否强制？** 建议预览成功后写入；无侧车时禁止离线查看断面，但允许重新捕获。
 4. **竖向基准 ±0.000 如何定义？** 建议与建筑 `baseElevation` 共用整数 Y，文档化「工程标高 = 方块 Y」。
 5. **基坑放坡与道路边坡边界？** 土方放坡改变 Design Terrain；道路边坡改变路面结构 — 两者在 `ROAD_CORRIDOR` 交界用 Breakline 分开。
