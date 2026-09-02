@@ -30,10 +30,28 @@ import java.util.Map;
 public class EarthworkGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/EarthworkGenerator");
 
+    /**
+     * 测试用：按坐标采样方块 ID，优先于 {@link World} 读取。
+     */
+    @FunctionalInterface
+    public interface BlockSampler {
+        String sampleBlockId(BlockPos pos);
+    }
+
     private final ICoordinateService coordinateTransformer;
+    private final BlockSampler blockSampler;
 
     public EarthworkGenerator(ICoordinateService coordinateTransformer) {
+        this(coordinateTransformer, null);
+    }
+
+    EarthworkGenerator(ICoordinateService coordinateTransformer, BlockSampler blockSampler) {
         this.coordinateTransformer = coordinateTransformer;
+        this.blockSampler = blockSampler;
+    }
+
+    public EarthworkGenerator withBlockSampler(BlockSampler blockSampler) {
+        return new EarthworkGenerator(coordinateTransformer, blockSampler);
     }
 
     public enum ChangeType {
@@ -87,8 +105,12 @@ public class EarthworkGenerator {
             TerrainSnapshot terrainSnapshot,
             ZoneEdgeSettings edgeSettings) {
         EarthworkGenerationResult result = new EarthworkGenerationResult();
-        if (region == null || world == null) {
-            LOGGER.warn("整平区域或世界为空");
+        if (region == null) {
+            LOGGER.warn("整平区域为空");
+            return result;
+        }
+        if (world == null && (terrainSnapshot == null || terrainSnapshot.isEmpty())) {
+            LOGGER.warn("整平区域或现状快照为空");
             return result;
         }
 
@@ -157,8 +179,12 @@ public class EarthworkGenerator {
             BuildingFootprintLookup buildingLookup,
             RoadSurfaceLookup roadLookup) {
         EarthworkGenerationResult result = new EarthworkGenerationResult();
-        if (site == null || world == null) {
-            LOGGER.warn("场地或世界为空");
+        if (site == null) {
+            LOGGER.warn("场地为空");
+            return result;
+        }
+        if (world == null && (terrainSnapshot == null || terrainSnapshot.isEmpty())) {
+            LOGGER.warn("场地或现状快照为空");
             return result;
         }
 
@@ -460,6 +486,12 @@ public class EarthworkGenerator {
     }
 
     private String getBlockIdAt(World world, BlockPos pos) {
+        if (blockSampler != null) {
+            String sampled = blockSampler.sampleBlockId(pos);
+            if (sampled != null) {
+                return sampled;
+            }
+        }
         if (world == null || pos == null) {
             return Registries.BLOCK.getId(Blocks.AIR).toString();
         }

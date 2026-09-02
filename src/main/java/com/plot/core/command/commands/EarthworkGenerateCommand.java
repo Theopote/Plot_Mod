@@ -35,7 +35,7 @@ public class EarthworkGenerateCommand implements Command {
     }
 
     @FunctionalInterface
-    interface BlockWriter {
+    public interface BlockWriter {
         boolean setBlockAt(net.minecraft.util.math.BlockPos pos, String blockId);
     }
 
@@ -58,7 +58,7 @@ public class EarthworkGenerateCommand implements Command {
         this(records, projectionHandler::setBlockAt, true, placementScheduler);
     }
 
-    EarthworkGenerateCommand(List<BlockRecord> records, BlockWriter blockWriter) {
+    public EarthworkGenerateCommand(List<BlockRecord> records, BlockWriter blockWriter) {
         this(records, blockWriter, false, BlockPlacementScheduler.getInstance());
     }
 
