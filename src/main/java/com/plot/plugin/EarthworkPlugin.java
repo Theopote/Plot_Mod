@@ -16,6 +16,7 @@ import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkGenerator;
 import com.plot.plugin.earthwork.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
@@ -32,6 +33,11 @@ import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingSurfaceMode;
+import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.GradingZoneType;
+import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
+import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.core.plugin.PluginManager;
 import com.plot.ui.canvas.Canvas;
 import com.plot.ui.component.ExtensionPanelIcons;
 import com.plot.ui.component.UIUtils;
@@ -378,6 +384,7 @@ public class EarthworkPlugin extends Plugin {
         }
 
         renderSurfaceModeSettings(region);
+        renderZoneTypeSettings(region);
 
         renderMaterialPropertiesSettings(region);
 
@@ -408,6 +415,11 @@ public class EarthworkPlugin extends Plugin {
     }
 
     private void renderSurfaceModeSettings(GradingRegion region) {
+        GradingZone zone = project.getZone(region.getId());
+        if (zone != null && !zone.getType().isSupportedInMvp()) {
+            renderPhaseCZoneSettings(zone);
+            return;
+        }
         GradingSurfaceMode[] modes = GradingSurfaceMode.values();
         String[] modeLabels = new String[modes.length];
         for (int i = 0; i < modes.length; i++) {
@@ -432,6 +444,167 @@ public class EarthworkPlugin extends Plugin {
             case THREE_POINT -> renderThreePointSurfaceSettings(region);
             case FIT_SLOPE -> renderFitSlopeSettings(region);
         }
+    }
+
+    private void renderZoneTypeSettings(GradingRegion region) {
+        GradingZone zone = project.getZone(region.getId());
+        if (zone == null) {
+            return;
+        }
+        GradingZoneType[] types = {
+            GradingZoneType.FLAT,
+            GradingZoneType.SLOPED,
+            GradingZoneType.BUILDING_PAD,
+            GradingZoneType.EXCAVATION_PIT
+        };
+        String[] labels = new String[types.length];
+        int selectedIndex = 0;
+        for (int i = 0; i < types.length; i++) {
+            labels[i] = PlotI18n.tr("plugin.earthwork.zone_type." + types[i].name().toLowerCase());
+            if (types[i] == zone.getType()) {
+                selectedIndex = i;
+            }
+        }
+        ImInt typeIndex = new ImInt(selectedIndex);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.zone_type"), typeIndex, labels)) {
+            int picked = typeIndex.get();
+            if (picked >= 0 && picked < types.length && types[picked] != zone.getType()) {
+                projectHistory.push(project);
+                zone.setType(types[picked]);
+                invalidatePreview();
+            }
+        }
+
+        int[] priority = {zone.getPriority()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.zone_priority"), priority, 0, 200)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            zone.setPriority(priority[0]);
+            invalidatePreview();
+        }
+    }
+
+    private void renderPhaseCZoneSettings(GradingZone zone) {
+        if (zone.getType() == GradingZoneType.BUILDING_PAD) {
+            renderBuildingPadSettings(zone);
+        } else if (zone.getType() == GradingZoneType.EXCAVATION_PIT) {
+            renderExcavationPitSettings(zone);
+        }
+    }
+
+    private void renderBuildingPadSettings(GradingZone zone) {
+        List<BuildingFootprint> buildings = listAvailableBuildings();
+        if (!buildings.isEmpty()) {
+            String[] labels = buildings.stream().map(BuildingFootprint::getName).toArray(String[]::new);
+            String[] ids = buildings.stream().map(BuildingFootprint::getId).toArray(String[]::new);
+            int currentIndex = 0;
+            String currentRef = zone.getBuildingFootprintRef();
+            for (int i = 0; i < ids.length; i++) {
+                if (ids[i].equals(currentRef)) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+            ImInt buildingIndex = new ImInt(currentIndex);
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.combo(PlotI18n.tr("plugin.earthwork.building_footprint_ref"), buildingIndex, labels)) {
+                int picked = buildingIndex.get();
+                if (picked >= 0 && picked < ids.length) {
+                    projectHistory.push(project);
+                    zone.setBuildingFootprintRef(ids[picked]);
+                    zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+                    invalidatePreview();
+                }
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.import_building_outline"), 0, 0)) {
+                BuildingFootprint footprint = buildings.get(buildingIndex.get());
+                if (footprint != null) {
+                    projectHistory.push(project);
+                    zone.setOuterPoints(footprint.getOuterPoints());
+                    zone.setBuildingFootprintRef(footprint.getId());
+                    invalidatePreview();
+                }
+            }
+        } else {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.no_buildings_available"));
+        }
+
+        boolean useBuildingElevation = zone.getDesignSurface().getElevationSource()
+            == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION;
+        ImBoolean useBuildingRef = new ImBoolean(useBuildingElevation);
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.use_building_base_elevation"), useBuildingRef)) {
+            projectHistory.push(project);
+            zone.getDesignSurface().setElevationSource(useBuildingRef.get()
+                ? DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION
+                : DesignSurfaceElevationSource.MANUAL);
+            invalidatePreview();
+        }
+
+        if (!useBuildingRef.get()) {
+            Integer manual = zone.getDesignSurface().getElevation();
+            int initial = manual != null ? manual : 64;
+            int[] elevation = {initial};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pad_elevation"), elevation, -64, 320)) {
+                if (ImGui.isItemActivated()) {
+                    projectHistory.push(project);
+                }
+                zone.getDesignSurface().setElevation(elevation[0]);
+                invalidatePreview();
+            }
+        }
+    }
+
+    private void renderExcavationPitSettings(GradingZone zone) {
+        Integer bottom = zone.getDesignSurface().getBottomElevation();
+        int[] bottomElevation = {bottom != null ? bottom : 60};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_bottom_elevation"), bottomElevation, -64, 320)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            zone.getDesignSurface().setBottomElevation(bottomElevation[0]);
+            invalidatePreview();
+        }
+
+        int[] workingMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_margin"), workingMargin, 0, 8)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            zone.getDesignSurface().setWorkingMarginBlocks(workingMargin[0]);
+            invalidatePreview();
+        }
+
+        int[] slopePitch = {zone.getDesignSurface().getSlopePitchRatio()};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_slope_pitch"), slopePitch, 1, 16)) {
+            if (ImGui.isItemActivated()) {
+                projectHistory.push(project);
+            }
+            zone.getDesignSurface().setSlopePitchRatio(slopePitch[0]);
+            invalidatePreview();
+        }
+    }
+
+    private List<BuildingFootprint> listAvailableBuildings() {
+        com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("building");
+        if (plugin instanceof BuildingPlugin buildingPlugin) {
+            return buildingPlugin.listBuildingFootprints();
+        }
+        return List.of();
+    }
+
+    private BuildingFootprintLookup createBuildingFootprintLookup() {
+        return id -> {
+            if (id == null || id.isBlank()) {
+                return null;
+            }
+            com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("building");
+            if (plugin instanceof BuildingPlugin buildingPlugin) {
+                return buildingPlugin.getBuildingFootprint(id);
+            }
+            return null;
+        };
     }
 
     private void renderMaterialPropertiesSettings(GradingRegion region) {
@@ -1127,7 +1300,7 @@ public class EarthworkPlugin extends Plugin {
                 TerrainSnapshot terrain = terrainSnapshotCache.captureFreshSite(
                     site, world, ctx().coordinates());
                 lastGenerationResult = earthworkGenerator.generateSite(
-                    site, world, terrain, region);
+                    site, world, terrain, region, createBuildingFootprintLookup());
             }
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);

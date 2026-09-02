@@ -95,6 +95,10 @@ public class EarthworkProject {
         return zone != null ? zone.getRegion() : null;
     }
 
+    public GradingZone getZone(String id) {
+        return getActiveSite().getZone(id);
+    }
+
     public GradingRegion addRegion(GradingRegion region) {
         if (region == null) {
             throw new IllegalArgumentException("Grading region cannot be null");
@@ -482,6 +486,11 @@ public class EarthworkProject {
         double[] threePointCanvasX = new double[3];
         double[] threePointCanvasY = new double[3];
         int[] threePointElevation = new int[] {64, 64, 64};
+        Integer elevation;
+        String buildingFootprintRef = "";
+        String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
+        Integer bottomElevation;
+        int workingMarginBlocks = 1;
 
         static DesignSurfaceData from(DesignSurface surface) {
             DesignSurfaceData data = new DesignSurfaceData();
@@ -502,6 +511,11 @@ public class EarthworkProject {
                 data.threePointCanvasY[i] = surface.getThreePointCanvasY(i);
                 data.threePointElevation[i] = surface.getThreePointElevation(i);
             }
+            data.elevation = surface.getElevation();
+            data.buildingFootprintRef = surface.getBuildingFootprintRef();
+            data.elevationSource = surface.getElevationSource().name();
+            data.bottomElevation = surface.getBottomElevation();
+            data.workingMarginBlocks = surface.getWorkingMarginBlocks();
             return data;
         }
 
@@ -525,6 +539,11 @@ public class EarthworkProject {
                         threePointElevation[i]);
                 }
             }
+            surface.setElevation(elevation);
+            surface.setBuildingFootprintRef(buildingFootprintRef);
+            surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
+            surface.setBottomElevation(bottomElevation);
+            surface.setWorkingMarginBlocks(workingMarginBlocks);
             return surface;
         }
     }
@@ -535,6 +554,7 @@ public class EarthworkProject {
         String type = GradingZoneType.FLAT.name();
         int priority = GradingZone.DEFAULT_PRIORITY;
         boolean enabled = true;
+        String buildingFootprintRef = "";
         List<Vec2dData> outerPoints = new ArrayList<>();
         MaterialData materialOverride;
         MaterialData materialModel = new MaterialData();
@@ -551,6 +571,7 @@ public class EarthworkProject {
             data.type = zone.getType().name();
             data.priority = zone.getPriority();
             data.enabled = zone.isEnabled();
+            data.buildingFootprintRef = zone.getBuildingFootprintRef();
             for (Vec2d point : zone.getOuterPoints()) {
                 data.outerPoints.add(new Vec2dData(point));
             }
@@ -576,6 +597,9 @@ public class EarthworkProject {
             zone.setType(GradingZoneType.fromId(type));
             zone.setPriority(priority);
             zone.setEnabled(enabled);
+            if (buildingFootprintRef != null && !buildingFootprintRef.isBlank()) {
+                zone.setBuildingFootprintRef(buildingFootprintRef);
+            }
             if (materialOverride != null) {
                 zone.setMaterialOverride(materialOverride.toProperties());
             }

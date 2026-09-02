@@ -21,6 +21,12 @@ public class DesignSurface {
     private final double[] threePointCanvasY = new double[3];
     private final int[] threePointElevation = new int[] {64, 64, 64};
 
+    private Integer elevation;
+    private String buildingFootprintRef = "";
+    private String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
+    private Integer bottomElevation;
+    private int workingMarginBlocks = 1;
+
     public DesignSurfaceKind getKind() {
         return kind != null ? kind : DesignSurfaceKind.FLAT;
     }
@@ -113,6 +119,46 @@ public class DesignSurface {
             threePointCanvasY[safeIndex] = canvasPoint.y;
         }
         threePointElevation[safeIndex] = elevation;
+    }
+
+    public Integer getElevation() {
+        return elevation;
+    }
+
+    public void setElevation(Integer elevation) {
+        this.elevation = elevation;
+    }
+
+    public String getBuildingFootprintRef() {
+        return buildingFootprintRef != null ? buildingFootprintRef : "";
+    }
+
+    public void setBuildingFootprintRef(String buildingFootprintRef) {
+        this.buildingFootprintRef = buildingFootprintRef != null ? buildingFootprintRef.trim() : "";
+    }
+
+    public DesignSurfaceElevationSource getElevationSource() {
+        return DesignSurfaceElevationSource.fromId(elevationSource);
+    }
+
+    public void setElevationSource(DesignSurfaceElevationSource elevationSource) {
+        this.elevationSource = elevationSource != null ? elevationSource.name() : DesignSurfaceElevationSource.MANUAL.name();
+    }
+
+    public Integer getBottomElevation() {
+        return bottomElevation;
+    }
+
+    public void setBottomElevation(Integer bottomElevation) {
+        this.bottomElevation = bottomElevation;
+    }
+
+    public int getWorkingMarginBlocks() {
+        return workingMarginBlocks;
+    }
+
+    public void setWorkingMarginBlocks(int workingMarginBlocks) {
+        this.workingMarginBlocks = Math.max(0, workingMarginBlocks);
     }
 
     public static DesignSurface fromGradingRegion(GradingRegion region) {

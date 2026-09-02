@@ -95,7 +95,6 @@ public class EarthworkSite {
         if (zone == null) {
             throw new IllegalArgumentException("Grading zone cannot be null");
         }
-        zone.syncDesignSurfaceFromRegion();
         gradingZones.put(zone.getId(), zone);
         refreshSiteBoundaryIfNeeded();
         return zone;

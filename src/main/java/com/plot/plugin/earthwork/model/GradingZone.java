@@ -16,6 +16,7 @@ public class GradingZone {
     private boolean enabled = true;
     private EarthMaterialProperties materialOverride;
     private DesignSurface designSurface = new DesignSurface();
+    private String buildingFootprintRef = "";
 
     public GradingZone(List<Vec2d> outerPoints) {
         this(new GradingRegion(outerPoints));
@@ -64,6 +65,32 @@ public class GradingZone {
 
     public void setType(GradingZoneType type) {
         this.type = type != null ? type : GradingZoneType.FLAT;
+        applyDefaultDesignSurfaceForType(this.type);
+    }
+
+    public String getBuildingFootprintRef() {
+        return buildingFootprintRef != null ? buildingFootprintRef : "";
+    }
+
+    public void setBuildingFootprintRef(String buildingFootprintRef) {
+        this.buildingFootprintRef = buildingFootprintRef != null ? buildingFootprintRef.trim() : "";
+        if (!this.buildingFootprintRef.isBlank()) {
+            getDesignSurface().setBuildingFootprintRef(this.buildingFootprintRef);
+        }
+    }
+
+    private void applyDefaultDesignSurfaceForType(GradingZoneType zoneType) {
+        DesignSurface surface = getDesignSurface();
+        if (zoneType == GradingZoneType.BUILDING_PAD) {
+            surface.setKind(DesignSurfaceKind.CONSTANT_ELEVATION);
+            if (surface.getElevationSource() == DesignSurfaceElevationSource.MANUAL
+                && surface.getElevation() == null
+                && !getBuildingFootprintRef().isBlank()) {
+                surface.setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+            }
+        } else if (zoneType == GradingZoneType.EXCAVATION_PIT) {
+            surface.setKind(DesignSurfaceKind.EXCAVATION_PIT);
+        }
     }
 
     public int getPriority() {
@@ -154,6 +181,9 @@ public class GradingZone {
      * 从 {@link GradingRegion} 同步设计面（UI 编辑后调用）。
      */
     public void syncDesignSurfaceFromRegion() {
+        if (type == GradingZoneType.BUILDING_PAD || type == GradingZoneType.EXCAVATION_PIT) {
+            return;
+        }
         getDesignSurface().syncFrom(region);
         type = GradingZoneType.fromSurfaceMode(region.getSurfaceMode());
     }
@@ -164,5 +194,9 @@ public class GradingZone {
 
     public boolean isDelegatableToLegacyGenerator() {
         return enabled && getType().isSupportedInMvp();
+    }
+
+    public boolean isSupportedInComposer() {
+        return enabled && getType().isSupportedInComposer();
     }
 }

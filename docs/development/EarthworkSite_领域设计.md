@@ -2,7 +2,7 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase B 已实施（多分区合成 + 分 Zone 方量）  
+> **状态**：Phase C 已实施（建筑地坪 + 基坑 + 建筑引用）  
 > **版本**：`schemaVersion: 2`  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
@@ -807,12 +807,12 @@ project.activeSiteId = site.id
 
 | 阶段 | 交付 | 风险 |
 |------|------|------|
-| **A** | `EarthworkSite` 模型 + v1→v2 迁移 + 单 Zone 委托旧 Generator | 低 |
+| **A** | `EarthworkSite` 模型 + v1→v2 迁移 + 单 Zone 委托旧 Generator | ✅ 已完成 |
 | **B** | `DesignTerrainComposer` + 多 Zone priority 合成 + 分 Zone 方量 | ✅ 已完成 |
-| **C** | `BUILDING_PAD` / `EXCAVATION_PIT` + 建筑引用 | 中 |
+| **C** | `BUILDING_PAD` / `EXCAVATION_PIT` + 建筑引用 | ✅ 已完成 |
 | **D** | Breakline 侧归属、道路/景观集成、blend | 高 |
 
-**建议下一步（Phase A）**：只加模型与 JSON，不改合成算法；UI 文案改为「场地 / 分区」。
+**建议下一步（Phase D）**：Breakline 侧归属合成、道路走廊引用与交界混合。
 
 ---
 

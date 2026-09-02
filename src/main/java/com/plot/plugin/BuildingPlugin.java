@@ -1100,4 +1100,16 @@ public class BuildingPlugin extends Plugin {
     private Path getProjectsDir() {
         return getDataFolder().toPath().resolve("projects");
     }
+
+    public BuildingFootprint getBuildingFootprint(String id) {
+        synchronized (projectLock) {
+            return project.getBuilding(id);
+        }
+    }
+
+    public List<BuildingFootprint> listBuildingFootprints() {
+        synchronized (projectLock) {
+            return new ArrayList<>(project.getBuildings().values());
+        }
+    }
 }

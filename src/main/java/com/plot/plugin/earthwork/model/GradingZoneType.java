@@ -36,4 +36,11 @@ public enum GradingZoneType {
     public boolean isSupportedInMvp() {
         return this == FLAT || this == SLOPED;
     }
+
+    public boolean isSupportedInComposer() {
+        return this == FLAT
+            || this == SLOPED
+            || this == BUILDING_PAD
+            || this == EXCAVATION_PIT;
+    }
 }

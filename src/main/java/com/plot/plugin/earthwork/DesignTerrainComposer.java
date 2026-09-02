@@ -10,7 +10,6 @@ import com.plot.plugin.earthwork.model.GradingZone;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,13 +21,23 @@ public final class DesignTerrainComposer {
     private DesignTerrainComposer() {
     }
 
-    public record ComposeResult(DesignTerrainGrid grid, Map<String, GradingPlane> zonePlanes) {
+    public record ComposeResult(
+            DesignTerrainGrid grid,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
     }
 
     public static ComposeResult compose(
             EarthworkSite site,
             TerrainSnapshot terrain,
             ICoordinateService transformer) {
+        return compose(site, terrain, transformer, BuildingFootprintLookup.NONE);
+    }
+
+    public static ComposeResult compose(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            BuildingFootprintLookup buildingLookup) {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(new DesignTerrainGrid(), Map.of());
         }
@@ -37,10 +46,11 @@ public final class DesignTerrainComposer {
         initializeCells(grid, terrain);
 
         applyExclusionZones(grid, site.getExclusionZones());
-        Map<String, GradingPlane> zonePlanes = resolveZonePlanes(site, terrain, transformer);
-        applyZoneCoverage(grid, site, zonePlanes);
+        Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators =
+            DesignSurfaceResolver.resolveZoneEvaluators(site, terrain, buildingLookup, transformer);
+        applyZoneCoverage(grid, site, zoneEvaluators);
         grid.finalizeStats();
-        return new ComposeResult(grid, zonePlanes);
+        return new ComposeResult(grid, zoneEvaluators);
     }
 
     private static void initializeCells(DesignTerrainGrid grid, TerrainSnapshot terrain) {
@@ -87,30 +97,10 @@ public final class DesignTerrainComposer {
         }
     }
 
-    private static Map<String, GradingPlane> resolveZonePlanes(
-            EarthworkSite site,
-            TerrainSnapshot terrain,
-            ICoordinateService transformer) {
-        Map<String, GradingPlane> planes = new HashMap<>();
-        for (GradingZone zone : site.getGradingZones().values()) {
-            if (zone == null || !zone.isEnabled() || !zone.getType().isSupportedInMvp()) {
-                continue;
-            }
-            ZoneSamples samples = collectZoneSamples(terrain, zone.getOuterPoints());
-            GradingSurfaceResolver.ResolvedSurface surface = GradingSurfaceResolver.resolve(
-                zone.getRegion(),
-                samples.centers(),
-                samples.heights(),
-                transformer);
-            planes.put(zone.getId(), surface.plane());
-        }
-        return planes;
-    }
-
     private static void applyZoneCoverage(
             DesignTerrainGrid grid,
             EarthworkSite site,
-            Map<String, GradingPlane> zonePlanes) {
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
         List<ZoneCandidate> candidates = buildZoneCandidates(site);
         CompositionPolicy policy = site.getCompositionPolicy();
         boolean highestPriorityWins = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS
@@ -132,11 +122,11 @@ public final class DesignTerrainComposer {
             ZoneCandidate winner = highestPriorityWins
                 ? selectWinnerByPriority(covering)
                 : covering.getFirst();
-            GradingPlane plane = zonePlanes.get(winner.zoneId());
-            if (plane == null) {
+            DesignSurfaceResolver.ZoneTargetEvaluator evaluator = zoneEvaluators.get(winner.zoneId());
+            if (evaluator == null) {
                 continue;
             }
-            cell.setTargetY(plane.evaluateAt(cell.worldX(), cell.worldZ()));
+            cell.setTargetY(evaluator.evaluateAt(cell));
             cell.setZoneId(winner.zoneId());
         }
     }
@@ -152,7 +142,7 @@ public final class DesignTerrainComposer {
     private static List<ZoneCandidate> buildZoneCandidates(EarthworkSite site) {
         List<ZoneCandidate> candidates = new ArrayList<>();
         for (GradingZone zone : site.getGradingZones().values()) {
-            if (zone == null || !zone.isEnabled() || !zone.getType().isSupportedInMvp()) {
+            if (zone == null || !zone.isSupportedInComposer()) {
                 continue;
             }
             List<Vec2d> points = zone.getOuterPoints();
@@ -168,22 +158,6 @@ public final class DesignTerrainComposer {
         return candidates;
     }
 
-    private static ZoneSamples collectZoneSamples(TerrainSnapshot terrain, List<Vec2d> zonePolygon) {
-        List<Vec2d> centers = new ArrayList<>();
-        List<Integer> heights = new ArrayList<>();
-        for (TerrainSnapshot.Column column : terrain.columns()) {
-            if (!EarthworkGeometryUtils.containsCanvasPoint(zonePolygon, column.center())) {
-                continue;
-            }
-            centers.add(column.center());
-            heights.add(column.groundY());
-        }
-        return new ZoneSamples(centers, heights);
-    }
-
     private record ZoneCandidate(String zoneId, int priority, double area, Polygon polygon) {
-    }
-
-    private record ZoneSamples(List<Vec2d> centers, List<Integer> heights) {
     }
 }
