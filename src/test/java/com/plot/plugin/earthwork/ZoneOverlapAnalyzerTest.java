@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 import org.junit.jupiter.api.Test;
@@ -76,5 +77,27 @@ class ZoneOverlapAnalyzerTest {
 
         assertEquals(1, ZoneOverlapAnalyzer.findOverlapsInvolving(site, "a").size());
         assertTrue(ZoneOverlapAnalyzer.findOverlapsInvolving(site, "c").isEmpty());
+    }
+
+    @Test
+    void largestZoneWinsPolicyPrefersBiggerArea() {
+        EarthworkSite site = new EarthworkSite();
+        CompositionPolicy policy = new CompositionPolicy();
+        policy.setOverlapResolution(CompositionPolicy.OVERLAP_LARGEST_ZONE_WINS);
+        site.setCompositionPolicy(policy);
+
+        GradingZone yard = new GradingZone("yard", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)
+        ));
+        yard.setPriority(100);
+        GradingZone pad = new GradingZone("pad", List.of(
+            new Vec2d(5, 0), new Vec2d(15, 0), new Vec2d(15, 10), new Vec2d(5, 10)
+        ));
+        pad.setPriority(50);
+        site.addZone(yard);
+        site.addZone(pad);
+
+        ZoneOverlapAnalyzer.ZoneOverlap overlap = ZoneOverlapAnalyzer.findOverlaps(site).getFirst();
+        assertEquals("yard", overlap.resolveWinner(policy));
     }
 }

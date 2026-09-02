@@ -5,12 +5,16 @@ package com.plot.plugin.earthwork.model;
  */
 public class CompositionPolicy {
     public static final String OVERLAP_HIGHEST_PRIORITY_WINS = "HIGHEST_PRIORITY_WINS";
+    public static final String OVERLAP_LARGEST_ZONE_WINS = "LARGEST_ZONE_WINS";
+    public static final String BALANCE_SCOPE_PER_ZONE = "PER_ZONE";
+    public static final String BALANCE_SCOPE_SITE_WIDE = "SITE_WIDE";
     public static final String OUTSIDE_IGNORE = "IGNORE";
     public static final String PRECEDENCE_ABSOLUTE = "ABSOLUTE";
 
     public static final CompositionPolicy DEFAULT = new CompositionPolicy();
 
     private String overlapResolution = OVERLAP_HIGHEST_PRIORITY_WINS;
+    private String balanceScope = BALANCE_SCOPE_SITE_WIDE;
     private String outsideSiteBoundary = OUTSIDE_IGNORE;
     private String exclusionPrecedence = PRECEDENCE_ABSOLUTE;
     private String breaklinePrecedence = PRECEDENCE_ABSOLUTE;
@@ -22,6 +26,18 @@ public class CompositionPolicy {
 
     public void setOverlapResolution(String overlapResolution) {
         this.overlapResolution = overlapResolution;
+    }
+
+    public String getBalanceScope() {
+        return balanceScope != null ? balanceScope : BALANCE_SCOPE_SITE_WIDE;
+    }
+
+    public void setBalanceScope(String balanceScope) {
+        this.balanceScope = balanceScope;
+    }
+
+    public boolean isSiteWideBalance() {
+        return BALANCE_SCOPE_SITE_WIDE.equals(getBalanceScope());
     }
 
     public String getOutsideSiteBoundary() {

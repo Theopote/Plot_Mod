@@ -37,6 +37,7 @@ public final class GradingSurfaceResolver {
             case MATCH_EXISTING -> GradingPlane.flat(0);
             case MULTI_PLANE -> GradingPlane.flat(64);
         };
+        plane = GradingPlane.withVoxelDiscretization(plane, region, samples, transformer);
         return summarize(plane, samples);
     }
 

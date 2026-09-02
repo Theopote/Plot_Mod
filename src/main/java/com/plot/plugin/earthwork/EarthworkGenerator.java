@@ -59,6 +59,7 @@ public class EarthworkGenerator {
         public final List<GridSample> gridSamples = new ArrayList<>();
         public EarthworkVolumeReport volumeReport = EarthworkVolumeReport.empty();
         public SiteEarthworkReport siteVolumeReport = SiteEarthworkReport.empty();
+        public EarthworkProjectReport projectReport = EarthworkProjectReport.empty();
         public DesignTerrainGrid designTerrainGrid;
         public int resolvedElevation;
         public int resolvedElevationMin;
@@ -166,6 +167,10 @@ public class EarthworkGenerator {
             EarthworkGenerationResult delegated = generate(
                 zone.getRegion(), world, terrainSnapshot, zone.getEdgeSettings());
             copyResult(result, delegated);
+            result.siteVolumeReport = new SiteEarthworkReport(
+                delegated.volumeReport,
+                Map.of(zone.getId(), delegated.volumeReport));
+            result.projectReport = EarthworkProjectReport.Builder.build(site, result.siteVolumeReport);
             site.setLastReport(result.siteVolumeReport.totals());
             return result;
         }
@@ -222,7 +227,8 @@ public class EarthworkGenerator {
         target.changeTypes.putAll(source.changeTypes);
         target.gridSamples.addAll(source.gridSamples);
         target.volumeReport = source.volumeReport;
-        target.siteVolumeReport = new SiteEarthworkReport(source.volumeReport, Map.of());
+        target.siteVolumeReport = source.siteVolumeReport;
+        target.projectReport = source.projectReport;
         target.resolvedElevation = source.resolvedElevation;
         target.resolvedElevationMin = source.resolvedElevationMin;
         target.resolvedElevationMax = source.resolvedElevationMax;
@@ -337,6 +343,7 @@ public class EarthworkGenerator {
 
         result.volumeReport = totals.toReport(siteMaterial);
         result.siteVolumeReport = SiteEarthworkReport.fromMetrics(totals, zoneMetrics, siteMaterial);
+        result.projectReport = EarthworkProjectReport.Builder.build(site, result.siteVolumeReport);
     }
 
     private static TerrainSnapshot.Column toColumn(DesignTerrainCell cell) {

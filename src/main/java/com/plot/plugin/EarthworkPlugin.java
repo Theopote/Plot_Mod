@@ -20,6 +20,8 @@ import com.plot.plugin.earthwork.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.EarthworkRegionListHelper;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
 import com.plot.plugin.earthwork.EarthworkThreePointPickSession;
+import com.plot.plugin.earthwork.EarthworkProjectReport;
+import com.plot.plugin.earthwork.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
@@ -785,8 +787,68 @@ public class EarthworkPlugin extends Plugin {
                 overlap.winnerZoneName(),
                 overlap.overlapCells()));
         }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr(
+                "plugin.earthwork.zone_overlap_policy",
+                PlotI18n.tr("plugin.earthwork.overlap_resolution." + project.getActiveSite()
+                    .getCompositionPolicy().getOverlapResolution().toLowerCase())));
         ImGui.endChild();
         ImGui.spacing();
+    }
+
+    private void renderProjectBalanceReport(EarthworkProjectReport report) {
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_balance_header"));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totalCut()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", report.reusableCut()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", report.exportRequired()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", report.importRequired()));
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.earthwork.project_balance_scope",
+                PlotI18n.tr("plugin.earthwork.balance_scope." + report.balanceScope().toLowerCase())));
+
+        ImGui.spacing();
+        ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
+        for (Map.Entry<String, EarthworkVolumeReport> entry : report.byZone().entrySet()) {
+            GradingRegion zoneRegion = project.getRegion(entry.getKey());
+            String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
+            EarthworkVolumeReport zoneVolumes = entry.getValue();
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.zone_volume_item",
+                zoneName,
+                zoneVolumes.geometricCutVolume(),
+                zoneVolumes.geometricFillVolume()));
+        }
+
+        if (!report.allocationMatrix().isEmpty()) {
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.allocation_matrix_header"));
+            for (EarthworkAllocationMatrix.Transfer transfer : report.allocationMatrix().transfers()) {
+                ImGui.bulletText(PlotI18n.tr(
+                    "plugin.earthwork.allocation_transfer",
+                    resolveAllocationEndpoint(transfer.sourceZoneId(), true),
+                    resolveAllocationEndpoint(transfer.destinationZoneId(), false),
+                    transfer.volume()));
+            }
+        }
+    }
+
+    private String resolveAllocationEndpoint(String zoneId, boolean source) {
+        if (EarthworkAllocationMatrix.EXPORT.equals(zoneId)) {
+            return PlotI18n.tr("plugin.earthwork.allocation_export");
+        }
+        if (EarthworkAllocationMatrix.IMPORT.equals(zoneId)) {
+            return PlotI18n.tr("plugin.earthwork.allocation_import");
+        }
+        GradingRegion region = project.getRegion(zoneId);
+        if (region != null && region.getName() != null && !region.getName().isBlank()) {
+            return region.getName();
+        }
+        return zoneId != null ? zoneId : "";
     }
 
     private void renderSelectedZoneOverlapWarnings(String zoneId) {
@@ -1553,22 +1615,9 @@ public class EarthworkPlugin extends Plugin {
                 volumes.cutChangedBlocks(),
                 volumes.fillChangedBlocks()));
 
-            if (lastGenerationResult.siteGeneration
-                && lastGenerationResult.siteVolumeReport != null
-                && lastGenerationResult.siteVolumeReport.byZone().size() > 1) {
-                ImGui.separator();
-                ImGui.text(PlotI18n.tr("plugin.earthwork.zone_volume_header"));
-                for (Map.Entry<String, EarthworkVolumeReport> entry
-                    : lastGenerationResult.siteVolumeReport.byZone().entrySet()) {
-                    GradingRegion zoneRegion = project.getRegion(entry.getKey());
-                    String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
-                    EarthworkVolumeReport zoneVolumes = entry.getValue();
-                    ImGui.text(PlotI18n.tr(
-                        "plugin.earthwork.zone_volume_item",
-                        zoneName,
-                        zoneVolumes.geometricCutVolume(),
-                        zoneVolumes.geometricFillVolume()));
-                }
+            if (lastGenerationResult.projectReport != null
+                && lastGenerationResult.projectReport.hasZoneBreakdown()) {
+                renderProjectBalanceReport(lastGenerationResult.projectReport);
             }
 
             for (String warningKey : lastGenerationResult.warnings) {
@@ -1976,6 +2025,15 @@ public class EarthworkPlugin extends Plugin {
         if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
             projectStatus = PlotI18n.tr("plugin.earthwork.generate_empty_result");
             return false;
+        }
+
+        if (lastGenerationResult.siteVolumeReport.byZone().isEmpty()) {
+            lastGenerationResult.projectReport = EarthworkProjectReport.Builder.buildFromSingleZone(
+                site, region.getId(), lastGenerationResult.volumeReport);
+        } else if (lastGenerationResult.projectReport == null
+            || lastGenerationResult.projectReport == EarthworkProjectReport.empty()) {
+            lastGenerationResult.projectReport = EarthworkProjectReport.Builder.build(
+                site, lastGenerationResult.siteVolumeReport);
         }
 
         projectStatus = PlotI18n.tr("plugin.earthwork.generate_preview_ready");

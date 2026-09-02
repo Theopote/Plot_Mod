@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 
@@ -30,6 +31,35 @@ public final class ZoneOverlapAnalyzer {
         }
 
         public String winnerZoneId() {
+            return winnerZoneId(CompositionPolicy.DEFAULT);
+        }
+
+        public String winnerZoneName() {
+            String winnerId = winnerZoneId();
+            return winnerId.equals(zoneIdA) ? zoneNameA : zoneNameB;
+        }
+
+        /**
+         * 按场地合成策略解析重叠区胜出分区。
+         */
+        public String resolveWinner(CompositionPolicy policy) {
+            CompositionPolicy safePolicy = policy != null ? policy : CompositionPolicy.DEFAULT;
+            return winnerZoneId(safePolicy);
+        }
+
+        private String winnerZoneId(CompositionPolicy policy) {
+            String resolution = policy.getOverlapResolution();
+            if (CompositionPolicy.OVERLAP_LARGEST_ZONE_WINS.equals(resolution)) {
+                if (Math.abs(areaA - areaB) > 1e-6) {
+                    return areaA > areaB ? zoneIdA : zoneIdB;
+                }
+            } else if (!CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS.equals(resolution)) {
+                return winnerByPriorityThenArea();
+            }
+            return winnerByPriorityThenArea();
+        }
+
+        private String winnerByPriorityThenArea() {
             if (priorityA != priorityB) {
                 return priorityA > priorityB ? zoneIdA : zoneIdB;
             }
@@ -37,10 +67,6 @@ public final class ZoneOverlapAnalyzer {
                 return areaA < areaB ? zoneIdA : zoneIdB;
             }
             return zoneIdA.compareToIgnoreCase(zoneIdB) <= 0 ? zoneIdA : zoneIdB;
-        }
-
-        public String winnerZoneName() {
-            return winnerZoneId().equals(zoneIdA) ? zoneNameA : zoneNameB;
         }
     }
 

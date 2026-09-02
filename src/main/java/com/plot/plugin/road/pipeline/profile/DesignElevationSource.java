@@ -9,7 +9,7 @@ import com.plot.plugin.road.station.OrientedRoadSegment;
 import com.plot.plugin.road.station.RoadStationing;
 import com.plot.plugin.road.vertical.RoadVerticalAlignment;
 import com.plot.plugin.road.vertical.VerticalAlignmentGeometry;
-import com.plot.plugin.road.vertical.VoxelGradeDiscretizer;
+import com.plot.core.geometry.VoxelElevationDiscretizer;
 import com.plot.plugin.road.vertical.VoxelVerticalProfile;
 
 import java.util.List;
@@ -129,7 +129,7 @@ public record DesignElevationSource(
         if (designElevation != null && designElevation.isActive()) {
             return designElevation.elevationAtLocalDistance(localCanvasDistanceOnEdge);
         }
-        return VoxelGradeDiscretizer.linearElevationAtRatio(
+        return VoxelElevationDiscretizer.linearElevationAtRatio(
             info.targetStart, info.targetEnd, segmentInterpolation);
     }
 

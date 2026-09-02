@@ -1,5 +1,7 @@
 package com.plot.plugin.road.vertical;
 
+import com.plot.core.geometry.VoxelElevationDiscretizer;
+
 import java.util.List;
 
 /** Immutable, road-global voxel sequence sampled from one continuous vertical alignment. */
@@ -27,7 +29,7 @@ public final class VoxelVerticalProfile {
     public static VoxelVerticalProfile fromAlignment(RoadVerticalAlignment alignment) {
         if (!VerticalAlignmentGeometry.isEvaluable(alignment)) return inactive();
         double length = alignment.endStation();
-        List<Integer> values = VoxelGradeDiscretizer.discretizeContinuousProfile(
+        List<Integer> values = VoxelElevationDiscretizer.discretizeContinuousProfile(
             length,
             station -> VerticalAlignmentGeometry.elevationAt(alignment, station)
                 .orElseGet(() -> endpointElevation(alignment, station)));

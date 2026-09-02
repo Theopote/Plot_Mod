@@ -130,8 +130,6 @@ public final class DesignTerrainComposer {
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey = new HashMap<>();
         List<ZoneCandidate> candidates = buildZoneCandidates(site);
         CompositionPolicy policy = site.getCompositionPolicy();
-        boolean highestPriorityWins = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS
-            .equals(policy.getOverlapResolution());
         boolean applyBreaklinePrecedence = !breaklines.isEmpty()
             && CompositionPolicy.PRECEDENCE_ABSOLUTE.equals(policy.getBreaklinePrecedence());
         double breaklineInfluence = resolveBreaklineInfluenceDistance(policy);
@@ -150,9 +148,7 @@ public final class DesignTerrainComposer {
                     continue;
                 }
             }
-            ZoneCandidate winner = highestPriorityWins
-                ? selectWinnerByPriority(covering)
-                : covering.getFirst();
+            ZoneCandidate winner = selectOverlapWinner(covering, policy);
             DesignSurfaceResolver.ZoneTargetEvaluator evaluator = zoneEvaluators.get(winner.zoneId());
             if (evaluator == null) {
                 continue;
@@ -226,6 +222,27 @@ public final class DesignTerrainComposer {
     private static double resolveBreaklineInfluenceDistance(CompositionPolicy policy) {
         int blendWidth = policy != null ? policy.getBlendWidthBlocks() : 0;
         return Math.max(1.0, blendWidth);
+    }
+
+    private static ZoneCandidate selectOverlapWinner(
+            List<ZoneCandidate> covering,
+            CompositionPolicy policy) {
+        if (covering.isEmpty()) {
+            return null;
+        }
+        if (CompositionPolicy.OVERLAP_LARGEST_ZONE_WINS.equals(policy.getOverlapResolution())) {
+            return selectWinnerByLargestArea(covering);
+        }
+        return selectWinnerByPriority(covering);
+    }
+
+    private static ZoneCandidate selectWinnerByLargestArea(List<ZoneCandidate> covering) {
+        return covering.stream()
+            .max(Comparator
+                .comparingDouble(ZoneCandidate::area)
+                .thenComparingInt(ZoneCandidate::priority)
+                .thenComparing(ZoneCandidate::zoneId, String.CASE_INSENSITIVE_ORDER))
+            .orElse(covering.getFirst());
     }
 
     private static ZoneCandidate selectWinnerByPriority(List<ZoneCandidate> covering) {
