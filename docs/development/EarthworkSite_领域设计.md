@@ -2,7 +2,7 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase 13 已实施（RegionGeometry 带孔洞 + ExclusionZone 正式几何）  
+> **状态**：Phase 14 已实施（解析解基准 + 管线 E2E 测试矩阵）  
 > **版本**：`schemaVersion: 2`（JSON 增量字段 `outerRing` / `holes`，兼容 `outerPoints`）  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
@@ -1013,6 +1013,52 @@ project.activeSiteId = site.id
 | **12c** | 按调配矩阵分区 ΔY（`ZoneAllocationBalanceAdjuster`）+ 残余抛光 + UI/报告 | ✅ 已完成 |
 | **13** | `RegionGeometry`（`outerRing` + `holes`）、孔洞感知合成/面积/JSON、`ExclusionZone` 正式几何 | ✅ 已完成 |
 | **13b** | 孔洞/排除区 UI（选区添加孔洞、排除区管理、画布轮廓叠加） | ✅ 已完成 |
+| **14** | 解析解基准（8 场景）+ 管线 E2E（3 场景 apply/undo）；见下表 | ✅ 已完成 |
+
+### 10.1 Phase 14 测试矩阵
+
+**目标**：用可手算期望覆盖 Solve → 方量 → `BlockRecord` → Apply → Undo 全链路，不依赖真实 `World`。
+
+**测试夹具**（`EarthworkTestFixtures`）：
+
+| 夹具 | 用途 |
+|------|------|
+| `rectangleOutline` / `rectangleTerrain` | 规则矩形区域与现状快照 |
+| `levelPadRegion` | `LEVEL_PAD` + `previewGridSize=1` |
+| `solidColumnSampler` | y=1..groundY 实心柱，供无 World 挖填检测 |
+| `generateLegacy` | 单 Region 委托 `EarthworkGenerator.generate(region, null, terrain)` |
+| `donutZone` / `twoZoneSiteForCompose` | 带孔洞多 Zone 合成场景 |
+
+**可测试性改动**（生产代码，仅支撑测试）：
+
+- `EarthworkGenerator.BlockSampler` + `withBlockSampler()`：无 World 采样方块 ID
+- `generate()` / `generateSite()`：提供 `TerrainSnapshot` 时允许 `world == null`
+- `EarthworkGenerateCommand.BlockWriter` 公开；测试构造 `(records, BlockWriter)`
+
+#### 10.1.1 解析解基准（`EarthworkAnalyticalBenchmarkTest`，8 项）
+
+| # | 场景 | 输入要点 | 期望（几何方量 / 行为） |
+|---|------|----------|-------------------------|
+| 1 | 平地同标高 | 4×4 @ Y=64，目标 64 | Cut=0，Fill=0，无 `placementRecords` |
+| 2 | 平地抬高 1 格 | 4×4 @ 64，目标 65 | Cut=0，Fill=16（=面积），16 条落地方块 |
+| 3 | 平地降低 1 格 | 4×4 @ 64，目标 63 | Cut=16，Fill=0，16 条落地方块 |
+| 4 | 对称坡面自动平衡 | 单行 4 格地面 62/64/66/68，`autoBalance=true` | 平衡标高 65；Cut=4，Fill=4 |
+| 5 | 固定坡度离散台阶 | pitch 4 沿 +X，锚点 (0,0)@64，现状单行 @64 | `elevationMin`=64，`elevationMax`=66；Fill=10（x=2..5 各 1，x=6..8 各 2），Cut=0 |
+| 6 | 三点定面 | 控制点 (0,0,60)/(10,0,64)/(0,10,62) | 平面过三点；`hasGeometricVolume()` |
+| 7 | 孔洞分区 | 甜甜圈 Zone + 伴生 Zone，`generateSite` | 孔洞格 (3..6)² 无落地方块；`DesignTerrainGrid` 孔内 targetY=现状、无 zoneId |
+| 8 | 重叠分区优先级 | 大 Zone@60 + 小 Zone@70，`priority` 100>50 | 重叠区 (5,5)→70/`high`；外围 (1,1)→60/`low`；`ZoneOverlapAnalyzer` 裁决一致 |
+
+#### 10.1.2 管线 E2E（`EarthworkPipelineE2ETest`，3 项）
+
+`InMemoryBlockWorld` 实现 `BlockWriter`，快照 apply 前后方块 ID，`EarthworkGenerateCommand.undo()` 须逐格还原。
+
+| # | 场景 | 管线 | 断言要点 |
+|---|------|------|----------|
+| 1 | 单 Region 填方 | Snapshot → `generate` → `execute` → `undo` | Fill=16；undo 后每格与 apply 前一致 |
+| 2 | 多 Zone 孔洞场地 | `generateSite`（donut + companion）→ apply/undo | `siteGeneration`；孔洞内无 placement；undo 全量还原 |
+| 3 | 混合挖填 | 4×4 棋盘地面 ±1，目标 64 | Cut=8，Fill=8，16 placement；undo 全量还原 |
+
+**运行**：`.\gradlew.bat test --tests "com.plot.plugin.earthwork.*"`
 
 **建议下一步**：多 Site 支持、侧车 snapshot 强制策略、`MULTI_PLANE` 分面绘制 UI、孔洞边放坡策略。
 
@@ -1041,7 +1087,8 @@ project.activeSiteId = site.id
 - 建筑对接：`BuildingFootprint`、`BuildingFoundationUtils.computeBaseElevation`
 - 道路对接：`TerrainSampler.sampleSurfaceY`、`RoadGenerator`
 - 集成测试：`DesignTerrainComposerTest`（重叠、排除区、孔洞分区、全场平衡端到端）、`PolygonRegionUtilsTest`、`EarthworkProjectTest`（`holes` JSON 往返）
+- Phase 14 基准：`EarthworkAnalyticalBenchmarkTest`（8 解析解）、`EarthworkPipelineE2ETest`（3 管线 undo）、夹具 `EarthworkTestFixtures`
 
 ---
 
-*文档维护：土方插件领域演进；Phase G / 12 / 13 实施时同步更新本节与 JSON 示例。*
+*文档维护：土方插件领域演进；Phase G / 12 / 13 / 14 实施时同步更新本节与 JSON 示例。*
