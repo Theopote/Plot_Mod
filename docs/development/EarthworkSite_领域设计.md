@@ -2,7 +2,7 @@
 
 > 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
 >
-> **状态**：Phase D 已实施（Breakline 侧归属 + 交界混合 + 地形拟合分区）  
+> **状态**：Phase D+ 已实施（道路走廊引用 + 挡土界 + 选区导入折线）  
 > **版本**：`schemaVersion: 2`  
 > **关联代码基线**：P0-1～P0-6 已完成（`TerrainSnapshot`、`EarthMaterialProperties`、`EarthworkVolumeReport`、`EngineeringTerrainService`）
 
@@ -811,9 +811,9 @@ project.activeSiteId = site.id
 | **B** | `DesignTerrainComposer` + 多 Zone priority 合成 + 分 Zone 方量 | ✅ 已完成 |
 | **C** | `BUILDING_PAD` / `EXCAVATION_PIT` + 建筑引用 | ✅ 已完成 |
 | **D** | Breakline 侧归属、交界混合、`TERRAIN_FIT` 分区 | ✅ 已完成 |
-| **D+** | `ROAD_CORRIDOR` 道路引用、`LANDSCAPE` UI、`RetainingEdge` 实体 | 待定 |
+| **D+** | `ROAD_CORRIDOR` 道路引用、挡土界混合抑制、折线/挡土界选区导入 | ✅ 已完成 |
 
-**建议下一步（Phase D+）**：道路走廊纵断面采样、`ROAD_CORRIDOR` 与 Breakline 联动。
+**建议下一步**：道路烘焙模式（从道路导入为 `TERRAIN_FIT` 缓存）、挡土墙实体生成。
 
 ---
 

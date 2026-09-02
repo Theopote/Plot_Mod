@@ -40,6 +40,15 @@ public final class DesignTerrainComposer {
             TerrainSnapshot terrain,
             ICoordinateService transformer,
             BuildingFootprintLookup buildingLookup) {
+        return compose(site, terrain, transformer, buildingLookup, RoadSurfaceLookup.NONE);
+    }
+
+    public static ComposeResult compose(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            ICoordinateService transformer,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup) {
         if (site == null || terrain == null || terrain.isEmpty()) {
             return new ComposeResult(new DesignTerrainGrid(), Map.of());
         }
@@ -49,12 +58,19 @@ public final class DesignTerrainComposer {
 
         applyExclusionZones(grid, site.getExclusionZones());
         Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators =
-            DesignSurfaceResolver.resolveZoneEvaluators(site, terrain, buildingLookup, transformer);
+            DesignSurfaceResolver.resolveZoneEvaluators(site, terrain, buildingLookup, roadLookup, transformer);
+        List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
-            applyZoneCoverage(grid, site, zoneEvaluators);
-        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey);
+            applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines);
+        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines);
         grid.finalizeStats();
         return new ComposeResult(grid, zoneEvaluators);
+    }
+
+    private static List<Breakline> mergeEffectiveBreaklines(EarthworkSite site) {
+        List<Breakline> breaklines = new ArrayList<>(site.getBreaklines());
+        breaklines.addAll(RetainingEdgeBreaklineAdapter.toNoBlendBreaklines(site.getRetainingEdges()));
+        return breaklines;
     }
 
     private static void initializeCells(DesignTerrainGrid grid, TerrainSnapshot terrain) {
@@ -104,13 +120,13 @@ public final class DesignTerrainComposer {
     private static Map<Long, TerrainBoundaryBlender.ZoneCoverage> applyZoneCoverage(
             DesignTerrainGrid grid,
             EarthworkSite site,
-            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators) {
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+            List<Breakline> breaklines) {
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey = new HashMap<>();
         List<ZoneCandidate> candidates = buildZoneCandidates(site);
         CompositionPolicy policy = site.getCompositionPolicy();
         boolean highestPriorityWins = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS
             .equals(policy.getOverlapResolution());
-        List<Breakline> breaklines = site.getBreaklines();
         boolean applyBreaklinePrecedence = !breaklines.isEmpty()
             && CompositionPolicy.PRECEDENCE_ABSOLUTE.equals(policy.getBreaklinePrecedence());
         double breaklineInfluence = resolveBreaklineInfluenceDistance(policy);

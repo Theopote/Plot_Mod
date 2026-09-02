@@ -25,7 +25,13 @@ import com.plot.plugin.earthwork.TerrainSnapshot;
 import com.plot.plugin.earthwork.TerrainSnapshotCache;
 import com.plot.plugin.earthwork.GradingSurfaceResolver;
 import com.plot.plugin.earthwork.model.EarthMaterialProperties;
+import com.plot.plugin.earthwork.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.model.Breakline;
+import com.plot.plugin.earthwork.model.RetainingEdge;
+import com.plot.core.geometry.shapes.FreeDrawPath;
+import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
@@ -461,7 +467,9 @@ public class EarthworkPlugin extends Plugin {
             GradingZoneType.SLOPED,
             GradingZoneType.BUILDING_PAD,
             GradingZoneType.EXCAVATION_PIT,
-            GradingZoneType.TERRAIN_FIT
+            GradingZoneType.TERRAIN_FIT,
+            GradingZoneType.ROAD_CORRIDOR,
+            GradingZoneType.LANDSCAPE
         };
         String[] labels = new String[types.length];
         int selectedIndex = 0;
@@ -497,8 +505,11 @@ public class EarthworkPlugin extends Plugin {
             renderBuildingPadSettings(zone);
         } else if (zone.getType() == GradingZoneType.EXCAVATION_PIT) {
             renderExcavationPitSettings(zone);
-        } else if (zone.getType() == GradingZoneType.TERRAIN_FIT) {
+        } else if (zone.getType() == GradingZoneType.TERRAIN_FIT
+            || zone.getType() == GradingZoneType.LANDSCAPE) {
             renderFitSlopeSettings(zone.getRegion());
+        } else if (zone.getType() == GradingZoneType.ROAD_CORRIDOR) {
+            renderRoadCorridorSettings(zone);
         }
     }
 
@@ -533,6 +544,107 @@ public class EarthworkPlugin extends Plugin {
                 breakline.setLeftZoneId(zones.get(0).getId());
                 breakline.setRightZoneId(zones.get(1).getId());
                 site.addBreakline(breakline);
+                invalidatePreview();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(PlotI18n.tr("plugin.earthwork.breakline_from_selection"), 0, 0)) {
+                List<Vec2d> points = extractBreaklinePointsFromSelection();
+                if (points.size() >= 2) {
+                    projectHistory.push(project);
+                    Breakline breakline = new Breakline(UUID.randomUUID().toString());
+                    breakline.setName(PlotI18n.tr("plugin.earthwork.breakline_default_name", site.getBreaklines().size() + 1));
+                    breakline.setPoints(points);
+                    breakline.setLeftZoneId(zones.get(0).getId());
+                    breakline.setRightZoneId(zones.get(1).getId());
+                    site.addBreakline(breakline);
+                    invalidatePreview();
+                }
+            }
+        }
+
+        ImGui.spacing();
+        renderRetainingEdgeSettings(site);
+    }
+
+    private void renderRetainingEdgeSettings(EarthworkSite site) {
+        ImGui.text(PlotI18n.tr("plugin.earthwork.retaining_edges_header"));
+        for (RetainingEdge edge : site.getRetainingEdges()) {
+            ImGui.pushID(edge.getId());
+            ImGui.text(edge.getName().isBlank() ? edge.getId() : edge.getName());
+            ImGui.sameLine();
+            if (ImGui.smallButton(PlotI18n.tr("plugin.earthwork.delete"))) {
+                projectHistory.push(project);
+                site.removeRetainingEdge(edge.getId());
+                invalidatePreview();
+                ImGui.popID();
+                continue;
+            }
+            ImGui.popID();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.add_retaining_edge"), 0, 0)) {
+            List<Vec2d> points = extractBreaklinePointsFromSelection();
+            if (points.size() < 2) {
+                points = List.of(new Vec2d(0, 0), new Vec2d(10, 0));
+            }
+            projectHistory.push(project);
+            RetainingEdge edge = new RetainingEdge(UUID.randomUUID().toString());
+            edge.setName(PlotI18n.tr("plugin.earthwork.retaining_edge_default_name", site.getRetainingEdges().size() + 1));
+            edge.setPolyline(points);
+            edge.setTopElevation(72);
+            edge.setBottomElevation(64);
+            site.addRetainingEdge(edge);
+            invalidatePreview();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.retaining_edge_from_selection"), 0, 0)) {
+            List<Vec2d> points = extractBreaklinePointsFromSelection();
+            if (points.size() >= 2) {
+                projectHistory.push(project);
+                RetainingEdge edge = new RetainingEdge(UUID.randomUUID().toString());
+                edge.setName(PlotI18n.tr("plugin.earthwork.retaining_edge_default_name", site.getRetainingEdges().size() + 1));
+                edge.setPolyline(points);
+                edge.setTopElevation(72);
+                edge.setBottomElevation(64);
+                site.addRetainingEdge(edge);
+                invalidatePreview();
+            }
+        }
+    }
+
+    private List<Vec2d> extractBreaklinePointsFromSelection() {
+        List<Vec2d> points = new ArrayList<>();
+        for (Shape shape : ctx().appState().getSelectedShapes()) {
+            if (shape instanceof LineShape || shape instanceof PolylineShape || shape instanceof FreeDrawPath) {
+                List<Vec2d> shapePoints = shape.getPoints();
+                if (shapePoints != null && shapePoints.size() >= 2) {
+                    for (Vec2d point : shapePoints) {
+                        if (point != null) {
+                            points.add(new Vec2d(point.x, point.y));
+                        }
+                    }
+                    return points;
+                }
+            }
+        }
+        return points;
+    }
+
+    private void renderRoadCorridorSettings(GradingZone zone) {
+        List<RoadEarthworkSurfaceSampler.EdgeRef> edges = listAvailableRoadEdges();
+        if (edges.isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.no_road_edges_available"));
+            return;
+        }
+        String[] labels = edges.stream().map(RoadEarthworkSurfaceSampler.EdgeRef::label).toArray(String[]::new);
+        String[] ids = edges.stream().map(RoadEarthworkSurfaceSampler.EdgeRef::id).toArray(String[]::new);
+        int currentIndex = indexOfZone(ids, zone.getRoadEdgeRef());
+        ImInt edgeIndex = new ImInt(currentIndex);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.road_edge_ref"), edgeIndex, labels)) {
+            int picked = edgeIndex.get();
+            if (picked >= 0 && picked < ids.length) {
+                projectHistory.push(project);
+                zone.setRoadEdgeRef(ids[picked]);
                 invalidatePreview();
             }
         }
@@ -691,6 +803,27 @@ public class EarthworkPlugin extends Plugin {
             }
             return null;
         };
+    }
+
+    private RoadSurfaceLookup createRoadSurfaceLookup() {
+        return (edgeId, planPoint) -> {
+            if (edgeId == null || edgeId.isBlank() || planPoint == null) {
+                return null;
+            }
+            com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("road_system");
+            if (plugin instanceof RoadSystemPlugin roadPlugin) {
+                return roadPlugin.sampleEarthworkDesignY(edgeId, planPoint);
+            }
+            return null;
+        };
+    }
+
+    private List<RoadEarthworkSurfaceSampler.EdgeRef> listAvailableRoadEdges() {
+        com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("road_system");
+        if (plugin instanceof RoadSystemPlugin roadPlugin) {
+            return roadPlugin.listEarthworkRoadEdges();
+        }
+        return List.of();
     }
 
     private void renderMaterialPropertiesSettings(GradingRegion region) {
@@ -1386,7 +1519,9 @@ public class EarthworkPlugin extends Plugin {
                 TerrainSnapshot terrain = terrainSnapshotCache.captureFreshSite(
                     site, world, ctx().coordinates());
                 lastGenerationResult = earthworkGenerator.generateSite(
-                    site, world, terrain, region, createBuildingFootprintLookup());
+                    site, world, terrain, region,
+                    createBuildingFootprintLookup(),
+                    createRoadSurfaceLookup());
             }
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);

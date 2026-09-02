@@ -1,6 +1,8 @@
 package com.plot.plugin;
 
+import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadNetworkGenerator;
 import com.plot.plugin.road.manager.RoadJunctionPropertyProvider;
@@ -162,5 +164,19 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         persistenceManager.saveNetworkFile(
             persistenceManager.getCurrentNetworkPath(),
             networkManager.getNetwork());
+    }
+
+    public java.util.List<RoadEarthworkSurfaceSampler.EdgeRef> listEarthworkRoadEdges() {
+        if (networkManager == null) {
+            return java.util.List.of();
+        }
+        return RoadEarthworkSurfaceSampler.listEdgeRefs(networkManager.getNetwork());
+    }
+
+    public Integer sampleEarthworkDesignY(String edgeId, Vec2d planPoint) {
+        if (networkManager == null) {
+            return null;
+        }
+        return RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(networkManager.getNetwork(), edgeId, planPoint);
     }
 }

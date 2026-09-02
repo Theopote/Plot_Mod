@@ -17,6 +17,7 @@ public class GradingZone {
     private EarthMaterialProperties materialOverride;
     private DesignSurface designSurface = new DesignSurface();
     private String buildingFootprintRef = "";
+    private String roadEdgeRef = "";
 
     public GradingZone(List<Vec2d> outerPoints) {
         this(new GradingRegion(outerPoints));
@@ -79,6 +80,17 @@ public class GradingZone {
         }
     }
 
+    public String getRoadEdgeRef() {
+        return roadEdgeRef != null ? roadEdgeRef : "";
+    }
+
+    public void setRoadEdgeRef(String roadEdgeRef) {
+        this.roadEdgeRef = roadEdgeRef != null ? roadEdgeRef.trim() : "";
+        if (!this.roadEdgeRef.isBlank()) {
+            getDesignSurface().setRoadEdgeRef(this.roadEdgeRef);
+        }
+    }
+
     private void applyDefaultDesignSurfaceForType(GradingZoneType zoneType) {
         DesignSurface surface = getDesignSurface();
         if (zoneType == GradingZoneType.BUILDING_PAD) {
@@ -93,6 +105,8 @@ public class GradingZone {
         } else if (zoneType == GradingZoneType.TERRAIN_FIT || zoneType == GradingZoneType.LANDSCAPE) {
             surface.setKind(DesignSurfaceKind.FIT_SLOPE);
             region.setSurfaceMode(GradingSurfaceMode.FIT_SLOPE);
+        } else if (zoneType == GradingZoneType.ROAD_CORRIDOR) {
+            surface.setKind(DesignSurfaceKind.ROAD_CORRIDOR);
         }
     }
 
@@ -187,7 +201,8 @@ public class GradingZone {
         if (type == GradingZoneType.BUILDING_PAD
             || type == GradingZoneType.EXCAVATION_PIT
             || type == GradingZoneType.TERRAIN_FIT
-            || type == GradingZoneType.LANDSCAPE) {
+            || type == GradingZoneType.LANDSCAPE
+            || type == GradingZoneType.ROAD_CORRIDOR) {
             return;
         }
         getDesignSurface().syncFrom(region);

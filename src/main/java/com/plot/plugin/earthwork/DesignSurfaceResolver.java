@@ -28,6 +28,15 @@ public final class DesignSurfaceResolver {
             TerrainSnapshot terrain,
             BuildingFootprintLookup buildingLookup,
             ICoordinateService transformer) {
+        return resolveZoneEvaluators(site, terrain, buildingLookup, RoadSurfaceLookup.NONE, transformer);
+    }
+
+    public static Map<String, ZoneTargetEvaluator> resolveZoneEvaluators(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            ICoordinateService transformer) {
         Map<String, ZoneTargetEvaluator> evaluators = new HashMap<>();
         if (site == null || terrain == null) {
             return evaluators;
@@ -41,6 +50,7 @@ public final class DesignSurfaceResolver {
                 zone,
                 terrain,
                 buildingLookup,
+                roadLookup,
                 transformer,
                 siteDefaultElevation);
             if (evaluator != null) {
@@ -54,6 +64,7 @@ public final class DesignSurfaceResolver {
             GradingZone zone,
             TerrainSnapshot terrain,
             BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
             ICoordinateService transformer,
             int siteDefaultElevation) {
         DesignSurface surface = zone.getDesignSurface();
@@ -81,6 +92,14 @@ public final class DesignSurfaceResolver {
                     bottom,
                     workingMargin,
                     slopePitch);
+            }
+            case ROAD_CORRIDOR -> {
+                yield cell -> RoadCorridorSurfaceResolver.evaluateTargetY(
+                    cell.center(),
+                    zone,
+                    surface,
+                    roadLookup,
+                    siteDefaultElevation);
             }
             default -> {
                 ZoneSamples samples = collectZoneSamples(terrain, zone.getOuterPoints());

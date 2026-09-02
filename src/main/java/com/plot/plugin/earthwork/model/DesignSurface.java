@@ -23,6 +23,7 @@ public class DesignSurface {
 
     private Integer elevation;
     private String buildingFootprintRef = "";
+    private String roadEdgeRef = "";
     private String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
     private Integer bottomElevation;
     private int workingMarginBlocks = 1;
@@ -135,6 +136,14 @@ public class DesignSurface {
 
     public void setBuildingFootprintRef(String buildingFootprintRef) {
         this.buildingFootprintRef = buildingFootprintRef != null ? buildingFootprintRef.trim() : "";
+    }
+
+    public String getRoadEdgeRef() {
+        return roadEdgeRef != null ? roadEdgeRef : "";
+    }
+
+    public void setRoadEdgeRef(String roadEdgeRef) {
+        this.roadEdgeRef = roadEdgeRef != null ? roadEdgeRef.trim() : "";
     }
 
     public DesignSurfaceElevationSource getElevationSource() {

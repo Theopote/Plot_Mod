@@ -9,7 +9,8 @@ public enum DesignSurfaceKind {
     THREE_POINT,
     FIT_SLOPE,
     CONSTANT_ELEVATION,
-    EXCAVATION_PIT;
+    EXCAVATION_PIT,
+    ROAD_CORRIDOR;
 
     public static DesignSurfaceKind fromId(String id) {
         if (id == null || id.isBlank()) {
@@ -39,7 +40,7 @@ public enum DesignSurfaceKind {
             case FLAT, CONSTANT_ELEVATION -> GradingSurfaceMode.FLAT;
             case FIXED_SLOPE -> GradingSurfaceMode.FIXED_SLOPE;
             case THREE_POINT -> GradingSurfaceMode.THREE_POINT;
-            case FIT_SLOPE, EXCAVATION_PIT -> GradingSurfaceMode.FIT_SLOPE;
+            case FIT_SLOPE, EXCAVATION_PIT, ROAD_CORRIDOR -> GradingSurfaceMode.FIT_SLOPE;
         };
     }
 }

@@ -488,6 +488,7 @@ public class EarthworkProject {
         int[] threePointElevation = new int[] {64, 64, 64};
         Integer elevation;
         String buildingFootprintRef = "";
+        String roadEdgeRef = "";
         String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
         Integer bottomElevation;
         int workingMarginBlocks = 1;
@@ -513,6 +514,7 @@ public class EarthworkProject {
             }
             data.elevation = surface.getElevation();
             data.buildingFootprintRef = surface.getBuildingFootprintRef();
+            data.roadEdgeRef = surface.getRoadEdgeRef();
             data.elevationSource = surface.getElevationSource().name();
             data.bottomElevation = surface.getBottomElevation();
             data.workingMarginBlocks = surface.getWorkingMarginBlocks();
@@ -541,6 +543,7 @@ public class EarthworkProject {
             }
             surface.setElevation(elevation);
             surface.setBuildingFootprintRef(buildingFootprintRef);
+            surface.setRoadEdgeRef(roadEdgeRef);
             surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
             surface.setBottomElevation(bottomElevation);
             surface.setWorkingMarginBlocks(workingMarginBlocks);
@@ -555,6 +558,7 @@ public class EarthworkProject {
         int priority = GradingZone.DEFAULT_PRIORITY;
         boolean enabled = true;
         String buildingFootprintRef = "";
+        String roadEdgeRef = "";
         List<Vec2dData> outerPoints = new ArrayList<>();
         MaterialData materialOverride;
         MaterialData materialModel = new MaterialData();
@@ -572,6 +576,7 @@ public class EarthworkProject {
             data.priority = zone.getPriority();
             data.enabled = zone.isEnabled();
             data.buildingFootprintRef = zone.getBuildingFootprintRef();
+            data.roadEdgeRef = zone.getRoadEdgeRef();
             for (Vec2d point : zone.getOuterPoints()) {
                 data.outerPoints.add(new Vec2dData(point));
             }
@@ -599,6 +604,9 @@ public class EarthworkProject {
             zone.setEnabled(enabled);
             if (buildingFootprintRef != null && !buildingFootprintRef.isBlank()) {
                 zone.setBuildingFootprintRef(buildingFootprintRef);
+            }
+            if (roadEdgeRef != null && !roadEdgeRef.isBlank()) {
+                zone.setRoadEdgeRef(roadEdgeRef);
             }
             if (materialOverride != null) {
                 zone.setMaterialOverride(materialOverride.toProperties());

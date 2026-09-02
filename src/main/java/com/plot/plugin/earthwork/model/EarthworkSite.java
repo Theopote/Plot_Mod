@@ -146,6 +146,21 @@ public class EarthworkSite {
         }
     }
 
+    public RetainingEdge addRetainingEdge(RetainingEdge retainingEdge) {
+        if (retainingEdge == null) {
+            throw new IllegalArgumentException("Retaining edge cannot be null");
+        }
+        retainingEdges.add(retainingEdge);
+        return retainingEdge;
+    }
+
+    public void removeRetainingEdge(String retainingEdgeId) {
+        if (retainingEdgeId == null || retainingEdgeId.isBlank()) {
+            return;
+        }
+        retainingEdges.removeIf(edge -> retainingEdgeId.equals(edge.getId()));
+    }
+
     public List<ExclusionZone> getExclusionZones() {
         return List.copyOf(exclusionZones);
     }

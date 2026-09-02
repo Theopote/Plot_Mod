@@ -63,6 +63,7 @@ public final class BuildingFootprintResolver {
         return switch (zone.getType()) {
             case BUILDING_PAD -> DesignSurfaceKind.CONSTANT_ELEVATION;
             case EXCAVATION_PIT -> DesignSurfaceKind.EXCAVATION_PIT;
+            case ROAD_CORRIDOR -> DesignSurfaceKind.ROAD_CORRIDOR;
             default -> zone.getDesignSurface().getKind();
         };
     }

@@ -131,6 +131,16 @@ public class EarthworkGenerator {
             TerrainSnapshot terrainSnapshot,
             GradingRegion previewRegion,
             BuildingFootprintLookup buildingLookup) {
+        return generateSite(site, world, terrainSnapshot, previewRegion, buildingLookup, RoadSurfaceLookup.NONE);
+    }
+
+    public EarthworkGenerationResult generateSite(
+            EarthworkSite site,
+            World world,
+            TerrainSnapshot terrainSnapshot,
+            GradingRegion previewRegion,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup) {
         EarthworkGenerationResult result = new EarthworkGenerationResult();
         if (site == null || world == null) {
             LOGGER.warn("场地或世界为空");
@@ -161,7 +171,7 @@ public class EarthworkGenerator {
         result.calculationCellCount = terrain.columnCount();
 
         DesignTerrainComposer.ComposeResult composed = DesignTerrainComposer.compose(
-            site, terrain, coordinateTransformer, buildingLookup);
+            site, terrain, coordinateTransformer, buildingLookup, roadLookup);
         result.designTerrainGrid = composed.grid();
         result.resolvedElevationMin = composed.grid().minTargetY();
         result.resolvedElevationMax = composed.grid().maxTargetY();

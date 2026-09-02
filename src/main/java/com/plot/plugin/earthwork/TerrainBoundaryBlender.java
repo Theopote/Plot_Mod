@@ -1,8 +1,10 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.model.Breakline;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,7 +18,8 @@ public final class TerrainBoundaryBlender {
     public static void apply(
             DesignTerrainGrid grid,
             EarthworkSite site,
-            Map<Long, ZoneCoverage> coverageByCellKey) {
+            Map<Long, ZoneCoverage> coverageByCellKey,
+            List<com.plot.plugin.earthwork.model.Breakline> breaklines) {
         if (grid == null || site == null || coverageByCellKey == null || coverageByCellKey.isEmpty()) {
             return;
         }
@@ -24,9 +27,13 @@ public final class TerrainBoundaryBlender {
         if (blendWidth <= 0) {
             return;
         }
+        double noBlendInfluence = Math.max(1.0, blendWidth);
 
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (cell == null || cell.excluded() || !cell.participatesInEarthwork()) {
+                continue;
+            }
+            if (isNearNoBlendBreakline(cell.center(), breaklines, noBlendInfluence)) {
                 continue;
             }
             ZoneCoverage coverage = coverageByCellKey.get(
@@ -53,5 +60,24 @@ public final class TerrainBoundaryBlender {
     }
 
     public record ZoneCoverage(int winnerTargetY, Integer runnerUpTargetY) {
+    }
+
+    private static boolean isNearNoBlendBreakline(
+            com.plot.api.geometry.Vec2d point,
+            List<Breakline> breaklines,
+            double influenceDistance) {
+        if (point == null || breaklines == null || breaklines.isEmpty()) {
+            return false;
+        }
+        for (Breakline breakline : breaklines) {
+            if (breakline == null || !Breakline.ROLE_NO_BLENDING.equals(breakline.getRole())) {
+                continue;
+            }
+            double distance = BreaklineClassifier.distanceToPolyline(point, breakline.getPoints());
+            if (distance <= influenceDistance) {
+                return true;
+            }
+        }
+        return false;
     }
 }

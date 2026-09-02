@@ -43,6 +43,7 @@ public enum GradingZoneType {
             || this == BUILDING_PAD
             || this == EXCAVATION_PIT
             || this == TERRAIN_FIT
-            || this == LANDSCAPE;
+            || this == LANDSCAPE
+            || this == ROAD_CORRIDOR;
     }
 }
