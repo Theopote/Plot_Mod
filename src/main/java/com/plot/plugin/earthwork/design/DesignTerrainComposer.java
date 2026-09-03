@@ -5,8 +5,8 @@ import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.plugin.earthwork.grading.BreaklineClassifier;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.solver.SiteWideBalanceAdjuster;
-import com.plot.plugin.earthwork.solver.ZoneAllocationBalanceAdjuster;
 import com.plot.plugin.earthwork.terrain.TerrainBoundaryBlender;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
@@ -207,7 +207,7 @@ public final class DesignTerrainComposer {
         }
         int cumulativeUniformOffset = 0;
         for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
-            ZoneAllocationBalanceAdjuster.BalanceResult proposed = proposeSiteBalance(grid, site);
+            EarthworkOptimizationSolver.BalanceResult proposed = proposeSiteBalance(grid, site);
             if (proposed.isZero()) {
                 break;
             }
@@ -227,17 +227,17 @@ public final class DesignTerrainComposer {
 
     private static boolean shouldRunSiteBalance(EarthworkSite site) {
         return site != null
-            && site.getCompositionPolicy().isSiteWideBalance()
+            && site.getCompositionPolicy().isSiteBalanceOptimizationEnabled()
             && site.getZoneCount() >= 2;
     }
 
-    private static ZoneAllocationBalanceAdjuster.BalanceResult proposeSiteBalance(
+    private static EarthworkOptimizationSolver.BalanceResult proposeSiteBalance(
             DesignTerrainGrid grid,
             EarthworkSite site) {
-        if (site.getCompositionPolicy().isZoneAllocationBalance()) {
-            return ZoneAllocationBalanceAdjuster.propose(grid, site);
+        if (site.getCompositionPolicy().isEarthworkOptimization()) {
+            return EarthworkOptimizationSolver.propose(grid, site);
         }
-        return new ZoneAllocationBalanceAdjuster.BalanceResult(
+        return new EarthworkOptimizationSolver.BalanceResult(
             Map.of(),
             SiteWideBalanceAdjuster.findBalancedVerticalOffset(grid, site));
     }
@@ -264,7 +264,7 @@ public final class DesignTerrainComposer {
             site.clearLastSiteWideVerticalOffset();
             return;
         }
-        if (site.getCompositionPolicy().isZoneAllocationBalance()) {
+        if (site.getCompositionPolicy().isEarthworkOptimization()) {
             site.setLastZoneVerticalOffsets(zoneOffsets);
         } else {
             site.clearLastZoneVerticalOffsets();

@@ -529,7 +529,7 @@ public class EarthworkProject {
     static class CompositionPolicyData {
         String overlapResolution = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS;
         String balanceScope = CompositionPolicy.BALANCE_SCOPE_SITE_WIDE;
-        String balanceMethod = CompositionPolicy.BALANCE_METHOD_ZONE_ALLOCATION;
+        String balanceMethod = CompositionPolicy.BALANCE_METHOD_NONE;
         boolean balanceResidualUniformPolish = true;
         String outsideSiteBoundary = CompositionPolicy.OUTSIDE_IGNORE;
         String exclusionPrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;

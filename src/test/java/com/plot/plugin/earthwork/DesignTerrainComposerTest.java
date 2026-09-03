@@ -4,7 +4,8 @@ import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
-import com.plot.plugin.earthwork.solver.ZoneAllocationBalanceAdjuster;
+import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
+import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.api.geometry.Vec2d;
@@ -170,7 +171,7 @@ class DesignTerrainComposerTest {
         EarthworkSite site = adjacentCutFillZones(60, 72);
         enableFlexibleBalance(site);
         site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
-        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_ZONE_ALLOCATION);
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(true);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -192,9 +193,37 @@ class DesignTerrainComposerTest {
         assertEquals(60, grid.get(12, 5).targetY());
         assertEquals(60, grid.get(15, 5).targetY());
 
-        SiteEarthworkReport volumes = ZoneAllocationBalanceAdjuster.collectZoneVolumes(grid);
+        SiteEarthworkReport volumes = EarthworkOptimizationSolver.collectZoneVolumes(grid);
         assertEquals(0L, volumes.totals().geometricCutVolume());
         assertEquals(0L, volumes.totals().geometricFillVolume());
+    }
+
+    @Test
+    void reportOnlyBalanceDoesNotMoveDesignElevations() {
+        EarthworkSite site = adjacentCutFillZones(60, 72);
+        enableFlexibleBalance(site);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_NONE);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(12, 5), 12, 5, 60),
+            new TerrainSnapshot.Column(new Vec2d(15, 5), 15, 5, 60)
+        ));
+
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+
+        assertEquals(60, grid.get(2, 5).targetY());
+        assertEquals(60, grid.get(5, 5).targetY());
+        assertEquals(72, grid.get(12, 5).targetY());
+        assertEquals(72, grid.get(15, 5).targetY());
+        assertEquals(0, site.getLastSiteWideVerticalOffset());
+        assertTrue(site.getLastZoneVerticalOffsets().isEmpty());
+
+        SiteEarthworkReport volumes = EarthworkOptimizationSolver.collectZoneVolumes(grid, site);
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(volumes.byZone(), site);
+        assertFalse(matrix.isEmpty());
     }
 
     @Test
@@ -220,7 +249,7 @@ class DesignTerrainComposerTest {
         assertEquals(60 + uniformOffset, grid.get(5, 5).targetY());
         assertEquals(68 + uniformOffset, grid.get(12, 5).targetY());
 
-        SiteEarthworkReport volumes = ZoneAllocationBalanceAdjuster.collectZoneVolumes(grid);
+        SiteEarthworkReport volumes = EarthworkOptimizationSolver.collectZoneVolumes(grid);
         long cut = volumes.totals().geometricCutVolume();
         long fill = volumes.totals().geometricFillVolume();
         assertTrue(Math.abs(cut - fill) <= 3L,
@@ -310,14 +339,14 @@ class DesignTerrainComposerTest {
         EarthworkSite perZone = slopedFillSite();
         perZone.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_PER_ZONE);
         DesignTerrainGrid perZoneGrid = DesignTerrainComposer.compose(perZone, terrain, null).grid();
-        SiteEarthworkReport perZoneVolumes = ZoneAllocationBalanceAdjuster.collectZoneVolumes(perZoneGrid, perZone);
+        SiteEarthworkReport perZoneVolumes = EarthworkOptimizationSolver.collectZoneVolumes(perZoneGrid, perZone);
 
         EarthworkSite siteWide = slopedFillSite();
         enableFlexibleBalance(siteWide);
         siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
         siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
         DesignTerrainGrid siteWideGrid = DesignTerrainComposer.compose(siteWide, terrain, null).grid();
-        SiteEarthworkReport siteWideVolumes = ZoneAllocationBalanceAdjuster.collectZoneVolumes(siteWideGrid, siteWide);
+        SiteEarthworkReport siteWideVolumes = EarthworkOptimizationSolver.collectZoneVolumes(siteWideGrid, siteWide);
 
         double perZoneResidual = Math.abs(
             perZoneVolumes.totals().compactedFillSupply() - perZoneVolumes.totals().compactedFillDemand());

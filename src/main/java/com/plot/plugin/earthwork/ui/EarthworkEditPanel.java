@@ -599,14 +599,21 @@ public final class EarthworkEditPanel {
             return;
         }
         String[] methods = {
-            CompositionPolicy.BALANCE_METHOD_ZONE_ALLOCATION,
-            CompositionPolicy.BALANCE_METHOD_UNIFORM
+            CompositionPolicy.BALANCE_METHOD_NONE,
+            CompositionPolicy.BALANCE_METHOD_UNIFORM,
+            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION
         };
         String[] labels = {
-            PlotI18n.tr("plugin.earthwork.balance_method.zone_allocation"),
-            PlotI18n.tr("plugin.earthwork.balance_method.uniform_offset")
+            PlotI18n.tr("plugin.earthwork.balance_method.none"),
+            PlotI18n.tr("plugin.earthwork.balance_method.uniform_offset"),
+            PlotI18n.tr("plugin.earthwork.balance_method.earthwork_optimization")
         };
-        int selected = policy.isZoneAllocationBalance() ? 0 : 1;
+        int selected = 0;
+        if (policy.isUniformOffsetBalance()) {
+            selected = 1;
+        } else if (policy.isEarthworkOptimization()) {
+            selected = 2;
+        }
         ImInt methodIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo(PlotI18n.tr("plugin.earthwork.balance_method_label"), methodIndex, labels)) {
@@ -617,6 +624,7 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
         }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.balance_method");
         ImGui.spacing();
     }
 

@@ -15,7 +15,7 @@ public final class WeightedBalanceSolver {
     /**
      * 求统一竖向偏移 ΔY，使几何挖填净变化量最接近 {@code volumeIntent}。
      * <p>
-     * 约定与 {@link ZoneAllocationBalanceAdjuster} 一致：正 intent 对应正向 offset
+     * 约定与 {@link EarthworkOptimizationSolver} 一致：正 intent 对应正向 offset
      * （抬升设计面 → 减少挖方）；目标满足 {@code netChange(offset) ≈ -volumeIntent}。
      */
     public static int findVerticalOffsetForVolumeIntent(

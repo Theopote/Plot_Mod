@@ -9,10 +9,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 分区间土方调配矩阵（挖方区 → 填方区 / 场外进出口）。
+ * Mode A — 土方物流调配报告（挖方区 → 填方区 / 场外进出口）。
  * <p>
  * 调配量以<strong>压实填方</strong>（m³）计量，与 {@link EarthworkVolumeReport#compactedFillSurplus()} /
  * {@link EarthworkVolumeReport#compactedFillDeficit()} 一致。
+ * <p>
+ * 本矩阵<strong>不修改</strong>设计标高；仅描述既定 Design Terrain 上的土方怎么搬。
+ * 竖向设计优化见 {@link EarthworkOptimizationSolver}（Mode B）。
  */
 public final class EarthworkAllocationMatrix {
     public static final String EXPORT = "__EXPORT__";

@@ -1,12 +1,12 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
-import com.plot.plugin.earthwork.solver.ZoneAllocationBalanceAdjuster;
+import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
-import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -15,7 +15,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ZoneAllocationBalanceAdjusterTest {
+class EarthworkOptimizationSolverTest {
 
     @Test
     void computeZoneOffsetsFromAllocationMatrix() {
@@ -26,7 +26,7 @@ class ZoneAllocationBalanceAdjusterTest {
 
         EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
         Map<String, Integer> cellCounts = Map.of("a", 1000, "b", 600, "c", 300);
-        Map<String, Integer> offsets = ZoneAllocationBalanceAdjuster.computeZoneOffsets(matrix, cellCounts);
+        Map<String, Integer> offsets = EarthworkOptimizationSolver.computeZoneOffsets(matrix, cellCounts);
 
         assertEquals(10, offsets.get("a"));
         assertEquals(-10, offsets.get("b"));
@@ -45,7 +45,7 @@ class ZoneAllocationBalanceAdjusterTest {
         grid.put(1, 1, cutCell);
         grid.put(2, 2, fillCell);
 
-        ZoneAllocationBalanceAdjuster.applyZoneOffsets(grid, Map.of("cut", 2, "fill", -3));
+        EarthworkOptimizationSolver.applyZoneOffsets(grid, Map.of("cut", 2, "fill", -3));
 
         assertEquals(62, grid.get(1, 1).targetY());
         assertEquals(67, grid.get(2, 2).targetY());
@@ -63,7 +63,7 @@ class ZoneAllocationBalanceAdjusterTest {
         grid.put(1, 1, cutCell);
         grid.put(2, 2, fillCell);
 
-        SiteEarthworkReport report = ZoneAllocationBalanceAdjuster.collectZoneVolumes(grid);
+        SiteEarthworkReport report = EarthworkOptimizationSolver.collectZoneVolumes(grid);
         assertEquals(10L, report.zoneReport("a").geometricCutVolume());
         assertEquals(10L, report.zoneReport("b").geometricFillVolume());
         assertTrue(report.totals().hasGeometricVolume());
@@ -86,12 +86,12 @@ class ZoneAllocationBalanceAdjusterTest {
         byZone.put("c", report(0L, 220L));
         EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
 
-        Map<String, Integer> uniform = ZoneAllocationBalanceAdjuster.computeZoneOffsets(
+        Map<String, Integer> uniform = EarthworkOptimizationSolver.computeZoneOffsets(
             matrix, Map.of("a", 100, "b", 60, "c", 40));
-        Map<String, Integer> weighted = ZoneAllocationBalanceAdjuster.computeZoneOffsets(
+        Map<String, Integer> weighted = EarthworkOptimizationSolver.computeZoneOffsets(
             matrix,
             Map.of("a", 100, "b", 60, "c", 40),
-            ZoneAllocationBalanceAdjuster.collectSamplesByZone(grid),
+            EarthworkOptimizationSolver.collectSamplesByZone(grid),
             MaterialConversionModel.DEFAULT);
 
         assertEquals(6, uniform.get("a"));
@@ -106,7 +106,7 @@ class ZoneAllocationBalanceAdjusterTest {
         byZone.put("b", report(0L, 5_000L, halfReuse));
 
         EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
-        Map<String, Integer> offsets = ZoneAllocationBalanceAdjuster.computeZoneOffsets(
+        Map<String, Integer> offsets = EarthworkOptimizationSolver.computeZoneOffsets(
             matrix,
             Map.of("a", 1000, "b", 500),
             null,

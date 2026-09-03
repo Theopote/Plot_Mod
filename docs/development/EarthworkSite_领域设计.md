@@ -428,7 +428,7 @@ Site 级合成策略（可配置，MVP 用默认值）。
 {
   "overlapResolution": "HIGHEST_PRIORITY_WINS",
   "balanceScope": "SITE_WIDE",
-  "balanceMethod": "ZONE_ALLOCATION",
+  "balanceMethod": "NONE",
   "balanceResidualUniformPolish": true,
   "outsideSiteBoundary": "IGNORE",
   "exclusionPrecedence": "ABSOLUTE",
@@ -441,8 +441,8 @@ Site 级合成策略（可配置，MVP 用默认值）。
 |------|--------|------|
 | `overlapResolution` | `HIGHEST_PRIORITY_WINS` | 多 Zone 覆盖同一格时的裁决；`LARGEST_ZONE_WINS` 为面积较小者优先 |
 | `balanceScope` | `SITE_WIDE` | `PER_ZONE`：各分区在设计面解析阶段自平衡；`SITE_WIDE`：合成后全场统筹 |
-| `balanceMethod` | `ZONE_ALLOCATION` | 仅 `SITE_WIDE` 生效：`ZONE_ALLOCATION` 按调配矩阵分区 ΔY；`UNIFORM_OFFSET` 全场统一 ΔY |
-| `balanceResidualUniformPolish` | `true` | `ZONE_ALLOCATION` 后是否对残余挖填差再做一次全场统一抛光 |
+| `balanceMethod` | `NONE` | 仅 `SITE_WIDE` 生效的 **Mode B 竖向优化**：`NONE` 不改标高；`UNIFORM_OFFSET` 全场统一 ΔY；`EARTHWORK_OPTIMIZATION`（旧名 `ZONE_ALLOCATION`）分区 ΔY。Mode A 调配矩阵始终单独报告 |
+| `balanceResidualUniformPolish` | `true` | Mode B 分区优化后是否对残余挖填差再做一次全场统一抛光 |
 | `exclusionPrecedence` | `ABSOLUTE` | 排除区永远优先 |
 | `breaklinePrecedence` | `ABSOLUTE` | Breakline 侧归属优先于纯距离 |
 | `blendWidthBlocks` | `0` | MVP 不混合；>0 时在交界做高程混合（Phase D） |
@@ -985,7 +985,11 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 | `DesignSurfaceResolver` | 每 Zone 解析 `GradingPlane`（自 `GradingSurfaceResolver`） |
 | `DesignTerrainComposer` | 第 5 节合成算法 |
 | `SiteWideBalanceAdjuster` | 全场统一 ΔY 平衡（Phase 12b） |
-| `ZoneAllocationBalanceAdjuster` | 按调配矩阵分区 ΔY + 可选残余抛光（Phase 12c） |
+| `ZoneAllocationBalanceAdjuster` | 已弃用门面 → `EarthworkOptimizationSolver` |
+| `EarthworkOptimizationSolver` | Mode B：在策略约束下提出分区/统一 ΔY |
+| `EarthworkAllocationMatrix` | Mode A：仅报告土方调配，不改标高 |
+| `EarthworkOptimizationSolver` | Mode B：在策略约束下提出分区/统一 ΔY（Phase 17r） |
+| `EarthworkAllocationMatrix` | Mode A：仅报告土方调配，不改标高 |
 | `EarthworkAllocationMatrix` | 分区→分区 / 进出口贪心调配（Phase 12） |
 | `ZoneOverlapAnalyzer` | 重叠检测与 priority 裁决（Phase 12） |
 | `EarthworkProjectReport` | 项目级平衡报告与调配摘要（Phase 12） |
@@ -1123,7 +1127,7 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 
 - 现有任务书：`docs/development/task-assignments/EarthworkPlugin_开发任务书.md`
 - 代码入口：`EarthworkProject`、`GradingRegion`、`TerrainSnapshot`、`EarthworkGenerator`
-- 合成与平衡：`DesignTerrainComposer`、`DesignSurfaceResolver`、`SiteWideBalanceAdjuster`、`ZoneAllocationBalanceAdjuster`、`EarthworkAllocationMatrix`、`EarthworkProjectReport`
+- 合成与平衡：`DesignTerrainComposer`、`DesignSurfaceResolver`、`SiteWideBalanceAdjuster`、`EarthworkOptimizationSolver`、`EarthworkAllocationMatrix`、`EarthworkProjectReport`
 - 区域几何：`RegionGeometry`、`PolygonRegionUtils`（孔洞感知 `contains` / 面积 / 格点采样）
 - 体素离散：`com.plot.core.geometry.VoxelElevationDiscretizer`（道路 `VoxelGradeDiscretizer` 委托）
 - 建筑对接：`BuildingFootprint`、`BuildingFoundationUtils.computeBaseElevation`

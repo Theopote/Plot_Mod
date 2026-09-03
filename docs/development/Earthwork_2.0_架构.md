@@ -51,8 +51,8 @@ com.plot.plugin.earthwork
 │
 ├── solver/             # 土方平衡求解
 │   ├── EarthworkBalanceUtils
-│   ├── SiteWideBalanceAdjuster / ZoneAllocationBalanceAdjuster / ProjectGlobalBalanceAggregator
-│   └── EarthworkAllocationMatrix
+│   ├── SiteWideBalanceAdjuster / EarthworkOptimizationSolver / ProjectGlobalBalanceAggregator
+│   └── EarthworkAllocationMatrix（Mode A 报告，不改标高）
 │
 ├── volume/             # 方量
 │   ├── EarthworkVolumeCalculator
@@ -114,7 +114,7 @@ flowchart TD
 |------|------|------|----------|
 | **Capture** | `World` + 红线/分区轮廓 | `TerrainSnapshot` | `TerrainSnapshot.capture` |
 | **Compose** | `EarthworkSite` + `TerrainSnapshot` | `DesignTerrainGrid` | `DesignTerrainComposer.compose` |
-| **Balance** | `DesignTerrainGrid` + `CompositionPolicy` | 调整后的 grid / ΔY 报告 | `SiteWideBalanceAdjuster`、`ZoneAllocationBalanceAdjuster` |
+| **Balance** | `DesignTerrainGrid` + `CompositionPolicy` | 调整后的 grid / ΔY 报告 | `SiteWideBalanceAdjuster`、`EarthworkOptimizationSolver` |
 | **Volume** | grid + 材料模型 | `EarthworkVolumeReport` | 散落在 `EarthworkGenerator.computeEarthworkFromDesignGrid` |
 | **Voxelize** | grid + `BlockSampler` | `BlockRecord` 集 | `EarthworkGenerator.applyColumnEarthwork` |
 | **Apply** | `BlockRecord` | World 方块 | `EarthworkGenerateCommand`（core.command，保持） |
@@ -136,7 +136,7 @@ flowchart TD
 | `ExcavationPitSurfaceEvaluator` | `design/` | |
 | `EarthworkBalanceUtils` | `solver/BalanceElevationSolver` | 纯函数，几乎可直接改名 |
 | `SiteWideBalanceAdjuster` | `solver/BalanceOffsetSolver` | |
-| `ZoneAllocationBalanceAdjuster` | `solver/ZoneAllocationSolver` | |
+| `ZoneAllocationBalanceAdjuster` | `solver/EarthworkOptimizationSolver`（弃用门面） | |
 | `EarthworkVolumeReport` | `volume/` | |
 | `SiteEarthworkReport` | `volume/` | |
 | `ZoneBoundarySlopeApplicator` | `geometry/EdgeTreatmentApplicator` | |
@@ -175,7 +175,7 @@ flowchart TD
 | `captureExistingTerrain` / `captureSiteTerrain` | `terrain/TerrainSnapshot` + `EarthworkTerrainManager` |
 | `solveDesignSurface` | `design/*Evaluator` |
 | `DesignTerrainComposer.compose`（site 路径） | `grading/DesignTerrainBuilder` |
-| `SiteWideBalanceAdjuster` / `ZoneAllocationBalanceAdjuster` | `solver/*` |
+| `SiteWideBalanceAdjuster` / `EarthworkOptimizationSolver` | `solver/*` |
 | `computeEarthworkFromPlane` / `computeEarthworkFromDesignGrid` | `volume/EarthworkVolumeCalculator` + `voxel/EarthworkVoxelizer` |
 | `applyColumnEarthwork` | `voxel/EarthworkVoxelizer` |
 | `generate` / `generateSite` 编排 | `pipeline/SiteEarthworkPipeline` |
@@ -337,6 +337,13 @@ public final class EarthworkGenerator {
 - [x] JSON `verticalAdjustmentPolicy` 可选；缺省按类型推导；编辑 Tab 可覆盖
 - [x] `DesignTerrainComposerTest`：有界策略夹紧；`VerticalAdjustmentPolicyTest` / JSON 往返
 
+### 17r — 调配报告 vs 竖向优化（Mode A / Mode B）
+
+- [x] Mode A：`EarthworkAllocationMatrix` 仅报告土方怎么搬（压实填方），不改设计标高
+- [x] Mode B：`EarthworkOptimizationSolver` + `balanceMethod`：`NONE` / `UNIFORM_OFFSET` / `EARTHWORK_OPTIMIZATION`
+- [x] 默认 `NONE`（设计面不变）；旧 `ZONE_ALLOCATION` 仍映射为竖向优化
+- [x] `DesignTerrainComposerTest`：NONE 不移动标高；优化模式仍可分区 ΔY
+
 ---
 
 ## 8. 测试策略
@@ -363,7 +370,7 @@ public final class EarthworkGenerator {
 - 不重写 `EarthworkSite` 领域模型或 JSON schema（v3 已稳定）
 - 不引入 Spring/Guice；Manager 由 `EarthworkPlugin.onEnable` 手动组装
 - 不改变 `EarthworkGenerateCommand` / `BlockPlacementScheduler` 契约
-- 不在 2.0 首波实现 `EarthworkOptimizationSolver`（仅预留接口）
+- 不在 2.0 首波实现带约束的全局非线性优化（坡度/排水惩罚等）；当前 Mode B 为启发式分区 ΔY + 统一抛光
 
 ---
 
