@@ -920,6 +920,7 @@
   "plugin.earthwork.work_mode.builder": "Builder",
   "plugin.earthwork.work_mode.learn": "Learn",
   "plugin.earthwork.quick.hint": "Select area → choose height and edge → preview → build",
+  "plugin.earthwork.quick.more_in_learn": "Curves, section, and heatmap are in Learn mode",
   "plugin.earthwork.quick.target_header": "Pad height",
   "plugin.earthwork.quick.target_auto": "Recommended height (balance cut/fill)",
   "plugin.earthwork.quick.target_manual": "Set height",

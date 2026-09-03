@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork.ui;
 
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -45,11 +46,28 @@ public final class EarthworkInsightCharts {
         EarthworkVolumeReport volumes = preview.volumeReport != null
             ? preview.volumeReport
             : EarthworkVolumeReport.empty();
-        renderWorkAndWorld(volumes, preview.calculationCellCount);
+        EarthworkWorkMode mode = ctx.config() != null
+            ? ctx.config().getWorkMode()
+            : EarthworkWorkMode.QUICK;
         EarthworkElevationVolumeCurve curve = preview.elevationVolumeCurve;
+
+        if (mode == EarthworkWorkMode.QUICK) {
+            if (curve != null && !curve.isEmpty()) {
+                renderRecommendations(ctx, region, preview, curve, true);
+            }
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.quick.more_in_learn"));
+            return;
+        }
+
+        renderWorkAndWorld(volumes, preview.calculationCellCount);
+        if (curve != null && !curve.isEmpty()) {
+            renderRecommendations(ctx, region, preview, curve, false);
+        }
+        if (!mode.showsInsightDashboard()) {
+            return;
+        }
         if (curve != null && !curve.isEmpty()) {
             renderBeforeAfter(curve);
-            renderRecommendations(ctx, region, preview, curve);
             renderCurve(curve, preview.resolvedElevation);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
@@ -100,7 +118,8 @@ public final class EarthworkInsightCharts {
             EarthworkUiContext ctx,
             GradingRegion region,
             EarthworkGenerationResult preview,
-            EarthworkElevationVolumeCurve curve) {
+            EarthworkElevationVolumeCurve curve,
+            boolean compact) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.recommend.header"));
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         EarthworkElevationVolumeCurve.Sample balance = curve.sampleAt(curve.balanceY());
@@ -126,6 +145,10 @@ public final class EarthworkInsightCharts {
             region.setManualTargetElevation(curve.minWorkY());
             syncAutoPolicy(ctx, region);
             ctx.recalculatePreview();
+        }
+        if (compact) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, reasonText(preview, curve));
+            return;
         }
         if (balance != null) {
             ImGui.textColored(

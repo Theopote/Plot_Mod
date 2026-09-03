@@ -69,6 +69,16 @@ public final class EarthworkUiWidgets {
         }
 
         public static void renderPlayerCutFill(EarthworkVolumeReport volumes, int platformY, boolean sloped, int yMin, int yMax) {
+            renderPlayerCutFill(volumes, platformY, sloped, yMin, yMax, false);
+        }
+
+        public static void renderPlayerCutFill(
+                EarthworkVolumeReport volumes,
+                int platformY,
+                boolean sloped,
+                int yMin,
+                int yMax,
+                boolean compact) {
             EarthworkVolumeReport safe = volumes != null ? volumes : EarthworkVolumeReport.empty();
             long cut = safe.geometricCutVolume();
             long fill = safe.geometricFillVolume();
@@ -82,9 +92,12 @@ public final class EarthworkUiWidgets {
             }
             ImGui.text(PlotI18n.tr("plugin.earthwork.cut_blocks", cut));
             ImGui.text(PlotI18n.tr("plugin.earthwork.fill_blocks", fill));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
+            if (compact) {
+                return;
+            }
             ImGui.text(PlotI18n.tr("plugin.earthwork.net_blocks", net));
             ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
             ImGui.text(PlotI18n.tr(
                 "plugin.earthwork.block_change_breakdown",
                 safe.cutChangedBlocks(),

@@ -27,6 +27,11 @@ public enum EarthworkWorkMode {
         return this == LEARN;
     }
 
+    /** 标高—方量曲线、剖面、面板热力图等完整分析仪表盘。 */
+    public boolean showsInsightDashboard() {
+        return this == LEARN;
+    }
+
     public String i18nKey() {
         return "plugin.earthwork.work_mode." + name().toLowerCase();
     }

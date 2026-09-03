@@ -920,6 +920,7 @@
   "plugin.earthwork.work_mode.builder": "建造",
   "plugin.earthwork.work_mode.learn": "学习",
   "plugin.earthwork.quick.hint": "框选区域 → 选高度和边缘 → 预览 → 施工",
+  "plugin.earthwork.quick.more_in_learn": "曲线、剖面和热力图在「学习」模式",
   "plugin.earthwork.quick.target_header": "平台高度",
   "plugin.earthwork.quick.target_auto": "推荐高度（挖填尽量平衡）",
   "plugin.earthwork.quick.target_manual": "指定高度",

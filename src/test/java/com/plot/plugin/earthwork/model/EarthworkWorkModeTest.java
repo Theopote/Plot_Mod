@@ -25,5 +25,8 @@ class EarthworkWorkModeTest {
         assertFalse(EarthworkWorkMode.BUILDER.showsLearningMetrics());
         assertTrue(EarthworkWorkMode.LEARN.showsEngineeringTabs());
         assertTrue(EarthworkWorkMode.LEARN.showsLearningMetrics());
+        assertFalse(EarthworkWorkMode.QUICK.showsInsightDashboard());
+        assertFalse(EarthworkWorkMode.BUILDER.showsInsightDashboard());
+        assertTrue(EarthworkWorkMode.LEARN.showsInsightDashboard());
     }
 }
