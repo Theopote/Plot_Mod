@@ -427,7 +427,8 @@ Site 级合成策略（可配置，MVP 用默认值）。
 ```json
 {
   "overlapResolution": "HIGHEST_PRIORITY_WINS",
-  "balanceScope": "SITE_WIDE",
+  "balanceScope": "SITE",
+  "optimizationMode": "NONE",
   "balanceMethod": "NONE",
   "balanceResidualUniformPolish": true,
   "outsideSiteBoundary": "IGNORE",
@@ -440,9 +441,9 @@ Site 级合成策略（可配置，MVP 用默认值）。
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
 | `overlapResolution` | `HIGHEST_PRIORITY_WINS` | 多 Zone 覆盖同一格时的裁决；`LARGEST_ZONE_WINS` 为面积较小者优先 |
-| `balanceScope` | `SITE_WIDE` | `PER_ZONE`：各分区在设计面解析阶段自平衡；`SITE_WIDE`：合成后全场统筹 |
-| `balanceMethod` | `NONE` | 仅 `SITE_WIDE` 生效的 **Mode B 竖向优化**：`NONE` 不改标高；`UNIFORM_OFFSET` 全场统一 ΔY；`EARTHWORK_OPTIMIZATION`（旧名 `ZONE_ALLOCATION`）分区 ΔY。Mode A 调配矩阵始终单独报告 |
-| `balanceResidualUniformPolish` | `true` | Mode B 分区优化后是否对残余挖填差再做一次全场统一抛光 |
+| `balanceScope` | `SITE` | **仅统计范围**：`ZONE` / `SITE` / `PROJECT`（旧名 `PER_ZONE`→`ZONE`，`SITE_WIDE`→`SITE`）。不表示是否平移设计面 |
+| `optimizationMode` | `NONE` | **是否改标高**：`NONE` 不改设计；`UNIFORM_VERTICAL_SHIFT` 可调区统一 ΔY；`CONSTRAINED_ZONE_OPTIMIZATION` 约束下分区优化。旧字段 `balanceMethod`（`UNIFORM_OFFSET` / `EARTHWORK_OPTIMIZATION` / `ZONE_ALLOCATION`）加载时映射到本字段 |
+| `balanceResidualUniformPolish` | `true` | 分区优化后是否对残余挖填差再做一次统一抛光 |
 | `exclusionPrecedence` | `ABSOLUTE` | 排除区永远优先 |
 | `breaklinePrecedence` | `ABSOLUTE` | Breakline 侧归属优先于纯距离 |
 | `blendWidthBlocks` | `0` | MVP 不混合；>0 时在交界做高程混合（Phase D） |
@@ -493,7 +494,7 @@ class DesignTerrainGrid {
       { "sourceZoneId": "zone-cut", "destinationZoneId": "__EXPORT__", "volume": 1000 }
     ]
   },
-  "balanceScope": "SITE_WIDE",
+  "balanceScope": "SITE",
   "siteWideVerticalOffset": 0,
   "zoneVerticalOffsets": {
     "zone-cut": 10,
@@ -511,7 +512,7 @@ class DesignTerrainGrid {
 | `byZone` | 分区分项方量 |
 | `overlaps` | 分区重叠冲突摘要（`ZoneOverlapAnalyzer`） |
 | `allocationMatrix` | 贪心调配矩阵 A→B / 进出口（`EarthworkAllocationMatrix`）；按 `EarthMaterialClass` 兼容性匹配（岩石/不宜回填只能外运） |
-| `balanceScope` | 本次合成使用的平衡范围 |
+| `balanceScope` | 本次统计范围（`ZONE` / `SITE` / `PROJECT`） |
 | `siteWideVerticalOffset` | 全场统一竖向调整量（`UNIFORM_OFFSET` 或残余抛光） |
 | `zoneVerticalOffsets` | 分区竖向调整量（`ZONE_ALLOCATION`） |
 
@@ -607,24 +608,25 @@ else:
 
 `ZoneBoundarySlopeApplicator` 按 `CUT_FILL_SLOPE` / `MATCH_EXISTING` 修正边界内外格点；挡土墙边作为 `NO_BLENDING` 折线已并入 Step 4。
 
-**Step 6 — 全场土方平衡（在最终设计面拓扑上）**
+**Step 6 — 竖向优化（与统计范围正交）**
 
-在边坡与混合之后，根据 `compositionPolicy.balanceScope`：
+在边坡与混合之后，根据 `optimizationMode`（`balanceScope` 只决定统计/是否推迟逐区自平衡）：
 
 ```
-if balanceScope == PER_ZONE:
-    // 各 Zone 已在 DesignSurfaceResolver 内自平衡，跳过
+if balanceScope == ZONE:
+    # 设计面解析阶段已逐区处理；此处不做场地级竖向优化
     pass
-else if balanceScope == SITE_WIDE && zoneCount >= 2:
+else if balanceScope in {SITE, PROJECT} && optimizationMode != NONE && zoneCount >= 2:
     snapshot = 覆盖后的基础设计面（不含坡面）
     apply blend + slope
     for iteration in 1..4:
-        根据当前（含坡面）方量提出 ΔY，不直接改坡面格
+        根据当前（含坡面）方量提出 ΔY（UNIFORM_VERTICAL_SHIFT 或 CONSTRAINED_ZONE_OPTIMIZATION）
         if ΔY == 0: break
         恢复 snapshot → 施加累计 ΔY → 重建 blend + slope
+# SITE + NONE：只统计全场净土方，不改设计
 ```
 
-`SITE_WIDE` 时 `DesignSurfaceResolver` 传入 `deferBalanceToSite=true`：水平分区用平均地面代替逐区 `autoBalance`，拟合坡面跳过逐区截距平衡。
+`balanceScope` 为 `SITE`/`PROJECT` 时 `DesignSurfaceResolver` 传入 `deferBalanceToSite=true`：水平分区用平均地面代替逐区 `autoBalance`，拟合坡面跳过逐区截距平衡。
 
 平衡改变平台标高后坡脚会移动，因此不能把 ΔY 直接加在已放坡的格子上。
 
@@ -1068,7 +1070,7 @@ v3 为**当前写入版本**，在 v2 基础上规范化：
 | **F+** | `RETAINING_WALL` 边界联动、虚拟挡土边、按格墙高、同步 UI | ✅ 已完成 |
 | **G** | 设计面分类重命名、`MATCH_EXISTING` / `MULTI_PLANE` / `DRAINAGE_SURFACE`、体素离散统一 | ✅ 已完成 |
 | **12** | 分区重叠检测、`EarthworkProjectReport`、调配矩阵 A→B / 进出口 | ✅ 已完成 |
-| **12b** | `SITE_WIDE` 合成阶段全场统一 ΔY（`SiteWideBalanceAdjuster`） | ✅ 已完成 |
+| **12b** | `SITE` + `UNIFORM_VERTICAL_SHIFT` 合成阶段统一 ΔY（`SiteWideBalanceAdjuster`） | ✅ 已完成 |
 | **12c** | 按调配矩阵分区 ΔY（`ZoneAllocationBalanceAdjuster`）+ 残余抛光 + UI/报告 | ✅ 已完成 |
 | **13** | `RegionGeometry`（`outerRing` + `holes`）、孔洞感知合成/面积/JSON、`ExclusionZone` 正式几何 | ✅ 已完成 |
 | **13b** | 孔洞/排除区 UI（选区添加孔洞、排除区管理、画布轮廓叠加） | ✅ 已完成 |

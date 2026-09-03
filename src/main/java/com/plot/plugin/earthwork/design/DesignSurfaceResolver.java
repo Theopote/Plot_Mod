@@ -70,7 +70,7 @@ public final class DesignSurfaceResolver {
             return resolved;
         }
         int siteDefaultElevation = resolveSiteDefaultElevation(terrain);
-        boolean deferBalanceToSite = site.getCompositionPolicy().isSiteWideBalance()
+        boolean deferBalanceToSite = site.getCompositionPolicy().getBalanceScopeEnum().defersPerZoneBalance()
             && site.getZoneCount() >= 2;
         for (GradingZone zone : site.getGradingZones().values()) {
             if (zone == null || !zone.isEnabled() || !zone.getType().isSupportedInComposer()) {

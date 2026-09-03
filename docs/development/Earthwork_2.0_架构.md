@@ -316,6 +316,13 @@ public final class EarthworkGenerator {
 - [x] 编辑 Tab 基坑设置（楼面深度、结构厚度、竖向超挖、水平工作面）
 - [x] JSON 持久化 + 旧 `basementDepthBlocks` → `basementFloorDepth`；`BuildingFootprintResolverTest` / `PhaseCDesignSurfaceTest`
 
+### 17u — BalanceScope vs OptimizationMode 语义拆分
+
+- [x] `BalanceScope`：仅统计范围 `ZONE` / `SITE` / `PROJECT`（不再用 `SITE_WIDE` 暗示「全场平移」）
+- [x] `OptimizationMode`：`NONE` / `UNIFORM_VERTICAL_SHIFT` / `CONSTRAINED_ZONE_OPTIMIZATION`
+- [x] `SITE + NONE` = 只看净土方不改设计；`SITE + CONSTRAINED_ZONE_OPTIMIZATION` = 约束下改可调区
+- [x] JSON `optimizationMode` + 旧 `balanceMethod` 兼容；`CompositionPolicyBalanceSemanticsTest`
+
 ### 17t — Resolved Design Surface
 
 - [x] `ResolvedDesignSurface`：`source` / `status` / `verticalPolicy` / `evaluateAt`
@@ -363,7 +370,8 @@ public final class EarthworkGenerator {
 ### 17r — 调配报告 vs 竖向优化（Mode A / Mode B）
 
 - [x] Mode A：`EarthworkAllocationMatrix` 仅报告土方怎么搬（压实填方），不改设计标高
-- [x] Mode B：`EarthworkOptimizationSolver` + `balanceMethod`：`NONE` / `UNIFORM_OFFSET` / `EARTHWORK_OPTIMIZATION`
+- [x] Mode B：`OptimizationMode`：`NONE` / `UNIFORM_VERTICAL_SHIFT` / `CONSTRAINED_ZONE_OPTIMIZATION`
+- [x] `BalanceScope`（`ZONE`/`SITE`/`PROJECT`）与 `OptimizationMode` 正交；旧 `SITE_WIDE`/`PER_ZONE`/`UNIFORM_OFFSET`/`EARTHWORK_OPTIMIZATION` 可加载
 - [x] 默认 `NONE`（设计面不变）；旧 `ZONE_ALLOCATION` 仍映射为竖向优化
 - [x] `DesignTerrainComposerTest`：NONE 不移动标高；优化模式仍可分区 ΔY
 

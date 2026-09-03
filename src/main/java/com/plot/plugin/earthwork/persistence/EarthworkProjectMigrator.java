@@ -125,8 +125,9 @@ public final class EarthworkProjectMigrator {
     private static JsonObject defaultCompositionPolicy() {
         JsonObject policy = new JsonObject();
         policy.addProperty("overlapResolution", "HIGHEST_PRIORITY_WINS");
-        policy.addProperty("balanceScope", "SITE_WIDE");
-        policy.addProperty("balanceMethod", "ZONE_ALLOCATION");
+        policy.addProperty("balanceScope", "SITE");
+        policy.addProperty("optimizationMode", "CONSTRAINED_ZONE_OPTIMIZATION");
+        policy.addProperty("balanceMethod", "CONSTRAINED_ZONE_OPTIMIZATION");
         policy.addProperty("balanceResidualUniformPolish", true);
         policy.addProperty("outsideSiteBoundary", "IGNORE");
         policy.addProperty("exclusionPrecedence", "ABSOLUTE");

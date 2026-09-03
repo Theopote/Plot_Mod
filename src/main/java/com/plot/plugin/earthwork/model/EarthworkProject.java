@@ -535,8 +535,14 @@ public class EarthworkProject {
 
     static class CompositionPolicyData {
         String overlapResolution = CompositionPolicy.OVERLAP_HIGHEST_PRIORITY_WINS;
-        String balanceScope = CompositionPolicy.BALANCE_SCOPE_SITE_WIDE;
-        String balanceMethod = CompositionPolicy.BALANCE_METHOD_NONE;
+        String balanceScope = CompositionPolicy.BALANCE_SCOPE_SITE;
+        /** 规范字段；缺省时回退 {@link #balanceMethod}。 */
+        String optimizationMode;
+        /**
+         * @deprecated 兼容旧 JSON；仅当 {@link #optimizationMode} 缺省时使用。
+         */
+        @Deprecated
+        String balanceMethod = CompositionPolicy.OPTIMIZATION_MODE_NONE;
         boolean balanceResidualUniformPolish = true;
         String outsideSiteBoundary = CompositionPolicy.OUTSIDE_IGNORE;
         String exclusionPrecedence = CompositionPolicy.PRECEDENCE_ABSOLUTE;
@@ -547,7 +553,8 @@ public class EarthworkProject {
             CompositionPolicyData data = new CompositionPolicyData();
             data.overlapResolution = policy.getOverlapResolution();
             data.balanceScope = policy.getBalanceScope();
-            data.balanceMethod = policy.getBalanceMethod();
+            data.optimizationMode = policy.getOptimizationMode();
+            data.balanceMethod = policy.getOptimizationMode();
             data.balanceResidualUniformPolish = policy.isBalanceResidualUniformPolish();
             data.outsideSiteBoundary = policy.getOutsideSiteBoundary();
             data.exclusionPrecedence = policy.getExclusionPrecedence();
@@ -560,7 +567,10 @@ public class EarthworkProject {
             CompositionPolicy policy = new CompositionPolicy();
             policy.setOverlapResolution(overlapResolution);
             policy.setBalanceScope(balanceScope);
-            policy.setBalanceMethod(balanceMethod);
+            String mode = optimizationMode != null && !optimizationMode.isBlank()
+                ? optimizationMode
+                : balanceMethod;
+            policy.setOptimizationMode(mode);
             policy.setBalanceResidualUniformPolish(balanceResidualUniformPolish);
             policy.setOutsideSiteBoundary(outsideSiteBoundary);
             policy.setExclusionPrecedence(exclusionPrecedence);

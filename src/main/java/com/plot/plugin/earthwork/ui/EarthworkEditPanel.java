@@ -547,15 +547,24 @@ public final class EarthworkEditPanel {
     }
 
     private void renderBalanceScopeSettings(CompositionPolicy policy) {
-        String[] scopes = {
-            CompositionPolicy.BALANCE_SCOPE_SITE_WIDE,
-            CompositionPolicy.BALANCE_SCOPE_PER_ZONE
+        BalanceScope[] scopes = {
+            BalanceScope.SITE,
+            BalanceScope.ZONE,
+            BalanceScope.PROJECT
         };
         String[] labels = {
-            PlotI18n.tr("plugin.earthwork.balance_scope.site_wide"),
-            PlotI18n.tr("plugin.earthwork.balance_scope.per_zone")
+            PlotI18n.tr("plugin.earthwork.balance_scope.site"),
+            PlotI18n.tr("plugin.earthwork.balance_scope.zone"),
+            PlotI18n.tr("plugin.earthwork.balance_scope.project")
         };
-        int selected = CompositionPolicy.BALANCE_SCOPE_PER_ZONE.equals(policy.getBalanceScope()) ? 1 : 0;
+        int selected = 0;
+        BalanceScope current = policy.getBalanceScopeEnum();
+        for (int i = 0; i < scopes.length; i++) {
+            if (scopes[i] == current) {
+                selected = i;
+                break;
+            }
+        }
         ImInt scopeIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo(PlotI18n.tr("plugin.earthwork.balance_scope_label"), scopeIndex, labels)) {
@@ -566,6 +575,7 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
         }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.balance_scope_hint"));
         ImGui.spacing();
     }
 
@@ -596,36 +606,39 @@ public final class EarthworkEditPanel {
     }
 
     private void renderBalanceMethodSettings(CompositionPolicy policy) {
-        if (!policy.isSiteWideBalance() || ctx.project().getRegionCount() < 2) {
+        if (!policy.getBalanceScopeEnum().allowsSiteVerticalOptimization()
+            || ctx.project().getRegionCount() < 2) {
             return;
         }
-        String[] methods = {
-            CompositionPolicy.BALANCE_METHOD_NONE,
-            CompositionPolicy.BALANCE_METHOD_UNIFORM,
-            CompositionPolicy.BALANCE_METHOD_EARTHWORK_OPTIMIZATION
+        OptimizationMode[] modes = {
+            OptimizationMode.NONE,
+            OptimizationMode.UNIFORM_VERTICAL_SHIFT,
+            OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION
         };
         String[] labels = {
-            PlotI18n.tr("plugin.earthwork.balance_method.none"),
-            PlotI18n.tr("plugin.earthwork.balance_method.uniform_offset"),
-            PlotI18n.tr("plugin.earthwork.balance_method.earthwork_optimization")
+            PlotI18n.tr("plugin.earthwork.optimization_mode.none"),
+            PlotI18n.tr("plugin.earthwork.optimization_mode.uniform_vertical_shift"),
+            PlotI18n.tr("plugin.earthwork.optimization_mode.constrained_zone")
         };
         int selected = 0;
-        if (policy.isUniformOffsetBalance()) {
-            selected = 1;
-        } else if (policy.isEarthworkOptimization()) {
-            selected = 2;
+        OptimizationMode current = policy.getOptimizationModeEnum();
+        for (int i = 0; i < modes.length; i++) {
+            if (modes[i] == current) {
+                selected = i;
+                break;
+            }
         }
         ImInt methodIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.balance_method_label"), methodIndex, labels)) {
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.optimization_mode_label"), methodIndex, labels)) {
             int picked = methodIndex.get();
-            if (picked >= 0 && picked < methods.length) {
+            if (picked >= 0 && picked < modes.length) {
                 ctx.projectHistory().push(ctx.project());
-                policy.setBalanceMethod(methods[picked]);
+                policy.setOptimizationMode(modes[picked]);
                 ctx.invalidatePreview();
             }
         }
-        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.balance_method");
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.optimization_mode");
         ImGui.spacing();
     }
 

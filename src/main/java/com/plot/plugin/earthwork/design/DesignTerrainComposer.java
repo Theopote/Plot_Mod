@@ -243,7 +243,7 @@ public final class DesignTerrainComposer {
 
     private static boolean shouldRunSiteBalance(EarthworkSite site) {
         return site != null
-            && site.getCompositionPolicy().isSiteBalanceOptimizationEnabled()
+            && site.getCompositionPolicy().isVerticalOptimizationEnabled()
             && site.getZoneCount() >= 2;
     }
 
@@ -251,7 +251,7 @@ public final class DesignTerrainComposer {
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<String, ResolvedDesignSurface> resolvedSurfaces) {
-        if (site.getCompositionPolicy().isEarthworkOptimization()) {
+        if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
             return EarthworkOptimizationSolver.propose(grid, site, resolvedSurfaces);
         }
         return new EarthworkOptimizationSolver.BalanceResult(
@@ -281,7 +281,7 @@ public final class DesignTerrainComposer {
             site.clearLastSiteWideVerticalOffset();
             return;
         }
-        if (site.getCompositionPolicy().isEarthworkOptimization()) {
+        if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
             site.setLastZoneVerticalOffsets(zoneOffsets);
         } else {
             site.clearLastZoneVerticalOffsets();

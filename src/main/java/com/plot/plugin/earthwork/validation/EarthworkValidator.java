@@ -197,7 +197,7 @@ public final class EarthworkValidator {
             EarthworkSite site,
             List<EarthworkValidationReport.Item> items) {
         CompositionPolicy policy = site.getCompositionPolicy();
-        if (policy == null || !policy.isSiteBalanceOptimizationEnabled()) {
+        if (policy == null || !policy.isVerticalOptimizationEnabled()) {
             return;
         }
 

@@ -22,7 +22,7 @@ public final class EarthworkProjectReport {
         Map.of(),
         List.of(),
         EarthworkAllocationMatrix.EMPTY,
-        CompositionPolicy.BALANCE_SCOPE_SITE_WIDE,
+        CompositionPolicy.BALANCE_SCOPE_SITE,
         0,
         Map.of(),
         Map.of(),
@@ -67,7 +67,7 @@ public final class EarthworkProjectReport {
         this.byZone = byZone != null ? Map.copyOf(byZone) : Map.of();
         this.overlaps = overlaps != null ? List.copyOf(overlaps) : List.of();
         this.allocationMatrix = allocationMatrix != null ? allocationMatrix : EarthworkAllocationMatrix.EMPTY;
-        this.balanceScope = balanceScope != null ? balanceScope : CompositionPolicy.BALANCE_SCOPE_SITE_WIDE;
+        this.balanceScope = balanceScope != null ? balanceScope : CompositionPolicy.BALANCE_SCOPE_SITE;
         this.siteWideVerticalOffset = siteWideVerticalOffset;
         this.zoneVerticalOffsets = zoneVerticalOffsets != null ? Map.copyOf(zoneVerticalOffsets) : Map.of();
         this.bySite = bySite != null ? Map.copyOf(bySite) : Map.of();
