@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
+import com.plot.core.material.EarthMaterialClass;
 import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.persistence.EarthworkProjectMigrator;
 import com.plot.plugin.earthwork.persistence.EarthworkProjectSchema;
@@ -303,6 +304,8 @@ public class EarthworkProject {
         String name;
         List<Vec2dData> siteBoundary = new ArrayList<>();
         MaterialData materialModel = new MaterialData();
+        String cutMaterialClass = EarthMaterialClass.UNKNOWN.name();
+        String fillMaterialClass = EarthMaterialClass.COMMON_FILL.name();
         ExistingTerrainRefData existingTerrainRef;
         CompositionPolicyData compositionPolicy = new CompositionPolicyData();
         List<ZoneData> gradingZones = new ArrayList<>();
@@ -318,6 +321,8 @@ public class EarthworkProject {
                 data.siteBoundary.add(new Vec2dData(point));
             }
             data.materialModel = MaterialData.from(site.getMaterialModel());
+            data.cutMaterialClass = site.getCutMaterialClass().name();
+            data.fillMaterialClass = site.getFillMaterialClass().name();
             data.existingTerrainRef = ExistingTerrainRefData.from(site.getExistingTerrainRef());
             data.compositionPolicy = CompositionPolicyData.from(site.getCompositionPolicy());
             for (GradingZone zone : site.getGradingZones().values()) {
@@ -343,6 +348,8 @@ public class EarthworkProject {
             site.setMaterialModel(materialModel != null
                 ? materialModel.toProperties()
                 : MaterialConversionModel.DEFAULT);
+            site.setCutMaterialClass(EarthMaterialClass.fromId(cutMaterialClass));
+            site.setFillMaterialClass(EarthMaterialClass.fromId(fillMaterialClass));
             if (existingTerrainRef != null) {
                 site.setExistingTerrainRef(existingTerrainRef.toRef());
             }
@@ -581,7 +588,13 @@ public class EarthworkProject {
         String roadEdgeRef = "";
         String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
         Integer bottomElevation;
-        int basementDepthBlocks = 3;
+        /** 地下室楼面深度；缺省时回退 {@link #basementDepthBlocks}。 */
+        Integer basementFloorDepth;
+        int foundationDepth;
+        int workingAllowance;
+        /** @deprecated 兼容旧 JSON；加载时映射为 {@link #basementFloorDepth}。 */
+        @Deprecated
+        int basementDepthBlocks = ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH;
         int workingMarginBlocks = 1;
         int verticalOffset;
         List<BakedSampleData> bakedSamples = new ArrayList<>();
@@ -611,7 +624,11 @@ public class EarthworkProject {
             data.roadEdgeRef = surface.getRoadEdgeRef();
             data.elevationSource = surface.getElevationSource().name();
             data.bottomElevation = surface.getBottomElevation();
-            data.basementDepthBlocks = surface.getBasementDepthBlocks();
+            ExcavationPitParameters pit = surface.getExcavationPit();
+            data.basementFloorDepth = pit.getBasementFloorDepth();
+            data.foundationDepth = pit.getFoundationDepth();
+            data.workingAllowance = pit.getWorkingAllowance();
+            data.basementDepthBlocks = pit.getBasementFloorDepth();
             data.workingMarginBlocks = surface.getWorkingMarginBlocks();
             data.verticalOffset = surface.getVerticalOffset();
             for (BakedElevationGrid.Sample sample : surface.getBakedElevationGrid().toSamples()) {
@@ -650,7 +667,8 @@ public class EarthworkProject {
             surface.setRoadEdgeRef(roadEdgeRef);
             surface.setElevationSource(DesignSurfaceElevationSource.fromId(elevationSource));
             surface.setBottomElevation(bottomElevation);
-            surface.setBasementDepthBlocks(basementDepthBlocks);
+            int floorDepth = basementFloorDepth != null ? basementFloorDepth : basementDepthBlocks;
+            surface.setExcavationPit(new ExcavationPitParameters(floorDepth, foundationDepth, workingAllowance));
             surface.setWorkingMarginBlocks(workingMarginBlocks);
             surface.setVerticalOffset(verticalOffset);
             surface.setBakedElevationGrid(BakedElevationGrid.fromSamples(readBakedSamples(bakedSamples)));
@@ -753,6 +771,8 @@ public class EarthworkProject {
         List<List<Vec2dData>> holes = new ArrayList<>();
         MaterialData materialOverride;
         MaterialData materialModel = new MaterialData();
+        String cutMaterialClass = EarthMaterialClass.UNKNOWN.name();
+        String fillMaterialClass = EarthMaterialClass.COMMON_FILL.name();
         String cutExposeMaterial = "";
         String fillMaterial = GradingRegion.DEFAULT_FILL_MATERIAL;
         int previewGridSize;
@@ -776,6 +796,8 @@ public class EarthworkProject {
                 data.materialOverride = MaterialData.from(zone.getMaterialOverride());
             }
             data.materialModel = MaterialData.from(zone.getRegion().getMaterialProperties());
+            data.cutMaterialClass = zone.getCutMaterialClass().name();
+            data.fillMaterialClass = zone.getFillMaterialClass().name();
             data.cutExposeMaterial = zone.getCutExposeMaterial();
             data.fillMaterial = zone.getFillMaterial();
             data.previewGridSize = zone.getPreviewGridSize();
@@ -808,6 +830,8 @@ public class EarthworkProject {
             if (materialModel != null) {
                 zone.getRegion().setMaterialProperties(materialModel.toProperties());
             }
+            zone.setCutMaterialClass(EarthMaterialClass.fromId(cutMaterialClass));
+            zone.setFillMaterialClass(EarthMaterialClass.fromId(fillMaterialClass));
             if (cutExposeMaterial != null) {
                 zone.setCutExposeMaterial(cutExposeMaterial);
             }

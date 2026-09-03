@@ -24,7 +24,7 @@ class EarthworkOptimizationSolverTest {
         byZone.put("b", report(0L, 6_000L));
         byZone.put("c", report(0L, 3_000L));
 
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone);
         Map<String, Integer> cellCounts = Map.of("a", 1000, "b", 600, "c", 300);
         Map<String, Integer> offsets = EarthworkOptimizationSolver.computeZoneOffsets(matrix, cellCounts);
 
@@ -84,7 +84,7 @@ class EarthworkOptimizationSolverTest {
         byZone.put("a", report(550L, 0L));
         byZone.put("b", report(0L, 330L));
         byZone.put("c", report(0L, 220L));
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone);
 
         Map<String, Integer> uniform = EarthworkOptimizationSolver.computeZoneOffsets(
             matrix, Map.of("a", 100, "b", 60, "c", 40));
@@ -105,7 +105,7 @@ class EarthworkOptimizationSolverTest {
         byZone.put("a", report(10_000L, 0L, halfReuse));
         byZone.put("b", report(0L, 5_000L, halfReuse));
 
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone);
         Map<String, Integer> offsets = EarthworkOptimizationSolver.computeZoneOffsets(
             matrix,
             Map.of("a", 1000, "b", 500),

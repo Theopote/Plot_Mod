@@ -16,6 +16,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
 import com.plot.core.material.MaterialConversionModel;
+import com.plot.plugin.earthwork.volume.ProjectMaterialBalance;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
@@ -118,6 +119,23 @@ public final class EarthworkUiWidgets {
                 "plugin.earthwork.effective_cut_to_fill_ratio",
                 (materials != null ? materials : current).effectiveCutToCompactedFillRatio()));
             return changed;
+        }
+
+        /**
+         * 渲染项目级材料平衡三层数字：毛缺量/余量、内部调配、场外净量。
+         */
+        public static void renderProjectMaterialBalance(ProjectMaterialBalance balance) {
+            ProjectMaterialBalance safe = balance != null ? balance : ProjectMaterialBalance.EMPTY;
+            ImGui.text(PlotI18n.tr("plugin.earthwork.gross_site_imbalance_header"));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.gross_import_demand", safe.grossImportDemand()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.gross_export_surplus", safe.grossExportSurplus()));
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.internal_transfer_header"));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.internal_transfer_total", safe.internalTransferVolume()));
+            ImGui.spacing();
+            ImGui.text(PlotI18n.tr("plugin.earthwork.external_balance_header"));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.external_export_required", safe.externalExportRequired()));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.external_import_required", safe.externalImportRequired()));
         }
 
         public static void locateRegion(EarthworkUiContext ctx, GradingRegion region) {

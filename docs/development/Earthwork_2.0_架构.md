@@ -301,14 +301,15 @@ public final class EarthworkGenerator {
 - [x] `EarthworkProjectReport.Builder.buildFromProject`：预览时汇总项目级合计
 - [x] 总览 Tab / 生成 Tab / CSV 导出展示分场地方量与跨场地调配
 - [x] `ProjectGlobalBalanceAggregatorTest`
-- [x] 项目级 import/export = 跨场地调配后的场外量（非各场地简单相加）
+- [x] 项目级材料平衡三层：`grossImportDemand` / `grossExportSurplus` / `internalTransferVolume` / `externalImportRequired` / `externalExportRequired`
 
 ### 17m — 建筑地坪 / 基坑自动坑底（P2-2）
 
-- [x] `BuildingFootprintResolver.resolvePitBottomElevation`：建筑基础底 − `basementDepthBlocks`
-- [x] `EXCAVATION_PIT` 分区关联建筑轮廓 + 埋深；`DesignSurfaceResolver` 接入
-- [x] 编辑 Tab 基坑设置（关联建筑、自动坑底、埋深滑条）
-- [x] JSON `basementDepthBlocks` 持久化；`BuildingFootprintResolverTest` / `PhaseCDesignSurfaceTest`
+- [x] `BuildingFootprintResolver.resolvePitBottomElevation`：基准标高 − 地下室楼面 − 结构厚度 − 竖向超挖
+- [x] `ExcavationPitParameters`：`basementFloorDepth` / `foundationDepth` / `workingAllowance`（与水平 `workingMarginBlocks` 分离）
+- [x] `EXCAVATION_PIT` 分区关联建筑轮廓；`DesignSurfaceResolver` 接入
+- [x] 编辑 Tab 基坑设置（楼面深度、结构厚度、竖向超挖、水平工作面）
+- [x] JSON 持久化 + 旧 `basementDepthBlocks` → `basementFloorDepth`；`BuildingFootprintResolverTest` / `PhaseCDesignSurfaceTest`
 
 ### 17n — 材料感知调配矩阵（P2-4）
 
@@ -316,6 +317,14 @@ public final class EarthworkGenerator {
 - [x] `EarthworkVolumeReport.compactedFillSupply` + 余量/缺量辅助方法
 - [x] `ZoneAllocationBalanceAdjuster`：调配量 → 分区几何方量意图（挖方按 `MaterialConversionModel` 换算）
 - [x] 跨场地调配矩阵同步材料语义；`EarthworkAllocationMatrixTest` 材料差异用例
+
+### 17s — 材料类别兼容性（spoil class）
+
+- [x] `EarthMaterialClass`：TOPSOIL / COMMON_FILL / STRUCTURAL_FILL / ROCK / UNSUITABLE / UNKNOWN
+- [x] `EarthMaterialCompatibilityMatrix`：源 spoil → 填方需求（ALLOWED / CONDITIONAL / FORBIDDEN）
+- [x] 分区/场地 `cutMaterialClass` + `fillMaterialClass`；JSON 持久化；编辑 Tab
+- [x] `EarthworkAllocationMatrix` 按兼容性匹配；岩石/不宜回填只能外运
+- [x] `EarthMaterialCompatibilityMatrixTest` / 调配矩阵类别用例
 
 ### 17o — 先成形再平衡（边坡耦合）
 

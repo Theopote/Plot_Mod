@@ -16,6 +16,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.core.material.EarthMaterialClass;
 import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
@@ -317,8 +318,8 @@ public final class EarthworkGeneratePanel {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", report.reusableCut()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", report.exportRequired()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", report.importRequired()));
+        ImGui.spacing();
+        EarthworkUiWidgets.renderProjectMaterialBalance(report.materialBalance());
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.earthwork.project_balance_scope",
@@ -370,11 +371,10 @@ public final class EarthworkGeneratePanel {
             ImGui.spacing();
             ImGui.text(PlotI18n.tr("plugin.earthwork.allocation_matrix_header"));
             for (EarthworkAllocationMatrix.Transfer transfer : report.allocationMatrix().transfers()) {
-                ImGui.bulletText(PlotI18n.tr(
-                    "plugin.earthwork.allocation_transfer",
+                ImGui.bulletText(formatAllocationTransfer(
+                    transfer,
                     resolveAllocationEndpoint(transfer.sourceZoneId(), true),
-                    resolveAllocationEndpoint(transfer.destinationZoneId(), false),
-                    transfer.volume()));
+                    resolveAllocationEndpoint(transfer.destinationZoneId(), false)));
             }
         }
 
@@ -382,13 +382,32 @@ public final class EarthworkGeneratePanel {
             ImGui.spacing();
             ImGui.text(PlotI18n.tr("plugin.earthwork.cross_site_allocation_header"));
             for (EarthworkAllocationMatrix.Transfer transfer : report.crossSiteAllocationMatrix().transfers()) {
-                ImGui.bulletText(PlotI18n.tr(
-                    "plugin.earthwork.allocation_transfer",
+                ImGui.bulletText(formatAllocationTransfer(
+                    transfer,
                     resolveSiteAllocationEndpoint(transfer.sourceZoneId(), true, report),
-                    resolveSiteAllocationEndpoint(transfer.destinationZoneId(), false, report),
-                    transfer.volume()));
+                    resolveSiteAllocationEndpoint(transfer.destinationZoneId(), false, report)));
             }
         }
+    }
+
+    private static String formatAllocationTransfer(
+            EarthworkAllocationMatrix.Transfer transfer,
+            String sourceName,
+            String destinationName) {
+        if (transfer.materialClass() != null
+            && transfer.materialClass() != EarthMaterialClass.UNKNOWN) {
+            return PlotI18n.tr(
+                "plugin.earthwork.allocation_transfer_material",
+                sourceName,
+                destinationName,
+                transfer.volume(),
+                PlotI18n.tr(transfer.materialClass().i18nKey()));
+        }
+        return PlotI18n.tr(
+            "plugin.earthwork.allocation_transfer",
+            sourceName,
+            destinationName,
+            transfer.volume());
     }
 
     private String resolveSiteAllocationEndpoint(

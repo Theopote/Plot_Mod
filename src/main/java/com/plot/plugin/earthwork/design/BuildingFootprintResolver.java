@@ -41,7 +41,8 @@ public final class BuildingFootprintResolver {
     }
 
     /**
-     * 基坑坑底标高：手动 {@link DesignSurface#getBottomElevation()}，或建筑基础底 − 埋深。
+     * 基坑坑底标高：手动 {@link DesignSurface#getBottomElevation()}，或
+     * {@code referenceElevation - basementFloorDepth - foundationDepth - workingAllowance}。
      */
     public static int resolvePitBottomElevation(
             GradingZone zone,
@@ -56,11 +57,34 @@ public final class BuildingFootprintResolver {
             if (zone == null) {
                 return siteDefaultElevation;
             }
-            int baseElevation = resolveBuildingBaseElevation(zone, surface, terrain, lookup, siteDefaultElevation);
-            return baseElevation - surface.getBasementDepthBlocks();
+            int referenceElevation = resolveBuildingBaseElevation(
+                zone, surface, terrain, lookup, siteDefaultElevation);
+            return surface.getExcavationPit().pitBottomFrom(referenceElevation);
         }
         if (surface.getBottomElevation() != null) {
             return surface.getBottomElevation();
+        }
+        return siteDefaultElevation;
+    }
+
+    /** 解析基坑基准标高（建筑 ±0.000 / 基础底），不扣减埋深。 */
+    public static int resolvePitReferenceElevation(
+            GradingZone zone,
+            DesignSurface surface,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup lookup,
+            int siteDefaultElevation) {
+        if (surface == null) {
+            return siteDefaultElevation;
+        }
+        if (surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
+            if (zone == null) {
+                return siteDefaultElevation;
+            }
+            return resolveBuildingBaseElevation(zone, surface, terrain, lookup, siteDefaultElevation);
+        }
+        if (surface.getBottomElevation() != null) {
+            return surface.getBottomElevation() + surface.getExcavationPit().totalExcavationDepth();
         }
         return siteDefaultElevation;
     }

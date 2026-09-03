@@ -1,4 +1,5 @@
 package com.plot.plugin.earthwork.volume;
+
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkProject;
@@ -15,7 +16,8 @@ import java.util.Map;
  */
 public final class EarthworkProjectReport {
     public static final EarthworkProjectReport EMPTY = new EarthworkProjectReport(
-        0L, 0L, 0.0, 0.0, 0.0,
+        0L, 0L, 0.0,
+        ProjectMaterialBalance.EMPTY,
         EarthworkVolumeReport.empty(),
         Map.of(),
         List.of(),
@@ -30,8 +32,7 @@ public final class EarthworkProjectReport {
     private final long totalCut;
     private final long totalFill;
     private final double reusableCut;
-    private final double importRequired;
-    private final double exportRequired;
+    private final ProjectMaterialBalance materialBalance;
     private final EarthworkVolumeReport volumeReport;
     private final Map<String, EarthworkVolumeReport> byZone;
     private final List<OverlapConflict> overlaps;
@@ -47,8 +48,7 @@ public final class EarthworkProjectReport {
             long totalCut,
             long totalFill,
             double reusableCut,
-            double importRequired,
-            double exportRequired,
+            ProjectMaterialBalance materialBalance,
             EarthworkVolumeReport volumeReport,
             Map<String, EarthworkVolumeReport> byZone,
             List<OverlapConflict> overlaps,
@@ -62,8 +62,7 @@ public final class EarthworkProjectReport {
         this.totalCut = Math.max(0L, totalCut);
         this.totalFill = Math.max(0L, totalFill);
         this.reusableCut = Math.max(0.0, reusableCut);
-        this.importRequired = Math.max(0.0, importRequired);
-        this.exportRequired = Math.max(0.0, exportRequired);
+        this.materialBalance = materialBalance != null ? materialBalance : ProjectMaterialBalance.EMPTY;
         this.volumeReport = volumeReport != null ? volumeReport : EarthworkVolumeReport.empty();
         this.byZone = byZone != null ? Map.copyOf(byZone) : Map.of();
         this.overlaps = overlaps != null ? List.copyOf(overlaps) : List.of();
@@ -98,12 +97,44 @@ public final class EarthworkProjectReport {
         return reusableCut;
     }
 
-    public double importRequired() {
-        return importRequired;
+    public ProjectMaterialBalance materialBalance() {
+        return materialBalance;
     }
 
+    public double grossImportDemand() {
+        return materialBalance.grossImportDemand();
+    }
+
+    public double grossExportSurplus() {
+        return materialBalance.grossExportSurplus();
+    }
+
+    public double internalTransferVolume() {
+        return materialBalance.internalTransferVolume();
+    }
+
+    public double externalImportRequired() {
+        return materialBalance.externalImportRequired();
+    }
+
+    public double externalExportRequired() {
+        return materialBalance.externalExportRequired();
+    }
+
+    /**
+     * @deprecated 使用 {@link #externalImportRequired()}
+     */
+    @Deprecated
+    public double importRequired() {
+        return externalImportRequired();
+    }
+
+    /**
+     * @deprecated 使用 {@link #externalExportRequired()}
+     */
+    @Deprecated
     public double exportRequired() {
-        return exportRequired;
+        return externalExportRequired();
     }
 
     public EarthworkVolumeReport volumeReport() {
@@ -209,7 +240,10 @@ public final class EarthworkProjectReport {
             EarthworkProjectReport active = buildActiveSiteReport(activeSite, activeSiteReport);
             if (project == null || project.getSiteCount() <= 1) {
                 ProjectGlobalBalanceAggregator.AggregatedBalance global =
-                    ProjectGlobalBalanceAggregator.aggregate(project, activeSite != null ? activeSite.getId() : null, activeSiteReport);
+                    ProjectGlobalBalanceAggregator.aggregate(
+                        project,
+                        activeSite != null ? activeSite.getId() : null,
+                        activeSiteReport);
                 return withGlobalBalance(active, global);
             }
 
@@ -219,8 +253,7 @@ public final class EarthworkProjectReport {
                 global.totalCut(),
                 global.totalFill(),
                 global.reusableCut(),
-                global.importRequired(),
-                global.exportRequired(),
+                global.materialBalance(),
                 active.volumeReport(),
                 active.byZone(),
                 active.overlaps(),
@@ -270,8 +303,7 @@ public final class EarthworkProjectReport {
                 totals.geometricCutVolume(),
                 totals.geometricFillVolume(),
                 totals.reusableCutVolume(),
-                totals.importVolume(),
-                totals.exportVolume(),
+                ProjectMaterialBalance.fromSiteVolumes(totals),
                 totals,
                 byZone,
                 overlaps,
@@ -294,8 +326,7 @@ public final class EarthworkProjectReport {
                 global.totalCut(),
                 global.totalFill(),
                 global.reusableCut(),
-                global.importRequired(),
-                global.exportRequired(),
+                global.materialBalance(),
                 active.volumeReport(),
                 active.byZone(),
                 active.overlaps(),

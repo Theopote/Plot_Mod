@@ -69,7 +69,7 @@ class PhaseCDesignSurfaceTest {
         pit.setBuildingFootprintRef("b1");
         DesignSurface surface = pit.getDesignSurface();
         surface.setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
-        surface.setBasementDepthBlocks(5);
+        surface.setBasementFloorDepth(5);
         surface.setWorkingMarginBlocks(0);
         surface.setSlopePitchRatio(1);
         site.addZone(pit);

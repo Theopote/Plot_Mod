@@ -168,8 +168,8 @@ public final class EarthworkOverviewPanel {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", balance.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", balance.totalCut() - balance.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", balance.reusableCut()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", balance.exportRequired()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", balance.importRequired()));
+        ImGui.spacing();
+        EarthworkUiWidgets.renderProjectMaterialBalance(balance.materialBalance());
         if (balance.sitesWithVolume() > 1) {
             ImGui.spacing();
             ImGui.text(PlotI18n.tr("plugin.earthwork.site_volume_header"));

@@ -6,6 +6,7 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
+import com.plot.core.material.EarthMaterialClass;
 import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.model.Shape;
 import com.plot.core.plugin.PluginManager;
@@ -1259,14 +1260,34 @@ public final class EarthworkEditPanel {
         }
 
         if (useBuildingRef.get()) {
-            int[] basementDepth = {zone.getDesignSurface().getBasementDepthBlocks()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.basement_depth_blocks"), basementDepth, 0, 32)) {
+            DesignSurface surface = zone.getDesignSurface();
+            int[] basementFloorDepth = {surface.getBasementFloorDepth()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.basement_floor_depth"), basementFloorDepth, 0, 32)) {
                 if (ImGui.isItemActivated()) {
                     ctx.projectHistory().push(ctx.project());
                 }
-                zone.getDesignSurface().setBasementDepthBlocks(basementDepth[0]);
+                surface.setBasementFloorDepth(basementFloorDepth[0]);
                 ctx.invalidatePreview();
             }
+            int[] foundationDepth = {surface.getFoundationDepth()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.foundation_depth"), foundationDepth, 0, 16)) {
+                if (ImGui.isItemActivated()) {
+                    ctx.projectHistory().push(ctx.project());
+                }
+                surface.setFoundationDepth(foundationDepth[0]);
+                ctx.invalidatePreview();
+            }
+            int[] pitWorkingAllowance = {surface.getPitWorkingAllowance()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_allowance"), pitWorkingAllowance, 0, 8)) {
+                if (ImGui.isItemActivated()) {
+                    ctx.projectHistory().push(ctx.project());
+                }
+                surface.setPitWorkingAllowance(pitWorkingAllowance[0]);
+                ctx.invalidatePreview();
+            }
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.earthwork.pit_excavation_depth_hint",
+                surface.getExcavationPit().totalExcavationDepth()));
         } else {
             Integer bottom = zone.getDesignSurface().getBottomElevation();
             int[] bottomElevation = {bottom != null ? bottom : 60};
@@ -1309,6 +1330,55 @@ public final class EarthworkEditPanel {
             region.setMaterialProperties(updated);
             ctx.invalidatePreview();
         });
+
+        GradingZone zone = ctx.project().getZone(region.getId());
+        if (zone != null) {
+            renderEarthMaterialClassSettings(zone);
+        }
+    }
+
+    private void renderEarthMaterialClassSettings(GradingZone zone) {
+        EarthMaterialClass[] classes = EarthMaterialClass.values();
+        String[] labels = new String[classes.length];
+        for (int i = 0; i < classes.length; i++) {
+            labels[i] = PlotI18n.tr(classes[i].i18nKey());
+        }
+
+        int cutSelected = indexOfMaterialClass(classes, zone.getCutMaterialClass());
+        ImInt cutIndex = new ImInt(cutSelected);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.cut_material_class"), cutIndex, labels)) {
+            int picked = cutIndex.get();
+            if (picked >= 0 && picked < classes.length) {
+                ctx.projectHistory().push(ctx.project());
+                zone.setCutMaterialClass(classes[picked]);
+                ctx.invalidatePreview();
+            }
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.cut_material_class");
+
+        int fillSelected = indexOfMaterialClass(classes, zone.getFillMaterialClass());
+        ImInt fillIndex = new ImInt(fillSelected);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.fill_material_class"), fillIndex, labels)) {
+            int picked = fillIndex.get();
+            if (picked >= 0 && picked < classes.length) {
+                ctx.projectHistory().push(ctx.project());
+                zone.setFillMaterialClass(classes[picked]);
+                ctx.invalidatePreview();
+            }
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.earthwork.fill_material_class");
+    }
+
+    private static int indexOfMaterialClass(EarthMaterialClass[] classes, EarthMaterialClass value) {
+        EarthMaterialClass target = value != null ? value : EarthMaterialClass.UNKNOWN;
+        for (int i = 0; i < classes.length; i++) {
+            if (classes[i] == target) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     private void renderFlatSurfaceSettings(GradingRegion region) {

@@ -29,7 +29,7 @@ public class DesignSurface {
     private String roadEdgeRef = "";
     private String elevationSource = DesignSurfaceElevationSource.MANUAL.name();
     private Integer bottomElevation;
-    private int basementDepthBlocks = 3;
+    private ExcavationPitParameters excavationPit = new ExcavationPitParameters();
     private int workingMarginBlocks = 1;
     private BakedElevationGrid bakedElevationGrid = new BakedElevationGrid();
     private int verticalOffset;
@@ -169,12 +169,55 @@ public class DesignSurface {
         this.bottomElevation = bottomElevation;
     }
 
-    public int getBasementDepthBlocks() {
-        return Math.max(0, basementDepthBlocks);
+    public ExcavationPitParameters getExcavationPit() {
+        if (excavationPit == null) {
+            excavationPit = new ExcavationPitParameters();
+        }
+        return excavationPit;
     }
 
+    public void setExcavationPit(ExcavationPitParameters excavationPit) {
+        this.excavationPit = excavationPit != null ? excavationPit.copy() : new ExcavationPitParameters();
+    }
+
+    public int getBasementFloorDepth() {
+        return getExcavationPit().getBasementFloorDepth();
+    }
+
+    public void setBasementFloorDepth(int basementFloorDepth) {
+        getExcavationPit().setBasementFloorDepth(basementFloorDepth);
+    }
+
+    public int getFoundationDepth() {
+        return getExcavationPit().getFoundationDepth();
+    }
+
+    public void setFoundationDepth(int foundationDepth) {
+        getExcavationPit().setFoundationDepth(foundationDepth);
+    }
+
+    public int getPitWorkingAllowance() {
+        return getExcavationPit().getWorkingAllowance();
+    }
+
+    public void setPitWorkingAllowance(int workingAllowance) {
+        getExcavationPit().setWorkingAllowance(workingAllowance);
+    }
+
+    /**
+     * @deprecated 使用 {@link #getBasementFloorDepth()}；旧字段把地下室深度与结构厚度混在一起。
+     */
+    @Deprecated
+    public int getBasementDepthBlocks() {
+        return getBasementFloorDepth();
+    }
+
+    /**
+     * @deprecated 使用 {@link #setBasementFloorDepth(int)}
+     */
+    @Deprecated
     public void setBasementDepthBlocks(int basementDepthBlocks) {
-        this.basementDepthBlocks = Math.max(0, Math.min(64, basementDepthBlocks));
+        setBasementFloorDepth(basementDepthBlocks);
     }
 
     public int getWorkingMarginBlocks() {

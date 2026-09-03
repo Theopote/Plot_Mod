@@ -159,8 +159,11 @@ public final class EarthworkReportExporter {
         map.put("totalFill", report.totalFill());
         map.put("netVolume", report.netVolume());
         map.put("reusableCut", report.reusableCut());
-        map.put("importRequired", report.importRequired());
-        map.put("exportRequired", report.exportRequired());
+        map.put("grossImportDemand", report.grossImportDemand());
+        map.put("grossExportSurplus", report.grossExportSurplus());
+        map.put("internalTransferVolume", report.internalTransferVolume());
+        map.put("externalImportRequired", report.externalImportRequired());
+        map.put("externalExportRequired", report.externalExportRequired());
         map.put("balanceScope", report.balanceScope());
         map.put("siteWideVerticalOffset", report.siteWideVerticalOffset());
         map.put("zoneVerticalOffsets", report.zoneVerticalOffsets());
@@ -250,8 +253,11 @@ public final class EarthworkReportExporter {
             appendRow(csv, "project_balance", "total_fill", projectReport.totalFill());
             appendRow(csv, "project_balance", "net_volume", projectReport.netVolume());
             appendRow(csv, "project_balance", "reusable_cut", projectReport.reusableCut());
-            appendRow(csv, "project_balance", "import_required", projectReport.importRequired());
-            appendRow(csv, "project_balance", "export_required", projectReport.exportRequired());
+            appendRow(csv, "project_balance", "gross_import_demand", projectReport.grossImportDemand());
+            appendRow(csv, "project_balance", "gross_export_surplus", projectReport.grossExportSurplus());
+            appendRow(csv, "project_balance", "internal_transfer_volume", projectReport.internalTransferVolume());
+            appendRow(csv, "project_balance", "external_import_required", projectReport.externalImportRequired());
+            appendRow(csv, "project_balance", "external_export_required", projectReport.externalExportRequired());
             appendRow(csv, "project_balance", "balance_scope", projectReport.balanceScope());
             appendRow(csv, "project_balance", "site_wide_vertical_offset", projectReport.siteWideVerticalOffset());
 

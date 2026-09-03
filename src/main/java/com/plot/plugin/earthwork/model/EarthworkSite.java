@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.EarthMaterialClass;
 import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 
@@ -19,6 +20,8 @@ public class EarthworkSite {
     private String name;
     private List<Vec2d> siteBoundary = new ArrayList<>();
     private MaterialConversionModel materialModel = MaterialConversionModel.DEFAULT;
+    private EarthMaterialClass cutMaterialClass = EarthMaterialClass.UNKNOWN;
+    private EarthMaterialClass fillMaterialClass = EarthMaterialClass.COMMON_FILL;
     private ExistingTerrainRef existingTerrainRef = new ExistingTerrainRef();
     private CompositionPolicy compositionPolicy = CompositionPolicy.DEFAULT;
     private final Map<String, GradingZone> gradingZones = new LinkedHashMap<>();
@@ -94,6 +97,22 @@ public class EarthworkSite {
 
     public void setMaterialModel(MaterialConversionModel materialModel) {
         this.materialModel = materialModel != null ? materialModel : MaterialConversionModel.DEFAULT;
+    }
+
+    public EarthMaterialClass getCutMaterialClass() {
+        return cutMaterialClass != null ? cutMaterialClass : EarthMaterialClass.UNKNOWN;
+    }
+
+    public void setCutMaterialClass(EarthMaterialClass cutMaterialClass) {
+        this.cutMaterialClass = cutMaterialClass != null ? cutMaterialClass : EarthMaterialClass.UNKNOWN;
+    }
+
+    public EarthMaterialClass getFillMaterialClass() {
+        return fillMaterialClass != null ? fillMaterialClass : EarthMaterialClass.COMMON_FILL;
+    }
+
+    public void setFillMaterialClass(EarthMaterialClass fillMaterialClass) {
+        this.fillMaterialClass = fillMaterialClass != null ? fillMaterialClass : EarthMaterialClass.COMMON_FILL;
     }
 
     public ExistingTerrainRef getExistingTerrainRef() {

@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.RegionGeometry;
+import com.plot.core.material.EarthMaterialClass;
 import com.plot.core.material.MaterialConversionModel;
 
 import java.util.List;
@@ -17,6 +18,8 @@ public class GradingZone {
     private int priority = DEFAULT_PRIORITY;
     private boolean enabled = true;
     private MaterialConversionModel materialOverride;
+    private EarthMaterialClass cutMaterialClass = EarthMaterialClass.UNKNOWN;
+    private EarthMaterialClass fillMaterialClass = EarthMaterialClass.COMMON_FILL;
     private DesignSurface designSurface = new DesignSurface();
     private String buildingFootprintRef = "";
     private String roadEdgeRef = "";
@@ -96,6 +99,7 @@ public class GradingZone {
     public void setType(GradingZoneType type) {
         this.type = type != null ? type : GradingZoneType.FLAT;
         applyDefaultDesignSurfaceForType(this.type);
+        applyDefaultMaterialClassesForType(this.type);
         clearVerticalAdjustmentPolicyOverride();
     }
 
@@ -185,6 +189,50 @@ public class GradingZone {
             return materialOverride;
         }
         return siteDefault != null ? siteDefault : MaterialConversionModel.DEFAULT;
+    }
+
+    public EarthMaterialClass getCutMaterialClass() {
+        return cutMaterialClass != null ? cutMaterialClass : EarthMaterialClass.UNKNOWN;
+    }
+
+    public void setCutMaterialClass(EarthMaterialClass cutMaterialClass) {
+        this.cutMaterialClass = cutMaterialClass != null ? cutMaterialClass : EarthMaterialClass.UNKNOWN;
+    }
+
+    public EarthMaterialClass getFillMaterialClass() {
+        return fillMaterialClass != null ? fillMaterialClass : EarthMaterialClass.COMMON_FILL;
+    }
+
+    public void setFillMaterialClass(EarthMaterialClass fillMaterialClass) {
+        this.fillMaterialClass = fillMaterialClass != null ? fillMaterialClass : EarthMaterialClass.COMMON_FILL;
+    }
+
+    private void applyDefaultMaterialClassesForType(GradingZoneType zoneType) {
+        if (zoneType == null) {
+            return;
+        }
+        switch (zoneType) {
+            case BUILDING_PAD, ROAD_CORRIDOR -> {
+                fillMaterialClass = EarthMaterialClass.STRUCTURAL_FILL;
+            }
+            case EXCAVATION_PIT -> {
+                fillMaterialClass = EarthMaterialClass.STRUCTURAL_FILL;
+            }
+            case LANDSCAPE -> {
+                fillMaterialClass = EarthMaterialClass.TOPSOIL;
+                if (cutMaterialClass == null || cutMaterialClass == EarthMaterialClass.UNKNOWN) {
+                    cutMaterialClass = EarthMaterialClass.TOPSOIL;
+                }
+            }
+            case TERRAIN_FIT -> {
+                fillMaterialClass = EarthMaterialClass.COMMON_FILL;
+            }
+            case FLAT, SLOPED -> {
+                if (fillMaterialClass == null) {
+                    fillMaterialClass = EarthMaterialClass.COMMON_FILL;
+                }
+            }
+        }
     }
 
     public String getCutExposeMaterial() {

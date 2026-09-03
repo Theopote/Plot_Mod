@@ -507,10 +507,10 @@ class DesignTerrainGrid {
 | 字段 | 说明 |
 |------|------|
 | `totalCut` / `totalFill` | 全场几何挖填合计 |
-| `reusableCut` / `importRequired` / `exportRequired` | 材料调配后的可再利用挖方、缺方外借、余方外运。**项目级** import/export 为跨场地调配后的场外量（压实填方），不是各场地相加 |
+| `reusableCut` / `ProjectMaterialBalance` | 可再利用挖方 + 三层材料数字：毛缺量/余量、跨场地内部调配、场外净进出口（压实填方） |
 | `byZone` | 分区分项方量 |
 | `overlaps` | 分区重叠冲突摘要（`ZoneOverlapAnalyzer`） |
-| `allocationMatrix` | 贪心调配矩阵 A→B / 进出口（`EarthworkAllocationMatrix`） |
+| `allocationMatrix` | 贪心调配矩阵 A→B / 进出口（`EarthworkAllocationMatrix`）；按 `EarthMaterialClass` 兼容性匹配（岩石/不宜回填只能外运） |
 | `balanceScope` | 本次合成使用的平衡范围 |
 | `siteWideVerticalOffset` | 全场统一竖向调整量（`UNIFORM_OFFSET` 或残余抛光） |
 | `zoneVerticalOffsets` | 分区竖向调整量（`ZONE_ALLOCATION`） |
@@ -705,7 +705,16 @@ Breakline 可沿道路红线导入。
 2. `BuildingFoundationUtils.computeBaseElevation(...)`
 3. Site 默认标高
 
-`EXCAVATION_PIT` 可引用同一 `buildingFootprintRef` 自动生成坑底（基础底 - 埋深）。
+`EXCAVATION_PIT` 可引用同一 `buildingFootprintRef`，用 `ExcavationPitParameters` 推算坑底：
+
+```
+pitBottom = referenceElevation
+          - basementFloorDepth
+          - foundationDepth
+          - workingAllowance
+```
+
+其中 `referenceElevation` 为建筑 ±0.000 / 基础底；旧字段 `basementDepthBlocks` 仅迁移为 `basementFloorDepth`。水平工作面仍由 `workingMarginBlocks` 控制，与竖向 `workingAllowance` 分开。
 
 ---
 

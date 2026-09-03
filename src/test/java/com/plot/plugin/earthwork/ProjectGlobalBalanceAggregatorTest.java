@@ -40,8 +40,11 @@ class ProjectGlobalBalanceAggregatorTest {
         assertEquals(2, balance.sitesWithVolume());
         assertEquals(7_000L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", "site-fill"));
         assertEquals(1_280L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", EarthworkAllocationMatrix.EXPORT));
-        assertEquals(1_280.0, balance.exportRequired(), 1e-6);
-        assertEquals(0.0, balance.importRequired(), 1e-6);
+        assertEquals(7_000.0, balance.grossImportDemand(), 1e-3);
+        assertEquals(8_280.0, balance.grossExportSurplus(), 1e-3);
+        assertEquals(7_000.0, balance.internalTransferVolume(), 1e-3);
+        assertEquals(1_280.0, balance.externalExportRequired(), 1e-3);
+        assertEquals(0.0, balance.externalImportRequired(), 1e-3);
     }
 
     @Test
@@ -64,11 +67,12 @@ class ProjectGlobalBalanceAggregatorTest {
         ProjectGlobalBalanceAggregator.AggregatedBalance balance =
             ProjectGlobalBalanceAggregator.aggregate(project);
 
-        assertEquals(1_000.0, siteA.getLastReport().exportVolume(), 1e-6);
-        assertEquals(800.0, siteB.getLastReport().importVolume(), 1e-6);
+        assertEquals(1_000.0, balance.grossExportSurplus(), 1e-6);
+        assertEquals(800.0, balance.grossImportDemand(), 1e-6);
+        assertEquals(800.0, balance.internalTransferVolume(), 1e-6);
         assertEquals(800L, transfer(balance.crossSiteAllocationMatrix(), "site-a", "site-b"));
-        assertEquals(200.0, balance.exportRequired(), 1e-6);
-        assertEquals(0.0, balance.importRequired(), 1e-6);
+        assertEquals(200.0, balance.externalExportRequired(), 1e-6);
+        assertEquals(0.0, balance.externalImportRequired(), 1e-6);
     }
 
     @Test
@@ -120,8 +124,11 @@ class ProjectGlobalBalanceAggregatorTest {
         assertEquals(2, report.sitesWithVolume());
         assertEquals(2_500L, transfer(report.crossSiteAllocationMatrix(), "site-cut", "site-fill"));
         // DEFAULT factor 0.828: surplus = 4000*0.828 = 3312; after 2500 to fill → external export 812
-        assertEquals(812.0, report.exportRequired(), 1e-6);
-        assertEquals(0.0, report.importRequired(), 1e-6);
+        assertEquals(2_500.0, report.grossImportDemand(), 1e-3);
+        assertEquals(3_312.0, report.grossExportSurplus(), 1e-3);
+        assertEquals(2_500.0, report.internalTransferVolume(), 1e-3);
+        assertEquals(812.0, report.externalExportRequired(), 1e-3);
+        assertEquals(0.0, report.externalImportRequired(), 1e-3);
     }
 
     private static long transfer(EarthworkAllocationMatrix matrix, String source, String destination) {
