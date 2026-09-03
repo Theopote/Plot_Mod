@@ -34,4 +34,14 @@ public final class ZoneSurfaceEvaluatorRegistry {
         return DesignSurfaceResolver.resolveZoneEvaluators(
             site, terrain, buildingLookup, roadLookup, transformer);
     }
+
+    public static Map<String, ResolvedDesignSurface> resolveSurfaces(
+            EarthworkSite site,
+            TerrainSnapshot terrain,
+            BuildingFootprintLookup buildingLookup,
+            RoadSurfaceLookup roadLookup,
+            ICoordinateService transformer) {
+        return DesignSurfaceResolver.resolveZoneSurfaces(
+            site, terrain, buildingLookup, roadLookup, transformer);
+    }
 }

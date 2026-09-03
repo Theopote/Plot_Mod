@@ -43,7 +43,8 @@ com.plot.plugin.earthwork
 │   └── SiteTerrainCapture
 │
 ├── design/             # 设计面解析（纯函数）
-│   ├── DesignSurfaceResolver / GradingSurfaceResolver
+│   ├── DesignSurfaceResolver → ResolvedDesignSurface
+│   ├── ResolvedDesignSurface / ResolvedDesignSource / ResolutionResult
 │   ├── DesignTerrainComposer
 │   ├── MultiPlaneSurfaceEvaluator / ExcavationPitSurfaceEvaluator
 │   ├── RegionSurfaceEvaluator / ZoneSurfaceEvaluatorRegistry
@@ -113,8 +114,8 @@ flowchart TD
 | 阶段 | 输入 | 输出 | 现有实现 |
 |------|------|------|----------|
 | **Capture** | `World` + 红线/分区轮廓 | `TerrainSnapshot` | `TerrainSnapshot.capture` |
-| **Compose** | `EarthworkSite` + `TerrainSnapshot` | `DesignTerrainGrid` | `DesignTerrainComposer.compose` |
-| **Balance** | `DesignTerrainGrid` + `CompositionPolicy` | 调整后的 grid / ΔY 报告 | `SiteWideBalanceAdjuster`、`EarthworkOptimizationSolver` |
+| **Compose** | `EarthworkSite` + `TerrainSnapshot` | `DesignTerrainGrid` + `ResolvedDesignSurface` | `DesignSurfaceResolver` → `DesignTerrainComposer` |
+| **Balance** | `DesignTerrainGrid` + `ResolvedDesignSurface` + `CompositionPolicy` | 调整后的 grid / ΔY 报告 | `SiteWideBalanceAdjuster`、`EarthworkOptimizationSolver`（按 `isSolverVariable`） |
 | **Volume** | grid + 材料模型 | `EarthworkVolumeReport` | 散落在 `EarthworkGenerator.computeEarthworkFromDesignGrid` |
 | **Voxelize** | grid + `BlockSampler` | `BlockRecord` 集 | `EarthworkGenerator.applyColumnEarthwork` |
 | **Apply** | `BlockRecord` | World 方块 | `EarthworkGenerateCommand`（core.command，保持） |
@@ -131,7 +132,8 @@ flowchart TD
 | `TerrainSnapshotCache` | `terrain/` | |
 | `TerrainSurfaceSampler` | `terrain/` | 已迁至 `core/terrain/EngineeringTerrainSampler` |
 | `DesignTerrainComposer` | `design/` | 场地合成 |
-| `DesignSurfaceResolver` / `GradingSurfaceResolver` | `design/` | 单分区平面解析 |
+| `DesignSurfaceResolver` / `GradingSurfaceResolver` | `design/` | 产出 `ResolvedDesignSurface` |
+| `ResolvedDesignSurface` / `ResolvedDesignSource` | `design/` | 运行时设计面：求值 + source/status/policy |
 | `MultiPlaneSurfaceEvaluator` | `design/` | |
 | `ExcavationPitSurfaceEvaluator` | `design/` | |
 | `EarthworkBalanceUtils` | `solver/BalanceElevationSolver` | 纯函数，几乎可直接改名 |
@@ -313,6 +315,14 @@ public final class EarthworkGenerator {
 - [x] `EXCAVATION_PIT` 分区关联建筑轮廓；`DesignSurfaceResolver` 接入
 - [x] 编辑 Tab 基坑设置（楼面深度、结构厚度、竖向超挖、水平工作面）
 - [x] JSON 持久化 + 旧 `basementDepthBlocks` → `basementFloorDepth`；`BuildingFootprintResolverTest` / `PhaseCDesignSurfaceTest`
+
+### 17t — Resolved Design Surface
+
+- [x] `ResolvedDesignSurface`：`source` / `status` / `verticalPolicy` / `evaluateAt`
+- [x] `ResolvedDesignSource`：`BUILDING_BASE_ELEVATION` / `DERIVED_BUILDING_PIT` / `BEST_FIT` / …
+- [x] `DesignSurfaceResolver.resolveZoneSurfaces`；`ComposeResult.resolvedSurfaces`
+- [x] Mode B Solver / 全场 ΔY 按 `isSolverVariable()` 划分（LOCKED/DERIVED/引用失败不进变量）
+- [x] `ResolvedDesignSurfaceTest`
 
 ### 17n — 材料感知调配矩阵（P2-4）
 

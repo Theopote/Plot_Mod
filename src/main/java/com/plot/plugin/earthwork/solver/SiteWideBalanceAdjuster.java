@@ -57,12 +57,19 @@ public final class SiteWideBalanceAdjuster {
     }
 
     public static int findBalancedVerticalOffset(DesignTerrainGrid grid, EarthworkSite site) {
+        return findBalancedVerticalOffset(grid, site, null);
+    }
+
+    public static int findBalancedVerticalOffset(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         if (grid == null) {
             return 0;
         }
         List<CellSample> flexible = new ArrayList<>();
         List<CellSample> locked = new ArrayList<>();
-        splitSamples(grid, site, Map.of(), flexible, locked);
+        splitSamples(grid, site, Map.of(), flexible, locked, resolvedSurfaces);
         MaterialConversionModel materials = site != null ? site.getMaterialModel() : MaterialConversionModel.DEFAULT;
         return findBalancedVerticalOffset(flexible, locked, materials);
     }
@@ -73,6 +80,16 @@ public final class SiteWideBalanceAdjuster {
             Map<String, Integer> extraZoneOffsets,
             List<CellSample> flexibleOut,
             List<CellSample> lockedOut) {
+        splitSamples(grid, site, extraZoneOffsets, flexibleOut, lockedOut, null);
+    }
+
+    public static void splitSamples(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, Integer> extraZoneOffsets,
+            List<CellSample> flexibleOut,
+            List<CellSample> lockedOut,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         Map<String, Integer> safeOffsets = extraZoneOffsets != null ? extraZoneOffsets : Map.of();
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
@@ -80,12 +97,25 @@ public final class SiteWideBalanceAdjuster {
             }
             int targetY = cell.targetY() + safeOffsets.getOrDefault(cell.zoneId(), 0);
             CellSample sample = new CellSample(cell.existingGroundY(), targetY);
-            if (site != null && site.isElevationLocked(cell.zoneId())) {
+            if (isLocked(site, resolvedSurfaces, cell.zoneId())) {
                 lockedOut.add(new CellSample(cell.existingGroundY(), cell.targetY()));
             } else {
                 flexibleOut.add(sample);
             }
         }
+    }
+
+    private static boolean isLocked(
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces,
+            String zoneId) {
+        if (resolvedSurfaces != null) {
+            com.plot.plugin.earthwork.design.ResolvedDesignSurface resolved = resolvedSurfaces.get(zoneId);
+            if (resolved != null) {
+                return !resolved.isSolverVariable();
+            }
+        }
+        return site != null && site.isElevationLocked(zoneId);
     }
 
     public static void applyOffset(DesignTerrainGrid grid, int verticalOffset) {

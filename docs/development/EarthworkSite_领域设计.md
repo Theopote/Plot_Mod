@@ -716,6 +716,21 @@ pitBottom = referenceElevation
 
 其中 `referenceElevation` 为建筑 ±0.000 / 基础底；旧字段 `basementDepthBlocks` 仅迁移为 `basementFloorDepth`。水平工作面仍由 `workingMarginBlocks` 控制，与竖向 `workingAllowance` 分开。
 
+### 5.7 Resolved Design Surface（运行时）
+
+编辑模型仍是 `GradingZone` + `DesignSurface`。合成前解析为：
+
+```
+ResolvedDesignSurface {
+  source          // BUILDING_BASE_ELEVATION | DERIVED_BUILDING_PIT | BEST_FIT | …
+  status          // RESOLVED | FALLBACK | MISSING_REFERENCE | INVALID_REFERENCE
+  verticalPolicy  // LOCKED / DERIVED / BOUNDED / ADJUSTABLE + min/max/weight
+  evaluateAt(...)
+}
+```
+
+Mode B Solver 只把 `isSolverVariable()` 为真的分区当作优化变量（可调且 status 可信），避免建筑控制标高与派生基坑与景观格点被同等对待。
+
 ---
 
 ## 6. JSON Schema

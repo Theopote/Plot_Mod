@@ -51,27 +51,38 @@ public final class EarthworkOptimizationSolver {
     public static BalanceResult propose(
             DesignTerrainGrid grid,
             EarthworkSite site) {
+        return propose(grid, site, null);
+    }
+
+    /**
+     * @param resolvedSurfaces 可选；有则按 {@link com.plot.plugin.earthwork.design.ResolvedDesignSurface#isSolverVariable()}
+     *                         划分可调分区，避免把 LOCKED/DERIVED/引用失败面当成同质变量。
+     */
+    public static BalanceResult propose(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         if (grid == null || site == null || site.getZoneCount() < 2) {
             return new BalanceResult(Map.of(), 0);
         }
         SiteEarthworkReport snapshot = collectZoneVolumes(grid, site);
-        Map<String, EarthworkVolumeReport> flexibleByZone = flexibleZoneReports(snapshot.byZone(), site);
+        Map<String, EarthworkVolumeReport> flexibleByZone =
+            flexibleZoneReports(snapshot.byZone(), site, resolvedSurfaces);
         Map<String, Integer> zoneOffsets = Map.of();
         if (!flexibleByZone.isEmpty()) {
-            // 调配矩阵在此仅作优化启发；报告用矩阵仍由 EarthworkProjectReport 在定稿设计面上单独计算。
             EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
                 flexibleByZone,
                 site);
             zoneOffsets = computeZoneOffsets(
                 matrix,
-                countFlexibleCellsByZone(grid, site),
-                collectFlexibleSamplesByZone(grid, site),
+                countFlexibleCellsByZone(grid, site, resolvedSurfaces),
+                collectFlexibleSamplesByZone(grid, site, resolvedSurfaces),
                 site,
                 flexibleByZone);
         }
         int residual = 0;
         if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
-            residual = proposeResidualUniformOffset(grid, site, zoneOffsets);
+            residual = proposeResidualUniformOffset(grid, site, zoneOffsets, resolvedSurfaces);
         }
         return new BalanceResult(zoneOffsets, residual);
     }
@@ -265,13 +276,14 @@ public final class EarthworkOptimizationSolver {
 
     private static Map<String, EarthworkVolumeReport> flexibleZoneReports(
             Map<String, EarthworkVolumeReport> byZone,
-            EarthworkSite site) {
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         if (byZone == null || byZone.isEmpty()) {
             return Map.of();
         }
         Map<String, EarthworkVolumeReport> flexible = new LinkedHashMap<>();
         for (Map.Entry<String, EarthworkVolumeReport> entry : byZone.entrySet()) {
-            if (site != null && site.isElevationLocked(entry.getKey())) {
+            if (!isSolverVariable(site, resolvedSurfaces, entry.getKey())) {
                 continue;
             }
             flexible.put(entry.getKey(), entry.getValue());
@@ -279,7 +291,23 @@ public final class EarthworkOptimizationSolver {
         return flexible;
     }
 
-    private static Map<String, Integer> countFlexibleCellsByZone(DesignTerrainGrid grid, EarthworkSite site) {
+    private static boolean isSolverVariable(
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces,
+            String zoneId) {
+        if (resolvedSurfaces != null) {
+            com.plot.plugin.earthwork.design.ResolvedDesignSurface resolved = resolvedSurfaces.get(zoneId);
+            if (resolved != null) {
+                return resolved.isSolverVariable();
+            }
+        }
+        return site == null || !site.isElevationLocked(zoneId);
+    }
+
+    private static Map<String, Integer> countFlexibleCellsByZone(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         Map<String, Integer> counts = new HashMap<>();
         if (grid == null) {
             return counts;
@@ -288,7 +316,7 @@ public final class EarthworkOptimizationSolver {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
                 continue;
             }
-            if (site != null && site.isElevationLocked(cell.zoneId())) {
+            if (!isSolverVariable(site, resolvedSurfaces, cell.zoneId())) {
                 continue;
             }
             counts.merge(cell.zoneId(), 1, Integer::sum);
@@ -298,7 +326,8 @@ public final class EarthworkOptimizationSolver {
 
     private static Map<String, List<SiteWideBalanceAdjuster.CellSample>> collectFlexibleSamplesByZone(
             DesignTerrainGrid grid,
-            EarthworkSite site) {
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone = new LinkedHashMap<>();
         if (grid == null) {
             return samplesByZone;
@@ -307,7 +336,7 @@ public final class EarthworkOptimizationSolver {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
                 continue;
             }
-            if (site != null && site.isElevationLocked(cell.zoneId())) {
+            if (!isSolverVariable(site, resolvedSurfaces, cell.zoneId())) {
                 continue;
             }
             samplesByZone
@@ -320,10 +349,11 @@ public final class EarthworkOptimizationSolver {
     private static int proposeResidualUniformOffset(
             DesignTerrainGrid grid,
             EarthworkSite site,
-            Map<String, Integer> zoneOffsets) {
+            Map<String, Integer> zoneOffsets,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
         List<SiteWideBalanceAdjuster.CellSample> flexible = new ArrayList<>();
         List<SiteWideBalanceAdjuster.CellSample> locked = new ArrayList<>();
-        SiteWideBalanceAdjuster.splitSamples(grid, site, zoneOffsets, flexible, locked);
+        SiteWideBalanceAdjuster.splitSamples(grid, site, zoneOffsets, flexible, locked, resolvedSurfaces);
         return SiteWideBalanceAdjuster.findBalancedVerticalOffset(
             flexible,
             locked,
