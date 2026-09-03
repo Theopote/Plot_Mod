@@ -2,19 +2,6 @@ package com.plot.plugin.earthwork.ui;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
-import com.plot.core.geometry.RegionGeometry;
-import com.plot.core.geometry.shapes.FreeDrawPath;
-import com.plot.core.geometry.shapes.LineShape;
-import com.plot.core.geometry.shapes.PolylineShape;
-import com.plot.core.model.Shape;
-import com.plot.core.plugin.PluginManager;
-import com.plot.core.tool.BaseTool;
-import com.plot.core.tool.ToolManager;
-import com.plot.plugin.BuildingPlugin;
-import com.plot.plugin.RoadSystemPlugin;
-import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.config.EarthworkConfig;
-import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.core.material.EarthMaterialClass;
 import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
@@ -23,25 +10,14 @@ import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
-import com.plot.plugin.earthwork.ui.EarthworkUiContext;
-import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
 import com.plot.plugin.ui.PluginUiColors;
-import com.plot.ui.canvas.Canvas;
-import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
-import imgui.type.ImBoolean;
-import imgui.type.ImInt;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.function.Consumer;
 
 
 /** 土方生成 Tab：预览计算、网格示意与落地确认。 */
@@ -92,7 +68,7 @@ public final class EarthworkGeneratePanel {
                         preview.resolvedElevationMax);
                     EarthworkInsightCharts.render(ctx, region, preview);
                     if (ctx.config().getWorkMode().showsLearningMetrics()) {
-                        renderLearningVolumeDetails(volumes);
+                        EarthworkLearnWidgets.renderConversionLesson(ctx, volumes);
                     }
 
                     if (preview.projectReport != null
@@ -167,15 +143,6 @@ public final class EarthworkGeneratePanel {
         if (buildDisabled) {
             ImGui.endDisabled();
         }
-    }
-
-    private void renderLearningVolumeDetails(EarthworkVolumeReport volumes) {
-        ImGui.spacing();
-        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.learn.volume_header"));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", volumes.exportVolume()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", volumes.importVolume()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.compacted_fill_demand", volumes.compactedFillDemand()));
     }
 
     private void renderGridPreview(GradingRegion region, EarthworkGenerationResult result) {
@@ -321,28 +288,30 @@ public final class EarthworkGeneratePanel {
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_cut", report.totalCut()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_total_fill", report.totalFill()));
         ImGui.text(PlotI18n.tr("plugin.earthwork.project_net_volume", report.netVolume()));
-        ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", report.reusableCut()));
-        ImGui.spacing();
-        EarthworkUiWidgets.renderProjectMaterialBalance(report.materialBalance());
-        ImGui.textColored(
-            PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.earthwork.project_balance_scope",
-                PlotI18n.tr("plugin.earthwork.balance_scope." + report.balanceScope().toLowerCase())));
-        if (report.siteWideVerticalOffset() != 0) {
-            ImGui.text(PlotI18n.tr(
-                "plugin.earthwork.site_wide_vertical_offset",
-                report.siteWideVerticalOffset()));
-        }
-        if (report.hasZoneVerticalOffsets()) {
-            ImGui.text(PlotI18n.tr("plugin.earthwork.zone_vertical_offsets_header"));
-            for (Map.Entry<String, Integer> entry : report.zoneVerticalOffsets().entrySet()) {
-                GradingRegion zoneRegion = ctx.project().getRegion(entry.getKey());
-                String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
-                ImGui.bulletText(PlotI18n.tr(
-                    "plugin.earthwork.zone_vertical_offset_item",
-                    zoneName,
-                    entry.getValue()));
+        if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.learn.engineering_numbers"))) {
+            ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", report.reusableCut()));
+            EarthworkUiWidgets.renderProjectMaterialBalance(report.materialBalance());
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.project_balance_scope",
+                    PlotI18n.tr("plugin.earthwork.balance_scope." + report.balanceScope().toLowerCase())));
+            if (report.siteWideVerticalOffset() != 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.earthwork.site_wide_vertical_offset",
+                    report.siteWideVerticalOffset()));
             }
+            if (report.hasZoneVerticalOffsets()) {
+                ImGui.text(PlotI18n.tr("plugin.earthwork.zone_vertical_offsets_header"));
+                for (Map.Entry<String, Integer> entry : report.zoneVerticalOffsets().entrySet()) {
+                    GradingRegion zoneRegion = ctx.project().getRegion(entry.getKey());
+                    String zoneName = zoneRegion != null ? zoneRegion.getName() : entry.getKey();
+                    ImGui.bulletText(PlotI18n.tr(
+                        "plugin.earthwork.zone_vertical_offset_item",
+                        zoneName,
+                        entry.getValue()));
+                }
+            }
+            ImGui.treePop();
         }
 
         if (report.hasCrossSiteBreakdown()) {
@@ -373,7 +342,7 @@ public final class EarthworkGeneratePanel {
 
         if (!report.allocationMatrix().isEmpty()) {
             ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.allocation_matrix_header"));
+            EarthworkLearnWidgets.renderDirtFlowHeader();
             for (EarthworkAllocationMatrix.Transfer transfer : report.allocationMatrix().transfers()) {
                 ImGui.bulletText(formatAllocationTransfer(
                     transfer,
@@ -384,7 +353,7 @@ public final class EarthworkGeneratePanel {
 
         if (!report.crossSiteAllocationMatrix().isEmpty()) {
             ImGui.spacing();
-            ImGui.text(PlotI18n.tr("plugin.earthwork.cross_site_allocation_header"));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.learn.cross_site_dirt"));
             for (EarthworkAllocationMatrix.Transfer transfer : report.crossSiteAllocationMatrix().transfers()) {
                 ImGui.bulletText(formatAllocationTransfer(
                     transfer,
