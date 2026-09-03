@@ -72,7 +72,7 @@ public final class EarthworkQuickPanel {
                 ctx.projectHistory().push(ctx.project());
                 region.setAutoBalance(true);
                 syncAutoPolicy(region);
-                ctx.recalculatePreview();
+                ctx.scheduleRecalculatePreview();
             }
         }
         if (ImGui.radioButton(PlotI18n.tr("plugin.earthwork.quick.target_manual"), !auto)) {
@@ -82,7 +82,7 @@ public final class EarthworkQuickPanel {
                 region.setAutoBalance(false);
                 region.setManualTargetElevation(seed);
                 syncAutoPolicy(region);
-                ctx.recalculatePreview();
+                ctx.scheduleRecalculatePreview();
             }
         }
 
@@ -114,7 +114,7 @@ public final class EarthworkQuickPanel {
         }
         if (changed && elevation[0] != current) {
             region.setManualTargetElevation(elevation[0]);
-            ctx.recalculatePreview();
+            ctx.scheduleRecalculatePreview();
         }
     }
 
@@ -130,7 +130,7 @@ public final class EarthworkQuickPanel {
             if (ImGui.radioButton(PlotI18n.tr(edge.i18nKey()), current == edge) && current != edge) {
                 ctx.projectHistory().push(ctx.project());
                 edge.applyTo(settings);
-                ctx.recalculatePreview();
+                ctx.scheduleRecalculatePreview();
             }
         }
     }

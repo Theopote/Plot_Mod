@@ -42,7 +42,9 @@ public class CanvasCamera implements UIComponent, IDirty, ViewTransform {
      * 更新相机状态
      */
     public void update() {
-        updateTransform();
+        if (isDirty) {
+            updateTransform();
+        }
     }
 
     /**
@@ -82,11 +84,7 @@ public class CanvasCamera implements UIComponent, IDirty, ViewTransform {
             
             // 3. 计算逆变换矩阵
             inverse = transform.inverse();
-            
-            LOGGER.debug("变换矩阵已更新: position={}, zoom={}, rotation={}, offset={}", 
-                position, zoom, rotation, offset);
-                
-            markDirty();
+            isDirty = false;
         } catch (Exception e) {
             LOGGER.error("更新变换矩阵时出错", e);
         }
@@ -131,17 +129,19 @@ public class CanvasCamera implements UIComponent, IDirty, ViewTransform {
         
         // 使用变换矩阵将世界坐标转换为屏幕坐标
         Vec2d screenPos = transform.transform(worldPos);
-        
-        // 考虑offset偏移 - 添加偏移量
-        Vec2d adjustedScreenPos = new Vec2d(
-            screenPos.x + offset.x,
-            screenPos.y + offset.y
-        );
-        
-        LOGGER.debug("世界坐标转屏幕坐标: 世界坐标={}, 变换后坐标={}, 调整后屏幕坐标={}, offset={}, zoom={}", 
-            worldPos, screenPos, adjustedScreenPos, offset, zoom);
-            
-        return adjustedScreenPos;
+        return new Vec2d(screenPos.x + offset.x, screenPos.y + offset.y);
+    }
+
+    /** 无分配写入屏幕坐标，供每帧叠加层使用。 */
+    public void worldToScreen(double worldX, double worldZ, float[] out) {
+        if (out == null || out.length < 2) {
+            return;
+        }
+        if (isDirty) {
+            updateTransform();
+        }
+        out[0] = (float) (transform.get(0, 0) * worldX + transform.get(0, 1) * worldZ + transform.get(0, 2) + offset.x);
+        out[1] = (float) (transform.get(1, 0) * worldX + transform.get(1, 1) * worldZ + transform.get(1, 2) + offset.y);
     }
     
     /**

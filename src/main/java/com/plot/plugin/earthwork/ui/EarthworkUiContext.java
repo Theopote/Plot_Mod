@@ -1,6 +1,7 @@
 package com.plot.plugin.earthwork.ui;
 
 import com.plot.core.context.PluginContext;
+import com.plot.core.state.DebouncedTasks;
 import com.plot.core.model.Shape;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.EarthworkRegionPickSession;
@@ -204,6 +205,16 @@ public final class EarthworkUiContext {
             region,
             EarthworkUiLookups.createBuildingFootprintLookup(),
             EarthworkUiLookups.createRoadSurfaceLookup());
+    }
+
+    /** 选项拖动/切换时合并到下一次渲染线程计算，避免每帧同步跑完整管线。 */
+    public void scheduleRecalculatePreview() {
+        DebouncedTasks.publishDebounced("earthwork.preview.recalculate", () -> {
+            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+            if (client != null) {
+                client.execute(this::recalculatePreview);
+            }
+        }, 280);
     }
 
     public void clearPreview() {

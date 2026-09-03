@@ -109,6 +109,7 @@ public final class EarthworkPreviewManager {
             ghostBlockManager.clearAllGhostBlocks();
         }
 
+        long started = System.nanoTime();
         EarthworkSite site = project.getActiveSite();
         try {
             if (site.delegatesToLegacyGenerator()) {
@@ -140,6 +141,14 @@ public final class EarthworkPreviewManager {
 
         enrichProjectReport(project, site, region, lastGenerationResult);
         lastGenerationResult.warnings.addAll(validation.warningKeys());
+        long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+        if (elapsedMs >= 50L) {
+            LOGGER.warn(
+                "土方预览耗时 {} ms，cells={}, placements={}",
+                elapsedMs,
+                lastGenerationResult.calculationCellCount,
+                lastGenerationResult.placementRecords.size());
+        }
         statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_preview_ready"));
         return true;
     }
@@ -169,7 +178,13 @@ public final class EarthworkPreviewManager {
             return;
         }
         ghostBlockManager.clearAllGhostBlocks();
+        int total = result.placementRecords.size();
+        int stride = total > 4000 ? (int) Math.ceil(total / 4000.0) : 1;
+        int index = 0;
         for (BlockRecord record : result.placementRecords.values()) {
+            if ((index++ % stride) != 0) {
+                continue;
+            }
             EarthworkGenerationResult.ChangeType changeType = result.changeTypes.get(record.pos);
             String ghostBlock = changeType == EarthworkGenerationResult.ChangeType.CUT
                 ? CUT_GHOST_BLOCK

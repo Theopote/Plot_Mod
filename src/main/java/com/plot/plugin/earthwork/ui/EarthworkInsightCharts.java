@@ -325,8 +325,14 @@ public final class EarthworkInsightCharts {
         float spanZ = Math.max(1, maxZ - minZ + 1);
         float scale = Math.min((width - 8f) / spanX, (HEATMAP_HEIGHT - 8f) / spanZ);
         float cell = Math.max(2f, scale * 0.9f);
+        int count = grid.cellCount();
+        int stride = count > 1200 ? (int) Math.ceil(count / 1200.0) : 1;
+        int index = 0;
         for (DesignTerrainCell terrainCell : grid.cells().values()) {
             if (terrainCell == null || !terrainCell.participatesInEarthwork()) {
+                continue;
+            }
+            if ((index++ % stride) != 0) {
                 continue;
             }
             float px = origin.x + 4f + (terrainCell.worldX() - minX) * scale;

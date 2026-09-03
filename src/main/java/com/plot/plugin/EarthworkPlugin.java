@@ -175,7 +175,9 @@ public class EarthworkPlugin extends Plugin {
                 return;
             }
             EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
-            if (preview != null && preview.designTerrainGrid != null) {
+            if (preview != null
+                && preview.designTerrainGrid != null
+                && config.getWorkMode() != com.plot.plugin.earthwork.model.EarthworkWorkMode.QUICK) {
                 EarthworkCutFillHeatmapRenderer.render(drawList, camera, preview.designTerrainGrid);
             }
             if (config.isShowEdgeTreatmentOverlay()) {

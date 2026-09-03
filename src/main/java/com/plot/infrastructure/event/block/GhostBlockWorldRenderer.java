@@ -3,7 +3,6 @@ package com.plot.infrastructure.event.block;
 import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -25,7 +24,7 @@ import java.util.List;
 public final class GhostBlockWorldRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/GhostBlockWorldRenderer");
     private static volatile boolean initialized;
-    private static final int MAX_RENDER_PER_FRAME = 20_000;
+    private static final int MAX_RENDER_PER_FRAME = 4_000;
     private static final boolean X_RAY_PREVIEW = false;
     private static final boolean PARTICLE_FALLBACK = false;
     private static final int MAX_PARTICLE_BLOCKS = 64;
@@ -112,18 +111,6 @@ public final class GhostBlockWorldRenderer {
             BlockPos pos = BlockPos.ofFloored(block.getPosition().x, block.getHeight(), block.getPosition().y);
             matrices.push();
             matrices.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
-            try {
-                client.getBlockRenderManager().renderBlockAsEntity(
-                        block.getBlock().getDefaultState(),
-                        matrices,
-                        consumers,
-                        0x00F000F0,
-                        OverlayTexture.DEFAULT_UV
-                );
-            } catch (Exception renderEx) {
-                LOGGER.warn("渲染幽灵方块模型失败: pos={}, type={}, err={}", pos.toShortString(), block.getBlockType(), renderEx.toString());
-            }
-
             Box localBox = new Box(0.0, 0.0, 0.0, 1.0, 1.0, 1.0).expand(0.0025);
             drawLineBox(lines, matrices.peek(), localBox, r, g, b, alpha);
             matrices.pop();
