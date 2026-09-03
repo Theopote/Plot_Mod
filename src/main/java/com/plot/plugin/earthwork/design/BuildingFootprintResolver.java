@@ -1,4 +1,5 @@
 package com.plot.plugin.earthwork.design;
+
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
@@ -13,100 +14,156 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 从建筑轮廓解析室外地坪 ±0.000 标高。
+ * 从建筑轮廓解析室外地坪 ±0.000 / 基坑基准标高。
+ * <p>
+ * 一律返回 {@link ResolutionResult}，由下游决定：
+ * <ul>
+ *   <li>建筑地坪：{@link ResolutionResult.Status#FALLBACK} / 引用失败仍可用推荐值</li>
+ *   <li>建筑联动基坑：仅 {@link ResolutionResult.Status#RESOLVED} 可继续（fail closed）</li>
+ * </ul>
  */
 public final class BuildingFootprintResolver {
     private BuildingFootprintResolver() {
     }
 
-    public static int resolveConstantElevation(
+    /** 要求 RESOLVED 但未满足时抛出（由 {@link ResolutionResult#requireResolved} 使用）。 */
+    public static final class UnresolvedBuildingReferenceException extends IllegalStateException {
+        public UnresolvedBuildingReferenceException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * 建筑地坪 / 恒定标高解析。引用失败时返回 {@code MISSING_REFERENCE}/{@code INVALID_REFERENCE}
+     * 并附带场地默认值，供推荐回退；不静默伪装成 RESOLVED。
+     */
+    public static ResolutionResult<Integer> resolveConstantElevation(
             GradingZone zone,
             DesignSurface surface,
             TerrainSnapshot terrain,
             BuildingFootprintLookup lookup,
             int siteDefaultElevation) {
         if (zone == null || surface == null) {
-            return siteDefaultElevation;
+            return ResolutionResult.fallback(siteDefaultElevation, "zone or surface is null");
         }
         if (surface.getElevation() != null) {
-            return surface.getElevation();
+            return ResolutionResult.resolved(surface.getElevation(), "explicit design elevation");
         }
         if (surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
             return resolveBuildingBaseElevation(zone, surface, terrain, lookup, siteDefaultElevation);
         }
         if (surface.getManualTargetElevation() != null) {
-            return surface.getManualTargetElevation();
+            return ResolutionResult.resolved(surface.getManualTargetElevation(), "manual target elevation");
         }
-        return siteDefaultElevation;
+        return ResolutionResult.fallback(siteDefaultElevation, "no elevation source; using site default");
     }
 
     /**
-     * 基坑坑底标高：手动 {@link DesignSurface#getBottomElevation()}，或
+     * 基坑坑底：手动 {@link DesignSurface#getBottomElevation()}，或
      * {@code referenceElevation - basementFloorDepth - foundationDepth - workingAllowance}。
+     * <p>
+     * 建筑联动时引用失败返回 {@code MISSING_REFERENCE}/{@code INVALID_REFERENCE}（value 仅为诊断用场地默认，
+     * 下游须 {@link ResolutionResult#requireResolved}，不得当设计值使用）。
      */
-    public static int resolvePitBottomElevation(
+    public static ResolutionResult<Integer> resolvePitBottomElevation(
             GradingZone zone,
             DesignSurface surface,
             TerrainSnapshot terrain,
             BuildingFootprintLookup lookup,
             int siteDefaultElevation) {
         if (surface == null) {
-            return siteDefaultElevation;
+            return ResolutionResult.fallback(siteDefaultElevation, "surface is null");
         }
         if (surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
             if (zone == null) {
-                return siteDefaultElevation;
+                return ResolutionResult.missingReference(
+                    siteDefaultElevation,
+                    "Excavation pit requires a grading zone for building-linked pit bottom");
             }
-            int referenceElevation = resolveBuildingBaseElevation(
+            ResolutionResult<Integer> reference = resolveBuildingBaseElevation(
                 zone, surface, terrain, lookup, siteDefaultElevation);
-            return surface.getExcavationPit().pitBottomFrom(referenceElevation);
+            if (!reference.isResolved()) {
+                return reference;
+            }
+            int bottom = surface.getExcavationPit().pitBottomFrom(reference.value());
+            return ResolutionResult.resolved(bottom, "building-linked pit bottom");
         }
         if (surface.getBottomElevation() != null) {
-            return surface.getBottomElevation();
+            return ResolutionResult.resolved(surface.getBottomElevation(), "manual pit bottom");
         }
-        return siteDefaultElevation;
+        return ResolutionResult.fallback(siteDefaultElevation, "manual pit bottom unset; using site default");
     }
 
     /** 解析基坑基准标高（建筑 ±0.000 / 基础底），不扣减埋深。 */
-    public static int resolvePitReferenceElevation(
+    public static ResolutionResult<Integer> resolvePitReferenceElevation(
             GradingZone zone,
             DesignSurface surface,
             TerrainSnapshot terrain,
             BuildingFootprintLookup lookup,
             int siteDefaultElevation) {
         if (surface == null) {
-            return siteDefaultElevation;
+            return ResolutionResult.fallback(siteDefaultElevation, "surface is null");
         }
         if (surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION) {
             if (zone == null) {
-                return siteDefaultElevation;
+                return ResolutionResult.missingReference(
+                    siteDefaultElevation,
+                    "Excavation pit requires a grading zone for building-linked reference elevation");
             }
             return resolveBuildingBaseElevation(zone, surface, terrain, lookup, siteDefaultElevation);
         }
         if (surface.getBottomElevation() != null) {
-            return surface.getBottomElevation() + surface.getExcavationPit().totalExcavationDepth();
+            int reference = surface.getBottomElevation() + surface.getExcavationPit().totalExcavationDepth();
+            return ResolutionResult.resolved(reference, "inferred from manual pit bottom");
         }
-        return siteDefaultElevation;
+        return ResolutionResult.fallback(siteDefaultElevation, "pit reference unset; using site default");
     }
 
-    private static int resolveBuildingBaseElevation(
+    /**
+     * @return true 当引用非空且（无 lookup 时仅检查引用存在，有 lookup 时 footprint 可解析）
+     */
+    public static boolean isBuildingReferenceResolvable(
+            GradingZone zone,
+            DesignSurface surface,
+            BuildingFootprintLookup lookup) {
+        String ref = resolveFootprintRef(zone, surface);
+        if (ref == null || ref.isBlank()) {
+            return false;
+        }
+        if (lookup == null) {
+            return true;
+        }
+        return lookup.getFootprint(ref) != null;
+    }
+
+    private static ResolutionResult<Integer> resolveBuildingBaseElevation(
             GradingZone zone,
             DesignSurface surface,
             TerrainSnapshot terrain,
             BuildingFootprintLookup lookup,
             int siteDefaultElevation) {
         if (surface.getElevation() != null) {
-            return surface.getElevation();
+            return ResolutionResult.resolved(surface.getElevation(), "explicit elevation overrides building base");
         }
         String ref = resolveFootprintRef(zone, surface);
-        BuildingFootprint footprint = lookup != null ? lookup.getFootprint(ref) : null;
-        if (footprint != null) {
-            List<Integer> samples = collectFootprintGroundSamples(terrain, footprint.getOuterPoints());
-            return BuildingFoundationUtils.computeBaseElevation(
-                samples,
-                footprint.getManualBaseElevation());
+        if (ref == null || ref.isBlank()) {
+            String zoneName = zone != null ? zone.getName() : "?";
+            return ResolutionResult.missingReference(
+                siteDefaultElevation,
+                "Building-linked elevation requires a building footprint reference (zone=" + zoneName + ")");
         }
-        return siteDefaultElevation;
+        BuildingFootprint footprint = lookup != null ? lookup.getFootprint(ref) : null;
+        if (footprint == null) {
+            String zoneName = zone != null ? zone.getName() : "?";
+            return ResolutionResult.invalidReference(
+                siteDefaultElevation,
+                "Building footprint \"" + ref + "\" is unresolved (zone=" + zoneName + ")");
+        }
+        List<Integer> samples = collectFootprintGroundSamples(terrain, footprint.getOuterPoints());
+        int elevation = BuildingFoundationUtils.computeBaseElevation(
+            samples,
+            footprint.getManualBaseElevation());
+        return ResolutionResult.resolved(elevation, "building footprint " + ref);
     }
 
     public static String resolveFootprintRef(GradingZone zone, DesignSurface surface) {

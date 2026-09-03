@@ -4,6 +4,7 @@ import com.plot.api.world.IGhostBlockService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.context.PluginContext;
 import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
+import com.plot.plugin.earthwork.design.BuildingFootprintResolver;
 import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkSite;
@@ -95,7 +96,8 @@ public final class EarthworkPreviewManager {
             return false;
         }
 
-        EarthworkValidationReport validation = EarthworkValidator.analyzePrePreview(project, region);
+        EarthworkValidationReport validation = EarthworkValidator.analyzePrePreview(
+            project, region, buildingLookup);
         lastValidationReport = validation;
         if (validation.blocksPreview()) {
             statusSink.accept(validation.firstBlockingMessage());
@@ -119,6 +121,11 @@ public final class EarthworkPreviewManager {
                     com.plot.plugin.earthwork.pipeline.EarthworkPipelineContext.of(
                         site, world, terrain, region, buildingLookup, roadLookup));
             }
+        } catch (BuildingFootprintResolver.UnresolvedBuildingReferenceException e) {
+            LOGGER.error("土方预览被建筑引用阻断: {}", e.getMessage());
+            lastGenerationResult = null;
+            statusSink.accept(e.getMessage());
+            return false;
         } catch (Exception e) {
             LOGGER.error("土方预览生成失败: {}", e.getMessage(), e);
             lastGenerationResult = null;

@@ -2,6 +2,7 @@ package com.plot.plugin.earthwork;
 
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
 import com.plot.plugin.earthwork.design.ExcavationPitSurfaceEvaluator;
+import com.plot.plugin.earthwork.design.ResolutionResult;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
@@ -92,9 +93,10 @@ class PhaseCDesignSurfaceTest {
         surface.setElevationSource(DesignSurfaceElevationSource.MANUAL);
         surface.setBottomElevation(48);
 
-        int bottom = com.plot.plugin.earthwork.design.BuildingFootprintResolver.resolvePitBottomElevation(
+        ResolutionResult<Integer> bottom = com.plot.plugin.earthwork.design.BuildingFootprintResolver.resolvePitBottomElevation(
             null, surface, TerrainSnapshot.empty(), id -> null, 64);
-        assertEquals(48, bottom);
+        assertEquals(ResolutionResult.Status.RESOLVED, bottom.status());
+        assertEquals(48, bottom.value());
     }
 
     @Test

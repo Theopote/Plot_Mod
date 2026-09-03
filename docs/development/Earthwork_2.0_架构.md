@@ -265,6 +265,9 @@ public final class EarthworkGenerator {
 
 - [x] `validation/EarthworkValidator` + `EarthworkValidationReport`（对标 `RoadNetworkEngineeringValidator`）
 - [x] `EarthworkPreviewManager.calculatePreview` 预览前硬校验；ERROR 阻断、WARNING 写入 `EarthworkGenerationResult.warnings`
+- [x] Design Constraint：场地平衡开启 + 未锁定建筑地坪 → Warning（`LOCKED`/`DERIVED` 已排除在 Solver 变量外）
+- [x] `EXCAVATION_PIT` 自动坑底缺/无法解析建筑引用 → **ERROR**（fail closed；`ResolutionResult` 标记 `MISSING_REFERENCE`/`INVALID_REFERENCE`，禁止当设计值）
+- [x] `BuildingFootprintResolver` → `ResolutionResult<Integer>`：`RESOLVED` / `FALLBACK` / `MISSING_REFERENCE` / `INVALID_REFERENCE`；建筑地坪可用推荐回退，建筑联动基坑仅 `requireResolved`
 - [x] `EarthworkValidatorTest`；i18n `plugin.earthwork.validation.*`
 
 ### 17h — 报表导出（P2-5）

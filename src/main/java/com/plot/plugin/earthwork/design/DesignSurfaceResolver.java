@@ -6,6 +6,7 @@ import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.model.BakedElevationGrid;
 import com.plot.plugin.earthwork.model.DesignSurface;
+import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -85,13 +86,15 @@ public final class DesignSurfaceResolver {
         }
         return switch (kind) {
             case CONSTANT_ELEVATION -> {
-                int elevation = BuildingFootprintResolver.resolveConstantElevation(
+                // 建筑地坪：允许 FALLBACK / 引用失败时的推荐值，但状态对外可见（不伪装 RESOLVED）。
+                ResolutionResult<Integer> elevation = BuildingFootprintResolver.resolveConstantElevation(
                     zone,
                     surface,
                     terrain,
                     buildingLookup,
                     siteDefaultElevation);
-                yield cell -> elevation;
+                int y = elevation.valueOrFallback(siteDefaultElevation);
+                yield cell -> y;
             }
             case MATCH_EXISTING -> {
                 int offset = surface.getVerticalOffset();
@@ -119,12 +122,16 @@ public final class DesignSurfaceResolver {
                 yield cell -> plane.evaluateAt(cell.worldX(), cell.worldZ());
             }
             case EXCAVATION_PIT -> {
-                int bottom = BuildingFootprintResolver.resolvePitBottomElevation(
+                ResolutionResult<Integer> bottomResult = BuildingFootprintResolver.resolvePitBottomElevation(
                     zone,
                     surface,
                     terrain,
                     buildingLookup,
                     siteDefaultElevation);
+                // 建筑联动：仅 RESOLVED；手动坑底可用 RESOLVED / FALLBACK。
+                int bottom = surface.getElevationSource() == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION
+                    ? bottomResult.requireResolved("building-linked pit bottom")
+                    : bottomResult.valueOrFallback(siteDefaultElevation);
                 int workingMargin = surface.getWorkingMarginBlocks();
                 int slopePitch = surface.getSlopePitchRatio();
                 List<com.plot.api.geometry.Vec2d> polygon = zone.getOuterPoints();
