@@ -104,6 +104,31 @@ public final class EarthworkUiWidgets {
             }
         }
 
+        public static void renderWallPresets(String currentBlockId, Consumer<String> onSelected) {
+            float third = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2.0f) / 3.0f;
+            String current = currentBlockId == null || currentBlockId.isBlank()
+                ? MinecraftWallBlock.DEFAULT_BLOCK_ID
+                : currentBlockId;
+            MinecraftWallBlock[] presets = MinecraftWallBlock.values();
+            for (int i = 0; i < presets.length; i++) {
+                MinecraftWallBlock preset = presets[i];
+                boolean selected = preset.blockId().equals(current);
+                if (selected) {
+                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, PluginUiColors.ACCENT_BLUE);
+                }
+                if (ImGui.button(PlotI18n.tr(preset.i18nKey()) + "##wall_" + preset.name(), third, 0)
+                    && onSelected != null) {
+                    onSelected.accept(preset.blockId());
+                }
+                if (selected) {
+                    ImGui.popStyleColor();
+                }
+                if (i < presets.length - 1) {
+                    ImGui.sameLine();
+                }
+            }
+        }
+
         /**
          * 渲染材料换算滑块（可利用率 + 挖转填系数）。
          *

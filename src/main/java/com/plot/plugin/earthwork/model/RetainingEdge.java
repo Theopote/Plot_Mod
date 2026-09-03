@@ -18,7 +18,7 @@ public class RetainingEdge {
     private int topElevation;
     private int bottomElevation;
     private String side = SIDE_CUT;
-    private String wallMaterial = "minecraft:stone_bricks";
+    private String wallMaterial = MinecraftWallBlock.DEFAULT_BLOCK_ID;
     private String linkedZoneId = "";
     private boolean useLinkedZoneFillMaterial;
 
@@ -78,7 +78,7 @@ public class RetainingEdge {
     }
 
     public String getWallMaterial() {
-        return wallMaterial != null && !wallMaterial.isBlank() ? wallMaterial : "minecraft:stone_bricks";
+        return wallMaterial != null && !wallMaterial.isBlank() ? wallMaterial : MinecraftWallBlock.DEFAULT_BLOCK_ID;
     }
 
     public void setWallMaterial(String wallMaterial) {

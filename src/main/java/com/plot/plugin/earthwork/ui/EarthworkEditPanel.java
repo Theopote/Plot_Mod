@@ -215,8 +215,15 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
         }
+        ImGui.textColored(
+            PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.earthwork.zone_type_hint." + zone.getType().name().toLowerCase()));
 
-        renderVerticalAdjustmentPolicy(zone);
+        if (ctx.config().getWorkMode().showsLearningMetrics()) {
+            renderVerticalAdjustmentPolicy(zone);
+        } else {
+            renderPlayerHeightLock(zone);
+        }
 
         int[] priority = {zone.getPriority()};
         if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.zone_priority"), priority, 0, 200)) {
@@ -332,6 +339,33 @@ public final class EarthworkEditPanel {
         next.setWeight(VerticalAdjustmentPolicy.LANDSCAPE_WEIGHT);
     }
 
+    private void renderPlayerHeightLock(GradingZone zone) {
+        if (zone.getType().locksDesignElevation()) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.height_locked_hint." + zone.getType().name().toLowerCase()));
+            return;
+        }
+        ImBoolean auto = new ImBoolean(zone.isAutoAdjustElevation());
+        if (ImGui.checkbox(PlotI18n.tr("plugin.earthwork.auto_adjust_height"), auto)) {
+            ctx.projectHistory().push(ctx.project());
+            int range = Math.max(1, zone.getMaxAutoAdjustment());
+            zone.setAutoAdjustElevation(auto.get(), range);
+            ctx.invalidatePreview();
+        }
+        if (!zone.isAutoAdjustElevation()) {
+            return;
+        }
+        int[] max = {Math.max(1, zone.getMaxAutoAdjustment())};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.max_auto_adjust"), max, 1, 16)) {
+            if (ImGui.isItemActivated()) {
+                ctx.projectHistory().push(ctx.project());
+            }
+            zone.setAutoAdjustElevation(true, max[0]);
+            ctx.invalidatePreview();
+        }
+    }
+
     private void renderPhaseCZoneSettings(GradingZone zone) {
         if (zone.getType() == GradingZoneType.BUILDING_PAD) {
             renderBuildingPadSettings(zone);
@@ -439,6 +473,11 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
             if (!settings.isUseLinkedZoneFillMaterial()) {
+                EarthworkUiWidgets.renderWallPresets(settings.getWallMaterial(), blockId -> {
+                    ctx.projectHistory().push(ctx.project());
+                    settings.setWallMaterial(blockId);
+                    ctx.invalidatePreview();
+                });
                 EarthworkUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.earthwork.edge_wall_material"), settings.getWallMaterial(),
                     blockId -> {
                         ctx.projectHistory().push(ctx.project());
@@ -756,6 +795,11 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
             if (!edge.isUseLinkedZoneFillMaterial()) {
+                EarthworkUiWidgets.renderWallPresets(edge.getWallMaterial(), blockId -> {
+                    ctx.projectHistory().push(ctx.project());
+                    edge.setWallMaterial(blockId);
+                    ctx.invalidatePreview();
+                });
                 EarthworkUiWidgets.renderMaterialButton(ctx, PlotI18n.tr("plugin.earthwork.retaining_wall_material"), edge.getWallMaterial(),
                     blockId -> {
                         ctx.projectHistory().push(ctx.project());
@@ -1276,33 +1320,48 @@ public final class EarthworkEditPanel {
 
         if (useBuildingRef.get()) {
             DesignSurface surface = zone.getDesignSurface();
-            int[] basementFloorDepth = {surface.getBasementFloorDepth()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.basement_floor_depth"), basementFloorDepth, 0, 32)) {
-                if (ImGui.isItemActivated()) {
-                    ctx.projectHistory().push(ctx.project());
+            boolean learn = ctx.config().getWorkMode().showsLearningMetrics();
+            if (learn) {
+                int[] basementFloorDepth = {surface.getBasementFloorDepth()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.basement_floor_depth"), basementFloorDepth, 0, 32)) {
+                    if (ImGui.isItemActivated()) {
+                        ctx.projectHistory().push(ctx.project());
+                    }
+                    surface.setBasementFloorDepth(basementFloorDepth[0]);
+                    ctx.invalidatePreview();
                 }
-                surface.setBasementFloorDepth(basementFloorDepth[0]);
-                ctx.invalidatePreview();
-            }
-            int[] foundationDepth = {surface.getFoundationDepth()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.foundation_depth"), foundationDepth, 0, 16)) {
-                if (ImGui.isItemActivated()) {
-                    ctx.projectHistory().push(ctx.project());
+                int[] foundationDepth = {surface.getFoundationDepth()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.foundation_depth"), foundationDepth, 0, 16)) {
+                    if (ImGui.isItemActivated()) {
+                        ctx.projectHistory().push(ctx.project());
+                    }
+                    surface.setFoundationDepth(foundationDepth[0]);
+                    ctx.invalidatePreview();
                 }
-                surface.setFoundationDepth(foundationDepth[0]);
-                ctx.invalidatePreview();
-            }
-            int[] pitWorkingAllowance = {surface.getPitWorkingAllowance()};
-            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_allowance"), pitWorkingAllowance, 0, 8)) {
-                if (ImGui.isItemActivated()) {
-                    ctx.projectHistory().push(ctx.project());
+                int[] pitWorkingAllowance = {surface.getPitWorkingAllowance()};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_allowance"), pitWorkingAllowance, 0, 8)) {
+                    if (ImGui.isItemActivated()) {
+                        ctx.projectHistory().push(ctx.project());
+                    }
+                    surface.setPitWorkingAllowance(pitWorkingAllowance[0]);
+                    ctx.invalidatePreview();
                 }
-                surface.setPitWorkingAllowance(pitWorkingAllowance[0]);
-                ctx.invalidatePreview();
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                    "plugin.earthwork.pit_excavation_depth_hint",
+                    surface.getExcavationPit().totalExcavationDepth()));
+            } else {
+                int[] digDown = {Math.max(1, surface.getDigDownBlocks())};
+                if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.dig_down_blocks"), digDown, 1, 32)) {
+                    if (ImGui.isItemActivated()) {
+                        ctx.projectHistory().push(ctx.project());
+                    }
+                    surface.setDigDownBlocks(digDown[0]);
+                    ctx.invalidatePreview();
+                }
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                    "plugin.earthwork.dig_down_hint",
+                    surface.getDigDownBlocks()));
             }
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.earthwork.pit_excavation_depth_hint",
-                surface.getExcavationPit().totalExcavationDepth()));
         } else {
             Integer bottom = zone.getDesignSurface().getBottomElevation();
             int[] bottomElevation = {bottom != null ? bottom : 60};
@@ -1315,13 +1374,15 @@ public final class EarthworkEditPanel {
             }
         }
 
-        int[] workingMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};
-        if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_margin"), workingMargin, 0, 8)) {
-            if (ImGui.isItemActivated()) {
-                ctx.projectHistory().push(ctx.project());
+        if (ctx.config().getWorkMode().showsLearningMetrics()) {
+            int[] workingMargin = {zone.getDesignSurface().getWorkingMarginBlocks()};
+            if (ImGui.sliderInt(PlotI18n.tr("plugin.earthwork.pit_working_margin"), workingMargin, 0, 8)) {
+                if (ImGui.isItemActivated()) {
+                    ctx.projectHistory().push(ctx.project());
+                }
+                zone.getDesignSurface().setWorkingMarginBlocks(workingMargin[0]);
+                ctx.invalidatePreview();
             }
-            zone.getDesignSurface().setWorkingMarginBlocks(workingMargin[0]);
-            ctx.invalidatePreview();
         }
 
         int[] slopePitch = {zone.getDesignSurface().getSlopePitchRatio()};

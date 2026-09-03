@@ -18,7 +18,7 @@ public class ZoneEdgeSettings {
   private int fillSlopePitchDenominator = DEFAULT_FILL_SLOPE_DENOMINATOR;
   private int maximumReachBlocks = DEFAULT_MAX_REACH_BLOCKS;
   private int benchWidthBlocks;
-  private String wallMaterial = "minecraft:stone_bricks";
+  private String wallMaterial = MinecraftWallBlock.DEFAULT_BLOCK_ID;
   private boolean useLinkedZoneFillMaterial = true;
   private List<BoundaryEdgeOverride> edgeOverrides = new ArrayList<>();
 
@@ -76,7 +76,7 @@ public class ZoneEdgeSettings {
   }
 
   public String getWallMaterial() {
-    return wallMaterial != null && !wallMaterial.isBlank() ? wallMaterial : "minecraft:stone_bricks";
+    return wallMaterial != null && !wallMaterial.isBlank() ? wallMaterial : MinecraftWallBlock.DEFAULT_BLOCK_ID;
   }
 
   public void setWallMaterial(String wallMaterial) {

@@ -74,6 +74,19 @@ public class ExcavationPitParameters {
         return referenceElevation - totalExcavationDepth();
     }
 
+    /**
+     * Minecraft 主路径：往下挖 N 格。结构厚度与施工超挖清零，全部算进开挖深度。
+     */
+    public void setDigDownBlocks(int blocks) {
+        setBasementFloorDepth(blocks);
+        setFoundationDepth(0);
+        setWorkingAllowance(0);
+    }
+
+    public int getDigDownBlocks() {
+        return totalExcavationDepth();
+    }
+
     private static int clampDepth(int value) {
         return Math.max(0, Math.min(64, value));
     }

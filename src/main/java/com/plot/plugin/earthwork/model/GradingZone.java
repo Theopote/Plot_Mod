@@ -147,6 +147,10 @@ public class GradingZone {
             }
         } else if (zoneType == GradingZoneType.EXCAVATION_PIT) {
             surface.setKind(DesignSurfaceKind.EXCAVATION_PIT);
+            surface.setDigDownBlocks(Math.max(
+                ExcavationPitParameters.DEFAULT_BASEMENT_FLOOR_DEPTH,
+                surface.getDigDownBlocks()));
+            surface.setWorkingMarginBlocks(0);
             if (!getBuildingFootprintRef().isBlank()
                 && surface.getElevationSource() == DesignSurfaceElevationSource.MANUAL
                 && surface.getBottomElevation() == null) {
@@ -157,6 +161,9 @@ public class GradingZone {
             region.setSurfaceMode(GradingSurfaceMode.BEST_FIT_PLANE);
         } else if (zoneType == GradingZoneType.ROAD_CORRIDOR) {
             surface.setKind(DesignSurfaceKind.ROAD_CORRIDOR);
+            if (surface.getWorkingMarginBlocks() <= 1) {
+                surface.setWorkingMarginBlocks(2);
+            }
         }
     }
 

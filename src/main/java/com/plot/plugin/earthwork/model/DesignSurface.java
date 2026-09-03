@@ -204,6 +204,14 @@ public class DesignSurface {
         getExcavationPit().setWorkingAllowance(workingAllowance);
     }
 
+    public void setDigDownBlocks(int blocks) {
+        getExcavationPit().setDigDownBlocks(blocks);
+    }
+
+    public int getDigDownBlocks() {
+        return getExcavationPit().getDigDownBlocks();
+    }
+
     /**
      * @deprecated 使用 {@link #getBasementFloorDepth()}；旧字段把地下室深度与结构厚度混在一起。
      */
