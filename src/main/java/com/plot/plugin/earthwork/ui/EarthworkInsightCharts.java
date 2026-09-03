@@ -52,28 +52,41 @@ public final class EarthworkInsightCharts {
         EarthworkElevationVolumeCurve curve = preview.elevationVolumeCurve;
 
         if (mode == EarthworkWorkMode.QUICK) {
-            if (curve != null && !curve.isEmpty()) {
-                renderRecommendations(ctx, region, preview, curve, true);
-            }
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.quick.more_in_learn"));
+            renderQuickAnalysis(preview, curve);
             return;
         }
 
-        renderWorkAndWorld(volumes, preview.calculationCellCount);
-        if (curve != null && !curve.isEmpty()) {
-            renderRecommendations(ctx, region, preview, curve, false);
+        if (mode.showsBuilderVisuals()) {
+            renderWorkAndWorld(volumes, preview.calculationCellCount);
+            if (curve != null && !curve.isEmpty()) {
+                renderBeforeAfter(curve);
+            }
+            renderHeatmap(preview.designTerrainGrid);
         }
-        if (!mode.showsInsightDashboard()) {
+        if (!mode.showsLearnVisuals()) {
             return;
         }
         if (curve != null && !curve.isEmpty()) {
-            renderBeforeAfter(curve);
+            renderRecommendations(ctx, region, preview, curve);
             renderCurve(curve, preview.resolvedElevation);
         }
         if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
             renderProfile(preview.sectionProfile);
         }
+    }
+
+    /** Quick：默认收起；展开后才显示热力图、曲线、剖面。 */
+    static void renderQuickAnalysis(EarthworkGenerationResult preview, EarthworkElevationVolumeCurve curve) {
+        if (!ImGui.collapsingHeader(PlotI18n.tr("plugin.earthwork.quick.view_analysis"))) {
+            return;
+        }
         renderHeatmap(preview.designTerrainGrid);
+        if (curve != null && !curve.isEmpty()) {
+            renderCurve(curve, preview.resolvedElevation);
+        }
+        if (preview.sectionProfile != null && !preview.sectionProfile.isEmpty()) {
+            renderProfile(preview.sectionProfile);
+        }
     }
 
     static void renderWorkAndWorld(EarthworkVolumeReport volumes, int cellCount) {
@@ -118,8 +131,7 @@ public final class EarthworkInsightCharts {
             EarthworkUiContext ctx,
             GradingRegion region,
             EarthworkGenerationResult preview,
-            EarthworkElevationVolumeCurve curve,
-            boolean compact) {
+            EarthworkElevationVolumeCurve curve) {
         ImGui.text(PlotI18n.tr("plugin.earthwork.recommend.header"));
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         EarthworkElevationVolumeCurve.Sample balance = curve.sampleAt(curve.balanceY());
@@ -145,10 +157,6 @@ public final class EarthworkInsightCharts {
             region.setManualTargetElevation(curve.minWorkY());
             syncAutoPolicy(ctx, region);
             ctx.recalculatePreview();
-        }
-        if (compact) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, reasonText(preview, curve));
-            return;
         }
         if (balance != null) {
             ImGui.textColored(

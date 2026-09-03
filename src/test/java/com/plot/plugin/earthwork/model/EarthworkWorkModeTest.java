@@ -25,8 +25,11 @@ class EarthworkWorkModeTest {
         assertFalse(EarthworkWorkMode.BUILDER.showsLearningMetrics());
         assertTrue(EarthworkWorkMode.LEARN.showsEngineeringTabs());
         assertTrue(EarthworkWorkMode.LEARN.showsLearningMetrics());
-        assertFalse(EarthworkWorkMode.QUICK.showsInsightDashboard());
-        assertFalse(EarthworkWorkMode.BUILDER.showsInsightDashboard());
-        assertTrue(EarthworkWorkMode.LEARN.showsInsightDashboard());
+        assertFalse(EarthworkWorkMode.QUICK.showsBuilderVisuals());
+        assertTrue(EarthworkWorkMode.BUILDER.showsBuilderVisuals());
+        assertTrue(EarthworkWorkMode.LEARN.showsBuilderVisuals());
+        assertFalse(EarthworkWorkMode.QUICK.showsLearnVisuals());
+        assertFalse(EarthworkWorkMode.BUILDER.showsLearnVisuals());
+        assertTrue(EarthworkWorkMode.LEARN.showsLearnVisuals());
     }
 }

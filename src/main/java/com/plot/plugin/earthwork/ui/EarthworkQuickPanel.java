@@ -59,8 +59,8 @@ public final class EarthworkQuickPanel {
                 preview.resolvedElevationMin,
                 preview.resolvedElevationMax,
                 true);
-            EarthworkInsightCharts.render(ctx, region, preview);
             generatePanel.renderPreviewBuildButtons(preview);
+            EarthworkInsightCharts.render(ctx, region, preview);
         }
     }
 
@@ -87,17 +87,13 @@ public final class EarthworkQuickPanel {
         }
 
         if (auto) {
-            if (ImGui.button(PlotI18n.tr("plugin.earthwork.quick.recommend_height"), ImGui.getContentRegionAvailX(), 0)) {
-                ctx.projectHistory().push(ctx.project());
-                region.setAutoBalance(true);
-                syncAutoPolicy(region);
-                ctx.recalculatePreview();
-            }
             EarthworkGenerationResult preview = ctx.previewManager().getLastGenerationResult();
             if (preview != null) {
                 ImGui.textColored(
                     PluginUiColors.HINT_GRAY,
                     PlotI18n.tr("plugin.earthwork.quick.recommended_y", preview.resolvedElevation));
+            } else {
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.quick.auto_pending"));
             }
             return;
         }

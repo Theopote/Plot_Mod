@@ -27,8 +27,13 @@ public enum EarthworkWorkMode {
         return this == LEARN;
     }
 
-    /** 标高—方量曲线、剖面、面板热力图等完整分析仪表盘。 */
-    public boolean showsInsightDashboard() {
+    /** Builder/Learn：CUT/FILL、世界改动、热力图、Before/After。 */
+    public boolean showsBuilderVisuals() {
+        return this == BUILDER || this == LEARN;
+    }
+
+    /** Learn：平衡曲线、最少工作高度、剖面。Quick 仅在「查看分析」中展开。 */
+    public boolean showsLearnVisuals() {
         return this == LEARN;
     }
 

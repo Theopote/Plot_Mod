@@ -60,12 +60,15 @@ public final class EarthworkGeneratePanel {
                     EarthworkVolumeReport volumes = preview.volumeReport;
                     ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
                     renderTerrainSnapshotInfo(preview.existingTerrainSnapshot);
-                    EarthworkUiWidgets.renderPlayerCutFill(
-                        volumes,
-                        preview.resolvedElevation,
-                        preview.slopedSurface,
-                        preview.resolvedElevationMin,
-                        preview.resolvedElevationMax);
+                    EarthworkWorkMode workMode = ctx.config().getWorkMode();
+                    if (!workMode.showsBuilderVisuals()) {
+                        EarthworkUiWidgets.renderPlayerCutFill(
+                            volumes,
+                            preview.resolvedElevation,
+                            preview.slopedSurface,
+                            preview.resolvedElevationMin,
+                            preview.resolvedElevationMax);
+                    }
                     EarthworkInsightCharts.render(ctx, region, preview);
                     if (ctx.config().getWorkMode().showsLearningMetrics()) {
                         EarthworkLearnWidgets.renderConversionLesson(ctx, volumes);

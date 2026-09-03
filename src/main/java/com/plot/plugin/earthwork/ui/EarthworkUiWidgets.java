@@ -87,17 +87,22 @@ public final class EarthworkUiWidgets {
             double balance = work <= 0L ? 100.0 : 100.0 * (1.0 - (Math.abs(net) / (double) work));
             if (sloped) {
                 ImGui.text(PlotI18n.tr("plugin.earthwork.resolved_elevation_slope_result", yMin, yMax));
+            } else if (compact) {
+                ImGui.text(PlotI18n.tr("plugin.earthwork.quick.summary_y", platformY));
             } else {
                 ImGui.text(PlotI18n.tr("plugin.earthwork.platform_height", platformY));
             }
             ImGui.text(PlotI18n.tr("plugin.earthwork.cut_blocks", cut));
             ImGui.text(PlotI18n.tr("plugin.earthwork.fill_blocks", fill));
-            ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
             if (compact) {
+                ImGui.text(PlotI18n.tr("plugin.earthwork.diff_blocks", Math.abs(net)));
+                ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
+                ImGui.text(PlotI18n.tr("plugin.earthwork.expected_edits", work));
                 return;
             }
             ImGui.text(PlotI18n.tr("plugin.earthwork.net_blocks", net));
             ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
             ImGui.text(PlotI18n.tr(
                 "plugin.earthwork.block_change_breakdown",
                 safe.cutChangedBlocks(),
