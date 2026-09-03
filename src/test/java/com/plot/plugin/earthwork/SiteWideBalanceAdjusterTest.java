@@ -45,6 +45,25 @@ class SiteWideBalanceAdjusterTest {
     }
 
     @Test
+    void applyOffsetSkipsElevationLockedZones() {
+        com.plot.plugin.earthwork.model.EarthworkSite site = new com.plot.plugin.earthwork.model.EarthworkSite();
+        com.plot.plugin.earthwork.model.GradingZone pad = new com.plot.plugin.earthwork.model.GradingZone(
+            "pad",
+            List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(4, 4), new Vec2d(0, 4)));
+        pad.setType(com.plot.plugin.earthwork.model.GradingZoneType.BUILDING_PAD);
+        site.addZone(pad);
+
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        DesignTerrainCell cell = new DesignTerrainCell(1, 1, new Vec2d(1, 1), 64);
+        cell.setTargetY(70);
+        cell.setZoneId("pad");
+        grid.put(1, 1, cell);
+
+        SiteWideBalanceAdjuster.applyOffset(grid, -2, site);
+        assertEquals(70, grid.get(1, 1).targetY());
+    }
+
+    @Test
     void deferBalanceUsesAverageGroundForFlatZones() {
         GradingRegion region = new GradingRegion(List.of(
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
@@ -60,5 +79,19 @@ class SiteWideBalanceAdjusterTest {
         assertEquals(70, siteWide.plane().evaluateAt(0, 0));
         assertTrue(Math.abs(perZone.plane().evaluateAt(0, 0) - 70) > 0
             || perZone.plane().evaluateAt(0, 0) == 70);
+    }
+
+    @Test
+    void siteWideAutoBalanceKeepsManualSeedElevation() {
+        GradingRegion region = new GradingRegion(List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        region.setAutoBalance(true);
+        region.setManualTargetElevation(62);
+        List<Vec2d> centers = List.of(new Vec2d(2, 2), new Vec2d(8, 8));
+        List<Integer> heights = List.of(60, 80);
+
+        GradingSurfaceResolver.ResolvedSurface siteWide = GradingSurfaceResolver.resolve(
+            region, centers, heights, null, true);
+        assertEquals(62, siteWide.plane().evaluateAt(0, 0));
     }
 }

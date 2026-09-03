@@ -275,4 +275,17 @@ public class GradingZone {
     public boolean isSupportedInComposer() {
         return enabled && getType().isSupportedInComposer();
     }
+
+    /**
+     * 全场平衡不得改动的分区：建筑地坪 / 基坑 / 道路走廊、贴合现状、以及关闭自动平衡的手动标高。
+     */
+    public boolean isElevationLocked() {
+        if (getType().locksDesignElevation()) {
+            return true;
+        }
+        if (getDesignSurface().getKind() == DesignSurfaceKind.MATCH_EXISTING) {
+            return true;
+        }
+        return !getRegion().isAutoBalance();
+    }
 }

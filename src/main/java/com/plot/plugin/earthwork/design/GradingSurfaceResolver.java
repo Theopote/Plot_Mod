@@ -124,7 +124,9 @@ public final class GradingSurfaceResolver {
         if (region.isAutoBalance() && !deferBalanceToSite) {
             elevation = EarthworkBalanceUtils.findBalancedElevation(sampleHeights(samples), materials);
         } else if (region.isAutoBalance() && deferBalanceToSite) {
-            elevation = averageGroundElevation(samples);
+            elevation = region.getManualTargetElevation() != null
+                ? region.getManualTargetElevation()
+                : averageGroundElevation(samples);
         } else if (region.getManualTargetElevation() != null) {
             elevation = region.getManualTargetElevation();
         } else {

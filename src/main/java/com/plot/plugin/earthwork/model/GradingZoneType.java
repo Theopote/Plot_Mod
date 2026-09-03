@@ -47,4 +47,11 @@ public enum GradingZoneType {
             || this == LANDSCAPE
             || this == ROAD_CORRIDOR;
     }
+
+    /** 建筑地坪、基坑、道路走廊的设计标高不参与全场竖向平衡。 */
+    public boolean locksDesignElevation() {
+        return this == BUILDING_PAD
+            || this == EXCAVATION_PIT
+            || this == ROAD_CORRIDOR;
+    }
 }

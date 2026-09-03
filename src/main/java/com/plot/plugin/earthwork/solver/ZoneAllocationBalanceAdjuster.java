@@ -50,18 +50,22 @@ public final class ZoneAllocationBalanceAdjuster {
             return new BalanceResult(Map.of(), 0);
         }
         SiteEarthworkReport snapshot = collectZoneVolumes(grid, site);
-        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
-            snapshot.byZone(),
-            site);
-        Map<String, Integer> zoneOffsets = computeZoneOffsets(
-            matrix,
-            countCellsByZone(grid),
-            collectSamplesByZone(grid),
-            site,
-            snapshot.byZone());
+        Map<String, EarthworkVolumeReport> flexibleByZone = flexibleZoneReports(snapshot.byZone(), site);
+        Map<String, Integer> zoneOffsets = Map.of();
+        if (!flexibleByZone.isEmpty()) {
+            EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
+                flexibleByZone,
+                site);
+            zoneOffsets = computeZoneOffsets(
+                matrix,
+                countFlexibleCellsByZone(grid, site),
+                collectFlexibleSamplesByZone(grid, site),
+                site,
+                flexibleByZone);
+        }
         int residual = 0;
         if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
-            residual = proposeResidualUniformOffset(grid, site.getMaterialModel(), zoneOffsets);
+            residual = proposeResidualUniformOffset(grid, site, zoneOffsets);
         }
         return new BalanceResult(zoneOffsets, residual);
     }
@@ -72,7 +76,7 @@ public final class ZoneAllocationBalanceAdjuster {
         BalanceResult result = propose(grid, site);
         applyZoneOffsets(grid, result.zoneOffsets());
         if (result.residualUniformOffset() != 0) {
-            SiteWideBalanceAdjuster.applyOffset(grid, result.residualUniformOffset());
+            SiteWideBalanceAdjuster.applyOffset(grid, result.residualUniformOffset(), site);
         }
         return result;
     }
@@ -253,23 +257,71 @@ public final class ZoneAllocationBalanceAdjuster {
         return counts;
     }
 
-    private static int proposeResidualUniformOffset(
-            DesignTerrainGrid grid,
-            MaterialConversionModel materials,
-            Map<String, Integer> zoneOffsets) {
-        List<SiteWideBalanceAdjuster.CellSample> samples = new ArrayList<>();
-        Map<String, Integer> safeOffsets = zoneOffsets != null ? zoneOffsets : Map.of();
+    private static Map<String, EarthworkVolumeReport> flexibleZoneReports(
+            Map<String, EarthworkVolumeReport> byZone,
+            EarthworkSite site) {
+        if (byZone == null || byZone.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, EarthworkVolumeReport> flexible = new LinkedHashMap<>();
+        for (Map.Entry<String, EarthworkVolumeReport> entry : byZone.entrySet()) {
+            if (site != null && site.isElevationLocked(entry.getKey())) {
+                continue;
+            }
+            flexible.put(entry.getKey(), entry.getValue());
+        }
+        return flexible;
+    }
+
+    private static Map<String, Integer> countFlexibleCellsByZone(DesignTerrainGrid grid, EarthworkSite site) {
+        Map<String, Integer> counts = new HashMap<>();
+        if (grid == null) {
+            return counts;
+        }
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
                 continue;
             }
-            int targetY = cell.targetY() + safeOffsets.getOrDefault(cell.zoneId(), 0);
-            samples.add(new SiteWideBalanceAdjuster.CellSample(cell.existingGroundY(), targetY));
+            if (site != null && site.isElevationLocked(cell.zoneId())) {
+                continue;
+            }
+            counts.merge(cell.zoneId(), 1, Integer::sum);
         }
-        if (samples.isEmpty()) {
-            return 0;
+        return counts;
+    }
+
+    private static Map<String, List<SiteWideBalanceAdjuster.CellSample>> collectFlexibleSamplesByZone(
+            DesignTerrainGrid grid,
+            EarthworkSite site) {
+        Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone = new LinkedHashMap<>();
+        if (grid == null) {
+            return samplesByZone;
         }
-        return SiteWideBalanceAdjuster.findBalancedVerticalOffset(samples, materials);
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
+                continue;
+            }
+            if (site != null && site.isElevationLocked(cell.zoneId())) {
+                continue;
+            }
+            samplesByZone
+                .computeIfAbsent(cell.zoneId(), ignored -> new ArrayList<>())
+                .add(new SiteWideBalanceAdjuster.CellSample(cell.existingGroundY(), cell.targetY()));
+        }
+        return samplesByZone;
+    }
+
+    private static int proposeResidualUniformOffset(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, Integer> zoneOffsets) {
+        List<SiteWideBalanceAdjuster.CellSample> flexible = new ArrayList<>();
+        List<SiteWideBalanceAdjuster.CellSample> locked = new ArrayList<>();
+        SiteWideBalanceAdjuster.splitSamples(grid, site, zoneOffsets, flexible, locked);
+        return SiteWideBalanceAdjuster.findBalancedVerticalOffset(
+            flexible,
+            locked,
+            site != null ? site.getMaterialModel() : MaterialConversionModel.DEFAULT);
     }
 
     private static void addVolumeIntent(Map<String, Long> volumeIntent, String zoneId, long delta) {

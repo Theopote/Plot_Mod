@@ -40,6 +40,16 @@ public final class EarthworkBalanceUtils {
     public static int findBalancedElevationWeighted(
             List<BalanceSample> samples,
             MaterialConversionModel materials) {
+        return findBalancedElevationWeighted(samples, 0L, materials);
+    }
+
+    /**
+     * @param fixedBalanceDiff 不随目标标高变化的压实方残差（锁定分区的挖填），加到每档差值上。
+     */
+    public static int findBalancedElevationWeighted(
+            List<BalanceSample> samples,
+            long fixedBalanceDiff,
+            MaterialConversionModel materials) {
         MaterialConversionModel safeMaterials = materials != null ? materials : MaterialConversionModel.DEFAULT;
         if (samples == null || samples.isEmpty()) {
             return DEFAULT_ELEVATION;
@@ -56,7 +66,7 @@ public final class EarthworkBalanceUtils {
         int hi = maxZ;
         while (lo < hi) {
             int mid = lo + (hi - lo) / 2;
-            if (computeBalanceDiffWeighted(samples, mid, safeMaterials) > 0) {
+            if (computeBalanceDiffWeighted(samples, mid, safeMaterials) + fixedBalanceDiff > 0) {
                 lo = mid + 1;
             } else {
                 hi = mid;
@@ -64,14 +74,27 @@ public final class EarthworkBalanceUtils {
         }
 
         int bestZ = lo;
-        long bestAbs = Math.abs(computeBalanceDiffWeighted(samples, lo, safeMaterials));
+        long bestAbs = Math.abs(computeBalanceDiffWeighted(samples, lo, safeMaterials) + fixedBalanceDiff);
         if (lo - 1 >= minZ) {
-            long prevAbs = Math.abs(computeBalanceDiffWeighted(samples, lo - 1, safeMaterials));
+            long prevAbs = Math.abs(computeBalanceDiffWeighted(samples, lo - 1, safeMaterials) + fixedBalanceDiff);
             if (prevAbs < bestAbs) {
                 bestZ = lo - 1;
             }
         }
         return bestZ;
+    }
+
+    public static int findBalancedElevation(
+            List<Integer> groundHeightSamples,
+            long fixedBalanceDiff,
+            MaterialConversionModel materials) {
+        if (groundHeightSamples == null || groundHeightSamples.isEmpty()) {
+            return findBalancedElevationWeighted(List.of(), fixedBalanceDiff, materials);
+        }
+        List<BalanceSample> samples = groundHeightSamples.stream()
+            .map(BalanceSample::new)
+            .toList();
+        return findBalancedElevationWeighted(samples, fixedBalanceDiff, materials);
     }
 
     /**

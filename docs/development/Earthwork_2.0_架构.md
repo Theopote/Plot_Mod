@@ -323,6 +323,12 @@ public final class EarthworkGenerator {
 - [x] 最多 4 次迭代，直到提出的偏移为 0；返回的 evaluator 含最终 ΔY（挡土墙采样）
 - [x] `DesignTerrainComposerTest`：坡面相对平衡后垫层重建；全场残余小于逐区
 
+### 17p — 锁定标高不参与全场 ΔY（P0-1）
+
+- [x] `GradingZone.isElevationLocked`：建筑地坪 / 基坑 / 道路走廊 / 贴合现状 / `autoBalance=false`
+- [x] 全场 ΔY 与分区调配只作用于可调分区；锁定区挖填作为固定材料残差
+- [x] `DesignTerrainComposerTest`：建筑 ±0 与坑底保持不动，景观吸收平衡
+
 ---
 
 ## 8. 测试策略

@@ -628,6 +628,8 @@ else if balanceScope == SITE_WIDE && zoneCount >= 2:
 
 平衡改变平台标高后坡脚会移动，因此不能把 ΔY 直接加在已放坡的格子上。
 
+**锁定标高**（不随全场 ΔY 移动）：`BUILDING_PAD`、`EXCAVATION_PIT`、`ROAD_CORRIDOR`、`MATCH_EXISTING`、以及 `autoBalance=false` 的手动标高。这些分区的挖填计入场地残差，由可调分区（景观 / 开启自动平衡的场地）吸收。
+
 **Step 7 — 裁剪到 Site Boundary**
 
 格点已在 Step 0 限制在 `siteBoundary` 内；`outsideSiteBoundary: IGNORE` 不生成 cell。

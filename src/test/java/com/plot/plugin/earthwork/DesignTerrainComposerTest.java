@@ -14,6 +14,7 @@ import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EdgeTreatment;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.GradingZoneType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -166,6 +167,7 @@ class DesignTerrainComposerTest {
     @Test
     void siteWideZoneAllocationAdjustsTargetsPerZoneEndToEnd() {
         EarthworkSite site = adjacentCutFillZones(60, 72);
+        enableFlexibleBalance(site);
         site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
         site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_ZONE_ALLOCATION);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(true);
@@ -197,6 +199,7 @@ class DesignTerrainComposerTest {
     @Test
     void siteWideUniformOffsetBalancesFieldEndToEnd() {
         EarthworkSite site = adjacentCutFillZones(60, 68);
+        enableFlexibleBalance(site);
         site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
         site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
 
@@ -249,7 +252,7 @@ class DesignTerrainComposerTest {
 
         GradingZone cut = new GradingZone("zone-cut", List.of(
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
-        cut.getRegion().setAutoBalance(false);
+        cut.getRegion().setAutoBalance(true);
         cut.getRegion().setManualTargetElevation(64);
         cut.getEdgeSettings().setDefaultTreatment(EdgeTreatment.CUT_FILL_SLOPE);
         cut.getEdgeSettings().setCutSlopePitchRatio(1);
@@ -257,7 +260,7 @@ class DesignTerrainComposerTest {
 
         GradingZone fill = new GradingZone("zone-fill", List.of(
             new Vec2d(24, 0), new Vec2d(34, 0), new Vec2d(34, 10), new Vec2d(24, 10)));
-        fill.getRegion().setAutoBalance(false);
+        fill.getRegion().setAutoBalance(true);
         fill.getRegion().setManualTargetElevation(80);
 
         site.addZone(cut);
@@ -309,6 +312,7 @@ class DesignTerrainComposerTest {
         SiteEarthworkReport perZoneVolumes = ZoneAllocationBalanceAdjuster.collectZoneVolumes(perZoneGrid, perZone);
 
         EarthworkSite siteWide = slopedFillSite();
+        enableFlexibleBalance(siteWide);
         siteWide.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
         siteWide.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
         DesignTerrainGrid siteWideGrid = DesignTerrainComposer.compose(siteWide, terrain, null).grid();
@@ -320,6 +324,68 @@ class DesignTerrainComposerTest {
             siteWideVolumes.totals().compactedFillSupply() - siteWideVolumes.totals().compactedFillDemand());
         assertTrue(siteWideResidual < perZoneResidual,
             () -> "site-wide residual=" + siteWideResidual + " per-zone residual=" + perZoneResidual);
+    }
+
+    @Test
+    void siteWideBalanceDoesNotMoveBuildingPadOrManualElevation() {
+        EarthworkSite site = new EarthworkSite();
+        site.setSiteBoundary(List.of(
+            new Vec2d(0, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(0, 10)));
+
+        GradingZone building = new GradingZone("building", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        building.setType(GradingZoneType.BUILDING_PAD);
+        building.getDesignSurface().setElevation(70);
+
+        GradingZone pit = new GradingZone("pit", List.of(
+            new Vec2d(10, 0), new Vec2d(16, 0), new Vec2d(16, 10), new Vec2d(10, 10)));
+        pit.setType(GradingZoneType.EXCAVATION_PIT);
+        pit.getDesignSurface().setBottomElevation(55);
+
+        GradingZone landscape = new GradingZone("landscape", List.of(
+            new Vec2d(16, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(16, 10)));
+        landscape.getRegion().setAutoBalance(true);
+        landscape.getRegion().setManualTargetElevation(80);
+
+        site.addZone(building);
+        site.addZone(pit);
+        site.addZone(landscape);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(12, 5), 12, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(20, 5), 20, 5, 60),
+            new TerrainSnapshot.Column(new Vec2d(24, 5), 24, 5, 60)
+        ));
+
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        assertEquals(70, grid.get(5, 5).targetY());
+        assertEquals(55, grid.get(12, 5).targetY());
+        assertTrue(grid.get(20, 5).targetY() < 80);
+        assertNotEquals(0, site.getLastSiteWideVerticalOffset());
+    }
+
+    @Test
+    void siteWideBalanceDoesNotMoveManualFixedPad() {
+        EarthworkSite site = adjacentCutFillZones(60, 80);
+        site.getZone("zone-fill").getRegion().setAutoBalance(true);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(12, 5), 12, 5, 60),
+            new TerrainSnapshot.Column(new Vec2d(15, 5), 15, 5, 60)
+        ));
+
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        assertEquals(60, grid.get(2, 5).targetY());
+        assertTrue(grid.get(12, 5).targetY() < 80);
     }
 
     @Test
@@ -445,6 +511,12 @@ class DesignTerrainComposerTest {
         site.addZone(cut);
         site.addZone(fill);
         return site;
+    }
+
+    private static void enableFlexibleBalance(EarthworkSite site) {
+        for (GradingZone zone : site.getGradingZones().values()) {
+            zone.getRegion().setAutoBalance(true);
+        }
     }
 
     private static EarthworkSite slopedFillSite() {

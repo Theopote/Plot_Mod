@@ -120,6 +120,14 @@ public class EarthworkSite {
         return gradingZones.get(zoneId);
     }
 
+    public boolean isElevationLocked(String zoneId) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return false;
+        }
+        GradingZone zone = getZone(zoneId);
+        return zone != null && zone.isElevationLocked();
+    }
+
     public GradingZone addZone(GradingZone zone) {
         if (zone == null) {
             throw new IllegalArgumentException("Grading zone cannot be null");
