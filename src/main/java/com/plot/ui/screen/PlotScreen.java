@@ -523,6 +523,9 @@ public class PlotScreen extends Screen {
      * 注意：imgui-java 的 DockBuilder API 在 internal 包中。
      */
     private void ensureDockLayout(float displayWidth, float displayHeight) {
+        if (displayWidth < 1f || displayHeight < 1f) {
+            return;
+        }
         int w = Math.max(1, Math.round(displayWidth));
         int h = Math.max(1, Math.round(displayHeight));
         boolean sizeChanged = (w != lastDockW) || (h != lastDockH);
@@ -535,7 +538,7 @@ public class PlotScreen extends Screen {
         // 清理并重建 dockspace 节点树
         imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
         imgui.internal.ImGui.dockBuilderAddNode(dockspaceId, imgui.internal.flag.ImGuiDockNodeFlags.DockSpace);
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockspaceId, displayWidth, displayHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockspaceId, Math.max(1f, displayWidth), Math.max(1f, displayHeight));
 
         ImInt dockMain = new ImInt(dockspaceId);
         ImInt dockTopLeft = new ImInt();     // 顶部左侧（控制面板）
@@ -560,8 +563,8 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderSplitNode(dockTopLeft.get(), ImGuiDir.Right, systemPanelWidthRatio, dockTopRight, dockTopLeft);
 
         // 固定顶部左右节点宽度，确保系统面板与属性面板对齐
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockTopRight.get(), rightDockWidth, topBarHeight);
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockTopLeft.get(), Math.max(0.0f, displayWidth - rightDockWidth), topBarHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockTopRight.get(), Math.max(1f, rightDockWidth), Math.max(1f, topBarHeight));
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockTopLeft.get(), Math.max(1f, displayWidth - rightDockWidth), Math.max(1f, topBarHeight));
         imgui.internal.ImGui.dockBuilderSetNodePos(dockTopRight.get(), displayWidth - rightDockWidth, 0.0f);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockTopLeft.get(), 0.0f, 0.0f);
 
@@ -569,13 +572,13 @@ public class PlotScreen extends Screen {
         imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, leftRatio, dockBottomLeft, dockBottomMain);
         imgui.internal.ImGui.dockBuilderSplitNode(dockBottomMain.get(), ImGuiDir.Right, rightRatio, dockBottomRight, dockBottomMain);
 
-        float bottomContentHeight = Math.max(0.0f, displayHeight - topBarHeight);
-        float canvasWidth = Math.max(0.0f, displayWidth - leftDockWidth - rightDockWidth);
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomRight.get(), rightDockWidth, bottomContentHeight);
+        float bottomContentHeight = Math.max(1f, displayHeight - topBarHeight);
+        float canvasWidth = Math.max(1f, displayWidth - leftDockWidth - rightDockWidth);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomRight.get(), Math.max(1f, rightDockWidth), bottomContentHeight);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomRight.get(), displayWidth - rightDockWidth, topBarHeight);
 
         // 固定其余底部节点尺寸
-        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomLeft.get(), leftDockWidth, bottomContentHeight);
+        imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomLeft.get(), Math.max(1f, leftDockWidth), bottomContentHeight);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomLeft.get(), 0.0f, topBarHeight);
         imgui.internal.ImGui.dockBuilderSetNodeSize(dockBottomMain.get(), canvasWidth, bottomContentHeight);
         imgui.internal.ImGui.dockBuilderSetNodePos(dockBottomMain.get(), leftDockWidth, topBarHeight);

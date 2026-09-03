@@ -196,9 +196,9 @@ public final class EarthworkOverviewPanel {
     private void renderSiteMaterialModel(EarthworkSite site) {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.earthwork.learn.slider_header"));
-        ImGui.textWrapped(PlotI18n.tr("plugin.earthwork.learn.slider_hint"));
+        EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.slider_hint"));
         if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.learn.why_conversion"))) {
-            ImGui.textWrapped(PlotI18n.tr("plugin.earthwork.learn.why_conversion_body"));
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.why_conversion_body"));
             ImGui.treePop();
         }
         EarthworkUiWidgets.renderMaterialConversionSliders(ctx, site.getMaterialModel(), updated -> {

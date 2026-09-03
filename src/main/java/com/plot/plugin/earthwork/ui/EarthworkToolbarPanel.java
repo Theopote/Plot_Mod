@@ -52,7 +52,7 @@ public final class EarthworkToolbarPanel {
     }
 
     private void renderToolbar() {
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        float buttonWidth = Math.max(1f, (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f);
 
         boolean undoDisabled = !ctx.projectHistory().canUndo();
         if (undoDisabled) {
@@ -102,7 +102,8 @@ public final class EarthworkToolbarPanel {
                 selected = i;
             }
         }
-        ImInt index = new ImInt(selected);
+        ImInt index = ctx.workModeIndex();
+        index.set(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo(PlotI18n.tr("plugin.earthwork.work_mode"), index, labels)) {
             int picked = index.get();

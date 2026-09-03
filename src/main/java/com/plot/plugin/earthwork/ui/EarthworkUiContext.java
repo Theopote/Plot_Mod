@@ -51,6 +51,8 @@ public final class EarthworkUiContext {
     private final ImBoolean showGridRef = new ImBoolean(true);
     private final ImBoolean showEdgeTreatmentOverlayRef = new ImBoolean(true);
     private final ImString regionNameBuffer = new ImString(64);
+    private final imgui.type.ImInt workModeIndex = new imgui.type.ImInt(0);
+    private final imgui.type.ImInt regionIndex = new imgui.type.ImInt(0);
 
     public EarthworkUiContext(
             PluginContext host,
@@ -193,6 +195,14 @@ public final class EarthworkUiContext {
 
     public ImString regionNameBuffer() {
         return regionNameBuffer;
+    }
+
+    public imgui.type.ImInt workModeIndex() {
+        return workModeIndex;
+    }
+
+    public imgui.type.ImInt regionIndex() {
+        return regionIndex;
     }
 
     public boolean recalculatePreview() {

@@ -176,7 +176,7 @@ public final class EarthworkInsightCharts {
                     minWork.cut(),
                     minWork.fill()));
         }
-        ImGui.textWrapped(reasonText(preview, curve));
+        EarthworkUiWidgets.textWrappedSafe(reasonText(preview, curve));
     }
 
     static String reasonText(EarthworkGenerationResult preview, EarthworkElevationVolumeCurve curve) {

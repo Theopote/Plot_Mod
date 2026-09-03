@@ -155,7 +155,12 @@ public class EarthworkPlugin extends Plugin {
     @Override
     public void render() {
         if (uiManager != null) {
+            long started = System.nanoTime();
             uiManager.render();
+            long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+            if (elapsedMs >= 20L) {
+                LOGGER.warn("土方 UI 渲染耗时 {} ms", elapsedMs);
+            }
         }
     }
 
@@ -168,6 +173,10 @@ public class EarthworkPlugin extends Plugin {
 
     private void renderEdgeTreatmentOverlay(imgui.ImDrawList drawList, CanvasCamera camera) {
         if (!isEnabled() || config == null || uiContext == null) {
+            return;
+        }
+        com.plot.api.plugin.IPlugin active = com.plot.core.plugin.PluginManager.getInstance().getActivePlugin();
+        if (active != this) {
             return;
         }
         synchronized (projectLock) {

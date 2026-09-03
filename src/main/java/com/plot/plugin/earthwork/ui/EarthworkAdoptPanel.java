@@ -43,6 +43,7 @@ import java.util.function.Consumer;
 /** 土方认领 Tab：从画布选区认领 grading 区域。 */
 public final class EarthworkAdoptPanel {
     private final EarthworkUiContext ctx;
+    private long lastSelectionVersion = Long.MIN_VALUE;
 
     public EarthworkAdoptPanel(EarthworkUiContext ctx) {
         this.ctx = ctx;
@@ -60,7 +61,7 @@ public final class EarthworkAdoptPanel {
                             count));
                     }
                 } else {
-                    updateSelectedRegions();
+                    updateSelectedRegionsIfNeeded();
                 }
 
                 if (!ctx.selectedRegions().isEmpty()) {
@@ -88,7 +89,12 @@ public final class EarthworkAdoptPanel {
                 }
     }
 
-    private void updateSelectedRegions() {
+    private void updateSelectedRegionsIfNeeded() {
+        long version = ctx.host().appState().getStateVersion();
+        if (version == lastSelectionVersion) {
+            return;
+        }
+        lastSelectionVersion = version;
         ctx.selectedRegions().clear();
         ctx.selectedRegions().addAll(
             EarthworkGeometryUtils.findAdoptableRegions(ctx.host().appState().getSelectedShapes()));

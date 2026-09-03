@@ -20,18 +20,18 @@ public final class EarthworkLearnWidgets {
         EarthworkLearnLesson.ConversionStory story = EarthworkLearnLesson.from(volumes);
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.earthwork.learn.story_header"));
-        ImGui.textWrapped(PlotI18n.tr(
+        EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr(
             "plugin.earthwork.learn.story_cut_fill",
             story.dug(),
             story.fillNeeded()));
-        ImGui.textWrapped(PlotI18n.tr(
+        EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr(
             "plugin.earthwork.learn.story_one_to_one",
             story.leftoverIfOneToOne(),
             story.missingIfOneToOne()));
 
         if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.learn.why_conversion"))) {
-            ImGui.textWrapped(PlotI18n.tr("plugin.earthwork.learn.why_conversion_body"));
-            ImGui.textWrapped(PlotI18n.tr(
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.why_conversion_body"));
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr(
                 "plugin.earthwork.learn.reality_example",
                 story.reusablePercent(),
                 story.compactedPercent(),
@@ -39,7 +39,7 @@ public final class EarthworkLearnWidgets {
                 story.realityUsableFill(),
                 story.realityExport(),
                 story.realityImport()));
-            float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+            float half = Math.max(1f, (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f);
             if (ImGui.button(PlotI18n.tr("plugin.earthwork.learn.apply_reality"), half, 0)) {
                 applyMaterialExample(ctx, MaterialConversionModel.LEARNING);
             }
@@ -58,7 +58,7 @@ public final class EarthworkLearnWidgets {
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.earthwork.learn.dirt_flow_hint"));
         if (ImGui.treeNode(PlotI18n.tr("plugin.earthwork.learn.why_allocation"))) {
-            ImGui.textWrapped(PlotI18n.tr("plugin.earthwork.learn.why_allocation_body"));
+            EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.why_allocation_body"));
             ImGui.treePop();
         }
     }

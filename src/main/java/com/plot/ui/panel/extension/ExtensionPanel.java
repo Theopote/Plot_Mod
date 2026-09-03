@@ -29,6 +29,8 @@ public class ExtensionPanel implements UIComponent {
     
     private final PluginManager pluginManager;
     private boolean initialized = false;
+    private IPlugin enabledCheckboxPlugin;
+    private final ImBoolean enabledRef = new ImBoolean(true);
     
     public ExtensionPanel() {
         this.pluginManager = PluginManager.getInstance();
@@ -79,7 +81,10 @@ public class ExtensionPanel implements UIComponent {
                 ImGui.popStyleColor();
 
                 ImGui.sameLine();
-                ImBoolean enabledRef = new ImBoolean(currentActivePlugin.isEnabled());
+                if (enabledCheckboxPlugin != currentActivePlugin) {
+                    enabledCheckboxPlugin = currentActivePlugin;
+                    enabledRef.set(currentActivePlugin.isEnabled());
+                }
                 if (ImGui.checkbox(
                     PlotI18n.tr("panel.plot.extension_enabled") + "##plugin_enabled",
                     enabledRef
@@ -92,15 +97,20 @@ public class ExtensionPanel implements UIComponent {
                 }
 
                 if (currentActivePlugin.getDescription() != null && !currentActivePlugin.getDescription().isEmpty()) {
-                    ImGui.textWrapped(currentActivePlugin.getDescription());
+                    float wrap = ImGui.getContentRegionAvailX();
+                    if (wrap >= 8f) {
+                        ImGui.pushTextWrapPos(ImGui.getCursorPosX() + wrap);
+                        ImGui.textUnformatted(currentActivePlugin.getDescription());
+                        ImGui.popTextWrapPos();
+                    }
                 }
 
                 ImGui.separator();
                 ImGui.spacing();
 
-                // 使用 (0,0) 占满剩余区域；勿将 getContentRegionAvailY() 作为固定高度传入，
-                // 否则插件内容会反向撑大父窗口，ImGui 可能反复布局直至 OOM。
-                if (ImGui.beginChild("##plugin_content", 0, 0, false)) {
+                float contentW = ImGui.getContentRegionAvailX();
+                float contentH = ImGui.getContentRegionAvailY();
+                if (contentW >= 24f && contentH >= 24f && ImGui.beginChild("##plugin_content", 0, 0, false)) {
                     try {
                         if (currentActivePlugin.isEnabled()) {
                             currentActivePlugin.render();

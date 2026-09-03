@@ -62,7 +62,8 @@ public final class EarthworkUiWidgets {
                     break;
                 }
             }
-            ImInt regionIndex = new ImInt(current);
+            ImInt regionIndex = ctx.regionIndex();
+            regionIndex.set(current);
             if (ImGui.combo(PlotI18n.tr("plugin.earthwork.select_region"), regionIndex, labels)) {
                 ctx.setSelectedRegionId(ids[regionIndex.get()]);
             }
@@ -203,6 +204,20 @@ public final class EarthworkUiWidgets {
             ImGui.text(PlotI18n.tr("plugin.earthwork.external_balance_header"));
             ImGui.text(PlotI18n.tr("plugin.earthwork.external_export_required", safe.externalExportRequired()));
             ImGui.text(PlotI18n.tr("plugin.earthwork.external_import_required", safe.externalImportRequired()));
+        }
+
+        public static void textWrappedSafe(String text) {
+            if (text == null || text.isEmpty()) {
+                return;
+            }
+            float avail = ImGui.getContentRegionAvailX();
+            if (avail < 8f) {
+                ImGui.textUnformatted(text);
+                return;
+            }
+            ImGui.pushTextWrapPos(ImGui.getCursorPosX() + avail);
+            ImGui.textUnformatted(text);
+            ImGui.popTextWrapPos();
         }
 
         public static void locateRegion(EarthworkUiContext ctx, GradingRegion region) {
