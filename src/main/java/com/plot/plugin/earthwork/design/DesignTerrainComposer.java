@@ -17,6 +17,7 @@ import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.GradingZoneType;
 import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 
 import java.util.ArrayList;
@@ -222,8 +223,8 @@ public final class DesignTerrainComposer {
             return 0;
         }
 
-        // UNIFORM_VERTICAL_SHIFT：离散枚举 ΔY，每个候选完整重建坡面/日照后再比目标。
-        if (site.getCompositionPolicy().isUniformVerticalShift()) {
+        // 统一 ΔY 或单区自动平衡：每个候选完整重建坡面后再比 |Cut−Fill|。
+        if (usesSlopeCoupledUniformSearch(site)) {
             return applySlopeCoupledUniformSearch(
                 grid,
                 site,
@@ -235,24 +236,26 @@ public final class DesignTerrainComposer {
                 Map.of());
         }
 
-        // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY（在当前含坡网格上），再对残余统一偏移做边坡耦合离散搜索。
+        // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY，再对残余统一偏移做边坡耦合离散搜索。
         int cumulativeUniformOffset = 0;
-        for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
-            EarthworkOptimizationSolver.BalanceResult proposed =
-                EarthworkOptimizationSolver.proposeZoneOffsetsOnly(grid, site, resolvedSurfaces);
-            if (proposed.zoneOffsets() == null || proposed.zoneOffsets().isEmpty()
-                || allZero(proposed.zoneOffsets())) {
-                break;
+        if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
+            for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
+                EarthworkOptimizationSolver.BalanceResult proposed =
+                    EarthworkOptimizationSolver.proposeZoneOffsetsOnly(grid, site, resolvedSurfaces);
+                if (proposed.zoneOffsets() == null || proposed.zoneOffsets().isEmpty()
+                    || allZero(proposed.zoneOffsets())) {
+                    break;
+                }
+                accumulateZoneOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, proposed.zoneOffsets());
+                restoreCells(grid, baseDesign);
+                applyAccumulatedOffsets(grid, site, cumulativeZoneOffsets, cumulativeUniformOffset);
+                applyBoundaryConditions(
+                    grid,
+                    site,
+                    evaluatorsWithOffsets(site, zoneEvaluators, cumulativeZoneOffsets, cumulativeUniformOffset),
+                    coverageWithOffsets(site, coverageByCellKey, cumulativeZoneOffsets, cumulativeUniformOffset),
+                    effectiveBreaklines);
             }
-            accumulateZoneOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, proposed.zoneOffsets());
-            restoreCells(grid, baseDesign);
-            applyAccumulatedOffsets(grid, site, cumulativeZoneOffsets, cumulativeUniformOffset);
-            applyBoundaryConditions(
-                grid,
-                site,
-                evaluatorsWithOffsets(site, zoneEvaluators, cumulativeZoneOffsets, cumulativeUniformOffset),
-                coverageWithOffsets(site, coverageByCellKey, cumulativeZoneOffsets, cumulativeUniformOffset),
-                effectiveBreaklines);
         }
 
         if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
@@ -344,9 +347,45 @@ public final class DesignTerrainComposer {
     }
 
     private static boolean shouldRunSiteBalance(EarthworkSite site) {
-        return site != null
-            && site.getCompositionPolicy().isVerticalOptimizationEnabled()
-            && site.getZoneCount() >= 2;
+        if (site == null || !hasAdjustableZone(site)) {
+            return false;
+        }
+        if (site.getCompositionPolicy().isVerticalOptimizationEnabled()) {
+            return true;
+        }
+        return site.getZoneCount() == 1 && isSingleZoneMinecraftPadBalance(site);
+    }
+
+    private static boolean usesSlopeCoupledUniformSearch(EarthworkSite site) {
+        if (site.getCompositionPolicy().isUniformVerticalShift()) {
+            return true;
+        }
+        return isSingleZoneMinecraftPadBalance(site)
+            && !site.getCompositionPolicy().isConstrainedZoneOptimization();
+    }
+
+    private static boolean hasAdjustableZone(EarthworkSite site) {
+        for (GradingZone zone : site.getGradingZones().values()) {
+            if (zone != null && zone.isEnabled() && zone.allowsVerticalAdjustment()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isSingleZoneMinecraftPadBalance(EarthworkSite site) {
+        if (site == null || site.getZoneCount() != 1) {
+            return false;
+        }
+        GradingZone zone = site.getGradingZones().values().iterator().next();
+        if (zone == null || !zone.isEnabled() || !zone.getRegion().isAutoBalance()) {
+            return false;
+        }
+        if (!zone.allowsVerticalAdjustment()) {
+            return false;
+        }
+        GradingZoneType type = zone.getType();
+        return type == GradingZoneType.FLAT || type == GradingZoneType.SLOPED;
     }
 
     private static void applyBoundaryConditions(

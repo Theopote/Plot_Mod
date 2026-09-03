@@ -143,4 +143,23 @@ public final class EarthworkVolumeReport {
     public long totalChangedBlocks() {
         return totalChangedBlocks;
     }
+
+    /**
+     * 保留几何/材料方量，只替换世界改方块计数（预览虚影、落地、报告共用同一份 placement）。
+     */
+    public EarthworkVolumeReport withChangedBlocks(long cutChangedBlocks, long fillChangedBlocks) {
+        long cut = Math.max(0L, cutChangedBlocks);
+        long fill = Math.max(0L, fillChangedBlocks);
+        return new EarthworkVolumeReport(
+            geometricCutVolume,
+            geometricFillVolume,
+            reusableCutVolume,
+            compactedFillSupply,
+            compactedFillDemand,
+            importVolume,
+            exportVolume,
+            cut,
+            fill,
+            cut + fill);
+    }
 }

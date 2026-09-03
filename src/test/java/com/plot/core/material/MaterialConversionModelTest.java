@@ -14,16 +14,25 @@ class MaterialConversionModelTest {
     }
 
     @Test
-    void defaultPropertiesMatchDocumentedExample() {
+    void defaultMinecraftConversionIsOneToOne() {
         MaterialConversionModel defaults = MaterialConversionModel.DEFAULT;
-        assertEquals(0.90f, defaults.reusableRatio(), 1e-6f);
-        assertEquals(0.92f, defaults.cutToCompactedFillRatio(), 1e-6f);
-        assertEquals(0.828, defaults.effectiveCutToCompactedFillRatio(), 1e-6);
+        assertEquals(1.0f, defaults.reusableRatio(), 1e-6f);
+        assertEquals(1.0f, defaults.cutToCompactedFillRatio(), 1e-6f);
+        assertEquals(1.0, defaults.effectiveCutToCompactedFillRatio(), 1e-6);
+    }
+
+    @Test
+    void learningPropertiesMatchDocumentedExample() {
+        MaterialConversionModel learning = MaterialConversionModel.LEARNING;
+        assertEquals(0.90f, learning.reusableRatio(), 1e-6f);
+        assertEquals(0.92f, learning.cutToCompactedFillRatio(), 1e-6f);
+        assertEquals(0.828, learning.effectiveCutToCompactedFillRatio(), 1e-6);
     }
 
     @Test
     void geometricCutForCompactedFillInvertsEffectiveRatio() {
-        assertEquals(1000L, MaterialConversionModel.DEFAULT.geometricCutForCompactedFill(828.0));
+        assertEquals(828L, MaterialConversionModel.DEFAULT.geometricCutForCompactedFill(828.0));
+        assertEquals(1000L, MaterialConversionModel.LEARNING.geometricCutForCompactedFill(828.0));
         assertEquals(0L, MaterialConversionModel.DEFAULT.geometricCutForCompactedFill(0.0));
     }
 }

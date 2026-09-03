@@ -56,7 +56,9 @@ public final class EarthworkOverviewPanel {
                 renderSiteOverlapWarnings();
                 renderProjectGlobalBalance(ctx.project());
                 EarthworkSite site = ctx.project().getActiveSite();
-                renderSiteMaterialModel(site);
+                if (ctx.config().getWorkMode().showsLearningMetrics()) {
+                    renderSiteMaterialModel(site);
+                }
                 if (!site.getExclusionZones().isEmpty()) {
                     ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
                         "plugin.earthwork.exclusions_count",

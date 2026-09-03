@@ -6,11 +6,23 @@ package com.plot.core.material;
  * 平衡目标：{@code geometricCut × reusableRatio × cutToCompactedFillRatio ≈ geometricFill}。
  */
 public final class MaterialConversionModel {
-    public static final float DEFAULT_REUSABLE_RATIO = 0.90f;
-    public static final float DEFAULT_CUT_TO_COMPACTED_FILL_RATIO = 0.92f;
-    public static final MaterialConversionModel DEFAULT = new MaterialConversionModel(
-        DEFAULT_REUSABLE_RATIO,
-        DEFAULT_CUT_TO_COMPACTED_FILL_RATIO);
+    /** Minecraft 默认：挖 1 ≈ 填 1。 */
+    public static final float MINECRAFT_REUSABLE_RATIO = 1.0f;
+    public static final float MINECRAFT_CUT_TO_COMPACTED_FILL_RATIO = 1.0f;
+    /** 学习模式：现实可利用土 / 压实换算示例。 */
+    public static final float LEARNING_REUSABLE_RATIO = 0.90f;
+    public static final float LEARNING_CUT_TO_COMPACTED_FILL_RATIO = 0.92f;
+
+    public static final float DEFAULT_REUSABLE_RATIO = MINECRAFT_REUSABLE_RATIO;
+    public static final float DEFAULT_CUT_TO_COMPACTED_FILL_RATIO = MINECRAFT_CUT_TO_COMPACTED_FILL_RATIO;
+
+    public static final MaterialConversionModel MINECRAFT = new MaterialConversionModel(
+        MINECRAFT_REUSABLE_RATIO,
+        MINECRAFT_CUT_TO_COMPACTED_FILL_RATIO);
+    public static final MaterialConversionModel LEARNING = new MaterialConversionModel(
+        LEARNING_REUSABLE_RATIO,
+        LEARNING_CUT_TO_COMPACTED_FILL_RATIO);
+    public static final MaterialConversionModel DEFAULT = MINECRAFT;
 
     private final float reusableRatio;
     private final float cutToCompactedFillRatio;

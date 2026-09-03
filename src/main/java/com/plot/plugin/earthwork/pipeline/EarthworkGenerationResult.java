@@ -34,6 +34,24 @@ public class EarthworkGenerationResult {
     public final List<String> warnings = new ArrayList<>();
     public int calculationCellCount;
 
+    /**
+     * 用最终 {@link #placementRecords} 回写改方块计数，使预览虚影、落地与报告使用同一份变更。
+     */
+    public void syncChangedBlocksFromPlacements() {
+        long cut = 0L;
+        long fill = 0L;
+        for (BlockPos pos : placementRecords.keySet()) {
+            ChangeType type = changeTypes.get(pos);
+            if (type == ChangeType.CUT) {
+                cut++;
+            } else {
+                fill++;
+            }
+        }
+        volumeReport = volumeReport.withChangedBlocks(cut, fill);
+        siteVolumeReport = siteVolumeReport.withTotalsChangedBlocks(cut, fill);
+    }
+
     public enum ChangeType {
         CUT, FILL
     }

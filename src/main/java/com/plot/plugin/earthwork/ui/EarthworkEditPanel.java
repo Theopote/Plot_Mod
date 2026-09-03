@@ -86,7 +86,9 @@ public final class EarthworkEditPanel {
                 renderZoneTypeSettings(region);
                 renderZoneEdgeSettings(region);
 
-                renderMaterialPropertiesSettings(region);
+                if (ctx.config().getWorkMode().showsLearningMetrics()) {
+                    renderMaterialPropertiesSettings(region);
+                }
 
                 int[] previewGridSize = {region.getPreviewGridSize()};
                 boolean previewGridChanged = ImGui.sliderInt("##preview_grid_size", previewGridSize, 1, 20,

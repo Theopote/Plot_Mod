@@ -72,16 +72,19 @@ public final class SlopeCoupledVerticalSearch {
     }
 
     /**
-     * 默认目标：场地压实挖填不平衡量的绝对值（外运+外进的代理）。
+     * Minecraft 默认目标：最终网格上 {@code |Cut − Fill|}（几何方块，1 挖 ≈ 1 填）。
      * 必须在<strong>已含坡面/日照</strong>的最终网格上计算。
      */
     public static long materialImbalanceObjective(DesignTerrainGrid grid, EarthworkSite site) {
+        return geometricCutFillImbalance(grid, site);
+    }
+
+    public static long geometricCutFillImbalance(DesignTerrainGrid grid, EarthworkSite site) {
         SiteEarthworkReport report = EarthworkOptimizationSolver.collectZoneVolumes(grid, site);
         EarthworkVolumeReport totals = report.totals();
         if (totals == null) {
             return 0L;
         }
-        // 外运 + 外进（压实方）——必须在已含坡面/日照的最终网格上计算
-        return Math.round(totals.compactedFillSurplus() + totals.compactedFillDeficit());
+        return Math.abs(totals.geometricCutVolume() - totals.geometricFillVolume());
     }
 }

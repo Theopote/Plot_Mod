@@ -20,10 +20,12 @@ public final class EarthworkGenerationResults {
         target.volumeReport = source.volumeReport;
         target.siteVolumeReport = source.siteVolumeReport;
         target.projectReport = source.projectReport;
+        target.designTerrainGrid = source.designTerrainGrid;
         target.resolvedElevation = source.resolvedElevation;
         target.resolvedElevationMin = source.resolvedElevationMin;
         target.resolvedElevationMax = source.resolvedElevationMax;
         target.slopedSurface = source.slopedSurface;
+        target.siteGeneration = source.siteGeneration;
         target.calculationCellCount = source.calculationCellCount;
         target.warnings.addAll(source.warnings);
     }

@@ -49,9 +49,7 @@ public final class RoadCorridorBaker {
         zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BAKED_ROAD);
         zone.getDesignSurface().setKind(DesignSurfaceKind.BEST_FIT_PLANE);
         zone.setType(GradingZoneType.TERRAIN_FIT);
-        zone.setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy.bounded(
-            VerticalAdjustmentPolicy.ROAD_BOUNDED_RANGE,
-            VerticalAdjustmentPolicy.DEFAULT_WEIGHT));
+        zone.setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy.locked());
         return bakedCount;
     }
 }

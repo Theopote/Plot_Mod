@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.log.LogManager;
 import com.plot.core.material.MaterialConversionModel;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,9 @@ public class EarthworkConfig {
     private int gridSize;
     private boolean showGrid = true;
     private boolean showEdgeTreatmentOverlay = true;
+
+    /** Quick / Builder / Learn。缺省 Quick。 */
+    private String workMode = EarthworkWorkMode.QUICK.name();
 
     // 计算设置
     private boolean autoBalance = true;
@@ -128,6 +132,14 @@ public class EarthworkConfig {
 
     public void setShowEdgeTreatmentOverlay(boolean showEdgeTreatmentOverlay) {
         this.showEdgeTreatmentOverlay = showEdgeTreatmentOverlay;
+    }
+
+    public EarthworkWorkMode getWorkMode() {
+        return EarthworkWorkMode.fromId(workMode);
+    }
+
+    public void setWorkMode(EarthworkWorkMode workMode) {
+        this.workMode = (workMode != null ? workMode : EarthworkWorkMode.QUICK).name();
     }
 
     public boolean isAutoBalance() {

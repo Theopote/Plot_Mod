@@ -16,6 +16,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
 import com.plot.core.material.MaterialConversionModel;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.ProjectMaterialBalance;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.plugin.earthwork.model.*;
@@ -65,6 +66,29 @@ public final class EarthworkUiWidgets {
             if (ImGui.combo(PlotI18n.tr("plugin.earthwork.select_region"), regionIndex, labels)) {
                 ctx.setSelectedRegionId(ids[regionIndex.get()]);
             }
+        }
+
+        public static void renderPlayerCutFill(EarthworkVolumeReport volumes, int platformY, boolean sloped, int yMin, int yMax) {
+            EarthworkVolumeReport safe = volumes != null ? volumes : EarthworkVolumeReport.empty();
+            long cut = safe.geometricCutVolume();
+            long fill = safe.geometricFillVolume();
+            long net = cut - fill;
+            long work = cut + fill;
+            double balance = work <= 0L ? 100.0 : 100.0 * (1.0 - (Math.abs(net) / (double) work));
+            if (sloped) {
+                ImGui.text(PlotI18n.tr("plugin.earthwork.resolved_elevation_slope_result", yMin, yMax));
+            } else {
+                ImGui.text(PlotI18n.tr("plugin.earthwork.platform_height", platformY));
+            }
+            ImGui.text(PlotI18n.tr("plugin.earthwork.cut_blocks", cut));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.fill_blocks", fill));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.net_blocks", net));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.balance_percent", balance));
+            ImGui.text(PlotI18n.tr("plugin.earthwork.work_blocks", work));
+            ImGui.text(PlotI18n.tr(
+                "plugin.earthwork.block_change_breakdown",
+                safe.cutChangedBlocks(),
+                safe.fillChangedBlocks()));
         }
 
         public static void renderMaterialButton(EarthworkUiContext ctx, String label, String currentBlockId, Consumer<String> onSelected) {

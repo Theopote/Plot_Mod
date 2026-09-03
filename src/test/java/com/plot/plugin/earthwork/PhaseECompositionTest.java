@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PhaseECompositionTest {
@@ -54,9 +55,9 @@ class PhaseECompositionTest {
         assertEquals(DesignSurfaceElevationSource.BAKED_ROAD, corridor.getDesignSurface().getElevationSource());
         assertEquals(70, corridor.getDesignSurface().getBakedElevationGrid().get(5, 5));
         assertEquals(
-            com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy.Mode.BOUNDED,
+            com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy.Mode.LOCKED,
             corridor.getVerticalAdjustmentPolicy().getMode());
-        assertEquals(1, corridor.getVerticalAdjustmentPolicy().getMaxOffset());
+        assertFalse(corridor.isAutoAdjustElevation());
     }
 
     @Test
@@ -80,6 +81,7 @@ class PhaseECompositionTest {
         grid.put(5, 5, 82);
         zone.getDesignSurface().setBakedElevationGrid(grid);
         zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BAKED_ROAD);
+        zone.setAutoAdjustElevation(false);
         site.addZone(zone);
 
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
@@ -89,7 +91,7 @@ class PhaseECompositionTest {
         RoadSurfaceLookup liveLookup = (edgeId, planPoint) -> 40;
         DesignTerrainCell cell = DesignTerrainComposer.compose(
             site, terrain, null, BuildingFootprintLookup.NONE, liveLookup).grid().get(5, 5);
-        assertEquals(82, cell.targetY());
+        assertEquals(82, cell.targetY(), () -> "targetY=" + cell.targetY());
     }
 
     @Test

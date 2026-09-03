@@ -47,6 +47,10 @@ public final class SiteEarthworkReport {
         return byZone.getOrDefault(zoneId, EarthworkVolumeReport.empty());
     }
 
+    public SiteEarthworkReport withTotalsChangedBlocks(long cutChangedBlocks, long fillChangedBlocks) {
+        return new SiteEarthworkReport(totals.withChangedBlocks(cutChangedBlocks, fillChangedBlocks), byZone);
+    }
+
     public static SiteEarthworkReport fromMetrics(
             VolumeMetrics totalsMetrics,
             Map<String, VolumeMetrics> zoneMetrics,

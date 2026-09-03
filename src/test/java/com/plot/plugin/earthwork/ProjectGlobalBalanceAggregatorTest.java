@@ -123,7 +123,7 @@ class ProjectGlobalBalanceAggregatorTest {
         assertTrue(report.hasCrossSiteBreakdown());
         assertEquals(2, report.sitesWithVolume());
         assertEquals(2_500L, transfer(report.crossSiteAllocationMatrix(), "site-cut", "site-fill"));
-        // DEFAULT factor 0.828: surplus = 4000*0.828 = 3312; after 2500 to fill → external export 812
+        // LEARNING factor 0.828: surplus = 4000*0.828 = 3312; after 2500 to fill → external export 812
         assertEquals(2_500.0, report.grossImportDemand(), 1e-3);
         assertEquals(3_312.0, report.grossExportSurplus(), 1e-3);
         assertEquals(2_500.0, report.internalTransferVolume(), 1e-3);
@@ -139,6 +139,6 @@ class ProjectGlobalBalanceAggregatorTest {
     }
 
     private static EarthworkVolumeReport volume(long cut, long fill) {
-        return EarthworkVolumeReport.fromMetrics(cut, fill, MaterialConversionModel.DEFAULT, 0L, 0L);
+        return EarthworkVolumeReport.fromMetrics(cut, fill, MaterialConversionModel.LEARNING, 0L, 0L);
     }
 }

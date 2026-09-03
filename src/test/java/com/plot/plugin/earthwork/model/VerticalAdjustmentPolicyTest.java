@@ -20,9 +20,8 @@ class VerticalAdjustmentPolicyTest {
                 GradingZoneType.EXCAVATION_PIT, true, DesignSurfaceKind.EXCAVATION_PIT).getMode());
         VerticalAdjustmentPolicy road = VerticalAdjustmentPolicy.defaultFor(
             GradingZoneType.ROAD_CORRIDOR, true, DesignSurfaceKind.ROAD_CORRIDOR);
-        assertEquals(VerticalAdjustmentPolicy.Mode.BOUNDED, road.getMode());
-        assertEquals(-1, road.getMinOffset());
-        assertEquals(1, road.getMaxOffset());
+        assertEquals(VerticalAdjustmentPolicy.Mode.LOCKED, road.getMode());
+        assertFalse(road.allowsVerticalAdjustment());
 
         VerticalAdjustmentPolicy landscape = VerticalAdjustmentPolicy.defaultFor(
             GradingZoneType.LANDSCAPE, true, DesignSurfaceKind.BEST_FIT_PLANE);

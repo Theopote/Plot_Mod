@@ -43,7 +43,7 @@ class EarthworkVolumeReportTest {
     @Test
     void defaultMaterialPropertiesMatchUserExample() {
         EarthworkVolumeReport report = EarthworkVolumeReport.fromMetrics(
-            1000L, 828L, MaterialConversionModel.DEFAULT, 0L, 0L);
+            1000L, 828L, MaterialConversionModel.LEARNING, 0L, 0L);
 
         assertEquals(900.0, report.reusableCutVolume(), 1e-6);
         assertEquals(828.0, report.compactedFillSupply(), 1e-4);

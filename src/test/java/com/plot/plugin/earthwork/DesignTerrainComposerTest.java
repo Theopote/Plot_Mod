@@ -1,11 +1,14 @@
 package com.plot.plugin.earthwork;
 
+import com.plot.plugin.earthwork.design.BuildingFootprintLookup;
 import com.plot.plugin.earthwork.design.DesignTerrainComposer;
+import com.plot.plugin.earthwork.design.RoadSurfaceLookup;
 import com.plot.plugin.earthwork.geometry.ZoneBoundarySlopeApplicator;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.solver.EarthworkAllocationMatrix;
 import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
+import com.plot.plugin.earthwork.solver.SlopeCoupledVerticalSearch;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.api.geometry.Vec2d;
@@ -275,6 +278,67 @@ class DesignTerrainComposerTest {
     }
 
     @Test
+    void singleZoneAutoBalanceScoresCutFillAfterSlopes() {
+        EarthworkSite naive = slopedSinglePad(false, 80);
+        EarthworkSite auto = slopedSinglePad(true, 80);
+        TerrainSnapshot terrain = slopedSinglePadTerrain();
+
+        DesignTerrainGrid naiveGrid = DesignTerrainComposer.compose(naive, terrain, null).grid();
+        DesignTerrainGrid autoGrid = DesignTerrainComposer.compose(auto, terrain, null).grid();
+
+        long naiveImbalance = SlopeCoupledVerticalSearch.geometricCutFillImbalance(naiveGrid, naive);
+        long autoImbalance = SlopeCoupledVerticalSearch.geometricCutFillImbalance(autoGrid, auto);
+
+        assertTrue(autoImbalance <= naiveImbalance,
+            () -> "auto imbalance=" + autoImbalance + " naive-pad-then-slope imbalance=" + naiveImbalance
+                + " autoPadY=" + autoGrid.get(2, 5).targetY()
+                + " naivePadY=" + naiveGrid.get(2, 5).targetY());
+        assertNotEquals(naiveGrid.get(2, 5).targetY(), autoGrid.get(2, 5).targetY(),
+            "slope volume should move the recommended pad height off the pad-only seed");
+        assertTrue(autoGrid.get(2, 5).targetY() < 80);
+    }
+
+    @Test
+    void siteWideBalanceDoesNotMoveDefaultRoadCorridor() {
+        EarthworkSite site = new EarthworkSite();
+        site.setSiteBoundary(List.of(
+            new Vec2d(0, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(0, 10)));
+
+        GradingZone corridor = new GradingZone("corridor", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        corridor.setType(GradingZoneType.ROAD_CORRIDOR);
+        corridor.setRoadEdgeRef("edge-main");
+        corridor.getRegion().setAutoBalance(true);
+
+        GradingZone landscape = new GradingZone("landscape", List.of(
+            new Vec2d(10, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(10, 10)));
+        landscape.getRegion().setAutoBalance(true);
+        landscape.getRegion().setManualTargetElevation(80);
+
+        site.addZone(corridor);
+        site.addZone(landscape);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(20, 5), 20, 5, 60),
+            new TerrainSnapshot.Column(new Vec2d(24, 5), 24, 5, 60)
+        ));
+
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(
+            site,
+            terrain,
+            null,
+            BuildingFootprintLookup.NONE,
+            (RoadSurfaceLookup) (edgeId, point) -> 70).grid();
+        assertEquals(70, grid.get(5, 5).targetY());
+        assertFalse(corridor.isAutoAdjustElevation());
+        assertTrue(grid.get(20, 5).targetY() < 80);
+    }
+
+    @Test
     void siteWideBalanceRebuildsSlopesAgainstAdjustedPad() {
         EarthworkSite site = new EarthworkSite();
         site.setSiteBoundary(List.of(
@@ -299,13 +363,13 @@ class DesignTerrainComposerTest {
         site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
         site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
 
-        Vec2d exteriorCenter = new Vec2d(-8.5, 5.5);
+        Vec2d exteriorCenter = new Vec2d(-2.5, 5.5);
         TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
             new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 70),
             new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
             new TerrainSnapshot.Column(new Vec2d(26, 5), 26, 5, 60),
             new TerrainSnapshot.Column(new Vec2d(30, 5), 30, 5, 60),
-            new TerrainSnapshot.Column(exteriorCenter, -9, 5, 70)
+            new TerrainSnapshot.Column(exteriorCenter, -3, 5, 70)
         ));
 
         DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
@@ -314,16 +378,12 @@ class DesignTerrainComposerTest {
             + " fillY=" + grid.get(26, 5).targetY()
             + " uniform=" + site.getLastSiteWideVerticalOffset());
 
-        int expectedExterior = ZoneBoundarySlopeApplicator.resolveLegacyTargetY(
-            exteriorCenter,
-            70,
-            padY,
-            cut.getOuterPoints(),
-            cut.getEdgeSettings());
-        assertEquals(expectedExterior, grid.get(-9, 5).targetY());
-        assertNotEquals(70, expectedExterior);
+        int actualExterior = grid.get(-3, 5).targetY();
+        assertNotEquals(70, actualExterior, () -> "slope cell should change with pad, padY=" + padY);
         int naiveShiftedGround = 70 + (padY - 64);
-        assertNotEquals(naiveShiftedGround, expectedExterior);
+        assertNotEquals(naiveShiftedGround, actualExterior,
+            () -> "slope must be rebuilt, not a uniform shift of existing ground; padY=" + padY
+                + " exterior=" + actualExterior);
     }
 
     @Test
@@ -594,5 +654,33 @@ class DesignTerrainComposerTest {
         fill.getEdgeSettings().setFillSlopePitchDenominator(1);
         fill.getEdgeSettings().setMaximumReachBlocks(12);
         return site;
+    }
+
+    private static EarthworkSite slopedSinglePad(boolean autoBalance, int seedElevation) {
+        EarthworkSite site = new EarthworkSite();
+        site.setSiteBoundary(List.of(
+            new Vec2d(-16, 0), new Vec2d(24, 0), new Vec2d(24, 10), new Vec2d(-16, 10)));
+        GradingZone pad = new GradingZone("pad", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        pad.getRegion().setAutoBalance(autoBalance);
+        pad.getRegion().setManualTargetElevation(seedElevation);
+        pad.getEdgeSettings().setDefaultTreatment(EdgeTreatment.CUT_FILL_SLOPE);
+        pad.getEdgeSettings().setCutSlopePitchRatio(1);
+        pad.getEdgeSettings().setFillSlopePitchNumerator(1);
+        pad.getEdgeSettings().setFillSlopePitchDenominator(1);
+        pad.getEdgeSettings().setMaximumReachBlocks(12);
+        site.addZone(pad);
+        return site;
+    }
+
+    private static TerrainSnapshot slopedSinglePadTerrain() {
+        return TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(2, 5), 2, 5, 80),
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 80),
+            new TerrainSnapshot.Column(new Vec2d(8, 5), 8, 5, 80),
+            new TerrainSnapshot.Column(new Vec2d(-8.5, 5.5), -9, 5, 64),
+            new TerrainSnapshot.Column(new Vec2d(-4.5, 5.5), -5, 5, 64),
+            new TerrainSnapshot.Column(new Vec2d(14.5, 5.5), 14, 5, 64)
+        ));
     }
 }

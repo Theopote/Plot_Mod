@@ -4,8 +4,10 @@ import com.plot.plugin.earthwork.ui.EarthworkAdoptPanel;
 import com.plot.plugin.earthwork.ui.EarthworkEditPanel;
 import com.plot.plugin.earthwork.ui.EarthworkGeneratePanel;
 import com.plot.plugin.earthwork.ui.EarthworkOverviewPanel;
+import com.plot.plugin.earthwork.ui.EarthworkQuickPanel;
 import com.plot.plugin.earthwork.ui.EarthworkToolbarPanel;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
@@ -18,6 +20,7 @@ public final class EarthworkUIManager {
     private final EarthworkAdoptPanel adoptPanel;
     private final EarthworkEditPanel editPanel;
     private final EarthworkGeneratePanel generatePanel;
+    private final EarthworkQuickPanel quickPanel;
 
     public EarthworkUIManager(EarthworkUiContext ctx) {
         this.ctx = ctx;
@@ -26,6 +29,7 @@ public final class EarthworkUIManager {
         this.adoptPanel = new EarthworkAdoptPanel(ctx);
         this.editPanel = new EarthworkEditPanel(ctx);
         this.generatePanel = new EarthworkGeneratePanel(ctx);
+        this.quickPanel = new EarthworkQuickPanel(ctx, adoptPanel, generatePanel);
     }
 
     public void render() {
@@ -41,6 +45,11 @@ public final class EarthworkUIManager {
         }
 
         toolbarPanel.render();
+
+        if (ctx.config().getWorkMode() == EarthworkWorkMode.QUICK) {
+            quickPanel.render();
+            return;
+        }
 
         if (ImGui.beginTabBar("##earthwork_tabs", ImGuiTabBarFlags.None)) {
             if (ImGui.beginTabItem(PlotI18n.tr("plugin.earthwork.tab.overview"))) {

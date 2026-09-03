@@ -54,7 +54,6 @@ public final class EarthworkGeneratePanel {
 
     public void render() {
         GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
-                float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
                 boolean hasRegion = region != null;
 
                 if (!hasRegion) {
@@ -65,29 +64,7 @@ public final class EarthworkGeneratePanel {
 
                 EarthworkUiWidgets.renderRegionSelector(ctx);
                 ImGui.spacing();
-
-                if (ImGui.button(PlotI18n.tr("plugin.earthwork.calc_preview"), half, 0)) {
-                    ctx.previewManager().calculatePreview(
-                        ctx.project(), region, EarthworkUiLookups.createBuildingFootprintLookup(), EarthworkUiLookups.createRoadSurfaceLookup());
-                }
-                ImGui.sameLine();
-                boolean hasPreview = ctx.previewManager().getLastGenerationResult() != null;
-                if (!hasPreview) {
-                    ImGui.beginDisabled();
-                }
-                if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), half, 0)) {
-                    ctx.clearPreview();
-                }
-                if (!hasPreview) {
-                    ImGui.endDisabled();
-                }
-
-                if (ImGui.button(PlotI18n.tr("plugin.earthwork.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-                    if (ctx.previewManager().calculatePreview(
-                        ctx.project(), region, EarthworkUiLookups.createBuildingFootprintLookup(), EarthworkUiLookups.createRoadSurfaceLookup())) {
-                        ctx.setBuildConfirmPending(true);
-                    }
-                }
+                renderPreviewActions(region);
 
                 com.plot.api.world.PlacementReadiness buildReadiness =
                     ctx.host().projection().checkWorldModificationReadiness();
@@ -107,34 +84,24 @@ public final class EarthworkGeneratePanel {
                     EarthworkVolumeReport volumes = preview.volumeReport;
                     ImGui.text(PlotI18n.tr("plugin.earthwork.calculation_cell_count", preview.calculationCellCount));
                     renderTerrainSnapshotInfo(preview.existingTerrainSnapshot);
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_cut_volume", volumes.geometricCutVolume()));
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.geometric_fill_volume", volumes.geometricFillVolume()));
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", volumes.exportVolume()));
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", volumes.importVolume()));
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.compacted_fill_demand", volumes.compactedFillDemand()));
-                    if (preview.slopedSurface) {
-                        ImGui.text(PlotI18n.tr(
-                            "plugin.earthwork.resolved_elevation_slope_result",
-                            preview.resolvedElevationMin,
-                            preview.resolvedElevationMax));
-                    } else {
-                        ImGui.text(PlotI18n.tr(
-                            "plugin.earthwork.resolved_elevation_result",
-                            preview.resolvedElevation));
+                    EarthworkUiWidgets.renderPlayerCutFill(
+                        volumes,
+                        preview.resolvedElevation,
+                        preview.slopedSurface,
+                        preview.resolvedElevationMin,
+                        preview.resolvedElevationMax);
+                    if (ctx.config().getWorkMode().showsLearningMetrics()) {
+                        renderLearningVolumeDetails(volumes);
                     }
-                    ImGui.text(PlotI18n.tr("plugin.earthwork.block_count_result", volumes.totalChangedBlocks()));
-                    ImGui.text(PlotI18n.tr(
-                        "plugin.earthwork.block_change_breakdown",
-                        volumes.cutChangedBlocks(),
-                        volumes.fillChangedBlocks()));
 
                     if (preview.projectReport != null
-                        && preview.projectReport.hasZoneBreakdown()) {
+                        && preview.projectReport.hasZoneBreakdown()
+                        && ctx.config().getWorkMode().showsLearningMetrics()) {
                         renderProjectBalanceReport(preview.projectReport);
                     }
 
-                    if (ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
+                    if (ctx.config().getWorkMode().showsLearningMetrics()
+                        && ImGui.button(PlotI18n.tr("plugin.earthwork.export_report"), ImGui.getContentRegionAvailX(), 0)) {
                         ctx.previewManager().exportLastReport(ctx.project(), region);
                     }
 
@@ -142,35 +109,72 @@ public final class EarthworkGeneratePanel {
                         ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
                     }
 
-                    boolean hasPlacements = !preview.placementRecords.isEmpty();
-                    if (!hasPlacements) {
-                        ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
-                    }
-
-                    if (!hasPlacements) {
-                        ImGui.beginDisabled();
-                    }
-                    if (ImGui.button(PlotI18n.tr("plugin.earthwork.projection_ref"), half, 0)) {
-                        ctx.previewManager().projectPreview();
-                    }
-                    if (!hasPlacements) {
-                        ImGui.endDisabled();
-                    }
-
-                    ImGui.sameLine();
-                    boolean buildDisabled = !hasPlacements
-                        || !buildReadiness.ready()
-                        || ctx.host().placement().isBusy();
-                    if (buildDisabled) {
-                        ImGui.beginDisabled();
-                    }
-                    if (ImGui.button(PlotI18n.tr("plugin.earthwork.build"), half, 0)) {
-                        ctx.setBuildConfirmPending(true);
-                    }
-                    if (buildDisabled) {
-                        ImGui.endDisabled();
-                    }
+                    renderPreviewBuildButtons(preview);
                 }
+    }
+
+    public void renderPreviewActions(GradingRegion region) {
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.calc_preview"), half, 0)) {
+            ctx.recalculatePreview();
+        }
+        ImGui.sameLine();
+        boolean hasPreview = ctx.previewManager().getLastGenerationResult() != null;
+        if (!hasPreview) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.clear_preview"), half, 0)) {
+            ctx.clearPreview();
+        }
+        if (!hasPreview) {
+            ImGui.endDisabled();
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
+            if (ctx.recalculatePreview()) {
+                ctx.setBuildConfirmPending(true);
+            }
+        }
+    }
+
+    public void renderPreviewBuildButtons(EarthworkGenerationResult preview) {
+        float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        boolean hasPlacements = preview != null && !preview.placementRecords.isEmpty();
+        if (!hasPlacements) {
+            ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.earthwork.generate_empty_result"));
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.projection_ref"), half, 0)) {
+            ctx.previewManager().projectPreview();
+        }
+        if (!hasPlacements) {
+            ImGui.endDisabled();
+        }
+
+        ImGui.sameLine();
+        com.plot.api.world.PlacementReadiness buildReadiness =
+            ctx.host().projection().checkWorldModificationReadiness();
+        boolean buildDisabled = !hasPlacements
+            || !buildReadiness.ready()
+            || ctx.host().placement().isBusy();
+        if (buildDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.build"), half, 0)) {
+            ctx.setBuildConfirmPending(true);
+        }
+        if (buildDisabled) {
+            ImGui.endDisabled();
+        }
+    }
+
+    private void renderLearningVolumeDetails(EarthworkVolumeReport volumes) {
+        ImGui.spacing();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.learn.volume_header"));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.reusable_cut_volume", volumes.reusableCutVolume()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.export_volume", volumes.exportVolume()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.import_volume", volumes.importVolume()));
+        ImGui.text(PlotI18n.tr("plugin.earthwork.compacted_fill_demand", volumes.compactedFillDemand()));
     }
 
     private void renderGridPreview(GradingRegion region, EarthworkGenerationResult result) {
@@ -250,8 +254,7 @@ public final class EarthworkGeneratePanel {
                 if (ImGui.button(PlotI18n.tr("plugin.earthwork.recalculate_preview"), 180, 0)) {
                     GradingRegion region = ctx.project().getRegion(ctx.selectedRegionId());
                     if (region != null) {
-                        ctx.previewManager().calculatePreview(
-                            ctx.project(), region, EarthworkUiLookups.createBuildingFootprintLookup(), EarthworkUiLookups.createRoadSurfaceLookup());
+                        ctx.recalculatePreview();
                     }
                     ImGui.closeCurrentPopup();
                 }

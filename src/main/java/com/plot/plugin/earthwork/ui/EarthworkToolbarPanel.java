@@ -15,7 +15,7 @@ import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
-import com.plot.plugin.earthwork.model.*;
+import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
 import com.plot.plugin.road.earthwork.RoadEarthworkSurfaceSampler;
@@ -87,6 +87,30 @@ public final class EarthworkToolbarPanel {
             ImGui.textColored(PluginUiColors.STATUS_OK, ctx.projectStatus());
         }
         ImGui.separator();
+        renderWorkMode();
+        ImGui.separator();
+    }
+
+    private void renderWorkMode() {
+        EarthworkWorkMode current = ctx.config().getWorkMode();
+        EarthworkWorkMode[] modes = EarthworkWorkMode.values();
+        String[] labels = new String[modes.length];
+        int selected = 0;
+        for (int i = 0; i < modes.length; i++) {
+            labels[i] = PlotI18n.tr(modes[i].i18nKey());
+            if (modes[i] == current) {
+                selected = i;
+            }
+        }
+        ImInt index = new ImInt(selected);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.work_mode"), index, labels)) {
+            int picked = index.get();
+            if (picked >= 0 && picked < modes.length && modes[picked] != current) {
+                ctx.config().setWorkMode(modes[picked]);
+                ctx.config().save();
+            }
+        }
     }
 
     private void renderActivePlacementControls() {

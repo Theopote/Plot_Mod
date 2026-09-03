@@ -372,6 +372,32 @@ public class GradingZone {
         }
     }
 
+    /**
+     * Minecraft 简化开关：允许自动平衡调整本区标高。关闭即锁定。
+     */
+    public boolean isAutoAdjustElevation() {
+        return allowsVerticalAdjustment();
+    }
+
+    public void setAutoAdjustElevation(boolean enabled) {
+        setAutoAdjustElevation(enabled, VerticalAdjustmentPolicy.LANDSCAPE_RANGE);
+    }
+
+    public void setAutoAdjustElevation(boolean enabled, int maxAutoAdjustment) {
+        if (!enabled) {
+            setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy.locked());
+            return;
+        }
+        int range = Math.max(0, maxAutoAdjustment);
+        setVerticalAdjustmentPolicy(
+            VerticalAdjustmentPolicy.adjustable(range, VerticalAdjustmentPolicy.DEFAULT_WEIGHT));
+    }
+
+    public int getMaxAutoAdjustment() {
+        VerticalAdjustmentPolicy policy = getVerticalAdjustmentPolicy();
+        return Math.max(Math.abs(policy.getMinOffset()), Math.abs(policy.getMaxOffset()));
+    }
+
     public boolean allowsVerticalAdjustment() {
         if (getDesignSurface().getKind() == DesignSurfaceKind.MATCH_EXISTING) {
             return false;
@@ -386,7 +412,7 @@ public class GradingZone {
     /**
      * 全场平衡不得改动的分区：{@link VerticalAdjustmentPolicy.Mode#LOCKED} /
      * {@link VerticalAdjustmentPolicy.Mode#DERIVED}、贴合现状。未覆盖策略时，
-     * 建筑地坪 / 基坑锁定，道路走廊有界，关闭自动平衡的平整分区锁定。
+     * 建筑地坪 / 道路走廊 / 基坑锁定，关闭自动平衡的平整分区锁定。
      */
     public boolean isElevationLocked() {
         return !allowsVerticalAdjustment();

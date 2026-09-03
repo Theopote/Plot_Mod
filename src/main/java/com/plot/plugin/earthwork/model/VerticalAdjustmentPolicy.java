@@ -81,7 +81,7 @@ public class VerticalAdjustmentPolicy {
         return switch (safeType) {
             case BUILDING_PAD -> locked();
             case EXCAVATION_PIT -> derived();
-            case ROAD_CORRIDOR -> bounded(ROAD_BOUNDED_RANGE, DEFAULT_WEIGHT);
+            case ROAD_CORRIDOR -> locked();
             case LANDSCAPE, TERRAIN_FIT -> adjustable(LANDSCAPE_RANGE, LANDSCAPE_WEIGHT);
             case FLAT, SLOPED -> autoBalance
                 ? adjustable(UNBOUNDED_RANGE, DEFAULT_WEIGHT)

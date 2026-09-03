@@ -59,7 +59,7 @@ class EarthworkAllocationMatrixTest {
 
     @Test
     void sameGeometricCutAllocatesByMaterialSupply() {
-        MaterialConversionModel highReuse = MaterialConversionModel.DEFAULT;
+        MaterialConversionModel highReuse = MaterialConversionModel.LEARNING;
         MaterialConversionModel lowReuse = new MaterialConversionModel(0.50f, 1.0f);
         Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
         byZone.put("high", report(10_000L, 0L, highReuse));
@@ -81,7 +81,7 @@ class EarthworkAllocationMatrixTest {
         byZone.put("b", report(0L, 6_000L));
         byZone.put("c", report(0L, 3_000L));
         SiteEarthworkReport siteReport = new SiteEarthworkReport(
-            EarthworkVolumeReport.fromMetrics(10_000L, 9_000L, MaterialConversionModel.DEFAULT, 0L, 0L),
+            EarthworkVolumeReport.fromMetrics(10_000L, 9_000L, MaterialConversionModel.LEARNING, 0L, 0L),
             byZone);
 
         EarthworkProjectReport report = EarthworkProjectReport.Builder.build(null, siteReport);
@@ -162,7 +162,7 @@ class EarthworkAllocationMatrixTest {
     }
 
     private static EarthworkVolumeReport report(long cut, long fill) {
-        return report(cut, fill, MaterialConversionModel.DEFAULT);
+        return report(cut, fill, MaterialConversionModel.LEARNING);
     }
 
     private static EarthworkVolumeReport report(long cut, long fill, MaterialConversionModel materials) {

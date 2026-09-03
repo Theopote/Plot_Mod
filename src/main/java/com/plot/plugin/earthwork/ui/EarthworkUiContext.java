@@ -11,6 +11,7 @@ import com.plot.plugin.earthwork.manager.EarthworkBuildManager;
 import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
+import com.plot.plugin.earthwork.model.GradingRegion;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -191,6 +192,18 @@ public final class EarthworkUiContext {
 
     public ImString regionNameBuffer() {
         return regionNameBuffer;
+    }
+
+    public boolean recalculatePreview() {
+        GradingRegion region = project.getRegion(selectedRegionId);
+        if (region == null) {
+            return false;
+        }
+        return previewManager.calculatePreview(
+            project,
+            region,
+            EarthworkUiLookups.createBuildingFootprintLookup(),
+            EarthworkUiLookups.createRoadSurfaceLookup());
     }
 
     public void clearPreview() {
