@@ -599,36 +599,34 @@ else:
 - 若并列，取面积较小者（更具体的分区赢）；
 - 若仍并列，取 `id` 字典序（确定性）。
 
-**Step 4 — 全场土方平衡（Phase 12，可选）**
+**Step 4 — 交界混合（Phase D）**
 
-在 Zone 覆盖之后、交界混合之前，根据 `compositionPolicy.balanceScope`：
+`TerrainBoundaryBlender` 在 `blendWidthBlocks > 0` 时，对 overlap 格点在 winner / runner-up 标高间插值。
+
+**Step 5 — 分区边界放坡（Phase F）**
+
+`ZoneBoundarySlopeApplicator` 按 `CUT_FILL_SLOPE` / `MATCH_EXISTING` 修正边界内外格点；挡土墙边作为 `NO_BLENDING` 折线已并入 Step 4。
+
+**Step 6 — 全场土方平衡（在最终设计面拓扑上）**
+
+在边坡与混合之后，根据 `compositionPolicy.balanceScope`：
 
 ```
 if balanceScope == PER_ZONE:
     // 各 Zone 已在 DesignSurfaceResolver 内自平衡，跳过
     pass
 else if balanceScope == SITE_WIDE && zoneCount >= 2:
-    if balanceMethod == ZONE_ALLOCATION:
-        matrix = EarthworkAllocationMatrix.fromZoneReports(byZoneVolumes)
-        ∀ zone: ΔY_zone = round(allocationIntent_zone / cellCount_zone)
-        apply ΔY_zone to cells where cell.zoneId == zone.id
-        if balanceResidualUniformPolish:
-            δ = SiteWideBalanceAdjuster.findBalancedVerticalOffset(all cells)
-            apply uniform δ
-    else if balanceMethod == UNIFORM_OFFSET:
-        δ = SiteWideBalanceAdjuster.findBalancedVerticalOffset(all cells)
-        apply uniform δ to all participating cells
+    snapshot = 覆盖后的基础设计面（不含坡面）
+    apply blend + slope
+    for iteration in 1..4:
+        根据当前（含坡面）方量提出 ΔY，不直接改坡面格
+        if ΔY == 0: break
+        恢复 snapshot → 施加累计 ΔY → 重建 blend + slope
 ```
 
 `SITE_WIDE` 时 `DesignSurfaceResolver` 传入 `deferBalanceToSite=true`：水平分区用平均地面代替逐区 `autoBalance`，拟合坡面跳过逐区截距平衡。
 
-**Step 5 — 交界混合（Phase D）**
-
-`TerrainBoundaryBlender` 在 `blendWidthBlocks > 0` 时，对 overlap 格点在 winner / runner-up 标高间插值。
-
-**Step 6 — 分区边界放坡（Phase F）**
-
-`ZoneBoundarySlopeApplicator` 按 `ZoneEdgeSettings` 处理挖填放坡、挡土边等。
+平衡改变平台标高后坡脚会移动，因此不能把 ΔY 直接加在已放坡的格子上。
 
 **Step 7 — 裁剪到 Site Boundary**
 

@@ -12,7 +12,7 @@ import com.plot.plugin.earthwork.model.EarthworkSite;
 import java.util.Map;
 
 /**
- * 合成场地级 {@link DesignTerrainGrid}（含分区覆盖、全场/分区平衡、边坡与混合）。
+ * 合成场地级 {@link DesignTerrainGrid}（覆盖 → 边坡/混合 → 全场平衡迭代 → 重建坡面）。
  * <p>
  * 包装 {@link DesignTerrainComposer}，作为 grading 层对外入口。
  */

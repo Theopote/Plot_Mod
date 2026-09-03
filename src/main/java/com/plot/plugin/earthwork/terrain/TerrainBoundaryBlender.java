@@ -62,7 +62,10 @@ public final class TerrainBoundaryBlender {
         }
     }
 
-    public record ZoneCoverage(int winnerTargetY, Integer runnerUpTargetY) {
+    public record ZoneCoverage(int winnerTargetY, Integer runnerUpTargetY, String runnerUpZoneId) {
+        public ZoneCoverage(int winnerTargetY, Integer runnerUpTargetY) {
+            this(winnerTargetY, runnerUpTargetY, null);
+        }
     }
 
     private static boolean isNearNoBlendBreakline(

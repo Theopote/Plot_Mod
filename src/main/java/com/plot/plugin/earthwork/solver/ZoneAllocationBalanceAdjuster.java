@@ -24,9 +24,26 @@ public final class ZoneAllocationBalanceAdjuster {
     public record BalanceResult(
             Map<String, Integer> zoneOffsets,
             int residualUniformOffset) {
+        public boolean isZero() {
+            if (residualUniformOffset != 0) {
+                return false;
+            }
+            if (zoneOffsets == null || zoneOffsets.isEmpty()) {
+                return true;
+            }
+            for (int value : zoneOffsets.values()) {
+                if (value != 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
-    public static BalanceResult balance(
+    /**
+     * 根据当前设计面方量提出分区 ΔY / 残余统一 ΔY，不修改网格。
+     */
+    public static BalanceResult propose(
             DesignTerrainGrid grid,
             EarthworkSite site) {
         if (grid == null || site == null || site.getZoneCount() < 2) {
@@ -36,20 +53,28 @@ public final class ZoneAllocationBalanceAdjuster {
         EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
             snapshot.byZone(),
             site);
-        Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone = collectSamplesByZone(grid);
         Map<String, Integer> zoneOffsets = computeZoneOffsets(
             matrix,
             countCellsByZone(grid),
-            samplesByZone,
+            collectSamplesByZone(grid),
             site,
             snapshot.byZone());
-        applyZoneOffsets(grid, zoneOffsets);
-
         int residual = 0;
         if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
-            residual = applyResidualUniformOffset(grid, site.getMaterialModel());
+            residual = proposeResidualUniformOffset(grid, site.getMaterialModel(), zoneOffsets);
         }
         return new BalanceResult(zoneOffsets, residual);
+    }
+
+    public static BalanceResult balance(
+            DesignTerrainGrid grid,
+            EarthworkSite site) {
+        BalanceResult result = propose(grid, site);
+        applyZoneOffsets(grid, result.zoneOffsets());
+        if (result.residualUniformOffset() != 0) {
+            SiteWideBalanceAdjuster.applyOffset(grid, result.residualUniformOffset());
+        }
+        return result;
     }
 
     public static Map<String, Integer> computeZoneOffsets(
@@ -228,22 +253,23 @@ public final class ZoneAllocationBalanceAdjuster {
         return counts;
     }
 
-    private static int applyResidualUniformOffset(
+    private static int proposeResidualUniformOffset(
             DesignTerrainGrid grid,
-            MaterialConversionModel materials) {
-        java.util.List<SiteWideBalanceAdjuster.CellSample> samples = new java.util.ArrayList<>();
+            MaterialConversionModel materials,
+            Map<String, Integer> zoneOffsets) {
+        List<SiteWideBalanceAdjuster.CellSample> samples = new ArrayList<>();
+        Map<String, Integer> safeOffsets = zoneOffsets != null ? zoneOffsets : Map.of();
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
                 continue;
             }
-            samples.add(new SiteWideBalanceAdjuster.CellSample(cell.existingGroundY(), cell.targetY()));
+            int targetY = cell.targetY() + safeOffsets.getOrDefault(cell.zoneId(), 0);
+            samples.add(new SiteWideBalanceAdjuster.CellSample(cell.existingGroundY(), targetY));
         }
         if (samples.isEmpty()) {
             return 0;
         }
-        int offset = SiteWideBalanceAdjuster.findBalancedVerticalOffset(samples, materials);
-        SiteWideBalanceAdjuster.applyOffset(grid, offset);
-        return offset;
+        return SiteWideBalanceAdjuster.findBalancedVerticalOffset(samples, materials);
     }
 
     private static void addVolumeIntent(Map<String, Long> volumeIntent, String zoneId, long delta) {

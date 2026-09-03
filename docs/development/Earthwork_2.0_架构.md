@@ -316,6 +316,13 @@ public final class EarthworkGenerator {
 - [x] `ZoneAllocationBalanceAdjuster`：调配量 → 分区几何方量意图（挖方按 `MaterialConversionModel` 换算）
 - [x] 跨场地调配矩阵同步材料语义；`EarthworkAllocationMatrixTest` 材料差异用例
 
+### 17o — 先成形再平衡（边坡耦合）
+
+- [x] `DesignTerrainComposer`：覆盖 → 交界混合 / 放坡 / 挡土约束 → 全场平衡
+- [x] 平衡后从基础设计面恢复，施加累计 ΔY，再重建坡面（日照线随平台标高移动）
+- [x] 最多 4 次迭代，直到提出的偏移为 0；返回的 evaluator 含最终 ΔY（挡土墙采样）
+- [x] `DesignTerrainComposerTest`：坡面相对平衡后垫层重建；全场残余小于逐区
+
 ---
 
 ## 8. 测试策略

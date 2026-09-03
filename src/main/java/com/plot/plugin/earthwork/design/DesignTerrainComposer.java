@@ -21,6 +21,7 @@ import com.plot.plugin.earthwork.model.GradingZone;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,9 @@ import java.util.Map;
  * 将多分区设计面合成为 Site 级 {@link DesignTerrainGrid}。
  */
 public final class DesignTerrainComposer {
+
+    /** 平衡改变平台标高后，坡脚/日照线会移动；迭代重建直到偏移收敛或达到上限。 */
+    static final int MAX_SITE_BALANCE_ITERATIONS = 4;
 
     private DesignTerrainComposer() {
     }
@@ -71,19 +75,30 @@ public final class DesignTerrainComposer {
         List<Breakline> effectiveBreaklines = mergeEffectiveBreaklines(site);
         Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey =
             applyZoneCoverage(grid, site, zoneEvaluators, effectiveBreaklines);
-        int siteWideOffset = applySiteBalance(grid, site);
-        if (siteWideOffset != 0) {
-            site.setLastSiteWideVerticalOffset(siteWideOffset);
-        } else {
-            site.clearLastSiteWideVerticalOffset();
-        }
-        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines);
-        ZoneBoundarySlopeApplicator.apply(
+        Map<Long, CellSnapshot> baseDesign = snapshotCells(grid);
+
+        applyBoundaryConditions(
             grid,
-            new ArrayList<>(site.getGradingZones().values()),
-            zoneEvaluators);
+            site,
+            zoneEvaluators,
+            coverageByCellKey,
+            effectiveBreaklines);
+
+        Map<String, Integer> cumulativeZoneOffsets = new LinkedHashMap<>();
+        int cumulativeUniformOffset = iterateSiteBalance(
+            grid,
+            site,
+            baseDesign,
+            zoneEvaluators,
+            coverageByCellKey,
+            effectiveBreaklines,
+            cumulativeZoneOffsets);
+        recordBalanceOffsets(site, cumulativeZoneOffsets, cumulativeUniformOffset);
+
+        Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> finalEvaluators =
+            evaluatorsWithOffsets(zoneEvaluators, cumulativeZoneOffsets, cumulativeUniformOffset);
         grid.finalizeStats();
-        return new ComposeResult(grid, zoneEvaluators);
+        return new ComposeResult(grid, finalEvaluators);
     }
 
     private static List<Breakline> mergeEffectiveBreaklines(EarthworkSite site) {
@@ -169,35 +184,65 @@ public final class DesignTerrainComposer {
             }
             int winnerTarget = evaluator.evaluateAt(cell);
             Integer runnerUpTarget = resolveRunnerUpTarget(covering, winner, zoneEvaluators, cell);
+            String runnerUpZoneId = resolveRunnerUpZoneId(covering, winner);
             cell.setTargetY(winnerTarget);
             cell.setZoneId(winner.zoneId());
             coverageByCellKey.put(
                 DesignTerrainGrid.cellKey(cell.worldX(), cell.worldZ()),
-                new TerrainBoundaryBlender.ZoneCoverage(winnerTarget, runnerUpTarget));
+                new TerrainBoundaryBlender.ZoneCoverage(winnerTarget, runnerUpTarget, runnerUpZoneId));
         }
         return coverageByCellKey;
     }
 
-    private static int applySiteBalance(DesignTerrainGrid grid, EarthworkSite site) {
-        if (site == null || grid == null) {
+    private static int iterateSiteBalance(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<Long, CellSnapshot> baseDesign,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+            Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
+            List<Breakline> effectiveBreaklines,
+            Map<String, Integer> cumulativeZoneOffsets) {
+        if (!shouldRunSiteBalance(site)) {
             return 0;
         }
-        if (!site.getCompositionPolicy().isSiteWideBalance() || site.getZoneCount() < 2) {
-            site.clearLastZoneVerticalOffsets();
-            return 0;
+        int cumulativeUniformOffset = 0;
+        for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
+            ZoneAllocationBalanceAdjuster.BalanceResult proposed = proposeSiteBalance(grid, site);
+            if (proposed.isZero()) {
+                break;
+            }
+            accumulateZoneOffsets(cumulativeZoneOffsets, proposed.zoneOffsets());
+            cumulativeUniformOffset += proposed.residualUniformOffset();
+            restoreCells(grid, baseDesign);
+            applyAccumulatedOffsets(grid, cumulativeZoneOffsets, cumulativeUniformOffset);
+            applyBoundaryConditions(
+                grid,
+                site,
+                evaluatorsWithOffsets(zoneEvaluators, cumulativeZoneOffsets, cumulativeUniformOffset),
+                coverageWithOffsets(coverageByCellKey, cumulativeZoneOffsets, cumulativeUniformOffset),
+                effectiveBreaklines);
         }
-        CompositionPolicy policy = site.getCompositionPolicy();
-        if (policy.isZoneAllocationBalance()) {
-            ZoneAllocationBalanceAdjuster.BalanceResult result =
-                ZoneAllocationBalanceAdjuster.balance(grid, site);
-            site.setLastZoneVerticalOffsets(result.zoneOffsets());
-            return result.residualUniformOffset();
-        }
-        site.clearLastZoneVerticalOffsets();
-        return applyUniformSiteBalance(grid, site);
+        return cumulativeUniformOffset;
     }
 
-    private static int applyUniformSiteBalance(DesignTerrainGrid grid, EarthworkSite site) {
+    private static boolean shouldRunSiteBalance(EarthworkSite site) {
+        return site != null
+            && site.getCompositionPolicy().isSiteWideBalance()
+            && site.getZoneCount() >= 2;
+    }
+
+    private static ZoneAllocationBalanceAdjuster.BalanceResult proposeSiteBalance(
+            DesignTerrainGrid grid,
+            EarthworkSite site) {
+        if (site.getCompositionPolicy().isZoneAllocationBalance()) {
+            return ZoneAllocationBalanceAdjuster.propose(grid, site);
+        }
+        return new ZoneAllocationBalanceAdjuster.BalanceResult(
+            Map.of(),
+            proposeUniformOffset(grid, site));
+    }
+
+    private static int proposeUniformOffset(DesignTerrainGrid grid, EarthworkSite site) {
         List<SiteWideBalanceAdjuster.CellSample> samples = new ArrayList<>();
         for (DesignTerrainCell cell : grid.cells().values()) {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
@@ -210,11 +255,159 @@ public final class DesignTerrainComposer {
         if (samples.isEmpty()) {
             return 0;
         }
-        int offset = SiteWideBalanceAdjuster.findBalancedVerticalOffset(
-            samples,
-            site.getMaterialModel());
-        SiteWideBalanceAdjuster.applyOffset(grid, offset);
-        return offset;
+        return SiteWideBalanceAdjuster.findBalancedVerticalOffset(samples, site.getMaterialModel());
+    }
+
+    private static void applyBoundaryConditions(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+            Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
+            List<Breakline> effectiveBreaklines) {
+        TerrainBoundaryBlender.apply(grid, site, coverageByCellKey, effectiveBreaklines);
+        ZoneBoundarySlopeApplicator.apply(
+            grid,
+            new ArrayList<>(site.getGradingZones().values()),
+            zoneEvaluators);
+    }
+
+    private static void recordBalanceOffsets(
+            EarthworkSite site,
+            Map<String, Integer> zoneOffsets,
+            int uniformOffset) {
+        if (!shouldRunSiteBalance(site)) {
+            site.clearLastZoneVerticalOffsets();
+            site.clearLastSiteWideVerticalOffset();
+            return;
+        }
+        if (site.getCompositionPolicy().isZoneAllocationBalance()) {
+            site.setLastZoneVerticalOffsets(zoneOffsets);
+        } else {
+            site.clearLastZoneVerticalOffsets();
+        }
+        if (uniformOffset != 0) {
+            site.setLastSiteWideVerticalOffset(uniformOffset);
+        } else {
+            site.clearLastSiteWideVerticalOffset();
+        }
+    }
+
+    private static Map<Long, CellSnapshot> snapshotCells(DesignTerrainGrid grid) {
+        Map<Long, CellSnapshot> snapshot = new HashMap<>();
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            snapshot.put(
+                DesignTerrainGrid.cellKey(cell.worldX(), cell.worldZ()),
+                new CellSnapshot(cell.targetY(), cell.zoneId()));
+        }
+        return snapshot;
+    }
+
+    private static void restoreCells(DesignTerrainGrid grid, Map<Long, CellSnapshot> baseDesign) {
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            CellSnapshot snapshot = baseDesign.get(DesignTerrainGrid.cellKey(cell.worldX(), cell.worldZ()));
+            if (snapshot == null) {
+                continue;
+            }
+            cell.setTargetY(snapshot.targetY());
+            cell.setZoneId(snapshot.zoneId());
+        }
+    }
+
+    private static void applyAccumulatedOffsets(
+            DesignTerrainGrid grid,
+            Map<String, Integer> zoneOffsets,
+            int uniformOffset) {
+        Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
+        for (DesignTerrainCell cell : grid.cells().values()) {
+            if (!cell.participatesInEarthwork() || cell.zoneId() == null || cell.zoneId().isBlank()) {
+                continue;
+            }
+            int delta = uniformOffset + safeZone.getOrDefault(cell.zoneId(), 0);
+            if (delta != 0) {
+                cell.setTargetY(cell.targetY() + delta);
+            }
+        }
+    }
+
+    private static void accumulateZoneOffsets(
+            Map<String, Integer> cumulative,
+            Map<String, Integer> delta) {
+        if (delta == null || delta.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry : delta.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || entry.getValue() == 0) {
+                continue;
+            }
+            cumulative.merge(entry.getKey(), entry.getValue(), Integer::sum);
+        }
+    }
+
+    private static Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluatorsWithOffsets(
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> base,
+            Map<String, Integer> zoneOffsets,
+            int uniformOffset) {
+        if (base == null || base.isEmpty()) {
+            return Map.of();
+        }
+        if ((zoneOffsets == null || zoneOffsets.isEmpty()) && uniformOffset == 0) {
+            return base;
+        }
+        Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
+        Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> wrapped = new HashMap<>();
+        for (Map.Entry<String, DesignSurfaceResolver.ZoneTargetEvaluator> entry : base.entrySet()) {
+            int delta = uniformOffset + safeZone.getOrDefault(entry.getKey(), 0);
+            DesignSurfaceResolver.ZoneTargetEvaluator evaluator = entry.getValue();
+            wrapped.put(
+                entry.getKey(),
+                delta == 0 ? evaluator : cell -> evaluator.evaluateAt(cell) + delta);
+        }
+        return wrapped;
+    }
+
+    private static Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageWithOffsets(
+            Map<Long, TerrainBoundaryBlender.ZoneCoverage> base,
+            Map<String, Integer> zoneOffsets,
+            int uniformOffset) {
+        if (base == null || base.isEmpty()) {
+            return Map.of();
+        }
+        if ((zoneOffsets == null || zoneOffsets.isEmpty()) && uniformOffset == 0) {
+            return base;
+        }
+        Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
+        Map<Long, TerrainBoundaryBlender.ZoneCoverage> shifted = new HashMap<>();
+        for (Map.Entry<Long, TerrainBoundaryBlender.ZoneCoverage> entry : base.entrySet()) {
+            TerrainBoundaryBlender.ZoneCoverage coverage = entry.getValue();
+            Integer runner = coverage.runnerUpTargetY();
+            if (runner != null) {
+                runner = runner + uniformOffset + safeZone.getOrDefault(coverage.runnerUpZoneId(), 0);
+            }
+            shifted.put(
+                entry.getKey(),
+                new TerrainBoundaryBlender.ZoneCoverage(
+                    coverage.winnerTargetY(),
+                    runner,
+                    coverage.runnerUpZoneId()));
+        }
+        return shifted;
+    }
+
+    private static String resolveRunnerUpZoneId(List<ZoneCandidate> covering, ZoneCandidate winner) {
+        if (covering.size() < 2) {
+            return null;
+        }
+        List<ZoneCandidate> ranked = new ArrayList<>(covering);
+        ranked.sort(Comparator
+            .comparingInt(ZoneCandidate::priority).reversed()
+            .thenComparingDouble(ZoneCandidate::area)
+            .thenComparing(ZoneCandidate::zoneId, String.CASE_INSENSITIVE_ORDER));
+        for (ZoneCandidate candidate : ranked) {
+            if (!candidate.zoneId().equals(winner.zoneId())) {
+                return candidate.zoneId();
+            }
+        }
+        return null;
     }
 
 
@@ -327,5 +520,8 @@ public final class DesignTerrainComposer {
     }
 
     private record ZoneCandidate(String zoneId, int priority, double area, RegionGeometry geometry) {
+    }
+
+    private record CellSnapshot(int targetY, String zoneId) {
     }
 }
