@@ -16,6 +16,7 @@ import static com.plot.plugin.earthwork.EarthworkTestFixtures.solidColumnSampler
 import static com.plot.plugin.earthwork.EarthworkTestFixtures.tinyCompanionZone;
 import static com.plot.plugin.earthwork.EarthworkTestFixtures.twoZoneSiteForCompose;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -66,5 +67,7 @@ class SiteEarthworkPipelineTest {
         assertEquals(result.volumeReport.totalChangedBlocks(), result.siteVolumeReport.totals().totalChangedBlocks());
         assertEquals(result.volumeReport.geometricCutVolume(), result.projectReport.volumeReport().geometricCutVolume());
         assertEquals(result.volumeReport.geometricFillVolume(), result.projectReport.volumeReport().geometricFillVolume());
+        assertTrue(result.elevationVolumeCurve != null && !result.elevationVolumeCurve.isEmpty());
+        assertNotEquals(result.elevationVolumeCurve.balanceY(), Integer.MIN_VALUE);
     }
 }

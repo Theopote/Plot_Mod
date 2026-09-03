@@ -89,6 +89,7 @@ public final class SiteEarthworkPipeline {
             site, context.world(), result, design.grid(), design.zoneEvaluators());
 
         result.syncChangedBlocksFromPlacements();
+        result.attachPlayerInsights();
         result.projectReport = EarthworkProjectReport.Builder.buildFromProject(
             null, site, result.siteVolumeReport);
         operations.applyZoneLastReports(site, result);
@@ -107,6 +108,7 @@ public final class SiteEarthworkPipeline {
             zone.getEdgeSettings());
         operations.copyGenerationResult(result, delegated);
         result.syncChangedBlocksFromPlacements();
+        result.attachPlayerInsights();
         result.siteVolumeReport = new SiteEarthworkReport(
             delegated.volumeReport,
             Map.of(zone.getId(), delegated.volumeReport));

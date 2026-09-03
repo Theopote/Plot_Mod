@@ -21,6 +21,8 @@ public final class EarthworkGenerationResults {
         target.siteVolumeReport = source.siteVolumeReport;
         target.projectReport = source.projectReport;
         target.designTerrainGrid = source.designTerrainGrid;
+        target.elevationVolumeCurve = source.elevationVolumeCurve;
+        target.sectionProfile = source.sectionProfile;
         target.resolvedElevation = source.resolvedElevation;
         target.resolvedElevationMin = source.resolvedElevationMin;
         target.resolvedElevationMax = source.resolvedElevationMax;

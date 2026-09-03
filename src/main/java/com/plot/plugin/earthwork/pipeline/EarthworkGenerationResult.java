@@ -3,6 +3,8 @@ package com.plot.plugin.earthwork.pipeline;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.command.BlockRecord;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.solver.EarthworkElevationVolumeCurve;
+import com.plot.plugin.earthwork.solver.EarthworkSectionProfile;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
@@ -26,6 +28,8 @@ public class EarthworkGenerationResult {
     public SiteEarthworkReport siteVolumeReport = SiteEarthworkReport.empty();
     public EarthworkProjectReport projectReport = EarthworkProjectReport.empty();
     public DesignTerrainGrid designTerrainGrid;
+    public EarthworkElevationVolumeCurve elevationVolumeCurve = EarthworkElevationVolumeCurve.EMPTY;
+    public EarthworkSectionProfile sectionProfile = EarthworkSectionProfile.EMPTY;
     public int resolvedElevation;
     public int resolvedElevationMin;
     public int resolvedElevationMax;
@@ -50,6 +54,17 @@ public class EarthworkGenerationResult {
         }
         volumeReport = volumeReport.withChangedBlocks(cut, fill);
         siteVolumeReport = siteVolumeReport.withTotalsChangedBlocks(cut, fill);
+    }
+
+    public void attachPlayerInsights() {
+        if (designTerrainGrid != null && designTerrainGrid.cellCount() > 0) {
+            elevationVolumeCurve = EarthworkElevationVolumeCurve.fromGrid(designTerrainGrid, resolvedElevation);
+            sectionProfile = EarthworkSectionProfile.fromGrid(designTerrainGrid);
+            return;
+        }
+        elevationVolumeCurve = EarthworkElevationVolumeCurve.fromTerrain(
+            existingTerrainSnapshot, resolvedElevation);
+        sectionProfile = EarthworkSectionProfile.EMPTY;
     }
 
     public enum ChangeType {

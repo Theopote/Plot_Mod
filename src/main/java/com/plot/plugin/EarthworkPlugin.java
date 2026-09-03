@@ -7,6 +7,7 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.config.EarthworkConfig;
+import com.plot.plugin.earthwork.EarthworkCutFillHeatmapRenderer;
 import com.plot.plugin.earthwork.EarthworkEdgeTreatmentCanvasRenderer;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.pipeline.EarthworkPipelines;
@@ -172,6 +173,10 @@ public class EarthworkPlugin extends Plugin {
         synchronized (projectLock) {
             if (uiContext.project().getRegionCount() <= 0) {
                 return;
+            }
+            EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
+            if (preview != null && preview.designTerrainGrid != null) {
+                EarthworkCutFillHeatmapRenderer.render(drawList, camera, preview.designTerrainGrid);
             }
             if (config.isShowEdgeTreatmentOverlay()) {
                 EarthworkEdgeTreatmentCanvasRenderer.render(

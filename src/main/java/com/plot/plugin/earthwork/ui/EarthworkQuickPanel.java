@@ -58,6 +58,7 @@ public final class EarthworkQuickPanel {
                 preview.slopedSurface,
                 preview.resolvedElevationMin,
                 preview.resolvedElevationMax);
+            EarthworkInsightCharts.render(ctx, region, preview);
             generatePanel.renderPreviewBuildButtons(preview);
         }
     }

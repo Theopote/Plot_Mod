@@ -93,6 +93,7 @@ public final class LegacyRegionPipeline {
         volumeCalculator.computeFromPlane(
             region, world, terrain, plane, result, region.getPreviewGridSize(), edgeSettings, balanceMaterials);
         result.syncChangedBlocksFromPlacements();
+        result.attachPlayerInsights();
 
         region.setLastVolumeReport(result.volumeReport);
         region.setLastResolvedElevation(result.resolvedElevation);

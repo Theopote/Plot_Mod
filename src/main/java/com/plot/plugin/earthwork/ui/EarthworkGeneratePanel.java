@@ -90,6 +90,7 @@ public final class EarthworkGeneratePanel {
                         preview.slopedSurface,
                         preview.resolvedElevationMin,
                         preview.resolvedElevationMax);
+                    EarthworkInsightCharts.render(ctx, region, preview);
                     if (ctx.config().getWorkMode().showsLearningMetrics()) {
                         renderLearningVolumeDetails(volumes);
                     }
