@@ -11,6 +11,9 @@ import java.util.Map;
 
 /**
  * 项目级土方平衡汇总：合并多场地挖填量，并生成跨场地调配矩阵。
+ * <p>
+ * 项目级 {@code importRequired} / {@code exportRequired} 取自跨场地调配后的
+ * <strong>场外</strong>进出口（压实填方），不是各场地 import/export 的简单相加。
  */
 public final class ProjectGlobalBalanceAggregator {
 
@@ -57,8 +60,6 @@ public final class ProjectGlobalBalanceAggregator {
         long totalCut = 0L;
         long totalFill = 0L;
         double reusableCut = 0.0;
-        double importRequired = 0.0;
-        double exportRequired = 0.0;
         Map<String, SiteBalanceSnapshot> bySite = new LinkedHashMap<>();
         Map<String, EarthworkVolumeReport> matrixInputs = new LinkedHashMap<>();
 
@@ -85,20 +86,22 @@ public final class ProjectGlobalBalanceAggregator {
             totalCut += volumes.geometricCutVolume();
             totalFill += volumes.geometricFillVolume();
             reusableCut += volumes.reusableCutVolume();
-            importRequired += volumes.importVolume();
-            exportRequired += volumes.exportVolume();
         }
 
+        // 先做跨场地（或多场地）调配，再读场外进出口；禁止对各场地 import/export 求和。
+        EarthworkAllocationMatrix projectMatrix = matrixInputs.isEmpty()
+            ? EarthworkAllocationMatrix.EMPTY
+            : EarthworkAllocationMatrix.fromZoneReports(matrixInputs, null);
         EarthworkAllocationMatrix crossSite = matrixInputs.size() >= 2
-            ? EarthworkAllocationMatrix.fromZoneReports(matrixInputs, null)
+            ? projectMatrix
             : EarthworkAllocationMatrix.EMPTY;
 
         return new AggregatedBalance(
             totalCut,
             totalFill,
             reusableCut,
-            importRequired,
-            exportRequired,
+            projectMatrix.externalImportVolume(),
+            projectMatrix.externalExportVolume(),
             Map.copyOf(bySite),
             crossSite,
             bySite.size());

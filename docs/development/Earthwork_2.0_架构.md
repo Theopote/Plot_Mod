@@ -301,6 +301,7 @@ public final class EarthworkGenerator {
 - [x] `EarthworkProjectReport.Builder.buildFromProject`：预览时汇总项目级合计
 - [x] 总览 Tab / 生成 Tab / CSV 导出展示分场地方量与跨场地调配
 - [x] `ProjectGlobalBalanceAggregatorTest`
+- [x] 项目级 import/export = 跨场地调配后的场外量（非各场地简单相加）
 
 ### 17m — 建筑地坪 / 基坑自动坑底（P2-2）
 

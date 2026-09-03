@@ -507,7 +507,7 @@ class DesignTerrainGrid {
 | 字段 | 说明 |
 |------|------|
 | `totalCut` / `totalFill` | 全场几何挖填合计 |
-| `reusableCut` / `importRequired` / `exportRequired` | 材料调配后的可再利用挖方、缺方外借、余方外运 |
+| `reusableCut` / `importRequired` / `exportRequired` | 材料调配后的可再利用挖方、缺方外借、余方外运。**项目级** import/export 为跨场地调配后的场外量（压实填方），不是各场地相加 |
 | `byZone` | 分区分项方量 |
 | `overlaps` | 分区重叠冲突摘要（`ZoneOverlapAnalyzer`） |
 | `allocationMatrix` | 贪心调配矩阵 A→B / 进出口（`EarthworkAllocationMatrix`） |

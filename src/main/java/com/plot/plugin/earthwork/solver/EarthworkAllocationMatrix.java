@@ -57,6 +57,16 @@ public final class EarthworkAllocationMatrix {
         return total;
     }
 
+    /** 场外外运合计（压实填方 m³）。 */
+    public long externalExportVolume() {
+        return volumeTo(EXPORT);
+    }
+
+    /** 场外外借合计（压实填方 m³）。 */
+    public long externalImportVolume() {
+        return volumeFrom(IMPORT);
+    }
+
     /**
      * 根据各分区材料感知挖填量，生成贪心调配方案（压实填方余量 → 缺量 → 余方外运/缺方外借）。
      */
