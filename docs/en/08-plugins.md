@@ -14,7 +14,7 @@ Plot includes several built-in plugins accessible from the **Extension** tab in 
 
 | Plugin | Description |
 |--------|-------------|
-| **Earthwork Balance** | Cut/fill planning and grading optimization |
+| **Earthwork Balance** | Shape uneven terrain into a buildable pad and show cut vs fill |
 | **Road System** | Plan and generate roads along paths |
 | **Building Generator** | Generate buildings from polygon or rectangle footprints |
 
@@ -53,29 +53,32 @@ When a road node is selected, the **Property** tab shows an extra **Road Node Pr
 
 ## Earthwork Balance
 
+For builders: select the area for a house, castle, or plaza. The plugin suggests a sensible pad height, previews cut (red) and fill (blue) as ghost blocks, then you adjust and apply. Default math is one dug block ≈ one fill block — compaction factors and haul matrices are not part of the main flow.
+
 ### Typical Workflow
 
 1. Draw or select a closed region for grading
 2. Open **Extension** -> **Earthwork Balance** -> enable
-3. Use the **Adopt** tab to pick/claim regions (including three-point pick)
-4. Use **Edit** to set grading mode and material factors
-5. Use **Generate** to preview cut/fill and build
+3. Use the **Adopt** tab to pick/claim regions
+4. Review the suggested height and cut/fill block counts; drag target Y if needed
+5. Choose an edge (vertical / natural slope / retaining wall), then build
 
 ### Grading Surface Modes
 
 | Mode | Description |
 |------|-------------|
-| FLAT | Uniform elevation |
+| FLAT | Uniform elevation (most common) |
 | FIXED_SLOPE | Fixed slope |
 | THREE_POINT | Plane from three points |
 | FIT_SLOPE | Fit slope from region data |
 
 ### Features
 
-- Multiple grading surface modes
-- Cut/fill materials and factors
-- Region list with plugin-local undo/redo
+- Suggested balanced height and cut/fill block counts
 - Ghost preview (cut: red, fill: light blue)
+- Natural slopes or retaining walls at edges
+- Region list with plugin-local undo/redo
+- Optional building pads, basement pits, and road tie-in (builder tools, not cost estimating)
 
 ### Data
 

@@ -11,3 +11,5 @@
 | [0005](0005-road-adopt-fork-split.md) | 认领流程分叉自动拆路 |
 | [0006](0006-road-phase-2-direction.md) | 结束稳定化，进入 Phase 2 专业道路设计 |
 | [0007](0007-road-design-derived-topology-geometry.md) | 道路三层几何：Design / Derived / Topology |
+| [0008](0008-auto-smooth-v1-semantics.md) | AUTO_SMOOTH v1 语义（自动控坡） |
+| [0009](0009-earthwork-minecraft-tool-not-civil-cad.md) | 土方插件是 Minecraft 整形工具，不是 Civil CAD |

@@ -8,7 +8,7 @@
 |------|------|
 | [zh/](zh/) · [en/](en/) | 面向最终用户的使用手册 |
 | [architecture/](architecture/) | 架构说明与模块边界 |
-| [development/](development/) | 开发约定、流程；任务书见 [task-assignments/](development/task-assignments/) |
+| [development/](development/) | 开发约定、流程；土方产品定位见 [Earthwork_产品定位.md](development/Earthwork_产品定位.md)；任务书见 [task-assignments/](development/task-assignments/) |
 | [decisions/](decisions/) | 设计决策记录（ADR） |
 | [plugins/](plugins/) | 插件专题说明 |
 | [historical-reports/](historical-reports/) | 历史问题报告与修复总结（归档，非现行规范） |

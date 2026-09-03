@@ -1,10 +1,11 @@
 # EarthworkSite 领域设计
 
-> 土方平衡插件从「整平工具」演进为「建筑场地土方」的领域模型、JSON 持久化与 Design Terrain 合成规则。
+> 内部聚合根与 JSON。**玩家看见什么、近期做什么**见 [Earthwork_产品定位.md](./Earthwork_产品定位.md)（[ADR 0009](../decisions/0009-earthwork-minecraft-tool-not-civil-cad.md)）。  
+> 本文件描述底层可以保留的模型；**不得单独作为继续专业化的授权**。默认 UI 只暴露约 20%。
 >
 > **状态**：Phase 16 已实施（`schemaVersion` 正式化 + v1→v2→v3 迁移链）  
 > **版本**：`schemaVersion: 3`（当前）；加载时自动迁移 v1/v2  
-> **架构**：Phase 17 设计定稿 → 见 [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md)
+> **架构**：Phase 17 → [Earthwork_2.0_架构.md](./Earthwork_2.0_架构.md)
 
 ---
 

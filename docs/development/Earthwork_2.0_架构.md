@@ -1,7 +1,16 @@
 # Earthwork 2.0 核心架构
 
-> **状态**：Phase 17 设计定稿（待分步实施）  
+> **状态**：Phase 17 代码拆分仍有效；**产品优先级以定位文档为准**  
+> **产品准绳（冲突时优先）**：[Earthwork_产品定位.md](./Earthwork_产品定位.md) · [ADR 0009](../decisions/0009-earthwork-minecraft-tool-not-civil-cad.md)  
 > **关联**：[EarthworkSite_领域设计.md](./EarthworkSite_领域设计.md)（领域模型与 JSON）、道路插件 `RoadSystemPlugin` + `manager/*` 模式
+
+## 0. 产品约束（加在架构之上）
+
+本文件解决「怎么拆代码、管线怎么走」。它**不授权**继续增加专业领域对象或把求解器做成 Civil CAD。
+
+- **UI 约暴露 20%**：Site / 材料换算 / 跨场地矩阵可留在包内，默认不进 Quick Mode。
+- **求解**：候选整数 Y 上完整生成（含边坡）再算 Cut/Fill；不要连续约束优化器。
+- **冻结**：专业材料分类、成本、跨场地物流 UI、复杂基坑模型。近期做 P0 正确性与 P1 玩家主路径，见产品定位 §近期路线。
 
 ---
 
