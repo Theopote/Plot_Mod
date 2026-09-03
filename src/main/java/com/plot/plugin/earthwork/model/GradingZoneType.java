@@ -48,10 +48,8 @@ public enum GradingZoneType {
             || this == ROAD_CORRIDOR;
     }
 
-    /** 建筑地坪、基坑、道路走廊的设计标高不参与全场竖向平衡。 */
+    /** 类型默认将设计标高视为不可独立优化（建筑地坪锁定、基坑派生）。道路走廊改为有界可调。 */
     public boolean locksDesignElevation() {
-        return this == BUILDING_PAD
-            || this == EXCAVATION_PIT
-            || this == ROAD_CORRIDOR;
+        return this == BUILDING_PAD || this == EXCAVATION_PIT;
     }
 }

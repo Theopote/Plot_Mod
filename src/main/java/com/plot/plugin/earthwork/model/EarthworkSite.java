@@ -128,6 +128,17 @@ public class EarthworkSite {
         return zone != null && zone.isElevationLocked();
     }
 
+    public int applyProposedVerticalOffset(String zoneId, int zoneAllocationOffset, int uniformOffset) {
+        if (zoneId == null || zoneId.isBlank()) {
+            return zoneAllocationOffset + uniformOffset;
+        }
+        GradingZone zone = getZone(zoneId);
+        if (zone == null) {
+            return zoneAllocationOffset + uniformOffset;
+        }
+        return zone.applyProposedVerticalOffset(zoneAllocationOffset, uniformOffset);
+    }
+
     public GradingZone addZone(GradingZone zone) {
         if (zone == null) {
             throw new IllegalArgumentException("Grading zone cannot be null");

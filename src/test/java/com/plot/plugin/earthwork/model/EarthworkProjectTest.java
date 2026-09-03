@@ -192,6 +192,62 @@ class EarthworkProjectTest {
     }
 
     @Test
+    void jsonRoundTripPreservesVerticalAdjustmentPolicy() {
+        EarthworkProject project = new EarthworkProject();
+        GradingZone zone = new GradingZone(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)
+        ));
+        zone.setType(GradingZoneType.FLAT);
+        zone.setVerticalAdjustmentPolicy(new VerticalAdjustmentPolicy(
+            VerticalAdjustmentPolicy.Mode.BOUNDED, -2, 2, 0.75f));
+        project.getActiveSite().addZone(zone);
+
+        EarthworkProject restored = EarthworkProject.fromJson(project.toJson());
+        GradingZone restoredZone = restored.getActiveSite().getZone(zone.getId());
+        assertNotNull(restoredZone);
+        assertTrue(restoredZone.hasExplicitVerticalAdjustmentPolicy());
+        VerticalAdjustmentPolicy policy = restoredZone.getVerticalAdjustmentPolicy();
+        assertEquals(VerticalAdjustmentPolicy.Mode.BOUNDED, policy.getMode());
+        assertEquals(-2, policy.getMinOffset());
+        assertEquals(2, policy.getMaxOffset());
+        assertEquals(0.75f, policy.getWeight(), 1e-6f);
+    }
+
+    @Test
+    void missingVerticalAdjustmentPolicyUsesTypeDefault() {
+        String json = """
+            {
+              "schemaVersion": 3,
+              "sites": [{
+                "id": "site-1",
+                "name": "Site",
+                "gradingZones": [{
+                  "id": "pad",
+                  "name": "Pad",
+                  "type": "BUILDING_PAD",
+                  "outerPoints": [
+                    {"x": 0, "y": 0},
+                    {"x": 10, "y": 0},
+                    {"x": 10, "y": 10},
+                    {"x": 0, "y": 10}
+                  ]
+                }]
+              }],
+              "activeSiteId": "site-1"
+            }
+            """;
+        EarthworkProject project = EarthworkProject.fromJson(json);
+        GradingZone zone = project.getActiveSite().getZone("pad");
+        assertNotNull(zone);
+        assertFalse(zone.hasExplicitVerticalAdjustmentPolicy());
+        assertEquals(VerticalAdjustmentPolicy.Mode.LOCKED, zone.getVerticalAdjustmentPolicy().getMode());
+        assertTrue(zone.isElevationLocked());
+    }
+
+    @Test
     void v2JsonPreservesMatchExistingAndMultiPlaneFacets() {
         EarthworkProject project = new EarthworkProject();
         GradingZone zone = new GradingZone(List.of(

@@ -64,6 +64,37 @@ class SiteWideBalanceAdjusterTest {
     }
 
     @Test
+    void applyOffsetClampsBoundedAndWeightsUniform() {
+        com.plot.plugin.earthwork.model.EarthworkSite site = new com.plot.plugin.earthwork.model.EarthworkSite();
+        com.plot.plugin.earthwork.model.GradingZone road = new com.plot.plugin.earthwork.model.GradingZone(
+            "road",
+            List.of(new Vec2d(0, 0), new Vec2d(4, 0), new Vec2d(4, 4), new Vec2d(0, 4)));
+        road.setVerticalAdjustmentPolicy(
+            com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy.bounded(1, 1.0f));
+        com.plot.plugin.earthwork.model.GradingZone landscape = new com.plot.plugin.earthwork.model.GradingZone(
+            "landscape",
+            List.of(new Vec2d(4, 0), new Vec2d(8, 0), new Vec2d(8, 4), new Vec2d(4, 4)));
+        landscape.setVerticalAdjustmentPolicy(
+            com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy.adjustable(3, 0.5f));
+        site.addZone(road);
+        site.addZone(landscape);
+
+        DesignTerrainGrid grid = new DesignTerrainGrid();
+        DesignTerrainCell roadCell = new DesignTerrainCell(1, 1, new Vec2d(1, 1), 64);
+        roadCell.setTargetY(70);
+        roadCell.setZoneId("road");
+        DesignTerrainCell landscapeCell = new DesignTerrainCell(5, 1, new Vec2d(5, 1), 64);
+        landscapeCell.setTargetY(70);
+        landscapeCell.setZoneId("landscape");
+        grid.put(1, 1, roadCell);
+        grid.put(5, 1, landscapeCell);
+
+        SiteWideBalanceAdjuster.applyOffset(grid, 4, site);
+        assertEquals(71, grid.get(1, 1).targetY());
+        assertEquals(72, grid.get(5, 1).targetY());
+    }
+
+    @Test
     void deferBalanceUsesAverageGroundForFlatZones() {
         GradingRegion region = new GradingRegion(List.of(
             new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));

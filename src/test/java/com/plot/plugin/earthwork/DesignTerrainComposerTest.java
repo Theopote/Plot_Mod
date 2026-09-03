@@ -15,6 +15,7 @@ import com.plot.plugin.earthwork.model.EdgeTreatment;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.model.GradingZoneType;
+import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -386,6 +387,43 @@ class DesignTerrainComposerTest {
         DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
         assertEquals(60, grid.get(2, 5).targetY());
         assertTrue(grid.get(12, 5).targetY() < 80);
+    }
+
+    @Test
+    void siteWideBalanceClampsBoundedVerticalPolicy() {
+        EarthworkSite site = new EarthworkSite();
+        site.setSiteBoundary(List.of(
+            new Vec2d(0, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(0, 10)));
+
+        GradingZone corridor = new GradingZone("corridor", List.of(
+            new Vec2d(0, 0), new Vec2d(10, 0), new Vec2d(10, 10), new Vec2d(0, 10)));
+        corridor.getRegion().setAutoBalance(true);
+        corridor.getRegion().setManualTargetElevation(70);
+        corridor.setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy.bounded(1, 1.0f));
+
+        GradingZone landscape = new GradingZone("landscape", List.of(
+            new Vec2d(10, 0), new Vec2d(30, 0), new Vec2d(30, 10), new Vec2d(10, 10)));
+        landscape.getRegion().setAutoBalance(true);
+        landscape.getRegion().setManualTargetElevation(80);
+
+        site.addZone(corridor);
+        site.addZone(landscape);
+        site.getCompositionPolicy().setBalanceScope(CompositionPolicy.BALANCE_SCOPE_SITE_WIDE);
+        site.getCompositionPolicy().setBalanceMethod(CompositionPolicy.BALANCE_METHOD_UNIFORM);
+        site.getCompositionPolicy().setBalanceResidualUniformPolish(false);
+
+        TerrainSnapshot terrain = TerrainSnapshot.forColumns(List.of(
+            new TerrainSnapshot.Column(new Vec2d(5, 5), 5, 5, 70),
+            new TerrainSnapshot.Column(new Vec2d(20, 5), 20, 5, 60),
+            new TerrainSnapshot.Column(new Vec2d(24, 5), 24, 5, 60)
+        ));
+
+        DesignTerrainGrid grid = DesignTerrainComposer.compose(site, terrain, null).grid();
+        int corridorY = grid.get(5, 5).targetY();
+        assertTrue(corridorY >= 69 && corridorY <= 71,
+            () -> "corridor should stay within ±1 of design 70, got " + corridorY);
+        assertTrue(grid.get(20, 5).targetY() < 80);
+        assertNotEquals(0, site.getLastSiteWideVerticalOffset());
     }
 
     @Test

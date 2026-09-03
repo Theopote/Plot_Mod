@@ -53,6 +53,10 @@ class PhaseECompositionTest {
         assertEquals(GradingZoneType.TERRAIN_FIT, corridor.getType());
         assertEquals(DesignSurfaceElevationSource.BAKED_ROAD, corridor.getDesignSurface().getElevationSource());
         assertEquals(70, corridor.getDesignSurface().getBakedElevationGrid().get(5, 5));
+        assertEquals(
+            com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy.Mode.BOUNDED,
+            corridor.getVerticalAdjustmentPolicy().getMode());
+        assertEquals(1, corridor.getVerticalAdjustmentPolicy().getMaxOffset());
     }
 
     @Test

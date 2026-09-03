@@ -758,6 +758,7 @@ public class EarthworkProject {
         int previewGridSize;
         DesignSurfaceData designSurface = new DesignSurfaceData();
         ZoneEdgeSettingsData edgeSettings = new ZoneEdgeSettingsData();
+        VerticalAdjustmentPolicyData verticalAdjustmentPolicy;
 
         static ZoneData from(GradingZone zone) {
             zone.syncDesignSurfaceToRegion();
@@ -780,6 +781,7 @@ public class EarthworkProject {
             data.previewGridSize = zone.getPreviewGridSize();
             data.designSurface = DesignSurfaceData.from(zone.getDesignSurface());
             data.edgeSettings = ZoneEdgeSettingsData.from(zone.getEdgeSettings());
+            data.verticalAdjustmentPolicy = VerticalAdjustmentPolicyData.from(zone.getVerticalAdjustmentPolicy());
             return data;
         }
 
@@ -815,6 +817,9 @@ public class EarthworkProject {
             zone.setPreviewGridSize(resolvePreviewGridSize());
             zone.setDesignSurface(designSurface != null ? designSurface.toSurface() : new DesignSurface());
             zone.setEdgeSettings(edgeSettings != null ? edgeSettings.toSettings() : new ZoneEdgeSettings());
+            if (verticalAdjustmentPolicy != null) {
+                zone.setVerticalAdjustmentPolicy(verticalAdjustmentPolicy.toPolicy());
+            }
             return zone;
         }
 
@@ -823,6 +828,33 @@ public class EarthworkProject {
                 return previewGridSize;
             }
             return GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
+        }
+    }
+
+    static class VerticalAdjustmentPolicyData {
+        String mode = VerticalAdjustmentPolicy.Mode.LOCKED.name();
+        int minOffset;
+        int maxOffset;
+        float weight = VerticalAdjustmentPolicy.DEFAULT_WEIGHT;
+
+        static VerticalAdjustmentPolicyData from(VerticalAdjustmentPolicy policy) {
+            VerticalAdjustmentPolicyData data = new VerticalAdjustmentPolicyData();
+            if (policy == null) {
+                return data;
+            }
+            data.mode = policy.getMode().name();
+            data.minOffset = policy.getMinOffset();
+            data.maxOffset = policy.getMaxOffset();
+            data.weight = policy.getWeight();
+            return data;
+        }
+
+        VerticalAdjustmentPolicy toPolicy() {
+            return new VerticalAdjustmentPolicy(
+                VerticalAdjustmentPolicy.Mode.fromId(mode),
+                minOffset,
+                maxOffset,
+                weight);
         }
     }
 

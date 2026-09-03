@@ -100,10 +100,12 @@ public final class SiteWideBalanceAdjuster {
             if (!cell.participatesInEarthwork() || cell.zoneId() == null) {
                 continue;
             }
-            if (site != null && site.isElevationLocked(cell.zoneId())) {
-                continue;
+            int applied = site == null
+                ? verticalOffset
+                : site.applyProposedVerticalOffset(cell.zoneId(), 0, verticalOffset);
+            if (applied != 0) {
+                cell.setTargetY(cell.targetY() + applied);
             }
-            cell.setTargetY(cell.targetY() + verticalOffset);
         }
     }
 }

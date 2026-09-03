@@ -7,6 +7,7 @@ import com.plot.plugin.earthwork.model.DesignSurfaceElevationSource;
 import com.plot.plugin.earthwork.model.DesignSurfaceKind;
 import com.plot.plugin.earthwork.model.GradingZone;
 import com.plot.plugin.earthwork.model.GradingZoneType;
+import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 
 import java.util.List;
 
@@ -48,6 +49,9 @@ public final class RoadCorridorBaker {
         zone.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BAKED_ROAD);
         zone.getDesignSurface().setKind(DesignSurfaceKind.BEST_FIT_PLANE);
         zone.setType(GradingZoneType.TERRAIN_FIT);
+        zone.setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy.bounded(
+            VerticalAdjustmentPolicy.ROAD_BOUNDED_RANGE,
+            VerticalAdjustmentPolicy.DEFAULT_WEIGHT));
         return bakedCount;
     }
 }

@@ -337,10 +337,11 @@ public final class DesignTerrainComposer {
             String zoneId,
             Map<String, Integer> zoneOffsets,
             int uniformOffset) {
-        if (site != null && site.isElevationLocked(zoneId)) {
-            return 0;
+        int zone = zoneOffsets.getOrDefault(zoneId, 0);
+        if (site == null) {
+            return uniformOffset + zone;
         }
-        return uniformOffset + zoneOffsets.getOrDefault(zoneId, 0);
+        return site.applyProposedVerticalOffset(zoneId, zone, uniformOffset);
     }
 
     private static Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> evaluatorsWithOffsets(

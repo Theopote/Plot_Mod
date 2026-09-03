@@ -21,6 +21,8 @@ public class GradingZone {
     private String buildingFootprintRef = "";
     private String roadEdgeRef = "";
     private ZoneEdgeSettings edgeSettings = new ZoneEdgeSettings();
+    private VerticalAdjustmentPolicy verticalAdjustmentPolicy;
+    private boolean verticalAdjustmentPolicyExplicit;
 
     public GradingZone(List<Vec2d> outerPoints) {
         this(new GradingRegion(outerPoints));
@@ -94,6 +96,7 @@ public class GradingZone {
     public void setType(GradingZoneType type) {
         this.type = type != null ? type : GradingZoneType.FLAT;
         applyDefaultDesignSurfaceForType(this.type);
+        clearVerticalAdjustmentPolicyOverride();
     }
 
     public String getBuildingFootprintRef() {
@@ -218,6 +221,13 @@ public class GradingZone {
     public void setDesignSurface(DesignSurface designSurface) {
         this.designSurface = designSurface != null ? designSurface : new DesignSurface();
         this.designSurface.applyTo(region);
+        if (type == GradingZoneType.BUILDING_PAD
+            || type == GradingZoneType.EXCAVATION_PIT
+            || type == GradingZoneType.TERRAIN_FIT
+            || type == GradingZoneType.LANDSCAPE
+            || type == GradingZoneType.ROAD_CORRIDOR) {
+            return;
+        }
         this.type = GradingZoneType.fromSurfaceMode(region.getSurfaceMode());
     }
 
@@ -276,16 +286,68 @@ public class GradingZone {
         return enabled && getType().isSupportedInComposer();
     }
 
+    public VerticalAdjustmentPolicy getVerticalAdjustmentPolicy() {
+        if (verticalAdjustmentPolicyExplicit && verticalAdjustmentPolicy != null) {
+            return verticalAdjustmentPolicy;
+        }
+        return VerticalAdjustmentPolicy.defaultFor(
+            getType(),
+            region.isAutoBalance(),
+            getDesignSurface().getKind());
+    }
+
+    public void setVerticalAdjustmentPolicy(VerticalAdjustmentPolicy verticalAdjustmentPolicy) {
+        if (verticalAdjustmentPolicy == null) {
+            clearVerticalAdjustmentPolicyOverride();
+            return;
+        }
+        this.verticalAdjustmentPolicy = verticalAdjustmentPolicy.copy();
+        this.verticalAdjustmentPolicyExplicit = true;
+    }
+
+    public boolean hasExplicitVerticalAdjustmentPolicy() {
+        return verticalAdjustmentPolicyExplicit && verticalAdjustmentPolicy != null;
+    }
+
+    public void clearVerticalAdjustmentPolicyOverride() {
+        verticalAdjustmentPolicy = null;
+        verticalAdjustmentPolicyExplicit = false;
+    }
+
     /**
-     * 全场平衡不得改动的分区：建筑地坪 / 基坑 / 道路走廊、贴合现状、以及关闭自动平衡的手动标高。
+     * 场地平整 / 坡向分区随自动平衡开关切换锁定或可调；类型默认（建筑、基坑、道路、景观）不变。
+     */
+    public void syncVerticalPolicyWithAutoBalance() {
+        GradingZoneType zoneType = getType();
+        if (zoneType == GradingZoneType.FLAT || zoneType == GradingZoneType.SLOPED) {
+            clearVerticalAdjustmentPolicyOverride();
+        }
+    }
+
+    public boolean allowsVerticalAdjustment() {
+        if (getDesignSurface().getKind() == DesignSurfaceKind.MATCH_EXISTING) {
+            return false;
+        }
+        return getVerticalAdjustmentPolicy().allowsVerticalAdjustment();
+    }
+
+    public boolean isBalanceEligible() {
+        return allowsVerticalAdjustment();
+    }
+
+    /**
+     * 全场平衡不得改动的分区：{@link VerticalAdjustmentPolicy.Mode#LOCKED} /
+     * {@link VerticalAdjustmentPolicy.Mode#DERIVED}、贴合现状。未覆盖策略时，
+     * 建筑地坪 / 基坑锁定，道路走廊有界，关闭自动平衡的平整分区锁定。
      */
     public boolean isElevationLocked() {
-        if (getType().locksDesignElevation()) {
-            return true;
+        return !allowsVerticalAdjustment();
+    }
+
+    public int applyProposedVerticalOffset(int zoneAllocationOffset, int uniformOffset) {
+        if (!allowsVerticalAdjustment()) {
+            return 0;
         }
-        if (getDesignSurface().getKind() == DesignSurfaceKind.MATCH_EXISTING) {
-            return true;
-        }
-        return !getRegion().isAutoBalance();
+        return getVerticalAdjustmentPolicy().applyProposedOffset(zoneAllocationOffset, uniformOffset);
     }
 }

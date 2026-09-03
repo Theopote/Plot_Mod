@@ -325,9 +325,17 @@ public final class EarthworkGenerator {
 
 ### 17p — 锁定标高不参与全场 ΔY（P0-1）
 
-- [x] `GradingZone.isElevationLocked`：建筑地坪 / 基坑 / 道路走廊 / 贴合现状 / `autoBalance=false`
+- [x] `GradingZone.isElevationLocked`：初始由类型 / `autoBalance` / 贴合现状推断
 - [x] 全场 ΔY 与分区调配只作用于可调分区；锁定区挖填作为固定材料残差
 - [x] `DesignTerrainComposerTest`：建筑 ±0 与坑底保持不动，景观吸收平衡
+
+### 17q — VerticalAdjustmentPolicy（设计标高 vs 土方优化变量）
+
+- [x] `VerticalAdjustmentPolicy`：`LOCKED` / `DERIVED` / `BOUNDED` / `ADJUSTABLE` + min/max/weight
+- [x] 类型默认：建筑锁定、基坑派生、道路 ±1 有界、景观 ±3×0.5、平整自动平衡 ±32
+- [x] 施加偏移：`clamp(zoneAllocation + round(uniform × weight))`；权重不缩小调配幅度
+- [x] JSON `verticalAdjustmentPolicy` 可选；缺省按类型推导；编辑 Tab 可覆盖
+- [x] `DesignTerrainComposerTest`：有界策略夹紧；`VerticalAdjustmentPolicyTest` / JSON 往返
 
 ---
 

@@ -628,7 +628,7 @@ else if balanceScope == SITE_WIDE && zoneCount >= 2:
 
 平衡改变平台标高后坡脚会移动，因此不能把 ΔY 直接加在已放坡的格子上。
 
-**锁定标高**（不随全场 ΔY 移动）：`BUILDING_PAD`、`EXCAVATION_PIT`、`ROAD_CORRIDOR`、`MATCH_EXISTING`、以及 `autoBalance=false` 的手动标高。这些分区的挖填计入场地残差，由可调分区（景观 / 开启自动平衡的场地）吸收。
+**竖向调整策略**（`VerticalAdjustmentPolicy`）：把设计标高与土方优化变量分开。`LOCKED` / `DERIVED`（建筑地坪、基坑、贴合现状、关闭自动平衡的平整）不参与全场 ΔY；`BOUNDED`（道路默认 ±1）与 `ADJUSTABLE`（景观默认 ±3、权重 0.5；平整自动平衡默认 ±32）可调。施加时对 `zoneAllocation + round(uniform × weight)` 夹紧；锁定区挖填计入场地残差。
 
 **Step 7 — 裁剪到 Site Boundary**
 
