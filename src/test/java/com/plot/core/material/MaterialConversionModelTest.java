@@ -20,4 +20,10 @@ class MaterialConversionModelTest {
         assertEquals(0.92f, defaults.cutToCompactedFillRatio(), 1e-6f);
         assertEquals(0.828, defaults.effectiveCutToCompactedFillRatio(), 1e-6);
     }
+
+    @Test
+    void geometricCutForCompactedFillInvertsEffectiveRatio() {
+        assertEquals(1000L, MaterialConversionModel.DEFAULT.geometricCutForCompactedFill(828.0));
+        assertEquals(0L, MaterialConversionModel.DEFAULT.geometricCutForCompactedFill(0.0));
+    }
 }

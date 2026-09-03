@@ -1028,7 +1028,7 @@
   "hint.plot.earthwork.geometry_holes": "在画布选择封闭图形作为孔洞；孔洞中心须落在外环内。中庭、水池等可建模为分区孔洞或独立排除区。",
   "plugin.earthwork.overlap_resolution_label": "重叠区胜出规则",
   "plugin.earthwork.site_wide_vertical_offset": "全场竖向调整 ΔY = %+d 格",
-  "plugin.earthwork.allocation_matrix_header": "土方调配",
+  "plugin.earthwork.allocation_matrix_header": "土方调配（压实填方）",
   "plugin.earthwork.allocation_transfer": "%s → %s : %,d m³",
   "plugin.earthwork.allocation_export": "外运",
   "plugin.earthwork.allocation_import": "外借",

@@ -1028,7 +1028,7 @@
   "hint.plot.earthwork.geometry_holes": "Select a closed shape on the canvas as a hole; its centroid must lie inside the outer ring. Courtyards and ponds can be zone holes or separate exclusion zones.",
   "plugin.earthwork.overlap_resolution_label": "Overlap winner rule",
   "plugin.earthwork.site_wide_vertical_offset": "Site-wide vertical adjustment ΔY = %+d blocks",
-  "plugin.earthwork.allocation_matrix_header": "Earthwork Allocation",
+  "plugin.earthwork.allocation_matrix_header": "Earthwork Allocation (compacted fill)",
   "plugin.earthwork.allocation_transfer": "%s → %s : %,d m³",
   "plugin.earthwork.allocation_export": "Export",
   "plugin.earthwork.allocation_import": "Import",

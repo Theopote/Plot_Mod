@@ -127,6 +127,7 @@ public final class EarthworkReportExporter {
         map.put("geometricCutVolume", report.geometricCutVolume());
         map.put("geometricFillVolume", report.geometricFillVolume());
         map.put("reusableCutVolume", report.reusableCutVolume());
+        map.put("compactedFillSupply", report.compactedFillSupply());
         map.put("compactedFillDemand", report.compactedFillDemand());
         map.put("importVolume", report.importVolume());
         map.put("exportVolume", report.exportVolume());
@@ -228,6 +229,7 @@ public final class EarthworkReportExporter {
         appendRow(csv, "volume", "geometric_cut", volumes.geometricCutVolume());
         appendRow(csv, "volume", "geometric_fill", volumes.geometricFillVolume());
         appendRow(csv, "volume", "reusable_cut", volumes.reusableCutVolume());
+        appendRow(csv, "volume", "compacted_fill_supply", volumes.compactedFillSupply());
         appendRow(csv, "volume", "compacted_fill_demand", volumes.compactedFillDemand());
         appendRow(csv, "volume", "import", volumes.importVolume());
         appendRow(csv, "volume", "export", volumes.exportVolume());

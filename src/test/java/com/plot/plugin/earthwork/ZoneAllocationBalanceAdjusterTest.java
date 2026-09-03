@@ -10,7 +10,6 @@ import com.plot.core.material.MaterialConversionModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -99,12 +98,31 @@ class ZoneAllocationBalanceAdjusterTest {
         assertEquals(5, weighted.get("a"));
     }
 
+    @Test
+    void zoneOffsetsConvertCompactedFillBackToGeometricCut() {
+        MaterialConversionModel halfReuse = new MaterialConversionModel(0.50f, 1.0f);
+        Map<String, EarthworkVolumeReport> byZone = new LinkedHashMap<>();
+        byZone.put("a", report(10_000L, 0L, halfReuse));
+        byZone.put("b", report(0L, 5_000L, halfReuse));
+
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(byZone, null);
+        Map<String, Integer> offsets = ZoneAllocationBalanceAdjuster.computeZoneOffsets(
+            matrix,
+            Map.of("a", 1000, "b", 500),
+            null,
+            null,
+            byZone,
+            halfReuse);
+
+        assertEquals(10, offsets.get("a"));
+        assertEquals(-10, offsets.get("b"));
+    }
+
     private static EarthworkVolumeReport report(long cut, long fill) {
-        return EarthworkVolumeReport.fromMetrics(
-            cut,
-            fill,
-            com.plot.core.material.MaterialConversionModel.DEFAULT,
-            0L,
-            0L);
+        return report(cut, fill, MaterialConversionModel.DEFAULT);
+    }
+
+    private static EarthworkVolumeReport report(long cut, long fill, MaterialConversionModel materials) {
+        return EarthworkVolumeReport.fromMetrics(cut, fill, materials, 0L, 0L);
     }
 }

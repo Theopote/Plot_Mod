@@ -3,6 +3,8 @@ import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.core.material.MaterialConversionModel;
 
 import java.util.ArrayList;
@@ -39,7 +41,8 @@ public final class ZoneAllocationBalanceAdjuster {
             matrix,
             countCellsByZone(grid),
             samplesByZone,
-            site.getMaterialModel());
+            site,
+            snapshot.byZone());
         applyZoneOffsets(grid, zoneOffsets);
 
         int residual = 0;
@@ -52,7 +55,7 @@ public final class ZoneAllocationBalanceAdjuster {
     public static Map<String, Integer> computeZoneOffsets(
             EarthworkAllocationMatrix matrix,
             Map<String, Integer> cellCountByZone) {
-        return computeZoneOffsets(matrix, cellCountByZone, null, MaterialConversionModel.DEFAULT);
+        return computeZoneOffsets(matrix, cellCountByZone, null, null, null);
     }
 
     public static Map<String, Integer> computeZoneOffsets(
@@ -60,20 +63,60 @@ public final class ZoneAllocationBalanceAdjuster {
             Map<String, Integer> cellCountByZone,
             Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
             MaterialConversionModel materials) {
+        return computeZoneOffsets(matrix, cellCountByZone, samplesByZone, null, null, materials);
+    }
+
+    public static Map<String, Integer> computeZoneOffsets(
+            EarthworkAllocationMatrix matrix,
+            Map<String, Integer> cellCountByZone,
+            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
+            EarthworkSite site,
+            Map<String, EarthworkVolumeReport> byZone) {
+        return computeZoneOffsets(
+            matrix,
+            cellCountByZone,
+            samplesByZone,
+            site,
+            byZone,
+            site != null ? site.getMaterialModel() : MaterialConversionModel.DEFAULT);
+    }
+
+    public static Map<String, Integer> computeZoneOffsets(
+            EarthworkAllocationMatrix matrix,
+            Map<String, Integer> cellCountByZone,
+            Map<String, List<SiteWideBalanceAdjuster.CellSample>> samplesByZone,
+            EarthworkSite site,
+            Map<String, EarthworkVolumeReport> byZone,
+            MaterialConversionModel fallbackMaterials) {
         if (matrix == null || matrix.isEmpty() || cellCountByZone == null || cellCountByZone.isEmpty()) {
             return Map.of();
         }
+        MaterialConversionModel safeFallback = fallbackMaterials != null
+            ? fallbackMaterials
+            : MaterialConversionModel.DEFAULT;
         Map<String, Long> volumeIntent = new LinkedHashMap<>();
         for (EarthworkAllocationMatrix.Transfer transfer : matrix.transfers()) {
             if (transfer.volume() <= 0L) {
                 continue;
             }
             if (transfer.isExport()) {
-                addVolumeIntent(volumeIntent, transfer.sourceZoneId(), transfer.volume());
+                long geometric = toGeometricExportIntent(
+                    transfer.sourceZoneId(),
+                    transfer.volume(),
+                    site,
+                    byZone,
+                    safeFallback);
+                addVolumeIntent(volumeIntent, transfer.sourceZoneId(), geometric);
             } else if (transfer.isImport()) {
                 addVolumeIntent(volumeIntent, transfer.destinationZoneId(), -transfer.volume());
             } else {
-                addVolumeIntent(volumeIntent, transfer.sourceZoneId(), transfer.volume());
+                long sourceGeometric = toGeometricExportIntent(
+                    transfer.sourceZoneId(),
+                    transfer.volume(),
+                    site,
+                    byZone,
+                    safeFallback);
+                addVolumeIntent(volumeIntent, transfer.sourceZoneId(), sourceGeometric);
                 addVolumeIntent(volumeIntent, transfer.destinationZoneId(), -transfer.volume());
             }
         }
@@ -90,9 +133,13 @@ public final class ZoneAllocationBalanceAdjuster {
             List<SiteWideBalanceAdjuster.CellSample> zoneSamples = samplesByZone != null
                 ? samplesByZone.get(zoneId)
                 : null;
+            MaterialConversionModel zoneMaterials = resolveZoneMaterials(
+                site,
+                zoneId,
+                safeFallback);
             if (zoneSamples != null && !zoneSamples.isEmpty()) {
                 offset = WeightedBalanceSolver.findVerticalOffsetForVolumeIntent(
-                    zoneSamples, intent, materials);
+                    zoneSamples, intent, zoneMaterials);
             } else {
                 offset = (int) Math.round(intent / (double) cellCount);
             }
@@ -204,5 +251,38 @@ public final class ZoneAllocationBalanceAdjuster {
             return;
         }
         volumeIntent.merge(zoneId, delta, Long::sum);
+    }
+
+    private static long toGeometricExportIntent(
+            String zoneId,
+            long compactedFill,
+            EarthworkSite site,
+            Map<String, EarthworkVolumeReport> byZone,
+            MaterialConversionModel fallback) {
+        EarthworkVolumeReport report = byZone != null ? byZone.get(zoneId) : null;
+        if (report != null) {
+            long geometric = report.geometricCutForCompactedTransfer(compactedFill);
+            if (geometric > 0L) {
+                return geometric;
+            }
+        }
+        return resolveZoneMaterials(site, zoneId, fallback).geometricCutForCompactedFill(compactedFill);
+    }
+
+    private static MaterialConversionModel resolveZoneMaterials(
+            EarthworkSite site,
+            String zoneId,
+            MaterialConversionModel fallback) {
+        if (site == null || zoneId == null || zoneId.isBlank()) {
+            return fallback != null ? fallback : MaterialConversionModel.DEFAULT;
+        }
+        GradingZone zone = site.getZone(zoneId);
+        MaterialConversionModel siteDefault = site.getMaterialModel() != null
+            ? site.getMaterialModel()
+            : MaterialConversionModel.DEFAULT;
+        if (zone == null) {
+            return siteDefault;
+        }
+        return zone.resolveMaterialModel(siteDefault);
     }
 }

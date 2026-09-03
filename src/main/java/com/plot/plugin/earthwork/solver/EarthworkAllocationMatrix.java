@@ -1,17 +1,18 @@
 package com.plot.plugin.earthwork.solver;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingZone;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 分区间土方调配矩阵（挖方区 → 填方区 / 场外进出口）。
+ * <p>
+ * 调配量以<strong>压实填方</strong>（m³）计量，与 {@link EarthworkVolumeReport#compactedFillSurplus()} /
+ * {@link EarthworkVolumeReport#compactedFillDeficit()} 一致。
  */
 public final class EarthworkAllocationMatrix {
     public static final String EXPORT = "__EXPORT__";
@@ -54,7 +55,7 @@ public final class EarthworkAllocationMatrix {
     }
 
     /**
-     * 根据各分区几何挖填量，生成贪心调配方案（净挖 → 净填 → 余方外运/缺方外借）。
+     * 根据各分区材料感知挖填量，生成贪心调配方案（压实填方余量 → 缺量 → 余方外运/缺方外借）。
      */
     public static EarthworkAllocationMatrix fromZoneReports(
             Map<String, EarthworkVolumeReport> byZone,
@@ -70,13 +71,12 @@ public final class EarthworkAllocationMatrix {
             }
             String zoneId = entry.getKey();
             EarthworkVolumeReport report = entry.getValue();
-            long cut = report.geometricCutVolume();
-            long fill = report.geometricFillVolume();
-            long surplus = cut - fill;
+            long surplus = Math.round(report.compactedFillSurplus());
+            long deficit = Math.round(report.compactedFillDeficit());
             if (surplus > 0L) {
                 sources.add(new ZoneLedger(zoneId, resolveZoneName(site, zoneId), surplus));
-            } else if (surplus < 0L) {
-                sinks.add(new ZoneLedger(zoneId, resolveZoneName(site, zoneId), -surplus));
+            } else if (deficit > 0L) {
+                sinks.add(new ZoneLedger(zoneId, resolveZoneName(site, zoneId), deficit));
             }
         }
         sources.sort(Comparator.comparingLong(ZoneLedger::remaining).reversed());
@@ -128,6 +128,7 @@ public final class EarthworkAllocationMatrix {
     }
 
     public record Transfer(String sourceZoneId, String destinationZoneId, long volume) {
+        /** 调配量单位：压实填方 m³。 */
         public boolean isExport() {
             return EXPORT.equals(destinationZoneId);
         }

@@ -42,6 +42,20 @@ public final class MaterialConversionModel {
     }
 
     /**
+     * 将压实填方调配量换算为等效几何挖方减量（自然方）。
+     */
+    public long geometricCutForCompactedFill(double compactedFill) {
+        if (compactedFill <= 0.0) {
+            return 0L;
+        }
+        double effective = effectiveCutToCompactedFillRatio();
+        if (effective <= 0.0) {
+            return 0L;
+        }
+        return Math.round(compactedFill / effective);
+    }
+
+    /**
      * 由旧版 {@code fillFactor}（填方松散系数）迁移。
      * 旧平衡式 {@code cut = fill × fillFactor} 等价于 {@code reusableRatio=1, cutToCompactedFillRatio=1/fillFactor}。
      */

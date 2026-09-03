@@ -53,9 +53,9 @@ class EarthworkManagerTest {
         EarthworkPreviewManager previewManager = newPreviewManager(status);
         EarthworkProject project = new EarthworkProject();
         GradingRegion region = levelPadRegion(0, 3, 0, 3, 65, false);
-        region.setLastVolumeReport(new EarthworkVolumeReport(3, 4, 1, 2, 0, 0, 5, 2, 7));
+        region.setLastVolumeReport(new EarthworkVolumeReport(3, 4, 1, 2, 2, 0, 0, 5, 2, 7));
         project.addRegion(region);
-        project.getActiveSite().setLastReport(new EarthworkVolumeReport(1, 1, 0, 0, 0, 0, 1, 0, 1));
+        project.getActiveSite().setLastReport(new EarthworkVolumeReport(1, 1, 0, 0, 0, 0, 0, 1, 0, 1));
 
         previewManager.invalidatePreview(project);
 

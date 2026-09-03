@@ -39,7 +39,7 @@ class ProjectGlobalBalanceAggregatorTest {
         assertEquals(7_000L, balance.totalFill());
         assertEquals(2, balance.sitesWithVolume());
         assertEquals(7_000L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", "site-fill"));
-        assertEquals(3_000L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", EarthworkAllocationMatrix.EXPORT));
+        assertEquals(1_280L, transfer(balance.crossSiteAllocationMatrix(), "site-cut", EarthworkAllocationMatrix.EXPORT));
     }
 
     @Test

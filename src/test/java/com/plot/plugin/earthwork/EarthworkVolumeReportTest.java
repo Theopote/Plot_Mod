@@ -20,7 +20,9 @@ class EarthworkVolumeReportTest {
         assertEquals(100L, report.geometricCutVolume());
         assertEquals(80L, report.geometricFillVolume());
         assertEquals(100.0, report.reusableCutVolume(), 1e-6);
+        assertEquals(100.0 / 1.1, report.compactedFillSupply(), 0.01);
         assertEquals(80.0, report.compactedFillDemand(), 1e-6);
+        assertTrue(report.compactedFillSurplus() > 0.0);
         assertEquals(12.0, report.exportVolume(), 0.01);
         assertEquals(0.0, report.importVolume(), 0.01);
         assertEquals(50L, report.cutChangedBlocks());
@@ -44,6 +46,10 @@ class EarthworkVolumeReportTest {
             1000L, 828L, MaterialConversionModel.DEFAULT, 0L, 0L);
 
         assertEquals(900.0, report.reusableCutVolume(), 1e-6);
+        assertEquals(828.0, report.compactedFillSupply(), 1e-4);
+        assertEquals(0.0, report.compactedFillSurplus(), 0.05);
+        assertEquals(0.0, report.compactedFillDeficit(), 0.05);
+        assertEquals(1000L, report.geometricCutForCompactedTransfer(828L));
         assertEquals(0.0, report.importVolume(), 0.05);
         assertEquals(0.0, report.exportVolume(), 0.05);
     }

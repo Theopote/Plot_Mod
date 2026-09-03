@@ -309,6 +309,13 @@ public final class EarthworkGenerator {
 - [x] 编辑 Tab 基坑设置（关联建筑、自动坑底、埋深滑条）
 - [x] JSON `basementDepthBlocks` 持久化；`BuildingFootprintResolverTest` / `PhaseCDesignSurfaceTest`
 
+### 17n — 材料感知调配矩阵（P2-4）
+
+- [x] `EarthworkAllocationMatrix.fromZoneReports`：按 `compactedFillSurplus` / `compactedFillDeficit` 贪心调配（压实填方 m³）
+- [x] `EarthworkVolumeReport.compactedFillSupply` + 余量/缺量辅助方法
+- [x] `ZoneAllocationBalanceAdjuster`：调配量 → 分区几何方量意图（挖方按 `MaterialConversionModel` 换算）
+- [x] 跨场地调配矩阵同步材料语义；`EarthworkAllocationMatrixTest` 材料差异用例
+
 ---
 
 ## 8. 测试策略
