@@ -16,8 +16,11 @@ import java.util.Map;
 /**
  * Mode A — 土方物流调配报告（挖方区 → 填方区 / 场外进出口）。
  * <p>
- * 调配量以<strong>压实填方</strong>（m³）计量，与 {@link EarthworkVolumeReport#compactedFillSurplus()} /
- * {@link EarthworkVolumeReport#compactedFillDeficit()} 一致。
+ * 调配量以<strong>压实填方</strong>计量，与 {@link EarthworkVolumeReport#compactedFillSurplus()} /
+ * {@link EarthworkVolumeReport#compactedFillDeficit()} 一致。台账匹配用 {@code double}；
+ * {@link Transfer#volume()} 为离散 long（当前 Minecraft 方块≈1 m³ 代理）。亚单位量经
+ * {@code Math.round} 可能变为 0——体素尺度可接受；若日后改为连续现实 m³ 或 1 block≠1 m³，
+ * 应让 Transfer 改用 double。
  * <p>
  * 除换算系数外，还按 {@link EarthMaterialClass} 兼容性匹配：岩石/不宜回填等不能进结构填方。
  * 本矩阵<strong>不修改</strong>设计标高；竖向优化见 {@link EarthworkOptimizationSolver}。
@@ -62,12 +65,12 @@ public final class EarthworkAllocationMatrix {
         return total;
     }
 
-    /** 场外外运合计（压实填方 m³）。 */
+    /** 场外外运合计（压实填方；离散 long）。 */
     public long externalExportVolume() {
         return volumeTo(EXPORT);
     }
 
-    /** 场外外借合计（压实填方 m³）。 */
+    /** 场外外借合计（压实填方；离散 long）。 */
     public long externalImportVolume() {
         return volumeFrom(IMPORT);
     }
@@ -116,40 +119,30 @@ public final class EarthworkAllocationMatrix {
             String zoneId = entry.getKey();
             EarthworkVolumeReport report = entry.getValue();
             EarthMaterialClassLookup.Classes classes = lookup.resolve(zoneId);
-            long surplus = Math.round(report.compactedFillSurplus());
-            long deficit = Math.round(report.compactedFillDeficit());
-            if (surplus > 0L) {
-                sources.add(new ZoneLedger(
-                    zoneId,
-                    resolveDisplayName(zoneId, lookup),
-                    surplus,
-                    classes.cutClass(),
-                    classes.fillClass()));
-            } else if (deficit > 0L) {
-                sinks.add(new ZoneLedger(
-                    zoneId,
-                    resolveDisplayName(zoneId, lookup),
-                    deficit,
-                    classes.cutClass(),
-                    classes.fillClass()));
+            double surplus = report.compactedFillSurplus();
+            double deficit = report.compactedFillDeficit();
+            if (surplus > 0.0) {
+                sources.add(new ZoneLedger(zoneId, surplus, classes.cutClass(), classes.fillClass()));
+            } else if (deficit > 0.0) {
+                sinks.add(new ZoneLedger(zoneId, deficit, classes.cutClass(), classes.fillClass()));
             }
         }
-        sources.sort(Comparator.comparingLong(ZoneLedger::remaining).reversed());
-        sinks.sort(Comparator.comparingLong(ZoneLedger::remaining).reversed());
+        sources.sort(Comparator.comparingDouble(ZoneLedger::remaining).reversed());
+        sinks.sort(Comparator.comparingDouble(ZoneLedger::remaining).reversed());
 
         List<Transfer> transfers = new ArrayList<>();
         for (ZoneLedger source : sources) {
-            if (source.remaining() <= 0L) {
+            if (source.remaining() <= 0.0) {
                 continue;
             }
             if (source.cutClass().isExportOnlySpoil()) {
                 continue;
             }
             for (ZoneLedger sink : sinks) {
-                if (source.remaining() <= 0L) {
+                if (source.remaining() <= 0.0) {
                     break;
                 }
-                if (sink.remaining() <= 0L) {
+                if (sink.remaining() <= 0.0) {
                     continue;
                 }
                 MaterialCompatibility compatibility = EarthMaterialCompatibilityMatrix.compatibility(
@@ -158,14 +151,18 @@ public final class EarthworkAllocationMatrix {
                 if (!compatibility.allowsTransfer()) {
                     continue;
                 }
-                long amount = Math.min(source.remaining(), sink.remaining());
-                if (amount <= 0L) {
+                double amount = Math.min(source.remaining(), sink.remaining());
+                long reported = Math.round(amount);
+                if (reported <= 0L) {
+                    // 亚单位在离散 Transfer 中丢弃；台账仍扣减，避免反复匹配同一碎量。
+                    source.consume(amount);
+                    sink.consume(amount);
                     continue;
                 }
                 transfers.add(new Transfer(
                     source.zoneId(),
                     sink.zoneId(),
-                    amount,
+                    reported,
                     source.cutClass(),
                     compatibility));
                 source.consume(amount);
@@ -173,21 +170,23 @@ public final class EarthworkAllocationMatrix {
             }
         }
         for (ZoneLedger source : sources) {
-            if (source.remaining() > 0L) {
+            long reported = Math.round(source.remaining());
+            if (reported > 0L) {
                 transfers.add(new Transfer(
                     source.zoneId(),
                     EXPORT,
-                    source.remaining(),
+                    reported,
                     source.cutClass(),
                     MaterialCompatibility.FORBIDDEN));
             }
         }
         for (ZoneLedger sink : sinks) {
-            if (sink.remaining() > 0L) {
+            long reported = Math.round(sink.remaining());
+            if (reported > 0L) {
                 transfers.add(new Transfer(
                     IMPORT,
                     sink.zoneId(),
-                    sink.remaining(),
+                    reported,
                     sink.fillClass(),
                     MaterialCompatibility.FORBIDDEN));
             }
@@ -212,10 +211,9 @@ public final class EarthworkAllocationMatrix {
         };
     }
 
-    private static String resolveDisplayName(String zoneId, EarthMaterialClassLookup lookup) {
-        return zoneId != null ? zoneId : "";
-    }
-
+    /**
+     * @param volume 离散压实填方量（方块代理）。显示名由 UI 按 zoneId 解析，不在此冗余存储。
+     */
     public record Transfer(
             String sourceZoneId,
             String destinationZoneId,
@@ -232,7 +230,6 @@ public final class EarthworkAllocationMatrix {
                 MaterialCompatibility.ALLOWED);
         }
 
-        /** 调配量单位：压实填方 m³。 */
         public boolean isExport() {
             return EXPORT.equals(destinationZoneId);
         }
@@ -242,32 +239,26 @@ public final class EarthworkAllocationMatrix {
         }
     }
 
+    /** 匹配台账：余量保持 double，直到写出 {@link Transfer} 再 round。 */
     private static final class ZoneLedger {
         private final String zoneId;
-        private final String zoneName;
         private final EarthMaterialClass cutClass;
         private final EarthMaterialClass fillClass;
-        private long remaining;
+        private double remaining;
 
         private ZoneLedger(
                 String zoneId,
-                String zoneName,
-                long amount,
+                double amount,
                 EarthMaterialClass cutClass,
                 EarthMaterialClass fillClass) {
             this.zoneId = zoneId;
-            this.zoneName = zoneName;
             this.cutClass = cutClass != null ? cutClass : EarthMaterialClass.UNKNOWN;
             this.fillClass = fillClass != null ? fillClass : EarthMaterialClass.COMMON_FILL;
-            this.remaining = Math.max(0L, amount);
+            this.remaining = Math.max(0.0, amount);
         }
 
         private String zoneId() {
             return zoneId;
-        }
-
-        private String zoneName() {
-            return zoneName;
         }
 
         private EarthMaterialClass cutClass() {
@@ -278,12 +269,12 @@ public final class EarthworkAllocationMatrix {
             return fillClass;
         }
 
-        private long remaining() {
+        private double remaining() {
             return remaining;
         }
 
-        private void consume(long amount) {
-            remaining = Math.max(0L, remaining - amount);
+        private void consume(double amount) {
+            remaining = Math.max(0.0, remaining - amount);
         }
     }
 }

@@ -618,12 +618,20 @@ if balanceScope == ZONE:
     pass
 else if balanceScope in {SITE, PROJECT} && optimizationMode != NONE && zoneCount >= 2:
     snapshot = 覆盖后的基础设计面（不含坡面）
-    apply blend + slope
-    for iteration in 1..4:
-        根据当前（含坡面）方量提出 ΔY（UNIFORM_VERTICAL_SHIFT 或 CONSTRAINED_ZONE_OPTIMIZATION）
-        if ΔY == 0: break
-        恢复 snapshot → 施加累计 ΔY → 重建 blend + slope
+    if optimizationMode == UNIFORM_VERTICAL_SHIFT:
+        for ΔY in [-R..+R]:       # R=可调策略半幅（默认≥3，≤32）；SlopeCoupledVerticalSearch
+            restore snapshot → 施加 ΔY → 重建 blend + slope/daylight → Volume → Objective
+        选用目标最优的 ΔY
+    else if optimizationMode == CONSTRAINED_ZONE_OPTIMIZATION:
+        启发分区 ΔY（在含坡网格上）→ 恢复 snapshot → 施加 → 重建坡面
+        再对残余统一 ΔY 做同上离散搜索
 # SITE + NONE：只统计全场净土方，不改设计
+```
+
+正式循环（不可压缩为 `targetY += offset`）：
+
+```
+Design Variables → Build Design Terrain → Resolve Daylight → Volume → Objective → 下一候选
 ```
 
 `balanceScope` 为 `SITE`/`PROJECT` 时 `DesignSurfaceResolver` 传入 `deferBalanceToSite=true`：水平分区用平均地面代替逐区 `autoBalance`，拟合坡面跳过逐区截距平衡。

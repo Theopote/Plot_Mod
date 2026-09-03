@@ -58,7 +58,10 @@ public final class EarthworkOptimizationSolver {
      * @param resolvedSurfaces 可选；有则按 {@link com.plot.plugin.earthwork.design.ResolvedDesignSurface#isSolverVariable()}
      *                         划分可调分区，避免把 LOCKED/DERIVED/引用失败面当成同质变量。
      */
-    public static BalanceResult propose(
+    /**
+     * 仅提出分区 ΔY，不做残余统一抛光（抛光应由边坡耦合离散搜索完成）。
+     */
+    public static BalanceResult proposeZoneOffsetsOnly(
             DesignTerrainGrid grid,
             EarthworkSite site,
             Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
@@ -68,23 +71,33 @@ public final class EarthworkOptimizationSolver {
         SiteEarthworkReport snapshot = collectZoneVolumes(grid, site);
         Map<String, EarthworkVolumeReport> flexibleByZone =
             flexibleZoneReports(snapshot.byZone(), site, resolvedSurfaces);
-        Map<String, Integer> zoneOffsets = Map.of();
-        if (!flexibleByZone.isEmpty()) {
-            EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
-                flexibleByZone,
-                site);
-            zoneOffsets = computeZoneOffsets(
-                matrix,
-                countFlexibleCellsByZone(grid, site, resolvedSurfaces),
-                collectFlexibleSamplesByZone(grid, site, resolvedSurfaces),
-                site,
-                flexibleByZone);
+        if (flexibleByZone.isEmpty()) {
+            return new BalanceResult(Map.of(), 0);
         }
+        EarthworkAllocationMatrix matrix = EarthworkAllocationMatrix.fromZoneReports(
+            flexibleByZone,
+            site);
+        Map<String, Integer> zoneOffsets = computeZoneOffsets(
+            matrix,
+            countFlexibleCellsByZone(grid, site, resolvedSurfaces),
+            collectFlexibleSamplesByZone(grid, site, resolvedSurfaces),
+            site,
+            flexibleByZone);
+        return new BalanceResult(zoneOffsets, 0);
+    }
+
+    public static BalanceResult propose(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<String, com.plot.plugin.earthwork.design.ResolvedDesignSurface> resolvedSurfaces) {
+        BalanceResult zoneOnly = proposeZoneOffsetsOnly(grid, site, resolvedSurfaces);
         int residual = 0;
-        if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
-            residual = proposeResidualUniformOffset(grid, site, zoneOffsets, resolvedSurfaces);
+        if (site != null && site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
+            // 线性残差估计仅作无坡面场景的快速启发；合成主路径用 SlopeCoupledVerticalSearch。
+            residual = proposeResidualUniformOffset(
+                grid, site, zoneOnly.zoneOffsets(), resolvedSurfaces);
         }
-        return new BalanceResult(zoneOffsets, residual);
+        return new BalanceResult(zoneOnly.zoneOffsets(), residual);
     }
 
     public static BalanceResult balance(

@@ -6,7 +6,7 @@ import com.plot.plugin.earthwork.grading.BreaklineClassifier;
 import com.plot.plugin.earthwork.grading.DesignTerrainCell;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
 import com.plot.plugin.earthwork.solver.EarthworkOptimizationSolver;
-import com.plot.plugin.earthwork.solver.SiteWideBalanceAdjuster;
+import com.plot.plugin.earthwork.solver.SlopeCoupledVerticalSearch;
 import com.plot.plugin.earthwork.terrain.TerrainBoundaryBlender;
 import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.api.geometry.Vec2d;
@@ -17,6 +17,7 @@ import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.ExclusionZone;
 import com.plot.plugin.earthwork.model.GradingZone;
+import com.plot.plugin.earthwork.model.VerticalAdjustmentPolicy;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -220,15 +221,30 @@ public final class DesignTerrainComposer {
         if (!shouldRunSiteBalance(site)) {
             return 0;
         }
+
+        // UNIFORM_VERTICAL_SHIFT：离散枚举 ΔY，每个候选完整重建坡面/日照后再比目标。
+        if (site.getCompositionPolicy().isUniformVerticalShift()) {
+            return applySlopeCoupledUniformSearch(
+                grid,
+                site,
+                baseDesign,
+                zoneEvaluators,
+                resolvedSurfaces,
+                coverageByCellKey,
+                effectiveBreaklines,
+                Map.of());
+        }
+
+        // CONSTRAINED_ZONE_OPTIMIZATION：先启发分区 ΔY（在当前含坡网格上），再对残余统一偏移做边坡耦合离散搜索。
         int cumulativeUniformOffset = 0;
         for (int iteration = 0; iteration < MAX_SITE_BALANCE_ITERATIONS; iteration++) {
             EarthworkOptimizationSolver.BalanceResult proposed =
-                proposeSiteBalance(grid, site, resolvedSurfaces);
-            if (proposed.isZero()) {
+                EarthworkOptimizationSolver.proposeZoneOffsetsOnly(grid, site, resolvedSurfaces);
+            if (proposed.zoneOffsets() == null || proposed.zoneOffsets().isEmpty()
+                || allZero(proposed.zoneOffsets())) {
                 break;
             }
             accumulateZoneOffsets(site, resolvedSurfaces, cumulativeZoneOffsets, proposed.zoneOffsets());
-            cumulativeUniformOffset += proposed.residualUniformOffset();
             restoreCells(grid, baseDesign);
             applyAccumulatedOffsets(grid, site, cumulativeZoneOffsets, cumulativeUniformOffset);
             applyBoundaryConditions(
@@ -238,25 +254,99 @@ public final class DesignTerrainComposer {
                 coverageWithOffsets(site, coverageByCellKey, cumulativeZoneOffsets, cumulativeUniformOffset),
                 effectiveBreaklines);
         }
+
+        if (site.getCompositionPolicy().isBalanceResidualUniformPolish()) {
+            cumulativeUniformOffset = applySlopeCoupledUniformSearch(
+                grid,
+                site,
+                baseDesign,
+                zoneEvaluators,
+                resolvedSurfaces,
+                coverageByCellKey,
+                effectiveBreaklines,
+                Map.copyOf(cumulativeZoneOffsets));
+        }
         return cumulativeUniformOffset;
+    }
+
+    /**
+     * 对累计分区偏移之上的统一 ΔY 做边坡耦合离散搜索，并把网格留在最优候选状态。
+     * 搜索半幅取可调分区 {@link VerticalAdjustmentPolicy} 允许范围（至少默认 ±3，至多 ±32）。
+     */
+    private static int applySlopeCoupledUniformSearch(
+            DesignTerrainGrid grid,
+            EarthworkSite site,
+            Map<Long, CellSnapshot> baseDesign,
+            Map<String, DesignSurfaceResolver.ZoneTargetEvaluator> zoneEvaluators,
+            Map<String, ResolvedDesignSurface> resolvedSurfaces,
+            Map<Long, TerrainBoundaryBlender.ZoneCoverage> coverageByCellKey,
+            List<Breakline> effectiveBreaklines,
+            Map<String, Integer> zoneOffsets) {
+        Map<String, Integer> safeZone = zoneOffsets != null ? zoneOffsets : Map.of();
+        int halfRange = resolveUniformSearchHalfRange(site, resolvedSurfaces);
+        SlopeCoupledVerticalSearch.SearchResult search = SlopeCoupledVerticalSearch.searchUniform(halfRange, dy -> {
+            restoreCells(grid, baseDesign);
+            applyAccumulatedOffsets(grid, site, safeZone, dy);
+            applyBoundaryConditions(
+                grid,
+                site,
+                evaluatorsWithOffsets(site, zoneEvaluators, safeZone, dy),
+                coverageWithOffsets(site, coverageByCellKey, safeZone, dy),
+                effectiveBreaklines);
+            return SlopeCoupledVerticalSearch.materialImbalanceObjective(grid, site);
+        });
+
+        int best = search.bestOffset();
+        restoreCells(grid, baseDesign);
+        applyAccumulatedOffsets(grid, site, safeZone, best);
+        applyBoundaryConditions(
+            grid,
+            site,
+            evaluatorsWithOffsets(site, zoneEvaluators, safeZone, best),
+            coverageWithOffsets(site, coverageByCellKey, safeZone, best),
+            effectiveBreaklines);
+        return best;
+    }
+
+    private static int resolveUniformSearchHalfRange(
+            EarthworkSite site,
+            Map<String, ResolvedDesignSurface> resolvedSurfaces) {
+        int halfRange = SlopeCoupledVerticalSearch.DEFAULT_HALF_RANGE;
+        if (site == null) {
+            return halfRange;
+        }
+        for (GradingZone zone : site.getGradingZones().values()) {
+            if (zone == null || !zone.isEnabled()) {
+                continue;
+            }
+            if (resolvedSurfaces != null) {
+                ResolvedDesignSurface resolved = resolvedSurfaces.get(zone.getId());
+                if (resolved != null && !resolved.isSolverVariable()) {
+                    continue;
+                }
+            } else if (zone.isElevationLocked()) {
+                continue;
+            }
+            var policy = zone.getVerticalAdjustmentPolicy();
+            halfRange = Math.max(halfRange, Math.abs(policy.getMinOffset()));
+            halfRange = Math.max(halfRange, Math.abs(policy.getMaxOffset()));
+        }
+        return Math.min(halfRange, VerticalAdjustmentPolicy.UNBOUNDED_RANGE);
+    }
+
+    private static boolean allZero(Map<String, Integer> offsets) {
+        for (Integer value : offsets.values()) {
+            if (value != null && value != 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean shouldRunSiteBalance(EarthworkSite site) {
         return site != null
             && site.getCompositionPolicy().isVerticalOptimizationEnabled()
             && site.getZoneCount() >= 2;
-    }
-
-    private static EarthworkOptimizationSolver.BalanceResult proposeSiteBalance(
-            DesignTerrainGrid grid,
-            EarthworkSite site,
-            Map<String, ResolvedDesignSurface> resolvedSurfaces) {
-        if (site.getCompositionPolicy().isConstrainedZoneOptimization()) {
-            return EarthworkOptimizationSolver.propose(grid, site, resolvedSurfaces);
-        }
-        return new EarthworkOptimizationSolver.BalanceResult(
-            Map.of(),
-            SiteWideBalanceAdjuster.findBalancedVerticalOffset(grid, site, resolvedSurfaces));
     }
 
     private static void applyBoundaryConditions(

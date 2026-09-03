@@ -348,10 +348,11 @@ public final class EarthworkGenerator {
 
 ### 17o — 先成形再平衡（边坡耦合）
 
-- [x] `DesignTerrainComposer`：覆盖 → 交界混合 / 放坡 / 挡土约束 → 全场平衡
+- [x] `DesignTerrainComposer`：覆盖 → 交界混合 / 放坡 / 挡土约束 → 竖向优化
 - [x] 平衡后从基础设计面恢复，施加累计 ΔY，再重建坡面（日照线随平台标高移动）
-- [x] 最多 4 次迭代，直到提出的偏移为 0；返回的 evaluator 含最终 ΔY（挡土墙采样）
-- [x] `DesignTerrainComposerTest`：坡面相对平衡后垫层重建；全场残余小于逐区
+- [x] `SlopeCoupledVerticalSearch`：按可调分区策略枚举 ΔY（默认至少 ±3，至多 ±32），每候选完整重建坡面后再算目标
+- [x] `UNIFORM_VERTICAL_SHIFT` / 残余抛光走离散搜索；`CONSTRAINED_ZONE_OPTIMIZATION` 分区启发后再耦合抛光
+- [x] `SlopeCoupledVerticalSearchTest` / `DesignTerrainComposerTest`
 
 ### 17p — 锁定标高不参与全场 ΔY（P0-1）
 
