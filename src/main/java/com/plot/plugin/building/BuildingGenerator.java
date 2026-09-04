@@ -5,6 +5,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationPipeline;
+import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -27,17 +28,7 @@ public class BuildingGenerator {
         this.pipeline = BuildingGenerationPipeline.createDefault();
     }
 
-    /**
-     * @deprecated 使用 {@link com.plot.plugin.building.generation.BuildingGenerationResult}。
-     *             保留嵌套别名以兼容现有测试与外部引用。
-     */
-    @Deprecated
-    public static class BuildingGenerationResult
-            extends com.plot.plugin.building.generation.BuildingGenerationResult {
-    }
-
-    public com.plot.plugin.building.generation.BuildingGenerationResult generate(
-            BuildingFootprint footprint, World world) {
+    public BuildingGenerationResult generate(BuildingFootprint footprint, World world) {
         BuildingGenerationContext context = BuildingGenerationContext.create(
             footprint, world, coordinateTransformer, projectionHandler);
         return pipeline.generate(context);
@@ -45,7 +36,7 @@ public class BuildingGenerator {
 
     /** package-private for unit tests of override semantics */
     static void recordBlockForTest(
-            com.plot.plugin.building.generation.BuildingGenerationResult result,
+            BuildingGenerationResult result,
             BlockPos pos,
             String previousBlockId,
             String newBlockId) {
