@@ -24,6 +24,7 @@ import java.util.Set;
  * 门窗开洞：在墙体上镂空，覆盖先前写入的墙体记录。
  * <p>
  * 窗型阵列由 {@link FacadeSpec#windowPatternForSegment} 控制；显式开洞由 {@link OpeningSpec} 描述。
+ * inner offset 失败时仍沿外轮廓开洞，见 {@link com.plot.plugin.building.generation.massing.InnerOffsetDegradation}。
  */
 public final class OpeningGenerationStage implements BuildingGenerationStage {
     @Override

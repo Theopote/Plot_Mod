@@ -46,6 +46,7 @@ public final class GoldenBuildingExpectations {
         "GABLE",
         List.of());
 
+    /** inner offset 降级 + 坡顶 downgrade；wallBlocks 必须 &gt; 0，见 {@link GoldenBuildingTest#b07InnerOffsetDegradationInvariants()} */
     public static final GoldenBuildingMetrics B07 = new GoldenBuildingMetrics(
         75, 69, 0, 0, 0, 6, 0, 0, 0,
         0, 11, 64, 66, 0, 2,
@@ -64,6 +65,7 @@ public final class GoldenBuildingExpectations {
         "FLAT",
         List.of());
 
+    /** 厚墙（3）；bounds 可超出原点，见 {@link GoldenBuildingTest#b10ThickWallInvariants()} */
     public static final GoldenBuildingMetrics B10 = new GoldenBuildingMetrics(
         496, 432, 16, 0, 0, 48, 0, 0, 0,
         -2, 12, 64, 70, -2, 10,

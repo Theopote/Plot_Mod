@@ -102,6 +102,7 @@ public final class GoldenBuildingCaseFactory {
     }
 
     public static Case b07NarrowCorridor() {
+        // 降级回归用例：inner offset 失败 + 坡顶 downgrade；墙体必须为实心体量。
         BuildingFootprint fp = new BuildingFootprint(List.of(
             new Vec2d(0, 0),
             new Vec2d(12, 0),
@@ -125,6 +126,7 @@ public final class GoldenBuildingCaseFactory {
     }
 
     public static Case b10ThickWall() {
+        // 厚墙（3）时墙体柱列可超出名义 footprint，bounds.minX/minZ 可能为负。
         return new Case("B10", "thick wall", rectangle(10, 8, 2, 3, 3));
     }
 

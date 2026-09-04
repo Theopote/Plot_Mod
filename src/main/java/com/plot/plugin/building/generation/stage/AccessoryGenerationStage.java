@@ -12,6 +12,8 @@ import com.plot.plugin.building.model.spec.CanopySpec;
  * 建筑附属构件阶段：女儿墙、雨篷、阳台等。
  * <p>
  * 位于 Roof 之后、Opening 之前，以便开洞可穿透外挑构件。
+ * 阳台/雨篷沿外轮廓墙段外挑，不依赖 inner offset，见
+ * {@link com.plot.plugin.building.generation.massing.InnerOffsetDegradation}。
  */
 public final class AccessoryGenerationStage implements BuildingGenerationStage {
     @Override

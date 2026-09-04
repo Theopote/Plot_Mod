@@ -9,6 +9,7 @@ import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
+import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
@@ -19,6 +20,8 @@ import java.util.List;
 /**
  * 楼板生成，并在同一阶段内完成顶层屋面材质替换（Phase 0 约定）。
  * 每层楼板使用对应 FloorPlate 的内轮廓。
+ * <p>
+ * inner offset 失败时跳过室内楼板，见 {@link InnerOffsetDegradation}。
  */
 public final class FloorGenerationStage implements BuildingGenerationStage {
     @Override
@@ -45,14 +48,14 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
             ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
                 massing.plateForFloor(plateFloor), envelope.wallThickness());
             Polygon innerPolygon = plate.innerPolygon();
-            if (innerPolygon == null) {
+            if (!InnerOffsetDegradation.hasInteriorSpace(innerPolygon)) {
                 continue;
             }
             int floorY = baseElevation + floor * massing.floorHeight();
             List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
                 plate.innerPoints(), innerPolygon);
             for (BuildingGenerationContext.GridCell cell : innerCells) {
-                if (!innerPolygon.contains(cell.center())) {
+                if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                     continue;
                 }
                 BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
@@ -74,7 +77,7 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
         ResolvedFloorPlate topPlate = FloorPlateGeometryResolver.resolve(
             massing.topOccupiedPlate(), envelope.wallThickness());
         Polygon innerPolygon = topPlate.innerPolygon();
-        if (innerPolygon == null) {
+        if (!InnerOffsetDegradation.hasInteriorSpace(innerPolygon)) {
             return;
         }
         int topFloorY = context.getTopFloorY();
@@ -84,7 +87,7 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
         List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
             topPlate.innerPoints(), innerPolygon);
         for (BuildingGenerationContext.GridCell cell : innerCells) {
-            if (!innerPolygon.contains(cell.center())) {
+            if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                 continue;
             }
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(

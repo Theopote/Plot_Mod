@@ -13,6 +13,9 @@ import java.util.List;
 /**
  * 屋顶阶段：解析有效屋顶类型，并在坡屋顶时调用 BuildingRoofGenerator。
  * 使用最高 occupied FloorPlate 的外轮廓。
+ * <p>
+ * 坡顶 eligibility 仅依赖外轮廓几何，与 inner offset 无关，见
+ * {@link com.plot.plugin.building.generation.massing.InnerOffsetDegradation}。
  */
 public final class RoofGenerationStage implements BuildingGenerationStage {
     @Override

@@ -28,6 +28,10 @@ public final class FloorPlateGeometryResolver {
                 ? BuildingGeometryUtils.copyPoints(innerPolygon.getPoints())
                 : List.of();
         }
+
+        public boolean hasInteriorSpace() {
+            return InnerOffsetDegradation.hasInteriorSpace(innerPolygon);
+        }
     }
 
     public static ResolvedFloorPlate resolve(FloorPlateSpec plate, int wallThickness) {

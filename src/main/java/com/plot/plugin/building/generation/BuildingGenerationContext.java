@@ -11,6 +11,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
+import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -143,8 +144,8 @@ public final class BuildingGenerationContext {
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;
         if (innerPolygon == null) {
-            result.warnings.add("plugin.building.warn.inner_offset_failed");
-            LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板");
+            InnerOffsetDegradation.noteInnerOffsetFailure(result);
+            LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板；墙体按实心体量生成");
         }
 
         List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
@@ -230,7 +231,7 @@ public final class BuildingGenerationContext {
             ? BuildingGeometryUtils.toPolygon(innerPoints)
             : null;
         if (innerPolygon == null && outerPoints.size() >= 3) {
-            result.warnings.add("plugin.building.warn.inner_offset_failed");
+            InnerOffsetDegradation.noteInnerOffsetFailure(result);
         }
 
         List<GridCell> footprintCells = outerPolygon != null

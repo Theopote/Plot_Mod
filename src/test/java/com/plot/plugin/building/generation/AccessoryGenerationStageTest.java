@@ -6,6 +6,7 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.building.generation.stage.AccessoryGenerationStage;
+import com.plot.plugin.building.golden.GoldenBuildingCaseFactory;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.AccessorySpec;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
@@ -58,6 +59,39 @@ class AccessoryGenerationStageTest {
         boolean hasOutsideX = result.placementRecords.keySet().stream()
             .anyMatch(pos -> pos.getX() > 10);
         assertTrue(hasOutsideX);
+    }
+
+    @Test
+    void parapetGeneratesOnNarrowCorridorWhenInnerOffsetFails() {
+        BuildingFootprint footprint = GoldenBuildingCaseFactory.b07NarrowCorridor().footprint();
+        footprint.setParapetEnabled(true);
+        footprint.setParapetHeight(1);
+        footprint.setParapetMaterial("minecraft:stone_brick_wall");
+
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContext.forTesting(
+            footprint, stubCoordinates(), stubProjection(), result);
+
+        new AccessoryGenerationStage().generate(context);
+
+        assertTrue(result.placementRecords.size() > 0, "parapet should generate on solid wall mass");
+        int topWallY = context.getTopFloorY();
+        assertTrue(result.placementRecords.keySet().stream()
+            .anyMatch(pos -> pos.getY() == topWallY));
+    }
+
+    @Test
+    void balconyGeneratesFromOuterWallOnNarrowCorridor() {
+        BuildingFootprint footprint = GoldenBuildingCaseFactory.b07NarrowCorridor().footprint();
+        footprint.addBalcony(new BuildingFootprint.Balcony(0, 0.5, 0, 2, 1, null, null));
+
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContext.forTesting(
+            footprint, stubCoordinates(), stubProjection(), result);
+
+        new AccessoryGenerationStage().generate(context);
+
+        assertTrue(result.placementRecords.size() > 0, "balcony uses outer wall segment, not inner offset");
     }
 
     @Test

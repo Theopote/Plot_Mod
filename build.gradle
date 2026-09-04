@@ -184,6 +184,17 @@ tasks.test {
 	useJUnitPlatform()
 }
 
+tasks.register("exportBuildingSmokeProject", Test) {
+	description = "Export B07/L/U/thick-wall stabilization smoke project into run/config/plugins/building/projects/default.json"
+	group = "plot"
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	filter {
+		includeTestsMatching "com.plot.plugin.building.golden.BuildingStabilizationSmokeProjectTest.exportSmokeProjectForDevClient"
+	}
+}
+
 jar {
 	from("LICENSE") {
 		rename { "${it}_${project.base.archivesName.get()}"}
