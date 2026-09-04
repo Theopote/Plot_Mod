@@ -13,7 +13,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 已认领的建筑轮廓及生成参数
+ * 已认领的建筑轮廓及生成参数。
+ * <p>
+ * <strong>冻结线：</strong>本类视为 Legacy Persistence DTO（JSON / 认领轮廓）。
+ * 新语义能力优先放 {@link com.plot.plugin.building.model.spec.BuildingDefinition}
+ * 与后续 {@code ResolvedBuilding}，不要继续往这里堆 {@code setXxx} 字段。
+ * 短期为兼容仍可经 Mapper 回写 Footprint，但不要把新模型做成旧 God Object 的包装。
  */
 public class BuildingFootprint {
     public static final String DEFAULT_WALL_MATERIAL = "minecraft:stone_bricks";

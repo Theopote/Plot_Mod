@@ -124,7 +124,7 @@ public final class BuildingGenerationContext {
             massing.innerPoints(),
             massing.innerPolygon(),
             massing.footprintCells(),
-            site.baseElevation(),
+            site.actualFoundationElevation(),
             materials.foundationFillBlockId(),
             materials.roofBlockId(),
             true
@@ -227,6 +227,11 @@ public final class BuildingGenerationContext {
     }
 
     public int getBaseElevation() {
+        return baseElevation;
+    }
+
+    /** 生成实际使用的地基标高（= {@link #getBaseElevation()}）。 */
+    public int getActualFoundationElevation() {
         return baseElevation;
     }
 

@@ -2,9 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
   pull_request:
-    branches: [master]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -19,7 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         # Ubuntu is the required gate; Windows catches path/FS regressions.
-        # macOS can be enabled later when runner minutes allow.
         os: [ubuntu-latest, windows-latest]
 
     steps:
@@ -43,6 +40,33 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"
         shell: bash
         run: ./gradlew clean test build --stacktrace --no-daemon
+
+  # Building 2.0 Stabilization：专属 check，便于 PR 上看到建筑套件状态
+  building-suite:
+    name: Building test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Building + geometry + roof stress
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"
+        run: >
+          ./gradlew test --no-daemon --stacktrace
+          --tests "com.plot.plugin.building.*"
+          --tests "com.plot.core.geometry.polygon.StraightSkeleton*"
 
   server-smoke:
     name: dedicated-server smoke
