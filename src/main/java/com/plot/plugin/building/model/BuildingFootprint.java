@@ -3,6 +3,9 @@ package com.plot.plugin.building.model;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
+import com.plot.plugin.building.model.spec.OpeningKind;
+import com.plot.plugin.building.model.spec.OpeningSpec;
+import com.plot.plugin.building.model.spec.WallFacadeSpec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +71,8 @@ public class BuildingFootprint {
 
     private List<DoorOpening> doors = new ArrayList<>();
     private List<FloorPlateSpec> floorPlates = new ArrayList<>();
+    private List<WallFacadeSpec> wallFacades = new ArrayList<>();
+    private List<OpeningSpec> openings = new ArrayList<>();
 
     public BuildingFootprint(List<Vec2d> outerPoints, boolean isRectangular) {
         this(UUID.randomUUID().toString(), outerPoints, isRectangular);
@@ -241,25 +246,102 @@ public class BuildingFootprint {
     }
 
     public List<DoorOpening> getDoors() {
+        syncDoorsFromOpeningsIfNeeded();
         return doors.stream().map(DoorOpening::copy).toList();
     }
 
     public void setDoors(List<DoorOpening> doors) {
-        this.doors = doors != null
-            ? doors.stream().map(DoorOpening::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new))
-            : new ArrayList<>();
+        replaceOpeningsOfKind(OpeningKind.DOOR, toOpeningSpecs(doors));
+        syncDoorsFromOpenings();
     }
 
     public void addDoor(DoorOpening door) {
         if (door != null) {
-            doors.add(door.copy());
+            openings.add(OpeningSpec.from(door));
+            syncDoorsFromOpenings();
         }
     }
 
     public void removeDoor(int index) {
-        if (index >= 0 && index < doors.size()) {
-            doors.remove(index);
+        int doorIndex = 0;
+        for (int i = 0; i < openings.size(); i++) {
+            if (openings.get(i).kind() == OpeningKind.DOOR) {
+                if (doorIndex == index) {
+                    openings.remove(i);
+                    syncDoorsFromOpenings();
+                    return;
+                }
+                doorIndex++;
+            }
         }
+    }
+
+    /**
+     * 显式立面开洞（门、拱、单窗等）。窗型阵列 pattern 仍由全局/分立面窗型参数控制。
+     */
+    public List<OpeningSpec> getOpenings() {
+        syncDoorsFromOpeningsIfNeeded();
+        return openings.stream()
+            .map(this::copyOpening)
+            .toList();
+    }
+
+    public void setOpenings(List<OpeningSpec> openings) {
+        this.openings = openings != null
+            ? openings.stream().map(this::copyOpening).collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+            : new ArrayList<>();
+        syncDoorsFromOpenings();
+    }
+
+    public void addOpening(OpeningSpec opening) {
+        if (opening != null) {
+            openings.add(copyOpening(opening));
+            syncDoorsFromOpenings();
+        }
+    }
+
+    private void syncDoorsFromOpeningsIfNeeded() {
+        if (openings.isEmpty() && !doors.isEmpty()) {
+            for (DoorOpening door : doors) {
+                openings.add(OpeningSpec.from(door));
+            }
+        }
+    }
+
+    private void syncDoorsFromOpenings() {
+        doors = openings.stream()
+            .filter(opening -> opening.kind() == OpeningKind.DOOR)
+            .map(OpeningSpec::toLegacyDoorOpening)
+            .map(DoorOpening::copy)
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
+
+    private void replaceOpeningsOfKind(OpeningKind kind, List<OpeningSpec> replacements) {
+        List<OpeningSpec> retained = openings.stream()
+            .filter(opening -> opening.kind() != kind)
+            .map(this::copyOpening)
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        retained.addAll(replacements);
+        openings = retained;
+    }
+
+    private static List<OpeningSpec> toOpeningSpecs(List<DoorOpening> doors) {
+        if (doors == null || doors.isEmpty()) {
+            return List.of();
+        }
+        return doors.stream().map(OpeningSpec::from).toList();
+    }
+
+    private OpeningSpec copyOpening(OpeningSpec opening) {
+        return new OpeningSpec(
+            opening.kind(),
+            opening.wallSegmentIndex(),
+            opening.positionRatio(),
+            opening.floor(),
+            opening.width(),
+            opening.height(),
+            opening.bottomOffset()
+        );
     }
 
     /**
@@ -275,6 +357,23 @@ public class BuildingFootprint {
         this.floorPlates = floorPlates != null
             ? floorPlates.stream()
                 .map(plate -> FloorPlateSpec.of(plate.floorStart(), plate.floorEnd(), plate.outerPoints()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+            : new ArrayList<>();
+    }
+
+    /**
+     * 分墙段立面覆盖。为空时全楼使用全局窗型参数。
+     */
+    public List<WallFacadeSpec> getWallFacades() {
+        return wallFacades.stream()
+            .map(facade -> WallFacadeSpec.of(facade.wallSegmentIndex(), facade.windowPattern()))
+            .toList();
+    }
+
+    public void setWallFacades(List<WallFacadeSpec> wallFacades) {
+        this.wallFacades = wallFacades != null
+            ? wallFacades.stream()
+                .map(facade -> WallFacadeSpec.of(facade.wallSegmentIndex(), facade.windowPattern()))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
             : new ArrayList<>();
     }

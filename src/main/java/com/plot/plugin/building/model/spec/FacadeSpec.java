@@ -6,34 +6,75 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 立面参数（Phase 2：单一全局立面；Phase 5 将拆分为分立面 Facade）。
+ * 立面参数：默认窗型 + 分墙段覆盖 + 显式开洞列表。
  */
 public final class FacadeSpec {
     private final WindowPatternSpec defaultWindowPattern;
-    private final List<DoorOpeningSpec> doors;
+    private final List<WallFacadeSpec> wallFacades;
+    private final List<OpeningSpec> openings;
 
-    public FacadeSpec(WindowPatternSpec defaultWindowPattern, List<DoorOpeningSpec> doors) {
+    public FacadeSpec(
+            WindowPatternSpec defaultWindowPattern,
+            List<WallFacadeSpec> wallFacades,
+            List<OpeningSpec> openings) {
         this.defaultWindowPattern = defaultWindowPattern != null
             ? defaultWindowPattern
             : new WindowPatternSpec(4, 1, 2, 1);
-        this.doors = doors != null
-            ? List.copyOf(doors)
+        this.wallFacades = wallFacades != null
+            ? List.copyOf(wallFacades)
+            : List.of();
+        this.openings = openings != null
+            ? List.copyOf(openings)
             : List.of();
     }
 
     public static FacadeSpec from(BuildingFootprint footprint) {
-        List<DoorOpeningSpec> doorSpecs = new ArrayList<>();
-        for (BuildingFootprint.DoorOpening door : footprint.getDoors()) {
-            doorSpecs.add(DoorOpeningSpec.from(door));
-        }
-        return new FacadeSpec(WindowPatternSpec.from(footprint), doorSpecs);
+        return new FacadeSpec(
+            WindowPatternSpec.from(footprint),
+            footprint.getWallFacades(),
+            footprint.getOpenings()
+        );
     }
 
     public WindowPatternSpec defaultWindowPattern() {
         return defaultWindowPattern;
     }
 
+    public List<WallFacadeSpec> wallFacades() {
+        return wallFacades;
+    }
+
+    public List<OpeningSpec> openings() {
+        return openings;
+    }
+
+    /** @deprecated 请使用 {@link #openings()} 并按 {@link OpeningKind#DOOR} 过滤。 */
+    @Deprecated
     public List<DoorOpeningSpec> doors() {
-        return doors;
+        List<DoorOpeningSpec> doors = new ArrayList<>();
+        for (OpeningSpec opening : openings) {
+            if (opening.kind() == OpeningKind.DOOR) {
+                doors.add(opening.toDoorOpeningSpec());
+            }
+        }
+        return List.copyOf(doors);
+    }
+
+    public boolean hasCustomWallFacades() {
+        return !wallFacades.isEmpty();
+    }
+
+    public WindowPatternSpec windowPatternForSegment(int segmentIndex, int segmentCount) {
+        if (segmentCount <= 0) {
+            return defaultWindowPattern;
+        }
+        int index = Math.floorMod(segmentIndex, segmentCount);
+        for (int i = wallFacades.size() - 1; i >= 0; i--) {
+            WallFacadeSpec facade = wallFacades.get(i);
+            if (facade.wallSegmentIndex() == index) {
+                return facade.windowPattern();
+            }
+        }
+        return defaultWindowPattern;
     }
 }

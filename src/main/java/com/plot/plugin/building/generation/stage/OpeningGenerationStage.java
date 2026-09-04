@@ -6,12 +6,13 @@ import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
-import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.generation.opening.OpeningPlacementResolver;
+import com.plot.plugin.building.generation.opening.OpeningPlacementResolver.ResolvedOpening;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
-import com.plot.plugin.building.model.spec.DoorOpeningSpec;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.FacadeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
+import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.model.spec.WindowPatternSpec;
 import net.minecraft.util.math.BlockPos;
 
@@ -21,7 +22,8 @@ import java.util.Set;
 
 /**
  * 门窗开洞：在墙体上镂空，覆盖先前写入的墙体记录。
- * 每层使用对应 FloorPlate 的外轮廓采样窗洞位置。
+ * <p>
+ * 窗型阵列由 {@link FacadeSpec#windowPatternForSegment} 控制；显式开洞由 {@link OpeningSpec} 描述。
  */
 public final class OpeningGenerationStage implements BuildingGenerationStage {
     @Override
@@ -31,16 +33,13 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
 
     @Override
     public void generate(BuildingGenerationContext context) {
-        carveWindows(context);
-        carveDoors(context);
+        carvePatternWindows(context);
+        carveExplicitOpenings(context);
     }
 
-    private void carveWindows(BuildingGenerationContext context) {
+    private void carvePatternWindows(BuildingGenerationContext context) {
         BuildingDefinition definition = context.getDefinition();
-        WindowPatternSpec windows = definition.facade().defaultWindowPattern();
-        if (!windows.enabled()) {
-            return;
-        }
+        FacadeSpec facade = definition.facade();
 
         BuildingGenerationResult result = context.getResult();
         MassingSpec massing = definition.massing();
@@ -50,30 +49,38 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
 
         for (int floor = 0; floor < massing.floors(); floor++) {
             List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
-            List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegments(
-                outerPoints, windows.spacing());
+            int segmentCount = outerPoints.size();
             int floorBaseY = baseElevation + floor * massing.floorHeight();
-            int sill = windows.sillHeight();
-            int maxWindowHeight = Math.max(1, massing.floorHeight() - sill - 1);
-            int windowHeight = Math.min(windows.height(), maxWindowHeight);
-            for (BuildingGeometryUtils.WallSample sample : samples) {
-                carveOpening(
-                    context,
-                    result,
-                    sample.point(),
-                    sample.tangent(),
-                    sample.inwardNormal(),
-                    windows.width(),
-                    windowHeight,
-                    floorBaseY + sill,
-                    envelope.wallThickness(),
-                    projectionHandler
-                );
+
+            for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+                WindowPatternSpec windows = facade.windowPatternForSegment(segmentIndex, segmentCount);
+                if (!windows.enabled()) {
+                    continue;
+                }
+                int sill = windows.sillHeight();
+                int maxWindowHeight = Math.max(1, massing.floorHeight() - sill - 1);
+                int windowHeight = Math.min(windows.height(), maxWindowHeight);
+                List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegment(
+                    outerPoints, segmentIndex, windows.spacing());
+                for (BuildingGeometryUtils.WallSample sample : samples) {
+                    carveOpening(
+                        context,
+                        result,
+                        sample.point(),
+                        sample.tangent(),
+                        sample.inwardNormal(),
+                        windows.width(),
+                        windowHeight,
+                        floorBaseY + sill,
+                        envelope.wallThickness(),
+                        projectionHandler
+                    );
+                }
             }
         }
     }
 
-    private void carveDoors(BuildingGenerationContext context) {
+    private void carveExplicitOpenings(BuildingGenerationContext context) {
         BuildingDefinition definition = context.getDefinition();
         FacadeSpec facade = definition.facade();
         MassingSpec massing = definition.massing();
@@ -82,37 +89,25 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         int baseElevation = context.getBaseElevation();
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
-        for (DoorOpeningSpec door : facade.doors()) {
-            if (door.floor() < 0 || door.floor() >= massing.floors()) {
+        for (OpeningSpec opening : facade.openings()) {
+            if (opening.floor() < 0 || opening.floor() >= massing.floors()) {
                 continue;
             }
-            List<Vec2d> outerPoints = massing.plateForFloor(door.floor()).outerPoints();
-            int segmentCount = outerPoints.size();
-            int segmentIndex = Math.floorMod(door.wallSegmentIndex(), segmentCount);
-            Vec2d point = BuildingGeometryUtils.pointOnWallSegment(
-                outerPoints, segmentIndex, door.positionRatio());
-            if (point == null) {
+            List<Vec2d> outerPoints = massing.plateForFloor(opening.floor()).outerPoints();
+            ResolvedOpening resolved = OpeningPlacementResolver.resolve(
+                opening, outerPoints, baseElevation, massing.floorHeight());
+            if (resolved == null) {
                 continue;
             }
-            Vec2d start = outerPoints.get(segmentIndex);
-            Vec2d end = outerPoints.get((segmentIndex + 1) % segmentCount);
-            Vec2d tangent = end.subtract(start).normalize();
-            Vec2d inwardNormal = BuildingGeometryUtils.leftNormal(tangent);
-            if (BuildingFootprint.signedArea(outerPoints) >= 0) {
-                inwardNormal = inwardNormal.multiply(-1);
-            }
-            int floorBaseY = baseElevation + door.floor() * massing.floorHeight();
-            int maxDoorHeight = Math.max(1, massing.floorHeight() - 1);
-            int doorHeight = Math.min(Math.max(1, door.height()), maxDoorHeight);
             carveOpening(
                 context,
                 result,
-                point,
-                tangent,
-                inwardNormal,
-                door.width(),
-                doorHeight,
-                floorBaseY,
+                resolved.centerPoint(),
+                resolved.tangent(),
+                resolved.inwardNormal(),
+                resolved.width(),
+                resolved.height(),
+                resolved.startY(),
                 envelope.wallThickness(),
                 projectionHandler
             );

@@ -33,8 +33,9 @@ class BuildingDefinitionTest {
 
         assertEquals(5, definition.facade().defaultWindowPattern().spacing());
         assertEquals(2, definition.facade().defaultWindowPattern().width());
-        assertEquals(1, definition.facade().doors().size());
-        assertEquals(1, definition.facade().doors().getFirst().wallSegmentIndex());
+        assertEquals(1, definition.facade().openings().size());
+        assertEquals(OpeningKind.DOOR, definition.facade().openings().getFirst().kind());
+        assertEquals(1, definition.facade().openings().getFirst().wallSegmentIndex());
 
         assertEquals(BuildingFootprint.RoofType.GABLE, definition.roof().type());
         assertEquals(2, definition.roof().pitchRatio());

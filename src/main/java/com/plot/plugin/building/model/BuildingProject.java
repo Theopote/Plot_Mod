@@ -6,6 +6,10 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
+import com.plot.plugin.building.model.spec.OpeningKind;
+import com.plot.plugin.building.model.spec.OpeningSpec;
+import com.plot.plugin.building.model.spec.WallFacadeSpec;
+import com.plot.plugin.building.model.spec.WindowPatternSpec;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -131,6 +135,24 @@ public class BuildingProject {
         List<Vec2dData> outerPoints = new ArrayList<>();
     }
 
+    static class WallFacadeData {
+        int wallSegmentIndex;
+        int windowSpacing;
+        int windowWidth;
+        int windowHeight;
+        int windowSillHeight;
+    }
+
+    static class OpeningData {
+        String kind;
+        int wallSegmentIndex;
+        double positionRatio;
+        int floor;
+        int width;
+        int height;
+        int bottomOffset;
+    }
+
     static class BuildingData {
         String id;
         String name;
@@ -152,6 +174,8 @@ public class BuildingProject {
         int windowSillHeight;
         List<DoorData> doors = new ArrayList<>();
         List<FloorPlateData> floorPlates = new ArrayList<>();
+        List<WallFacadeData> wallFacades = new ArrayList<>();
+        List<OpeningData> openings = new ArrayList<>();
     }
 
     static class ProjectData {
@@ -181,15 +205,6 @@ public class BuildingProject {
                 buildingData.windowWidth = building.getWindowWidth();
                 buildingData.windowHeight = building.getWindowHeight();
                 buildingData.windowSillHeight = building.getWindowSillHeight();
-                for (BuildingFootprint.DoorOpening door : building.getDoors()) {
-                    DoorData doorData = new DoorData();
-                    doorData.wallSegmentIndex = door.wallSegmentIndex;
-                    doorData.positionRatio = door.positionRatio;
-                    doorData.floor = door.floor;
-                    doorData.width = door.width;
-                    doorData.height = door.height;
-                    buildingData.doors.add(doorData);
-                }
                 for (FloorPlateSpec plate : building.getFloorPlates()) {
                     FloorPlateData plateData = new FloorPlateData();
                     plateData.floorStart = plate.floorStart();
@@ -198,6 +213,36 @@ public class BuildingProject {
                         plateData.outerPoints.add(new Vec2dData(point));
                     }
                     buildingData.floorPlates.add(plateData);
+                }
+                for (WallFacadeSpec facade : building.getWallFacades()) {
+                    WallFacadeData facadeData = new WallFacadeData();
+                    facadeData.wallSegmentIndex = facade.wallSegmentIndex();
+                    WindowPatternSpec pattern = facade.windowPattern();
+                    facadeData.windowSpacing = pattern.spacing();
+                    facadeData.windowWidth = pattern.width();
+                    facadeData.windowHeight = pattern.height();
+                    facadeData.windowSillHeight = pattern.sillHeight();
+                    buildingData.wallFacades.add(facadeData);
+                }
+                for (OpeningSpec opening : building.getOpenings()) {
+                    OpeningData openingData = new OpeningData();
+                    openingData.kind = opening.kind().name();
+                    openingData.wallSegmentIndex = opening.wallSegmentIndex();
+                    openingData.positionRatio = opening.positionRatio();
+                    openingData.floor = opening.floor();
+                    openingData.width = opening.width();
+                    openingData.height = opening.height();
+                    openingData.bottomOffset = opening.bottomOffset();
+                    buildingData.openings.add(openingData);
+                    if (opening.kind() == OpeningKind.DOOR) {
+                        DoorData doorData = new DoorData();
+                        doorData.wallSegmentIndex = opening.wallSegmentIndex();
+                        doorData.positionRatio = opening.positionRatio();
+                        doorData.floor = opening.floor();
+                        doorData.width = opening.width();
+                        doorData.height = opening.height();
+                        buildingData.doors.add(doorData);
+                    }
                 }
                 data.buildings.add(buildingData);
             }
@@ -253,19 +298,36 @@ public class BuildingProject {
                 footprint.setWindowWidth(buildingData.windowWidth);
                 footprint.setWindowHeight(buildingData.windowHeight);
                 footprint.setWindowSillHeight(buildingData.windowSillHeight);
-                List<BuildingFootprint.DoorOpening> doors = new ArrayList<>();
-                if (buildingData.doors != null) {
-                    for (DoorData doorData : buildingData.doors) {
-                        doors.add(new BuildingFootprint.DoorOpening(
-                            doorData.wallSegmentIndex,
-                            doorData.positionRatio,
-                            doorData.floor,
-                            doorData.width,
-                            doorData.height
+                if (buildingData.openings != null && !buildingData.openings.isEmpty()) {
+                    List<OpeningSpec> openings = new ArrayList<>();
+                    for (OpeningData openingData : buildingData.openings) {
+                        OpeningKind kind = parseOpeningKind(openingData.kind);
+                        openings.add(new OpeningSpec(
+                            kind,
+                            openingData.wallSegmentIndex,
+                            openingData.positionRatio,
+                            openingData.floor,
+                            openingData.width,
+                            openingData.height,
+                            openingData.bottomOffset
                         ));
                     }
+                    footprint.setOpenings(openings);
+                } else {
+                    List<BuildingFootprint.DoorOpening> doors = new ArrayList<>();
+                    if (buildingData.doors != null) {
+                        for (DoorData doorData : buildingData.doors) {
+                            doors.add(new BuildingFootprint.DoorOpening(
+                                doorData.wallSegmentIndex,
+                                doorData.positionRatio,
+                                doorData.floor,
+                                doorData.width,
+                                doorData.height
+                            ));
+                        }
+                    }
+                    footprint.setDoors(doors);
                 }
-                footprint.setDoors(doors);
                 if (buildingData.floorPlates != null && !buildingData.floorPlates.isEmpty()) {
                     List<FloorPlateSpec> plates = new ArrayList<>();
                     for (FloorPlateData plateData : buildingData.floorPlates) {
@@ -287,9 +349,35 @@ public class BuildingProject {
                     }
                     footprint.setFloorPlates(plates);
                 }
+                if (buildingData.wallFacades != null && !buildingData.wallFacades.isEmpty()) {
+                    List<WallFacadeSpec> facades = new ArrayList<>();
+                    for (WallFacadeData facadeData : buildingData.wallFacades) {
+                        facades.add(WallFacadeSpec.of(
+                            facadeData.wallSegmentIndex,
+                            new WindowPatternSpec(
+                                facadeData.windowSpacing,
+                                facadeData.windowWidth,
+                                facadeData.windowHeight,
+                                facadeData.windowSillHeight
+                            )
+                        ));
+                    }
+                    footprint.setWallFacades(facades);
+                }
                 project.addBuilding(footprint);
             }
             return project;
+        }
+
+        private static OpeningKind parseOpeningKind(String kind) {
+            if (kind == null || kind.isBlank()) {
+                return OpeningKind.DOOR;
+            }
+            try {
+                return OpeningKind.valueOf(kind.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return OpeningKind.DOOR;
+            }
         }
     }
 }

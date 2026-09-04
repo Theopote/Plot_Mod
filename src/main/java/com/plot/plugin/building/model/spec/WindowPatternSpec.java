@@ -3,7 +3,7 @@ package com.plot.plugin.building.model.spec;
 import com.plot.plugin.building.model.BuildingFootprint;
 
 /**
- * 窗洞排列模式（Phase 2：全局默认模式，Phase 5 将按立面拆分）。
+ * 窗洞排列模式（全局默认或 {@link WallFacadeSpec} 分墙段覆盖）。
  */
 public final class WindowPatternSpec {
     private final int spacing;

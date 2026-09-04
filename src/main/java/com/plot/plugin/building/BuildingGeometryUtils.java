@@ -137,25 +137,40 @@ public final class BuildingGeometryUtils {
 
         int n = points.size();
         for (int segmentIndex = 0; segmentIndex < n; segmentIndex++) {
-            Vec2d start = points.get(segmentIndex);
-            Vec2d end = points.get((segmentIndex + 1) % n);
-            double segmentLength = start.distance(end);
-            if (segmentLength < spacing * 0.5) {
-                continue;
-            }
+            samples.addAll(sampleAlongWallSegment(points, segmentIndex, spacing));
+        }
+        return samples;
+    }
 
-            double distance = spacing * 0.5;
-            while (distance <= segmentLength - spacing * 0.5) {
-                double t = distance / segmentLength;
-                Vec2d point = start.lerp(end, t);
-                Vec2d tangent = end.subtract(start).normalize();
-                Vec2d inwardNormal = leftNormal(tangent);
-                if (BuildingFootprint.signedArea(points) >= 0) {
-                    inwardNormal = inwardNormal.multiply(-1);
-                }
-                samples.add(new WallSample(segmentIndex, point, tangent, inwardNormal));
-                distance += spacing;
+    public static List<WallSample> sampleAlongWallSegment(
+            List<Vec2d> points,
+            int segmentIndex,
+            double spacing) {
+        List<WallSample> samples = new ArrayList<>();
+        if (points == null || points.size() < 3 || spacing <= 0) {
+            return samples;
+        }
+
+        int n = points.size();
+        int index = Math.floorMod(segmentIndex, n);
+        Vec2d start = points.get(index);
+        Vec2d end = points.get((index + 1) % n);
+        double segmentLength = start.distance(end);
+        if (segmentLength < spacing * 0.5) {
+            return samples;
+        }
+
+        double distance = spacing * 0.5;
+        while (distance <= segmentLength - spacing * 0.5) {
+            double t = distance / segmentLength;
+            Vec2d point = start.lerp(end, t);
+            Vec2d tangent = end.subtract(start).normalize();
+            Vec2d inwardNormal = leftNormal(tangent);
+            if (BuildingFootprint.signedArea(points) >= 0) {
+                inwardNormal = inwardNormal.multiply(-1);
             }
+            samples.add(new WallSample(index, point, tangent, inwardNormal));
+            distance += spacing;
         }
         return samples;
     }

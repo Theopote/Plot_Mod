@@ -3,8 +3,11 @@ package com.plot.plugin.building.model.spec;
 import com.plot.plugin.building.model.BuildingFootprint;
 
 /**
- * 门洞定义（Phase 6 将扩展为统一 Opening 模型）。
+ * 门洞定义。
+ *
+ * @deprecated 请使用 {@link OpeningSpec#door(int, double, int, int, int)}。
  */
+@Deprecated
 public final class DoorOpeningSpec {
     private final int wallSegmentIndex;
     private final double positionRatio;
@@ -21,13 +24,24 @@ public final class DoorOpeningSpec {
     }
 
     public static DoorOpeningSpec from(BuildingFootprint.DoorOpening door) {
+        return OpeningSpec.from(door).toDoorOpeningSpec();
+    }
+
+    public static DoorOpeningSpec from(OpeningSpec opening) {
+        if (opening.kind() != OpeningKind.DOOR) {
+            throw new IllegalArgumentException("opening is not a door");
+        }
         return new DoorOpeningSpec(
-            door.wallSegmentIndex,
-            door.positionRatio,
-            door.floor,
-            door.width,
-            door.height
+            opening.wallSegmentIndex(),
+            opening.positionRatio(),
+            opening.floor(),
+            opening.width(),
+            opening.height()
         );
+    }
+
+    public OpeningSpec toOpeningSpec() {
+        return OpeningSpec.door(wallSegmentIndex, positionRatio, floor, width, height);
     }
 
     public BuildingFootprint.DoorOpening toLegacyDoorOpening() {
