@@ -1,7 +1,5 @@
 package com.plot.plugin.building.model.spec;
 
-import com.plot.plugin.building.model.BuildingFootprint;
-
 /**
  * 统一的立面开洞定义：窗、门、拱洞等共享同一套定位参数。
  */
@@ -61,35 +59,6 @@ public final class OpeningSpec {
             int height) {
         return new OpeningSpec(
             OpeningKind.ARCH, wallSegmentIndex, positionRatio, floor, width, height, 0);
-    }
-
-    public static OpeningSpec from(BuildingFootprint.DoorOpening door) {
-        return door(
-            door.wallSegmentIndex,
-            door.positionRatio,
-            door.floor,
-            door.width,
-            door.height
-        );
-    }
-
-    public static OpeningSpec from(DoorOpeningSpec door) {
-        return door(
-            door.wallSegmentIndex(),
-            door.positionRatio(),
-            door.floor(),
-            door.width(),
-            door.height()
-        );
-    }
-
-    public BuildingFootprint.DoorOpening toLegacyDoorOpening() {
-        return new BuildingFootprint.DoorOpening(
-            wallSegmentIndex, positionRatio, floor, width, height);
-    }
-
-    public DoorOpeningSpec toDoorOpeningSpec() {
-        return new DoorOpeningSpec(wallSegmentIndex, positionRatio, floor, width, height);
     }
 
     public OpeningKind kind() {

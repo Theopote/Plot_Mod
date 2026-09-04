@@ -2,7 +2,6 @@ package com.plot.plugin.building.model.spec;
 
 import com.plot.plugin.building.model.BuildingFootprint;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -53,18 +52,6 @@ public final class FacadeSpec {
         return openings.stream()
             .filter(opening -> opening.kind() == OpeningKind.DOOR)
             .toList();
-    }
-
-    /** @deprecated 请使用 {@link #doorOpenings()}。 */
-    @Deprecated
-    public List<DoorOpeningSpec> doors() {
-        List<DoorOpeningSpec> doors = new ArrayList<>();
-        for (OpeningSpec opening : openings) {
-            if (opening.kind() == OpeningKind.DOOR) {
-                doors.add(opening.toDoorOpeningSpec());
-            }
-        }
-        return List.copyOf(doors);
     }
 
     public boolean hasCustomWallFacades() {

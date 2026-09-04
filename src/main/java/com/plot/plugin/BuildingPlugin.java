@@ -20,6 +20,7 @@ import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
+import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.preset.BuildingPresetApplier;
 import com.plot.plugin.building.preset.BuildingPresetCatalog;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
@@ -610,8 +611,9 @@ public class BuildingPlugin extends Plugin {
         if (ImGui.checkbox(PlotI18n.tr("plugin.building.canopy_enabled"), canopyRef)) {
             projectHistory.push(project);
             if (canopyRef.get() && !hasCanopy) {
-                int wall = building.getDoors().isEmpty() ? 0 : building.getDoors().getFirst().wallSegmentIndex;
-                double ratio = building.getDoors().isEmpty() ? 0.5 : building.getDoors().getFirst().positionRatio;
+                List<OpeningSpec> doors = building.doorOpenings();
+                int wall = doors.isEmpty() ? 0 : doors.getFirst().wallSegmentIndex();
+                double ratio = doors.isEmpty() ? 0.5 : doors.getFirst().positionRatio();
                 building.addCanopy(new BuildingFootprint.Canopy(wall, ratio, 0, 3, 2, 3, null));
             } else if (!canopyRef.get()) {
                 building.setCanopies(List.of());
@@ -682,15 +684,15 @@ public class BuildingPlugin extends Plugin {
     private void renderDoorEditor(BuildingFootprint building) {
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.building.door_settings"));
-        List<BuildingFootprint.DoorOpening> doors = new ArrayList<>(building.getDoors());
+        List<OpeningSpec> doors = building.doorOpenings();
         for (int i = 0; i < doors.size(); i++) {
-            BuildingFootprint.DoorOpening door = doors.get(i);
+            OpeningSpec door = doors.get(i);
             ImGui.pushID("door_" + i);
             ImGui.text(String.format(PlotI18n.tr("plugin.building.door_item"),
-                door.wallSegmentIndex, door.positionRatio, door.floor + 1));
+                door.wallSegmentIndex(), door.positionRatio(), door.floor() + 1));
             if (ImGui.button(PlotI18n.tr("plugin.building.remove_door"))) {
                 projectHistory.push(project);
-                building.removeDoor(i);
+                building.removeDoorOpening(i);
                 invalidatePreview();
             }
             ImGui.popID();
@@ -708,7 +710,7 @@ public class BuildingPlugin extends Plugin {
         UIUtils.renderEngineeringTooltip("hint.plot.building.door_floor");
         if (ImGui.button(PlotI18n.tr("plugin.building.add_door"))) {
             projectHistory.push(project);
-            building.addDoor(new BuildingFootprint.DoorOpening(
+            building.addOpening(OpeningSpec.door(
                 wallSegment[0], positionRatio[0], floor[0], 1, 2));
             invalidatePreview();
         }

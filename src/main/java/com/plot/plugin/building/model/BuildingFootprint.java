@@ -24,29 +24,6 @@ public class BuildingFootprint {
         FLAT, GABLE, HIP
     }
 
-    public static class DoorOpening {
-        public int wallSegmentIndex;
-        public double positionRatio;
-        public int floor;
-        public int width = 1;
-        public int height = 2;
-
-        public DoorOpening() {
-        }
-
-        public DoorOpening(int wallSegmentIndex, double positionRatio, int floor, int width, int height) {
-            this.wallSegmentIndex = wallSegmentIndex;
-            this.positionRatio = positionRatio;
-            this.floor = floor;
-            this.width = width;
-            this.height = height;
-        }
-
-        public DoorOpening copy() {
-            return new DoorOpening(wallSegmentIndex, positionRatio, floor, width, height);
-        }
-    }
-
     public static class Canopy {
         public int wallSegmentIndex;
         public double positionRatio;
@@ -138,7 +115,6 @@ public class BuildingFootprint {
     private int windowHeight = 2;
     private int windowSillHeight = 1;
 
-    private List<DoorOpening> doors = new ArrayList<>();
     private List<FloorPlateSpec> floorPlates = new ArrayList<>();
     private List<WallFacadeSpec> wallFacades = new ArrayList<>();
     private List<OpeningSpec> openings = new ArrayList<>();
@@ -321,30 +297,21 @@ public class BuildingFootprint {
         this.windowSillHeight = Math.max(0, Math.min(8, windowSillHeight));
     }
 
-    public List<DoorOpening> getDoors() {
-        syncDoorsFromOpeningsIfNeeded();
-        return doors.stream().map(DoorOpening::copy).toList();
+    /** 显式门洞（{@link OpeningKind#DOOR}）。 */
+    public List<OpeningSpec> doorOpenings() {
+        return openings.stream()
+            .filter(opening -> opening.kind() == OpeningKind.DOOR)
+            .map(this::copyOpening)
+            .toList();
     }
 
-    public void setDoors(List<DoorOpening> doors) {
-        replaceOpeningsOfKind(OpeningKind.DOOR, toOpeningSpecs(doors));
-        syncDoorsFromOpenings();
-    }
-
-    public void addDoor(DoorOpening door) {
-        if (door != null) {
-            openings.add(OpeningSpec.from(door));
-            syncDoorsFromOpenings();
-        }
-    }
-
-    public void removeDoor(int index) {
+    /** 按门洞列表顺序移除第 {@code index} 个门。 */
+    public void removeDoorOpening(int index) {
         int doorIndex = 0;
         for (int i = 0; i < openings.size(); i++) {
             if (openings.get(i).kind() == OpeningKind.DOOR) {
                 if (doorIndex == index) {
                     openings.remove(i);
-                    syncDoorsFromOpenings();
                     return;
                 }
                 doorIndex++;
@@ -356,7 +323,6 @@ public class BuildingFootprint {
      * 显式立面开洞（门、拱、单窗等）。窗型阵列 pattern 仍由全局/分立面窗型参数控制。
      */
     public List<OpeningSpec> getOpenings() {
-        syncDoorsFromOpeningsIfNeeded();
         return openings.stream()
             .map(this::copyOpening)
             .toList();
@@ -366,46 +332,12 @@ public class BuildingFootprint {
         this.openings = openings != null
             ? openings.stream().map(this::copyOpening).collect(java.util.stream.Collectors.toCollection(ArrayList::new))
             : new ArrayList<>();
-        syncDoorsFromOpenings();
     }
 
     public void addOpening(OpeningSpec opening) {
         if (opening != null) {
             openings.add(copyOpening(opening));
-            syncDoorsFromOpenings();
         }
-    }
-
-    private void syncDoorsFromOpeningsIfNeeded() {
-        if (openings.isEmpty() && !doors.isEmpty()) {
-            for (DoorOpening door : doors) {
-                openings.add(OpeningSpec.from(door));
-            }
-        }
-    }
-
-    private void syncDoorsFromOpenings() {
-        doors = openings.stream()
-            .filter(opening -> opening.kind() == OpeningKind.DOOR)
-            .map(OpeningSpec::toLegacyDoorOpening)
-            .map(DoorOpening::copy)
-            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-    }
-
-    private void replaceOpeningsOfKind(OpeningKind kind, List<OpeningSpec> replacements) {
-        List<OpeningSpec> retained = openings.stream()
-            .filter(opening -> opening.kind() != kind)
-            .map(this::copyOpening)
-            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-        retained.addAll(replacements);
-        openings = retained;
-    }
-
-    private static List<OpeningSpec> toOpeningSpecs(List<DoorOpening> doors) {
-        if (doors == null || doors.isEmpty()) {
-            return List.of();
-        }
-        return doors.stream().map(OpeningSpec::from).toList();
     }
 
     private OpeningSpec copyOpening(OpeningSpec opening) {

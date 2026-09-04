@@ -27,18 +27,20 @@ class OpeningSpecTest {
     );
 
     @Test
-    void doorOpeningSpecRoundTripsThroughOpeningSpec() {
-        DoorOpeningSpec legacy = new DoorOpeningSpec(1, 0.5, 0, 2, 3);
-        OpeningSpec opening = legacy.toOpeningSpec();
+    void doorFactoryCreatesDoorOpening() {
+        OpeningSpec opening = OpeningSpec.door(1, 0.5, 0, 2, 3);
         assertEquals(OpeningKind.DOOR, opening.kind());
+        assertEquals(1, opening.wallSegmentIndex());
+        assertEquals(0.5, opening.positionRatio(), 1e-6);
         assertEquals(0, opening.bottomOffset());
-        assertEquals(legacy.wallSegmentIndex(), DoorOpeningSpec.from(opening).wallSegmentIndex());
+        assertEquals(2, opening.width());
+        assertEquals(3, opening.height());
     }
 
     @Test
     void facadeSpecCollectsDoorsAndArchesFromFootprint() {
         BuildingFootprint footprint = new BuildingFootprint(BASE, true);
-        footprint.addDoor(new BuildingFootprint.DoorOpening(0, 0.5, 0, 1, 2));
+        footprint.addOpening(OpeningSpec.door(0, 0.5, 0, 1, 2));
         footprint.addOpening(OpeningSpec.arch(2, 0.4, 0, 2, 3));
 
         FacadeSpec facade = FacadeSpec.from(footprint);
@@ -70,7 +72,7 @@ class OpeningSpecTest {
     void openingsRoundTripThroughProjectJson() {
         BuildingFootprint footprint = new BuildingFootprint(BASE, true);
         footprint.setFloors(2);
-        footprint.addDoor(new BuildingFootprint.DoorOpening(1, 0.5, 0, 2, 3));
+        footprint.addOpening(OpeningSpec.door(1, 0.5, 0, 2, 3));
         footprint.addOpening(OpeningSpec.arch(2, 0.25, 0, 2, 3));
 
         BuildingProject project = new BuildingProject();
@@ -80,7 +82,7 @@ class OpeningSpecTest {
         assertEquals(2, restored.getOpenings().size());
         assertEquals(OpeningKind.DOOR, restored.getOpenings().getFirst().kind());
         assertEquals(OpeningKind.ARCH, restored.getOpenings().get(1).kind());
-        assertEquals(1, restored.getDoors().size());
+        assertEquals(1, restored.doorOpenings().size());
     }
 
     @Test
@@ -113,6 +115,8 @@ class OpeningSpecTest {
         assertNotNull(footprint);
         assertEquals(1, footprint.getOpenings().size());
         assertEquals(OpeningKind.DOOR, footprint.getOpenings().getFirst().kind());
+        assertEquals(1, footprint.doorOpenings().getFirst().wallSegmentIndex());
+        assertEquals(0.5, footprint.doorOpenings().getFirst().positionRatio(), 1e-6);
     }
 
     private static BuildingDefinition definitionWithOpenings(List<OpeningSpec> openings) {

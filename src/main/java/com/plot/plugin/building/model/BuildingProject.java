@@ -367,20 +367,19 @@ public class BuildingProject {
                         ));
                     }
                     footprint.setOpenings(openings);
-                } else {
-                    List<BuildingFootprint.DoorOpening> doors = new ArrayList<>();
-                    if (buildingData.doors != null) {
-                        for (DoorData doorData : buildingData.doors) {
-                            doors.add(new BuildingFootprint.DoorOpening(
-                                doorData.wallSegmentIndex,
-                                doorData.positionRatio,
-                                doorData.floor,
-                                doorData.width,
-                                doorData.height
-                            ));
-                        }
+                } else if (buildingData.doors != null && !buildingData.doors.isEmpty()) {
+                    // legacy JSON: doors[] → OpeningSpec.DOOR
+                    List<OpeningSpec> openings = new ArrayList<>();
+                    for (DoorData doorData : buildingData.doors) {
+                        openings.add(OpeningSpec.door(
+                            doorData.wallSegmentIndex,
+                            doorData.positionRatio,
+                            doorData.floor,
+                            doorData.width,
+                            doorData.height
+                        ));
                     }
-                    footprint.setDoors(doors);
+                    footprint.setOpenings(openings);
                 }
                 if (buildingData.floorPlates != null && !buildingData.floorPlates.isEmpty()) {
                     List<FloorPlateSpec> plates = new ArrayList<>();

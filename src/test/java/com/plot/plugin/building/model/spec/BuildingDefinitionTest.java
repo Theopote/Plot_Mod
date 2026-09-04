@@ -66,7 +66,7 @@ class BuildingDefinitionTest {
         assertEquals(original.getRoofPitchRatio(), target.getRoofPitchRatio());
         assertEquals(original.getFoundationFillMaterial(), target.getFoundationFillMaterial());
         assertEquals(original.getManualBaseElevation(), target.getManualBaseElevation());
-        assertEquals(1, target.getDoors().size());
+        assertEquals(1, target.doorOpenings().size());
     }
 
     @Test
@@ -107,7 +107,7 @@ class BuildingDefinitionTest {
         footprint.setWindowWidth(2);
         footprint.setWindowHeight(3);
         footprint.setWindowSillHeight(1);
-        footprint.addDoor(new BuildingFootprint.DoorOpening(1, 0.5, 0, 2, 3));
+        footprint.addOpening(OpeningSpec.door(1, 0.5, 0, 2, 3));
         return footprint;
     }
 }

@@ -1,6 +1,7 @@
 package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.building.model.spec.OpeningSpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,7 +42,7 @@ class BuildingProjectTest {
         footprint.setWindowWidth(2);
         footprint.setWindowHeight(3);
         footprint.setWindowSillHeight(1);
-        footprint.addDoor(new BuildingFootprint.DoorOpening(1, 0.5, 0, 2, 3));
+        footprint.addOpening(OpeningSpec.door(1, 0.5, 0, 2, 3));
         project.addBuilding(footprint);
 
         BuildingProject restored = BuildingProject.fromJson(project.toJson());
@@ -62,9 +63,9 @@ class BuildingProjectTest {
         assertEquals(2, restoredFootprint.getWindowWidth());
         assertEquals(3, restoredFootprint.getWindowHeight());
         assertEquals(1, restoredFootprint.getWindowSillHeight());
-        assertEquals(1, restoredFootprint.getDoors().size());
-        assertEquals(1, restoredFootprint.getDoors().getFirst().wallSegmentIndex);
-        assertEquals(0.5, restoredFootprint.getDoors().getFirst().positionRatio, 1e-6);
+        assertEquals(1, restoredFootprint.doorOpenings().size());
+        assertEquals(1, restoredFootprint.doorOpenings().getFirst().wallSegmentIndex());
+        assertEquals(0.5, restoredFootprint.doorOpenings().getFirst().positionRatio(), 1e-6);
         assertTrue(restoredFootprint.isRectangular());
         assertEquals(4, restoredFootprint.getOuterPoints().size());
     }
