@@ -176,6 +176,31 @@ public class BuildingProject {
         List<FloorPlateData> floorPlates = new ArrayList<>();
         List<WallFacadeData> wallFacades = new ArrayList<>();
         List<OpeningData> openings = new ArrayList<>();
+        Boolean parapetEnabled;
+        Integer parapetHeight;
+        String parapetMaterial;
+        List<CanopyData> canopies = new ArrayList<>();
+        List<BalconyData> balconies = new ArrayList<>();
+    }
+
+    static class CanopyData {
+        int wallSegmentIndex;
+        double positionRatio;
+        int floor;
+        int width;
+        int depth;
+        int clearance;
+        String material;
+    }
+
+    static class BalconyData {
+        int wallSegmentIndex;
+        double positionRatio;
+        int floor;
+        int width;
+        int depth;
+        String slabMaterial;
+        String railingMaterial;
     }
 
     static class ProjectData {
@@ -243,6 +268,33 @@ public class BuildingProject {
                         doorData.height = opening.height();
                         buildingData.doors.add(doorData);
                     }
+                }
+                buildingData.parapetEnabled = building.isParapetEnabled();
+                if (building.isParapetEnabled()) {
+                    buildingData.parapetHeight = building.getParapetHeight();
+                    buildingData.parapetMaterial = building.getParapetMaterial();
+                }
+                for (BuildingFootprint.Canopy canopy : building.getCanopies()) {
+                    CanopyData canopyData = new CanopyData();
+                    canopyData.wallSegmentIndex = canopy.wallSegmentIndex;
+                    canopyData.positionRatio = canopy.positionRatio;
+                    canopyData.floor = canopy.floor;
+                    canopyData.width = canopy.width;
+                    canopyData.depth = canopy.depth;
+                    canopyData.clearance = canopy.clearance;
+                    canopyData.material = canopy.material;
+                    buildingData.canopies.add(canopyData);
+                }
+                for (BuildingFootprint.Balcony balcony : building.getBalconies()) {
+                    BalconyData balconyData = new BalconyData();
+                    balconyData.wallSegmentIndex = balcony.wallSegmentIndex;
+                    balconyData.positionRatio = balcony.positionRatio;
+                    balconyData.floor = balcony.floor;
+                    balconyData.width = balcony.width;
+                    balconyData.depth = balcony.depth;
+                    balconyData.slabMaterial = balcony.slabMaterial;
+                    balconyData.railingMaterial = balcony.railingMaterial;
+                    buildingData.balconies.add(balconyData);
                 }
                 data.buildings.add(buildingData);
             }
@@ -363,6 +415,37 @@ public class BuildingProject {
                         ));
                     }
                     footprint.setWallFacades(facades);
+                }
+                if (Boolean.TRUE.equals(buildingData.parapetEnabled)) {
+                    footprint.setParapetEnabled(true);
+                    if (buildingData.parapetHeight != null) {
+                        footprint.setParapetHeight(buildingData.parapetHeight);
+                    }
+                    footprint.setParapetMaterial(buildingData.parapetMaterial);
+                }
+                if (buildingData.canopies != null) {
+                    for (CanopyData canopyData : buildingData.canopies) {
+                        footprint.addCanopy(new BuildingFootprint.Canopy(
+                            canopyData.wallSegmentIndex,
+                            canopyData.positionRatio,
+                            canopyData.floor,
+                            canopyData.width,
+                            canopyData.depth,
+                            canopyData.clearance,
+                            canopyData.material));
+                    }
+                }
+                if (buildingData.balconies != null) {
+                    for (BalconyData balconyData : buildingData.balconies) {
+                        footprint.addBalcony(new BuildingFootprint.Balcony(
+                            balconyData.wallSegmentIndex,
+                            balconyData.positionRatio,
+                            balconyData.floor,
+                            balconyData.width,
+                            balconyData.depth,
+                            balconyData.slabMaterial,
+                            balconyData.railingMaterial));
+                    }
                 }
                 project.addBuilding(footprint);
             }

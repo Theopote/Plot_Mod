@@ -16,6 +16,7 @@ public final class BuildingDefinition {
     private final FacadeSpec facade;
     private final RoofSpec roof;
     private final FoundationSpec foundation;
+    private final AccessorySpec accessory;
 
     public BuildingDefinition(
             FootprintSpec footprint,
@@ -23,13 +24,27 @@ public final class BuildingDefinition {
             EnvelopeSpec envelope,
             FacadeSpec facade,
             RoofSpec roof,
-            FoundationSpec foundation) {
+            FoundationSpec foundation,
+            AccessorySpec accessory) {
         this.footprint = Objects.requireNonNull(footprint, "footprint");
         this.massing = Objects.requireNonNull(massing, "massing");
         this.envelope = Objects.requireNonNull(envelope, "envelope");
         this.facade = Objects.requireNonNull(facade, "facade");
         this.roof = Objects.requireNonNull(roof, "roof");
         this.foundation = Objects.requireNonNull(foundation, "foundation");
+        this.accessory = accessory != null ? accessory : AccessorySpec.none();
+    }
+
+    /** @deprecated 使用含 {@link AccessorySpec} 的构造器 */
+    @Deprecated
+    public BuildingDefinition(
+            FootprintSpec footprint,
+            MassingSpec massing,
+            EnvelopeSpec envelope,
+            FacadeSpec facade,
+            RoofSpec roof,
+            FoundationSpec foundation) {
+        this(footprint, massing, envelope, facade, roof, foundation, AccessorySpec.none());
     }
 
     public static BuildingDefinition fromFootprint(BuildingFootprint footprint) {
@@ -58,6 +73,10 @@ public final class BuildingDefinition {
 
     public FoundationSpec foundation() {
         return foundation;
+    }
+
+    public AccessorySpec accessory() {
+        return accessory;
     }
 
     public String id() {

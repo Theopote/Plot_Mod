@@ -25,10 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BuildingGenerationPipelineTest {
 
     @Test
-    void defaultStageOrderIsFoundationWallFloorRoofOpening() {
+    void defaultStageOrderIncludesAccessoryBeforeOpening() {
         BuildingGenerationPipeline pipeline = BuildingGenerationPipeline.createDefault();
         assertEquals(
-            List.of("foundation", "wall", "floor", "roof", "opening"),
+            List.of("foundation", "wall", "floor", "roof", "accessory", "opening"),
             pipeline.getStageNames());
     }
 

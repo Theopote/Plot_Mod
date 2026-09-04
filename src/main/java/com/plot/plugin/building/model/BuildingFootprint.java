@@ -47,6 +47,75 @@ public class BuildingFootprint {
         }
     }
 
+    public static class Canopy {
+        public int wallSegmentIndex;
+        public double positionRatio;
+        public int floor;
+        public int width = 3;
+        public int depth = 2;
+        public int clearance = 3;
+        public String material;
+
+        public Canopy() {
+        }
+
+        public Canopy(
+                int wallSegmentIndex,
+                double positionRatio,
+                int floor,
+                int width,
+                int depth,
+                int clearance,
+                String material) {
+            this.wallSegmentIndex = wallSegmentIndex;
+            this.positionRatio = positionRatio;
+            this.floor = floor;
+            this.width = width;
+            this.depth = depth;
+            this.clearance = clearance;
+            this.material = material;
+        }
+
+        public Canopy copy() {
+            return new Canopy(wallSegmentIndex, positionRatio, floor, width, depth, clearance, material);
+        }
+    }
+
+    public static class Balcony {
+        public int wallSegmentIndex;
+        public double positionRatio;
+        public int floor;
+        public int width = 3;
+        public int depth = 2;
+        public String slabMaterial;
+        public String railingMaterial;
+
+        public Balcony() {
+        }
+
+        public Balcony(
+                int wallSegmentIndex,
+                double positionRatio,
+                int floor,
+                int width,
+                int depth,
+                String slabMaterial,
+                String railingMaterial) {
+            this.wallSegmentIndex = wallSegmentIndex;
+            this.positionRatio = positionRatio;
+            this.floor = floor;
+            this.width = width;
+            this.depth = depth;
+            this.slabMaterial = slabMaterial;
+            this.railingMaterial = railingMaterial;
+        }
+
+        public Balcony copy() {
+            return new Balcony(
+                wallSegmentIndex, positionRatio, floor, width, depth, slabMaterial, railingMaterial);
+        }
+    }
+
     private final String id;
     private String name;
     private List<Vec2d> outerPoints;
@@ -73,6 +142,12 @@ public class BuildingFootprint {
     private List<FloorPlateSpec> floorPlates = new ArrayList<>();
     private List<WallFacadeSpec> wallFacades = new ArrayList<>();
     private List<OpeningSpec> openings = new ArrayList<>();
+
+    private boolean parapetEnabled;
+    private int parapetHeight = 1;
+    private String parapetMaterial;
+    private List<Canopy> canopies = new ArrayList<>();
+    private List<Balcony> balconies = new ArrayList<>();
 
     public BuildingFootprint(List<Vec2d> outerPoints, boolean isRectangular) {
         this(UUID.randomUUID().toString(), outerPoints, isRectangular);
@@ -376,6 +451,64 @@ public class BuildingFootprint {
                 .map(facade -> WallFacadeSpec.of(facade.wallSegmentIndex(), facade.windowPattern()))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
             : new ArrayList<>();
+    }
+
+    public boolean isParapetEnabled() {
+        return parapetEnabled;
+    }
+
+    public void setParapetEnabled(boolean parapetEnabled) {
+        this.parapetEnabled = parapetEnabled;
+    }
+
+    public int getParapetHeight() {
+        return parapetHeight;
+    }
+
+    public void setParapetHeight(int parapetHeight) {
+        this.parapetHeight = Math.max(1, Math.min(parapetHeight, 8));
+    }
+
+    public String getParapetMaterial() {
+        return parapetMaterial;
+    }
+
+    public void setParapetMaterial(String parapetMaterial) {
+        this.parapetMaterial = parapetMaterial;
+    }
+
+    public List<Canopy> getCanopies() {
+        return canopies.stream().map(Canopy::copy).toList();
+    }
+
+    public void setCanopies(List<Canopy> canopies) {
+        this.canopies = canopies != null
+            ? canopies.stream().map(Canopy::copy)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+            : new ArrayList<>();
+    }
+
+    public void addCanopy(Canopy canopy) {
+        if (canopy != null) {
+            canopies.add(canopy.copy());
+        }
+    }
+
+    public List<Balcony> getBalconies() {
+        return balconies.stream().map(Balcony::copy).toList();
+    }
+
+    public void setBalconies(List<Balcony> balconies) {
+        this.balconies = balconies != null
+            ? balconies.stream().map(Balcony::copy)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+            : new ArrayList<>();
+    }
+
+    public void addBalcony(Balcony balcony) {
+        if (balcony != null) {
+            balconies.add(balcony.copy());
+        }
     }
 
     public double computeArea() {

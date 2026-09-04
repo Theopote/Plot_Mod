@@ -252,6 +252,43 @@ public final class BuildingGeometryUtils {
         return new Vec2d(-normalized.y, normalized.x);
     }
 
+    /** 墙段外法向（由轮廓内部指向外部）。 */
+    public static Vec2d outwardNormal(List<Vec2d> points, int segmentIndex) {
+        if (points == null || points.size() < 3) {
+            return new Vec2d(0, 1);
+        }
+        int n = points.size();
+        int index = Math.floorMod(segmentIndex, n);
+        Vec2d start = points.get(index);
+        Vec2d end = points.get((index + 1) % n);
+        Vec2d tangent = end.subtract(start);
+        if (tangent.length() < 1e-9) {
+            return new Vec2d(0, 1);
+        }
+        tangent = tangent.normalize();
+        Vec2d left = leftNormal(tangent);
+        // CCW 轮廓：内部在行进方向左侧，外部在右侧。
+        if (BuildingFootprint.signedArea(points) >= 0) {
+            return left.multiply(-1);
+        }
+        return left;
+    }
+
+    public static Vec2d wallSegmentTangent(List<Vec2d> points, int segmentIndex) {
+        if (points == null || points.size() < 3) {
+            return new Vec2d(1, 0);
+        }
+        int n = points.size();
+        int index = Math.floorMod(segmentIndex, n);
+        Vec2d start = points.get(index);
+        Vec2d end = points.get((index + 1) % n);
+        Vec2d tangent = end.subtract(start);
+        if (tangent.length() < 1e-9) {
+            return new Vec2d(1, 0);
+        }
+        return tangent.normalize();
+    }
+
     public static BlockPos canvasToBlockXZ(Vec2d canvasPos, ICoordinateService transformer) {
         return PolygonRegionUtils.canvasToBlockXZ(canvasPos, transformer);
     }

@@ -19,7 +19,8 @@ public final class BuildingDefinitionMapper {
             EnvelopeSpec.from(footprint),
             FacadeSpec.from(footprint),
             RoofSpec.from(footprint),
-            FoundationSpec.from(footprint)
+            FoundationSpec.from(footprint),
+            AccessorySpec.from(footprint)
         );
     }
 
@@ -60,5 +61,30 @@ public final class BuildingDefinitionMapper {
         FoundationSpec foundation = definition.foundation();
         footprint.setFoundationFillMaterial(foundation.fillMaterial());
         footprint.setManualBaseElevation(foundation.manualBaseElevation());
+
+        AccessorySpec accessory = definition.accessory();
+        footprint.setParapetEnabled(accessory.parapet().enabled());
+        footprint.setParapetHeight(accessory.parapet().height());
+        footprint.setParapetMaterial(accessory.parapet().material());
+        footprint.setCanopies(accessory.canopies().stream()
+            .map(spec -> new BuildingFootprint.Canopy(
+                spec.wallSegmentIndex(),
+                spec.positionRatio(),
+                spec.floor(),
+                spec.width(),
+                spec.depth(),
+                spec.clearance(),
+                spec.material()))
+            .toList());
+        footprint.setBalconies(accessory.balconies().stream()
+            .map(spec -> new BuildingFootprint.Balcony(
+                spec.wallSegmentIndex(),
+                spec.positionRatio(),
+                spec.floor(),
+                spec.width(),
+                spec.depth(),
+                spec.slabMaterial(),
+                spec.railingMaterial()))
+            .toList());
     }
 }

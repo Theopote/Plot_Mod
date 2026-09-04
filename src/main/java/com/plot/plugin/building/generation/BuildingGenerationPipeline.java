@@ -1,5 +1,6 @@
 package com.plot.plugin.building.generation;
 
+import com.plot.plugin.building.generation.stage.AccessoryGenerationStage;
 import com.plot.plugin.building.generation.stage.BuildingGenerationStage;
 import com.plot.plugin.building.generation.stage.FloorGenerationStage;
 import com.plot.plugin.building.generation.stage.FoundationGenerationStage;
@@ -14,7 +15,7 @@ import java.util.Objects;
 
 /**
  * 建筑生成管线。默认顺序与旧 BuildingGenerator 一致：
- * Foundation → Wall → Floor → Roof → Opening。
+ * Foundation → Wall → Floor → Roof → Accessory → Opening。
  */
 public final class BuildingGenerationPipeline {
     private final List<BuildingGenerationStage> stages;
@@ -28,7 +29,7 @@ public final class BuildingGenerationPipeline {
     }
 
     /**
-     * 默认管线：地基 → 墙体 → 楼板 → 屋顶 → 开洞。
+     * 默认管线：地基 → 墙体 → 楼板 → 屋顶 → 构件 → 开洞。
      */
     public static BuildingGenerationPipeline createDefault() {
         return new BuildingGenerationPipeline(List.of(
@@ -36,6 +37,7 @@ public final class BuildingGenerationPipeline {
             new WallGenerationStage(),
             new FloorGenerationStage(),
             new RoofGenerationStage(),
+            new AccessoryGenerationStage(),
             new OpeningGenerationStage()
         ));
     }
