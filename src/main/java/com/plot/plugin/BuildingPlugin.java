@@ -20,6 +20,8 @@ import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
+import com.plot.plugin.building.preset.BuildingPresetApplier;
+import com.plot.plugin.building.preset.BuildingPresetCatalog;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import com.plot.plugin.road.RoadMaterialUtils;
@@ -339,6 +341,8 @@ public class BuildingPlugin extends Plugin {
             projectHistory.push(project);
         }
 
+        renderPresetSelector(building);
+
         int[] floors = {building.getFloors()};
         boolean floorsChanged = ImGui.sliderInt(
             "##floors", floors, 1, 32, PlotI18n.tr("plugin.building.floors", floors[0]));
@@ -492,6 +496,50 @@ public class BuildingPlugin extends Plugin {
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
 
         renderDoorEditor(building);
+    }
+
+    private void renderPresetSelector(BuildingFootprint building) {
+        List<BuildingPresetCatalog.BuildingPreset> presets = BuildingPresetCatalog.all();
+        String[] labels = presets.stream()
+            .map(p -> PlotI18n.tr("preset.building." + p.id()))
+            .toArray(String[]::new);
+        String[] ids = presets.stream()
+            .map(BuildingPresetCatalog.BuildingPreset::id)
+            .toArray(String[]::new);
+
+        int currentIndex = 0;
+        String currentPreset = building.getPresetId();
+        for (int i = 0; i < ids.length; i++) {
+            if (ids[i].equals(currentPreset)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        ImGui.text(PlotI18n.tr("plugin.building.preset_section"));
+        ImInt presetIndex = new ImInt(currentIndex);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##building_preset", presetIndex, labels)) {
+            // selection only; apply on button
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.preset");
+
+        if (!currentPreset.isBlank()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.building.preset_active", PlotI18n.tr("preset.building." + currentPreset)));
+        }
+
+        if (ImGui.button(PlotI18n.tr("plugin.building.apply_preset"), ImGui.getContentRegionAvailX(), 0)) {
+            int picked = presetIndex.get();
+            if (picked >= 0 && picked < ids.length) {
+                projectHistory.push(project);
+                BuildingPresetApplier.apply(ids[picked], building);
+                invalidatePreview();
+                projectStatus = PlotI18n.tr(
+                    "plugin.building.preset_applied",
+                    PlotI18n.tr("preset.building." + ids[picked]));
+            }
+        }
     }
 
     private void renderAccessorySettings(BuildingFootprint building) {

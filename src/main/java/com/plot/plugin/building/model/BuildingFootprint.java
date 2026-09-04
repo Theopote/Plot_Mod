@@ -148,6 +148,7 @@ public class BuildingFootprint {
     private String parapetMaterial;
     private List<Canopy> canopies = new ArrayList<>();
     private List<Balcony> balconies = new ArrayList<>();
+    private String presetId = "";
 
     public BuildingFootprint(List<Vec2d> outerPoints, boolean isRectangular) {
         this(UUID.randomUUID().toString(), outerPoints, isRectangular);
@@ -509,6 +510,14 @@ public class BuildingFootprint {
         if (balcony != null) {
             balconies.add(balcony.copy());
         }
+    }
+
+    public String getPresetId() {
+        return presetId != null ? presetId : "";
+    }
+
+    public void setPresetId(String presetId) {
+        this.presetId = presetId != null ? presetId.trim() : "";
     }
 
     public double computeArea() {

@@ -181,6 +181,7 @@ public class BuildingProject {
         String parapetMaterial;
         List<CanopyData> canopies = new ArrayList<>();
         List<BalconyData> balconies = new ArrayList<>();
+        String presetId;
     }
 
     static class CanopyData {
@@ -296,6 +297,7 @@ public class BuildingProject {
                     balconyData.railingMaterial = balcony.railingMaterial;
                     buildingData.balconies.add(balconyData);
                 }
+                buildingData.presetId = building.getPresetId();
                 data.buildings.add(buildingData);
             }
             return data;
@@ -446,6 +448,9 @@ public class BuildingProject {
                             balconyData.slabMaterial,
                             balconyData.railingMaterial));
                     }
+                }
+                if (buildingData.presetId != null) {
+                    footprint.setPresetId(buildingData.presetId);
                 }
                 project.addBuilding(footprint);
             }
