@@ -91,8 +91,7 @@ public final class ZoneOverlapAnalyzer {
                 zone.getName(),
                 zone.getPriority(),
                 Math.abs(zone.computeArea()),
-                EarthworkGeometryUtils.toPolygon(points),
-                EarthworkGeometryUtils.collectFootprintCellCenters(points)));
+                EarthworkGeometryUtils.toPolygon(points)));
         }
 
         List<ZoneOverlap> overlaps = new ArrayList<>();
@@ -157,12 +156,47 @@ public final class ZoneOverlapAnalyzer {
         return left.getBoundingBox().intersects(right.getBoundingBox());
     }
 
-    private record ZoneCandidate(
-            String id,
-            String name,
-            int priority,
-            double area,
-            Polygon polygon,
-            List<Vec2d> cells) {
+    private static final class ZoneCandidate {
+        private final String id;
+        private final String name;
+        private final int priority;
+        private final double area;
+        private final Polygon polygon;
+        private List<Vec2d> cells;
+
+        private ZoneCandidate(String id, String name, int priority, double area, Polygon polygon) {
+            this.id = id;
+            this.name = name;
+            this.priority = priority;
+            this.area = area;
+            this.polygon = polygon;
+        }
+
+        private String id() {
+            return id;
+        }
+
+        private String name() {
+            return name;
+        }
+
+        private int priority() {
+            return priority;
+        }
+
+        private double area() {
+            return area;
+        }
+
+        private Polygon polygon() {
+            return polygon;
+        }
+
+        private List<Vec2d> cells() {
+            if (cells == null) {
+                cells = EarthworkGeometryUtils.collectFootprintCellCenters(polygon.getPoints());
+            }
+            return cells;
+        }
     }
 }

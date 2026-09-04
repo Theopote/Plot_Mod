@@ -11,12 +11,19 @@ import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
+import java.util.Collections;
 import java.util.List;
 
 
 /** 土方总览 Tab：区域列表、重叠警告与删除确认。 */
 public final class EarthworkOverviewPanel {
     private final EarthworkUiContext ctx;
+    private EarthworkSite cachedOverlapSite;
+    private int cachedOverlapSignature;
+    private List<ZoneOverlapAnalyzer.ZoneOverlap> cachedOverlaps = List.of();
+    private EarthworkProject cachedBalanceProject;
+    private int cachedBalanceSignature;
+    private ProjectGlobalBalanceAggregator.AggregatedBalance cachedBalance;
 
     public EarthworkOverviewPanel(EarthworkUiContext ctx) {
         this.ctx = ctx;
@@ -92,11 +99,11 @@ public final class EarthworkOverviewPanel {
     }
 
     private void renderSiteOverlapWarnings() {
-        if (ctx.project().getRegionCount() < 2) {
+        EarthworkSite site = ctx.project().getActiveSite();
+        if (site == null || site.getZoneCount() < 2) {
             return;
         }
-        List<ZoneOverlapAnalyzer.ZoneOverlap> overlaps =
-            ZoneOverlapAnalyzer.findOverlaps(ctx.project().getActiveSite());
+        List<ZoneOverlapAnalyzer.ZoneOverlap> overlaps = resolveOverlaps(site);
         if (overlaps.isEmpty()) {
             return;
         }
@@ -127,8 +134,7 @@ public final class EarthworkOverviewPanel {
         if (project == null || project.getSiteCount() == 0) {
             return;
         }
-        ProjectGlobalBalanceAggregator.AggregatedBalance balance =
-            ProjectGlobalBalanceAggregator.aggregate(project);
+        ProjectGlobalBalanceAggregator.AggregatedBalance balance = resolveProjectBalance(project);
         if (balance.sitesWithVolume() == 0) {
             return;
         }
@@ -157,6 +163,58 @@ public final class EarthworkOverviewPanel {
             }
         }
         ImGui.spacing();
+    }
+
+    private List<ZoneOverlapAnalyzer.ZoneOverlap> resolveOverlaps(EarthworkSite site) {
+        int signature = overlapSignature(site);
+        if (site != cachedOverlapSite || signature != cachedOverlapSignature) {
+            cachedOverlapSite = site;
+            cachedOverlapSignature = signature;
+            cachedOverlaps = Collections.unmodifiableList(ZoneOverlapAnalyzer.findOverlaps(site));
+        }
+        return cachedOverlaps;
+    }
+
+    private ProjectGlobalBalanceAggregator.AggregatedBalance resolveProjectBalance(EarthworkProject project) {
+        int signature = projectBalanceSignature(project);
+        if (project != cachedBalanceProject || signature != cachedBalanceSignature || cachedBalance == null) {
+            cachedBalanceProject = project;
+            cachedBalanceSignature = signature;
+            cachedBalance = ProjectGlobalBalanceAggregator.aggregate(project);
+        }
+        return cachedBalance;
+    }
+
+    private static int overlapSignature(EarthworkSite site) {
+        int signature = 1;
+        for (GradingZone zone : site.getGradingZones().values()) {
+            if (zone == null) {
+                continue;
+            }
+            signature = 31 * signature + zone.getId().hashCode();
+            signature = 31 * signature + zone.getPriority();
+            signature = 31 * signature + Boolean.hashCode(zone.isEnabled());
+            for (var point : zone.getOuterPoints()) {
+                signature = 31 * signature + Double.hashCode(point.x);
+                signature = 31 * signature + Double.hashCode(point.y);
+            }
+        }
+        return signature;
+    }
+
+    private static int projectBalanceSignature(EarthworkProject project) {
+        int signature = 1;
+        for (EarthworkSite site : project.getSites().values()) {
+            if (site == null) {
+                continue;
+            }
+            var report = site.getLastReport();
+            signature = 31 * signature + site.getId().hashCode();
+            signature = 31 * signature + Long.hashCode(report.geometricCutVolume());
+            signature = 31 * signature + Long.hashCode(report.geometricFillVolume());
+            signature = 31 * signature + Double.hashCode(report.reusableCutVolume());
+        }
+        return signature;
     }
 
     public void renderDeleteConfirmPopup() {
