@@ -14,6 +14,10 @@ public final class GoldenBuildingCaseFactory {
     }
 
     public record Case(String id, String description, BuildingFootprint footprint) {
+        @Override
+        public String toString() {
+            return id + " — " + description;
+        }
     }
 
     public static List<Case> all() {

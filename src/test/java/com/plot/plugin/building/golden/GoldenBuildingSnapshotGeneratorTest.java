@@ -9,14 +9,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 开发用：打印各 Golden Case 当前指标，用于更新 {@link GoldenBuildingExpectations}。
+ * 开发用：刷新 <strong>Regression Golden</strong>（{@link GoldenBuildingExpectations}）快照。
+ * <p>
+ * 仅用于 A 类指标锁定。不要把输出当成 Semantic Acceptance expected——
+ * 正确性断言必须手写在 {@link SemanticAcceptanceAssertions}。
  */
 class GoldenBuildingSnapshotGeneratorTest {
 
     @Test
-    @Disabled("Dev helper: run manually to refresh GoldenBuildingExpectations")
+    @Disabled("Dev helper: run manually to refresh GoldenBuildingExpectations (Regression only)")
     void printAllGoldenMetrics() throws Exception {
         List<String> lines = new ArrayList<>();
+        lines.add("// Regression Golden snapshot — NOT semantic acceptance");
         for (GoldenBuildingCaseFactory.Case goldenCase : GoldenBuildingCaseFactory.all()) {
             GoldenBuildingMetrics metrics = GoldenBuildingHarness.generate(goldenCase.footprint());
             lines.add("=== " + goldenCase.id() + " " + goldenCase.description() + " ===");

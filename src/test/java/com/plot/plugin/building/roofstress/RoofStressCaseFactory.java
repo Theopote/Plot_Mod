@@ -35,6 +35,11 @@ public final class RoofStressCaseFactory {
             polygon = List.copyOf(polygon);
             referencePolygon = referencePolygon == null ? null : List.copyOf(referencePolygon);
         }
+
+        @Override
+        public String toString() {
+            return id + " — " + description;
+        }
     }
 
     public static List<RoofStressCase> all() {

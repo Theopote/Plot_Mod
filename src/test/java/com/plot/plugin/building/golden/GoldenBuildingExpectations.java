@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Golden Building 回归期望值（由 {@link GoldenBuildingSnapshotGeneratorTest} 生成）。
+ * Regression Golden 的 Snapshot expected（A 类）。
+ * <p>
+ * 仅锁定「行为有没有变化」；正确性见 {@link SemanticAcceptanceAssertions}。
+ * 刷新：{@link GoldenBuildingSnapshotGeneratorTest}。
  */
 public final class GoldenBuildingExpectations {
     private GoldenBuildingExpectations() {
@@ -46,7 +49,11 @@ public final class GoldenBuildingExpectations {
         "GABLE",
         List.of());
 
-    /** inner offset 降级 + 坡顶 downgrade；wallBlocks 必须 &gt; 0，见 {@link GoldenBuildingTest#b07InnerOffsetDegradationInvariants()} */
+    /**
+     * B07 Snapshot：仅锁定数量回归。正确性（wallBlocks&gt;0 等）见
+     * {@link BuildingSemanticAcceptanceTest#b07RequiresSemanticProtectionBeyondSnapshot()}——
+     * 禁止只靠本字段证明降级行为正确。
+     */
     public static final GoldenBuildingMetrics B07 = new GoldenBuildingMetrics(
         72, 66, 0, 0, 0, 6, 0, 0, 0,
         0, 11, 64, 66, 0, 1,

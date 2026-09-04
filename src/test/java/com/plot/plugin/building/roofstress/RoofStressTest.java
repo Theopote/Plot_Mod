@@ -18,7 +18,7 @@ class RoofStressTest {
         return RoofStressCaseFactory.all().stream();
     }
 
-    @ParameterizedTest(name = "{0.id} — {0.description}")
+    @ParameterizedTest(name = "{0}")
     @MethodSource("cases")
     @DisplayName("Roof Stress Suite")
     void stressCaseHoldsInvariants(RoofStressCase stressCase) {

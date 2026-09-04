@@ -34,8 +34,7 @@ class BuildingStabilizationSmokeProjectTest {
         }
 
         GoldenBuildingMetrics b07 = GoldenBuildingHarness.generate(byName.get("B07 Narrow Corridor"));
-        assertEquals(0, b07.floorBlocks());
-        assertTrue(b07.warnings().contains("plugin.building.warn.inner_offset_failed"));
+        SemanticAcceptanceAssertions.assertB07InnerOffsetDegradation(b07);
     }
 
     @Test
