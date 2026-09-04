@@ -38,16 +38,16 @@ public final class ParapetGenerator {
             massing.plateForFloor(topFloorIndex), envelope.wallThickness());
         Polygon outerPolygon = plate.outerPolygon();
         Polygon innerPolygon = plate.innerPolygon();
-        if (innerPolygon == null) {
-            return;
-        }
 
         int topWallY = context.getTopFloorY();
         String blockId = BuildingGeometryUtils.resolveBlockId(spec.resolvedMaterial());
 
         for (BuildingGenerationContext.GridCell cell : plate.outerCells()) {
             Vec2d center = cell.center();
-            if (!outerPolygon.contains(center) || innerPolygon.contains(center)) {
+            if (!outerPolygon.contains(center)) {
+                continue;
+            }
+            if (innerPolygon != null && innerPolygon.contains(center)) {
                 continue;
             }
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(

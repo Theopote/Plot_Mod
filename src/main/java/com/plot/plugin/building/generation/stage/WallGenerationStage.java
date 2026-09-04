@@ -17,6 +17,8 @@ import net.minecraft.util.math.BlockPos;
 
 /**
  * 墙体生成：按 FloorPlate 逐层挤出外轮廓内、内轮廓外的柱列。
+ * <p>
+ * inner offset 失败时仍生成实心墙体量（与 Floor 阶段跳过室内楼板区分）。
  */
 public final class WallGenerationStage implements BuildingGenerationStage {
     @Override
@@ -39,9 +41,6 @@ public final class WallGenerationStage implements BuildingGenerationStage {
                 massing.plateForFloor(floor), envelope.wallThickness());
             Polygon outerPolygon = plate.outerPolygon();
             Polygon innerPolygon = plate.innerPolygon();
-            if (innerPolygon == null) {
-                continue;
-            }
             int yStart = baseElevation + floor * floorHeight;
             int yEnd = yStart + floorHeight;
 
@@ -50,7 +49,7 @@ public final class WallGenerationStage implements BuildingGenerationStage {
                 if (!outerPolygon.contains(center)) {
                     continue;
                 }
-                if (innerPolygon.contains(center)) {
+                if (innerPolygon != null && innerPolygon.contains(center)) {
                     continue;
                 }
                 BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(

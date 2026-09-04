@@ -47,8 +47,8 @@ public final class GoldenBuildingExpectations {
         List.of());
 
     public static final GoldenBuildingMetrics B07 = new GoldenBuildingMetrics(
-        6, 0, 0, 0, 0, 6, 0, 0, 0,
-        2, 10, 65, 65, 0, 2,
+        75, 69, 0, 0, 0, 6, 0, 0, 0,
+        0, 11, 64, 66, 0, 2,
         "FLAT",
         List.of("plugin.building.warn.inner_offset_failed", "plugin.building.warn.roof_downgrade"));
 
