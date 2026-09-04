@@ -7,6 +7,8 @@ import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver;
+import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
@@ -16,6 +18,7 @@ import java.util.List;
 
 /**
  * 楼板生成，并在同一阶段内完成顶层屋面材质替换（Phase 0 约定）。
+ * 每层楼板使用对应 FloorPlate 的内轮廓。
  */
 public final class FloorGenerationStage implements BuildingGenerationStage {
     @Override
@@ -30,11 +33,6 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
     }
 
     private void generateFloors(BuildingGenerationContext context) {
-        Polygon innerPolygon = context.getInnerPolygon();
-        if (innerPolygon == null) {
-            return;
-        }
-
         BuildingGenerationResult result = context.getResult();
         BuildingDefinition definition = context.getDefinition();
         MassingSpec massing = definition.massing();
@@ -42,11 +40,17 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
         int baseElevation = context.getBaseElevation();
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
-        List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
-            BuildingGeometryUtils.copyPoints(innerPolygon.getPoints()), innerPolygon);
-
         for (int floor = 0; floor <= massing.floors(); floor++) {
+            int plateFloor = Math.min(floor, Math.max(0, massing.floors() - 1));
+            ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
+                massing.plateForFloor(plateFloor), envelope.wallThickness());
+            Polygon innerPolygon = plate.innerPolygon();
+            if (innerPolygon == null) {
+                continue;
+            }
             int floorY = baseElevation + floor * massing.floorHeight();
+            List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
+                plate.innerPoints(), innerPolygon);
             for (BuildingGenerationContext.GridCell cell : innerCells) {
                 if (!innerPolygon.contains(cell.center())) {
                     continue;
@@ -63,17 +67,22 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
     }
 
     private void replaceTopFloorMaterial(BuildingGenerationContext context) {
-        Polygon innerPolygon = context.getInnerPolygon();
+        BuildingGenerationResult result = context.getResult();
+        BuildingDefinition definition = context.getDefinition();
+        MassingSpec massing = definition.massing();
+        EnvelopeSpec envelope = definition.envelope();
+        ResolvedFloorPlate topPlate = FloorPlateGeometryResolver.resolve(
+            massing.topOccupiedPlate(), envelope.wallThickness());
+        Polygon innerPolygon = topPlate.innerPolygon();
         if (innerPolygon == null) {
             return;
         }
-        BuildingGenerationResult result = context.getResult();
         int topFloorY = context.getTopFloorY();
         String roofBlockId = context.getRoofBlockId();
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
         List<BuildingGenerationContext.GridCell> innerCells = BuildingGenerationContext.collectFootprintCells(
-            BuildingGeometryUtils.copyPoints(innerPolygon.getPoints()), innerPolygon);
+            topPlate.innerPoints(), innerPolygon);
         for (BuildingGenerationContext.GridCell cell : innerCells) {
             if (!innerPolygon.contains(cell.center())) {
                 continue;

@@ -25,6 +25,7 @@ class BuildingDefinitionTest {
         assertEquals(3, definition.massing().floors());
         assertEquals(4, definition.massing().floorHeight());
         assertEquals(12, definition.massing().totalHeight());
+        assertEquals(1, definition.massing().floorPlates().size());
 
         assertEquals(2, definition.envelope().wallThickness());
         assertEquals("minecraft:stone_bricks", definition.envelope().wallMaterial().getPrimaryMaterial());

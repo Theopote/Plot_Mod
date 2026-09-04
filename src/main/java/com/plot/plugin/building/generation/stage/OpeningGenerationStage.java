@@ -21,6 +21,7 @@ import java.util.Set;
 
 /**
  * 门窗开洞：在墙体上镂空，覆盖先前写入的墙体记录。
+ * 每层使用对应 FloorPlate 的外轮廓采样窗洞位置。
  */
 public final class OpeningGenerationStage implements BuildingGenerationStage {
     @Override
@@ -42,16 +43,15 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         }
 
         BuildingGenerationResult result = context.getResult();
-        List<Vec2d> outerPoints = context.getOuterPoints();
         MassingSpec massing = definition.massing();
         EnvelopeSpec envelope = definition.envelope();
         int baseElevation = context.getBaseElevation();
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
-        List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegments(
-            outerPoints, windows.spacing());
-
         for (int floor = 0; floor < massing.floors(); floor++) {
+            List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
+            List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegments(
+                outerPoints, windows.spacing());
             int floorBaseY = baseElevation + floor * massing.floorHeight();
             int sill = windows.sillHeight();
             int maxWindowHeight = Math.max(1, massing.floorHeight() - sill - 1);
@@ -76,18 +76,18 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
     private void carveDoors(BuildingGenerationContext context) {
         BuildingDefinition definition = context.getDefinition();
         FacadeSpec facade = definition.facade();
-        List<Vec2d> outerPoints = context.getOuterPoints();
         MassingSpec massing = definition.massing();
         EnvelopeSpec envelope = definition.envelope();
         BuildingGenerationResult result = context.getResult();
         int baseElevation = context.getBaseElevation();
         IBlockProjectionService projectionHandler = context.getProjectionService();
-        int segmentCount = outerPoints.size();
 
         for (DoorOpeningSpec door : facade.doors()) {
             if (door.floor() < 0 || door.floor() >= massing.floors()) {
                 continue;
             }
+            List<Vec2d> outerPoints = massing.plateForFloor(door.floor()).outerPoints();
+            int segmentCount = outerPoints.size();
             int segmentIndex = Math.floorMod(door.wallSegmentIndex(), segmentCount);
             Vec2d point = BuildingGeometryUtils.pointOnWallSegment(
                 outerPoints, segmentIndex, door.positionRatio());

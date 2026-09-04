@@ -8,8 +8,11 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.RoofSpec;
 
+import java.util.List;
+
 /**
  * 屋顶阶段：解析有效屋顶类型，并在坡屋顶时调用 BuildingRoofGenerator。
+ * 使用最高 occupied FloorPlate 的外轮廓。
  */
 public final class RoofGenerationStage implements BuildingGenerationStage {
     @Override
@@ -21,15 +24,17 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
     public void generate(BuildingGenerationContext context) {
         BuildingGenerationResult result = context.getResult();
         BuildingDefinition definition = context.getDefinition();
+        List<com.plot.api.geometry.Vec2d> roofFootprint =
+            definition.massing().topOccupiedPlate().outerPoints();
 
-        BuildingFootprint.RoofType roofType = resolveRoofType(definition, context.getOuterPoints(), result);
+        BuildingFootprint.RoofType roofType = resolveRoofType(definition, roofFootprint, result);
         result.effectiveRoofType = roofType;
 
         if (roofType != BuildingFootprint.RoofType.FLAT) {
             RoofSpec roof = definition.roof();
             BuildingRoofGenerator.generate(
                 result,
-                context.getOuterPoints(),
+                roofFootprint,
                 context.getTopFloorY(),
                 context.getRoofBlockId(),
                 roofType,

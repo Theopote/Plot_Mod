@@ -179,6 +179,23 @@ public final class BuildingGenerationContext {
     }
 
     /**
+     * 测试专用：直接从 {@link BuildingDefinition} 构建上下文。
+     */
+    public static BuildingGenerationContext forTesting(
+            BuildingDefinition definition,
+            ICoordinateService coordinateService,
+            IBlockProjectionService projectionService,
+            BuildingGenerationResult result) {
+        Objects.requireNonNull(definition, "definition");
+        BuildingFootprint footprint = new BuildingFootprint(
+            definition.footprint().id(),
+            BuildingGeometryUtils.copyPoints(definition.footprint().outerPoints()),
+            definition.footprint().rectangular());
+        BuildingDefinitionMapper.applyMassingEnvelopeFacadeRoofFoundation(definition, footprint);
+        return forTesting(footprint, coordinateService, projectionService, result);
+    }
+
+    /**
      * 测试专用：构造 valid=true 的最小上下文，不依赖真实 Minecraft World。
      */
     public static BuildingGenerationContext forTesting(

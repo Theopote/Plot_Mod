@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.plugin.building.model.spec.FloorPlateSpec;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -124,6 +125,12 @@ public class BuildingProject {
         int height;
     }
 
+    static class FloorPlateData {
+        int floorStart;
+        int floorEnd;
+        List<Vec2dData> outerPoints = new ArrayList<>();
+    }
+
     static class BuildingData {
         String id;
         String name;
@@ -144,6 +151,7 @@ public class BuildingProject {
         int windowHeight;
         int windowSillHeight;
         List<DoorData> doors = new ArrayList<>();
+        List<FloorPlateData> floorPlates = new ArrayList<>();
     }
 
     static class ProjectData {
@@ -181,6 +189,15 @@ public class BuildingProject {
                     doorData.width = door.width;
                     doorData.height = door.height;
                     buildingData.doors.add(doorData);
+                }
+                for (FloorPlateSpec plate : building.getFloorPlates()) {
+                    FloorPlateData plateData = new FloorPlateData();
+                    plateData.floorStart = plate.floorStart();
+                    plateData.floorEnd = plate.floorEnd();
+                    for (Vec2d point : plate.outerPoints()) {
+                        plateData.outerPoints.add(new Vec2dData(point));
+                    }
+                    buildingData.floorPlates.add(plateData);
                 }
                 data.buildings.add(buildingData);
             }
@@ -249,6 +266,27 @@ public class BuildingProject {
                     }
                 }
                 footprint.setDoors(doors);
+                if (buildingData.floorPlates != null && !buildingData.floorPlates.isEmpty()) {
+                    List<FloorPlateSpec> plates = new ArrayList<>();
+                    for (FloorPlateData plateData : buildingData.floorPlates) {
+                        if (plateData.outerPoints == null || plateData.outerPoints.size() < 3) {
+                            continue;
+                        }
+                        List<Vec2d> platePoints = new ArrayList<>();
+                        for (Vec2dData pointData : plateData.outerPoints) {
+                            if (pointData != null) {
+                                platePoints.add(pointData.toVec2d());
+                            }
+                        }
+                        if (platePoints.size() >= 3) {
+                            plates.add(FloorPlateSpec.of(
+                                plateData.floorStart,
+                                plateData.floorEnd,
+                                platePoints));
+                        }
+                    }
+                    footprint.setFloorPlates(plates);
+                }
                 project.addBuilding(footprint);
             }
             return project;

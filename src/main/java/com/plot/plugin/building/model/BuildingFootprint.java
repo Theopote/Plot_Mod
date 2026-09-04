@@ -2,6 +2,7 @@ package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.building.model.spec.FloorPlateSpec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +67,7 @@ public class BuildingFootprint {
     private int windowSillHeight = 1;
 
     private List<DoorOpening> doors = new ArrayList<>();
+    private List<FloorPlateSpec> floorPlates = new ArrayList<>();
 
     public BuildingFootprint(List<Vec2d> outerPoints, boolean isRectangular) {
         this(UUID.randomUUID().toString(), outerPoints, isRectangular);
@@ -258,6 +260,23 @@ public class BuildingFootprint {
         if (index >= 0 && index < doors.size()) {
             doors.remove(index);
         }
+    }
+
+    /**
+     * 分楼层轮廓板。为空时表示全楼统一使用 {@link #getOuterPoints()}。
+     */
+    public List<FloorPlateSpec> getFloorPlates() {
+        return floorPlates.stream()
+            .map(plate -> FloorPlateSpec.of(plate.floorStart(), plate.floorEnd(), plate.outerPoints()))
+            .toList();
+    }
+
+    public void setFloorPlates(List<FloorPlateSpec> floorPlates) {
+        this.floorPlates = floorPlates != null
+            ? floorPlates.stream()
+                .map(plate -> FloorPlateSpec.of(plate.floorStart(), plate.floorEnd(), plate.outerPoints()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
+            : new ArrayList<>();
     }
 
     public double computeArea() {

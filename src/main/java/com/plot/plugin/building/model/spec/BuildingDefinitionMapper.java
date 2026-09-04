@@ -36,6 +36,7 @@ public final class BuildingDefinitionMapper {
         MassingSpec massing = definition.massing();
         footprint.setFloors(massing.floors());
         footprint.setFloorHeight(massing.floorHeight());
+        footprint.setFloorPlates(massing.floorPlates());
 
         EnvelopeSpec envelope = definition.envelope();
         footprint.setWallThickness(envelope.wallThickness());
