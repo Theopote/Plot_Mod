@@ -48,7 +48,14 @@ public final class FacadeSpec {
         return openings;
     }
 
-    /** @deprecated 请使用 {@link #openings()} 并按 {@link OpeningKind#DOOR} 过滤。 */
+    /** 显式门洞（{@link OpeningKind#DOOR}）。 */
+    public List<OpeningSpec> doorOpenings() {
+        return openings.stream()
+            .filter(opening -> opening.kind() == OpeningKind.DOOR)
+            .toList();
+    }
+
+    /** @deprecated 请使用 {@link #doorOpenings()}。 */
     @Deprecated
     public List<DoorOpeningSpec> doors() {
         List<DoorOpeningSpec> doors = new ArrayList<>();

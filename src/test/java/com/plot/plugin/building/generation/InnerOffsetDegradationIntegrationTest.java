@@ -13,6 +13,7 @@ import com.plot.plugin.building.golden.GoldenBuildingCaseFactory;
 import com.plot.plugin.building.golden.GoldenBuildingHarness;
 import com.plot.plugin.building.golden.GoldenBuildingMetrics;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.model.spec.AccessorySpec;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
 import com.plot.plugin.building.model.spec.FacadeSpec;
@@ -69,7 +70,8 @@ class InnerOffsetDegradationIntegrationTest {
             new EnvelopeSpec(3, null, null),
             new FacadeSpec(new WindowPatternSpec(0, 1, 2, 1), List.of(), List.of()),
             new RoofSpec(BuildingFootprint.RoofType.FLAT, 1, null),
-            new FoundationSpec(null, 64));
+            new FoundationSpec(null, 64),
+            AccessorySpec.none());
 
         assertTrue(FloorPlateGeometryResolver.resolve(
             definition.massing().plateForFloor(0), 3).hasInteriorSpace());

@@ -45,4 +45,21 @@ class GoldenBuildingTest {
         assertTrue(actual.warnings().contains("plugin.building.warn.roof_downgrade"));
         assertEquals("FLAT", actual.effectiveRoofType());
     }
+
+    /**
+     * B10 厚墙：墙体量大于薄墙同轮廓，且 bounds 可超出 footprint 原点（负 minX/minZ 为预期几何）。
+     */
+    @Test
+    void b10ThickWallInvariants() {
+        GoldenBuildingMetrics thick = GoldenBuildingHarness.generate(
+            GoldenBuildingCaseFactory.b10ThickWall().footprint());
+        GoldenBuildingMetrics thin = GoldenBuildingHarness.generate(
+            GoldenBuildingCaseFactory.rectangle(10, 8, 2, 3, 1));
+
+        assertTrue(thick.wallBlocks() > thin.wallBlocks(), "thick wall must exceed thin wall block count");
+        assertTrue(thick.wallBlocks() > thick.floorBlocks(), "thick wall mass should dominate floor slabs");
+        assertTrue(thick.minX() < 0, "thick walls extend west of footprint origin");
+        assertTrue(thick.minZ() < 0, "thick walls extend north of footprint origin");
+        assertTrue(thick.warnings().isEmpty());
+    }
 }

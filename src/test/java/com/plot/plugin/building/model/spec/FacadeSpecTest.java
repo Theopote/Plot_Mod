@@ -116,7 +116,8 @@ class FacadeSpecTest {
             new EnvelopeSpec(1, null, null),
             facade,
             new RoofSpec(BuildingFootprint.RoofType.FLAT, 1, null),
-            new FoundationSpec(null, 64)
+            new FoundationSpec(null, 64),
+            AccessorySpec.none()
         );
     }
 

@@ -45,7 +45,7 @@ class OpeningSpecTest {
         assertEquals(2, facade.openings().size());
         assertEquals(OpeningKind.DOOR, facade.openings().getFirst().kind());
         assertEquals(OpeningKind.ARCH, facade.openings().get(1).kind());
-        assertEquals(1, facade.doors().size());
+        assertEquals(1, facade.doorOpenings().size());
     }
 
     @Test
@@ -129,7 +129,8 @@ class OpeningSpecTest {
             new EnvelopeSpec(1, null, null),
             facade,
             new RoofSpec(BuildingFootprint.RoofType.FLAT, 1, null),
-            new FoundationSpec(null, 64)
+            new FoundationSpec(null, 64),
+            AccessorySpec.none()
         );
     }
 

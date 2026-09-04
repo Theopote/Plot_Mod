@@ -110,7 +110,8 @@ class FloorPlateSpecTest {
             new EnvelopeSpec(1, null, null),
             new FacadeSpec(new WindowPatternSpec(0, 1, 2, 1), List.of(), List.of()),
             new RoofSpec(BuildingFootprint.RoofType.FLAT, 1, null),
-            new FoundationSpec(null, 64)
+            new FoundationSpec(null, 64),
+            AccessorySpec.none()
         );
     }
 
