@@ -8,6 +8,7 @@ import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.plugin.building.BuildingFoundationUtils;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
 import net.minecraft.util.math.BlockPos;
@@ -153,8 +154,17 @@ public final class BuildingGenerationContext {
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateService);
             groundHeights.add(sampleTopHeight(world, column));
         }
+        Integer earthworkPadElevation = footprint != null
+            ? BuildingSiteElevationResolver.resolveEarthworkPadElevation(footprint)
+            : BuildingSiteElevationResolver.resolveEarthworkPadElevation(
+                definition.footprint().id(), outerPoints);
         int baseElevation = BuildingFoundationUtils.computeBaseElevation(
-            groundHeights, definition.foundation().manualBaseElevation());
+            groundHeights,
+            definition.foundation().manualBaseElevation(),
+            earthworkPadElevation);
+        if (earthworkPadElevation != null && definition.foundation().manualBaseElevation() == null) {
+            result.warnings.add("plugin.building.warn.using_earthwork_pad_elevation");
+        }
 
         String foundationFill = BuildingGeometryUtils.resolveBlockId(definition.foundation().fillMaterial());
         String roofBlock = BuildingGeometryUtils.resolveBlockId(definition.roof().material());

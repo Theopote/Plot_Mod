@@ -30,4 +30,16 @@ class BuildingFoundationUtilsTest {
     void computeBaseElevationDefaultsWhenEmpty() {
         assertEquals(64, BuildingFoundationUtils.computeBaseElevation(List.of(), null));
     }
+
+    @Test
+    void computeBaseElevationPrefersEarthworkPadOverTerrain() {
+        assertEquals(72, BuildingFoundationUtils.computeBaseElevation(
+            List.of(64, 64, 65, 65), null, 72));
+    }
+
+    @Test
+    void computeBaseElevationManualOverrideBeatsEarthworkPad() {
+        assertEquals(80, BuildingFoundationUtils.computeBaseElevation(
+            List.of(64, 64), 80, 72));
+    }
 }

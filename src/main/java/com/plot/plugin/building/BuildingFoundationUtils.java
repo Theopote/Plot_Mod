@@ -13,12 +13,33 @@ public final class BuildingFoundationUtils {
 
     /**
      * 根据地面高度采样计算建筑±0标高。
+     * 优先级：手动覆盖 &gt; 土方垫层设计标高 &gt; 地形采样众数（并列取较高值）。
+     */
+    public static int computeBaseElevation(
+            List<Integer> groundHeightSamples,
+            Integer manualOverride,
+            Integer earthworkPadElevation) {
+        if (manualOverride != null) {
+            return manualOverride;
+        }
+        if (earthworkPadElevation != null) {
+            return earthworkPadElevation;
+        }
+        return computeBaseElevationFromTerrain(groundHeightSamples);
+    }
+
+    /**
+     * 根据地面高度采样计算建筑±0标高。
      * 手动指定时直接返回；否则取众数，并列时取较高值。
      */
     public static int computeBaseElevation(List<Integer> groundHeightSamples, Integer manualOverride) {
         if (manualOverride != null) {
             return manualOverride;
         }
+        return computeBaseElevationFromTerrain(groundHeightSamples);
+    }
+
+    private static int computeBaseElevationFromTerrain(List<Integer> groundHeightSamples) {
         if (groundHeightSamples == null || groundHeightSamples.isEmpty()) {
             return 64;
         }

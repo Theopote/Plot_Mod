@@ -20,6 +20,10 @@ import com.plot.plugin.earthwork.manager.EarthworkPreviewManager;
 import com.plot.plugin.earthwork.manager.EarthworkUIManager;
 import com.plot.plugin.earthwork.model.EarthworkProject;
 import com.plot.plugin.earthwork.model.EarthworkProjectHistory;
+import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.earthwork.design.BuildingPadElevationService;
+import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
 import com.plot.ui.canvas.CanvasCamera;
 import com.plot.ui.canvas.CanvasOverlayRegistry;
@@ -280,5 +284,29 @@ public class EarthworkPlugin extends Plugin {
 
     private Path getProjectsDir() {
         return getDataFolder().toPath().resolve("projects");
+    }
+
+    /**
+     * 解析与建筑关联、由土方主导标高的 BUILDING_PAD 设计标高。
+     * 垫层跟随建筑标高（{@code BUILDING_BASE_ELEVATION}）时返回 {@code null}，避免循环依赖。
+     */
+    public Integer resolveBuildingPadDesignElevation(String buildingId, java.util.List<Vec2d> footprintPoints) {
+        synchronized (projectLock) {
+            if (uiContext == null || buildingId == null || buildingId.isBlank()) {
+                return null;
+            }
+            DesignTerrainGrid previewGrid = null;
+            EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
+            if (preview != null) {
+                previewGrid = preview.designTerrainGrid;
+            }
+            return BuildingPadElevationService.resolveEarthworkOwnedPadElevation(
+                uiContext.project(),
+                buildingId,
+                footprintPoints,
+                previewGrid,
+                ctx().coordinates()
+            ).orElse(null);
+        }
     }
 }
