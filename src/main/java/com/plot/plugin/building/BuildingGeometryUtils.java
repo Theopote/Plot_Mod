@@ -3,6 +3,7 @@ package com.plot.plugin.building;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
 import com.plot.core.geometry.polygon.PolygonOffset;
+import com.plot.core.geometry.polygon.StraightSkeleton;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
@@ -58,9 +59,28 @@ public final class BuildingGeometryUtils {
     }
 
     /**
-     * 是否满足坡屋顶生成前提：4 点且边与世界坐标轴平行（旋转矩形返回 false）。
+     * 是否满足坡屋顶生成前提：简单多边形且骨架波前在内部存在足够抬升空间。
      */
     public static boolean isSlopedRoofEligible(List<Vec2d> points) {
+        return isSlopedRoofEligible(points, 2);
+    }
+
+    /**
+     * 是否满足坡屋顶生成前提：简单多边形且骨架在指定坡度下存在至少 1 格抬升空间。
+     */
+    public static boolean isSlopedRoofEligible(List<Vec2d> points, int pitchRatio) {
+        StraightSkeleton.Result skeleton = StraightSkeleton.compute(points);
+        int pitch = Math.max(1, pitchRatio);
+        return skeleton.success() && skeleton.maxSkeletalTime() >= pitch;
+    }
+
+    /**
+     * 是否满足坡屋顶生成前提：4 点且边与世界坐标轴平行（旋转矩形返回 false）。
+     *
+     * @deprecated 请使用 {@link #isSlopedRoofEligible(List)}（Straight Skeleton v2）。
+     */
+    @Deprecated
+    public static boolean isAxisAlignedSlopedRoofEligible(List<Vec2d> points) {
         return isAxisAlignedRectangle(points, TOLERANCE);
     }
 

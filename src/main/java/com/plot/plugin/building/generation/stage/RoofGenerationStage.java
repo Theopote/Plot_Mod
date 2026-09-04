@@ -53,7 +53,7 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
         if (requested == BuildingFootprint.RoofType.FLAT) {
             return BuildingFootprint.RoofType.FLAT;
         }
-        if (BuildingGeometryUtils.isSlopedRoofEligible(outerPoints)) {
+        if (BuildingGeometryUtils.isSlopedRoofEligible(outerPoints, roof.pitchRatio())) {
             return requested;
         }
         result.warnings.add("plugin.building.warn.roof_downgrade");

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -37,7 +38,7 @@ class BuildingGeneratorSmokeTest {
     }
 
     @Test
-    void rotatedRectangleFootprintDowngradesRoofWithWarning() {
+    void rotatedRectangleSupportsHipRoofWithSkeleton() {
         List<Vec2d> diamond = List.of(
             new Vec2d(10, 5),
             new Vec2d(15, 10),
@@ -45,34 +46,35 @@ class BuildingGeneratorSmokeTest {
             new Vec2d(5, 10)
         );
         BuildingFootprint footprint = new BuildingFootprint(diamond, false);
-        footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
+        footprint.setRoofType(BuildingFootprint.RoofType.HIP);
 
         BuildingGenerationResult result = new BuildingGenerationResult();
         BuildingFootprint.RoofType effective = RoofGenerationStage.resolveRoofType(
             BuildingDefinition.fromFootprint(footprint), footprint.getOuterPoints(), result);
 
-        assertEquals(BuildingFootprint.RoofType.FLAT, effective);
-        assertTrue(result.warnings.contains("plugin.building.warn.roof_downgrade"));
+        assertEquals(BuildingFootprint.RoofType.HIP, effective);
+        assertFalse(result.warnings.contains("plugin.building.warn.roof_downgrade"));
     }
 
     @Test
-    void nonRectangularFootprintDowngradesRoofWithWarning() {
-        List<Vec2d> pentagon = List.of(
+    void concaveFootprintSupportsHipRoofWhenSkeletonHasHeight() {
+        List<Vec2d> lShape = List.of(
             new Vec2d(0, 0),
-            new Vec2d(12, 0),
-            new Vec2d(14, 6),
-            new Vec2d(6, 12),
-            new Vec2d(-2, 5)
+            new Vec2d(10, 0),
+            new Vec2d(10, 4),
+            new Vec2d(4, 4),
+            new Vec2d(4, 10),
+            new Vec2d(0, 10)
         );
-        BuildingFootprint footprint = new BuildingFootprint(pentagon, false);
-        footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
+        BuildingFootprint footprint = new BuildingFootprint(lShape, false);
+        footprint.setRoofType(BuildingFootprint.RoofType.HIP);
 
         BuildingGenerationResult result = new BuildingGenerationResult();
         BuildingFootprint.RoofType effective = RoofGenerationStage.resolveRoofType(
             BuildingDefinition.fromFootprint(footprint), footprint.getOuterPoints(), result);
 
-        assertEquals(BuildingFootprint.RoofType.FLAT, effective);
-        assertTrue(result.warnings.contains("plugin.building.warn.roof_downgrade"));
+        assertEquals(BuildingFootprint.RoofType.HIP, effective);
+        assertFalse(result.warnings.contains("plugin.building.warn.roof_downgrade"));
     }
 
     @Test

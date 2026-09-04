@@ -1,8 +1,7 @@
 package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
-import com.plot.core.command.commands.BuildingGenerateCommand;
+import com.plot.core.geometry.polygon.StraightSkeleton;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
@@ -33,14 +32,14 @@ class BuildingGeometryUtilsTest {
     }
 
     @Test
-    void rotatedRectangleIsNotSlopedRoofEligible() {
+    void rotatedRectangleIsSlopedRoofEligibleWithSkeleton() {
         List<Vec2d> diamond = List.of(
             new Vec2d(10, 5),
             new Vec2d(15, 10),
             new Vec2d(10, 15),
             new Vec2d(5, 10)
         );
-        assertFalse(BuildingGeometryUtils.isSlopedRoofEligible(diamond));
+        assertTrue(BuildingGeometryUtils.isSlopedRoofEligible(diamond));
         assertFalse(BuildingGeometryUtils.isAxisAlignedRectangle(diamond, 1e-3));
     }
 
@@ -105,5 +104,22 @@ class BuildingGeometryUtilsTest {
         assertEquals(0, corner);
         assertTrue(center > corner, "Hip roof center should rise above corners");
         assertEquals(2, center);
+    }
+
+    @Test
+    void skeletonHipCenterHigherThanCornerOnLShape() {
+        List<Vec2d> lShape = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 4),
+            new Vec2d(4, 4),
+            new Vec2d(4, 10),
+            new Vec2d(0, 10)
+        );
+        StraightSkeleton.Result skeleton = StraightSkeleton.compute(lShape);
+        int corner = BuildingRoofGenerator.computeHipRise(new Vec2d(0.5, 0.5), skeleton, null, 2);
+        int interior = BuildingRoofGenerator.computeHipRise(new Vec2d(2.5, 2.5), skeleton, null, 2);
+        assertEquals(0, corner);
+        assertTrue(interior > corner);
     }
 }
