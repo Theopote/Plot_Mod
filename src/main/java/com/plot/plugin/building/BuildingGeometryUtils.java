@@ -185,10 +185,8 @@ public final class BuildingGeometryUtils {
             double t = distance / segmentLength;
             Vec2d point = start.lerp(end, t);
             Vec2d tangent = end.subtract(start).normalize();
-            Vec2d inwardNormal = leftNormal(tangent);
-            if (BuildingFootprint.signedArea(points) >= 0) {
-                inwardNormal = inwardNormal.multiply(-1);
-            }
+            // CCW：内部在左侧；CW：内部在右侧。与 {@link #outwardNormal} 相反即为内法向。
+            Vec2d inwardNormal = outwardNormal(points, index).multiply(-1);
             samples.add(new WallSample(index, point, tangent, inwardNormal));
             distance += spacing;
         }

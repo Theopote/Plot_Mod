@@ -80,6 +80,30 @@ class BuildingGeometryUtilsTest {
     }
 
     @Test
+    void wallSampleInwardNormalPointsIntoCcwFootprint() {
+        List<Vec2d> rect = List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 8),
+            new Vec2d(0, 8)
+        );
+        // 南墙 (y=0)：内法向应指向 +Y
+        List<BuildingGeometryUtils.WallSample> south =
+            BuildingGeometryUtils.sampleAlongWallSegment(rect, 0, 4.0);
+        assertFalse(south.isEmpty());
+        assertTrue(south.getFirst().inwardNormal().y > 0.5, "south wall inward should be +Y");
+
+        // 西墙 (x=0，自北向南)：内法向应指向 +X
+        List<BuildingGeometryUtils.WallSample> west =
+            BuildingGeometryUtils.sampleAlongWallSegment(rect, 3, 4.0);
+        assertFalse(west.isEmpty());
+        assertTrue(west.getFirst().inwardNormal().x > 0.5, "west wall inward should be +X");
+
+        Vec2d outwardWest = BuildingGeometryUtils.outwardNormal(rect, 3);
+        assertTrue(outwardWest.x < -0.5, "west wall outward should be -X");
+    }
+
+    @Test
     void gableRidgeIsHighestAndEavesAreZero() {
         BuildingGeometryUtils.RectBounds bounds = new BuildingGeometryUtils.RectBounds(0, 20, 0, 10);
         int ridge = BuildingRoofGenerator.computeGableRise(10, 5, bounds, true, 2);

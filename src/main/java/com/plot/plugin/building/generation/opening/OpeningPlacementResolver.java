@@ -2,7 +2,6 @@ package com.plot.plugin.building.generation.opening;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.BuildingGeometryUtils;
-import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 
@@ -45,10 +44,7 @@ public final class OpeningPlacementResolver {
         Vec2d start = outerPoints.get(segmentIndex);
         Vec2d end = outerPoints.get((segmentIndex + 1) % segmentCount);
         Vec2d tangent = end.subtract(start).normalize();
-        Vec2d inwardNormal = BuildingGeometryUtils.leftNormal(tangent);
-        if (BuildingFootprint.signedArea(outerPoints) >= 0) {
-            inwardNormal = inwardNormal.multiply(-1);
-        }
+        Vec2d inwardNormal = BuildingGeometryUtils.outwardNormal(outerPoints, segmentIndex).multiply(-1);
 
         int floorBaseY = baseElevation + opening.floor() * floorHeight;
         int bottom = opening.bottomOffset();

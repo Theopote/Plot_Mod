@@ -126,7 +126,7 @@ public final class GoldenBuildingCaseFactory {
     }
 
     public static Case b10ThickWall() {
-        // 厚墙（3）时墙体柱列可超出名义 footprint，bounds.minX/minZ 可能为负。
+        // 厚墙回归：wallThickness=3 时墙环更厚；开洞必须向内镂空，bounds 不得为负。
         return new Case("B10", "thick wall", rectangle(10, 8, 2, 3, 3));
     }
 

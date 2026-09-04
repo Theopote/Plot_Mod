@@ -47,7 +47,12 @@ class GoldenBuildingTest {
     }
 
     /**
-     * B10 厚墙：墙体量大于薄墙同轮廓，且 bounds 可超出 footprint 原点（负 minX/minZ 为预期几何）。
+     * B10 厚墙（10×8，wallThickness=3）：
+     * <ul>
+     *   <li>墙体量必须大于同轮廓薄墙（thickness=1）</li>
+     *   <li>开洞沿<strong>内</strong>法向镂空，AABB 不得超出 footprint（曾误把负 bounds
+     *       当成「厚墙外扩」固化进 Golden；根因是 CCW 轮廓内法向反向）</li>
+     * </ul>
      */
     @Test
     void b10ThickWallInvariants() {
@@ -58,8 +63,10 @@ class GoldenBuildingTest {
 
         assertTrue(thick.wallBlocks() > thin.wallBlocks(), "thick wall must exceed thin wall block count");
         assertTrue(thick.wallBlocks() > thick.floorBlocks(), "thick wall mass should dominate floor slabs");
-        assertTrue(thick.minX() < 0, "thick walls extend west of footprint origin");
-        assertTrue(thick.minZ() < 0, "thick walls extend north of footprint origin");
+        assertTrue(thick.minX() >= 0, "openings must carve inward; minX must stay in footprint");
+        assertTrue(thick.minZ() >= 0, "openings must carve inward; minZ must stay in footprint");
+        assertTrue(thick.maxX() < 10, "blocks use cell centers; maxX stays within [0,10)");
+        assertTrue(thick.maxZ() < 8, "blocks use cell centers; maxZ stays within [0,8)");
         assertTrue(thick.warnings().isEmpty());
     }
 }
