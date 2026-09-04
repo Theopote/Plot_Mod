@@ -1,10 +1,11 @@
 package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
-import com.plot.core.command.BlockRecord;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.IBlockProjectionService;
+import com.plot.plugin.building.generation.BuildingBlockWriter;
+import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 
@@ -18,17 +19,17 @@ public final class BuildingRoofGenerator {
     }
 
     public static void generate(
-            BuildingGenerator.BuildingGenerationResult result,
-            BuildingFootprint footprint,
+            BuildingGenerationResult result,
             List<Vec2d> outerPoints,
             int topFloorY,
             String roofBlockId,
             BuildingFootprint.RoofType roofType,
+            int roofPitchRatio,
             ICoordinateService transformer,
             IBlockProjectionService projectionHandler) {
         Polygon roofPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
         BuildingGeometryUtils.RectBounds bounds = BuildingGeometryUtils.normalizedRectBounds(outerPoints);
-        int pitch = Math.max(1, footprint.getRoofPitchRatio());
+        int pitch = Math.max(1, roofPitchRatio);
         boolean ridgeAlongX = bounds.width() >= bounds.depth();
 
         for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(outerPoints)) {
@@ -49,9 +50,34 @@ public final class BuildingRoofGenerator {
             BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, transformer);
             for (int layer = 1; layer <= rise; layer++) {
                 BlockPos pos = new BlockPos(column.getX(), topFloorY + layer, column.getZ());
-                recordBlock(result, pos, roofBlockId, projectionHandler);
+                BuildingBlockWriter.recordBlock(result, pos, roofBlockId, projectionHandler);
             }
         }
+    }
+
+    /**
+     * @deprecated 使用带 {@code roofPitchRatio} 的重载。
+     */
+    @Deprecated
+    public static void generate(
+            BuildingGenerationResult result,
+            BuildingFootprint footprint,
+            List<Vec2d> outerPoints,
+            int topFloorY,
+            String roofBlockId,
+            BuildingFootprint.RoofType roofType,
+            ICoordinateService transformer,
+            IBlockProjectionService projectionHandler) {
+        generate(
+            result,
+            outerPoints,
+            topFloorY,
+            roofBlockId,
+            roofType,
+            footprint.getRoofPitchRatio(),
+            transformer,
+            projectionHandler
+        );
     }
 
     /**
@@ -88,25 +114,5 @@ public final class BuildingRoofGenerator {
             return 0;
         }
         return (int) Math.floor(distToEave / pitch);
-    }
-
-    private static void recordBlock(
-            BuildingGenerator.BuildingGenerationResult result,
-            BlockPos pos,
-            String newBlockId,
-            IBlockProjectionService projectionHandler) {
-        if (result == null || pos == null || newBlockId == null) {
-            return;
-        }
-        // 与 BuildingGenerator 一致：保留 previous，允许覆盖 newBlockId
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
-            return;
-        }
-        String previous = projectionHandler != null
-            ? projectionHandler.getBlockIdAt(pos)
-            : "minecraft:air";
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
     }
 }

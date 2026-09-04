@@ -16,6 +16,7 @@ import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.BuildingListHelper;
+import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
@@ -64,7 +65,7 @@ public class BuildingPlugin extends Plugin {
     private volatile String projectStatus = "";
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
-    private volatile BuildingGenerator.BuildingGenerationResult lastGenerationResult;
+    private volatile BuildingGenerationResult lastGenerationResult;
     private String buildingNameEditingId = "";
     private String pendingDeleteBuildingId = "";
     private boolean deleteConfirmPending = false;
@@ -924,7 +925,7 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void buildInWorld() {
-        final BuildingGenerator.BuildingGenerationResult resultSnapshot;
+        final BuildingGenerationResult resultSnapshot;
         synchronized (projectLock) {
             if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
                 projectStatus = PlotI18n.tr("plugin.building.build_no_blocks");

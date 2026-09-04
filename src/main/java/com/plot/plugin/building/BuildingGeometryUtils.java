@@ -2,7 +2,7 @@ package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.geometry.PolygonRegionUtils;
-import com.plot.core.geometry.shapes.LineShape;
+import com.plot.core.geometry.polygon.PolygonOffset;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.core.geometry.shapes.RectangleShape;
 import com.plot.core.model.Shape;
@@ -94,45 +94,17 @@ public final class BuildingGeometryUtils {
     }
 
     public static List<Vec2d> offsetClosedPolygon(List<Vec2d> points, double distance) {
-        if (points == null || points.size() < 3) {
-            return new ArrayList<>();
-        }
-
-        int n = points.size();
-        List<LineShape> offsetSegments = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            Vec2d p1 = points.get(i);
-            Vec2d p2 = points.get((i + 1) % n);
-            Vec2d direction = p2.subtract(p1);
-            double length = direction.length();
-            if (length < 1e-8) {
-                continue;
-            }
-            Vec2d normal = new Vec2d(-direction.y, direction.x).normalize();
-            Vec2d offset = normal.multiply(distance);
-            offsetSegments.add(new LineShape(p1.add(offset), p2.add(offset)));
-        }
-
-        List<Vec2d> offsetPoints = new ArrayList<>();
-        for (int i = 0; i < offsetSegments.size(); i++) {
-            LineShape seg1 = offsetSegments.get(i);
-            LineShape seg2 = offsetSegments.get((i + 1) % offsetSegments.size());
-            List<Vec2d> intersections = seg1.getIntersectionPoints(seg2);
-            if (!intersections.isEmpty()) {
-                offsetPoints.add(intersections.getFirst());
-            } else {
-                offsetPoints.add(seg1.getEnd());
-            }
-        }
-        return offsetPoints;
+        PolygonOffset.OffsetResult result = distance >= 0
+            ? PolygonOffset.offsetInward(points, distance)
+            : PolygonOffset.offsetOutward(points, -distance);
+        return new ArrayList<>(result.pointsOrEmpty());
     }
 
     public static List<Vec2d> offsetInward(List<Vec2d> points, double distance) {
         if (points == null || points.size() < 3 || distance <= 0) {
             return copyPoints(points);
         }
-        double sign = BuildingFootprint.signedArea(points) >= 0 ? -1.0 : 1.0;
-        return offsetClosedPolygon(points, sign * distance);
+        return new ArrayList<>(PolygonOffset.offsetInward(points, distance).pointsOrEmpty());
     }
 
     public static List<Vec2d> sampleAlongClosedPath(List<Vec2d> points, double spacing, double skipNearEndsDistance) {

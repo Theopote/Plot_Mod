@@ -1,7 +1,10 @@
 package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.stage.RoofGenerationStage;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.model.spec.BuildingDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -44,8 +47,9 @@ class BuildingGeneratorSmokeTest {
         BuildingFootprint footprint = new BuildingFootprint(diamond, false);
         footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
 
-        BuildingGenerator.BuildingGenerationResult result = new BuildingGenerator.BuildingGenerationResult();
-        BuildingFootprint.RoofType effective = resolveRoofTypeForTest(footprint, result);
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingFootprint.RoofType effective = RoofGenerationStage.resolveRoofType(
+            BuildingDefinition.fromFootprint(footprint), footprint.getOuterPoints(), result);
 
         assertEquals(BuildingFootprint.RoofType.FLAT, effective);
         assertTrue(result.warnings.contains("plugin.building.warn.roof_downgrade"));
@@ -63,8 +67,9 @@ class BuildingGeneratorSmokeTest {
         BuildingFootprint footprint = new BuildingFootprint(pentagon, false);
         footprint.setRoofType(BuildingFootprint.RoofType.GABLE);
 
-        BuildingGenerator.BuildingGenerationResult result = new BuildingGenerator.BuildingGenerationResult();
-        BuildingFootprint.RoofType effective = resolveRoofTypeForTest(footprint, result);
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingFootprint.RoofType effective = RoofGenerationStage.resolveRoofType(
+            BuildingDefinition.fromFootprint(footprint), footprint.getOuterPoints(), result);
 
         assertEquals(BuildingFootprint.RoofType.FLAT, effective);
         assertTrue(result.warnings.contains("plugin.building.warn.roof_downgrade"));
@@ -89,19 +94,5 @@ class BuildingGeneratorSmokeTest {
             List.of(64, 64, 64, 64, 65, 63), null));
         assertEquals(65, BuildingFoundationUtils.computeBaseElevation(
             List.of(64, 64, 65, 65), null));
-    }
-
-    private static BuildingFootprint.RoofType resolveRoofTypeForTest(
-            BuildingFootprint footprint,
-            BuildingGenerator.BuildingGenerationResult result) {
-        BuildingFootprint.RoofType requested = footprint.getRoofType();
-        if (requested == BuildingFootprint.RoofType.FLAT) {
-            return BuildingFootprint.RoofType.FLAT;
-        }
-        if (BuildingGeometryUtils.isSlopedRoofEligible(footprint.getOuterPoints())) {
-            return requested;
-        }
-        result.warnings.add("plugin.building.warn.roof_downgrade");
-        return BuildingFootprint.RoofType.FLAT;
     }
 }

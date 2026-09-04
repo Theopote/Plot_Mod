@@ -1,6 +1,7 @@
 package com.plot.core.geometry;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.geometry.polygon.PolygonNormalizer;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.api.world.ICoordinateService;
 import net.minecraft.util.math.BlockPos;
@@ -30,25 +31,7 @@ public final class PolygonRegionUtils {
      * 未显式闭合的折线保留为开放顶点序列，后续面积/填充按首尾相连处理。
      */
     public static List<Vec2d> normalizeRegionOutline(List<Vec2d> points) {
-        if (points == null || points.isEmpty()) {
-            return List.of();
-        }
-        List<Vec2d> sanitized = new ArrayList<>();
-        Vec2d previous = null;
-        for (Vec2d point : points) {
-            if (point == null) {
-                continue;
-            }
-            if (previous != null && previous.distance(point) <= 1e-9) {
-                continue;
-            }
-            sanitized.add(point.copy());
-            previous = sanitized.getLast();
-        }
-        if (sanitized.size() >= 2 && sanitized.getFirst().distance(sanitized.getLast()) <= 1e-6) {
-            sanitized.remove(sanitized.size() - 1);
-        }
-        return sanitized.size() >= 3 ? sanitized : List.of();
+        return PolygonNormalizer.normalizeOutline(points);
     }
 
     public static Polygon toPolygon(List<Vec2d> points) {

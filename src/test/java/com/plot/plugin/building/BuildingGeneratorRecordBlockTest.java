@@ -1,6 +1,8 @@
 package com.plot.plugin.building;
 
 import com.plot.core.command.BlockRecord;
+import com.plot.plugin.building.generation.BuildingBlockWriter;
+import com.plot.plugin.building.generation.BuildingGenerationResult;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -14,8 +16,7 @@ class BuildingGeneratorRecordBlockTest {
 
     @Test
     void laterWriteOverridesNewBlockIdButKeepsPrevious() {
-        BuildingGenerator.BuildingGenerationResult result =
-            new BuildingGenerator.BuildingGenerationResult();
+        BuildingGenerationResult result = new BuildingGenerationResult();
         BlockPos pos = new BlockPos(3, 70, 5);
 
         BuildingGenerator.recordBlockForTest(result, pos, "minecraft:grass_block", "minecraft:stone_bricks");
@@ -30,8 +31,7 @@ class BuildingGeneratorRecordBlockTest {
 
     @Test
     void roofMaterialCanReplaceFloorAtSamePosition() {
-        BuildingGenerator.BuildingGenerationResult result =
-            new BuildingGenerator.BuildingGenerationResult();
+        BuildingGenerationResult result = new BuildingGenerationResult();
         BlockPos pos = new BlockPos(1, 80, 2);
 
         BuildingGenerator.recordBlockForTest(result, pos, "minecraft:air", "minecraft:oak_planks");
@@ -39,5 +39,17 @@ class BuildingGeneratorRecordBlockTest {
 
         assertEquals("minecraft:dark_oak_planks", result.placementRecords.get(pos).newBlockId);
         assertEquals("minecraft:air", result.placementRecords.get(pos).previousBlockId);
+    }
+
+    @Test
+    void buildingBlockWriterAirCanOverrideWall() {
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BlockPos pos = new BlockPos(2, 64, 2);
+
+        BuildingBlockWriter.recordBlockWithPrevious(result, pos, "minecraft:stone", "minecraft:cobblestone");
+        BuildingBlockWriter.recordBlockWithPrevious(result, pos, "minecraft:dirt", "minecraft:air");
+
+        assertEquals("minecraft:stone", result.placementRecords.get(pos).previousBlockId);
+        assertEquals("minecraft:air", result.placementRecords.get(pos).newBlockId);
     }
 }

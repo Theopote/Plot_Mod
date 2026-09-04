@@ -1,396 +1,54 @@
 package com.plot.plugin.building;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
-import com.plot.core.command.BlockRecord;
-import com.plot.core.terrain.EngineeringTerrainService;
-import com.plot.core.geometry.shapes.Polygon;
-import com.plot.core.material.MaterialMixResolver;
+import com.plot.plugin.building.generation.BuildingBlockWriter;
+import com.plot.plugin.building.generation.BuildingGenerationContext;
+import com.plot.plugin.building.generation.BuildingGenerationPipeline;
 import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
- * 建筑生成器
+ * 建筑生成器门面。实际生成由 {@link BuildingGenerationPipeline} 完成。
  */
 public class BuildingGenerator {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BuildingGenerator");
-
     private final ICoordinateService coordinateTransformer;
     private final IBlockProjectionService projectionHandler;
+    private final BuildingGenerationPipeline pipeline;
 
     public BuildingGenerator(
             ICoordinateService coordinateTransformer,
             IBlockProjectionService projectionHandler) {
-        this.coordinateTransformer = coordinateTransformer;
-        this.projectionHandler = java.util.Objects.requireNonNull(projectionHandler, "projectionHandler");
-    }
-
-    public static class BuildingGenerationResult {
-        public final Map<BlockPos, BlockRecord> placementRecords = new LinkedHashMap<>();
-        public int cutVolume;
-        public int fillVolume;
-        public int blockCount;
-        public final List<String> warnings = new ArrayList<>();
-        public BuildingFootprint.RoofType effectiveRoofType = BuildingFootprint.RoofType.FLAT;
-    }
-
-    public BuildingGenerationResult generate(BuildingFootprint footprint, World world) {
-        BuildingGenerationResult result = new BuildingGenerationResult();
-        if (footprint == null || world == null) {
-            LOGGER.warn("建筑轮廓或世界为空");
-            return result;
-        }
-
-        List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(footprint.getOuterPoints());
-        if (outerPoints.size() < 3) {
-            LOGGER.warn("建筑轮廓点数不足");
-            return result;
-        }
-
-        Polygon outerPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
-        List<Vec2d> innerPoints = BuildingGeometryUtils.offsetInward(outerPoints, footprint.getWallThickness());
-        Polygon innerPolygon = innerPoints.size() >= 3
-            ? BuildingGeometryUtils.toPolygon(innerPoints)
-            : null;
-        if (innerPolygon == null) {
-            result.warnings.add("plugin.building.warn.inner_offset_failed");
-            LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板");
-        }
-
-        IBlockProjectionService projectionHandler = this.projectionHandler;
-        List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
-
-        List<Integer> groundHeights = new ArrayList<>();
-        for (GridCell cell : footprintCells) {
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateTransformer);
-            groundHeights.add(getTopHeight(world, column));
-        }
-        int baseElevation = BuildingFoundationUtils.computeBaseElevation(
-            groundHeights, footprint.getManualBaseElevation());
-
-        String foundationFill = BuildingGeometryUtils.resolveBlockId(footprint.getFoundationFillMaterial());
-        String roofBlock = BuildingGeometryUtils.resolveBlockId(footprint.getRoofMaterial());
-
-        levelFoundation(result, footprintCells, world, baseElevation, foundationFill, projectionHandler);
-        generateWalls(result, footprintCells, outerPolygon, innerPolygon, world,
-            baseElevation, footprint, projectionHandler);
-        generateFloors(result, innerPolygon, world, baseElevation, footprint, projectionHandler);
-
-        BuildingFootprint.RoofType roofType = resolveRoofType(footprint, result);
-        result.effectiveRoofType = roofType;
-
-        int topFloorY = baseElevation + footprint.getFloors() * footprint.getFloorHeight();
-        if (roofType == BuildingFootprint.RoofType.FLAT) {
-            replaceTopFloorMaterial(result, innerPolygon, world, topFloorY, roofBlock, projectionHandler);
-        } else {
-            replaceTopFloorMaterial(result, innerPolygon, world, topFloorY, roofBlock, projectionHandler);
-            BuildingRoofGenerator.generate(
-                result, footprint, outerPoints, topFloorY,
-                roofBlock, roofType, coordinateTransformer, projectionHandler);
-        }
-
-        carveWindows(result, footprint, outerPoints, world, baseElevation, projectionHandler);
-        carveDoors(result, footprint, outerPoints, world, baseElevation, projectionHandler);
-
-        result.blockCount = result.placementRecords.size();
-        return result;
-    }
-
-    private BuildingFootprint.RoofType resolveRoofType(
-            BuildingFootprint footprint,
-            BuildingGenerationResult result) {
-        BuildingFootprint.RoofType requested = footprint.getRoofType();
-        if (requested == BuildingFootprint.RoofType.FLAT) {
-            return BuildingFootprint.RoofType.FLAT;
-        }
-        if (BuildingGeometryUtils.isSlopedRoofEligible(footprint.getOuterPoints())) {
-            return requested;
-        }
-        result.warnings.add("plugin.building.warn.roof_downgrade");
-        return BuildingFootprint.RoofType.FLAT;
-    }
-
-    private void levelFoundation(
-            BuildingGenerationResult result,
-            List<GridCell> cells,
-            World world,
-            int baseElevation,
-            String fillBlockId,
-            IBlockProjectionService projectionHandler) {
-        for (GridCell cell : cells) {
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateTransformer);
-            int groundY = getTopHeight(world, column);
-            if (groundY > baseElevation) {
-                for (int y = baseElevation + 1; y <= groundY; y++) {
-                    BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
-                    recordBlock(result, pos, "minecraft:air", projectionHandler);
-                }
-                result.cutVolume += groundY - baseElevation;
-            } else if (groundY < baseElevation) {
-                for (int y = groundY + 1; y <= baseElevation; y++) {
-                    BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
-                    recordBlock(result, pos, fillBlockId, projectionHandler);
-                }
-                result.fillVolume += baseElevation - groundY;
-            }
-        }
-    }
-
-    private void generateWalls(
-            BuildingGenerationResult result,
-            List<GridCell> cells,
-            Polygon outerPolygon,
-            Polygon innerPolygon,
-            World world,
-            int baseElevation,
-            BuildingFootprint footprint,
-            IBlockProjectionService projectionHandler) {
-        int topY = baseElevation + footprint.getFloors() * footprint.getFloorHeight();
-        for (GridCell cell : cells) {
-            Vec2d center = cell.center();
-            if (!outerPolygon.contains(center)) {
-                continue;
-            }
-            if (innerPolygon != null && innerPolygon.contains(center)) {
-                continue;
-            }
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(center, coordinateTransformer);
-            for (int y = baseElevation; y < topY; y++) {
-                BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
-                String wallBlockId = MaterialMixResolver.resolve(
-                    footprint.getWallMaterial(), pos, footprint.getId(),
-                    BuildingGeometryUtils::resolveBlockId);
-                recordBlock(result, pos, wallBlockId, projectionHandler);
-            }
-        }
-    }
-
-    private void generateFloors(
-            BuildingGenerationResult result,
-            Polygon innerPolygon,
-            World world,
-            int baseElevation,
-            BuildingFootprint footprint,
-            IBlockProjectionService projectionHandler) {
-        if (innerPolygon == null) {
-            return;
-        }
-
-        List<GridCell> innerCells = collectFootprintCells(
-            BuildingGeometryUtils.copyPoints(innerPolygon.getPoints()), innerPolygon);
-
-        for (int floor = 0; floor <= footprint.getFloors(); floor++) {
-            int floorY = baseElevation + floor * footprint.getFloorHeight();
-            for (GridCell cell : innerCells) {
-                if (!innerPolygon.contains(cell.center())) {
-                    continue;
-                }
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateTransformer);
-                BlockPos pos = new BlockPos(column.getX(), floorY, column.getZ());
-                String floorBlockId = MaterialMixResolver.resolve(
-                    footprint.getFloorMaterial(), pos, footprint.getId(),
-                    BuildingGeometryUtils::resolveBlockId);
-                recordBlock(result, pos, floorBlockId, projectionHandler);
-            }
-        }
-    }
-
-    private void replaceTopFloorMaterial(
-            BuildingGenerationResult result,
-            Polygon innerPolygon,
-            World world,
-            int topFloorY,
-            String roofBlockId,
-            IBlockProjectionService projectionHandler) {
-        if (innerPolygon == null) {
-            return;
-        }
-        List<GridCell> innerCells = collectFootprintCells(
-            BuildingGeometryUtils.copyPoints(innerPolygon.getPoints()), innerPolygon);
-        for (GridCell cell : innerCells) {
-            if (!innerPolygon.contains(cell.center())) {
-                continue;
-            }
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateTransformer);
-            BlockPos pos = new BlockPos(column.getX(), topFloorY, column.getZ());
-            recordBlock(result, pos, roofBlockId, projectionHandler);
-        }
-    }
-
-    private void carveWindows(
-            BuildingGenerationResult result,
-            BuildingFootprint footprint,
-            List<Vec2d> outerPoints,
-            World world,
-            int baseElevation,
-            IBlockProjectionService projectionHandler) {
-        if (footprint.getWindowSpacing() <= 0) {
-            return;
-        }
-
-        List<BuildingGeometryUtils.WallSample> samples = BuildingGeometryUtils.sampleAlongWallSegments(
-            outerPoints, footprint.getWindowSpacing());
-
-        for (int floor = 0; floor < footprint.getFloors(); floor++) {
-            int floorBaseY = baseElevation + floor * footprint.getFloorHeight();
-            int sill = footprint.getWindowSillHeight();
-            // 窗洞高度夹在层高内，避免打穿楼板
-            int maxWindowHeight = Math.max(1, footprint.getFloorHeight() - sill - 1);
-            int windowHeight = Math.min(footprint.getWindowHeight(), maxWindowHeight);
-            for (BuildingGeometryUtils.WallSample sample : samples) {
-                carveOpening(
-                    result,
-                    sample.point(),
-                    sample.tangent(),
-                    sample.inwardNormal(),
-                    footprint.getWindowWidth(),
-                    windowHeight,
-                    floorBaseY + sill,
-                    footprint.getWallThickness(),
-                    projectionHandler
-                );
-            }
-        }
-    }
-
-    private void carveDoors(
-            BuildingGenerationResult result,
-            BuildingFootprint footprint,
-            List<Vec2d> outerPoints,
-            World world,
-            int baseElevation,
-            IBlockProjectionService projectionHandler) {
-        int segmentCount = outerPoints.size();
-        for (BuildingFootprint.DoorOpening door : footprint.getDoors()) {
-            if (door.floor < 0 || door.floor >= footprint.getFloors()) {
-                continue;
-            }
-            int segmentIndex = Math.floorMod(door.wallSegmentIndex, segmentCount);
-            Vec2d point = BuildingGeometryUtils.pointOnWallSegment(
-                outerPoints, segmentIndex, door.positionRatio);
-            if (point == null) {
-                continue;
-            }
-            Vec2d start = outerPoints.get(segmentIndex);
-            Vec2d end = outerPoints.get((segmentIndex + 1) % segmentCount);
-            Vec2d tangent = end.subtract(start).normalize();
-            Vec2d inwardNormal = BuildingGeometryUtils.leftNormal(tangent);
-            if (BuildingFootprint.signedArea(outerPoints) >= 0) {
-                inwardNormal = inwardNormal.multiply(-1);
-            }
-            int floorBaseY = baseElevation + door.floor * footprint.getFloorHeight();
-            int maxDoorHeight = Math.max(1, footprint.getFloorHeight() - 1);
-            int doorHeight = Math.min(Math.max(1, door.height), maxDoorHeight);
-            carveOpening(
-                result,
-                point,
-                tangent,
-                inwardNormal,
-                door.width,
-                doorHeight,
-                floorBaseY,
-                footprint.getWallThickness(),
-                projectionHandler
-            );
-        }
-    }
-
-    private void carveOpening(
-            BuildingGenerationResult result,
-            Vec2d centerPoint,
-            Vec2d tangent,
-            Vec2d inwardNormal,
-            int width,
-            int height,
-            int startY,
-            int wallThickness,
-            IBlockProjectionService projectionHandler) {
-        Set<BlockPos> carved = new LinkedHashSet<>();
-        for (int w = 0; w < width; w++) {
-            double lateral = w - (width - 1) / 2.0;
-            for (int depth = 0; depth < wallThickness; depth++) {
-                Vec2d sample = centerPoint
-                    .add(tangent.multiply(lateral))
-                    .add(inwardNormal.multiply(depth + 0.5));
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(sample, coordinateTransformer);
-                for (int h = 0; h < height; h++) {
-                    BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());
-                    if (carved.add(pos)) {
-                        recordBlock(result, pos, "minecraft:air", projectionHandler);
-                    }
-                }
-            }
-        }
-    }
-
-    private List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon) {
-        List<GridCell> cells = new ArrayList<>();
-        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(points)) {
-            if (polygon.contains(center)) {
-                cells.add(new GridCell(center));
-            }
-        }
-        return cells;
+        this.coordinateTransformer = java.util.Objects.requireNonNull(
+            coordinateTransformer, "coordinateTransformer");
+        this.projectionHandler = java.util.Objects.requireNonNull(
+            projectionHandler, "projectionHandler");
+        this.pipeline = BuildingGenerationPipeline.createDefault();
     }
 
     /**
-     * 写入放置记录：保留首次 previousBlockId，允许后续阶段覆盖 newBlockId
-     * （门窗镂空、屋面材质等必须能覆盖墙/楼板）。
+     * @deprecated 使用 {@link com.plot.plugin.building.generation.BuildingGenerationResult}。
+     *             保留嵌套别名以兼容现有测试与外部引用。
      */
-    private void recordBlock(
-            BuildingGenerationResult result,
-            BlockPos pos,
-            String newBlockId,
-            IBlockProjectionService projectionHandler) {
-        if (result == null || pos == null || newBlockId == null) {
-            return;
-        }
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
-            return;
-        }
-        String previous = projectionHandler != null
-            ? projectionHandler.getBlockIdAt(pos)
-            : "minecraft:air";
-        result.placementRecords.put(pos, new BlockRecord(pos, previous, newBlockId));
+    @Deprecated
+    public static class BuildingGenerationResult
+            extends com.plot.plugin.building.generation.BuildingGenerationResult {
+    }
+
+    public com.plot.plugin.building.generation.BuildingGenerationResult generate(
+            BuildingFootprint footprint, World world) {
+        BuildingGenerationContext context = BuildingGenerationContext.create(
+            footprint, world, coordinateTransformer, projectionHandler);
+        return pipeline.generate(context);
     }
 
     /** package-private for unit tests of override semantics */
     static void recordBlockForTest(
-            BuildingGenerationResult result,
+            com.plot.plugin.building.generation.BuildingGenerationResult result,
             BlockPos pos,
             String previousBlockId,
             String newBlockId) {
-        if (result == null || pos == null || newBlockId == null) {
-            return;
-        }
-        BlockRecord existing = result.placementRecords.get(pos);
-        if (existing != null) {
-            result.placementRecords.put(pos, new BlockRecord(pos, existing.previousBlockId, newBlockId));
-        } else {
-            result.placementRecords.put(pos, new BlockRecord(pos, previousBlockId, newBlockId));
-        }
-    }
-
-    private int getTopHeight(World world, BlockPos pos) {
-        if (world == null || pos == null) {
-            return EngineeringTerrainService.DEFAULT_GROUND_ELEVATION;
-        }
-        return EngineeringTerrainService.of(world).sampleGroundSurface(pos.getX(), pos.getZ());
-    }
-
-    private record GridCell(Vec2d center) {
+        BuildingBlockWriter.recordBlockWithPrevious(result, pos, previousBlockId, newBlockId);
     }
 }

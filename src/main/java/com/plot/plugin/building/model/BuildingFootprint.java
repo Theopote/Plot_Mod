@@ -264,6 +264,13 @@ public class BuildingFootprint {
         return Math.abs(signedArea(outerPoints));
     }
 
+    /**
+     * 转为分层 {@link com.plot.plugin.building.model.spec.BuildingDefinition}。
+     */
+    public com.plot.plugin.building.model.spec.BuildingDefinition toDefinition() {
+        return com.plot.plugin.building.model.spec.BuildingDefinition.fromFootprint(this);
+    }
+
     public static double signedArea(List<Vec2d> points) {
         if (points == null || points.size() < 3) {
             return 0.0;
