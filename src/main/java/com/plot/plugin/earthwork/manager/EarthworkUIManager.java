@@ -10,17 +10,10 @@ import com.plot.plugin.earthwork.ui.EarthworkToolbarPanel;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiTabBarFlags;
 
 /** 土方 ImGui 界面编排。 */
 public final class EarthworkUIManager {
-    private static final String[] TAB_KEYS = {
-        "plugin.earthwork.tab.overview",
-        "plugin.earthwork.tab.adopt",
-        "plugin.earthwork.tab.edit",
-        "plugin.earthwork.tab.generate"
-    };
-
     private final EarthworkUiContext ctx;
     private final EarthworkToolbarPanel toolbarPanel;
     private final EarthworkOverviewPanel overviewPanel;
@@ -28,7 +21,6 @@ public final class EarthworkUIManager {
     private final EarthworkEditPanel editPanel;
     private final EarthworkGeneratePanel generatePanel;
     private final EarthworkQuickPanel quickPanel;
-    private int builderTab;
 
     public EarthworkUIManager(EarthworkUiContext ctx) {
         this.ctx = ctx;
@@ -69,29 +61,20 @@ public final class EarthworkUIManager {
     }
 
     private void renderBuilderTabs() {
-        float spacing = ImGui.getStyle().getItemSpacingX();
-        float width = Math.max(1f, (ImGui.getContentRegionAvailX() - spacing * 3.0f) / 4.0f);
-        for (int i = 0; i < TAB_KEYS.length; i++) {
-            if (i > 0) {
-                ImGui.sameLine();
-            }
-            boolean selected = builderTab == i;
-            if (selected) {
-                ImGui.pushStyleColor(ImGuiCol.Button, ImGui.getColorU32(ImGuiCol.ButtonActive));
-            }
-            if (ImGui.button(PlotI18n.tr(TAB_KEYS[i]) + "##earthwork_tab_" + i, width, 0)) {
-                builderTab = i;
-            }
-            if (selected) {
-                ImGui.popStyleColor();
-            }
+        if (!ImGui.beginTabBar("##earthwork_tabs", ImGuiTabBarFlags.None)) {
+            return;
         }
-        ImGui.separator();
-        switch (builderTab) {
-            case 1 -> adoptPanel.render();
-            case 2 -> editPanel.render();
-            case 3 -> generatePanel.render();
-            default -> overviewPanel.render();
+        renderTab("plugin.earthwork.tab.overview", overviewPanel::render);
+        renderTab("plugin.earthwork.tab.adopt", adoptPanel::render);
+        renderTab("plugin.earthwork.tab.edit", editPanel::render);
+        renderTab("plugin.earthwork.tab.generate", generatePanel::render);
+        ImGui.endTabBar();
+    }
+
+    private static void renderTab(String labelKey, Runnable body) {
+        if (ImGui.beginTabItem(PlotI18n.tr(labelKey))) {
+            body.run();
+            ImGui.endTabItem();
         }
     }
 
