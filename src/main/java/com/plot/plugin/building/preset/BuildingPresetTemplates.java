@@ -17,6 +17,8 @@ import java.util.List;
 
 /**
  * 内置建筑类型 Preset 的参数模板（不含轮廓几何）。
+ * <p>
+ * 目录规模受 {@link BuildingPresetCatalog#MAX_BUILTIN_PRESETS} 冻结；勿为新业态追加模板。
  */
 public final class BuildingPresetTemplates {
     private BuildingPresetTemplates() {

@@ -94,6 +94,16 @@ class BuildingPresetApplierTest {
         assertTrue(BuildingPresetCatalog.find("commercial") != null);
     }
 
+    @Test
+    void builtinPresetCountStaysWithinFreezeCap() {
+        int count = BuildingPresetCatalog.all().size();
+        assertTrue(count <= BuildingPresetCatalog.MAX_BUILTIN_PRESETS,
+            "preset count " + count + " exceeds freeze cap "
+                + BuildingPresetCatalog.MAX_BUILTIN_PRESETS
+                + "; do not add hospital/mall/hotel/etc until BuildingSpec is stable");
+        assertEquals(9, count, "freeze set is exactly the current 9 architecture-validation presets");
+    }
+
     private static BuildingFootprint sampleFootprint() {
         BuildingFootprint footprint = new BuildingFootprint(List.of(
             new Vec2d(0, 0),

@@ -8,18 +8,32 @@ import com.plot.api.world.WorldViewBounds;
 import com.plot.plugin.building.generation.stage.AccessoryGenerationStage;
 import com.plot.plugin.building.golden.GoldenBuildingCaseFactory;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.model.spec.AccessoryKind;
 import com.plot.plugin.building.model.spec.AccessorySpec;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AccessoryGenerationStageTest {
+
+    @Test
+    void accessoryKindsStayWithinFreezeSet() {
+        assertEquals(AccessoryKind.FROZEN_KIND_COUNT, AccessoryKind.values().length);
+        assertEquals(AccessorySpec.FROZEN_KIND_COUNT, AccessoryKind.values().length);
+        assertEquals(
+            Set.of(AccessoryKind.PARAPET, AccessoryKind.CANOPY, AccessoryKind.BALCONY),
+            Arrays.stream(AccessoryKind.values()).collect(Collectors.toSet()),
+            "do not add cornice/colonnade/chimney/louver/etc until Accessory model is stable");
+    }
 
     @Test
     void parapetAddsBlocksAboveTopWall() {

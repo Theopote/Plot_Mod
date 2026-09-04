@@ -19,8 +19,17 @@ import java.util.function.Function;
 
 /**
  * 建筑类型 Preset 目录：Preset → 默认 {@link BuildingDefinition}（保留轮廓几何）。
+ * <p>
+ * <strong>冻结策略：</strong>BuildingSpec / Schema 未稳定前，内置 Preset 控制在
+ * {@link #MAX_BUILTIN_PRESETS} 个以内（当前 9 个），仅作架构验证。
+ * 不要继续扩充医院 / 商场 / 酒店 / 车站 / 博物馆等类型——每次 Schema 变更都要迁移全部 Preset。
  */
 public final class BuildingPresetCatalog {
+    /**
+     * 内置 Preset 数量上限。Schema 稳定前禁止突破；突破需先拆迁移成本评估。
+     */
+    public static final int MAX_BUILTIN_PRESETS = 10;
+
     private BuildingPresetCatalog() {
     }
 
@@ -57,6 +66,8 @@ public final class BuildingPresetCatalog {
 
     private static Map<String, BuildingPreset> buildPresets() {
         Map<String, BuildingPreset> presets = new LinkedHashMap<>();
+        // 冻结集：住宅 / 公寓 / 办公 / 仓库 / 学校 / 商业 / 塔楼 / 别墅 / 工业（共 9）
+        // 禁止新增 hospital / mall / hotel / station / museum 等，直至 BuildingSpec 稳定。
         presets.put("residential_lowrise", preset(
             "residential_lowrise",
             residentialLowrise()));
@@ -68,6 +79,12 @@ public final class BuildingPresetCatalog {
         presets.put("tower", preset("tower", tower()));
         presets.put("villa", preset("villa", villa()));
         presets.put("industrial", preset("industrial", industrial()));
+        if (presets.size() > MAX_BUILTIN_PRESETS) {
+            throw new IllegalStateException(
+                "Builtin preset count " + presets.size()
+                    + " exceeds freeze cap " + MAX_BUILTIN_PRESETS
+                    + "; do not expand catalog until BuildingSpec is stable");
+        }
         return Collections.unmodifiableMap(presets);
     }
 

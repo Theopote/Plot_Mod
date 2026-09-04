@@ -16,6 +16,8 @@ import java.util.Objects;
 /**
  * 建筑生成管线。默认顺序与旧 BuildingGenerator 一致：
  * Foundation → Wall → Floor → Roof → Accessory → Opening。
+ * <p>
+ * Accessory 阶段仅含冻结集（女儿墙 / 雨篷 / 阳台），见 {@link com.plot.plugin.building.model.spec.AccessoryKind}。
  */
 public final class BuildingGenerationPipeline {
     private final List<BuildingGenerationStage> stages;

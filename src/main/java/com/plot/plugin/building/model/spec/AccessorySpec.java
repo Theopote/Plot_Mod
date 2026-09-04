@@ -6,9 +6,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 建筑附属构件：女儿墙、雨篷、阳台等（Phase 9）。
+ * 建筑附属构件：女儿墙、雨篷、阳台（冻结集，见 {@link AccessoryKind}）。
+ * <p>
+ * Stage 架构已由这三类验证有效；Schema 稳定前不要继续堆新类型。
  */
 public final class AccessorySpec {
+    /** @see AccessoryKind#FROZEN_KIND_COUNT */
+    public static final int FROZEN_KIND_COUNT = AccessoryKind.FROZEN_KIND_COUNT;
+
     private final ParapetSpec parapet;
     private final List<CanopySpec> canopies;
     private final List<BalconySpec> balconies;
