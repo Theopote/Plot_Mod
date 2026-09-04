@@ -184,25 +184,17 @@ public final class StraightSkeleton {
     private static List<SkeletonEdge> connectAdjacentNodes(List<SkeletonNode> nodes) {
         List<SkeletonEdge> edges = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
+        final double connectRadius = 2.5;
         for (int i = 0; i < nodes.size(); i++) {
             SkeletonNode a = nodes.get(i);
-            SkeletonNode closest = null;
-            double closestDistance = Double.MAX_VALUE;
-            for (int j = 0; j < nodes.size(); j++) {
-                if (i == j) {
+            for (int j = i + 1; j < nodes.size(); j++) {
+                SkeletonNode b = nodes.get(j);
+                if (a.point().distance(b.point()) > connectRadius) {
                     continue;
                 }
-                SkeletonNode b = nodes.get(j);
-                double distance = a.point().distance(b.point());
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closest = b;
-                }
-            }
-            if (closest != null && closestDistance <= 2.5) {
-                String key = edgeKey(a.id(), closest.id());
+                String key = edgeKey(a.id(), b.id());
                 if (seen.add(key)) {
-                    edges.add(new SkeletonEdge(a.id(), closest.id()));
+                    edges.add(new SkeletonEdge(a.id(), b.id()));
                 }
             }
         }

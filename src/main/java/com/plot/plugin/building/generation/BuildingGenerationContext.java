@@ -4,30 +4,26 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
-import com.plot.core.terrain.EngineeringTerrainService;
-import com.plot.plugin.building.BuildingFoundationUtils;
-import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.generation.resolve.BuildingGenerationContextFactory;
+import com.plot.plugin.building.generation.resolve.GenerationSiteResolver;
+import com.plot.plugin.building.generation.resolve.MassingGeometryResolver;
+import com.plot.plugin.building.generation.resolve.MaterialResolver;
+import com.plot.plugin.building.generation.resolve.ResolvedBuildingDefinition;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
-import com.plot.plugin.building.model.spec.BuildingDefinitionMapper;
-import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * 单次建筑生成的上下文：输入、解析几何与结果容器。不包含业务生成逻辑。
+ * 单次建筑生成的上下文：输入、已解析几何与结果容器。
+ * <p>
+ * 不包含业务生成逻辑，也不负责 Definition/场地/材料解析——见
+ * {@link BuildingGenerationContextFactory}。
  */
 public final class BuildingGenerationContext {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Plot/BuildingGenerationContext");
-
     private final BuildingFootprint footprint;
     private final BuildingDefinition definition;
     private final World world;
@@ -79,237 +75,105 @@ public final class BuildingGenerationContext {
     }
 
     /**
-     * 解析轮廓几何、基面标高与材料，构建上下文。无效输入返回 valid=false 的空结果上下文。
+     * 由 Factory 组装：{@link ResolvedBuildingDefinition} → Context。
+     * {@code resolved == null} 或无效时返回 valid=false 空上下文。
      */
+    public static BuildingGenerationContext fromResolved(
+            BuildingFootprint footprint,
+            BuildingDefinition definition,
+            World world,
+            ICoordinateService coordinateService,
+            IBlockProjectionService projectionService,
+            BuildingGenerationResult result,
+            ResolvedBuildingDefinition resolved) {
+        Objects.requireNonNull(projectionService, "projectionService");
+        BuildingGenerationResult safeResult = result != null ? result : new BuildingGenerationResult();
+        if (resolved == null || !resolved.isValid()) {
+            MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
+            return new BuildingGenerationContext(
+                footprint,
+                definition,
+                world,
+                coordinateService,
+                projectionService,
+                safeResult,
+                List.of(),
+                null,
+                List.of(),
+                null,
+                List.of(),
+                0,
+                materials.foundationFillBlockId(),
+                materials.roofBlockId(),
+                false
+            );
+        }
+
+        MassingGeometryResolver.ResolvedMassingGeometry massing = resolved.massing();
+        GenerationSiteResolver.ResolvedSiteElevation site = resolved.site();
+        MaterialResolver.ResolvedMaterials materials = resolved.materials();
+        return new BuildingGenerationContext(
+            footprint,
+            resolved.definition() != null ? resolved.definition() : definition,
+            world,
+            coordinateService,
+            projectionService,
+            safeResult,
+            massing.outerPoints(),
+            massing.outerPolygon(),
+            massing.innerPoints(),
+            massing.innerPolygon(),
+            massing.footprintCells(),
+            site.baseElevation(),
+            materials.foundationFillBlockId(),
+            materials.roofBlockId(),
+            true
+        );
+    }
+
     public static BuildingGenerationContext create(
             BuildingFootprint footprint,
             World world,
             ICoordinateService coordinateService,
             IBlockProjectionService projectionService) {
-        Objects.requireNonNull(projectionService, "projectionService");
-        BuildingGenerationResult result = new BuildingGenerationResult();
-
-        if (footprint == null || world == null) {
-            LOGGER.warn("建筑轮廓或世界为空");
-            return empty(footprint, null, world, coordinateService, projectionService, result);
-        }
-
-        return createFromDefinition(
-            BuildingDefinitionMapper.fromFootprint(footprint),
-            footprint,
-            world,
-            coordinateService,
-            projectionService,
-            result
-        );
+        return BuildingGenerationContextFactory.create(
+            footprint, world, coordinateService, projectionService);
     }
 
-    /**
-     * 直接从 {@link BuildingDefinition} 构建上下文（Footprint 仅作兼容引用，可为 null）。
-     */
     public static BuildingGenerationContext createFromDefinition(
             BuildingDefinition definition,
             BuildingFootprint footprint,
             World world,
             ICoordinateService coordinateService,
             IBlockProjectionService projectionService) {
-        Objects.requireNonNull(projectionService, "projectionService");
-        BuildingGenerationResult result = new BuildingGenerationResult();
-
-        if (definition == null || world == null) {
-            LOGGER.warn("建筑定义或世界为空");
-            return empty(footprint, definition, world, coordinateService, projectionService, result);
-        }
-
-        return createFromDefinition(definition, footprint, world, coordinateService, projectionService, result);
+        return BuildingGenerationContextFactory.createFromDefinition(
+            definition, footprint, world, coordinateService, projectionService);
     }
 
-    private static BuildingGenerationContext createFromDefinition(
-            BuildingDefinition definition,
-            BuildingFootprint footprint,
-            World world,
-            ICoordinateService coordinateService,
-            IBlockProjectionService projectionService,
-            BuildingGenerationResult result) {
-        List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(definition.footprint().outerPoints());
-        if (outerPoints.size() < 3) {
-            LOGGER.warn("建筑轮廓点数不足");
-            return empty(footprint, definition, world, coordinateService, projectionService, result);
-        }
-
-        int wallThickness = definition.envelope().wallThickness();
-        Polygon outerPolygon = BuildingGeometryUtils.toPolygon(outerPoints);
-        List<Vec2d> innerPoints = BuildingGeometryUtils.offsetInward(outerPoints, wallThickness);
-        Polygon innerPolygon = innerPoints.size() >= 3
-            ? BuildingGeometryUtils.toPolygon(innerPoints)
-            : null;
-        if (innerPolygon == null) {
-            InnerOffsetDegradation.noteInnerOffsetFailure(result);
-            LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板；墙体按实心体量生成");
-        }
-        if (definition.massing().hasCoverageGaps()) {
-            result.warnings.add("plugin.building.warn.floor_plate_coverage_gap");
-            LOGGER.warn("FloorPlate 存在未覆盖楼层 {}，已用基础轮廓填充",
-                definition.massing().coverageGapFloors());
-        }
-
-        List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
-
-        List<Integer> groundHeights = new ArrayList<>();
-        for (GridCell cell : footprintCells) {
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateService);
-            groundHeights.add(sampleTopHeight(world, column));
-        }
-        Integer earthworkPadElevation = footprint != null
-            ? BuildingSiteElevationResolver.resolveEarthworkPadElevation(footprint)
-            : BuildingSiteElevationResolver.resolveEarthworkPadElevation(
-                definition.footprint().id(), outerPoints);
-        int baseElevation = BuildingFoundationUtils.computeBaseElevation(
-            groundHeights,
-            definition.foundation().manualBaseElevation(),
-            earthworkPadElevation);
-        if (earthworkPadElevation != null && definition.foundation().manualBaseElevation() == null) {
-            result.warnings.add("plugin.building.warn.using_earthwork_pad_elevation");
-        }
-
-        String foundationFill = BuildingGeometryUtils.resolveBlockId(definition.foundation().fillMaterial());
-        String roofBlock = BuildingGeometryUtils.resolveBlockId(definition.roof().material());
-
-        return new BuildingGenerationContext(
-            footprint,
-            definition,
-            world,
-            coordinateService,
-            projectionService,
-            result,
-            Collections.unmodifiableList(outerPoints),
-            outerPolygon,
-            Collections.unmodifiableList(innerPoints),
-            innerPolygon,
-            Collections.unmodifiableList(footprintCells),
-            baseElevation,
-            foundationFill,
-            roofBlock,
-            true
-        );
-    }
-
-    /**
-     * 测试专用：直接从 {@link BuildingDefinition} 构建上下文。
-     */
     public static BuildingGenerationContext forTesting(
             BuildingDefinition definition,
             ICoordinateService coordinateService,
             IBlockProjectionService projectionService,
             BuildingGenerationResult result) {
-        Objects.requireNonNull(definition, "definition");
-        BuildingFootprint footprint = new BuildingFootprint(
-            definition.footprint().id(),
-            BuildingGeometryUtils.copyPoints(definition.footprint().outerPoints()),
-            definition.footprint().rectangular());
-        BuildingDefinitionMapper.applyMassingEnvelopeFacadeRoofFoundation(definition, footprint);
-        return forTesting(footprint, coordinateService, projectionService, result);
+        return BuildingGenerationContextFactory.forTesting(
+            definition, coordinateService, projectionService, result);
     }
 
-    /**
-     * 测试专用：构造 valid=true 的最小上下文，不依赖真实 Minecraft World。
-     */
     public static BuildingGenerationContext forTesting(
             BuildingFootprint footprint,
             ICoordinateService coordinateService,
             IBlockProjectionService projectionService,
             BuildingGenerationResult result) {
-        Objects.requireNonNull(footprint, "footprint");
-        Objects.requireNonNull(coordinateService, "coordinateService");
-        Objects.requireNonNull(projectionService, "projectionService");
-        Objects.requireNonNull(result, "result");
-
-        BuildingDefinition definition = BuildingDefinitionMapper.fromFootprint(footprint);
-        List<Vec2d> outerPoints = BuildingGeometryUtils.copyPoints(definition.footprint().outerPoints());
-        Polygon outerPolygon = outerPoints.size() >= 3
-            ? BuildingGeometryUtils.toPolygon(outerPoints)
-            : null;
-        List<Vec2d> innerPoints = outerPoints.size() >= 3
-            ? BuildingGeometryUtils.offsetInward(outerPoints, definition.envelope().wallThickness())
-            : List.of();
-        Polygon innerPolygon = innerPoints.size() >= 3
-            ? BuildingGeometryUtils.toPolygon(innerPoints)
-            : null;
-        if (innerPolygon == null && outerPoints.size() >= 3) {
-            InnerOffsetDegradation.noteInnerOffsetFailure(result);
-        }
-        if (definition.massing().hasCoverageGaps()) {
-            result.warnings.add("plugin.building.warn.floor_plate_coverage_gap");
-        }
-
-        List<GridCell> footprintCells = outerPolygon != null
-            ? collectFootprintCells(outerPoints, outerPolygon)
-            : List.of();
-        int baseElevation = BuildingFoundationUtils.computeBaseElevation(
-            List.of(), definition.foundation().manualBaseElevation());
-        String foundationFill = BuildingGeometryUtils.resolveBlockId(definition.foundation().fillMaterial());
-        String roofBlock = BuildingGeometryUtils.resolveBlockId(definition.roof().material());
-
-        return new BuildingGenerationContext(
-            footprint,
-            definition,
-            null,
-            coordinateService,
-            projectionService,
-            result,
-            Collections.unmodifiableList(outerPoints),
-            outerPolygon,
-            Collections.unmodifiableList(innerPoints),
-            innerPolygon,
-            Collections.unmodifiableList(footprintCells),
-            baseElevation,
-            foundationFill,
-            roofBlock,
-            outerPoints.size() >= 3
-        );
-    }
-
-    private static BuildingGenerationContext empty(
-            BuildingFootprint footprint,
-            BuildingDefinition definition,
-            World world,
-            ICoordinateService coordinateService,
-            IBlockProjectionService projectionService,
-            BuildingGenerationResult result) {
-        return new BuildingGenerationContext(
-            footprint,
-            definition,
-            world,
-            coordinateService,
-            projectionService,
-            result,
-            List.of(),
-            null,
-            List.of(),
-            null,
-            List.of(),
-            0,
-            "minecraft:dirt",
-            "minecraft:oak_planks",
-            false
-        );
+        return BuildingGenerationContextFactory.forTesting(
+            footprint, coordinateService, projectionService, result);
     }
 
     public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon) {
-        List<GridCell> cells = new ArrayList<>();
-        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(points)) {
-            if (polygon.contains(center)) {
-                cells.add(new GridCell(center));
-            }
-        }
-        return cells;
+        return MassingGeometryResolver.collectFootprintCells(points, polygon);
     }
 
     public static int sampleTopHeight(World world, BlockPos pos) {
-        if (world == null || pos == null) {
-            return EngineeringTerrainService.DEFAULT_GROUND_ELEVATION;
-        }
-        return EngineeringTerrainService.of(world).sampleGroundSurface(pos.getX(), pos.getZ());
+        return GenerationSiteResolver.sampleTopHeight(world, pos);
     }
 
     public boolean isValid() {

@@ -55,6 +55,46 @@ class BuildingRoofGeneratorSkeletonTest {
     }
 
     @Test
+    void hipRoofHeightFieldMatchesSkeletalTimeOnLShape() {
+        StraightSkeleton.Result skeleton = StraightSkeleton.compute(L_SHAPE);
+        assertTrue(skeleton.success());
+        int pitch = 2;
+        BuildingGenerationResult result = generateRoof(L_SHAPE, BuildingFootprint.RoofType.HIP, pitch);
+        // 每个 footprint 格的 rise 应等于 floor(skeletalTime/pitch)；禁止「有洞/乱柱」式漏写
+        int expectedColumns = 0;
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(L_SHAPE)) {
+            if (!BuildingGeometryUtils.toPolygon(L_SHAPE).contains(center)) {
+                continue;
+            }
+            int rise = BuildingRoofGenerator.computeHipRise(center, skeleton, null, pitch);
+            if (rise > 0) {
+                expectedColumns++;
+            }
+        }
+        assertTrue(expectedColumns > 0);
+        // 每个有 rise 的柱贡献 rise 层方块
+        int expectedBlocks = 0;
+        for (Vec2d center : BuildingGeometryUtils.collectFootprintCellCenters(L_SHAPE)) {
+            if (!BuildingGeometryUtils.toPolygon(L_SHAPE).contains(center)) {
+                continue;
+            }
+            expectedBlocks += BuildingRoofGenerator.computeHipRise(center, skeleton, null, pitch);
+        }
+        assertEquals(expectedBlocks, result.placementRecords.size());
+    }
+
+    @Test
+    void diamondHipRoofGeneratesPositiveVolume() {
+        List<Vec2d> diamond = List.of(
+            new Vec2d(10, 5),
+            new Vec2d(15, 10),
+            new Vec2d(10, 15),
+            new Vec2d(5, 10)
+        );
+        assertTrue(countRoofBlocks(diamond, BuildingFootprint.RoofType.HIP, 1) > 0);
+    }
+
+    @Test
     void rectangleHipMatchesLegacyHeightField() {
         List<Vec2d> rect = List.of(
             new Vec2d(0, 0),
@@ -93,6 +133,13 @@ class BuildingRoofGeneratorSkeletonTest {
             List<Vec2d> footprint,
             BuildingFootprint.RoofType roofType,
             int pitch) {
+        return generateRoof(footprint, roofType, pitch).placementRecords.size();
+    }
+
+    private static BuildingGenerationResult generateRoof(
+            List<Vec2d> footprint,
+            BuildingFootprint.RoofType roofType,
+            int pitch) {
         BuildingDefinition definition = new BuildingDefinition(
             new FootprintSpec("test", "Test", footprint, false),
             MassingSpec.create(1, 3, footprint, List.of()),
@@ -106,7 +153,7 @@ class BuildingRoofGeneratorSkeletonTest {
         BuildingGenerationContext context = BuildingGenerationContext.forTesting(
             definition, stubCoordinates(), stubProjection(), result);
         new BuildingGenerationPipeline(List.of(new RoofGenerationStage())).generate(context);
-        return result.placementRecords.size();
+        return result;
     }
 
     private static com.plot.api.world.ICoordinateService stubCoordinates() {
