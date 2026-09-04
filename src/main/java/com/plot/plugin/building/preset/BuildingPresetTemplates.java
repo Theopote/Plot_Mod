@@ -23,7 +23,9 @@ public final class BuildingPresetTemplates {
     }
 
     public static MassingSpec massing(int floors, int floorHeight) {
-        return new MassingSpec(floors, floorHeight, List.of());
+        // Preset 模板不含几何；真正构建时由 BuildingPresetCatalog 调用 MassingSpec.create(...)。
+        throw new UnsupportedOperationException(
+            "use MassingSpec.create(floors, floorHeight, footprint, plates)");
     }
 
     public static EnvelopeSpec envelope(int wallThickness, String wallMaterial, String floorMaterial) {

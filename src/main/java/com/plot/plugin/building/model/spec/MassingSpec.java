@@ -8,16 +8,27 @@ import java.util.List;
 
 /**
  * 体量参数：楼层数、层高与分楼层轮廓板（FloorPlate）。
+ * <p>
+ * 逐层有效轮廓由 {@link FloorPlateSchedule} 保证：每层恰好一块 plate，
+ * 禁止 {@code plateForFloor} 对缺口做 silent {@code getLast()}。
  */
 public final class MassingSpec {
     private final int floors;
     private final int floorHeight;
+    /** 作者定义的 plate（持久化/编辑用；可重叠）。 */
     private final List<FloorPlateSpec> floorPlates;
+    /** 解析后的逐层表。 */
+    private final FloorPlateSchedule schedule;
 
-    public MassingSpec(int floors, int floorHeight, List<FloorPlateSpec> floorPlates) {
-        this.floors = clamp(floors, 1, 64);
-        this.floorHeight = clamp(floorHeight, 2, 16);
-        this.floorPlates = floorPlates != null ? List.copyOf(floorPlates) : List.of();
+    private MassingSpec(
+            int floors,
+            int floorHeight,
+            List<FloorPlateSpec> floorPlates,
+            FloorPlateSchedule schedule) {
+        this.floors = floors;
+        this.floorHeight = floorHeight;
+        this.floorPlates = floorPlates;
+        this.schedule = schedule;
     }
 
     public static MassingSpec from(BuildingFootprint footprint) {
@@ -34,8 +45,15 @@ public final class MassingSpec {
             int floorHeight,
             List<Vec2d> baseFootprint,
             List<FloorPlateSpec> floorPlates) {
-        List<FloorPlateSpec> normalized = normalizeFloorPlates(floors, baseFootprint, floorPlates);
-        return new MassingSpec(floors, floorHeight, normalized);
+        int clampedFloors = clamp(floors, 1, 64);
+        int clampedHeight = clamp(floorHeight, 2, 16);
+        List<FloorPlateSpec> definitions = clampDefinitions(clampedFloors, floorPlates);
+        FloorPlateSchedule schedule = FloorPlateSchedule.resolve(
+            clampedFloors, baseFootprint, definitions);
+        List<FloorPlateSpec> persisted = definitions.isEmpty()
+            ? List.of(FloorPlateSpec.of(0, clampedFloors - 1, baseFootprint))
+            : definitions;
+        return new MassingSpec(clampedFloors, clampedHeight, persisted, schedule);
     }
 
     public int floors() {
@@ -46,53 +64,58 @@ public final class MassingSpec {
         return floorHeight;
     }
 
+    /** 作者定义的 plate 列表（可能重叠；缺口已在 schedule 中用 base 填补）。 */
     public List<FloorPlateSpec> floorPlates() {
         return floorPlates;
+    }
+
+    public FloorPlateSchedule schedule() {
+        return schedule;
     }
 
     public boolean hasCustomFloorPlates() {
         return floorPlates.size() > 1;
     }
 
+    /** 定义中是否存在未覆盖楼层（这些层已用 base footprint 填充）。 */
+    public boolean hasCoverageGaps() {
+        return !coverageGapFloors().isEmpty();
+    }
+
+    public List<Integer> coverageGapFloors() {
+        return FloorPlateSchedule.findGapFloors(floors, floorPlates);
+    }
+
     public int totalHeight() {
         return floors * floorHeight;
     }
 
-    /**
-     * 查找覆盖指定楼层的轮廓板；若有重叠，后定义的 plate 优先。
-     */
+    /** 第 {@code floorIndex} 层的唯一有效轮廓板（来自 {@link FloorPlateSchedule}）。 */
     public FloorPlateSpec plateForFloor(int floorIndex) {
-        if (floorPlates.isEmpty()) {
-            throw new IllegalStateException("massing has no floor plates");
-        }
-        for (int i = floorPlates.size() - 1; i >= 0; i--) {
-            FloorPlateSpec plate = floorPlates.get(i);
-            if (plate.coversFloor(floorIndex)) {
-                return plate;
-            }
-        }
-        return floorPlates.getLast();
+        return schedule.plateForFloor(floorIndex);
     }
 
-    /** 最高 occupied 楼层（0-based）对应的轮廓板，用于屋顶。 */
+    /** 最高 occupied 楼层对应的轮廓板，用于屋顶。 */
     public FloorPlateSpec topOccupiedPlate() {
-        return plateForFloor(Math.max(0, floors - 1));
+        return schedule.topOccupiedPlate();
     }
 
-    private static List<FloorPlateSpec> normalizeFloorPlates(
-            int floors,
-            List<Vec2d> baseFootprint,
-            List<FloorPlateSpec> floorPlates) {
+    private static List<FloorPlateSpec> clampDefinitions(int floors, List<FloorPlateSpec> floorPlates) {
         if (floorPlates == null || floorPlates.isEmpty()) {
-            return List.of(FloorPlateSpec.of(0, Math.max(0, floors - 1), baseFootprint));
+            return List.of();
         }
         List<FloorPlateSpec> copy = new ArrayList<>(floorPlates.size());
         for (FloorPlateSpec plate : floorPlates) {
-            if (plate.floorEnd() >= floors) {
-                copy.add(FloorPlateSpec.of(
-                    plate.floorStart(),
-                    Math.max(plate.floorStart(), floors - 1),
-                    plate.outerPoints()));
+            if (plate == null) {
+                continue;
+            }
+            int start = Math.max(0, plate.floorStart());
+            int end = Math.min(floors - 1, plate.floorEnd());
+            if (start > end) {
+                continue;
+            }
+            if (start != plate.floorStart() || end != plate.floorEnd()) {
+                copy.add(FloorPlateSpec.of(start, end, plate.outerPoints()));
             } else {
                 copy.add(plate);
             }

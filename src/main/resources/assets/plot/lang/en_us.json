@@ -3256,6 +3256,7 @@
   "plugin.building.project.default_loaded": "Default building project loaded",
   "plugin.building.preview_invalidated": "Building parameters changed; preview invalidated — recalculate preview",
   "plugin.building.warn.inner_offset_failed": "Inner offset failed (wall too thick or footprint too small); no interior floors generated",
+  "plugin.building.warn.floor_plate_coverage_gap": "Floor plate definitions leave gaps; uncovered floors use the base footprint",
   "plugin.building.warn.using_earthwork_pad_elevation": "Using earthwork building pad design elevation for foundation base",
   "plugin.building.earthwork_pad_controls_base": "Foundation base Y=%d from earthwork pad \"%s\"",
   "plugin.building.earthwork_pad_linked_pending": "Linked earthwork pad \"%s\" — set pad elevation or run earthwork preview",

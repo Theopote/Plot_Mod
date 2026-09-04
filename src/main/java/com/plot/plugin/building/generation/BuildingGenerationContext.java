@@ -147,6 +147,11 @@ public final class BuildingGenerationContext {
             InnerOffsetDegradation.noteInnerOffsetFailure(result);
             LOGGER.warn("内轮廓偏移失败（墙过厚或足迹过小），将不生成内部楼板；墙体按实心体量生成");
         }
+        if (definition.massing().hasCoverageGaps()) {
+            result.warnings.add("plugin.building.warn.floor_plate_coverage_gap");
+            LOGGER.warn("FloorPlate 存在未覆盖楼层 {}，已用基础轮廓填充",
+                definition.massing().coverageGapFloors());
+        }
 
         List<GridCell> footprintCells = collectFootprintCells(outerPoints, outerPolygon);
 
@@ -232,6 +237,9 @@ public final class BuildingGenerationContext {
             : null;
         if (innerPolygon == null && outerPoints.size() >= 3) {
             InnerOffsetDegradation.noteInnerOffsetFailure(result);
+        }
+        if (definition.massing().hasCoverageGaps()) {
+            result.warnings.add("plugin.building.warn.floor_plate_coverage_gap");
         }
 
         List<GridCell> footprintCells = outerPolygon != null

@@ -3256,6 +3256,7 @@
   "plugin.building.project.default_loaded": "已加载默认建筑项目",
   "plugin.building.preview_invalidated": "建筑参数已变更，预览已失效，请重新计算预览",
   "plugin.building.warn.inner_offset_failed": "内轮廓偏移失败（墙过厚或足迹过小），未生成内部楼板",
+  "plugin.building.warn.floor_plate_coverage_gap": "楼层轮廓板存在未覆盖楼层，缺口已用基础轮廓填充",
   "plugin.building.warn.using_earthwork_pad_elevation": "已采用土方建筑垫层设计标高作为地基基准",
   "plugin.building.earthwork_pad_controls_base": "地基基准 Y=%d（来自土方垫层「%s」）",
   "plugin.building.earthwork_pad_linked_pending": "已关联土方垫层「%s」— 请设置垫层标高或运行土方预览",
