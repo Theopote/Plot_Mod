@@ -309,4 +309,26 @@ public class EarthworkPlugin extends Plugin {
             ).orElse(null);
         }
     }
+
+    public BuildingPadElevationService.PadElevationStatus describeBuildingPadLink(
+            String buildingId,
+            java.util.List<Vec2d> footprintPoints) {
+        synchronized (projectLock) {
+            if (uiContext == null || buildingId == null || buildingId.isBlank()) {
+                return BuildingPadElevationService.PadElevationStatus.none();
+            }
+            DesignTerrainGrid previewGrid = null;
+            EarthworkGenerationResult preview = uiContext.previewManager().getLastGenerationResult();
+            if (preview != null) {
+                previewGrid = preview.designTerrainGrid;
+            }
+            return BuildingPadElevationService.describePadLink(
+                uiContext.project(),
+                buildingId,
+                footprintPoints,
+                previewGrid,
+                ctx().coordinates()
+            );
+        }
+    }
 }

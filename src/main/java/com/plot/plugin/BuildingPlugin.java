@@ -20,6 +20,8 @@ import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
+import com.plot.plugin.building.site.BuildingSiteElevationResolver;
+import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import com.plot.plugin.road.RoadMaterialUtils;
 import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.core.persistence.ContentFingerprint;
@@ -439,6 +441,7 @@ public class BuildingPlugin extends Plugin {
             }
             UIUtils.renderEngineeringTooltip("hint.plot.building.base_elevation");
         }
+        renderEarthworkPadElevationHint(building);
 
         ImGui.separator();
         ImGui.text(PlotI18n.tr("plugin.building.window_settings"));
@@ -488,6 +491,43 @@ public class BuildingPlugin extends Plugin {
         UIUtils.renderEngineeringTooltip("hint.plot.building.window_sill");
 
         renderDoorEditor(building);
+    }
+
+    private void renderEarthworkPadElevationHint(BuildingFootprint building) {
+        BuildingPadElevationService.PadElevationStatus status =
+            BuildingSiteElevationResolver.describePadLink(building);
+        if (!status.isLinked()) {
+            return;
+        }
+        boolean manual = building.getManualBaseElevation() != null;
+        switch (status.mode()) {
+            case EARTHWORK_OWNED -> {
+                if (manual) {
+                    if (status.resolvedElevation() != null) {
+                        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                            "plugin.building.manual_overrides_earthwork_pad",
+                            status.resolvedElevation()));
+                    } else {
+                        ImGui.textColored(PluginUiColors.WARNING,
+                            PlotI18n.tr("plugin.building.manual_overrides_earthwork_pad_pending"));
+                    }
+                } else if (status.resolvedElevation() != null) {
+                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                        "plugin.building.earthwork_pad_controls_base",
+                        status.resolvedElevation(),
+                        status.zoneName()));
+                } else {
+                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                        "plugin.building.earthwork_pad_linked_pending",
+                        status.zoneName()));
+                }
+            }
+            case BUILDING_LINKED -> ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.building.earthwork_pad_follows_building",
+                status.zoneName()));
+            default -> {
+            }
+        }
     }
 
     private void renderRoofTypeSelector(BuildingFootprint building) {
@@ -584,6 +624,7 @@ public class BuildingPlugin extends Plugin {
 
         renderBuildingSelector();
         ImGui.spacing();
+        renderEarthworkPadElevationHint(building);
 
         if (ImGui.button(PlotI18n.tr("plugin.building.calc_preview"), half, 0)) {
             calculatePreview(building);

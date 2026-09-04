@@ -32,6 +32,65 @@ public final class BuildingPadElevationService {
     public record PadMatch(EarthworkSite site, GradingZone zone) {
     }
 
+    public enum PadElevationMode {
+        NONE,
+        /** 垫层标高跟随建筑（{@link DesignSurfaceElevationSource#BUILDING_BASE_ELEVATION}）。 */
+        BUILDING_LINKED,
+        /** 垫层标高由土方主导，建筑生成时读取。 */
+        EARTHWORK_OWNED
+    }
+
+    public record PadElevationStatus(
+            PadElevationMode mode,
+            String zoneName,
+            String siteName,
+            Integer resolvedElevation) {
+
+        public static PadElevationStatus none() {
+            return new PadElevationStatus(PadElevationMode.NONE, "", "", null);
+        }
+
+        public boolean isLinked() {
+            return mode != PadElevationMode.NONE;
+        }
+    }
+
+    public static PadElevationStatus describePadLink(
+            EarthworkProject project,
+            String buildingId,
+            List<Vec2d> footprintPoints,
+            DesignTerrainGrid previewGrid,
+            ICoordinateService coordinateService) {
+        if (project == null || buildingId == null || buildingId.isBlank()) {
+            return PadElevationStatus.none();
+        }
+        Optional<PadMatch> padMatch = findBuildingPad(project, buildingId);
+        if (padMatch.isEmpty()) {
+            return PadElevationStatus.none();
+        }
+        PadMatch match = padMatch.get();
+        GradingZone zone = match.zone();
+        DesignSurface surface = zone.getDesignSurface();
+        String zoneName = zone.getName() != null && !zone.getName().isBlank()
+            ? zone.getName()
+            : zone.getId();
+        String siteName = match.site().getName() != null && !match.site().getName().isBlank()
+            ? match.site().getName()
+            : match.site().getId();
+
+        if (!isEarthworkOwnedElevation(surface)) {
+            return new PadElevationStatus(PadElevationMode.BUILDING_LINKED, zoneName, siteName, null);
+        }
+
+        Optional<Integer> elevation = resolveEarthworkOwnedPadElevation(
+            project, buildingId, footprintPoints, previewGrid, coordinateService);
+        return new PadElevationStatus(
+            PadElevationMode.EARTHWORK_OWNED,
+            zoneName,
+            siteName,
+            elevation.orElse(null));
+    }
+
     public static Optional<Integer> resolveEarthworkOwnedPadElevation(
             EarthworkProject project,
             String buildingId,

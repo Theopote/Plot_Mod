@@ -15,6 +15,7 @@ import com.plot.core.tool.ToolManager;
 import com.plot.plugin.BuildingPlugin;
 import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
@@ -1266,6 +1267,42 @@ public final class EarthworkEditPanel {
                 zone.getDesignSurface().setElevation(elevation[0]);
                 ctx.invalidatePreview();
             }
+        }
+        renderBuildingPadElevationSyncHints(zone);
+    }
+
+    private void renderBuildingPadElevationSyncHints(GradingZone zone) {
+        String ref = zone.getBuildingFootprintRef();
+        if (ref == null || ref.isBlank()) {
+            return;
+        }
+        BuildingFootprint footprint = EarthworkUiLookups.createBuildingFootprintLookup().getFootprint(ref);
+        boolean useBuildingElevation = zone.getDesignSurface().getElevationSource()
+            == DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION;
+
+        if (useBuildingElevation) {
+            Integer manual = BuildingSiteElevationResolver.resolveBuildingManualBaseElevation(footprint);
+            if (manual != null) {
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                    "plugin.earthwork.pad_follows_building_manual", manual));
+            } else {
+                ImGui.textColored(PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.earthwork.pad_follows_building_terrain"));
+            }
+            return;
+        }
+
+        Integer padElevation = zone.getDesignSurface().getElevation();
+        if (padElevation != null) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.earthwork.pad_drives_building", padElevation));
+        } else {
+            ImGui.textColored(PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.pad_drives_building_preview"));
+        }
+        if (footprint != null && footprint.getManualBaseElevation() != null) {
+            ImGui.textColored(PluginUiColors.WARNING,
+                PlotI18n.tr("plugin.earthwork.building_manual_overrides_pad"));
         }
     }
 

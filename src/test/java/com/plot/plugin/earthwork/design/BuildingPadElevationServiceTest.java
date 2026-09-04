@@ -109,6 +109,36 @@ class BuildingPadElevationServiceTest {
         assertEquals(80, elevation.get());
     }
 
+    @Test
+    void describePadLinkDetectsBuildingLinkedPad() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = createSite();
+        GradingZone pad = createPad("pad-1", "b1", 72);
+        pad.getDesignSurface().setElevationSource(DesignSurfaceElevationSource.BUILDING_BASE_ELEVATION);
+        site.addZone(pad);
+        project.addSite(site);
+
+        BuildingPadElevationService.PadElevationStatus status =
+            BuildingPadElevationService.describePadLink(project, "b1", footprint(), null, null);
+
+        assertEquals(BuildingPadElevationService.PadElevationMode.BUILDING_LINKED, status.mode());
+        assertEquals("pad-1", status.zoneName());
+    }
+
+    @Test
+    void describePadLinkDetectsEarthworkOwnedPad() {
+        EarthworkProject project = new EarthworkProject();
+        EarthworkSite site = createSite();
+        site.addZone(createPad("pad-1", "b1", 75));
+        project.addSite(site);
+
+        BuildingPadElevationService.PadElevationStatus status =
+            BuildingPadElevationService.describePadLink(project, "b1", footprint(), null, null);
+
+        assertEquals(BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED, status.mode());
+        assertEquals(75, status.resolvedElevation());
+    }
+
     private static EarthworkSite createSite() {
         return createSite("site-1");
     }
