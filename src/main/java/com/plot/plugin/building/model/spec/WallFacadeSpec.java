@@ -3,7 +3,8 @@ package com.plot.plugin.building.model.spec;
 /**
  * 单段外墙的立面参数（窗型等）。
  * <p>
- * {@link #wallSegmentIndex()} 对应轮廓 {@code outerPoints} 的边索引（0 = 第一条边）。
+ * {@link #wallSegmentIndex()} 的语义由 {@link FacadeSpec#edgeScope()} 决定：
+ * 默认相对建筑<strong>基础 footprint</strong> 的边索引，而非任意 FloorPlate。
  */
 public final class WallFacadeSpec {
     private final int wallSegmentIndex;

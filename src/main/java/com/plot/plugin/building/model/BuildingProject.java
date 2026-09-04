@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.plugin.building.model.spec.FacadeEdgeScope;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
 import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
@@ -176,6 +177,8 @@ public class BuildingProject {
         List<FloorPlateData> floorPlates = new ArrayList<>();
         List<WallFacadeData> wallFacades = new ArrayList<>();
         List<OpeningData> openings = new ArrayList<>();
+        /** 缺省或 null → {@link FacadeEdgeScope#BASE_FOOTPRINT}。 */
+        String facadeEdgeScope;
         Boolean parapetEnabled;
         Integer parapetHeight;
         String parapetMaterial;
@@ -250,6 +253,7 @@ public class BuildingProject {
                     facadeData.windowSillHeight = pattern.sillHeight();
                     buildingData.wallFacades.add(facadeData);
                 }
+                buildingData.facadeEdgeScope = building.getFacadeEdgeScope().name();
                 for (OpeningSpec opening : building.getOpenings()) {
                     OpeningData openingData = new OpeningData();
                     openingData.kind = opening.kind().name();
@@ -417,6 +421,7 @@ public class BuildingProject {
                     }
                     footprint.setWallFacades(facades);
                 }
+                footprint.setFacadeEdgeScope(parseFacadeEdgeScope(buildingData.facadeEdgeScope));
                 if (Boolean.TRUE.equals(buildingData.parapetEnabled)) {
                     footprint.setParapetEnabled(true);
                     if (buildingData.parapetHeight != null) {
@@ -464,6 +469,17 @@ public class BuildingProject {
                 return OpeningKind.valueOf(kind.trim().toUpperCase());
             } catch (IllegalArgumentException ignored) {
                 return OpeningKind.DOOR;
+            }
+        }
+
+        private static FacadeEdgeScope parseFacadeEdgeScope(String scope) {
+            if (scope == null || scope.isBlank()) {
+                return FacadeEdgeScope.BASE_FOOTPRINT;
+            }
+            try {
+                return FacadeEdgeScope.valueOf(scope.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return FacadeEdgeScope.BASE_FOOTPRINT;
             }
         }
     }

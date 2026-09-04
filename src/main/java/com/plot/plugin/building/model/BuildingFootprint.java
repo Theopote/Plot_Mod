@@ -2,6 +2,7 @@ package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.building.model.spec.FacadeEdgeScope;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
 import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
@@ -118,6 +119,8 @@ public class BuildingFootprint {
     private List<FloorPlateSpec> floorPlates = new ArrayList<>();
     private List<WallFacadeSpec> wallFacades = new ArrayList<>();
     private List<OpeningSpec> openings = new ArrayList<>();
+    /** 立面边索引作用域；默认相对基础 footprint。 */
+    private FacadeEdgeScope facadeEdgeScope = FacadeEdgeScope.BASE_FOOTPRINT;
 
     private boolean parapetEnabled;
     private int parapetHeight = 1;
@@ -384,6 +387,16 @@ public class BuildingFootprint {
                 .map(facade -> WallFacadeSpec.of(facade.wallSegmentIndex(), facade.windowPattern()))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
             : new ArrayList<>();
+    }
+
+    public FacadeEdgeScope getFacadeEdgeScope() {
+        return facadeEdgeScope != null ? facadeEdgeScope : FacadeEdgeScope.BASE_FOOTPRINT;
+    }
+
+    public void setFacadeEdgeScope(FacadeEdgeScope facadeEdgeScope) {
+        this.facadeEdgeScope = facadeEdgeScope != null
+            ? facadeEdgeScope
+            : FacadeEdgeScope.BASE_FOOTPRINT;
     }
 
     public boolean isParapetEnabled() {

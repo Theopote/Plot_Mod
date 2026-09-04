@@ -29,12 +29,27 @@ public final class OpeningPlacementResolver {
             List<Vec2d> outerPoints,
             int baseElevation,
             int floorHeight) {
+        if (opening == null) {
+            return null;
+        }
+        return resolve(opening, outerPoints, opening.wallSegmentIndex(), baseElevation, floorHeight);
+    }
+
+    /**
+     * @param resolvedSegmentIndex 已映射到 {@code outerPoints} 的边索引
+     */
+    public static ResolvedOpening resolve(
+            OpeningSpec opening,
+            List<Vec2d> outerPoints,
+            int resolvedSegmentIndex,
+            int baseElevation,
+            int floorHeight) {
         if (opening == null || outerPoints == null || outerPoints.size() < 3) {
             return null;
         }
 
         int segmentCount = outerPoints.size();
-        int segmentIndex = Math.floorMod(opening.wallSegmentIndex(), segmentCount);
+        int segmentIndex = Math.floorMod(resolvedSegmentIndex, segmentCount);
         Vec2d point = BuildingGeometryUtils.pointOnWallSegment(
             outerPoints, segmentIndex, opening.positionRatio());
         if (point == null) {

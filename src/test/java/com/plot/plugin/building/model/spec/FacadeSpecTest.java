@@ -92,6 +92,7 @@ class FacadeSpecTest {
             WallFacadeSpec.of(0, new WindowPatternSpec(2, 1, 2, 1)),
             WallFacadeSpec.noWindows(2)
         ));
+        footprint.setFacadeEdgeScope(FacadeEdgeScope.FLOOR_LOCAL);
 
         BuildingProject project = new BuildingProject();
         project.addBuilding(footprint);
@@ -100,6 +101,15 @@ class FacadeSpecTest {
         assertEquals(2, restored.getWallFacades().size());
         assertEquals(2, restored.getWallFacades().getFirst().windowPattern().spacing());
         assertFalse(restored.getWallFacades().get(1).windowPattern().enabled());
+        assertEquals(FacadeEdgeScope.FLOOR_LOCAL, restored.getFacadeEdgeScope());
+    }
+
+    @Test
+    void defaultEdgeScopeIsBaseFootprint() {
+        FacadeSpec facade = new FacadeSpec(new WindowPatternSpec(4, 1, 2, 1), List.of(), List.of());
+        assertEquals(FacadeEdgeScope.BASE_FOOTPRINT, facade.edgeScope());
+        BuildingFootprint footprint = new BuildingFootprint(BASE, true);
+        assertEquals(FacadeEdgeScope.BASE_FOOTPRINT, FacadeSpec.from(footprint).edgeScope());
     }
 
     private static BuildingDefinition definitionWithFacades(List<WallFacadeSpec> wallFacades) {

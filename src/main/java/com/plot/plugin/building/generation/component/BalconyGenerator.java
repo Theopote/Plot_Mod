@@ -6,6 +6,7 @@ import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
+import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
 import com.plot.plugin.building.model.spec.BalconySpec;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
@@ -36,6 +37,11 @@ public final class BalconyGenerator {
         ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
             massing.plateForFloor(spec.floor()), envelope.wallThickness());
         List<Vec2d> outerPoints = plate.outerPoints();
+        int segmentIndex = FacadeEdgeResolver.resolveSegmentIndex(
+            definition.facade().edgeScope(),
+            spec.wallSegmentIndex(),
+            massing.baseOuterPoints(),
+            outerPoints);
 
         int floorY = context.getBaseElevation() + spec.floor() * massing.floorHeight();
         BuildingGenerationResult result = context.getResult();
@@ -45,7 +51,7 @@ public final class BalconyGenerator {
         Set<BlockPos> slabPositions = WallAttachmentPlacer.placeHorizontalSlab(
             result,
             outerPoints,
-            spec.wallSegmentIndex(),
+            segmentIndex,
             spec.positionRatio(),
             floorY,
             spec.width(),

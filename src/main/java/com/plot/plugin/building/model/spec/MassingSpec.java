@@ -15,6 +15,8 @@ import java.util.List;
 public final class MassingSpec {
     private final int floors;
     private final int floorHeight;
+    /** 建筑基础轮廓（Facade 边索引默认作用域）。 */
+    private final List<Vec2d> baseOuterPoints;
     /** 作者定义的 plate（持久化/编辑用；可重叠）。 */
     private final List<FloorPlateSpec> floorPlates;
     /** 解析后的逐层表。 */
@@ -23,10 +25,12 @@ public final class MassingSpec {
     private MassingSpec(
             int floors,
             int floorHeight,
+            List<Vec2d> baseOuterPoints,
             List<FloorPlateSpec> floorPlates,
             FloorPlateSchedule schedule) {
         this.floors = floors;
         this.floorHeight = floorHeight;
+        this.baseOuterPoints = List.copyOf(baseOuterPoints);
         this.floorPlates = floorPlates;
         this.schedule = schedule;
     }
@@ -53,7 +57,7 @@ public final class MassingSpec {
         List<FloorPlateSpec> persisted = definitions.isEmpty()
             ? List.of(FloorPlateSpec.of(0, clampedFloors - 1, baseFootprint))
             : definitions;
-        return new MassingSpec(clampedFloors, clampedHeight, persisted, schedule);
+        return new MassingSpec(clampedFloors, clampedHeight, baseFootprint, persisted, schedule);
     }
 
     public int floors() {
@@ -62,6 +66,11 @@ public final class MassingSpec {
 
     public int floorHeight() {
         return floorHeight;
+    }
+
+    /** 建筑基础外轮廓；{@link FacadeEdgeScope#BASE_FOOTPRINT} 的边索引相对此轮廓。 */
+    public List<Vec2d> baseOuterPoints() {
+        return baseOuterPoints;
     }
 
     /** 作者定义的 plate 列表（可能重叠；缺口已在 schedule 中用 base 填补）。 */

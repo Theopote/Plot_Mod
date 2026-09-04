@@ -6,10 +6,12 @@ import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.facade.FacadeEdgeResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver;
 import com.plot.plugin.building.generation.opening.OpeningPlacementResolver.ResolvedOpening;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.model.spec.EnvelopeSpec;
+import com.plot.plugin.building.model.spec.FacadeEdgeScope;
 import com.plot.plugin.building.model.spec.FacadeSpec;
 import com.plot.plugin.building.model.spec.MassingSpec;
 import com.plot.plugin.building.model.spec.OpeningSpec;
@@ -24,6 +26,7 @@ import java.util.Set;
  * 门窗开洞：在墙体上镂空，覆盖先前写入的墙体记录。
  * <p>
  * 窗型阵列由 {@link FacadeSpec#windowPatternForSegment} 控制；显式开洞由 {@link OpeningSpec} 描述。
+ * 默认 {@link FacadeEdgeScope#BASE_FOOTPRINT}：边索引相对基础轮廓，经方向继承映射到当前层。
  * inner offset 失败时仍沿外轮廓开洞，见 {@link com.plot.plugin.building.generation.massing.InnerOffsetDegradation}。
  */
 public final class OpeningGenerationStage implements BuildingGenerationStage {
@@ -47,6 +50,8 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         EnvelopeSpec envelope = definition.envelope();
         int baseElevation = context.getBaseElevation();
         IBlockProjectionService projectionHandler = context.getProjectionService();
+        List<Vec2d> basePoints = massing.baseOuterPoints();
+        FacadeEdgeScope scope = facade.edgeScope();
 
         for (int floor = 0; floor < massing.floors(); floor++) {
             List<Vec2d> outerPoints = massing.plateForFloor(floor).outerPoints();
@@ -54,7 +59,12 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
             int floorBaseY = baseElevation + floor * massing.floorHeight();
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
-                WindowPatternSpec windows = facade.windowPatternForSegment(segmentIndex, segmentCount);
+                int patternIndex = FacadeEdgeResolver.patternSourceIndex(
+                    scope, segmentIndex, basePoints, outerPoints);
+                int patternCount = scope == FacadeEdgeScope.FLOOR_LOCAL
+                    ? segmentCount
+                    : basePoints.size();
+                WindowPatternSpec windows = facade.windowPatternForSegment(patternIndex, patternCount);
                 if (!windows.enabled()) {
                     continue;
                 }
@@ -89,14 +99,18 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
         BuildingGenerationResult result = context.getResult();
         int baseElevation = context.getBaseElevation();
         IBlockProjectionService projectionHandler = context.getProjectionService();
+        List<Vec2d> basePoints = massing.baseOuterPoints();
+        FacadeEdgeScope scope = facade.edgeScope();
 
         for (OpeningSpec opening : facade.openings()) {
             if (opening.floor() < 0 || opening.floor() >= massing.floors()) {
                 continue;
             }
             List<Vec2d> outerPoints = massing.plateForFloor(opening.floor()).outerPoints();
+            int plateSegment = FacadeEdgeResolver.resolveSegmentIndex(
+                scope, opening.wallSegmentIndex(), basePoints, outerPoints);
             ResolvedOpening resolved = OpeningPlacementResolver.resolve(
-                opening, outerPoints, baseElevation, massing.floorHeight());
+                opening, outerPoints, plateSegment, baseElevation, massing.floorHeight());
             if (resolved == null) {
                 continue;
             }
