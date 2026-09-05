@@ -2,6 +2,7 @@ package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.model.spec.FacadeEdgeScope;
 import com.plot.plugin.building.model.spec.FloorPlateSpec;
 import com.plot.plugin.building.model.spec.OpeningKind;
@@ -103,6 +104,7 @@ public class BuildingFootprint {
     private String name;
     private List<Vec2d> outerPoints;
     private boolean isRectangular;
+    private transient Boolean slopedRoofEligible;
 
     private int floors = 1;
     private int floorHeight = 3;
@@ -163,6 +165,14 @@ public class BuildingFootprint {
 
     public void setOuterPoints(List<Vec2d> outerPoints) {
         this.outerPoints = copyPoints(outerPoints);
+        this.slopedRoofEligible = null;
+    }
+
+    public boolean isSlopedRoofEligible() {
+        if (slopedRoofEligible == null) {
+            slopedRoofEligible = BuildingGeometryUtils.isSlopedRoofEligible(outerPoints);
+        }
+        return slopedRoofEligible;
     }
 
     public boolean isRectangular() {

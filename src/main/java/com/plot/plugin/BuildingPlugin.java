@@ -316,7 +316,7 @@ public class BuildingPlugin extends Plugin {
                 "plugin.building.overview_item",
                 String.format("%.1f", building.computeArea()),
                 building.getFloors(),
-                BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())
+                building.isSlopedRoofEligible()
                     ? PlotI18n.tr("plugin.building.shape_rect")
                     : PlotI18n.tr("plugin.building.shape_polygon")));
 
@@ -944,7 +944,7 @@ public class BuildingPlugin extends Plugin {
             }
         }
         UIUtils.renderEngineeringTooltip("hint.plot.building.roof_type");
-        if (!BuildingGeometryUtils.isSlopedRoofEligible(building.getOuterPoints())) {
+        if (!building.isSlopedRoofEligible()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.building.roof_rect_hint"));
         }
     }
