@@ -147,8 +147,7 @@ public final class OpeningGenerationStage implements BuildingGenerationStage {
                 Vec2d sample = centerPoint
                     .add(tangent.multiply(lateral))
                     .add(inwardNormal.multiply(depth + 0.5));
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
-                    sample, context.getCoordinateService());
+                BlockPos column = context.canvasToColumn(sample);
                 for (int h = 0; h < height; h++) {
                     BlockPos pos = new BlockPos(column.getX(), startY + h, column.getZ());
                     if (carved.add(pos)) {

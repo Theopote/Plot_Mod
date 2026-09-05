@@ -45,8 +45,7 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
 
         for (int floor = 0; floor <= massing.floors(); floor++) {
             int plateFloor = Math.min(floor, Math.max(0, massing.floors() - 1));
-            ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
-                massing.plateForFloor(plateFloor), envelope.wallThickness());
+            ResolvedFloorPlate plate = context.resolvedFloorPlate(plateFloor);
             Polygon innerPolygon = plate.innerPolygon();
             if (!InnerOffsetDegradation.hasInteriorSpace(innerPolygon)) {
                 continue;
@@ -58,8 +57,7 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
                 if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                     continue;
                 }
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
-                    cell.center(), context.getCoordinateService());
+                BlockPos column = context.canvasToColumn(cell.center());
                 BlockPos pos = new BlockPos(column.getX(), floorY, column.getZ());
                 String floorBlockId = MaterialMixResolver.resolve(
                     envelope.floorMaterial(), pos, definition.id(),
@@ -90,8 +88,7 @@ public final class FloorGenerationStage implements BuildingGenerationStage {
             if (!InnerOffsetDegradation.isInteriorCell(innerPolygon, cell.center())) {
                 continue;
             }
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
-                cell.center(), context.getCoordinateService());
+            BlockPos column = context.canvasToColumn(cell.center());
             BlockPos pos = new BlockPos(column.getX(), topFloorY, column.getZ());
             BuildingBlockWriter.recordBlock(result, pos, roofBlockId, projectionHandler);
         }

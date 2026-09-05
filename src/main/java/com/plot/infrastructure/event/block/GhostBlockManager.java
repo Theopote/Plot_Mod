@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 幽灵方块管理器
@@ -29,6 +30,7 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
     // 幽灵方块存储 - 使用线程安全的集合
     private final Map<String, GhostBlock> ghostBlocks = new ConcurrentHashMap<>();
     private final List<String> blockIds = new CopyOnWriteArrayList<>();
+    private final AtomicLong ghostIdSequence = new AtomicLong();
 
     // 渲染相关
     private boolean renderingEnabled = true;
@@ -140,6 +142,23 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
     }
 
     /**
+     * 批量添加幽灵方块（片区预览）：避免逐个分配 Random ID。
+     */
+    @Override
+    public void addGhostBlocks(Map<BlockPos, String> blocks) {
+        if (blocks == null || blocks.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<BlockPos, String> entry : blocks.entrySet()) {
+            BlockPos position = entry.getKey();
+            if (position == null || entry.getValue() == null) {
+                continue;
+            }
+            addGhostBlock(position, entry.getValue());
+        }
+    }
+
+    /**
      * 移除指定的幽灵方块
      *
      * @param id 幽灵方块ID
@@ -215,10 +234,9 @@ public class GhostBlockManager implements com.plot.api.world.IGhostBlockService 
     }
     
     /**
-     * 生成唯一的幽灵方块ID
+     * 生成唯一的幽灵方块ID（顺序号，片区预览大量插入时避免 Random/时间戳开销）
      */
     private String generateGhostBlockId() {
-        return "ghost_" + System.currentTimeMillis() + "_" + 
-               Integer.toHexString(new Random().nextInt());
+        return "ghost_" + ghostIdSequence.incrementAndGet();
     }
 } 

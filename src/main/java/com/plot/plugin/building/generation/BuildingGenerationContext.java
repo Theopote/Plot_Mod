@@ -14,7 +14,9 @@ import com.plot.plugin.building.model.spec.BuildingDefinition;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -40,6 +42,12 @@ public final class BuildingGenerationContext {
     private final String foundationFillBlockId;
     private final String roofBlockId;
     private final boolean valid;
+
+    /** 画布格 → 世界柱列缓存（同一栋内避免重复坐标变换） */
+    private final Map<Long, BlockPos> columnCache = new HashMap<>();
+    /** 楼层 → 已解析 FloorPlate（Wall/Floor 等 Stage 共享） */
+    private final Map<Integer, com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate>
+        floorPlateCache = new HashMap<>();
 
     private BuildingGenerationContext(
             BuildingFootprint footprint,
@@ -248,6 +256,41 @@ public final class BuildingGenerationContext {
             return baseElevation;
         }
         return baseElevation + definition.massing().totalHeight();
+    }
+
+    /**
+     * 画布点 → 世界 XZ 柱列；同格多次调用只变换一次。
+     */
+    public BlockPos canvasToColumn(Vec2d canvasPos) {
+        if (canvasPos == null) {
+            return BlockPos.ORIGIN;
+        }
+        long key = packCanvasCell(canvasPos.x, canvasPos.y);
+        BlockPos cached = columnCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        BlockPos column = com.plot.plugin.building.BuildingGeometryUtils.canvasToBlockXZ(
+            canvasPos, coordinateService);
+        columnCache.put(key, column);
+        return column;
+    }
+
+    /**
+     * 解析指定楼层的 FloorPlate 几何；同楼层多 Stage 复用。
+     */
+    public com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate
+            resolvedFloorPlate(int floorIndex) {
+        return floorPlateCache.computeIfAbsent(floorIndex, floor ->
+            com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.resolve(
+                definition.massing().plateForFloor(floor),
+                definition.envelope().wallThickness()));
+    }
+
+    private static long packCanvasCell(double x, double y) {
+        int ix = (int) Math.floor(x);
+        int iy = (int) Math.floor(y);
+        return (((long) ix) << 32) ^ (iy & 0xffffffffL);
     }
 
     public record GridCell(Vec2d center) {

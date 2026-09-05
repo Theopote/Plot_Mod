@@ -1,7 +1,6 @@
 package com.plot.plugin.building.generation.stage;
 
 import com.plot.api.world.IBlockProjectionService;
-import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
@@ -26,8 +25,7 @@ public final class FoundationGenerationStage implements BuildingGenerationStage 
         IBlockProjectionService projectionHandler = context.getProjectionService();
 
         for (BuildingGenerationContext.GridCell cell : context.getFootprintCells()) {
-            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
-                cell.center(), context.getCoordinateService());
+            BlockPos column = context.canvasToColumn(cell.center());
             int groundY = BuildingGenerationContext.sampleTopHeight(world, column);
             if (groundY > baseElevation) {
                 for (int y = baseElevation + 1; y <= groundY; y++) {

@@ -182,6 +182,8 @@ java {
 
 tasks.test {
 	useJUnitPlatform()
+	// Phase F：片区基准 D03–D05 可选开启
+	systemProperty "plot.district.benchmark", System.getProperty("plot.district.benchmark", "")
 }
 
 tasks.register("exportBuildingSmokeProject", Test) {

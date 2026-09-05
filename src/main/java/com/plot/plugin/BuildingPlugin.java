@@ -1615,9 +1615,12 @@ public class BuildingPlugin extends Plugin {
             return;
         }
         ghostBlockManager.clearAllGhostBlocks();
+        java.util.LinkedHashMap<net.minecraft.util.math.BlockPos, String> ghosts =
+            new java.util.LinkedHashMap<>(lastGenerationResult.placementRecords.size());
         for (BlockRecord record : lastGenerationResult.placementRecords.values()) {
-            ghostBlockManager.addGhostBlock(record.pos, record.newBlockId);
+            ghosts.put(record.pos, record.newBlockId);
         }
+        ghostBlockManager.addGhostBlocks(ghosts);
     }
 
     private void clearPreview() {

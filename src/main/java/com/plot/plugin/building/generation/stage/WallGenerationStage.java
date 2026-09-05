@@ -7,7 +7,6 @@ import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingBlockWriter;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
-import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver;
 import com.plot.plugin.building.generation.massing.FloorPlateGeometryResolver.ResolvedFloorPlate;
 import com.plot.plugin.building.generation.massing.InnerOffsetDegradation;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
@@ -37,8 +36,7 @@ public final class WallGenerationStage implements BuildingGenerationStage {
         int floorHeight = massing.floorHeight();
 
         for (int floor = 0; floor < massing.floors(); floor++) {
-            ResolvedFloorPlate plate = FloorPlateGeometryResolver.resolve(
-                massing.plateForFloor(floor), envelope.wallThickness());
+            ResolvedFloorPlate plate = context.resolvedFloorPlate(floor);
             Polygon outerPolygon = plate.outerPolygon();
             Polygon innerPolygon = plate.innerPolygon();
             if (!plate.hasInteriorSpace()) {
@@ -51,8 +49,7 @@ public final class WallGenerationStage implements BuildingGenerationStage {
                 if (!InnerOffsetDegradation.isWallMassCell(outerPolygon, innerPolygon, cell.center())) {
                     continue;
                 }
-                BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(
-                    cell.center(), context.getCoordinateService());
+                BlockPos column = context.canvasToColumn(cell.center());
                 for (int y = yStart; y < yEnd; y++) {
                     BlockPos pos = new BlockPos(column.getX(), y, column.getZ());
                     String wallBlockId = MaterialMixResolver.resolve(
