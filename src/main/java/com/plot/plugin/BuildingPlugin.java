@@ -16,6 +16,7 @@ import com.plot.plugin.building.BuildingBatchEditor;
 import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.BuildingSelectionSet;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
@@ -92,6 +93,10 @@ public class BuildingPlugin extends Plugin {
     private BuildingListHelper.SortMode buildingSortMode = BuildingListHelper.SortMode.INSERTION;
     /** Phase B：Apply to Selected 字段开关 */
     private final BuildingBatchEditor.FieldMask batchFieldMask = BuildingBatchEditor.FieldMask.allMassing();
+    /** Phase E：高度分布 */
+    private BuildingHeightDistribution.Mode heightDistMode = BuildingHeightDistribution.Mode.RANDOM;
+    private int heightDistMinFloors = 4;
+    private int heightDistMaxFloors = 8;
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -403,6 +408,7 @@ public class BuildingPlugin extends Plugin {
         renderBuildingSelector();
         if (selection.size() > 1) {
             renderBatchApplyPanel(building);
+            renderHeightDistributionPanel();
         }
         ImGui.separator();
 
@@ -627,6 +633,100 @@ public class BuildingPlugin extends Plugin {
         if (applyDisabled) {
             ImGui.endDisabled();
         }
+    }
+
+    private void renderHeightDistributionPanel() {
+        int count = selection.size();
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.building.height_distribution"),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.building.height_distribution_hint", count));
+
+        BuildingHeightDistribution.Mode[] modes = BuildingHeightDistribution.Mode.values();
+        String[] labels = new String[modes.length];
+        int current = 0;
+        for (int i = 0; i < modes.length; i++) {
+            labels[i] = PlotI18n.tr("plugin.building.height_mode." + modes[i].name().toLowerCase());
+            if (modes[i] == heightDistMode) {
+                current = i;
+            }
+        }
+        ImInt modeIndex = new ImInt(current);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##height_dist_mode", modeIndex, labels)) {
+            int picked = modeIndex.get();
+            if (picked >= 0 && picked < modes.length) {
+                heightDistMode = modes[picked];
+            }
+        }
+
+        if (heightDistMode == BuildingHeightDistribution.Mode.UNIFORM) {
+            int[] floors = {heightDistMaxFloors};
+            if (ImGui.sliderInt(
+                    "##height_dist_uniform",
+                    floors,
+                    1,
+                    32,
+                    PlotI18n.tr("plugin.building.floors", floors[0]))) {
+                heightDistMinFloors = floors[0];
+                heightDistMaxFloors = floors[0];
+            }
+        } else {
+            int[] minFloors = {heightDistMinFloors};
+            int[] maxFloors = {heightDistMaxFloors};
+            if (ImGui.sliderInt(
+                    "##height_dist_min",
+                    minFloors,
+                    1,
+                    32,
+                    PlotI18n.tr("plugin.building.height_min_floors", minFloors[0]))) {
+                heightDistMinFloors = minFloors[0];
+                if (heightDistMaxFloors < heightDistMinFloors) {
+                    heightDistMaxFloors = heightDistMinFloors;
+                }
+            }
+            if (ImGui.sliderInt(
+                    "##height_dist_max",
+                    maxFloors,
+                    1,
+                    32,
+                    PlotI18n.tr("plugin.building.height_max_floors", maxFloors[0]))) {
+                heightDistMaxFloors = maxFloors[0];
+                if (heightDistMinFloors > heightDistMaxFloors) {
+                    heightDistMinFloors = heightDistMaxFloors;
+                }
+            }
+        }
+
+        if (ImGui.button(
+                PlotI18n.tr("plugin.building.apply_height_distribution", count),
+                ImGui.getContentRegionAvailX(),
+                0)) {
+            applyHeightDistribution();
+        }
+    }
+
+    private void applyHeightDistribution() {
+        List<BuildingFootprint> targets = selection.resolve(project);
+        if (targets.isEmpty()) {
+            return;
+        }
+        projectHistory.push(project);
+        BuildingHeightDistribution.Settings settings = BuildingHeightDistribution.Settings.of(
+            heightDistMode,
+            heightDistMinFloors,
+            heightDistMaxFloors);
+        BuildingHeightDistribution.ApplyResult result =
+            BuildingHeightDistribution.apply(targets, settings);
+        invalidatePreview();
+        projectStatus = PlotI18n.tr(
+            "plugin.building.height_distribution_applied",
+            result.updated(),
+            PlotI18n.tr("plugin.building.height_mode." + heightDistMode.name().toLowerCase()));
     }
 
     private void applyMassingToSelected(BuildingFootprint primary) {
