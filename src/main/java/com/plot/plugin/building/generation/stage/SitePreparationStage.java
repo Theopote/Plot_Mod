@@ -14,8 +14,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 场地准备：清理 footprint 列上的自然附着物；记录人工构筑冲突 warning。
+ * 场地准备：清理 footprint 列上的自然附着物。
  * <p>
+ * 原木仅在判定为自然树时清理；无树冠的木柱 / 木梁保留并记 structure conflict。
  * 不做地形切填（见 {@link FoundationGenerationStage}）。
  */
 public final class SitePreparationStage implements BuildingGenerationStage {
@@ -60,12 +61,15 @@ public final class SitePreparationStage implements BuildingGenerationStage {
                 }
 
                 if (NaturalDecorationCleaner.isLog(world, pos)) {
+                    if (!NaturalDecorationCleaner.looksLikeNaturalTree(world, pos)) {
+                        // 玩家原木构筑：不删除，只 warning
+                        addWarningOnce(result, "plugin.building.warn.structure_conflict");
+                        continue;
+                    }
                     NaturalDecorationCleaner.TreeClearResult tree =
                         NaturalDecorationCleaner.collectTreeBlocks(world, pos);
                     if (tree.hitLimit() && !treeLimitWarned) {
-                        if (!result.warnings.contains("plugin.building.warn.tree_clear_limit")) {
-                            result.warnings.add("plugin.building.warn.tree_clear_limit");
-                        }
+                        addWarningOnce(result, "plugin.building.warn.tree_clear_limit");
                         treeLimitWarned = true;
                     }
                     for (BlockPos treePos : tree.blocks()) {
@@ -76,11 +80,17 @@ public final class SitePreparationStage implements BuildingGenerationStage {
                         }
                     }
                 } else {
+                    // 草 / 花 / 树叶等：footprint 内清理
                     cleared.add(key);
                     BuildingBlockWriter.recordBlock(result, pos, "minecraft:air", projection);
                 }
             }
         }
-        // structure_conflict warning 由 GenerationSiteResolver 统一发出，本 Stage 只清理自然附着物。
+    }
+
+    private static void addWarningOnce(BuildingGenerationResult result, String key) {
+        if (result != null && key != null && !result.warnings.contains(key)) {
+            result.warnings.add(key);
+        }
     }
 }

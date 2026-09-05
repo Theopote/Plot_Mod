@@ -78,6 +78,9 @@ public final class EngineeringTerrainService {
 
     /**
      * 列顶向下第一个流体方块 Y；无流体时为空（比 {@link #sampleWaterSurface} 更安全，避免把默认 64 当成水面）。
+     * <p>
+     * 注意：会扫到世界底部，可能命中地下洞穴水。Building 场地分析请用
+     * {@link #findExposedWaterSurface(int, int)}。
      */
     public java.util.OptionalInt findWaterSurface(int worldX, int worldZ) {
         if (world == null || !isChunkLoaded(worldX, worldZ)) {
@@ -97,6 +100,48 @@ public final class EngineeringTerrainService {
             LOGGER.warn("采样水面失败 ({}, {}): {}", worldX, worldZ, e.getMessage());
             return java.util.OptionalInt.empty();
         }
+    }
+
+    /**
+     * 地表暴露水体：仅在 {@code rawSurfaceY} 下扫到 {@code engineeringGroundY}（含）的区间内找流体。
+     * 忽略工程地面以下的地下水 / 洞穴水。
+     */
+    public java.util.OptionalInt findExposedWaterSurface(int worldX, int worldZ) {
+        if (world == null || !isChunkLoaded(worldX, worldZ)) {
+            return java.util.OptionalInt.empty();
+        }
+        try {
+            int rawY = sampleRawSurface(worldX, worldZ);
+            int groundY = sampleGroundSurface(worldX, worldZ);
+            return findExposedWaterInRange(rawY, groundY, y -> {
+                BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
+                return !state.getFluidState().isEmpty();
+            });
+        } catch (Exception e) {
+            LOGGER.warn("采样地表水面失败 ({}, {}): {}", worldX, worldZ, e.getMessage());
+            return java.util.OptionalInt.empty();
+        }
+    }
+
+    /**
+     * 纯函数：从 rawSurface 向下扫到 groundY，返回第一个流体 Y。
+     * 供测试与 {@link #findExposedWaterSurface} 共用。
+     */
+    public static java.util.OptionalInt findExposedWaterInRange(
+            int rawSurfaceY,
+            int engineeringGroundY,
+            java.util.function.IntPredicate isFluidAtY) {
+        if (isFluidAtY == null) {
+            return java.util.OptionalInt.empty();
+        }
+        int top = Math.max(rawSurfaceY, engineeringGroundY);
+        int bottom = Math.min(rawSurfaceY, engineeringGroundY);
+        for (int y = top; y >= bottom; y--) {
+            if (isFluidAtY.test(y)) {
+                return java.util.OptionalInt.of(y);
+            }
+        }
+        return java.util.OptionalInt.empty();
     }
 
     /**

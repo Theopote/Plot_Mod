@@ -68,4 +68,17 @@ class EngineeringTerrainServiceTest {
         assertEquals(EngineeringTerrainBlockRole.ENGINEERING_TERRAIN,
             EngineeringTerrainService.classifyTraits(false, false, false, false, false, false, true));
     }
+
+    @Test
+    void w09UndergroundWaterIgnoredByExposedSurfaceScan() {
+        // surface terrain Y80；地下洞穴水 Y40 → 不应算 footprint 地表水
+        assertTrue(EngineeringTerrainService.findExposedWaterInRange(
+            80, 80, y -> y == 40).isEmpty());
+
+        // 湖面：ground=60, raw=64，水体在 61..64
+        var lake = EngineeringTerrainService.findExposedWaterInRange(
+            64, 60, y -> y >= 61 && y <= 64);
+        assertTrue(lake.isPresent());
+        assertEquals(64, lake.getAsInt());
+    }
 }

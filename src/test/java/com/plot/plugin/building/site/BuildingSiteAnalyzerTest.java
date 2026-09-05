@@ -262,4 +262,16 @@ class BuildingSiteAnalyzerTest {
         }
         assertTrue(unloaded.warnings.contains("plugin.building.warn.chunk_unloaded"));
     }
+
+    @Test
+    void w09UndergroundWaterSamplesDoNotCreateWaterDominant() {
+        // 模拟：地表平坦无水；若错误扫到底会把地下水当水面
+        List<BuildingSiteColumnSample> samples = List.of(
+            land(80), land(80), land(80), land(80));
+        BuildingSiteAnalysis analysis = BuildingSiteAnalyzer.analyzeSamples(
+            samples, TerrainElevationStrategy.BALANCED);
+        assertEquals(0.0, analysis.waterCoverageRatio(), 1e-9);
+        assertFalse(analysis.hasIssue(SiteIssue.WATER_DOMINANT));
+        assertFalse(analysis.hasIssue(SiteIssue.PARTIAL_WATER));
+    }
 }

@@ -7,7 +7,9 @@ import com.plot.plugin.building.BuildingFoundationUtils;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.generation.BuildingGenerationContext.GridCell;
 import com.plot.plugin.building.generation.resolve.MassingGeometryResolver;
+import com.plot.plugin.building.generation.siteprep.NaturalDecorationCleaner;
 import net.minecraft.block.BlockState;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -216,7 +218,7 @@ public final class BuildingSiteAnalyzer {
         boolean loaded = terrain.isChunkLoaded(worldX, worldZ);
         int groundY = terrain.sampleGroundSurface(worldX, worldZ);
         int rawY = terrain.sampleRawSurface(worldX, worldZ);
-        OptionalInt waterY = terrain.findWaterSurface(worldX, worldZ);
+        OptionalInt waterY = terrain.findExposedWaterSurface(worldX, worldZ);
 
         int natural = 0;
         int structures = 0;
@@ -226,7 +228,13 @@ public final class BuildingSiteAnalyzer {
                 BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
                 EngineeringTerrainBlockRole role = EngineeringTerrainService.classifyBlock(state);
                 if (role == EngineeringTerrainBlockRole.NATURAL_DECORATION) {
-                    natural++;
+                    // 无树冠的原木柱视为人工构筑，不计入可清理自然附着
+                    if (state.isIn(BlockTags.LOGS)
+                            && !NaturalDecorationCleaner.looksLikeNaturalTree(world, new BlockPos(worldX, y, worldZ))) {
+                        structures++;
+                    } else {
+                        natural++;
+                    }
                 } else if (role == EngineeringTerrainBlockRole.OTHER_SOLID) {
                     structures++;
                 }
