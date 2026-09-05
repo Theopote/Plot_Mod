@@ -6,6 +6,7 @@ import com.plot.plugin.building.generation.stage.FloorGenerationStage;
 import com.plot.plugin.building.generation.stage.FoundationGenerationStage;
 import com.plot.plugin.building.generation.stage.OpeningGenerationStage;
 import com.plot.plugin.building.generation.stage.RoofGenerationStage;
+import com.plot.plugin.building.generation.stage.SitePreparationStage;
 import com.plot.plugin.building.generation.stage.WallGenerationStage;
 
 import java.util.ArrayList;
@@ -14,8 +15,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 建筑生成管线。默认顺序与旧 BuildingGenerator 一致：
- * Foundation → Wall → Floor → Roof → Accessory → Opening。
+ * 建筑生成管线。默认顺序：
+ * SitePreparation → Foundation → Wall → Floor → Roof → Accessory → Opening。
  * <p>
  * Accessory 阶段仅含冻结集（女儿墙 / 雨篷 / 阳台），见 {@link com.plot.plugin.building.model.spec.AccessoryKind}。
  */
@@ -31,10 +32,11 @@ public final class BuildingGenerationPipeline {
     }
 
     /**
-     * 默认管线：地基 → 墙体 → 楼板 → 屋顶 → 构件 → 开洞。
+     * 默认管线：场地清理 → 地基 → 墙体 → 楼板 → 屋顶 → 构件 → 开洞。
      */
     public static BuildingGenerationPipeline createDefault() {
         return new BuildingGenerationPipeline(List.of(
+            new SitePreparationStage(),
             new FoundationGenerationStage(),
             new WallGenerationStage(),
             new FloorGenerationStage(),

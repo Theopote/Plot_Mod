@@ -26,7 +26,13 @@ public final class FoundationGenerationStage implements BuildingGenerationStage 
 
         for (BuildingGenerationContext.GridCell cell : context.getFootprintCells()) {
             BlockPos column = context.canvasToColumn(cell.center());
-            int groundY = BuildingGenerationContext.sampleTopHeight(world, column);
+            int groundY;
+            var sample = context.siteColumnSample(column.getX(), column.getZ());
+            if (sample != null) {
+                groundY = sample.groundY();
+            } else {
+                groundY = BuildingGenerationContext.sampleTopHeight(world, column);
+            }
             if (groundY > baseElevation) {
                 for (int y = baseElevation + 1; y <= groundY; y++) {
                     BlockPos pos = new BlockPos(column.getX(), y, column.getZ());

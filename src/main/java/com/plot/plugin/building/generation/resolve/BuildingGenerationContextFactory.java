@@ -6,10 +6,12 @@ import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
+import com.plot.plugin.building.site.BuildingSiteAnalysis;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -120,14 +122,23 @@ public final class BuildingGenerationContextFactory {
             return new ResolvedBuildingDefinition(
                 definition,
                 massing,
+                BuildingSiteAnalysis.emptyFallback(
+                    com.plot.core.terrain.EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
                 GenerationSiteResolver.resolveForTesting(definition),
-                MaterialResolver.resolve(definition)
+                MaterialResolver.resolve(definition),
+                Map.of()
             );
         }
-        GenerationSiteResolver.ResolvedSiteElevation site = GenerationSiteResolver.resolve(
+        GenerationSiteResolver.SiteResolveBundle siteBundle = GenerationSiteResolver.resolve(
             definition, footprint, massing, world, coordinateService, result);
         MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
-        return new ResolvedBuildingDefinition(definition, massing, site, materials);
+        return new ResolvedBuildingDefinition(
+            definition,
+            massing,
+            siteBundle.analysis(),
+            siteBundle.site(),
+            materials,
+            siteBundle.columnSamples());
     }
 
     public static ResolvedBuildingDefinition resolveForTesting(
@@ -138,8 +149,11 @@ public final class BuildingGenerationContextFactory {
         return new ResolvedBuildingDefinition(
             definition,
             massing,
+            BuildingSiteAnalysis.emptyFallback(
+                com.plot.core.terrain.EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
             GenerationSiteResolver.resolveForTesting(definition),
-            MaterialResolver.resolve(definition)
+            MaterialResolver.resolve(definition),
+            Map.of()
         );
     }
 

@@ -71,8 +71,16 @@ public final class EngineeringTerrainService {
      * 列顶向下第一个流体方块 Y；无流体时返回 {@link #DEFAULT_GROUND_ELEVATION}。
      */
     public int sampleWaterSurface(int worldX, int worldZ) {
+        return findWaterSurface(worldX, worldZ)
+            .orElse(DEFAULT_GROUND_ELEVATION);
+    }
+
+    /**
+     * 列顶向下第一个流体方块 Y；无流体时为空（比 {@link #sampleWaterSurface} 更安全，避免把默认 64 当成水面）。
+     */
+    public java.util.OptionalInt findWaterSurface(int worldX, int worldZ) {
         if (world == null || !isChunkLoaded(worldX, worldZ)) {
-            return DEFAULT_GROUND_ELEVATION;
+            return java.util.OptionalInt.empty();
         }
         try {
             int topY = sampleRawSurface(worldX, worldZ);
@@ -80,13 +88,13 @@ public final class EngineeringTerrainService {
             for (int y = topY; y >= bottomY; y--) {
                 BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
                 if (!state.getFluidState().isEmpty()) {
-                    return y;
+                    return java.util.OptionalInt.of(y);
                 }
             }
-            return DEFAULT_GROUND_ELEVATION;
+            return java.util.OptionalInt.empty();
         } catch (Exception e) {
             LOGGER.warn("采样水面失败 ({}, {}): {}", worldX, worldZ, e.getMessage());
-            return DEFAULT_GROUND_ELEVATION;
+            return java.util.OptionalInt.empty();
         }
     }
 

@@ -1179,6 +1179,35 @@ public class BuildingPlugin extends Plugin {
             }
         }
 
+        if (district.hasSiteConditionSummary()) {
+            ImGui.text(PlotI18n.tr("plugin.building.district_site_conditions"));
+            if (district.waterSiteCount() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.district_site_water",
+                    district.waterSiteCount()));
+            }
+            if (district.partialWaterSiteCount() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.district_site_partial_water",
+                    district.partialWaterSiteCount()));
+            }
+            if (district.steepSiteCount() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.district_site_steep",
+                    district.steepSiteCount()));
+            }
+            if (district.structureConflictBuildingCount() > 0) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_site_structure_conflict",
+                    district.structureConflictBuildingCount()));
+            }
+            if (district.heavyEarthworkSiteCount() > 0) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_site_heavy_earthwork",
+                    district.heavyEarthworkSiteCount()));
+            }
+        }
+
         for (String warningKey : district.warnings()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
         }
@@ -1254,6 +1283,34 @@ public class BuildingPlugin extends Plugin {
                 "plugin.building.district_overlap_summary",
                 report.overlappingPairCount(),
                 report.conflictingBlockCount()));
+        }
+        if (report.hasSiteConditionSummary()) {
+            ImGui.text(PlotI18n.tr("plugin.building.district_site_conditions"));
+            if (report.waterSiteCount() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.district_site_water",
+                    report.waterSiteCount()));
+            }
+            if (report.partialWaterSiteCount() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.district_site_partial_water",
+                    report.partialWaterSiteCount()));
+            }
+            if (report.steepSiteCount() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.district_site_steep",
+                    report.steepSiteCount()));
+            }
+            if (report.structureConflictBuildingCount() > 0) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_site_structure_conflict",
+                    report.structureConflictBuildingCount()));
+            }
+            if (report.heavyEarthworkSiteCount() > 0) {
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_site_heavy_earthwork",
+                    report.heavyEarthworkSiteCount()));
+            }
         }
         if (report.failedBlocks() > 0) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(

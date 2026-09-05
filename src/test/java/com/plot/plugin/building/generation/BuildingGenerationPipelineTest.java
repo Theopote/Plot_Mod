@@ -28,7 +28,7 @@ class BuildingGenerationPipelineTest {
     void defaultStageOrderIncludesAccessoryBeforeOpening() {
         BuildingGenerationPipeline pipeline = BuildingGenerationPipeline.createDefault();
         assertEquals(
-            List.of("foundation", "wall", "floor", "roof", "accessory", "opening"),
+            List.of("site_preparation", "foundation", "wall", "floor", "roof", "accessory", "opening"),
             pipeline.getStageNames());
     }
 

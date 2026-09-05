@@ -40,6 +40,7 @@ class EngineeringTerrainServiceTest {
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleGroundSurface(0, 0));
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleRawSurface(0, 0));
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleWaterSurface(0, 0));
+        assertTrue(service.findWaterSurface(0, 0).isEmpty());
         assertEquals(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION, service.sampleSolidSurface(0, 0));
         assertFalse(service.isSolidEngineeringBlock(0, 64, 0));
         assertFalse(service.isClearableNaturalDecoration(0, 64, 0));

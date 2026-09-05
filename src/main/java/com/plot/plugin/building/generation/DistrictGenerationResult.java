@@ -86,6 +86,11 @@ public final class DistrictGenerationResult {
     private double totalArea;
     private double totalVolume;
     private int conflictingBlockCount;
+    private int waterSiteCount;
+    private int partialWaterSiteCount;
+    private int steepSiteCount;
+    private int structureConflictBuildingCount;
+    private int heavyEarthworkSiteCount;
 
     public List<BuildingOutcome> outcomes() {
         return List.copyOf(outcomes);
@@ -141,6 +146,34 @@ public final class DistrictGenerationResult {
         return conflictingBlockCount;
     }
 
+    public int waterSiteCount() {
+        return waterSiteCount;
+    }
+
+    public int partialWaterSiteCount() {
+        return partialWaterSiteCount;
+    }
+
+    public int steepSiteCount() {
+        return steepSiteCount;
+    }
+
+    public int structureConflictBuildingCount() {
+        return structureConflictBuildingCount;
+    }
+
+    public int heavyEarthworkSiteCount() {
+        return heavyEarthworkSiteCount;
+    }
+
+    public boolean hasSiteConditionSummary() {
+        return waterSiteCount > 0
+            || partialWaterSiteCount > 0
+            || steepSiteCount > 0
+            || structureConflictBuildingCount > 0
+            || heavyEarthworkSiteCount > 0;
+    }
+
     public boolean hasBuildingOverlap() {
         return !overlappingBuildingPairs.isEmpty() || conflictingBlockCount > 0;
     }
@@ -175,6 +208,7 @@ public final class DistrictGenerationResult {
                     warnings.add(warning);
                 }
             }
+            accumulateSiteSummary(result.warnings);
         }
         conflictingBlockCount += DistrictOverlapAnalyzer.countConflictingBlocks(
             blockOwners,
@@ -195,6 +229,25 @@ public final class DistrictGenerationResult {
         buildingsSkipped++;
         if (buildingsAttempted() > 1 && !warnings.contains("plugin.building.warn.district_partial")) {
             warnings.add("plugin.building.warn.district_partial");
+        }
+    }
+
+    private void accumulateSiteSummary(List<String> buildingWarnings) {
+        if (buildingWarnings.contains("plugin.building.warn.water_site")) {
+            waterSiteCount++;
+        }
+        if (buildingWarnings.contains("plugin.building.warn.partial_water_site")) {
+            partialWaterSiteCount++;
+        }
+        if (buildingWarnings.contains("plugin.building.warn.steep_site")
+                || buildingWarnings.contains("plugin.building.warn.severe_steep_site")) {
+            steepSiteCount++;
+        }
+        if (buildingWarnings.contains("plugin.building.warn.structure_conflict")) {
+            structureConflictBuildingCount++;
+        }
+        if (buildingWarnings.contains("plugin.building.warn.heavy_earthwork")) {
+            heavyEarthworkSiteCount++;
         }
     }
 

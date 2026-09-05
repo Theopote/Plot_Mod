@@ -27,6 +27,11 @@ public final class DistrictBuildReport {
     private final List<String> warnings;
     private final int overlappingPairCount;
     private final int conflictingBlockCount;
+    private final int waterSiteCount;
+    private final int partialWaterSiteCount;
+    private final int steepSiteCount;
+    private final int structureConflictBuildingCount;
+    private final int heavyEarthworkSiteCount;
 
     public DistrictBuildReport(
             int buildingsGenerated,
@@ -43,6 +48,48 @@ public final class DistrictBuildReport {
             List<String> warnings,
             int overlappingPairCount,
             int conflictingBlockCount) {
+        this(
+            buildingsGenerated,
+            buildingsSkipped,
+            buildingsAttempted,
+            totalArea,
+            totalVolume,
+            plannedBlocks,
+            placedBlocks,
+            failedBlocks,
+            cancelled,
+            placementFullSuccess,
+            skipped,
+            warnings,
+            overlappingPairCount,
+            conflictingBlockCount,
+            0,
+            0,
+            0,
+            0,
+            0);
+    }
+
+    public DistrictBuildReport(
+            int buildingsGenerated,
+            int buildingsSkipped,
+            int buildingsAttempted,
+            double totalArea,
+            double totalVolume,
+            int plannedBlocks,
+            int placedBlocks,
+            int failedBlocks,
+            boolean cancelled,
+            boolean placementFullSuccess,
+            List<SkipItem> skipped,
+            List<String> warnings,
+            int overlappingPairCount,
+            int conflictingBlockCount,
+            int waterSiteCount,
+            int partialWaterSiteCount,
+            int steepSiteCount,
+            int structureConflictBuildingCount,
+            int heavyEarthworkSiteCount) {
         this.buildingsGenerated = buildingsGenerated;
         this.buildingsSkipped = buildingsSkipped;
         this.buildingsAttempted = buildingsAttempted;
@@ -57,6 +104,11 @@ public final class DistrictBuildReport {
         this.warnings = List.copyOf(warnings != null ? warnings : List.of());
         this.overlappingPairCount = Math.max(0, overlappingPairCount);
         this.conflictingBlockCount = Math.max(0, conflictingBlockCount);
+        this.waterSiteCount = Math.max(0, waterSiteCount);
+        this.partialWaterSiteCount = Math.max(0, partialWaterSiteCount);
+        this.steepSiteCount = Math.max(0, steepSiteCount);
+        this.structureConflictBuildingCount = Math.max(0, structureConflictBuildingCount);
+        this.heavyEarthworkSiteCount = Math.max(0, heavyEarthworkSiteCount);
     }
 
     public static DistrictBuildReport from(
@@ -66,6 +118,11 @@ public final class DistrictBuildReport {
         List<String> warnings = new ArrayList<>();
         int overlapPairs = 0;
         int conflictBlocks = 0;
+        int waterSites = 0;
+        int partialWater = 0;
+        int steep = 0;
+        int structureConflicts = 0;
+        int heavyEarthwork = 0;
         if (district != null) {
             for (DistrictGenerationResult.BuildingOutcome outcome : district.skippedOutcomes()) {
                 skipped.add(new SkipItem(
@@ -77,6 +134,11 @@ public final class DistrictBuildReport {
             warnings.addAll(district.warnings());
             overlapPairs = district.overlappingBuildingPairs().size();
             conflictBlocks = district.conflictingBlockCount();
+            waterSites = district.waterSiteCount();
+            partialWater = district.partialWaterSiteCount();
+            steep = district.steepSiteCount();
+            structureConflicts = district.structureConflictBuildingCount();
+            heavyEarthwork = district.heavyEarthworkSiteCount();
         }
 
         int planned = district != null ? district.totalBlocks() : 0;
@@ -99,7 +161,12 @@ public final class DistrictBuildReport {
             skipped,
             warnings,
             overlapPairs,
-            conflictBlocks);
+            conflictBlocks,
+            waterSites,
+            partialWater,
+            steep,
+            structureConflicts,
+            heavyEarthwork);
     }
 
     public int buildingsGenerated() {
@@ -156,6 +223,34 @@ public final class DistrictBuildReport {
 
     public int conflictingBlockCount() {
         return conflictingBlockCount;
+    }
+
+    public int waterSiteCount() {
+        return waterSiteCount;
+    }
+
+    public int partialWaterSiteCount() {
+        return partialWaterSiteCount;
+    }
+
+    public int steepSiteCount() {
+        return steepSiteCount;
+    }
+
+    public int structureConflictBuildingCount() {
+        return structureConflictBuildingCount;
+    }
+
+    public int heavyEarthworkSiteCount() {
+        return heavyEarthworkSiteCount;
+    }
+
+    public boolean hasSiteConditionSummary() {
+        return waterSiteCount > 0
+            || partialWaterSiteCount > 0
+            || steepSiteCount > 0
+            || structureConflictBuildingCount > 0
+            || heavyEarthworkSiteCount > 0;
     }
 
     public boolean isDistrict() {

@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
+import com.plot.core.terrain.EngineeringTerrainService;
 import com.plot.plugin.building.generation.resolve.BuildingGenerationContextFactory;
 import com.plot.plugin.building.generation.resolve.GenerationSiteResolver;
 import com.plot.plugin.building.generation.resolve.MassingGeometryResolver;
@@ -11,6 +12,9 @@ import com.plot.plugin.building.generation.resolve.MaterialResolver;
 import com.plot.plugin.building.generation.resolve.ResolvedBuildingDefinition;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
+import com.plot.plugin.building.site.BuildingSiteAnalysis;
+import com.plot.plugin.building.site.BuildingSiteAnalyzer;
+import com.plot.plugin.building.site.BuildingSiteColumnSample;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -42,6 +46,8 @@ public final class BuildingGenerationContext {
     private final String foundationFillBlockId;
     private final String roofBlockId;
     private final boolean valid;
+    private final BuildingSiteAnalysis siteAnalysis;
+    private final Map<Long, BuildingSiteColumnSample> siteColumnSamples;
 
     /** 画布格 → 世界柱列缓存（同一栋内避免重复坐标变换） */
     private final Map<Long, BlockPos> columnCache = new HashMap<>();
@@ -64,7 +70,9 @@ public final class BuildingGenerationContext {
             int baseElevation,
             String foundationFillBlockId,
             String roofBlockId,
-            boolean valid) {
+            boolean valid,
+            BuildingSiteAnalysis siteAnalysis,
+            Map<Long, BuildingSiteColumnSample> siteColumnSamples) {
         this.footprint = footprint;
         this.definition = definition;
         this.world = world;
@@ -80,6 +88,12 @@ public final class BuildingGenerationContext {
         this.foundationFillBlockId = foundationFillBlockId;
         this.roofBlockId = roofBlockId;
         this.valid = valid;
+        this.siteAnalysis = siteAnalysis != null
+            ? siteAnalysis
+            : BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION);
+        this.siteColumnSamples = siteColumnSamples == null || siteColumnSamples.isEmpty()
+            ? Map.of()
+            : Map.copyOf(siteColumnSamples);
     }
 
     /**
@@ -113,7 +127,9 @@ public final class BuildingGenerationContext {
                 0,
                 materials.foundationFillBlockId(),
                 materials.roofBlockId(),
-                false
+                false,
+                BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
+                Map.of()
             );
         }
 
@@ -135,7 +151,9 @@ public final class BuildingGenerationContext {
             site.actualFoundationElevation(),
             materials.foundationFillBlockId(),
             materials.roofBlockId(),
-            true
+            true,
+            resolved.siteAnalysis(),
+            resolved.siteColumnSamples()
         );
     }
 
@@ -241,6 +259,18 @@ public final class BuildingGenerationContext {
     /** 生成实际使用的地基标高（= {@link #getBaseElevation()}）。 */
     public int getActualFoundationElevation() {
         return baseElevation;
+    }
+
+    public BuildingSiteAnalysis getSiteAnalysis() {
+        return siteAnalysis;
+    }
+
+    public BuildingSiteColumnSample siteColumnSample(int worldX, int worldZ) {
+        return siteColumnSamples.get(BuildingSiteAnalyzer.packColumn(worldX, worldZ));
+    }
+
+    public Map<Long, BuildingSiteColumnSample> getSiteColumnSamples() {
+        return siteColumnSamples;
     }
 
     public String getFoundationFillBlockId() {
