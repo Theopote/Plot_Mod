@@ -16,6 +16,7 @@ import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.BuildingListHelper;
+import com.plot.plugin.building.BuildingSelectionSet;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
@@ -66,13 +67,14 @@ public class BuildingPlugin extends Plugin {
 
     private final BuildingFootprintPickSession pickSession = new BuildingFootprintPickSession();
     private final List<Shape> selectedFootprints = new ArrayList<>();
-    private volatile String selectedBuildingId = "";
+    /** Overview / Edit / Generate 共用的已认领建筑多选集 */
+    private final BuildingSelectionSet selection = new BuildingSelectionSet();
     private volatile String projectStatus = "";
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
     private volatile BuildingGenerationResult lastGenerationResult;
     private String buildingNameEditingId = "";
-    private String pendingDeleteBuildingId = "";
+    private final List<String> pendingDeleteBuildingIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
     /** 最近一次成功保存的内容指纹，避免 onDeactivate + onDisable 重复写盘 */
@@ -241,6 +243,40 @@ public class BuildingPlugin extends Plugin {
             return;
         }
 
+        selection.retainExisting(project);
+        renderSelectionSummary();
+
+        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX() * 2) / 3.0f;
+        if (ImGui.button(PlotI18n.tr("plugin.building.select_all"), buttonWidth, 0)) {
+            selection.selectAll(project.getBuildings().keySet());
+        }
+        ImGui.sameLine();
+        boolean clearDisabled = selection.isEmpty();
+        if (clearDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.clear_selection"), buttonWidth, 0)) {
+            selection.clear();
+        }
+        if (clearDisabled) {
+            ImGui.endDisabled();
+        }
+        ImGui.sameLine();
+        boolean deleteDisabled = selection.isEmpty();
+        if (deleteDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.delete_selected"), buttonWidth, 0)) {
+            pendingDeleteBuildingIds.clear();
+            pendingDeleteBuildingIds.addAll(selection.ids());
+            deleteConfirmPending = true;
+        }
+        if (deleteDisabled) {
+            ImGui.endDisabled();
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.multi_select_hint"));
+
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.beginCombo("##building_sort", buildingSortMode.label())) {
             for (BuildingListHelper.SortMode mode : BuildingListHelper.SortMode.values()) {
@@ -255,9 +291,9 @@ public class BuildingPlugin extends Plugin {
         ImGui.beginChild("building_overview_list", 0, 220, true);
         for (BuildingFootprint building : BuildingListHelper.sorted(project, buildingSortMode)) {
             ImGui.pushID(building.getId());
-            boolean selected = building.getId().equals(selectedBuildingId);
+            boolean selected = selection.contains(building.getId());
             if (ImGui.selectable(building.getName() + "##row", selected)) {
-                selectedBuildingId = building.getId();
+                selection.select(building.getId(), ImGui.getIO().getKeyCtrl());
             }
 
             ImGui.sameLine();
@@ -274,12 +310,29 @@ public class BuildingPlugin extends Plugin {
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("plugin.building.delete"), 60, 0)) {
-                pendingDeleteBuildingId = building.getId();
+                pendingDeleteBuildingIds.clear();
+                pendingDeleteBuildingIds.add(building.getId());
                 deleteConfirmPending = true;
             }
             ImGui.popID();
         }
         ImGui.endChild();
+    }
+
+    private void renderSelectionSummary() {
+        if (selection.isEmpty()) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.selection_empty"));
+            return;
+        }
+        ImGui.text(PlotI18n.tr(
+            "plugin.building.selection_summary",
+            selection.size(),
+            String.format("%.1f", selection.totalArea(project))));
+        BuildingFootprint primary = selection.primary(project);
+        if (primary != null && selection.size() > 1) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.building.selection_primary", primary.getName()));
+        }
     }
 
     private void renderAdoptTab() {
@@ -296,14 +349,19 @@ public class BuildingPlugin extends Plugin {
         }
 
         if (!selectedFootprints.isEmpty()) {
-            ImGui.text(String.format(
-                PlotI18n.tr("plugin.building.footprints_selected"),
-                selectedFootprints.size()));
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.footprints_selected_detail",
+                selectedFootprints.size(),
+                String.format("%.1f", computeSelectedFootprintArea())));
         } else {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.draw_footprint_hint"));
         }
 
         ImGui.spacing();
+        if (ImGui.button(PlotI18n.tr("plugin.building.select_all_closed"), 0, 0)) {
+            selectAllClosedShapesOnCanvas();
+        }
+        ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.building.pick_footprint"), 0, 0)) {
             startPickSession();
         }
@@ -312,7 +370,10 @@ public class BuildingPlugin extends Plugin {
         if (adoptDisabled) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(PlotI18n.tr("plugin.building.adopt_footprint"), 0, 0)) {
+        String adoptLabel = selectedFootprints.size() > 1
+            ? PlotI18n.tr("plugin.building.adopt_footprint_batch", selectedFootprints.size())
+            : PlotI18n.tr("plugin.building.adopt_footprint");
+        if (ImGui.button(adoptLabel, 0, 0)) {
             adoptSelectedFootprints();
         }
         if (adoptDisabled) {
@@ -321,13 +382,15 @@ public class BuildingPlugin extends Plugin {
     }
 
     private void renderEditTab() {
-        BuildingFootprint building = project.getBuilding(selectedBuildingId);
+        selection.retainExisting(project);
+        BuildingFootprint building = selection.primary(project);
         if (building == null) {
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.select_building_hint"));
             renderBuildingSelector();
             return;
         }
 
+        renderSelectionSummary();
         renderBuildingSelector();
         ImGui.separator();
 
@@ -727,21 +790,23 @@ public class BuildingPlugin extends Plugin {
         String[] ids = buildings.stream()
             .map(BuildingFootprint::getId)
             .toArray(String[]::new);
+        String primaryId = selection.primaryId();
         int current = 0;
         for (int i = 0; i < ids.length; i++) {
-            if (ids[i].equals(selectedBuildingId)) {
+            if (ids[i].equals(primaryId)) {
                 current = i;
                 break;
             }
         }
         ImInt buildingIndex = new ImInt(current);
         if (ImGui.combo(PlotI18n.tr("plugin.building.select_building"), buildingIndex, labels)) {
-            selectedBuildingId = ids[buildingIndex.get()];
+            selection.select(ids[buildingIndex.get()], false);
         }
     }
 
     private void renderGenerateTab() {
-        BuildingFootprint building = project.getBuilding(selectedBuildingId);
+        selection.retainExisting(project);
+        BuildingFootprint building = selection.primary(project);
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
         boolean hasBuilding = building != null;
 
@@ -751,6 +816,10 @@ public class BuildingPlugin extends Plugin {
             return;
         }
 
+        renderSelectionSummary();
+        if (selection.size() > 1) {
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate_primary_hint"));
+        }
         renderBuildingSelector();
         ImGui.spacing();
         renderEarthworkPadElevationHint(building);
@@ -870,25 +939,29 @@ public class BuildingPlugin extends Plugin {
         }
 
         if (ImGui.beginPopupModal("##building_delete_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text(PlotI18n.tr("plugin.building.delete_confirm"));
+            int count = pendingDeleteBuildingIds.size();
+            if (count > 1) {
+                ImGui.text(PlotI18n.tr("plugin.building.delete_confirm_batch", count));
+            } else {
+                ImGui.text(PlotI18n.tr("plugin.building.delete_confirm"));
+            }
             ImGui.separator();
             if (ImGui.button(PlotI18n.tr("plugin.building.delete"), 100, 0)) {
-                if (!pendingDeleteBuildingId.isEmpty()) {
+                if (!pendingDeleteBuildingIds.isEmpty()) {
                     projectHistory.push(project);
-                    project.removeBuilding(pendingDeleteBuildingId);
-                    if (pendingDeleteBuildingId.equals(selectedBuildingId)) {
-                        selectedBuildingId = project.getBuildings().isEmpty()
-                            ? ""
-                            : project.getBuildings().keySet().iterator().next();
+                    for (String id : pendingDeleteBuildingIds) {
+                        project.removeBuilding(id);
+                        selection.remove(id);
                     }
+                    selection.retainExisting(project);
                     clearPreview();
                 }
-                pendingDeleteBuildingId = "";
+                pendingDeleteBuildingIds.clear();
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 100, 0)) {
-                pendingDeleteBuildingId = "";
+                pendingDeleteBuildingIds.clear();
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();
@@ -999,6 +1072,24 @@ public class BuildingPlugin extends Plugin {
             BuildingGeometryUtils.findAdoptableFootprints(ctx().appState().getSelectedShapes()));
     }
 
+    private void selectAllClosedShapesOnCanvas() {
+        List<Shape> adoptable = BuildingGeometryUtils.findAdoptableFootprints(ctx().appState().getShapes());
+        ctx().appState().setSelectedShapes(new ArrayList<>(adoptable));
+        updateSelectedFootprints();
+        projectStatus = adoptable.isEmpty()
+            ? PlotI18n.tr("plugin.building.pick_no_valid")
+            : PlotI18n.tr("plugin.building.select_all_closed_success", adoptable.size());
+    }
+
+    private double computeSelectedFootprintArea() {
+        double area = 0.0;
+        for (Shape shape : selectedFootprints) {
+            List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
+            area += Math.abs(BuildingFootprint.signedArea(points));
+        }
+        return area;
+    }
+
     private void adoptSelectedFootprints() {
         if (selectedFootprints.isEmpty()) {
             projectStatus = PlotI18n.tr("plugin.building.adopt_no_selection");
@@ -1007,26 +1098,36 @@ public class BuildingPlugin extends Plugin {
 
         projectHistory.push(project);
         int adopted = 0;
+        int skipped = 0;
+        List<String> adoptedIds = new ArrayList<>();
         for (Shape shape : selectedFootprints) {
             List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
             if (points.size() < 3) {
+                skipped++;
                 continue;
             }
             boolean rectangular = BuildingGeometryUtils.isSlopedRoofEligible(points);
             BuildingFootprint footprint = new BuildingFootprint(points, rectangular);
             footprint.setName(PlotI18n.tr("plugin.building.default_name", adopted + 1));
             project.addBuilding(footprint);
-            selectedBuildingId = footprint.getId();
+            adoptedIds.add(footprint.getId());
             adopted++;
         }
 
         selectedFootprints.clear();
         if (adopted > 0) {
+            selection.selectAll(adoptedIds);
             clearPreview();
         }
-        projectStatus = adopted > 1
-            ? PlotI18n.tr("plugin.building.adopt_success_batch", adopted)
-            : PlotI18n.tr("plugin.building.adopt_success");
+        if (adopted == 0) {
+            projectStatus = PlotI18n.tr("plugin.building.adopt_no_selection");
+        } else if (adopted > 1) {
+            projectStatus = skipped > 0
+                ? PlotI18n.tr("plugin.building.adopt_success_batch_partial", adopted, skipped)
+                : PlotI18n.tr("plugin.building.adopt_success_batch", adopted);
+        } else {
+            projectStatus = PlotI18n.tr("plugin.building.adopt_success");
+        }
     }
 
     private boolean calculatePreview(BuildingFootprint building) {
@@ -1166,18 +1267,14 @@ public class BuildingPlugin extends Plugin {
         Canvas canvas = com.plot.ui.canvas.CanvasAccess.get();
         if (canvas != null && canvas.getCamera() != null) {
             canvas.getCamera().setOffset(centroid);
-            selectedBuildingId = building.getId();
+            selection.select(building.getId(), false);
             projectStatus = PlotI18n.tr("plugin.building.locate_success", building.getName());
         }
     }
 
     private void syncSelectedBuildingAfterHistory() {
-        if (!selectedBuildingId.isEmpty() && project.getBuilding(selectedBuildingId) == null) {
-            selectedBuildingId = project.getBuildings().isEmpty()
-                ? ""
-                : project.getBuildings().keySet().iterator().next();
-            buildingNameEditingId = "";
-        }
+        selection.retainExisting(project);
+        buildingNameEditingId = "";
     }
 
     private World getClientWorld() {
@@ -1220,9 +1317,10 @@ public class BuildingPlugin extends Plugin {
             BuildingProject loaded = BuildingProject.loadFrom(file);
             project = loaded;
             projectHistory.clear();
-            selectedBuildingId = project.getBuildings().isEmpty()
-                ? ""
-                : project.getBuildings().keySet().iterator().next();
+            selection.clear();
+            if (!project.getBuildings().isEmpty()) {
+                selection.select(project.getBuildings().keySet().iterator().next(), false);
+            }
             buildingNameEditingId = "";
             pickSession.cancel();
             selectedFootprints.clear();
