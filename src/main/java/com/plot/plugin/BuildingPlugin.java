@@ -12,12 +12,14 @@ import com.plot.infrastructure.event.EventListener;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
+import com.plot.plugin.building.BuildingBatchEditor;
 import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.BuildingSelectionSet;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
+import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
@@ -40,6 +42,7 @@ import com.plot.ui.screen.PlotScreenState;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabBarFlags;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
@@ -73,6 +76,7 @@ public class BuildingPlugin extends Plugin {
     private String currentProjectFile = DEFAULT_PROJECT_FILE;
 
     private volatile BuildingGenerationResult lastGenerationResult;
+    private volatile DistrictGenerationResult lastDistrictResult;
     private String buildingNameEditingId = "";
     private final List<String> pendingDeleteBuildingIds = new ArrayList<>();
     private boolean deleteConfirmPending = false;
@@ -83,6 +87,8 @@ public class BuildingPlugin extends Plugin {
     private final ImBoolean manualElevationRef = new ImBoolean(false);
     private final ImString buildingNameBuffer = new ImString(64);
     private BuildingListHelper.SortMode buildingSortMode = BuildingListHelper.SortMode.INSERTION;
+    /** Phase B：Apply to Selected 字段开关 */
+    private final BuildingBatchEditor.FieldMask batchFieldMask = BuildingBatchEditor.FieldMask.allMassing();
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -392,6 +398,9 @@ public class BuildingPlugin extends Plugin {
 
         renderSelectionSummary();
         renderBuildingSelector();
+        if (selection.size() > 1) {
+            renderBatchApplyPanel(building);
+        }
         ImGui.separator();
 
         if (!building.getId().equals(buildingNameEditingId)) {
@@ -562,6 +571,73 @@ public class BuildingPlugin extends Plugin {
         renderDoorEditor(building);
     }
 
+    private void renderBatchApplyPanel(BuildingFootprint primary) {
+        int count = selection.size();
+        if (!ImGui.collapsingHeader(
+                PlotI18n.tr("plugin.building.batch_edit"),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+
+        ImGui.textColored(PluginUiColors.HINT_GRAY,
+            PlotI18n.tr("plugin.building.batch_edit_hint", count, primary.getName()));
+
+        ImBoolean floors = new ImBoolean(batchFieldMask.floors);
+        ImBoolean floorHeight = new ImBoolean(batchFieldMask.floorHeight);
+        ImBoolean wall = new ImBoolean(batchFieldMask.wallThickness);
+        ImBoolean materials = new ImBoolean(batchFieldMask.materials);
+        ImBoolean roof = new ImBoolean(batchFieldMask.roof);
+        ImBoolean windows = new ImBoolean(batchFieldMask.windows);
+
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_floors"), floors)) {
+            batchFieldMask.floors = floors.get();
+        }
+        ImGui.sameLine();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_floor_height"), floorHeight)) {
+            batchFieldMask.floorHeight = floorHeight.get();
+        }
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_wall"), wall)) {
+            batchFieldMask.wallThickness = wall.get();
+        }
+        ImGui.sameLine();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_materials"), materials)) {
+            batchFieldMask.materials = materials.get();
+        }
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_roof"), roof)) {
+            batchFieldMask.roof = roof.get();
+        }
+        ImGui.sameLine();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.building.batch_field_windows"), windows)) {
+            batchFieldMask.windows = windows.get();
+        }
+
+        boolean applyDisabled = !batchFieldMask.anyEnabled();
+        if (applyDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(
+                PlotI18n.tr("plugin.building.apply_to_selected", count),
+                ImGui.getContentRegionAvailX(),
+                0)) {
+            applyMassingToSelected(primary);
+        }
+        if (applyDisabled) {
+            ImGui.endDisabled();
+        }
+    }
+
+    private void applyMassingToSelected(BuildingFootprint primary) {
+        List<BuildingFootprint> targets = selection.resolve(project);
+        if (targets.isEmpty()) {
+            return;
+        }
+        projectHistory.push(project);
+        BuildingBatchEditor.ApplyResult result =
+            BuildingBatchEditor.apply(primary, targets, batchFieldMask);
+        invalidatePreview();
+        projectStatus = PlotI18n.tr("plugin.building.batch_apply_success", result.updated());
+    }
+
     private void renderPresetSelector(BuildingFootprint building) {
         List<BuildingPresetCatalog.BuildingPreset> presets = BuildingPresetCatalog.all();
         String[] labels = presets.stream()
@@ -593,7 +669,12 @@ public class BuildingPlugin extends Plugin {
                 PlotI18n.tr("plugin.building.preset_active", PlotI18n.tr("preset.building." + currentPreset)));
         }
 
-        if (ImGui.button(PlotI18n.tr("plugin.building.apply_preset"), ImGui.getContentRegionAvailX(), 0)) {
+        int selectedCount = selection.size();
+        float buttonWidth = selectedCount > 1
+            ? (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f
+            : ImGui.getContentRegionAvailX();
+
+        if (ImGui.button(PlotI18n.tr("plugin.building.apply_preset"), buttonWidth, 0)) {
             int picked = presetIndex.get();
             if (picked >= 0 && picked < ids.length) {
                 projectHistory.push(project);
@@ -602,6 +683,26 @@ public class BuildingPlugin extends Plugin {
                 projectStatus = PlotI18n.tr(
                     "plugin.building.preset_applied",
                     PlotI18n.tr("preset.building." + ids[picked]));
+            }
+        }
+
+        if (selectedCount > 1) {
+            ImGui.sameLine();
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.building.apply_preset_to_selected", selectedCount),
+                    buttonWidth,
+                    0)) {
+                int picked = presetIndex.get();
+                if (picked >= 0 && picked < ids.length) {
+                    projectHistory.push(project);
+                    BuildingBatchEditor.ApplyResult result =
+                        BuildingBatchEditor.applyPreset(ids[picked], selection.resolve(project));
+                    invalidatePreview();
+                    projectStatus = PlotI18n.tr(
+                        "plugin.building.preset_applied_batch",
+                        PlotI18n.tr("preset.building." + ids[picked]),
+                        result.updated());
+                }
             }
         }
     }
@@ -817,31 +918,67 @@ public class BuildingPlugin extends Plugin {
         }
 
         renderSelectionSummary();
-        if (selection.size() > 1) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.generate_primary_hint"));
-        }
         renderBuildingSelector();
         ImGui.spacing();
         renderEarthworkPadElevationHint(building);
 
-        if (ImGui.button(PlotI18n.tr("plugin.building.calc_preview"), half, 0)) {
-            calculatePreview(building);
-        }
-        ImGui.sameLine();
-        boolean hasPreview = lastGenerationResult != null;
-        if (!hasPreview) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), half, 0)) {
-            clearPreview();
-        }
-        if (!hasPreview) {
-            ImGui.endDisabled();
-        }
+        int selectedCount = selection.size();
+        if (selectedCount > 1) {
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.building.preview_selected", selectedCount),
+                    half,
+                    0)) {
+                calculateDistrictPreview(selection.resolve(project), true);
+            }
+            ImGui.sameLine();
+            boolean hasPreview = lastGenerationResult != null;
+            if (!hasPreview) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), half, 0)) {
+                clearPreview();
+            }
+            if (!hasPreview) {
+                ImGui.endDisabled();
+            }
 
-        if (ImGui.button(PlotI18n.tr("plugin.building.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
-            if (calculatePreview(building)) {
-                buildConfirmPending = true;
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.building.preview_all", project.getBuildingCount()),
+                    ImGui.getContentRegionAvailX(),
+                    0)) {
+                calculateDistrictPreview(
+                    new ArrayList<>(project.getBuildings().values()),
+                    true);
+            }
+
+            if (ImGui.button(
+                    PlotI18n.tr("plugin.building.build_direct_selected", selectedCount),
+                    ImGui.getContentRegionAvailX(),
+                    0)) {
+                if (calculateDistrictPreview(selection.resolve(project), true)) {
+                    buildConfirmPending = true;
+                }
+            }
+        } else {
+            if (ImGui.button(PlotI18n.tr("plugin.building.calc_preview"), half, 0)) {
+                calculatePreview(building);
+            }
+            ImGui.sameLine();
+            boolean hasPreview = lastGenerationResult != null;
+            if (!hasPreview) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), half, 0)) {
+                clearPreview();
+            }
+            if (!hasPreview) {
+                ImGui.endDisabled();
+            }
+
+            if (ImGui.button(PlotI18n.tr("plugin.building.build_direct"), ImGui.getContentRegionAvailX(), 0)) {
+                if (calculatePreview(building)) {
+                    buildConfirmPending = true;
+                }
             }
         }
 
@@ -851,48 +988,115 @@ public class BuildingPlugin extends Plugin {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, buildReadiness.message());
         }
 
-        if (lastGenerationResult != null) {
-            ImGui.separator();
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.preview_projection_hint"));
-            ImGui.text(PlotI18n.tr("plugin.building.calc_results"));
-            ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", lastGenerationResult.cutVolume));
-            ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", lastGenerationResult.fillVolume));
-            ImGui.text(PlotI18n.tr("plugin.building.block_count_result", lastGenerationResult.blockCount));
-            ImGui.text(PlotI18n.tr("plugin.building.roof_type_result",
-                PlotI18n.tr("plugin.building.roof_" + lastGenerationResult.effectiveRoofType.name().toLowerCase())));
+        if (lastDistrictResult != null && lastDistrictResult.buildingsAttempted() > 1) {
+            renderDistrictPreviewStats(half, buildReadiness);
+        } else if (lastGenerationResult != null) {
+            renderSinglePreviewStats(half, buildReadiness);
+        }
+    }
 
-            for (String warningKey : lastGenerationResult.warnings) {
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
-            }
+    private void renderDistrictPreviewStats(
+            float half,
+            com.plot.api.world.PlacementReadiness buildReadiness) {
+        DistrictGenerationResult district = lastDistrictResult;
+        ImGui.separator();
+        ImGui.text(PlotI18n.tr("plugin.building.district_preview_results"));
+        ImGui.text(PlotI18n.tr(
+            "plugin.building.district_buildings_result",
+            district.buildingsGenerated(),
+            district.buildingsAttempted()));
+        if (district.buildingsSkipped() > 0) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.building.district_skipped_result",
+                district.buildingsSkipped()));
+        }
+        ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", district.totalCutVolume()));
+        ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", district.totalFillVolume()));
+        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", district.totalBlocks()));
 
-            boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
-            if (!hasPlacements) {
-                ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.building.generate_empty_result"));
-            }
+        for (DistrictGenerationResult.BuildingOutcome skipped : district.skippedOutcomes()) {
+            String reason = skipped.skipReason() != null
+                ? PlotI18n.tr(skipped.skipReason().i18nKey())
+                : "";
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.building.district_skip_item",
+                skipped.buildingName(),
+                reason));
+        }
 
-            if (!hasPlacements) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.building.projection_ref"), half, 0)) {
-                projectPreview();
-            }
-            if (!hasPlacements) {
-                ImGui.endDisabled();
-            }
+        boolean hasPlacements = district.hasPlacements();
+        if (!hasPlacements) {
+            ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.building.generate_empty_result"));
+        }
 
-            ImGui.sameLine();
-            boolean buildDisabled = !hasPlacements
-                || !buildReadiness.ready()
-                || ctx().placement().isBusy();
-            if (buildDisabled) {
-                ImGui.beginDisabled();
-            }
-            if (ImGui.button(PlotI18n.tr("plugin.building.build"), half, 0)) {
-                buildConfirmPending = true;
-            }
-            if (buildDisabled) {
-                ImGui.endDisabled();
-            }
+        if (!hasPlacements) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.projection_ref"), half, 0)) {
+            projectPreview();
+        }
+        if (!hasPlacements) {
+            ImGui.endDisabled();
+        }
+
+        ImGui.sameLine();
+        boolean buildDisabled = !hasPlacements
+            || !buildReadiness.ready()
+            || ctx().placement().isBusy();
+        if (buildDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.build"), half, 0)) {
+            buildConfirmPending = true;
+        }
+        if (buildDisabled) {
+            ImGui.endDisabled();
+        }
+    }
+
+    private void renderSinglePreviewStats(
+            float half,
+            com.plot.api.world.PlacementReadiness buildReadiness) {
+        ImGui.separator();
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.preview_projection_hint"));
+        ImGui.text(PlotI18n.tr("plugin.building.calc_results"));
+        ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", lastGenerationResult.cutVolume));
+        ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", lastGenerationResult.fillVolume));
+        ImGui.text(PlotI18n.tr("plugin.building.block_count_result", lastGenerationResult.blockCount));
+        ImGui.text(PlotI18n.tr("plugin.building.roof_type_result",
+            PlotI18n.tr("plugin.building.roof_" + lastGenerationResult.effectiveRoofType.name().toLowerCase())));
+
+        for (String warningKey : lastGenerationResult.warnings) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
+        }
+
+        boolean hasPlacements = !lastGenerationResult.placementRecords.isEmpty();
+        if (!hasPlacements) {
+            ImGui.textColored(PluginUiColors.WARNING_LIGHT, PlotI18n.tr("plugin.building.generate_empty_result"));
+        }
+
+        if (!hasPlacements) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.projection_ref"), half, 0)) {
+            projectPreview();
+        }
+        if (!hasPlacements) {
+            ImGui.endDisabled();
+        }
+
+        ImGui.sameLine();
+        boolean buildDisabled = !hasPlacements
+            || !buildReadiness.ready()
+            || ctx().placement().isBusy();
+        if (buildDisabled) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.build"), half, 0)) {
+            buildConfirmPending = true;
+        }
+        if (buildDisabled) {
+            ImGui.endDisabled();
         }
     }
 
@@ -904,7 +1108,14 @@ public class BuildingPlugin extends Plugin {
 
         if (ImGui.beginPopupModal("##building_build_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             int blockCount = lastGenerationResult != null ? lastGenerationResult.placementRecords.size() : 0;
-            ImGui.text(String.format(PlotI18n.tr("plugin.building.build_confirm"), blockCount));
+            if (lastDistrictResult != null && lastDistrictResult.buildingsAttempted() > 1) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.build_confirm_district",
+                    lastDistrictResult.buildingsGenerated(),
+                    blockCount));
+            } else {
+                ImGui.text(String.format(PlotI18n.tr("plugin.building.build_confirm"), blockCount));
+            }
 
             com.plot.api.world.PlacementReadiness readiness =
                 ctx().projection().checkWorldModificationReadiness();
@@ -1131,9 +1342,22 @@ public class BuildingPlugin extends Plugin {
     }
 
     private boolean calculatePreview(BuildingFootprint building) {
+        return calculateDistrictPreview(List.of(building), false);
+    }
+
+    /**
+     * @param autoProjectGhosts 片区预览成功后自动投影虚影，便于一眼看到整片体量
+     */
+    private boolean calculateDistrictPreview(
+            List<BuildingFootprint> buildings,
+            boolean autoProjectGhosts) {
         World world = getClientWorld();
         if (world == null || buildingGenerator == null) {
             projectStatus = PlotI18n.tr("plugin.building.generate_world_unavailable");
+            return false;
+        }
+        if (buildings == null || buildings.isEmpty()) {
+            projectStatus = PlotI18n.tr("plugin.building.select_building_hint");
             return false;
         }
 
@@ -1142,20 +1366,42 @@ public class BuildingPlugin extends Plugin {
             ghostBlockManager.clearAllGhostBlocks();
         }
 
+        DistrictGenerationResult district;
         try {
-            lastGenerationResult = buildingGenerator.generate(building, world);
+            district = buildingGenerator.generateDistrict(buildings, world);
         } catch (Exception e) {
-            LOGGER.error("建筑预览生成失败: {}", e.getMessage(), e);
+            LOGGER.error("片区预览生成失败: {}", e.getMessage(), e);
+            lastDistrictResult = null;
             lastGenerationResult = null;
             projectStatus = PlotI18n.tr("plugin.building.generate_empty_result");
             return false;
         }
-        if (lastGenerationResult == null || lastGenerationResult.placementRecords.isEmpty()) {
+
+        lastDistrictResult = district;
+        lastGenerationResult = district.toMergedResult();
+        if (!district.hasPlacements()) {
             projectStatus = PlotI18n.tr("plugin.building.generate_empty_result");
             return false;
         }
 
-        if (!lastGenerationResult.warnings.isEmpty()) {
+        if (autoProjectGhosts) {
+            projectPreview();
+        }
+
+        if (district.buildingsAttempted() > 1) {
+            if (district.buildingsSkipped() > 0) {
+                projectStatus = PlotI18n.tr(
+                    "plugin.building.district_preview_partial",
+                    district.buildingsGenerated(),
+                    district.buildingsAttempted(),
+                    district.totalBlocks());
+            } else {
+                projectStatus = PlotI18n.tr(
+                    "plugin.building.district_preview_ready",
+                    district.buildingsGenerated(),
+                    district.totalBlocks());
+            }
+        } else if (!lastGenerationResult.warnings.isEmpty()) {
             projectStatus = PlotI18n.tr("plugin.building.generate_preview_ready")
                 + " — "
                 + PlotI18n.tr(lastGenerationResult.warnings.getFirst());
@@ -1185,6 +1431,7 @@ public class BuildingPlugin extends Plugin {
             ghostBlockManager.clearAllGhostBlocks();
         }
         lastGenerationResult = null;
+        lastDistrictResult = null;
     }
 
     /** 参数/工程变更后使预览失效，避免按过期几何落地。 */
