@@ -34,6 +34,13 @@ public final class DistrictMassingGenerator {
             if (building == null) {
                 continue;
             }
+            if (building.getOuterPoints() == null || building.getOuterPoints().size() < 3) {
+                district.addSkipped(
+                    building,
+                    DistrictGenerationResult.SkipReason.INVALID,
+                    null);
+                continue;
+            }
             try {
                 BuildingGenerationResult result = generateFn.generate(building);
                 if (result == null || result.placementRecords.isEmpty()) {

@@ -68,11 +68,14 @@ public final class DistrictGenerationResult {
 
     private final List<BuildingOutcome> outcomes = new ArrayList<>();
     private final Map<BlockPos, BlockRecord> mergedPlacementRecords = new LinkedHashMap<>();
+    private final List<String> warnings = new ArrayList<>();
     private int buildingsGenerated;
     private int buildingsSkipped;
     private int totalBlocks;
     private int totalCutVolume;
     private int totalFillVolume;
+    private double totalArea;
+    private double totalVolume;
 
     public List<BuildingOutcome> outcomes() {
         return List.copyOf(outcomes);
@@ -106,6 +109,20 @@ public final class DistrictGenerationResult {
         return totalFillVolume;
     }
 
+    /** 成功建筑占地面积之和（m²） */
+    public double totalArea() {
+        return totalArea;
+    }
+
+    /** 成功建筑体量估算：Σ(面积 × 层数 × 层高) */
+    public double totalVolume() {
+        return totalVolume;
+    }
+
+    public List<String> warnings() {
+        return List.copyOf(warnings);
+    }
+
     public boolean hasPlacements() {
         return !mergedPlacementRecords.isEmpty();
     }
@@ -125,6 +142,16 @@ public final class DistrictGenerationResult {
         buildingsGenerated++;
         totalCutVolume += result.cutVolume;
         totalFillVolume += result.fillVolume;
+        double area = building.computeArea();
+        totalArea += area;
+        totalVolume += area * building.getFloors() * building.getFloorHeight();
+        if (result.warnings != null) {
+            for (String warning : result.warnings) {
+                if (warning != null && !warning.isBlank() && !warnings.contains(warning)) {
+                    warnings.add(warning);
+                }
+            }
+        }
         // 后写覆盖先写（同格冲突时以后栋为准）
         for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
             mergedPlacementRecords.put(entry.getKey(), entry.getValue());
@@ -135,6 +162,9 @@ public final class DistrictGenerationResult {
     void addSkipped(BuildingFootprint building, SkipReason reason, String errorDetail) {
         outcomes.add(BuildingOutcome.skipped(building, reason, errorDetail));
         buildingsSkipped++;
+        if (buildingsAttempted() > 1 && !warnings.contains("plugin.building.warn.district_partial")) {
+            warnings.add("plugin.building.warn.district_partial");
+        }
     }
 
     /**
@@ -155,8 +185,10 @@ public final class DistrictGenerationResult {
                 }
             }
         }
-        if (buildingsSkipped > 0 && buildingsAttempted() > 1) {
-            merged.warnings.add("plugin.building.warn.district_partial");
+        for (String warning : warnings) {
+            if (!merged.warnings.contains(warning)) {
+                merged.warnings.add(warning);
+            }
         }
         return merged;
     }
