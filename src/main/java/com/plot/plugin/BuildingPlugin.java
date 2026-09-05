@@ -1340,6 +1340,28 @@ public class BuildingPlugin extends Plugin {
         ImGui.separator();
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.building.preview_projection_hint"));
         ImGui.text(PlotI18n.tr("plugin.building.calc_results"));
+        if (lastGenerationResult.sitePreview != null) {
+            var site = lastGenerationResult.sitePreview;
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.site_foundation_elevation",
+                site.foundationElevation()));
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.site_foundation_source",
+                PlotI18n.tr("plugin.building.site_source_" + site.source().name().toLowerCase())));
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.site_terrain_range",
+                site.minGroundElevation(),
+                site.maxGroundElevation()));
+            if (site.waterCoverageRatio() > 0) {
+                ImGui.text(PlotI18n.tr(
+                    "plugin.building.site_water_coverage",
+                    String.format("%.0f", site.waterCoverageRatio() * 100)));
+            }
+            ImGui.text(PlotI18n.tr(
+                "plugin.building.site_cut_fill",
+                site.estimatedCut(),
+                site.estimatedFill()));
+        }
         ImGui.text(PlotI18n.tr("plugin.building.cut_volume_result", lastGenerationResult.cutVolume));
         ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", lastGenerationResult.fillVolume));
         ImGui.text(PlotI18n.tr("plugin.building.block_count_result", lastGenerationResult.blockCount));

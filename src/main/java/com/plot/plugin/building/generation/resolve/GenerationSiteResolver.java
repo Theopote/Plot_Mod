@@ -86,8 +86,15 @@ public final class GenerationSiteResolver {
             World world,
             ICoordinateService coordinateService,
             BuildingGenerationResult result) {
+        String buildingId = resolveBuildingId(definition, footprint);
         BuildingSiteAnalyzer.AnalysisBundle bundle =
-            BuildingSiteAnalyzer.analyze(massing, world, coordinateService);
+            BuildingSiteAnalyzer.analyze(buildingId, massing, world, coordinateService);
+        if (bundle.analysisFailed()) {
+            addWarning(result, "plugin.building.warn.site_analysis_failed");
+        }
+        if (bundle.unloadedColumnCount() > 0) {
+            addWarning(result, "plugin.building.warn.chunk_unloaded");
+        }
         ResolvedSiteElevation site = resolveWithAnalysis(
             definition,
             footprint,
@@ -95,7 +102,19 @@ public final class GenerationSiteResolver {
             bundle.analysis(),
             bundle.groundElevations(),
             result);
-        return new SiteResolveBundle(site, bundle.analysis(), bundle.columnSamples());
+        return new SiteResolveBundle(
+            site, bundle.analysis(), bundle.columnSamples(), bundle.groundElevations());
+    }
+
+    private static String resolveBuildingId(BuildingDefinition definition, BuildingFootprint footprint) {
+        if (footprint != null && footprint.getId() != null && !footprint.getId().isBlank()) {
+            return footprint.getId();
+        }
+        if (definition != null && definition.footprint() != null
+                && definition.footprint().id() != null && !definition.footprint().id().isBlank()) {
+            return definition.footprint().id();
+        }
+        return null;
     }
 
     /**
@@ -252,13 +271,23 @@ public final class GenerationSiteResolver {
     public record SiteResolveBundle(
             ResolvedSiteElevation site,
             BuildingSiteAnalysis analysis,
-            Map<Long, BuildingSiteColumnSample> columnSamples) {
+            Map<Long, BuildingSiteColumnSample> columnSamples,
+            List<Integer> groundElevations) {
 
         public SiteResolveBundle {
             analysis = analysis != null
                 ? analysis
                 : BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION);
             columnSamples = columnSamples == null ? Map.of() : Map.copyOf(columnSamples);
+            groundElevations = groundElevations == null ? List.of() : List.copyOf(groundElevations);
+        }
+
+        /** 兼容旧三参。 */
+        public SiteResolveBundle(
+                ResolvedSiteElevation site,
+                BuildingSiteAnalysis analysis,
+                Map<Long, BuildingSiteColumnSample> columnSamples) {
+            this(site, analysis, columnSamples, List.of());
         }
     }
 

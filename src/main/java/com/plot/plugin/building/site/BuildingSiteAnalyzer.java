@@ -41,6 +41,7 @@ public final class BuildingSiteAnalyzer {
      * 生产路径：采样 + 汇总。返回 analysis 与列缓存（供 SitePreparation / Foundation 复用）。
      */
     public static AnalysisBundle analyze(
+            String buildingId,
             MassingGeometryResolver.ResolvedMassingGeometry massing,
             World world,
             ICoordinateService coordinateService) {
@@ -58,12 +59,34 @@ public final class BuildingSiteAnalyzer {
                     ignored -> sampleColumn(world, column.getX(), column.getZ()));
                 samples.add(sample);
             }
-            SampledAnalysis sampled = analyzeSamplesInternal(samples, TerrainElevationStrategy.BALANCED);
-            return new AnalysisBundle(sampled.analysis(), Map.copyOf(cache), sampled.groundElevations());
+            int unloadedColumns = 0;
+            for (BuildingSiteColumnSample sample : cache.values()) {
+                if (!sample.chunkLoaded()) {
+                    unloadedColumns++;
+                }
+            }
+            SampledAnalysis sampled = analyzeSamplesInternal(
+                samples, TerrainElevationStrategy.BALANCED, buildingId);
+            return new AnalysisBundle(
+                sampled.analysis(),
+                Map.copyOf(cache),
+                sampled.groundElevations(),
+                false,
+                unloadedColumns);
         } catch (Exception e) {
-            LOGGER.warn("场地分析失败，回退默认标高: {}", e.getMessage());
-            return AnalysisBundle.fallback();
+            LOGGER.warn("Building {} site analysis failed, fallback: {}",
+                buildingId != null ? buildingId : "?", e.getMessage());
+            return AnalysisBundle.failedFallback();
         }
+    }
+
+    /** @deprecated 使用带 buildingId 的重载 */
+    @Deprecated
+    public static AnalysisBundle analyze(
+            MassingGeometryResolver.ResolvedMassingGeometry massing,
+            World world,
+            ICoordinateService coordinateService) {
+        return analyze(null, massing, world, coordinateService);
     }
 
     /**
@@ -72,12 +95,13 @@ public final class BuildingSiteAnalyzer {
     public static BuildingSiteAnalysis analyzeSamples(
             List<BuildingSiteColumnSample> samples,
             TerrainElevationStrategy strategy) {
-        return analyzeSamplesInternal(samples, strategy).analysis();
+        return analyzeSamplesInternal(samples, strategy, null).analysis();
     }
 
     private static SampledAnalysis analyzeSamplesInternal(
             List<BuildingSiteColumnSample> samples,
-            TerrainElevationStrategy strategy) {
+            TerrainElevationStrategy strategy,
+            String buildingId) {
         if (samples == null || samples.isEmpty()) {
             return new SampledAnalysis(
                 BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
@@ -171,12 +195,14 @@ public final class BuildingSiteAnalyzer {
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(
-                "site analysis: columns={} groundRange={}-{} balanced={} waterCoverage={} conflicts={}",
+                "Building {} site analysis: columns={} groundRange={}-{} balanced={} waterCoverage={} waterElevation={} conflicts={}",
+                buildingId != null && !buildingId.isBlank() ? buildingId : "?",
                 analysis.sampledColumnCount(),
                 analysis.minGroundElevation(),
                 analysis.maxGroundElevation(),
                 analysis.balancedGroundElevation(),
                 String.format("%.2f", analysis.waterCoverageRatio()),
+                analysis.dominantWaterElevation(),
                 analysis.structureConflictCount());
         }
         return new SampledAnalysis(analysis, List.copyOf(grounds));
@@ -187,26 +213,26 @@ public final class BuildingSiteAnalyzer {
 
     public static BuildingSiteColumnSample sampleColumn(World world, int worldX, int worldZ) {
         EngineeringTerrainService terrain = EngineeringTerrainService.of(world);
+        boolean loaded = terrain.isChunkLoaded(worldX, worldZ);
         int groundY = terrain.sampleGroundSurface(worldX, worldZ);
         int rawY = terrain.sampleRawSurface(worldX, worldZ);
         OptionalInt waterY = terrain.findWaterSurface(worldX, worldZ);
 
         int natural = 0;
         int structures = 0;
-        int top = Math.max(rawY, groundY + 2);
-        for (int y = groundY + 1; y <= top; y++) {
-            if (!terrain.isChunkLoaded(worldX, worldZ)) {
-                break;
-            }
-            BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
-            EngineeringTerrainBlockRole role = EngineeringTerrainService.classifyBlock(state);
-            if (role == EngineeringTerrainBlockRole.NATURAL_DECORATION) {
-                natural++;
-            } else if (role == EngineeringTerrainBlockRole.OTHER_SOLID) {
-                structures++;
+        if (loaded) {
+            int top = Math.max(rawY, groundY + 2);
+            for (int y = groundY + 1; y <= top; y++) {
+                BlockState state = world.getBlockState(new BlockPos(worldX, y, worldZ));
+                EngineeringTerrainBlockRole role = EngineeringTerrainService.classifyBlock(state);
+                if (role == EngineeringTerrainBlockRole.NATURAL_DECORATION) {
+                    natural++;
+                } else if (role == EngineeringTerrainBlockRole.OTHER_SOLID) {
+                    structures++;
+                }
             }
         }
-        return new BuildingSiteColumnSample(groundY, rawY, waterY, natural, structures);
+        return new BuildingSiteColumnSample(groundY, rawY, waterY, natural, structures, loaded);
     }
 
     public static long packColumn(int x, int z) {
@@ -219,7 +245,9 @@ public final class BuildingSiteAnalyzer {
     public record AnalysisBundle(
             BuildingSiteAnalysis analysis,
             Map<Long, BuildingSiteColumnSample> columnSamples,
-            List<Integer> groundElevations) {
+            List<Integer> groundElevations,
+            boolean analysisFailed,
+            int unloadedColumnCount) {
 
         public AnalysisBundle {
             analysis = analysis != null
@@ -231,17 +259,37 @@ public final class BuildingSiteAnalyzer {
             groundElevations = groundElevations == null || groundElevations.isEmpty()
                 ? List.of()
                 : List.copyOf(groundElevations);
+            unloadedColumnCount = Math.max(0, unloadedColumnCount);
+        }
+
+        /** 兼容旧三参构造。 */
+        public AnalysisBundle(
+                BuildingSiteAnalysis analysis,
+                Map<Long, BuildingSiteColumnSample> columnSamples,
+                List<Integer> groundElevations) {
+            this(analysis, columnSamples, groundElevations, false, 0);
         }
 
         public static AnalysisBundle fallback() {
             return new AnalysisBundle(
                 BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
                 Map.of(),
-                List.of());
+                List.of(),
+                false,
+                0);
+        }
+
+        public static AnalysisBundle failedFallback() {
+            return new AnalysisBundle(
+                BuildingSiteAnalysis.emptyFallback(EngineeringTerrainService.DEFAULT_GROUND_ELEVATION),
+                Map.of(),
+                List.of(),
+                true,
+                0);
         }
 
         public static AnalysisBundle of(BuildingSiteAnalysis analysis, List<Integer> groundElevations) {
-            return new AnalysisBundle(analysis, Map.of(), groundElevations);
+            return new AnalysisBundle(analysis, Map.of(), groundElevations, false, 0);
         }
     }
 }

@@ -53,4 +53,19 @@ class EngineeringTerrainServiceTest {
         assertFalse(EngineeringTerrainService.isNaturalDecoration(null));
         assertEquals(EngineeringTerrainBlockRole.AIR, EngineeringTerrainService.classifyBlock(null));
     }
+
+    @Test
+    void sitePrepNaturalDecorationTraits_grassFlowersLeaves() {
+        assertEquals(EngineeringTerrainBlockRole.NATURAL_DECORATION,
+            EngineeringTerrainService.classifyTraits(false, false, true, false, false, false));
+        assertEquals(EngineeringTerrainBlockRole.NATURAL_DECORATION,
+            EngineeringTerrainService.classifyTraits(false, false, false, false, false, true));
+        assertEquals(EngineeringTerrainBlockRole.NATURAL_DECORATION,
+            EngineeringTerrainService.classifyTraits(false, false, false, false, true, false));
+        // 非自然地表材料 → OTHER_SOLID（人工构筑）
+        assertEquals(EngineeringTerrainBlockRole.OTHER_SOLID,
+            EngineeringTerrainService.classifyTraits(false, false, false, false, false, false, false));
+        assertEquals(EngineeringTerrainBlockRole.ENGINEERING_TERRAIN,
+            EngineeringTerrainService.classifyTraits(false, false, false, false, false, false, true));
+    }
 }

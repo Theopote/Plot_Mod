@@ -2,6 +2,7 @@ package com.plot.plugin.building.generation.resolve;
 
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
+import com.plot.plugin.building.BuildingFoundationUtils;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
@@ -11,6 +12,7 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -132,6 +134,7 @@ public final class BuildingGenerationContextFactory {
         GenerationSiteResolver.SiteResolveBundle siteBundle = GenerationSiteResolver.resolve(
             definition, footprint, massing, world, coordinateService, result);
         MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
+        attachSitePreview(result, siteBundle);
         return new ResolvedBuildingDefinition(
             definition,
             massing,
@@ -139,6 +142,35 @@ public final class BuildingGenerationContextFactory {
             siteBundle.site(),
             materials,
             siteBundle.columnSamples());
+    }
+
+    private static void attachSitePreview(
+            BuildingGenerationResult result,
+            GenerationSiteResolver.SiteResolveBundle siteBundle) {
+        if (result == null || siteBundle == null) {
+            return;
+        }
+        var site = siteBundle.site();
+        var analysis = siteBundle.analysis();
+        BuildingFoundationUtils.EarthworkEstimate estimate =
+            BuildingFoundationUtils.estimateEarthwork(
+                siteBundle.groundElevations(),
+                site.actualFoundationElevation());
+        int cut = estimate.cut();
+        int fill = estimate.fill();
+        if (siteBundle.groundElevations().isEmpty()) {
+            cut = analysis.estimatedCutVolume();
+            fill = analysis.estimatedFillVolume();
+        }
+        result.sitePreview = new BuildingGenerationResult.SitePreviewSummary(
+            site.actualFoundationElevation(),
+            site.source(),
+            site.waterAdjusted(),
+            analysis.minGroundElevation(),
+            analysis.maxGroundElevation(),
+            analysis.waterCoverageRatio(),
+            cut,
+            fill);
     }
 
     public static ResolvedBuildingDefinition resolveForTesting(

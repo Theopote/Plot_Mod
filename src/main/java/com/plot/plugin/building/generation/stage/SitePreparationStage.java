@@ -81,11 +81,6 @@ public final class SitePreparationStage implements BuildingGenerationStage {
                 }
             }
         }
-
-        if (context.getSiteAnalysis() != null
-                && context.getSiteAnalysis().structureConflictCount() > 0
-                && !result.warnings.contains("plugin.building.warn.structure_conflict")) {
-            result.warnings.add("plugin.building.warn.structure_conflict");
-        }
+        // structure_conflict warning 由 GenerationSiteResolver 统一发出，本 Stage 只清理自然附着物。
     }
 }

@@ -23,8 +23,6 @@ class SitePreparationStageTest {
 
     @Test
     void c01c02c03ClearableNaturalDecorationUsesSharedServiceApi() {
-        // 无 World 时 clearable API 安全返回 false；真实草/花/叶清理依赖 EngineeringTerrainService
-        // 分类（已在 EngineeringTerrainServiceTest 覆盖）。此处锁定清理器安全上限常量。
         assertTrue(NaturalDecorationCleaner.MAX_TREE_CLEAR_BLOCKS > 0);
         assertTrue(NaturalDecorationCleaner.MAX_TREE_CLEAR_RADIUS > 0);
         assertTrue(NaturalDecorationCleaner.MAX_VERTICAL_RANGE > 0);

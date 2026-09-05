@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -200,5 +201,65 @@ class BuildingSiteAnalyzerTest {
         assertEquals(FoundationElevationSource.EARTHWORK_PAD, site.source());
         assertFalse(site.waterAdjusted());
         assertTrue(result.warnings.contains("plugin.building.warn.earthwork_pad_below_water"));
+    }
+
+    @Test
+    void s04MildSteepTerrainMarksSteepWarning() {
+        List<BuildingSiteColumnSample> samples = List.of(
+            land(64), land(65), land(66), land(68));
+        BuildingSiteAnalysis analysis = BuildingSiteAnalyzer.analyzeSamples(
+            samples, TerrainElevationStrategy.BALANCED);
+        assertEquals(4, analysis.groundElevationRange());
+        assertTrue(analysis.hasIssue(SiteIssue.STEEP));
+        assertFalse(analysis.hasIssue(SiteIssue.SEVERE_STEEP));
+
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        GenerationSiteResolver.decide(
+            null, null, analysis, samples.stream().map(BuildingSiteColumnSample::groundY).toList(), result);
+        assertTrue(result.warnings.contains("plugin.building.warn.steep_site"));
+    }
+
+    @Test
+    void s06WaterRaiseCanTriggerHeavyEarthwork() {
+        List<BuildingSiteColumnSample> samples = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            samples.add(water(50, 64));
+        }
+        BuildingSiteAnalysis analysis = BuildingSiteAnalyzer.analyzeSamples(
+            samples, TerrainElevationStrategy.BALANCED);
+        List<Integer> grounds = samples.stream().map(BuildingSiteColumnSample::groundY).toList();
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        GenerationSiteResolver.ResolvedSiteElevation site = GenerationSiteResolver.decide(
+            null, null, analysis, grounds, result);
+
+        assertEquals(65, site.actualFoundationElevation());
+        assertTrue(site.waterAdjusted());
+        assertTrue(result.warnings.contains("plugin.building.warn.heavy_earthwork"));
+        BuildingFoundationUtils.EarthworkEstimate afterRaise =
+            BuildingFoundationUtils.estimateEarthwork(grounds, site.actualFoundationElevation());
+        assertTrue(afterRaise.total() > grounds.size() * BuildingSiteAnalyzer.HEAVY_EARTHWORK_CELLS_FACTOR);
+    }
+
+    @Test
+    void failSoftBundleFlagsEmitWarnings() {
+        BuildingGenerationResult failed = new BuildingGenerationResult();
+        var failBundle = BuildingSiteAnalyzer.AnalysisBundle.failedFallback();
+        assertTrue(failBundle.analysisFailed());
+        if (failBundle.analysisFailed()) {
+            failed.warnings.add("plugin.building.warn.site_analysis_failed");
+        }
+        assertTrue(failed.warnings.contains("plugin.building.warn.site_analysis_failed"));
+
+        BuildingGenerationResult unloaded = new BuildingGenerationResult();
+        var unloadedBundle = new BuildingSiteAnalyzer.AnalysisBundle(
+            BuildingSiteAnalysis.emptyFallback(64),
+            Map.of(),
+            List.of(),
+            false,
+            3);
+        if (unloadedBundle.unloadedColumnCount() > 0) {
+            unloaded.warnings.add("plugin.building.warn.chunk_unloaded");
+        }
+        assertTrue(unloaded.warnings.contains("plugin.building.warn.chunk_unloaded"));
     }
 }

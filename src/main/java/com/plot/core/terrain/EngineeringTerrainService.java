@@ -1,6 +1,7 @@
 package com.plot.core.terrain;
 
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
@@ -175,10 +176,50 @@ public final class EngineeringTerrainService {
     }
 
     public static boolean isEngineeringTerrain(BlockState state) {
-        return state != null
-            && !state.isAir()
-            && state.getFluidState().isEmpty()
-            && !isNaturalDecoration(state);
+        if (state == null || state.isAir() || !state.getFluidState().isEmpty() || isNaturalDecoration(state)) {
+            return false;
+        }
+        return isNaturalGroundMaterial(state);
+    }
+
+    /**
+     * 自然/工程地表材料（土石沙泥等）。人工构筑（砖、木板、玻璃等）返回 false。
+     */
+    public static boolean isNaturalGroundMaterial(BlockState state) {
+        if (state == null || state.isAir()) {
+            return false;
+        }
+        return state.isIn(BlockTags.DIRT)
+            || state.isIn(BlockTags.BASE_STONE_OVERWORLD)
+            || state.isIn(BlockTags.BASE_STONE_NETHER)
+            || state.isIn(BlockTags.SAND)
+            || state.isIn(BlockTags.TERRACOTTA)
+            || state.isIn(BlockTags.NYLIUM)
+            || state.isOf(Blocks.GRAVEL)
+            || state.isOf(Blocks.CLAY)
+            || state.isOf(Blocks.MUD)
+            || state.isOf(Blocks.PACKED_MUD)
+            || state.isOf(Blocks.SOUL_SAND)
+            || state.isOf(Blocks.SOUL_SOIL)
+            || state.isOf(Blocks.NETHERRACK)
+            || state.isOf(Blocks.END_STONE)
+            || state.isOf(Blocks.BLACKSTONE)
+            || state.isOf(Blocks.BASALT)
+            || state.isOf(Blocks.SMOOTH_BASALT)
+            || state.isOf(Blocks.CALCITE)
+            || state.isOf(Blocks.TUFF)
+            || state.isOf(Blocks.DRIPSTONE_BLOCK)
+            || state.isOf(Blocks.MAGMA_BLOCK)
+            || state.isOf(Blocks.OBSIDIAN)
+            || state.isOf(Blocks.CRYING_OBSIDIAN)
+            || state.isOf(Blocks.SNOW_BLOCK)
+            || state.isOf(Blocks.POWDER_SNOW)
+            || state.isOf(Blocks.ICE)
+            || state.isOf(Blocks.PACKED_ICE)
+            || state.isOf(Blocks.BLUE_ICE)
+            || state.isOf(Blocks.MOSS_BLOCK)
+            || state.isOf(Blocks.ROOTED_DIRT)
+            || state.isOf(Blocks.MUDDY_MANGROVE_ROOTS);
     }
 
     static boolean isNaturalDecorationTraits(
@@ -196,9 +237,22 @@ public final class EngineeringTerrainService {
             boolean inLogsTag,
             boolean inLeavesTag,
             boolean inFlowersTag) {
+        // 兼容旧测试：非自然附着的实心默认视为工程地表材料
+        return isEngineeringTerrainTraits(air, hasFluid, replaceable, inLogsTag, inLeavesTag, inFlowersTag, true);
+    }
+
+    static boolean isEngineeringTerrainTraits(
+            boolean air,
+            boolean hasFluid,
+            boolean replaceable,
+            boolean inLogsTag,
+            boolean inLeavesTag,
+            boolean inFlowersTag,
+            boolean naturalGroundMaterial) {
         return !air
             && !hasFluid
-            && !isNaturalDecorationTraits(replaceable, inLogsTag, inLeavesTag, inFlowersTag);
+            && !isNaturalDecorationTraits(replaceable, inLogsTag, inLeavesTag, inFlowersTag)
+            && naturalGroundMaterial;
     }
 
     static EngineeringTerrainBlockRole classifyTraits(
@@ -208,6 +262,17 @@ public final class EngineeringTerrainService {
             boolean inLogsTag,
             boolean inLeavesTag,
             boolean inFlowersTag) {
+        return classifyTraits(air, hasFluid, replaceable, inLogsTag, inLeavesTag, inFlowersTag, true);
+    }
+
+    static EngineeringTerrainBlockRole classifyTraits(
+            boolean air,
+            boolean hasFluid,
+            boolean replaceable,
+            boolean inLogsTag,
+            boolean inLeavesTag,
+            boolean inFlowersTag,
+            boolean naturalGroundMaterial) {
         if (air) {
             return EngineeringTerrainBlockRole.AIR;
         }
@@ -217,7 +282,8 @@ public final class EngineeringTerrainService {
         if (isNaturalDecorationTraits(replaceable, inLogsTag, inLeavesTag, inFlowersTag)) {
             return EngineeringTerrainBlockRole.NATURAL_DECORATION;
         }
-        if (isEngineeringTerrainTraits(air, hasFluid, replaceable, inLogsTag, inLeavesTag, inFlowersTag)) {
+        if (isEngineeringTerrainTraits(
+                air, hasFluid, replaceable, inLogsTag, inLeavesTag, inFlowersTag, naturalGroundMaterial)) {
             return EngineeringTerrainBlockRole.ENGINEERING_TERRAIN;
         }
         return EngineeringTerrainBlockRole.OTHER_SOLID;
@@ -227,7 +293,6 @@ public final class EngineeringTerrainService {
      * 非自然附着物、且不计入工程自然地形的其它实心方块（如人工构筑）。
      */
     public static boolean isStructure(BlockState state) {
-        EngineeringTerrainBlockRole role = classifyBlock(state);
-        return role == EngineeringTerrainBlockRole.OTHER_SOLID;
+        return classifyBlock(state) == EngineeringTerrainBlockRole.OTHER_SOLID;
     }
 }
