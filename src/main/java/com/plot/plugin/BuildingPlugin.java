@@ -14,6 +14,7 @@ import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.building.BuildingBatchEditor;
 import com.plot.plugin.building.BuildingFootprintPickSession;
+import com.plot.plugin.building.BuildingFootprintValidator;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
 import com.plot.plugin.building.BuildingHeightDistribution;
@@ -1157,6 +1158,27 @@ public class BuildingPlugin extends Plugin {
         ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", district.totalFillVolume()));
         ImGui.text(PlotI18n.tr("plugin.building.block_count_result", district.totalBlocks()));
 
+        if (district.hasBuildingOverlap()) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.building.district_overlap_summary",
+                district.overlappingBuildingPairs().size(),
+                district.conflictingBlockCount()));
+            int shown = 0;
+            for (var pair : district.overlappingBuildingPairs()) {
+                if (shown >= 5) {
+                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                        "plugin.building.district_overlap_more",
+                        district.overlappingBuildingPairs().size() - shown));
+                    break;
+                }
+                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                    "plugin.building.district_overlap_pair",
+                    pair.buildingNameA(),
+                    pair.buildingNameB()));
+                shown++;
+            }
+        }
+
         for (String warningKey : district.warnings()) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
         }
@@ -1227,6 +1249,12 @@ public class BuildingPlugin extends Plugin {
             "plugin.building.district_placed_result",
             report.placedBlocks(),
             report.plannedBlocks()));
+        if (report.overlappingPairCount() > 0 || report.conflictingBlockCount() > 0) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.building.district_overlap_summary",
+                report.overlappingPairCount(),
+                report.conflictingBlockCount()));
+        }
         if (report.failedBlocks() > 0) {
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
                 "plugin.building.district_failed_blocks",
@@ -1506,14 +1534,19 @@ public class BuildingPlugin extends Plugin {
         int adopted = 0;
         int skipped = 0;
         List<String> adoptedIds = new ArrayList<>();
+        List<String> rejectHints = new ArrayList<>();
         for (Shape shape : selectedFootprints) {
             List<Vec2d> points = BuildingGeometryUtils.extractFootprintPoints(shape);
-            if (points.size() < 3) {
+            BuildingFootprintValidator.Result validation = BuildingFootprintValidator.validate(points);
+            if (!validation.valid()) {
                 skipped++;
+                if (rejectHints.size() < 5 && validation.reason() != null) {
+                    rejectHints.add(PlotI18n.tr(validation.reason().i18nKey()));
+                }
                 continue;
             }
-            boolean rectangular = BuildingGeometryUtils.isSlopedRoofEligible(points);
-            BuildingFootprint footprint = new BuildingFootprint(points, rectangular);
+            boolean rectangular = BuildingGeometryUtils.isSlopedRoofEligible(validation.cleanedPoints());
+            BuildingFootprint footprint = new BuildingFootprint(validation.cleanedPoints(), rectangular);
             footprint.setName(PlotI18n.tr("plugin.building.default_name", adopted + 1));
             project.addBuilding(footprint);
             adoptedIds.add(footprint.getId());
@@ -1526,11 +1559,16 @@ public class BuildingPlugin extends Plugin {
             clearPreview();
         }
         if (adopted == 0) {
-            projectStatus = PlotI18n.tr("plugin.building.adopt_no_selection");
-        } else if (adopted > 1) {
             projectStatus = skipped > 0
-                ? PlotI18n.tr("plugin.building.adopt_success_batch_partial", adopted, skipped)
-                : PlotI18n.tr("plugin.building.adopt_success_batch", adopted);
+                ? PlotI18n.tr("plugin.building.adopt_all_invalid", skipped)
+                : PlotI18n.tr("plugin.building.adopt_no_selection");
+        } else if (skipped > 0) {
+            projectStatus = PlotI18n.tr("plugin.building.adopt_success_batch_partial", adopted, skipped);
+            if (!rejectHints.isEmpty()) {
+                projectStatus = projectStatus + " — " + String.join("; ", rejectHints);
+            }
+        } else if (adopted > 1) {
+            projectStatus = PlotI18n.tr("plugin.building.adopt_success_batch", adopted);
         } else {
             projectStatus = PlotI18n.tr("plugin.building.adopt_success");
         }

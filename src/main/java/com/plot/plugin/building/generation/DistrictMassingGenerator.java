@@ -1,5 +1,6 @@
 package com.plot.plugin.building.generation;
 
+import com.plot.plugin.building.BuildingFootprintValidator;
 import com.plot.plugin.building.model.BuildingFootprint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,11 +35,13 @@ public final class DistrictMassingGenerator {
             if (building == null) {
                 continue;
             }
-            if (building.getOuterPoints() == null || building.getOuterPoints().size() < 3) {
+            BuildingFootprintValidator.Result validation =
+                BuildingFootprintValidator.validate(building.getOuterPoints());
+            if (!validation.valid()) {
                 district.addSkipped(
                     building,
                     DistrictGenerationResult.SkipReason.INVALID,
-                    null);
+                    validation.reason() != null ? validation.reason().name() : null);
                 continue;
             }
             try {
@@ -63,6 +66,7 @@ public final class DistrictMassingGenerator {
                     e.getMessage());
             }
         }
+        district.finalizeOverlaps();
         return district;
     }
 }

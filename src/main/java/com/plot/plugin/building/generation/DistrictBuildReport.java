@@ -25,6 +25,8 @@ public final class DistrictBuildReport {
     private final boolean placementFullSuccess;
     private final List<SkipItem> skipped;
     private final List<String> warnings;
+    private final int overlappingPairCount;
+    private final int conflictingBlockCount;
 
     public DistrictBuildReport(
             int buildingsGenerated,
@@ -38,7 +40,9 @@ public final class DistrictBuildReport {
             boolean cancelled,
             boolean placementFullSuccess,
             List<SkipItem> skipped,
-            List<String> warnings) {
+            List<String> warnings,
+            int overlappingPairCount,
+            int conflictingBlockCount) {
         this.buildingsGenerated = buildingsGenerated;
         this.buildingsSkipped = buildingsSkipped;
         this.buildingsAttempted = buildingsAttempted;
@@ -51,6 +55,8 @@ public final class DistrictBuildReport {
         this.placementFullSuccess = placementFullSuccess;
         this.skipped = List.copyOf(skipped != null ? skipped : List.of());
         this.warnings = List.copyOf(warnings != null ? warnings : List.of());
+        this.overlappingPairCount = Math.max(0, overlappingPairCount);
+        this.conflictingBlockCount = Math.max(0, conflictingBlockCount);
     }
 
     public static DistrictBuildReport from(
@@ -58,6 +64,8 @@ public final class DistrictBuildReport {
             BuildingGenerateCommand.ExecutionResult placement) {
         List<SkipItem> skipped = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
+        int overlapPairs = 0;
+        int conflictBlocks = 0;
         if (district != null) {
             for (DistrictGenerationResult.BuildingOutcome outcome : district.skippedOutcomes()) {
                 skipped.add(new SkipItem(
@@ -66,9 +74,9 @@ public final class DistrictBuildReport {
                     outcome.skipReason() != null ? outcome.skipReason().i18nKey() : "",
                     outcome.errorDetail()));
             }
-            if (district.buildingsSkipped() > 0 && district.buildingsAttempted() > 1) {
-                warnings.add("plugin.building.warn.district_partial");
-            }
+            warnings.addAll(district.warnings());
+            overlapPairs = district.overlappingBuildingPairs().size();
+            conflictBlocks = district.conflictingBlockCount();
         }
 
         int planned = district != null ? district.totalBlocks() : 0;
@@ -89,7 +97,9 @@ public final class DistrictBuildReport {
             cancelled,
             fullSuccess,
             skipped,
-            warnings);
+            warnings,
+            overlapPairs,
+            conflictBlocks);
     }
 
     public int buildingsGenerated() {
@@ -138,6 +148,14 @@ public final class DistrictBuildReport {
 
     public List<String> warnings() {
         return warnings;
+    }
+
+    public int overlappingPairCount() {
+        return overlappingPairCount;
+    }
+
+    public int conflictingBlockCount() {
+        return conflictingBlockCount;
     }
 
     public boolean isDistrict() {

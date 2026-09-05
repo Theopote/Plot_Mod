@@ -5,9 +5,12 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 片区（多栋）生成/预览汇总：fail-soft，单栋失败不阻断其余。
@@ -69,6 +72,12 @@ public final class DistrictGenerationResult {
     private final List<BuildingOutcome> outcomes = new ArrayList<>();
     private final Map<BlockPos, BlockRecord> mergedPlacementRecords = new LinkedHashMap<>();
     private final List<String> warnings = new ArrayList<>();
+    private final List<BuildingFootprint> successfulBuildings = new ArrayList<>();
+    private final Map<BlockPos, String> blockOwners = new HashMap<>();
+    private final Map<String, String> buildingNames = new HashMap<>();
+    private final Set<String> voxelConflictPairKeys = new LinkedHashSet<>();
+    private final List<DistrictOverlapAnalyzer.OverlapPair> voxelOverlapPairs = new ArrayList<>();
+    private List<DistrictOverlapAnalyzer.OverlapPair> overlappingBuildingPairs = List.of();
     private int buildingsGenerated;
     private int buildingsSkipped;
     private int totalBlocks;
@@ -76,6 +85,7 @@ public final class DistrictGenerationResult {
     private int totalFillVolume;
     private double totalArea;
     private double totalVolume;
+    private int conflictingBlockCount;
 
     public List<BuildingOutcome> outcomes() {
         return List.copyOf(outcomes);
@@ -123,6 +133,18 @@ public final class DistrictGenerationResult {
         return List.copyOf(warnings);
     }
 
+    public List<DistrictOverlapAnalyzer.OverlapPair> overlappingBuildingPairs() {
+        return overlappingBuildingPairs;
+    }
+
+    public int conflictingBlockCount() {
+        return conflictingBlockCount;
+    }
+
+    public boolean hasBuildingOverlap() {
+        return !overlappingBuildingPairs.isEmpty() || conflictingBlockCount > 0;
+    }
+
     public boolean hasPlacements() {
         return !mergedPlacementRecords.isEmpty();
     }
@@ -140,6 +162,8 @@ public final class DistrictGenerationResult {
     void addSuccess(BuildingFootprint building, BuildingGenerationResult result) {
         outcomes.add(BuildingOutcome.ok(building, result));
         buildingsGenerated++;
+        successfulBuildings.add(building);
+        buildingNames.put(building.getId(), building.getName());
         totalCutVolume += result.cutVolume;
         totalFillVolume += result.fillVolume;
         double area = building.computeArea();
@@ -152,6 +176,13 @@ public final class DistrictGenerationResult {
                 }
             }
         }
+        conflictingBlockCount += DistrictOverlapAnalyzer.countConflictingBlocks(
+            blockOwners,
+            result.placementRecords,
+            building.getId(),
+            voxelConflictPairKeys,
+            voxelOverlapPairs,
+            buildingNames);
         // 后写覆盖先写（同格冲突时以后栋为准）
         for (Map.Entry<BlockPos, BlockRecord> entry : result.placementRecords.entrySet()) {
             mergedPlacementRecords.put(entry.getKey(), entry.getValue());
@@ -164,6 +195,20 @@ public final class DistrictGenerationResult {
         buildingsSkipped++;
         if (buildingsAttempted() > 1 && !warnings.contains("plugin.building.warn.district_partial")) {
             warnings.add("plugin.building.warn.district_partial");
+        }
+    }
+
+    /**
+     * 生成结束后汇总 footprint 相交与体素冲突，写入 overlap 警告。
+     */
+    void finalizeOverlaps() {
+        List<DistrictOverlapAnalyzer.OverlapPair> footprintPairs =
+            DistrictOverlapAnalyzer.findFootprintOverlapPairs(successfulBuildings);
+        overlappingBuildingPairs = List.copyOf(
+            DistrictOverlapAnalyzer.mergeUniquePairs(footprintPairs, voxelOverlapPairs));
+        if (hasBuildingOverlap()
+                && !warnings.contains("plugin.building.warn.district_overlap")) {
+            warnings.add("plugin.building.warn.district_overlap");
         }
     }
 
