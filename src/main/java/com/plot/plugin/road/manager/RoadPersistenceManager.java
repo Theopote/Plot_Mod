@@ -8,6 +8,7 @@ import com.plot.plugin.road.model.CorruptedRoadNetworkException;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNetworkFormatException;
 import com.plot.plugin.road.model.RoadNetworkHistory;
+import com.plot.plugin.road.model.persistence.RoadNetworkPersistence;
 import com.plot.utils.PlotI18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,8 @@ import java.util.function.Consumer;
 /**
  * 道路网络持久化：按工程文件路径关联 networks/*.json。
  *
- * <p>保存时在 client 线程读取 live {@link RoadNetwork} 并 {@link RoadNetwork#toJson()}；
- * 若将来改为异步落盘，应先 {@link RoadNetwork#snapshot()} 再写文件，避免与 UI 编辑交错。
+ * <p>保存时在 client 线程读取 live {@link RoadNetwork} 并 {@link RoadNetworkPersistence#serialize}；
+ * 若将来改为异步落盘，应先 {@link RoadNetworkPersistence#snapshot} 再写文件，避免与 UI 编辑交错。
  */
 public final class RoadPersistenceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadPersistence");
@@ -96,7 +97,7 @@ public final class RoadPersistenceManager {
             RoadNetworkHistory history,
             Runnable onSelectionReset) {
         try {
-            RoadNetwork loaded = RoadNetwork.loadFrom(file);
+            RoadNetwork loaded = RoadNetworkPersistence.load(file);
             history.clear();
             onSelectionReset.run();
             return loaded;
@@ -111,7 +112,7 @@ public final class RoadPersistenceManager {
             Consumer<RoadNetwork> onLoaded,
             Runnable onSelectionReset) {
         try {
-            RoadNetwork loaded = RoadNetwork.loadFrom(file);
+            RoadNetwork loaded = RoadNetworkPersistence.load(file);
             onLoaded.accept(loaded);
             onSelectionReset.run();
             return true;
@@ -135,12 +136,12 @@ public final class RoadPersistenceManager {
             return false;
         }
         try {
-            String json = network.toJson();
+            String json = RoadNetworkPersistence.serialize(network);
             if (contentFingerprint.isUnchanged(json, file)) {
                 LOGGER.debug("路网内容未变，跳过重复保存: {}", file.getFileName());
                 return true;
             }
-            network.saveTo(file);
+            RoadNetworkPersistence.save(network, file);
             contentFingerprint.markSaved(json, file);
             return true;
         } catch (IOException e) {
