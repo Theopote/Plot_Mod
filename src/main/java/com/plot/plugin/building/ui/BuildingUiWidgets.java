@@ -3,16 +3,11 @@ package com.plot.plugin.building.ui;
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
-import com.plot.plugin.road.RoadMaterialUtils;
-import com.plot.plugin.road.ui.RoadUiWidgets;
 import com.plot.plugin.ui.PluginUiColors;
-import com.plot.ui.screen.BlockConfigNativeScreen;
-import com.plot.ui.screen.PlotScreen;
-import com.plot.ui.screen.PlotScreenState;
+import com.plot.ui.component.UIUtils;
 import com.plot.utils.PlotI18n;
 import imgui.ImGui;
 import imgui.type.ImInt;
-import net.minecraft.client.MinecraftClient;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -71,9 +66,9 @@ public final class BuildingUiWidgets {
         MaterialMix mix = currentMix != null
             ? currentMix
             : MaterialMix.single(BuildingFootprint.DEFAULT_WALL_MATERIAL);
-        String displayName = RoadMaterialUtils.getDisplayName(mix.getPrimaryMaterial());
+        String displayName = UIUtils.getBlockDisplayName(mix.getPrimaryMaterial());
         if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
-            displayName += " + " + RoadMaterialUtils.getDisplayName(mix.getAccentMaterial());
+            displayName += " + " + UIUtils.getBlockDisplayName(mix.getAccentMaterial());
         }
         ImGui.text(label);
         ImGui.sameLine();
@@ -85,30 +80,17 @@ public final class BuildingUiWidgets {
             if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
                 initial.add(mix.getAccentMaterial());
             }
-            openPalettePicker(initial, blockIds ->
-                onSelected.accept(RoadUiWidgets.fromPaletteSelection(blockIds, mix.getAccentRatio())));
+            UIUtils.openPalettePicker(initial, blockIds ->
+                onSelected.accept(UIUtils.fromPaletteSelection(
+                    blockIds,
+                    mix.getAccentRatio(),
+                    MaterialMix.single(BuildingFootprint.DEFAULT_WALL_MATERIAL))));
         }
 
         boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
         if (hasAccentMaterial) {
-            RoadUiWidgets.renderAccentRatioSlider(mix, onSelected::accept, label, null);
+            UIUtils.renderAccentRatioSlider(mix, onSelected::accept, label, null);
         }
-    }
-
-    public static void openPalettePicker(
-            List<String> initialBlockIds,
-            Consumer<List<String>> onConfirm) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return;
-        }
-        client.execute(() -> {
-            if (client.currentScreen instanceof PlotScreen) {
-                PlotScreenState.markSwitchingToPlotSubScreen();
-            }
-            client.setScreen(BlockConfigNativeScreen.forPaletteSelection(
-                client.currentScreen, initialBlockIds, onConfirm));
-        });
     }
 
     public static void renderMaterialButton(
@@ -124,16 +106,6 @@ public final class BuildingUiWidgets {
     }
 
     public static void openBlockPicker(String currentBlockId, Consumer<String> onSelected) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return;
-        }
-        client.execute(() -> {
-            if (client.currentScreen instanceof PlotScreen) {
-                PlotScreenState.markSwitchingToPlotSubScreen();
-            }
-            client.setScreen(BlockConfigNativeScreen.forSingleSelection(
-                client.currentScreen, currentBlockId, onSelected));
-        });
+        UIUtils.openBlockPicker(currentBlockId, onSelected);
     }
 }

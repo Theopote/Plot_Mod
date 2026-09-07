@@ -68,6 +68,7 @@ public class PluginManager implements IPluginManager {
             installPlugin(new com.plot.plugin.EarthworkPlugin(), true);
             installPlugin(new com.plot.plugin.RoadSystemPlugin(), true);
             installPlugin(new com.plot.plugin.BuildingPlugin(), true);
+            installPlugin(new com.plot.plugin.PowerLinePlugin(), true);
             LogManager.getInstance().info("Registered {} plugins after builtins", plugins.size());
         } catch (Exception e) {
             LogManager.getInstance().error("Failed to register builtin plugins", e);

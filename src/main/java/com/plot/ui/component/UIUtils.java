@@ -3,18 +3,25 @@ package com.plot.ui.component;
 import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
+import com.plot.core.material.MaterialMix;
+import com.plot.plugin.ui.PluginUiColors;
 import com.plot.ui.theme.UITheme;
+import com.plot.ui.dialog.BlockConfigDialog.BlockConfigManager;
 import com.plot.ui.screen.BlockConfigNativeScreen;
 import com.plot.ui.screen.PlotScreen;
 import com.plot.ui.screen.PlotScreenState;
 import com.plot.utils.PlotI18n;
+import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import com.plot.utils.ImGuiUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.plot.ui.theme.ThemeManager;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -246,5 +253,131 @@ public class UIUtils {
             client.setScreen(BlockConfigNativeScreen.forSingleSelection(
                 client.currentScreen, currentBlockId, onSelected));
         });
+    }
+
+    @FunctionalInterface
+    public interface MaterialMixSetter {
+        void set(MaterialMix material);
+    }
+
+    public static void renderMaterialMixPicker(
+            String buttonId,
+            String label,
+            MaterialMix currentValue,
+            MaterialMix defaultMix,
+            MaterialMixSetter setter,
+            Runnable pushHistoryOnChange) {
+        MaterialMix mix = currentValue != null ? currentValue : defaultMix;
+        String displayName = getBlockDisplayName(mix.getPrimaryMaterial());
+        if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
+            displayName += " + " + getBlockDisplayName(mix.getAccentMaterial());
+        }
+
+        ImGui.pushID(buttonId);
+        ImGui.textColored(PluginUiColors.HINT_GRAY, label);
+        if (ImGui.button(displayName + "##pick", ImGui.getContentRegionAvailX(), 0)) {
+            List<String> initial = new ArrayList<>();
+            if (mix.getPrimaryMaterial() != null && !mix.getPrimaryMaterial().isBlank()) {
+                initial.add(mix.getPrimaryMaterial());
+            }
+            if (mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank()) {
+                initial.add(mix.getAccentMaterial());
+            }
+            openPalettePicker(initial, blockIds -> {
+                if (pushHistoryOnChange != null) {
+                    pushHistoryOnChange.run();
+                }
+                setter.set(fromPaletteSelection(blockIds, mix.getAccentRatio(), defaultMix));
+            });
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(PlotI18n.tr("plugin.road.select_block_hint"));
+        }
+
+        boolean hasAccentMaterial = mix.getAccentMaterial() != null && !mix.getAccentMaterial().isBlank();
+        if (hasAccentMaterial) {
+            renderAccentRatioSlider(mix, setter, buttonId, pushHistoryOnChange);
+        }
+        ImGui.popID();
+    }
+
+    /**
+     * 点缀比例滑条（0–50%）。
+     */
+    public static void renderAccentRatioSlider(
+            MaterialMix mix,
+            MaterialMixSetter setter,
+            String id,
+            Runnable onActivated) {
+        MaterialMix current = mix;
+        if (current.getAccentRatio() <= 0f) {
+            MaterialMix updated = current.copy();
+            updated.setAccentRatio(0.15f);
+            setter.set(updated);
+            current = updated;
+        }
+
+        float[] ratioPercent = {current.getAccentRatio() * 100f};
+        ImGui.pushID(id);
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        boolean ratioChanged = ImGui.sliderFloat(
+            PlotI18n.tr("plugin.material.accent_ratio", Math.round(ratioPercent[0])) + "##slider",
+            ratioPercent,
+            0f,
+            50f,
+            "%.0f%%");
+        if (ImGui.isItemActivated() && onActivated != null) {
+            onActivated.run();
+        }
+        if (ratioChanged) {
+            MaterialMix updated = current.copy();
+            updated.setAccentRatio(ratioPercent[0] / 100f);
+            setter.set(updated);
+        }
+        ImGui.popID();
+    }
+
+    public static MaterialMix fromPaletteSelection(
+            List<String> blockIds,
+            float existingRatio,
+            MaterialMix defaultMix) {
+        MaterialMix fallback = defaultMix != null ? defaultMix : MaterialMix.single("minecraft:stone");
+        if (blockIds == null || blockIds.isEmpty()) {
+            return fallback.copy();
+        }
+        if (blockIds.size() == 1) {
+            return MaterialMix.single(blockIds.getFirst());
+        }
+        float ratio = existingRatio > 0f ? existingRatio : 0.15f;
+        return new MaterialMix(blockIds.get(0), blockIds.get(1), ratio);
+    }
+
+    public static void openPalettePicker(List<String> initialBlockIds, Consumer<List<String>> onConfirm) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        client.execute(() -> {
+            if (client.currentScreen instanceof PlotScreen) {
+                PlotScreenState.markSwitchingToPlotSubScreen();
+            }
+            BlockConfigManager.getInstance().setPaletteFromBlockIds(initialBlockIds);
+            client.setScreen(BlockConfigNativeScreen.forPaletteSelection(
+                client.currentScreen, initialBlockIds, onConfirm));
+        });
+    }
+
+    public static String getBlockDisplayName(String material) {
+        String blockId = material != null && !material.isBlank() ? material : "minecraft:stone";
+        try {
+            Block block = Registries.BLOCK.get(Identifier.of(blockId));
+            String name = block.getName().getString();
+            if (name != null && !name.isEmpty()) {
+                return name;
+            }
+        } catch (Throwable ignored) {
+            // fall through
+        }
+        return blockId;
     }
 }
