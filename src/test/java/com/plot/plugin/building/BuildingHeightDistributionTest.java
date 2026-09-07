@@ -2,6 +2,7 @@ package com.plot.plugin.building;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.model.BuildingFootprint;
+import com.plot.plugin.building.model.BuildingProject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -34,6 +35,36 @@ class BuildingHeightDistributionTest {
 
         assertEquals(6, a.getFloors());
         assertEquals(6, b.getFloors());
+    }
+
+    @Test
+    void defaultSeedIsStableForSameProjectAndSelection() {
+        BuildingProject project = new BuildingProject();
+        BuildingFootprint a = building("a", 0, 0, 5);
+        BuildingFootprint b = building("b", 10, 0, 5);
+        project.addBuilding(a);
+        project.addBuilding(b);
+
+        long first = BuildingHeightDistribution.defaultSeed(project, List.of(a, b));
+        long second = BuildingHeightDistribution.defaultSeed(project, List.of(a, b));
+
+        assertEquals(first, second);
+    }
+
+    @Test
+    void defaultSeedChangesWhenSelectionChanges() {
+        BuildingProject project = new BuildingProject();
+        BuildingFootprint a = building("a", 0, 0, 5);
+        BuildingFootprint b = building("b", 10, 0, 5);
+        BuildingFootprint c = building("c", 20, 0, 5);
+        project.addBuilding(a);
+        project.addBuilding(b);
+        project.addBuilding(c);
+
+        long ab = BuildingHeightDistribution.defaultSeed(project, List.of(a, b));
+        long abc = BuildingHeightDistribution.defaultSeed(project, List.of(a, b, c));
+
+        assertTrue(ab != abc);
     }
 
     @Test

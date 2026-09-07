@@ -36,6 +36,9 @@ public final class BuildingPluginState {
     private BuildingHeightDistribution.Mode heightDistMode = BuildingHeightDistribution.Mode.RANDOM;
     private int heightDistMinFloors = 4;
     private int heightDistMaxFloors = 8;
+    private long heightDistSeed = 0L;
+    private boolean heightDistSeedManual = false;
+    private final ImString heightDistSeedBuffer = new ImString(24);
 
     private final ImBoolean manualElevationRef = new ImBoolean(false);
     private final ImString buildingNameBuffer = new ImString(64);
@@ -142,6 +145,26 @@ public final class BuildingPluginState {
 
     public void setHeightDistMaxFloors(int heightDistMaxFloors) {
         this.heightDistMaxFloors = heightDistMaxFloors;
+    }
+
+    public long getHeightDistSeed() {
+        return heightDistSeed;
+    }
+
+    public void setHeightDistSeed(long heightDistSeed) {
+        this.heightDistSeed = heightDistSeed;
+    }
+
+    public boolean isHeightDistSeedManual() {
+        return heightDistSeedManual;
+    }
+
+    public void setHeightDistSeedManual(boolean heightDistSeedManual) {
+        this.heightDistSeedManual = heightDistSeedManual;
+    }
+
+    public ImString getHeightDistSeedBuffer() {
+        return heightDistSeedBuffer;
     }
 
     public ImBoolean getManualElevationRef() {

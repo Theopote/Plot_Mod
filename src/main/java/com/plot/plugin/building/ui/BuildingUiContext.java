@@ -164,6 +164,35 @@ public final class BuildingUiContext {
         state.setHeightDistMaxFloors(floors);
     }
 
+    public long heightDistSeed() {
+        return state.getHeightDistSeed();
+    }
+
+    public void setHeightDistSeed(long seed) {
+        state.setHeightDistSeed(seed);
+    }
+
+    public boolean heightDistSeedManual() {
+        return state.isHeightDistSeedManual();
+    }
+
+    public void setHeightDistSeedManual(boolean manual) {
+        state.setHeightDistSeedManual(manual);
+    }
+
+    public imgui.type.ImString heightDistSeedBuffer() {
+        return state.getHeightDistSeedBuffer();
+    }
+
+    public long resolveHeightDistSeed(List<BuildingFootprint> targets) {
+        if (state.isHeightDistSeedManual()) {
+            return state.getHeightDistSeed();
+        }
+        long seed = BuildingHeightDistribution.defaultSeed(project(), targets);
+        state.setHeightDistSeed(seed);
+        return seed;
+    }
+
     public imgui.type.ImBoolean manualElevationRef() {
         return state.getManualElevationRef();
     }

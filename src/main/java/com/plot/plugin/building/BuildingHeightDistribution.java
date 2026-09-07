@@ -43,8 +43,10 @@ public final class BuildingHeightDistribution {
             return new Settings(Mode.UNIFORM, f, f, 0L);
         }
 
+        /** @deprecated 请使用 {@link #of(Mode, int, int, long)} 并传入显式 seed，RANDOM 模式才可复现。 */
+        @Deprecated
         public static Settings of(Mode mode, int minFloors, int maxFloors) {
-            return new Settings(mode, minFloors, maxFloors, System.nanoTime());
+            return new Settings(mode, minFloors, maxFloors, 0L);
         }
 
         public static Settings of(Mode mode, int minFloors, int maxFloors, long seed) {
@@ -56,6 +58,46 @@ public final class BuildingHeightDistribution {
     }
 
     private BuildingHeightDistribution() {
+    }
+
+    /**
+     * 由项目与当前选中建筑 id 推导稳定 seed（同一选中集 → 同一 RANDOM 分布）。
+     */
+    public static long defaultSeed(
+            com.plot.plugin.building.model.BuildingProject project,
+            Collection<BuildingFootprint> selection) {
+        long hash = 0x243F6A8885A308D3L;
+        if (project != null) {
+            java.util.List<String> projectIds = new ArrayList<>(project.getBuildings().keySet());
+            java.util.Collections.sort(projectIds);
+            for (String id : projectIds) {
+                hash = mixString(hash, id);
+            }
+        }
+        if (selection != null) {
+            java.util.List<String> selectedIds = new ArrayList<>();
+            for (BuildingFootprint building : selection) {
+                if (building != null && building.getId() != null) {
+                    selectedIds.add(building.getId());
+                }
+            }
+            java.util.Collections.sort(selectedIds);
+            for (String id : selectedIds) {
+                hash = mixString(hash, id);
+            }
+        }
+        return hash;
+    }
+
+    private static long mixString(long hash, String value) {
+        if (value == null || value.isEmpty()) {
+            return hash;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            hash ^= value.charAt(i);
+            hash *= 0x100000001B3L;
+        }
+        return hash;
     }
 
     public static ApplyResult apply(Collection<BuildingFootprint> buildings, Settings settings) {

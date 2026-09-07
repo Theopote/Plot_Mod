@@ -19,6 +19,7 @@ import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /** 建筑编辑 Tab：单体/批量参数、预设与附属构件。 */
 public final class BuildingEditPanel {
@@ -371,6 +372,10 @@ public final class BuildingEditPanel {
             }
         }
 
+        if (ctx.heightDistMode() == BuildingHeightDistribution.Mode.RANDOM) {
+            renderHeightDistSeedControls();
+        }
+
         if (ImGui.button(
                 PlotI18n.tr("plugin.building.apply_height_distribution", count),
                 ImGui.getContentRegionAvailX(),
@@ -378,16 +383,50 @@ public final class BuildingEditPanel {
             applyHeightDistribution();
         }
     }
+
+    private void renderHeightDistSeedControls() {
+        List<BuildingFootprint> targets = ctx.selection().resolve(ctx.project());
+        long seed = ctx.resolveHeightDistSeed(targets);
+        String seedText = Long.toString(seed);
+        if (!seedText.equals(ctx.heightDistSeedBuffer().get())) {
+            ctx.heightDistSeedBuffer().set(seedText);
+        }
+
+        float randomizeWidth = ImGui.calcTextSize(PlotI18n.tr("plugin.building.height_dist_seed_randomize")).x
+            + ImGui.getStyle().getFramePaddingX() * 2.0f;
+        ImGui.setNextItemWidth(Math.max(80.0f, ImGui.getContentRegionAvailX() - randomizeWidth - ImGui.getStyle().getItemSpacingX()));
+        if (ImGui.inputText(PlotI18n.tr("plugin.building.height_dist_seed"), ctx.heightDistSeedBuffer())) {
+            try {
+                long parsed = Long.parseLong(ctx.heightDistSeedBuffer().get().trim());
+                ctx.setHeightDistSeed(parsed);
+                ctx.setHeightDistSeedManual(true);
+            } catch (NumberFormatException ignored) {
+                ctx.heightDistSeedBuffer().set(seedText);
+            }
+        }
+        UIUtils.renderEngineeringTooltip("hint.plot.building.height_dist_seed");
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.building.height_dist_seed_randomize"))) {
+            ctx.setHeightDistSeed(ThreadLocalRandom.current().nextLong() & Long.MAX_VALUE);
+            ctx.heightDistSeedBuffer().set(Long.toString(ctx.heightDistSeed()));
+            ctx.setHeightDistSeedManual(true);
+        }
+    }
+
     private void applyHeightDistribution() {
         List<BuildingFootprint> targets = ctx.selection().resolve(ctx.project());
         if (targets.isEmpty()) {
             return;
         }
         ctx.projectHistory().push(ctx.project());
+        long seed = ctx.heightDistMode() == BuildingHeightDistribution.Mode.RANDOM
+            ? ctx.resolveHeightDistSeed(targets)
+            : 0L;
         BuildingHeightDistribution.Settings settings = BuildingHeightDistribution.Settings.of(
             ctx.heightDistMode(),
             ctx.heightDistMinFloors(),
-            ctx.heightDistMaxFloors());
+            ctx.heightDistMaxFloors(),
+            seed);
         BuildingHeightDistribution.ApplyResult result =
             BuildingHeightDistribution.apply(targets, settings);
         ctx.invalidatePreview();
