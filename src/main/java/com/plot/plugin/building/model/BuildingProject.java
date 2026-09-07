@@ -11,6 +11,8 @@ import com.plot.plugin.building.model.spec.OpeningKind;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.model.spec.WallFacadeSpec;
 import com.plot.plugin.building.model.spec.WindowPatternSpec;
+import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
+import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult.BuildingLoadDiagnostic;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -72,12 +74,19 @@ public class BuildingProject {
      * 解析 JSON。损坏内容抛 {@link IllegalArgumentException}，不得静默变成空项目。
      */
     public static BuildingProject fromJson(String json) {
+        return loadWithDiagnostics(json).project();
+    }
+
+    /**
+     * 解析 JSON 并收集被跳过的无效栋诊断（轮廓点数不足等）。
+     */
+    public static BuildingProjectLoadResult loadWithDiagnostics(String json) {
         if (json == null || json.isBlank()) {
-            return new BuildingProject();
+            return BuildingProjectLoadResult.empty();
         }
         try {
             ProjectData data = GSON.fromJson(json, ProjectData.class);
-            return data != null ? data.toProject() : new BuildingProject();
+            return data != null ? data.toLoadResult() : BuildingProjectLoadResult.empty();
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("Invalid building project JSON", e);
         }
@@ -91,11 +100,15 @@ public class BuildingProject {
     }
 
     public static BuildingProject loadFrom(Path file) throws IOException {
+        return loadFromWithDiagnostics(file).project();
+    }
+
+    public static BuildingProjectLoadResult loadFromWithDiagnostics(Path file) throws IOException {
         if (!Files.exists(file)) {
-            return new BuildingProject();
+            return BuildingProjectLoadResult.empty();
         }
         try {
-            return fromJson(Files.readString(file));
+            return loadWithDiagnostics(Files.readString(file));
         } catch (IllegalArgumentException e) {
             throw new IOException("Failed to parse building project: " + file.getFileName(), e);
         }
@@ -307,10 +320,15 @@ public class BuildingProject {
             return data;
         }
 
-        BuildingProject toProject() {
+        BuildingProjectLoadResult toLoadResult() {
             BuildingProject project = new BuildingProject();
+            List<BuildingLoadDiagnostic> skipped = new ArrayList<>();
             for (BuildingData buildingData : buildings) {
                 if (buildingData.outerPoints == null || buildingData.outerPoints.size() < 3) {
+                    skipped.add(new BuildingLoadDiagnostic(
+                        buildingData.id,
+                        buildingData.name,
+                        "plugin.building.load.skip_insufficient_outer_points"));
                     continue;
                 }
                 List<Vec2d> points = new ArrayList<>();
@@ -320,6 +338,10 @@ public class BuildingProject {
                     }
                 }
                 if (points.size() < 3) {
+                    skipped.add(new BuildingLoadDiagnostic(
+                        buildingData.id,
+                        buildingData.name,
+                        "plugin.building.load.skip_insufficient_outer_points"));
                     continue;
                 }
                 String id = buildingData.id != null && !buildingData.id.isBlank()
@@ -458,7 +480,7 @@ public class BuildingProject {
                 }
                 project.addBuilding(footprint);
             }
-            return project;
+            return new BuildingProjectLoadResult(project, skipped);
         }
 
         private static OpeningKind parseOpeningKind(String kind) {

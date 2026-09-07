@@ -36,7 +36,7 @@ public final class FacadeEdgeResolver {
         if (scope == FacadeEdgeScope.FLOOR_LOCAL || baseOuterPoints == null || baseOuterPoints.size() < 3) {
             return Math.floorMod(wallSegmentIndex, plateCount);
         }
-        if (sameTopology(baseOuterPoints, plateOuterPoints)) {
+        if (sameIndexedTopology(baseOuterPoints, plateOuterPoints)) {
             return Math.floorMod(wallSegmentIndex, plateCount);
         }
         return inheritByDirection(wallSegmentIndex, baseOuterPoints, plateOuterPoints);
@@ -84,7 +84,7 @@ public final class FacadeEdgeResolver {
         if (scope == FacadeEdgeScope.FLOOR_LOCAL || baseOuterPoints == null || baseOuterPoints.size() < 3) {
             return Math.floorMod(plateSegmentIndex, plateCount);
         }
-        if (sameTopology(baseOuterPoints, plateOuterPoints)) {
+        if (sameIndexedTopology(baseOuterPoints, plateOuterPoints)) {
             return Math.floorMod(plateSegmentIndex, baseOuterPoints.size());
         }
         return inheritByDirection(plateSegmentIndex, plateOuterPoints, baseOuterPoints);
@@ -95,7 +95,21 @@ public final class FacadeEdgeResolver {
             BuildingGeometryUtils.outwardNormal(outerPoints, segmentIndex));
     }
 
-    private static boolean sameTopology(List<Vec2d> a, List<Vec2d> b) {
-        return a.size() == b.size();
+    /**
+     * 同顶点数且逐边外法向对齐时，才允许 raw index 直通；否则走方向继承。
+     */
+    private static boolean sameIndexedTopology(List<Vec2d> a, List<Vec2d> b) {
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (int i = 0; i < a.size(); i++) {
+            Vec2d an = BuildingGeometryUtils.outwardNormal(a, i);
+            Vec2d bn = BuildingGeometryUtils.outwardNormal(b, i);
+            double dot = an.x * bn.x + an.y * bn.y;
+            if (dot < 0.95) {
+                return false;
+            }
+        }
+        return true;
     }
 }

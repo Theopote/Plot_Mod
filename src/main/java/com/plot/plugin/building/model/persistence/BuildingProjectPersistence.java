@@ -1,8 +1,10 @@
 package com.plot.plugin.building.model.persistence;
 
 import com.plot.plugin.building.model.BuildingProject;
+import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -19,11 +21,22 @@ public final class BuildingProjectPersistence {
     }
 
     public static BuildingProject deserialize(String json) {
-        return BuildingProject.fromJson(json);
+        return BuildingProject.loadWithDiagnostics(json).project();
+    }
+
+    public static BuildingProjectLoadResult deserializeWithDiagnostics(String json) {
+        return BuildingProject.loadWithDiagnostics(json);
     }
 
     public static BuildingProject load(Path path) throws IOException {
-        return BuildingProject.loadFrom(path);
+        return loadWithDiagnostics(path).project();
+    }
+
+    public static BuildingProjectLoadResult loadWithDiagnostics(Path path) throws IOException {
+        if (path == null || !Files.exists(path)) {
+            return BuildingProjectLoadResult.empty();
+        }
+        return BuildingProject.loadFromWithDiagnostics(path);
     }
 
     public static void save(BuildingProject project, Path path) throws IOException {

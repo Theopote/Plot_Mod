@@ -3349,6 +3349,8 @@
   "plugin.building.build_partial": "已放置 %d / %d 个方块（%d 失败）",
   "plugin.building.locate_success": "已定位到 %s",
   "plugin.building.project.loaded": "已加载建筑项目：%s",
+  "plugin.building.project.loaded_with_skips": "已加载 %s（跳过 %d 栋无效建筑 — 请检查轮廓点数）",
+  "plugin.building.load.skip_insufficient_outer_points": "外轮廓点数不足（< 3）",
   "plugin.building.project.saved": "已保存建筑项目：%s",
   "plugin.building.project.load_failed": "加载建筑项目失败：%s",
   "plugin.building.project.save_failed": "保存建筑项目失败：%s",

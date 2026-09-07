@@ -25,13 +25,13 @@
 
 | ID | 问题 | 建议 |
 |----|------|------|
-| P2-2 | JSON 坏栋静默跳过 | `BuildingProjectLoadResult` + visible diagnostics |
+| P2-2 | JSON 坏栋静默跳过 | ✅ | `BuildingProjectLoadResult` + load status 提示 |
 | P2-3 | FloorPlate UI 缺口 | 轻量 Setback/Tower UI，或文档标注 Advanced Engine |
-| P2-4 | FacadeEdgeResolver 同顶点数 ≠ 同拓扑 | edge direction + midpoint 继承 |
-| P2-5 | 窗高 UI 与 generation clamp 不一致 | slider max 动态 = `floorHeight - sill - 1` |
-| P2-6 | 阳台/雨篷 history `isItemActivated` 错位 | Edit UI state/history 统一 audit |
+| P2-4 | FacadeEdgeResolver 同顶点数 ≠ 同拓扑 | ✅ | `sameIndexedTopology` 逐边外法向对齐 |
+| P2-5 | 窗高 UI 与 generation clamp 不一致 | ✅ | 动态 slider max + `clampWindowSettings` |
+| P2-6 | 阳台/雨篷 history `isItemActivated` 错位 | ✅ | 阳台/女儿墙 slider history 修正 |
 | P2-7 | Building ↔ Earthwork 编译环 | `IBuildingPadElevationService` 接口解耦 |
-| P2-10 | 真实重叠 Pipeline 无测试 | `DistrictRealOverlapGenerationTest` |
+| P2-10 | 真实重叠 Pipeline 无测试 | ✅ | `DistrictRealOverlapGenerationTest` |
 
 ---
 

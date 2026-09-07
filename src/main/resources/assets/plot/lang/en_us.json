@@ -3349,6 +3349,8 @@
   "plugin.building.build_partial": "Placed %d / %d blocks (%d failed)",
   "plugin.building.locate_success": "Centered on %s",
   "plugin.building.project.loaded": "Building project loaded for %s",
+  "plugin.building.project.loaded_with_skips": "Loaded %s (%d invalid building(s) skipped — check footprint points)",
+  "plugin.building.load.skip_insufficient_outer_points": "Insufficient outer footprint points (< 3)",
   "plugin.building.project.saved": "Building project saved for %s",
   "plugin.building.project.load_failed": "Failed to load building project: %s",
   "plugin.building.project.save_failed": "Failed to save building project: %s",

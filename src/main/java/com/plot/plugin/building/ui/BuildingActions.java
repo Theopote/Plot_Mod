@@ -21,6 +21,7 @@ import com.plot.plugin.building.generation.DistrictBuildReport;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
+import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 import com.plot.plugin.building.model.persistence.BuildingProjectPersistence;
 import com.plot.ui.canvas.Canvas;
 import com.plot.utils.PlotI18n;
@@ -634,14 +635,20 @@ public final class BuildingActions {
 
     public boolean loadProjectFile(Path file) {
         try {
-            BuildingProject loaded = BuildingProjectPersistence.load(file);
-            state.setProject(loaded);
+            BuildingProjectLoadResult loaded = BuildingProjectPersistence.loadWithDiagnostics(file);
+            state.setProject(loaded.project());
             state.getProjectHistory().clear();
             state.getSelection().clear();
             if (!state.getProject().getBuildings().isEmpty()) {
                 state.getSelection().select(state.getProject().getBuildings().keySet().iterator().next(), false);
             }
             resetAfterProjectLoad();
+            if (loaded.hasSkippedBuildings()) {
+                state.setProjectStatus(PlotI18n.tr(
+                    "plugin.building.project.loaded_with_skips",
+                    file.getFileName(),
+                    loaded.skippedBuildingCount()));
+            }
             return true;
         } catch (IOException e) {
             LOGGER.error("加载建筑项目失败: {}", e.getMessage(), e);

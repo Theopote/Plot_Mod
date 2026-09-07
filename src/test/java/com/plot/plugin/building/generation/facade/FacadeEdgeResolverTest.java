@@ -38,6 +38,14 @@ class FacadeEdgeResolverTest {
         new Vec2d(0, 8)
     );
 
+    /** 同尺寸矩形，顶点顺序旋转 90°（边 index 与 RECT 不对齐）。 */
+    private static final List<Vec2d> ROTATED_RECT = List.of(
+        new Vec2d(10, 8),
+        new Vec2d(0, 8),
+        new Vec2d(0, 0),
+        new Vec2d(10, 0)
+    );
+
     @Test
     void sameTopologyKeepsRawIndex() {
         for (int i = 0; i < 4; i++) {
@@ -51,6 +59,23 @@ class FacadeEdgeResolverTest {
         // L 有 6 边；raw index 2 直接取模，不做方向继承
         assertEquals(2, FacadeEdgeResolver.resolveSegmentIndex(
             FacadeEdgeScope.FLOOR_LOCAL, 2, RECT, L_SHAPE));
+    }
+
+    @Test
+    void sameVertexCountDifferentWindingUsesDirectionInheritance() {
+        int baseEast = -1;
+        for (int i = 0; i < RECT.size(); i++) {
+            if (FacadeEdgeResolver.directionOfSegment(RECT, i) == CardinalDirection.EAST) {
+                baseEast = i;
+                break;
+            }
+        }
+        int resolved = FacadeEdgeResolver.resolveSegmentIndex(
+            FacadeEdgeScope.BASE_FOOTPRINT, baseEast, RECT, ROTATED_RECT);
+        assertEquals(
+            CardinalDirection.EAST,
+            FacadeEdgeResolver.directionOfSegment(ROTATED_RECT, resolved));
+        assertNotEquals(baseEast, resolved);
     }
 
     @Test

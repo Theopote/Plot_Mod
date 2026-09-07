@@ -1,6 +1,7 @@
 package com.plot.plugin.building.model;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -136,6 +137,43 @@ class BuildingProjectTest {
         BuildingProject loaded = BuildingProject.loadFrom(file);
         assertEquals(1, loaded.getBuildingCount());
         assertEquals("Atomic", loaded.getBuilding(footprint.getId()).getName());
+    }
+
+    @Test
+    void skippedInvalidBuildingsReportDiagnostics() {
+        String json = """
+            {
+              "buildings": [
+                {
+                  "id": "ok",
+                  "name": "Valid",
+                  "outerPoints": [{"x": 0, "y": 0}, {"x": 8, "y": 0}, {"x": 8, "y": 6}],
+                  "isRectangular": true,
+                  "floors": 2,
+                  "floorHeight": 3,
+                  "wallThickness": 1
+                },
+                {
+                  "id": "bad",
+                  "name": "TooFewPoints",
+                  "outerPoints": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
+                  "isRectangular": true,
+                  "floors": 1,
+                  "floorHeight": 3,
+                  "wallThickness": 1
+                }
+              ]
+            }
+            """;
+
+        BuildingProjectLoadResult result = BuildingProject.loadWithDiagnostics(json);
+        assertEquals(1, result.project().getBuildingCount());
+        assertNotNull(result.project().getBuilding("ok"));
+        assertEquals(1, result.skippedBuildingCount());
+        assertEquals("bad", result.skippedBuildings().getFirst().id());
+        assertEquals(
+            "plugin.building.load.skip_insufficient_outer_points",
+            result.skippedBuildings().getFirst().reasonKey());
     }
 
     @Test
