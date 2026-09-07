@@ -1,6 +1,6 @@
 # Building：2D Footprint → Minecraft Massing
 
-> **状态**：现行产品定义（2026-09）  
+> **状态**：**Building Massing v1 — Stabilized / Feature Complete**（2026-09-07）  
 > **代码入口**：`com.plot.plugin.BuildingPlugin` / `com.plot.plugin.building.*`
 
 本文件是建筑插件的**产品准绳**。引擎能力（门窗、立面、OpeningSpec 等）可以存在，但默认 UI 与片区工具以 **Massing / Blockout** 为第一优先级。
@@ -55,9 +55,34 @@ Height Distribution、Preset、Batch Apply
 **高级细节（折叠）**  
 Windows、Doors、Facade、FloorPlate、Parapet、Balcony、Canopy
 
+**Overview Tab**  
+片区体量快捷入口：预览全部 / 生成全部（Height Distribution 与 Preset 详见 Edit Tab）
+
+---
+
+## v1 Stabilized 验收清单
+
+| 项 | 状态 |
+|----|------|
+| UI/Application 拆分（Panel + Actions + State） | ✅ |
+| Edit Massing-first | ✅ |
+| Height Distribution seed | ✅ |
+| BuildingBenchmarkBaseline.md | ✅ |
+| District Scenario D-B10–D-B14 | ✅ |
+| BuildingProjectPersistence Facade | ✅ |
+| Overlap / fail-soft UI | ✅ |
+| Deprecated Batch A | ✅ |
+| Overview 片区 Massing 入口 | ✅（完整 Height Dist 首页见 Edit Tab） |
+
+**v1 签收**：`./gradlew test --tests "com.plot.plugin.building.*"` — 245 passed（2026-09-07）。手工 smoke：整片 preview/build 仍建议在发版前做一次。
+
+~~**标记 `Building Massing v1 — Stabilized / Feature Complete` 前**~~：已完成。
+
 ---
 
 ## 相关文档
 
 - [BuildingDeprecatedApiInventory.md](BuildingDeprecatedApiInventory.md) — P3 Deprecated 清理
+- [BuildingBenchmarkBaseline.md](BuildingBenchmarkBaseline.md) — D01–D05 性能基线
+- [BuildingMassingScenarioMatrix.md](BuildingMassingScenarioMatrix.md) — B01–B14 语义/场景矩阵
 - [task-assignments/BuildingPlugin_开发任务书.md](task-assignments/BuildingPlugin_开发任务书.md) — 历史任务书

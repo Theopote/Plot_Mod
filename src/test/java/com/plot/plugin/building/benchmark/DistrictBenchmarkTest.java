@@ -66,29 +66,11 @@ class DistrictBenchmarkTest {
     }
 
     static BuildingFootprint massingFootprint(int index, int floors) {
-        double x = (index % 20) * 12.0;
-        double z = (index / 20) * 10.0;
-        BuildingFootprint footprint = new BuildingFootprint("d-" + index, List.of(
-            new Vec2d(x, z),
-            new Vec2d(x + 8, z),
-            new Vec2d(x + 8, z + 6),
-            new Vec2d(x, z + 6)
-        ), true);
-        footprint.setName("B" + index);
-        footprint.setFloors(floors);
-        footprint.setFloorHeight(3);
-        footprint.setWallThickness(1);
-        footprint.setWindowSpacing(0);
-        footprint.setRoofType(BuildingFootprint.RoofType.FLAT);
-        return footprint;
+        return DistrictMassingFixtures.massingFootprint(index, floors);
     }
 
     static List<BuildingFootprint> district(int count, int floors) {
-        List<BuildingFootprint> buildings = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            buildings.add(massingFootprint(i, floors));
-        }
-        return buildings;
+        return DistrictMassingFixtures.district(count, floors);
     }
 
     static Metrics run(String id, int count, int floors) {

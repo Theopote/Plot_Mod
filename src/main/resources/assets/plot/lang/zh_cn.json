@@ -3196,6 +3196,8 @@
   "plugin.building.generate_primary_hint": "当前仍按主建筑预览/生成；批量生成将在后续阶段支持",
   "plugin.building.preview_selected": "预览选中的 %d 栋",
   "plugin.building.preview_all": "预览全部 %d 栋",
+  "plugin.building.district_massing_home": "片区体量",
+  "plugin.building.district_massing_home_hint": "高度分布与预设见「编辑」Tab；此处一键预览/生成整片",
   "plugin.building.build_direct_selected": "预览并落地选中的 %d 栋",
   "plugin.building.district_preview_results": "片区预览统计",
   "plugin.building.district_buildings_result": "建筑：%d / %d",
