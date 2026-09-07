@@ -5,6 +5,7 @@ import com.plot.core.material.MaterialMix;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -152,5 +153,35 @@ public class PowerLineFootprint {
     public int estimatePoleCount() {
         return com.plot.plugin.powerline.PowerPoleLayoutUtils.computePolePositions(
             pathPoints, cornerAngleThreshold, maxPoleSpacing).size();
+    }
+
+    /**
+     * 影响生成结果的参数指纹（不含名称等纯展示字段）。
+     */
+    public int generationFingerprint() {
+        int hash = 1;
+        for (Vec2d point : pathPoints) {
+            hash = 31 * hash + Double.hashCode(point.x);
+            hash = 31 * hash + Double.hashCode(point.y);
+        }
+        hash = 31 * hash + Double.hashCode(minPoleSpacing);
+        hash = 31 * hash + Double.hashCode(maxPoleSpacing);
+        hash = 31 * hash + Double.hashCode(cornerAngleThreshold);
+        hash = 31 * hash + Double.hashCode(poleHeight);
+        hash = 31 * hash + Double.hashCode(sagRatio);
+        hash = 31 * hash + materialFingerprint(wireMaterial);
+        hash = 31 * hash + materialFingerprint(poleMaterial);
+        hash = 31 * hash + Objects.hashCode(poleDesignId);
+        return hash;
+    }
+
+    private static int materialFingerprint(MaterialMix mix) {
+        if (mix == null) {
+            return 0;
+        }
+        int hash = Objects.hashCode(mix.getPrimaryMaterial());
+        hash = 31 * hash + Objects.hashCode(mix.getAccentMaterial());
+        hash = 31 * hash + Float.hashCode(mix.getAccentRatio());
+        return hash;
     }
 }

@@ -21,6 +21,7 @@ public final class PowerLinePluginState {
     private final List<Shape> selectedPaths = new ArrayList<>();
 
     private volatile PowerLineGenerationResult lastGenerationResult;
+    private PowerLinePreviewKey previewKey;
     private final ImString lineNameBuffer = new ImString(64);
     private String lineNameEditingId = "";
 
@@ -90,6 +91,14 @@ public final class PowerLinePluginState {
 
     public void setLastGenerationResult(PowerLineGenerationResult lastGenerationResult) {
         this.lastGenerationResult = lastGenerationResult;
+    }
+
+    public PowerLinePreviewKey getPreviewKey() {
+        return previewKey;
+    }
+
+    public void setPreviewKey(PowerLinePreviewKey previewKey) {
+        this.previewKey = previewKey;
     }
 
     public ImString getLineNameBuffer() {

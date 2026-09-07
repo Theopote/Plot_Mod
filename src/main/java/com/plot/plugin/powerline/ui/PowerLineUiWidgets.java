@@ -31,7 +31,7 @@ public final class PowerLineUiWidgets {
         }
         imgui.type.ImInt index = new imgui.type.ImInt(current);
         if (ImGui.combo(PlotI18n.tr("plugin.powerline.select_line"), index, labels)) {
-            ctx.selection().select(ids[index.get()], false);
+            ctx.selectLine(ids[index.get()], false);
         }
     }
 

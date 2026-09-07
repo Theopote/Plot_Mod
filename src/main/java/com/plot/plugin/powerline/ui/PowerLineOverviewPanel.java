@@ -47,7 +47,7 @@ public final class PowerLineOverviewPanel {
             ImGui.pushID(line.getId());
             boolean selected = ctx.selection().contains(line.getId());
             if (ImGui.selectable(line.getName() + "##row", selected)) {
-                ctx.selection().select(line.getId(), ImGui.getIO().getKeyCtrl());
+                ctx.selectLine(line.getId(), ImGui.getIO().getKeyCtrl());
             }
             ImGui.sameLine();
             ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(

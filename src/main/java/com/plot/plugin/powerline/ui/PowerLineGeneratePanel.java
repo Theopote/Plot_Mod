@@ -29,6 +29,8 @@ public final class PowerLineGeneratePanel {
         PowerLineUiWidgets.renderLineSelector(ctx);
         ImGui.spacing();
 
+        ctx.syncPreviewValidity(line);
+
         com.plot.api.world.PlacementReadiness readiness =
             ctx.host().projection().checkWorldModificationReadiness();
 
@@ -36,7 +38,7 @@ public final class PowerLineGeneratePanel {
             ctx.calculatePreview(line);
         }
         ImGui.sameLine();
-        boolean hasPreview = ctx.lastGenerationResult() != null;
+        boolean hasPreview = ctx.hasValidPreview(line);
         if (!hasPreview) {
             ImGui.beginDisabled();
         }
@@ -57,13 +59,18 @@ public final class PowerLineGeneratePanel {
             ImGui.textColored(PluginUiColors.ERROR_SOFT, readiness.message());
         }
 
-        PowerLineGenerationResult result = ctx.lastGenerationResult();
+        if (ctx.lastGenerationResult() != null && !hasPreview) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr("plugin.powerline.preview_stale"));
+        }
+
+        PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
         if (result != null) {
-            renderPreviewStats(result, readiness);
+            renderPreviewStats(line, result, readiness);
         }
     }
 
     private void renderPreviewStats(
+            PowerLineFootprint line,
             PowerLineGenerationResult result,
             com.plot.api.world.PlacementReadiness readiness) {
         ImGui.separator();
@@ -84,12 +91,16 @@ public final class PowerLineGeneratePanel {
             ImGui.endChild();
         }
 
-        boolean buildDisabled = !readiness.ready() || ctx.host().placement().isBusy();
+        boolean buildDisabled = !readiness.ready()
+            || ctx.host().placement().isBusy()
+            || !ctx.hasValidPreview(line);
         if (buildDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.powerline.build"), ImGui.getContentRegionAvailX(), 0)) {
-            ctx.setBuildConfirmPending(true);
+            if (ctx.requestBuildConfirm(line)) {
+                ctx.setBuildConfirmPending(true);
+            }
         }
         if (buildDisabled) {
             ImGui.endDisabled();
@@ -105,12 +116,20 @@ public final class PowerLineGeneratePanel {
         if (ImGui.beginPopupModal(
                 "##powerline_build_confirm",
                 ImGuiWindowFlags.AlwaysAutoResize)) {
-            PowerLineGenerationResult result = ctx.lastGenerationResult();
+            PowerLineFootprint line = ctx.selection().primary(ctx.project());
+            PowerLineGenerationResult result = ctx.hasValidPreview(line) ? ctx.lastGenerationResult() : null;
             int blocks = result != null ? result.blockCount() : 0;
             ImGui.text(PlotI18n.tr("plugin.powerline.build_confirm", blocks));
+            boolean canBuild = result != null && ctx.requestBuildConfirm(line);
+            if (!canBuild) {
+                ImGui.beginDisabled();
+            }
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 ctx.buildInWorld();
                 ImGui.closeCurrentPopup();
+            }
+            if (!canBuild) {
+                ImGui.endDisabled();
             }
             ImGui.sameLine();
             if (ImGui.button(PlotI18n.tr("button.plot.cancel"), 120, 0)) {

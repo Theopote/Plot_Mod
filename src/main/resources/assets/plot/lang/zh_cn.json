@@ -3256,6 +3256,8 @@
   "plugin.powerline.design.save_as_name": "新设计名称",
   "plugin.powerline.design.saved": "已保存杆塔设计「%s」",
   "plugin.powerline.design.new_name": "新杆塔设计",
+  "plugin.powerline.preview_invalidated": "预览已过期，请重新计算",
+  "plugin.powerline.preview_stale": "预览与当前线路参数不一致，请重新计算后再落地",
   "plugin.building.tab.overview": "概览",
   "plugin.building.tab.adopt": "认领",
   "plugin.building.tab.edit": "编辑",

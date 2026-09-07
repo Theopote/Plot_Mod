@@ -23,7 +23,7 @@ public final class PowerLineToolbarPanel {
             ctx.setProject(ctx.projectHistory().undo(ctx.project()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
-            ctx.clearPreview();
+            ctx.invalidatePreview();
         }
         if (undoDisabled) {
             ImGui.endDisabled();
@@ -38,7 +38,7 @@ public final class PowerLineToolbarPanel {
             ctx.setProject(ctx.projectHistory().redo(ctx.project()));
             ctx.selection().retainExisting(ctx.project());
             ctx.setLineNameEditingId("");
-            ctx.clearPreview();
+            ctx.invalidatePreview();
         }
         if (redoDisabled) {
             ImGui.endDisabled();

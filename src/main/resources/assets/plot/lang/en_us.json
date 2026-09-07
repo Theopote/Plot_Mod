@@ -3256,6 +3256,8 @@
   "plugin.powerline.design.save_as_name": "New design name",
   "plugin.powerline.design.saved": "Saved pole design \"%s\"",
   "plugin.powerline.design.new_name": "New pole design",
+  "plugin.powerline.preview_invalidated": "Preview expired — recalculate before building",
+  "plugin.powerline.preview_stale": "Preview no longer matches current line settings — recalculate before building",
   "plugin.building.tab.overview": "Overview",
   "plugin.building.tab.adopt": "Adopt",
   "plugin.building.tab.edit": "Edit",

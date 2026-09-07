@@ -93,6 +93,26 @@ public final class PowerLineUiContext {
         actions.clearPreview();
     }
 
+    public void invalidatePreview() {
+        actions.invalidatePreview();
+    }
+
+    public boolean hasValidPreview(PowerLineFootprint line) {
+        return actions.hasValidPreview(line);
+    }
+
+    public void syncPreviewValidity(PowerLineFootprint line) {
+        actions.syncPreviewValidity(line);
+    }
+
+    public void selectLine(String lineId, boolean multiToggle) {
+        actions.selectLine(lineId, multiToggle);
+    }
+
+    public boolean requestBuildConfirm(PowerLineFootprint line) {
+        return actions.requestBuildConfirm(line);
+    }
+
     public void buildInWorld() {
         actions.buildInWorld();
     }

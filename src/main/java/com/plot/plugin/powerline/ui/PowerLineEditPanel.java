@@ -64,6 +64,7 @@ public final class PowerLineEditPanel {
                 30f,
                 "%.1f")) {
             line.setMinPoleSpacing(minSpacing[0]);
+            ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
@@ -77,6 +78,7 @@ public final class PowerLineEditPanel {
                 60f,
                 "%.1f")) {
             line.setMaxPoleSpacing(maxSpacing[0]);
+            ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
@@ -90,6 +92,7 @@ public final class PowerLineEditPanel {
                 90f,
                 "%.1f")) {
             line.setCornerAngleThreshold(cornerAngle[0]);
+            ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
@@ -105,6 +108,7 @@ public final class PowerLineEditPanel {
                 64f,
                 "%.1f")) {
             line.setPoleHeight(poleHeight[0]);
+            ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
@@ -118,6 +122,7 @@ public final class PowerLineEditPanel {
                 50f,
                 "%.0f%%")) {
             line.setSagRatio(sagRatio[0] / 100f);
+            ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
             ctx.projectHistory().push(ctx.project());
@@ -131,14 +136,20 @@ public final class PowerLineEditPanel {
             PlotI18n.tr("plugin.powerline.wire_material"),
             line.getWireMaterial(),
             MaterialMix.single(PowerLineFootprint.DEFAULT_WIRE_MATERIAL),
-            line::setWireMaterial);
+            mix -> {
+                line.setWireMaterial(mix);
+                ctx.invalidatePreview();
+            });
         PowerLineUiWidgets.renderMaterialMixPicker(
             ctx,
             "pole_material",
             PlotI18n.tr("plugin.powerline.pole_material"),
             line.getPoleMaterial(),
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL),
-            line::setPoleMaterial);
+            mix -> {
+                line.setPoleMaterial(mix);
+                ctx.invalidatePreview();
+            });
     }
 
     private void renderPoleDesignControls(PowerLineFootprint line) {
@@ -182,7 +193,7 @@ public final class PowerLineEditPanel {
                         line.setPoleHeight(selected.totalHeight());
                     }
                     ctx.projectHistory().push(ctx.project());
-                    ctx.clearPreview();
+                    ctx.invalidatePreview();
                 }
             }
             ImGui.endCombo();
