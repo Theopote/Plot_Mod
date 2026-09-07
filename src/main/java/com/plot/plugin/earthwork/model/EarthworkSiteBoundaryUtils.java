@@ -7,9 +7,51 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * 从分区轮廓计算场地红线（施工边界）。
+ * 从分区轮廓计算场地红线（施工边界）及地形捕获范围。
  */
 public final class EarthworkSiteBoundaryUtils {
+
+    /**
+     * 地形捕获用的轴对齐范围（画布坐标）。
+     */
+    public record CaptureBounds(double minX, double minY, double maxX, double maxY) {
+        public boolean isValid() {
+            return minX <= maxX && minY <= maxY;
+        }
+
+        public boolean contains(CaptureBounds other) {
+            if (other == null || !other.isValid() || !isValid()) {
+                return false;
+            }
+            return minX <= other.minX
+                && minY <= other.minY
+                && maxX >= other.maxX
+                && maxY >= other.maxY;
+        }
+
+        public static CaptureBounds fromBoundary(List<Vec2d> boundary) {
+            if (boundary == null || boundary.size() < 3) {
+                return null;
+            }
+            double minX = Double.POSITIVE_INFINITY;
+            double minY = Double.POSITIVE_INFINITY;
+            double maxX = Double.NEGATIVE_INFINITY;
+            double maxY = Double.NEGATIVE_INFINITY;
+            for (Vec2d point : boundary) {
+                if (point == null) {
+                    continue;
+                }
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            }
+            if (!Double.isFinite(minX)) {
+                return null;
+            }
+            return new CaptureBounds(minX, minY, maxX, maxY);
+        }
+    }
 
     private EarthworkSiteBoundaryUtils() {
     }
@@ -130,5 +172,38 @@ public final class EarthworkSiteBoundaryUtils {
             }
         }
         return margin;
+    }
+
+    /**
+     * 统一的地形捕获边界：场地红线 + 活跃边坡最大 reach。
+     * Preview capture、Pipeline capture、Cache fingerprint 均应使用此边界。
+     */
+    public static List<Vec2d> resolveCaptureBoundary(EarthworkSite site) {
+        if (site == null) {
+            return List.of();
+        }
+        return resolveCaptureBoundary(site.getSiteBoundary(), site.getGradingZones().values());
+    }
+
+    public static List<Vec2d> resolveCaptureBoundary(
+            List<Vec2d> siteBoundary,
+            Collection<GradingZone> zones) {
+        if (siteBoundary == null || siteBoundary.size() < 3) {
+            return List.of();
+        }
+        int margin = resolveEdgeSlopeMarginBlocks(zones);
+        return expandAxisAlignedBoundary(siteBoundary, margin);
+    }
+
+    public static List<Vec2d> resolveCaptureBoundary(
+            List<Vec2d> outerPoints,
+            ZoneEdgeSettings edgeSettings) {
+        if (outerPoints == null || outerPoints.size() < 3) {
+            return List.of();
+        }
+        int margin = edgeSettings != null && edgeSettings.hasActiveTreatment()
+            ? edgeSettings.getMaximumReachBlocks()
+            : 0;
+        return expandAxisAlignedBoundary(outerPoints, margin);
     }
 }

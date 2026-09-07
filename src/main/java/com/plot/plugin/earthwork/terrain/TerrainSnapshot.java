@@ -1,5 +1,6 @@
 package com.plot.plugin.earthwork.terrain;
 import com.plot.plugin.earthwork.design.GradingSurfaceResolver;
+import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
 import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
@@ -41,9 +42,24 @@ public final class TerrainSnapshot {
             String worldKey,
             long outlineFingerprint,
             long contentFingerprint,
-            int columnCount) {
+            int columnCount,
+            double captureMinX,
+            double captureMinY,
+            double captureMaxX,
+            double captureMaxY) {
         public Instant capturedAt() {
             return Instant.ofEpochMilli(capturedAtEpochMs);
+        }
+
+        public boolean hasCaptureBounds() {
+            return captureMaxX > captureMinX && captureMaxY > captureMinY;
+        }
+
+        public EarthworkSiteBoundaryUtils.CaptureBounds captureBounds() {
+            return hasCaptureBounds()
+                ? new EarthworkSiteBoundaryUtils.CaptureBounds(
+                    captureMinX, captureMinY, captureMaxX, captureMaxY)
+                : null;
         }
     }
 
@@ -63,7 +79,7 @@ public final class TerrainSnapshot {
 
     public static TerrainSnapshot empty() {
         return new TerrainSnapshot(
-            new Metadata(0L, "", 0L, 0L, 0),
+            new Metadata(0L, "", 0L, 0L, 0, 0.0, 0.0, 0.0, 0.0),
             List.of());
     }
 
@@ -71,8 +87,18 @@ public final class TerrainSnapshot {
     public static TerrainSnapshot forColumns(List<Column> columns) {
         List<Column> safeColumns = columns != null ? columns : List.of();
         long fingerprint = computeContentFingerprint(safeColumns);
+        EarthworkSiteBoundaryUtils.CaptureBounds bounds = boundsFromColumns(safeColumns);
         return new TerrainSnapshot(
-            new Metadata(System.currentTimeMillis(), "test", 0L, fingerprint, safeColumns.size()),
+            new Metadata(
+                System.currentTimeMillis(),
+                "test",
+                0L,
+                fingerprint,
+                safeColumns.size(),
+                bounds != null ? bounds.minX() : 0.0,
+                bounds != null ? bounds.minY() : 0.0,
+                bounds != null ? bounds.maxX() : 0.0,
+                bounds != null ? bounds.maxY() : 0.0),
             safeColumns);
     }
 
@@ -106,13 +132,64 @@ public final class TerrainSnapshot {
         }
 
         long contentFingerprint = computeContentFingerprint(columns);
+        EarthworkSiteBoundaryUtils.CaptureBounds bounds =
+            EarthworkSiteBoundaryUtils.CaptureBounds.fromBoundary(outerPoints);
         Metadata metadata = new Metadata(
             System.currentTimeMillis(),
             worldKey,
             outlineFingerprint,
             contentFingerprint,
-            columns.size());
+            columns.size(),
+            bounds != null ? bounds.minX() : 0.0,
+            bounds != null ? bounds.minY() : 0.0,
+            bounds != null ? bounds.maxX() : 0.0,
+            bounds != null ? bounds.maxY() : 0.0);
         return new TerrainSnapshot(metadata, columns);
+    }
+
+    /**
+     * 快照是否覆盖请求边界（含放坡带扩展后的 AABB）。
+     */
+    public boolean covers(List<Vec2d> requestedBoundary) {
+        EarthworkSiteBoundaryUtils.CaptureBounds requested =
+            EarthworkSiteBoundaryUtils.CaptureBounds.fromBoundary(requestedBoundary);
+        if (requested == null) {
+            return true;
+        }
+        EarthworkSiteBoundaryUtils.CaptureBounds capture = resolveCaptureBounds();
+        return capture != null && capture.contains(requested);
+    }
+
+    private EarthworkSiteBoundaryUtils.CaptureBounds resolveCaptureBounds() {
+        EarthworkSiteBoundaryUtils.CaptureBounds fromMetadata = metadata.captureBounds();
+        if (fromMetadata != null) {
+            return fromMetadata;
+        }
+        return boundsFromColumns(columns);
+    }
+
+    private static EarthworkSiteBoundaryUtils.CaptureBounds boundsFromColumns(List<Column> columns) {
+        if (columns == null || columns.isEmpty()) {
+            return null;
+        }
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        for (Column column : columns) {
+            if (column == null) {
+                continue;
+            }
+            // 用 block 索引 [x, x+1) 对齐 region outline / capture boundary 语义
+            minX = Math.min(minX, column.worldX());
+            minY = Math.min(minY, column.worldZ());
+            maxX = Math.max(maxX, column.worldX() + 1.0);
+            maxY = Math.max(maxY, column.worldZ() + 1.0);
+        }
+        if (!Double.isFinite(minX)) {
+            return null;
+        }
+        return new EarthworkSiteBoundaryUtils.CaptureBounds(minX, minY, maxX, maxY);
     }
 
     public Metadata metadata() {

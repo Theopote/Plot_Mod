@@ -47,15 +47,10 @@ public final class SiteEarthworkPipeline {
             return executeLegacyDelegate(site, context, result);
         }
 
-        List<Vec2d> siteBoundary = site.getSiteBoundary();
+        List<Vec2d> siteBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
         if (siteBoundary.size() < 3) {
             LOGGER.warn("场地红线点数不足");
             return result;
-        }
-
-        int edgeMargin = EarthworkSiteBoundaryUtils.resolveEdgeSlopeMarginBlocks(site.getGradingZones().values());
-        if (edgeMargin > 0) {
-            siteBoundary = EarthworkSiteBoundaryUtils.expandAxisAlignedBoundary(siteBoundary, edgeMargin);
         }
 
         result.siteGeneration = true;

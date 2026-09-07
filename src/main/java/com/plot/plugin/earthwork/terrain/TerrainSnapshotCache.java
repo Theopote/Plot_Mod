@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.core.geometry.shapes.Polygon;
 import com.plot.plugin.earthwork.model.EarthworkSite;
+import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
@@ -42,8 +43,9 @@ public final class TerrainSnapshotCache {
         TerrainSnapshot snapshot = captureForSite(site, world, transformer);
         if (site != null && !snapshot.isEmpty()) {
             String siteId = site.getId();
+            List<Vec2d> captureBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
             bySiteId.put(siteId, new Entry(
-                TerrainSnapshotCache.outlineFingerprint(site.getSiteBoundary()),
+                TerrainSnapshotCache.outlineFingerprint(captureBoundary),
                 worldKey(world),
                 snapshot));
         }
@@ -57,13 +59,13 @@ public final class TerrainSnapshotCache {
         if (site == null) {
             return TerrainSnapshot.empty();
         }
-        List<Vec2d> siteBoundary = site.getSiteBoundary();
-        if (siteBoundary.size() < 3) {
+        List<Vec2d> captureBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
+        if (captureBoundary.size() < 3) {
             return TerrainSnapshot.empty();
         }
 
         String siteId = site.getId();
-        long outlineFingerprint = outlineFingerprint(siteBoundary);
+        long outlineFingerprint = outlineFingerprint(captureBoundary);
         String worldKey = worldKey(world);
         Entry cached = bySiteId.get(siteId);
         if (cached != null && cached.matches(outlineFingerprint, worldKey)) {
@@ -123,12 +125,12 @@ public final class TerrainSnapshotCache {
         if (site == null) {
             return TerrainSnapshot.empty();
         }
-        List<Vec2d> siteBoundary = site.getSiteBoundary();
-        if (siteBoundary.size() < 3) {
+        List<Vec2d> captureBoundary = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(site);
+        if (captureBoundary.size() < 3) {
             return TerrainSnapshot.empty();
         }
-        Polygon polygon = EarthworkGeometryUtils.toPolygon(siteBoundary);
-        return TerrainSnapshot.capture(world, polygon, siteBoundary, transformer);
+        Polygon polygon = EarthworkGeometryUtils.toPolygon(captureBoundary);
+        return TerrainSnapshot.capture(world, polygon, captureBoundary, transformer);
     }
 
     private TerrainSnapshot captureForRegion(

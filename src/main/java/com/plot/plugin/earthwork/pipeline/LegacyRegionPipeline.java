@@ -61,14 +61,11 @@ public final class LegacyRegionPipeline {
 
         MaterialConversionModel balanceMaterials = region.resolveMaterialModel(siteMaterialModel);
 
-        List<Vec2d> outerPoints = region.getOuterPoints();
+        List<Vec2d> outerPoints = EarthworkSiteBoundaryUtils.resolveCaptureBoundary(
+            region.getOuterPoints(), edgeSettings);
         if (outerPoints.size() < 3) {
             LOGGER.warn("整平区域轮廓点数不足");
             return result;
-        }
-        if (edgeSettings != null && edgeSettings.hasActiveTreatment()) {
-            outerPoints = EarthworkSiteBoundaryUtils.expandAxisAlignedBoundary(
-                outerPoints, edgeSettings.getMaximumReachBlocks());
         }
 
         TerrainSnapshot terrain = SiteTerrainCapture.captureRegion(
