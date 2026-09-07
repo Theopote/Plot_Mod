@@ -467,7 +467,7 @@ public final class BuildingActions {
                 }
                 continue;
             }
-            boolean rectangular = BuildingGeometryUtils.isSlopedRoofEligible(validation.cleanedPoints());
+            boolean rectangular = BuildingGeometryUtils.detectRectangular(validation.cleanedPoints());
             BuildingFootprint footprint = new BuildingFootprint(validation.cleanedPoints(), rectangular);
             footprint.setName(PlotI18n.tr("plugin.building.default_name", adopted + 1));
             state.getProject().addBuilding(footprint);

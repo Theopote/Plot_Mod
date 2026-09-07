@@ -409,19 +409,30 @@ public final class BuildingEditPanel {
         }
 
         int segmentCount = building.getOuterPoints().size();
-        int[] wallSegment = {0};
-        float[] positionRatio = {0.5f};
-        int[] floor = {0};
-        ImGui.sliderInt(PlotI18n.tr("plugin.building.door_wall"), wallSegment, 0, Math.max(0, segmentCount - 1));
+        int maxWallSegment = Math.max(0, segmentCount - 1);
+        int maxFloor = Math.max(0, building.getFloors() - 1);
+        ctx.clampDoorEditorDraft(building);
+        BuildingPluginState.DoorEditorDraft draft = ctx.doorEditorDraft(building);
+
+        int[] wallSegment = {draft.wallSegment};
+        float[] positionRatio = {draft.positionRatio};
+        int[] floor = {draft.floor};
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.building.door_wall"), wallSegment, 0, maxWallSegment)) {
+            draft.wallSegment = wallSegment[0];
+        }
         UIUtils.renderEngineeringTooltip("hint.plot.building.door_wall");
-        ImGui.sliderFloat(PlotI18n.tr("plugin.building.door_position"), positionRatio, 0.0f, 1.0f);
+        if (ImGui.sliderFloat(PlotI18n.tr("plugin.building.door_position"), positionRatio, 0.0f, 1.0f)) {
+            draft.positionRatio = positionRatio[0];
+        }
         UIUtils.renderEngineeringTooltip("hint.plot.building.door_position");
-        ImGui.sliderInt(PlotI18n.tr("plugin.building.door_floor"), floor, 0, Math.max(0, building.getFloors() - 1));
+        if (ImGui.sliderInt(PlotI18n.tr("plugin.building.door_floor"), floor, 0, maxFloor)) {
+            draft.floor = floor[0];
+        }
         UIUtils.renderEngineeringTooltip("hint.plot.building.door_floor");
         if (ImGui.button(PlotI18n.tr("plugin.building.add_door"))) {
             ctx.projectHistory().push(ctx.project());
             building.addOpening(OpeningSpec.door(
-                wallSegment[0], positionRatio[0], floor[0], 1, 2));
+                draft.wallSegment, draft.positionRatio, draft.floor, 1, 2));
             ctx.invalidatePreview();
         }
     }

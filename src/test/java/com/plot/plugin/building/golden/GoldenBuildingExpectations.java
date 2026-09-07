@@ -14,37 +14,37 @@ public final class GoldenBuildingExpectations {
     }
 
     public static final GoldenBuildingMetrics B01 = new GoldenBuildingMetrics(
-        44, 36, 4, 0, 0, 4, 0, 0, 0,
+        44, 32, 4, 4, 0, 4, 0, 0, 0,
         0, 3, 64, 67, 0, 3,
         "FLAT",
         List.of());
 
     public static final GoldenBuildingMetrics B02 = new GoldenBuildingMetrics(
-        264, 188, 64, 0, 0, 12, 0, 0, 0,
+        264, 156, 64, 32, 0, 12, 0, 0, 0,
         0, 9, 64, 70, 0, 5,
         "FLAT",
         List.of());
 
     public static final GoldenBuildingMetrics B03 = new GoldenBuildingMetrics(
-        140, 112, 24, 0, 0, 4, 0, 0, 0,
+        140, 76, 24, 36, 0, 4, 0, 0, 0,
         5, 13, 64, 68, 5, 14,
         "HIP",
         List.of());
 
     public static final GoldenBuildingMetrics B04 = new GoldenBuildingMetrics(
-        301, 229, 56, 0, 0, 16, 0, 0, 0,
+        301, 200, 56, 29, 0, 16, 0, 0, 0,
         0, 9, 64, 71, 0, 9,
         "HIP",
         List.of());
 
     public static final GoldenBuildingMetrics B05 = new GoldenBuildingMetrics(
-        309, 285, 2, 0, 0, 22, 0, 0, 0,
+        309, 284, 2, 1, 0, 22, 0, 0, 0,
         0, 9, 64, 70, 0, 9,
         "FLAT",
         List.of());
 
     public static final GoldenBuildingMetrics B06 = new GoldenBuildingMetrics(
-        585, 403, 154, 0, 0, 28, 0, 0, 0,
+        585, 278, 154, 125, 0, 28, 0, 0, 0,
         0, 11, 64, 71, 0, 11,
         "GABLE",
         List.of());
@@ -61,13 +61,13 @@ public final class GoldenBuildingExpectations {
         List.of("plugin.building.warn.inner_offset_failed", "plugin.building.warn.roof_downgrade"));
 
     public static final GoldenBuildingMetrics B08 = new GoldenBuildingMetrics(
-        724, 188, 72, 0, 448, 16, 0, 0, 512,
+        724, 152, 72, 36, 448, 16, 0, 0, 512,
         0, 7, 65, 78, 0, 7,
         "FLAT",
         List.of());
 
     public static final GoldenBuildingMetrics B09 = new GoldenBuildingMetrics(
-        636, 416, 180, 0, 0, 40, 0, 0, 0,
+        636, 380, 180, 36, 0, 40, 0, 0, 0,
         0, 7, 64, 79, 0, 7,
         "FLAT",
         List.of());
@@ -77,19 +77,19 @@ public final class GoldenBuildingExpectations {
      * 见 {@link GoldenBuildingTest#b10ThickWallInvariants()}。
      */
     public static final GoldenBuildingMetrics B10 = new GoldenBuildingMetrics(
-        456, 396, 16, 0, 0, 44, 0, 0, 0,
+        456, 388, 16, 8, 0, 44, 0, 0, 0,
         0, 9, 64, 70, 0, 7,
         "FLAT",
         List.of());
 
     public static final GoldenBuildingMetrics B11 = new GoldenBuildingMetrics(
-        336, 216, 96, 0, 0, 24, 0, 0, 0,
+        336, 168, 96, 48, 0, 24, 0, 0, 0,
         0, 9, 64, 70, 0, 7,
         "FLAT",
         List.of());
 
     public static final GoldenBuildingMetrics B12 = new GoldenBuildingMetrics(
-        168, 130, 32, 0, 0, 6, 0, 0, 0,
+        168, 78, 32, 52, 0, 6, 0, 0, 0,
         0, 9, 64, 68, 0, 5,
         "GABLE",
         List.of());

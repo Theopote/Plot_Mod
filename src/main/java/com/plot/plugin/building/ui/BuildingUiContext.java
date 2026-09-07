@@ -177,6 +177,18 @@ public final class BuildingUiContext {
         return seed;
     }
 
+    public BuildingPluginState.DoorEditorDraft doorEditorDraft(BuildingFootprint building) {
+        return state.doorEditorDraftFor(building.getId());
+    }
+
+    public void clampDoorEditorDraft(BuildingFootprint building) {
+        int segmentCount = building.getOuterPoints().size();
+        state.clampDoorEditorDraft(
+            building.getId(),
+            Math.max(0, segmentCount - 1),
+            Math.max(0, building.getFloors() - 1));
+    }
+
     public imgui.type.ImBoolean manualElevationRef() {
         return state.getManualElevationRef();
     }

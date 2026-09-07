@@ -66,4 +66,18 @@ class BuildingSemanticAcceptanceTest {
         SemanticAcceptanceAssertions.assertB11HasDoorAndWindowOpenings(footprint, run.metrics());
         SemanticAcceptanceAssertions.assertDoorsTouchWall("B11", run);
     }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("pitchedRoofCases")
+    void pitchedRoofSemantics(GoldenBuildingCaseFactory.Case goldenCase) {
+        GoldenBuildingHarness.Run run = GoldenBuildingHarness.run(goldenCase.footprint());
+        SemanticAcceptanceAssertions.assertPitchedRoofSemantics(goldenCase.id(), run);
+    }
+
+    static Stream<GoldenBuildingCaseFactory.Case> pitchedRoofCases() {
+        return Stream.of(
+            GoldenBuildingCaseFactory.b03RotatedRectangle(),
+            GoldenBuildingCaseFactory.b06ConcavePolygon(),
+            GoldenBuildingCaseFactory.b12PitchedRoof());
+    }
 }

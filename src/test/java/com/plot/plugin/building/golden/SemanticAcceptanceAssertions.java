@@ -175,6 +175,33 @@ public final class SemanticAcceptanceAssertions {
         assertTrue(metrics.openingBlocks() > 0, "B11 must carve opening air");
     }
 
+    /**
+     * 坡顶案例：屋顶方块必须可计数，且最高点高于墙顶（P1-4）。
+     */
+    public static void assertPitchedRoofSemantics(String caseId, GoldenBuildingHarness.Run run) {
+        GoldenBuildingMetrics metrics = run.metrics();
+        assertTrue(metrics.roofBlocks() > 0, caseId + " roofBlocks > 0");
+        assertTrue(metrics.wallBlocks() > 0, caseId + " wallBlocks > 0");
+        assertTrue(metrics.maxY() > metrics.minY(), caseId + " must have vertical extent");
+
+        String roofId = normalize(run.context().getRoofBlockId());
+        int roofMaxY = Integer.MIN_VALUE;
+        int wallMaxY = Integer.MIN_VALUE;
+        String wallId = normalize(
+            run.context().getDefinition().envelope().wallMaterial().getPrimaryMaterial());
+        for (Map.Entry<BlockPos, BlockRecord> entry : run.result().placementRecords.entrySet()) {
+            String blockId = normalize(entry.getValue().newBlockId);
+            int y = entry.getKey().getY();
+            if (blockId.equals(roofId)) {
+                roofMaxY = Math.max(roofMaxY, y);
+            } else if (blockId.equals(wallId)) {
+                wallMaxY = Math.max(wallMaxY, y);
+            }
+        }
+        assertTrue(roofMaxY > wallMaxY,
+            caseId + " roof peak must rise above top wall course (roofY=" + roofMaxY + ", wallY=" + wallMaxY + ")");
+    }
+
     private static long pack(int x, int z) {
         return (((long) x) << 32) ^ (z & 0xffffffffL);
     }

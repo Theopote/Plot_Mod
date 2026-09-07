@@ -13,6 +13,12 @@ public final class GoldenBuildingCaseFactory {
     private GoldenBuildingCaseFactory() {
     }
 
+    /** Golden 专用：墙/顶/板/基础分材质，避免 collector 歧义（P1-4）。 */
+    public static final String GOLDEN_WALL = "minecraft:stone_bricks";
+    public static final String GOLDEN_FLOOR = "minecraft:smooth_stone";
+    public static final String GOLDEN_ROOF = "minecraft:deepslate_tiles";
+    public static final String GOLDEN_FOUNDATION = "minecraft:cobblestone";
+
     public record Case(String id, String description, BuildingFootprint footprint) {
         @Override
         public String toString() {
@@ -166,10 +172,10 @@ public final class GoldenBuildingCaseFactory {
         fp.setFloors(floors);
         fp.setFloorHeight(floorHeight);
         fp.setWallThickness(wallThickness);
-        fp.setWallMaterial(BuildingFootprint.DEFAULT_WALL_MATERIAL);
-        fp.setFloorMaterial(BuildingFootprint.DEFAULT_FLOOR_MATERIAL);
-        fp.setRoofMaterial(BuildingFootprint.DEFAULT_ROOF_MATERIAL);
-        fp.setFoundationFillMaterial(BuildingFootprint.DEFAULT_FOUNDATION_FILL);
+        fp.setWallMaterial(GOLDEN_WALL);
+        fp.setFloorMaterial(GOLDEN_FLOOR);
+        fp.setRoofMaterial(GOLDEN_ROOF);
+        fp.setFoundationFillMaterial(GOLDEN_FOUNDATION);
         fp.setRoofType(BuildingFootprint.RoofType.FLAT);
         fp.setRoofPitchRatio(2);
         fp.setWindowSpacing(4);
