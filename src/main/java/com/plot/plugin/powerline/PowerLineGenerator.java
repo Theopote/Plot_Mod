@@ -14,17 +14,16 @@ import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 电力线路生成器：立杆 + 下垂导线。
+ * 电力线路生成器：立杆 + 多挂点导线。
  */
 public class PowerLineGenerator {
-    private static final int CLEARANCE_MARGIN = 1;
-    private static final int WIRE_SAMPLES_PER_BLOCK = 1;
-
     private final ICoordinateService coordinateTransformer;
     private final IBlockProjectionService projectionHandler;
+    private final PowerLineAttachmentResolver attachmentResolver;
 
     public PowerLineGenerator(
             ICoordinateService coordinateTransformer,
@@ -33,6 +32,7 @@ public class PowerLineGenerator {
             coordinateTransformer, "coordinateTransformer");
         this.projectionHandler = java.util.Objects.requireNonNull(
             projectionHandler, "projectionHandler");
+        this.attachmentResolver = new PowerLineAttachmentResolver(coordinateTransformer);
     }
 
     public PowerLineGenerationResult generate(
@@ -53,34 +53,66 @@ public class PowerLineGenerator {
             return result;
         }
 
-        int[] wireHangHeights = new int[polePositions.size()];
+        List<PolePlacement> placements = new ArrayList<>(polePositions.size());
         for (int i = 0; i < polePositions.size(); i++) {
-            Vec2d planPoint = polePositions.get(i);
-            int groundY = terrain.sampleSurfaceY(planPoint);
-            Vec2d tangent = computePoleTangent(polePositions, i);
-            PoleDesign design = resolveDesign(footprint, designResolver);
-
-            if (design != null) {
-                wireHangHeights[i] = applyPoleDesign(
-                    design, planPoint, groundY, tangent, footprint, result);
-            } else {
-                int poleTopY = groundY + (int) Math.round(footprint.getPoleHeight());
-                generateDefaultPole(planPoint, groundY, poleTopY, footprint, result);
-                wireHangHeights[i] = poleTopY;
-            }
-        }
-
-        for (int span = 0; span < polePositions.size() - 1; span++) {
-            generateWireSpan(
-                polePositions.get(span),
-                polePositions.get(span + 1),
-                wireHangHeights[span],
-                wireHangHeights[span + 1],
+            placements.add(buildPolePlacement(
+                polePositions,
+                i,
                 footprint,
                 terrain,
-                result);
+                designResolver,
+                result));
+        }
+
+        for (int span = 0; span < placements.size() - 1; span++) {
+            ConductorSpanGenerator.generateBetween(
+                placements.get(span),
+                placements.get(span + 1),
+                footprint,
+                terrain,
+                result,
+                coordinateTransformer,
+                projectionHandler);
         }
         return result;
+    }
+
+    private PolePlacement buildPolePlacement(
+            List<Vec2d> polePositions,
+            int index,
+            PowerLineFootprint footprint,
+            TerrainSampler terrain,
+            PoleDesignResolver designResolver,
+            PowerLineGenerationResult result) {
+        Vec2d planPoint = polePositions.get(index);
+        int groundY = terrain.sampleSurfaceY(planPoint);
+        Vec2d tangent = computePoleTangent(polePositions, index);
+        PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, groundY);
+        PoleDesign design = resolveDesign(footprint, designResolver);
+
+        int legacyWireHangY;
+        List<ResolvedAttachment> attachments = List.of();
+        boolean usesAttachmentConductors = false;
+
+        if (design != null) {
+            legacyWireHangY = applyPoleDesign(design, planPoint, groundY, tangent, footprint, result);
+            attachments = attachmentResolver.resolve(design, frame);
+            usesAttachmentConductors = design.hasEnabledAttachments();
+            for (ResolvedAttachment attachment : attachments) {
+                ConductorSpanGenerator.placeInsulator(attachment, footprint, result, projectionHandler);
+            }
+        } else {
+            legacyWireHangY = groundY + (int) Math.round(footprint.getPoleHeight());
+            generateDefaultPole(planPoint, groundY, legacyWireHangY, footprint, result);
+        }
+
+        return new PolePlacement(
+            planPoint,
+            frame,
+            design,
+            attachments,
+            legacyWireHangY,
+            usesAttachmentConductors);
     }
 
     private PoleDesign resolveDesign(PowerLineFootprint footprint, PoleDesignResolver designResolver) {
@@ -194,96 +226,6 @@ public class PowerLineGenerator {
         Vec2d incoming = poles.get(index).subtract(poles.get(index - 1));
         Vec2d outgoing = poles.get(index + 1).subtract(poles.get(index));
         return incoming.add(outgoing);
-    }
-
-    private void generateWireSpan(
-            Vec2d startPlan,
-            Vec2d endPlan,
-            int startHeight,
-            int endHeight,
-            PowerLineFootprint footprint,
-            TerrainSampler terrain,
-            PowerLineGenerationResult result) {
-        double spanLength = startPlan.distance(endPlan);
-        if (spanLength < 1e-6) {
-            return;
-        }
-        result.wireLength += spanLength;
-
-        int sampleCount = PowerLineWireRasterizer.computeWireSampleCount(
-            spanLength,
-            WIRE_SAMPLES_PER_BLOCK);
-        int segmentCount = sampleCount - 1;
-        List<Double> sagProfile = PowerLineSagUtils.computeSagProfile(
-            spanLength,
-            startHeight,
-            endHeight,
-            footprint.getSagRatio(),
-            sampleCount);
-
-        double[] worldX = new double[sampleCount];
-        double[] worldY = new double[sampleCount];
-        double[] worldZ = new double[sampleCount];
-        Vec2d[] planPoints = new Vec2d[sampleCount];
-
-        for (int i = 0; i < sampleCount; i++) {
-            double t = (double) i / segmentCount;
-            planPoints[i] = startPlan.lerp(endPlan, t);
-            double[] worldXz = planToWorldXz(planPoints[i]);
-            worldX[i] = worldXz[0];
-            worldZ[i] = worldXz[1];
-            worldY[i] = sagProfile.get(i);
-        }
-
-        MaterialMix wireMaterial = footprint.getWireMaterial();
-        java.util.LinkedHashSet<BlockPos> wireBlocks = new java.util.LinkedHashSet<>();
-        for (int i = 0; i < segmentCount; i++) {
-            wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
-                worldX[i],
-                worldY[i],
-                worldZ[i],
-                worldX[i + 1],
-                worldY[i + 1],
-                worldZ[i + 1]));
-        }
-
-        for (int i = 0; i < sampleCount; i++) {
-            checkClearance(planPoints[i], (int) Math.round(worldY[i]), terrain, result);
-        }
-
-        for (BlockPos pos : wireBlocks) {
-            String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
-            recordBlock(result, pos, blockId);
-        }
-    }
-
-    private double[] planToWorldXz(Vec2d planPoint) {
-        if (planPoint == null) {
-            return new double[] {0.0, 0.0};
-        }
-        if (coordinateTransformer != null) {
-            Vec2d worldPos = coordinateTransformer.canvasToMinecraftWorld(planPoint);
-            if (worldPos != null) {
-                return new double[] {worldPos.x, worldPos.y};
-            }
-        }
-        return new double[] {planPoint.x, planPoint.y};
-    }
-
-    private void checkClearance(
-            Vec2d planPoint,
-            int wireY,
-            TerrainSampler terrain,
-            PowerLineGenerationResult result) {
-        int groundY = terrain.sampleSurfaceY(planPoint);
-        if (wireY < groundY + CLEARANCE_MARGIN) {
-            result.warnings.add(String.format(
-                "Clearance warning at (%.1f, %.1f): wire Y=%d, ground Y=%d",
-                planPoint.x,
-                planPoint.y,
-                wireY,
-                groundY));
-        }
     }
 
     private void recordBlock(PowerLineGenerationResult result, BlockPos pos, String newBlockId) {

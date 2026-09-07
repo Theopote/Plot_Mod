@@ -31,12 +31,23 @@ final class WireTestSupport {
             int wireY,
             int xStart,
             int xEnd) {
+        assertHorizontalWireCoversX(result, wireY, xStart, xEnd, 0);
+    }
+
+    static void assertHorizontalWireCoversX(
+            PowerLineGenerationResult result,
+            int wireY,
+            int xStart,
+            int xEnd,
+            int z) {
         Set<Integer> xs = new HashSet<>();
         for (BlockPos block : wireBlocksAtY(result, wireY)) {
-            xs.add(block.getX());
+            if (block.getZ() == z) {
+                xs.add(block.getX());
+            }
         }
         for (int x = xStart; x <= xEnd; x++) {
-            assertTrue(xs.contains(x), "missing wire block at x=" + x + ", y=" + wireY);
+            assertTrue(xs.contains(x), "missing wire block at x=" + x + ", z=" + z + ", y=" + wireY);
         }
     }
 

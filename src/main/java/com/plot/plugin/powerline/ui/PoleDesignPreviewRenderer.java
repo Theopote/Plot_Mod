@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorAttachment;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.utils.PlotI18n;
@@ -76,6 +77,16 @@ public final class PoleDesignPreviewRenderer {
                 default -> { }
             }
             currentTop = top;
+        }
+
+        for (ConductorAttachment attachment : design.getAttachments()) {
+            if (!attachment.isEnabled()) {
+                continue;
+            }
+            float markerY = baseY - (float) attachment.getVerticalOffset() * scale;
+            float markerX = centerX + (float) attachment.getLateralOffset() * scale * 6f;
+            drawList.addCircleFilled(markerX, markerY, 4f, 0xFFFFD54F);
+            drawList.addText(markerX + 6f, markerY - 6f, 0xFFFFFFFF, attachment.getName());
         }
 
         ImGui.dummy(width, PREVIEW_HEIGHT);

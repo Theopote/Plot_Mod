@@ -53,4 +53,18 @@ class PowerLinePreviewKeyTest {
         designs.addDesign(custom);
         assertFalse(key.matches(line, designs));
     }
+
+    @Test
+    void mismatchesWhenAttachmentChanges() {
+        PowerLineFootprint line = new PowerLineFootprint(List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        line.setPoleDesignId(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        designs.addDesign(PoleDesignCatalog.simpleWoodPole().copy());
+        PowerLinePreviewKey key = PowerLinePreviewKey.capture(line, designs);
+
+        PoleDesign edited = designs.getDesign(PoleDesignCatalog.SIMPLE_WOOD_POLE_ID);
+        edited.getAttachments().add(
+            com.plot.plugin.powerline.design.ConductorAttachmentPresets.singleConductor(12.0).getFirst());
+        assertFalse(key.matches(line, designs));
+    }
 }

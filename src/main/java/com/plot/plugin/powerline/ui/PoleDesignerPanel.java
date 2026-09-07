@@ -1,6 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.ConductorAttachment;
+import com.plot.plugin.powerline.design.ConductorAttachmentPresets;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignCatalog;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
@@ -61,6 +63,8 @@ public final class PoleDesignerPanel {
         ImGui.separator();
         renderLayerList();
         ImGui.separator();
+        renderAttachmentList();
+        ImGui.separator();
         PoleDesignPreviewRenderer.render(draft);
         ImGui.text(PlotI18n.tr("plugin.powerline.design.total_height", draft.totalHeight()));
         ImGui.separator();
@@ -89,6 +93,72 @@ public final class PoleDesignerPanel {
                 }
             }
             ImGui.endCombo();
+        }
+    }
+
+    private void renderAttachmentList() {
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.attachments"));
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_single"), 0, 0)) {
+            draft.setAttachments(ConductorAttachmentPresets.singleConductor(12.0));
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_3phase_h"), 0, 0)) {
+            draft.setAttachments(ConductorAttachmentPresets.threePhaseHorizontal(12.0));
+        }
+        ImGui.sameLine();
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.attachment_preset_3phase_v"), 0, 0)) {
+            draft.setAttachments(ConductorAttachmentPresets.threePhaseVertical(12.0));
+        }
+
+        for (int i = 0; i < draft.getAttachments().size(); i++) {
+            ConductorAttachment attachment = draft.getAttachments().get(i);
+            ImGui.pushID("att_" + i);
+            renderAttachmentRow(attachment);
+            ImGui.popID();
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_attachment"), 0, 0)) {
+            draft.addAttachment(new ConductorAttachment());
+        }
+    }
+
+    private void renderAttachmentRow(ConductorAttachment attachment) {
+        ImGui.text(PlotI18n.tr("plugin.powerline.design.attachment_row", attachment.getName()));
+        ImGui.sameLine();
+        if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
+            draft.removeAttachment(attachment.getId());
+        }
+
+        float[] lateral = {(float) attachment.getLateralOffset()};
+        if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.powerline.design.attachment_lateral", lateral[0]),
+                lateral,
+                -8f,
+                8f,
+                "%.1f")) {
+            attachment.setLateralOffset(lateral[0]);
+        }
+        float[] vertical = {(float) attachment.getVerticalOffset()};
+        if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.powerline.design.attachment_vertical", vertical[0]),
+                vertical,
+                1f,
+                64f,
+                "%.1f")) {
+            attachment.setVerticalOffset(vertical[0]);
+        }
+        float[] longitudinal = {(float) attachment.getLongitudinalOffset()};
+        if (ImGui.sliderFloat(
+                PlotI18n.tr("plugin.powerline.design.attachment_longitudinal", longitudinal[0]),
+                longitudinal,
+                -4f,
+                4f,
+                "%.1f")) {
+            attachment.setLongitudinalOffset(longitudinal[0]);
+        }
+        ImInt insulatorLength = new ImInt(attachment.getInsulatorLength());
+        ImGui.setNextItemWidth(80);
+        if (ImGui.inputInt(PlotI18n.tr("plugin.powerline.design.attachment_insulator"), insulatorLength)) {
+            attachment.setInsulatorLength(insulatorLength.get());
         }
     }
 
