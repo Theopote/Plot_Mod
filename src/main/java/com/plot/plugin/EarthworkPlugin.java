@@ -122,7 +122,7 @@ public class EarthworkPlugin extends Plugin implements IBuildingPadElevationServ
             previewManager,
             buildManager);
         contextHolder[0] = uiContext;
-        uiContext.autoBalanceRef().set(config.isAutoBalance());
+        uiContext.autoBalanceRef().set(config.isAdoptDefaultAutoBalance());
         uiContext.showGridRef().set(config.isShowGrid());
         uiContext.showEdgeTreatmentOverlayRef().set(config.isShowEdgeTreatmentOverlay());
 

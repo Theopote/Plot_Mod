@@ -6,7 +6,6 @@ import com.plot.core.geometry.RegionGeometry;
 import com.plot.core.geometry.shapes.FreeDrawPath;
 import com.plot.core.geometry.shapes.LineShape;
 import com.plot.core.geometry.shapes.PolylineShape;
-import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.model.Shape;
 import com.plot.core.plugin.PluginManager;
 import com.plot.core.tool.BaseTool;
@@ -17,6 +16,7 @@ import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.adopt.EarthworkAdoptDefaults;
 import com.plot.plugin.earthwork.model.*;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
@@ -157,12 +157,11 @@ public final class EarthworkAdoptPanel {
         for (List<Vec2d> points : validOutlines) {
             GradingRegion region = new GradingRegion(points);
             region.setName(PlotI18n.tr("plugin.earthwork.default_name", adopted + 1));
-            region.setAutoBalance(ctx.config().isAutoBalance());
-            region.setMaterialProperties(MaterialConversionModel.DEFAULT);
-            region.setPreviewGridSize(ctx.config().getPreviewGridSize());
-            if (!ctx.config().isAutoBalance()) {
-                region.setManualTargetElevation(Math.round(ctx.config().getTargetElevation()));
-            }
+            EarthworkAdoptDefaults.applyToNewRegion(
+                region,
+                ctx.config(),
+                getClientWorld(),
+                ctx.host().coordinates());
             ctx.project().addRegion(region);
             ctx.setSelectedRegionId(region.getId());
             adopted++;
@@ -173,5 +172,10 @@ public final class EarthworkAdoptPanel {
         ctx.setProjectStatus(adopted > 1
             ? PlotI18n.tr("plugin.earthwork.adopt_success_batch", adopted)
             : PlotI18n.tr("plugin.earthwork.adopt_success"));
+    }
+
+    private static World getClientWorld() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client != null ? client.world : null;
     }
 }

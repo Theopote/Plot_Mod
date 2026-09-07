@@ -11,36 +11,43 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 
 /**
- * 土方平衡插件配置
+ * 土方插件<strong>全局偏好</strong>与<strong>认领默认值</strong>（{@code config/plugins/earthwork_balance.json}）。
+ * <p>
+ * 字段分类见 {@link EarthworkConfigInventory}。预览方量、解析标高、区域平衡状态属于
+ * {@link com.plot.plugin.earthwork.model.EarthworkProject} / {@link com.plot.plugin.earthwork.model.GradingRegion}，
+ * 不得写入本文件。
  */
 public class EarthworkConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final String pluginId;
 
-    // 网格设置
+    // --- Plugin preferences (PLUGIN_PREFERENCE) ---
+    private String workMode = EarthworkWorkMode.QUICK.name();
+    private boolean showGrid = true;
+    private boolean showEdgeTreatmentOverlay = true;
+
+    // --- Adopt defaults (ADOPT_DEFAULT) — copied into GradingRegion on adopt only ---
     private int previewGridSize = GradingRegion.DEFAULT_PREVIEW_GRID_SIZE;
     /** @deprecated 旧 JSON 字段 */
     @Deprecated
     private int gridSize;
-    private boolean showGrid = true;
-    private boolean showEdgeTreatmentOverlay = true;
-
-    /** Quick / Builder / Learn。缺省 Quick。 */
-    private String workMode = EarthworkWorkMode.QUICK.name();
-
-    // 计算设置
     private boolean autoBalance = true;
-    private float targetElevation = 0.0f;
-    /** 新格式材料参数；为 0 时表示 JSON 未写入，回退 legacy {@link #fillFactor} 或默认值。 */
     private float reusableRatio;
     private float cutToCompactedFillRatio;
     /** @deprecated 旧版填方松散系数，仅用于读取 legacy 配置。 */
     @Deprecated
     private float fillFactor;
 
-    // 统计数据
-    private float cutVolume = 0.0f;
-    private float fillVolume = 0.0f;
+    // --- Runtime legacy (RUNTIME_LEGACY) — loaded for migration only, never saved ---
+    /** @deprecated 误放的全局手动标高；认领已改用地形采样，见 {@link EarthworkConfigInventory#TARGET_ELEVATION}。 */
+    @Deprecated
+    private transient float targetElevation;
+    /** @deprecated 误放的预览挖方缓存。 */
+    @Deprecated
+    private transient float cutVolume;
+    /** @deprecated 误放的预览填方缓存。 */
+    @Deprecated
+    private transient float fillVolume;
 
     public EarthworkConfig(String pluginId) {
         this.pluginId = pluginId;
@@ -61,14 +68,18 @@ public class EarthworkConfig {
     }
 
     /**
-     * 加载配置
+     * 加载配置并在内存中剥离误放的运行时字段。
      */
     public static <T extends EarthworkConfig> T load(Class<T> configClass, String pluginId) {
         Path configPath = getConfigDirectory().resolve(pluginId + ".json");
         if (Files.exists(configPath)) {
             try {
                 String json = new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8);
-                return GSON.fromJson(json, configClass);
+                T loaded = GSON.fromJson(json, configClass);
+                if (loaded != null) {
+                    loaded.normalizeAfterLoad();
+                }
+                return loaded;
             } catch (IOException e) {
                 LogManager.getInstance().error("Failed to load config: " + configPath, e);
             }
@@ -77,9 +88,10 @@ public class EarthworkConfig {
     }
 
     /**
-     * 保存配置
+     * 保存配置（不含 RUNTIME_LEGACY 字段）。
      */
     public void save() {
+        stripRuntimeLegacyFields();
         try {
             Path configPath = resolveConfigPath();
             Files.createDirectories(configPath.getParent());
@@ -90,7 +102,19 @@ public class EarthworkConfig {
         }
     }
 
-    // Getters and setters
+    /**
+     * 丢弃误放在 config 中的预览/标高缓存，避免下次 save 写回磁盘。
+     */
+    public void normalizeAfterLoad() {
+        stripRuntimeLegacyFields();
+    }
+
+    private void stripRuntimeLegacyFields() {
+        targetElevation = 0.0f;
+        cutVolume = 0.0f;
+        fillVolume = 0.0f;
+    }
+
     public int getPreviewGridSize() {
         if (previewGridSize > 0) {
             return previewGridSize;
@@ -142,20 +166,25 @@ public class EarthworkConfig {
         this.workMode = (workMode != null ? workMode : EarthworkWorkMode.QUICK).name();
     }
 
-    public boolean isAutoBalance() {
+    /** 认领新区块时是否默认开启自动平衡。 */
+    public boolean isAdoptDefaultAutoBalance() {
         return autoBalance;
     }
 
-    public void setAutoBalance(boolean autoBalance) {
+    /** @deprecated 请改用 {@link #isAdoptDefaultAutoBalance()} */
+    @Deprecated
+    public boolean isAutoBalance() {
+        return isAdoptDefaultAutoBalance();
+    }
+
+    public void setAdoptDefaultAutoBalance(boolean autoBalance) {
         this.autoBalance = autoBalance;
     }
 
-    public float getTargetElevation() {
-        return targetElevation;
-    }
-
-    public void setTargetElevation(float targetElevation) {
-        this.targetElevation = targetElevation;
+    /** @deprecated 请改用 {@link #setAdoptDefaultAutoBalance(boolean)} */
+    @Deprecated
+    public void setAutoBalance(boolean autoBalance) {
+        setAdoptDefaultAutoBalance(autoBalance);
     }
 
     public MaterialConversionModel getDefaultMaterialProperties() {
@@ -210,19 +239,51 @@ public class EarthworkConfig {
         setDefaultMaterialProperties(migrated);
     }
 
+    /**
+     * @deprecated 运行时状态，已移出 config；认领改用地形采样。
+     */
+    @Deprecated
+    public float getTargetElevation() {
+        return targetElevation;
+    }
+
+    /**
+     * @deprecated 运行时状态，已移出 config。
+     */
+    @Deprecated
+    public void setTargetElevation(float targetElevation) {
+        this.targetElevation = targetElevation;
+    }
+
+    /**
+     * @deprecated 预览运行时挖方，已移出 config。
+     */
+    @Deprecated
     public float getCutVolume() {
         return cutVolume;
     }
 
+    /**
+     * @deprecated 预览运行时挖方，已移出 config。
+     */
+    @Deprecated
     public void setCutVolume(float cutVolume) {
         this.cutVolume = cutVolume;
     }
 
+    /**
+     * @deprecated 预览运行时填方，已移出 config。
+     */
+    @Deprecated
     public float getFillVolume() {
         return fillVolume;
     }
 
+    /**
+     * @deprecated 预览运行时填方，已移出 config。
+     */
+    @Deprecated
     public void setFillVolume(float fillVolume) {
         this.fillVolume = fillVolume;
     }
-} 
+}
