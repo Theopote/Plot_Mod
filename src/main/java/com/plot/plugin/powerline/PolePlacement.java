@@ -2,6 +2,7 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.PoleDesign;
+import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.List;
 
@@ -12,5 +13,27 @@ public record PolePlacement(
         PoleDesign design,
         List<ResolvedAttachment> attachments,
         int legacyWireHangY,
-        boolean usesAttachmentConductors) {
+        boolean usesAttachmentConductors,
+        TowerRole role,
+        String resolvedDesignId,
+        double stationing) {
+
+    public PolePlacement(
+            Vec2d planPosition,
+            PoleFrame frame,
+            PoleDesign design,
+            List<ResolvedAttachment> attachments,
+            int legacyWireHangY,
+            boolean usesAttachmentConductors) {
+        this(
+            planPosition,
+            frame,
+            design,
+            attachments,
+            legacyWireHangY,
+            usesAttachmentConductors,
+            TowerRole.SUSPENSION,
+            null,
+            0.0);
+    }
 }

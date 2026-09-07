@@ -66,6 +66,14 @@ public final class ConductorSpanGenerator {
                     end.planPosition().y));
                 continue;
             }
+            if (startAttachment.role() != endAttachment.role()) {
+                result.warnings.add(String.format(
+                    "Attachment role mismatch for '%s': %s vs %s — skipping span",
+                    id,
+                    startAttachment.role(),
+                    endAttachment.role()));
+                continue;
+            }
             generateConductorSpan(startAttachment, endAttachment, footprint, terrain, result, projectionHandler);
         }
 
@@ -128,7 +136,7 @@ public final class ConductorSpanGenerator {
             worldY[i] = sagProfile.get(i);
         }
 
-        MaterialMix wireMaterial = footprint.getWireMaterial();
+        MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(start.role(), footprint);
         LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>();
         for (int i = 0; i < segmentCount; i++) {
             wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
@@ -201,24 +209,19 @@ public final class ConductorSpanGenerator {
         }
     }
 
+    /** @deprecated use {@link com.plot.plugin.powerline.equipment.LineEquipmentGenerator#place} */
+    @Deprecated
     public static void placeInsulator(
             ResolvedAttachment attachment,
             PowerLineFootprint footprint,
             PowerLineGenerationResult result,
             IBlockProjectionService projectionHandler) {
-        if (attachment == null || attachment.insulatorLength() <= 0) {
-            return;
-        }
-        int startY = (int) Math.floor(attachment.structuralWorldY());
-        int endY = (int) Math.floor(attachment.conductorWorldY()) - 1;
-        int x = (int) Math.floor(attachment.worldX());
-        int z = (int) Math.floor(attachment.worldZ());
-        MaterialMix material = attachment.insulatorMaterial();
-        for (int y = startY; y <= endY; y++) {
-            BlockPos pos = new BlockPos(x, y, z);
-            String blockId = MaterialMixResolver.resolve(material, pos, footprint.getId());
-            recordBlock(result, pos, blockId, projectionHandler);
-        }
+        com.plot.plugin.powerline.equipment.LineEquipmentGenerator.place(
+            attachment,
+            null,
+            footprint,
+            result,
+            projectionHandler);
     }
 
     private static double lerp(double a, double b, double t) {

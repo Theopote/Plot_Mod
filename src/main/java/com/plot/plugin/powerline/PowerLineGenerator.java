@@ -9,9 +9,15 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
+import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
+import com.plot.plugin.powerline.equipment.JumperWireGenerator;
+import com.plot.plugin.powerline.equipment.LineEquipmentGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.PowerPoleSite;
+import com.plot.plugin.powerline.model.TowerRole;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -46,24 +52,42 @@ public class PowerLineGenerator {
             return result;
         }
 
-        List<Vec2d> polePositions = PowerPoleLayoutUtils.computePolePositions(
-            footprint.getPathPoints(),
-            footprint.getCornerAngleThreshold(),
-            footprint.getMaxPoleSpacing());
-        result.poleCount = polePositions.size();
-        if (polePositions.isEmpty()) {
+        List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint);
+        result.poleCount = sites.size();
+        if (sites.isEmpty()) {
             return result;
         }
 
-        List<PolePlacement> placements = new ArrayList<>(polePositions.size());
-        for (int i = 0; i < polePositions.size(); i++) {
+        PoleDesignAssignmentResolver assignmentResolver = new PoleDesignAssignmentResolver(
+            designResolver,
+            new TowerFamilyResolver());
+
+        List<PolePlacement> placements = new ArrayList<>(sites.size());
+        for (int i = 0; i < sites.size(); i++) {
             placements.add(buildPolePlacement(
-                polePositions,
+                sites.get(i),
+                sites,
                 i,
                 footprint,
+                assignmentResolver,
                 terrain,
-                designResolver,
                 result));
+        }
+
+        for (int i = 0; i < placements.size(); i++) {
+            if (placements.get(i).role() == TowerRole.ANGLE && i > 0 && i < placements.size() - 1) {
+                Vec2d incoming = sites.get(i).getPlanPosition()
+                    .subtract(sites.get(i - 1).getPlanPosition());
+                Vec2d outgoing = sites.get(i + 1).getPlanPosition()
+                    .subtract(sites.get(i).getPlanPosition());
+                JumperWireGenerator.generateForAngleTower(
+                    placements.get(i),
+                    incoming,
+                    outgoing,
+                    footprint,
+                    result,
+                    projectionHandler);
+            }
         }
 
         for (int span = 0; span < placements.size() - 1; span++) {
@@ -80,17 +104,22 @@ public class PowerLineGenerator {
     }
 
     private PolePlacement buildPolePlacement(
-            List<Vec2d> polePositions,
+            PowerPoleSite site,
+            List<PowerPoleSite> sites,
             int index,
             PowerLineFootprint footprint,
+            PoleDesignAssignmentResolver assignmentResolver,
             TerrainSampler terrain,
-            PoleDesignResolver designResolver,
             PowerLineGenerationResult result) {
-        Vec2d planPoint = polePositions.get(index);
+        Vec2d planPoint = site.getPlanPosition();
         int groundY = terrain.sampleSurfaceY(planPoint);
-        Vec2d tangent = computePoleTangent(polePositions, index);
+        Vec2d tangent = computePoleTangentFromSites(sites, index);
         PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, groundY);
-        PoleDesign design = resolveDesign(footprint, designResolver);
+
+        PoleDesignAssignmentResolver.AssignmentResult assignment =
+            assignmentResolver.resolve(site, footprint);
+        result.warnings.addAll(assignment.warnings());
+        PoleDesign design = assignment.design();
 
         int legacyWireHangY;
         List<ResolvedAttachment> attachments = List.of();
@@ -117,12 +146,14 @@ public class PowerLineGenerator {
                 }
             }
             for (ResolvedAttachment attachment : attachments) {
-                ConductorSpanGenerator.placeInsulator(attachment, footprint, result, projectionHandler);
+                LineEquipmentGenerator.place(attachment, frame, footprint, result, projectionHandler);
             }
         } else {
             legacyWireHangY = groundY + (int) Math.round(footprint.getPoleHeight());
             generateDefaultPole(planPoint, groundY, legacyWireHangY, footprint, result);
         }
+
+        result.recordRole(site.getRole());
 
         return new PolePlacement(
             planPoint,
@@ -130,17 +161,10 @@ public class PowerLineGenerator {
             design,
             attachments,
             legacyWireHangY,
-            usesAttachmentConductors);
-    }
-
-    private PoleDesign resolveDesign(PowerLineFootprint footprint, PoleDesignResolver designResolver) {
-        if (footprint.getPoleDesignId() == null || footprint.getPoleDesignId().isBlank()) {
-            return null;
-        }
-        if (designResolver == null) {
-            return null;
-        }
-        return designResolver.find(footprint.getPoleDesignId());
+            usesAttachmentConductors,
+            site.getRole(),
+            assignment.resolvedDesignId(),
+            site.getStationing());
     }
 
     private void generateDefaultPole(
@@ -244,6 +268,17 @@ public class PowerLineGenerator {
         Vec2d incoming = poles.get(index).subtract(poles.get(index - 1));
         Vec2d outgoing = poles.get(index + 1).subtract(poles.get(index));
         return incoming.add(outgoing);
+    }
+
+    static Vec2d computePoleTangentFromSites(List<PowerPoleSite> sites, int index) {
+        if (sites == null || sites.size() < 2) {
+            return new Vec2d(1, 0);
+        }
+        List<Vec2d> positions = new ArrayList<>(sites.size());
+        for (PowerPoleSite site : sites) {
+            positions.add(site.getPlanPosition());
+        }
+        return computePoleTangent(positions, index);
     }
 
     private void recordBlock(PowerLineGenerationResult result, BlockPos pos, String newBlockId) {

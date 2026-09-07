@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.core.material.MaterialMix;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -27,6 +28,9 @@ public class PowerLineFootprint {
     private MaterialMix wireMaterial = MaterialMix.single(DEFAULT_WIRE_MATERIAL);
     private MaterialMix poleMaterial = MaterialMix.single(DEFAULT_POLE_MATERIAL);
     private String poleDesignId;
+    private String towerFamilyId;
+    private MaterialMix groundWireMaterial = MaterialMix.single("minecraft:chain");
+    private final List<PoleOverride> poleOverrides = new ArrayList<>();
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {
         this.id = UUID.randomUUID().toString();
@@ -149,6 +153,54 @@ public class PowerLineFootprint {
         return poleDesignId != null && !poleDesignId.isBlank();
     }
 
+    public String getTowerFamilyId() {
+        return towerFamilyId;
+    }
+
+    public void setTowerFamilyId(String towerFamilyId) {
+        this.towerFamilyId = towerFamilyId != null && towerFamilyId.isBlank() ? null : towerFamilyId;
+    }
+
+    public boolean hasTowerFamily() {
+        return towerFamilyId != null && !towerFamilyId.isBlank();
+    }
+
+    public MaterialMix getGroundWireMaterial() {
+        return groundWireMaterial;
+    }
+
+    public void setGroundWireMaterial(MaterialMix groundWireMaterial) {
+        this.groundWireMaterial = groundWireMaterial != null
+            ? groundWireMaterial.copy()
+            : MaterialMix.single("minecraft:chain");
+    }
+
+    public List<PoleOverride> getPoleOverrides() {
+        return Collections.unmodifiableList(new ArrayList<>(poleOverrides));
+    }
+
+    public void setPoleOverrides(List<PoleOverride> overrides) {
+        poleOverrides.clear();
+        if (overrides == null) {
+            return;
+        }
+        for (PoleOverride override : overrides) {
+            if (override != null) {
+                poleOverrides.add(override.copy());
+            }
+        }
+    }
+
+    public void addPoleOverride(PoleOverride override) {
+        if (override != null) {
+            poleOverrides.add(override.copy());
+        }
+    }
+
+    public void clearPoleOverrides() {
+        poleOverrides.clear();
+    }
+
     public double computePathLength() {
         double length = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
@@ -181,6 +233,9 @@ public class PowerLineFootprint {
         hash = 31 * hash + materialFingerprint(wireMaterial);
         hash = 31 * hash + materialFingerprint(poleMaterial);
         hash = 31 * hash + Objects.hashCode(poleDesignId);
+        hash = 31 * hash + Objects.hashCode(towerFamilyId);
+        hash = 31 * hash + materialFingerprint(groundWireMaterial);
+        hash = 31 * hash + poleOverrides.hashCode();
         return hash;
     }
 

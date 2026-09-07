@@ -1,6 +1,10 @@
 package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.powerline.model.PowerPoleSite;
+import com.plot.plugin.powerline.model.PoleOverride;
+import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.model.TowerRole;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +45,106 @@ public final class PowerPoleLayoutUtils {
             appendInterpolatedPoles(result, from, to, maxSpacing);
         }
         return result;
+    }
+
+    /** 计算杆塔站点（位置 + 里程 + 自动角色分类）。 */
+    public static List<PowerPoleSite> computePoleSites(
+            List<Vec2d> pathPoints,
+            double cornerAngleThreshold,
+            double maxPoleSpacing) {
+        List<Vec2d> positions = computePolePositions(pathPoints, cornerAngleThreshold, maxPoleSpacing);
+        List<PowerPoleSite> sites = new ArrayList<>(positions.size());
+        for (int i = 0; i < positions.size(); i++) {
+            PowerPoleSite site = new PowerPoleSite(positions.get(i));
+            site.setStationing(computeStationing(pathPoints, positions.get(i)));
+            site.setPathIndex(i);
+            sites.add(site);
+        }
+        TowerRoleClassifier.classifySites(sites, cornerAngleThreshold);
+        return sites;
+    }
+
+    public static List<PowerPoleSite> computePoleSites(PowerLineFootprint footprint) {
+        if (footprint == null) {
+            return List.of();
+        }
+        List<PowerPoleSite> sites = computePoleSites(
+            footprint.getPathPoints(),
+            footprint.getCornerAngleThreshold(),
+            footprint.getMaxPoleSpacing());
+        applyOverrides(sites, footprint.getPoleOverrides());
+        return sites;
+    }
+
+    public static void applyOverrides(List<PowerPoleSite> sites, List<PoleOverride> overrides) {
+        if (sites == null || overrides == null || overrides.isEmpty()) {
+            return;
+        }
+        for (PowerPoleSite site : sites) {
+            PoleOverride match = findNearestOverride(site.getStationing(), overrides);
+            if (match == null) {
+                continue;
+            }
+            if (match.getRoleOverride() != null) {
+                site.setRole(match.getRoleOverride());
+                site.setRoleAutoAssigned(false);
+            }
+            if (match.getPoleDesignOverrideId() != null) {
+                site.setPoleDesignOverrideId(match.getPoleDesignOverrideId());
+            }
+        }
+    }
+
+    private static PoleOverride findNearestOverride(double stationing, List<PoleOverride> overrides) {
+        PoleOverride best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (PoleOverride override : overrides) {
+            double distance = Math.abs(override.getPathDistance() - stationing);
+            if (distance <= 2.0 && distance < bestDistance) {
+                best = override;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    public static double computeStationing(List<Vec2d> pathPoints, Vec2d polePosition) {
+        if (pathPoints == null || pathPoints.size() < 2 || polePosition == null) {
+            return 0.0;
+        }
+        double total = 0.0;
+        double bestStationing = 0.0;
+        double bestDistance = Double.MAX_VALUE;
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d a = pathPoints.get(i);
+            Vec2d b = pathPoints.get(i + 1);
+            double segLen = a.distance(b);
+            if (segLen < 1e-12) {
+                continue;
+            }
+            Vec2d ab = b.subtract(a);
+            double t = polePosition.subtract(a).dot(ab) / ab.lengthSquared();
+            t = Math.max(0.0, Math.min(1.0, t));
+            Vec2d projected = a.lerp(b, t);
+            double dist = projected.distance(polePosition);
+            if (dist < bestDistance) {
+                bestDistance = dist;
+                bestStationing = total + segLen * t;
+            }
+            total += segLen;
+        }
+        return bestStationing;
+    }
+
+    public static double deflectionAtSite(List<PowerPoleSite> sites, int index) {
+        if (sites == null || index <= 0 || index >= sites.size() - 1) {
+            return 0.0;
+        }
+        Vec2d incoming = sites.get(index).getPlanPosition()
+            .subtract(sites.get(index - 1).getPlanPosition());
+        Vec2d outgoing = sites.get(index + 1).getPlanPosition()
+            .subtract(sites.get(index).getPlanPosition());
+        return TowerRoleClassifier.computeDeflectionAngle(incoming, outgoing);
     }
 
     private static List<Vec2d> collectMandatoryPoints(List<Vec2d> pathPoints, double cornerAngleThreshold) {

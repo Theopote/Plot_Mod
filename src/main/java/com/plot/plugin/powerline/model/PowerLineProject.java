@@ -109,6 +109,35 @@ public class PowerLineProject {
         }
     }
 
+    static class PoleOverrideData {
+        double pathDistance;
+        String roleOverride;
+        String poleDesignOverrideId;
+
+        static PoleOverrideData from(PoleOverride override) {
+            PoleOverrideData data = new PoleOverrideData();
+            data.pathDistance = override.getPathDistance();
+            if (override.getRoleOverride() != null) {
+                data.roleOverride = override.getRoleOverride().name();
+            }
+            data.poleDesignOverrideId = override.getPoleDesignOverrideId();
+            return data;
+        }
+
+        PoleOverride toOverride() {
+            PoleOverride override = new PoleOverride(pathDistance);
+            if (roleOverride != null && !roleOverride.isBlank()) {
+                try {
+                    override.setRoleOverride(TowerRole.valueOf(roleOverride));
+                } catch (IllegalArgumentException ignored) {
+                    // ignore unknown roles in legacy files
+                }
+            }
+            override.setPoleDesignOverrideId(poleDesignOverrideId);
+            return override;
+        }
+    }
+
     static class LineData {
         String id;
         String name;
@@ -122,6 +151,9 @@ public class PowerLineProject {
         MaterialMix wireMaterial;
         MaterialMix poleMaterial;
         String poleDesignId;
+        String towerFamilyId;
+        MaterialMix groundWireMaterial;
+        List<PoleOverrideData> poleOverrides = new ArrayList<>();
     }
 
     static class ProjectData {
@@ -145,6 +177,11 @@ public class PowerLineProject {
                 lineData.wireMaterial = line.getWireMaterial();
                 lineData.poleMaterial = line.getPoleMaterial();
                 lineData.poleDesignId = line.getPoleDesignId();
+                lineData.towerFamilyId = line.getTowerFamilyId();
+                lineData.groundWireMaterial = line.getGroundWireMaterial();
+                for (PoleOverride override : line.getPoleOverrides()) {
+                    lineData.poleOverrides.add(PoleOverrideData.from(override));
+                }
                 data.lines.add(lineData);
             }
             return data;
@@ -190,6 +227,19 @@ public class PowerLineProject {
                     footprint.setPoleMaterial(lineData.poleMaterial);
                 }
                 footprint.setPoleDesignId(lineData.poleDesignId);
+                footprint.setTowerFamilyId(lineData.towerFamilyId);
+                if (lineData.groundWireMaterial != null) {
+                    footprint.setGroundWireMaterial(lineData.groundWireMaterial);
+                }
+                if (lineData.poleOverrides != null) {
+                    List<PoleOverride> overrides = new ArrayList<>();
+                    for (PoleOverrideData overrideData : lineData.poleOverrides) {
+                        if (overrideData != null) {
+                            overrides.add(overrideData.toOverride());
+                        }
+                    }
+                    footprint.setPoleOverrides(overrides);
+                }
                 project.addLine(footprint);
             }
             return project;

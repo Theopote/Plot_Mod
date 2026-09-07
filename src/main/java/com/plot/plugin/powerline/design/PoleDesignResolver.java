@@ -1,5 +1,6 @@
 package com.plot.plugin.powerline.design;
 
+import com.plot.plugin.powerline.design.family.TowerFamilyCatalog;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 
 import java.util.ArrayList;
@@ -24,11 +25,19 @@ public final class PoleDesignResolver {
         if (user != null) {
             return user;
         }
-        return PoleDesignCatalog.findBuiltin(id);
+        PoleDesign builtin = PoleDesignCatalog.findBuiltin(id);
+        if (builtin != null) {
+            return builtin;
+        }
+        return TowerFamilyCatalog.familyDesigns().stream()
+            .filter(design -> design.getId().equals(id))
+            .findFirst()
+            .orElse(null);
     }
 
     public List<PoleDesign> listAll() {
         List<PoleDesign> designs = new ArrayList<>(PoleDesignCatalog.defaultDesigns());
+        designs.addAll(TowerFamilyCatalog.familyDesigns());
         designs.addAll(userDesigns.getDesigns().values());
         designs.sort(Comparator.comparing(PoleDesign::getName, String.CASE_INSENSITIVE_ORDER));
         return designs;

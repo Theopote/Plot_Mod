@@ -62,7 +62,8 @@ public final class PowerLineAttachmentResolver {
             worldXz[1],
             structuralY,
             attachment.getInsulatorMaterial(),
-            insulatorLength);
+            insulatorLength,
+            attachment.getInsulatorType());
     }
 
     private double[] planToWorldXz(Vec2d planPoint) {

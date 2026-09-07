@@ -1,7 +1,7 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
-import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.equipment.InsulatorType;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -20,6 +20,8 @@ public class ConductorAttachment {
     private AttachmentRole role = AttachmentRole.PHASE_B;
     private MaterialMix insulatorMaterial = MaterialMix.single(DEFAULT_INSULATOR_MATERIAL);
     private int insulatorLength;
+    private InsulatorType insulatorType = InsulatorType.SUSPENSION;
+    private String insulatorAssemblyId;
     private boolean enabled = true;
 
     public ConductorAttachment() {
@@ -100,6 +102,24 @@ public class ConductorAttachment {
         this.insulatorLength = Math.max(0, Math.min(16, insulatorLength));
     }
 
+    public InsulatorType getInsulatorType() {
+        return insulatorType != null ? insulatorType : InsulatorType.SUSPENSION;
+    }
+
+    public void setInsulatorType(InsulatorType insulatorType) {
+        this.insulatorType = insulatorType != null ? insulatorType : InsulatorType.SUSPENSION;
+    }
+
+    public String getInsulatorAssemblyId() {
+        return insulatorAssemblyId;
+    }
+
+    public void setInsulatorAssemblyId(String insulatorAssemblyId) {
+        this.insulatorAssemblyId = insulatorAssemblyId != null && insulatorAssemblyId.isBlank()
+            ? null
+            : insulatorAssemblyId;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -118,6 +138,8 @@ public class ConductorAttachment {
             ? insulatorMaterial.copy()
             : MaterialMix.single(DEFAULT_INSULATOR_MATERIAL);
         copy.insulatorLength = insulatorLength;
+        copy.insulatorType = insulatorType;
+        copy.insulatorAssemblyId = insulatorAssemblyId;
         copy.enabled = enabled;
         return copy;
     }
