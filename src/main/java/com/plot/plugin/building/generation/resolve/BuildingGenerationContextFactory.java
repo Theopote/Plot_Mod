@@ -3,15 +3,23 @@ package com.plot.plugin.building.generation.resolve;
 import com.plot.api.world.IBlockProjectionService;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.building.BuildingFoundationUtils;
+import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.benchmark.SampledTerrainFixtures;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.BuildingDefinition;
 import com.plot.plugin.building.site.BuildingSiteAnalysis;
+import com.plot.plugin.building.site.BuildingSiteAnalyzer;
+import com.plot.plugin.building.site.BuildingSiteColumnSample;
+import com.plot.plugin.building.site.TerrainElevationStrategy;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -105,6 +113,67 @@ public final class BuildingGenerationContextFactory {
 
         BuildingDefinition definition = BuildingDefinitionResolver.fromFootprint(footprint);
         ResolvedBuildingDefinition resolved = resolveForTesting(definition, result);
+        return BuildingGenerationContext.fromResolved(
+            footprint, definition, null, coordinateService, projectionService, result, resolved);
+    }
+
+    /**
+     * 测试 / benchmark：合成列采样 + terrain elevation 决策（无 World）。
+     */
+    public static BuildingGenerationContext forTestingWithSampledSite(
+            BuildingFootprint footprint,
+            ICoordinateService coordinateService,
+            IBlockProjectionService projectionService,
+            BuildingGenerationResult result) {
+        Objects.requireNonNull(footprint, "footprint");
+        Objects.requireNonNull(coordinateService, "coordinateService");
+        Objects.requireNonNull(projectionService, "projectionService");
+        Objects.requireNonNull(result, "result");
+
+        if (footprint.getOuterPoints().size() < 3) {
+            LOGGER.warn("建筑轮廓点数不足");
+            return BuildingGenerationContext.fromResolved(
+                footprint, null, null, coordinateService, projectionService, result, null);
+        }
+
+        BuildingDefinition definition = BuildingDefinitionResolver.fromFootprint(footprint);
+        MassingGeometryResolver.ResolvedMassingGeometry massing =
+            MassingGeometryResolver.resolve(definition, result);
+        if (!massing.valid()) {
+            return BuildingGenerationContext.fromResolved(
+                footprint, definition, null, coordinateService, projectionService, result, null);
+        }
+
+        Map<Long, BuildingSiteColumnSample> columnSamples = new HashMap<>();
+        List<BuildingSiteColumnSample> samples = new ArrayList<>();
+        for (BuildingGenerationContext.GridCell cell : massing.footprintCells()) {
+            BlockPos column = BuildingGeometryUtils.canvasToBlockXZ(cell.center(), coordinateService);
+            long key = BuildingSiteAnalyzer.packColumn(column.getX(), column.getZ());
+            BuildingSiteColumnSample sample = columnSamples.computeIfAbsent(
+                key,
+                ignored -> SampledTerrainFixtures.sampleColumn(column.getX(), column.getZ()));
+            samples.add(sample);
+        }
+        BuildingSiteAnalysis analysis = BuildingSiteAnalyzer.analyzeSamples(
+            samples, TerrainElevationStrategy.BALANCED);
+        List<Integer> groundElevations = samples.stream().map(BuildingSiteColumnSample::groundY).toList();
+        GenerationSiteResolver.ResolvedSiteElevation site = GenerationSiteResolver.resolveWithAnalysis(
+            definition,
+            footprint,
+            massing,
+            analysis,
+            groundElevations,
+            result);
+        MaterialResolver.ResolvedMaterials materials = MaterialResolver.resolve(definition);
+        ResolvedBuildingDefinition resolved = new ResolvedBuildingDefinition(
+            definition,
+            massing,
+            analysis,
+            site,
+            materials,
+            columnSamples);
+        attachSitePreview(result, new GenerationSiteResolver.SiteResolveBundle(
+            site, analysis, columnSamples, groundElevations));
         return BuildingGenerationContext.fromResolved(
             footprint, definition, null, coordinateService, projectionService, result, resolved);
     }

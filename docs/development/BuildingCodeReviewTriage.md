@@ -37,10 +37,21 @@
 
 ## P3 — 后续增强
 
-- 最小 FloorPlate / Setback UI
-- 带 fake-world sampling 的 District benchmark
-- persistence `schemaVersion` / migration hook
-- 按 benchmark 决定 overlap spatial index
+| 项 | 状态 | 说明 |
+|----|------|------|
+| 最小 FloorPlate / Setback UI | ✅ | P2-3 已完成 |
+| 带 fake-world sampling 的 District benchmark | ✅ | D06/D07 + `forTestingWithSampledSite` |
+| persistence `schemaVersion` / migration hook | ✅ | v0→v1 `BuildingProjectMigrator` |
+| 按 benchmark 决定 overlap spatial index | ✅ | Overlap500 ≈554ms，保留 O(n²) |
+
+---
+
+## P3 历史（备忘）
+
+- ~~最小 FloorPlate / Setback UI~~
+- ~~带 fake-world sampling 的 District benchmark~~
+- ~~persistence `schemaVersion` / migration hook~~
+- ~~按 benchmark 决定 overlap spatial index~~
 
 ---
 

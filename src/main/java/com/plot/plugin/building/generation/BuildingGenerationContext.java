@@ -194,6 +194,15 @@ public final class BuildingGenerationContext {
             footprint, coordinateService, projectionService, result);
     }
 
+    public static BuildingGenerationContext forTestingWithSampledSite(
+            BuildingFootprint footprint,
+            ICoordinateService coordinateService,
+            IBlockProjectionService projectionService,
+            BuildingGenerationResult result) {
+        return BuildingGenerationContextFactory.forTestingWithSampledSite(
+            footprint, coordinateService, projectionService, result);
+    }
+
     public static List<GridCell> collectFootprintCells(List<Vec2d> points, Polygon polygon) {
         return MassingGeometryResolver.collectFootprintCells(points, polygon);
     }

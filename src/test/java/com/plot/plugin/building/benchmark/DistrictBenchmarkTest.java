@@ -1,6 +1,5 @@
 package com.plot.plugin.building.benchmark;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.building.generation.BuildingGenerationContext;
 import com.plot.plugin.building.generation.BuildingGenerationPipeline;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
@@ -14,7 +13,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -74,17 +72,22 @@ class DistrictBenchmarkTest {
     }
 
     static Metrics run(String id, int count, int floors) {
+        return runWithGenerator(id, count, floors, DistrictBenchmarkTest::generateOne);
+    }
+
+    static Metrics runSampledSite(String id, int count, int floors) {
+        return runWithGenerator(id, count, floors, DistrictBenchmarkTest::generateOneWithSampledSite);
+    }
+
+    static Metrics runWithGenerator(String id, int count, int floors, Generator generator) {
         List<BuildingFootprint> buildings = district(count, floors);
-        // warmup one building so classloading does not dominate D01
-        generateOne(buildings.getFirst());
+        generator.generate(buildings.getFirst());
 
         Runtime runtime = Runtime.getRuntime();
         System.gc();
         long beforeMem = runtime.totalMemory() - runtime.freeMemory();
         long start = System.nanoTime();
-        DistrictGenerationResult district = DistrictMassingGenerator.generate(
-            buildings,
-            DistrictBenchmarkTest::generateOne);
+        DistrictGenerationResult district = DistrictMassingGenerator.generate(buildings, generator::generate);
         long elapsed = System.nanoTime() - start;
         long afterMem = runtime.totalMemory() - runtime.freeMemory();
 
@@ -99,6 +102,21 @@ class DistrictBenchmarkTest {
         LOGGER.info(metrics.summary());
         System.out.println("[DistrictBenchmark] " + metrics.summary());
         return metrics;
+    }
+
+    @FunctionalInterface
+    interface Generator {
+        BuildingGenerationResult generate(BuildingFootprint footprint);
+    }
+
+    private static BuildingGenerationResult generateOneWithSampledSite(BuildingFootprint footprint) {
+        BuildingGenerationResult result = new BuildingGenerationResult();
+        BuildingGenerationContext context = BuildingGenerationContext.forTestingWithSampledSite(
+            footprint,
+            GoldenBuildingTestFixtures.coordinates(),
+            GoldenBuildingTestFixtures.projection(),
+            result);
+        return PIPELINE.generate(context);
     }
 
     private static BuildingGenerationResult generateOne(BuildingFootprint footprint) {
@@ -126,6 +144,38 @@ class DistrictBenchmarkTest {
             () -> id + " too slow: " + metrics.summary() + " (limit " + maxMillis + "ms)");
     }
 
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+        "D06, 10, 4, 20000",
+        "D07, 50, 4, 80000"
+    })
+    void ciGateSampledSiteDistrictScales(String id, int count, int floors, long maxMillis) {
+        Metrics metrics = runSampledSite(id, count, floors);
+        assertEquals(count, metrics.generated());
+        assertEquals(0, metrics.skipped());
+        assertTrue(metrics.blocks() > 0);
+        assertTrue(
+            metrics.generationMillis() < maxMillis,
+            () -> id + " sampled-site too slow: " + metrics.summary() + " (limit " + maxMillis + "ms)");
+    }
+
+    @Test
+    void overlapFootprintPairBenchmarkAt500() {
+        List<BuildingFootprint> buildings = district(500, 3);
+        long start = System.nanoTime();
+        int pairCount = com.plot.plugin.building.generation.DistrictOverlapAnalyzer
+            .findFootprintOverlapPairs(buildings).size();
+        double overlapMs = (System.nanoTime() - start) / 1_000_000.0;
+        String summary = String.format(
+            Locale.ROOT,
+            "Overlap500 buildings=500 pairs=%d overlapMs=%.1f",
+            pairCount,
+            overlapMs);
+        LOGGER.info(summary);
+        System.out.println("[DistrictBenchmark] " + summary);
+        assertTrue(overlapMs < 5000, () -> "O(n²) overlap too slow: " + summary);
+    }
+
     @Test
     void fullSuiteWhenPropertyEnabled() {
         String flag = System.getProperty("plot.district.benchmark", "");
@@ -139,9 +189,14 @@ class DistrictBenchmarkTest {
         Metrics d03 = run("D03", 100, 4);
         Metrics d04 = run("D04", 250, 3);
         Metrics d05 = run("D05", 500, 3);
+        Metrics d06 = runSampledSite("D06-full", 100, 4);
+        Metrics d07 = runSampledSite("D07-full", 500, 3);
         assertEquals(100, d03.generated());
         assertEquals(250, d04.generated());
         assertEquals(500, d05.generated());
+        assertEquals(100, d06.generated());
+        assertEquals(500, d07.generated());
         assertTrue(d03.blocks() > 0 && d04.blocks() > 0 && d05.blocks() > 0);
+        assertTrue(d06.blocks() > 0 && d07.blocks() > 0);
     }
 }

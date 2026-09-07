@@ -13,6 +13,8 @@ import com.plot.plugin.building.model.spec.WallFacadeSpec;
 import com.plot.plugin.building.model.spec.WindowPatternSpec;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult.BuildingLoadDiagnostic;
+import com.plot.plugin.building.model.persistence.BuildingProjectMigrator;
+import com.plot.plugin.building.model.persistence.BuildingProjectSchema;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -85,7 +87,8 @@ public class BuildingProject {
             return BuildingProjectLoadResult.empty();
         }
         try {
-            ProjectData data = GSON.fromJson(json, ProjectData.class);
+            String normalized = BuildingProjectMigrator.normalizeJson(json);
+            ProjectData data = GSON.fromJson(normalized, ProjectData.class);
             return data != null ? data.toLoadResult() : BuildingProjectLoadResult.empty();
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("Invalid building project JSON", e);
@@ -221,10 +224,12 @@ public class BuildingProject {
     }
 
     static class ProjectData {
+        int schemaVersion = BuildingProjectSchema.CURRENT;
         List<BuildingData> buildings = new ArrayList<>();
 
         static ProjectData from(BuildingProject project) {
             ProjectData data = new ProjectData();
+            data.schemaVersion = BuildingProjectSchema.CURRENT;
             for (BuildingFootprint building : project.buildings.values()) {
                 BuildingData buildingData = new BuildingData();
                 buildingData.id = building.getId();
