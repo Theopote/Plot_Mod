@@ -221,7 +221,10 @@ public class PowerLineGenerator {
         }
         result.wireLength += spanLength;
 
-        int sampleCount = Math.max(2, (int) Math.ceil(spanLength * WIRE_SAMPLES_PER_BLOCK));
+        int sampleCount = PowerLineWireRasterizer.computeWireSampleCount(
+            spanLength,
+            WIRE_SAMPLES_PER_BLOCK);
+        int segmentCount = sampleCount - 1;
         List<Double> sagProfile = PowerLineSagUtils.computeSagProfile(
             spanLength,
             startHeight,
@@ -229,17 +232,53 @@ public class PowerLineGenerator {
             footprint.getSagRatio(),
             sampleCount);
 
-        MaterialMix wireMaterial = footprint.getWireMaterial();
+        double[] worldX = new double[sampleCount];
+        double[] worldY = new double[sampleCount];
+        double[] worldZ = new double[sampleCount];
+        Vec2d[] planPoints = new Vec2d[sampleCount];
+
         for (int i = 0; i < sampleCount; i++) {
-            double t = (double) i / (sampleCount - 1);
-            Vec2d planPoint = startPlan.lerp(endPlan, t);
-            int wireY = (int) Math.round(sagProfile.get(i));
-            BlockPos column = RoadGeometryUtils.canvasToBlockXZ(planPoint, coordinateTransformer);
-            BlockPos pos = new BlockPos(column.getX(), wireY, column.getZ());
+            double t = (double) i / segmentCount;
+            planPoints[i] = startPlan.lerp(endPlan, t);
+            double[] worldXz = planToWorldXz(planPoints[i]);
+            worldX[i] = worldXz[0];
+            worldZ[i] = worldXz[1];
+            worldY[i] = sagProfile.get(i);
+        }
+
+        MaterialMix wireMaterial = footprint.getWireMaterial();
+        java.util.LinkedHashSet<BlockPos> wireBlocks = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < segmentCount; i++) {
+            wireBlocks.addAll(PowerLineWireRasterizer.rasterizeLine3D(
+                worldX[i],
+                worldY[i],
+                worldZ[i],
+                worldX[i + 1],
+                worldY[i + 1],
+                worldZ[i + 1]));
+        }
+
+        for (int i = 0; i < sampleCount; i++) {
+            checkClearance(planPoints[i], (int) Math.round(worldY[i]), terrain, result);
+        }
+
+        for (BlockPos pos : wireBlocks) {
             String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
             recordBlock(result, pos, blockId);
-            checkClearance(planPoint, wireY, terrain, result);
         }
+    }
+
+    private double[] planToWorldXz(Vec2d planPoint) {
+        if (planPoint == null) {
+            return new double[] {0.0, 0.0};
+        }
+        if (coordinateTransformer != null) {
+            Vec2d worldPos = coordinateTransformer.canvasToMinecraftWorld(planPoint);
+            if (worldPos != null) {
+                return new double[] {worldPos.x, worldPos.y};
+            }
+        }
+        return new double[] {planPoint.x, planPoint.y};
     }
 
     private void checkClearance(
