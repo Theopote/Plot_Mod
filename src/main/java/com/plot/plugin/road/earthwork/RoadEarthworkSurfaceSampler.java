@@ -9,7 +9,6 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.DesignElevationSource;
-import com.plot.plugin.road.terrain.TerrainSampler;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -67,7 +66,32 @@ public final class RoadEarthworkSurfaceSampler {
         if (designElevation.isActive()) {
             return designElevation.elevationAtLocalDistance(localDistance);
         }
-        return interpolateNodeElevations(network, edge, centerline, localDistance);
+        return interpolateManualNodeElevations(network, edge, centerline, localDistance);
+    }
+
+    /**
+     * 土方是否可从该边读到设计标高（纵断面或两端手动节点标高）。
+     */
+    public static boolean hasResolvableDesignElevation(RoadNetwork network, String edgeId) {
+        if (network == null || edgeId == null || edgeId.isBlank()) {
+            return false;
+        }
+        RoadEdge edge = network.getEdge(edgeId);
+        if (edge == null) {
+            return false;
+        }
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
+        if (centerline.size() < 2) {
+            return false;
+        }
+        List<PathSegment> segments = toPathSegments(centerline);
+        DesignElevationSource designElevation = DesignElevationSource.forEdge(network, edge, segments);
+        if (designElevation.isActive()) {
+            return true;
+        }
+        RoadNode start = network.getNode(edge.getStartNodeId());
+        RoadNode end = network.getNode(edge.getEndNodeId());
+        return resolveNodeElevation(start) != null && resolveNodeElevation(end) != null;
     }
 
     private static List<PathSegment> toPathSegments(List<Vec2d> centerline) {
@@ -83,7 +107,7 @@ public final class RoadEarthworkSurfaceSampler {
         return segments;
     }
 
-    private static Integer interpolateNodeElevations(
+    private static Integer interpolateManualNodeElevations(
             RoadNetwork network,
             RoadEdge edge,
             List<Vec2d> centerline,
@@ -93,8 +117,11 @@ public final class RoadEarthworkSurfaceSampler {
         if (start == null || end == null) {
             return null;
         }
-        int startY = resolveNodeElevation(start);
-        int endY = resolveNodeElevation(end);
+        Integer startY = resolveNodeElevation(start);
+        Integer endY = resolveNodeElevation(end);
+        if (startY == null || endY == null) {
+            return null;
+        }
         double totalLength = RoadGeometryUtils.calculatePathLength(centerline);
         if (totalLength <= 1e-6) {
             return startY;
@@ -103,10 +130,13 @@ public final class RoadEarthworkSurfaceSampler {
         return (int) Math.round(startY + ratio * (endY - startY));
     }
 
-    private static int resolveNodeElevation(RoadNode node) {
-        if (node.getManualElevation() != null) {
-            return node.getManualElevation().intValue();
+    /**
+     * 仅使用节点上持久化的手动设计标高；无手动标高时不猜测（尤其不回退海平面 Y=64）。
+     */
+    private static Integer resolveNodeElevation(RoadNode node) {
+        if (node == null || node.getManualElevation() == null) {
+            return null;
         }
-        return TerrainSampler.DEFAULT_SEA_LEVEL;
+        return node.getManualElevation().intValue();
     }
 }

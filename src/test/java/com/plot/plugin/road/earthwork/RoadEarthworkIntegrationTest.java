@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,12 +25,71 @@ class RoadEarthworkIntegrationTest {
         RoadNetwork network = RoadGoldenScenarioFactory.r01StraightFlat().network();
         RoadEdge edge = network.getEdges().values().iterator().next();
         RoadNode start = network.getNode(edge.getStartNodeId());
+        RoadNode end = network.getNode(edge.getEndNodeId());
         start.setManualElevation(72.0);
+        end.setManualElevation(72.0);
 
         Integer sampled = RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(
             network, edge.getId(), start.getPosition());
         assertNotNull(sampled);
         assertEquals(72, sampled);
+    }
+
+    @Test
+    void sampleDesignSurfaceYWithoutVaOrManualElevationReturnsNullNotSeaLevel() {
+        RoadNetwork network = RoadGoldenScenarioFactory.r01StraightFlat().network();
+        RoadEdge edge = network.getEdges().values().iterator().next();
+
+        Integer sampled = RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(
+            network, edge.getId(), new Vec2d(15, 0));
+
+        assertNull(sampled, "AUTO_SMOOTH without persisted VA must not fall back to Y=64");
+        assertFalse(RoadEarthworkSurfaceSampler.hasResolvableDesignElevation(network, edge.getId()));
+    }
+
+    @Test
+    void sampleDesignSurfaceYInterpolatesBetweenBothManualNodeElevations() {
+        RoadNetwork network = RoadGoldenScenarioFactory.r01StraightFlat().network();
+        RoadEdge edge = network.getEdges().values().iterator().next();
+        RoadNode start = network.getNode(edge.getStartNodeId());
+        RoadNode end = network.getNode(edge.getEndNodeId());
+        start.setManualElevation(70.0);
+        end.setManualElevation(80.0);
+
+        Integer mid = RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(
+            network, edge.getId(), new Vec2d(15, 0));
+
+        assertNotNull(mid);
+        assertEquals(75, mid);
+        assertTrue(RoadEarthworkSurfaceSampler.hasResolvableDesignElevation(network, edge.getId()));
+    }
+
+    @Test
+    void sampleDesignSurfaceYReturnsNullWhenOnlyOneNodeHasManualElevation() {
+        RoadNetwork network = RoadGoldenScenarioFactory.r01StraightFlat().network();
+        RoadEdge edge = network.getEdges().values().iterator().next();
+        network.getNode(edge.getStartNodeId()).setManualElevation(72.0);
+
+        assertNull(RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(
+            network, edge.getId(), new Vec2d(10, 0)));
+        assertFalse(RoadEarthworkSurfaceSampler.hasResolvableDesignElevation(network, edge.getId()));
+    }
+
+    @Test
+    void sampleDesignSurfaceYUsesManualProfileWhenActive() {
+        RoadNetwork network = RoadGoldenScenarioFactory.r06Sloped().network();
+        RoadEdge edge = network.getEdges().values().iterator().next();
+
+        Integer start = RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(
+            network, edge.getId(), new Vec2d(0, 0));
+        Integer end = RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(
+            network, edge.getId(), new Vec2d(30, 0));
+
+        assertNotNull(start);
+        assertNotNull(end);
+        assertEquals(64, start);
+        assertEquals(72, end);
+        assertTrue(RoadEarthworkSurfaceSampler.hasResolvableDesignElevation(network, edge.getId()));
     }
 
     @Test

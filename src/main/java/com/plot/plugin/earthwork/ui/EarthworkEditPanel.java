@@ -1054,6 +1054,16 @@ public final class EarthworkEditPanel {
                 ctx.invalidatePreview();
             }
         }
+        String roadEdgeRef = zone.getRoadEdgeRef();
+        if (!roadEdgeRef.isBlank()) {
+            com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("road_system");
+            if (plugin instanceof RoadSystemPlugin roadPlugin
+                    && !roadPlugin.hasEarthworkDesignElevation(roadEdgeRef)) {
+                ImGui.textColored(
+                    PluginUiColors.HINT_GRAY,
+                    PlotI18n.tr("plugin.earthwork.no_road_design_elevation"));
+            }
+        }
         if (zone.getDesignSurface().hasBakedElevation()) {
             ImGui.text(PlotI18n.tr(
                 "plugin.earthwork.baked_samples",
@@ -1146,7 +1156,13 @@ public final class EarthworkEditPanel {
         TerrainSnapshot terrain = ctx.terrainSnapshotCache().captureFreshSite(site, world, ctx.host().coordinates());
         int bakedCount = RoadCorridorBaker.bake(zone, terrain, EarthworkUiLookups.createRoadSurfaceLookup());
         if (bakedCount <= 0) {
-            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.bake_road_failed"));
+            com.plot.api.plugin.IPlugin plugin = PluginManager.getInstance().getPlugin("road_system");
+            if (plugin instanceof RoadSystemPlugin roadPlugin
+                    && !roadPlugin.hasEarthworkDesignElevation(zone.getRoadEdgeRef())) {
+                ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.no_road_design_elevation"));
+            } else {
+                ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.bake_road_failed"));
+            }
         } else {
             ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.bake_road_success", bakedCount));
         }

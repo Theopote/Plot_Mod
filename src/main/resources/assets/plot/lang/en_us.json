@@ -1187,6 +1187,7 @@
   "plugin.earthwork.bake_road_elevations": "Remember road height",
   "plugin.earthwork.bake_road_success": "Saved %d height samples from the road",
   "plugin.earthwork.bake_road_failed": "Could not read road height",
+  "plugin.earthwork.no_road_design_elevation": "No usable road design elevation — add a vertical profile or set manual node elevations",
   "plugin.earthwork.baked_samples": "Saved %d height samples",
   "plugin.earthwork.retaining_top_elevation": "Wall top: Y=%d",
   "plugin.earthwork.retaining_bottom_elevation": "Wall bottom: Y=%d",

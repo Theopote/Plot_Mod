@@ -182,6 +182,14 @@ public class RoadSystemPlugin extends Plugin implements RoadJunctionPropertyProv
         return RoadEarthworkSurfaceSampler.sampleDesignSurfaceY(networkManager.getNetwork(), edgeId, planPoint);
     }
 
+    public boolean hasEarthworkDesignElevation(String edgeId) {
+        if (networkManager == null) {
+            return false;
+        }
+        return RoadEarthworkSurfaceSampler.hasResolvableDesignElevation(
+            networkManager.getNetwork(), edgeId);
+    }
+
     public List<Vec2d> resolveEarthworkCorridorOutline(String edgeId, int extraMarginBlocks) {
         if (networkManager == null || config == null || edgeId == null || edgeId.isBlank()) {
             return List.of();

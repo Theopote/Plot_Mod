@@ -1187,6 +1187,7 @@
   "plugin.earthwork.bake_road_elevations": "记下道路高度",
   "plugin.earthwork.bake_road_success": "已从道路记下 %d 个高度点",
   "plugin.earthwork.bake_road_failed": "无法记下道路高度",
+  "plugin.earthwork.no_road_design_elevation": "当前道路没有可用设计标高，请生成纵断面或设置手动设计标高",
   "plugin.earthwork.baked_samples": "已记下 %d 个高度点",
   "plugin.earthwork.retaining_top_elevation": "墙顶 Y=%d",
   "plugin.earthwork.retaining_bottom_elevation": "墙底 Y=%d",
