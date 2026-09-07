@@ -23,6 +23,7 @@ import com.plot.plugin.building.generation.DistrictGenerationResult;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.BuildingProject;
 import com.plot.plugin.building.model.BuildingProjectHistory;
+import com.plot.plugin.building.model.persistence.BuildingProjectPersistence;
 import com.plot.ui.canvas.Canvas;
 import com.plot.utils.PlotI18n;
 import net.minecraft.client.MinecraftClient;
@@ -621,7 +622,7 @@ public final class BuildingUiContext {
 
     public boolean loadProjectFile(Path file) {
         try {
-            BuildingProject loaded = BuildingProject.loadFrom(file);
+            BuildingProject loaded = BuildingProjectPersistence.load(file);
             setProject(loaded);
             projectHistory().clear();
             selection().clear();
@@ -655,12 +656,12 @@ public final class BuildingUiContext {
             return false;
         }
         try {
-            String json = project().toJson();
+            String json = BuildingProjectPersistence.serialize(project());
             if (state.getContentFingerprint().isUnchanged(json, file)) {
                 LOGGER.debug("建筑项目内容未变，跳过重复保存: {}", file.getFileName());
                 return true;
             }
-            project().saveTo(file);
+            BuildingProjectPersistence.save(project(), file);
             state.getContentFingerprint().markSaved(json, file);
             return true;
         } catch (IOException e) {
