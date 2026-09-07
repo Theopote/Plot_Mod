@@ -241,6 +241,25 @@ public final class BuildingUiContext {
         return actions.calculateDistrictPreview(buildings, autoProjectGhosts);
     }
 
+    public boolean calculateDistrictPreview(
+            List<BuildingFootprint> buildings,
+            boolean autoProjectGhosts,
+            boolean buildConfirmOnComplete) {
+        return actions.calculateDistrictPreview(buildings, autoProjectGhosts, buildConfirmOnComplete);
+    }
+
+    public void tickDistrictPreviewJob() {
+        actions.tickDistrictPreviewJob();
+    }
+
+    public boolean isDistrictPreviewBusy() {
+        return actions.isDistrictPreviewBusy();
+    }
+
+    public void cancelDistrictPreviewJob() {
+        actions.cancelDistrictPreviewJob();
+    }
+
     public void projectPreview() {
         actions.projectPreview();
     }

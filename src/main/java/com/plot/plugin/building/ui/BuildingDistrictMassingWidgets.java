@@ -188,20 +188,20 @@ public final class BuildingDistrictMassingWidgets {
 
     private static void renderPreviewGenerateAll(BuildingUiContext ctx, int count) {
         var readiness = ctx.host().projection().checkWorldModificationReadiness();
-        boolean generateDisabled = !readiness.ready() || ctx.host().placement().isBusy();
+        boolean generateDisabled = !readiness.ready()
+            || ctx.host().placement().isBusy()
+            || ctx.isDistrictPreviewBusy();
 
         float half = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f;
+        if (generateDisabled) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(PlotI18n.tr("plugin.building.preview_all", count), half, 0)) {
             ctx.actions().previewEntireDistrict();
         }
         ImGui.sameLine();
-        if (generateDisabled) {
-            ImGui.beginDisabled();
-        }
         if (ImGui.button(PlotI18n.tr("plugin.building.generate_all", count), half, 0)) {
-            if (ctx.actions().prepareGenerateEntireDistrict()) {
-                ctx.setBuildConfirmPending(true);
-            }
+            ctx.actions().prepareGenerateEntireDistrict();
         }
         if (generateDisabled) {
             ImGui.endDisabled();

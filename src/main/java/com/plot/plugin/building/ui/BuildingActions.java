@@ -74,17 +74,29 @@ public final class BuildingActions {
         state.setBuildingNameEditingId("");
         state.getPickSession().cancel();
         state.getSelectedFootprints().clear();
+        cancelDistrictPreviewJob();
         clearPreview();
         state.setLastDistrictBuildReport(null);
     }
 
     public boolean calculatePreview(BuildingFootprint building) {
-        return calculateDistrictPreview(List.of(building), false);
+        return calculateDistrictPreview(List.of(building), false, false);
     }
 
     public boolean calculateDistrictPreview(
             List<BuildingFootprint> buildings,
             boolean autoProjectGhosts) {
+        return calculateDistrictPreview(buildings, autoProjectGhosts, false);
+    }
+
+    /**
+     * @param buildConfirmOnComplete 分帧 job 完成后是否弹出落地确认（仅多栋有效）
+     * @return 同步路径是否已有可落地预览；分帧路径恒为 false，完成时由 job 回调
+     */
+    public boolean calculateDistrictPreview(
+            List<BuildingFootprint> buildings,
+            boolean autoProjectGhosts,
+            boolean buildConfirmOnComplete) {
         World world = getClientWorld();
         if (world == null || buildingGenerator == null) {
             state.setProjectStatus(PlotI18n.tr("plugin.building.generate_world_unavailable"));
@@ -94,7 +106,18 @@ public final class BuildingActions {
             state.setProjectStatus(PlotI18n.tr("plugin.building.select_building_hint"));
             return false;
         }
+        if (buildings.size() > 1) {
+            startDistrictPreviewJob(buildings, autoProjectGhosts, buildConfirmOnComplete);
+            return false;
+        }
+        return calculateDistrictPreviewSync(buildings, autoProjectGhosts, buildConfirmOnComplete);
+    }
 
+    private boolean calculateDistrictPreviewSync(
+            List<BuildingFootprint> buildings,
+            boolean autoProjectGhosts,
+            boolean buildConfirmOnComplete) {
+        World world = getClientWorld();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
@@ -111,6 +134,92 @@ public final class BuildingActions {
             return false;
         }
 
+        return applyDistrictPreviewResult(district, autoProjectGhosts, buildConfirmOnComplete);
+    }
+
+    private void startDistrictPreviewJob(
+            List<BuildingFootprint> buildings,
+            boolean autoProjectGhosts,
+            boolean buildConfirmOnComplete) {
+        cancelDistrictPreviewJob();
+        com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
+        if (ghostBlockManager != null) {
+            ghostBlockManager.clearAllGhostBlocks();
+        }
+        state.setLastDistrictResult(null);
+        state.setLastGenerationResult(null);
+        state.setDistrictPreviewBuildConfirmPending(buildConfirmOnComplete);
+        DistrictPreviewJob job = new DistrictPreviewJob(
+            buildings,
+            autoProjectGhosts,
+            buildConfirmOnComplete,
+            this);
+        state.setDistrictPreviewJob(job);
+        updateDistrictPreviewProgress(job);
+    }
+
+    public void tickDistrictPreviewJob() {
+        DistrictPreviewJob job = state.getDistrictPreviewJob();
+        if (job != null && job.isRunning()) {
+            job.tick();
+        }
+    }
+
+    public boolean isDistrictPreviewBusy() {
+        DistrictPreviewJob job = state.getDistrictPreviewJob();
+        return job != null && job.isRunning();
+    }
+
+    public void cancelDistrictPreviewJob() {
+        DistrictPreviewJob job = state.getDistrictPreviewJob();
+        if (job != null) {
+            job.cancel();
+        }
+        state.setDistrictPreviewJob(null);
+        state.setDistrictPreviewBuildConfirmPending(false);
+    }
+
+    void updateDistrictPreviewProgress(DistrictPreviewJob job) {
+        if (job == null) {
+            return;
+        }
+        state.setProjectStatus(PlotI18n.tr(
+            "plugin.building.district_preview_progress",
+            job.processedCount(),
+            job.totalCount()));
+    }
+
+    void failDistrictPreviewJob(DistrictPreviewJob job) {
+        if (job != null) {
+            job.cancel();
+        }
+        state.setDistrictPreviewJob(null);
+        state.setDistrictPreviewBuildConfirmPending(false);
+        state.setLastDistrictResult(null);
+        state.setLastGenerationResult(null);
+        state.setProjectStatus(PlotI18n.tr("plugin.building.generate_world_unavailable"));
+    }
+
+    void completeDistrictPreviewJob(
+            DistrictPreviewJob job,
+            DistrictGenerationResult district,
+            boolean autoProjectGhosts,
+            boolean buildConfirmOnComplete) {
+        if (state.getDistrictPreviewJob() != job) {
+            return;
+        }
+        state.setDistrictPreviewJob(null);
+        state.setDistrictPreviewBuildConfirmPending(false);
+        boolean ready = applyDistrictPreviewResult(district, autoProjectGhosts, buildConfirmOnComplete);
+        if (buildConfirmOnComplete && ready) {
+            state.setBuildConfirmPending(true);
+        }
+    }
+
+    private boolean applyDistrictPreviewResult(
+            DistrictGenerationResult district,
+            boolean autoProjectGhosts,
+            boolean buildConfirmOnComplete) {
         state.setLastDistrictResult(district);
         state.setLastGenerationResult(district.toMergedResult());
         if (!district.hasPlacements()) {
@@ -167,6 +276,7 @@ public final class BuildingActions {
     }
 
     public void clearPreview() {
+        cancelDistrictPreviewJob();
         com.plot.api.world.IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager != null) {
             ghostBlockManager.clearAllGhostBlocks();
@@ -215,12 +325,12 @@ public final class BuildingActions {
 
     public void previewEntireDistrict() {
         state.getSelection().selectAll(state.getProject().getBuildings().keySet());
-        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true);
+        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true, false);
     }
 
-    public boolean prepareGenerateEntireDistrict() {
+    public void prepareGenerateEntireDistrict() {
         state.getSelection().selectAll(state.getProject().getBuildings().keySet());
-        return calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true);
+        calculateDistrictPreview(new ArrayList<>(state.getProject().getBuildings().values()), true, true);
     }
 
     public void applyMassingToSelected(BuildingFootprint primary, List<BuildingFootprint> targets) {

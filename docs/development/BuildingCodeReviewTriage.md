@@ -13,11 +13,11 @@
 | ID | 问题 | 状态 | 说明 |
 |----|------|------|------|
 | P1-1 | 加门滑条每帧重置 | ✅ | `BuildingPluginState.DoorEditorDraft` 按 building id |
-| P1-3 | 片区 Preview 同步跑完整管线 | 📋 待做 | 分帧 / chunked job + progress；World 采样线程边界需单独设计 |
+| P1-3 | 片区 Preview 同步跑完整管线 | ✅ | `DistrictPreviewJob` 每帧 8 栋 + progress UI |
 | P1-4 | Golden 屋顶被墙材质污染 | ✅ | Golden 分材质 + B03/B06/B12 语义断言 |
 | P2-1 ↑ | 认领 `isRectangular` ← `isSlopedRoofEligible` | ✅ | `detectRectangular()` |
 | P2-8 ↑ | 场地分析失败仍 Y=64 生成 | ✅ | 无 manual/pad → skip + `SITE_ANALYSIS_FAILED` |
-| P1-2 ↓ | Pad unresolved silent terrain | 📋 待做 | 明确 warning + UI 文案，不禁止 fallback |
+| P1-2 ↓ | Pad unresolved silent terrain | ✅ | UI warning + `warn.earthwork_pad_unresolved_using_terrain` |
 
 ---
 

@@ -36,11 +36,26 @@ public final class BuildingSiteElevationResolver {
         if (footprint == null || footprint.getId() == null || footprint.getId().isBlank()) {
             return PadElevationStatus.none();
         }
+        return describePadLink(footprint.getId(), footprint.getOuterPoints());
+    }
+
+    public static PadElevationStatus describePadLink(String buildingId, List<Vec2d> footprintPoints) {
+        if (buildingId == null || buildingId.isBlank()) {
+            return PadElevationStatus.none();
+        }
         IPlugin plugin = PluginManager.getInstance().getPlugin("earthwork_balance");
         if (plugin instanceof EarthworkPlugin earthwork) {
-            return earthwork.describeBuildingPadLink(footprint.getId(), footprint.getOuterPoints());
+            return earthwork.describeBuildingPadLink(buildingId, footprintPoints);
         }
         return PadElevationStatus.none();
+    }
+
+    /** EARTHWORK_OWNED 垫层已关联但当前无法解析设计标高。 */
+    public static boolean isEarthworkOwnedUnresolved(PadElevationStatus status) {
+        return status != null
+            && status.mode() == BuildingPadElevationService.PadElevationMode.EARTHWORK_OWNED
+            && status.isLinked()
+            && status.resolvedElevation() == null;
     }
 
     /**

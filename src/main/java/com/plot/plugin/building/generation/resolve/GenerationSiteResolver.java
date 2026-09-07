@@ -12,6 +12,7 @@ import com.plot.plugin.building.site.BuildingSiteAnalyzer;
 import com.plot.plugin.building.site.BuildingSiteColumnSample;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
 import com.plot.plugin.building.site.SiteIssue;
+import com.plot.plugin.earthwork.design.BuildingPadElevationService;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -152,15 +153,18 @@ public final class GenerationSiteResolver {
         Integer requested = definition != null ? definition.foundation().manualBaseElevation() : null;
 
         Integer resolvedPad = null;
+        BuildingPadElevationService.PadElevationStatus padLink = BuildingPadElevationService.PadElevationStatus.none();
         if (footprint != null) {
+            padLink = BuildingSiteElevationResolver.describePadLink(footprint);
             resolvedPad = BuildingSiteElevationResolver.resolveEarthworkPadElevation(footprint);
         } else if (definition != null) {
             List<Vec2d> outer = massing != null ? massing.outerPoints() : definition.footprint().outerPoints();
+            padLink = BuildingSiteElevationResolver.describePadLink(definition.footprint().id(), outer);
             resolvedPad = BuildingSiteElevationResolver.resolveEarthworkPadElevation(
                 definition.footprint().id(), outer);
         }
 
-        return decide(requested, resolvedPad, siteAnalysis, groundElevations, result);
+        return decide(requested, resolvedPad, padLink, siteAnalysis, groundElevations, result);
     }
 
     /**
@@ -169,6 +173,22 @@ public final class GenerationSiteResolver {
     public static ResolvedSiteElevation decide(
             Integer requested,
             Integer resolvedPad,
+            BuildingSiteAnalysis analysis,
+            List<Integer> groundElevations,
+            BuildingGenerationResult result) {
+        return decide(
+            requested,
+            resolvedPad,
+            BuildingPadElevationService.PadElevationStatus.none(),
+            analysis,
+            groundElevations,
+            result);
+    }
+
+    public static ResolvedSiteElevation decide(
+            Integer requested,
+            Integer resolvedPad,
+            BuildingPadElevationService.PadElevationStatus padLink,
             BuildingSiteAnalysis analysis,
             List<Integer> groundElevations,
             BuildingGenerationResult result) {
@@ -193,6 +213,11 @@ public final class GenerationSiteResolver {
         } else {
             candidate = terrainElevation;
             source = FoundationElevationSource.TERRAIN;
+            if (requested == null
+                    && resolvedPad == null
+                    && BuildingSiteElevationResolver.isEarthworkOwnedUnresolved(padLink)) {
+                addWarning(result, "plugin.building.warn.earthwork_pad_unresolved_using_terrain");
+            }
         }
 
         boolean waterAdjusted = false;

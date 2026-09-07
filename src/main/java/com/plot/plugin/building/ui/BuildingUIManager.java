@@ -23,6 +23,8 @@ public final class BuildingUIManager {
     }
 
     public void render() {
+        ctx.tickDistrictPreviewJob();
+
         if (ctx.pickSession().isActive()) {
             adoptPanel.tickPickSession();
         }

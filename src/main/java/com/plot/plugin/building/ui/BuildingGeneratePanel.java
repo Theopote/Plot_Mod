@@ -87,6 +87,11 @@ public final class BuildingGeneratePanel {
             int selectedCount,
             float half,
             com.plot.api.world.PlacementReadiness buildReadiness) {
+        boolean previewBusy = ctx.isDistrictPreviewBusy();
+        boolean canClearPreview = ctx.lastGenerationResult() != null || previewBusy;
+        if (previewBusy) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.button(
                 PlotI18n.tr("plugin.building.preview_selected", selectedCount),
                 half,
@@ -94,14 +99,13 @@ public final class BuildingGeneratePanel {
             ctx.calculateDistrictPreview(ctx.selection().resolve(ctx.project()), true);
         }
         ImGui.sameLine();
-        boolean hasPreview = ctx.lastGenerationResult() != null;
-        if (!hasPreview) {
+        if (!canClearPreview) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(PlotI18n.tr("plugin.building.clear_preview"), half, 0)) {
             ctx.clearPreview();
         }
-        if (!hasPreview) {
+        if (!canClearPreview) {
             ImGui.endDisabled();
         }
 
@@ -111,11 +115,16 @@ public final class BuildingGeneratePanel {
                 0)) {
             ctx.calculateDistrictPreview(new ArrayList<>(ctx.project().getBuildings().values()), true);
         }
+        if (previewBusy) {
+            ImGui.endDisabled();
+        }
 
         ImGui.spacing();
         ImGui.text(PlotI18n.tr("plugin.building.district_generate_section"));
 
-        boolean generateDisabled = !buildReadiness.ready() || ctx.host().placement().isBusy();
+        boolean generateDisabled = !buildReadiness.ready()
+            || ctx.host().placement().isBusy()
+            || previewBusy;
         if (generateDisabled) {
             ImGui.beginDisabled();
         }
@@ -137,9 +146,7 @@ public final class BuildingGeneratePanel {
         }
     }
     private void requestDistrictGenerate(List<BuildingFootprint> buildings) {
-        if (ctx.calculateDistrictPreview(buildings, true)) {
-            ctx.setBuildConfirmPending(true);
-        }
+        ctx.calculateDistrictPreview(buildings, true, true);
     }
     private void renderDistrictPreviewStats(
             float half,

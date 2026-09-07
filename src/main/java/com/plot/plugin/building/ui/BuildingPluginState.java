@@ -49,6 +49,9 @@ public final class BuildingPluginState {
     private boolean deleteConfirmPending = false;
     private boolean buildConfirmPending = false;
 
+    private volatile DistrictPreviewJob districtPreviewJob;
+    private boolean districtPreviewBuildConfirmPending;
+
     private volatile String projectStatus = "";
     private String currentProjectFile = "default.json";
     private final ContentFingerprint.Tracker contentFingerprint = new ContentFingerprint.Tracker();
@@ -218,6 +221,22 @@ public final class BuildingPluginState {
 
     public void setBuildConfirmPending(boolean buildConfirmPending) {
         this.buildConfirmPending = buildConfirmPending;
+    }
+
+    public DistrictPreviewJob getDistrictPreviewJob() {
+        return districtPreviewJob;
+    }
+
+    public void setDistrictPreviewJob(DistrictPreviewJob districtPreviewJob) {
+        this.districtPreviewJob = districtPreviewJob;
+    }
+
+    public boolean isDistrictPreviewBuildConfirmPending() {
+        return districtPreviewBuildConfirmPending;
+    }
+
+    public void setDistrictPreviewBuildConfirmPending(boolean districtPreviewBuildConfirmPending) {
+        this.districtPreviewBuildConfirmPending = districtPreviewBuildConfirmPending;
     }
 
     public String getProjectStatus() {

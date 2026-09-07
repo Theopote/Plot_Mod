@@ -50,10 +50,24 @@ public final class BuildingToolbarPanel {
         }
 
         if (!ctx.projectStatus().isEmpty()) {
-            ImGui.textColored(PluginUiColors.STATUS_OK, ctx.projectStatus());
+            ImGui.textColored(
+                ctx.isDistrictPreviewBusy() ? PluginUiColors.STATUS_INFO : PluginUiColors.STATUS_OK,
+                ctx.projectStatus());
         }
+        renderDistrictPreviewControls();
         ImGui.separator();
     }
+
+    private void renderDistrictPreviewControls() {
+        if (!ctx.isDistrictPreviewBusy()) {
+            return;
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.building.cancel_district_preview"), 0, 0)) {
+            ctx.cancelDistrictPreviewJob();
+            ctx.setProjectStatus(PlotI18n.tr("plugin.building.district_preview_cancelled"));
+        }
+    }
+
     private void renderActivePlacementControls() {
         com.plot.api.world.IBlockPlacementService scheduler = ctx.host().placement();
         if (!scheduler.isBusy()) {

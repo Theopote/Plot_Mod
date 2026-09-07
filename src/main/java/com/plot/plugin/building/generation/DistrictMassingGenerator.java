@@ -38,45 +38,63 @@ public final class DistrictMassingGenerator {
             if (building == null) {
                 continue;
             }
-            BuildingFootprintValidator.Result validation =
-                BuildingFootprintValidator.validate(building.getOuterPoints());
-            if (!validation.valid()) {
-                district.addSkipped(
-                    building,
-                    DistrictGenerationResult.SkipReason.INVALID,
-                    validation.reason() != null ? validation.reason().name() : null);
-                continue;
-            }
-            try {
-                BuildingGenerationResult result = generateFn.generate(building);
-                if (result != null && result.skippedDueToSiteAnalysis) {
-                    district.addSkipped(
-                        building,
-                        DistrictGenerationResult.SkipReason.SITE_ANALYSIS_FAILED,
-                        null);
-                    continue;
-                }
-                if (result == null || result.placementRecords.isEmpty()) {
-                    district.addSkipped(
-                        building,
-                        DistrictGenerationResult.SkipReason.EMPTY,
-                        null);
-                    continue;
-                }
-                district.addSuccess(building, result);
-            } catch (Exception e) {
-                LOGGER.warn(
-                    "District massing skipped building {} ({}): {}",
-                    building.getId(),
-                    building.getName(),
-                    e.getMessage());
-                district.addSkipped(
-                    building,
-                    DistrictGenerationResult.SkipReason.ERROR,
-                    e.getMessage());
-            }
+            processOne(building, generateFn, district);
         }
         district.finalizeOverlaps();
         return district;
+    }
+    public static void processOne(
+            BuildingFootprint building,
+            BuildingGenerateFn generateFn,
+            DistrictGenerationResult district) {
+        Objects.requireNonNull(generateFn, "generateFn");
+        Objects.requireNonNull(district, "district");
+        if (building == null) {
+            return;
+        }
+        BuildingFootprintValidator.Result validation =
+            BuildingFootprintValidator.validate(building.getOuterPoints());
+        if (!validation.valid()) {
+            district.addSkipped(
+                building,
+                DistrictGenerationResult.SkipReason.INVALID,
+                validation.reason() != null ? validation.reason().name() : null);
+            return;
+        }
+        try {
+            BuildingGenerationResult result = generateFn.generate(building);
+            if (result != null && result.skippedDueToSiteAnalysis) {
+                district.addSkipped(
+                    building,
+                    DistrictGenerationResult.SkipReason.SITE_ANALYSIS_FAILED,
+                    null);
+                return;
+            }
+            if (result == null || result.placementRecords.isEmpty()) {
+                district.addSkipped(
+                    building,
+                    DistrictGenerationResult.SkipReason.EMPTY,
+                    null);
+                return;
+            }
+            district.addSuccess(building, result);
+        } catch (Exception e) {
+            LOGGER.warn(
+                "District massing skipped building {} ({}): {}",
+                building.getId(),
+                building.getName(),
+                e.getMessage());
+            district.addSkipped(
+                building,
+                DistrictGenerationResult.SkipReason.ERROR,
+                e.getMessage());
+        }
+    }
+
+    /** 片区分帧 job 完成后调用（与 {@link #generate} 末尾一致）。 */
+    public static void finalizeResult(DistrictGenerationResult district) {
+        if (district != null) {
+            district.finalizeOverlaps();
+        }
     }
 }

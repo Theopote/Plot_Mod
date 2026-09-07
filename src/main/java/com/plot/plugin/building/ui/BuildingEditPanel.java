@@ -360,8 +360,8 @@ public final class BuildingEditPanel {
                         status.resolvedElevation(),
                         status.zoneName()));
                 } else {
-                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                        "plugin.building.earthwork_pad_linked_pending",
+                    ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                        "plugin.building.earthwork_pad_unresolved_using_terrain",
                         status.zoneName()));
                 }
             }
