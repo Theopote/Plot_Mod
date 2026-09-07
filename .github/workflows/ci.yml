@@ -68,6 +68,32 @@ jobs:
           --tests "com.plot.plugin.building.*"
           --tests "com.plot.core.geometry.polygon.StraightSkeleton*"
 
+  # Road Stabilization：道路专项回归
+  road-suite:
+    name: Road test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Road model + generation + golden + topology
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2G"
+        run: >
+          ./gradlew test --no-daemon --stacktrace
+          --tests "com.plot.plugin.road.*"
+
   server-smoke:
     name: dedicated-server smoke
     runs-on: ubuntu-latest

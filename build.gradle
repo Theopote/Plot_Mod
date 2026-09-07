@@ -184,6 +184,8 @@ tasks.test {
 	useJUnitPlatform()
 	// Phase F：片区基准 D03–D05 可选开启
 	systemProperty "plot.district.benchmark", System.getProperty("plot.district.benchmark", "")
+	// Road Stabilization：N04–N05 可选开启
+	systemProperty "plot.road.benchmark", System.getProperty("plot.road.benchmark", "")
 }
 
 tasks.register("exportBuildingSmokeProject", Test) {
