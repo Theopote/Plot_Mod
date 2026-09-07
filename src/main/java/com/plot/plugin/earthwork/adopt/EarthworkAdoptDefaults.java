@@ -6,6 +6,8 @@ import com.plot.core.material.MaterialConversionModel;
 import com.plot.core.terrain.EngineeringTerrainSampler;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.geometry.EarthworkGeometryUtils;
+import com.plot.plugin.earthwork.material.EarthworkMaterialScope;
+import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -25,18 +27,32 @@ public final class EarthworkAdoptDefaults {
     public static void applyToNewRegion(
             GradingRegion region,
             EarthworkConfig config,
+            EarthworkSite site,
             World world,
             ICoordinateService transformer) {
         if (region == null || config == null) {
             return;
         }
+        if (site != null && EarthworkMaterialScope.usesDefaultMaterialModel(site)) {
+            site.setMaterialModel(config.getDefaultMaterialProperties());
+        }
         region.setAutoBalance(config.isAdoptDefaultAutoBalance());
-        region.setMaterialProperties(config.getDefaultMaterialProperties());
+        region.setMaterialProperties(MaterialConversionModel.DEFAULT);
         region.setPreviewGridSize(config.getPreviewGridSize());
         if (!region.isAutoBalance()) {
             region.setManualTargetElevation(
                 resolveInitialManualElevation(region.getOuterPoints(), world, transformer));
         }
+    }
+
+    /** @deprecated 请传入 {@link EarthworkSite}，以便首块认领时初始化场地材料模型。 */
+    @Deprecated
+    public static void applyToNewRegion(
+            GradingRegion region,
+            EarthworkConfig config,
+            World world,
+            ICoordinateService transformer) {
+        applyToNewRegion(region, config, null, world, transformer);
     }
 
     /**

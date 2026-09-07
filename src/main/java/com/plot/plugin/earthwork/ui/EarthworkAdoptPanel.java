@@ -160,6 +160,7 @@ public final class EarthworkAdoptPanel {
             EarthworkAdoptDefaults.applyToNewRegion(
                 region,
                 ctx.config(),
+                ctx.project().getActiveSite(),
                 getClientWorld(),
                 ctx.host().coordinates());
             ctx.project().addRegion(region);

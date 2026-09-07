@@ -3,7 +3,9 @@ package com.plot.plugin.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.api.geometry.Vec2d;
+import com.plot.core.material.MaterialConversionModel;
 import com.plot.plugin.earthwork.adopt.EarthworkAdoptDefaults;
+import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.GradingRegion;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -70,6 +72,25 @@ class EarthworkConfigTest {
     }
 
     @Test
+    void adoptDefaultsSeedsSiteAndRegionInheritsSiteMaterial() {
+        EarthworkConfig config = new EarthworkConfig("earthwork_balance");
+        config.setDefaultMaterialProperties(new MaterialConversionModel(0.75f, 0.85f));
+        EarthworkSite site = new EarthworkSite();
+        GradingRegion region = new GradingRegion(List.of(
+            new Vec2d(0, 0),
+            new Vec2d(10, 0),
+            new Vec2d(10, 10),
+            new Vec2d(0, 10)
+        ));
+
+        EarthworkAdoptDefaults.applyToNewRegion(region, config, site, null, null);
+
+        assertEquals(0.75f, site.getMaterialModel().reusableRatio(), 1e-6f);
+        assertTrue(region.usesSiteMaterialDefault());
+        assertEquals(0.75f, region.resolveMaterialModel(site.getMaterialModel()).reusableRatio(), 1e-6f);
+    }
+
+    @Test
     void adoptDefaultsUsesTerrainFallbackWithoutWorld() {
         GradingRegion region = new GradingRegion(List.of(
             new Vec2d(0, 0),
@@ -80,7 +101,7 @@ class EarthworkConfigTest {
         EarthworkConfig config = new EarthworkConfig("earthwork_balance");
         config.setAdoptDefaultAutoBalance(false);
 
-        EarthworkAdoptDefaults.applyToNewRegion(region, config, null, null);
+        EarthworkAdoptDefaults.applyToNewRegion(region, config, new EarthworkSite(), null, null);
 
         assertFalse(region.isAutoBalance());
         assertEquals(64, region.getManualTargetElevation());

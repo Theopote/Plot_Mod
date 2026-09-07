@@ -1,6 +1,6 @@
 package com.plot.plugin.earthwork.ui;
 
-import com.plot.core.material.MaterialConversionModel;
+import com.plot.plugin.earthwork.material.EarthworkMaterialScope;
 import com.plot.plugin.earthwork.*;
 import com.plot.plugin.earthwork.grading.ZoneOverlapAnalyzer;
 import com.plot.plugin.earthwork.model.*;
@@ -259,19 +259,15 @@ public final class EarthworkOverviewPanel {
             EarthworkUiWidgets.textWrappedSafe(PlotI18n.tr("plugin.earthwork.learn.why_conversion_body"));
             ImGui.treePop();
         }
-        EarthworkUiWidgets.renderMaterialConversionSliders(ctx, site.getMaterialModel(), updated -> {
-            site.setMaterialModel(updated);
-            ctx.config().setDefaultMaterialProperties(updated);
-            ctx.config().save();
-            ctx.invalidatePreview();
-        });
+        EarthworkUiWidgets.renderMaterialConversionSliders(ctx, site.getMaterialModel(), updated ->
+            EarthworkMaterialScope.updateSiteMaterial(ctx, site, updated));
         if (ImGui.button(PlotI18n.tr("plugin.earthwork.apply_site_material_to_regions"), 0, 0)) {
             ctx.projectHistory().push(ctx.project());
-            MaterialConversionModel siteModel = site.getMaterialModel();
-            for (GradingRegion region : ctx.project().getRegions().values()) {
-                region.setMaterialProperties(siteModel);
-            }
-            ctx.invalidatePreview();
+            EarthworkMaterialScope.applySiteMaterialToAllRegions(ctx, ctx.project(), site);
+        }
+        if (ImGui.button(PlotI18n.tr("plugin.earthwork.save_site_material_as_adopt_default"), 0, 0)) {
+            EarthworkMaterialScope.promoteSiteMaterialToAdoptDefault(ctx, site);
+            ctx.setProjectStatus(PlotI18n.tr("plugin.earthwork.adopt_default_material_saved"));
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.site_material_model");
         ImGui.separator();

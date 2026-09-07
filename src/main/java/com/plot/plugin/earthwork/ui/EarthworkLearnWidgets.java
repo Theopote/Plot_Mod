@@ -1,8 +1,8 @@
 package com.plot.plugin.earthwork.ui;
 
 import com.plot.core.material.MaterialConversionModel;
+import com.plot.plugin.earthwork.material.EarthworkMaterialScope;
 import com.plot.plugin.earthwork.model.EarthworkSite;
-import com.plot.plugin.earthwork.model.GradingRegion;
 import com.plot.plugin.earthwork.volume.EarthworkLearnLesson;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.ui.PluginUiColors;
@@ -69,12 +69,6 @@ public final class EarthworkLearnWidgets {
             return;
         }
         ctx.projectHistory().push(ctx.project());
-        site.setMaterialModel(model);
-        ctx.config().setDefaultMaterialProperties(model);
-        ctx.config().save();
-        for (GradingRegion region : ctx.project().getRegions().values()) {
-            region.setMaterialProperties(model);
-        }
-        ctx.recalculatePreview();
+        EarthworkMaterialScope.applyExampleToProject(ctx, ctx.project(), site, model);
     }
 }
