@@ -1,8 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
 import com.plot.core.context.PluginContext;
-import com.plot.core.model.Shape;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
@@ -61,8 +61,8 @@ public final class PowerLineUiContext {
         return state.getSelection();
     }
 
-    public List<Shape> selectedPaths() {
-        return state.getSelectedPaths();
+    public PowerLinePathSelectionAnalysis pathSelection() {
+        return state.getPathSelection();
     }
 
     public PowerLineGenerationResult lastGenerationResult() {

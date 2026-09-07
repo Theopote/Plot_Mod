@@ -1,8 +1,8 @@
 package com.plot.plugin.powerline.ui;
 
-import com.plot.core.model.Shape;
 import com.plot.core.persistence.ContentFingerprint;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineSelectionSet;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineProject;
@@ -18,7 +18,7 @@ public final class PowerLinePluginState {
     private PowerLineDesignProject designProject = new PowerLineDesignProject();
     private final PowerLineProjectHistory projectHistory = new PowerLineProjectHistory();
     private final PowerLineSelectionSet selection = new PowerLineSelectionSet();
-    private final List<Shape> selectedPaths = new ArrayList<>();
+    private PowerLinePathSelectionAnalysis pathSelection = PowerLinePathSelectionAnalysis.EMPTY;
 
     private volatile PowerLineGenerationResult lastGenerationResult;
     private PowerLinePreviewKey previewKey;
@@ -81,8 +81,12 @@ public final class PowerLinePluginState {
         return selection;
     }
 
-    public List<Shape> getSelectedPaths() {
-        return selectedPaths;
+    public PowerLinePathSelectionAnalysis getPathSelection() {
+        return pathSelection;
+    }
+
+    public void setPathSelection(PowerLinePathSelectionAnalysis pathSelection) {
+        this.pathSelection = pathSelection != null ? pathSelection : PowerLinePathSelectionAnalysis.EMPTY;
     }
 
     public PowerLineGenerationResult getLastGenerationResult() {

@@ -47,16 +47,11 @@ public final class PowerLinePathUtils {
         return points;
     }
 
+    public static PowerLinePathSelectionAnalysis analyzeSelection(List<Shape> shapes) {
+        return PowerLinePathSelectionAnalysis.analyze(shapes);
+    }
+
     public static List<Shape> findAdoptableLines(List<Shape> shapes) {
-        if (shapes == null || shapes.isEmpty()) {
-            return List.of();
-        }
-        List<Shape> result = new ArrayList<>();
-        for (Shape shape : shapes) {
-            if (isAdoptableLine(shape)) {
-                result.add(shape);
-            }
-        }
-        return result;
+        return analyzeSelection(shapes).adoptable();
     }
 }

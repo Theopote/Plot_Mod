@@ -10,6 +10,7 @@ import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
+import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
@@ -53,33 +54,33 @@ public final class PowerLineActions {
     }
 
     public void updateSelectedPaths() {
-        state.getSelectedPaths().clear();
-        state.getSelectedPaths().addAll(
-            PowerLinePathUtils.findAdoptableLines(host.appState().getSelectedShapes()));
+        state.setPathSelection(PowerLinePathUtils.analyzeSelection(
+            host.appState().getSelectedShapes()));
     }
 
     public void adoptSelectedPaths() {
-        if (state.getSelectedPaths().isEmpty()) {
+        PowerLinePathSelectionAnalysis selection = PowerLinePathUtils.analyzeSelection(
+            host.appState().getSelectedShapes());
+        state.setPathSelection(selection);
+
+        if (!selection.hasCanvasSelection()) {
             state.setProjectStatus(PlotI18n.tr("plugin.powerline.adopt_no_selection"));
+            return;
+        }
+        if (!selection.canAdopt()) {
+            state.setProjectStatus(selection.rejectedCurves().isEmpty()
+                ? PlotI18n.tr("plugin.powerline.adopt_no_selection")
+                : PlotI18n.tr("plugin.powerline.adopt_reject_curve"));
             return;
         }
 
         state.getProjectHistory().push(state.getProject());
         int adopted = 0;
-        int skipped = 0;
+        int skipped = selection.skippedCount();
         List<String> adoptedIds = new ArrayList<>();
-        boolean curveRejected = false;
+        boolean curveRejected = !selection.rejectedCurves().isEmpty();
 
-        for (Shape shape : state.getSelectedPaths()) {
-            if (PowerLinePathUtils.isRejectedCurve(shape)) {
-                skipped++;
-                curveRejected = true;
-                continue;
-            }
-            if (!PowerLinePathUtils.isAdoptableLine(shape)) {
-                skipped++;
-                continue;
-            }
+        for (Shape shape : selection.adoptable()) {
             try {
                 List<Vec2d> points = PowerLinePathUtils.extractPathPoints(shape);
                 PowerLineFootprint line = new PowerLineFootprint(points);
@@ -92,7 +93,7 @@ public final class PowerLineActions {
             }
         }
 
-        state.getSelectedPaths().clear();
+        state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
         if (adopted > 0) {
             state.getSelection().selectAll(adoptedIds);
             invalidatePreview();
@@ -431,7 +432,7 @@ public final class PowerLineActions {
 
     private void resetAfterProjectLoad() {
         state.setLineNameEditingId("");
-        state.getSelectedPaths().clear();
+        state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
         state.setPoleDesignerOpen(false);
         state.setPoleDesignerEditingId("");
         invalidatePreview();
@@ -501,7 +502,7 @@ public final class PowerLineActions {
         if (!(selectTool instanceof BaseTool baseTool)) {
             return;
         }
-        state.getSelectedPaths().clear();
+        state.setPathSelection(PowerLinePathSelectionAnalysis.EMPTY);
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.pick_started"));
