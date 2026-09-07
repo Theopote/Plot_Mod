@@ -559,10 +559,28 @@ public final class PowerLineActions {
         LineEngineeringReport report = com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer
             .analyze(result.toGeometryModel(), terrain, profile);
         state.getEngineeringState().setLastEngineeringReport(report);
+        state.getEngineeringState().setLastAnalyzedFootprintId(line.getId());
         return report;
     }
 
-    public OptimizationResult proposeOptimization(PowerLineFootprint line) {
+    public OptimizationResult proposeAutoTowerSelection(PowerLineFootprint line) {
+        if (line == null || !line.isAutomaticTowerSelectionEnabled()) {
+            return null;
+        }
+        if (!hasValidPreview(line) && !calculatePreview(line)) {
+            return null;
+        }
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (result == null) {
+            return null;
+        }
+        OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer
+            .propose(result, line, designResolver());
+        state.getEngineeringState().setPendingOptimization(optimization);
+        return optimization;
+    }
+
+    public OptimizationResult proposeClearanceFix(PowerLineFootprint line) {
         LineEngineeringReport report = state.getEngineeringState().getLastEngineeringReport();
         if (report == null) {
             report = analyzeEngineering(line);
@@ -571,12 +589,19 @@ public final class PowerLineActions {
             return null;
         }
         PowerLineGenerationResult result = state.getLastGenerationResult();
-        com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites sites =
-            result != null
-                ? new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
-                    result.poleSites)
-                : new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
-                    com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line));
+        com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites sites;
+        if (result != null) {
+            java.util.List<String> resolvedIds = new java.util.ArrayList<>();
+            for (var placement : result.polePlacements) {
+                resolvedIds.add(placement.resolvedDesignId());
+            }
+            sites = new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
+                result.poleSites,
+                resolvedIds);
+        } else {
+            sites = new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
+                com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line));
+        }
         com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
             new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
                 .find(line.effectiveEngineeringProfileId());
@@ -584,6 +609,10 @@ public final class PowerLineActions {
             .propose(report, sites, line, profile, designResolver());
         state.getEngineeringState().setPendingOptimization(optimization);
         return optimization;
+    }
+
+    public OptimizationResult proposeOptimization(PowerLineFootprint line) {
+        return proposeClearanceFix(line);
     }
 
     public void applyPendingOptimization(PowerLineFootprint line) {

@@ -1,12 +1,10 @@
 package com.plot.plugin.powerline.engineering.optimization;
 
-import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.family.TowerFamily;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
 import com.plot.plugin.powerline.engineering.EngineeringRuleIds;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfile;
-import com.plot.plugin.powerline.engineering.TowerEngineeringMetadata;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.engineering.analysis.SpanAnalysis;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
@@ -14,7 +12,6 @@ import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
-import com.plot.plugin.powerline.model.TowerRole;
 
 /** 基于工程报告提出优化方案（不自动应用）。 */
 public final class LineOptimizationEngine {
@@ -102,10 +99,12 @@ public final class LineOptimizationEngine {
         OptimizationAction action = new OptimizationAction();
         action.setType(OptimizationActionType.SELECT_TALLER_TOWER);
         action.setPoleSiteId(site.getId());
+        action.setPoleIndex(indexOf(sites.sites, site) + 1);
         action.setStationing(site.getStationing());
         action.setSpanId(span.getId());
+        action.setCurrentDesignId(currentDesignId(site, sites));
         action.setProposedDesignId(selection.getSelectedDesignId());
-        action.setMessage("Select taller tower to improve ground clearance");
+        action.setMessage("clearance");
         result.addAction(action);
         result.setEstimatedErrorsResolved(result.getEstimatedErrorsResolved() + 1);
     }
@@ -113,9 +112,25 @@ public final class LineOptimizationEngine {
     /** 优化器使用的站点索引（避免循环依赖 geometry 包）。 */
     public static final class PowerLineGeometrySites {
         private final java.util.List<PowerPoleSite> sites;
+        private final java.util.List<String> resolvedDesignIds;
 
         public PowerLineGeometrySites(java.util.List<PowerPoleSite> sites) {
+            this(sites, java.util.List.of());
+        }
+
+        public PowerLineGeometrySites(
+                java.util.List<PowerPoleSite> sites,
+                java.util.List<String> resolvedDesignIds) {
             this.sites = sites != null ? sites : java.util.List.of();
+            this.resolvedDesignIds = resolvedDesignIds != null ? resolvedDesignIds : java.util.List.of();
+        }
+
+        public java.util.List<PowerPoleSite> sites() {
+            return sites;
+        }
+
+        public String resolvedDesignId(int index) {
+            return index >= 0 && index < resolvedDesignIds.size() ? resolvedDesignIds.get(index) : null;
         }
 
         public PowerPoleSite findNearest(double stationing) {
@@ -130,5 +145,22 @@ public final class LineOptimizationEngine {
             }
             return best;
         }
+    }
+
+    private static int indexOf(java.util.List<PowerPoleSite> sites, PowerPoleSite site) {
+        for (int i = 0; i < sites.size(); i++) {
+            if (sites.get(i) == site || sites.get(i).getId().equals(site.getId())) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static String currentDesignId(PowerPoleSite site, PowerLineGeometrySites sites) {
+        if (site.getPoleDesignOverrideId() != null) {
+            return site.getPoleDesignOverrideId();
+        }
+        int index = indexOf(sites.sites, site);
+        return sites.resolvedDesignId(index);
     }
 }

@@ -4,6 +4,7 @@ package com.plot.plugin.powerline.engineering.optimization;
 public class OptimizationAction {
     private OptimizationActionType type;
     private String poleSiteId;
+    private int poleIndex;
     private double stationing;
     private String spanId;
     private String currentDesignId;
@@ -24,6 +25,14 @@ public class OptimizationAction {
 
     public void setPoleSiteId(String poleSiteId) {
         this.poleSiteId = poleSiteId;
+    }
+
+    public int getPoleIndex() {
+        return poleIndex;
+    }
+
+    public void setPoleIndex(int poleIndex) {
+        this.poleIndex = poleIndex;
     }
 
     public double getStationing() {

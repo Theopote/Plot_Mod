@@ -6,8 +6,10 @@ import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 /** 工程分析与会话状态扩展。 */
 public final class PowerLineEngineeringUiState {
     private LineEngineeringReport lastEngineeringReport;
+    private String lastAnalyzedFootprintId;
     private OptimizationResult pendingOptimization;
     private boolean optimizationConfirmPending;
+    private boolean overlayEnabled = true;
 
     public LineEngineeringReport getLastEngineeringReport() {
         return lastEngineeringReport;
@@ -15,6 +17,22 @@ public final class PowerLineEngineeringUiState {
 
     public void setLastEngineeringReport(LineEngineeringReport lastEngineeringReport) {
         this.lastEngineeringReport = lastEngineeringReport;
+    }
+
+    public String getLastAnalyzedFootprintId() {
+        return lastAnalyzedFootprintId;
+    }
+
+    public void setLastAnalyzedFootprintId(String lastAnalyzedFootprintId) {
+        this.lastAnalyzedFootprintId = lastAnalyzedFootprintId;
+    }
+
+    public boolean isOverlayEnabled() {
+        return overlayEnabled;
+    }
+
+    public void setOverlayEnabled(boolean overlayEnabled) {
+        this.overlayEnabled = overlayEnabled;
     }
 
     public OptimizationResult getPendingOptimization() {

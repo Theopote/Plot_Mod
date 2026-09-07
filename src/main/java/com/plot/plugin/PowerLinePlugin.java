@@ -6,10 +6,12 @@ import com.plot.infrastructure.event.project.ProjectLoadedEvent;
 import com.plot.infrastructure.event.project.ProjectSavedEvent;
 import com.plot.plugin.powerline.PowerLineGenerator;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
+import com.plot.plugin.powerline.ui.PowerLineEngineeringCanvasRenderer;
 import com.plot.plugin.powerline.ui.PowerLinePluginState;
 import com.plot.plugin.powerline.ui.PowerLineUiContext;
 import com.plot.plugin.powerline.ui.PowerLineUIManager;
 import com.plot.ui.component.ExtensionPanelIcons;
+import com.plot.ui.canvas.CanvasOverlayRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +31,22 @@ public class PowerLinePlugin extends Plugin {
 
     private PowerLineUiContext uiContext;
     private PowerLineUIManager uiManager;
+
+    private final CanvasOverlayRegistry.Overlay engineeringOverlay = (drawList, camera) -> {
+        if (uiContext == null) {
+            return;
+        }
+        synchronized (projectLock) {
+            var line = uiContext.selection().primary(uiContext.project());
+            if (line != null) {
+                PowerLineEngineeringCanvasRenderer.render(
+                    drawList,
+                    camera,
+                    uiContext.state(),
+                    line);
+            }
+        }
+    };
 
     private final EventListener projectLoadedListener = event -> {
         if (event instanceof ProjectLoadedEvent loaded) {
@@ -66,6 +84,7 @@ public class PowerLinePlugin extends Plugin {
 
         ctx().events().subscribe(this, ProjectLoadedEvent.class, projectLoadedListener);
         ctx().events().subscribe(this, ProjectSavedEvent.class, projectSavedListener);
+        CanvasOverlayRegistry.register(engineeringOverlay);
         loadProjectForCurrentProject();
     }
 
@@ -79,6 +98,7 @@ public class PowerLinePlugin extends Plugin {
 
     @Override
     public void onDisable() {
+        CanvasOverlayRegistry.unregister(engineeringOverlay);
         persistProject();
         try {
             ctx().events().unsubscribeOwner(this);

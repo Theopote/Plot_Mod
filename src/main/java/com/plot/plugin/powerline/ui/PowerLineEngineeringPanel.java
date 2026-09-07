@@ -1,5 +1,9 @@
 package com.plot.plugin.powerline.ui;
 
+import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.engineering.optimization.AutoTowerOptimizationProposer;
+import com.plot.plugin.powerline.engineering.optimization.OptimizationAction;
+import com.plot.plugin.powerline.engineering.optimization.OptimizationActionType;
 import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
 import com.plot.plugin.powerline.engineering.EngineeringSeverity;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
@@ -80,6 +84,10 @@ public final class PowerLineEngineeringPanel {
             line.setAutomaticTowerSelectionEnabled(!autoSelect);
             ctx.invalidatePreview();
         }
+        boolean overlay = ctx.state().getEngineeringState().isOverlayEnabled();
+        if (ImGui.checkbox(PlotI18n.tr("plugin.powerline.engineering.overlay"), overlay)) {
+            ctx.state().getEngineeringState().setOverlayEnabled(!overlay);
+        }
         ImGui.textColored(
             PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.powerline.engineering.disclaimer"));
@@ -92,12 +100,12 @@ public final class PowerLineEngineeringPanel {
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.engineering.auto_select_towers"), 0, 0)) {
-            ctx.actions().proposeOptimization(line);
+            ctx.actions().proposeAutoTowerSelection(line);
             ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
         }
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.engineering.fix_clearance"), 0, 0)) {
-            ctx.actions().proposeOptimization(line);
+            ctx.actions().proposeClearanceFix(line);
             ctx.state().getEngineeringState().setOptimizationConfirmPending(true);
         }
     }
@@ -148,10 +156,13 @@ public final class PowerLineEngineeringPanel {
         if (ImGui.beginPopupModal("##powerline_engineering_opt_confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
             var optimization = ctx.state().getEngineeringState().getPendingOptimization();
             ImGui.text(PlotI18n.tr("plugin.powerline.engineering.proposed_changes"));
-            if (optimization != null) {
-                for (var action : optimization.getActions()) {
-                    ImGui.textWrapped(action.getMessage() != null ? action.getMessage() : action.getType().name());
+            if (optimization != null && !optimization.getActions().isEmpty()) {
+                PoleDesignResolver resolver = ctx.designResolver();
+                for (OptimizationAction action : optimization.getActions()) {
+                    renderProposedAction(action, resolver);
                 }
+            } else {
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.powerline.engineering.no_changes"));
             }
             if (ImGui.button(PlotI18n.tr("button.plot.confirm"), 120, 0)) {
                 PowerLineFootprint line = ctx.selection().primary(ctx.project());
@@ -165,5 +176,27 @@ public final class PowerLineEngineeringPanel {
             }
             ImGui.endPopup();
         }
+    }
+
+    private void renderProposedAction(OptimizationAction action, PoleDesignResolver resolver) {
+        if (action.getType() == OptimizationActionType.INSERT_POLE) {
+            ImGui.textWrapped(PlotI18n.tr(
+                "plugin.powerline.engineering.proposal_insert_pole",
+                action.getStationing(),
+                action.getMessage() != null ? action.getMessage() : ""));
+            return;
+        }
+        if (action.getType() == OptimizationActionType.SELECT_TALLER_TOWER) {
+            String from = AutoTowerOptimizationProposer.designLabel(resolver, action.getCurrentDesignId());
+            String to = AutoTowerOptimizationProposer.designLabel(resolver, action.getProposedDesignId());
+            ImGui.textWrapped(PlotI18n.tr(
+                "plugin.powerline.engineering.proposal_tower_change",
+                action.getPoleIndex() > 0 ? action.getPoleIndex() : "?",
+                from,
+                to,
+                action.getMessage() != null ? action.getMessage() : ""));
+            return;
+        }
+        ImGui.textWrapped(action.getMessage() != null ? action.getMessage() : action.getType().name());
     }
 }

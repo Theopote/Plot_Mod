@@ -16,10 +16,15 @@ import com.plot.plugin.powerline.engineering.EngineeringRuleProfileCatalog;
 import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
 import com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer;
 import com.plot.plugin.powerline.engineering.clearance.ClearanceChecker;
+import com.plot.plugin.powerline.PoleFrame;
+import com.plot.plugin.powerline.PolePlacement;
+import com.plot.plugin.powerline.ResolvedAttachment;
+import com.plot.plugin.powerline.design.AttachmentRole;
 import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
 import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.geometry.ConductorSample;
 import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
+import com.plot.plugin.powerline.geometry.PowerLineGeometryModel;
 import com.plot.plugin.powerline.model.PowerLineDesignProject;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
@@ -201,6 +206,55 @@ class PowerLineEngineeringTest {
         context.setOutgoingSpan(40);
         var assignment = assignmentResolver.resolve(middle, line, context);
         assertEquals(TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID, assignment.resolvedDesignId());
+    }
+
+    @Test
+    void threePhaseSpacingViolationReported() {
+        PowerPoleSite site = new PowerPoleSite("pole-1", new Vec2d(0, 0));
+        site.setRole(TowerRole.SUSPENSION);
+        PoleFrame frame = PoleFrame.fromPole(site.getPlanPosition(), new Vec2d(1, 0), 64);
+        ResolvedAttachment phaseA = attachment("a", AttachmentRole.PHASE_A, frame, -0.5);
+        ResolvedAttachment phaseB = attachment("b", AttachmentRole.PHASE_B, frame, 0.0);
+        ResolvedAttachment phaseC = attachment("c", AttachmentRole.PHASE_C, frame, 0.5);
+        PolePlacement placement = new PolePlacement(
+            site.getPlanPosition(),
+            frame,
+            null,
+            List.of(phaseA, phaseB, phaseC),
+            80,
+            true,
+            TowerRole.SUSPENSION,
+            "preset/test",
+            0.0);
+
+        PowerLineGeometryModel geometry = new PowerLineGeometryModel();
+        geometry.setSites(List.of(site));
+        geometry.setPlacements(List.of(placement));
+
+        EngineeringRuleProfile profile = EngineeringRuleProfileCatalog.genericPlanning();
+        profile.getClearance().setMinimumConductorSeparation(2.0);
+        LineEngineeringReport report = PowerLineEngineeringAnalyzer.analyze(geometry, flatTerrain(64), profile);
+        assertTrue(report.getIssues().stream()
+            .anyMatch(i -> EngineeringRuleIds.CONDUCTOR_SEPARATION_PHASE.equals(i.ruleId())));
+    }
+
+    private static ResolvedAttachment attachment(
+            String id,
+            AttachmentRole role,
+            PoleFrame frame,
+            double lateralOffset) {
+        Vec2d plan = frame.toPlanPoint(lateralOffset, 0);
+        return new ResolvedAttachment(
+            id,
+            id,
+            role,
+            plan,
+            plan.x,
+            80,
+            plan.y,
+            78,
+            null,
+            2);
     }
 
     @Test
