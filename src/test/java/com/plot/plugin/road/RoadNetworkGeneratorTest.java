@@ -3,14 +3,20 @@ package com.plot.plugin.road;
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.Road;
+import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
+import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
+import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadNetworkGeneratorTest {
 
@@ -49,5 +55,36 @@ class RoadNetworkGeneratorTest {
         assertEquals(
             "minecraft:oak_planks",
             RoadGenerationResultAssembler.resolveJunctionMaterial(junction, network, config, true));
+    }
+
+    @Test
+    void shouldGenerateJunctionReturnsFalseWhenConnectedEdgeFailed() {
+        RoadNetwork network = new RoadNetwork();
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode north = network.createNode(new Vec2d(0, 10));
+        RoadNode east = network.createNode(new Vec2d(10, 0));
+        RoadNode west = network.createNode(new Vec2d(-10, 0));
+
+        network.createEdge(junction.getId(), north.getId(), List.of(new Vec2d(0, 0), new Vec2d(0, 10)));
+        RoadEdge eastEdge = network.createEdge(
+            junction.getId(), east.getId(), List.of(new Vec2d(0, 0), new Vec2d(10, 0)));
+        network.createEdge(junction.getId(), west.getId(), List.of(new Vec2d(0, 0), new Vec2d(-10, 0)));
+
+        assertTrue(RoadNetworkGenerator.shouldGenerateJunction(junction, Set.of()));
+        assertFalse(RoadNetworkGenerator.shouldGenerateJunction(junction, Set.of(eastEdge.getId())));
+    }
+
+    @Test
+    void networkResultSeparatesFailedEdgesFromSuccessfulGeometry() {
+        var networkResult = new RoadNetworkGenerator.NetworkGenerationResult();
+        networkResult.recordEdgeOutcome("ok", EdgeGenerationResult.success(new com.plot.plugin.road.solid.RoadGenerationResult(10)));
+        networkResult.recordEdgeOutcome("bad", EdgeGenerationResult.failed("boom"));
+
+        assertEquals(1, networkResult.getEdgeResults().size());
+        assertTrue(networkResult.getFailedEdgeIds().contains("bad"));
+        assertEquals(1, networkResult.successEdgeCount());
+        assertEquals(2, networkResult.totalEdgeCount());
+        assertTrue(networkResult.hasPartialFailure());
+        assertEquals(1, networkResult.getErrors().size());
     }
 }

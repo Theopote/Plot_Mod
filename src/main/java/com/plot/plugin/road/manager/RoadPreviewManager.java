@@ -35,6 +35,7 @@ public final class RoadPreviewManager {
     private RoadNetwork previewNetwork;
     private Map<String, RoadGenerationResult> lastEdgeResults = Collections.emptyMap();
     private Map<String, Integer> lastNodeElevations = Collections.emptyMap();
+    private RoadNetworkGenerator.NetworkGenerationResult lastNetworkGenerationResult;
     private long terrainRevision = 0L;
 
     public RoadPreviewManager(RoadProjectStatus status, PluginContext host) {
@@ -72,6 +73,10 @@ public final class RoadPreviewManager {
 
     public Map<String, RoadGenerationResult> getLastEdgeResults() {
         return lastEdgeResults;
+    }
+
+    public RoadNetworkGenerator.NetworkGenerationResult getLastNetworkGenerationResult() {
+        return lastNetworkGenerationResult;
     }
 
     public RoadGenerationResult getLastEdgeResult(String edgeId) {
@@ -112,12 +117,14 @@ public final class RoadPreviewManager {
             previewNetwork = network;
             lastEdgeResults = new LinkedHashMap<>(previewResult.edgeResults());
             lastNodeElevations = new LinkedHashMap<>(previewResult.nodeElevations());
+            lastNetworkGenerationResult = previewResult.networkResult();
             bumpTerrainRevision();
         } catch (RuntimeException e) {
             lastGenerationResult = null;
             previewNetwork = null;
             lastEdgeResults = Collections.emptyMap();
             lastNodeElevations = Collections.emptyMap();
+            lastNetworkGenerationResult = null;
             status.error(PlotI18n.tr("plugin.road.generate_preview_failed"));
             LOGGER.error("计算路网预览失败: {}", e.getMessage(), e);
             return false;
@@ -146,6 +153,15 @@ public final class RoadPreviewManager {
     private void applyPreviewReadyStatus() {
         StringBuilder message = new StringBuilder(PlotI18n.tr("plugin.road.generate_preview_ready"));
         RoadStatus.Severity severity = RoadStatus.Severity.SUCCESS;
+        if (lastNetworkGenerationResult != null && lastNetworkGenerationResult.hasPartialFailure()) {
+            message.append(" — ").append(PlotI18n.tr(
+                "plugin.road.generate_partial_failure",
+                lastNetworkGenerationResult.successEdgeCount(),
+                lastNetworkGenerationResult.totalEdgeCount(),
+                lastNetworkGenerationResult.getFailedEdgeIds().size(),
+                lastNetworkGenerationResult.getSkippedJunctionIds().size()));
+            severity = RoadStatus.Severity.WARNING;
+        }
         if (lastGenerationResult != null && lastGenerationResult.droppedSolidCount > 0) {
             message.append(" — ").append(PlotI18n.tr(
                 "plugin.road.generate_dropped_solids",
@@ -193,6 +209,7 @@ public final class RoadPreviewManager {
         }
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
+        lastNetworkGenerationResult = null;
         lastGenerationResult = null;
         previewNetwork = null;
     }
@@ -212,6 +229,7 @@ public final class RoadPreviewManager {
         boolean hadPreview = lastGenerationResult != null || !lastEdgeResults.isEmpty();
         lastEdgeResults = Collections.emptyMap();
         lastNodeElevations = Collections.emptyMap();
+        lastNetworkGenerationResult = null;
         lastGenerationResult = null;
         previewNetwork = null;
         clearGhostBlocksSafely();

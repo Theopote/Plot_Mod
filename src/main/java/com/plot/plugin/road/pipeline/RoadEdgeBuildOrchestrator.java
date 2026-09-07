@@ -38,7 +38,7 @@ public final class RoadEdgeBuildOrchestrator {
         this.profileSolve = profileSolve;
     }
 
-    public RoadGenerationResult generateEdge(
+    public EdgeGenerationResult generateEdge(
             RoadNetwork network,
             RoadEdge edge,
             RoadNode startNode,
@@ -48,7 +48,7 @@ public final class RoadEdgeBuildOrchestrator {
             RoadGenerationPipelineHost host) {
         if (edge == null || terrain == null) {
             LOGGER.warn("道路边或地形为空，无法生成");
-            return new RoadGenerationResult(0);
+            return EdgeGenerationResult.skipped("edge or terrain is null");
         }
 
         List<Vec2d> pathPoints = RoadPlanGeometry.resolveEdgeCenterline(
@@ -57,7 +57,7 @@ public final class RoadEdgeBuildOrchestrator {
             host.config().getPathSampleDistance());
         if (pathPoints.size() < 2) {
             LOGGER.warn("道路中心线点数不足");
-            return new RoadGenerationResult(0);
+            return EdgeGenerationResult.skipped("centerline has fewer than 2 points");
         }
 
         try {
@@ -87,10 +87,10 @@ public final class RoadEdgeBuildOrchestrator {
                 host);
             result.edgeId = edge.getId();
             result.copyProfileFrom(RoadProfileSolver.toProfileSnapshot(heightCalculation));
-            return result;
+            return EdgeGenerationResult.success(result);
         } catch (Exception e) {
             LOGGER.error("生成道路边失败: {}", e.getMessage(), e);
-            return new RoadGenerationResult(0);
+            return EdgeGenerationResult.failed(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         }
     }
 

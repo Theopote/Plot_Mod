@@ -1663,6 +1663,7 @@
   "plugin.road.generate_empty_result": "No placeable blocks were generated. Check road parameters or path.",
   "plugin.road.generate_preview_failed": "Failed to calculate the road preview. Check the road data and logs.",
   "plugin.road.generate_preview_ready": "Preview generated. You can project or build now.",
+  "plugin.road.generate_partial_failure": "%d / %d edges succeeded, %d failed, %d junction(s) skipped",
   "plugin.road.preview_invalidated": "Road network changed; preview cleared. Recalculate preview.",
   "plugin.road.default_params_scope_hint": "Defaults for newly adopted roads. Values are snapshotted onto each road at adopt time; changing these later does not affect roads already adopted. Edit existing roads under the Edit tab.",
   "plugin.road.generation_settings": "Global generation settings",

@@ -1,5 +1,7 @@
 package com.plot.plugin.road;
 
+import com.plot.plugin.road.pipeline.EdgeGenerationOutcome;
+import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationResultAssembler;
 import com.plot.plugin.road.solid.RoadGenerationResult;
 import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
@@ -13,9 +15,13 @@ import org.slf4j.LoggerFactory;
 
 import com.plot.plugin.road.terrain.TerrainSampler;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 路网级道路生成入口
@@ -24,12 +30,22 @@ public class RoadNetworkGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/RoadNetworkGenerator");
 
     /**
-     * 路网生成结果：边与路口分域存储
+     * 路网生成结果：边与路口分域存储，并区分成功 / 跳过 / 失败。
      */
     public static class NetworkGenerationResult {
+        private final Map<String, EdgeGenerationResult> edgeOutcomes = new LinkedHashMap<>();
         private final Map<String, RoadGenerationResult> edgeResults = new LinkedHashMap<>();
         private final Map<String, RoadJunctionGenerator.JunctionBlocks> junctionResults = new LinkedHashMap<>();
+        private final Set<String> failedEdgeIds = new LinkedHashSet<>();
+        private final Set<String> skippedEdgeIds = new LinkedHashSet<>();
+        private final Set<String> skippedJunctionIds = new LinkedHashSet<>();
+        private final List<String> warnings = new ArrayList<>();
+        private final List<String> errors = new ArrayList<>();
         private Map<String, Integer> nodeElevations = Map.of();
+
+        public Map<String, EdgeGenerationResult> getEdgeOutcomes() {
+            return Collections.unmodifiableMap(edgeOutcomes);
+        }
 
         public Map<String, RoadGenerationResult> getEdgeResults() {
             return Collections.unmodifiableMap(edgeResults);
@@ -37,6 +53,26 @@ public class RoadNetworkGenerator {
 
         public Map<String, RoadJunctionGenerator.JunctionBlocks> getJunctionResults() {
             return Collections.unmodifiableMap(junctionResults);
+        }
+
+        public Set<String> getFailedEdgeIds() {
+            return Collections.unmodifiableSet(failedEdgeIds);
+        }
+
+        public Set<String> getSkippedEdgeIds() {
+            return Collections.unmodifiableSet(skippedEdgeIds);
+        }
+
+        public Set<String> getSkippedJunctionIds() {
+            return Collections.unmodifiableSet(skippedJunctionIds);
+        }
+
+        public List<String> getWarnings() {
+            return Collections.unmodifiableList(warnings);
+        }
+
+        public List<String> getErrors() {
+            return Collections.unmodifiableList(errors);
         }
 
         public Map<String, Integer> getNodeElevations() {
@@ -47,6 +83,50 @@ public class RoadNetworkGenerator {
             this.nodeElevations = nodeElevations != null
                 ? Collections.unmodifiableMap(nodeElevations)
                 : Map.of();
+        }
+
+        void recordEdgeOutcome(String edgeId, EdgeGenerationResult outcome) {
+            if (edgeId == null || outcome == null) {
+                return;
+            }
+            edgeOutcomes.put(edgeId, outcome);
+            switch (outcome.outcome()) {
+                case SUCCESS -> edgeResults.put(edgeId, outcome.geometry());
+                case SKIPPED -> {
+                    skippedEdgeIds.add(edgeId);
+                    if (!outcome.message().isBlank()) {
+                        warnings.add("edge " + edgeId + ": " + outcome.message());
+                    }
+                }
+                case FAILED -> {
+                    failedEdgeIds.add(edgeId);
+                    errors.add("edge " + edgeId + ": " + outcome.message());
+                }
+            }
+        }
+
+        void recordSkippedJunction(String nodeId, String reason) {
+            if (nodeId == null) {
+                return;
+            }
+            skippedJunctionIds.add(nodeId);
+            if (reason != null && !reason.isBlank()) {
+                warnings.add("junction " + nodeId + ": " + reason);
+            }
+        }
+
+        public int successEdgeCount() {
+            return (int) edgeOutcomes.values().stream()
+                .filter(EdgeGenerationResult::isSuccess)
+                .count();
+        }
+
+        public int totalEdgeCount() {
+            return edgeOutcomes.size();
+        }
+
+        public boolean hasPartialFailure() {
+            return !failedEdgeIds.isEmpty() || !skippedEdgeIds.isEmpty() || !skippedJunctionIds.isEmpty();
         }
 
         public boolean isEmpty() {
@@ -75,22 +155,27 @@ public class RoadNetworkGenerator {
         if (synchronizedRoads > 0) {
             LOGGER.debug("生成前已同步 {} 条道路的设计平面线形到派生中心线", synchronizedRoads);
         }
-        // 第一遍：决议全网节点统一标高，消除路口台阶
         Map<String, Integer> nodeElevations =
             roadGenerator.resolveNetworkNodeElevations(network, terrain);
         networkResult.setNodeElevations(nodeElevations);
 
-        // 第二遍：各边端点强制对齐到统一标高
         for (RoadEdge edge : network.getEdges().values()) {
             RoadNode start = network.getNode(edge.getStartNodeId());
             RoadNode end = network.getNode(edge.getEndNodeId());
-            RoadGenerationResult edgeResult =
-                roadGenerator.generateEdge(network, edge, start, end, terrain, nodeElevations);
-            networkResult.edgeResults.put(edge.getId(), edgeResult);
+            EdgeGenerationResult edgeOutcome = roadGenerator.generateEdgeOutcome(
+                network, edge, start, end, terrain, nodeElevations);
+            networkResult.recordEdgeOutcome(edge.getId(), edgeOutcome);
         }
 
+        Set<String> failedEdgeIds = networkResult.getFailedEdgeIds();
         for (RoadNode node : network.getNodes().values()) {
             if (node.getDegree() < 3) {
+                continue;
+            }
+            if (!shouldGenerateJunction(node, failedEdgeIds)) {
+                networkResult.recordSkippedJunction(
+                    node.getId(),
+                    "connected edge generation failed");
                 continue;
             }
             RoadJunctionGenerator.JunctionBlocks junctionBlocks =
@@ -100,11 +185,31 @@ public class RoadNetworkGenerator {
             }
         }
 
-        LOGGER.info("路网生成完成: {} 条边, {} 个路口（统一标高节点 {} 个）",
-            networkResult.edgeResults.size(),
+        LOGGER.info(
+            "路网生成完成: {} 条边成功 / {} 总计, {} 失败, {} 跳过; {} 个路口, {} 个路口跳过（统一标高节点 {} 个）",
+            networkResult.successEdgeCount(),
+            networkResult.totalEdgeCount(),
+            networkResult.getFailedEdgeIds().size(),
+            networkResult.getSkippedEdgeIds().size(),
             networkResult.junctionResults.size(),
+            networkResult.getSkippedJunctionIds().size(),
             nodeElevations.size());
         return networkResult;
+    }
+
+    /**
+     * 连接任一边生成失败时，不单独生成路口（避免「路口在、连接道路没了」）。
+     */
+    public static boolean shouldGenerateJunction(RoadNode node, Set<String> failedEdgeIds) {
+        if (node == null || failedEdgeIds == null || failedEdgeIds.isEmpty()) {
+            return true;
+        }
+        for (String edgeId : node.getConnectedEdgeIds()) {
+            if (failedEdgeIds.contains(edgeId)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public RoadGenerationResult generateAggregated(RoadNetwork network, World world) {
@@ -114,13 +219,18 @@ public class RoadNetworkGenerator {
     public PreviewResult generatePreview(RoadNetwork network, World world) {
         NetworkGenerationResult networkResult = generateAll(network, world);
         RoadGenerationResult aggregate = aggregateNetworkResult(network, networkResult);
-        return new PreviewResult(aggregate, networkResult.getEdgeResults(), networkResult.getNodeElevations());
+        return new PreviewResult(
+            aggregate,
+            networkResult.getEdgeResults(),
+            networkResult.getNodeElevations(),
+            networkResult);
     }
 
     public record PreviewResult(
             RoadGenerationResult aggregate,
             Map<String, RoadGenerationResult> edgeResults,
-            Map<String, Integer> nodeElevations) {
+            Map<String, Integer> nodeElevations,
+            NetworkGenerationResult networkResult) {
     }
 
     private RoadGenerationResult aggregateNetworkResult(
@@ -141,7 +251,6 @@ public class RoadNetworkGenerator {
         if (client == null) {
             return null;
         }
-        // 缓存world引用，避免在检查后使用前变为null
         World world = client.world;
         return world;
     }

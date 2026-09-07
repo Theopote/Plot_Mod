@@ -10,6 +10,7 @@ import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.alignment.DerivedCenterlineSynchronizer;
 import com.plot.plugin.road.pipeline.RoadEdgeBuildOrchestrator;
+import com.plot.plugin.road.pipeline.EdgeGenerationResult;
 import com.plot.plugin.road.pipeline.RoadGenerationPipelineHost;
 import com.plot.plugin.road.pipeline.geometry.PathSegment;
 import com.plot.plugin.road.pipeline.profile.GradeSeparationPolicy;
@@ -72,7 +73,7 @@ public class RoadGenerator {
     /**
      * 基于路网边生成道路；{@code networkNodeElevations} 为路网统一节点标高（两遍求解第二遍使用）。
      */
-    public RoadGenerationResult generateEdge(
+    public EdgeGenerationResult generateEdgeOutcome(
             RoadNetwork network,
             RoadEdge edge,
             RoadNode startNode,
@@ -82,6 +83,19 @@ public class RoadGenerator {
         synchronizeDerivedCenterline(network, edge);
         return edgeBuild.generateEdge(
             network, edge, startNode, endNode, terrain, networkNodeElevations, pipelineHost);
+    }
+
+    /**
+     * 基于路网边生成道路；{@code networkNodeElevations} 为路网统一节点标高（两遍求解第二遍使用）。
+     */
+    public RoadGenerationResult generateEdge(
+            RoadNetwork network,
+            RoadEdge edge,
+            RoadNode startNode,
+            RoadNode endNode,
+            TerrainSampler terrain,
+            Map<String, Integer> networkNodeElevations) {
+        return generateEdgeOutcome(network, edge, startNode, endNode, terrain, networkNodeElevations).geometry();
     }
 
     private void synchronizeDerivedCenterline(RoadNetwork network, RoadEdge edge) {
