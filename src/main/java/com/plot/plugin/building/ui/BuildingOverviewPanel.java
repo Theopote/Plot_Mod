@@ -117,6 +117,12 @@ public final class BuildingOverviewPanel {
         ImGui.textColored(PluginUiColors.HINT_GRAY,
             PlotI18n.tr("plugin.building.district_massing_home_hint"));
 
+        BuildingDistrictMassingWidgets.renderHeightDistribution(
+            ctx,
+            "overview",
+            BuildingDistrictMassingWidgets.HeightDistributionTarget.ALL_WHEN_EMPTY);
+        ImGui.spacing();
+
         var readiness = ctx.host().projection().checkWorldModificationReadiness();
         boolean generateDisabled = !readiness.ready() || ctx.host().placement().isBusy();
 

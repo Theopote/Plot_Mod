@@ -2,7 +2,6 @@ package com.plot.plugin.building.ui;
 
 import com.plot.core.material.MaterialMix;
 import com.plot.plugin.building.BuildingBatchEditor;
-import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
@@ -19,7 +18,6 @@ import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 /** 建筑编辑 Tab：单体/批量参数、预设与附属构件。 */
 public final class BuildingEditPanel {
@@ -78,7 +76,10 @@ public final class BuildingEditPanel {
         renderPresetSelector(primary);
         ImGui.spacing();
         renderBatchApplyPanel(primary);
-        renderHeightDistributionPanel();
+        BuildingDistrictMassingWidgets.renderHeightDistribution(
+            ctx,
+            "edit",
+            BuildingDistrictMassingWidgets.HeightDistributionTarget.SELECTED_ONLY);
     }
 
     private void renderBasicMassing(BuildingFootprint building) {
@@ -311,130 +312,7 @@ public final class BuildingEditPanel {
             ImGui.endDisabled();
         }
     }
-    private void renderHeightDistributionPanel() {
-        int count = ctx.selection().size();
-        ImGui.textColored(PluginUiColors.HINT_GRAY,
-            PlotI18n.tr("plugin.building.height_distribution_hint", count));
 
-        BuildingHeightDistribution.Mode[] modes = BuildingHeightDistribution.Mode.values();
-        String[] labels = new String[modes.length];
-        int current = 0;
-        for (int i = 0; i < modes.length; i++) {
-            labels[i] = PlotI18n.tr("plugin.building.height_mode." + modes[i].name().toLowerCase());
-            if (modes[i] == ctx.heightDistMode()) {
-                current = i;
-            }
-        }
-        ImInt modeIndex = new ImInt(current);
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("##height_dist_mode", modeIndex, labels)) {
-            int picked = modeIndex.get();
-            if (picked >= 0 && picked < modes.length) {
-                ctx.setHeightDistMode(modes[picked]);
-            }
-        }
-
-        if (ctx.heightDistMode() == BuildingHeightDistribution.Mode.UNIFORM) {
-            int[] floors = {ctx.heightDistMaxFloors()};
-            if (ImGui.sliderInt(
-                    "##height_dist_uniform",
-                    floors,
-                    1,
-                    32,
-                    PlotI18n.tr("plugin.building.floors", floors[0]))) {
-                ctx.setHeightDistMinFloors(floors[0]);
-                ctx.setHeightDistMaxFloors(floors[0]);
-            }
-        } else {
-            int[] minFloors = {ctx.heightDistMinFloors()};
-            int[] maxFloors = {ctx.heightDistMaxFloors()};
-            if (ImGui.sliderInt(
-                    "##height_dist_min",
-                    minFloors,
-                    1,
-                    32,
-                    PlotI18n.tr("plugin.building.height_min_floors", minFloors[0]))) {
-                ctx.setHeightDistMinFloors(minFloors[0]);
-                if (ctx.heightDistMaxFloors() < ctx.heightDistMinFloors()) {
-                    ctx.setHeightDistMaxFloors(ctx.heightDistMinFloors());
-                }
-            }
-            if (ImGui.sliderInt(
-                    "##height_dist_max",
-                    maxFloors,
-                    1,
-                    32,
-                    PlotI18n.tr("plugin.building.height_max_floors", maxFloors[0]))) {
-                ctx.setHeightDistMaxFloors(maxFloors[0]);
-                if (ctx.heightDistMinFloors() > ctx.heightDistMaxFloors()) {
-                    ctx.setHeightDistMinFloors(ctx.heightDistMaxFloors());
-                }
-            }
-        }
-
-        if (ctx.heightDistMode() == BuildingHeightDistribution.Mode.RANDOM) {
-            renderHeightDistSeedControls();
-        }
-
-        if (ImGui.button(
-                PlotI18n.tr("plugin.building.apply_height_distribution", count),
-                ImGui.getContentRegionAvailX(),
-                0)) {
-            applyHeightDistribution();
-        }
-    }
-
-    private void renderHeightDistSeedControls() {
-        List<BuildingFootprint> targets = ctx.selection().resolve(ctx.project());
-        long seed = ctx.resolveHeightDistSeed(targets);
-        String seedText = Long.toString(seed);
-        if (!seedText.equals(ctx.heightDistSeedBuffer().get())) {
-            ctx.heightDistSeedBuffer().set(seedText);
-        }
-
-        float randomizeWidth = ImGui.calcTextSize(PlotI18n.tr("plugin.building.height_dist_seed_randomize")).x
-            + ImGui.getStyle().getFramePaddingX() * 2.0f;
-        ImGui.setNextItemWidth(Math.max(80.0f, ImGui.getContentRegionAvailX() - randomizeWidth - ImGui.getStyle().getItemSpacingX()));
-        if (ImGui.inputText(PlotI18n.tr("plugin.building.height_dist_seed"), ctx.heightDistSeedBuffer())) {
-            try {
-                long parsed = Long.parseLong(ctx.heightDistSeedBuffer().get().trim());
-                ctx.setHeightDistSeed(parsed);
-                ctx.setHeightDistSeedManual(true);
-            } catch (NumberFormatException ignored) {
-                ctx.heightDistSeedBuffer().set(seedText);
-            }
-        }
-        UIUtils.renderEngineeringTooltip("hint.plot.building.height_dist_seed");
-        ImGui.sameLine();
-        if (ImGui.button(PlotI18n.tr("plugin.building.height_dist_seed_randomize"))) {
-            ctx.setHeightDistSeed(ThreadLocalRandom.current().nextLong() & Long.MAX_VALUE);
-            ctx.heightDistSeedBuffer().set(Long.toString(ctx.heightDistSeed()));
-            ctx.setHeightDistSeedManual(true);
-        }
-    }
-
-    private void applyHeightDistribution() {
-        List<BuildingFootprint> targets = ctx.selection().resolve(ctx.project());
-        if (targets.isEmpty()) {
-            return;
-        }
-        ctx.projectHistory().push(ctx.project());
-        long seed = ctx.heightDistMode() == BuildingHeightDistribution.Mode.RANDOM
-            ? ctx.resolveHeightDistSeed(targets)
-            : 0L;
-        BuildingHeightDistribution.Settings settings = BuildingHeightDistribution.Settings.of(
-            ctx.heightDistMode(),
-            ctx.heightDistMinFloors(),
-            ctx.heightDistMaxFloors(),
-            seed);
-        BuildingHeightDistribution.ApplyResult result =
-            BuildingHeightDistribution.apply(targets, settings);
-        ctx.invalidatePreview();
-        ctx.setProjectStatus(PlotI18n.tr(
-            "plugin.building.height_distribution_applied",
-            result.updated(),
-            PlotI18n.tr("plugin.building.height_mode." + ctx.heightDistMode().name().toLowerCase())));
-    }
     private void applyMassingToSelected(BuildingFootprint primary) {
         List<BuildingFootprint> targets = ctx.selection().resolve(ctx.project());
         if (targets.isEmpty()) {

@@ -13,6 +13,7 @@ import com.plot.plugin.building.BuildingFootprintPickSession;
 import com.plot.plugin.building.BuildingFootprintValidator;
 import com.plot.plugin.building.BuildingGenerator;
 import com.plot.plugin.building.BuildingGeometryUtils;
+import com.plot.plugin.building.BuildingHeightDistribution;
 import com.plot.plugin.building.generation.BuildingGenerationResult;
 import com.plot.plugin.building.generation.DistrictBuildReport;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
@@ -177,6 +178,37 @@ public final class BuildingActions {
             clearPreview();
             state.setProjectStatus(PlotI18n.tr("plugin.building.preview_invalidated"));
         }
+    }
+
+    public void applyHeightDistribution(List<BuildingFootprint> targets) {
+        if (targets == null || targets.isEmpty()) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        long seed = state.getHeightDistMode() == BuildingHeightDistribution.Mode.RANDOM
+            ? resolveHeightDistSeed(targets)
+            : 0L;
+        BuildingHeightDistribution.Settings settings = BuildingHeightDistribution.Settings.of(
+            state.getHeightDistMode(),
+            state.getHeightDistMinFloors(),
+            state.getHeightDistMaxFloors(),
+            seed);
+        BuildingHeightDistribution.ApplyResult result =
+            BuildingHeightDistribution.apply(targets, settings);
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr(
+            "plugin.building.height_distribution_applied",
+            result.updated(),
+            PlotI18n.tr("plugin.building.height_mode." + state.getHeightDistMode().name().toLowerCase())));
+    }
+
+    private long resolveHeightDistSeed(List<BuildingFootprint> targets) {
+        if (state.isHeightDistSeedManual()) {
+            return state.getHeightDistSeed();
+        }
+        long seed = BuildingHeightDistribution.defaultSeed(state.getProject(), targets);
+        state.setHeightDistSeed(seed);
+        return seed;
     }
 
     public void buildInWorld() {

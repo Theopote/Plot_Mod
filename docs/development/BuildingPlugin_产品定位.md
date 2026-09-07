@@ -44,23 +44,21 @@
 
 ---
 
-## 默认 UI 两层（Edit Tab）
+## 默认 UI 结构
 
-**基础体量（默认展开）**  
+**Overview Tab（片区 Massing 首页）**  
+Height Distribution、预览全部 / 生成全部
+
+**Edit Tab — 基础体量（默认展开）**  
 Floors / Height、层高、墙厚、墙材、屋顶、基准标高
 
-**片区多选**  
+**Edit Tab — 片区多选**  
 Height Distribution、Preset、Batch Apply
 
-**高级细节（折叠）**  
+**Edit Tab — 高级细节（折叠）**  
 Windows、Doors、Facade、FloorPlate、Parapet、Balcony、Canopy
 
-**Overview Tab**  
-片区体量快捷入口：预览全部 / 生成全部（Height Distribution 与 Preset 详见 Edit Tab）
-
 ---
-
-## v1 Stabilized 验收清单
 
 | 项 | 状态 |
 |----|------|
@@ -72,7 +70,7 @@ Windows、Doors、Facade、FloorPlate、Parapet、Balcony、Canopy
 | BuildingProjectPersistence Facade | ✅ |
 | Overlap / fail-soft UI | ✅ |
 | Deprecated Batch A | ✅ |
-| Overview 片区 Massing 入口 | ✅（完整 Height Dist 首页见 Edit Tab） |
+| Overview 片区 Massing 入口 | ✅（Height Distribution + 预览/生成全部） |
 
 **v1 签收**：`./gradlew test --tests "com.plot.plugin.building.*"` — 245 passed（2026-09-07）。手工 smoke：整片 preview/build 仍建议在发版前做一次。
 
