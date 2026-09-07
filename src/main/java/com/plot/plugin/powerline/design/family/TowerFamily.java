@@ -9,6 +9,7 @@ import java.util.Objects;
 /** 按杆塔角色映射到 PoleDesign 的塔型族。 */
 public class TowerFamily {
     public static final String STANDARD_LATTICE_3_PHASE_ID = "family/standard_lattice_3phase";
+    public static final String GRADED_LATTICE_3_PHASE_ID = "family/graded_lattice_3phase";
 
     private final String id;
     private String name;

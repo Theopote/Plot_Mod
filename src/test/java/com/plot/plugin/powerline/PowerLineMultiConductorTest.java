@@ -85,6 +85,10 @@ class PowerLineMultiConductorTest {
         ConductorSpanGenerator.generateBetween(
             start,
             end,
+            0,
+            1,
+            "start",
+            "end",
             footprint,
             flatTerrain(64),
             result,

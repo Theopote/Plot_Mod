@@ -31,6 +31,10 @@ public class PowerLineFootprint {
     private String towerFamilyId;
     private MaterialMix groundWireMaterial = MaterialMix.single("minecraft:chain");
     private final List<PoleOverride> poleOverrides = new ArrayList<>();
+    private final List<PoleLayoutConstraint> layoutConstraints = new ArrayList<>();
+    private String engineeringProfileId;
+    private boolean engineeringAnalysisEnabled = true;
+    private boolean automaticTowerSelectionEnabled;
 
     public PowerLineFootprint(List<Vec2d> pathPoints) {
         this.id = UUID.randomUUID().toString();
@@ -201,6 +205,64 @@ public class PowerLineFootprint {
         poleOverrides.clear();
     }
 
+    public List<PoleLayoutConstraint> getLayoutConstraints() {
+        return Collections.unmodifiableList(new ArrayList<>(layoutConstraints));
+    }
+
+    public void setLayoutConstraints(List<PoleLayoutConstraint> constraints) {
+        layoutConstraints.clear();
+        if (constraints == null) {
+            return;
+        }
+        for (PoleLayoutConstraint constraint : constraints) {
+            if (constraint != null) {
+                layoutConstraints.add(constraint.copy());
+            }
+        }
+    }
+
+    public void addLayoutConstraint(PoleLayoutConstraint constraint) {
+        if (constraint != null) {
+            layoutConstraints.add(constraint.copy());
+        }
+    }
+
+    public void clearLayoutConstraints() {
+        layoutConstraints.clear();
+    }
+
+    public String getEngineeringProfileId() {
+        return engineeringProfileId;
+    }
+
+    public void setEngineeringProfileId(String engineeringProfileId) {
+        this.engineeringProfileId = engineeringProfileId != null && engineeringProfileId.isBlank()
+            ? null
+            : engineeringProfileId;
+    }
+
+    public String effectiveEngineeringProfileId() {
+        return engineeringProfileId != null && !engineeringProfileId.isBlank()
+            ? engineeringProfileId
+            : com.plot.plugin.powerline.engineering.EngineeringRuleProfile.GENERIC_PLANNING_ID;
+    }
+
+    public boolean isEngineeringAnalysisEnabled() {
+        return engineeringAnalysisEnabled;
+    }
+
+    public void setEngineeringAnalysisEnabled(boolean engineeringAnalysisEnabled) {
+        this.engineeringAnalysisEnabled = engineeringAnalysisEnabled;
+    }
+
+    public boolean isAutomaticTowerSelectionEnabled() {
+        return automaticTowerSelectionEnabled;
+    }
+
+    public void setAutomaticTowerSelectionEnabled(boolean automaticTowerSelectionEnabled) {
+        this.automaticTowerSelectionEnabled = automaticTowerSelectionEnabled;
+    }
+
     public double computePathLength() {
         double length = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
@@ -236,6 +298,10 @@ public class PowerLineFootprint {
         hash = 31 * hash + Objects.hashCode(towerFamilyId);
         hash = 31 * hash + materialFingerprint(groundWireMaterial);
         hash = 31 * hash + poleOverrides.hashCode();
+        hash = 31 * hash + layoutConstraints.hashCode();
+        hash = 31 * hash + Objects.hashCode(engineeringProfileId);
+        hash = 31 * hash + Boolean.hashCode(engineeringAnalysisEnabled);
+        hash = 31 * hash + Boolean.hashCode(automaticTowerSelectionEnabled);
         return hash;
     }
 

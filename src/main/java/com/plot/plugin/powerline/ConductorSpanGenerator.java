@@ -6,6 +6,9 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.core.command.BlockRecord;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixResolver;
+import com.plot.plugin.powerline.design.AttachmentRole;
+import com.plot.plugin.powerline.geometry.ConductorSample;
+import com.plot.plugin.powerline.geometry.ConductorSpanGeometry;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.road.terrain.TerrainSampler;
 import net.minecraft.util.math.BlockPos;
@@ -26,6 +29,10 @@ public final class ConductorSpanGenerator {
     public static void generateBetween(
             PolePlacement start,
             PolePlacement end,
+            int startPoleIndex,
+            int endPoleIndex,
+            String startSiteId,
+            String endSiteId,
             PowerLineFootprint footprint,
             TerrainSampler terrain,
             PowerLineGenerationResult result,
@@ -36,17 +43,41 @@ public final class ConductorSpanGenerator {
         }
 
         if (start.usesAttachmentConductors() || end.usesAttachmentConductors()) {
-            generateAttachmentConductors(start, end, footprint, terrain, result, projectionHandler);
+            generateAttachmentConductors(
+                start,
+                end,
+                startPoleIndex,
+                endPoleIndex,
+                startSiteId,
+                endSiteId,
+                footprint,
+                terrain,
+                result,
+                projectionHandler);
             return;
         }
 
         generateLegacyCenterConductor(
-            start, end, footprint, terrain, result, coordinateTransformer, projectionHandler);
+            start,
+            end,
+            startPoleIndex,
+            endPoleIndex,
+            startSiteId,
+            endSiteId,
+            footprint,
+            terrain,
+            result,
+            coordinateTransformer,
+            projectionHandler);
     }
 
     private static void generateAttachmentConductors(
             PolePlacement start,
             PolePlacement end,
+            int startPoleIndex,
+            int endPoleIndex,
+            String startSiteId,
+            String endSiteId,
             PowerLineFootprint footprint,
             TerrainSampler terrain,
             PowerLineGenerationResult result,
@@ -74,7 +105,17 @@ public final class ConductorSpanGenerator {
                     endAttachment.role()));
                 continue;
             }
-            generateConductorSpan(startAttachment, endAttachment, footprint, terrain, result, projectionHandler);
+            generateConductorSpan(
+                startAttachment,
+                endAttachment,
+                startPoleIndex,
+                endPoleIndex,
+                startSiteId,
+                endSiteId,
+                footprint,
+                terrain,
+                result,
+                projectionHandler);
         }
 
         for (String id : endById.keySet()) {
@@ -104,6 +145,10 @@ public final class ConductorSpanGenerator {
     static void generateConductorSpan(
             ResolvedAttachment start,
             ResolvedAttachment end,
+            int startPoleIndex,
+            int endPoleIndex,
+            String startSiteId,
+            String endSiteId,
             PowerLineFootprint footprint,
             TerrainSampler terrain,
             PowerLineGenerationResult result,
@@ -123,6 +168,16 @@ public final class ConductorSpanGenerator {
             footprint.getSagRatio(),
             sampleCount);
 
+        ConductorSpanGeometry geometry = new ConductorSpanGeometry();
+        geometry.setSpanId(startSiteId + "->" + endSiteId + ":" + start.id());
+        geometry.setAttachmentId(start.id());
+        geometry.setRole(start.role());
+        geometry.setStartPoleIndex(startPoleIndex);
+        geometry.setEndPoleIndex(endPoleIndex);
+        geometry.setStartPoleSiteId(startSiteId);
+        geometry.setEndPoleSiteId(endSiteId);
+        geometry.setSpanLength(spanLength);
+
         double[] worldX = new double[sampleCount];
         double[] worldY = new double[sampleCount];
         double[] worldZ = new double[sampleCount];
@@ -134,6 +189,7 @@ public final class ConductorSpanGenerator {
             worldX[i] = lerp(start.worldX(), end.worldX(), t);
             worldZ[i] = lerp(start.worldZ(), end.worldZ(), t);
             worldY[i] = sagProfile.get(i);
+            geometry.addSample(new ConductorSample(worldX[i], worldY[i], worldZ[i], planPoints[i].copy()));
         }
 
         MaterialMix wireMaterial = ConductorMaterialPolicy.materialFor(start.role(), footprint);
@@ -152,11 +208,17 @@ public final class ConductorSpanGenerator {
             String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
             recordBlock(result, pos, blockId, projectionHandler);
         }
+
+        result.conductorSpans.add(geometry);
     }
 
     private static void generateLegacyCenterConductor(
             PolePlacement start,
             PolePlacement end,
+            int startPoleIndex,
+            int endPoleIndex,
+            String startSiteId,
+            String endSiteId,
             PowerLineFootprint footprint,
             TerrainSampler terrain,
             PowerLineGenerationResult result,
@@ -191,6 +253,19 @@ public final class ConductorSpanGenerator {
             worldY[i] = sagProfile.get(i);
         }
 
+        ConductorSpanGeometry geometry = new ConductorSpanGeometry();
+        geometry.setSpanId(startSiteId + "->" + endSiteId + ":legacy");
+        geometry.setAttachmentId("legacy_center");
+        geometry.setRole(AttachmentRole.AUXILIARY);
+        geometry.setStartPoleIndex(startPoleIndex);
+        geometry.setEndPoleIndex(endPoleIndex);
+        geometry.setStartPoleSiteId(startSiteId);
+        geometry.setEndPoleSiteId(endSiteId);
+        geometry.setSpanLength(spanLength);
+        for (int i = 0; i < sampleCount; i++) {
+            geometry.addSample(new ConductorSample(worldX[i], worldY[i], worldZ[i], planPoints[i].copy()));
+        }
+
         MaterialMix wireMaterial = footprint.getWireMaterial();
         LinkedHashSet<BlockPos> wireBlocks = new LinkedHashSet<>();
         for (int i = 0; i < segmentCount; i++) {
@@ -207,9 +282,8 @@ public final class ConductorSpanGenerator {
             String blockId = MaterialMixResolver.resolve(wireMaterial, pos, footprint.getId());
             recordBlock(result, pos, blockId, projectionHandler);
         }
+        result.conductorSpans.add(geometry);
     }
-
-    /** @deprecated use {@link com.plot.plugin.powerline.equipment.LineEquipmentGenerator#place} */
     @Deprecated
     public static void placeInsulator(
             ResolvedAttachment attachment,

@@ -9,9 +9,12 @@ import com.plot.core.model.Shape;
 import com.plot.core.persistence.ProjectPathResolver;
 import com.plot.core.tool.BaseTool;
 import com.plot.core.tool.ToolManager;
+import com.plot.plugin.powerline.engineering.analysis.LineEngineeringReport;
+import com.plot.plugin.powerline.engineering.optimization.OptimizationResult;
 import com.plot.plugin.powerline.PowerLineGenerationResult;
 import com.plot.plugin.powerline.PowerLinePathSelectionAnalysis;
 import com.plot.plugin.powerline.PowerLineGenerator;
+import com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer;
 import com.plot.plugin.powerline.PowerLinePathUtils;
 import com.plot.plugin.powerline.PowerPoleLayoutUtils;
 import com.plot.plugin.powerline.design.PoleDesign;
@@ -527,6 +530,84 @@ public final class PowerLineActions {
         toolManager.setActiveTool(selectTool);
         host.appState().setCurrentTool(baseTool);
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.pick_started"));
+    }
+
+    public LineEngineeringReport analyzeEngineering(PowerLineFootprint line) {
+        if (line == null) {
+            return null;
+        }
+        if (!line.isEngineeringAnalysisEnabled()) {
+            state.getEngineeringState().setLastEngineeringReport(null);
+            return null;
+        }
+        World world = getClientWorld();
+        if (world == null) {
+            state.setProjectStatus(PlotI18n.tr("plugin.powerline.generate_world_unavailable"));
+            return null;
+        }
+        if (!hasValidPreview(line) && !calculatePreview(line)) {
+            return null;
+        }
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        if (result == null) {
+            return null;
+        }
+        com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
+            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
+                .find(line.effectiveEngineeringProfileId());
+        TerrainSampler terrain = MinecraftTerrainSampler.of(world, host.coordinates());
+        LineEngineeringReport report = com.plot.plugin.powerline.engineering.analysis.PowerLineEngineeringAnalyzer
+            .analyze(result.toGeometryModel(), terrain, profile);
+        state.getEngineeringState().setLastEngineeringReport(report);
+        return report;
+    }
+
+    public OptimizationResult proposeOptimization(PowerLineFootprint line) {
+        LineEngineeringReport report = state.getEngineeringState().getLastEngineeringReport();
+        if (report == null) {
+            report = analyzeEngineering(line);
+        }
+        if (report == null || line == null) {
+            return null;
+        }
+        PowerLineGenerationResult result = state.getLastGenerationResult();
+        com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites sites =
+            result != null
+                ? new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
+                    result.poleSites)
+                : new com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine.PowerLineGeometrySites(
+                    com.plot.plugin.powerline.PowerPoleLayoutUtils.computePoleSites(line));
+        com.plot.plugin.powerline.engineering.EngineeringRuleProfile profile =
+            new com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver()
+                .find(line.effectiveEngineeringProfileId());
+        OptimizationResult optimization = com.plot.plugin.powerline.engineering.optimization.LineOptimizationEngine
+            .propose(report, sites, line, profile, designResolver());
+        state.getEngineeringState().setPendingOptimization(optimization);
+        return optimization;
+    }
+
+    public void applyPendingOptimization(PowerLineFootprint line) {
+        OptimizationResult optimization = state.getEngineeringState().getPendingOptimization();
+        if (optimization == null || line == null) {
+            return;
+        }
+        state.getProjectHistory().push(state.getProject());
+        for (com.plot.plugin.powerline.engineering.optimization.OptimizationAction action : optimization.getActions()) {
+            switch (action.getType()) {
+                case SELECT_TALLER_TOWER -> com.plot.plugin.powerline.PowerLineOverrideUtils.setDesignOverride(
+                    line,
+                    action.getStationing(),
+                    action.getProposedDesignId());
+                case INSERT_POLE -> line.addLayoutConstraint(
+                    new com.plot.plugin.powerline.model.PoleLayoutConstraint(
+                        action.getStationing(),
+                        action.getMessage()));
+                default -> { }
+            }
+        }
+        state.getEngineeringState().clearOptimization();
+        invalidatePreview();
+        state.setProjectStatus(PlotI18n.tr("plugin.powerline.engineering.applied"));
     }
 
     private World getClientWorld() {

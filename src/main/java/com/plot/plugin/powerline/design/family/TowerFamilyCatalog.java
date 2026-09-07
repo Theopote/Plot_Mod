@@ -15,6 +15,7 @@ public final class TowerFamilyCatalog {
     public static List<TowerFamily> defaultFamilies() {
         List<TowerFamily> families = new ArrayList<>();
         families.add(standardLattice3Phase());
+        families.add(gradedLattice3Phase());
         return families;
     }
 
@@ -49,9 +50,24 @@ public final class TowerFamilyCatalog {
         return id != null && id.startsWith("family/");
     }
 
+    public static TowerFamily gradedLattice3Phase() {
+        TowerFamily family = new TowerFamily(
+            TowerFamily.GRADED_LATTICE_3_PHASE_ID,
+            "Graded Lattice 3-Phase");
+        family.setDesignId(TowerRole.SUSPENSION, TowerFamilyDesignPresets.LATTICE_SUSPENSION_SMALL_ID);
+        family.setDesignId(TowerRole.SPECIAL, TowerFamilyDesignPresets.LATTICE_SUSPENSION_MEDIUM_ID);
+        family.setDesignId(TowerRole.DEAD_END, TowerFamilyDesignPresets.LATTICE_SUSPENSION_TALL_ID);
+        family.setDesignId(TowerRole.ANGLE, TowerFamilyDesignPresets.LATTICE_ANGLE_ID);
+        family.setDesignId(TowerRole.TERMINAL, TowerFamilyDesignPresets.LATTICE_TERMINAL_ID);
+        return family;
+    }
+
     public static List<com.plot.plugin.powerline.design.PoleDesign> familyDesigns() {
         List<com.plot.plugin.powerline.design.PoleDesign> designs = new ArrayList<>();
         designs.add(TowerFamilyDesignPresets.latticeSuspension());
+        designs.add(TowerFamilyDesignPresets.latticeSuspensionSmall());
+        designs.add(TowerFamilyDesignPresets.latticeSuspensionMedium());
+        designs.add(TowerFamilyDesignPresets.latticeSuspensionTall());
         designs.add(TowerFamilyDesignPresets.latticeAngle());
         designs.add(TowerFamilyDesignPresets.latticeDeadEnd());
         designs.add(TowerFamilyDesignPresets.latticeTerminal());

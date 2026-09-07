@@ -2,6 +2,7 @@ package com.plot.plugin.powerline;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.powerline.model.PowerPoleSite;
+import com.plot.plugin.powerline.model.PoleLayoutConstraint;
 import com.plot.plugin.powerline.model.PoleOverride;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -72,8 +73,70 @@ public final class PowerPoleLayoutUtils {
             footprint.getPathPoints(),
             footprint.getCornerAngleThreshold(),
             footprint.getMaxPoleSpacing());
+        insertLayoutConstraints(
+            sites,
+            footprint.getPathPoints(),
+            footprint.getLayoutConstraints(),
+            footprint.getCornerAngleThreshold());
         applyOverrides(sites, footprint.getPoleOverrides());
         return sites;
+    }
+
+    public static Vec2d pointAtStationing(List<Vec2d> pathPoints, double stationing) {
+        if (pathPoints == null || pathPoints.size() < 2) {
+            return pathPoints != null && !pathPoints.isEmpty()
+                ? pathPoints.getFirst().copy()
+                : new Vec2d(0, 0);
+        }
+        double total = 0.0;
+        for (int i = 0; i < pathPoints.size() - 1; i++) {
+            Vec2d a = pathPoints.get(i);
+            Vec2d b = pathPoints.get(i + 1);
+            double segLen = a.distance(b);
+            if (segLen < 1e-12) {
+                continue;
+            }
+            if (stationing <= total + segLen + 1e-6) {
+                double t = (stationing - total) / segLen;
+                return a.lerp(b, Math.max(0.0, Math.min(1.0, t)));
+            }
+            total += segLen;
+        }
+        return pathPoints.getLast().copy();
+    }
+
+    private static void insertLayoutConstraints(
+            List<PowerPoleSite> sites,
+            List<Vec2d> pathPoints,
+            List<PoleLayoutConstraint> constraints,
+            double cornerAngleThreshold) {
+        if (sites == null || constraints == null || constraints.isEmpty()) {
+            return;
+        }
+        for (PoleLayoutConstraint constraint : constraints) {
+            if (constraint == null) {
+                continue;
+            }
+            boolean exists = false;
+            for (PowerPoleSite site : sites) {
+                if (Math.abs(site.getStationing() - constraint.getRequiredStationing()) <= 2.0) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (exists) {
+                continue;
+            }
+            Vec2d position = pointAtStationing(pathPoints, constraint.getRequiredStationing());
+            PowerPoleSite inserted = new PowerPoleSite(position);
+            inserted.setStationing(constraint.getRequiredStationing());
+            sites.add(inserted);
+        }
+        sites.sort(java.util.Comparator.comparingDouble(PowerPoleSite::getStationing));
+        for (int i = 0; i < sites.size(); i++) {
+            sites.get(i).setPathIndex(i);
+        }
+        TowerRoleClassifier.classifySites(sites, cornerAngleThreshold);
     }
 
     public static void applyOverrides(List<PowerPoleSite> sites, List<PoleOverride> overrides) {

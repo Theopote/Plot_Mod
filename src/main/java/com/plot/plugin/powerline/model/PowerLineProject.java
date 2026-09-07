@@ -25,6 +25,18 @@ public class PowerLineProject {
         .create();
 
     private final Map<String, PowerLineFootprint> lines = new LinkedHashMap<>();
+    private String selectedEngineeringProfileId;
+
+    public String getSelectedEngineeringProfileId() {
+        return selectedEngineeringProfileId;
+    }
+
+    public void setSelectedEngineeringProfileId(String selectedEngineeringProfileId) {
+        this.selectedEngineeringProfileId = selectedEngineeringProfileId != null
+            && selectedEngineeringProfileId.isBlank()
+            ? null
+            : selectedEngineeringProfileId;
+    }
 
     public Map<String, PowerLineFootprint> getLines() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(lines));
@@ -138,6 +150,22 @@ public class PowerLineProject {
         }
     }
 
+    static class LayoutConstraintData {
+        double requiredStationing;
+        String reason;
+
+        static LayoutConstraintData from(PoleLayoutConstraint constraint) {
+            LayoutConstraintData data = new LayoutConstraintData();
+            data.requiredStationing = constraint.getRequiredStationing();
+            data.reason = constraint.getReason();
+            return data;
+        }
+
+        PoleLayoutConstraint toConstraint() {
+            return new PoleLayoutConstraint(requiredStationing, reason);
+        }
+    }
+
     static class LineData {
         String id;
         String name;
@@ -154,13 +182,19 @@ public class PowerLineProject {
         String towerFamilyId;
         MaterialMix groundWireMaterial;
         List<PoleOverrideData> poleOverrides = new ArrayList<>();
+        List<LayoutConstraintData> layoutConstraints = new ArrayList<>();
+        String engineeringProfileId;
+        boolean engineeringAnalysisEnabled = true;
+        boolean automaticTowerSelectionEnabled;
     }
 
     static class ProjectData {
+        String selectedEngineeringProfileId;
         List<LineData> lines = new ArrayList<>();
 
         static ProjectData from(PowerLineProject project) {
             ProjectData data = new ProjectData();
+            data.selectedEngineeringProfileId = project.getSelectedEngineeringProfileId();
             for (PowerLineFootprint line : project.lines.values()) {
                 LineData lineData = new LineData();
                 lineData.id = line.getId();
@@ -182,6 +216,12 @@ public class PowerLineProject {
                 for (PoleOverride override : line.getPoleOverrides()) {
                     lineData.poleOverrides.add(PoleOverrideData.from(override));
                 }
+                for (PoleLayoutConstraint constraint : line.getLayoutConstraints()) {
+                    lineData.layoutConstraints.add(LayoutConstraintData.from(constraint));
+                }
+                lineData.engineeringProfileId = line.getEngineeringProfileId();
+                lineData.engineeringAnalysisEnabled = line.isEngineeringAnalysisEnabled();
+                lineData.automaticTowerSelectionEnabled = line.isAutomaticTowerSelectionEnabled();
                 data.lines.add(lineData);
             }
             return data;
@@ -189,6 +229,7 @@ public class PowerLineProject {
 
         PowerLineProject toProject() {
             PowerLineProject project = new PowerLineProject();
+            project.setSelectedEngineeringProfileId(selectedEngineeringProfileId);
             if (lines == null) {
                 return project;
             }
@@ -240,6 +281,18 @@ public class PowerLineProject {
                     }
                     footprint.setPoleOverrides(overrides);
                 }
+                if (lineData.layoutConstraints != null) {
+                    List<PoleLayoutConstraint> constraints = new ArrayList<>();
+                    for (LayoutConstraintData constraintData : lineData.layoutConstraints) {
+                        if (constraintData != null) {
+                            constraints.add(constraintData.toConstraint());
+                        }
+                    }
+                    footprint.setLayoutConstraints(constraints);
+                }
+                footprint.setEngineeringProfileId(lineData.engineeringProfileId);
+                footprint.setEngineeringAnalysisEnabled(lineData.engineeringAnalysisEnabled);
+                footprint.setAutomaticTowerSelectionEnabled(lineData.automaticTowerSelectionEnabled);
                 project.addLine(footprint);
             }
             return project;

@@ -11,6 +11,8 @@ import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
 import com.plot.plugin.powerline.design.family.PoleDesignAssignmentResolver;
 import com.plot.plugin.powerline.design.family.TowerFamilyResolver;
+import com.plot.plugin.powerline.engineering.EngineeringRuleProfileResolver;
+import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
 import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
 import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.equipment.JumperWireGenerator;
@@ -54,6 +56,7 @@ public class PowerLineGenerator {
 
         List<PowerPoleSite> sites = PowerPoleLayoutUtils.computePoleSites(footprint);
         result.poleCount = sites.size();
+        result.poleSites.addAll(sites.stream().map(PowerPoleSite::copy).toList());
         if (sites.isEmpty()) {
             return result;
         }
@@ -70,9 +73,11 @@ public class PowerLineGenerator {
                 i,
                 footprint,
                 assignmentResolver,
+                designResolver,
                 terrain,
                 result));
         }
+        result.polePlacements.addAll(placements);
 
         for (int i = 0; i < placements.size(); i++) {
             if (placements.get(i).role() == TowerRole.ANGLE && i > 0 && i < placements.size() - 1) {
@@ -94,6 +99,10 @@ public class PowerLineGenerator {
             ConductorSpanGenerator.generateBetween(
                 placements.get(span),
                 placements.get(span + 1),
+                span,
+                span + 1,
+                sites.get(span).getId(),
+                sites.get(span + 1).getId(),
                 footprint,
                 terrain,
                 result,
@@ -109,6 +118,7 @@ public class PowerLineGenerator {
             int index,
             PowerLineFootprint footprint,
             PoleDesignAssignmentResolver assignmentResolver,
+            PoleDesignResolver designResolver,
             TerrainSampler terrain,
             PowerLineGenerationResult result) {
         Vec2d planPoint = site.getPlanPosition();
@@ -116,8 +126,14 @@ public class PowerLineGenerator {
         Vec2d tangent = computePoleTangentFromSites(sites, index);
         PoleFrame frame = PoleFrame.fromPole(planPoint, tangent, groundY);
 
+        TowerSelectionContext selectionContext = buildSelectionContext(
+            site,
+            sites,
+            index,
+            footprint,
+            designResolver);
         PoleDesignAssignmentResolver.AssignmentResult assignment =
-            assignmentResolver.resolve(site, footprint);
+            assignmentResolver.resolve(site, footprint, selectionContext);
         result.warnings.addAll(assignment.warnings());
         PoleDesign design = assignment.design();
 
@@ -165,6 +181,29 @@ public class PowerLineGenerator {
             site.getRole(),
             assignment.resolvedDesignId(),
             site.getStationing());
+    }
+
+    private static TowerSelectionContext buildSelectionContext(
+            PowerPoleSite site,
+            List<PowerPoleSite> sites,
+            int index,
+            PowerLineFootprint footprint,
+            PoleDesignResolver designResolver) {
+        TowerSelectionContext context = new TowerSelectionContext();
+        context.setSite(site);
+        context.setDeflectionAngle(site.getDeflectionAngle());
+        if (index > 0) {
+            context.setIncomingSpan(site.getPlanPosition().distance(sites.get(index - 1).getPlanPosition()));
+        }
+        if (index < sites.size() - 1) {
+            context.setOutgoingSpan(site.getPlanPosition().distance(sites.get(index + 1).getPlanPosition()));
+        }
+        if (footprint.hasTowerFamily()) {
+            context.setFamily(new TowerFamilyResolver().find(footprint.getTowerFamilyId()));
+        }
+        context.setProfile(new EngineeringRuleProfileResolver().find(footprint.effectiveEngineeringProfileId()));
+        context.setRequiredGroundClearance(context.getProfile().getClearance().getMinimumGroundClearance());
+        return context;
     }
 
     private void generateDefaultPole(

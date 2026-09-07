@@ -23,6 +23,7 @@ public class PoleDesign {
     private List<PoleLayer> layers = new ArrayList<>();
     private List<ConductorAttachment> attachments = new ArrayList<>();
     private TowerStructureDesign towerStructure;
+    private com.plot.plugin.powerline.engineering.TowerEngineeringMetadata engineeringMetadata;
 
     public PoleDesign(String name) {
         this.id = UUID.randomUUID().toString();
@@ -124,6 +125,25 @@ public class PoleDesign {
         return towerStructure != null && towerStructure.hasStations();
     }
 
+    public com.plot.plugin.powerline.engineering.TowerEngineeringMetadata getEngineeringMetadata() {
+        return engineeringMetadata;
+    }
+
+    public void setEngineeringMetadata(
+            com.plot.plugin.powerline.engineering.TowerEngineeringMetadata engineeringMetadata) {
+        this.engineeringMetadata = engineeringMetadata != null
+            ? engineeringMetadata.copy()
+            : null;
+    }
+
+    public com.plot.plugin.powerline.engineering.TowerEngineeringMetadata effectiveEngineeringMetadata(
+            com.plot.plugin.powerline.model.TowerRole role) {
+        if (engineeringMetadata != null) {
+            return engineeringMetadata;
+        }
+        return com.plot.plugin.powerline.engineering.TowerEngineeringMetadata.defaultsForRole(role);
+    }
+
     public void clearTowerStructure() {
         this.towerStructure = null;
     }
@@ -169,6 +189,7 @@ public class PoleDesign {
         copy.setLayers(layers);
         copy.setAttachments(attachments);
         copy.setTowerStructure(towerStructure);
+        copy.setEngineeringMetadata(engineeringMetadata);
         return copy;
     }
 

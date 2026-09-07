@@ -2,6 +2,9 @@ package com.plot.plugin.powerline.design.family;
 
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
+import com.plot.plugin.powerline.engineering.selection.AutomaticTowerSelector;
+import com.plot.plugin.powerline.engineering.selection.TowerSelectionContext;
+import com.plot.plugin.powerline.engineering.selection.TowerSelectionResult;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.powerline.model.PowerPoleSite;
 import com.plot.plugin.powerline.model.TowerRole;
@@ -30,6 +33,13 @@ public final class PoleDesignAssignmentResolver {
     }
 
     public AssignmentResult resolve(PowerPoleSite site, PowerLineFootprint footprint) {
+        return resolve(site, footprint, null);
+    }
+
+    public AssignmentResult resolve(
+            PowerPoleSite site,
+            PowerLineFootprint footprint,
+            TowerSelectionContext selectionContext) {
         List<String> warnings = new ArrayList<>();
         if (site == null || footprint == null) {
             return AssignmentResult.empty();
@@ -42,6 +52,15 @@ public final class PoleDesignAssignmentResolver {
                 warnings.add("Pole design override not found: " + overrideId);
             } else {
                 return new AssignmentResult(design, overrideId, warnings);
+            }
+        }
+
+        if (footprint.isAutomaticTowerSelectionEnabled()
+                && selectionContext != null
+                && footprint.hasTowerFamily()) {
+            AssignmentResult auto = resolveAutomatic(site, selectionContext, warnings);
+            if (auto.design != null) {
+                return auto;
             }
         }
 
@@ -68,6 +87,26 @@ public final class PoleDesignAssignmentResolver {
         }
 
         return AssignmentResult.empty();
+    }
+
+    private AssignmentResult resolveAutomatic(
+            PowerPoleSite site,
+            TowerSelectionContext selectionContext,
+            List<String> warnings) {
+        AutomaticTowerSelector selector = new AutomaticTowerSelector(designResolver);
+        TowerSelectionResult selection = selector.select(selectionContext);
+        for (String reason : selection.getReasons()) {
+            warnings.add(reason);
+        }
+        if (!selection.hasSelection()) {
+            return AssignmentResult.empty();
+        }
+        PoleDesign design = designResolver.find(selection.getSelectedDesignId());
+        if (design == null) {
+            warnings.add("Auto-selected design not found: " + selection.getSelectedDesignId());
+            return new AssignmentResult(null, selection.getSelectedDesignId(), warnings);
+        }
+        return new AssignmentResult(design, selection.getSelectedDesignId(), warnings);
     }
 
     private AssignmentResult resolveFromFamily(

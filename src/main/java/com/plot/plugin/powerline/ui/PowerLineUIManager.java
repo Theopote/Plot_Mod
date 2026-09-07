@@ -12,6 +12,7 @@ public final class PowerLineUIManager {
     private final PowerLineAdoptPanel adoptPanel;
     private final PowerLineEditPanel editPanel;
     private final PowerLineGeneratePanel generatePanel;
+    private final PowerLineEngineeringPanel engineeringPanel;
     private final PoleDesignerPanel poleDesignerPanel;
 
     public PowerLineUIManager(PowerLineUiContext ctx) {
@@ -22,6 +23,7 @@ public final class PowerLineUIManager {
         this.poleDesignerPanel = new PoleDesignerPanel(ctx);
         this.editPanel = new PowerLineEditPanel(ctx, poleDesignerPanel);
         this.generatePanel = new PowerLineGeneratePanel(ctx);
+        this.engineeringPanel = new PowerLineEngineeringPanel(ctx);
     }
 
     public void render() {
@@ -30,6 +32,7 @@ public final class PowerLineUIManager {
             renderTab("plugin.powerline.tab.overview", overviewPanel::render);
             renderTab("plugin.powerline.tab.adopt", adoptPanel::render);
             renderTab("plugin.powerline.tab.edit", editPanel::render);
+            renderTab("plugin.powerline.tab.engineering", engineeringPanel::render);
             renderTab("plugin.powerline.tab.generate", generatePanel::render);
             ImGui.endTabBar();
         }
@@ -45,6 +48,7 @@ public final class PowerLineUIManager {
     public void renderDeferredModals() {
         overviewPanel.renderDeleteConfirmPopup();
         generatePanel.renderBuildConfirmPopup();
+        engineeringPanel.renderOptimizationConfirmPopup();
         poleDesignerPanel.render();
     }
 }
