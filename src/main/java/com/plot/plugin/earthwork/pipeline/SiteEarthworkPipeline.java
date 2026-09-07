@@ -5,6 +5,7 @@ import com.plot.plugin.earthwork.terrain.TerrainSnapshot;
 import com.plot.plugin.earthwork.volume.EarthworkProjectReport;
 import com.plot.plugin.earthwork.volume.SiteEarthworkReport;
 import com.plot.plugin.earthwork.grading.DesignTerrainBuilder;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkSite;
 import com.plot.plugin.earthwork.model.EarthworkSiteBoundaryUtils;
 import com.plot.plugin.earthwork.model.GradingRegion;
@@ -48,6 +49,27 @@ public final class SiteEarthworkPipeline {
         }
 
         result.siteGeneration = true;
+        CompositionPolicy originalPolicy = site.getCompositionPolicy();
+        CompositionPolicy effectivePolicy = originalPolicy.clampedCopyForWorkMode(context.workMode());
+        boolean policySwapped = originalPolicy.getBalanceScopeEnum() != effectivePolicy.getBalanceScopeEnum()
+            || originalPolicy.getOptimizationModeEnum() != effectivePolicy.getOptimizationModeEnum();
+        if (policySwapped) {
+            site.setCompositionPolicy(effectivePolicy);
+        }
+        try {
+            return executeWithPolicy(context, site, siteBoundary, result);
+        } finally {
+            if (policySwapped) {
+                site.setCompositionPolicy(originalPolicy);
+            }
+        }
+    }
+
+    private EarthworkGenerationResult executeWithPolicy(
+            EarthworkPipelineContext context,
+            EarthworkSite site,
+            List<Vec2d> siteBoundary,
+            EarthworkGenerationResult result) {
         TerrainSnapshot terrain = operations.captureSiteTerrain(
             site, context.world(), siteBoundary, context.terrainSnapshot());
         if (terrain.isEmpty()) {

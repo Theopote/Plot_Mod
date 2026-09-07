@@ -50,7 +50,7 @@ public class EarthworkGenerationResult {
             ChangeType type = changeTypes.get(pos);
             if (type == ChangeType.CUT) {
                 cut++;
-            } else {
+            } else if (type == ChangeType.FILL) {
                 fill++;
             }
         }
@@ -85,7 +85,10 @@ public class EarthworkGenerationResult {
     }
 
     public enum ChangeType {
-        CUT, FILL
+        CUT,
+        FILL,
+        /** 挡土墙等结构体，不计入填方施工量。 */
+        STRUCTURE
     }
 
     public static class GridSample {

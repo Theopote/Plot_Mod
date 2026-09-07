@@ -125,7 +125,7 @@ public final class RetainingWallGenerator {
             return;
         }
         result.placementRecords.put(pos, new BlockRecord(pos, previous, blockId));
-        result.changeTypes.put(pos, EarthworkGenerationResult.ChangeType.FILL);
+        result.changeTypes.put(pos, EarthworkGenerationResult.ChangeType.STRUCTURE);
     }
 
     private static String resolveWallBlockId(RetainingEdge edge, EarthworkSite site) {

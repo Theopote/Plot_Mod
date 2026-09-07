@@ -576,35 +576,50 @@ public final class EarthworkEditPanel {
     }
 
     private void renderBalanceScopeSettings(CompositionPolicy policy) {
-        BalanceScope[] scopes = {
-            BalanceScope.SITE,
-            BalanceScope.ZONE,
-            BalanceScope.PROJECT
-        };
-        String[] labels = {
-            PlotI18n.tr("plugin.earthwork.balance_scope.site"),
-            PlotI18n.tr("plugin.earthwork.balance_scope.zone"),
-            PlotI18n.tr("plugin.earthwork.balance_scope.project")
-        };
-        int selected = 0;
+        EarthworkWorkMode workMode = ctx.config().getWorkMode();
+        java.util.List<BalanceScope> scopes = new java.util.ArrayList<>();
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        scopes.add(BalanceScope.SITE);
+        labels.add(PlotI18n.tr("plugin.earthwork.balance_scope.site"));
+        scopes.add(BalanceScope.ZONE);
+        labels.add(PlotI18n.tr("plugin.earthwork.balance_scope.zone"));
+        if (workMode.allowsProjectBalanceScope()) {
+            scopes.add(BalanceScope.PROJECT);
+            labels.add(PlotI18n.tr("plugin.earthwork.balance_scope.project"));
+        }
         BalanceScope current = policy.getBalanceScopeEnum();
-        for (int i = 0; i < scopes.length; i++) {
-            if (scopes[i] == current) {
+        int selected = 0;
+        for (int i = 0; i < scopes.size(); i++) {
+            if (scopes.get(i) == current) {
                 selected = i;
                 break;
             }
         }
+        if (!scopes.contains(current)) {
+            selected = 0;
+            ImGui.textColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.earthwork.composition_learn_only_saved_scope"));
+        }
         ImInt scopeIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.balance_scope_label"), scopeIndex, labels)) {
+        if (ImGui.combo(
+            PlotI18n.tr("plugin.earthwork.balance_scope_label"),
+            scopeIndex,
+            labels.toArray(new String[0]))) {
             int picked = scopeIndex.get();
-            if (picked >= 0 && picked < scopes.length) {
+            if (picked >= 0 && picked < scopes.size()) {
                 ctx.projectHistory().push(ctx.project());
-                policy.setBalanceScope(scopes[picked]);
+                policy.setBalanceScope(scopes.get(picked));
                 ctx.invalidatePreview();
             }
         }
         ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr("plugin.earthwork.balance_scope_hint"));
+        if (!workMode.allowsProjectBalanceScope()) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.composition_project_scope_learn_hint"));
+        }
         ImGui.spacing();
     }
 
@@ -639,35 +654,50 @@ public final class EarthworkEditPanel {
             || ctx.project().getRegionCount() < 2) {
             return;
         }
-        OptimizationMode[] modes = {
-            OptimizationMode.NONE,
-            OptimizationMode.UNIFORM_VERTICAL_SHIFT,
-            OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION
-        };
-        String[] labels = {
-            PlotI18n.tr("plugin.earthwork.optimization_mode.none"),
-            PlotI18n.tr("plugin.earthwork.optimization_mode.uniform_vertical_shift"),
-            PlotI18n.tr("plugin.earthwork.optimization_mode.constrained_zone")
-        };
-        int selected = 0;
+        EarthworkWorkMode workMode = ctx.config().getWorkMode();
+        java.util.List<OptimizationMode> modes = new java.util.ArrayList<>();
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        modes.add(OptimizationMode.NONE);
+        labels.add(PlotI18n.tr("plugin.earthwork.optimization_mode.none"));
+        modes.add(OptimizationMode.UNIFORM_VERTICAL_SHIFT);
+        labels.add(PlotI18n.tr("plugin.earthwork.optimization_mode.uniform_vertical_shift"));
+        if (workMode.allowsConstrainedZoneOptimization()) {
+            modes.add(OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION);
+            labels.add(PlotI18n.tr("plugin.earthwork.optimization_mode.constrained_zone"));
+        }
         OptimizationMode current = policy.getOptimizationModeEnum();
-        for (int i = 0; i < modes.length; i++) {
-            if (modes[i] == current) {
+        int selected = 0;
+        for (int i = 0; i < modes.size(); i++) {
+            if (modes.get(i) == current) {
                 selected = i;
                 break;
             }
         }
+        if (!modes.contains(current)) {
+            selected = 0;
+            ImGui.textColored(
+                PluginUiColors.WARNING_LIGHT,
+                PlotI18n.tr("plugin.earthwork.composition_learn_only_saved_optimization"));
+        }
         ImInt methodIndex = new ImInt(selected);
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo(PlotI18n.tr("plugin.earthwork.optimization_mode_label"), methodIndex, labels)) {
+        if (ImGui.combo(
+            PlotI18n.tr("plugin.earthwork.optimization_mode_label"),
+            methodIndex,
+            labels.toArray(new String[0]))) {
             int picked = methodIndex.get();
-            if (picked >= 0 && picked < modes.length) {
+            if (picked >= 0 && picked < modes.size()) {
                 ctx.projectHistory().push(ctx.project());
-                policy.setOptimizationMode(modes[picked]);
+                policy.setOptimizationMode(modes.get(picked));
                 ctx.invalidatePreview();
             }
         }
         UIUtils.renderEngineeringTooltip("hint.plot.earthwork.optimization_mode");
+        if (!workMode.allowsConstrainedZoneOptimization()) {
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.earthwork.composition_constrained_optimization_learn_hint"));
+        }
         ImGui.spacing();
     }
 

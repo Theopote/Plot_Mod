@@ -4,6 +4,7 @@ import com.plot.api.geometry.Vec2d;
 import com.plot.api.world.ICoordinateService;
 import com.plot.plugin.earthwork.design.DesignSurfaceResolver;
 import com.plot.plugin.earthwork.grading.DesignTerrainGrid;
+import com.plot.plugin.earthwork.grading.ZoneTargetElevationStats;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.volume.EarthworkVolumeReport;
 import com.plot.plugin.earthwork.voxel.RetainingWallGenerator;
@@ -94,12 +95,17 @@ public final class DefaultSiteEarthworkOperations implements SiteEarthworkOperat
             EarthworkSite site,
             EarthworkGenerationResult result) {
         site.setLastReport(result.siteVolumeReport.totals());
+        Map<String, ZoneTargetElevationStats> elevationByZone =
+            ZoneTargetElevationStats.fromGrid(result.designTerrainGrid);
         for (GradingZone zone : site.getGradingZones().values()) {
             EarthworkVolumeReport zoneReport = result.siteVolumeReport.zoneReport(zone.getId());
             zone.getRegion().setLastVolumeReport(zoneReport);
-            zone.getRegion().setLastResolvedElevation(result.resolvedElevation);
-            zone.getRegion().setLastResolvedElevationMin(result.resolvedElevationMin);
-            zone.getRegion().setLastResolvedElevationMax(result.resolvedElevationMax);
+            ZoneTargetElevationStats stats = elevationByZone.get(zone.getId());
+            if (stats != null) {
+                zone.getRegion().setLastResolvedElevation(stats.representative());
+                zone.getRegion().setLastResolvedElevationMin(stats.min());
+                zone.getRegion().setLastResolvedElevationMax(stats.max());
+            }
         }
     }
 }

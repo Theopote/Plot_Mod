@@ -15,6 +15,7 @@ import com.plot.plugin.RoadSystemPlugin;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.config.EarthworkConfig;
 import com.plot.plugin.earthwork.*;
+import com.plot.plugin.earthwork.model.CompositionPolicy;
 import com.plot.plugin.earthwork.model.EarthworkWorkMode;
 import com.plot.plugin.earthwork.pipeline.EarthworkGenerationResult;
 import com.plot.plugin.earthwork.ui.EarthworkUiContext;
@@ -108,10 +109,24 @@ public final class EarthworkToolbarPanel {
         if (ImGui.combo(PlotI18n.tr("plugin.earthwork.work_mode"), index, labels)) {
             int picked = index.get();
             if (picked >= 0 && picked < modes.length && modes[picked] != current) {
-                ctx.config().setWorkMode(modes[picked]);
+                EarthworkWorkMode nextMode = modes[picked];
+                ctx.config().setWorkMode(nextMode);
+                clampCompositionPolicyForWorkMode(nextMode);
                 ctx.config().save();
+                ctx.invalidatePreview();
             }
         }
+    }
+
+    private void clampCompositionPolicyForWorkMode(EarthworkWorkMode workMode) {
+        CompositionPolicy policy = ctx.project().getActiveSite().getCompositionPolicy();
+        CompositionPolicy clamped = policy.clampedCopyForWorkMode(workMode);
+        if (policy.getBalanceScopeEnum() == clamped.getBalanceScopeEnum()
+            && policy.getOptimizationModeEnum() == clamped.getOptimizationModeEnum()) {
+            return;
+        }
+        ctx.projectHistory().push(ctx.project());
+        ctx.project().getActiveSite().setCompositionPolicy(clamped);
     }
 
     private void renderActivePlacementControls() {

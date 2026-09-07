@@ -240,4 +240,39 @@ public class CompositionPolicy {
     public void setBlendWidthBlocks(int blendWidthBlocks) {
         this.blendWidthBlocks = Math.max(0, blendWidthBlocks);
     }
+
+    public CompositionPolicy copy() {
+        CompositionPolicy copy = new CompositionPolicy();
+        copy.overlapResolution = this.overlapResolution;
+        copy.balanceScope = this.balanceScope;
+        copy.optimizationMode = this.optimizationMode;
+        copy.balanceResidualUniformPolish = this.balanceResidualUniformPolish;
+        copy.outsideSiteBoundary = this.outsideSiteBoundary;
+        copy.exclusionPrecedence = this.exclusionPrecedence;
+        copy.breaklinePrecedence = this.breaklinePrecedence;
+        copy.blendWidthBlocks = this.blendWidthBlocks;
+        return copy;
+    }
+
+    /**
+     * 按工作模式裁剪高级合成选项（不修改原实例）。
+     * Builder / Quick 不含 PROJECT 统计与约束分区优化。
+     */
+    public CompositionPolicy clampedCopyForWorkMode(EarthworkWorkMode workMode) {
+        CompositionPolicy copy = copy();
+        EarthworkWorkMode safeMode = workMode != null ? workMode : EarthworkWorkMode.QUICK;
+        if (!safeMode.allowsProjectBalanceScope() && copy.getBalanceScopeEnum() == BalanceScope.PROJECT) {
+            copy.setBalanceScope(BalanceScope.SITE);
+        }
+        if (!safeMode.allowsConstrainedZoneOptimization()
+            && copy.getOptimizationModeEnum() == OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION) {
+            copy.setOptimizationMode(OptimizationMode.NONE);
+        }
+        return copy;
+    }
+
+    public boolean usesLearnOnlyCompositionSettings() {
+        return getBalanceScopeEnum() == BalanceScope.PROJECT
+            || getOptimizationModeEnum() == OptimizationMode.CONSTRAINED_ZONE_OPTIMIZATION;
+    }
 }

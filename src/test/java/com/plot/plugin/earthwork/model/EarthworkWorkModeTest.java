@@ -31,5 +31,9 @@ class EarthworkWorkModeTest {
         assertFalse(EarthworkWorkMode.QUICK.showsLearnVisuals());
         assertFalse(EarthworkWorkMode.BUILDER.showsLearnVisuals());
         assertTrue(EarthworkWorkMode.LEARN.showsLearnVisuals());
+        assertFalse(EarthworkWorkMode.BUILDER.allowsProjectBalanceScope());
+        assertFalse(EarthworkWorkMode.BUILDER.allowsConstrainedZoneOptimization());
+        assertTrue(EarthworkWorkMode.LEARN.allowsProjectBalanceScope());
+        assertTrue(EarthworkWorkMode.LEARN.allowsConstrainedZoneOptimization());
     }
 }

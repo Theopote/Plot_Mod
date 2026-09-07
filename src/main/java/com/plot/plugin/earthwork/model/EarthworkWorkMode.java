@@ -37,6 +37,16 @@ public enum EarthworkWorkMode {
         return this == LEARN;
     }
 
+    /** Learn：多场地 PROJECT 统计范围。 */
+    public boolean allowsProjectBalanceScope() {
+        return this == LEARN;
+    }
+
+    /** Learn：约束分区竖向优化（CONSTRAINED_ZONE_OPTIMIZATION）。 */
+    public boolean allowsConstrainedZoneOptimization() {
+        return this == LEARN;
+    }
+
     public String i18nKey() {
         return "plugin.earthwork.work_mode." + name().toLowerCase();
     }

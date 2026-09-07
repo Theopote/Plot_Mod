@@ -38,6 +38,13 @@ public final class EarthworkPreviewManager {
 
     public static final String CUT_GHOST_BLOCK = "minecraft:red_stained_glass";
     public static final String FILL_GHOST_BLOCK = "minecraft:light_blue_stained_glass";
+    public static final String STRUCTURE_GHOST_BLOCK = "minecraft:gray_stained_glass";
+
+    public record GhostProjectionSummary(int shown, int total, int stride) {
+        public boolean simplified() {
+            return stride > 1;
+        }
+    }
 
     private final PluginContext host;
     private final SiteEarthworkPipeline sitePipeline;
@@ -155,9 +162,18 @@ public final class EarthworkPreviewManager {
                 lastGenerationResult.calculationCellCount,
                 lastGenerationResult.placementRecords.size());
         }
-        statusSink.accept(PlotI18n.tr("plugin.earthwork.generate_preview_ready"));
-        projectPreview();
+        statusSink.accept(resolvePreviewReadyMessage(projectPreview()));
         return true;
+    }
+
+    private String resolvePreviewReadyMessage(GhostProjectionSummary ghost) {
+        if (ghost != null && ghost.simplified()) {
+            return PlotI18n.tr(
+                "plugin.earthwork.preview_ghost_simplified",
+                ghost.shown(),
+                ghost.total());
+        }
+        return PlotI18n.tr("plugin.earthwork.generate_preview_ready");
     }
 
     private static void enrichProjectReport(
@@ -175,29 +191,41 @@ public final class EarthworkPreviewManager {
         }
     }
 
-    public void projectPreview() {
+    public GhostProjectionSummary projectPreview() {
         EarthworkGenerationResult result = lastGenerationResult;
         if (result == null) {
-            return;
+            return new GhostProjectionSummary(0, 0, 1);
         }
         IGhostBlockService ghostBlockManager = host.ghosts();
         if (ghostBlockManager == null) {
-            return;
+            return new GhostProjectionSummary(0, result.placementRecords.size(), 1);
         }
         ghostBlockManager.clearAllGhostBlocks();
         int total = result.placementRecords.size();
         int stride = total > 4000 ? (int) Math.ceil(total / 4000.0) : 1;
         int index = 0;
+        int shown = 0;
         for (BlockRecord record : result.placementRecords.values()) {
             if ((index++ % stride) != 0) {
                 continue;
             }
+            shown++;
             EarthworkGenerationResult.ChangeType changeType = result.changeTypes.get(record.pos);
-            String ghostBlock = changeType == EarthworkGenerationResult.ChangeType.CUT
-                ? CUT_GHOST_BLOCK
-                : FILL_GHOST_BLOCK;
+            String ghostBlock = ghostBlockFor(changeType);
             ghostBlockManager.addGhostBlock(record.pos, ghostBlock);
         }
+        GhostProjectionSummary summary = new GhostProjectionSummary(shown, total, stride);
+        return summary;
+    }
+
+    private static String ghostBlockFor(EarthworkGenerationResult.ChangeType changeType) {
+        if (changeType == EarthworkGenerationResult.ChangeType.CUT) {
+            return CUT_GHOST_BLOCK;
+        }
+        if (changeType == EarthworkGenerationResult.ChangeType.STRUCTURE) {
+            return STRUCTURE_GHOST_BLOCK;
+        }
+        return FILL_GHOST_BLOCK;
     }
 
     public void clearPreview() {
