@@ -21,25 +21,19 @@ public final class TowerStructureValidator {
         }
 
         TowerStructureDesign structure = design.getTowerStructure();
-        List<TowerStation> stations = structure.sortedStations();
-        if (stations.size() < 2) {
+        List<TowerStation> stations = structure.getStations();
+        if (structure.sortedStations().size() < 2) {
             issues.add(new TowerValidationIssue(
                 TowerValidationSeverity.ERROR,
                 "Tower structure requires at least 2 stations"));
         }
 
         Set<Double> heights = new HashSet<>();
-        for (int i = 0; i < stations.size(); i++) {
-            TowerStation station = stations.get(i);
+        for (TowerStation station : stations) {
             if (!heights.add(station.getHeight())) {
                 issues.add(new TowerValidationIssue(
                     TowerValidationSeverity.ERROR,
                     "Duplicate station height: " + station.getHeight()));
-            }
-            if (i > 0 && station.getHeight() < stations.get(i - 1).getHeight()) {
-                issues.add(new TowerValidationIssue(
-                    TowerValidationSeverity.ERROR,
-                    "Station heights must be non-decreasing"));
             }
             if (station.getHalfWidth() < 0 || station.getHalfDepth() < 0) {
                 issues.add(new TowerValidationIssue(

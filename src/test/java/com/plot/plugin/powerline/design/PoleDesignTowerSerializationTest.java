@@ -4,6 +4,7 @@ import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -44,6 +45,23 @@ class PoleDesignTowerSerializationTest {
         TowerStructureDesign structure = restored.getTowerStructure();
         assertNotNull(structure);
         assertTrue(structure.sortedStations().size() >= 4);
+    }
+
+    @Test
+    void towerStructureJsonRoundTripPreservesArmsAndStations() {
+        TowerStructureDesign original = TowerStructurePresets.taperedLatticeTower();
+        original.getArms().getFirst().setVerticalDrop(2);
+        original.getArms().getFirst().setBracing(
+            com.plot.plugin.powerline.design.structure.BracingPattern.K);
+
+        String json = original.toJson();
+        TowerStructureDesign restored = TowerStructureDesign.fromJson(json);
+        assertEquals(original.sortedStations().size(), restored.sortedStations().size());
+        assertEquals(original.getArms().size(), restored.getArms().size());
+        assertEquals(2.0, restored.getArms().getFirst().getVerticalDrop(), 1e-6);
+        assertEquals(
+            com.plot.plugin.powerline.design.structure.BracingPattern.K,
+            restored.getArms().getFirst().getBracing());
     }
 
     private static void assertFalseContains(String json, String token) {

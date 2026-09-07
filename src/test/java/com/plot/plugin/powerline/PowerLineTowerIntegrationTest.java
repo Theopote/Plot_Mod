@@ -87,6 +87,33 @@ class PowerLineTowerIntegrationTest {
     }
 
     @Test
+    void diagonalPathRotatesTowerAt45Degrees() {
+        PowerLineFootprint line = WireTestSupport.diagonalLine45(30.0);
+        line.setPoleDesignId("tapered-lattice");
+        line.setMaxPoleSpacing(50.0);
+        line.setSagRatio(0.0);
+
+        PowerLineDesignProject designs = new PowerLineDesignProject();
+        designs.addDesign(TowerStructurePresets.taperedLatticePoleDesign("tapered-lattice", "Tower"));
+
+        PowerLineGenerationResult result = new PowerLineGenerator(
+            identityCoordinates(),
+            projection()).generate(line, flatTerrain(64), new PoleDesignResolver(designs));
+
+        assertTrue(result.structureBlockCount > 0);
+        Set<Integer> xs = new HashSet<>();
+        Set<Integer> zs = new HashSet<>();
+        for (BlockRecord record : result.placementRecords.values()) {
+            if ("minecraft:iron_bars".equals(record.newBlockId) && record.pos.getY() > 64) {
+                xs.add(record.pos.getX());
+                zs.add(record.pos.getZ());
+            }
+        }
+        assertTrue(xs.size() > 1);
+        assertTrue(zs.size() > 1);
+    }
+
+    @Test
     void unevenTerrainProducesBaseWarning() {
         PowerLineFootprint line = WireTestSupport.horizontalLine(20.0);
         line.setPoleDesignId("tapered-lattice");

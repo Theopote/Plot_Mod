@@ -3277,6 +3277,7 @@
   "plugin.powerline.design.structure_arms": "Arms",
   "plugin.powerline.design.structure_arm_height": "Height",
   "plugin.powerline.design.structure_arm_reach": "Reach",
+  "plugin.powerline.design.structure_arm_drop": "Truss drop",
   "plugin.powerline.design.structure_add_arm": "+ Add arm",
   "plugin.powerline.design.preview_side": "Side (lateral)",
   "plugin.powerline.design.preview_front": "Front (longitudinal)",

@@ -159,12 +159,23 @@ public final class TowerStructureGenerator {
         TowerLocalPoint aUpper = TowerStructureGeometry.cornerPoint(upper, a);
         TowerLocalPoint bUpper = TowerStructureGeometry.cornerPoint(upper, b);
 
-        if (pattern == BracingPattern.X || pattern == BracingPattern.K) {
+        if (pattern == BracingPattern.X) {
             placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters);
             placeBrace(bLower, aUpper, structure, transform, footprint, result, projection, counters);
+        } else if (pattern == BracingPattern.K) {
+            TowerLocalPoint centerUpper = midpoint(aUpper, bUpper);
+            placeBrace(aLower, centerUpper, structure, transform, footprint, result, projection, counters);
+            placeBrace(bLower, centerUpper, structure, transform, footprint, result, projection, counters);
         } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
             placeBrace(aLower, bUpper, structure, transform, footprint, result, projection, counters);
         }
+    }
+
+    private static TowerLocalPoint midpoint(TowerLocalPoint a, TowerLocalPoint b) {
+        return TowerLocalPoint.of(
+            (a.lateral() + b.lateral()) / 2.0,
+            (a.vertical() + b.vertical()) / 2.0,
+            (a.longitudinal() + b.longitudinal()) / 2.0);
     }
 
     private static void generateHorizontalRing(
@@ -196,19 +207,65 @@ public final class TowerStructureGenerator {
         MaterialMix material = arm.getMaterial() != null
             ? arm.getMaterial()
             : structure.getPrimaryMaterial();
-        double height = arm.getBaseHeight();
+        double topHeight = arm.getBaseHeight();
+        double bottomHeight = Math.max(0.0, topHeight - arm.getVerticalDrop());
         double reach = arm.getLateralReach();
         double longHalf = arm.getLongitudinalHalfWidth();
-
+        BracingPattern bracing = arm.getBracing();
         switch (arm.getSide()) {
-            case BOTH -> placeLateralArm(-reach, reach, height, longHalf, material, transform, footprint, result, projection, counters);
-            case LEFT -> placeLateralArm(-reach, 0, height, longHalf, material, transform, footprint, result, projection, counters);
-            case RIGHT -> placeLateralArm(0, reach, height, longHalf, material, transform, footprint, result, projection, counters);
+            case BOTH -> generateArmTruss(
+                -reach, reach, topHeight, bottomHeight, longHalf, bracing,
+                material, material, transform, footprint, result, projection, counters);
+            case LEFT -> generateArmTruss(
+                -reach, 0, topHeight, bottomHeight, longHalf, bracing,
+                material, material, transform, footprint, result, projection, counters);
+            case RIGHT -> generateArmTruss(
+                0, reach, topHeight, bottomHeight, longHalf, bracing,
+                material, material, transform, footprint, result, projection, counters);
             default -> { }
         }
     }
 
-    private static void placeLateralArm(
+    private static void generateArmTruss(
+            double lateralStart,
+            double lateralEnd,
+            double topHeight,
+            double bottomHeight,
+            double longHalf,
+            BracingPattern bracing,
+            MaterialMix chordMaterial,
+            MaterialMix braceMaterial,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        if (Math.abs(lateralEnd - lateralStart) < 1e-6) {
+            return;
+        }
+
+        placeArmChord(lateralStart, lateralEnd, topHeight, longHalf, chordMaterial,
+            transform, footprint, result, projection, counters);
+        if (bottomHeight + 1e-6 < topHeight) {
+            placeArmChord(lateralStart, lateralEnd, bottomHeight, longHalf, chordMaterial,
+                transform, footprint, result, projection, counters);
+            generateArmBracing(
+                lateralStart,
+                lateralEnd,
+                topHeight,
+                bottomHeight,
+                longHalf,
+                bracing,
+                braceMaterial,
+                transform,
+                footprint,
+                result,
+                projection,
+                counters);
+        }
+    }
+
+    private static void placeArmChord(
             double lateralStart,
             double lateralEnd,
             double height,
@@ -223,38 +280,66 @@ public final class TowerStructureGenerator {
             placeMember(
                 TowerLocalPoint.of(lateralStart, height, 0),
                 TowerLocalPoint.of(lateralEnd, height, 0),
-                material,
-                1,
-                transform,
-                footprint,
-                result,
-                projection,
-                counters,
-                MemberKind.ARM);
+                material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
             return;
         }
         placeMember(
             TowerLocalPoint.of(lateralStart, height, -longHalf),
             TowerLocalPoint.of(lateralEnd, height, -longHalf),
-            material,
-            1,
-            transform,
-            footprint,
-            result,
-            projection,
-            counters,
-            MemberKind.ARM);
+            material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
         placeMember(
             TowerLocalPoint.of(lateralStart, height, longHalf),
             TowerLocalPoint.of(lateralEnd, height, longHalf),
-            material,
-            1,
-            transform,
-            footprint,
-            result,
-            projection,
-            counters,
-            MemberKind.ARM);
+            material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
+    }
+
+    private static void generateArmBracing(
+            double lateralStart,
+            double lateralEnd,
+            double topHeight,
+            double bottomHeight,
+            double longHalf,
+            BracingPattern pattern,
+            MaterialMix braceMaterial,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        if (pattern == BracingPattern.NONE) {
+            return;
+        }
+
+        double[] longitudes = longHalf <= 0 ? new double[] {0.0} : new double[] {-longHalf, longHalf};
+        for (double longitudinal : longitudes) {
+            TowerLocalPoint topLeft = TowerLocalPoint.of(lateralStart, topHeight, longitudinal);
+            TowerLocalPoint topRight = TowerLocalPoint.of(lateralEnd, topHeight, longitudinal);
+            TowerLocalPoint bottomLeft = TowerLocalPoint.of(lateralStart, bottomHeight, longitudinal);
+            TowerLocalPoint bottomRight = TowerLocalPoint.of(lateralEnd, bottomHeight, longitudinal);
+
+            if (pattern == BracingPattern.X) {
+                placeArmBrace(bottomLeft, topRight, braceMaterial, transform, footprint, result, projection, counters);
+                placeArmBrace(bottomRight, topLeft, braceMaterial, transform, footprint, result, projection, counters);
+            } else if (pattern == BracingPattern.K) {
+                TowerLocalPoint centerTop = midpoint(topLeft, topRight);
+                placeArmBrace(bottomLeft, centerTop, braceMaterial, transform, footprint, result, projection, counters);
+                placeArmBrace(bottomRight, centerTop, braceMaterial, transform, footprint, result, projection, counters);
+            } else if (pattern == BracingPattern.SINGLE_DIAGONAL) {
+                placeArmBrace(bottomLeft, topRight, braceMaterial, transform, footprint, result, projection, counters);
+            }
+        }
+    }
+
+    private static void placeArmBrace(
+            TowerLocalPoint start,
+            TowerLocalPoint end,
+            MaterialMix material,
+            TowerStructureTransform transform,
+            PowerLineFootprint footprint,
+            PowerLineGenerationResult result,
+            IBlockProjectionService projection,
+            GenerationCounters counters) {
+        placeMember(start, end, material, 1, transform, footprint, result, projection, counters, MemberKind.ARM);
     }
 
     private static void placeBrace(

@@ -165,6 +165,7 @@ public final class PoleDesignerPanel {
             ImGui.pushID("arm_" + i);
             ImFloat baseHeight = new ImFloat((float) arm.getBaseHeight());
             ImFloat reach = new ImFloat((float) arm.getLateralReach());
+            ImFloat verticalDrop = new ImFloat((float) arm.getVerticalDrop());
             ImGui.setNextItemWidth(60);
             if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_height"), baseHeight)) {
                 arm.setBaseHeight(baseHeight.get());
@@ -173,6 +174,11 @@ public final class PoleDesignerPanel {
             ImGui.setNextItemWidth(60);
             if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_reach"), reach)) {
                 arm.setLateralReach(reach.get());
+            }
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(60);
+            if (ImGui.inputFloat(PlotI18n.tr("plugin.powerline.design.structure_arm_drop"), verticalDrop)) {
+                arm.setVerticalDrop(verticalDrop.get());
             }
             ImGui.sameLine();
             if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {

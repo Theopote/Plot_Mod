@@ -6,6 +6,8 @@ import com.plot.api.world.ICoordinateService;
 import com.plot.api.world.PlacementReadiness;
 import com.plot.api.world.WorldViewBounds;
 import com.plot.core.command.BlockRecord;
+import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.structure.BracingPattern;
 import com.plot.plugin.powerline.design.structure.TowerArm;
 import com.plot.plugin.powerline.design.structure.TowerArmSide;
 import com.plot.plugin.powerline.design.structure.TowerStation;
@@ -58,6 +60,85 @@ class TowerArmGeneratorTest {
     }
 
     @Test
+    void rightOnlyArmDoesNotGenerateLeft() {
+        TowerStructureDesign structure = baseTower();
+        TowerArm arm = new TowerArm("arm", 10, 4);
+        arm.setSide(TowerArmSide.RIGHT);
+        structure.addArm(arm);
+        Set<Integer> xs = armXs(generate(structure, new Vec2d(1, 0)));
+        assertFalse(xs.stream().anyMatch(x -> x < -1));
+        assertTrue(xs.stream().anyMatch(x -> x > 0));
+    }
+
+    @Test
+    void verticalDropCreatesBottomChord() {
+        TowerStructureDesign structure = baseTower();
+        TowerArm arm = new TowerArm("arm", 12, 4);
+        arm.setVerticalDrop(3);
+        structure.addArm(arm);
+        PowerLineGenerationResult result = generate(structure, new Vec2d(1, 0));
+        assertTrue(hasArmBlockAtY(result, 64 + 12));
+        assertTrue(hasArmBlockAtY(result, 64 + 9));
+    }
+
+    @Test
+    void armXBracingAddsDiagonalMembers() {
+        TowerStructureDesign structure = baseTower();
+        TowerArm arm = new TowerArm("arm", 12, 4);
+        arm.setVerticalDrop(3);
+        arm.setBracing(BracingPattern.X);
+        structure.addArm(arm);
+        PowerLineGenerationResult plain = generate(structureWithoutBracing(12, 4, 3), new Vec2d(1, 0));
+        PowerLineGenerationResult braced = generate(structure, new Vec2d(1, 0));
+        assertTrue(braced.armBlockCount > plain.armBlockCount);
+    }
+
+    @Test
+    void armXAndKBracingBothAddMembersBeyondChords() {
+        int chordCount = goldBlocks(generate(
+            structureWithoutBracing(12, 4, 3, TowerArmSide.LEFT, "minecraft:gold_block"),
+            new Vec2d(1, 0))).size();
+
+        TowerStructureDesign xStructure = baseTower();
+        TowerArm xArm = new TowerArm("arm_x", 12, 4);
+        xArm.setVerticalDrop(3);
+        xArm.setBracing(BracingPattern.X);
+        xArm.setSide(TowerArmSide.LEFT);
+        xArm.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        xStructure.addArm(xArm);
+
+        TowerStructureDesign kStructure = baseTower();
+        TowerArm kArm = new TowerArm("arm_k", 12, 4);
+        kArm.setVerticalDrop(3);
+        kArm.setBracing(BracingPattern.K);
+        kArm.setSide(TowerArmSide.LEFT);
+        kArm.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        kStructure.addArm(kArm);
+
+        int xCount = goldBlocks(generate(xStructure, new Vec2d(1, 0))).size();
+        int kCount = goldBlocks(generate(kStructure, new Vec2d(1, 0))).size();
+        assertTrue(xCount > chordCount);
+        assertTrue(kCount > chordCount);
+    }
+
+    @Test
+    void armKBracingAddsBlocksBeyondChordsOnly() {
+        TowerStructureDesign structure = baseTower();
+        TowerArm arm = new TowerArm("arm", 12, 4);
+        arm.setVerticalDrop(3);
+        arm.setBracing(BracingPattern.K);
+        arm.setSide(TowerArmSide.LEFT);
+        arm.setMaterial(MaterialMix.single("minecraft:gold_block"));
+        structure.addArm(arm);
+
+        TowerStructureDesign chordsOnly = structureWithoutBracing(12, 4, 3, TowerArmSide.LEFT, "minecraft:gold_block");
+
+        int kCount = goldBlocks(generate(structure, new Vec2d(1, 0))).size();
+        int chordCount = goldBlocks(generate(chordsOnly, new Vec2d(1, 0))).size();
+        assertTrue(kCount > chordCount);
+    }
+
+    @Test
     void armRotatesWithTower() {
         TowerStructureDesign structure = baseTower();
         structure.addArm(new TowerArm("arm", 10, 3));
@@ -65,6 +146,57 @@ class TowerArmGeneratorTest {
         Set<Integer> northZs = armZs(generate(structure, new Vec2d(0, 1)));
         assertFalse(eastXs.isEmpty());
         assertFalse(northZs.isEmpty());
+    }
+
+    private static boolean hasArmBlockAtY(PowerLineGenerationResult result, int y) {
+        for (BlockRecord record : result.placementRecords.values()) {
+            if (record.pos.getY() == y && "minecraft:iron_bars".equals(record.newBlockId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Set<BlockPos> goldBlocks(PowerLineGenerationResult result) {
+        Set<BlockPos> blocks = new HashSet<>();
+        for (BlockRecord record : result.placementRecords.values()) {
+            if ("minecraft:gold_block".equals(record.newBlockId)) {
+                blocks.add(record.pos);
+            }
+        }
+        return blocks;
+    }
+
+    private static Set<BlockPos> armBlocks(PowerLineGenerationResult result) {
+        Set<BlockPos> blocks = new HashSet<>();
+        for (BlockRecord record : result.placementRecords.values()) {
+            if ("minecraft:iron_bars".equals(record.newBlockId)
+                    && record.pos.getY() >= 64 + 9
+                    && record.pos.getY() <= 64 + 12) {
+                blocks.add(record.pos);
+            }
+        }
+        return blocks;
+    }
+
+    private static TowerStructureDesign structureWithoutBracing(
+            double height,
+            double reach,
+            double drop,
+            TowerArmSide side,
+            String materialId) {
+        TowerStructureDesign structure = baseTower();
+        TowerArm arm = new TowerArm("arm", height, reach);
+        arm.setVerticalDrop(drop);
+        arm.setBracing(BracingPattern.NONE);
+        arm.setSide(side);
+        arm.setMaterial(MaterialMix.single(materialId));
+        structure.addArm(arm);
+        return structure;
+    }
+
+    private static TowerStructureDesign structureWithoutBracing(double height, double reach, double drop) {
+        return structureWithoutBracing(height, reach, drop, TowerArmSide.BOTH, "minecraft:iron_bars");
     }
 
     private static Set<Integer> armXs(PowerLineGenerationResult result) {

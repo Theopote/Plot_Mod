@@ -98,6 +98,79 @@ class TowerStructureGeneratorTest {
         assertFalse(blocksWithMaterial(result, "minecraft:gold_block").isEmpty());
     }
 
+    @Test
+    void xAndKFaceBracingBothAddMembersBeyondLegsOnly() {
+        TowerStructureDesign legsOnly = asymmetricTwoStationTower();
+        legsOnly.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        legsOnly.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        legsOnly.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+        int legsCount = blocksWithMaterial(generateStructure(legsOnly), "minecraft:iron_bars").size();
+
+        TowerStructureDesign xStructure = asymmetricTwoStationTower();
+        xStructure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+        xStructure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
+        xStructure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        xStructure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        TowerStructureDesign kStructure = asymmetricTwoStationTower();
+        kStructure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+        kStructure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.K);
+        kStructure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        kStructure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        assertTrue(blocksWithMaterial(generateStructure(xStructure), "minecraft:gold_block").size() > 0);
+        assertTrue(blocksWithMaterial(generateStructure(kStructure), "minecraft:gold_block").size() > 0);
+        assertTrue(generateStructure(xStructure).structureBlockCount > legsCount);
+        assertTrue(generateStructure(kStructure).structureBlockCount > legsCount);
+    }
+
+    @Test
+    void kBracingAddsDiagonalMembersComparedToNone() {
+        TowerStructureDesign noneStructure = asymmetricTwoStationTower();
+        noneStructure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+        noneStructure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.NONE);
+        noneStructure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        noneStructure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        TowerStructureDesign kStructure = asymmetricTwoStationTower();
+        kStructure.setBraceMaterial(MaterialMix.single("minecraft:gold_block"));
+        kStructure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.K);
+        kStructure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        kStructure.findOrCreateBay("s0", "s1").setHorizontalRing(false);
+
+        int noneCount = blocksWithMaterial(generateStructure(noneStructure), "minecraft:gold_block").size();
+        int kCount = blocksWithMaterial(generateStructure(kStructure), "minecraft:gold_block").size();
+        assertTrue(kCount > noneCount);
+    }
+
+    @Test
+    void thicknessTwoExpandsMemberFootprint() {
+        TowerStructureDesign thin = twoStationTower();
+        TowerStructureDesign thick = twoStationTower();
+        thick.setLegProfile(new com.plot.plugin.powerline.design.structure.TowerMemberProfile(2));
+
+        int thinCount = generateStructure(thin).structureBlockCount;
+        int thickCount = generateStructure(thick).structureBlockCount;
+        assertTrue(thickCount > thinCount);
+    }
+
+    @Test
+    void xBracingProducesDiagonalEndpoints() {
+        TowerStructureDesign structure = twoStationTower();
+        structure.findOrCreateBay("s0", "s1").setFrontBackBracing(BracingPattern.X);
+        structure.findOrCreateBay("s0", "s1").setSideBracing(BracingPattern.NONE);
+        PowerLineGenerationResult result = generateStructure(structure);
+        boolean hasMidHeightBrace = false;
+        for (BlockRecord record : result.placementRecords.values()) {
+            int y = record.pos.getY();
+            if (y > 64 && y < 64 + 8 && "minecraft:iron_bars".equals(record.newBlockId)) {
+                hasMidHeightBrace = true;
+                break;
+            }
+        }
+        assertTrue(hasMidHeightBrace);
+    }
+
     private static boolean hasNeighbor(PowerLineGenerationResult result, BlockPos neighbor) {
         BlockRecord record = result.placementRecords.get(neighbor);
         return record != null && "minecraft:iron_bars".equals(record.newBlockId)
@@ -112,6 +185,14 @@ class TowerStructureGeneratorTest {
             }
         }
         return blocks;
+    }
+
+    private static TowerStructureDesign asymmetricTwoStationTower() {
+        TowerStructureDesign structure = new TowerStructureDesign();
+        structure.addStation(new TowerStation("s0", 0, 4, 2));
+        structure.addStation(new TowerStation("s1", 8, 3, 1));
+        structure.addBay(new TowerBay("s0", "s1"));
+        return structure;
     }
 
     private static TowerStructureDesign twoStationTower() {

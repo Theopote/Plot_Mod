@@ -3277,6 +3277,7 @@
   "plugin.powerline.design.structure_arms": "横担 (Arm)",
   "plugin.powerline.design.structure_arm_height": "高度",
   "plugin.powerline.design.structure_arm_reach": "伸出",
+  "plugin.powerline.design.structure_arm_drop": "桁架高度",
   "plugin.powerline.design.structure_add_arm": "+ 添加横担",
   "plugin.powerline.design.preview_side": "侧视 (横向)",
   "plugin.powerline.design.preview_front": "正视 (纵向)",
