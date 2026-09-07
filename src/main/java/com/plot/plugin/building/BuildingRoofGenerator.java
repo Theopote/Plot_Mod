@@ -67,31 +67,6 @@ public final class BuildingRoofGenerator {
         }
     }
 
-    /**
-     * @deprecated 使用带 {@code roofPitchRatio} 的重载。
-     */
-    @Deprecated
-    public static void generate(
-            BuildingGenerationResult result,
-            BuildingFootprint footprint,
-            List<Vec2d> outerPoints,
-            int topFloorY,
-            String roofBlockId,
-            BuildingFootprint.RoofType roofType,
-            ICoordinateService transformer,
-            IBlockProjectionService projectionHandler) {
-        generate(
-            result,
-            outerPoints,
-            topFloorY,
-            roofBlockId,
-            roofType,
-            footprint.getRoofPitchRatio(),
-            transformer,
-            projectionHandler
-        );
-    }
-
     static int computeGableRise(
             Vec2d point,
             List<Vec2d> outerPoints,

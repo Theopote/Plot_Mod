@@ -86,6 +86,7 @@ public final class DistrictGenerationResult {
     private double totalArea;
     private double totalVolume;
     private int conflictingBlockCount;
+    private int overlappingBuildingCount;
     private int waterSiteCount;
     private int partialWaterSiteCount;
     private int steepSiteCount;
@@ -144,6 +145,10 @@ public final class DistrictGenerationResult {
 
     public int conflictingBlockCount() {
         return conflictingBlockCount;
+    }
+
+    public int overlappingBuildingCount() {
+        return overlappingBuildingCount;
     }
 
     public int waterSiteCount() {
@@ -259,6 +264,8 @@ public final class DistrictGenerationResult {
             DistrictOverlapAnalyzer.findFootprintOverlapPairs(successfulBuildings);
         overlappingBuildingPairs = List.copyOf(
             DistrictOverlapAnalyzer.mergeUniquePairs(footprintPairs, voxelOverlapPairs));
+        overlappingBuildingCount =
+            DistrictOverlapAnalyzer.countDistinctBuildings(overlappingBuildingPairs);
         if (hasBuildingOverlap()
                 && !warnings.contains("plugin.building.warn.district_overlap")) {
             warnings.add("plugin.building.warn.district_overlap");

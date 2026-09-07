@@ -1,6 +1,6 @@
 # Building Deprecated API Inventory
 
-> **P3 Cleanup** — 存在 Deprecated ≠ 应立即删除。本清单用于审计与分批移除决策，**非当前最高优先级**。
+> **P3 Cleanup** — Batch A 已于 2026-09-07 删除；下文保留审计记录。
 >
 > 生成日期：2026-09-07  
 > 范围：`com.plot.plugin.building.*` 及 `BuildingPlugin` 公开入口
@@ -25,14 +25,29 @@
 
 | 状态 | 数量 | 说明 |
 |------|------|------|
-| **保留（兼容层）** | 10 | 全部 `@Deprecated`；当前 **0 生产调用**（定义处除外） |
-| **已删除** | 0 | 尚无 Batch 删除记录 |
-
-**优先级**：P3 Cleanup — 报告若将其标为「唯一中优先级问题」，属排序错误；应在 Massing UI、Persistence Facade、Seed 等 P1/P2 项稳定后再处理。
+| **已删除（Batch A）** | 10 | 2026-09-07 移除，见下方删除记录 |
+| **保留（兼容层）** | 0 | 当前 `com.plot.plugin.building` 生产代码无 `@Deprecated` |
 
 ---
 
-## 明细
+## Batch A 删除记录（2026-09-07）
+
+| # | 已删除 API | Replacement |
+|---|-----------|-------------|
+| 1 | `BuildingDefinition` 六参数构造器 | 七参数 + `AccessorySpec.none()` |
+| 2 | `ResolvedSiteElevation.baseElevation()` | `actualFoundationElevation()` |
+| 3 | `ResolvedSiteElevation.earthworkPadElevation()` | `resolvedPadElevation()` |
+| 4 | `ResolvedSiteElevation.usedEarthworkPad()` | `source() == EARTHWORK_PAD` |
+| 5 | `BuildingGenerationContext.getFootprint()` | `getDefinition()` / `getOuterPoints()` |
+| 6 | `BuildingRoofGenerator.generate`（无 pitch） | `generate(..., roofPitchRatio, ...)` |
+| 7 | `BuildingGeometryUtils.isAxisAlignedSlopedRoofEligible` | `isSlopedRoofEligible` |
+| 8 | `BuildingSiteAnalyzer.analyze`（三参数） | `analyze(buildingId, ...)` |
+| 9 | `RoofGenerationStage.resolveRoofType`（二参数） | `resolveRoofType(definition, points, result)` |
+| 10 | `BuildingHeightDistribution.Settings.of`（三参数） | `Settings.of(..., seed)` |
+
+---
+
+## 明细（历史审计）
 
 ### 1. `BuildingDefinition` 六参数构造器
 
@@ -45,7 +60,7 @@
 | **Test usages** | 0 — 测试 helper 均已传入 `AccessorySpec.none()` |
 | **Persistence** | 否（JSON 经 `BuildingFootprint` / `BuildingProjectPersistence`） |
 | **Reflection** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -58,7 +73,7 @@
 | **Production usages** | 0 |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -71,7 +86,7 @@
 | **Production usages** | 0 |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 > 注意：`BuildingFoundationUtils` 等方法参数名 `earthworkPadElevation` 是局部命名，**不是**对此 accessor 的调用。
 
@@ -86,7 +101,7 @@
 | **Production usages** | 0 |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -99,7 +114,7 @@
 | **Production usages** | 0 |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -112,7 +127,7 @@
 | **Production usages** | 0 — `RoofGenerationStage` 已用带 pitch 重载 |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -125,7 +140,7 @@
 | **Production usages** | 0 — `RoofGenerationStage` 已用 `isSlopedRoofEligible` |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -138,7 +153,7 @@
 | **Production usages** | 0 — `GenerationSiteResolver` 已用四参数 |
 | **Test usages** | 0 |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -151,7 +166,7 @@
 | **Production usages** | 0 |
 | **Test usages** | 0 — 测试已用 `BuildingDefinition.fromFootprint` + 三参数 API |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 ---
 
@@ -164,7 +179,7 @@
 | **Production usages** | 0 — `BuildingEditPanel` 已传显式 seed |
 | **Test usages** | 0 — 测试均用四参数（含 `0L` 或固定 seed） |
 | **Persistence** | 否 |
-| **safeToRemove** | **是**（Batch A 候选；与 Height Distribution Seed 功能同期引入） |
+| **safeToRemove** | **已删除（Batch A，2026-09-07）** |
 
 > 历史：`System.nanoTime()` 作 seed 的版本已在 2026-09-07 改为 `0L` 并标记 `@Deprecated`；RANDOM 模式须显式 seed 才可复现。
 
@@ -182,23 +197,12 @@
 
 ---
 
-## 建议删除顺序（P3，未排期）
+## 建议删除顺序（剩余）
 
-**Batch A（当前全部 safeToRemove = 是）** — 10 项可一次性删除，前提是：
-
-1. 运行全量 `com.plot.plugin.building.*` 测试
-2. 添加 `BuildingDeprecatedApiInventoryTest` 守卫（删除后验证符号未重现）
-3. 无 golden / dev project fixture 依赖旧 accessor（当前审计：无）
-
-**暂不建议**：
-
-- 在未完成 `BuildingProject` DTO 外迁前，改动 JSON 字段名或 legacy door 映射
-- 为「清零 Deprecated 计数」而删除仍可能被旧存档隐式依赖的 Gson 路径
+1. **保留 indefinitely**：JSON legacy 字段（`doors[]` 等）；`BuildingProject` 内嵌 Gson DTO 直至 Facade 外迁完成
 
 ---
 
 ## 自动化守卫
 
-删除 Batch A 后新增 `BuildingDeprecatedApiInventoryTest`（模式同 `RoadDeprecatedApiInventoryTest`），验证已删符号未重新进入 `src/main/java`。
-
-当前阶段：**仅本文档审计，不执行删除**。
+`BuildingDeprecatedApiInventoryTest` 验证 Batch A 符号未重新引入生产代码，且 `com.plot.plugin.building` 无残留 `@Deprecated`。

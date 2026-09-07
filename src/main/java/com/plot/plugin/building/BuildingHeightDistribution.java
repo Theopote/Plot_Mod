@@ -43,12 +43,6 @@ public final class BuildingHeightDistribution {
             return new Settings(Mode.UNIFORM, f, f, 0L);
         }
 
-        /** @deprecated 请使用 {@link #of(Mode, int, int, long)} 并传入显式 seed，RANDOM 模式才可复现。 */
-        @Deprecated
-        public static Settings of(Mode mode, int minFloors, int maxFloors) {
-            return new Settings(mode, minFloors, maxFloors, 0L);
-        }
-
         public static Settings of(Mode mode, int minFloors, int maxFloors, long seed) {
             return new Settings(mode, minFloors, maxFloors, seed);
         }

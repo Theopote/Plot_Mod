@@ -57,23 +57,6 @@ public final class GenerationSiteResolver {
                 false);
         }
 
-        /** @deprecated 使用 {@link #actualFoundationElevation()} */
-        @Deprecated
-        public int baseElevation() {
-            return actualFoundationElevation;
-        }
-
-        /** @deprecated 使用 {@link #resolvedPadElevation()} */
-        @Deprecated
-        public Integer earthworkPadElevation() {
-            return resolvedPadElevation;
-        }
-
-        /** @deprecated 使用 {@code source == EARTHWORK_PAD} */
-        @Deprecated
-        public boolean usedEarthworkPad() {
-            return source == FoundationElevationSource.EARTHWORK_PAD;
-        }
     }
 
     /**

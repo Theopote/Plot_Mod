@@ -26,6 +26,7 @@ public final class DistrictBuildReport {
     private final List<SkipItem> skipped;
     private final List<String> warnings;
     private final int overlappingPairCount;
+    private final int overlappingBuildingCount;
     private final int conflictingBlockCount;
     private final int waterSiteCount;
     private final int partialWaterSiteCount;
@@ -62,6 +63,7 @@ public final class DistrictBuildReport {
             skipped,
             warnings,
             overlappingPairCount,
+            0,
             conflictingBlockCount,
             0,
             0,
@@ -84,6 +86,7 @@ public final class DistrictBuildReport {
             List<SkipItem> skipped,
             List<String> warnings,
             int overlappingPairCount,
+            int overlappingBuildingCount,
             int conflictingBlockCount,
             int waterSiteCount,
             int partialWaterSiteCount,
@@ -103,6 +106,7 @@ public final class DistrictBuildReport {
         this.skipped = List.copyOf(skipped != null ? skipped : List.of());
         this.warnings = List.copyOf(warnings != null ? warnings : List.of());
         this.overlappingPairCount = Math.max(0, overlappingPairCount);
+        this.overlappingBuildingCount = Math.max(0, overlappingBuildingCount);
         this.conflictingBlockCount = Math.max(0, conflictingBlockCount);
         this.waterSiteCount = Math.max(0, waterSiteCount);
         this.partialWaterSiteCount = Math.max(0, partialWaterSiteCount);
@@ -117,6 +121,7 @@ public final class DistrictBuildReport {
         List<SkipItem> skipped = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         int overlapPairs = 0;
+        int overlapBuildings = 0;
         int conflictBlocks = 0;
         int waterSites = 0;
         int partialWater = 0;
@@ -133,6 +138,7 @@ public final class DistrictBuildReport {
             }
             warnings.addAll(district.warnings());
             overlapPairs = district.overlappingBuildingPairs().size();
+            overlapBuildings = district.overlappingBuildingCount();
             conflictBlocks = district.conflictingBlockCount();
             waterSites = district.waterSiteCount();
             partialWater = district.partialWaterSiteCount();
@@ -161,6 +167,7 @@ public final class DistrictBuildReport {
             skipped,
             warnings,
             overlapPairs,
+            overlapBuildings,
             conflictBlocks,
             waterSites,
             partialWater,
@@ -219,6 +226,10 @@ public final class DistrictBuildReport {
 
     public int overlappingPairCount() {
         return overlappingPairCount;
+    }
+
+    public int overlappingBuildingCount() {
+        return overlappingBuildingCount;
     }
 
     public int conflictingBlockCount() {

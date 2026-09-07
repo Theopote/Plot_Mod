@@ -206,12 +206,6 @@ public final class BuildingGenerationContext {
         return valid;
     }
 
-    /** @deprecated 优先使用 {@link #getDefinition()} */
-    @Deprecated
-    public BuildingFootprint getFootprint() {
-        return footprint;
-    }
-
     public BuildingDefinition getDefinition() {
         return definition;
     }

@@ -35,18 +35,6 @@ public final class BuildingDefinition {
         this.accessory = accessory != null ? accessory : AccessorySpec.none();
     }
 
-    /** @deprecated 使用含 {@link AccessorySpec} 的构造器 */
-    @Deprecated
-    public BuildingDefinition(
-            FootprintSpec footprint,
-            MassingSpec massing,
-            EnvelopeSpec envelope,
-            FacadeSpec facade,
-            RoofSpec roof,
-            FoundationSpec foundation) {
-        this(footprint, massing, envelope, facade, roof, foundation, AccessorySpec.none());
-    }
-
     public static BuildingDefinition fromFootprint(BuildingFootprint footprint) {
         return BuildingDefinitionMapper.fromFootprint(footprint);
     }

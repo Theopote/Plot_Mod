@@ -74,16 +74,6 @@ public final class BuildingGeometryUtils {
         return skeleton.success() && skeleton.maxSkeletalTime() >= pitch;
     }
 
-    /**
-     * 是否满足坡屋顶生成前提：4 点且边与世界坐标轴平行（旋转矩形返回 false）。
-     *
-     * @deprecated 请使用 {@link #isSlopedRoofEligible(List)}（Straight Skeleton v2）。
-     */
-    @Deprecated
-    public static boolean isAxisAlignedSlopedRoofEligible(List<Vec2d> points) {
-        return isAxisAlignedRectangle(points, TOLERANCE);
-    }
-
     public static boolean isAxisAlignedRectangle(List<Vec2d> points, double tolerance) {
         if (points == null || points.size() != 4) {
             return false;

@@ -136,4 +136,26 @@ public final class DistrictOverlapAnalyzer {
         }
         return merged;
     }
+
+    /**
+     * 参与重叠（footprint 或体素冲突）的不重复建筑数量。
+     */
+    public static int countDistinctBuildings(List<OverlapPair> pairs) {
+        if (pairs == null || pairs.isEmpty()) {
+            return 0;
+        }
+        Set<String> ids = new LinkedHashSet<>();
+        for (OverlapPair pair : pairs) {
+            if (pair == null) {
+                continue;
+            }
+            if (pair.buildingIdA() != null) {
+                ids.add(pair.buildingIdA());
+            }
+            if (pair.buildingIdB() != null) {
+                ids.add(pair.buildingIdB());
+            }
+        }
+        return ids.size();
+    }
 }

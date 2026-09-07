@@ -2,6 +2,7 @@ package com.plot.plugin.building.ui;
 
 import com.plot.plugin.building.generation.DistrictBuildReport;
 import com.plot.plugin.building.generation.DistrictGenerationResult;
+import com.plot.plugin.building.generation.DistrictOverlapAnalyzer;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.ui.PluginUiColors;
 import com.plot.utils.PlotI18n;
@@ -165,25 +166,17 @@ public final class BuildingGeneratePanel {
         ImGui.text(PlotI18n.tr("plugin.building.fill_volume_result", district.totalFillVolume()));
         ImGui.text(PlotI18n.tr("plugin.building.block_count_result", district.totalBlocks()));
 
+        if (district.buildingsSkipped() > 0) {
+            renderDistrictFailSoftSummary(
+                district.buildingsGenerated(),
+                district.buildingsSkipped());
+        }
+
         if (district.hasBuildingOverlap()) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.building.district_overlap_summary",
-                district.overlappingBuildingPairs().size(),
-                district.conflictingBlockCount()));
-            int shown = 0;
-            for (var pair : district.overlappingBuildingPairs()) {
-                if (shown >= 5) {
-                    ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                        "plugin.building.district_overlap_more",
-                        district.overlappingBuildingPairs().size() - shown));
-                    break;
-                }
-                ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                    "plugin.building.district_overlap_pair",
-                    pair.buildingNameA(),
-                    pair.buildingNameB()));
-                shown++;
-            }
+            renderDistrictOverlapNotice(
+                district.overlappingBuildingCount(),
+                district.conflictingBlockCount(),
+                district.overlappingBuildingPairs());
         }
 
         if (district.hasSiteConditionSummary()) {
@@ -216,6 +209,10 @@ public final class BuildingGeneratePanel {
         }
 
         for (String warningKey : district.warnings()) {
+            if ("plugin.building.warn.district_overlap".equals(warningKey)
+                    || "plugin.building.warn.district_partial".equals(warningKey)) {
+                continue;
+            }
             ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(warningKey));
         }
 
@@ -284,11 +281,16 @@ public final class BuildingGeneratePanel {
             "plugin.building.district_placed_result",
             report.placedBlocks(),
             report.plannedBlocks()));
-        if (report.overlappingPairCount() > 0 || report.conflictingBlockCount() > 0) {
-            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
-                "plugin.building.district_overlap_summary",
-                report.overlappingPairCount(),
-                report.conflictingBlockCount()));
+        if (report.buildingsSkipped() > 0) {
+            renderDistrictFailSoftSummary(
+                report.buildingsGenerated(),
+                report.buildingsSkipped());
+        }
+        if (report.overlappingBuildingCount() > 0 || report.conflictingBlockCount() > 0) {
+            renderDistrictOverlapNotice(
+                report.overlappingBuildingCount(),
+                report.conflictingBlockCount(),
+                List.of());
         }
         if (report.hasSiteConditionSummary()) {
             ImGui.text(PlotI18n.tr("plugin.building.district_site_conditions"));
@@ -446,6 +448,55 @@ public final class BuildingGeneratePanel {
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();
+        }
+    }
+
+    private static void renderDistrictFailSoftSummary(int generated, int skipped) {
+        ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+            "plugin.building.district_fail_soft_summary",
+            generated,
+            skipped));
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.building.district_fail_soft_policy"));
+    }
+
+    private static void renderDistrictOverlapNotice(
+            int overlappingBuildingCount,
+            int conflictingBlockCount,
+            List<DistrictOverlapAnalyzer.OverlapPair> pairs) {
+        int buildings = overlappingBuildingCount;
+        if (buildings <= 0 && pairs != null && !pairs.isEmpty()) {
+            buildings = DistrictOverlapAnalyzer.countDistinctBuildings(pairs);
+        }
+        if (buildings > 0) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.building.district_overlap_buildings",
+                buildings));
+        }
+        if (conflictingBlockCount > 0) {
+            ImGui.textColored(PluginUiColors.WARNING, PlotI18n.tr(
+                "plugin.building.district_overlap_voxels",
+                conflictingBlockCount));
+        }
+        ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+            "plugin.building.district_overlap_later_wins"));
+
+        if (pairs == null || pairs.isEmpty()) {
+            return;
+        }
+        int shown = 0;
+        for (DistrictOverlapAnalyzer.OverlapPair pair : pairs) {
+            if (shown >= 5) {
+                ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                    "plugin.building.district_overlap_more",
+                    pairs.size() - shown));
+                break;
+            }
+            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
+                "plugin.building.district_overlap_pair",
+                pair.buildingNameA(),
+                pair.buildingNameB()));
+            shown++;
         }
     }
 }

@@ -61,6 +61,38 @@ class DistrictMassingGeneratorTest {
     }
 
     @Test
+    void invalidFootprintsDoNotAbortRemainingBuildings() {
+        List<BuildingFootprint> buildings = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            if (i == 2 || i == 5 || i == 8) {
+                buildings.add(new BuildingFootprint(
+                    "bad-" + i,
+                    List.of(new Vec2d(0, 0), new Vec2d(1, 0)),
+                    false));
+            } else {
+                buildings.add(building("ok-" + i, i * 12.0));
+            }
+        }
+
+        AtomicInteger generatedCalls = new AtomicInteger();
+        DistrictGenerationResult district = DistrictMassingGenerator.generate(
+            buildings,
+            footprint -> {
+                generatedCalls.incrementAndGet();
+                return generateOne(footprint);
+            });
+
+        assertEquals(7, district.buildingsGenerated());
+        assertEquals(3, district.buildingsSkipped());
+        assertEquals(10, district.buildingsAttempted());
+        assertEquals(7, generatedCalls.get());
+        assertTrue(district.hasPlacements());
+        assertEquals(
+            DistrictGenerationResult.SkipReason.INVALID,
+            district.skippedOutcomes().getFirst().skipReason());
+    }
+
+    @Test
     void failSoftSkipsEmptyAndErrorWithoutAbortingOthers() {
         BuildingFootprint ok = building("ok", 0);
         BuildingFootprint empty = building("empty", 40);

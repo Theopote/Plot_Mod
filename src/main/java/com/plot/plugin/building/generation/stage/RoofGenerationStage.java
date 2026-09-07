@@ -62,14 +62,4 @@ public final class RoofGenerationStage implements BuildingGenerationStage {
         result.warnings.add("plugin.building.warn.roof_downgrade");
         return BuildingFootprint.RoofType.FLAT;
     }
-
-    /**
-     * @deprecated 使用 {@link #resolveRoofType(BuildingDefinition, java.util.List, BuildingGenerationResult)}
-     */
-    @Deprecated
-    public static BuildingFootprint.RoofType resolveRoofType(
-            BuildingFootprint footprint,
-            BuildingGenerationResult result) {
-        return resolveRoofType(BuildingDefinition.fromFootprint(footprint), footprint.getOuterPoints(), result);
-    }
 }

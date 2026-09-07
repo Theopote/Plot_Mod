@@ -70,9 +70,18 @@ class DistrictOverlapAnalyzerTest {
         assertEquals(2, district.buildingsGenerated());
         assertTrue(district.hasBuildingOverlap());
         assertTrue(district.conflictingBlockCount() >= 1);
+        assertEquals(2, district.overlappingBuildingCount());
         assertFalse(district.overlappingBuildingPairs().isEmpty());
         assertTrue(district.warnings().contains("plugin.building.warn.district_overlap"));
         assertEquals("minecraft:bricks", district.mergedPlacementRecords().get(shared).newBlockId);
+    }
+
+    @Test
+    void countDistinctBuildingsDedupesPairEndpoints() {
+        List<DistrictOverlapAnalyzer.OverlapPair> pairs = List.of(
+            new DistrictOverlapAnalyzer.OverlapPair("a", "A", "b", "B"),
+            new DistrictOverlapAnalyzer.OverlapPair("b", "B", "c", "C"));
+        assertEquals(3, DistrictOverlapAnalyzer.countDistinctBuildings(pairs));
     }
 
     @Test

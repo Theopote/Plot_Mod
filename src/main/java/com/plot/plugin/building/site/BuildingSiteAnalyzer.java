@@ -82,15 +82,6 @@ public final class BuildingSiteAnalyzer {
         }
     }
 
-    /** @deprecated 使用带 buildingId 的重载 */
-    @Deprecated
-    public static AnalysisBundle analyze(
-            MassingGeometryResolver.ResolvedMassingGeometry massing,
-            World world,
-            ICoordinateService coordinateService) {
-        return analyze(null, massing, world, coordinateService);
-    }
-
     /**
      * 测试 / 纯函数路径：由已有列样本汇总。
      */

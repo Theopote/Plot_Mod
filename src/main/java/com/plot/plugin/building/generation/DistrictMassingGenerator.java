@@ -9,7 +9,10 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * 多栋建筑 fail-soft 编排：单栋异常/空结果记为 skipped，其余继续。
+ * 多栋建筑 fail-soft 编排：单栋异常/空结果/invalid 轮廓记为 skipped，其余继续。
+ * <p>
+ * <strong>产品约束（不可改为 abort-all）</strong>：100 栋中 3 栋 invalid → 97 generated + 3 reported。
+ * 单栋 {@link BuildingGenerateFn#generate} 抛出的异常不得中断片区循环；仅在外层 infrastructure 故障时整片失败。
  */
 public final class DistrictMassingGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger("Plot/DistrictMassing");
