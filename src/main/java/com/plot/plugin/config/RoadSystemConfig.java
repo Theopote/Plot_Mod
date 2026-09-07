@@ -735,41 +735,4 @@ public class RoadSystemConfig {
         this.selectedSidewalkMaterial = resolvedSidewalkMaterial;
         this.selectedPreset = style.id;
     }
-
-    /**
-     * @deprecated Gson 兼容；新代码请使用 {@link RoadStyle}。
-     */
-    @Deprecated
-    public static class RoadPreset extends RoadStyle {
-        public RoadPreset(
-                String id,
-                int width,
-                boolean hasSidewalk,
-                int sidewalkWidth,
-                boolean includeShoulder,
-                int shoulderWidth,
-                boolean includeDrainage,
-                float maxSlope,
-                String roadMaterial,
-                String sidewalkMaterial) {
-            this.id = id;
-            this.name = id;
-            this.width = width;
-            this.hasSidewalk = hasSidewalk;
-            this.sidewalkWidth = sidewalkWidth;
-            this.includeShoulder = includeShoulder;
-            this.shoulderWidth = shoulderWidth;
-            this.includeDrainage = includeDrainage;
-            this.maxSlope = maxSlope;
-            this.roadMaterial = roadMaterial;
-            this.sidewalkMaterial = sidewalkMaterial;
-        }
-
-        /** @deprecated Gson 反序列化兼容 */
-        @Deprecated
-        public RoadPreset(String id, String name, int width, boolean hasSidewalk, int sidewalkWidth) {
-            this(id, width, hasSidewalk, sidewalkWidth, false, 0, false, 10.0f, null, null);
-            this.name = name;
-        }
-    }
 }

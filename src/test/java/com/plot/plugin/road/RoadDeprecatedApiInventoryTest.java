@@ -41,6 +41,11 @@ class RoadDeprecatedApiInventoryTest {
         "RoadSegmentTopologyKind"
     );
 
+    /** Batch C 已删除；生产代码中不应再出现这些符号。 */
+    private static final List<String> BATCH_C_REMOVED_SYMBOLS = List.of(
+        "RoadPreset"
+    );
+
     @Test
     void batchARemovedSymbolsAbsentFromProduction() throws IOException {
         for (String symbol : BATCH_A_REMOVED_SYMBOLS) {
@@ -58,6 +63,16 @@ class RoadDeprecatedApiInventoryTest {
             assertTrue(
                 hits == 0,
                 () -> "Batch B removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
+        }
+    }
+
+    @Test
+    void batchCRemovedSymbolsAbsentFromProduction() throws IOException {
+        for (String symbol : BATCH_C_REMOVED_SYMBOLS) {
+            long hits = countProductionReferences(symbol);
+            assertTrue(
+                hits == 0,
+                () -> "Batch C removed symbol reintroduced in production: " + symbol + " (" + hits + " hits)");
         }
     }
 

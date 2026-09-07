@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoadSystemConfigTest {
 
@@ -85,5 +86,55 @@ class RoadSystemConfigTest {
         assertEquals("minecraft:stone_bricks", config.getTunnelLiningMaterial());
         assertEquals("", config.getTunnelAccentMaterial());
         assertEquals(32, config.getTunnelAccentSpacing());
+    }
+
+    @Test
+    void legacyMinimalPresetJsonDeserializesAsRoadStyle() {
+        RoadSystemConfig config = new Gson().fromJson(
+            """
+            {
+              "selectedPreset": "legacy_custom",
+              "presets": [
+                {
+                  "id": "legacy_custom",
+                  "name": "Legacy Custom",
+                  "width": 9,
+                  "hasSidewalk": true,
+                  "sidewalkWidth": 2
+                }
+              ]
+            }
+            """,
+            RoadSystemConfig.class);
+
+        assertEquals("legacy_custom", config.getSelectedPreset());
+        assertEquals(1, config.getStyles().size());
+        assertEquals("legacy_custom", config.getStyles().getFirst().id);
+        assertEquals("Legacy Custom", config.getStyles().getFirst().name);
+        assertEquals(9, config.getStyles().getFirst().width);
+        assertEquals(2, config.getStyles().getFirst().sidewalkWidth);
+    }
+
+    @Test
+    void loadFromMergesMissingBuiltinStylesForLegacyPresetList(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("road_system.json");
+        Files.writeString(file, """
+            {
+              "presets": [
+                {
+                  "id": "legacy_custom",
+                  "name": "Legacy Custom",
+                  "width": 9,
+                  "hasSidewalk": false,
+                  "sidewalkWidth": 0
+                }
+              ]
+            }
+            """);
+
+        RoadSystemConfig loaded = RoadSystemConfig.loadFrom(file, RoadSystemConfig.class, "road_system");
+        assertNotNull(loaded);
+        assertTrue(loaded.getStyles().stream().anyMatch(style -> "legacy_custom".equals(style.id)));
+        assertTrue(loaded.getStyles().stream().anyMatch(style -> "mountain".equals(style.id)));
     }
 }
