@@ -9,6 +9,8 @@ import com.plot.core.material.MaterialMixResolver;
 import com.plot.plugin.powerline.design.PoleDesign;
 import com.plot.plugin.powerline.design.PoleDesignResolver;
 import com.plot.plugin.powerline.design.PoleLayer;
+import com.plot.plugin.powerline.design.structure.TowerStructureValidator;
+import com.plot.plugin.powerline.design.structure.TowerValidationIssue;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 import com.plot.plugin.road.RoadGeometryUtils;
 import com.plot.plugin.road.terrain.TerrainSampler;
@@ -95,9 +97,25 @@ public class PowerLineGenerator {
         boolean usesAttachmentConductors = false;
 
         if (design != null) {
-            legacyWireHangY = applyPoleDesign(design, planPoint, groundY, tangent, footprint, result);
+            if (design.hasTowerStructure()) {
+                legacyWireHangY = TowerStructureGenerator.generate(
+                    design.getTowerStructure(),
+                    frame,
+                    footprint,
+                    result,
+                    coordinateTransformer,
+                    projectionHandler,
+                    terrain);
+            } else {
+                legacyWireHangY = applyPoleDesign(design, planPoint, groundY, tangent, footprint, result);
+            }
             attachments = attachmentResolver.resolve(design, frame);
             usesAttachmentConductors = design.hasEnabledAttachments();
+            for (TowerValidationIssue issue : TowerStructureValidator.validate(design)) {
+                if (issue.severity() != com.plot.plugin.powerline.design.structure.TowerValidationSeverity.INFO) {
+                    result.warnings.add(issue.message());
+                }
+            }
             for (ResolvedAttachment attachment : attachments) {
                 ConductorSpanGenerator.placeInsulator(attachment, footprint, result, projectionHandler);
             }

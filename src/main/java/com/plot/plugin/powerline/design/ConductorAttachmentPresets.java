@@ -13,10 +13,18 @@ public final class ConductorAttachmentPresets {
     }
 
     public static List<ConductorAttachment> threePhaseHorizontal(double verticalOffset) {
+        return threePhaseHorizontal(verticalOffset, -3.0, 0.0, 3.0);
+    }
+
+    public static List<ConductorAttachment> threePhaseHorizontal(
+            double verticalOffset,
+            double lateralA,
+            double lateralB,
+            double lateralC) {
         List<ConductorAttachment> attachments = new ArrayList<>(3);
-        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, -3.0, verticalOffset));
-        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, 0.0, verticalOffset));
-        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, 3.0, verticalOffset));
+        attachments.add(createPhase(PHASE_A_ID, "A", AttachmentRole.PHASE_A, lateralA, verticalOffset));
+        attachments.add(createPhase(PHASE_B_ID, "B", AttachmentRole.PHASE_B, lateralB, verticalOffset));
+        attachments.add(createPhase(PHASE_C_ID, "C", AttachmentRole.PHASE_C, lateralC, verticalOffset));
         return attachments;
     }
 

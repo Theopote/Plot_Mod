@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.plot.core.material.MaterialMix;
 import com.plot.core.material.MaterialMixTypeAdapter;
+import com.plot.plugin.powerline.design.structure.TowerStructureDesign;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +22,7 @@ public class PoleDesign {
     private String name;
     private List<PoleLayer> layers = new ArrayList<>();
     private List<ConductorAttachment> attachments = new ArrayList<>();
+    private TowerStructureDesign towerStructure;
 
     public PoleDesign(String name) {
         this.id = UUID.randomUUID().toString();
@@ -110,7 +112,26 @@ public class PoleDesign {
         return false;
     }
 
+    public TowerStructureDesign getTowerStructure() {
+        return towerStructure;
+    }
+
+    public void setTowerStructure(TowerStructureDesign towerStructure) {
+        this.towerStructure = towerStructure != null ? towerStructure.copy() : null;
+    }
+
+    public boolean hasTowerStructure() {
+        return towerStructure != null && towerStructure.hasStations();
+    }
+
+    public void clearTowerStructure() {
+        this.towerStructure = null;
+    }
+
     public int totalHeight() {
+        if (hasTowerStructure()) {
+            return (int) Math.round(towerStructure.maxHeight());
+        }
         return layers.stream().mapToInt(PoleLayer::getHeight).sum();
     }
 
@@ -129,6 +150,9 @@ public class PoleDesign {
     }
 
     public int wireHangHeightFromGround(int groundY) {
+        if (hasTowerStructure()) {
+            return groundY + (int) Math.round(towerStructure.maxHeight());
+        }
         int currentY = groundY + 1;
         int wireHangY = groundY + totalHeight();
         for (PoleLayer layer : layers) {
@@ -144,6 +168,7 @@ public class PoleDesign {
         PoleDesign copy = new PoleDesign(id, name);
         copy.setLayers(layers);
         copy.setAttachments(attachments);
+        copy.setTowerStructure(towerStructure);
         return copy;
     }
 
@@ -180,6 +205,7 @@ public class PoleDesign {
         String name;
         List<LayerData> layers = new ArrayList<>();
         List<AttachmentData> attachments = new ArrayList<>();
+        String towerStructureJson;
 
         static DesignData from(PoleDesign design) {
             DesignData data = new DesignData();
@@ -205,6 +231,9 @@ public class PoleDesign {
                 attachmentData.insulatorLength = attachment.getInsulatorLength();
                 attachmentData.enabled = attachment.isEnabled();
                 data.attachments.add(attachmentData);
+            }
+            if (design.towerStructure != null) {
+                data.towerStructureJson = design.towerStructure.toJson();
             }
             return data;
         }
@@ -253,6 +282,9 @@ public class PoleDesign {
                 }
             }
             design.setAttachments(restoredAttachments);
+            if (towerStructureJson != null && !towerStructureJson.isBlank()) {
+                design.setTowerStructure(TowerStructureDesign.fromJson(towerStructureJson));
+            }
             return design;
         }
     }

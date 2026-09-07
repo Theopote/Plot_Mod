@@ -17,6 +17,9 @@ public class PowerLineGenerationResult {
     public final List<String> warnings = new ArrayList<>();
     public int poleCount;
     public double wireLength;
+    public int structureBlockCount;
+    public int braceBlockCount;
+    public int armBlockCount;
     public final PowerLineFootprint footprint;
 
     public PowerLineGenerationResult(PowerLineFootprint footprint) {

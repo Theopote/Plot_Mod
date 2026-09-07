@@ -1,6 +1,7 @@
 package com.plot.plugin.powerline.design;
 
 import com.plot.core.material.MaterialMix;
+import com.plot.plugin.powerline.design.structure.TowerStructurePresets;
 import com.plot.plugin.powerline.model.PowerLineFootprint;
 
 import java.util.ArrayList;
@@ -16,6 +17,8 @@ public final class PoleDesignCatalog {
     public static final String LATTICE_STEEL_TOWER_ID = "preset/lattice_steel_tower";
     public static final String MODERN_STEEL_POLE_ID = "preset/modern_steel_pole";
 
+    public static final String TAPERED_LATTICE_TOWER_ID = "preset/tapered_lattice_tower";
+
     private PoleDesignCatalog() {
     }
 
@@ -24,6 +27,7 @@ public final class PoleDesignCatalog {
         designs.add(simpleWoodPole());
         designs.add(latticeSteelTower());
         designs.add(modernSteelPole());
+        designs.add(taperedLatticeTower());
         return designs;
     }
 
@@ -92,6 +96,12 @@ public final class PoleDesignCatalog {
             MaterialMix.single("minecraft:lantern")));
         design.setLayers(layers);
         return design;
+    }
+
+    public static PoleDesign taperedLatticeTower() {
+        return TowerStructurePresets.taperedLatticePoleDesign(
+            TAPERED_LATTICE_TOWER_ID,
+            "Tapered Lattice Tower");
     }
 
     public static PoleDesign modernSteelPole() {

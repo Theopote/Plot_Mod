@@ -31,39 +31,14 @@ public final class PowerLineWireRasterizer {
             double x1,
             double y1,
             double z1) {
-        return rasterizeBlockLine3D(
-            blockCell(x0, y0, z0),
-            blockCell(x1, y1, z1));
+        return VoxelLineRasterizer.rasterizeLine3D(x0, y0, z0, x1, y1, z1);
     }
 
     /**
      * 在相邻体素之间沿曼哈顿路径步进，保证每步只改变一个轴。
      */
     static List<BlockPos> rasterizeBlockLine3D(BlockPos from, BlockPos to) {
-        if (from.equals(to)) {
-            return List.of(from);
-        }
-
-        List<BlockPos> points = new ArrayList<>();
-        points.add(from);
-        int x = from.getX();
-        int y = from.getY();
-        int z = from.getZ();
-        int targetX = to.getX();
-        int targetY = to.getY();
-        int targetZ = to.getZ();
-
-        while (x != targetX || y != targetY || z != targetZ) {
-            if (x != targetX) {
-                x += Integer.compare(targetX, x);
-            } else if (y != targetY) {
-                y += Integer.compare(targetY, y);
-            } else {
-                z += Integer.compare(targetZ, z);
-            }
-            points.add(new BlockPos(x, y, z));
-        }
-        return points;
+        return VoxelLineRasterizer.rasterizeBlockLine3D(from, to);
     }
 
     private static BlockPos blockCell(double x, double y, double z) {
