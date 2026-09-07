@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 import com.plot.plugin.ui.PluginUiColors;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.config.RoadSystemConfig;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -156,8 +157,8 @@ public final class RoadNetworkOverviewRenderer {
             edges,
             halfWidthResolver,
             junctionRadius,
-            cornerRadius
-        );
+            cornerRadius,
+            RoadJunctionCenterlineResolver.forNetwork(network));
         if (polygon.size() < 3) {
             return;
         }

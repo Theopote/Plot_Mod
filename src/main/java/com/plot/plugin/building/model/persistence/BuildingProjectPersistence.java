@@ -1,7 +1,6 @@
 package com.plot.plugin.building.model.persistence;
 
 import com.plot.plugin.building.model.BuildingProject;
-import com.plot.plugin.building.model.persistence.BuildingProjectLoadResult;
 
 import java.io.IOException;
 import java.nio.file.Files;

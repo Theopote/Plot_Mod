@@ -2,6 +2,11 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.alignment.HorizontalAlignmentElement;
+import com.plot.plugin.road.alignment.RoadHorizontalAlignment;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
+import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -27,8 +32,8 @@ class RoadJunctionGeometryTest {
             "junction",
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
-        );
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         assertTrue(polygon.size() >= 6,
             "T-junction should contribute left/right corners for each connected edge");
@@ -59,8 +64,8 @@ class RoadJunctionGeometryTest {
             "junction",
             List.of(north, east, south, west),
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
-        );
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         assertTrue(polygon.size() >= 8);
         assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), polygon));
@@ -91,8 +96,8 @@ class RoadJunctionGeometryTest {
             "hub",
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
-        );
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         assertTrue(polygon.size() >= 8);
         assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), polygon),
@@ -120,8 +125,8 @@ class RoadJunctionGeometryTest {
             "junction",
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
-        );
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         assertTrue(polygon.size() >= 4);
         assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), polygon),
@@ -137,7 +142,8 @@ class RoadJunctionGeometryTest {
             new Vec2d(0, 12)
         ));
 
-        Vec2d direction = RoadJunctionGeometry.computeApproachDirection(southbound, "junction");
+        Vec2d direction = RoadJunctionGeometry.computeApproachDirection(
+            southbound.getCenterlinePoints(), southbound, "junction");
         assertEquals(0, direction.x, 1e-6);
         assertEquals(4, direction.y, 1e-6);
 
@@ -145,7 +151,8 @@ class RoadJunctionGeometryTest {
             new Vec2d(0, -12),
             new Vec2d(0, 0)
         ));
-        Vec2d intoSouth = RoadJunctionGeometry.computeApproachDirection(northApproach, "junction");
+        Vec2d intoSouth = RoadJunctionGeometry.computeApproachDirection(
+            northApproach.getCenterlinePoints(), northApproach, "junction");
         assertEquals(0, intoSouth.x, 1e-6);
         assertEquals(-12, intoSouth.y, 1e-6);
     }
@@ -160,7 +167,7 @@ class RoadJunctionGeometryTest {
         ));
 
         List<Vec2d> segment = RoadJunctionGeometry.extractApproachCenterline(
-            edge, "junction", 3.0);
+            edge.getCenterlinePoints(), edge, "junction", 3.0);
 
         assertEquals(2, segment.size());
         assertEquals(0, segment.getFirst().x, 1e-6);
@@ -178,7 +185,7 @@ class RoadJunctionGeometryTest {
         ));
 
         List<Vec2d> segment = RoadJunctionGeometry.extractNearNodeSegment(
-            edge, "junction", 3.0);
+            edge.getCenterlinePoints(), edge, "junction", 3.0);
 
         assertEquals(3, segment.size());
         assertEquals(0, segment.getFirst().x, 1e-6);
@@ -219,18 +226,69 @@ class RoadJunctionGeometryTest {
             "junction",
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
-            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
-        );
+            RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadJunctionCenterlineResolver.forNetwork(network));
         List<Vec2d> filleted = RoadJunctionGeometry.buildJunctionFillPolygon(
             "junction",
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
-            2.0
-        );
+            2.0,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         assertTrue(filleted.size() > sharp.size());
         assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 0), filleted));
+    }
+
+    @Test
+    void junctionGenerationUsesDesignAlignmentNotStaleInstanceCenterline() {
+        RoadSystemConfig config = new RoadSystemConfig("road_system");
+        config.setRoadWidth(6);
+        RoadNetwork network = new RoadNetwork();
+
+        Road road = network.createRoad("r1");
+        RoadNode junction = network.createNode(new Vec2d(0, 0));
+        RoadNode eastEnd = network.createNode(new Vec2d(20, 0));
+        RoadNode northEnd = network.createNode(new Vec2d(0, 20));
+
+        RoadEdge east = network.createEdge(
+            junction.getId(), eastEnd.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(20, 0)), road.getId());
+        RoadEdge north = network.createEdge(
+            junction.getId(), northEnd.getId(),
+            List.of(new Vec2d(0, 0), new Vec2d(0, 20)));
+
+        RoadHorizontalAlignment alignment = new RoadHorizontalAlignment(new Vec2d(0, 8), 0.0, List.of());
+        alignment.addElement(HorizontalAlignmentElement.tangent(20.0));
+        road.setHorizontalAlignment(alignment);
+
+        List<RoadEdge> edges = List.of(east, north);
+        var halfWidth = (java.util.function.ToDoubleFunction<RoadEdge>) edge ->
+            RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0;
+
+        List<Vec2d> staleEast = east.getCenterlinePoints();
+        List<Vec2d> resolvedEast = RoadPlanGeometry.resolveEdgeCenterline(network, east);
+        assertEquals(0.0, staleEast.getFirst().y, 1e-6);
+        assertEquals(8.0, resolvedEast.getFirst().y, 0.2);
+
+        Vec2d staleCenter = RoadJunctionGeometry.resolveNodeCenter(
+            junction.getId(), List.of(east), RoadEdge::getCenterlinePoints);
+        Vec2d resolvedCenter = RoadJunctionGeometry.resolveNodeCenter(
+            junction.getId(), List.of(east), RoadJunctionCenterlineResolver.forNetwork(network));
+        assertEquals(0.0, staleCenter.y, 1e-6);
+        assertEquals(8.0, resolvedCenter.y, 0.2);
+
+        List<Vec2d> stalePolygon = RoadJunctionGeometry.collectPolygonVertices(
+            junction.getId(), edges, halfWidth, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadEdge::getCenterlinePoints);
+        List<Vec2d> resolvedPolygon = RoadJunctionGeometry.collectPolygonVertices(
+            junction.getId(), edges, halfWidth, RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
+            RoadJunctionCenterlineResolver.forNetwork(network));
+
+        assertFalse(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 8), stalePolygon),
+            "stale instance centerline should anchor junction at y=0, missing design offset");
+        assertTrue(RoadGeometryUtils.pointInPolygon(new Vec2d(0, 8), resolvedPolygon),
+            "resolved centerline should anchor junction at design HA offset");
     }
 
     @Test

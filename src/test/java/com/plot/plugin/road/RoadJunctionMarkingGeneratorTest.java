@@ -2,6 +2,7 @@ package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
 import com.plot.plugin.config.RoadSystemConfig;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.JunctionMarkingSetting;
 import com.plot.plugin.road.model.Road;
 import com.plot.plugin.road.model.RoadEdge;
@@ -54,8 +55,8 @@ class RoadJunctionMarkingGeneratorTest {
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, config) / 2.0,
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
-            2.0
-        );
+            2.0,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         RoadJunctionGenerator.JunctionBlocks blocks = new RoadJunctionGenerator.JunctionBlocks();
         markingGenerator.generateStopLines(blocks, junction, network, edges, 64);
@@ -117,12 +118,18 @@ class RoadJunctionMarkingGeneratorTest {
             south.getId(), junction.getId(), List.of(new Vec2d(0, -10), new Vec2d(0, 0)));
 
         var southApproach = new RoadJunctionMarkingGenerator.ApproachGeometry(
-            southEdge, RoadJunctionGeometry.computeApproachDirection(southEdge, junction.getId()).normalize());
+            southEdge,
+            RoadJunctionGeometry.computeApproachDirection(
+                southEdge.getCenterlinePoints(), southEdge, junction.getId()).normalize());
         var all = List.of(
             new RoadJunctionMarkingGenerator.ApproachGeometry(
-                northEdge, RoadJunctionGeometry.computeApproachDirection(northEdge, junction.getId()).normalize()),
+                northEdge,
+                RoadJunctionGeometry.computeApproachDirection(
+                    northEdge.getCenterlinePoints(), northEdge, junction.getId()).normalize()),
             new RoadJunctionMarkingGenerator.ApproachGeometry(
-                eastEdge, RoadJunctionGeometry.computeApproachDirection(eastEdge, junction.getId()).normalize()),
+                eastEdge,
+                RoadJunctionGeometry.computeApproachDirection(
+                    eastEdge.getCenterlinePoints(), eastEdge, junction.getId()).normalize()),
             southApproach
         );
 

@@ -1,6 +1,7 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -125,8 +126,8 @@ public class RoadJunctionGenerator {
             edges,
             edge -> RoadModelUtils.getEffectiveWidth(network, edge, generator.getConfig()) / 2.0,
             junctionRadius,
-            cornerRadius
-        );
+            cornerRadius,
+            RoadJunctionCenterlineResolver.forNetwork(network));
 
         if (polygon.size() < 3) {
             generateSimpleEnvelope(blocks, network, center, edges, junctionY, terrain);

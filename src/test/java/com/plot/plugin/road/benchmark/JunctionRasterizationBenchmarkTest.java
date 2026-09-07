@@ -4,6 +4,7 @@ import com.plot.infrastructure.event.block.BlockProjectionHandler;
 import com.plot.plugin.road.RoadGenerator;
 import com.plot.plugin.road.RoadJunctionGenerator;
 import com.plot.plugin.road.RoadJunctionGeometry;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
 import com.plot.plugin.road.model.RoadNetwork;
 import com.plot.plugin.road.model.RoadNode;
 import com.plot.plugin.road.terrain.FlatTerrainSampler;
@@ -146,7 +147,8 @@ class JunctionRasterizationBenchmarkTest {
                 connected,
                 edge -> 3.0,
                 RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS,
-                0.0);
+                0.0,
+                RoadJunctionCenterlineResolver.forNetwork(junctionCase.network()));
             if (!polygon.isEmpty()) {
                 vertices += polygon.size();
                 bboxArea += polygonBoundingArea(polygon);

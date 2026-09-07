@@ -1,6 +1,8 @@
 package com.plot.plugin.road;
 
 import com.plot.api.geometry.Vec2d;
+import com.plot.plugin.road.alignment.RoadJunctionCenterlineResolver;
+import com.plot.plugin.road.alignment.RoadPlanGeometry;
 import com.plot.plugin.road.model.RoadEdge;
 import com.plot.plugin.road.model.RoadModelUtils;
 import com.plot.plugin.road.model.RoadNetwork;
@@ -55,7 +57,7 @@ public final class RoadJunctionMarkingGenerator {
         boolean anySidewalk = edges.stream().anyMatch(edge ->
             RoadModelUtils.resolveCrossSection(network, edge, generator.getConfig()).includeSidewalk);
 
-        List<ApproachGeometry> approaches = buildApproachGeometries(node, edges);
+        List<ApproachGeometry> approaches = buildApproachGeometries(node, edges, network);
         for (ApproachGeometry approach : approaches) {
             RoadEdge edge = approach.edge();
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
@@ -70,7 +72,7 @@ public final class RoadJunctionMarkingGenerator {
                 RoadMarkingPasses.hasAnyMarkings(crossSection));
             if (continueMarkings) {
                 generateContinuedMarkings(
-                    blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection);
+                    blocks, edge, node.getId(), junctionPolygon, junctionY, junctionRadius, crossSection, network);
             }
 
             // 斑马线：有人行道的路口自动铺；无横断面配置时也可由 AUTO 关闭
@@ -89,10 +91,15 @@ public final class RoadJunctionMarkingGenerator {
         }
     }
 
-    private static List<ApproachGeometry> buildApproachGeometries(RoadNode node, List<RoadEdge> edges) {
+    private static List<ApproachGeometry> buildApproachGeometries(
+            RoadNode node,
+            List<RoadEdge> edges,
+            RoadNetwork network) {
+        var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         List<ApproachGeometry> approaches = new ArrayList<>(edges.size());
         for (RoadEdge edge : edges) {
-            Vec2d outward = RoadJunctionGeometry.computeApproachDirection(edge, node.getId());
+            List<Vec2d> centerline = centerlineResolver.apply(edge);
+            Vec2d outward = RoadJunctionGeometry.computeApproachDirection(centerline, edge, node.getId());
             if (outward.lengthSquared() < 1e-12) {
                 continue;
             }
@@ -148,9 +155,11 @@ public final class RoadJunctionMarkingGenerator {
             List<Vec2d> junctionPolygon,
             int junctionY,
             double junctionRadius,
-            ResolvedCrossSection crossSection) {
+            ResolvedCrossSection crossSection,
+            RoadNetwork network) {
+        List<Vec2d> centerline = RoadPlanGeometry.resolveEdgeCenterline(network, edge);
         List<Vec2d> outward = RoadJunctionGeometry.extractApproachCenterline(
-            edge, nodeId, junctionRadius * 1.35);
+            centerline, edge, nodeId, junctionRadius * 1.35);
         if (outward.size() < 2) {
             return;
         }
@@ -301,11 +310,13 @@ public final class RoadJunctionMarkingGenerator {
             RoadJunctionGeometry.DEFAULT_JUNCTION_RADIUS
         );
 
+        var centerlineResolver = RoadJunctionCenterlineResolver.forNetwork(network);
         for (RoadEdge edge : edges) {
             ResolvedCrossSection crossSection = RoadModelUtils.resolveCrossSection(
                 network, edge, generator.getConfig());
 
-            Vec2d direction = RoadJunctionGeometry.computeApproachDirection(edge, node.getId());
+            List<Vec2d> centerline = centerlineResolver.apply(edge);
+            Vec2d direction = RoadJunctionGeometry.computeApproachDirection(centerline, edge, node.getId());
             if (direction.lengthSquared() < 1e-12) {
                 continue;
             }

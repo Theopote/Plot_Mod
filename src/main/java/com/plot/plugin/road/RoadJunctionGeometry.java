@@ -7,10 +7,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
 /**
- * 路口造型相关的纯几何计算（不依赖 Minecraft World）
+ * 路口造型相关的纯几何计算（不依赖 Minecraft World）。
+ * <p>
+ * 生成路径须传入已解析的中心线（{@link com.plot.plugin.road.alignment.RoadPlanGeometry}），
+ * 不得在本类内读取 {@link RoadEdge#getCenterlinePoints()}。
  */
 public final class RoadJunctionGeometry {
     public static final double DEFAULT_JUNCTION_RADIUS = 3.0;
@@ -26,18 +30,20 @@ public final class RoadJunctionGeometry {
             String nodeId,
             List<RoadEdge> edges,
             ToDoubleFunction<RoadEdge> halfWidthResolver,
-            double junctionRadius) {
-        if (nodeId == null || edges == null || halfWidthResolver == null || edges.isEmpty()) {
+            double junctionRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
+        if (nodeId == null || edges == null || halfWidthResolver == null || centerlineResolver == null || edges.isEmpty()) {
             return List.of();
         }
 
-        Vec2d center = resolveNodeCenter(nodeId, edges);
+        Vec2d center = resolveNodeCenter(nodeId, edges, centerlineResolver);
         double effectiveRadius = resolveEffectiveJunctionRadius(edges, halfWidthResolver, junctionRadius);
         List<Vec2d> corners = new ArrayList<>();
 
         for (RoadEdge edge : edges) {
-            collectApproachCorners(nodeId, center, edge, halfWidthResolver.applyAsDouble(edge),
-                effectiveRadius, corners);
+            collectApproachCorners(
+                nodeId, center, edge, halfWidthResolver.applyAsDouble(edge),
+                effectiveRadius, centerlineResolver, corners);
         }
 
         corners = dedupeNearbyVertices(corners);
@@ -69,8 +75,10 @@ public final class RoadJunctionGeometry {
             List<RoadEdge> edges,
             ToDoubleFunction<RoadEdge> halfWidthResolver,
             double junctionRadius,
-            double cornerRadius) {
-        List<Vec2d> polygon = collectPolygonVertices(nodeId, edges, halfWidthResolver, junctionRadius);
+            double cornerRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
+        List<Vec2d> polygon = collectPolygonVertices(
+            nodeId, edges, halfWidthResolver, junctionRadius, centerlineResolver);
         if (polygon.size() < 3 || cornerRadius <= 1e-6) {
             return polygon;
         }
@@ -191,12 +199,14 @@ public final class RoadJunctionGeometry {
             RoadEdge edge,
             double halfWidth,
             double junctionRadius,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver,
             List<Vec2d> out) {
-        if (edge == null || center == null || out == null || halfWidth <= 0) {
+        if (edge == null || center == null || out == null || halfWidth <= 0 || centerlineResolver == null) {
             return;
         }
 
-        Vec2d direction = computeApproachDirection(edge, nodeId);
+        List<Vec2d> centerline = centerlineResolver.apply(edge);
+        Vec2d direction = computeApproachDirection(centerline, edge, nodeId);
         if (direction.lengthSquared() < 1e-12) {
             return;
         }
@@ -208,16 +218,15 @@ public final class RoadJunctionGeometry {
         out.add(mouth.subtract(leftNormal.multiply(halfWidth)));
     }
 
-    static Vec2d computeApproachDirection(RoadEdge edge, String nodeId) {
-        List<Vec2d> points = edge.getCenterlinePoints();
-        if (points == null || points.size() < 2) {
+    public static Vec2d computeApproachDirection(List<Vec2d> centerline, RoadEdge edge, String nodeId) {
+        if (centerline == null || centerline.size() < 2 || edge == null || nodeId == null) {
             return new Vec2d(0, 0);
         }
         if (edge.getStartNodeId().equals(nodeId)) {
-            return points.get(1).subtract(points.getFirst());
+            return centerline.get(1).subtract(centerline.getFirst());
         }
         if (edge.getEndNodeId().equals(nodeId)) {
-            return points.get(points.size() - 2).subtract(points.getLast());
+            return centerline.get(centerline.size() - 2).subtract(centerline.getLast());
         }
         return new Vec2d(0, 0);
     }
@@ -225,21 +234,21 @@ public final class RoadJunctionGeometry {
     /**
      * 从节点出发沿中心线向外截取指定长度（用于路口标线延续）。
      */
-    public static List<Vec2d> extractApproachCenterline(RoadEdge edge, String nodeId, double maxLength) {
-        if (edge == null || nodeId == null || maxLength <= 0) {
-            return List.of();
-        }
-        List<Vec2d> points = edge.getCenterlinePoints();
-        if (points == null || points.size() < 2) {
+    public static List<Vec2d> extractApproachCenterline(
+            List<Vec2d> centerline,
+            RoadEdge edge,
+            String nodeId,
+            double maxLength) {
+        if (edge == null || nodeId == null || maxLength <= 0 || centerline == null || centerline.size() < 2) {
             return List.of();
         }
 
         List<Vec2d> ordered = new ArrayList<>();
         if (edge.getStartNodeId().equals(nodeId)) {
-            ordered.addAll(points);
+            ordered.addAll(centerline);
         } else if (edge.getEndNodeId().equals(nodeId)) {
-            for (int i = points.size() - 1; i >= 0; i--) {
-                ordered.add(points.get(i));
+            for (int i = centerline.size() - 1; i >= 0; i--) {
+                ordered.add(centerline.get(i));
             }
         } else {
             return List.of();
@@ -272,9 +281,15 @@ public final class RoadJunctionGeometry {
         return result;
     }
 
-    static Vec2d resolveNodeCenter(String nodeId, List<RoadEdge> edges) {
+    static Vec2d resolveNodeCenter(
+            String nodeId,
+            List<RoadEdge> edges,
+            Function<RoadEdge, List<Vec2d>> centerlineResolver) {
+        if (centerlineResolver == null) {
+            return new Vec2d(0, 0);
+        }
         for (RoadEdge edge : edges) {
-            List<Vec2d> points = edge.getCenterlinePoints();
+            List<Vec2d> points = centerlineResolver.apply(edge);
             if (points == null || points.isEmpty()) {
                 continue;
             }
@@ -394,29 +409,29 @@ public final class RoadJunctionGeometry {
             && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
     }
 
-    public static List<Vec2d> extractNearNodeSegment(RoadEdge edge, String nodeId, double maxDistance) {
-        if (edge == null || nodeId == null) {
-            return List.of();
-        }
-        List<Vec2d> points = edge.getCenterlinePoints();
-        if (points.size() < 2) {
+    public static List<Vec2d> extractNearNodeSegment(
+            List<Vec2d> centerline,
+            RoadEdge edge,
+            String nodeId,
+            double maxDistance) {
+        if (edge == null || nodeId == null || centerline == null || centerline.size() < 2) {
             return List.of();
         }
 
         boolean atStart = edge.getStartNodeId().equals(nodeId);
         List<Vec2d> segment = new ArrayList<>();
         if (atStart) {
-            segment.add(points.getFirst());
-            segment.add(points.get(Math.min(1, points.size() - 1)));
-            if (points.size() > 2) {
-                segment.add(RoadGeometryUtils.pointAlongPolylineFrom(points.getFirst(), points, maxDistance));
+            segment.add(centerline.getFirst());
+            segment.add(centerline.get(Math.min(1, centerline.size() - 1)));
+            if (centerline.size() > 2) {
+                segment.add(RoadGeometryUtils.pointAlongPolylineFrom(centerline.getFirst(), centerline, maxDistance));
             }
         } else {
-            List<Vec2d> reversed = new ArrayList<>(points);
+            List<Vec2d> reversed = new ArrayList<>(centerline);
             Collections.reverse(reversed);
-            segment.add(RoadGeometryUtils.pointAlongPolylineFrom(points.getLast(), reversed, maxDistance));
-            segment.add(points.get(Math.max(0, points.size() - 2)));
-            segment.add(points.getLast());
+            segment.add(RoadGeometryUtils.pointAlongPolylineFrom(centerline.getLast(), reversed, maxDistance));
+            segment.add(centerline.get(Math.max(0, centerline.size() - 2)));
+            segment.add(centerline.getLast());
         }
         return segment;
     }

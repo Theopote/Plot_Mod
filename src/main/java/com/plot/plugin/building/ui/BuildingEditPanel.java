@@ -1,8 +1,5 @@
 package com.plot.plugin.building.ui;
 
-import com.plot.api.building.BuildingPadElevationMode;
-import com.plot.core.material.MaterialMix;
-import com.plot.plugin.building.BuildingListHelper;
 import com.plot.plugin.building.model.BuildingFootprint;
 import com.plot.plugin.building.model.spec.OpeningSpec;
 import com.plot.plugin.building.site.BuildingSiteElevationResolver;
