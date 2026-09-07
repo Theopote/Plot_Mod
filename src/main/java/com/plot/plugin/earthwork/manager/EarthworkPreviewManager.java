@@ -77,6 +77,19 @@ public final class EarthworkPreviewManager {
         this.statusSink = statusSink != null ? statusSink : msg -> {};
     }
 
+    /** 单测：注入已生成的预览结果，验证 Build 与 Preview 使用同一份 placement 集。 */
+    static EarthworkPreviewManager withGenerationResult(
+            PluginContext host,
+            SiteEarthworkPipeline sitePipeline,
+            TerrainSnapshotCache terrainCache,
+            Consumer<String> statusSink,
+            EarthworkGenerationResult generationResult) {
+        EarthworkPreviewManager manager = new EarthworkPreviewManager(
+            host, sitePipeline, terrainCache, statusSink);
+        manager.lastGenerationResult = generationResult;
+        return manager;
+    }
+
     public EarthworkGenerationResult getLastGenerationResult() {
         return lastGenerationResult;
     }
