@@ -51,4 +51,16 @@ class PoleDesignTest {
         layer.setCrossarmLength(4);
         assertEquals(5, layer.getCrossarmLength());
     }
+
+    @Test
+    void topmostCrossarmIsConductorAttachmentLayer() {
+        PoleDesign design = new PoleDesign("multi-crossarm");
+        design.getLayers().add(new PoleLayer(PoleLayer.Shape.COLUMN, 4, MaterialMix.single("minecraft:oak_fence")));
+        design.getLayers().add(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
+        design.getLayers().add(new PoleLayer(PoleLayer.Shape.COLUMN, 3, MaterialMix.single("minecraft:oak_fence")));
+        design.getLayers().add(new PoleLayer(PoleLayer.Shape.CROSSARM, 1, MaterialMix.single("minecraft:oak_slab")));
+
+        assertEquals(3, design.conductorCrossarmLayerIndex());
+        assertEquals(73, design.wireHangHeightFromGround(64));
+    }
 }

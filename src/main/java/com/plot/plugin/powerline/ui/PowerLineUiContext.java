@@ -73,6 +73,10 @@ public final class PowerLineUiContext {
         return state.getProjectStatus();
     }
 
+    public void pushEditSnapshot() {
+        state.getProjectHistory().push(state.getProject());
+    }
+
     public void setProjectStatus(String status) {
         state.setProjectStatus(status);
     }

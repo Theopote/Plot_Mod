@@ -3222,6 +3222,8 @@
   "plugin.powerline.build_in_progress_wait": "Placement in progress, please wait",
   "plugin.powerline.build_success": "Placed %d blocks",
   "plugin.powerline.build_partial": "Partial placement: %d / %d",
+  "plugin.powerline.build_cancelled": "Placement cancelled (%d / %d completed)",
+  "plugin.powerline.pole_height_from_design": "Pole height comes from the selected design; edit it in the designer",
   "plugin.powerline.locate_success": "Located \"%s\"",
   "plugin.powerline.project.loaded": "Loaded power line data: %s",
   "plugin.powerline.project.saved": "Saved power line data: %s",

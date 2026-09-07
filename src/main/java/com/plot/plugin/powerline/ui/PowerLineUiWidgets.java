@@ -48,6 +48,6 @@ public final class PowerLineUiWidgets {
             current,
             defaultMix,
             onChange::accept,
-            () -> ctx.projectHistory().push(ctx.project()));
+            () -> ctx.pushEditSnapshot());
     }
 }

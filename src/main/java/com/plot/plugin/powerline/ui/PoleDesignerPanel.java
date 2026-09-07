@@ -12,8 +12,8 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /** 杆塔分层设计器独立窗口。 */
 public final class PoleDesignerPanel {
@@ -21,8 +21,10 @@ public final class PoleDesignerPanel {
     private PoleDesign draft;
     private final ImString designNameBuffer = new ImString(64);
     private final ImString saveAsNameBuffer = new ImString(64);
+    private int selectedPresetIndex = 0;
     private String pendingPresetId = "";
     private boolean presetConfirmPending = false;
+    private final List<LayerAction> pendingLayerActions = new ArrayList<>();
 
     public PoleDesignerPanel(PowerLineUiContext ctx) {
         this.ctx = ctx;
@@ -74,10 +76,14 @@ public final class PoleDesignerPanel {
             .map(d -> PlotI18n.tr("plugin.powerline.design.preset_label", d.getName()))
             .toArray(String[]::new);
         String[] ids = presets.stream().map(PoleDesign::getId).toArray(String[]::new);
-        ImInt selected = new ImInt(0);
-        if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.design.load_preset"), labels[selected.get()])) {
+        selectedPresetIndex = Math.min(Math.max(0, selectedPresetIndex), labels.length - 1);
+
+        if (ImGui.beginCombo(
+                PlotI18n.tr("plugin.powerline.design.load_preset"),
+                labels[selectedPresetIndex])) {
             for (int i = 0; i < labels.length; i++) {
-                if (ImGui.selectable(labels[i], selected.get() == i)) {
+                if (ImGui.selectable(labels[i], selectedPresetIndex == i)) {
+                    selectedPresetIndex = i;
                     pendingPresetId = ids[i];
                     presetConfirmPending = true;
                 }
@@ -87,6 +93,7 @@ public final class PoleDesignerPanel {
     }
 
     private void renderLayerList() {
+        pendingLayerActions.clear();
         ImGui.text(PlotI18n.tr("plugin.powerline.design.layers"));
         for (int i = 0; i < draft.getLayers().size(); i++) {
             PoleLayer layer = draft.getLayers().get(i);
@@ -94,6 +101,7 @@ public final class PoleDesignerPanel {
             renderLayerRow(layer, i);
             ImGui.popID();
         }
+        applyPendingLayerActions();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.design.add_layer"), 0, 0)) {
             draft.getLayers().add(new PoleLayer(
                 PoleLayer.Shape.COLUMN,
@@ -141,18 +149,36 @@ public final class PoleDesignerPanel {
         ImGui.sameLine();
 
         if (index > 0 && ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.move_up"))) {
-            PoleLayer current = draft.getLayers().remove(index);
-            draft.getLayers().add(index - 1, current);
+            pendingLayerActions.add(new LayerAction(LayerAction.Type.MOVE_UP, index));
         }
         ImGui.sameLine();
-        if (index < draft.getLayers().size() - 1 && ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.move_down"))) {
-            PoleLayer current = draft.getLayers().remove(index);
-            draft.getLayers().add(index + 1, current);
+        if (index < draft.getLayers().size() - 1
+                && ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.move_down"))) {
+            pendingLayerActions.add(new LayerAction(LayerAction.Type.MOVE_DOWN, index));
         }
         ImGui.sameLine();
         if (ImGui.smallButton(PlotI18n.tr("plugin.powerline.design.delete_layer"))) {
-            draft.getLayers().remove(index);
+            pendingLayerActions.add(new LayerAction(LayerAction.Type.DELETE, index));
         }
+    }
+
+    private void applyPendingLayerActions() {
+        for (LayerAction action : pendingLayerActions) {
+            switch (action.type()) {
+                case MOVE_UP -> moveLayer(action.index(), -1);
+                case MOVE_DOWN -> moveLayer(action.index(), 1);
+                case DELETE -> draft.getLayers().remove(action.index());
+            }
+        }
+    }
+
+    private void moveLayer(int index, int offset) {
+        int target = index + offset;
+        if (target < 0 || target >= draft.getLayers().size()) {
+            return;
+        }
+        PoleLayer current = draft.getLayers().remove(index);
+        draft.getLayers().add(target, current);
     }
 
     private void renderSaveActions() {
@@ -234,5 +260,13 @@ public final class PoleDesignerPanel {
             4,
             MaterialMix.single(PowerLineFootprint.DEFAULT_POLE_MATERIAL)));
         return design;
+    }
+
+    private record LayerAction(Type type, int index) {
+        enum Type {
+            MOVE_UP,
+            MOVE_DOWN,
+            DELETE
+        }
     }
 }

@@ -80,6 +80,9 @@ public class PowerLineFootprint {
 
     public void setMinPoleSpacing(double minPoleSpacing) {
         this.minPoleSpacing = Math.max(1.0, minPoleSpacing);
+        if (this.maxPoleSpacing < this.minPoleSpacing) {
+            this.maxPoleSpacing = this.minPoleSpacing;
+        }
     }
 
     public double getMaxPoleSpacing() {
@@ -142,6 +145,10 @@ public class PowerLineFootprint {
         this.poleDesignId = poleDesignId != null && poleDesignId.isBlank() ? null : poleDesignId;
     }
 
+    public boolean hasPoleDesign() {
+        return poleDesignId != null && !poleDesignId.isBlank();
+    }
+
     public double computePathLength() {
         double length = 0.0;
         for (int i = 1; i < pathPoints.size(); i++) {
@@ -167,7 +174,9 @@ public class PowerLineFootprint {
         hash = 31 * hash + Double.hashCode(minPoleSpacing);
         hash = 31 * hash + Double.hashCode(maxPoleSpacing);
         hash = 31 * hash + Double.hashCode(cornerAngleThreshold);
-        hash = 31 * hash + Double.hashCode(poleHeight);
+        if (!hasPoleDesign()) {
+            hash = 31 * hash + Double.hashCode(poleHeight);
+        }
         hash = 31 * hash + Double.hashCode(sagRatio);
         hash = 31 * hash + materialFingerprint(wireMaterial);
         hash = 31 * hash + materialFingerprint(poleMaterial);

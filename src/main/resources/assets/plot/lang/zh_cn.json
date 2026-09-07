@@ -3222,6 +3222,8 @@
   "plugin.powerline.build_in_progress_wait": "已有落地任务进行中，请稍候",
   "plugin.powerline.build_success": "落地完成：%d 个方块",
   "plugin.powerline.build_partial": "部分落地：%d / %d",
+  "plugin.powerline.build_cancelled": "放置已取消（完成 %d / %d）",
+  "plugin.powerline.pole_height_from_design": "杆高由所选造型决定，请在设计器中编辑",
   "plugin.powerline.locate_success": "已定位到「%s」",
   "plugin.powerline.project.loaded": "已加载电力线路数据：%s",
   "plugin.powerline.project.saved": "已保存电力线路数据：%s",

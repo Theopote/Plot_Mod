@@ -41,7 +41,7 @@ public final class PowerLineEditPanel {
             line.setName(ctx.lineNameBuffer().get());
         }
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushEditSnapshot();
         }
 
         ImGui.separator();
@@ -67,7 +67,7 @@ public final class PowerLineEditPanel {
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushEditSnapshot();
         }
 
         float[] maxSpacing = {(float) line.getMaxPoleSpacing()};
@@ -81,7 +81,7 @@ public final class PowerLineEditPanel {
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushEditSnapshot();
         }
 
         float[] cornerAngle = {(float) line.getCornerAngleThreshold()};
@@ -95,23 +95,34 @@ public final class PowerLineEditPanel {
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushEditSnapshot();
         }
     }
 
     private void renderPoleControls(PowerLineFootprint line) {
-        float[] poleHeight = {(float) line.getPoleHeight()};
-        if (ImGui.sliderFloat(
-                PlotI18n.tr("plugin.powerline.pole_height", poleHeight[0]),
-                poleHeight,
-                1f,
-                64f,
-                "%.1f")) {
-            line.setPoleHeight(poleHeight[0]);
-            ctx.invalidatePreview();
-        }
-        if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+        if (line.hasPoleDesign()) {
+            PoleDesign design = ctx.designResolver().find(line.getPoleDesignId());
+            int designHeight = design != null ? design.totalHeight() : (int) line.getPoleHeight();
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.pole_design_height_hint", designHeight));
+            ImGui.textColored(
+                PluginUiColors.HINT_GRAY,
+                PlotI18n.tr("plugin.powerline.pole_height_from_design"));
+        } else {
+            float[] poleHeight = {(float) line.getPoleHeight()};
+            if (ImGui.sliderFloat(
+                    PlotI18n.tr("plugin.powerline.pole_height", poleHeight[0]),
+                    poleHeight,
+                    1f,
+                    64f,
+                    "%.1f")) {
+                line.setPoleHeight(poleHeight[0]);
+                ctx.invalidatePreview();
+            }
+            if (ImGui.isItemActivated()) {
+                ctx.pushEditSnapshot();
+            }
         }
 
         float[] sagRatio = {(float) (line.getSagRatio() * 100f)};
@@ -125,7 +136,7 @@ public final class PowerLineEditPanel {
             ctx.invalidatePreview();
         }
         if (ImGui.isItemActivated()) {
-            ctx.projectHistory().push(ctx.project());
+            ctx.pushEditSnapshot();
         }
     }
 
@@ -186,13 +197,8 @@ public final class PowerLineEditPanel {
         if (ImGui.beginCombo(PlotI18n.tr("plugin.powerline.pole_design"), labels[current])) {
             for (int i = 0; i < labels.length; i++) {
                 if (ImGui.selectable(labels[i], designIndex.get() == i)) {
-                    designIndex.set(i);
+                    ctx.pushEditSnapshot();
                     line.setPoleDesignId(ids[i].isBlank() ? null : ids[i]);
-                    PoleDesign selected = resolver.find(ids[i]);
-                    if (selected != null) {
-                        line.setPoleHeight(selected.totalHeight());
-                    }
-                    ctx.projectHistory().push(ctx.project());
                     ctx.invalidatePreview();
                 }
             }
@@ -202,11 +208,6 @@ public final class PowerLineEditPanel {
         ImGui.sameLine();
         if (ImGui.button(PlotI18n.tr("plugin.powerline.open_designer"), 0, 0)) {
             poleDesignerPanel.open(line.getPoleDesignId());
-        }
-        if (line.getPoleDesignId() != null && !line.getPoleDesignId().isBlank()) {
-            ImGui.textColored(PluginUiColors.HINT_GRAY, PlotI18n.tr(
-                "plugin.powerline.pole_design_height_hint",
-                (int) line.getPoleHeight()));
         }
     }
 }

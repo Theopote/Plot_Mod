@@ -16,13 +16,19 @@ import java.util.List;
 
 /**
  * 电力线路落地命令（支持撤销/重做）。
+ *
+ * <p>Undo / Redo 只操作 {@code appliedRecords}，避免部分失败时撤销未改动的格子。
  */
 public class PowerLineGenerateCommand implements Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(PowerLineGenerateCommand.class);
 
-    public record ExecutionResult(int success, int failed, int total, boolean cancelled) {
+    public record ExecutionResult(int success, int failed, int total, boolean cancelled, List<Integer> successfulWriteIndices) {
         public ExecutionResult(int success, int failed, int total) {
-            this(success, failed, total, false);
+            this(success, failed, total, false, List.of());
+        }
+
+        public ExecutionResult(int success, int failed, int total, boolean cancelled) {
+            this(success, failed, total, cancelled, List.of());
         }
 
         public boolean isFullSuccess() {
@@ -30,7 +36,8 @@ public class PowerLineGenerateCommand implements Command {
         }
     }
 
-    private final List<BlockRecord> records;
+    private final List<BlockRecord> requestedRecords;
+    private List<BlockRecord> appliedRecords = List.of();
     private final Date timestamp;
     private final boolean schedulePlacement;
     private final IBlockPlacementService placementScheduler;
@@ -44,7 +51,7 @@ public class PowerLineGenerateCommand implements Command {
             List<BlockRecord> records,
             IBlockProjectionService projectionHandler,
             IBlockPlacementService placementScheduler) {
-        this.records = records != null ? new ArrayList<>(records) : new ArrayList<>();
+        this.requestedRecords = records != null ? List.copyOf(records) : List.of();
         this.timestamp = new Date();
         this.schedulePlacement = true;
         this.placementScheduler = placementScheduler != null
@@ -53,36 +60,46 @@ public class PowerLineGenerateCommand implements Command {
     }
 
     public void executeScheduled(Runnable onComplete) {
-        enqueueWrites(records, true, onComplete);
+        enqueueWrites(requestedRecords, true, () -> {
+            if (onComplete != null) {
+                onComplete.run();
+            }
+        });
     }
 
     public void undoScheduled(Runnable onComplete) {
-        enqueueWritesReverse(records, onComplete);
+        enqueueWritesReverse(appliedRecords, onComplete);
     }
 
     @Override
     public void execute() {
-        enqueueWrites(records, true, () -> { });
+        enqueueWrites(requestedRecords, true, () -> { });
     }
 
     @Override
     public void undo() {
-        enqueueWritesReverse(records, () -> { });
+        if (appliedRecords.isEmpty()) {
+            return;
+        }
+        enqueueWritesReverse(appliedRecords, () -> { });
     }
 
     @Override
     public void redo() {
-        execute();
+        List<BlockRecord> toApply = appliedRecords.isEmpty() ? requestedRecords : appliedRecords;
+        enqueueWrites(toApply, true, () -> { });
     }
 
     @Override
     public String getDescription() {
-        return PlotI18n.tr("plugin.powerline.history.generate", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.powerline.history.generate", count);
     }
 
     @Override
     public String getDetailedDescription() {
-        return PlotI18n.tr("plugin.powerline.history.generate.detail", records.size());
+        int count = hasAppliedRecords() ? appliedRecords.size() : requestedRecords.size();
+        return PlotI18n.tr("plugin.powerline.history.generate.detail", count);
     }
 
     @Override
@@ -94,22 +111,30 @@ public class PowerLineGenerateCommand implements Command {
         return lastExecutionResult;
     }
 
+    public boolean hasAppliedRecords() {
+        return !appliedRecords.isEmpty();
+    }
+
+    public int getAppliedRecordCount() {
+        return appliedRecords.size();
+    }
+
     private void enqueueWrites(List<BlockRecord> source, boolean applyNewBlocks, Runnable onComplete) {
         List<IBlockPlacementService.BlockWrite> writes = new ArrayList<>(source.size());
         for (BlockRecord record : source) {
             String blockId = applyNewBlocks ? record.newBlockId : record.previousBlockId;
             writes.add(new IBlockPlacementService.BlockWrite(record.pos, blockId));
         }
+        List<BlockRecord> sourceSnapshot = List.copyOf(source);
         placementScheduler.enqueue(writes, result -> {
-            lastExecutionResult = new ExecutionResult(
-                result.success(),
-                result.failed(),
-                result.total(),
-                result.cancelled());
-            LOGGER.info("电力线路{}完成: {}/{}",
+            lastExecutionResult = toExecutionResult(result);
+            captureAppliedFromIndices(sourceSnapshot, lastExecutionResult.successfulWriteIndices());
+            LOGGER.info("电力线路{}完成: {}/{} 成功, {} 失败（applied {}）",
                 applyNewBlocks ? "落地" : "撤销",
                 lastExecutionResult.success(),
-                lastExecutionResult.total());
+                lastExecutionResult.total(),
+                lastExecutionResult.failed(),
+                appliedRecords.size());
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -123,14 +148,33 @@ public class PowerLineGenerateCommand implements Command {
             writes.add(new IBlockPlacementService.BlockWrite(record.pos, record.previousBlockId));
         }
         placementScheduler.enqueue(writes, result -> {
-            lastExecutionResult = new ExecutionResult(
-                result.success(),
-                result.failed(),
-                result.total(),
-                result.cancelled());
+            lastExecutionResult = toExecutionResult(result);
             if (onComplete != null) {
                 onComplete.run();
             }
         });
+    }
+
+    private void captureAppliedFromIndices(List<BlockRecord> source, List<Integer> successfulWriteIndices) {
+        if (successfulWriteIndices == null || successfulWriteIndices.isEmpty() || source.isEmpty()) {
+            appliedRecords = List.of();
+            return;
+        }
+        List<BlockRecord> applied = new ArrayList<>(successfulWriteIndices.size());
+        for (int index : successfulWriteIndices) {
+            if (index >= 0 && index < source.size()) {
+                applied.add(source.get(index));
+            }
+        }
+        appliedRecords = List.copyOf(applied);
+    }
+
+    private static ExecutionResult toExecutionResult(IBlockPlacementService.ExecutionResult result) {
+        return new ExecutionResult(
+            result.success(),
+            result.failed(),
+            result.total(),
+            result.cancelled(),
+            result.successfulWriteIndices());
     }
 }

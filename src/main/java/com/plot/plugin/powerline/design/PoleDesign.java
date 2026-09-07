@@ -63,6 +63,32 @@ public class PoleDesign {
         return layers.stream().mapToInt(PoleLayer::getHeight).sum();
     }
 
+    /**
+     * 自下而上遍历层栈时，最后一个 {@link PoleLayer.Shape#CROSSARM} 为导线悬挂层
+     * （即物理位置最高的横担）。
+     */
+    public int conductorCrossarmLayerIndex() {
+        int index = -1;
+        for (int i = 0; i < layers.size(); i++) {
+            if (layers.get(i).getShape() == PoleLayer.Shape.CROSSARM) {
+                index = i;
+            }
+        }
+        return index;
+    }
+
+    public int wireHangHeightFromGround(int groundY) {
+        int currentY = groundY + 1;
+        int wireHangY = groundY + totalHeight();
+        for (PoleLayer layer : layers) {
+            if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
+                wireHangY = currentY + layer.getHeight() - 1;
+            }
+            currentY += layer.getHeight();
+        }
+        return wireHangY;
+    }
+
     public PoleDesign copy() {
         PoleDesign copy = new PoleDesign(id, name);
         copy.setLayers(layers);

@@ -9,6 +9,7 @@ import com.plot.plugin.powerline.model.PowerLineFootprint;
 public class PoleLayer {
     public enum Shape {
         COLUMN,
+        /** 横担层；多层时最上方（层栈中最后一个）横担为导线悬挂层。 */
         CROSSARM,
         CAP
     }

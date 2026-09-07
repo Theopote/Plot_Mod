@@ -252,13 +252,20 @@ public final class PowerLineActions {
         PowerLineGenerateCommand command = new PowerLineGenerateCommand(records, host.projection(), host.placement());
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_in_progress", records.size()));
         command.executeScheduled(() -> {
-            host.commands().pushExecuted(command);
             PowerLineGenerateCommand.ExecutionResult result = command.getLastExecutionResult();
+            if (command.hasAppliedRecords()) {
+                host.commands().pushExecuted(command);
+            }
             if (result != null && result.isFullSuccess()) {
                 state.setProjectStatus(PlotI18n.tr("plugin.powerline.build_success", result.success()));
-            } else if (result != null) {
+            } else if (result != null && result.success() > 0) {
                 state.setProjectStatus(PlotI18n.tr(
                     "plugin.powerline.build_partial",
+                    result.success(),
+                    result.total()));
+            } else if (result != null && result.cancelled()) {
+                state.setProjectStatus(PlotI18n.tr(
+                    "plugin.powerline.build_cancelled",
                     result.success(),
                     result.total()));
             }
@@ -473,8 +480,22 @@ public final class PowerLineActions {
             return;
         }
         state.getDesignProject().addDesign(design.copy());
-        invalidatePreview();
+        if (isDesignReferencedByAnyLine(design.getId())) {
+            invalidatePreview();
+        }
         state.setProjectStatus(PlotI18n.tr("plugin.powerline.design.saved", design.getName()));
+    }
+
+    private boolean isDesignReferencedByAnyLine(String designId) {
+        if (designId == null || designId.isBlank()) {
+            return false;
+        }
+        for (PowerLineFootprint line : state.getProject().getLines().values()) {
+            if (designId.equals(line.getPoleDesignId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean saveProjectFile(Path file) {

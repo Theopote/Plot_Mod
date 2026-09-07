@@ -116,17 +116,14 @@ public class PowerLineGenerator {
             PowerLineFootprint footprint,
             PowerLineGenerationResult result) {
         int currentY = groundY + 1;
-        int wireHangY = groundY + design.totalHeight();
+        int wireHangY = design.wireHangHeightFromGround(groundY);
         Vec2d direction = tangent.lengthSquared() > 1e-12 ? tangent.normalize() : new Vec2d(1, 0);
         Vec2d normal = RoadGeometryUtils.leftNormal(direction);
 
         for (PoleLayer layer : design.getLayers()) {
             switch (layer.getShape()) {
                 case COLUMN -> placeColumnLayer(planPoint, currentY, layer, footprint, result);
-                case CROSSARM -> {
-                    placeCrossarmLayer(planPoint, currentY, layer, normal, footprint, result);
-                    wireHangY = currentY + layer.getHeight() - 1;
-                }
+                case CROSSARM -> placeCrossarmLayer(planPoint, currentY, layer, normal, footprint, result);
                 case CAP -> placeCapLayer(planPoint, currentY, layer, footprint, result);
                 default -> { }
             }
@@ -136,15 +133,7 @@ public class PowerLineGenerator {
     }
 
     static int computeWireHangHeight(int groundY, PoleDesign design) {
-        int currentY = groundY + 1;
-        int wireHangY = groundY + design.totalHeight();
-        for (PoleLayer layer : design.getLayers()) {
-            if (layer.getShape() == PoleLayer.Shape.CROSSARM) {
-                wireHangY = currentY + layer.getHeight() - 1;
-            }
-            currentY += layer.getHeight();
-        }
-        return wireHangY;
+        return design.wireHangHeightFromGround(groundY);
     }
 
     private void placeColumnLayer(
